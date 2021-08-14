@@ -39,7 +39,7 @@ public extension Surface {
         vulkan: Vulkan,
         view: NSView
     ) throws {
-        
+        precondition(view.layer is CAMetalLayer, "Surface can init only with CAMetalLayer backed view")
         // We should use unmnanaged opaque pointer to pass it on vkCreateMacOSSurfaceMVK,
         // because Vulkan crashed if we refer to local veriable or using `withUnsafePointer` function.
         // I really thought that isn't correct solution, but it's works..
@@ -73,6 +73,7 @@ public extension Surface {
         vulkan: Vulkan,
         view: UIView
     ) throws {
+        precondition(view.layer is CAMetalLayer, "Surface can init only with CAMetalLayer backed view")
         
         // We should use unmnanaged opaque pointer to pass it on vkCreateIOSSurfaceMVK,
         // because Vulkan crashed if we refer to local veriable or using `withUnsafePointer` function.
