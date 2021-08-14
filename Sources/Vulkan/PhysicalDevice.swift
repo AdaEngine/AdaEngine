@@ -36,7 +36,7 @@ public final class PhysicalDevice {
         return memory
     }
     
-    func getExtensions() throws -> [ExtensionProperties] {
+    public func getExtensions() throws -> [ExtensionProperties] {
         var count: UInt32 = 0
         
         var result = vkEnumerateDeviceExtensionProperties(self.pointer, nil, &count, nil)
@@ -105,5 +105,9 @@ public final class PhysicalDevice {
         }
         
         return support.boolValue
+    }
+    
+    public func surfaceCapabilities(for surface: Surface) throws -> VkSurfaceCapabilitiesKHR {
+        fatalError()
     }
 }

@@ -20,6 +20,7 @@ func convertTupleToUnsafePointer<T, U>(tuple: T, type: U.Type) -> UnsafePointer<
 import Foundation
 
 extension String {
+    #warning("TODO: Doesn't works fine if using withCString. Using hack instead with NSString.utf8String")
     func asCString() -> UnsafePointer<CChar>? {
 //        let cString = self.withCString { $0 }
         let cString = (self as NSString).utf8String

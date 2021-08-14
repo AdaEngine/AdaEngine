@@ -25,14 +25,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                           screen: NSScreen.main)
     
     var vulkan: Vulkan?
-
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         window.makeKeyAndOrderFront(nil)
         window.title = "Ada Editor"
         let view = MetalView()
         view.frame.size = window.frame.size
         window.contentView?.addSubview(view)
-
+        
         do {
             try setupVulkan(for: view)
         } catch {
@@ -47,12 +47,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             enabledLayerNames: ["VK_LAYER_KHRONOS_validation"],
             enabledExtensionNames: extensions.map(\.extensionName)
         )
-
+        
         let vulkan = try Vulkan(info: info)
         self.vulkan = vulkan
         
         let surface = try Surface(vulkan: vulkan, view: view)
-        print(surface.rawPointer)
+        let devices = try vulkan.physicalDevices()
+        
+        let preferredGPU = devices.first(where: { $0.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU })!
+        let device = try self.createDevice(for: preferredGPU, surface: surface)
+        print(device.rawPointer)
+    }
+    
+    func createDevice(for gpu: PhysicalDevice, surface: Surface) throws -> Device {
+        let queues = gpu.getQueueFamily()
+        
+        guard let foundedQueue = try queues.first(where: { try gpu.supportSurface(surface, queueFamily: $0) }) else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Cannot find preferred queue"])
+        }
+        
+        let info = DeviceCreateInfo(
+            enabledExtensions: [VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_portability_subset"],
+            layers: [],
+            queueCreateInfo: [
+                DeviceQueueCreateInfo(
+                    queueFamilyIndex: foundedQueue.index,
+                    flags: .none,
+                    queuePriorities: [1.0]
+                )
+            ],
+            enabledFeatures: nil)
+        
+        return try Device(physicalDevice: gpu, createInfo: info)
     }
     
     func provideExtensions() throws -> [ExtensionProperties] {
@@ -94,12 +120,3 @@ app.delegate = delegate
 app.run()
 
 #endif
-
-//
-//        let devices = try vulkan.physicalDevices()
-//
-//        let preferredGPU = devices.first(where: { $0.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU })!
-//        print(preferredGPU.getQueueFamily())
-//
-////        let device = Device(physicalDevice: preferredGPU, createInfo: <#T##VkDeviceCreateInfo#>)
-        

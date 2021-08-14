@@ -21,5 +21,8 @@ public struct LayerProperties {
         self.description = String(cString: description)
         self.specVersion = vkLayer.specVersion
         self.implementationVersion = vkLayer.implementationVersion
+        self.vulkanValue = vkLayer
     }
+    
+    public let vulkanValue: VkLayerProperties
 }

@@ -7,10 +7,6 @@
 
 import CVulkan
 
-#if os(macOS)
-import AppKit
-#endif
-
 public final class Surface {
     
     public let rawPointer: VkSurfaceKHR
@@ -36,17 +32,24 @@ public final class Surface {
 
 #if os(macOS)
 
+import AppKit
+
 public extension Surface {
     convenience init(
         vulkan: Vulkan,
         view: NSView
     ) throws {
         
+        // We should use unmnanaged opaque pointer to pass it on vkCreateMacOSSurfaceMVK,
+        // because Vulkan crashed if we refer to local veriable or using `withUnsafePointer` function.
+        // I really thought that isn't correct solution, but it's works..
+        let unmanagedView = Unmanaged.passRetained(view).autorelease().toOpaque()
+        
         var info = VkMacOSSurfaceCreateInfoMVK(
             sType: VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK,
             pNext: nil,
             flags: 0,
-            pView: withUnsafePointer(to: view, { $0 }))
+            pView: unmanagedView)
         
         var surface: VkSurfaceKHR?
         let result = vkCreateMacOSSurfaceMVK(vulkan.pointer, &info, nil, &surface)
@@ -60,3 +63,38 @@ public extension Surface {
 }
 
 #endif
+
+#if os(iOS) || os(tvOS)
+
+import UIKit
+
+public extension Surface {
+    convenience init(
+        vulkan: Vulkan,
+        view: UIView
+    ) throws {
+        
+        // We should use unmnanaged opaque pointer to pass it on vkCreateIOSSurfaceMVK,
+        // because Vulkan crashed if we refer to local veriable or using `withUnsafePointer` function.
+        // I really thought that isn't correct solution, but it's works..
+        let unmanagedView = Unmanaged.passRetained(view).autorelease().toOpaque()
+        
+        var info = VkIOSSurfaceCreateInfoMVK(
+            sType: VK_STRUCTURE_TYPE_IOS_SURFACE_CREATE_INFO_MVK,
+            pNext: nil,
+            flags: 0,
+            pView: unmanagedView)
+        
+        var surface: VkSurfaceKHR?
+        let result = vkCreateIOSSurfaceMVK(vulkan.pointer, &info, nil, &surface)
+        
+        guard let surface = surface, result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Can't create surface for UIView")
+        }
+        
+        self.init(vulkan: vulkan, surface: surface)
+    }
+}
+
+#endif
+

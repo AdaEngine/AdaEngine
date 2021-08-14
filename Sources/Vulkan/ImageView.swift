@@ -13,35 +13,3 @@ import CVulkan
 //    }
 //}
 //
-//
-//class VirtualDevice {
-//    init() {
-//        vkCreateDevice(<#T##physicalDevice: VkPhysicalDevice!##VkPhysicalDevice!#>, <#T##pCreateInfo: UnsafePointer<VkDeviceCreateInfo>!##UnsafePointer<VkDeviceCreateInfo>!#>, <#T##pAllocator: UnsafePointer<VkAllocationCallbacks>!##UnsafePointer<VkAllocationCallbacks>!#>, <#T##pDevice: UnsafeMutablePointer<VkDevice?>!##UnsafeMutablePointer<VkDevice?>!#>)
-//    }
-//}
-
-public final class Device {
-    
-    public let rawPointer: VkDevice
-    
-    init(_ rawPointer: VkDevice) {
-        self.rawPointer = rawPointer
-    }
-    
-    public convenience init(physicalDevice: PhysicalDevice, createInfo: VkDeviceCreateInfo) throws {
-        var devicePointer: VkDevice?
-        let result = withUnsafePointer(to: createInfo) { info in
-            vkCreateDevice(physicalDevice.pointer, info, nil, &devicePointer)
-        }
-        
-        guard let pointer = devicePointer, result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Can't create VkDevice for passed GPU and create info")
-        }
-        
-        self.init(pointer)
-    }
-    
-    deinit {
-        vkDestroyDevice(self.rawPointer, nil)
-    }
-}

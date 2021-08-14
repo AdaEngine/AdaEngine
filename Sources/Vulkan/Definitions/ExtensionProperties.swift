@@ -15,5 +15,8 @@ public struct ExtensionProperties {
         let name = convertTupleToUnsafePointer(tuple: vkExtProp.extensionName, type: CChar.self)
         self.extensionName = String(cString: name)
         self.specVersion = vkExtProp.specVersion
+        self.vulkanValue = vkExtProp
     }
+    
+    public let vulkanValue: VkExtensionProperties
 }
