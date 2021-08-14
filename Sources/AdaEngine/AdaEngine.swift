@@ -1,3 +1,9 @@
-struct AdaEngine {
-    var text = "Hello, World!"
+import Vulkan
+
+class Window {
+    
+    func lol() {
+        
+    }
+    
 }

@@ -1,0 +1,9 @@
+prefix=/usr/local
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: Vulkan
+Description: Vulkan SDK
+Version: 1.2.182.0
+Libs: -L${libdir} -lvulkan
+Cflags: -I${includedir}

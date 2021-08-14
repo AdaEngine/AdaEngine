@@ -1,3 +1,26 @@
 # AdaEngine
 
 A description of this package.
+
+## Installation
+
+### macOS
+
+Download and install vulkan-sdk LunarG
+
+To install pkg-config for vulkan, call Make function
+
+```bash
+$ make install_vulkan
+```
+
+If all installed correct, you got message:
+
+```
+$ pkg-config --libs --cflags vulkan
+-I/usr/local/include  -L/usr/local/lib -lvulkan
+```
+
+Make sure, that you have vulkan headers by path: `/usr/local/include/vulkan/`
+
+Another tutorial [how to install vulkan to SPM](https://blog.spencerkohan.com/vulkan-swift-linking-moltenvk-using-swift-package-manager/)
