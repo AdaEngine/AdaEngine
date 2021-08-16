@@ -7,12 +7,30 @@
 
 import CVulkan
 
+/// Taked from Godot Engine drivers/vulkan/vulkan_context.cpp
+public enum GPUVendor: UInt32, Equatable {
+    case amd = 0x1002
+    case imgTec = 0x1010
+    case nvidia = 0x10DE
+    case arm = 0x13B5
+    case qualcomm = 0x5143
+    case intel = 0x8086
+    
+    case undefined = 0x0
+}
+
 /// Wrapper on Vulkan API
 /// Represent GPU
 public final class PhysicalDevice {
     
     /// Pointer to physical device
     public let pointer: VkPhysicalDevice
+    
+    public var vendor: GPUVendor {
+        let vendorId = self.properties.vendorID
+        
+        return GPUVendor(rawValue: vendorId) ?? .undefined
+    }
     
     init(_ pointer: VkPhysicalDevice) {
         self.pointer = pointer

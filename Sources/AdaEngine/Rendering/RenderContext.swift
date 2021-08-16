@@ -21,7 +21,6 @@ public class RenderContext {
     
     public private(set) var vulkan: Vulkan?
     private var queueFamilyIndicies: QueueFamilyIndices!
-    private var enabledExtensions: [ExtensionProperties] = []
     private var device: Device!
     private var surface: Surface!
     private var gpu: PhysicalDevice!
@@ -47,7 +46,6 @@ public class RenderContext {
     
     private func createInstance(appName: String) throws -> Vulkan {
         let extensions = try Self.provideExtensions()
-        self.enabledExtensions = extensions
         
         let appInfo = VkApplicationInfo(
             sType: VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -84,14 +82,6 @@ public class RenderContext {
         
         let preferredGPU =
             devices.first(where: { $0.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU }) ?? devices[0]
-        
-        let deviceEnabledExtensions = try preferredGPU.getExtensions()
-        
-        for ext in deviceEnabledExtensions {
-            if ext.extensionName == VK_KHR_SWAPCHAIN_EXTENSION_NAME {
-                self.enabledExtensions.append(ext)
-            }
-        }
         
         return preferredGPU
     }
@@ -170,12 +160,24 @@ public class RenderContext {
     
     private func createDevice(for gpu: PhysicalDevice, surface: Surface, queueIndecies: QueueFamilyIndices) throws -> Device {
         
+        let deviceExtensions = try gpu.getExtensions()
+        var availableExtenstions = [ExtensionProperties]()
+        
+        for ext in deviceExtensions {
+            if ext.extensionName == VK_KHR_SWAPCHAIN_EXTENSION_NAME {
+                availableExtenstions.append(ext)
+            }
+        }
+        
+        
+        let properties: [Float] = [0.0]
+        
         var queueCreateInfos = [DeviceQueueCreateInfo]()
         queueCreateInfos.append(
             DeviceQueueCreateInfo(
                 queueFamilyIndex: UInt32(queueIndecies.graphicsIndex),
                 flags: .none,
-                queuePriorities: [0.0]
+                queuePriorities: properties
             )
         )
         
@@ -184,7 +186,7 @@ public class RenderContext {
                 DeviceQueueCreateInfo(
                     queueFamilyIndex: UInt32(queueIndecies.presentationIndex),
                     flags: .none,
-                    queuePriorities: [0.0]
+                    queuePriorities: properties
                 )
             )
         }
@@ -193,7 +195,7 @@ public class RenderContext {
         features.robustBufferAccess = false
         
         let info = DeviceCreateInfo(
-            enabledExtensions: self.enabledExtensions.map(\.extensionName),
+            enabledExtensions: availableExtenstions.map(\.extensionName),
             layers: [],
             queueCreateInfo: queueCreateInfos,
             enabledFeatures: features
