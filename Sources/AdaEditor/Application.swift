@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 8/11/21.
 //
 
-import Foundation
 import CSDL2
 import Vulkan
 import CVulkan

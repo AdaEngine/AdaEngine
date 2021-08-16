@@ -86,14 +86,32 @@ public final class PhysicalDevice {
             throw VKError(code: result, message: "Can't get surface formats")
         }
         
-        var formats = [VkSurfaceFormatKHR](repeating: VkSurfaceFormatKHR(), count: Int(count))
-        result = vkGetPhysicalDeviceSurfaceFormatsKHR(self.pointer, surface.rawPointer, &count, &formats)
+        var items = [VkSurfaceFormatKHR](repeating: VkSurfaceFormatKHR(), count: Int(count))
+        result = vkGetPhysicalDeviceSurfaceFormatsKHR(self.pointer, surface.rawPointer, &count, &items)
         
         guard result == VK_SUCCESS else {
             throw VKError(code: result, message: "Can't get surface formats")
         }
         
-        return formats
+        return items
+    }
+    
+    public func presentModes(for surface: Surface) throws -> [VkPresentModeKHR] {
+        var count: UInt32 = 0
+        var result = vkGetPhysicalDeviceSurfacePresentModesKHR(self.pointer, surface.rawPointer, &count, nil)
+        
+        guard result == VK_SUCCESS, count > 0 else {
+            throw VKError(code: result, message: "Can't get present modes")
+        }
+        
+        var items = [VkPresentModeKHR](repeating: VkPresentModeKHR(0), count: Int(count))
+        result = vkGetPhysicalDeviceSurfacePresentModesKHR(self.pointer, surface.rawPointer, &count, &items)
+        
+        guard result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Can't get present modes")
+        }
+        
+        return items
     }
     
     public func supportSurface(_ surface: Surface, queueFamily: QueueFamilyProperties) throws -> Bool {
@@ -108,6 +126,24 @@ public final class PhysicalDevice {
     }
     
     public func surfaceCapabilities(for surface: Surface) throws -> VkSurfaceCapabilitiesKHR {
-        fatalError()
+        var capabilities = VkSurfaceCapabilitiesKHR()
+        let result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(self.pointer, surface.rawPointer, &capabilities)
+        
+        if result != VK_SUCCESS {
+            throw VKError(code: result, message: "Cannot get VkSurfaceCapabilitiesKHR")
+        }
+        
+        return capabilities
     }
 }
+
+public extension VkPresentModeKHR {
+    static let immediate: VkPresentModeKHR = VK_PRESENT_MODE_IMMEDIATE_KHR
+    static let mailbox: VkPresentModeKHR = VK_PRESENT_MODE_MAILBOX_KHR
+    static let fifo: VkPresentModeKHR = VK_PRESENT_MODE_FIFO_KHR
+    static let fifoRelaxed: VkPresentModeKHR = VK_PRESENT_MODE_FIFO_RELAXED_KHR
+    static let sharedDemandRefresh: VkPresentModeKHR = VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR
+    static let sharedContinuousRefresh: VkPresentModeKHR = VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR
+    static let maxEnum: VkPresentModeKHR = VK_PRESENT_MODE_MAX_ENUM_KHR
+}
+

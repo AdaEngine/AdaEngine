@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 8/12/21.
 //
 
-import Foundation
 import simd
 
 /// Vector with floats
@@ -21,15 +20,15 @@ protocol Vector: Codable, Hashable {
     
 }
 
-public struct Vector_2<Scalar: VectorScalar>: Vector, Equatable {
+public struct Vector_2<Scalar: FloatingPoint & Codable>: Vector, Equatable {
     public var x: Scalar
     public var y: Scalar
 }
 
-public extension Vector_2: ExpressibleByArrayLiteral {
+extension Vector_2: ExpressibleByArrayLiteral where Scalar: FloatingPoint {
     
     /// Create
-    init(arrayLiteral elements: ArrayLiteralElement...) {
+    public init(arrayLiteral elements: Scalar...) {
         self.init(elements[0], elements[1])
     }
     
@@ -40,7 +39,7 @@ public extension Vector_2: ExpressibleByArrayLiteral {
 
 // MARK: - Methods
 
-public extension Vector_2 where Scalar: FloatingPoint {
+public extension Vector_2 where Scalar == Float {
     
     static let zero = Vector_2(x: .zero, y: .zero)
     

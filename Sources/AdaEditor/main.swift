@@ -24,7 +24,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                           defer: false,
                           screen: NSScreen.main)
     
-    var vulkan: Vulkan?
+    private var context: RenderContext = RenderContext()
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         window.makeKeyAndOrderFront(nil)
@@ -34,85 +34,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentView?.addSubview(view)
         
         do {
-            try setupVulkan(for: view)
+            try context.initialize(with: "Ada Editor")
+            try context.createWindow(for: view, size: [800, 600])
         } catch {
             print(error)
         }
     }
     
-    private func setupVulkan(for view: MetalView) throws {
-        let extensions = try self.provideExtensions()
-        
-        let info = InstanceCreateInfo(
-            enabledLayerNames: ["VK_LAYER_KHRONOS_validation"],
-            enabledExtensionNames: extensions.map(\.extensionName)
-        )
-        
-        let vulkan = try Vulkan(info: info)
-        self.vulkan = vulkan
-        
-        let surface = try Surface(vulkan: vulkan, view: view)
-        let devices = try vulkan.physicalDevices()
-        
-        let preferredGPU = devices.first(where: { $0.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU })!
-        let device = try self.createDevice(for: preferredGPU, surface: surface)
-        print(device.rawPointer)
-    }
-    
-    func createDevice(for gpu: PhysicalDevice, surface: Surface) throws -> Device {
-        let queues = gpu.getQueueFamily()
-        
-        guard let foundedQueue = try queues.first(where: { try gpu.supportSurface(surface, queueFamily: $0) }) else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Cannot find preferred queue"])
-        }
-        
-        let info = DeviceCreateInfo(
-            enabledExtensions: [VK_KHR_SWAPCHAIN_EXTENSION_NAME, "VK_KHR_portability_subset"],
-            layers: [],
-            queueCreateInfo: [
-                DeviceQueueCreateInfo(
-                    queueFamilyIndex: foundedQueue.index,
-                    flags: .none,
-                    queuePriorities: [1.0]
-                )
-            ],
-            enabledFeatures: nil)
-        
-        return try Device(physicalDevice: gpu, createInfo: info)
-    }
-    
-    func provideExtensions() throws -> [ExtensionProperties] {
-        let extensions = try Vulkan.getExtensions()
-        
-        var availableExtenstions = [ExtensionProperties]()
-        var isSurfaceFound = false
-        var isPlatformExtFound = false
-        
-        for ext in extensions {
-            if ext.extensionName == VK_KHR_SURFACE_EXTENSION_NAME {
-                isSurfaceFound = true
-                availableExtenstions.append(ext)
-            }
-            
-            if ext.extensionName == "VK_MVK_macos_surface" {
-                availableExtenstions.append(ext)
-                isPlatformExtFound = true
-            }
-            
-            if ext.extensionName == VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME {
-                availableExtenstions.append(ext)
-            }
-            
-            if ext.extensionName == VK_EXT_DEBUG_UTILS_EXTENSION_NAME {
-                availableExtenstions.append(ext)
-            }
-        }
-        
-        assert(isSurfaceFound, "No surface extension found, is a driver installed?")
-        assert(isPlatformExtFound, "No surface extension found, is a driver installed?")
-        
-        return availableExtenstions
-    }
 }
 
 let delegate = AppDelegate()

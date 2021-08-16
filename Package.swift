@@ -36,12 +36,12 @@ let package = Package(
         
         .target(
             name: "AdaEditor",
-            dependencies: ["AdaEngine", "Vulkan", "CSDL2"]
+            dependencies: ["AdaEngine", "Vulkan", "CSDL2", "Math"]
         ),
         
         .target(
             name: "AdaEngine",
-            dependencies: ["Vulkan"]
+            dependencies: ["Vulkan", "Math"]
         ),
         
         // Just for test

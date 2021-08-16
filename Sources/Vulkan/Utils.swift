@@ -24,7 +24,7 @@ extension String {
     func asCString() -> UnsafePointer<CChar>? {
 //        let cString = self.withCString { $0 }
         let cString = (self as NSString).utf8String
-        print("Convert", self, "as", String(cString: cString!, encoding: .utf8))
+//        print("Convert", self, "as", String(cString: cString!, encoding: .utf8))
         return cString
     }
 }
