@@ -8,6 +8,7 @@
 import CVulkan
 
 /// Taked from Godot Engine drivers/vulkan/vulkan_context.cpp
+/// - SeeAlso: https://github.com/godotengine/godot
 public enum GPUVendor: UInt32, Equatable {
     case amd = 0x1002
     case imgTec = 0x1010
@@ -20,7 +21,7 @@ public enum GPUVendor: UInt32, Equatable {
 }
 
 /// Wrapper on Vulkan API
-/// Represent GPU
+/// Represent GPU device
 public final class PhysicalDevice {
     
     /// Pointer to physical device

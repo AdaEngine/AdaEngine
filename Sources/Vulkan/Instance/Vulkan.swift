@@ -12,15 +12,8 @@ public class Vulkan {
     /// Pointer to vulkan instance
     public let pointer: VkInstance
     
-    public init(_ createInfo: VkInstanceCreateInfo) throws {
-        var instance: VkInstance?
-        let result = withUnsafePointer(to: createInfo) { vkCreateInstance($0, nil, &instance) }
-        
-        if result != VK_SUCCESS {
-            throw VKError(code: result, message: "Cannot create Vulkan Instance")
-        }
-        
-        self.pointer = instance!
+    init(_ pointer: VkInstance) {
+        self.pointer = pointer
     }
     
     deinit {
@@ -53,26 +46,44 @@ public class Vulkan {
 
 public extension Vulkan {
     
+    convenience init(_ createInfo: VkInstanceCreateInfo) throws {
+        var instance: VkInstance?
+        let result = withUnsafePointer(to: createInfo) { vkCreateInstance($0, nil, &instance) }
+        
+        guard let vulkan = instance, result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Cannot create Vulkan Instance")
+        }
+        
+        self.init(vulkan)
+    }
+    
     convenience init(info: InstanceCreateInfo) throws {
         
         let layerNames = info.enabledLayerNames.map { $0.asCString() }
-        let ppEnabledLayerNames = layerNames.withContiguousStorageIfAvailable { $0 }
-        
         let extensions = info.enabledExtensionNames.map { $0.asCString() }
-        let ppEnabledExtensionNames = extensions.withContiguousStorageIfAvailable { $0 }
         
-        let appInfo = info.applicationInfo.flatMap { info in
-            withUnsafePointer(to: info, { $0 })
+        let appInfo = info.applicationInfo ?? VkApplicationInfo()
+        
+        var instance: VkInstance?
+        let result = withUnsafePointer(to: appInfo) { infoPtr -> VkResult in
+            var createInfo = VkInstanceCreateInfo(
+                sType: VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+                pNext: nil,
+                flags: 0,
+                pApplicationInfo: info.applicationInfo == nil ? nil : infoPtr,
+                enabledLayerCount: UInt32(layerNames.count),
+                ppEnabledLayerNames: layerNames,
+                enabledExtensionCount: UInt32(extensions.count),
+                ppEnabledExtensionNames: extensions
+            )
+               
+            return vkCreateInstance(&createInfo, nil, &instance)
         }
         
-        var createInfo = VkInstanceCreateInfo()
-        createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO
-        createInfo.enabledLayerCount = UInt32(layerNames.count)
-        createInfo.ppEnabledLayerNames = ppEnabledLayerNames?.baseAddress
-        createInfo.enabledExtensionCount = UInt32(extensions.count)
-        createInfo.ppEnabledExtensionNames = ppEnabledExtensionNames?.baseAddress
-        createInfo.pApplicationInfo = appInfo
+        guard let vulkan = instance, result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Cannot create Vulkan Instance")
+        }
         
-        try self.init(createInfo)
+        self.init(vulkan)
     }
 }

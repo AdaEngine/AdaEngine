@@ -28,6 +28,12 @@ public class RenderContext {
     private var graphicsQueue: VkQueue?
     private var presentationQueue: VkQueue?
     
+    private var imageViews: [ImageView] = []
+    private var imageFormat: VkFormat!
+    private var colorSpace: VkColorSpaceKHR!
+    
+    private var renderPass: RenderPass!
+
     public let vulkanVersion: UInt32
     
     public required init() {
@@ -40,6 +46,10 @@ public class RenderContext {
         
         let gpu = try self.createGPU(vulkan: vulkan)
         self.gpu = gpu
+    }
+    
+    public func flush() {
+        
     }
     
     // MARK: - Private
@@ -58,7 +68,7 @@ public class RenderContext {
         )
         
         let info = InstanceCreateInfo(
-//            applicationInfo: appInfo,
+            applicationInfo: appInfo,
             // TODO: Add enabledLayers flag to manage layers
             enabledLayerNames: ["VK_LAYER_KHRONOS_validation"],
             enabledExtensionNames: extensions.map(\.extensionName)
@@ -67,10 +77,14 @@ public class RenderContext {
         return try Vulkan(info: info)
     }
     
-    private func createWindow(surface: Surface, size: Vector2) throws {
+    private func createWindow(surface: Surface, size: Vector2i) throws {
         if self.graphicsQueue == nil && self.presentationQueue == nil {
             try self.createQueues(gpu: self.gpu, surface: surface)
         }
+        
+        self.surface = surface
+        
+        try self.createSwapchain(for: size)
     }
     
     private func createGPU(vulkan: Vulkan) throws -> PhysicalDevice {
@@ -135,27 +149,119 @@ public class RenderContext {
         self.presentationQueue = indecies.isSeparate ? device.getQueue(at: indecies.presentationIndex) : self.graphicsQueue
     }
     
-    private func createSwapchain() {
-        //        let createInfo = VkSwapchainCreateInfoKHR(
-        //            sType: k,
-        //            pNext: nil, flags: 0,
-        //            surface: surface.rawPointer,
-        //            minImageCount: <#T##UInt32#>,
-        //            imageFormat: <#T##VkFormat#>,
-        //            imageColorSpace: <#T##VkColorSpaceKHR#>,
-        //            imageExtent: <#T##VkExtent2D#>,
-        //            imageArrayLayers: <#T##UInt32#>,
-        //            imageUsage: <#T##VkImageUsageFlags#>,
-        //            imageSharingMode: <#T##VkSharingMode#>,
-        //            queueFamilyIndexCount: <#T##UInt32#>,
-        //            pQueueFamilyIndices: <#T##UnsafePointer<UInt32>!#>,
-        //            preTransform: <#T##VkSurfaceTransformFlagBitsKHR#>,
-        //            compositeAlpha: <#T##VkCompositeAlphaFlagBitsKHR#>,
-        //            presentMode: <#T##VkPresentModeKHR#>,
-        //            clipped: <#T##VkBool32#>,
-        //            oldSwapchain: <#T##VkSwapchainKHR!#>)
-        //
-        //        let swapchain = Swapchain(device: device, createInfo: <#T##VkSwapchainCreateInfoKHR#>)
+    private func createSwapchain(for size: Vector2i) throws {
+        let surfaceCapabilities = try self.gpu.surfaceCapabilities(for: self.surface)
+        
+        var imageFormat = VK_FORMAT_B8G8R8A8_UNORM
+        var colorSpace: VkColorSpaceKHR
+        
+        let formats = try self.gpu.surfaceFormats(for: self.surface)
+        
+        if formats.isEmpty {
+            throw AdaError("Surface formats not found")
+        }
+        
+        if formats.count == 1 && formats[0].format == VK_FORMAT_UNDEFINED {
+            imageFormat = VK_FORMAT_B8G8R8A8_UNORM
+            colorSpace = formats[0].colorSpace
+        } else {
+            let availableFormats = [VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_R8G8B8A8_UNORM]
+            
+            guard let preferredFormat = formats.first(where: { availableFormats.contains($0.format) }) else {
+                throw AdaError("Not found supported format")
+            }
+            
+            colorSpace = preferredFormat.colorSpace
+            imageFormat = preferredFormat.format
+        }
+        
+        let extent: VkExtent2D
+        
+        if surfaceCapabilities.currentExtent.width != UInt32.max {
+            extent = surfaceCapabilities.currentExtent
+        } else {
+            extent = VkExtent2D(width: UInt32(size.x), height: UInt32(size.y))
+        }
+        
+        let swapchainPresentMode = VK_PRESENT_MODE_FIFO_KHR
+        
+        let imageCount = surfaceCapabilities.minImageCount + 1 // TODO: Change it for latter
+        
+        let preTransform: VkSurfaceTransformFlagsKHR
+        if (surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR.rawValue) == true {
+            preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR.rawValue
+        } else {
+            preTransform = surfaceCapabilities.supportedTransforms
+        }
+        
+        let availableCompositionAlpha = [VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+                                         VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+                                         VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR]
+        
+        let compositionAlpha = availableCompositionAlpha.first {
+            (surfaceCapabilities.supportedCompositeAlpha & $0.rawValue) == true
+        } ?? VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+        
+        let swapchainInfo = VkSwapchainCreateInfoKHR(
+            sType: VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            pNext: nil,
+            flags: 0,
+            surface: surface.rawPointer,
+            minImageCount: imageCount,
+            imageFormat: imageFormat,
+            imageColorSpace: colorSpace,
+            imageExtent: extent,
+            imageArrayLayers: 1,
+            imageUsage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue,
+            imageSharingMode: VK_SHARING_MODE_EXCLUSIVE,
+            queueFamilyIndexCount: 0,
+            pQueueFamilyIndices: nil,
+            preTransform: VkSurfaceTransformFlagBitsKHR(rawValue: preTransform),
+            compositeAlpha: compositionAlpha,
+            presentMode: swapchainPresentMode,
+            clipped: true,
+            oldSwapchain: nil)
+        
+        let swapchain = try Swapchain(device: self.device, createInfo: swapchainInfo)
+        
+        self.imageFormat = imageFormat
+        self.colorSpace = colorSpace
+        
+        let images = try swapchain.getImages()
+        
+        self.imageViews.removeAll()
+        var imageViews = [ImageView]()
+        for image in images {
+            let info = VkImageViewCreateInfo(
+                sType: VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                pNext: nil,
+                flags: 0,
+                image: image,
+                viewType: VK_IMAGE_VIEW_TYPE_2D,
+                format: imageFormat,
+                components: VkComponentMapping(
+                    r: VK_COMPONENT_SWIZZLE_R,
+                    g: VK_COMPONENT_SWIZZLE_G,
+                    b: VK_COMPONENT_SWIZZLE_B,
+                    a: VK_COMPONENT_SWIZZLE_A
+                ),
+                subresourceRange: VkImageSubresourceRange(
+                    aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue,
+                    baseMipLevel: 0,
+                    levelCount: 1,
+                    baseArrayLayer: 0,
+                    layerCount: 1
+                )
+            )
+            
+            let imageView = try ImageView(device: self.device, info: info)
+            imageViews.append(imageView)
+        }
+        
+        self.imageViews = imageViews
+        
+        try self.createRenderPass(size: size)
+        try self.createFramebuffer(size: size)
     }
     
     private func createDevice(for gpu: PhysicalDevice, surface: Surface, queueIndecies: QueueFamilyIndices) throws -> Device {
@@ -168,7 +274,6 @@ public class RenderContext {
                 availableExtenstions.append(ext)
             }
         }
-        
         
         let properties: [Float] = [0.0]
         
@@ -204,6 +309,74 @@ public class RenderContext {
         return try Device(physicalDevice: gpu, createInfo: info)
     }
     
+    private func createRenderPass(size: Vector2i) throws {
+        var attachment = VkAttachmentDescription(
+            flags: 0,
+            format: self.imageFormat,
+            samples: VK_SAMPLE_COUNT_1_BIT,
+            loadOp: VK_ATTACHMENT_LOAD_OP_CLEAR,
+            storeOp: VK_ATTACHMENT_STORE_OP_STORE,
+            stencilLoadOp: VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            stencilStoreOp: VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            initialLayout: VK_IMAGE_LAYOUT_UNDEFINED,
+            finalLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        )
+        
+        var colorDescription = VkAttachmentReference(attachment: 0, layout: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        
+        var subpass = VkSubpassDescription(
+            flags: 0,
+            pipelineBindPoint: VK_PIPELINE_BIND_POINT_GRAPHICS,
+            inputAttachmentCount: 0,
+            pInputAttachments: nil,
+            colorAttachmentCount: 1,
+            pColorAttachments: &colorDescription,
+            pResolveAttachments: nil,
+            pDepthStencilAttachment: nil,
+            preserveAttachmentCount: 0,
+            pPreserveAttachments: nil
+        )
+        
+        let renderPassCreateInfo = VkRenderPassCreateInfo(
+            sType: VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            attachmentCount: 1,
+            pAttachments:&attachment,
+            subpassCount: 1,
+            pSubpasses: &subpass,
+            dependencyCount: 0,
+            pDependencies: nil
+        )
+        
+        let renderPass = try RenderPass(device: self.device, createInfo: renderPassCreateInfo)
+        self.renderPass = renderPass
+    }
+    
+    private func createFramebuffer(size: Vector2i) throws {
+        
+        for imageView in imageViews {
+            
+            var attachment = imageView.rawPointer
+            
+            let createInfo = VkFramebufferCreateInfo(
+                sType: VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                pNext: nil,
+                flags: 0,
+                renderPass: self.renderPass.rawPointer,
+                attachmentCount: 1,
+                pAttachments: &attachment,
+                width: UInt32(size.x),
+                height: UInt32(size.y),
+                layers: 1
+            )
+            
+            let framebuffer = try Framebuffer(device: self.device, createInfo: createInfo)
+            print(framebuffer)
+        }
+
+    }
+    
 }
 
 extension RenderContext {
@@ -216,7 +389,7 @@ extension RenderContext {
             fatalError("Vulkan API got error when trying get sdk version")
         }
         
-        return vkMakeApiVersion(version, version, version)
+        return version
     }
     
     private static func provideExtensions() throws -> [ExtensionProperties] {
@@ -232,8 +405,7 @@ extension RenderContext {
                 availableExtenstions.append(ext)
             }
             
-            /// TODO: Change it later for platform specific surface
-            if ext.extensionName == "VK_MVK_macos_surface" {
+            if ext.extensionName == Self.platformSpecificSurfaceExtensionName {
                 availableExtenstions.append(ext)
                 isPlatformExtFound = true
             }
@@ -254,12 +426,12 @@ extension RenderContext {
     }
 }
 
-#if os(macOS)
+#if os(macOS) || os(iOS) || os(tvOS)
 
 import MetalKit
 
 public extension RenderContext {
-    func createWindow(for view: MTKView, size: Vector2) throws {
+    func createWindow(for view: MTKView, size: Vector2i) throws {
         precondition(self.vulkan != nil, "Vulkan instance not created.")
         
         let surface = try Surface(vulkan: self.vulkan!, view: view)
@@ -268,6 +440,23 @@ public extension RenderContext {
 }
 
 #endif
+
+extension RenderContext {
+    // TODO: Change to constants
+    static var platformSpecificSurfaceExtensionName: String {
+        #if os(macOS)
+        return "VK_MVK_macos_surface"
+        #elseif os(iOS) || os(tvOS)
+        return "VK_MVK_ios_surface"
+        #elseif os(Windows)
+        return "VK_MVK_ios_surface"
+        #elseif os(Linux)
+        return "VK_MVK_ios_surface"
+        #else
+        return "NotFound"
+        #endif
+    }
+}
 
 public struct AdaError: LocalizedError {
     let message: String

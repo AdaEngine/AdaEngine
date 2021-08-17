@@ -9,6 +9,7 @@ import AdaEngine
 import Vulkan
 import CVulkan
 import CSDL2
+import Math
 
 #if os(macOS)
 
@@ -35,7 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         do {
             try context.initialize(with: "Ada Editor")
-            try context.createWindow(for: view, size: [800, 600])
+            try context.createWindow(for: view, size: Vector2i(x: 800, y: 600))
         } catch {
             print(error)
         }

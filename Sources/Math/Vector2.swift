@@ -9,20 +9,34 @@ import simd
 
 /// Vector with floats
 public typealias Vector2 = Vector_2<Float>
+public typealias Vector2i = Vector_2<Int>
 
-protocol VectorScalar: Numeric, Hashable {
-    
-}
+public protocol VectorScalar: Numeric, Hashable, Codable { }
+
+extension Float: VectorScalar {}
+extension Double: VectorScalar {}
+extension Int: VectorScalar {}
+extension UInt32: VectorScalar {}
+extension UInt64: VectorScalar {}
 
 
 /// Base vector protocol
-protocol Vector: Codable, Hashable {
+public protocol Vector: Codable, Hashable {
     
 }
 
-public struct Vector_2<Scalar: FloatingPoint & Codable>: Vector, Equatable {
+public struct Vector_2<Scalar: VectorScalar>: Vector, Equatable {
     public var x: Scalar
     public var y: Scalar
+    
+    public init(_ x: Scalar, _ y: Scalar) {
+        self.init(x: x, y: y)
+    }
+    
+    public init(x: Scalar, y: Scalar) {
+        self.x = x
+        self.y = y
+    }
 }
 
 extension Vector_2: ExpressibleByArrayLiteral where Scalar: FloatingPoint {
@@ -32,9 +46,6 @@ extension Vector_2: ExpressibleByArrayLiteral where Scalar: FloatingPoint {
         self.init(elements[0], elements[1])
     }
     
-    init(_ x: Scalar, _ y: Scalar) {
-        self.init(x: x, y: y)
-    }
 }
 
 // MARK: - Methods

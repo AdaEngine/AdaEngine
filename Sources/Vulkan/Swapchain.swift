@@ -34,8 +34,22 @@ public class Swapchain {
     deinit {
         vkDestroySwapchainKHR(self.device.rawPointer, self.rawPointer, nil)
     }
-}
-
-struct SwapchainCreateInfo {
     
+    public func getImages() throws -> [VkImage] {
+        var count: UInt32 = 0
+        var result = vkGetSwapchainImagesKHR(self.device.rawPointer, self.rawPointer, &count, nil)
+        
+        guard result == VK_SUCCESS, count > 0 else {
+            throw VKError(code: result, message: "Failed to get images from swapchain")
+        }
+        
+        var images = [VkImage?](repeating: nil, count: Int(count))
+        result = vkGetSwapchainImagesKHR(self.device.rawPointer, self.rawPointer, &count, &images)
+        
+        guard result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Failed to get images from swapchain")
+        }
+        
+        return images.compactMap { $0 }
+    }
 }
