@@ -10,6 +10,7 @@ import Darwin
 #elseif os(Linux)
 import Glibc
 #endif
+import CVulkan
 
 func convertTupleToUnsafePointer<T, U>(tuple: T, type: U.Type) -> UnsafePointer<U> {
     return withUnsafePointer(to: tuple) { pointer in
@@ -17,14 +18,25 @@ func convertTupleToUnsafePointer<T, U>(tuple: T, type: U.Type) -> UnsafePointer<
     }
 }
 
+/// Helper method to check Vulkan results
+/// - Parameter result: VkResult value
+/// - Parameter message: Localized error message if VkResult is not a VK_SUCCESS
+/// - Throws: `VKError` with result code and user message
+func vkCheck(_ result: VkResult, _ message: String = "") throws {
+    guard result == VK_SUCCESS else {
+        throw VKError(code: result, message: message)
+    }
+}
+
+#if canImport(Foundation)
 import Foundation
 
 extension String {
-    #warning("TODO: Doesn't works fine if using withCString. Using hack instead with NSString.utf8String")
+    
+    // TODO: Replace to closure like sintax"
     func asCString() -> UnsafePointer<CChar>? {
-//        let cString = self.withCString { $0 }
         let cString = (self as NSString).utf8String
-//        print("Convert", self, "as", String(cString: cString!, encoding: .utf8))
         return cString
     }
 }
+#endif

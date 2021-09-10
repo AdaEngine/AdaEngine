@@ -25,7 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                           defer: false,
                           screen: NSScreen.main)
     
-    private var context: RenderContext = RenderContext()
+    private var renderer: RenderBackend!
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         window.makeKeyAndOrderFront(nil)
@@ -35,8 +35,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentView?.addSubview(view)
         
         do {
-            try context.initialize(with: "Ada Editor")
-            try context.createWindow(for: view, size: Vector2i(x: 800, y: 600))
+            self.renderer = try VulkanRenderBackend(appName: "Ada Engine")
+            try renderer.createWindow(for: view, size: Vector2i(x: 800, y: 600))
         } catch {
             print(error)
         }

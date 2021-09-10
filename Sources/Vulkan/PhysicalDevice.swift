@@ -67,9 +67,7 @@ public final class PhysicalDevice {
         var properties = [VkExtensionProperties](repeating: VkExtensionProperties(), count: Int(count))
         result = vkEnumerateDeviceExtensionProperties(self.pointer, nil, &count, &properties)
         
-        guard result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Can't get extensions properties for GPU")
-        }
+        try vkCheck(result, "Can't get extensions properties for GPU")
         
         return properties.map(ExtensionProperties.init)
     }
@@ -108,9 +106,7 @@ public final class PhysicalDevice {
         var items = [VkSurfaceFormatKHR](repeating: VkSurfaceFormatKHR(), count: Int(count))
         result = vkGetPhysicalDeviceSurfaceFormatsKHR(self.pointer, surface.rawPointer, &count, &items)
         
-        guard result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Can't get surface formats")
-        }
+        try vkCheck(result, "Can't get surface formats")
         
         return items
     }
@@ -126,9 +122,7 @@ public final class PhysicalDevice {
         var items = [VkPresentModeKHR](repeating: VkPresentModeKHR(0), count: Int(count))
         result = vkGetPhysicalDeviceSurfacePresentModesKHR(self.pointer, surface.rawPointer, &count, &items)
         
-        guard result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Can't get present modes")
-        }
+        try vkCheck(result, "Can't get present modes")
         
         return items
     }
@@ -137,9 +131,7 @@ public final class PhysicalDevice {
         var support: VkBool32 = false
         let result = vkGetPhysicalDeviceSurfaceSupportKHR(self.pointer, queueFamily.index, surface.rawPointer, &support)
         
-        if result != VK_SUCCESS {
-            throw VKError(code: result, message: "Can't check surface support")
-        }
+        try vkCheck(result, "Can't check surface support")
         
         return support.boolValue
     }
@@ -148,9 +140,7 @@ public final class PhysicalDevice {
         var capabilities = VkSurfaceCapabilitiesKHR()
         let result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(self.pointer, surface.rawPointer, &capabilities)
         
-        if result != VK_SUCCESS {
-            throw VKError(code: result, message: "Cannot get VkSurfaceCapabilitiesKHR")
-        }
+        try vkCheck(result, "Cannot get VkSurfaceCapabilitiesKHR")
         
         return capabilities
     }

@@ -22,13 +22,11 @@ public class Swapchain {
         let result = withUnsafePointer(to: createInfo) { info in
             vkCreateSwapchainKHR(device.rawPointer, info, nil, &swapchain)
         }
-
-        guard let pointer = swapchain, result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Can't create swapchain")
-        }
+        
+        try vkCheck(result, "Can't create swapchain")
         
         self.device = device
-        self.rawPointer = pointer
+        self.rawPointer = swapchain!
     }
     
     deinit {
@@ -46,9 +44,7 @@ public class Swapchain {
         var images = [VkImage?](repeating: nil, count: Int(count))
         result = vkGetSwapchainImagesKHR(self.device.rawPointer, self.rawPointer, &count, &images)
         
-        guard result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Failed to get images from swapchain")
-        }
+        try vkCheck(result, "Failed to get images from swapchain")
         
         return images.compactMap { $0 }
     }

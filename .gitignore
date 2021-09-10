@@ -1,7 +1,16 @@
+# macOS
+
 .DS_Store
+
+# Swift Package Manager
+
 /.build
 /Packages
 /*.xcodeproj
 xcuserdata/
 DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+
+# Compiled Shaders
+
+/Sources/AdaEngine/Rendering/Shaders/*.spv

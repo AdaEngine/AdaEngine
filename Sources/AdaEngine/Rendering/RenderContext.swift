@@ -17,13 +17,13 @@ struct QueueFamilyIndices {
     let isSeparate: Bool
 }
 
-public class RenderContext {
+public class VulkanRenderContext {
     
     public private(set) var vulkan: Vulkan?
     private var queueFamilyIndicies: QueueFamilyIndices!
-    private var device: Device!
-    private var surface: Surface!
-    private var gpu: PhysicalDevice!
+    public private(set) var device: Device!
+    public private(set) var surface: Surface!
+    public private(set) var gpu: PhysicalDevice!
     
     private var graphicsQueue: VkQueue?
     private var presentationQueue: VkQueue?
@@ -32,7 +32,11 @@ public class RenderContext {
     private var imageFormat: VkFormat!
     private var colorSpace: VkColorSpaceKHR!
     
-    private var renderPass: RenderPass!
+    public private(set) var renderPass: RenderPass!
+    private var swapchain: Swapchain!
+    
+    private var commandPool: CommandPool!
+    private var commandBuffer: CommandBuffer!
 
     public let vulkanVersion: UInt32
     
@@ -48,8 +52,12 @@ public class RenderContext {
         self.gpu = gpu
     }
     
-    public func flush() {
+    public func updateSwapchain(for size: Vector2i) throws {
+        if self.swapchain != nil {
+            try self.destroySwapchain()
+        }
         
+        try self.createSwapchain(for: size)
     }
     
     // MARK: - Private
@@ -61,9 +69,9 @@ public class RenderContext {
             sType: VK_STRUCTURE_TYPE_APPLICATION_INFO,
             pNext: nil,
             pApplicationName: appName,
-            applicationVersion: 0,
+            applicationVersion: 0, // TODO: pass app version
             pEngineName: "Ada Engine",
-            engineVersion: 0,
+            engineVersion: 0, // TODO: pass engine version
             apiVersion: vulkanVersion
         )
         
@@ -149,6 +157,11 @@ public class RenderContext {
         self.presentationQueue = indecies.isSeparate ? device.getQueue(at: indecies.presentationIndex) : self.graphicsQueue
     }
     
+    private func destroySwapchain() throws {
+        try self.device.waitIdle()
+        self.swapchain = nil
+    }
+    
     private func createSwapchain(for size: Vector2i) throws {
         let surfaceCapabilities = try self.gpu.surfaceCapabilities(for: self.surface)
         
@@ -223,6 +236,7 @@ public class RenderContext {
             oldSwapchain: nil)
         
         let swapchain = try Swapchain(device: self.device, createInfo: swapchainInfo)
+        self.swapchain = swapchain
         
         self.imageFormat = imageFormat
         self.colorSpace = colorSpace
@@ -355,7 +369,7 @@ public class RenderContext {
     
     private func createFramebuffer(size: Vector2i) throws {
         
-        for imageView in imageViews {
+        for imageView in self.imageViews {
             
             var attachment = imageView.rawPointer
             
@@ -377,9 +391,18 @@ public class RenderContext {
 
     }
     
+    private func createCommandPool() throws {
+        let commandPool = try CommandPool(
+            device: self.device,
+            queueFamilyIndex: UInt32(self.queueFamilyIndicies.graphicsIndex)
+        )
+        
+        let commandBuffer = try CommandBuffer(device: self.device, commandPool: commandPool, isPrimary: true)
+    }
+    
 }
 
-extension RenderContext {
+extension VulkanRenderContext {
     
     private static func determineVulkanVersion() -> UInt32 {
         var version: UInt32 = UInt32.max
@@ -430,7 +453,7 @@ extension RenderContext {
 
 import MetalKit
 
-public extension RenderContext {
+public extension VulkanRenderContext {
     func createWindow(for view: MTKView, size: Vector2i) throws {
         precondition(self.vulkan != nil, "Vulkan instance not created.")
         
@@ -441,7 +464,7 @@ public extension RenderContext {
 
 #endif
 
-extension RenderContext {
+extension VulkanRenderContext {
     // TODO: Change to constants
     static var platformSpecificSurfaceExtensionName: String {
         #if os(macOS)

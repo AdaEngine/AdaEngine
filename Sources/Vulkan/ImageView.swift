@@ -7,7 +7,7 @@
 
 import CVulkan
 
-public class ImageView {
+public final class ImageView {
     
     public let rawPointer: VkImageView!
     public unowned let device: Device

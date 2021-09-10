@@ -41,7 +41,8 @@ let package = Package(
         
         .target(
             name: "AdaEngine",
-            dependencies: ["Vulkan", "Math"]
+            dependencies: ["Vulkan", "Math"],
+            resources: [.copy("Rendering/Shaders/shader.frag.spv"), .copy("Rendering/Shaders/shader.vert.spv")]
         ),
         
         // Just for test
@@ -80,7 +81,8 @@ let package = Package(
         
         .testTarget(
             name: "AdaEngineTests",
-            dependencies: ["AdaEngine"]),
+            dependencies: ["AdaEngine"]
+        ),
     ],
     swiftLanguageVersions: [.v5]
 )

@@ -61,6 +61,11 @@ public final class Device {
         self.init(pointer)
     }
     
+    public func waitIdle() throws {
+        let result = vkDeviceWaitIdle(self.rawPointer)
+        try vkCheck(result, "Device waiting idle error")
+    }
+    
     public func getQueue(at index: Int) -> VkQueue? {
         var queue: VkQueue?
         vkGetDeviceQueue(self.rawPointer, UInt32(index), 0, &queue)

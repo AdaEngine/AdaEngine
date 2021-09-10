@@ -24,3 +24,9 @@ $ pkg-config --libs --cflags vulkan
 Make sure, that you have vulkan headers by path: `/usr/local/include/vulkan/`
 
 Another tutorial [how to install vulkan to SPM](https://blog.spencerkohan.com/vulkan-swift-linking-moltenvk-using-swift-package-manager/)
+
+## Compile shaders for Vulkan
+
+While waiting Swift Package Manager build plugins we use manual compilation for `glsl` shaders using `glslc` compiler.
+
+Call next command in terminal `make compile_shaders` to compile all shaders by path `/Sources/AdaEngine/Rendering/Shaders/`
