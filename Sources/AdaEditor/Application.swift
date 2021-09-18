@@ -39,7 +39,7 @@ public func deinitializeSwiftSDL2() {
 public class Window {
 
     public var sdlPointer: SDLWindow
-    var vulkan: Vulkan?
+    var vulkan: VulkanInstance?
 
     public init?() {
         self.sdlPointer = SDL_CreateWindow(
@@ -74,7 +74,7 @@ public class Window {
         }
     }
 
-    public func createVulkanSurface(vulkan: Vulkan) throws -> Surface {
+    public func createVulkanSurface(vulkan: VulkanInstance) throws -> Surface {
         var surface = VkSurfaceKHR(bitPattern: 0)
 
         if SDL_Vulkan_CreateSurface(sdlPointer, vulkan.pointer, &surface) != SDL_TRUE {

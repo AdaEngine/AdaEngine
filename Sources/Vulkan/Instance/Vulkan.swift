@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  VulkanInstance.swift
 //  
 //
 //  Created by v.prusakov on 8/10/21.
@@ -7,7 +7,7 @@
 
 import CVulkan
 
-public class Vulkan {
+public class VulkanInstance {
     
     /// Pointer to vulkan instance
     public let pointer: VkInstance
@@ -44,7 +44,7 @@ public class Vulkan {
     }
 }
 
-public extension Vulkan {
+public extension VulkanInstance {
     
     convenience init(_ createInfo: VkInstanceCreateInfo) throws {
         var instance: VkInstance?

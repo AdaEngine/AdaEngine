@@ -1,12 +1,12 @@
 //
-//  File.swift
+//  VulkanRenderContext.swift
 //  
 //
 //  Created by v.prusakov on 8/15/21.
 //
 
 import Vulkan
-@_implementationOnly import CVulkan
+import CVulkan
 import Math
 
 public let NotFound = Int.max
@@ -19,7 +19,7 @@ struct QueueFamilyIndices {
 
 public class VulkanRenderContext {
     
-    public private(set) var vulkan: Vulkan?
+    public private(set) var vulkan: VulkanInstance!
     private var queueFamilyIndicies: QueueFamilyIndices!
     public private(set) var device: Device!
     public private(set) var surface: Surface!
@@ -28,17 +28,22 @@ public class VulkanRenderContext {
     private var graphicsQueue: VkQueue?
     private var presentationQueue: VkQueue?
     
-    private var imageViews: [ImageView] = []
     private var imageFormat: VkFormat!
     private var colorSpace: VkColorSpaceKHR!
     
-    public private(set) var renderPass: RenderPass!
-    private var swapchain: Swapchain!
+    private(set) var renderPass: RenderPass!
+    var graphicsPipeline: RenderPipeline!
+    private(set) var swapchain: Swapchain!
     
-    private var commandPool: CommandPool!
-    private var commandBuffer: CommandBuffer!
+    private(set) var commandPool: CommandPool!
+    private(set) var commandBuffers: [CommandBuffer] = []
+    
+    var imageAvailableSemaphore: Vulkan.Semaphore!
+    var queueCompleteSemaphore: Vulkan.Semaphore!
 
     public let vulkanVersion: UInt32
+    
+    public var currentImageIndex: UInt32 = 0
     
     public required init() {
         self.vulkanVersion = Self.determineVulkanVersion()
@@ -48,7 +53,7 @@ public class VulkanRenderContext {
         let vulkan = try self.createInstance(appName: appName)
         self.vulkan = vulkan
         
-        let gpu = try self.createGPU(vulkan: vulkan)
+        let gpu = try self.createGPU()
         self.gpu = gpu
     }
     
@@ -60,9 +65,81 @@ public class VulkanRenderContext {
         try self.createSwapchain(for: size)
     }
     
+    public func prepareBuffer() throws {
+        let result = vkAcquireNextImageKHR(
+            /*device*/ self.device.rawPointer,
+            /*swapchain*/ self.swapchain.rawPointer,
+            /*timeout*/ UInt64.max,
+            /*semaphore*/ self.imageAvailableSemaphore.rawPointer,
+            /*fence*/ nil,
+            /*pImageIndex*/ &self.currentImageIndex
+        )
+        try vkCheck(result)
+        
+        let index = Int(currentImageIndex)
+        
+        let commandBuffer = self.commandBuffers[index]
+        
+        try commandBuffer.beginUpdate()
+        
+        self.renderPass.begin(
+            for: commandBuffer,
+            framebuffer: self.swapchain.framebuffers[index],
+            swapchain: self.swapchain
+        )
+        
+        self.renderPass.bind(for: commandBuffer, pipeline: self.graphicsPipeline)
+        vkCmdDraw(commandBuffer.rawPointer, 3, 1, 0, 0)
+    }
+    
+    public func flush() throws {
+        let index = Int(currentImageIndex)
+        
+        let commandBuffer = self.commandBuffers[index]
+        self.renderPass.end(for: commandBuffer)
+        try commandBuffer.endUpdate()
+    }
+    
+    public func swapBuffers() throws {
+        var stageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue
+        
+        var buffers: [VkCommandBuffer?] = self.commandBuffers.map(\.rawPointer)
+        var signalSemaphores: [VkSemaphore?] = [self.queueCompleteSemaphore.rawPointer]
+        var waitSemaphores: [VkSemaphore?] = [self.imageAvailableSemaphore.rawPointer]
+        
+        var submitInfo = VkSubmitInfo(
+            sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            pNext: nil,
+            waitSemaphoreCount: UInt32(waitSemaphores.count),
+            pWaitSemaphores: &waitSemaphores,
+            pWaitDstStageMask: &stageFlags,
+            commandBufferCount: UInt32(buffers.count),
+            pCommandBuffers: &buffers,
+            signalSemaphoreCount: UInt32(signalSemaphores.count),
+            pSignalSemaphores: &signalSemaphores
+        )
+        
+        var result = vkQueueSubmit(self.graphicsQueue, 1, &submitInfo, nil)
+        try vkCheck(result)
+        
+        var presentInfo = VkPresentInfoKHR(
+            sType: VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            pNext: nil,
+            waitSemaphoreCount: 1,
+            pWaitSemaphores: [self.imageAvailableSemaphore.rawPointer],
+            swapchainCount: 1,
+            pSwapchains: [self.swapchain.rawPointer],
+            pImageIndices: &currentImageIndex,
+            pResults: nil
+        )
+        
+        result = vkQueuePresentKHR(self.presentationQueue, &presentInfo)
+        try vkCheck(result)
+    }
+    
     // MARK: - Private
     
-    private func createInstance(appName: String) throws -> Vulkan {
+    private func createInstance(appName: String) throws -> VulkanInstance {
         let extensions = try Self.provideExtensions()
         
         let appInfo = VkApplicationInfo(
@@ -82,7 +159,7 @@ public class VulkanRenderContext {
             enabledExtensionNames: extensions.map(\.extensionName)
         )
         
-        return try Vulkan(info: info)
+        return try VulkanInstance(info: info)
     }
     
     private func createWindow(surface: Surface, size: Vector2i) throws {
@@ -95,7 +172,7 @@ public class VulkanRenderContext {
         try self.createSwapchain(for: size)
     }
     
-    private func createGPU(vulkan: Vulkan) throws -> PhysicalDevice {
+    private func createGPU() throws -> PhysicalDevice {
         let devices = try vulkan.physicalDevices()
         
         if devices.isEmpty {
@@ -243,8 +320,6 @@ public class VulkanRenderContext {
         
         let images = try swapchain.getImages()
         
-        self.imageViews.removeAll()
-        var imageViews = [ImageView]()
         for image in images {
             let info = VkImageViewCreateInfo(
                 sType: VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -269,13 +344,13 @@ public class VulkanRenderContext {
             )
             
             let imageView = try ImageView(device: self.device, info: info)
-            imageViews.append(imageView)
+            swapchain.imageViews.append(imageView)
         }
-        
-        self.imageViews = imageViews
         
         try self.createRenderPass(size: size)
         try self.createFramebuffer(size: size)
+        try self.createCommandBuffers()
+        try self.createSemaphores()
     }
     
     private func createDevice(for gpu: PhysicalDevice, surface: Surface, queueIndecies: QueueFamilyIndices) throws -> Device {
@@ -368,8 +443,7 @@ public class VulkanRenderContext {
     }
     
     private func createFramebuffer(size: Vector2i) throws {
-        
-        for imageView in self.imageViews {
+        for imageView in self.swapchain.imageViews {
             
             var attachment = imageView.rawPointer
             
@@ -386,18 +460,54 @@ public class VulkanRenderContext {
             )
             
             let framebuffer = try Framebuffer(device: self.device, createInfo: createInfo)
-            print(framebuffer)
+            self.swapchain.framebuffers.append(framebuffer)
         }
-
     }
     
-    private func createCommandPool() throws {
+    private func createCommandBuffers() throws {
+        self.commandBuffers.removeAll()
+        
         let commandPool = try CommandPool(
             device: self.device,
             queueFamilyIndex: UInt32(self.queueFamilyIndicies.graphicsIndex)
         )
         
-        let commandBuffer = try CommandBuffer(device: self.device, commandPool: commandPool, isPrimary: true)
+        for image in try self.swapchain.getImages() {
+            let commandBuffer = try CommandBuffer(device: self.device, commandPool: commandPool, isPrimary: true)
+            
+            try commandBuffer.beginUpdate()
+            
+            let barrier = VkImageMemoryBarrier(
+                sType: VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                pNext: nil,
+                srcAccessMask: 0,
+                dstAccessMask: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue,
+                oldLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                newLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                srcQueueFamilyIndex: UInt32(self.queueFamilyIndicies.graphicsIndex),
+                dstQueueFamilyIndex: UInt32(self.queueFamilyIndicies.presentationIndex),
+                image: image,
+                subresourceRange:
+                    VkImageSubresourceRange(
+                        aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue,
+                        baseMipLevel: 0,
+                        levelCount: 1,
+                        baseArrayLayer: 0,
+                        layerCount: 1
+                    )
+            )
+            
+            try commandBuffer.commandBarrier(barrier)
+            
+            try commandBuffer.endUpdate()
+            
+            self.commandBuffers.append(commandBuffer)
+        }
+    }
+    
+    private func createSemaphores() throws {
+        self.imageAvailableSemaphore = try Vulkan.Semaphore(device: self.device)
+        self.queueCompleteSemaphore = try Vulkan.Semaphore(device: self.device)
     }
     
 }
@@ -416,7 +526,7 @@ extension VulkanRenderContext {
     }
     
     private static func provideExtensions() throws -> [ExtensionProperties] {
-        let extensions = try Vulkan.getExtensions()
+        let extensions = try VulkanInstance.getExtensions()
         
         var availableExtenstions = [ExtensionProperties]()
         var isSurfaceFound = false

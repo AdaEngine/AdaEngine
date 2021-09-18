@@ -61,6 +61,14 @@ final public class CommandBuffer {
         self.state = .recording
     }
     
+    public func commandBarrier(_ barrier: VkImageMemoryBarrier) throws {
+        vkCmdPipelineBarrier(self.rawPointer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, 0, 0, nil, 0, nil, 1, [barrier])
+    }
+    
+    public func draw(vertexCount: Int, instanceCount: Int, firstVertex: Int, firstInstance: Int) {
+        vkCmdDraw(self.commandPool.rawPointer, UInt32(vertexCount), UInt32(instanceCount), UInt32(firstVertex), UInt32(firstInstance))
+    }
+    
     public func endUpdate() throws {
         let result = vkEndCommandBuffer(self.rawPointer)
         try vkCheck(result, "Command buffer cannot end update")

@@ -10,9 +10,9 @@ import CVulkan
 public final class Surface {
     
     public let rawPointer: VkSurfaceKHR
-    unowned let vulkan: Vulkan
+    unowned let vulkan: VulkanInstance
     
-    public init(vulkan: Vulkan, surface: VkSurfaceKHR) {
+    public init(vulkan: VulkanInstance, surface: VkSurfaceKHR) {
         self.vulkan = vulkan
         self.rawPointer = surface
     }
@@ -36,7 +36,7 @@ import AppKit
 
 public extension Surface {
     convenience init(
-        vulkan: Vulkan,
+        vulkan: VulkanInstance,
         view: NSView
     ) throws {
         precondition(view.layer is CAMetalLayer, "Surface can init only with CAMetalLayer backed view")
@@ -70,7 +70,7 @@ import UIKit
 
 public extension Surface {
     convenience init(
-        vulkan: Vulkan,
+        vulkan: VulkanInstance,
         view: UIView
     ) throws {
         precondition(view.layer is CAMetalLayer, "Surface can init only with CAMetalLayer backed view")

@@ -22,7 +22,7 @@ func convertTupleToUnsafePointer<T, U>(tuple: T, type: U.Type) -> UnsafePointer<
 /// - Parameter result: VkResult value
 /// - Parameter message: Localized error message if VkResult is not a VK_SUCCESS
 /// - Throws: `VKError` with result code and user message
-func vkCheck(_ result: VkResult, _ message: String = "") throws {
+public func vkCheck(_ result: VkResult, _ message: String = "") throws {
     guard result == VK_SUCCESS else {
         throw VKError(code: result, message: message)
     }

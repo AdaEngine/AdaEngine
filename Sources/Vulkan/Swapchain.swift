@@ -10,11 +10,13 @@ import CVulkan
 public class Swapchain {
     public let rawPointer: VkSwapchainKHR
     public unowned let device: Device
+
+    public let extent: VkExtent2D
+    public let imageFormat: VkFormat
     
-    public init(device: Device, swapchainPoiner: VkSwapchainKHR) {
-        self.rawPointer = swapchainPoiner
-        self.device = device
-    }
+    public var framebuffers: [Framebuffer] = []
+    
+    public var imageViews: [ImageView] = []
     
     public init(device: Device, createInfo: VkSwapchainCreateInfoKHR) throws {
         var swapchain: VkSwapchainKHR?
@@ -25,6 +27,8 @@ public class Swapchain {
         
         try vkCheck(result, "Can't create swapchain")
         
+        self.extent = createInfo.imageExtent
+        self.imageFormat = createInfo.imageFormat
         self.device = device
         self.rawPointer = swapchain!
     }

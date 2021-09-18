@@ -24,7 +24,7 @@ public final class ShaderModule {
                 sType: VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
                 pNext: nil,
                 flags: 0,
-                codeSize: buffer.count,
+                codeSize: buffer.count * 4, // Codesize must be a multiple of 4
                 pCode: buffer.baseAddress
             )
             

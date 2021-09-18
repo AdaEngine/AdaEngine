@@ -28,6 +28,32 @@ public class RenderPass {
         self.device = device
     }
     
+    public func begin(for cmd: CommandBuffer, framebuffer: Framebuffer, swapchain: Swapchain) {
+        let clearColor = VkClearValue(color: VkClearColorValue(float32: (0, 0, 0, 0)))
+        
+        let info = VkRenderPassBeginInfo(
+            sType: VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            pNext: nil,
+            renderPass: self.rawPointer,
+            framebuffer: framebuffer.rawPointer,
+            renderArea: VkRect2D(offset: VkOffset2D(x: 0, y: 0), extent: swapchain.extent),
+            clearValueCount: 1,
+            pClearValues: [clearColor]
+        )
+        
+        withUnsafePointer(to: info) { ptr in
+            vkCmdBeginRenderPass(cmd.rawPointer, ptr, VK_SUBPASS_CONTENTS_INLINE)
+        }
+    }
+    
+    public func bind(for cmd: CommandBuffer, pipeline: RenderPipeline) {
+        vkCmdBindPipeline(cmd.rawPointer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.rawPointer)
+    }
+    
+    public func end(for cmd: CommandBuffer) {
+        vkCmdEndRenderPass(cmd.rawPointer)
+    }
+    
     deinit {
         vkDestroyRenderPass(self.device.rawPointer, self.rawPointer, nil)
     }

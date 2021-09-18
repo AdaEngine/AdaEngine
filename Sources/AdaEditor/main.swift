@@ -36,12 +36,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         do {
             self.renderer = try VulkanRenderBackend(appName: "Ada Engine")
+            
             try renderer.createWindow(for: view, size: Vector2i(x: 800, y: 600))
         } catch {
             print(error)
         }
+        
+        let timer = Timer.scheduledTimer(timeInterval: 1 / 60, target: self, selector: #selector(draw), userInfo: nil, repeats: true)
+        RunLoop.main.add(timer, forMode: .common)
     }
     
+    @objc func draw() {
+        do {
+            try self.renderer.beginFrame()
+            
+            try self.renderer.endFrame()
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
 }
 
 let delegate = AppDelegate()
