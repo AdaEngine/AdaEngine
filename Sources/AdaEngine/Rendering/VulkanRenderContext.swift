@@ -25,8 +25,8 @@ public class VulkanRenderContext {
     public private(set) var surface: Surface!
     public private(set) var gpu: PhysicalDevice!
     
-    private var graphicsQueue: VkQueue?
-    private var presentationQueue: VkQueue?
+    private var graphicsQueue: Queue?
+    private var presentationQueue: Queue?
     
     private var imageFormat: VkFormat!
     private var colorSpace: VkColorSpaceKHR!
@@ -38,12 +38,20 @@ public class VulkanRenderContext {
     private(set) var commandPool: CommandPool!
     private(set) var commandBuffers: [CommandBuffer] = []
     
-    var imageAvailableSemaphore: Vulkan.Semaphore!
-    var queueCompleteSemaphore: Vulkan.Semaphore!
-
+    var imageAvailableSemaphores: [Vulkan.Semaphore] = []
+    var renderCompleteSemaphores: [Vulkan.Semaphore] = []
+    
+    var inFlightFences: [Fence?] = []
+    var imagesInFlight: [Fence?] = []
+    
+    var maxFramesInFlight: UInt32 = 2
+    
+    var framebufferSize: Vector2i = Vector2i(0, 0)
+    
     public let vulkanVersion: UInt32
     
     public var currentImageIndex: UInt32 = 0
+    public var currentFrame: UInt32 = 0
     
     public required init() {
         self.vulkanVersion = Self.determineVulkanVersion()
@@ -66,75 +74,111 @@ public class VulkanRenderContext {
     }
     
     public func prepareBuffer() throws {
-        let result = vkAcquireNextImageKHR(
-            /*device*/ self.device.rawPointer,
-            /*swapchain*/ self.swapchain.rawPointer,
-            /*timeout*/ UInt64.max,
-            /*semaphore*/ self.imageAvailableSemaphore.rawPointer,
-            /*fence*/ nil,
-            /*pImageIndex*/ &self.currentImageIndex
+        let fence = self.inFlightFences[self.currentFrame]!
+        try fence.wait()
+        
+        let waitSemaphore = self.imageAvailableSemaphores[self.currentFrame]
+        _ = self.swapchain.acquireNextImage(semaphore: waitSemaphore, nextImageIndex: &self.currentImageIndex)
+        
+        if self.imagesInFlight.indices.contains(Int(self.currentImageIndex)) {
+            try self.imagesInFlight[self.currentImageIndex]?.wait()
+        }
+        
+        self.imagesInFlight[self.currentImageIndex] = self.inFlightFences[self.currentFrame]
+        
+        let signalSemaphores = [self.renderCompleteSemaphores[self.currentFrame]]
+        
+        try fence.reset()
+        
+        try self.graphicsQueue?.submit(
+            commandsBuffer: self.commandBuffers[self.currentImageIndex],
+            waitSemaphores: waitSemaphore,
+            signalSemaphores: self.renderCompleteSemaphores[self.currentFrame],
+            fence: fence
         )
-        try vkCheck(result)
         
-        let index = Int(currentImageIndex)
-        
-        let commandBuffer = self.commandBuffers[index]
-        
-        try commandBuffer.beginUpdate()
-        
-        self.renderPass.begin(
-            for: commandBuffer,
-            framebuffer: self.swapchain.framebuffers[index],
-            swapchain: self.swapchain
+        try self.presentationQueue?.present(
+            for: [self.swapchain],
+            signalSemaphores: signalSemaphores,
+            imageIndex: self.currentImageIndex
         )
         
-        self.renderPass.bind(for: commandBuffer, pipeline: self.graphicsPipeline)
-        vkCmdDraw(commandBuffer.rawPointer, 3, 1, 0, 0)
+        self.currentFrame = (currentFrame + 1) % self.maxFramesInFlight
+        
+        // start recordings
+        //        let commandBuffer = self.commandBuffers[currentImageIndex]
+        //        try commandBuffer.beginUpdate()
+        
+        //        self.renderPass.begin(
+        //            for: commandBuffer,
+        //            framebuffer: self.swapchain.framebuffers[currentImageIndex],
+        //            swapchain: self.swapchain
+        //        )
+        
+        //        self.renderPass.bind(for: commandBuffer, pipeline: self.graphicsPipeline)
+        //        commandBuffer.draw(vertexCount: 3, instanceCount: 1, firstVertex: 0, firstInstance: 0)
     }
     
     public func flush() throws {
-        let index = Int(currentImageIndex)
-        
-        let commandBuffer = self.commandBuffers[index]
-        self.renderPass.end(for: commandBuffer)
-        try commandBuffer.endUpdate()
+        //        let index = Int(currentImageIndex)
+        //
+        //        let commandBuffer = self.commandBuffers[index]
+        //        self.renderPass.end(for: commandBuffer)
+        //        try commandBuffer.endUpdate()
     }
     
     public func swapBuffers() throws {
-        var stageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue
-        
-        var buffers: [VkCommandBuffer?] = self.commandBuffers.map(\.rawPointer)
-        var signalSemaphores: [VkSemaphore?] = [self.queueCompleteSemaphore.rawPointer]
-        var waitSemaphores: [VkSemaphore?] = [self.imageAvailableSemaphore.rawPointer]
-        
-        var submitInfo = VkSubmitInfo(
-            sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            pNext: nil,
-            waitSemaphoreCount: UInt32(waitSemaphores.count),
-            pWaitSemaphores: &waitSemaphores,
-            pWaitDstStageMask: &stageFlags,
-            commandBufferCount: UInt32(buffers.count),
-            pCommandBuffers: &buffers,
-            signalSemaphoreCount: UInt32(signalSemaphores.count),
-            pSignalSemaphores: &signalSemaphores
-        )
-        
-        var result = vkQueueSubmit(self.graphicsQueue, 1, &submitInfo, nil)
-        try vkCheck(result)
-        
-        var presentInfo = VkPresentInfoKHR(
-            sType: VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            pNext: nil,
-            waitSemaphoreCount: 1,
-            pWaitSemaphores: [self.imageAvailableSemaphore.rawPointer],
-            swapchainCount: 1,
-            pSwapchains: [self.swapchain.rawPointer],
-            pImageIndices: &currentImageIndex,
-            pResults: nil
-        )
-        
-        result = vkQueuePresentKHR(self.presentationQueue, &presentInfo)
-        try vkCheck(result)
+        //
+        //        let result = self.swapchain.acquireNextImage(
+        //            semaphore: self.imageAvailableSemaphores[self.currentImageIndex],
+        //            nextImageIndex: &self.currentImageIndex
+        //        )
+        //
+        //        if result == VK_ERROR_OUT_OF_DATE_KHR {
+        //            try self.updateSwapchain(for: self.framebufferSize)
+        //        }
+        //
+        //        let fence = self.waitFences[self.currentImageIndex]
+        //        try fence.wait()
+        //        try fence.reset()
+        //
+        //        var stageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue
+        //
+        //        let imageIndex = Int(self.currentImageIndex)
+        //        var buffer: VkCommandBuffer? = self.commandBuffers[imageIndex].rawPointer
+        //        var imageAvailableSemaphore: VkSemaphore? = self.imageAvailableSemaphores[imageIndex].rawPointer
+        //        var completeSemaphore: VkSemaphore? = self.renderCompleteSemaphores[imageIndex].rawPointer
+        //
+        //        var submitInfo = VkSubmitInfo(
+        //            sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        //            pNext: nil,
+        //            waitSemaphoreCount: 1,
+        //            pWaitSemaphores: &completeSemaphore,
+        //            pWaitDstStageMask: &stageFlags,
+        //            commandBufferCount: 1,
+        //            pCommandBuffers: &buffer,
+        //            signalSemaphoreCount: 1,
+        //            pSignalSemaphores: &imageAvailableSemaphore
+        //        )
+        //
+        //        var result = vkQueueSubmit(self.graphicsQueue, 1, &submitInfo, nil)
+        //        try vkCheck(result)
+        //
+        //        var swapchain: VkSwapchainKHR? = self.swapchain.rawPointer
+        //
+        //        var presentInfo = VkPresentInfoKHR(
+        //            sType: VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        //            pNext: nil,
+        //            waitSemaphoreCount: 1,
+        //            pWaitSemaphores: &completeSemaphore,
+        //            swapchainCount: 1,
+        //            pSwapchains: &swapchain,
+        //            pImageIndices: &currentImageIndex,
+        //            pResults: nil
+        //        )
+        //
+        //        result = vkQueuePresentKHR(self.presentationQueue, &presentInfo)
+        //        try vkCheck(result)
     }
     
     // MARK: - Private
@@ -347,10 +391,170 @@ public class VulkanRenderContext {
             swapchain.imageViews.append(imageView)
         }
         
-        try self.createRenderPass(size: size)
-        try self.createFramebuffer(size: size)
+        let extentSize = Vector2i(Int(extent.width), Int(extent.height))
+        
+        self.framebufferSize = extentSize
+        
+        try self.createRenderPass(size: extentSize)
+        try self.createRenderPipeline(size: extentSize)
+        try self.createFramebuffer(size: extentSize)
         try self.createCommandBuffers()
-        try self.createSemaphores()
+        try self.createSyncObjects()
+    }
+    
+    func createRenderPipeline(size: Vector2i) throws {
+        let shaders = try self.loadShaders()
+        
+        var vertexInputInfo = VkPipelineVertexInputStateCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            vertexBindingDescriptionCount: 0,
+            pVertexBindingDescriptions: nil,
+            vertexAttributeDescriptionCount: 0,
+            pVertexAttributeDescriptions: nil
+        )
+        
+        var inputAssembly = VkPipelineInputAssemblyStateCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            topology: VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            primitiveRestartEnable: false
+        )
+        
+        var viewPort = VkViewport(x: 0, y: 0, width: Float(size.x), height: Float(size.y), minDepth: 0, maxDepth: 1)
+        var scissor = VkRect2D(offset: VkOffset2D(x: 0, y: 0), extent: self.swapchain.extent)
+        
+        var viewportState = VkPipelineViewportStateCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            viewportCount: 1,
+            pViewports: &viewPort,
+            scissorCount: 1,
+            pScissors: &scissor
+        )
+        
+        var rasterizer = VkPipelineRasterizationStateCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            depthClampEnable: false,
+            rasterizerDiscardEnable: false,
+            polygonMode: VK_POLYGON_MODE_FILL,
+            cullMode: VK_CULL_MODE_BACK_BIT.rawValue,
+            frontFace: VK_FRONT_FACE_CLOCKWISE,
+            depthBiasEnable: false,
+            depthBiasConstantFactor: 0,
+            depthBiasClamp: 0,
+            depthBiasSlopeFactor: 0,
+            lineWidth: 1.0
+        )
+        
+        var multisampling = VkPipelineMultisampleStateCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            rasterizationSamples: VK_SAMPLE_COUNT_1_BIT,
+            sampleShadingEnable: false,
+            minSampleShading: 1,
+            pSampleMask: nil,
+            alphaToCoverageEnable: false,
+            alphaToOneEnable: false
+        )
+        
+        var colorBlendAttachment = VkPipelineColorBlendAttachmentState(
+            blendEnable: false,
+            srcColorBlendFactor: VK_BLEND_FACTOR_ONE,
+            dstColorBlendFactor: VK_BLEND_FACTOR_ZERO,
+            colorBlendOp: VK_BLEND_OP_ADD,
+            srcAlphaBlendFactor: VK_BLEND_FACTOR_ONE,
+            dstAlphaBlendFactor: VK_BLEND_FACTOR_ZERO,
+            alphaBlendOp: VK_BLEND_OP_ADD,
+            colorWriteMask: VK_COLOR_COMPONENT_R_BIT.rawValue | VK_COLOR_COMPONENT_G_BIT.rawValue | VK_COLOR_COMPONENT_B_BIT.rawValue | VK_COLOR_COMPONENT_A_BIT.rawValue
+        )
+        
+        var colorBlending = VkPipelineColorBlendStateCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            logicOpEnable: false,
+            logicOp: VK_LOGIC_OP_COPY,
+            attachmentCount: 1,
+            pAttachments: &colorBlendAttachment,
+            blendConstants: (0, 0, 0, 0)
+        )
+        //
+        //        var dynamicState = VkPipelineDynamicStateCreateInfo(
+        //            sType: VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        //            pNext: nil,
+        //            flags: 0,
+        //            dynamicStateCount: 2,
+        //            pDynamicStates: [VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_LINE_WIDTH]
+        //        )
+        
+        var stages = shaders.stages
+        
+        let pipelineLayout = try PipelineLayout(device: self.device)
+        let pipelineInfo = VkGraphicsPipelineCreateInfo(
+            sType: VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            stageCount: UInt32(stages.count),
+            pStages: &stages,
+            pVertexInputState: &vertexInputInfo,
+            pInputAssemblyState: &inputAssembly,
+            pTessellationState: nil,
+            pViewportState: &viewportState,
+            pRasterizationState: &rasterizer,
+            pMultisampleState: &multisampling,
+            pDepthStencilState: nil,
+            pColorBlendState: &colorBlending,
+            pDynamicState: nil,
+            layout: pipelineLayout.rawPointer,
+            renderPass: self.renderPass.rawPointer,
+            subpass: 0,
+            basePipelineHandle: nil,
+            basePipelineIndex: -1)
+        
+        
+        let renderPipeline = try RenderPipeline(
+            device: self.device,
+            pipelineLayout: pipelineLayout,
+            graphicCreateInfo: pipelineInfo
+        )
+        
+        self.graphicsPipeline = renderPipeline
+    }
+    
+    private func loadShaders() throws -> VulkanShader {
+        let frag = try! Data(contentsOf: Bundle.module.url(forResource: "shader.frag", withExtension: "spv")!)
+        let vert = try! Data(contentsOf: Bundle.module.url(forResource: "shader.vert", withExtension: "spv")!)
+        let vertModule = try ShaderModule(device: self.device, shaderData: vert)
+        let fragModule = try ShaderModule(device: self.device, shaderData: frag)
+        
+        let vertStage = VkPipelineShaderStageCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            stage: VK_SHADER_STAGE_VERTEX_BIT,
+            module: vertModule.rawPointer,
+            pName: ("main" as NSString).utf8String,
+            pSpecializationInfo: nil
+        )
+        
+        let fragStage = VkPipelineShaderStageCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            stage: VK_SHADER_STAGE_FRAGMENT_BIT,
+            module: fragModule.rawPointer,
+            pName: ("main" as NSString).utf8String,
+            pSpecializationInfo: nil
+        )
+        
+        return VulkanShader(modules: [vertModule, fragModule], stages: [vertStage, fragStage])
     }
     
     private func createDevice(for gpu: PhysicalDevice, surface: Surface, queueIndecies: QueueFamilyIndices) throws -> Device {
@@ -399,7 +603,7 @@ public class VulkanRenderContext {
     }
     
     private func createRenderPass(size: Vector2i) throws {
-        var attachment = VkAttachmentDescription(
+        var colorAttachment = VkAttachmentDescription(
             flags: 0,
             format: self.imageFormat,
             samples: VK_SAMPLE_COUNT_1_BIT,
@@ -411,7 +615,24 @@ public class VulkanRenderContext {
             finalLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
         )
         
-        var colorDescription = VkAttachmentReference(attachment: 0, layout: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+        //        let depthFormat = try self.getGPUDepthFormat()
+        //
+        //        let depthAttachment = VkAttachmentDescription(
+        //            flags: 0,
+        //            format: depthFormat,
+        //            samples: VK_SAMPLE_COUNT_1_BIT,
+        //            loadOp: VK_ATTACHMENT_LOAD_OP_CLEAR,
+        //            storeOp: VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        //            stencilLoadOp: VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        //            stencilStoreOp: VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        //            initialLayout: VK_IMAGE_LAYOUT_UNDEFINED,
+        //            finalLayout: VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        //        )
+        
+        var colorDescription = VkAttachmentReference(
+            attachment: 0,
+            layout: VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+        )
         
         var subpass = VkSubpassDescription(
             flags: 0,
@@ -431,7 +652,7 @@ public class VulkanRenderContext {
             pNext: nil,
             flags: 0,
             attachmentCount: 1,
-            pAttachments:&attachment,
+            pAttachments: &colorAttachment,
             subpassCount: 1,
             pSubpasses: &subpass,
             dependencyCount: 0,
@@ -444,7 +665,6 @@ public class VulkanRenderContext {
     
     private func createFramebuffer(size: Vector2i) throws {
         for imageView in self.swapchain.imageViews {
-            
             var attachment = imageView.rawPointer
             
             let createInfo = VkFramebufferCreateInfo(
@@ -472,42 +692,85 @@ public class VulkanRenderContext {
             queueFamilyIndex: UInt32(self.queueFamilyIndicies.graphicsIndex)
         )
         
-        for image in try self.swapchain.getImages() {
+        for framebuffer in  self.swapchain.framebuffers {
             let commandBuffer = try CommandBuffer(device: self.device, commandPool: commandPool, isPrimary: true)
-            
             try commandBuffer.beginUpdate()
             
-            let barrier = VkImageMemoryBarrier(
-                sType: VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                pNext: nil,
-                srcAccessMask: 0,
-                dstAccessMask: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue,
-                oldLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                newLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                srcQueueFamilyIndex: UInt32(self.queueFamilyIndicies.graphicsIndex),
-                dstQueueFamilyIndex: UInt32(self.queueFamilyIndicies.presentationIndex),
-                image: image,
-                subresourceRange:
-                    VkImageSubresourceRange(
-                        aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue,
-                        baseMipLevel: 0,
-                        levelCount: 1,
-                        baseArrayLayer: 0,
-                        layerCount: 1
-                    )
+            // vkCmdBeginRenderPass
+            self.renderPass.begin(
+                for: commandBuffer,
+                framebuffer: framebuffer,
+                swapchain: self.swapchain
             )
             
-            try commandBuffer.commandBarrier(barrier)
+            // vkCmdBindPipeline
+            self.graphicsPipeline.bind(for: commandBuffer)
             
+            // vkCmdDraw
+            commandBuffer.draw(vertexCount: 3, instanceCount: 1, firstVertex: 0, firstInstance: 0)
+            
+            // vkCmdEndRenderPass
+            self.renderPass.end(for: commandBuffer)
+            
+            // vkEndCommandBuffer
             try commandBuffer.endUpdate()
+            
+            
+            //            let barrier = VkImageMemoryBarrier(
+            //                sType: VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+            //                pNext: nil,
+            //                srcAccessMask: 0,
+            //                dstAccessMask: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue,
+            //                oldLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            //                newLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            //                srcQueueFamilyIndex: UInt32(self.queueFamilyIndicies.graphicsIndex),
+            //                dstQueueFamilyIndex: UInt32(self.queueFamilyIndicies.presentationIndex),
+            //                image: image,
+            //                subresourceRange:
+            //                    VkImageSubresourceRange(
+            //                        aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue,
+            //                        baseMipLevel: 0,
+            //                        levelCount: 1,
+            //                        baseArrayLayer: 0,
+            //                        layerCount: 1
+            //                    )
+            //            )
             
             self.commandBuffers.append(commandBuffer)
         }
     }
     
-    private func createSemaphores() throws {
-        self.imageAvailableSemaphore = try Vulkan.Semaphore(device: self.device)
-        self.queueCompleteSemaphore = try Vulkan.Semaphore(device: self.device)
+    private func createSyncObjects() throws {
+        let maxFramesInFlight = Int(self.maxFramesInFlight)
+        self.imageAvailableSemaphores.removeAll()
+        self.renderCompleteSemaphores.removeAll()
+        
+        self.inFlightFences = [Fence?].init(repeating: nil, count: maxFramesInFlight)
+        self.imagesInFlight = [Fence?].init(repeating: nil, count: try self.swapchain.getImages().count)
+        
+        for index in 0..<self.maxFramesInFlight {
+            self.imageAvailableSemaphores.append(try Vulkan.Semaphore(device: self.device))
+            self.renderCompleteSemaphores.append(try Vulkan.Semaphore(device: self.device))
+            
+            self.inFlightFences[index] = try Fence(device: self.device)
+        }
+    }
+    
+    private func getGPUDepthFormat() throws -> VkFormat {
+        let prefferedFormats = [VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D32_SFLOAT_S8_UINT]
+        
+        let flags = VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT.rawValue
+        
+        for format in prefferedFormats {
+            var properties = VkFormatProperties()
+            vkGetPhysicalDeviceFormatProperties(self.gpu.pointer, format, &properties)
+            
+            if (properties.optimalTilingFeatures & flags) == flags || ((properties.linearTilingFeatures & flags) == flags) {
+                return format
+            }
+        }
+        
+        throw AdaError("Preffered Depth Format not found")
     }
     
 }
@@ -600,5 +863,17 @@ public struct AdaError: LocalizedError {
     
     public var errorDescription: String? {
         return message
+    }
+}
+
+extension Array {
+    subscript(_ index: UInt32) -> Element {
+        get {
+            return self[Int(index)]
+        }
+        
+        set {
+            self[Int(index)] = newValue
+        }
     }
 }

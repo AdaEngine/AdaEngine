@@ -27,6 +27,9 @@ public final class RenderPipeline {
         self.pipelineLayout = pipelineLayout
     }
     
+    public func bind(for cmd: CommandBuffer) {
+        vkCmdBindPipeline(cmd.rawPointer, VK_PIPELINE_BIND_POINT_GRAPHICS, self.rawPointer)
+    }
     
     deinit {
         vkDestroyPipeline(self.device.rawPointer, self.rawPointer, nil)

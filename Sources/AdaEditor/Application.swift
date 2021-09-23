@@ -39,7 +39,6 @@ public func deinitializeSwiftSDL2() {
 public class Window {
 
     public var sdlPointer: SDLWindow
-    var vulkan: VulkanInstance?
 
     public init?() {
         self.sdlPointer = SDL_CreateWindow(

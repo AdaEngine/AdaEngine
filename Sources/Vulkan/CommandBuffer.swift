@@ -37,7 +37,7 @@ final public class CommandBuffer {
         }
         
         guard let pointer = commandBuffer, result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Cannot create CommandPool for passed device")
+            throw VKError(code: result, message: "Cannot create Command Buffer for passed device")
         }
         self.device = device
         self.rawPointer = pointer
@@ -66,7 +66,7 @@ final public class CommandBuffer {
     }
     
     public func draw(vertexCount: Int, instanceCount: Int, firstVertex: Int, firstInstance: Int) {
-        vkCmdDraw(self.commandPool.rawPointer, UInt32(vertexCount), UInt32(instanceCount), UInt32(firstVertex), UInt32(firstInstance))
+        vkCmdDraw(self.rawPointer, UInt32(vertexCount), UInt32(instanceCount), UInt32(firstVertex), UInt32(firstInstance))
     }
     
     public func endUpdate() throws {
@@ -79,6 +79,8 @@ final public class CommandBuffer {
     public func reset() throws {
         let result = vkResetCommandBuffer(self.rawPointer, 0)
         try vkCheck(result)
+        
+        self.state = .ready
     }
     
     deinit {

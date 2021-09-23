@@ -9,7 +9,7 @@ import CVulkan
 
 public final class Semaphore {
     
-    public let rawPointer: VkSemaphore
+    public let rawPointer: VkSemaphore!
     private unowned let device: Device
     
     public init(device: Device) throws {

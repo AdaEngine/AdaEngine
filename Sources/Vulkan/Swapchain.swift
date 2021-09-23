@@ -52,4 +52,17 @@ public class Swapchain {
         
         return images.compactMap { $0 }
     }
+    
+    public func acquireNextImage(semaphore: Semaphore, nextImageIndex: inout UInt32) -> VkResult {
+        let result = vkAcquireNextImageKHR(
+            /*device*/ self.device.rawPointer,
+            /*swapchain*/ self.rawPointer,
+            /*timeout*/ UInt64.max,
+            /*semaphore*/ semaphore.rawPointer,
+            /*fence*/ nil,
+            /*pImageIndex*/ &nextImageIndex
+        )
+        
+        return result
+    }
 }
