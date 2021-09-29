@@ -36,6 +36,20 @@ public final class PipelineLayout {
         self.device = device
     }
     
+    public init(device: Device, createInfo: VkPipelineLayoutCreateInfo) throws {
+        
+        var pointer: VkPipelineLayout?
+
+        let result = withUnsafePointer(to: createInfo) { ptr in
+            vkCreatePipelineLayout(device.rawPointer, ptr, nil, &pointer)
+        }
+        
+        try vkCheck(result)
+        
+        self.rawPointer = pointer!
+        self.device = device
+    }
+    
     deinit {
         vkDestroyPipelineLayout(self.device.rawPointer, self.rawPointer, nil)
     }

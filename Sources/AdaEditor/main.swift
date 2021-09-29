@@ -27,6 +27,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                           screen: NSScreen.main)
     
     private var renderer: RenderBackend!
+    private var triangle: VulkanTriangle!
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         window.makeKeyAndOrderFront(nil)
@@ -37,12 +38,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         view.frame.size = window.frame.size
         view.autoresizingMask = [.height, .width]
         window.contentView?.addSubview(view)
-        
+        self.triangle = VulkanTriangle()
         do {
-            self.renderer = try VulkanRenderBackend(appName: "Ada Engine")
             
-            try renderer.createWindow(for: view, size: Vector2i(x: 800, y: 600))
+            try self.triangle.run(on: view)
             
+//            self.renderer = try VulkanRenderBackend(appName: "Ada Engine")
+//
+//            try renderer.createWindow(for: view, size: Vector2i(x: 800, y: 600))
+//
             self.runMainLoop()
         } catch {
             print(error)
@@ -56,9 +60,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc func draw() {
         do {
-            try self.renderer.beginFrame()
-            
-            try self.renderer.endFrame()
+            try self.triangle.drawFrame()
+//            try self.renderer.beginFrame()
+//
+//            try self.renderer.endFrame()
         } catch {
             print(error.localizedDescription)
         }

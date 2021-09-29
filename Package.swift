@@ -41,7 +41,7 @@ let package = Package(
         
         .target(
             name: "AdaEngine",
-            dependencies: ["Vulkan", "Math"],
+            dependencies: ["Vulkan", "Math", "CSDL2"],
             resources: [.copy("Rendering/Shaders/shader.frag.spv"), .copy("Rendering/Shaders/shader.vert.spv")]
         ),
         

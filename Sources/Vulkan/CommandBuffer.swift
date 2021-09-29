@@ -44,6 +44,12 @@ final public class CommandBuffer {
         self.commandPool = commandPool
     }
     
+    public init(device: Device, commandPool: CommandPool, pointer: VkCommandBuffer) {
+        self.device = device
+        self.rawPointer = pointer
+        self.commandPool = commandPool
+    }
+    
     public func beginUpdate() throws {
         let info = VkCommandBufferBeginInfo(
             sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
