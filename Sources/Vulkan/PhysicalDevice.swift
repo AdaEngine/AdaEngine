@@ -49,7 +49,7 @@ public final class PhysicalDevice {
         return features
     }
     
-    public var memoryProperties: VkPhysicalDeviceMemoryProperties {
+    public func getMemoryProperties() -> VkPhysicalDeviceMemoryProperties {
         var memory = VkPhysicalDeviceMemoryProperties()
         vkGetPhysicalDeviceMemoryProperties(self.pointer, &memory)
         return memory

@@ -8,8 +8,9 @@
 import simd
 
 /// Vector with floats
-public typealias Vector2 = Vector_2<Float>
+public typealias Vector2 = SIMD2<Float>
 public typealias Vector2i = Vector_2<Int>
+public typealias Vector3 = SIMD3<Float>
 
 public protocol VectorScalar: Numeric, Hashable, Codable { }
 
@@ -74,4 +75,30 @@ public extension Vector_2 {
         newVector.y *= lhs
         return newVector
     }
+}
+
+
+public struct _Vector3<Scalar: VectorScalar> {
+    public var x: Scalar
+    public var y: Scalar
+    public var z: Scalar
+    
+    public init(_ x: Scalar, _ y: Scalar, _ z: Scalar) {
+        self.init(x: x, y: y, z: z)
+    }
+    
+    public init(x: Scalar, y: Scalar, z: Scalar) {
+        self.x = x
+        self.y = y
+        self.z = z
+    }
+}
+
+extension _Vector3: ExpressibleByArrayLiteral where Scalar: FloatingPoint {
+    
+    /// Create
+    public init(arrayLiteral elements: Scalar...) {
+        self.init(elements[0], elements[1], elements[2])
+    }
+    
 }

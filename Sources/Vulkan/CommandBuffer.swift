@@ -82,6 +82,12 @@ final public class CommandBuffer {
         self.state = .recordingEnded
     }
     
+    public func bindVertexBuffers(_ buffers: [Buffer], offsets: [UInt64]) {
+        var vertexBuffers: [VkBuffer?] = buffers.map(\.rawPointer)
+        var offsets: [UInt64] = offsets
+        vkCmdBindVertexBuffers(self.rawPointer, 0, 1, &vertexBuffers, &offsets)
+    }
+    
     public func reset() throws {
         let result = vkResetCommandBuffer(self.rawPointer, 0)
         try vkCheck(result)
@@ -91,5 +97,22 @@ final public class CommandBuffer {
     
     deinit {
         vkFreeCommandBuffers(self.device.rawPointer, self.commandPool.rawPointer, 1, &self.rawPointer)
+    }
+}
+
+public extension CommandBuffer {
+    static func allocateCommandBuffers(for device: Device, commandBool: CommandPool, info: VkCommandBufferAllocateInfo) throws -> [CommandBuffer] {
+        var commandBuffers = [VkCommandBuffer?].init(repeating: nil, count: Int(info.commandBufferCount))
+        
+        let result = withUnsafePointer(to: info) { ptr in
+            vkAllocateCommandBuffers(device.rawPointer, ptr, &commandBuffers)
+        }
+        
+        try vkCheck(result)
+        
+        return commandBuffers.compactMap { ptr in
+            guard let ptr = ptr else { return nil }
+            return CommandBuffer(device: device, commandPool: commandBool, pointer: ptr)
+        }
     }
 }

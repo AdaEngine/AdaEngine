@@ -70,9 +70,10 @@ public class VulkanTriangle {
     
     public func drawFrame() throws {
         let fence = self.inFlightFences[self.currentFrame]
+        try fence.wait()
         
         var imageIndex: UInt32 = 0
-        vkAcquireNextImageKHR(self.device.rawPointer, self.swapchain.rawPointer, .max, imageAvailableSemaphores[currentFrame].rawPointer, fence.rawPointer, &imageIndex)
+        _ = self.swapchain.acquireNextImage(semaphore: imageAvailableSemaphores[currentFrame], nextImageIndex: &imageIndex)
         
         if imagesInFlight.indices.contains(Int(imageIndex)) {
             try imagesInFlight[imageIndex]?.wait()
@@ -80,42 +81,23 @@ public class VulkanTriangle {
         
         imagesInFlight[imageIndex] = inFlightFences[currentFrame]
         
-        var waitSemaphores: [VkSemaphore?] = [imageAvailableSemaphores[currentFrame].rawPointer]
-        var signalSemaphores: [VkSemaphore?] = [imageAvailableSemaphores[currentFrame].rawPointer]
-        var commandBuffers: [VkCommandBuffer?] = [self.commandBuffers[imageIndex].rawPointer]
-        var stages = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue]
-        
-        var submitInfo = VkSubmitInfo(
-            sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            pNext: nil,
-            waitSemaphoreCount: 1,
-            pWaitSemaphores: &waitSemaphores,
-            pWaitDstStageMask: &stages,
-            commandBufferCount: 1,
-            pCommandBuffers: &commandBuffers,
-            signalSemaphoreCount: 1,
-            pSignalSemaphores: &signalSemaphores
-        )
-        
+        let waitSemaphores = [imageAvailableSemaphores[currentFrame]]
+        let signalSemaphores = [imageAvailableSemaphores[currentFrame]]
+        let commandBuffers = [self.commandBuffers[imageIndex]]
         try inFlightFences[currentFrame].reset()
         
-        let result = vkQueueSubmit(self.graphicsQueue.rawPointer, 1, &submitInfo, inFlightFences[currentFrame].rawPointer)
-        try vkCheck(result)
-        var swapchains: [VkSwapchainKHR?] = [self.swapchain.rawPointer]
-        
-        var presentInfo = VkPresentInfoKHR(
-            sType: VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            pNext: nil,
-            waitSemaphoreCount: 1,
-            pWaitSemaphores: &waitSemaphores,
-            swapchainCount: 1,
-            pSwapchains: &swapchains,
-            pImageIndices: &imageIndex,
-            pResults: nil
+        try self.graphicsQueue.submit(
+            commandsBuffers: commandBuffers,
+            waitSemaphores: waitSemaphores,
+            signalSemaphores: signalSemaphores,
+            fence: inFlightFences[currentFrame]
         )
         
-        let presentResult = vkQueuePresentKHR(self.presentQueue.rawPointer, &presentInfo)
-        try vkCheck(presentResult)
+        try self.presentQueue.present(
+            swapchains: [self.swapchain],
+            waitSemaphores: waitSemaphores,
+            imageIndex: imageIndex
+        )
         
         self.currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT
     }
@@ -539,7 +521,7 @@ public class VulkanTriangle {
     
     private func createCommandBuffers() throws {
         
-        var allocInfo = VkCommandBufferAllocateInfo(
+        let allocInfo = VkCommandBufferAllocateInfo(
             sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             pNext: nil,
             commandPool: self.commandPool.rawPointer,
@@ -547,13 +529,8 @@ public class VulkanTriangle {
             commandBufferCount: UInt32(self.swapChainImageViews.count)
         )
         
-        var commandBuffersArray = [VkCommandBuffer?].init(repeating: nil, count: self.swapChainImageViews.count)
-        vkAllocateCommandBuffers(self.device.rawPointer, &allocInfo, &commandBuffersArray)
-        
-        let commandBuffers: [CommandBuffer] = commandBuffersArray.compactMap { ptr in
-            guard let ptr = ptr else { return nil }
-            return CommandBuffer(device: self.device, commandPool: self.commandPool, pointer: ptr)
-        }
+        let commandBuffers = try CommandBuffer.allocateCommandBuffers(for: self.device, commandBool: self.commandPool, info: allocInfo)
+        self.commandBuffers = commandBuffers
         
         for index in 0..<commandBuffers.count {
             

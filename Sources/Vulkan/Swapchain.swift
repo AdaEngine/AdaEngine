@@ -14,10 +14,6 @@ public class Swapchain {
     public let extent: VkExtent2D
     public let imageFormat: VkFormat
     
-    public var framebuffers: [Framebuffer] = []
-    
-    public var imageViews: [ImageView] = []
-    
     public init(device: Device, createInfo: VkSwapchainCreateInfoKHR) throws {
         var swapchain: VkSwapchainKHR?
         

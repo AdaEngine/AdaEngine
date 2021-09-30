@@ -18,6 +18,15 @@ func convertTupleToUnsafePointer<T, U>(tuple: T, type: U.Type) -> UnsafePointer<
     }
 }
 
+func convertTupleToArray<T, Element>(tuple: T, start: UnsafePointer<Element>) -> [Element] {
+    return [Element](
+        UnsafeBufferPointer(
+            start: start,
+            count: MemoryLayout.size(ofValue: tuple)/MemoryLayout<Element>.size
+        )
+    )
+}
+
 /// Helper method to check Vulkan results
 /// - Parameter result: VkResult value
 /// - Parameter message: Localized error message if VkResult is not a VK_SUCCESS

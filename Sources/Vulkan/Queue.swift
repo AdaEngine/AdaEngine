@@ -20,59 +20,31 @@ final public class Queue {
     }
     
     public func submit(
-        commandsBuffer: CommandBuffer,
-        waitSemaphores: Semaphore,
-        signalSemaphores: Semaphore,
+        commandsBuffers: [CommandBuffer],
+        waitSemaphores: [Semaphore],
+        signalSemaphores: [Semaphore],
         fence: Fence
     ) throws {
         
-        let commandBuffer = [commandsBuffer.rawPointer]
-        let waitSemaphores = [waitSemaphores.rawPointer]
-        let signalSemaphores = [signalSemaphores.rawPointer]
-        let stageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-        
-        VkSubmitInfo.makeSubmit(
-            commandBuffers: commandBuffer,
-            waitSemaphores: waitSemaphores,
-signalSemaphores: signalSemaphores,
-            flags: stageFlags) { info in
-            withUnsafePointer(to: info) { submitInfo in
-                let result = vkQueueSubmit(self.rawPointer, 1, submitInfo, fence.rawPointer)
-                if result == VK_SUCCESS {
-                    print("congrats")
-                }
-            }
-            
-        }
-        
-        
+        var commandBuffer: [VkCommandBuffer?] = commandsBuffers.map(\.rawPointer)
+        var waitSemaphores: [VkQueue?] = waitSemaphores.map(\.rawPointer)
+        var signalSemaphores: [VkQueue?] = signalSemaphores.map(\.rawPointer)
+        var stageFlags: [UInt32] = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue]
  
+        var submitInfo = VkSubmitInfo(
+            sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            pNext: nil,
+            waitSemaphoreCount: UInt32(waitSemaphores.count),
+            pWaitSemaphores: &waitSemaphores,
+            pWaitDstStageMask: &stageFlags,
+            commandBufferCount: UInt32(commandBuffer.count),
+            pCommandBuffers: &commandBuffer,
+            signalSemaphoreCount: UInt32(signalSemaphores.count),
+            pSignalSemaphores: &signalSemaphores
+        )
         
-//        withUnsafePointer(to: commandsBuffer.rawPointer) { cmdPtr in
-//            withUnsafePointer(to: waitSemaphores.rawPointer) { waitPtr in
-//                withUnsafePointer(to: signalSemaphores.rawPointer) { signalPtr in
-//                    var submitInfo = VkSubmitInfo(
-//                        sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
-//                        pNext: nil,
-//                        waitSemaphoreCount: 1,
-//                        pWaitSemaphores: waitPtr,
-//                        pWaitDstStageMask: &stageFlags,
-//                        commandBufferCount: 1,
-//                        pCommandBuffers: cmdPtr,
-//                        signalSemaphoreCount: 1,
-//                        pSignalSemaphores: signalPtr
-//                    )
-//
-//                    let result = vkQueueSubmit(self.rawPointer, 1, &submitInfo, fence.rawPointer)
-//                    if result == VK_SUCCESS {
-//                        print("congrats")
-//                    }
-//                }
-//            }
-//        }
-        
-        
-        //        try vkCheck(result)
+        let result = vkQueueSubmit(self.rawPointer, 1, &submitInfo, fence.rawPointer)
+        try vkCheck(result)
         
     }
     
@@ -81,19 +53,19 @@ signalSemaphores: signalSemaphores,
         return a[index]
     }
     
-    public func present(for swapchains: [Swapchain], signalSemaphores: [Semaphore], imageIndex: UInt32) throws {
-        let swapchain: [VkSwapchainKHR?] = swapchains.map(\.rawPointer)
-        let signalSem: [VkSemaphore?] = signalSemaphores.map(\.rawPointer)
+    public func present(swapchains: [Swapchain], waitSemaphores: [Semaphore], imageIndex: UInt32) throws {
+        let swapchains: [VkSwapchainKHR?] = swapchains.map(\.rawPointer)
+        var waitSemaphores: [VkSemaphore?] = waitSemaphores.map(\.rawPointer)
         
         var imageIndex = imageIndex
         
         var presentInfo = VkPresentInfoKHR(
             sType: VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             pNext: nil,
-            waitSemaphoreCount: 1,
-            pWaitSemaphores: signalSem,
-            swapchainCount: 1,
-            pSwapchains: swapchain,
+            waitSemaphoreCount: UInt32(waitSemaphores.count),
+            pWaitSemaphores: &waitSemaphores,
+            swapchainCount: UInt32(swapchains.count),
+            pSwapchains: swapchains,
             pImageIndices: &imageIndex,
             pResults: nil
         )

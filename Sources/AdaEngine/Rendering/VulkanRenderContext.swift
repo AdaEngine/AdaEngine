@@ -17,6 +17,41 @@ struct QueueFamilyIndices {
     let isSeparate: Bool
 }
 
+struct Vertex {
+    let pos: Vector2
+    let color: Vector3
+    
+    static func getBindingDescription() -> VkVertexInputBindingDescription {
+        return VkVertexInputBindingDescription(
+            binding: 0,
+            stride: UInt32(MemoryLayout<Vertex>.stride),
+            inputRate: VK_VERTEX_INPUT_RATE_VERTEX
+        )
+    }
+    
+    static func getAttributeDescriptions() -> [VkVertexInputAttributeDescription] {
+        var attributeDescriptions = [VkVertexInputAttributeDescription].init(repeating: VkVertexInputAttributeDescription(), count: 2)
+        
+        attributeDescriptions[0].binding = 0
+        attributeDescriptions[0].location = 0
+        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT
+        attributeDescriptions[0].offset = UInt32(MemoryLayout.offset(of: \Vertex.pos)!)
+        
+        attributeDescriptions[1].binding = 0
+        attributeDescriptions[1].location = 1
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT
+        attributeDescriptions[1].offset = UInt32(MemoryLayout.offset(of: \Vertex.color)!)
+        
+        return attributeDescriptions
+    }
+}
+
+let vertecies: [Vertex] = [
+    Vertex(pos: [0, -0.5], color: [1, 0, 0]),
+    Vertex(pos: [0.5, 0.5], color: [0, 1, 0]),
+    Vertex(pos: [-0.5, 0.5], color: [0, 0, 1]),
+]
+
 public class VulkanRenderContext {
     
     public private(set) var vulkan: VulkanInstance!
@@ -25,8 +60,8 @@ public class VulkanRenderContext {
     public private(set) var surface: Surface!
     public private(set) var gpu: PhysicalDevice!
     
-    private var graphicsQueue: Queue?
-    private var presentationQueue: Queue?
+    private var graphicsQueue: Queue!
+    private var presentQueue: Queue!
     
     private var imageFormat: VkFormat!
     private var colorSpace: VkColorSpaceKHR!
@@ -34,24 +69,29 @@ public class VulkanRenderContext {
     private(set) var renderPass: RenderPass!
     var graphicsPipeline: RenderPipeline!
     private(set) var swapchain: Swapchain!
+    public private(set) var framebuffers: [Framebuffer] = []
+    public private(set) var imageViews: [ImageView] = []
     
     private(set) var commandPool: CommandPool!
     private(set) var commandBuffers: [CommandBuffer] = []
     
     var imageAvailableSemaphores: [Vulkan.Semaphore] = []
-    var renderCompleteSemaphores: [Vulkan.Semaphore] = []
+    var renderFinishedSemaphores: [Vulkan.Semaphore] = []
     
-    var inFlightFences: [Fence?] = []
+    var inFlightFences: [Fence] = []
     var imagesInFlight: [Fence?] = []
     
     var maxFramesInFlight: UInt32 = 2
     
     var framebufferSize: Vector2i = Vector2i(0, 0)
+    public var framebufferResized = false
     
     public let vulkanVersion: UInt32
     
     public var currentImageIndex: UInt32 = 0
     public var currentFrame: UInt32 = 0
+    
+    var vertexBuffer: Buffer!
     
     public required init() {
         self.vulkanVersion = Self.determineVulkanVersion()
@@ -74,49 +114,44 @@ public class VulkanRenderContext {
     }
     
     public func prepareBuffer() throws {
-        let fence = self.inFlightFences[self.currentFrame]!
+        let fence = self.inFlightFences[self.currentFrame]
         try fence.wait()
         
-        let waitSemaphore = self.imageAvailableSemaphores[self.currentFrame]
-        _ = self.swapchain.acquireNextImage(semaphore: waitSemaphore, nextImageIndex: &self.currentImageIndex)
+        var imageIndex: UInt32 = 0
+        let acquireResult = self.swapchain.acquireNextImage(semaphore: self.imageAvailableSemaphores[currentFrame], nextImageIndex: &imageIndex)
         
-        if self.imagesInFlight.indices.contains(Int(self.currentImageIndex)) {
-            try self.imagesInFlight[self.currentImageIndex]?.wait()
+        if acquireResult == VK_ERROR_OUT_OF_DATE_KHR {
+            try self.updateSwapchain(for: self.framebufferSize)
+            return
+        } else if acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR {
+            throw AdaError("failed to acquire swap chain image!")
         }
         
-        self.imagesInFlight[self.currentImageIndex] = self.inFlightFences[self.currentFrame]
+        if self.imagesInFlight.indices.contains(Int(imageIndex)) {
+            try self.imagesInFlight[imageIndex]?.wait()
+        }
         
-        let signalSemaphores = [self.renderCompleteSemaphores[self.currentFrame]]
+        self.imagesInFlight[imageIndex] = self.inFlightFences[currentFrame]
         
-        try fence.reset()
+        let waitSemaphores = [self.imageAvailableSemaphores[currentFrame]]
+        let signalSemaphores = [self.imageAvailableSemaphores[currentFrame]]
+        let commandBuffers = [self.commandBuffers[imageIndex]]
+        try inFlightFences[currentFrame].reset()
         
-        try self.graphicsQueue?.submit(
-            commandsBuffer: self.commandBuffers[self.currentImageIndex],
-            waitSemaphores: waitSemaphore,
-            signalSemaphores: self.renderCompleteSemaphores[self.currentFrame],
-            fence: fence
+        try self.graphicsQueue.submit(
+            commandsBuffers: commandBuffers,
+            waitSemaphores: waitSemaphores,
+            signalSemaphores: signalSemaphores,
+            fence: self.inFlightFences[currentFrame]
         )
         
-        try self.presentationQueue?.present(
-            for: [self.swapchain],
-            signalSemaphores: signalSemaphores,
-            imageIndex: self.currentImageIndex
+        try self.presentQueue.present(
+            swapchains: [self.swapchain],
+            waitSemaphores: waitSemaphores,
+            imageIndex: imageIndex
         )
         
         self.currentFrame = (currentFrame + 1) % self.maxFramesInFlight
-        
-        // start recordings
-        //        let commandBuffer = self.commandBuffers[currentImageIndex]
-        //        try commandBuffer.beginUpdate()
-        
-        //        self.renderPass.begin(
-        //            for: commandBuffer,
-        //            framebuffer: self.swapchain.framebuffers[currentImageIndex],
-        //            swapchain: self.swapchain
-        //        )
-        
-        //        self.renderPass.bind(for: commandBuffer, pipeline: self.graphicsPipeline)
-        //        commandBuffer.draw(vertexCount: 3, instanceCount: 1, firstVertex: 0, firstInstance: 0)
     }
     
     public func flush() throws {
@@ -125,60 +160,6 @@ public class VulkanRenderContext {
         //        let commandBuffer = self.commandBuffers[index]
         //        self.renderPass.end(for: commandBuffer)
         //        try commandBuffer.endUpdate()
-    }
-    
-    public func swapBuffers() throws {
-        //
-        //        let result = self.swapchain.acquireNextImage(
-        //            semaphore: self.imageAvailableSemaphores[self.currentImageIndex],
-        //            nextImageIndex: &self.currentImageIndex
-        //        )
-        //
-        //        if result == VK_ERROR_OUT_OF_DATE_KHR {
-        //            try self.updateSwapchain(for: self.framebufferSize)
-        //        }
-        //
-        //        let fence = self.waitFences[self.currentImageIndex]
-        //        try fence.wait()
-        //        try fence.reset()
-        //
-        //        var stageFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue
-        //
-        //        let imageIndex = Int(self.currentImageIndex)
-        //        var buffer: VkCommandBuffer? = self.commandBuffers[imageIndex].rawPointer
-        //        var imageAvailableSemaphore: VkSemaphore? = self.imageAvailableSemaphores[imageIndex].rawPointer
-        //        var completeSemaphore: VkSemaphore? = self.renderCompleteSemaphores[imageIndex].rawPointer
-        //
-        //        var submitInfo = VkSubmitInfo(
-        //            sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        //            pNext: nil,
-        //            waitSemaphoreCount: 1,
-        //            pWaitSemaphores: &completeSemaphore,
-        //            pWaitDstStageMask: &stageFlags,
-        //            commandBufferCount: 1,
-        //            pCommandBuffers: &buffer,
-        //            signalSemaphoreCount: 1,
-        //            pSignalSemaphores: &imageAvailableSemaphore
-        //        )
-        //
-        //        var result = vkQueueSubmit(self.graphicsQueue, 1, &submitInfo, nil)
-        //        try vkCheck(result)
-        //
-        //        var swapchain: VkSwapchainKHR? = self.swapchain.rawPointer
-        //
-        //        var presentInfo = VkPresentInfoKHR(
-        //            sType: VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        //            pNext: nil,
-        //            waitSemaphoreCount: 1,
-        //            pWaitSemaphores: &completeSemaphore,
-        //            swapchainCount: 1,
-        //            pSwapchains: &swapchain,
-        //            pImageIndices: &currentImageIndex,
-        //            pResults: nil
-        //        )
-        //
-        //        result = vkQueuePresentKHR(self.presentationQueue, &presentInfo)
-        //        try vkCheck(result)
     }
     
     // MARK: - Private
@@ -207,7 +188,7 @@ public class VulkanRenderContext {
     }
     
     private func createWindow(surface: Surface, size: Vector2i) throws {
-        if self.graphicsQueue == nil && self.presentationQueue == nil {
+        if self.graphicsQueue == nil && self.presentQueue == nil {
             try self.createQueues(gpu: self.gpu, surface: surface)
         }
         
@@ -275,11 +256,16 @@ public class VulkanRenderContext {
         self.device = device
         
         self.graphicsQueue = device.getQueue(at: indecies.graphicsIndex)
-        self.presentationQueue = indecies.isSeparate ? device.getQueue(at: indecies.presentationIndex) : self.graphicsQueue
+        self.presentQueue = indecies.isSeparate ? device.getQueue(at: indecies.presentationIndex) : self.graphicsQueue
     }
     
     private func destroySwapchain() throws {
         try self.device.waitIdle()
+        self.framebuffers = []
+        self.commandBuffers = []
+        self.graphicsPipeline = nil
+        self.renderPass = nil
+        self.imageViews = []
         self.swapchain = nil
     }
     
@@ -388,13 +374,14 @@ public class VulkanRenderContext {
             )
             
             let imageView = try ImageView(device: self.device, info: info)
-            swapchain.imageViews.append(imageView)
+            self.imageViews.append(imageView)
         }
         
         let extentSize = Vector2i(Int(extent.width), Int(extent.height))
         
         self.framebufferSize = extentSize
         
+        try self.createVertexBuffer()
         try self.createRenderPass(size: extentSize)
         try self.createRenderPipeline(size: extentSize)
         try self.createFramebuffer(size: extentSize)
@@ -405,14 +392,17 @@ public class VulkanRenderContext {
     func createRenderPipeline(size: Vector2i) throws {
         let shaders = try self.loadShaders()
         
+        var vertDesc = Vertex.getBindingDescription()
+        var vertAttr = Vertex.getAttributeDescriptions()
+        
         var vertexInputInfo = VkPipelineVertexInputStateCreateInfo(
             sType: VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             pNext: nil,
             flags: 0,
-            vertexBindingDescriptionCount: 0,
-            pVertexBindingDescriptions: nil,
-            vertexAttributeDescriptionCount: 0,
-            pVertexAttributeDescriptions: nil
+            vertexBindingDescriptionCount: 1,
+            pVertexBindingDescriptions: &vertDesc,
+            vertexAttributeDescriptionCount: UInt32(vertAttr.count),
+            pVertexAttributeDescriptions: &vertAttr
         )
         
         var inputAssembly = VkPipelineInputAssemblyStateCreateInfo(
@@ -664,7 +654,7 @@ public class VulkanRenderContext {
     }
     
     private func createFramebuffer(size: Vector2i) throws {
-        for imageView in self.swapchain.imageViews {
+        for imageView in self.imageViews {
             var attachment = imageView.rawPointer
             
             let createInfo = VkFramebufferCreateInfo(
@@ -680,7 +670,7 @@ public class VulkanRenderContext {
             )
             
             let framebuffer = try Framebuffer(device: self.device, createInfo: createInfo)
-            self.swapchain.framebuffers.append(framebuffer)
+            self.framebuffers.append(framebuffer)
         }
     }
     
@@ -692,67 +682,55 @@ public class VulkanRenderContext {
             queueFamilyIndex: UInt32(self.queueFamilyIndicies.graphicsIndex)
         )
         
-        for framebuffer in  self.swapchain.framebuffers {
-            let commandBuffer = try CommandBuffer(device: self.device, commandPool: commandPool, isPrimary: true)
+        self.commandPool = commandPool
+        
+        let allocInfo = VkCommandBufferAllocateInfo(
+            sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            pNext: nil,
+            commandPool: commandPool.rawPointer,
+            level: VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            commandBufferCount: UInt32(self.imageViews.count)
+        )
+        
+        let commandBuffers = try CommandBuffer.allocateCommandBuffers(for: self.device, commandBool: commandPool, info: allocInfo)
+        self.commandBuffers = commandBuffers
+        
+        for index in 0..<commandBuffers.count {
+            let commandBuffer = commandBuffers[index]
             try commandBuffer.beginUpdate()
             
-            // vkCmdBeginRenderPass
+            let framebuffer = self.framebuffers[index]
+
             self.renderPass.begin(
                 for: commandBuffer,
                 framebuffer: framebuffer,
                 swapchain: self.swapchain
             )
             
-            // vkCmdBindPipeline
             self.graphicsPipeline.bind(for: commandBuffer)
             
-            // vkCmdDraw
-            commandBuffer.draw(vertexCount: 3, instanceCount: 1, firstVertex: 0, firstInstance: 0)
+            commandBuffer.bindVertexBuffers([self.vertexBuffer], offsets: [0])
+            commandBuffer.draw(vertexCount: vertecies.count, instanceCount: 1, firstVertex: 0, firstInstance: 0)
             
-            // vkCmdEndRenderPass
             self.renderPass.end(for: commandBuffer)
             
-            // vkEndCommandBuffer
             try commandBuffer.endUpdate()
-            
-            
-            //            let barrier = VkImageMemoryBarrier(
-            //                sType: VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-            //                pNext: nil,
-            //                srcAccessMask: 0,
-            //                dstAccessMask: VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT.rawValue,
-            //                oldLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            //                newLayout: VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            //                srcQueueFamilyIndex: UInt32(self.queueFamilyIndicies.graphicsIndex),
-            //                dstQueueFamilyIndex: UInt32(self.queueFamilyIndicies.presentationIndex),
-            //                image: image,
-            //                subresourceRange:
-            //                    VkImageSubresourceRange(
-            //                        aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue,
-            //                        baseMipLevel: 0,
-            //                        levelCount: 1,
-            //                        baseArrayLayer: 0,
-            //                        layerCount: 1
-            //                    )
-            //            )
             
             self.commandBuffers.append(commandBuffer)
         }
     }
     
     private func createSyncObjects() throws {
-        let maxFramesInFlight = Int(self.maxFramesInFlight)
         self.imageAvailableSemaphores.removeAll()
-        self.renderCompleteSemaphores.removeAll()
+        self.renderFinishedSemaphores.removeAll()
         
-        self.inFlightFences = [Fence?].init(repeating: nil, count: maxFramesInFlight)
-        self.imagesInFlight = [Fence?].init(repeating: nil, count: try self.swapchain.getImages().count)
+        self.imagesInFlight = [Fence?].init(repeating: nil, count: self.imageViews.count)
         
-        for index in 0..<self.maxFramesInFlight {
+        for _ in 0..<self.maxFramesInFlight {
             self.imageAvailableSemaphores.append(try Vulkan.Semaphore(device: self.device))
-            self.renderCompleteSemaphores.append(try Vulkan.Semaphore(device: self.device))
+            self.renderFinishedSemaphores.append(try Vulkan.Semaphore(device: self.device))
             
-            self.inFlightFences[index] = try Fence(device: self.device)
+            self.inFlightFences.append(try Fence(device: self.device))
         }
     }
     
@@ -773,6 +751,31 @@ public class VulkanRenderContext {
         throw AdaError("Preffered Depth Format not found")
     }
     
+    // MARK: - Test
+    
+    #warning("Test")
+    private func createVertexBuffer() throws {
+        let vertexBuffer = try Buffer(
+            device: self.device,
+            size: MemoryLayout<Vertex>.size * vertecies.count,
+            usage: .vertexBuffer,
+            sharingMode: VK_SHARING_MODE_EXCLUSIVE
+        )
+        
+        let memoryTypeIndex = try vertexBuffer.findMemoryTypeIndex(
+            for: (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue),
+            in: self.gpu
+        )
+        
+        let allocatedMemory = try vertexBuffer.allocateMemory(memoryTypeIndex: memoryTypeIndex)
+        try vertexBuffer.bindMemory(allocatedMemory)
+        
+        let memPointer = try vertexBuffer.mapMemory(allocatedMemory, offset: 0, flags: 0)
+        vertexBuffer.copy(from: vertecies, to: memPointer)
+        vertexBuffer.unmapMemory(allocatedMemory)
+        
+        self.vertexBuffer = vertexBuffer
+    }
 }
 
 extension VulkanRenderContext {
