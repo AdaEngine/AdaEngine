@@ -11,6 +11,7 @@ public class Application {
     
     // MARK: - Public
     
+    /// Contains application instance if application created from `ApplicationCreate`
     public internal(set) static var shared: Application!
     
     public var platform: RuntimePlatform {
@@ -33,19 +34,12 @@ public class Application {
     
     // MARK: - Internal
     
-    var time = Time()
-    var currentTime: Double = 0
-    
     required init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         
     }
     
     func run() throws {
         assertionFailure("Not implemented")
-    }
-    
-    func calculateDeltaTime() {
-        
     }
     
     // MARK: - Public methods

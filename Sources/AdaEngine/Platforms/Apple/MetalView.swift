@@ -10,7 +10,7 @@
 import MetalKit
 
 public final class MetalView: MTKView {
-
+    
 }
 
 #endif

@@ -529,7 +529,7 @@ public class VulkanTriangle {
             commandBufferCount: UInt32(self.swapChainImageViews.count)
         )
         
-        let commandBuffers = try CommandBuffer.allocateCommandBuffers(for: self.device, commandBool: self.commandPool, info: allocInfo)
+        let commandBuffers = try CommandBuffer.allocateCommandBuffers(for: self.device, commandPool: self.commandPool, info: allocInfo)
         self.commandBuffers = commandBuffers
         
         for index in 0..<commandBuffers.count {

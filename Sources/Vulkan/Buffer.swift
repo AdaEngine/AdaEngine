@@ -20,7 +20,7 @@ public final class Buffer {
         return memoryRequirements
     }()
     
-    public init(device: Device, size: Int, usage: Usage, sharingMode: VkSharingMode = VK_SHARING_MODE_CONCURRENT) throws {
+    public init(device: Device, size: Int, usage: Usage, sharingMode: VkSharingMode) throws {
         
         var buffer: VkBuffer?
         
@@ -103,6 +103,42 @@ public final class Buffer {
         throw VKError(code: VK_ERROR_UNKNOWN, message: "Can't find memory type index")
     }
     
+    public func copyBuffer(
+        from source: Buffer,
+        size: Int,
+        commandPool: CommandPool,
+        graphicsQueue: Queue
+    ) throws {
+        let info = VkCommandBufferAllocateInfo(
+            sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            pNext: nil,
+            commandPool: commandPool.rawPointer,
+            level: VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            commandBufferCount: 1
+        )
+        
+        let commandBuffer = try CommandBuffer.allocateCommandBuffers(
+            for: self.device,
+            commandPool: commandPool,
+            info: info
+        ).first!
+        
+        try commandBuffer.beginUpdate(flags: .oneTimeSubmit)
+        
+        var copyRegion = VkBufferCopy(
+            srcOffset: 0,
+            dstOffset: 0,
+            size: VkDeviceSize(size)
+        )
+        
+        vkCmdCopyBuffer(commandBuffer.rawPointer, source.rawPointer, self.rawPointer, 1, &copyRegion)
+        
+        try commandBuffer.endUpdate()
+        
+        try graphicsQueue.submit(commandsBuffers: [commandBuffer])
+        try graphicsQueue.wait()
+    }
+    
     deinit {
         vkDestroyBuffer(self.device.rawPointer, self.rawPointer, nil)
     }
@@ -119,6 +155,9 @@ public extension Buffer {
         public static let indexBuffer = Usage(rawValue: VK_BUFFER_USAGE_INDEX_BUFFER_BIT.rawValue)
         public static let vertexBuffer = Usage(rawValue: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue)
         public static let storageBuffer = Usage(rawValue: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT.rawValue)
+        
+        public static let transferSource = Usage(rawValue: VK_BUFFER_USAGE_TRANSFER_SRC_BIT.rawValue)
+        public static let transferDestination = Usage(rawValue: VK_BUFFER_USAGE_TRANSFER_DST_BIT.rawValue)
     }
 }
 

@@ -47,10 +47,13 @@ struct Vertex {
 }
 
 let vertecies: [Vertex] = [
-    Vertex(pos: [0, -0.5], color: [1, 1, 1]),
-    Vertex(pos: [0.5, 0.5], color: [0, 1, 1]),
+    Vertex(pos: [-0.5, -0.5], color: [1, 0, 0]),
+    Vertex(pos: [0.5, -0.5], color: [0, 1, 0]),
+    Vertex(pos: [0.5, 0.5], color: [0, 0, 1]),
     Vertex(pos: [-0.5, 0.5], color: [0.1, 0, 1]),
 ]
+
+let indecies: [UInt16] = [0, 1, 2, 2, 3, 0]
 
 public class VulkanRenderContext {
     
@@ -92,6 +95,7 @@ public class VulkanRenderContext {
     public var currentFrame: UInt32 = 0
     
     var vertexBuffer: Buffer!
+    var indexBuffer: Buffer!
     
     public required init() {
         self.vulkanVersion = Self.determineVulkanVersion()
@@ -142,6 +146,7 @@ public class VulkanRenderContext {
             commandsBuffers: commandBuffers,
             waitSemaphores: waitSemaphores,
             signalSemaphores: signalSemaphores,
+            stageFlags: [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue],
             fence: self.inFlightFences[currentFrame]
         )
         
@@ -381,10 +386,12 @@ public class VulkanRenderContext {
         
         self.framebufferSize = extentSize
         
-        try self.createVertexBuffer()
         try self.createRenderPass(size: extentSize)
         try self.createRenderPipeline(size: extentSize)
         try self.createFramebuffer(size: extentSize)
+        try self.createCommandPool()
+        try self.createVertexBuffer()
+        try self.createIndexBuffer()
         try self.createCommandBuffers()
         try self.createSyncObjects()
     }
@@ -674,25 +681,27 @@ public class VulkanRenderContext {
         }
     }
     
-    private func createCommandBuffers() throws {
-        self.commandBuffers.removeAll()
-        
+    private func createCommandPool() throws {
         let commandPool = try CommandPool(
             device: self.device,
             queueFamilyIndex: UInt32(self.queueFamilyIndicies.graphicsIndex)
         )
         
         self.commandPool = commandPool
+    }
+    
+    private func createCommandBuffers() throws {
+        self.commandBuffers.removeAll()
         
         let allocInfo = VkCommandBufferAllocateInfo(
             sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             pNext: nil,
-            commandPool: commandPool.rawPointer,
+            commandPool: self.commandPool.rawPointer,
             level: VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             commandBufferCount: UInt32(self.imageViews.count)
         )
         
-        let commandBuffers = try CommandBuffer.allocateCommandBuffers(for: self.device, commandBool: commandPool, info: allocInfo)
+        let commandBuffers = try CommandBuffer.allocateCommandBuffers(for: self.device, commandPool: self.commandPool, info: allocInfo)
         self.commandBuffers = commandBuffers
         
         for index in 0..<commandBuffers.count {
@@ -710,7 +719,9 @@ public class VulkanRenderContext {
             self.graphicsPipeline.bind(for: commandBuffer)
             
             commandBuffer.bindVertexBuffers([self.vertexBuffer], offsets: [0])
+            commandBuffer.bindIndexBuffer(self.indexBuffer, offset: 0, indexType: VK_INDEX_TYPE_UINT16)
             commandBuffer.draw(vertexCount: vertecies.count, instanceCount: 1, firstVertex: 0, firstInstance: 0)
+            commandBuffer.drawIndexed(indexCount: indecies.count, instanceCount: 1, firstIndex: 0, vertexOffset: 0, firstInstance: 0)
             
             self.renderPass.end(for: commandBuffer)
             
@@ -753,37 +764,80 @@ public class VulkanRenderContext {
     
     // MARK: - Test
     
-    #warning("Test")
-    private func createVertexBuffer() throws {
-        let vertexBuffer = try Buffer(
-            device: self.device,
-            size: MemoryLayout<Vertex>.size * vertecies.count,
-            usage: .vertexBuffer,
-            sharingMode: VK_SHARING_MODE_EXCLUSIVE
+    private func createIndexBuffer() throws {
+        let bufferSize = MemoryLayout.size(ofValue: indecies[0]) * indecies.count
+        
+        let (stagingBuffer, stagingBufferMemory) = try self.createBuffer(
+            usage: .transferSource,
+            size: bufferSize,
+            properties: VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue
         )
         
-        let memoryTypeIndex = try vertexBuffer.findMemoryTypeIndex(
-            for: (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue),
-            in: self.gpu
+        let mem = try stagingBuffer.mapMemory(stagingBufferMemory, offset: 0, flags: 0)
+        stagingBuffer.copy(from: indecies, to: mem)
+        stagingBuffer.unmapMemory(stagingBufferMemory)
+        
+        let (indexBuffer, _) = try self.createBuffer(
+            usage: [.indexBuffer, .transferDestination],
+            size: bufferSize,
+            properties: VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT.rawValue
         )
         
-        let allocatedMemory = try vertexBuffer.allocateMemory(memoryTypeIndex: memoryTypeIndex)
-        try vertexBuffer.bindMemory(allocatedMemory)
+        try indexBuffer.copyBuffer(
+            from: stagingBuffer,
+            size: bufferSize,
+            commandPool: self.commandPool,
+            graphicsQueue: graphicsQueue
+        )
         
-        let memPointer = try vertexBuffer.mapMemory(allocatedMemory, offset: 0, flags: 0)
-        vertexBuffer.copy(from: vertecies, to: memPointer)
-        vertexBuffer.unmapMemory(allocatedMemory)
-        
-        self.vertexBuffer = vertexBuffer
+        self.indexBuffer = indexBuffer
+        vkFreeMemory(self.device.rawPointer, stagingBufferMemory, nil)
     }
     
-    private func createBuffer(usage: Buffer.Usage, size: UInt64, properties: VkMemoryPropertyFlags) throws -> Buffer {
-        let buffer = try Buffer(device: self.device, size: Int(size), usage: usage)
+    #warning("Test")
+    private func createVertexBuffer() throws {
+        let bufferSize = MemoryLayout<Vertex>.size * vertecies.count
+        
+        let (stagingBuffer, stagingBufferMemory) = try self.createBuffer(
+            usage: .transferSource,
+            size: bufferSize,
+            properties: VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue
+        )
+        
+        let mem = try stagingBuffer.mapMemory(stagingBufferMemory, offset: 0, flags: 0)
+        stagingBuffer.copy(from: vertecies, to: mem)
+        stagingBuffer.unmapMemory(stagingBufferMemory)
+        
+        let (vertexBuffer, _) = try self.createBuffer(
+            usage: [.vertexBuffer, .transferDestination],
+            size: bufferSize,
+            properties: VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT.rawValue
+        )
+        
+        try vertexBuffer.copyBuffer(
+            from: stagingBuffer,
+            size: bufferSize,
+            commandPool: self.commandPool,
+            graphicsQueue: graphicsQueue
+        )
+        
+        self.vertexBuffer = vertexBuffer
+        vkFreeMemory(self.device.rawPointer, stagingBufferMemory, nil)
+    }
+    
+    private func createBuffer(usage: Buffer.Usage, size: Int, properties: VkMemoryPropertyFlags) throws -> (Buffer, VkDeviceMemory) {
+        let buffer = try Buffer(
+            device: self.device,
+            size: size,
+            usage: usage,
+            sharingMode: VK_SHARING_MODE_EXCLUSIVE
+        )
         
         let index = try buffer.findMemoryTypeIndex(for: properties, in: self.gpu)
         let allocatedMemory = try buffer.allocateMemory(memoryTypeIndex: index)
         try buffer.bindMemory(allocatedMemory)
-        return buffer
+        
+        return (buffer, allocatedMemory)
     }
 }
 

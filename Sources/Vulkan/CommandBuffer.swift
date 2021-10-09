@@ -50,11 +50,11 @@ final public class CommandBuffer {
         self.commandPool = commandPool
     }
     
-    public func beginUpdate() throws {
+    public func beginUpdate(flags: BeginFlags = .simultaneousUse) throws {
         let info = VkCommandBufferBeginInfo(
             sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             pNext: nil,
-            flags: VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT.rawValue,
+            flags: flags.rawValue,
             pInheritanceInfo: nil
         )
         
@@ -75,6 +75,17 @@ final public class CommandBuffer {
         vkCmdDraw(self.rawPointer, UInt32(vertexCount), UInt32(instanceCount), UInt32(firstVertex), UInt32(firstInstance))
     }
     
+    public func drawIndexed(indexCount: Int, instanceCount: Int, firstIndex: Int, vertexOffset: Int, firstInstance: Int) {
+        vkCmdDrawIndexed(
+            self.rawPointer,
+            UInt32(indexCount),
+            UInt32(instanceCount),
+            UInt32(firstIndex),
+            Int32(vertexOffset),
+            UInt32(firstInstance)
+        )
+    }
+    
     public func endUpdate() throws {
         let result = vkEndCommandBuffer(self.rawPointer)
         try vkCheck(result, "Command buffer cannot end update")
@@ -86,6 +97,10 @@ final public class CommandBuffer {
         var vertexBuffers: [VkBuffer?] = buffers.map(\.rawPointer)
         var offsets: [UInt64] = offsets
         vkCmdBindVertexBuffers(self.rawPointer, 0, 1, &vertexBuffers, &offsets)
+    }
+    
+    public func bindIndexBuffer(_ buffer: Buffer, offset: UInt64, indexType: VkIndexType) {
+        vkCmdBindIndexBuffer(self.rawPointer, buffer.rawPointer, offset, indexType)
     }
     
     public func reset() throws {
@@ -101,7 +116,7 @@ final public class CommandBuffer {
 }
 
 public extension CommandBuffer {
-    static func allocateCommandBuffers(for device: Device, commandBool: CommandPool, info: VkCommandBufferAllocateInfo) throws -> [CommandBuffer] {
+    static func allocateCommandBuffers(for device: Device, commandPool: CommandPool, info: VkCommandBufferAllocateInfo) throws -> [CommandBuffer] {
         var commandBuffers = [VkCommandBuffer?].init(repeating: nil, count: Int(info.commandBufferCount))
         
         let result = withUnsafePointer(to: info) { ptr in
@@ -112,7 +127,20 @@ public extension CommandBuffer {
         
         return commandBuffers.compactMap { ptr in
             guard let ptr = ptr else { return nil }
-            return CommandBuffer(device: device, commandPool: commandBool, pointer: ptr)
+            return CommandBuffer(device: device, commandPool: commandPool, pointer: ptr)
         }
+    }
+    
+    struct BeginFlags: OptionSet {
+        public var rawValue: UInt32
+        
+        public init(rawValue: UInt32) {
+            self.rawValue = rawValue
+        }
+        
+        public static let oneTimeSubmit = BeginFlags(rawValue: VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT.rawValue)
+        public static let renderPassContinue = BeginFlags(rawValue: VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT.rawValue)
+        public static let simultaneousUse = BeginFlags(rawValue: VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT.rawValue)
+        public static let flagBitsMaxEnum = BeginFlags(rawValue: VK_COMMAND_BUFFER_USAGE_FLAG_BITS_MAX_ENUM.rawValue)
     }
 }

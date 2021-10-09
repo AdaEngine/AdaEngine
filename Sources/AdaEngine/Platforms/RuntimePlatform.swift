@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-import Foundation
-
 public enum RuntimePlatform: String, Codable {
     case macOS
     case tvOS

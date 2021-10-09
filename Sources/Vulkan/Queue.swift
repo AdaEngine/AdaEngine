@@ -19,17 +19,23 @@ final public class Queue {
         self.rawPointer = queue
     }
     
+    public func wait() throws {
+        let result = vkQueueWaitIdle(self.rawPointer)
+        try vkCheck(result)
+    }
+    
     public func submit(
         commandsBuffers: [CommandBuffer],
-        waitSemaphores: [Semaphore],
-        signalSemaphores: [Semaphore],
-        fence: Fence
+        waitSemaphores: [Semaphore] = [],
+        signalSemaphores: [Semaphore] = [],
+        stageFlags: [UInt32] = [],
+        fence: Fence? = nil
     ) throws {
         
         var commandBuffer: [VkCommandBuffer?] = commandsBuffers.map(\.rawPointer)
         var waitSemaphores: [VkQueue?] = waitSemaphores.map(\.rawPointer)
         var signalSemaphores: [VkQueue?] = signalSemaphores.map(\.rawPointer)
-        var stageFlags: [UInt32] = [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue]
+        var stageFlags: [UInt32] = stageFlags
  
         var submitInfo = VkSubmitInfo(
             sType: VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -43,7 +49,7 @@ final public class Queue {
             pSignalSemaphores: &signalSemaphores
         )
         
-        let result = vkQueueSubmit(self.rawPointer, 1, &submitInfo, fence.rawPointer)
+        let result = vkQueueSubmit(self.rawPointer, 1, &submitInfo, fence?.rawPointer)
         try vkCheck(result)
         
     }

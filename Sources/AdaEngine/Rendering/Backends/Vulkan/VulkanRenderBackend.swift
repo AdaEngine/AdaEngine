@@ -10,13 +10,6 @@ import Vulkan
 import Math
 import Foundation
 
-public protocol RenderBackend: AnyObject {
-    func createWindow(for view: RenderView, size: Vector2i) throws
-    func resizeWindow(newSize: Vector2i) throws
-    func beginFrame() throws
-    func endFrame() throws
-}
-
 public class VulkanRenderBackend: RenderBackend {
     
     private let context: VulkanRenderContext
