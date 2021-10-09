@@ -49,11 +49,11 @@ public final class PhysicalDevice {
         return features
     }
     
-    public func getMemoryProperties() -> VkPhysicalDeviceMemoryProperties {
+    public lazy var memoryProperties: VkPhysicalDeviceMemoryProperties = {
         var memory = VkPhysicalDeviceMemoryProperties()
         vkGetPhysicalDeviceMemoryProperties(self.pointer, &memory)
         return memory
-    }
+    }()
     
     public func getExtensions() throws -> [ExtensionProperties] {
         var count: UInt32 = 0

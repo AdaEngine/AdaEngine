@@ -47,9 +47,9 @@ struct Vertex {
 }
 
 let vertecies: [Vertex] = [
-    Vertex(pos: [0, -0.5], color: [1, 0, 0]),
-    Vertex(pos: [0.5, 0.5], color: [0, 1, 0]),
-    Vertex(pos: [-0.5, 0.5], color: [0, 0, 1]),
+    Vertex(pos: [0, -0.5], color: [1, 1, 1]),
+    Vertex(pos: [0.5, 0.5], color: [0, 1, 1]),
+    Vertex(pos: [-0.5, 0.5], color: [0.1, 0, 1]),
 ]
 
 public class VulkanRenderContext {
@@ -775,6 +775,15 @@ public class VulkanRenderContext {
         vertexBuffer.unmapMemory(allocatedMemory)
         
         self.vertexBuffer = vertexBuffer
+    }
+    
+    private func createBuffer(usage: Buffer.Usage, size: UInt64, properties: VkMemoryPropertyFlags) throws -> Buffer {
+        let buffer = try Buffer(device: self.device, size: Int(size), usage: usage)
+        
+        let index = try buffer.findMemoryTypeIndex(for: properties, in: self.gpu)
+        let allocatedMemory = try buffer.allocateMemory(memoryTypeIndex: index)
+        try buffer.bindMemory(allocatedMemory)
+        return buffer
     }
 }
 

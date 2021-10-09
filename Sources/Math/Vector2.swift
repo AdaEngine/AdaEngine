@@ -9,7 +9,7 @@ import simd
 
 /// Vector with floats
 public typealias Vector2 = SIMD2<Float>
-public typealias Vector2i = Vector_2<Int>
+public typealias Vector2i = SIMD2<Int>
 public typealias Vector3 = SIMD3<Float>
 
 public protocol VectorScalar: Numeric, Hashable, Codable { }

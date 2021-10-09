@@ -1,8 +1,28 @@
-import Vulkan
+//
+//  AdaEngine.swift
+//
+//
+//  Created by v.prusakov on 8/14/21.
+//
 
-class Window {
+import Foundation
+
+#if METAL
+import MetalKit
+#else
+import Vulkan
+#endif
+
+struct Time {
+    var deltaTime: Double = 0
+    var fixedTime: Double = 0
+}
+
+final public class Engine {
     
-    func lol() {
+    public static let shared: Engine = Engine()
+    
+    private init() {
         
     }
     

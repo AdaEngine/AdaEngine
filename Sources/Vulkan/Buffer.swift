@@ -14,6 +14,12 @@ public final class Buffer {
     
     public private(set) var size: UInt64
     
+    public lazy var memoryRequirements: VkMemoryRequirements = {
+        var memoryRequirements = VkMemoryRequirements()
+        vkGetBufferMemoryRequirements(self.device.rawPointer, self.rawPointer, &memoryRequirements)
+        return memoryRequirements
+    }()
+    
     public init(device: Device, size: Int, usage: Usage, sharingMode: VkSharingMode = VK_SHARING_MODE_CONCURRENT) throws {
         
         var buffer: VkBuffer?
@@ -42,7 +48,7 @@ public final class Buffer {
     }
     
     public func allocateMemory(memoryTypeIndex: UInt32) throws -> VkDeviceMemory {
-        let requirements = self.getMemoryRequirements()
+        let requirements = self.memoryRequirements
         
         var allocInfo = VkMemoryAllocateInfo(
             sType: VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -67,12 +73,6 @@ public final class Buffer {
         try vkCheck(result)
     }
     
-    public func getMemoryRequirements() -> VkMemoryRequirements {
-        var memoryRequirements = VkMemoryRequirements()
-        vkGetBufferMemoryRequirements(self.device.rawPointer, self.rawPointer, &memoryRequirements)
-        return memoryRequirements
-    }
-    
     public func mapMemory(_ memory: VkDeviceMemory, offset: Int, flags: VkMemoryMapFlags) throws -> UnsafeMutableRawPointer {
         var mutPointer: UnsafeMutableRawPointer?
         let result = vkMapMemory(self.device.rawPointer, memory, UInt64(offset), self.size, flags, &mutPointer)
@@ -89,19 +89,9 @@ public final class Buffer {
         vkUnmapMemory(self.device.rawPointer, memory)
     }
     
-    public func copyMemory<T>(_ memory: VkDeviceMemory, offset: Int, flags: VkMemoryMapFlags, from source: [T]) throws {
-        var mutPointer: UnsafeMutableRawPointer?
-        let result = vkMapMemory(self.device.rawPointer, memory, UInt64(offset), self.size, flags, &mutPointer)
-        try vkCheck(result)
-            
-        mutPointer?.copyMemory(from: source, byteCount: MemoryLayout<T>.stride * source.count)
-        
-        vkUnmapMemory(self.device.rawPointer, memory)
-    }
-    
     public func findMemoryTypeIndex(for properties: VkMemoryPropertyFlags, in gpu: PhysicalDevice) throws -> UInt32 {
-        let memRequirements = self.getMemoryRequirements()
-        let memProperties = gpu.getMemoryProperties()
+        let memRequirements = self.memoryRequirements
+        let memProperties = gpu.memoryProperties
         var typesTuple = memProperties.memoryTypes
         let memoryTypes = convertTupleToArray(tuple: typesTuple, start: &typesTuple.0)
         for index in 0 ..< memProperties.memoryTypeCount {
@@ -131,3 +121,5 @@ public extension Buffer {
         public static let storageBuffer = Usage(rawValue: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT.rawValue)
     }
 }
+
+
