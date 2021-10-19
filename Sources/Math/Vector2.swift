@@ -11,6 +11,7 @@ import simd
 public typealias Vector2 = SIMD2<Float>
 public typealias Vector2i = SIMD2<Int>
 public typealias Vector3 = SIMD3<Float>
+public typealias Vector4 = SIMD4<Float>
 
 public protocol VectorScalar: Numeric, Hashable, Codable { }
 
@@ -101,4 +102,21 @@ extension _Vector3: ExpressibleByArrayLiteral where Scalar: FloatingPoint {
         self.init(elements[0], elements[1], elements[2])
     }
     
+}
+
+public extension Vector3 {
+    func cross(_ vec: Vector3) -> Vector3 {
+        return Vector3(y * vec.z - z, z * vec.x - x, x * vec.y - y)
+    }
+    
+    var squaredLength: Float {
+        return x * x + y * y + z * z
+    }
+    
+    var normalized: Vector3 {
+        let length = self.squaredLength
+        return self / sqrt(length)
+    }
+    
+    static let up: Vector3 = Vector3(0, 1, 0)
 }

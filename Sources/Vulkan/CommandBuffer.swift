@@ -103,6 +103,27 @@ final public class CommandBuffer {
         vkCmdBindIndexBuffer(self.rawPointer, buffer.rawPointer, offset, indexType)
     }
     
+    public func bindDescriptSets(
+        pipelineBindPoint: VkPipelineBindPoint,
+        layout: PipelineLayout,
+        firstSet: UInt32,
+        descriptorSets: [DescriptorSet],
+        dynamicOffsets: [UInt32]? = nil
+    ) {
+        var descriptorSets: [VkDescriptorSet?] = descriptorSets.map(\.rawPointer)
+        
+        vkCmdBindDescriptorSets(
+            self.rawPointer,
+            pipelineBindPoint,
+            layout.rawPointer,
+            firstSet,
+            UInt32(descriptorSets.count),
+            &descriptorSets,
+            UInt32(dynamicOffsets?.count ?? 0),
+            dynamicOffsets
+        )
+    }
+    
     public func reset() throws {
         let result = vkResetCommandBuffer(self.rawPointer, 0)
         try vkCheck(result)

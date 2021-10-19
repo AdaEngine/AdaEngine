@@ -8,6 +8,7 @@
 import Vulkan
 import CVulkan
 import Math
+import simd
 
 public let NotFound = Int.max
 
@@ -15,6 +16,12 @@ struct QueueFamilyIndices {
     let graphicsIndex: Int
     let presentationIndex: Int
     let isSeparate: Bool
+}
+
+struct Uniforms {
+    let modelMatrix: Transform
+    let viewMatrix: Transform
+    let projectionMatrix: Transform
 }
 
 struct Vertex {
@@ -71,6 +78,7 @@ public class VulkanRenderContext {
     
     private(set) var renderPass: RenderPass!
     var graphicsPipeline: RenderPipeline!
+    var pipelineLayout: PipelineLayout!
     private(set) var swapchain: Swapchain!
     public private(set) var framebuffers: [Framebuffer] = []
     public private(set) var imageViews: [ImageView] = []
@@ -96,6 +104,12 @@ public class VulkanRenderContext {
     
     var vertexBuffer: Buffer!
     var indexBuffer: Buffer!
+    var unifformBuffers: [Buffer] = []
+    var unifformBuffersMemory: [VkDeviceMemory] = []
+    
+    var descriptorSetLayout: DescriptorSetLayout!
+    var descriptorPool: DescriptorPool!
+    var descriptorSets: [DescriptorSet] = []
     
     public required init() {
         self.vulkanVersion = Self.determineVulkanVersion()
@@ -130,6 +144,8 @@ public class VulkanRenderContext {
         } else if acquireResult != VK_SUCCESS && acquireResult != VK_SUBOPTIMAL_KHR {
             throw AdaError("failed to acquire swap chain image!")
         }
+        
+        try updateUniformBuffer(imageIndex: imageIndex)
         
         if self.imagesInFlight.indices.contains(Int(imageIndex)) {
             try self.imagesInFlight[imageIndex]?.wait()
@@ -274,6 +290,25 @@ public class VulkanRenderContext {
         self.swapchain = nil
     }
     
+    private func createDescriptorSetLayout() throws {
+        var bindings = VkDescriptorSetLayoutBinding(
+            binding: 0,
+            descriptorType: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            descriptorCount: 1,
+            stageFlags: VK_SHADER_STAGE_VERTEX_BIT.rawValue,
+            pImmutableSamplers: nil)
+        
+        let layoutInfo = VkDescriptorSetLayoutCreateInfo(
+            sType: VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            bindingCount: 1,
+            pBindings: &bindings
+        )
+        
+        self.descriptorSetLayout = try DescriptorSetLayout(device: self.device, layoutInfo: layoutInfo)
+    }
+    
     private func createSwapchain(for size: Vector2i) throws {
         let surfaceCapabilities = try self.gpu.surfaceCapabilities(for: self.surface)
         
@@ -387,11 +422,15 @@ public class VulkanRenderContext {
         self.framebufferSize = extentSize
         
         try self.createRenderPass(size: extentSize)
+        try self.createDescriptorSetLayout()
         try self.createRenderPipeline(size: extentSize)
         try self.createFramebuffer(size: extentSize)
         try self.createCommandPool()
         try self.createVertexBuffer()
         try self.createIndexBuffer()
+        try self.createUniformBuffers()
+        try self.createDescriptorPool()
+        try self.createDescriptorSets()
         try self.createCommandBuffers()
         try self.createSyncObjects()
     }
@@ -493,7 +532,7 @@ public class VulkanRenderContext {
         
         var stages = shaders.stages
         
-        let pipelineLayout = try PipelineLayout(device: self.device)
+        let pipelineLayout = try PipelineLayout(device: self.device, layouts: [self.descriptorSetLayout])
         let pipelineInfo = VkGraphicsPipelineCreateInfo(
             sType: VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             pNext: nil,
@@ -523,6 +562,7 @@ public class VulkanRenderContext {
         )
         
         self.graphicsPipeline = renderPipeline
+        self.pipelineLayout = pipelineLayout
     }
     
     private func loadShaders() throws -> VulkanShader {
@@ -720,7 +760,13 @@ public class VulkanRenderContext {
             
             commandBuffer.bindVertexBuffers([self.vertexBuffer], offsets: [0])
             commandBuffer.bindIndexBuffer(self.indexBuffer, offset: 0, indexType: VK_INDEX_TYPE_UINT16)
-            commandBuffer.draw(vertexCount: vertecies.count, instanceCount: 1, firstVertex: 0, firstInstance: 0)
+            commandBuffer.bindDescriptSets(
+                pipelineBindPoint: VK_PIPELINE_BIND_POINT_GRAPHICS,
+                layout: self.pipelineLayout,
+                firstSet: 0,
+                descriptorSets: [descriptorSets[index]]
+            )
+//            commandBuffer.draw(vertexCount: vertecies.count, instanceCount: 1, firstVertex: 0, firstInstance: 0)
             commandBuffer.drawIndexed(indexCount: indecies.count, instanceCount: 1, firstIndex: 0, vertexOffset: 0, firstInstance: 0)
             
             self.renderPass.end(for: commandBuffer)
@@ -823,6 +869,96 @@ public class VulkanRenderContext {
         
         self.vertexBuffer = vertexBuffer
         vkFreeMemory(self.device.rawPointer, stagingBufferMemory, nil)
+    }
+    
+    private func createUniformBuffers() throws {
+        
+        self.unifformBuffers.removeAll()
+        self.unifformBuffersMemory.removeAll()
+        
+        for _ in try self.swapchain.getImages() {
+            let (buffer, memory) = try self.createBuffer(
+                usage: .uniformBuffer,
+                size: MemoryLayout<Uniforms>.size,
+                properties: VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue
+            )
+            
+            self.unifformBuffers.append(buffer)
+            self.unifformBuffersMemory.append(memory)
+        }
+    }
+    
+    private func updateUniformBuffer(imageIndex: UInt32) throws {
+        let time = Time.deltaTime
+        
+        let uniform = Uniforms(
+            modelMatrix: Transform(scale: Vector3(0, 1 * time, 0)),
+            viewMatrix: .identity,
+            projectionMatrix: .identity
+        )
+        
+        let buffer = unifformBuffers[imageIndex]
+        let mem = try buffer.mapMemory(unifformBuffersMemory[imageIndex], offset: 0, flags: 0)
+        buffer.copy(from: uniform, to: mem)
+        buffer.unmapMemory(unifformBuffersMemory[imageIndex])
+    }
+    
+    private func createDescriptorPool() throws {
+        var poolSize = VkDescriptorPoolSize(
+            type: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            descriptorCount: UInt32(try self.swapchain.getImages().count)
+        )
+        
+        let info = VkDescriptorPoolCreateInfo(
+            sType: VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            maxSets: UInt32(try self.swapchain.getImages().count),
+            poolSizeCount: 1,
+            pPoolSizes: &poolSize
+        )
+        
+        self.descriptorPool = try DescriptorPool(device: self.device, createInfo: info)
+    }
+    
+    private func createDescriptorSets() throws {
+        let imagesCount = try self.swapchain.getImages().count
+        var layouts: [VkDescriptorSetLayout?] = [VkDescriptorSetLayout?].init(repeating: self.descriptorSetLayout.rawPointer, count: imagesCount)
+        
+        let info = VkDescriptorSetAllocateInfo(
+            sType: VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            pNext: nil,
+            descriptorPool: self.descriptorPool.rawPointer,
+            descriptorSetCount: UInt32(imagesCount),
+            pSetLayouts: &layouts
+        )
+        
+        let descriptorSets = try! DescriptorSet.allocateSets(device: self.device, info: info, count: layouts.count)
+        
+        for i in 0..<imagesCount {
+            var bufferInfo = VkDescriptorBufferInfo(
+                buffer: self.unifformBuffers[i].rawPointer,
+                offset: 0,
+                range: VkDeviceSize(MemoryLayout<Uniforms>.size)
+            )
+            
+            var write = VkWriteDescriptorSet(
+                sType: VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                pNext: nil,
+                dstSet: descriptorSets[i].rawPointer,
+                dstBinding: 0,
+                dstArrayElement: 0,
+                descriptorCount: 1,
+                descriptorType: VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                pImageInfo: nil,
+                pBufferInfo: &bufferInfo,
+                pTexelBufferView: nil
+            )
+            
+            vkUpdateDescriptorSets(self.device.rawPointer, 1, &write, 0, nil)
+        }
+        
+        self.descriptorSets = descriptorSets
     }
     
     private func createBuffer(usage: Buffer.Usage, size: Int, properties: VkMemoryPropertyFlags) throws -> (Buffer, VkDeviceMemory) {

@@ -12,16 +12,18 @@ public final class PipelineLayout {
     public let rawPointer: VkPipelineLayout
     private unowned let device: Device
     
-    public init(device: Device) throws {
+    public init(device: Device, layouts: [DescriptorSetLayout]) throws {
         
         var pointer: VkPipelineLayout?
+        
+        var layouts: [VkDescriptorSetLayout?] = layouts.map(\.rawPointer)
         
         let info = VkPipelineLayoutCreateInfo(
             sType: VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             pNext: nil,
             flags: 0,
-            setLayoutCount: 0,
-            pSetLayouts: nil,
+            setLayoutCount: UInt32(layouts.count),
+            pSetLayouts: &layouts,
             pushConstantRangeCount: 0,
             pPushConstantRanges: nil
         )
