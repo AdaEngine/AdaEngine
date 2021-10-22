@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "SGLMath",
+        "repositoryURL": "https://github.com/SwiftGL/Math.git",
+        "state": {
+          "branch": null,
+          "revision": "8bdd2e542f28828d0c224c1ea8e046c6f652ec40",
+          "version": "3.0.0"
+        }
+      }
+    ]
+  },
+  "version": 1
+}

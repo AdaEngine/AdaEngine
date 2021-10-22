@@ -35,7 +35,12 @@ class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
         window.contentView = view
         
         do {
+            #if METAL
+            self.renderer = try MetalRenderBackend(appName: "Ada Engine")
+            #else
             self.renderer = try VulkanRenderBackend(appName: "Ada Engine")
+            #endif
+            
             try renderer.createWindow(for: view, size: Vector2i(x: 800, y: 600))
             
             view.isPaused = false

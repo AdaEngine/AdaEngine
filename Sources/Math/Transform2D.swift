@@ -13,15 +13,15 @@ import Glibc
 
 @frozen
 public struct Transform2D {
-    var storage: [Vector3]
+    var x: Vector3
+    var y: Vector3
+    var z: Vector3
     
     @inline(__always)
     public init() {
-        self.storage = [
-            Vector3(1, 0, 0),
-            Vector3(0, 1, 0),
-            Vector3(0, 0, 1),
-        ]
+        self.x = Vector3(1, 0, 0)
+        self.y = Vector3(0, 1, 0)
+        self.z = Vector3(0, 0, 1)
     }
     
     public var rotation: Float {
@@ -38,14 +38,14 @@ public extension Transform2D {
         var identity = Transform2D.identity
         identity[2, 0] = translation.x
         identity[2, 1] = translation.y
-        self.storage = identity.storage
+        self = identity
     }
     
     init(scale: Vector2) {
         var identity = Transform2D.identity
         identity[0, 0] = scale.x
         identity[1, 1] = scale.y
-        self.storage = identity.storage
+        self = identity
     }
     
     init(rotation: Angle) {
@@ -54,11 +54,14 @@ public extension Transform2D {
         identity[0, 1] = sin(rotation.degrees)
         identity[1, 0] = -sin(rotation.degrees)
         identity[1, 1] = cos(rotation.degrees)
-        self.storage = identity.storage
+        self = identity
     }
     
     init(columns: [Vector3]) {
-        self.storage = columns
+        precondition(columns.count > 3, "Inconsist columns count")
+        self.x = columns[0]
+        self.y = columns[1]
+        self.z = columns[2]
     }
     
     init(diagonal: Float) {
@@ -66,7 +69,7 @@ public extension Transform2D {
         identity[0, 0] = diagonal
         identity[1, 1] = diagonal
         identity[2, 2] = diagonal
-        self.storage = identity.storage
+        self = identity
     }
 }
 
@@ -75,22 +78,31 @@ public extension Transform2D {
     @inline(__always)
     subscript (_ column: Int, _ row: Int) -> Float {
         get {
-            self.storage[column][row]
+            self[column][row]
         }
         
         set {
-            self.storage[column][row] = newValue
+            self[column][row] = newValue
         }
     }
     
     @inline(__always)
     subscript (column: Int) -> Vector3 {
         get {
-            self.storage[column]
+            switch(column) {
+            case 0: return x
+            case 1: return y
+            case 2: return z
+            default: preconditionFailure("Matrix index out of range")
+            }
         }
-        
         set {
-            self.storage[column] = newValue
+            switch(column) {
+            case 0: x = newValue
+            case 1: y = newValue
+            case 2: z = newValue
+            default: preconditionFailure("Matrix index out of range")
+            }
         }
     }
     

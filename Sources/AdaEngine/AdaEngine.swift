@@ -17,7 +17,7 @@ final public class Engine {
     
     // MARK: Private
     
-    private var lastUpdate: Float = 0
+    private var lastUpdate: Double = 0
     
     private init() { }
     

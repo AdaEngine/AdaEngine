@@ -22,9 +22,7 @@ public struct Angle {
     }
 }
 
-extension Angle: Hashable, Equatable {
-    
-}
+extension Angle: Hashable, Equatable { }
 
 public extension Angle {
     static func degrees(_ deg: Float) -> Angle {

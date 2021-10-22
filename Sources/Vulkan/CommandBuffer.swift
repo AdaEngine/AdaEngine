@@ -103,7 +103,7 @@ final public class CommandBuffer {
         vkCmdBindIndexBuffer(self.rawPointer, buffer.rawPointer, offset, indexType)
     }
     
-    public func bindDescriptSets(
+    public func bindDescriptorSet(
         pipelineBindPoint: VkPipelineBindPoint,
         layout: PipelineLayout,
         firstSet: UInt32,

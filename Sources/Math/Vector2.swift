@@ -52,7 +52,7 @@ extension Vector_2: ExpressibleByArrayLiteral where Scalar: FloatingPoint {
 
 // MARK: - Methods
 
-public extension Vector_2 where Scalar == Float {
+public extension Vector_2 where Scalar == Double {
     
     static let zero = Vector_2(x: .zero, y: .zero)
     
@@ -106,7 +106,14 @@ extension _Vector3: ExpressibleByArrayLiteral where Scalar: FloatingPoint {
 
 public extension Vector3 {
     func cross(_ vec: Vector3) -> Vector3 {
-        return Vector3(y * vec.z - z, z * vec.x - x, x * vec.y - y)
+        var x1 = self.y * vec.z
+        x1 = x1 - vec.y * self.z
+        var y1 = self.z * vec.x
+        y1 = y1 - vec.z * self.x
+        var z1 = self.x * vec.y
+        z1 = z1 - vec.x * self.y
+        
+        return Vector3(x1, y1, z1)
     }
     
     var squaredLength: Float {
@@ -118,5 +125,37 @@ public extension Vector3 {
         return self / sqrt(length)
     }
     
+    func dot(_ vector: Vector3) -> Float {
+        return x * vector.x + y * vector.y + z * vector.z
+    }
+    
     static let up: Vector3 = Vector3(0, 1, 0)
+}
+
+public extension Vector4 {
+    
+    var squaredLength: Float {
+        return x * x + y * y + z * z + w * w
+    }
+    
+    var normalized: Vector4 {
+        let length = self.squaredLength
+        return self / sqrt(length)
+    }
+    
+    func dot(_ vector: Vector4) -> Float {
+        return x * vector.x + y * vector.y + z * vector.z + w * vector.w
+    }
+}
+
+extension Vector3 {
+    public var description: String {
+        return String(describing: type(of: self)) + "(\(x), \(y), \(z))"
+    }
+}
+
+extension Vector4 {
+    public var description: String {
+        return String(describing: type(of: self)) + "(\(x), \(y), \(z), \(w))"
+    }
 }

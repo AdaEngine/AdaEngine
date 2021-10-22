@@ -28,6 +28,9 @@ let package = Package(
             targets: ["AdaEditor"]
         )
     ],
+    dependencies: [
+        .package(name: "SGLMath", url: "https://github.com/SwiftGL/Math.git", from: "3.0.0")
+    ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
@@ -39,7 +42,9 @@ let package = Package(
         
         .target(
             name: "AdaEngine",
-            dependencies: ["Vulkan", "Math", "CSDL2"],
+            dependencies: [
+                "Vulkan", "Math", "CSDL2", "SGLMath"
+            ],
             resources: [.copy("Rendering/Shaders/shader.frag.spv"), .copy("Rendering/Shaders/shader.vert.spv")]
         ),
         

@@ -81,10 +81,8 @@ public final class Buffer {
         return mutPointer!
     }
     
-    public func copy<T>(from source: T, to dest: UnsafeMutableRawPointer) {
-        withUnsafePointer(to: source) { ptr in
-            dest.copyMemory(from: ptr, byteCount: Int(self.size))
-        }
+    public func copy(from source: UnsafeRawPointer, to dest: UnsafeMutableRawPointer) {
+        dest.copyMemory(from: source, byteCount: Int(self.size))
     }
     
     public func unmapMemory(_ memory: VkDeviceMemory) {

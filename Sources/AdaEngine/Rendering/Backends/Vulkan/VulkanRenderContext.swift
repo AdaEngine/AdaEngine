@@ -8,17 +8,16 @@
 import Vulkan
 import CVulkan
 import Math
-import simd
 
 public let NotFound = Int.max
 
-struct QueueFamilyIndices {
+private struct QueueFamilyIndices {
     let graphicsIndex: Int
     let presentationIndex: Int
     let isSeparate: Bool
 }
 
-struct Uniforms {
+private struct Uniforms {
     let modelMatrix: Transform
     let viewMatrix: Transform
     let projectionMatrix: Transform
@@ -760,13 +759,12 @@ public class VulkanRenderContext {
             
             commandBuffer.bindVertexBuffers([self.vertexBuffer], offsets: [0])
             commandBuffer.bindIndexBuffer(self.indexBuffer, offset: 0, indexType: VK_INDEX_TYPE_UINT16)
-            commandBuffer.bindDescriptSets(
+            commandBuffer.bindDescriptorSet(
                 pipelineBindPoint: VK_PIPELINE_BIND_POINT_GRAPHICS,
                 layout: self.pipelineLayout,
                 firstSet: 0,
                 descriptorSets: [descriptorSets[index]]
             )
-//            commandBuffer.draw(vertexCount: vertecies.count, instanceCount: 1, firstVertex: 0, firstInstance: 0)
             commandBuffer.drawIndexed(indexCount: indecies.count, instanceCount: 1, firstIndex: 0, vertexOffset: 0, firstInstance: 0)
             
             self.renderPass.end(for: commandBuffer)
@@ -891,15 +889,23 @@ public class VulkanRenderContext {
     private func updateUniformBuffer(imageIndex: UInt32) throws {
         let time = Time.deltaTime
         
-        let uniform = Uniforms(
-            modelMatrix: Transform(scale: Vector3(0, 1 * time, 0)),
-            viewMatrix: .identity,
-            projectionMatrix: .identity
+        
+        var projection: Transform = Transform.perspective(
+            Angle.radians(45).radians,
+            aspect: Float(self.swapchain.extent.width) / Float(self.swapchain.extent.height),
+            zNear: 0.1,
+            zFar: 10
+        )
+
+        var uniform = Uniforms(
+            modelMatrix: Transform(diagonal: .one).rotate(angle: .radians(90 * Float(1 - time)), vector: Vector3(0, 0, 1)),
+            viewMatrix: .lookAt(eye: Vector3(2, 2, 2), target: .one, up: Vector3(0, 0, 1)),
+            projectionMatrix: projection
         )
         
         let buffer = unifformBuffers[imageIndex]
         let mem = try buffer.mapMemory(unifformBuffersMemory[imageIndex], offset: 0, flags: 0)
-        buffer.copy(from: uniform, to: mem)
+        buffer.copy(from: &uniform, to: mem)
         buffer.unmapMemory(unifformBuffersMemory[imageIndex])
     }
     
@@ -934,6 +940,7 @@ public class VulkanRenderContext {
         )
         
         let descriptorSets = try! DescriptorSet.allocateSets(device: self.device, info: info, count: layouts.count)
+        self.descriptorSets = descriptorSets
         
         for i in 0..<imagesCount {
             var bufferInfo = VkDescriptorBufferInfo(
@@ -957,8 +964,6 @@ public class VulkanRenderContext {
             
             vkUpdateDescriptorSets(self.device.rawPointer, 1, &write, 0, nil)
         }
-        
-        self.descriptorSets = descriptorSets
     }
     
     private func createBuffer(usage: Buffer.Usage, size: Int, properties: VkMemoryPropertyFlags) throws -> (Buffer, VkDeviceMemory) {
