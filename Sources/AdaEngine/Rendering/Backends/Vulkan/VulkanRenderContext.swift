@@ -8,6 +8,8 @@
 import Vulkan
 import CVulkan
 import Math
+import AppKit
+import stb_image
 
 public let NotFound = Int.max
 
@@ -17,16 +19,7 @@ private struct QueueFamilyIndices {
     let isSeparate: Bool
 }
 
-private struct Uniforms {
-    let modelMatrix: Transform
-    let viewMatrix: Transform
-    let projectionMatrix: Transform
-}
-
-struct Vertex {
-    let pos: Vector2
-    let color: Vector3
-    
+private extension Vertex {
     static func getBindingDescription() -> VkVertexInputBindingDescription {
         return VkVertexInputBindingDescription(
             binding: 0,
@@ -51,15 +44,6 @@ struct Vertex {
         return attributeDescriptions
     }
 }
-
-let vertecies: [Vertex] = [
-    Vertex(pos: [-0.5, -0.5], color: [1, 0, 0]),
-    Vertex(pos: [0.5, -0.5], color: [0, 1, 0]),
-    Vertex(pos: [0.5, 0.5], color: [0, 0, 1]),
-    Vertex(pos: [-0.5, 0.5], color: [0.1, 0, 1]),
-]
-
-let indecies: [UInt16] = [0, 1, 2, 2, 3, 0]
 
 public class VulkanRenderContext {
     
@@ -104,7 +88,7 @@ public class VulkanRenderContext {
     var vertexBuffer: Buffer!
     var indexBuffer: Buffer!
     var unifformBuffers: [Buffer] = []
-    var unifformBuffersMemory: [VkDeviceMemory] = []
+    var unifformBuffersMemory: [DeviceMemory] = []
     
     var descriptorSetLayout: DescriptorSetLayout!
     var descriptorPool: DescriptorPool!
@@ -425,6 +409,7 @@ public class VulkanRenderContext {
         try self.createRenderPipeline(size: extentSize)
         try self.createFramebuffer(size: extentSize)
         try self.createCommandPool()
+//        try self.createTextureImage()
         try self.createVertexBuffer()
         try self.createIndexBuffer()
         try self.createUniformBuffers()
@@ -748,7 +733,7 @@ public class VulkanRenderContext {
             try commandBuffer.beginUpdate()
             
             let framebuffer = self.framebuffers[index]
-
+            
             self.renderPass.begin(
                 for: commandBuffer,
                 framebuffer: framebuffer,
@@ -817,9 +802,9 @@ public class VulkanRenderContext {
             properties: VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue
         )
         
-        let mem = try stagingBuffer.mapMemory(stagingBufferMemory, offset: 0, flags: 0)
-        stagingBuffer.copy(from: indecies, to: mem)
-        stagingBuffer.unmapMemory(stagingBufferMemory)
+        let mem = try stagingBufferMemory.map(offset: 0, flags: 0)
+        stagingBuffer.copy(from: indecies, to: mem, size: stagingBufferMemory.size)
+        stagingBufferMemory.unmap()
         
         let (indexBuffer, _) = try self.createBuffer(
             usage: [.indexBuffer, .transferDestination],
@@ -835,7 +820,7 @@ public class VulkanRenderContext {
         )
         
         self.indexBuffer = indexBuffer
-        vkFreeMemory(self.device.rawPointer, stagingBufferMemory, nil)
+        stagingBufferMemory.free()
     }
     
     #warning("Test")
@@ -848,9 +833,9 @@ public class VulkanRenderContext {
             properties: VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue
         )
         
-        let mem = try stagingBuffer.mapMemory(stagingBufferMemory, offset: 0, flags: 0)
-        stagingBuffer.copy(from: vertecies, to: mem)
-        stagingBuffer.unmapMemory(stagingBufferMemory)
+        let mem = try stagingBufferMemory.map(offset: 0, flags: 0)
+        stagingBuffer.copy(from: vertecies, to: mem, size: stagingBufferMemory.size)
+        stagingBufferMemory.unmap()
         
         let (vertexBuffer, _) = try self.createBuffer(
             usage: [.vertexBuffer, .transferDestination],
@@ -866,7 +851,7 @@ public class VulkanRenderContext {
         )
         
         self.vertexBuffer = vertexBuffer
-        vkFreeMemory(self.device.rawPointer, stagingBufferMemory, nil)
+        stagingBufferMemory.free()
     }
     
     private func createUniformBuffers() throws {
@@ -887,26 +872,23 @@ public class VulkanRenderContext {
     }
     
     private func updateUniformBuffer(imageIndex: UInt32) throws {
-        let time = Time.deltaTime
-        
-        
-        var projection: Transform = Transform.perspective(
-            Angle.radians(45).radians,
-            aspect: Float(self.swapchain.extent.width) / Float(self.swapchain.extent.height),
+        let projection: Transform = Transform.perspective(
+            fieldOfView: Angle.radians(45),
+            aspectRatio: Float(self.swapchain.extent.width) / Float(self.swapchain.extent.height),
             zNear: 0.1,
             zFar: 10
         )
-
         var uniform = Uniforms(
-            modelMatrix: Transform(diagonal: .one).rotate(angle: .radians(90 * Float(1 - time)), vector: Vector3(0, 0, 1)),
-            viewMatrix: .lookAt(eye: Vector3(2, 2, 2), target: .one, up: Vector3(0, 0, 1)),
+            modelMatrix: Transform.identity.rotate(angle: .radians(90), vector: Vector3(0, 0, 1)),
+            viewMatrix: .lookAt(eye: Vector3(2, 2, 2), center: .one, up: Vector3(0, 0, 1)),
             projectionMatrix: projection
         )
         
         let buffer = unifformBuffers[imageIndex]
-        let mem = try buffer.mapMemory(unifformBuffersMemory[imageIndex], offset: 0, flags: 0)
-        buffer.copy(from: &uniform, to: mem)
-        buffer.unmapMemory(unifformBuffersMemory[imageIndex])
+        let memory = unifformBuffersMemory[imageIndex]
+        let mem = try memory.map(offset: 0, flags: 0)
+        buffer.copy(from: &uniform, to: mem, size: memory.size)
+        memory.unmap()
     }
     
     private func createDescriptorPool() throws {
@@ -966,7 +948,43 @@ public class VulkanRenderContext {
         }
     }
     
-    private func createBuffer(usage: Buffer.Usage, size: Int, properties: VkMemoryPropertyFlags) throws -> (Buffer, VkDeviceMemory) {
+    private func createTextureImage() throws {
+//        let image = Bundle.module.image(forResource: "texture")!
+        let url = Bundle.module.urlForImageResource("texture")!
+        
+        var width: Int32 = 0
+        var height: Int32 = 0
+        var channels: Int32 = 0
+        var pixels = stbi_load(url.path, &width, &height, &channels, Int32(STBI_rgb_alpha))
+//        var data = try Data(contentsOf: url)
+        let size = Int(width * height * 4)
+        
+//        let imageRep = NSBitmapImageRep(data: data)!
+        
+//        var bitMapData = imageRep.bitmapData
+//        let size = imageRep.pixelsWide * imageRep.pixelsHigh * 4
+        
+        let (stagingBuffer, stagingMemory) = try self.createBuffer(usage: .transferSource, size: size, properties: VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue)
+        
+        let mem = try stagingMemory.map(offset: 0, flags: 0)
+        stagingBuffer.copy(from: &pixels, to: mem, size: Int(width * height))
+        stagingMemory.unmap()
+        
+//        stbi_image_free(&pixels)
+        
+        let (vkimage, imageMemory) = try self.createImage(
+            imageSize: Vector2i(Int(width), Int(height)),
+            imageBytes: &pixels,
+            imageBytesSize: size,
+            usage: VK_IMAGE_USAGE_TRANSFER_DST_BIT.rawValue | VK_IMAGE_USAGE_SAMPLED_BIT.rawValue,
+            properties: VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT.rawValue
+        )
+        
+    }
+    
+    var image: Image?
+    
+    private func createBuffer(usage: Buffer.Usage, size: Int, properties: VkMemoryPropertyFlags) throws -> (Buffer, DeviceMemory) {
         let buffer = try Buffer(
             device: self.device,
             size: size,
@@ -974,11 +992,46 @@ public class VulkanRenderContext {
             sharingMode: VK_SHARING_MODE_EXCLUSIVE
         )
         
-        let index = try buffer.findMemoryTypeIndex(for: properties, in: self.gpu)
+        let index = try DeviceMemory.findMemoryTypeIndex(for: buffer.memoryRequirements, properties: properties, in: self.gpu)
         let allocatedMemory = try buffer.allocateMemory(memoryTypeIndex: index)
         try buffer.bindMemory(allocatedMemory)
         
         return (buffer, allocatedMemory)
+    }
+    
+    private func createImage(imageSize: Vector2i, imageBytes: UnsafeMutableRawPointer, imageBytesSize: Int, format: VkFormat = VK_FORMAT_R8G8B8A8_SRGB, usage: VkImageUsageFlags, properties: VkMemoryPropertyFlags) throws -> (Image, DeviceMemory) {
+        let info = VkImageCreateInfo(
+            sType: VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            imageType: VK_IMAGE_TYPE_2D,
+            format: format,
+            extent: VkExtent3D(width: UInt32(imageSize.x), height: UInt32(imageSize.y), depth: 1),
+            mipLevels: 1,
+            arrayLayers: 1,
+            samples: VK_SAMPLE_COUNT_1_BIT,
+            tiling: VK_IMAGE_TILING_OPTIMAL,
+            usage: usage,
+            sharingMode: VK_SHARING_MODE_EXCLUSIVE,
+            queueFamilyIndexCount: 0,
+            pQueueFamilyIndices: nil,
+            initialLayout: VK_IMAGE_LAYOUT_UNDEFINED
+        )
+        
+        let vkimage = try Image(device: self.device, createInfo: info)
+        
+        let index = try DeviceMemory.findMemoryTypeIndex(for: vkimage.memoryRequirements, properties: properties, in: self.gpu)
+        self.image = vkimage
+        
+        let allocateInfo = VkMemoryAllocateInfo(
+            sType: VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            pNext: nil,
+            allocationSize: vkimage.memoryRequirements.size,
+            memoryTypeIndex: UInt32(index)
+        )
+        
+        let imageMemory = try DeviceMemory(device: self.device, allocateInfo: allocateInfo)
+        return (vkimage, imageMemory)
     }
 }
 

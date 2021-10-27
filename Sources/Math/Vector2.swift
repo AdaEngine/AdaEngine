@@ -7,6 +7,9 @@
 
 import simd
 
+// TODO: Create object aka CGFloat for float or doubles
+// TODO: when move to new vector object, we should use same object size
+
 /// Vector with floats
 public typealias Vector2 = SIMD2<Float>
 public typealias Vector2i = SIMD2<Int>

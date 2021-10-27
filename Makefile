@@ -3,5 +3,5 @@ install_vulkan:
 	pkg-config --libs --cflags vulkan
 
 compile_shaders:
-		${VULKAN_SDK}/bin/glslc Sources/AdaEngine/Rendering/Shaders/shader.frag -o Sources/AdaEngine/Rendering/Shaders/shader.frag.spv
-		${VULKAN_SDK}/bin/glslc Sources/AdaEngine/Rendering/Shaders/shader.vert -o Sources/AdaEngine/Rendering/Shaders/shader.vert.spv
+		${VULKAN_SDK}/bin/glslc Sources/AdaEngine/Rendering/Shaders/GLSL/shader.frag -o Sources/AdaEngine/Rendering/Shaders/GLSL/shader.frag.spv
+		${VULKAN_SDK}/bin/glslc Sources/AdaEngine/Rendering/Shaders/GLSL/shader.vert -o Sources/AdaEngine/Rendering/Shaders/GLSL/shader.vert.spv

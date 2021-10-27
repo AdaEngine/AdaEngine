@@ -47,60 +47,26 @@ public final class Buffer {
         self.device = device
     }
     
-    public func allocateMemory(memoryTypeIndex: UInt32) throws -> VkDeviceMemory {
+    public func allocateMemory(memoryTypeIndex: UInt32) throws -> DeviceMemory {
         let requirements = self.memoryRequirements
         
-        var allocInfo = VkMemoryAllocateInfo(
+        let allocInfo = VkMemoryAllocateInfo(
             sType: VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
             pNext: nil,
             allocationSize: requirements.size,
             memoryTypeIndex: memoryTypeIndex
         )
         
-        var bufferMemory: VkDeviceMemory?
-        let result = vkAllocateMemory(self.device.rawPointer, &allocInfo, nil, &bufferMemory)
-        try vkCheck(result)
-        
-        guard let mem = bufferMemory else {
-            throw VKError(code: VK_ERROR_UNKNOWN, message: "Can't allocate buffer memory")
-        }
-        
-        return mem
+        return try DeviceMemory(device: self.device, allocateInfo: allocInfo)
     }
     
-    public func bindMemory(_ memory: VkDeviceMemory, offset: Int = 0) throws {
-        let result = vkBindBufferMemory(self.device.rawPointer, self.rawPointer, memory, UInt64(offset))
+    public func bindMemory(_ memory: DeviceMemory, offset: Int = 0) throws {
+        let result = vkBindBufferMemory(self.device.rawPointer, self.rawPointer, memory.rawPointer, UInt64(offset))
         try vkCheck(result)
     }
     
-    public func mapMemory(_ memory: VkDeviceMemory, offset: Int, flags: VkMemoryMapFlags) throws -> UnsafeMutableRawPointer {
-        var mutPointer: UnsafeMutableRawPointer?
-        let result = vkMapMemory(self.device.rawPointer, memory, UInt64(offset), self.size, flags, &mutPointer)
-        try vkCheck(result)
-        
-        return mutPointer!
-    }
-    
-    public func copy(from source: UnsafeRawPointer, to dest: UnsafeMutableRawPointer) {
-        dest.copyMemory(from: source, byteCount: Int(self.size))
-    }
-    
-    public func unmapMemory(_ memory: VkDeviceMemory) {
-        vkUnmapMemory(self.device.rawPointer, memory)
-    }
-    
-    public func findMemoryTypeIndex(for properties: VkMemoryPropertyFlags, in gpu: PhysicalDevice) throws -> UInt32 {
-        let memRequirements = self.memoryRequirements
-        let memProperties = gpu.memoryProperties
-        var typesTuple = memProperties.memoryTypes
-        let memoryTypes = convertTupleToArray(tuple: typesTuple, start: &typesTuple.0)
-        for index in 0 ..< memProperties.memoryTypeCount {
-            if (((memRequirements.memoryTypeBits & (1 << index)) != 0) && (memoryTypes[Int(index)].propertyFlags & properties) == properties) {
-                return index
-            }
-        }
-        
-        throw VKError(code: VK_ERROR_UNKNOWN, message: "Can't find memory type index")
+    public func copy(from source: UnsafeRawPointer, to dest: UnsafeMutableRawPointer, size: Int) {
+        dest.copyMemory(from: source, byteCount: size)
     }
     
     public func copyBuffer(
@@ -162,5 +128,3 @@ public extension Buffer {
         public static let uniformBuffer = Usage(rawValue: VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT.rawValue)
     }
 }
-
-

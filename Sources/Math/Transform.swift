@@ -140,6 +140,15 @@ public extension Transform {
         )
     }
     
+    static func *= (lhs: inout Transform, rhs: Transform) {
+        lhs = Transform(
+            Vector4(lhs[0, 0] * rhs[0, 0], lhs[0, 1] * rhs[0, 1], lhs[0, 2] * rhs[0, 2], lhs[0, 3] * rhs[0, 3]),
+            Vector4(lhs[1, 0] * rhs[1, 0], lhs[1, 1] * rhs[1, 1], lhs[1, 2] * rhs[1, 2], lhs[1, 3] * rhs[1, 3]),
+            Vector4(lhs[2, 0] * rhs[2, 0], lhs[2, 1] * rhs[2, 1], lhs[2, 2] * rhs[2, 2], lhs[2, 3] * rhs[2, 3]),
+            Vector4(lhs[3, 0] * rhs[3, 0], lhs[3, 1] * rhs[3, 1], lhs[3, 2] * rhs[3, 2], lhs[3, 3] * rhs[3, 3])
+        )
+    }
+    
     static prefix func - (matrix: Transform) -> Transform {
         Transform(
             Vector4(-matrix[0, 0], -matrix[0, 1], -matrix[0, 2], -matrix[0, 3]),
@@ -153,46 +162,43 @@ public extension Transform {
 
 public extension Transform {
     /// Left Handsome
-    static func lookAt(eye: Vector3, target: Vector3, up: Vector3 = .up) -> Transform {
-        let f = (target - eye).normalized
-        let s = f.cross(up).normalized
-        let u = s.cross(f)
+    static func lookAt(eye: Vector3, center: Vector3, up: Vector3 = .up) -> Transform {
+        let z = (center - eye).normalized
+        let x = z.cross(up).normalized
+        let y = x.cross(z)
         
-        let rotate30 = -s.dot(eye)
-        let rotate31 = -u.dot(eye)
-        let rotate32 = f.dot(eye)
+        let rotate30 = -x.dot(eye)
+        let rotate31 = -y.dot(eye)
+        let rotate32 = -z.dot(eye)
         
         return Transform(
-            Vector4(s.x, u.x, -f.x, 0),
-            Vector4(s.y, u.y, -f.y, 0),
-            Vector4(s.z, u.z, -f.z, 0),
+            Vector4(x.x, y.x, z.x, 0),
+            Vector4(x.y, y.y, z.y, 0),
+            Vector4(x.z, y.z, z.z, 0),
             Vector4(rotate30, rotate31, rotate32, 1)
         )
     }
     
-    /// Left Handsome
-    static func perspective(_ fieldOfView: Float, aspect: Float, zNear: Float, zFar: Float) -> Transform {
-        precondition(aspect > 0, "Aspect should be more than 0")
-        let tanHalfFieldOfView = tan(fieldOfView / 2)
+    /// A left-handed perspective projection
+    static func perspective(fieldOfView: Angle, aspectRatio: Float, zNear: Float, zFar: Float) -> Transform {
+        precondition(aspectRatio > 0, "Aspect should be more than 0")
         
-        let rotate01 = 1 / (aspect * tanHalfFieldOfView)
-        let rotate11 = 1 / tanHalfFieldOfView
-        
-        let rotate22 = -(zFar + zNear) / (zFar - zNear)
-        var rotate32 = -(2 * zFar * zNear)
-        rotate32 /= (zFar - zNear)
+        let rotate11 = 1 / tanf(fieldOfView.radians * 0.5)
+        let rotate01 = rotate11 / aspectRatio
+        let rotate22 = zFar / (zFar - zNear)
+        let rotate32 = -zNear * rotate22
         
         return Transform(
             Vector4(rotate01, 0, 0, 0),
             Vector4(0, rotate11, 0, 0),
-            Vector4(0, 0, rotate22, -1),
+            Vector4(0, 0, rotate22, 1),
             Vector4(0, 0, rotate32, 0)
         )
     }
     
     func rotate(angle: Angle, vector: Vector3) -> Transform {
-        let c = cos(angle.degrees)
-        let s = sin(angle.degrees)
+        let c = cos(angle.radians)
+        let s = sin(angle.radians)
         
         let axis = vector.normalized
         

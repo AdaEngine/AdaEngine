@@ -36,6 +36,13 @@ public extension Angle {
     static let zero: Angle = Angle(degrees: 0)
 }
 
+public extension Angle {
+    static func + (lhs: Angle, rhs: Angle) -> Angle {
+        let newDegrees = lhs.degrees + rhs.degrees
+        return Angle.degrees(newDegrees)
+    }
+}
+
 extension Angle: ExpressibleByFloatLiteral {
     public init(floatLiteral value: FloatLiteralType) {
         self = Angle(degrees: Float(value))
