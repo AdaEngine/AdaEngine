@@ -7,7 +7,7 @@
 
 import Math
 
-public typealias Transform = Math.Transform
+public typealias Transform3D = Math.Transform3D
 public typealias Transform2D = Math.Transform2D
 
 public typealias Vector2i = Math.Vector2i

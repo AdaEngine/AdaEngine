@@ -872,14 +872,14 @@ public class VulkanRenderContext {
     }
     
     private func updateUniformBuffer(imageIndex: UInt32) throws {
-        let projection: Transform = Transform.perspective(
+        let projection: Transform3D = Transform3D.perspective(
             fieldOfView: Angle.radians(45),
             aspectRatio: Float(self.swapchain.extent.width) / Float(self.swapchain.extent.height),
             zNear: 0.1,
             zFar: 10
         )
         var uniform = Uniforms(
-            modelMatrix: Transform.identity.rotate(angle: .radians(90), vector: Vector3(0, 0, 1)),
+            modelMatrix: Transform3D.identity.rotate(angle: .radians(90), vector: Vector3(0, 0, 1)),
             viewMatrix: .lookAt(eye: Vector3(2, 2, 2), center: .one, up: Vector3(0, 0, 1)),
             projectionMatrix: projection
         )

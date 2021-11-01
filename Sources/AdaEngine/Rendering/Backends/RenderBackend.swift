@@ -8,9 +8,9 @@
 import Math
 
 struct Uniforms {
-    let modelMatrix: Transform
-    let viewMatrix: Transform
-    let projectionMatrix: Transform
+    let modelMatrix: Transform3D
+    let viewMatrix: Transform3D
+    let projectionMatrix: Transform3D
 }
 
 struct Vertex {

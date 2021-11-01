@@ -7,6 +7,8 @@
 
 #if canImport(Metal)
 import Metal
+import ModelIO
+import MetalKit
 
 class MetalRenderBackend: RenderBackend {
     
@@ -15,6 +17,8 @@ class MetalRenderBackend: RenderBackend {
     var maxFramesInFlight = 3
     
     var inFlightSemaphore: DispatchSemaphore!
+    
+    var mesh: MTKMesh!
     
     init(appName: String) {
         self.context = MetalContext()
@@ -25,13 +29,24 @@ class MetalRenderBackend: RenderBackend {
         try self.context.createWindow(for: mtlView)
         
         self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
+        
+        let allocator = MTKMeshBufferAllocator(device: self.context.device)
+        
+        let mesh = MDLMesh(coneWithExtent: [1,1,1],
+                              segments: [10, 10],
+                              inwardNormals: false,
+                              cap: true,
+                              geometryType: .triangles,
+                              allocator: allocator)
+        
+        self.mesh = try? MTKMesh(mesh: mesh, device: self.context.device)
     }
     
     func resizeWindow(newSize: Vector2i) throws {
         self.context.windowUpdateSize(newSize)
     }
     
-    var transform = Transform.identity
+    var transform = Transform3D.identity
     var radians: Float = 3
     
     func beginFrame() throws {
@@ -50,17 +65,17 @@ class MetalRenderBackend: RenderBackend {
         encoder?.setViewport(self.context.viewPort)
         encoder?.setRenderPipelineState(self.context.pipelineState)
         
-        encoder?.setVertexBytes(vertecies, length: MemoryLayout<Vertex>.size * vertecies.count, index: 0)
+        encoder?.setVertexBuffer(self.mesh.vertexBuffers[0].buffer, offset: 0, index: 0)
+        
+//        encoder?.setVertexBytes(vertecies, length: MemoryLayout<Vertex>.size * vertecies.count, index: 0)
         encoder?.setVertexBytes(&self.context.viewPort, length: MemoryLayout<MTLViewport>.size, index: 1)
         
-        let projection: Transform = Transform.perspective(
+        let projection: Transform3D = Transform3D.perspective(
             fieldOfView: Angle.radians(45),
             aspectRatio: Float(self.context.viewPort.width) / Float(self.context.viewPort.height),
             zNear: 0.1,
             zFar: 10
         )
-        
-        
         
         self.radians = radians + 1 * Time.deltaTime
         
@@ -72,12 +87,12 @@ class MetalRenderBackend: RenderBackend {
             projectionMatrix: projection
         )
         
-        let indexBuffer = self.context.device.makeBuffer(bytes: indecies, length: MemoryLayout<UInt16>.size * indecies.count, options: .storageModeManaged)!
-        
         encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.size, index: 2)
         
-        encoder?.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: vertecies.count)
-        encoder?.drawIndexedPrimitives(type: .triangle, indexCount: indecies.count, indexType: .uint16, indexBuffer: indexBuffer, indexBufferOffset: 0)
+        
+        if let submesh = self.mesh.submeshes.first {
+            encoder?.drawIndexedPrimitives(type: .triangle, indexCount: submesh.indexCount, indexType: submesh.indexType, indexBuffer: submesh.indexBuffer.buffer, indexBufferOffset: 0)
+        }
         
         encoder?.endEncoding()
         

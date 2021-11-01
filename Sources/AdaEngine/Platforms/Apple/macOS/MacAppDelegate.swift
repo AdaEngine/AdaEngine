@@ -24,6 +24,8 @@ class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
     
     private var renderer: RenderBackend!
     
+    var scene: Scene!
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         window.makeKeyAndOrderFront(nil)
         window.title = "Ada Editor"
@@ -38,7 +40,7 @@ class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
             #if METAL
             self.renderer = try MetalRenderBackend(appName: "Ada Engine")
             #else
-            self.renderer = try MetalRenderBackend(appName: "Ada Engine")
+            self.renderer = MetalRenderBackend(appName: "Ada Engine")
             #endif
             
             try renderer.createWindow(for: view, size: Vector2i(x: 800, y: 600))
@@ -47,6 +49,13 @@ class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
         } catch {
             fatalError(error.localizedDescription)
         }
+        
+        
+        self.scene = Scene()
+        
+        let entity = Entity()
+        entity.components[MeshRenderer] = MeshRenderer()
+        self.scene.addEntity(entity)
     }
     
     // MARK: - MTKViewDelegate
@@ -54,6 +63,8 @@ class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
     func draw(in view: MTKView) {
         do {
             Engine.shared.calculateDeltaTime()
+            
+            self.scene.update(Time.deltaTime)
             
             try self.renderer.beginFrame()
             

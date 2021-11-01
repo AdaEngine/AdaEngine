@@ -17,16 +17,16 @@ import Glibc
 #endif
 
 public struct Time {
-    public static var deltaTime: Float = 0
+    public static var deltaTime: TimeInterval = 0
     
-    public static var absolute: Float {
+    public static var absolute: TimeInterval {
         #if os(iOS) || os(tvOS) || os(OSX) || os(watchOS)
-        return Float(CACurrentMediaTime())
+        return TimeInterval(CACurrentMediaTime())
         #else
         var t = timespec()
         clock_gettime(CLOCK_MONOTONIC, &t)
 
-        return Float(t.tv_sec) + Float(t.tv_nsec) / Float(1.0e-9)
+        return TimeInterval(t.tv_sec) + TimeInterval(t.tv_nsec) / TimeInterval(1.0e-9)
         #endif
     }
 }

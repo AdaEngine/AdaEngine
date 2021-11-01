@@ -1,5 +1,5 @@
 //
-//  Matrix4.swift
+//  Tranform3D.swift
 //  
 //
 //  Created by v.prusakov on 10/19/21.
@@ -12,7 +12,7 @@ import Glibc
 #endif
 
 @frozen
-public struct Transform {
+public struct Transform3D {
     public var x: Vector4
     public var y: Vector4
     public var z: Vector4
@@ -27,16 +27,16 @@ public struct Transform {
     }
 }
 
-public extension Transform {
+public extension Transform3D {
     
     @inline(__always)
     init(scale: Vector3) {
-        self = Transform(diagonal: scale)
+        self = Transform3D(diagonal: scale)
     }
     
     @inline(__always)
     init(translation: Vector3) {
-        var identity = Transform.identity
+        var identity = Transform3D.identity
         identity[0, 3] = translation.x
         identity[1, 3] = translation.y
         identity[2, 3] = translation.z
@@ -45,7 +45,7 @@ public extension Transform {
     
     @inline(__always)
     init(diagonal: Vector3) {
-        var identity = Transform.identity
+        var identity = Transform3D.identity
         identity[0, 1] = diagonal.x
         identity[1, 1] = diagonal.y
         identity[2, 2] = diagonal.z
@@ -76,7 +76,7 @@ public extension Transform {
     
 }
 
-extension Transform: CustomDebugStringConvertible {
+extension Transform3D: CustomDebugStringConvertible {
     public var debugDescription: String {
         return String(describing: type(of: self)) + "(" + [x, y, z, w].map { (v: Vector4) -> String in
             "[" + [v.x, v.y, v.z, v.w].map { String(describing: $0) }.joined(separator: ", ") + "]"
@@ -84,7 +84,7 @@ extension Transform: CustomDebugStringConvertible {
     }
 }
 
-public extension Transform {
+public extension Transform3D {
     
     subscript (_ column: Int, _ row: Int) -> Float {
         get {
@@ -118,12 +118,12 @@ public extension Transform {
     }
     
     @inline(__always)
-    static let identity: Transform = Transform()
+    static let identity: Transform3D = Transform3D()
 }
 
-public extension Transform {
-    static func * (lhs: Transform, rhs: Float) -> Transform {
-        Transform(
+public extension Transform3D {
+    static func * (lhs: Transform3D, rhs: Float) -> Transform3D {
+        Transform3D(
             Vector4(lhs[0, 0] * rhs, lhs[0, 1] * rhs, lhs[0, 2] * rhs, lhs[0, 3] * rhs),
             Vector4(lhs[1, 0] * rhs, lhs[1, 1] * rhs, lhs[1, 2] * rhs, lhs[1, 3] * rhs),
             Vector4(lhs[2, 0] * rhs, lhs[2, 1] * rhs, lhs[2, 2] * rhs, lhs[2, 3] * rhs),
@@ -131,8 +131,8 @@ public extension Transform {
         )
     }
     
-    static func * (lhs: Transform, rhs: Transform) -> Transform {
-        Transform(
+    static func * (lhs: Transform3D, rhs: Transform3D) -> Transform3D {
+        Transform3D(
             Vector4(lhs[0, 0] * rhs[0, 0], lhs[0, 1] * rhs[0, 1], lhs[0, 2] * rhs[0, 2], lhs[0, 3] * rhs[0, 3]),
             Vector4(lhs[1, 0] * rhs[1, 0], lhs[1, 1] * rhs[1, 1], lhs[1, 2] * rhs[1, 2], lhs[1, 3] * rhs[1, 3]),
             Vector4(lhs[2, 0] * rhs[2, 0], lhs[2, 1] * rhs[2, 1], lhs[2, 2] * rhs[2, 2], lhs[2, 3] * rhs[2, 3]),
@@ -140,8 +140,8 @@ public extension Transform {
         )
     }
     
-    static func *= (lhs: inout Transform, rhs: Transform) {
-        lhs = Transform(
+    static func *= (lhs: inout Transform3D, rhs: Transform3D) {
+        lhs = Transform3D(
             Vector4(lhs[0, 0] * rhs[0, 0], lhs[0, 1] * rhs[0, 1], lhs[0, 2] * rhs[0, 2], lhs[0, 3] * rhs[0, 3]),
             Vector4(lhs[1, 0] * rhs[1, 0], lhs[1, 1] * rhs[1, 1], lhs[1, 2] * rhs[1, 2], lhs[1, 3] * rhs[1, 3]),
             Vector4(lhs[2, 0] * rhs[2, 0], lhs[2, 1] * rhs[2, 1], lhs[2, 2] * rhs[2, 2], lhs[2, 3] * rhs[2, 3]),
@@ -149,8 +149,8 @@ public extension Transform {
         )
     }
     
-    static prefix func - (matrix: Transform) -> Transform {
-        Transform(
+    static prefix func - (matrix: Transform3D) -> Transform3D {
+        Transform3D(
             Vector4(-matrix[0, 0], -matrix[0, 1], -matrix[0, 2], -matrix[0, 3]),
             Vector4(-matrix[1, 0], -matrix[1, 1], -matrix[1, 2], -matrix[1, 3]),
             Vector4(-matrix[2, 0], -matrix[2, 1], -matrix[2, 2], -matrix[2, 3]),
@@ -160,9 +160,9 @@ public extension Transform {
 }
 
 
-public extension Transform {
+public extension Transform3D {
     /// Left Handsome
-    static func lookAt(eye: Vector3, center: Vector3, up: Vector3 = .up) -> Transform {
+    static func lookAt(eye: Vector3, center: Vector3, up: Vector3 = .up) -> Transform3D {
         let z = (center - eye).normalized
         let x = z.cross(up).normalized
         let y = x.cross(z)
@@ -171,7 +171,7 @@ public extension Transform {
         let rotate31 = -y.dot(eye)
         let rotate32 = -z.dot(eye)
         
-        return Transform(
+        return Transform3D(
             Vector4(x.x, y.x, z.x, 0),
             Vector4(x.y, y.y, z.y, 0),
             Vector4(x.z, y.z, z.z, 0),
@@ -180,7 +180,7 @@ public extension Transform {
     }
     
     /// A left-handed perspective projection
-    static func perspective(fieldOfView: Angle, aspectRatio: Float, zNear: Float, zFar: Float) -> Transform {
+    static func perspective(fieldOfView: Angle, aspectRatio: Float, zNear: Float, zFar: Float) -> Transform3D {
         precondition(aspectRatio > 0, "Aspect should be more than 0")
         
         let rotate11 = 1 / tanf(fieldOfView.radians * 0.5)
@@ -188,7 +188,7 @@ public extension Transform {
         let rotate22 = zFar / (zFar - zNear)
         let rotate32 = -zNear * rotate22
         
-        return Transform(
+        return Transform3D(
             Vector4(rotate01, 0, 0, 0),
             Vector4(0, rotate11, 0, 0),
             Vector4(0, 0, rotate22, 1),
@@ -196,7 +196,7 @@ public extension Transform {
         )
     }
     
-    func rotate(angle: Angle, vector: Vector3) -> Transform {
+    func rotate(angle: Angle, vector: Vector3) -> Transform3D {
         let c = cos(angle.radians)
         let s = sin(angle.radians)
         
@@ -223,7 +223,7 @@ public extension Transform {
         var r22: Float = c
         r22 += (1 - c) * axis.z * axis.z
         
-        return Transform(
+        return Transform3D(
             Vector4(r00, r01, r02, 0),
             Vector4(r10, r11, r12, 0),
             Vector4(r20, r21, r22, 0),
