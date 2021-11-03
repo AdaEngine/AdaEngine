@@ -18,6 +18,7 @@
     
     public init() { }
     
+    // Currently private method to get parent component 
     public static subscript<EnclosingSelf: Component>(
         _enclosingInstance object: EnclosingSelf,
         wrapped wrappedKeyPath: KeyPath<EnclosingSelf, T>,

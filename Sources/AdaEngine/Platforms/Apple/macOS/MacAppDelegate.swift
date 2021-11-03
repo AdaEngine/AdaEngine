@@ -22,28 +22,20 @@ class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
                           defer: false,
                           screen: NSScreen.main)
     
-    private var renderer: RenderBackend!
-    
-    var scene: Scene!
-    
     func applicationDidFinishLaunching(_ notification: Notification) {
         window.makeKeyAndOrderFront(nil)
         window.title = "Ada Editor"
         window.center()
         
-        let view = MetalView()
-        view.isPaused = true
-        view.delegate = self
-        window.contentView = view
-        
         do {
-            #if METAL
-            self.renderer = try MetalRenderBackend(appName: "Ada Engine")
-            #else
-            self.renderer = MetalRenderBackend(appName: "Ada Engine")
-            #endif
+            let renderer = try RenderEngine.createRenderEngine(backendType: .metal, appName: "Ada")
+            let view = MetalView()
+            view.isPaused = true
+            view.delegate = self
             
-            try renderer.createWindow(for: view, size: Vector2i(x: 800, y: 600))
+            try renderer.initialize(for: view, size: Vector2i(x: 800, y: 600))
+            
+            window.contentView = view
             
             view.isPaused = false
         } catch {
@@ -51,36 +43,38 @@ class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
         }
         
         
-        self.scene = Scene()
+        let scene = Scene()
         
         let entity = Entity()
-        entity.components[MeshRenderer] = MeshRenderer()
-        self.scene.addEntity(entity)
+        let meshRenderer = MeshRenderer()
+        
+        var mesh = Mesh()
+        
+        mesh.verticies = [
+            [-0.5, -0.5, -0.5],
+            [0.5, -0.5, 0.5],
+            [0.5, 0.5, 0.5]
+        ]
+        mesh.indicies = [0, 1, 2]
+        meshRenderer.mesh = mesh
+        entity.components[MeshRenderer] = meshRenderer
+        scene.addEntity(entity)
+        
+        SceneManager.shared.presentScene(scene)
     }
     
     // MARK: - MTKViewDelegate
     
     func draw(in view: MTKView) {
-        do {
-            Engine.shared.calculateDeltaTime()
-            
-            self.scene.update(Time.deltaTime)
-            
-            try self.renderer.beginFrame()
-            
-            try self.renderer.endFrame()
-        } catch {
-            fatalError(error.localizedDescription)
-        }
+        GameLoop.current.iterate()
     }
     
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         do {
-            try self.renderer?.resizeWindow(newSize: Vector2i(x: Int(size.width), y: Int(size.height)))
+            try RenderEngine.shared.updateViewSize(newSize: Vector2i(x: Int(size.width), y: Int(size.height)))
         } catch {
             fatalError(error.localizedDescription)
         }
-        
     }
 }
 #endif

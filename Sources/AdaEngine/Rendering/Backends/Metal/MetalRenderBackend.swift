@@ -17,9 +17,7 @@ class MetalRenderBackend: RenderBackend {
     var maxFramesInFlight = 3
     
     var inFlightSemaphore: DispatchSemaphore!
-    
-    var mesh: MTKMesh!
-    
+
     init(appName: String) {
         self.context = MetalContext()
     }
@@ -29,25 +27,11 @@ class MetalRenderBackend: RenderBackend {
         try self.context.createWindow(for: mtlView)
         
         self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
-        
-        let allocator = MTKMeshBufferAllocator(device: self.context.device)
-        
-        let mesh = MDLMesh(coneWithExtent: [1,1,1],
-                              segments: [10, 10],
-                              inwardNormals: false,
-                              cap: true,
-                              geometryType: .triangles,
-                              allocator: allocator)
-        
-        self.mesh = try? MTKMesh(mesh: mesh, device: self.context.device)
     }
     
     func resizeWindow(newSize: Vector2i) throws {
         self.context.windowUpdateSize(newSize)
     }
-    
-    var transform = Transform3D.identity
-    var radians: Float = 3
     
     func beginFrame() throws {
         
@@ -61,47 +45,13 @@ class MetalRenderBackend: RenderBackend {
         }
         guard let renderPass = self.context.view.currentRenderPassDescriptor else { return }
         
-        let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPass)
-        encoder?.setViewport(self.context.viewPort)
-        encoder?.setRenderPipelineState(self.context.pipelineState)
-        
-        encoder?.setVertexBuffer(self.mesh.vertexBuffers[0].buffer, offset: 0, index: 0)
-        
-//        encoder?.setVertexBytes(vertecies, length: MemoryLayout<Vertex>.size * vertecies.count, index: 0)
-        encoder?.setVertexBytes(&self.context.viewPort, length: MemoryLayout<MTLViewport>.size, index: 1)
-        
-        let projection: Transform3D = Transform3D.perspective(
-            fieldOfView: Angle.radians(45),
-            aspectRatio: Float(self.context.viewPort.width) / Float(self.context.viewPort.height),
-            zNear: 0.1,
-            zFar: 10
-        )
-        
-        self.radians = radians + 1 * Time.deltaTime
-        
-        self.transform = transform.rotate(angle: .radians(self.radians), vector: Vector3(0, 0, 1))
-        
-        var uniform = Uniforms(
-            modelMatrix: self.transform,
-            viewMatrix: .lookAt(eye: Vector3(2, 2, 2), center: .one, up: Vector3(0, 0, 1)),
-            projectionMatrix: projection
-        )
-        
-        encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.size, index: 2)
-        
-        
-        if let submesh = self.mesh.submeshes.first {
-            encoder?.drawIndexedPrimitives(type: .triangle, indexCount: submesh.indexCount, indexType: submesh.indexType, indexBuffer: submesh.indexBuffer.buffer, indexBufferOffset: 0)
-        }
-        
-        encoder?.endEncoding()
+        // Register render encoders
         
         commandBuffer.present(self.context.view.currentDrawable!)
         
         commandBuffer.addCompletedHandler { _ in
             self.inFlightSemaphore.signal()
         }
-        
     }
     
     func endFrame() throws {

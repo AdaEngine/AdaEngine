@@ -5,9 +5,11 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-import Foundation
+import Foundation.NSURL
 
 public class Application {
+    
+    let gameLoop: GameLoop
     
     // MARK: - Public
     
@@ -35,7 +37,7 @@ public class Application {
     // MARK: - Internal
     
     required init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        
+        self.gameLoop = GameLoop.current
     }
     
     func run() throws {
@@ -45,7 +47,7 @@ public class Application {
     // MARK: - Public methods
     
     open func terminate() {
-        assertionFailure("Not implemented")
+        exit(EXIT_SUCCESS)
     }
     
     @discardableResult

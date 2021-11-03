@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-
 #if os(iOS) || os(tvOS)
 import QuartzCore
 #endif
@@ -15,6 +14,8 @@ import Quartz
 #if os(Android) || os(Linux)
 import Glibc
 #endif
+
+public typealias TimeInterval = Float
 
 public struct Time {
     public static var deltaTime: TimeInterval = 0

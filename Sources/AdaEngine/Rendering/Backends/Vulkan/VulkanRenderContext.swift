@@ -13,6 +13,17 @@ import stb_image
 
 public let NotFound = Int.max
 
+
+
+private let vertecies: [Vertex] = [
+    Vertex(pos: [-0.5, -0.5, -0.5], color: [1, 0, 0, 1]),
+    Vertex(pos: [0.5, -0.5, 0.5], color: [0, 1, 0, 1]),
+    Vertex(pos: [0.5, 0.5, 0.5], color: [0, 0, 1, 1]),
+    Vertex(pos: [-0.5, 0.5, -0.5], color: [0.1, 0, 1, 1]),
+]
+
+private let indecies: [UInt16] = [0, 1, 2, 2, 3, 0]
+
 private struct QueueFamilyIndices {
     let graphicsIndex: Int
     let presentationIndex: Int

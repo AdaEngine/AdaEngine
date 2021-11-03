@@ -15,17 +15,13 @@ final public class Engine {
     
     public static let shared: Engine = Engine()
     
-    // MARK: Private
     
-    private var lastUpdate: Float = 0
+    // MARK: Private
     
     private init() { }
     
     // MARK: - Internal Methods
     
-    func calculateDeltaTime() {
-        let now = Time.absolute
-        Time.deltaTime = max(0, now - self.lastUpdate)
-        self.lastUpdate = now
-    }
+    // MARK: - Public Methods
+    
 }

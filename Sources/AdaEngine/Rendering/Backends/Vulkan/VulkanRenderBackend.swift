@@ -14,8 +14,6 @@ public class VulkanRenderBackend: RenderBackend {
     
     private let context: VulkanRenderContext
     
-    var shaders: [VulkanShader] = []
-    
     public init(appName: String) throws {
         self.context = VulkanRenderContext()
         try self.context.initialize(with: appName)
@@ -36,8 +34,7 @@ public class VulkanRenderBackend: RenderBackend {
     }
     
     public func endFrame() throws {
-//        try self.context.swapBuffers()
-//        try self.context.flush()
+        
     }
     
     // MARK: - Private

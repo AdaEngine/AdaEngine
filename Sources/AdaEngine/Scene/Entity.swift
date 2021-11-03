@@ -5,50 +5,29 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
-import Foundation
+import Foundation.NSUUID
+import OrderedCollections
 
-public typealias TimeInterval = Float
-
-open class Component {
-    
-    internal var isAwaked: Bool = false
-    
-    weak var entity: Entity?
-    
-    open func awake() {
-        
-    }
-    
-    open func update(_ deltaTime: TimeInterval) {
-        
-    }
-    
-    open func shutdown() {
-        
-    }
-}
-
-extension Component {
-    var components: Entity.ComponentSet {
-        return self.entity!.components
-    }
-    
-    func setComponent<T: Component>(_ component: T) {
-        self.entity?.components.set(component)
-    }
-}
-
+/// An enity describe
 open class Entity {
-    
-    public weak var scene: Scene?
     
     public var name: String
     
-    internal var components: ComponentSet
+    public let id: String
     
-    public init() {
-        self.name = "Entity \(UUID().uuid)"
+    public internal(set) var components: ComponentSet
+    
+    public internal(set) weak var scene: Scene?
+    
+    public internal(set) var children: OrderedSet<Entity>
+    
+    public internal(set) weak var parent: Entity?
+    
+    public init(name: String = "Entity") {
+        self.name = name
+        self.id = UUID().uuidString
         self.components = ComponentSet()
+        self.children = []
         
         defer {
             self.components.entity = self
@@ -60,12 +39,22 @@ open class Entity {
         for component in components.buffer.values {
             
             if !component.isAwaked {
-                component.awake()
+                component.ready()
                 component.isAwaked = true
             }
             
             component.update(deltaTime)
         }
+    }
+    
+    func physicsUpdate(_ deltaTime: TimeInterval) {
+        for component in components.buffer.values where component.isAwaked {
+            component.physicsUpdate(deltaTime)
+        }
+    }
+    
+    public func removeFromScene() {
+        self.scene?.removeEntity(self)
     }
     
 }
@@ -77,6 +66,7 @@ extension Entity: Hashable {
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.name)
+        hasher.combine(self.id)
     }
 }
 
@@ -86,10 +76,10 @@ public extension Entity {
     @frozen
     struct ComponentSet {
         
-        weak var entity: Entity?
+        internal weak var entity: Entity?
         
         // TODO: looks like not efficient solution
-        private(set) var buffer: [ObjectIdentifier: Component] = [:]
+        private(set) var buffer: OrderedDictionary<ObjectIdentifier, Component> = [:]
 
         /// Gets or sets the component of the specified type.
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
@@ -104,13 +94,6 @@ public extension Entity {
                 self.buffer[identifier] = newValue
                 newValue?.entity = entity
             }
-            
-        }
-
-        /// Gets or sets the component of the specified type.
-        public subscript(componentType: Component.Type) -> Component? {
-            let identifier = ObjectIdentifier(componentType)
-            return buffer[identifier]
         }
 
         public mutating func set<T>(_ component: T) where T : Component {
@@ -135,13 +118,13 @@ public extension Entity {
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
             let identifier = ObjectIdentifier(componentType)
-            self.buffer[identifier]?.shutdown()
+            self.buffer[identifier]?.destroy()
             self.buffer[identifier] = nil
         }
 
         /// Removes all components from the collection.
         public mutating func removeAll() {
-            self.buffer.forEach { $0.value.shutdown() }
+            self.buffer.forEach { $0.value.destroy() }
             
             self.buffer.removeAll()
         }
@@ -150,5 +133,54 @@ public extension Entity {
         public var count: Int {
             return self.buffer.count
         }
+    }
+}
+
+public extension Entity {
+    
+    /// Copying entity with components
+    /// - Parameter recursive: Flags indicate that child enities will copying too
+    func copyEntity(recursive: Bool = true) -> Entity {
+        let newEntity = Entity()
+        
+        if recursive {
+            var childrens = self.children
+            
+            for index in 0..<childrens.count {
+                let child = self.children[index].copyEntity(recursive: true)
+                childrens.updateOrAppend(child)
+            }
+            
+            newEntity.children = childrens
+        }
+        
+        newEntity.components = self.components
+        newEntity.scene = self.scene
+        newEntity.parent = self.parent
+        
+        return newEntity
+    }
+    
+    func addChild(_ entity: Entity) {
+        assert(!self.children.contains { $0 === entity }, "Currenlty has entity in child")
+        
+        self.children.append(entity)
+        entity.parent = self
+    }
+    
+    func removeChild(_ entity: Entity) {
+        guard let index = self.children.firstIndex(where: { $0 === entity }) else {
+            return
+        }
+        
+        entity.parent = nil
+        
+        self.children.remove(at: index)
+    }
+    
+    /// Remove entity from parent
+    func removeFromParent() {
+        guard let parent = self.parent else { return }
+        parent.removeChild(self)
     }
 }
