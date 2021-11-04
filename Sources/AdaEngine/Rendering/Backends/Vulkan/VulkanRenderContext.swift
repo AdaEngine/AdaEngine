@@ -16,10 +16,10 @@ public let NotFound = Int.max
 
 
 private let vertecies: [Vertex] = [
-    Vertex(pos: [-0.5, -0.5, -0.5], color: [1, 0, 0, 1]),
-    Vertex(pos: [0.5, -0.5, 0.5], color: [0, 1, 0, 1]),
-    Vertex(pos: [0.5, 0.5, 0.5], color: [0, 0, 1, 1]),
-    Vertex(pos: [-0.5, 0.5, -0.5], color: [0.1, 0, 1, 1]),
+//    Vertex(pos: [-0.5, -0.5, -0.5], color: [1, 0, 0, 1]),
+//    Vertex(pos: [0.5, -0.5, 0.5], color: [0, 1, 0, 1]),
+//    Vertex(pos: [0.5, 0.5, 0.5], color: [0, 0, 1, 1]),
+//    Vertex(pos: [-0.5, 0.5, -0.5], color: [0.1, 0, 1, 1]),
 ]
 
 private let indecies: [UInt16] = [0, 1, 2, 2, 3, 0]
@@ -45,12 +45,12 @@ private extension Vertex {
         attributeDescriptions[0].binding = 0
         attributeDescriptions[0].location = 0
         attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT
-        attributeDescriptions[0].offset = UInt32(MemoryLayout.offset(of: \Vertex.pos)!)
+        attributeDescriptions[0].offset = UInt32(MemoryLayout.offset(of: \Vertex.position)!)
         
-        attributeDescriptions[1].binding = 0
-        attributeDescriptions[1].location = 1
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT
-        attributeDescriptions[1].offset = UInt32(MemoryLayout.offset(of: \Vertex.color)!)
+//        attributeDescriptions[1].binding = 0
+//        attributeDescriptions[1].location = 1
+//        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT
+//        attributeDescriptions[1].offset = UInt32(MemoryLayout.offset(of: \Vertex.color)!)
         
         return attributeDescriptions
     }
@@ -96,9 +96,9 @@ public class VulkanRenderContext {
     public var currentImageIndex: UInt32 = 0
     public var currentFrame: UInt32 = 0
     
-    var vertexBuffer: Buffer!
-    var indexBuffer: Buffer!
-    var unifformBuffers: [Buffer] = []
+    var vertexBuffer: Vulkan.Buffer!
+    var indexBuffer: Vulkan.Buffer!
+    var unifformBuffers: [Vulkan.Buffer] = []
     var unifformBuffersMemory: [DeviceMemory] = []
     
     var descriptorSetLayout: DescriptorSetLayout!
@@ -995,8 +995,8 @@ public class VulkanRenderContext {
     
     var image: Image?
     
-    private func createBuffer(usage: Buffer.Usage, size: Int, properties: VkMemoryPropertyFlags) throws -> (Buffer, DeviceMemory) {
-        let buffer = try Buffer(
+    private func createBuffer(usage: Vulkan.Buffer.Usage, size: Int, properties: VkMemoryPropertyFlags) throws -> (Vulkan.Buffer, DeviceMemory) {
+        let buffer = try Vulkan.Buffer(
             device: self.device,
             size: size,
             usage: usage,

@@ -8,20 +8,34 @@
 import Math
 
 struct Uniforms {
-    let modelMatrix: Transform3D
-    let viewMatrix: Transform3D
-    let projectionMatrix: Transform3D
+    var modelMatrix: Transform3D = .identity
+    var viewMatrix: Transform3D = .identity
+    var projectionMatrix: Transform3D = .identity
 }
 
 struct Vertex {
-    let pos: Vector3
-    let color: Vector4
+    var position: Vector3
 }
 
-public protocol RenderBackend: AnyObject {
+protocol RenderBackend: AnyObject {
+    
+    var viewportSize: Vector2i { get }
+    
     func createWindow(for view: RenderView, size: Vector2i) throws
     func resizeWindow(newSize: Vector2i) throws
 
     func beginFrame() throws
     func endFrame() throws
+    
+    func sync()
+    
+    // MARK: - Drawable
+    
+    func renderDrawableList(_ list: DrawableList, camera: CameraData)
+    
+    // MARK: - Buffers
+    
+    func makeBuffer(length: Int, options: UInt) -> RenderBuffer
+    
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: UInt) -> RenderBuffer
 }

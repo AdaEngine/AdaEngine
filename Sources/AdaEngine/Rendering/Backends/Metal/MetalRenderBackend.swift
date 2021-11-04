@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  MetalRenderBackend.swift
 //  
 //
 //  Created by v.prusakov on 10/20/21.
@@ -9,17 +9,27 @@
 import Metal
 import ModelIO
 import MetalKit
+import OrderedCollections
 
 class MetalRenderBackend: RenderBackend {
     
-    let context: MetalContext
+    let context: Context
     var currentBuffer: Int = 0
+    var currentBuffers: [MTLCommandBuffer] = []
     var maxFramesInFlight = 3
     
     var inFlightSemaphore: DispatchSemaphore!
+    
+    private var drawableList: DrawableList?
+    private var cameraData: CameraData?
 
     init(appName: String) {
-        self.context = MetalContext()
+        self.context = Context()
+    }
+    
+    var viewportSize: Vector2i {
+        let viewport = self.context.viewport
+        return Vector2i(Int(viewport.width), Int(viewport.height))
     }
     
     func createWindow(for view: RenderView, size: Vector2i) throws {
@@ -45,7 +55,15 @@ class MetalRenderBackend: RenderBackend {
         }
         guard let renderPass = self.context.view.currentRenderPassDescriptor else { return }
         
-        // Register render encoders
+        var uniform = Uniforms()
+        uniform.projectionMatrix = cameraData?.projection ?? .identity
+        uniform.viewMatrix = cameraData?.view ?? .identity
+        
+        try self.drawableList?.drawables.forEach { drawable in
+            guard drawable.isVisible else { return }
+            
+            try self.drawDrawable(drawable, commandBuffer: commandBuffer, descriptor: renderPass, uniform: uniform)
+        }
         
         commandBuffer.present(self.context.view.currentDrawable!)
         
@@ -55,51 +73,120 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func endFrame() throws {
+        self.cameraData = nil
+        self.drawableList = nil
+    }
+    
+    func sync() {
+        
+    }
+    
+    // MARK: - Drawable
+    
+    func renderDrawableList(_ list: DrawableList, camera: CameraData) {
+        self.drawableList = list
+    }
+    
+    // MARK: - Buffers
+    
+    func makeBuffer(length: Int, options: UInt) -> RenderBuffer {
+        let buffer = self.context.device.makeBuffer(length: length, options: MTLResourceOptions(rawValue: options))!
+        return MetalBuffer(buffer)
+    }
+    
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: UInt) -> RenderBuffer {
+        let buffer = self.context.device.makeBuffer(bytes: bytes, length: length, options: MTLResourceOptions(rawValue: options))!
+        
+        return MetalBuffer(buffer)
+    }
+    
+}
+
+extension MetalRenderBackend {
+    func drawDrawable(
+        _ drawable: Drawable,
+        commandBuffer: MTLCommandBuffer,
+        descriptor: MTLRenderPassDescriptor,
+        uniform: Uniforms
+    ) throws {
+        let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor)
+        defer { encoder?.endEncoding() }
+        
+        var uniform = uniform
+        
+        switch drawable.source {
+        case .mesh(let mesh):
+            
+            let defaultLibrary = try context.device.makeDefaultLibrary(bundle: .module)
+            let vertexFunc = defaultLibrary.makeFunction(name: "vertex_main")
+            let fragmentFunc = defaultLibrary.makeFunction(name: "fragment_main")
+            
+            let pipelineDescriptor = MTLRenderPipelineDescriptor()
+            pipelineDescriptor.vertexFunction = vertexFunc
+            pipelineDescriptor.fragmentFunction = fragmentFunc
+            pipelineDescriptor.vertexDescriptor = try mesh.vertexDescriptor.makeVertexDescriptor()
+            pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+            
+            let state = try self.context.device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+            encoder?.setRenderPipelineState(state)
+            
+            uniform.modelMatrix = drawable.transform
+            
+            encoder?.setVertexBytes(mesh.vertexBuffer.contents, length: mesh.vertexBuffer.length, index: 0)
+            encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.stride, index: 1)
+            
+            encoder?.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: mesh.verticies.count)
+            
+        case .light:
+            break
+        case .empty:
+            break
+        }
+        
+    }
+    
+    func drawMesh(for drawable: Drawable, encoder: MTLRenderCommandEncoder) {
         
     }
 }
 
-class MetalContext {
+extension MetalRenderBackend {
     
-    var device: MTLDevice!
-    var commandQueue: MTLCommandQueue!
-    weak var view: MetalView!
-    var viewPort: MTLViewport = .init()
-    var pipelineState: MTLRenderPipelineState!
-    
-    init() {
+    final class Context {
         
-    }
-    
-    func createWindow(for view: MetalView) throws {
+        weak var view: MetalView!
         
-        self.view = view
+        var device: MTLDevice!
+        var commandQueue: MTLCommandQueue!
+        var viewport: MTLViewport = MTLViewport()
+        var pipelineState: MTLRenderPipelineState!
         
-        self.viewPort = MTLViewport(originX: 0, originY: 0, width: Double(view.drawableSize.width), height: Double(view.drawableSize.height), znear: 0, zfar: 1)
+        // MARK: - Methods
         
-        self.device = self.prefferedDevice(for: view)
-        view.device = self.device
-        let defaultLibrary = try self.device.makeDefaultLibrary(bundle: .module)
-        let vertexFunc = defaultLibrary.makeFunction(name: "vertexFunction")
-        let fragmentFunc = defaultLibrary.makeFunction(name: "fragmentFunction")
+        func createWindow(for view: MetalView) throws {
+            
+            self.view = view
+            
+            self.viewport = MTLViewport(originX: 0, originY: 0, width: Double(view.drawableSize.width), height: Double(view.drawableSize.height), znear: 0, zfar: 1)
+            
+            self.device = self.prefferedDevice(for: view)
+            view.device = self.device
+            
+                      
+            self.commandQueue = self.device.makeCommandQueue()
+        }
         
-        let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.vertexFunction = vertexFunc
-        descriptor.fragmentFunction = fragmentFunc
-        descriptor.colorAttachments[0].pixelFormat = view.colorPixelFormat
+        func prefferedDevice(for view: MetalView) -> MTLDevice {
+            return view.preferredDevice ?? MTLCreateSystemDefaultDevice()!
+        }
         
-        self.pipelineState = try device.makeRenderPipelineState(descriptor: descriptor)
+        func windowUpdateSize(_ size: Vector2i) {
+            self.viewport = MTLViewport(originX: 0, originY: 0, width: Double(size.x), height: Double(size.y), znear: 0, zfar: 1)
+        }
         
-        self.commandQueue = self.device.makeCommandQueue()
-    }
-    
-    func prefferedDevice(for view: MetalView) -> MTLDevice {
-        return view.preferredDevice ?? MTLCreateSystemDefaultDevice()!
-    }
-    
-    func windowUpdateSize(_ size: Vector2i) {
-        self.viewPort = MTLViewport(originX: 0, originY: 0, width: Double(size.x), height: Double(size.y), znear: 0, zfar: 1)
     }
 }
+
+
 
 #endif

@@ -98,7 +98,9 @@ public extension MeshVertexDescriptor {
         descriptor.attributes[0].format = .vector4
         descriptor.attributes[0].offset = offset
         
-        descriptor.layouts[0].stride = MemoryLayout<Vector3>.stride
+        offset += MemoryLayout<Vector3>.stride
+        
+        descriptor.layouts[0].stride = offset
         
         return descriptor
     }()

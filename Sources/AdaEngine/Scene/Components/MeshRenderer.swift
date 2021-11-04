@@ -5,40 +5,36 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
-import SwiftUI
-
 /// Component to render mesh on scene
 public class MeshRenderer: Component {
     
+    public var material: Material?
+    
     public var mesh: Mesh? {
         didSet {
-            self.updateBuffers()
+            self.updateDrawableSource()
         }
     }
     
-    private var buffer: RenderBuffer?
+    private var drawable: Drawable?
     
     public override func ready() {
-        guard let renderEngine = RenderEngine.shared else {
-            assert(false, "Can't get render engine")
-            return
-        }
+        var drawable = RenderEngine.shared.makeDrawable()
+        drawable.source = self.mesh.flatMap { .mesh($0) } ?? .empty
+        self.drawable = drawable
         
-        let length = MemoryLayout<Vector3>.size * (mesh?.vertexCount ?? 0)
-        self.buffer = renderEngine.makeRenderBuffer(length: length)
+        RenderEngine.shared.setDrawableToQueue(drawable)
     }
     
-    public override func update(_ deltaTime: TimeInterval) {
-        
+    public override func destroy() {
+        guard let drawable = self.drawable else { return }
+        RenderEngine.shared.removeDrawableFromQueue(drawable)
     }
     
-    // MARK: - Private methods
+    // MARK: - Private
     
-    private func updateBuffers() {
-        
-        if let mesh = self.mesh {
-            let length = MemoryLayout<Vector3>.size * mesh.vertexCount
-            self.buffer?.updateBuffer(mesh.verticies, length: length)
-        }
+    func updateDrawableSource() {
+        self.drawable?.source = self.mesh.flatMap { .mesh($0) } ?? .empty
     }
+
 }

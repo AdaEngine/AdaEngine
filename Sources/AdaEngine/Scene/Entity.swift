@@ -83,7 +83,6 @@ public extension Entity {
 
         /// Gets or sets the component of the specified type.
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
-            
             get {
                 let identifier = ObjectIdentifier(componentType)
                 return buffer[identifier] as? T

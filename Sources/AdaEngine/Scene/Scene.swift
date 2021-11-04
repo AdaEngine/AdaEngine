@@ -10,9 +10,17 @@ import OrderedCollections
 public class Scene {
     
     var entities: OrderedSet<Entity> = []
+
+    var defaultCamera: CameraComponent
     
     public init() {
+        let cameraEntity = Entity()
         
+        let cameraComponent = CameraComponent()
+        cameraEntity.components[CameraComponent] = cameraComponent
+        self.entities.append(cameraEntity)
+        
+        self.defaultCamera = cameraComponent
     }
     
     func update(_ deltaTime: TimeInterval) {

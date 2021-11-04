@@ -12,7 +12,7 @@ import Glibc
 #endif
 
 @frozen
-public struct Transform2D {
+public struct Transform2D: Hashable {
     var x: Vector3
     var y: Vector3
     var z: Vector3

@@ -7,7 +7,7 @@
 
 /// Get components from entity if exists.
 /// Only works inside `Component` class.
-@propertyWrapper struct RequiredComponent<T: Component> {
+@propertyWrapper public struct RequiredComponent<T: Component> {
     
     @available(*, unavailable, message: "RequiredComponents should call only inside `Component` classes.")
     public var wrappedValue: T {

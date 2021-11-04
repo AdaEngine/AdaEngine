@@ -8,7 +8,11 @@
 public class SceneManager {
     public static let shared = SceneManager()
     
-    public var currentScene: Scene?
+    public var currentScene: Scene? {
+        didSet {
+            self.currentScene.flatMap { CameraManager.shared.setCurrentCamera($0.defaultCamera) }
+        }
+    }
     
     // MARK: - Private
     

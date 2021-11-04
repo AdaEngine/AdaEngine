@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 10/25/21.
 //
 
+import OrderedCollections
+import Foundation
+
 public class RenderEngine {
     
     public static var shared: RenderEngine!
@@ -16,7 +19,9 @@ public class RenderEngine {
     
     public let backendType: BackendType
     
-    public let renderBackend: RenderBackend
+    let renderBackend: RenderBackend
+    
+    var drawableList: DrawableList = DrawableList()
     
     private init(backendType: BackendType, renderBackend: RenderBackend) {
         self.backendType = backendType
@@ -31,7 +36,7 @@ public class RenderEngine {
         case .metal:
             renderBackend = MetalRenderBackend(appName: appName)
         case .vulkan:
-            renderBackend = try VulkanRenderBackend(appName: appName)
+            fatalError()
         }
         
         let renderEngine = RenderEngine(backendType: backendType, renderBackend: renderBackend)
@@ -43,6 +48,9 @@ public class RenderEngine {
     // MARK: Methods
     
     public func draw() throws {
+        let cameraData = CameraManager.shared.makeCurrentCameraData(viewportSize: self.renderBackend.viewportSize)
+        self.renderBackend.renderDrawableList(self.drawableList, camera: cameraData)
+        
         try self.renderBackend.beginFrame()
         
         try self.renderBackend.endFrame()
@@ -56,11 +64,66 @@ public class RenderEngine {
         try self.renderBackend.resizeWindow(newSize: newSize)
     }
     
-    // MARK: Buffers
-    
-    public func makeRenderBuffer(length: Int) -> RenderBuffer {
-        return RenderBuffer(byteCount: length)
+    func makeDrawable() -> Drawable {
+        return Drawable(id: UUID().uuidString)
     }
+    
+    func setDrawableToQueue(_ drawable: Drawable) {
+        self.drawableList.drawables.updateOrAppend(drawable)
+    }
+    
+    func removeDrawableFromQueue(_ drawable: Drawable) {
+        self.drawableList.drawables.remove(drawable)
+    }
+    
+    // MARK: - Buffers
+    
+    func makeBuffer(length: Int, options: UInt) -> RenderBuffer {
+        return self.renderBackend.makeBuffer(length: length, options: options)
+    }
+    
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: UInt) -> RenderBuffer {
+        return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
+    }
+    
+}
+
+public struct Drawable: Identifiable {
+    
+    enum Source {
+        case mesh(Mesh)
+        case light
+        
+        case empty
+    }
+    
+    public let id: String
+    
+    var source: Source = .empty
+    var transform: Transform3D = .identity
+    
+    var position: Vector3 = .zero
+    
+    var isVisible = true
+    
+    internal init(id: String) {
+        self.id = id
+    }
+}
+
+extension Drawable: Hashable {
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(position)
+    }
+    
+    public static func == (lhs: Drawable, rhs: Drawable) -> Bool {
+        lhs.id == rhs.id && lhs.position == rhs.position && lhs.transform == rhs.transform
+    }
+}
+
+final class DrawableList {
+    var drawables: OrderedSet<Drawable> = []
 }
 
 public class SceneRenderer {
@@ -82,10 +145,6 @@ public class SceneRenderer {
     func setCamera(_ projection: Transform3D, view: Transform3D) {
         self.camera.projection = projection
         self.camera.view = view
-    }
-    
-    func renderScene(renderBuffers: RenderBuffer) {
-        
     }
     
 }

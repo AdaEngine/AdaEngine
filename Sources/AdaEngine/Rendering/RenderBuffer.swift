@@ -2,41 +2,34 @@
 //  RenderBuffer.swift
 //  
 //
-//  Created by v.prusakov on 11/3/21.
+//  Created by v.prusakov on 11/4/21.
 //
 
-public class RenderBuffer {
+public protocol RenderBuffer {
+    var length: Int { get }
     
-    public private(set) var contents: UnsafeMutableRawPointer
-    public private(set) var length: Int
+    func contents() -> UnsafeMutableRawPointer
     
-    init(byteCount: Int) {
-        self.contents = UnsafeMutableRawPointer.allocate(byteCount: byteCount, alignment: 0)
-        self.length = byteCount
+    func copy(bytes: UnsafeRawPointer, length: Int)
+}
+
+#if canImport(Metal)
+import Metal
+
+public class MetalBuffer: RenderBuffer {
+    let base: MTLBuffer
+    
+    init(_ buffer: MTLBuffer) {
+        self.base = buffer
     }
     
-    public func fillBuffer(_ bytes: UnsafeRawPointer, byteCount: Int, offset: Int) {
-        self.contents.advanced(by: offset).copyMemory(from: bytes, byteCount: byteCount)
-    }
+    public var length: Int { return base.length }
     
-    public func fillBuffer<T>(_ source: [T], offset: Int) {
-        let byteCount = MemoryLayout<T>.size * source.count
-        self.contents.advanced(by: offset).copyMemory(from: source, byteCount: byteCount)
-    }
+    public func contents() -> UnsafeMutableRawPointer { return self.base.contents() }
     
-    /// - Note: Resize the buffer if passed length more than length in buffer.
-    public func updateBuffer(_ bytes: UnsafeRawPointer, length: Int) {
-        if length > self.length {
-            let newPointer = UnsafeMutableRawPointer.allocate(byteCount: length, alignment: 0)
-            self.contents.deallocate()
-            self.contents = newPointer
-        }
-        
-        self.contents.copyMemory(from: bytes, byteCount: length)
-    }
-    
-    deinit {
-        self.contents.deallocate()
+    public func copy(bytes: UnsafeRawPointer, length: Int) {
+        self.base.contents().copyMemory(from: bytes, byteCount: length)
     }
     
 }
+#endif

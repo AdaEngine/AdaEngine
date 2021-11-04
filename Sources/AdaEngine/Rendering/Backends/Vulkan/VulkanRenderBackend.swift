@@ -10,7 +10,7 @@ import Vulkan
 import Math
 import Foundation
 
-public class VulkanRenderBackend: RenderBackend {
+public class VulkanRenderBackend {
     
     private let context: VulkanRenderContext
     

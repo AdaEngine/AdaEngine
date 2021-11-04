@@ -29,11 +29,10 @@ public class CameraComponent: Component {
     // MARK: Computed Properties
     
     public var isCurrent: Bool {
-        // TODO: Remove when create CameraManager
-        return true
+        return CameraManager.shared.currentCamera === self
     }
     
-    @RequiredComponent private var transform: Transform
+    @RequiredComponent public var transform: Transform
     
     // MARK: - Component lifecycle
     
@@ -44,7 +43,7 @@ public class CameraComponent: Component {
     // MARK: - Public methods
     
     public func makeCurrent() {
-        // TODO: Add to CameraManager
+        CameraManager.shared.setCurrentCamera(self)
     }
     
 }
