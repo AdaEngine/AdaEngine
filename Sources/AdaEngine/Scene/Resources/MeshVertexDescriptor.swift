@@ -98,7 +98,25 @@ public extension MeshVertexDescriptor {
         descriptor.attributes[0].format = .vector4
         descriptor.attributes[0].offset = offset
         
-        offset += MemoryLayout<Vector3>.stride
+        offset += MemoryLayout.offset(of: \Vertex.position)!
+        
+        descriptor.attributes[1].bufferIndex = 0
+        descriptor.attributes[1].format = .vector4
+        descriptor.attributes[1].offset = offset
+        
+        offset += MemoryLayout.offset(of: \Vertex.normal)!
+        
+        descriptor.attributes[2].bufferIndex = 0
+        descriptor.attributes[2].format = .vector2
+        descriptor.attributes[2].offset = offset
+        
+        offset += MemoryLayout.offset(of: \Vertex.uv)!
+        
+        descriptor.attributes[3].bufferIndex = 0
+        descriptor.attributes[3].format = .vector4
+        descriptor.attributes[3].offset = offset
+        
+        offset += MemoryLayout.offset(of: \Vertex.color)!
         
         descriptor.layouts[0].stride = offset
         
@@ -133,12 +151,17 @@ public extension MeshVertexDescriptor {
         self.layouts = VertexDesciptorLayoutsArray(buffer: layouts)
     }
     
-    func makeVertexDescriptor() throws -> MTLVertexDescriptor? {
+    func makeMTKVertexDescriptor() throws -> MTLVertexDescriptor? {
+        let descriptor = self.makeMDLVertexDescriptor()
+        return try MTKMetalVertexDescriptorFromModelIOWithError(descriptor)
+    }
+    
+    func makeMDLVertexDescriptor() -> MDLVertexDescriptor {
         let descriptor = MDLVertexDescriptor()
         descriptor.attributes = NSMutableArray(array: self.attributes.buffer.map(makeMDLVertexAttribute))
         descriptor.layouts = NSMutableArray(array: self.layouts.buffer.map { MDLVertexBufferLayout(stride: $0.stride) })
         
-        return try MTKMetalVertexDescriptorFromModelIOWithError(descriptor)
+        return descriptor
     }
     
     private func makeMDLVertexAttribute(from attribute: Attribute) -> MDLVertexAttribute {

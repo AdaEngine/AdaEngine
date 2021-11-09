@@ -8,7 +8,7 @@
 import MetalKit
 import ModelIO
 
-protocol Resource {
+public protocol Resource {
     
 }
 
@@ -20,9 +20,9 @@ public struct Mesh: Resource {
         }
     }
     
-    public var indicies: [Int] {
+    public var indicies: [UInt32] {
         didSet {
-            self.indiciesBuffer.updateBuffer(self.indicies, length: MemoryLayout<Int>.stride * self.indicies.count)
+            self.indiciesBuffer.updateBuffer(self.indicies, length: MemoryLayout<Int32>.stride * self.indicies.count)
         }
     }
     
@@ -35,20 +35,17 @@ public struct Mesh: Resource {
             .reduce(self.verticies.count, +)
     }
     
-    var vertexDescriptor: MeshVertexDescriptor
+    var vertexDescriptor: MeshVertexDescriptor = .defaultVertexDescriptor
     
     internal var vertexBuffer: Buffer
     internal var indiciesBuffer: Buffer
     
     public init(
         verticies: [Vector3] = [],
-        indicies: [Int] = [],
-        descriptor: MeshVertexDescriptor = .defaultVertexDescriptor,
+        indicies: [UInt32] = [],
         submeshes: [Mesh] = []
     ) {
-        self.vertexDescriptor = descriptor
-        
-        self.vertexBuffer = Buffer(from: verticies)
+        self.vertexBuffer = Buffer(byteCount: MemoryLayout<Vertex>.stride)
         self.indiciesBuffer = Buffer(from: indicies)
         
         self.verticies = verticies
@@ -60,9 +57,15 @@ public struct Mesh: Resource {
 }
 
 public extension Mesh {
-    static func loadMesh(from url: URL) -> Mesh {
-        let asset = MDLAsset(url: url)
+    static func loadMesh(from url: URL, vertexDescriptor: MeshVertexDescriptor? = nil) -> Mesh {
+        let asset = MDLAsset(
+            url: url,
+            vertexDescriptor: vertexDescriptor?.makeMDLVertexDescriptor(),
+            bufferAllocator: nil
+        )
+        
+        let mdlMesh = asset.childObjects(of: MDLMesh.self).first as! MDLMesh
+        
         fatalError()
-
     }
 }

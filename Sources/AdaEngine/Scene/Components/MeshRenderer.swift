@@ -19,8 +19,9 @@ public class MeshRenderer: Component {
     private var drawable: Drawable?
     
     public override func ready() {
-        var drawable = RenderEngine.shared.makeDrawable()
+        let drawable = RenderEngine.shared.makeDrawable()
         drawable.source = self.mesh.flatMap { .mesh($0) } ?? .empty
+        drawable.material = BaseMaterial(diffuseColor: .gray, metalic: 0)
         self.drawable = drawable
         
         RenderEngine.shared.setDrawableToQueue(drawable)

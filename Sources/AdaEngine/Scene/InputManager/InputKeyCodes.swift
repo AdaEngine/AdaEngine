@@ -49,43 +49,45 @@ public enum KeyCode: String {
     case question = "?"
     case at = "@"
     
+    case a = "a"
+    case b = "b"
+    case c = "c"
+    case d = "d"
+    case e = "e"
+    case f = "f"
+    case g = "g"
+    case h = "h"
+    case i = "i"
+    case j = "j"
+    case k = "k"
+    case l = "l"
+    case m = "m"
+    case n = "n"
+    case o = "o"
+    case p = "p"
+    case q = "q"
+    case r = "r"
+    case s = "s"
+    case t = "t"
+    case u = "u"
+    case v = "v"
+    case w = "w"
+    case x = "x"
+    case y = "y"
+    case z = "z"
+    
+    case leftBracket = "["
+    case rightBracket = "]"
+    case backslash = "\\"
+    case caret = "^"
+    case underScore = "_"
+    case backquote = "`"
+    
 }
 ///*
 //   Skip uppercase letters
 // */
 //
-//SDLK_LEFTBRACKET = '[',
-//SDLK_BACKSLASH = '\\',
-//SDLK_RIGHTBRACKET = ']',
-//SDLK_CARET = '^',
-//SDLK_UNDERSCORE = '_',
-//SDLK_BACKQUOTE = '`',
-//SDLK_a = 'a',
-//SDLK_b = 'b',
-//SDLK_c = 'c',
-//SDLK_d = 'd',
-//SDLK_e = 'e',
-//SDLK_f = 'f',
-//SDLK_g = 'g',
-//SDLK_h = 'h',
-//SDLK_i = 'i',
-//SDLK_j = 'j',
-//SDLK_k = 'k',
-//SDLK_l = 'l',
-//SDLK_m = 'm',
-//SDLK_n = 'n',
-//SDLK_o = 'o',
-//SDLK_p = 'p',
-//SDLK_q = 'q',
-//SDLK_r = 'r',
-//SDLK_s = 's',
-//SDLK_t = 't',
-//SDLK_u = 'u',
-//SDLK_v = 'v',
-//SDLK_w = 'w',
-//SDLK_x = 'x',
-//SDLK_y = 'y',
-//SDLK_z = 'z',
 //
 //SDLK_CAPSLOCK = SDL_SCANCODE_TO_KEYCODE(SDL_SCANCODE_CAPSLOCK),
 //

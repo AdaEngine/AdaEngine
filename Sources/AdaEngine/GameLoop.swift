@@ -7,9 +7,11 @@
 
 final class GameLoop {
     
-    static var current: GameLoop = GameLoop()
+    private(set) static var current: GameLoop!
     
     private var lastUpdate: TimeInterval = 0
+    
+    // MARK: Internal Methods
     
     func iterate() {
         let now = Time.absolute
@@ -19,6 +21,8 @@ final class GameLoop {
         // FIXME: Think about it later
         Time.deltaTime = deltaTime
         
+        Input.shared.processEvents()
+        
         SceneManager.shared.update(deltaTime)
         
         do {
@@ -26,5 +30,9 @@ final class GameLoop {
         } catch {
             fatalError(error.localizedDescription)
         }
+    }
+    
+    func makeCurrent() {
+        GameLoop.current = self
     }
 }

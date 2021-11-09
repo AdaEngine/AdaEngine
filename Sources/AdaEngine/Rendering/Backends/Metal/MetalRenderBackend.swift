@@ -87,6 +87,21 @@ class MetalRenderBackend: RenderBackend {
         self.drawableList = list
     }
     
+    func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) throws -> Any {
+        let defaultLibrary = try context.device.makeDefaultLibrary(bundle: .module)
+        let vertexFunc = defaultLibrary.makeFunction(name: "vertex_main")
+        let fragmentFunc = defaultLibrary.makeFunction(name: "fragment_main")
+        
+        let pipelineDescriptor = MTLRenderPipelineDescriptor()
+        pipelineDescriptor.vertexFunction = vertexFunc
+        pipelineDescriptor.fragmentFunction = fragmentFunc
+        pipelineDescriptor.vertexDescriptor = try vertexDescriptor?.makeMTKVertexDescriptor()
+        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+        
+        let state = try self.context.device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+        return state
+    }
+    
     // MARK: - Buffers
     
     func makeBuffer(length: Int, options: UInt) -> RenderBuffer {
@@ -116,28 +131,30 @@ extension MetalRenderBackend {
         
         switch drawable.source {
         case .mesh(let mesh):
-            
-            let defaultLibrary = try context.device.makeDefaultLibrary(bundle: .module)
-            let vertexFunc = defaultLibrary.makeFunction(name: "vertex_main")
-            let fragmentFunc = defaultLibrary.makeFunction(name: "fragment_main")
-            
-            let pipelineDescriptor = MTLRenderPipelineDescriptor()
-            pipelineDescriptor.vertexFunction = vertexFunc
-            pipelineDescriptor.fragmentFunction = fragmentFunc
-            pipelineDescriptor.vertexDescriptor = try mesh.vertexDescriptor.makeVertexDescriptor()
-            pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
-            
-            let state = try self.context.device.makeRenderPipelineState(descriptor: pipelineDescriptor)
-            encoder?.setRenderPipelineState(state)
+            guard let pipelineState = drawable.pipelineState as? MTLRenderPipelineState else { return }
+            encoder?.setRenderPipelineState(pipelineState)
             
             uniform.modelMatrix = drawable.transform
             
-            encoder?.setVertexBytes(mesh.vertexBuffer.contents, length: mesh.vertexBuffer.length, index: 0)
+            encoder?.setVertexBytes(mesh.verticies, length: MemoryLayout<Vector3>.stride * mesh.verticies.count, index: 0)
             encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.stride, index: 1)
             
-            encoder?.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: mesh.verticies.count)
+            let indexBuffer = self.context.device.makeBuffer(
+                bytes: mesh.indicies,
+                length: MemoryLayout<UInt32>.stride * mesh.indicies.count,
+                options: []
+            )!
             
+            encoder?.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: mesh.verticies.count)
+            encoder?.drawIndexedPrimitives(
+                type: .triangle,
+                indexCount: mesh.indicies.count,
+                indexType: .uint32,
+                indexBuffer: indexBuffer,
+                indexBufferOffset: 0
+            )
         case .light:
+            encoder?.setRenderPipelineState(drawable.pipelineState as! MTLRenderPipelineState)
             break
         case .empty:
             break

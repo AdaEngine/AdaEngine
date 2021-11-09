@@ -9,8 +9,6 @@ import Foundation.NSURL
 
 public class Application {
     
-    let gameLoop: GameLoop
-    
     // MARK: - Public
     
     /// Contains application instance if application created from `ApplicationCreate`
@@ -37,7 +35,7 @@ public class Application {
     // MARK: - Internal
     
     required init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        self.gameLoop = GameLoop.current
+        
     }
     
     func run() throws {

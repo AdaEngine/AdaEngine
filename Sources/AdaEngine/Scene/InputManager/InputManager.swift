@@ -35,4 +35,18 @@ public final class Input {
         fatalError("")
     }
     
+    public static func isActionPressed(_ action: String) -> Bool {
+        fatalError()
+    }
+    
+    public static func isActionRelease(_ action: String) -> Bool {
+        fatalError()
+    }
+    
+    // MARK: Internal
+    
+    func processEvents() {
+        
+    }
+    
 }

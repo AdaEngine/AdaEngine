@@ -48,14 +48,16 @@ class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
         let entity = Entity()
         let meshRenderer = MeshRenderer()
         
-        var mesh = Mesh()
+        let train = Bundle.module.url(forResource: "train", withExtension: "obj")!
+        var mesh = Mesh.loadMesh(from: train)
         
-        mesh.verticies = [
-            [-0.5, -0.5, -0.5],
-            [0.5, -0.5, 0.5],
-            [0.5, 0.5, 0.5]
-        ]
-        mesh.indicies = [0, 1, 2]
+//        mesh.verticies = [
+//            [-0.5, -0.5, -0.5],
+//            [0.5, -0.5, 0.5],
+//            [0.5, 0.5, 0.5],
+//            [-0.5, 0.5, -0.5]
+//        ]
+//        mesh.indicies = [0, 1, 2, 2, 3, 0]
         meshRenderer.mesh = mesh
         entity.components[MeshRenderer] = meshRenderer
         scene.addEntity(entity)

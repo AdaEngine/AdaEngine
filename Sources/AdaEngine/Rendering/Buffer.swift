@@ -46,6 +46,11 @@ public class Buffer {
         return self.contents.load(fromByteOffset: offset, as: type)
     }
     
+    public func array<T>(of type: T.Type) -> [T] {
+        let ptr = self.contents.bindMemory(to: T.self, capacity: self.length)
+        return Array(UnsafeBufferPointer(start: ptr, count: self.length))
+    }
+    
     public func read<T>(offset: Int = 0) -> T {
         return self.contents.load(as: T.self)
     }

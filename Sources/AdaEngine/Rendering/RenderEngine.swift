@@ -65,7 +65,9 @@ public class RenderEngine {
     }
     
     func makeDrawable() -> Drawable {
-        return Drawable(id: UUID().uuidString)
+        let drawable = Drawable()
+        drawable.renderEngine = self
+        return drawable
     }
     
     func setDrawableToQueue(_ drawable: Drawable) {
@@ -74,6 +76,22 @@ public class RenderEngine {
     
     func removeDrawableFromQueue(_ drawable: Drawable) {
         self.drawableList.drawables.remove(drawable)
+    }
+    
+    func makePipelineDescriptor(for drawable: Drawable) {
+        guard let material = drawable.material else { return }
+        
+        do {
+            switch drawable.source {
+            case .mesh(let mesh):
+                drawable.pipelineState = try self.renderBackend.makePipelineDescriptor(for: material, vertexDescriptor: mesh.vertexDescriptor)
+            default:
+                drawable.pipelineState = try self.renderBackend.makePipelineDescriptor(for: material, vertexDescriptor: nil)
+            }
+        } catch {
+            fatalError(error.localizedDescription)
+        }
+        
     }
     
     // MARK: - Buffers
@@ -88,7 +106,7 @@ public class RenderEngine {
     
 }
 
-public struct Drawable: Identifiable {
+public class Drawable: Identifiable {
     
     enum Source {
         case mesh(Mesh)
@@ -97,18 +115,24 @@ public struct Drawable: Identifiable {
         case empty
     }
     
-    public let id: String
+    internal weak var renderEngine: RenderEngine?
+    
+    public let id: UUID = UUID()
     
     var source: Source = .empty
     var transform: Transform3D = .identity
+    
+    var material: Material? {
+        didSet {
+            self.renderEngine?.makePipelineDescriptor(for: self)
+        }
+    }
     
     var position: Vector3 = .zero
     
     var isVisible = true
     
-    internal init(id: String) {
-        self.id = id
-    }
+    internal var pipelineState: Any?
 }
 
 extension Drawable: Hashable {

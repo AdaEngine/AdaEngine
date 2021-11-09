@@ -1,8 +1,14 @@
 #include <metal_stdlib>
 using namespace metal;
 
+
+
+
 struct Vertex {
     float4 position [[ attribute(0) ]];
+    float4 normal [[ attribute(1) ]];
+    float2 uv [[ attribute(2) ]];
+    float4 color [[ attribute(3) ]];
 };
 
 struct Uniforms {
@@ -22,7 +28,7 @@ vertex RasterizerData vertex_main(
                                      constant Uniforms &ubo [[ buffer(1) ]]
                                      ) {
     
-    float4 position = ubo.projection * ubo.view * ubo.model * vertexIn.position;
+    float4 position = vertexIn.position;
     
     RasterizerData out {
         .position = position

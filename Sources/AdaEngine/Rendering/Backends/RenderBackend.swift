@@ -15,6 +15,9 @@ struct Uniforms {
 
 struct Vertex {
     var position: Vector3
+    var normal: Vector3
+    var uv: Vector2
+    var color: Color
 }
 
 protocol RenderBackend: AnyObject {
@@ -32,6 +35,8 @@ protocol RenderBackend: AnyObject {
     // MARK: - Drawable
     
     func renderDrawableList(_ list: DrawableList, camera: CameraData)
+    
+    func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) throws -> Any
     
     // MARK: - Buffers
     

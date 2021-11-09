@@ -13,7 +13,7 @@ open class Entity {
     
     public var name: String
     
-    public let id: String
+    public let identifier: UUID
     
     public internal(set) var components: ComponentSet
     
@@ -25,7 +25,7 @@ open class Entity {
     
     public init(name: String = "Entity") {
         self.name = name
-        self.id = UUID().uuidString
+        self.identifier = UUID()
         self.components = ComponentSet()
         self.children = []
         
@@ -35,7 +35,7 @@ open class Entity {
         }
     }
     
-    func update(_ deltaTime: TimeInterval) {
+    open func update(_ deltaTime: TimeInterval) {
         for component in components.buffer.values {
             
             if !component.isAwaked {
@@ -47,7 +47,7 @@ open class Entity {
         }
     }
     
-    func physicsUpdate(_ deltaTime: TimeInterval) {
+    open func physicsUpdate(_ deltaTime: TimeInterval) {
         for component in components.buffer.values where component.isAwaked {
             component.physicsUpdate(deltaTime)
         }
@@ -66,7 +66,13 @@ extension Entity: Hashable {
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.name)
-        hasher.combine(self.id)
+        hasher.combine(self.identifier)
+    }
+}
+
+extension Entity: Identifiable {
+    public var id: UUID {
+        return self.identifier
     }
 }
 
@@ -135,18 +141,18 @@ public extension Entity {
     }
 }
 
-public extension Entity {
+extension Entity {
     
     /// Copying entity with components
     /// - Parameter recursive: Flags indicate that child enities will copying too
-    func copyEntity(recursive: Bool = true) -> Entity {
+    open func copy(recursive: Bool = true) -> Entity {
         let newEntity = Entity()
         
         if recursive {
             var childrens = self.children
             
             for index in 0..<childrens.count {
-                let child = self.children[index].copyEntity(recursive: true)
+                let child = self.children[index].copy(recursive: true)
                 childrens.updateOrAppend(child)
             }
             
@@ -160,14 +166,14 @@ public extension Entity {
         return newEntity
     }
     
-    func addChild(_ entity: Entity) {
+    open func addChild(_ entity: Entity) {
         assert(!self.children.contains { $0 === entity }, "Currenlty has entity in child")
         
         self.children.append(entity)
         entity.parent = self
     }
     
-    func removeChild(_ entity: Entity) {
+    open func removeChild(_ entity: Entity) {
         guard let index = self.children.firstIndex(where: { $0 === entity }) else {
             return
         }
@@ -178,7 +184,7 @@ public extension Entity {
     }
     
     /// Remove entity from parent
-    func removeFromParent() {
+    open func removeFromParent() {
         guard let parent = self.parent else { return }
         parent.removeChild(self)
     }
