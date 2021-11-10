@@ -22,7 +22,7 @@ class MetalRenderBackend: RenderBackend {
     
     private var drawableList: DrawableList?
     private var cameraData: CameraData?
-
+    
     init(appName: String) {
         self.context = Context()
     }
@@ -125,7 +125,9 @@ extension MetalRenderBackend {
         uniform: Uniforms
     ) throws {
         let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor)
-        defer { encoder?.endEncoding() }
+        defer {
+            encoder?.endEncoding()
+        }
         
         var uniform = uniform
         
@@ -136,23 +138,29 @@ extension MetalRenderBackend {
             
             uniform.modelMatrix = drawable.transform
             
-            encoder?.setVertexBytes(mesh.verticies, length: MemoryLayout<Vector3>.stride * mesh.verticies.count, index: 0)
-            encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.stride, index: 1)
+            encoder?.setTriangleFillMode(.lines)
             
-            let indexBuffer = self.context.device.makeBuffer(
-                bytes: mesh.indicies,
-                length: MemoryLayout<UInt32>.stride * mesh.indicies.count,
-                options: []
-            )!
+            for model in mesh.models {
+                encoder?.setVertexBuffer(model.vertexBuffer.get(), offset: 0, index: 0)
+                encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.stride, index: 1)
+                
+                encoder?.drawPrimitives(
+                    type: .triangle,
+                    vertexStart: 0,
+                    vertexCount: model.vertexCount
+                )
+                
+                for surface in model.surfaces {
+                    encoder?.drawIndexedPrimitives(
+                        type: surface.primitiveType.metal,
+                        indexCount: surface.indexCount,
+                        indexType: .uint32,
+                        indexBuffer: surface.indexBuffer.get()!,
+                        indexBufferOffset: 0)
+                }
+            }
             
-            encoder?.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: mesh.verticies.count)
-            encoder?.drawIndexedPrimitives(
-                type: .triangle,
-                indexCount: mesh.indicies.count,
-                indexType: .uint32,
-                indexBuffer: indexBuffer,
-                indexBufferOffset: 0
-            )
+            
         case .light:
             encoder?.setRenderPipelineState(drawable.pipelineState as! MTLRenderPipelineState)
             break
@@ -189,7 +197,7 @@ extension MetalRenderBackend {
             self.device = self.prefferedDevice(for: view)
             view.device = self.device
             
-                      
+            
             self.commandQueue = self.device.makeCommandQueue()
         }
         

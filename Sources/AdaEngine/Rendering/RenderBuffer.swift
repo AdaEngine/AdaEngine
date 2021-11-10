@@ -11,6 +11,8 @@ public protocol RenderBuffer {
     func contents() -> UnsafeMutableRawPointer
     
     func copy(bytes: UnsafeRawPointer, length: Int)
+    
+    func get<T>() -> T?
 }
 
 #if canImport(Metal)
@@ -29,6 +31,10 @@ public class MetalBuffer: RenderBuffer {
     
     public func copy(bytes: UnsafeRawPointer, length: Int) {
         self.base.contents().copyMemory(from: bytes, byteCount: length)
+    }
+    
+    public func get<T>() -> T? {
+        return self.base as? T
     }
     
 }

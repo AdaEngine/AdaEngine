@@ -28,7 +28,7 @@ vertex RasterizerData vertex_main(
                                      constant Uniforms &ubo [[ buffer(1) ]]
                                      ) {
     
-    float4 position = vertexIn.position;
+    float4 position = ubo.model * ubo.view * ubo.projection * vertexIn.position;
     
     RasterizerData out {
         .position = position

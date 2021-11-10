@@ -20,6 +20,9 @@ class MacApplication: Application {
         
         let delegate = MacAppDelegate()
         app.delegate = delegate
+        
+        Engine.shared.run()
+        
         app.run()
     }
     

@@ -53,8 +53,6 @@ let package = Package(
                 .product(name: "Collections", package: "swift-collections")
             ],
             resources: [
-                .copy("Rendering/Shaders/GLSL/shader.frag.spv"),
-                .copy("Rendering/Shaders/GLSL/shader.vert.spv"),
                 .copy("Rendering/Shaders/train.obj"),
                 .copy("Rendering/Shaders/train.mtl"),
                 .process("Rendering/Shaders/Metal/*.metal")

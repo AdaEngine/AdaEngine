@@ -15,17 +15,18 @@ final public class Engine {
     
     public static let shared: Engine = Engine()
     
-    let gameLoop: GameLoop
-    
+    let gameLoop = GameLoop()
     
     // MARK: Private
     
     private init() {
-        self.gameLoop = GameLoop()
-        self.gameLoop.makeCurrent()
     }
     
     // MARK: - Internal Methods
+    
+    func run() {
+        self.gameLoop.makeCurrent()
+    }
     
     // MARK: - Public Methods
     
