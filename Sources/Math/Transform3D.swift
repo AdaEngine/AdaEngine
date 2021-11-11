@@ -230,4 +230,96 @@ public extension Transform3D {
             Vector4(0, 0, 0, 1)
         )
     }
+    
+    var inverse: Transform3D {
+        var d00 = self.x.x * self.y.y
+        d00 = d00 - self.y.x * self.x.y
+        var d01 = self.x.x * self.y.z
+        d01 = d01 - self.y.x * self.x.z
+        var d02 = self.x.x * self.y.w
+        d02 = d02 - self.y.x * self.x.w
+        var d03 = self.x.y * self.y.z
+        d03 = d03 - self.y.y * self.x.z
+        var d04 = self.x.y * self.y.w
+        d04 = d04 - self.y.y * self.x.w
+        var d05 = self.x.z * self.y.w
+        d05 = d05 - self.y.z * self.x.w
+        
+        var d10 = self.z.x * self.w.y
+        d10 = d10 - self.w.x * self.z.y
+        var d11 = self.z.x * self.w.z
+        d11 = d11 - self.w.x * self.z.z
+        var d12 = self.z.x * self.w.w
+        d12 = d12 - self.w.x * self.z.w
+        var d13 = self.z.y * self.w.z
+        d13 = d13 - self.w.y * self.z.z
+        var d14 = self.z.y * self.w.w
+        d14 = d14 - self.w.y * self.z.w
+        var d15 = self.z.z * self.w.w
+        d15 = d15 - self.w.z * self.z.w
+        
+        var det = d00 * d15
+        det = det - d01 * d14
+        det = det + d02 * d13
+        det = det + d03 * d12
+        det = det - d04 * d11
+        det = det + d05 * d10
+        
+        var mm = Transform3D()
+        
+        mm.x.x = self.y.y * d15
+        mm.x.x = mm.x.x - self.y.z * d14
+        mm.x.x = mm.x.x + self.y.w * d13
+        mm.x.y = 0 - self.x.y * d15
+        mm.x.y = mm.x.y + self.x.z * d14
+        mm.x.y = mm.x.y - self.x.w * d13
+        mm.x.z = self.w.y * d05
+        mm.x.z = mm.x.z - self.w.z * d04
+        mm.x.z = mm.x.z + self.w.w * d03
+        mm.x.w = 0 - self.z.y * d05
+        mm.x.w = mm.x.w + self.z.z * d04
+        mm.x.w = mm.x.w - self.z.w * d03
+        
+        mm.y.x = 0 - self.y.x * d15
+        mm.y.x = mm.y.x + self.y.z * d12
+        mm.y.x = mm.y.x - self.y.w * d11
+        mm.y.y = self.x.x * d15
+        mm.y.y = mm.y.y - self.x.z * d12
+        mm.y.y = mm.y.y + self.x.w * d11
+        mm.y.z = 0 - self.w.x * d05
+        mm.y.z = mm.y.z + self.w.z * d02
+        mm.y.z = mm.y.z - self.w.w * d01
+        mm.y.w = self.z.x * d05
+        mm.y.w = mm.y.w - self.z.z * d02
+        mm.y.w = mm.y.w + self.z.w * d01
+        
+        mm.z.x = self.y.x * d14
+        mm.z.x = mm.z.x - self.y.y * d12
+        mm.z.x = mm.z.x + self.y.w * d10
+        mm.z.y = 0 - self.x.x * d14
+        mm.z.y = mm.z.y + self.x.y * d12
+        mm.z.y = mm.z.y - self.x.w * d10
+        mm.z.z = self.w.x * d04
+        mm.z.z = mm.z.z - self.w.y * d02
+        mm.z.z = mm.z.z + self.w.w * d00
+        mm.z.w = 0 - self.z.x * d04
+        mm.z.w = mm.z.w + self.z.y * d02
+        mm.z.w = mm.z.w - self.z.w * d00
+        
+        mm.w.x = 0 - self.y.x * d13
+        mm.w.x = mm.w.x + self.y.y * d11
+        mm.w.x = mm.w.x - self.y.z * d10
+        mm.w.y = self.x.x * d13
+        mm.w.y = mm.w.y - self.x.y * d11
+        mm.w.y = mm.w.y + self.x.z * d10
+        mm.w.z = 0 - self.w.x * d03
+        mm.w.z = mm.w.z + self.w.y * d01
+        mm.w.z = mm.w.z - self.w.z * d00
+        mm.w.w = self.z.x * d03
+        mm.w.w = mm.w.w - self.z.y * d01
+        mm.w.w = mm.w.w + self.z.z * d00
+        
+        let invdet = 1 / det
+        return mm * invdet
+    }
 }

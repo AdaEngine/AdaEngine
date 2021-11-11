@@ -48,6 +48,10 @@ public class RenderEngine {
     // MARK: Methods
     
     public func draw() throws {
+        guard self.renderBackend.viewportSize.x > 0 && self.renderBackend.viewportSize.y > 0 else {
+            return
+        }
+        
         let cameraData = CameraManager.shared.makeCurrentCameraData(viewportSize: self.renderBackend.viewportSize)
         self.renderBackend.renderDrawableList(self.drawableList, camera: cameraData)
         
@@ -61,6 +65,10 @@ public class RenderEngine {
     }
     
     public func updateViewSize(newSize: Vector2i) throws {
+        guard newSize.x > 0 && newSize.y > 0 else {
+            return
+        }
+        
         try self.renderBackend.resizeWindow(newSize: newSize)
     }
     
@@ -79,7 +87,8 @@ public class RenderEngine {
     }
     
     func makePipelineDescriptor(for drawable: Drawable) {
-        guard let material = drawable.material else { return }
+        // TODO: Should create pipeline descriptor cache 
+        guard let material = drawable.materials?.first else { return }
         
         do {
             switch drawable.source {
@@ -96,11 +105,11 @@ public class RenderEngine {
     
     // MARK: - Buffers
     
-    func makeBuffer(length: Int, options: UInt) -> RenderBuffer {
+    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer {
         return self.renderBackend.makeBuffer(length: length, options: options)
     }
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: UInt) -> RenderBuffer {
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
     }
     
@@ -122,7 +131,7 @@ public class Drawable: Identifiable {
     var source: Source = .empty
     var transform: Transform3D = .identity
     
-    var material: Material? {
+    var materials: [Material]? {
         didSet {
             self.renderEngine?.makePipelineDescriptor(for: self)
         }

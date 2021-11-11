@@ -14,7 +14,7 @@ import Foundation
 import AppKit
 import MetalKit
 
-class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
+class MacAppDelegate: NSObject, NSApplicationDelegate {
     
     let window = NSWindow(contentRect: NSMakeRect(200, 200, 800, 600),
                           styleMask: [.titled, .closable, .resizable, .miniaturizable],
@@ -27,49 +27,10 @@ class MacAppDelegate: NSObject, NSApplicationDelegate, MTKViewDelegate {
         window.title = "Ada Editor"
         window.center()
         
-        do {
-            let renderer = try RenderEngine.createRenderEngine(backendType: .metal, appName: "Ada")
-            let view = MetalView()
-            view.isPaused = true
-            view.delegate = self
-            
-            try renderer.initialize(for: view, size: Vector2i(x: 800, y: 600))
-            
-            window.contentView = view
-            
-            view.isPaused = false
-        } catch {
-            fatalError(error.localizedDescription)
-        }
+        let viewController = GameViewController(nibName: nil, bundle: nil)
+        window.contentViewController = viewController
         
-        
-        let scene = Scene()
-        
-        let entity = Entity()
-        let meshRenderer = MeshRenderer()
-        
-        let train = Bundle.module.url(forResource: "train", withExtension: "obj")!
-        let mesh = Mesh.loadMesh(from: train)
-        
-        meshRenderer.mesh = mesh
-        entity.components[MeshRenderer] = meshRenderer
-        scene.addEntity(entity)
-        
-        SceneManager.shared.presentScene(scene)
-    }
-    
-    // MARK: - MTKViewDelegate
-    
-    func draw(in view: MTKView) {
-        GameLoop.current.iterate()
-    }
-    
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-        do {
-            try RenderEngine.shared.updateViewSize(newSize: Vector2i(x: Int(size.width), y: Int(size.height)))
-        } catch {
-            fatalError(error.localizedDescription)
-        }
+        window.setFrame(NSMakeRect(200, 200, 800, 600), display: true)
     }
 }
 #endif

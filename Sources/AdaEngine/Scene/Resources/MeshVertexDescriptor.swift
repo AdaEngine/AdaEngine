@@ -5,7 +5,12 @@
 //  Created by v.prusakov on 11/3/21.
 //
 
-public struct VertexDesciptorAttributesArray {
+public struct VertexDesciptorAttributesArray: Sequence {
+    
+    public typealias Element = MeshVertexDescriptor.Attribute
+    public typealias Iterator = Array<MeshVertexDescriptor.Attribute>.Iterator
+    
+    var count: Int { self.buffer.count }
     
     internal var buffer: [MeshVertexDescriptor.Attribute] = []
     
@@ -15,7 +20,7 @@ public struct VertexDesciptorAttributesArray {
                 return self.buffer[index]
             }
             
-            let attribute = MeshVertexDescriptor.Attribute(offset: 0, bufferIndex: 0, format: .invalid)
+            let attribute = MeshVertexDescriptor.Attribute(name: "", offset: 0, bufferIndex: 0, format: .invalid)
             self.buffer.insert(attribute, at: index)
             return attribute
         }
@@ -24,11 +29,20 @@ public struct VertexDesciptorAttributesArray {
             self.buffer[index] = newValue
         }
     }
+    
+    public func makeIterator() -> Iterator {
+        return buffer.makeIterator()
+    }
 }
 
-public struct VertexDesciptorLayoutsArray {
+public struct VertexDesciptorLayoutsArray: Sequence {
+    
+    public typealias Element = MeshVertexDescriptor.Layout
+    public typealias Iterator = Array<MeshVertexDescriptor.Layout>.Iterator
     
     internal private(set) var buffer: [MeshVertexDescriptor.Layout] = []
+    
+    var count: Int { self.buffer.count }
     
     subscript(index: Int) -> MeshVertexDescriptor.Layout {
         mutating get {
@@ -45,6 +59,10 @@ public struct VertexDesciptorLayoutsArray {
             self.buffer[index] = newValue
         }
     }
+    
+    public func makeIterator() -> Iterator {
+        return buffer.makeIterator()
+    }
 }
 
 public class MeshVertexDescriptor {
@@ -52,7 +70,7 @@ public class MeshVertexDescriptor {
     public var attributes: VertexDesciptorAttributesArray
     public var layouts: VertexDesciptorLayoutsArray
     
-    enum VertexFormat: UInt {
+    public enum VertexFormat: UInt {
         case invalid
         
         case uint
@@ -66,14 +84,35 @@ public class MeshVertexDescriptor {
         case matrix2x2
     }
     
-    public struct Attribute {
-        var offset: Int
-        var bufferIndex: Int
-        var format: VertexFormat
+    public class Attribute: CustomStringConvertible {
+        public var name: String
+        public var offset: Int
+        public var bufferIndex: Int
+        public var format: VertexFormat
+        
+        public init(name: String, offset: Int, bufferIndex: Int, format: MeshVertexDescriptor.VertexFormat) {
+            self.name = name
+            self.offset = offset
+            self.bufferIndex = bufferIndex
+            self.format = format
+        }
+        
+        public var description: String {
+            return "Attribute: \(memoryAddress(self)) name=\(name) offset=\(offset) bufferIndex=\(bufferIndex) format=\(format)"
+        }
     }
     
-    public struct Layout {
-        var stride: Int
+    public class Layout: CustomStringConvertible {
+        
+        public var stride: Int
+        
+        public init(stride: Int) {
+            self.stride = stride
+        }
+        
+        public var description: String {
+            return "Layout: \(memoryAddress(self)) stride=\(stride)"
+        }
     }
     
     public init() {
@@ -86,6 +125,23 @@ public class MeshVertexDescriptor {
         self.layouts = layouts
     }
     
+}
+
+extension MeshVertexDescriptor: CustomStringConvertible {
+    public var description: String {
+        
+        let attributesDesc = self.attributes.enumerated().reduce("", { result, value in
+            let shouldInsertColumn = value.offset < self.attributes.count - 1
+            let newDesc = value.element.description + (shouldInsertColumn ? "," : "")
+            return result + " " + newDesc + "\n"
+        })
+        let layoutsDesc = self.layouts.enumerated().reduce("", { result, value in
+            let shouldInsertColumn = value.offset < self.layouts.count - 1
+            let newDesc = value.element.description + (shouldInsertColumn ? "," : "")
+            return result + " " + newDesc + "\n"
+        })
+        return String(format: "MeshVertexDescriptor: \(memoryAddress(self)) attributes(\n%@) layots: {\n%@}", attributesDesc, layoutsDesc)
+    }
 }
 
 public extension MeshVertexDescriptor {
@@ -132,16 +188,26 @@ import ModelIO
 public extension MeshVertexDescriptor {
     convenience init(mdlVertexDescriptor: MDLVertexDescriptor) {
         
-        let attributes: [Attribute] = mdlVertexDescriptor.attributes.map {
-            let attr = ($0 as! MDLVertexAttribute)
+        let attributes: [Attribute] = mdlVertexDescriptor.attributes.compactMap {
+            guard
+                let attr = ($0 as? MDLVertexAttribute),
+                attr.name != "",
+                attr.format != .invalid
+            else {
+                return nil
+            }
+            
             return Attribute(
+                name: attr.name,
                 offset: attr.offset,
                 bufferIndex: attr.bufferIndex,
                 format: VertexFormat(vertexFormat: attr.format))
         }
         
-        let layouts: [Layout] = mdlVertexDescriptor.layouts.map {
-            let layout = ($0 as! MDLVertexBufferLayout)
+        let layouts: [Layout] = mdlVertexDescriptor.layouts.compactMap {
+            guard let layout = ($0 as? MDLVertexBufferLayout), layout.stride > 0 else {
+                return nil
+            }
             return Layout(stride: layout.stride)
         }
         
@@ -203,3 +269,7 @@ extension MeshVertexDescriptor.VertexFormat {
 }
 
 #endif
+
+func memoryAddress<T: AnyObject>(_ object: T) -> UnsafeMutableRawPointer {
+    return Unmanaged.passUnretained(object).toOpaque()
+}

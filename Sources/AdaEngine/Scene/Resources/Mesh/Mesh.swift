@@ -47,20 +47,20 @@ public extension Mesh {
     static func loadMesh(from url: URL, vertexDescriptor: MeshVertexDescriptor? = nil) -> Mesh {
         let asset = MDLAsset(
             url: url,
-            vertexDescriptor: vertexDescriptor?.makeMDLVertexDescriptor(),
+            vertexDescriptor: nil,
             bufferAllocator: nil
         )
         
         let mdlMesh = asset.childObjects(of: MDLMesh.self).first as! MDLMesh
         
         let mesh = Mesh(vertexDescriptor: MeshVertexDescriptor(mdlVertexDescriptor: mdlMesh.vertexDescriptor))
-        
+        print(mesh.vertexDescriptor)
         var model = Mesh.Model(
             name: mdlMesh.name,
             vertexBuffer: RenderEngine.shared.makeBuffer(
                 bytes: mdlMesh.vertexBuffers[0].map().bytes,
                 length: mdlMesh.vertexBuffers[0].length,
-                options: 0
+                options: .storageShared
             ),
             vertexCount: mdlMesh.vertexCount,
             surfaces: []
@@ -74,7 +74,7 @@ public extension Mesh {
                 indexBuffer: RenderEngine.shared.makeBuffer(
                     bytes: submesh.indexBuffer.map().bytes,
                     length: submesh.indexBuffer.length,
-                    options: 0
+                    options: .storageShared
                 ),
                 indexCount: submesh.indexCount,
                 materialIndex: 0
@@ -83,9 +83,7 @@ public extension Mesh {
             model.surfaces.append(surface)
         }
         
-        
         mesh.models = [model]
-        
         
         return mesh
     }

@@ -33,12 +33,20 @@ public class Transform: Component {
         return parentTransform
     }
     
-    public var localPosition: Vector3 {
-        return Vector3(self.matrix[0, 3], self.matrix[1, 3], self.matrix[2, 3])
+    public var position: Vector3 {
+        get {
+            return Vector3(self.matrix[0, 3], self.matrix[1, 3], self.matrix[2, 3])
+        }
+        
+        set {
+            self.matrix[0, 3] = newValue.x
+            self.matrix[1, 3] = newValue.y
+            self.matrix[2, 3] = newValue.z
+        }
     }
     
     public var worldPosition: Vector3 {
-        let position = self.localPosition
+        let position = self.position
         
         guard let parentTransform = self.entity?.parent?.components[Transform] else {
             return position
@@ -54,8 +62,15 @@ public class Transform: Component {
     // MARK: - Public methods
     
     func lookAt(_ targetWorldPosition: Vector3, worldUp: Vector3 = .up) {
-        let lookAtMatrix = Transform3D.lookAt(eye: targetWorldPosition, center: self.localPosition, up: worldUp)
+        let lookAtMatrix = Transform3D.lookAt(eye: targetWorldPosition, center: self.position, up: worldUp)
+        
         self.matrix *= lookAtMatrix
+    }
+    
+    func rotate(_ angle: Angle, vector: Vector3) {
+        let rotate = Transform3D.identity.rotate(angle: angle, vector: vector)
+        
+        self.matrix = self.matrix * rotate
     }
     
 }

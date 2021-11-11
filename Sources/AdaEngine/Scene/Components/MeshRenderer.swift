@@ -8,7 +8,7 @@
 /// Component to render mesh on scene
 public class MeshRenderer: Component {
     
-    public var material: Material?
+    public var materials: [Material]?
     
     public var mesh: Mesh? {
         didSet {
@@ -21,7 +21,7 @@ public class MeshRenderer: Component {
     public override func ready() {
         let drawable = RenderEngine.shared.makeDrawable()
         drawable.source = self.mesh.flatMap { .mesh($0) } ?? .empty
-        drawable.material = BaseMaterial(diffuseColor: .gray, metalic: 0)
+        drawable.materials = [BaseMaterial(diffuseColor: .gray, metalic: 0)]
         self.drawable = drawable
         
         RenderEngine.shared.setDrawableToQueue(drawable)

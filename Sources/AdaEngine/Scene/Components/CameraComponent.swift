@@ -21,7 +21,7 @@ public class CameraComponent: Component {
     public var far: Float = 100
     
     /// Angle of camera view
-    public var fieldOfView: Angle = .radians(45)
+    public var fieldOfView: Angle = .degrees(45)
     
     /// Base projection in camera
     public var projection: Projection = .perspective

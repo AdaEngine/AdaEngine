@@ -56,6 +56,7 @@ class MetalRenderBackend: RenderBackend {
         guard let renderPass = self.context.view.currentRenderPassDescriptor else { return }
         
         var uniform = Uniforms()
+        
         uniform.projectionMatrix = cameraData?.projection ?? .identity
         uniform.viewMatrix = cameraData?.view ?? .identity
         
@@ -81,10 +82,15 @@ class MetalRenderBackend: RenderBackend {
         
     }
     
+    func setClearColor(_ color: Color) {
+        self.context.view.clearColor = MTLClearColor(red: Double(color.red), green: Double(color.green), blue: Double(color.blue), alpha: Double(color.alpha))
+    }
+    
     // MARK: - Drawable
     
     func renderDrawableList(_ list: DrawableList, camera: CameraData) {
         self.drawableList = list
+        self.cameraData = camera
     }
     
     func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) throws -> Any {
@@ -104,14 +110,13 @@ class MetalRenderBackend: RenderBackend {
     
     // MARK: - Buffers
     
-    func makeBuffer(length: Int, options: UInt) -> RenderBuffer {
-        let buffer = self.context.device.makeBuffer(length: length, options: MTLResourceOptions(rawValue: options))!
+    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer {
+        let buffer = self.context.device.makeBuffer(length: length, options: options.metal)!
         return MetalBuffer(buffer)
     }
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: UInt) -> RenderBuffer {
-        let buffer = self.context.device.makeBuffer(bytes: bytes, length: length, options: MTLResourceOptions(rawValue: options))!
-        
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer {
+        let buffer = self.context.device.makeBuffer(bytes: bytes, length: length, options: options.metal)!
         return MetalBuffer(buffer)
     }
     
@@ -160,17 +165,12 @@ extension MetalRenderBackend {
                 }
             }
             
-            
         case .light:
             encoder?.setRenderPipelineState(drawable.pipelineState as! MTLRenderPipelineState)
             break
         case .empty:
             break
         }
-        
-    }
-    
-    func drawMesh(for drawable: Drawable, encoder: MTLRenderCommandEncoder) {
         
     }
 }

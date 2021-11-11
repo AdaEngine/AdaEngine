@@ -15,6 +15,39 @@ public protocol RenderBuffer {
     func get<T>() -> T?
 }
 
+public struct ResourceOptions: OptionSet {
+    public let rawValue: UInt
+    
+    public init(rawValue: UInt) {
+        self.rawValue = rawValue
+    }
+    
+    public static let storagePrivate = ResourceOptions(rawValue: 1 << 0)
+    
+    public static let storageShared = ResourceOptions(rawValue: 1 << 1)
+}
+
+#if canImport(Metal)
+
+extension ResourceOptions {
+    var metal: MTLResourceOptions {
+        
+        var options: MTLResourceOptions = []
+        
+        if self.contains(.storagePrivate) {
+            options.insert(.storageModePrivate)
+        }
+        
+        if self.contains(.storageShared) {
+            options.insert(.storageModeShared)
+        }
+        
+        return options
+    }
+}
+
+#endif
+
 #if canImport(Metal)
 import Metal
 

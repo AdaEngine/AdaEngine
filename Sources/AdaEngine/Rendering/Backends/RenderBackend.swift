@@ -32,6 +32,8 @@ protocol RenderBackend: AnyObject {
     
     func sync()
     
+    func setClearColor(_ color: Color)
+    
     // MARK: - Drawable
     
     func renderDrawableList(_ list: DrawableList, camera: CameraData)
@@ -40,7 +42,7 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Buffers
     
-    func makeBuffer(length: Int, options: UInt) -> RenderBuffer
+    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: UInt) -> RenderBuffer
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer
 }

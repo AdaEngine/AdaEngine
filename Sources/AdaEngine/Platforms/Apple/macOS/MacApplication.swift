@@ -15,7 +15,7 @@ class MacApplication: Application {
     }
     
     override func run() throws {
-        let app = NSApplication.shared
+        let app = AdaApplication.shared
         app.setActivationPolicy(.regular)
         
         let delegate = MacAppDelegate()
@@ -33,6 +33,18 @@ class MacApplication: Application {
     @discardableResult
     override func openURL(_ url: URL) -> Bool {
         NSWorkspace.shared.open(url)
+    }
+}
+
+class AdaApplication: NSApplication {
+    override func sendEvent(_ event: NSEvent) {
+        
+        if event.type == .keyUp && event.modifierFlags.contains(.command) {
+            self.keyWindow?.sendEvent(event)
+        } else {
+            super.sendEvent(event)
+        }
+        
     }
 }
 

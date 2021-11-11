@@ -8,11 +8,11 @@
 
 public struct Color: Codable, Hashable {
     
-    private var red: Float
-    private var green: Float
-    private var blue: Float
+    public private(set) var red: Float
+    public private(set) var green: Float
+    public private(set) var blue: Float
     
-    private var alpha: Float
+    public private(set) var alpha: Float
     
     public init(red: Float, green: Float, blue: Float, alpha: Float) {
         self.red = red

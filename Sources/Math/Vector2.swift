@@ -133,6 +133,12 @@ public extension Vector3 {
     }
     
     static let up: Vector3 = Vector3(0, 1, 0)
+    
+    static let down: Vector3 = Vector3(0, -1, 0)
+    
+    static let left: Vector3 = Vector3(-1, 0, 0)
+    
+    static let right: Vector3 = Vector3(1, 0, 0)
 }
 
 public extension Vector4 {
