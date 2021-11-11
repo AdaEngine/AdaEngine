@@ -83,6 +83,17 @@ public enum KeyCode: String, Hashable {
     case underScore = "_"
     case backquote = "`"
     
+    // TODO: Currenty macos
+    case arrowDown = "125"
+    case arrowUp = "126"
+    case arrowLeft = "123"
+    case arrowRight = "124"
+}
+
+extension KeyCode {
+    init?(keyCode: UInt16) {
+        self.init(rawValue: "\(keyCode)")
+    }
 }
 
 public struct KeyModifier: OptionSet, Hashable {
@@ -330,3 +341,15 @@ extension KeyModifier {
 //
 //SDLK_AUDIOREWIND = SDL_SCANCODE_TO_KEYCODE(SDL_SCANCODE_AUDIOREWIND),
 //SDLK_AUDIOFASTFORWARD = SDL_SCANCODE_TO_KEYCODE(SDL_SCANCODE_AUDIOFASTFORWARD)
+
+public enum MouseButton: UInt8, Hashable {
+    case none
+    case left
+    case right
+    case middle
+    
+    case wheelUp
+    case wheelDown
+    case wheelLeft
+    case wheelRight
+}

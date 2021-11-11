@@ -3,9 +3,9 @@ using namespace metal;
 
 struct Vertex {
     float4 position [[ attribute(0) ]];
-    float4 normal [[ attribute(1) ]];
-    float2 uv [[ attribute(2) ]];
-    float4 color [[ attribute(3) ]];
+    float3 normal [[ attribute(1) ]];
+//    float2 uv [[ attribute(2) ]];
+//    float4 color [[ attribute(3) ]];
 };
 
 struct Uniforms {
@@ -18,11 +18,12 @@ struct Uniforms {
 struct RasterizerData
 {
     float4 position [[position]];
+    float3 wolrdPosition;
     float4 color;
 };
 
 vertex RasterizerData vertex_main(
-                                     Vertex vertexIn [[ stage_in ]],
+                                     const Vertex vertexIn [[ stage_in ]],
                                      constant Uniforms &ubo [[ buffer(1) ]]
                                      ) {
     
@@ -30,6 +31,7 @@ vertex RasterizerData vertex_main(
     
     RasterizerData out {
         .position = position,
+        .wolrdPosition = (ubo.model * vertexIn.position).xyz,
         .color = float4(1, 0, 0, 1)
     };
     

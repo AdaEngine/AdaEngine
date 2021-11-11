@@ -14,7 +14,7 @@
         fatalError()
     }
     
-    var storage: T?
+    weak var storage: T?
     
     public init() { }
     

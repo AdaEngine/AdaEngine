@@ -50,9 +50,6 @@ class MetalRenderBackend: RenderBackend {
         self.currentBuffer = (currentBuffer + 1) % maxFramesInFlight
         
         let commandBuffer = self.context.commandQueue.makeCommandBuffer()!
-        defer {
-            commandBuffer.commit()
-        }
         guard let renderPass = self.context.view.currentRenderPassDescriptor else { return }
         
         var uniform = Uniforms()
@@ -66,7 +63,12 @@ class MetalRenderBackend: RenderBackend {
             try self.drawDrawable(drawable, commandBuffer: commandBuffer, descriptor: renderPass, uniform: uniform)
         }
         
-        commandBuffer.present(self.context.view.currentDrawable!)
+        guard let currentDrawable = self.context.view.currentDrawable else {
+            return
+        }
+        
+        commandBuffer.present(currentDrawable)
+        commandBuffer.commit()
         
         commandBuffer.addCompletedHandler { _ in
             self.inFlightSemaphore.signal()
@@ -102,7 +104,7 @@ class MetalRenderBackend: RenderBackend {
         pipelineDescriptor.vertexFunction = vertexFunc
         pipelineDescriptor.fragmentFunction = fragmentFunc
         pipelineDescriptor.vertexDescriptor = try vertexDescriptor?.makeMTKVertexDescriptor()
-        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
+        pipelineDescriptor.colorAttachments[0].pixelFormat = self.context.view.colorPixelFormat
         
         let state = try self.context.device.makeRenderPipelineState(descriptor: pipelineDescriptor)
         return state
@@ -143,18 +145,9 @@ extension MetalRenderBackend {
             
             uniform.modelMatrix = drawable.transform
             
-            encoder?.setCullMode(.front)
-            encoder?.setTriangleFillMode(.lines)
-            
             for model in mesh.models {
                 encoder?.setVertexBuffer(model.vertexBuffer.get(), offset: 0, index: 0)
                 encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.stride, index: 1)
-                
-                encoder?.drawPrimitives(
-                    type: .triangle,
-                    vertexStart: 0,
-                    vertexCount: model.vertexCount
-                )
 
                 for surface in model.surfaces {
                     encoder?.drawIndexedPrimitives(

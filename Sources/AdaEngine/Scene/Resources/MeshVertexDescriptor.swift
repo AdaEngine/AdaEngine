@@ -65,7 +65,7 @@ public struct VertexDesciptorLayoutsArray: Sequence {
     }
 }
 
-public class MeshVertexDescriptor {
+public struct MeshVertexDescriptor {
     
     public var attributes: VertexDesciptorAttributesArray
     public var layouts: VertexDesciptorLayoutsArray
@@ -84,34 +84,22 @@ public class MeshVertexDescriptor {
         case matrix2x2
     }
     
-    public class Attribute: CustomStringConvertible {
+    public struct Attribute: CustomStringConvertible {
         public var name: String
         public var offset: Int
         public var bufferIndex: Int
         public var format: VertexFormat
         
-        public init(name: String, offset: Int, bufferIndex: Int, format: MeshVertexDescriptor.VertexFormat) {
-            self.name = name
-            self.offset = offset
-            self.bufferIndex = bufferIndex
-            self.format = format
-        }
-        
         public var description: String {
-            return "Attribute: \(memoryAddress(self)) name=\(name) offset=\(offset) bufferIndex=\(bufferIndex) format=\(format)"
+            return "Attribute: name=\(name) offset=\(offset) bufferIndex=\(bufferIndex) format=\(format)"
         }
     }
     
-    public class Layout: CustomStringConvertible {
-        
+    public struct Layout: CustomStringConvertible {
         public var stride: Int
         
-        public init(stride: Int) {
-            self.stride = stride
-        }
-        
         public var description: String {
-            return "Layout: \(memoryAddress(self)) stride=\(stride)"
+            return "Layout: stride=\(stride)"
         }
     }
     
@@ -140,13 +128,13 @@ extension MeshVertexDescriptor: CustomStringConvertible {
             let newDesc = value.element.description + (shouldInsertColumn ? "," : "")
             return result + " " + newDesc + "\n"
         })
-        return String(format: "MeshVertexDescriptor: \(memoryAddress(self)) attributes(\n%@) layots: {\n%@}", attributesDesc, layoutsDesc)
+        return String(format: "MeshVertexDescriptor: attributes(\n%@) layots: {\n%@}", attributesDesc, layoutsDesc)
     }
 }
 
 public extension MeshVertexDescriptor {
     static let defaultVertexDescriptor: MeshVertexDescriptor = {
-        let descriptor = MeshVertexDescriptor()
+        var descriptor = MeshVertexDescriptor()
         
         var offset = 0
         
@@ -186,7 +174,7 @@ import MetalKit
 import ModelIO
 
 public extension MeshVertexDescriptor {
-    convenience init(mdlVertexDescriptor: MDLVertexDescriptor) {
+    init(mdlVertexDescriptor: MDLVertexDescriptor) {
         
         let attributes: [Attribute] = mdlVertexDescriptor.attributes.compactMap {
             guard

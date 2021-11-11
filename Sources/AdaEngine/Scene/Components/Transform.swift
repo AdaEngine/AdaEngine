@@ -74,3 +74,10 @@ public class Transform: Component {
     }
     
 }
+
+public extension Component {
+    var transform: Transform {
+        // TODO: Maybe not efficent solution
+        return self.components[Transform]!
+    }
+}

@@ -47,7 +47,6 @@ final class GameViewController: NSViewController {
         
         let trainEntity = Entity()
         let meshRenderer = MeshRenderer()
-        
         let train = Bundle.module.url(forResource: "train", withExtension: "obj")!
         let mesh = Mesh.loadMesh(from: train)
         
@@ -65,10 +64,7 @@ final class GameViewController: NSViewController {
         scene.addEntity(userEntity)
         
         SceneManager.shared.presentScene(scene)
-
     }
-    
-    
 }
 
 // MARK: - MTKViewDelegate
@@ -94,23 +90,33 @@ class UserTestComponent: Component {
     
     @RequiredComponent var camera: CameraComponent
     
-    var speed: Float = 50
+    private var speed: Float = 50
     
     override func update(_ deltaTime: TimeInterval) {
+        
+        if Input.isKeyPressed(.arrowDown) {
+            camera.transform.position.z += -1
+        }
+        
+        if Input.isKeyPressed(.arrowUp) {
+            camera.transform.position.z += 1
+        }
+        
+        
         if Input.isKeyPressed(.w) {
-            camera.transform.position += .up * deltaTime
+            camera.transform.position += .up * deltaTime * speed
         }
         
         if Input.isKeyPressed(.a) {
-            camera.transform.position += .left * deltaTime
+            camera.transform.position += .left * deltaTime * speed
         }
         
         if Input.isKeyPressed(.d) {
-            camera.transform.position += .down * deltaTime
+            camera.transform.position += .right * deltaTime * speed
         }
         
         if Input.isKeyPressed(.s) {
-            camera.transform.position += .right * deltaTime
+            camera.transform.position += .down * deltaTime * speed
         }
     }
 }

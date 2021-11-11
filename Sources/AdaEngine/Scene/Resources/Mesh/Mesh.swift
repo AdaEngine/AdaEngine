@@ -54,13 +54,13 @@ public extension Mesh {
         let mdlMesh = asset.childObjects(of: MDLMesh.self).first as! MDLMesh
         
         let mesh = Mesh(vertexDescriptor: MeshVertexDescriptor(mdlVertexDescriptor: mdlMesh.vertexDescriptor))
-        print(mesh.vertexDescriptor)
+        
         var model = Mesh.Model(
             name: mdlMesh.name,
             vertexBuffer: RenderEngine.shared.makeBuffer(
                 bytes: mdlMesh.vertexBuffers[0].map().bytes,
                 length: mdlMesh.vertexBuffers[0].length,
-                options: .storageShared
+                options: []
             ),
             vertexCount: mdlMesh.vertexCount,
             surfaces: []
@@ -74,7 +74,7 @@ public extension Mesh {
                 indexBuffer: RenderEngine.shared.makeBuffer(
                     bytes: submesh.indexBuffer.map().bytes,
                     length: submesh.indexBuffer.length,
-                    options: .storageShared
+                    options: []
                 ),
                 indexCount: submesh.indexCount,
                 materialIndex: 0

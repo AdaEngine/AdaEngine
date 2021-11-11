@@ -32,14 +32,6 @@ public class CameraComponent: Component {
         return CameraManager.shared.currentCamera === self
     }
     
-    @RequiredComponent public var transform: Transform
-    
-    // MARK: - Component lifecycle
-    
-    public override func update(_ deltaTime: TimeInterval) {
-        
-    }
-    
     // MARK: - Public methods
     
     public func makeCurrent() {

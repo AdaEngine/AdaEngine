@@ -9,6 +9,8 @@ public final class Input {
     
     internal static let shared = Input()
     
+    internal var mousePosition: Vector2 = .zero
+    
     private var eventsPool: Set<Event> = []
     
     private var keyEvents: [KeyCode: KeyEvent] = [:]
@@ -55,6 +57,19 @@ public final class Input {
         fatalError()
     }
     
+    public static func isMouseButtonPressed(_ button: MouseButton) -> Bool {
+        self.shared.mouseEvents.first { $0.button == button }?.phase == .began
+    }
+    
+    public static func isMouseButtonRelease(_ button: MouseButton) -> Bool {
+        fatalError()
+    }
+    
+    public static func getMousePosition() -> Vector2 {
+        return self.shared.mousePosition
+    }
+    
+    
     // MARK: Internal
     
     func processEvents() {
@@ -63,6 +78,8 @@ public final class Input {
             switch event {
             case let keyEvent as KeyEvent:
                 self.keyEvents[keyEvent.keyCode] = keyEvent
+            case let mouseEvent as MouseEvent:
+                self.mouseEvents.insert(mouseEvent)
             default:
                 break
             }
@@ -75,12 +92,11 @@ public final class Input {
         self.eventsPool.insert(event)
     }
     
-    
 }
 
 extension Input {
     public class Event: Hashable, Identifiable {
-        public let id: String = ""
+        
         public let time: TimeInterval
         
         internal init(time: TimeInterval) {
@@ -88,11 +104,11 @@ extension Input {
         }
         
         public static func == (lhs: Input.Event, rhs: Input.Event) -> Bool {
-            return lhs.id == rhs.id
+            return lhs.time == rhs.time
         }
         
         public func hash(into hasher: inout Hasher) {
-            hasher.combine(id)
+            hasher.combine(time)
         }
         
     }
@@ -117,7 +133,6 @@ extension Input {
         }
         
         public override func hash(into hasher: inout Hasher) {
-            hasher.combine(id)
             hasher.combine(keyCode)
             hasher.combine(modifiers)
         }
@@ -126,30 +141,42 @@ extension Input {
     
     public final class MouseEvent: Event {
         
-    }
-    
-    public final class TouchEvent: Event {
-        
-        public enum Status: UInt8, Hashable {
+        public enum Phase: UInt8, Hashable {
             case began
-            case moved
+            case changed
             case ended
             case cancelled
         }
         
-        internal init(location: Vector2, status: Status, time: TimeInterval) {
+        let button: MouseButton
+        let mousePosition: Vector2
+        let phase: Phase
+        
+        init(button: MouseButton, mousePosition: Vector2, phase: Phase, time: TimeInterval) {
+            self.button = button
+            self.mousePosition = mousePosition
+            self.phase = phase
+            super.init(time: time)
+        }
+        
+        public override func hash(into hasher: inout Hasher) {
+            hasher.combine(button)
+            hasher.combine(time)
+            hasher.combine(phase)
+        }
+    }
+    
+    public final class TouchEvent: Event {
+        
+        internal init(location: Vector2, time: TimeInterval) {
             self.location = location
-            self.status = status
             super.init(time: time)
         }
         
         public let location: Vector2
-        public internal(set) var status: Status
         
         public override func hash(into hasher: inout Hasher) {
-            hasher.combine(id)
             hasher.combine(location)
-            hasher.combine(status)
             hasher.combine(time)
         }
     }
