@@ -1,9 +1,6 @@
 #include <metal_stdlib>
 using namespace metal;
 
-
-
-
 struct Vertex {
     float4 position [[ attribute(0) ]];
     float4 normal [[ attribute(1) ]];
@@ -21,6 +18,7 @@ struct Uniforms {
 struct RasterizerData
 {
     float4 position [[position]];
+    float4 color;
 };
 
 vertex RasterizerData vertex_main(
@@ -28,10 +26,11 @@ vertex RasterizerData vertex_main(
                                      constant Uniforms &ubo [[ buffer(1) ]]
                                      ) {
     
-    float4 position = ubo.model * ubo.view * ubo.projection * vertexIn.position;
+    float4 position = ubo.projection * ubo.view * ubo.model * vertexIn.position;
     
     RasterizerData out {
-        .position = position
+        .position = position,
+        .color = float4(1, 0, 0, 1)
     };
     
     return out;
@@ -39,5 +38,5 @@ vertex RasterizerData vertex_main(
 
 
 fragment float4 fragment_main(RasterizerData in [[stage_in]]) {
-    return float4(1, 0, 0, 1);
+    return in.color;
 }

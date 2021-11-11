@@ -143,6 +143,7 @@ extension MetalRenderBackend {
             
             uniform.modelMatrix = drawable.transform
             
+            encoder?.setCullMode(.front)
             encoder?.setTriangleFillMode(.lines)
             
             for model in mesh.models {
@@ -154,7 +155,7 @@ extension MetalRenderBackend {
                     vertexStart: 0,
                     vertexCount: model.vertexCount
                 )
-                
+
                 for surface in model.surfaces {
                     encoder?.drawIndexedPrimitives(
                         type: surface.primitiveType.metal,

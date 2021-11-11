@@ -10,7 +10,11 @@ public class SceneManager {
     
     public var currentScene: Scene? {
         didSet {
-            self.currentScene.flatMap { CameraManager.shared.setCurrentCamera($0.defaultCamera) }
+            if let scene = self.currentScene {
+                if CameraManager.shared.currentCamera == nil {
+                    CameraManager.shared.setCurrentCamera(scene.defaultCamera)
+                }
+            }
         }
     }
     

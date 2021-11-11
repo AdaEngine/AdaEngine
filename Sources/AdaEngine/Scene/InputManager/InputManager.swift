@@ -150,6 +150,7 @@ extension Input {
             hasher.combine(id)
             hasher.combine(location)
             hasher.combine(status)
+            hasher.combine(time)
         }
     }
 }
