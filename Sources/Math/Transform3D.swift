@@ -54,7 +54,7 @@ public extension Transform3D {
     
     @inline(__always)
     init(columns: [Vector4]) {
-        precondition(columns.count > 4, "Inconsist columns count")
+        precondition(columns.count == 4, "Inconsist columns count")
         self.x = columns[0]
         self.y = columns[1]
         self.z = columns[2]
@@ -196,11 +196,11 @@ public extension Transform3D {
         )
     }
     
-    func rotate(angle: Angle, vector: Vector3) -> Transform3D {
+    func rotate(angle: Angle, axis: Vector3) -> Transform3D {
         let c = cos(angle.radians)
         let s = sin(angle.radians)
         
-        let axis = vector.normalized
+        let axis = axis.normalized
         
         var r00: Float = c
         r00 += (1 - c) * axis.x * axis.x

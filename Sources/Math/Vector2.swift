@@ -123,9 +123,12 @@ public extension Vector3 {
         return x * x + y * y + z * z
     }
     
+    var length: Float {
+        return sqrt(squaredLength)
+    }
+    
     var normalized: Vector3 {
-        let length = self.squaredLength
-        return self / sqrt(length)
+        return self / self.length
     }
     
     func dot(_ vector: Vector3) -> Float {

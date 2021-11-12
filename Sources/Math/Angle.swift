@@ -45,6 +45,6 @@ public extension Angle {
 
 extension Angle: ExpressibleByFloatLiteral {
     public init(floatLiteral value: FloatLiteralType) {
-        self = Angle(degrees: Float(value))
+        self = Angle(radians: Float(value))
     }
 }

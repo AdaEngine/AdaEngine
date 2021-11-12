@@ -61,6 +61,8 @@ final class GameViewController: NSViewController {
         camera.makeCurrent()
         userEntity.components[CameraComponent] = camera
         
+        camera.transform.matrix = Transform3D(columns: [[0.96498215, -0.043567587, -0.25867215, -0.0], [-6.5283107e-10, 0.9861108, -0.16608849, -0.0], [0.26231548, 0.16027243, 0.95157933, -0.0], [-0.5, -0.4999999, 4.1150093, 0.99999994]])
+        
         scene.addEntity(userEntity)
         
         SceneManager.shared.presentScene(scene)

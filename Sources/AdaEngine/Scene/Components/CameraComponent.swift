@@ -15,13 +15,13 @@ public class CameraComponent: Component {
     // MARK: Properties
     
     /// The closest point relative to camera that drawing will occur.
-    public var near: Float = 0.1
+    public var near: Float = 0.001
     
     /// The closest point relative to camera that drawing will occur
     public var far: Float = 100
     
     /// Angle of camera view
-    public var fieldOfView: Angle = .degrees(45)
+    public var fieldOfView: Angle = .degrees(70)
     
     /// Base projection in camera
     public var projection: Projection = .perspective
@@ -38,5 +38,25 @@ public class CameraComponent: Component {
         CameraManager.shared.setCurrentCamera(self)
     }
     
+    // MARK: - Internal
+    
+    var matrix: Transform3D = .identity
+    
+    var viewMatrix: Transform3D = .identity
+    
+    // FIXME: Looks like stupid idea
+    
+    public override func update(_ deltaTime: TimeInterval) {
+        self.updateViewMatrixIfNeeded()
+    }
+    
+    private func updateViewMatrixIfNeeded() {
+        if self.matrix != self.transform.matrix {
+            self.matrix = self.transform.matrix
+            
+            let translation = Transform3D(translation: self.transform.position)
+            self.viewMatrix = translation.inverse
+        }
+    }
 }
 

@@ -13,9 +13,9 @@ import Glibc
 
 @frozen
 public struct Transform2D: Hashable {
-    var x: Vector3
-    var y: Vector3
-    var z: Vector3
+    public var x: Vector3
+    public var y: Vector3
+    public var z: Vector3
     
     @inline(__always)
     public init() {

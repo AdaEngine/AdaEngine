@@ -22,7 +22,7 @@ public class Transform: Component {
             return matrix
         }
         
-        return matrix * parentTransform.worldTransform
+        return parentTransform.worldTransform * matrix
     }
     
     public var parent: Transform? {
@@ -39,9 +39,40 @@ public class Transform: Component {
         }
         
         set {
-            self.matrix[0, 3] = newValue.x
-            self.matrix[1, 3] = newValue.y
-            self.matrix[2, 3] = newValue.z
+            
+            var matrix = self.matrix
+            
+            matrix[0, 3] = newValue.x
+            matrix[1, 3] = newValue.y
+            matrix[2, 3] = newValue.z
+            
+            self.matrix = matrix
+        }
+    }
+    
+    /// The scale of the transform
+    public var scale: Vector3 {
+        get {
+            return Vector3(matrix[0, 1], matrix[1, 1], matrix[2, 2])
+        }
+        
+        set {
+            var matrix = self.matrix
+            matrix[0, 1] = newValue.x
+            matrix[1, 1] = newValue.y
+            matrix[2, 2] = newValue.z
+            
+            self.matrix = matrix
+        }
+    }
+    
+    public var rotation: Quat {
+        get {
+            return Quat(rotationMatrix: self.matrix)
+        }
+        
+        set {
+            fatalError()
         }
     }
     
@@ -52,7 +83,7 @@ public class Transform: Component {
             return position
         }
         
-        return position * parentTransform.worldPosition
+        return parentTransform.worldPosition * position
     }
     
     override init() {
@@ -61,16 +92,32 @@ public class Transform: Component {
     
     // MARK: - Public methods
     
-    func lookAt(_ targetWorldPosition: Vector3, worldUp: Vector3 = .up) {
-        let lookAtMatrix = Transform3D.lookAt(eye: targetWorldPosition, center: self.position, up: worldUp)
+    public func lookAt(_ targetWorldPosition: Vector3, worldUp: Vector3 = .up) {
+        let lookAtMatrix = Transform3D.lookAt(eye: targetWorldPosition, center: self.worldPosition, up: worldUp)
         
-        self.matrix *= lookAtMatrix
+        let scale = self.scale
+        self.matrix = lookAtMatrix
+        self.scale = scale
     }
     
-    func rotate(_ angle: Angle, vector: Vector3) {
-        let rotate = Transform3D.identity.rotate(angle: angle, vector: vector)
-        
-        self.matrix = self.matrix * rotate
+    public func rotate(_ angle: Angle, axis: Vector3) {
+        let rotate = self.matrix.rotate(angle: angle, axis: axis)
+        self.matrix = rotate
+    }
+    
+    public func rotateX(_ angle: Angle) {
+        let rotate = self.matrix.rotate(angle: angle, axis: Vector3(1, 0, 0))
+        self.matrix = rotate
+    }
+    
+    public func rotateY(_ angle: Angle) {
+        let rotate = self.matrix.rotate(angle: angle, axis: Vector3(0, 1, 0))
+        self.matrix = rotate
+    }
+    
+    public func rotateZ(_ angle: Angle) {
+        let rotate = self.matrix.rotate(angle: angle, axis: Vector3(0, 0, 1))
+        self.matrix = rotate
     }
     
 }

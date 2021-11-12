@@ -9,6 +9,7 @@ import Math
 
 public typealias Transform3D = Math.Transform3D
 public typealias Transform2D = Math.Transform2D
+public typealias Quat = Math.Quat
 
 public typealias Vector2i = Math.Vector2i
 public typealias Vector2 = Math.Vector2
