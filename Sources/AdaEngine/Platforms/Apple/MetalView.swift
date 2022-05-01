@@ -60,11 +60,31 @@ extension MetalView {
     }
     
     public override func mouseUp(with event: NSEvent) {
+        let position = self.mousePosition(for: event)
         
+        let mouseEvent = Input.MouseEvent(
+            button: .left,
+            mousePosition: position,
+            phase: .ended,
+            time: TimeInterval(event.timestamp)
+        )
+        
+        Input.shared.receiveEvent(mouseEvent)
     }
     
     public override func mouseDown(with event: NSEvent) {
+        let position = self.mousePosition(for: event)
         
+        let isContinious = Input.shared.mouseEvents[.left]?.phase == .began
+        
+        let mouseEvent = Input.MouseEvent(
+            button: .left,
+            mousePosition: position,
+            phase: isContinious ? .changed : .began,
+            time: TimeInterval(event.timestamp)
+        )
+        
+        Input.shared.receiveEvent(mouseEvent)
     }
     
     public override func mouseMoved(with event: NSEvent) {

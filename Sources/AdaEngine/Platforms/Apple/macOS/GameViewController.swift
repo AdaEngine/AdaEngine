@@ -44,26 +44,39 @@ final class GameViewController: NSViewController {
     
     private func setupScene() {
         let scene = Scene()
-        
-        let trainEntity = Entity()
+
+        let boxEntity = Entity(name: "box")
         let meshRenderer = MeshRenderer()
-        let train = Bundle.module.url(forResource: "train", withExtension: "obj")!
-        let mesh = Mesh.loadMesh(from: train)
+        meshRenderer.materials = [BaseMaterial(diffuseColor: .red, metalic: 0)]
+        let mesh = Mesh.generateBox(extent: Vector3(1, 1, 1), segments: Vector3(1, 1, 1))
         
         meshRenderer.mesh = mesh
-        trainEntity.components[MeshRenderer] = meshRenderer
+        boxEntity.components[MeshRenderer] = meshRenderer
+        scene.addEntity(boxEntity)
+        
+        let trainEntity = Entity(name: "train")
+        let trainMeshRenderer = MeshRenderer()
+        let train = Bundle.module.url(forResource: "train", withExtension: "obj")!
+        
+        trainMeshRenderer.mesh = Mesh.loadMesh(from: train)
+        trainMeshRenderer.materials = [BaseMaterial(diffuseColor: .orange, metalic: 0)]
+        trainEntity.components[MeshRenderer] = trainMeshRenderer
+        trainEntity.components[Transform]?.position = Vector3(2, 1, 1)
         scene.addEntity(trainEntity)
         
         let userEntity = Entity(name: "user")
-        userEntity.components[UserTestComponent] = UserTestComponent()
+        userEntity.components.set(EditorCameraComponent())
         
         let camera = CameraComponent()
         camera.makeCurrent()
         userEntity.components[CameraComponent] = camera
         
-        camera.transform.matrix = Transform3D(columns: [[0.96498215, -0.043567587, -0.25867215, -0.0], [-6.5283107e-10, 0.9861108, -0.16608849, -0.0], [0.26231548, 0.16027243, 0.95157933, -0.0], [-0.5, -0.4999999, 4.1150093, 0.99999994]])
+
+        camera.transform.localTransform = Transform3D(columns: [[0.96498215, -0.043567587, -0.25867215, -0.0], [-6.5283107e-10, 0.9861108, -0.16608849, -0.0], [0.26231548, 0.16027243, 0.95157933, -0.0], [-0.5, -0.4999999, 4.1150093, 0.99999994]])
         
         scene.addEntity(userEntity)
+        
+        RenderEngine.shared.renderBackend.setClearColor(Color(212/255, 210/255, 213/255, 1))
         
         SceneManager.shared.presentScene(scene)
     }
@@ -88,22 +101,33 @@ extension GameViewController: MTKViewDelegate {
 
 #endif
 
-class UserTestComponent: Component {
+final class EditorCameraComponent: Component {
     
-    @RequiredComponent var camera: CameraComponent
+    @RequiredComponent private var camera: CameraComponent
     
     private var speed: Float = 50
     
+    var lastMousePosition: Point = .zero
+    
     override func update(_ deltaTime: TimeInterval) {
         
+        if Input.isMouseButtonPressed(.left) {
+            let position = Input.getMousePosition()
+            
+            let delta = lastMousePosition - position
+        }
+        
+        if Input.isMouseButtonRelease(.left) {
+            
+        }
+        
         if Input.isKeyPressed(.arrowDown) {
-            camera.transform.position.z += -1
+            camera.transform.scale += -0.1
         }
         
         if Input.isKeyPressed(.arrowUp) {
-            camera.transform.position.z += 1
+            camera.transform.scale += 0.1
         }
-        
         
         if Input.isKeyPressed(.w) {
             camera.transform.position += .up * deltaTime * speed
@@ -122,3 +146,5 @@ class UserTestComponent: Component {
         }
     }
 }
+
+typealias Point = Vector2

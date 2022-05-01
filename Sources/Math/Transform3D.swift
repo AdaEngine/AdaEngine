@@ -46,7 +46,7 @@ public extension Transform3D {
     @inline(__always)
     init(diagonal: Vector3) {
         var identity = Transform3D.identity
-        identity[0, 1] = diagonal.x
+        identity[0, 0] = diagonal.x
         identity[1, 1] = diagonal.y
         identity[2, 2] = diagonal.z
         self = identity
@@ -119,6 +119,43 @@ public extension Transform3D {
     
     @inline(__always)
     static let identity: Transform3D = Transform3D()
+}
+
+public extension Transform3D {
+    
+    var upperLeft: Transform2D {
+        return Transform2D(columns: [
+            [self.x.x, self.x.y, self.x.z],
+            [self.y.x, self.y.y, self.y.z],
+            [self.z.x, self.z.y, self.z.z],
+        ])
+    }
+    
+    var scale: Vector3 {
+        get {
+            let scaleX = sqrt(self[0, 0] * self[0, 0] + self[0, 1] * self[0, 1] + self[0, 2] * self[0, 2]);
+            let scaleY = sqrt(self[1, 0] * self[1, 0] + self[1, 1] * self[1, 1] + self[1, 2] * self[1, 2]);
+            let scaleZ = sqrt(self[2, 0] * self[2, 0] + self[2, 1] * self[2, 1] + self[2, 2] * self[2, 2]);
+            
+            return Vector3(scaleX, scaleY, scaleZ)
+        }
+        
+        set {
+            
+        }
+    }
+    
+    var origin: Vector3 {
+        get {
+            return Vector3(self[0, 3], self[1, 3], self[2, 3])
+        }
+        
+        mutating set {
+            self[0, 3] = newValue.x
+            self[1, 3] = newValue.y
+            self[2, 3] = newValue.z
+        }
+    }
 }
 
 public extension Transform3D {
@@ -202,25 +239,25 @@ public extension Transform3D {
         
         let axis = axis.normalized
         
-        var r00: Float = c
+        var r00 = c
         r00 += (1 - c) * axis.x * axis.x
-        var r01: Float = (1 - c) * axis.x * axis.y
+        var r01 = (1 - c) * axis.x * axis.y
         r01 += s * axis.z
-        var r02: Float = (1 - c) * axis.x * axis.z
+        var r02 = (1 - c) * axis.x * axis.z
         r02 -= s * axis.y
         
-        var r10: Float = (1 - c) * axis.y * axis.x
+        var r10 = (1 - c) * axis.y * axis.x
         r10 -= s * axis.z
-        var r11: Float = c
+        var r11 = c
         r11 += (1 - c) * axis.y * axis.y
-        var r12: Float = (1 - c) * axis.y * axis.z
+        var r12 = (1 - c) * axis.y * axis.z
         r12 += s * axis.x
         
-        var r20: Float = (1 - c) * axis.z * axis.x
+        var r20 = (1 - c) * axis.z * axis.x
         r20 += s * axis.y
-        var r21: Float = (1 - c) * axis.z * axis.y
+        var r21 = (1 - c) * axis.z * axis.y
         r21 -= s * axis.x
-        var r22: Float = c
+        var r22 = c
         r22 += (1 - c) * axis.z * axis.z
         
         return Transform3D(
@@ -321,5 +358,42 @@ public extension Transform3D {
         
         let invdet = 1 / det
         return mm * invdet
+    }
+    
+    var determinant: Float {
+        var d00 = self.x.x * self.y.y
+        d00 = d00 - self.y.x * self.x.y
+        var d01 = self.x.x * self.y.z
+        d01 = d01 - self.y.x * self.x.z
+        var d02 = self.x.x * self.y.w
+        d02 = d02 - self.y.x * self.x.w
+        var d03 = self.x.y * self.y.z
+        d03 = d03 - self.y.y * self.x.z
+        var d04 = self.x.y * self.y.w
+        d04 = d04 - self.y.y * self.x.w
+        var d05 = self.x.z * self.y.w
+        d05 = d05 - self.y.z * self.x.w
+        
+        var d10 = self.z.x * self.w.y
+        d10 = d10 - self.w.x * self.z.y
+        var d11 = self.z.x * self.w.z
+        d11 = d11 - self.w.x * self.z.z
+        var d12 = self.z.x * self.w.w
+        d12 = d12 - self.w.x * self.z.w
+        var d13 = self.z.y * self.w.z
+        d13 = d13 - self.w.y * self.z.z
+        var d14 = self.z.y * self.w.w
+        d14 = d14 - self.w.y * self.z.w
+        var d15 = self.z.z * self.w.w
+        d15 = d15 - self.w.z * self.z.w
+        
+        var det = d00 * d15
+        det = det - d01 * d14
+        det = det + d02 * d13
+        det = det + d03 * d12
+        det = det - d04 * d11
+        det = det + d05 * d10
+        
+        return det
     }
 }

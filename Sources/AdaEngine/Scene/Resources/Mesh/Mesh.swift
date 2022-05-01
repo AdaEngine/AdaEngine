@@ -18,10 +18,12 @@ public class Mesh: Resource {
         
         var primitiveType: Mesh.PrimitiveType
         
+        var isUInt32: Bool
+        
         var indexBuffer: RenderBuffer
         var indexCount: Int
         
-        var materialIndex: Int
+        public var materialIndex: Int
     }
     
     struct Model {
@@ -53,7 +55,14 @@ public extension Mesh {
         
         let mdlMesh = asset.childObjects(of: MDLMesh.self).first as! MDLMesh
         
-        let mesh = Mesh(vertexDescriptor: MeshVertexDescriptor(mdlVertexDescriptor: mdlMesh.vertexDescriptor))
+        return Mesh(mdlMesh: mdlMesh)
+    }
+}
+
+#if canImport(ModelIO)
+extension Mesh {
+    convenience init(mdlMesh: MDLMesh) {
+        self.init(vertexDescriptor: MeshVertexDescriptor(mdlVertexDescriptor: mdlMesh.vertexDescriptor))
         
         var model = Mesh.Model(
             name: mdlMesh.name,
@@ -71,6 +80,7 @@ public extension Mesh {
                 id: index,
                 name: submesh.name,
                 primitiveType: .triangles,
+                isUInt32: submesh.indexType == .uInt32,
                 indexBuffer: RenderEngine.shared.makeBuffer(
                     bytes: submesh.indexBuffer.map().bytes,
                     length: submesh.indexBuffer.length,
@@ -83,8 +93,32 @@ public extension Mesh {
             model.surfaces.append(surface)
         }
         
-        mesh.models = [model]
+        self.models = [model]
+    }
+}
+#endif
+
+extension Mesh {
+    static func generateBox(extent: Vector3, segments: Vector3) -> Mesh {
+        let mdlMesh = MDLMesh(
+            boxWithExtent: [extent.x, extent.y, extent.z],
+            segments: [UInt32(segments.x), UInt32(segments.y), UInt32(segments.z)],
+            inwardNormals: false,
+            geometryType: .triangles,
+            allocator: nil)
         
-        return mesh
+        return Mesh(mdlMesh: mdlMesh)
+    }
+    
+    static func generateSphere(extent: Vector3, segments: Vector2) -> Mesh {
+        let mdlMesh = MDLMesh(
+            sphereWithExtent: extent,
+            segments: [UInt32(segments.x), UInt32(segments.y)],
+            inwardNormals: false,
+            geometryType: .triangles,
+            allocator: nil
+        )
+        
+        return Mesh(mdlMesh: mdlMesh)
     }
 }

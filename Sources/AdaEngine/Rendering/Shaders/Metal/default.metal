@@ -24,7 +24,8 @@ struct RasterizerData
 
 vertex RasterizerData vertex_main(
                                      const Vertex vertexIn [[ stage_in ]],
-                                     constant Uniforms &ubo [[ buffer(1) ]]
+                                     constant Uniforms &ubo [[ buffer(1) ]],
+                                     constant float4 &modelColor [[ buffer(2) ]]
                                      ) {
     
     float4 position = ubo.projection * ubo.view * ubo.model * vertexIn.position;
@@ -32,7 +33,7 @@ vertex RasterizerData vertex_main(
     RasterizerData out {
         .position = position,
         .wolrdPosition = (ubo.model * vertexIn.position).xyz,
-        .color = float4(1, 0, 0, 1)
+        .color = modelColor
     };
     
     return out;

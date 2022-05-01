@@ -8,7 +8,21 @@
 /// Component to render mesh on scene
 public class MeshRenderer: Component {
     
-    public var materials: [Material]?
+    public var material: Material? {
+        get {
+            self.materials?.first
+        }
+        
+        set {
+            self.materials = [newValue].compactMap { $0 }
+        }
+    }
+    
+    public var materials: [Material]? {
+        didSet {
+            self.updateDrawableMaterials()
+        }
+    }
     
     public var mesh: Mesh? {
         didSet {
@@ -21,10 +35,11 @@ public class MeshRenderer: Component {
     public override func ready() {
         let drawable = RenderEngine.shared.makeDrawable()
         drawable.source = self.mesh.flatMap { .mesh($0) } ?? .empty
-        drawable.materials = [BaseMaterial(diffuseColor: .gray, metalic: 0)]
+        drawable.materials = self.materials
+        
         self.drawable = drawable
         
-        RenderEngine.shared.setDrawableToQueue(drawable)
+        RenderEngine.shared.setDrawableToQueue(drawable, layer: 0)
     }
     
     public override func destroy() {
@@ -36,6 +51,10 @@ public class MeshRenderer: Component {
     
     func updateDrawableSource() {
         self.drawable?.source = self.mesh.flatMap { .mesh($0) } ?? .empty
+    }
+    
+    func updateDrawableMaterials() {
+        self.drawable?.materials = self.materials
     }
 
 }

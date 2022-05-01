@@ -10,13 +10,25 @@ import Math
 /// Component contains information about entity position in world space
 public class Transform: Component {
     
+    private var data: TransformData
+    
     /// Return current transform matrix
-    public var matrix: Transform3D
+    public var localTransform: Transform3D {
+        get {
+            self.updateLocalTransformIfNeeded()
+            
+            return self.data.localTransform
+        }
+        
+        set {
+            self.data.localTransform = newValue
+        }
+    }
     
     /// Return world trasform matrix
     public var worldTransform: Transform3D {
         
-        let matrix = self.matrix
+        let matrix = self.localTransform
         
         guard let parentTransform = self.entity?.parent?.components[Transform] else {
             return matrix
@@ -35,46 +47,28 @@ public class Transform: Component {
     
     public var position: Vector3 {
         get {
-            return Vector3(self.matrix[0, 3], self.matrix[1, 3], self.matrix[2, 3])
+            return self.data.localTransform.origin
         }
         
         set {
-            
-            var matrix = self.matrix
-            
-            matrix[0, 3] = newValue.x
-            matrix[1, 3] = newValue.y
-            matrix[2, 3] = newValue.z
-            
-            self.matrix = matrix
+            self.data.localTransform.origin = newValue
         }
     }
     
     /// The scale of the transform
     public var scale: Vector3 {
         get {
-            return Vector3(matrix[0, 1], matrix[1, 1], matrix[2, 2])
+            return data.localTransform.scale
         }
         
         set {
-            var matrix = self.matrix
-            matrix[0, 1] = newValue.x
-            matrix[1, 1] = newValue.y
-            matrix[2, 2] = newValue.z
-            
-            self.matrix = matrix
+            self.data.localTransform.scale = newValue
         }
     }
-    
-    public var rotation: Quat {
-        get {
-            return Quat(rotationMatrix: self.matrix)
-        }
-        
-        set {
-            fatalError()
-        }
-    }
+//    
+//    public var rotation: Vector3 {
+//        
+//    }
     
     public var worldPosition: Vector3 {
         let position = self.position
@@ -87,7 +81,7 @@ public class Transform: Component {
     }
     
     override init() {
-        self.matrix = .identity
+        self.data = TransformData()
     }
     
     // MARK: - Public methods
@@ -96,30 +90,61 @@ public class Transform: Component {
         let lookAtMatrix = Transform3D.lookAt(eye: targetWorldPosition, center: self.worldPosition, up: worldUp)
         
         let scale = self.scale
-        self.matrix = lookAtMatrix
+        self.localTransform = lookAtMatrix
         self.scale = scale
     }
     
     public func rotate(_ angle: Angle, axis: Vector3) {
-        let rotate = self.matrix.rotate(angle: angle, axis: axis)
-        self.matrix = rotate
+        let rotate = self.localTransform.rotate(angle: angle, axis: axis)
+        self.localTransform = rotate
     }
     
     public func rotateX(_ angle: Angle) {
-        let rotate = self.matrix.rotate(angle: angle, axis: Vector3(1, 0, 0))
-        self.matrix = rotate
+        let rotate = self.localTransform.rotate(angle: angle, axis: Vector3(1, 0, 0))
+        self.localTransform = rotate
     }
     
     public func rotateY(_ angle: Angle) {
-        let rotate = self.matrix.rotate(angle: angle, axis: Vector3(0, 1, 0))
-        self.matrix = rotate
+        let rotate = self.localTransform.rotate(angle: angle, axis: Vector3(0, 1, 0))
+        self.localTransform = rotate
     }
     
     public func rotateZ(_ angle: Angle) {
-        let rotate = self.matrix.rotate(angle: angle, axis: Vector3(0, 0, 1))
-        self.matrix = rotate
+        let rotate = self.localTransform.rotate(angle: angle, axis: Vector3(0, 0, 1))
+        self.localTransform = rotate
     }
     
+    // MARK: - Private
+    
+    func updateLocalTransformIfNeeded() {
+        guard self.data.status.contains(.dirtyLocal) else {
+            return
+        }
+        
+        self.data.status.remove(.dirtyLocal)
+    }
+    
+}
+
+extension Transform {
+    
+    struct TransformStatus: OptionSet {
+        let rawValue: UInt8
+        
+        static let dirtyLocal = TransformStatus(rawValue: 1 << 0)
+        static let dirtyGlobal = TransformStatus(rawValue: 1 << 1)
+        static let none: TransformStatus = []
+    }
+    
+    struct TransformData {
+        var localTransform: Transform3D = .identity
+        var worldTransform: Transform3D = .identity
+        
+        var rotation: Vector3 = .zero
+        var scale: Vector3 = .zero
+        
+        var status: TransformStatus = []
+    }
 }
 
 public extension Component {

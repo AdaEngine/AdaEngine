@@ -11,6 +11,11 @@ import ModelIO
 import MetalKit
 import OrderedCollections
 
+enum BufferIndex {
+    static let uniform = 1
+    static let material = 2
+}
+
 class MetalRenderBackend: RenderBackend {
     
     let context: Context
@@ -57,10 +62,13 @@ class MetalRenderBackend: RenderBackend {
         uniform.projectionMatrix = cameraData?.projection ?? .identity
         uniform.viewMatrix = cameraData?.view ?? .identity
         
-        try self.drawableList?.drawables.forEach { drawable in
-            guard drawable.isVisible else { return }
-            
-            try self.drawDrawable(drawable, commandBuffer: commandBuffer, descriptor: renderPass, uniform: uniform)
+        let drawables = self.drawableList?.drawables
+        try drawables?.values.forEach { d in
+            try d.forEach { drawable in
+                guard drawable.isVisible else { return }
+                
+                try self.drawDrawable(drawable, commandBuffer: commandBuffer, descriptor: renderPass, uniform: uniform)
+            }
         }
         
         guard let currentDrawable = self.context.view.currentDrawable else {
@@ -132,6 +140,7 @@ extension MetalRenderBackend {
         uniform: Uniforms
     ) throws {
         let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor)
+        
         defer {
             encoder?.endEncoding()
         }
@@ -147,15 +156,21 @@ extension MetalRenderBackend {
             
             for model in mesh.models {
                 encoder?.setVertexBuffer(model.vertexBuffer.get(), offset: 0, index: 0)
-                encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.stride, index: 1)
-
+                encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.stride, index: BufferIndex.uniform)
+                
                 for surface in model.surfaces {
+                    // FIXME: Remove it latter
+                    if var material = (drawable.materials?[surface.materialIndex] as? BaseMaterial)?.diffuseColor {
+                        encoder?.setVertexBytes(&material, length: MemoryLayout.size(ofValue: material), index: BufferIndex.material)
+                    }
+                    
                     encoder?.drawIndexedPrimitives(
                         type: surface.primitiveType.metal,
                         indexCount: surface.indexCount,
-                        indexType: .uint32,
+                        indexType: surface.isUInt32 ? .uint32 : .uint16,
                         indexBuffer: surface.indexBuffer.get()!,
-                        indexBufferOffset: 0)
+                        indexBufferOffset: 0
+                    )
                 }
             }
             
@@ -165,7 +180,6 @@ extension MetalRenderBackend {
         case .empty:
             break
         }
-        
     }
 }
 
@@ -191,7 +205,6 @@ extension MetalRenderBackend {
             self.device = self.prefferedDevice(for: view)
             view.device = self.device
             
-            
             self.commandQueue = self.device.makeCommandQueue()
         }
         
@@ -205,7 +218,5 @@ extension MetalRenderBackend {
         
     }
 }
-
-
 
 #endif

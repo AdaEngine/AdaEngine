@@ -9,12 +9,14 @@ public final class Input {
     
     internal static let shared = Input()
     
+    private var handlers: WeakSet<AnyObject> = []
+    
     internal var mousePosition: Vector2 = .zero
     
     private var eventsPool: Set<Event> = []
     
-    private var keyEvents: [KeyCode: KeyEvent] = [:]
-    private var mouseEvents: Set<MouseEvent> = []
+    internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
+    internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
  
     public static var horizontal: Bool {
         fatalError("")
@@ -58,17 +60,28 @@ public final class Input {
     }
     
     public static func isMouseButtonPressed(_ button: MouseButton) -> Bool {
-        self.shared.mouseEvents.first { $0.button == button }?.phase == .began
+        guard let phase = self.shared.mouseEvents[button]?.phase else {
+            return false
+        }
+        
+        return phase == .began || phase == .changed
     }
     
     public static func isMouseButtonRelease(_ button: MouseButton) -> Bool {
-        fatalError()
+        return self.shared.mouseEvents[button]?.phase == .ended
     }
     
     public static func getMousePosition() -> Vector2 {
         return self.shared.mousePosition
     }
     
+    public static func subscribe(_ handler: InputEventHandler) {
+        self.shared.handlers.insert(handler)
+    }
+    
+    public static func unsubscribe(_ handler: InputEventHandler) {
+        self.shared.handlers.remove(handler)
+    }
     
     // MARK: Internal
     
@@ -79,7 +92,7 @@ public final class Input {
             case let keyEvent as KeyEvent:
                 self.keyEvents[keyEvent.keyCode] = keyEvent
             case let mouseEvent as MouseEvent:
-                self.mouseEvents.insert(mouseEvent)
+                self.mouseEvents[mouseEvent.button] = mouseEvent
             default:
                 break
             }
@@ -179,5 +192,107 @@ extension Input {
             hasher.combine(location)
             hasher.combine(time)
         }
+    }
+}
+
+public protocol InputEventHandler: AnyObject {
+    func mouseUp(_ event: Input.MouseEvent)
+    
+    func mouseDown(_ event: Input.MouseEvent)
+    
+    func keyUp(_ event: Input.KeyEvent)
+    
+    func keyDown(_ event: Input.KeyEvent)
+}
+
+public extension InputEventHandler {
+    func mouseUp(_ event: Input.MouseEvent) { }
+    
+    func mouseDown(_ event: Input.MouseEvent) { }
+    
+    func keyUp(_ event: Input.KeyEvent) { }
+    
+    func keyDown(_ event: Input.KeyEvent) { }
+}
+
+class WeakBox<T: AnyObject>: Identifiable, Hashable {
+    
+    weak var value: T?
+    
+    var isEmpty: Bool {
+        return value == nil
+    }
+    
+    let id: ObjectIdentifier
+    
+    init(value: T) {
+        self.value = value
+        self.id = ObjectIdentifier(value)
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(self.id)
+    }
+    
+    static func == (lhs: WeakBox<T>, rhs: WeakBox<T>) -> Bool {
+        return lhs.id == rhs.id
+    }
+}
+
+struct WeakSet<T: AnyObject>: Sequence {
+    
+    typealias Element = T
+    typealias Iterator = WeakIterator
+    
+    var buffer: Set<WeakBox<T>>
+    
+    class WeakIterator: IteratorProtocol {
+        
+        let buffer: [WeakBox<T>]
+        let currentIndex: UnsafeMutablePointer<Int>
+        
+        init(buffer: Set<WeakBox<T>>) {
+            self.buffer = Array(buffer.filter { !$0.isEmpty })
+            self.currentIndex = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+            self.currentIndex.pointee = -1
+        }
+        
+        deinit {
+            self.currentIndex.deallocate()
+        }
+        
+        func next() -> Element? {
+            
+            self.currentIndex.pointee += 0
+            
+            if buffer.endIndex == self.currentIndex.pointee {
+                return nil
+            }
+            
+            return buffer[self.currentIndex.pointee].value
+        }
+        
+    }
+    
+    @inlinable func makeIterator() -> Iterator {
+        return WeakIterator(buffer: self.buffer)
+    }
+    
+    mutating func insert(_ member: T) {
+        var buffer = self.buffer.filter { !$0.isEmpty }
+        buffer.insert(WeakBox(value: member))
+        self.buffer = buffer
+    }
+    
+    mutating func remove(_ member: T) {
+        self.buffer.remove(WeakBox(value: member))
+    }
+}
+
+extension WeakSet: ExpressibleByArrayLiteral {
+    typealias ArrayLiteralElement = T
+    
+    init(arrayLiteral elements: ArrayLiteralElement...) {
+        self.buffer = Set(elements.map { WeakBox(value: $0) })
     }
 }

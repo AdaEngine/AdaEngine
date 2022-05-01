@@ -38,9 +38,9 @@ public class CameraManager {
             )
         }
         
-        let position = camera.transform.worldPosition
+        let position = camera.transform.position
         
-        return CameraData(projection: projection, view: camera.transform.worldTransform, position: position)
+        return CameraData(projection: projection, view: camera.transform.localTransform, position: position)
     }
     
 }

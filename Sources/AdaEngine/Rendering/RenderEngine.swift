@@ -78,16 +78,23 @@ public class RenderEngine {
         return drawable
     }
     
-    func setDrawableToQueue(_ drawable: Drawable) {
-        self.drawableList.drawables.updateOrAppend(drawable)
+    func setDrawableToQueue(_ drawable: Drawable, layer: Int) {
+        
+        self.drawableList.drawables[drawable.layer]?.remove(drawable)
+        
+        if self.drawableList.drawables[layer] == nil {
+            self.drawableList.drawables[layer] = [drawable]
+        } else {
+            self.drawableList.drawables[layer]?.insert(drawable)
+        }
     }
     
     func removeDrawableFromQueue(_ drawable: Drawable) {
-        self.drawableList.drawables.remove(drawable)
+        self.drawableList.drawables[drawable.layer]?.remove(drawable)
     }
     
     func makePipelineDescriptor(for drawable: Drawable) {
-        // TODO: Should create pipeline descriptor cache 
+        // TODO: Should create pipeline descriptor cache
         guard let material = drawable.materials?.first else { return }
         
         do {
@@ -112,7 +119,6 @@ public class RenderEngine {
     func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
     }
-    
 }
 
 public class Drawable: Identifiable {
@@ -139,6 +145,8 @@ public class Drawable: Identifiable {
     
     var position: Vector3 = .zero
     
+    var layer: Int = 0
+    
     var isVisible = true
     
     internal var pipelineState: Any?
@@ -156,7 +164,7 @@ extension Drawable: Hashable {
 }
 
 final class DrawableList {
-    var drawables: OrderedSet<Drawable> = []
+    var drawables: OrderedDictionary<Int, Set<Drawable>> = [:]
 }
 
 public class SceneRenderer {

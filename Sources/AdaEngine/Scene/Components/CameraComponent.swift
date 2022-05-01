@@ -47,12 +47,12 @@ public class CameraComponent: Component {
     // FIXME: Looks like stupid idea
     
     public override func update(_ deltaTime: TimeInterval) {
-        self.updateViewMatrixIfNeeded()
+//        self.updateViewMatrixIfNeeded()
     }
     
     private func updateViewMatrixIfNeeded() {
-        if self.matrix != self.transform.matrix {
-            self.matrix = self.transform.matrix
+        if self.matrix != self.transform.localTransform {
+            self.matrix = self.transform.localTransform
             
             let translation = Transform3D(translation: self.transform.position)
             self.viewMatrix = translation.inverse
