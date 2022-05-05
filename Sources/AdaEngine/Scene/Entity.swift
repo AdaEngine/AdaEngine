@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
-import Foundation.NSUUID
+import Foundation.NSUUID // TODO: Replace to own realization
 import OrderedCollections
 
 /// An enity describe
@@ -37,7 +37,6 @@ open class Entity {
     
     open func update(_ deltaTime: TimeInterval) {
         for component in components.buffer.values {
-            
             if !component.isAwaked {
                 component.ready()
                 component.isAwaked = true
@@ -75,7 +74,6 @@ extension Entity: Identifiable {
         return self.identifier
     }
 }
-
 
 public extension Entity {
     

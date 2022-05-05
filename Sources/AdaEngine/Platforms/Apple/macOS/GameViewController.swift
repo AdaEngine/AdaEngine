@@ -29,7 +29,9 @@ final class GameViewController: NSViewController {
             gameView.isPaused = true
             gameView.delegate = self
             
-            try renderer.initialize(for: gameView, size: Vector2i(x: 800, y: 600))
+            let size = Vector2i(x: Int(self.view.frame.size.width), y: Int(self.view.frame.size.height))
+            
+            try renderer.initialize(for: gameView, size: size)
             
             gameView.isPaused = false
         } catch {
@@ -60,19 +62,16 @@ final class GameViewController: NSViewController {
         let train = Bundle.module.url(forResource: "train", withExtension: "obj")!
         
         trainMeshRenderer.mesh = Mesh.loadMesh(from: train)
-        trainMeshRenderer.materials = [BaseMaterial(diffuseColor: .orange, metalic: 0)]
+        trainMeshRenderer.materials = [BaseMaterial(diffuseColor: .orange, metalic: 1)]
         trainEntity.components[MeshRenderer.self] = trainMeshRenderer
         trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
         scene.addEntity(trainEntity)
         
         let userEntity = Entity(name: "user")
-        
-        let camera = EditorCameraComponent()
+        let camera = EditorCamera()
         camera.makeCurrent()
         userEntity.components.set(camera)
-        
-
-        camera.transform.localTransform = Transform3D(columns: [[0.96498215, -0.043567587, -0.25867215, -0.0], [-6.5283107e-10, 0.9861108, -0.16608849, -0.0], [0.26231548, 0.16027243, 0.95157933, -0.0], [-0.5, -0.4999999, 4.1150093, 0.99999994]])
+        camera.transform.position.z = 1
         
         scene.addEntity(userEntity)
         
@@ -101,56 +100,23 @@ extension GameViewController: MTKViewDelegate {
 
 #endif
 
-final class EditorCameraComponent: Camera {
+final class EditorCamera: Camera {
     
-    private var speed: Float = 20
+    @Export var speed: Float = 20
     
     var cameraUp: Vector3 = Vector3(0, 1, 0)
     var cameraFront: Vector3 = Vector3(0, 0, -1)
     
     var lastMousePosition: Point = .zero
     
-    var yaw = Angle.radians(-90)
-    var pitch = Angle.radians(0)
+    @Export var yaw = Angle.radians(-90)
+    @Export var pitch = Angle.radians(0)
     
     var isViewMatrixDirty = false
     
     override func update(_ deltaTime: TimeInterval) {
         
-        if Input.isMouseButtonPressed(.left) {
-            let position = Input.getMousePosition()
-            
-            self.lastMousePosition = position
-        }
-        
-        if Input.isMouseButtonRelease(.left) {
-            let position = Input.getMousePosition()
-            
-            var xoffset = position.x - self.lastMousePosition.x;
-            var yoffset = self.lastMousePosition.y - position.y;
-            self.lastMousePosition = position
-
-            let sensitivity: Float = 0.1
-            xoffset *= sensitivity
-            yoffset *= sensitivity
-
-            self.yaw   += xoffset
-            self.pitch += yoffset
-            
-            if pitch.radians > 89.0 {
-                pitch = 89.0
-            } else if(pitch.radians < -89.0) {
-                pitch = -89.0
-            }
-            
-            var direction = Vector3()
-            direction.x = cos(yaw.radians) * cos(pitch.radians)
-            direction.y = sin(pitch.radians)
-            direction.z = sin(yaw.radians) * cos(pitch.radians)
-            
-            self.cameraFront = direction.normalized
-            self.isViewMatrixDirty = true
-        }
+        self.mouseEvent()
         
         if Input.isKeyPressed(.w) {
             self.transform.position += speed * cameraFront * deltaTime
@@ -181,8 +147,34 @@ final class EditorCameraComponent: Camera {
             
             self.isViewMatrixDirty = false
         }
+    }
+    
+    func mouseEvent() {
+        let position = Input.getMousePosition()
+        var xoffset = position.x - self.lastMousePosition.x;
+        var yoffset = self.lastMousePosition.y - position.y;
+        self.lastMousePosition = position
 
-        print(viewMatrix)
+        let sensitivity: Float = 0.1
+        xoffset *= sensitivity
+        yoffset *= sensitivity
+
+        self.yaw   += xoffset
+        self.pitch += yoffset
+        
+        if self.pitch.radians > 89.0 {
+            self.pitch = 89.0
+        } else if(pitch.radians < -89.0) {
+            self.pitch = -89.0
+        }
+        
+        var direction = Vector3()
+        direction.x = cos(yaw.radians) * cos(pitch.radians)
+        direction.y = sin(pitch.radians)
+        direction.z = sin(yaw.radians) * cos(pitch.radians)
+        
+        self.cameraFront = direction.normalized
+        self.isViewMatrixDirty = true
     }
 }
 

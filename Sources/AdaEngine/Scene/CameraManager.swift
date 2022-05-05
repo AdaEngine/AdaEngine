@@ -19,11 +19,12 @@ public class CameraManager {
     
     func setCurrentCamera(_ camera: Camera) {
         self.currentCamera = camera
+        camera.viewportSize = RenderEngine.shared.renderBackend.viewportSize
     }
     
-    func makeCurrentCameraData(viewportSize: Vector2i) -> CameraData {
+    func makeCurrentCameraData() -> CameraData {
         guard let camera = self.currentCamera else { return CameraData() }
-        return camera.makeCameraData(for: viewportSize)
+        return camera.makeCameraData()
     }
     
 }

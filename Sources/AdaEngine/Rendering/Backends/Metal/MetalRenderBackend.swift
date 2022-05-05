@@ -159,7 +159,7 @@ extension MetalRenderBackend {
                 encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.stride, index: BufferIndex.uniform)
                 
                 for surface in model.surfaces {
-                    // FIXME: Remove it latter
+                    // FIXME: Remove it later
                     if var material = (drawable.materials?[surface.materialIndex] as? BaseMaterial)?.diffuseColor {
                         encoder?.setVertexBytes(&material, length: MemoryLayout.size(ofValue: material), index: BufferIndex.material)
                     }

@@ -103,11 +103,9 @@ public final class Input {
         self.eventsPool.removeAll()
     }
     
-    
     func receiveEvent(_ event: Event) {
         self.eventsPool.append(event)
     }
-    
 }
 
 extension Input {

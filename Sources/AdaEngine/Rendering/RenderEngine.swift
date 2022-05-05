@@ -52,7 +52,7 @@ public class RenderEngine {
             return
         }
         
-        let cameraData = CameraManager.shared.makeCurrentCameraData(viewportSize: self.renderBackend.viewportSize)
+        let cameraData = CameraManager.shared.makeCurrentCameraData()
         self.renderBackend.renderDrawableList(self.drawableList, camera: cameraData)
         
         try self.renderBackend.beginFrame()

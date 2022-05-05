@@ -36,6 +36,7 @@ public class Scene {
     }
     
     public func addEntity(_ entity: Entity) {
+        precondition(entity.scene == nil, "Entity has scene reference, can't be added")
         entity.scene = self
         self.entities.updateOrAppend(entity)
     }

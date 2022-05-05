@@ -4,8 +4,8 @@ using namespace metal;
 struct Vertex {
     float4 position [[ attribute(0) ]];
     float3 normal [[ attribute(1) ]];
-//    float2 uv [[ attribute(2) ]];
-//    float4 color [[ attribute(3) ]];
+    //    float2 uv [[ attribute(2) ]];
+    //    float4 color [[ attribute(3) ]];
 };
 
 struct Uniforms {
@@ -23,21 +23,21 @@ struct RasterizerData
 };
 
 vertex RasterizerData vertex_main(
-                                     const Vertex vertexIn [[ stage_in ]],
-                                     constant Uniforms &ubo [[ buffer(1) ]],
-                                     constant float4 &modelColor [[ buffer(2) ]]
-                                     ) {
-    
-    float4 position = ubo.projection * ubo.view * ubo.model * vertexIn.position;
-    
-    RasterizerData out {
-        .position = position,
-        .wolrdPosition = (ubo.model * vertexIn.position).xyz,
-        .color = modelColor
-    };
-    
-    return out;
-}
+                                  const Vertex vertexIn [[ stage_in ]],
+                                  constant Uniforms &ubo [[ buffer(1) ]],
+                                  constant float4 &modelColor [[ buffer(2) ]]
+                                  ) {
+                                      
+                                      float4 position = ubo.projection * ubo.view * ubo.model * vertexIn.position;
+                                      
+                                      RasterizerData out {
+                                          .position = position,
+                                          .wolrdPosition = (ubo.model * vertexIn.position).xyz,
+                                          .color = modelColor
+                                      };
+                                      
+                                      return out;
+                                  }
 
 
 fragment float4 fragment_main(RasterizerData in [[stage_in]]) {

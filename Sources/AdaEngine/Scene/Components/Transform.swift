@@ -10,7 +10,7 @@ import Math
 /// Component contains information about entity position in world space
 public class Transform: Component {
     
-    private var data: TransformData
+    @Export private var data: TransformData
     
     /// Return current transform matrix
     public var localTransform: Transform3D {
@@ -67,13 +67,20 @@ public class Transform: Component {
         set {
             self.data.scale = newValue
             self.data.status.insert(.dirtyLocal)
-            self.updateLocalTransformIfNeeded()
         }
     }
-//    
-//    public var rotation: Vector3 {
-//        
-//    }
+    
+    public var rotation: Quat {
+        get {
+            self.updateLocalTransformIfNeeded()
+            return self.data.rotation
+        }
+        
+        set {
+            self.data.rotation = newValue
+            self.data.status.insert(.dirtyLocal)
+        }
+    }
     
     public var worldPosition: Vector3 {
         return self.worldTransform.origin
@@ -135,7 +142,7 @@ public class Transform: Component {
 
 extension Transform {
     
-    struct TransformStatus: OptionSet {
+    struct TransformStatus: OptionSet, Codable {
         let rawValue: UInt8
         
         static let dirtyLocal = TransformStatus(rawValue: 1 << 0)
@@ -143,7 +150,7 @@ extension Transform {
         static let none: TransformStatus = []
     }
     
-    struct TransformData {
+    struct TransformData: Codable {
         var matrix: Transform3D = .identity
         
         var rotation: Quat = .identity

@@ -65,6 +65,8 @@ public extension Transform2D {
     }
 }
 
+extension Transform2D: Codable {}
+
 public extension Transform2D {
     
     @inline(__always)

@@ -25,7 +25,6 @@ public struct RequiredComponent<T: Component> {
         wrapped wrappedKeyPath: KeyPath<EnclosingSelf, T>,
         storage storageKeyPath: ReferenceWritableKeyPath<EnclosingSelf, Self>
     ) -> T {
-        
         if let storage = object[keyPath: storageKeyPath].storage {
             return storage
         }

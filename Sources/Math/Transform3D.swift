@@ -29,6 +29,8 @@ public struct Transform3D: Hashable {
     }
 }
 
+extension Transform3D: Codable {}
+
 public extension Transform3D {
     
     @inline(__always)
@@ -238,7 +240,7 @@ public extension Transform3D {
 
 
 public extension Transform3D {
-    /// Left Handsome
+    /// Left-handed
     static func lookAt(eye: Vector3, center: Vector3, up: Vector3 = .up) -> Transform3D {
         let z = (center - eye).normalized
         let x = z.cross(up).normalized

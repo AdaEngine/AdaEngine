@@ -34,7 +34,8 @@ let package = Package(
     dependencies: [
         .package(name: "SGLMath", url: "https://github.com/SwiftGL/Math.git", from: "3.0.0"), // TODO: remove it later
         .package(url: "https://github.com/troughton/Cstb.git", from: "1.0.5"),
-        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.1")
+        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.1"),
+        .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.1")
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -52,7 +53,8 @@ let package = Package(
                 "Math",
                 "CSDL2",
                 .product(name: "stb_image", package: "Cstb"),
-                .product(name: "Collections", package: "swift-collections")
+                .product(name: "Collections", package: "swift-collections"),
+                "Yams"
             ],
             exclude: ["Project.swift"],
             resources: [

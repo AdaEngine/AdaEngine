@@ -20,6 +20,7 @@ class MacApplication: Application {
         
         let delegate = MacAppDelegate()
         app.delegate = delegate
+        app.activate(ignoringOtherApps: true)
         
         Engine.shared.run()
         
@@ -38,13 +39,11 @@ class MacApplication: Application {
 
 class AdaApplication: NSApplication {
     override func sendEvent(_ event: NSEvent) {
-        
         if event.type == .keyUp && event.modifierFlags.contains(.command) {
             self.keyWindow?.sendEvent(event)
         } else {
             super.sendEvent(event)
         }
-        
     }
 }
 

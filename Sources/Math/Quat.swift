@@ -13,6 +13,8 @@ public struct Quat {
     public var w: Float
 }
 
+extension Quat: Codable {}
+
 extension Quat: CustomStringConvertible {
     public var description: String {
         return "Quat: (\(x), \(y), \(z), \(w))"
