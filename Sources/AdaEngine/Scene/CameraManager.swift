@@ -15,32 +15,15 @@ public class CameraManager {
     
     public static let shared: CameraManager = CameraManager()
     
-    public private(set) var currentCamera: CameraComponent?
+    public private(set) var currentCamera: Camera?
     
-    func setCurrentCamera(_ camera: CameraComponent) {
+    func setCurrentCamera(_ camera: Camera) {
         self.currentCamera = camera
     }
     
     func makeCurrentCameraData(viewportSize: Vector2i) -> CameraData {
         guard let camera = self.currentCamera else { return CameraData() }
-        
-        let projection: Transform3D
-        
-        switch camera.projection {
-        case .orthographic:
-            projection = .identity
-        case .perspective:
-            projection = Transform3D.perspective(
-                fieldOfView: camera.fieldOfView,
-                aspectRatio: Float(viewportSize.x) / Float(viewportSize.y),
-                zNear: camera.near,
-                zFar: camera.far
-            )
-        }
-        
-        let position = camera.transform.position
-        
-        return CameraData(projection: projection, view: camera.transform.localTransform, position: position)
+        return camera.makeCameraData(for: viewportSize)
     }
     
 }

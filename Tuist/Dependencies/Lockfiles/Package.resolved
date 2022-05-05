@@ -1,0 +1,34 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "Cstb",
+        "repositoryURL": "https://github.com/troughton/Cstb",
+        "state": {
+          "branch": null,
+          "revision": "1452254ea570241e5228475c2973a62740ffa9cb",
+          "version": "1.0.5"
+        }
+      },
+      {
+        "package": "SGLMath",
+        "repositoryURL": "https://github.com/SwiftGL/Math",
+        "state": {
+          "branch": null,
+          "revision": "8bdd2e542f28828d0c224c1ea8e046c6f652ec40",
+          "version": "3.0.0"
+        }
+      },
+      {
+        "package": "swift-collections",
+        "repositoryURL": "https://github.com/apple/swift-collections",
+        "state": {
+          "branch": null,
+          "revision": "48254824bb4248676bf7ce56014ff57b142b77eb",
+          "version": "1.0.2"
+        }
+      }
+    ]
+  },
+  "version": 1
+}

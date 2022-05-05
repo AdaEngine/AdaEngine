@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <Group
+      location = "group:Sources"
+      name = "Sources">
+      <FileRef
+         location = "group:AdaEditor/AdaEngine.xcodeproj">
+      </FileRef>
+      <FileRef
+         location = "group:AdaEngine/AdaEngine.xcodeproj">
+      </FileRef>
+      <FileRef
+         location = "group:CVulkan/CVulkan.xcodeproj">
+      </FileRef>
+      <FileRef
+         location = "group:Math/Math.xcodeproj">
+      </FileRef>
+      <FileRef
+         location = "group:Vulkan/Vulkan.xcodeproj">
+      </FileRef>
+   </Group>
+   <Group
+      location = "group:Tuist"
+      name = "Tuist">
+      <Group
+         location = "group:Dependencies"
+         name = "Dependencies">
+         <Group
+            location = "group:SwiftPackageManager"
+            name = "SwiftPackageManager">
+            <Group
+               location = "group:.build"
+               name = ".build">
+               <Group
+                  location = "group:checkouts"
+                  name = "checkouts">
+                  <FileRef
+                     location = "group:Cstb/Cstb.xcodeproj">
+                  </FileRef>
+                  <FileRef
+                     location = "group:swift-collections/swift-collections.xcodeproj">
+                  </FileRef>
+               </Group>
+            </Group>
+         </Group>
+      </Group>
+   </Group>
+</Workspace>

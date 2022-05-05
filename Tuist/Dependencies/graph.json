@@ -1,0 +1,4626 @@
+{
+  "externalProjects" : [
+    "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math",
+    {
+      "sourceRootPath" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math",
+      "options" : {
+        "automaticSchemesOptions" : {
+          "disabled" : {
+
+          }
+        },
+        "disableShowEnvironmentVarsInScriptPhases" : false,
+        "disableBundleAccessors" : false,
+        "disableSynthesizedResourceAccessors" : false,
+        "textSettings" : {
+
+        }
+      },
+      "additionalFiles" : [
+
+      ],
+      "targets" : [
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "SGLMath",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "SGLMath",
+          "settings" : {
+            "base" : {
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Matrix3x4.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/glm.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Matrix2x3.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Swizzle.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Matrix3x3.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/glsl.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Vector4.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Matrix3x2.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Quaternion.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Vector4b.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Matrix2x4.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Vector2b.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Matrix2x2.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Protocols.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Vector3.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Complex.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Operators.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Internal.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Matrix4x2.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Vector3b.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Matrix4x3.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Vector2.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/Sources\/SGLMath\/Matrix4x4.swift"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "SGLMath",
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ],
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          }
+        }
+      ],
+      "settings" : {
+        "base" : {
+
+        },
+        "configurations" : [
+          {
+            "name" : "Debug",
+            "variant" : "debug"
+          },
+          {
+            "settings" : {
+
+            }
+          },
+          {
+            "name" : "Release",
+            "variant" : "release"
+          },
+          {
+            "settings" : {
+
+            }
+          }
+        ],
+        "defaultSettings" : {
+          "recommended" : {
+            "excluding" : [
+
+            ]
+          }
+        }
+      },
+      "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math",
+      "isExternal" : true,
+      "filesGroup" : {
+        "group" : {
+          "name" : "Project"
+        }
+      },
+      "packages" : [
+
+      ],
+      "xcodeProjPath" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math\/SGLMath.xcodeproj",
+      "resourceSynthesizers" : [
+
+      ],
+      "lastUpgradeCheck" : "99.9.9",
+      "schemes" : [
+
+      ],
+      "name" : "SGLMath"
+    },
+    "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb",
+    {
+      "sourceRootPath" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb",
+      "options" : {
+        "automaticSchemesOptions" : {
+          "disabled" : {
+
+          }
+        },
+        "disableShowEnvironmentVarsInScriptPhases" : false,
+        "disableBundleAccessors" : false,
+        "disableSynthesizedResourceAccessors" : false,
+        "textSettings" : {
+
+        }
+      },
+      "additionalFiles" : [
+
+      ],
+      "targets" : [
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-c-lexer",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_c_lexer",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_c_lexer\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_c_lexer\/stb_c_lexer.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_c_lexer",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_c_lexer\/include\/stb_c_lexer.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-connected-components",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_connected_components",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_connected_components\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_connected_components\/stb_connected_components.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_connected_components",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_connected_components\/include\/stb_connected_components.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-divide",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_divide",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_divide\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_divide\/stb_divide.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_divide",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_divide\/include\/stb_divide.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-ds",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_ds",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_ds\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_ds\/stb_ds.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_ds",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_ds\/include\/stb_ds.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-dxt",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_dxt",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_dxt\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_dxt\/stb_dxt.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_dxt",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_dxt\/include\/stb_dxt.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-easy-font",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_easy_font",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_easy_font\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_easy_font\/stb_easy_font.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_easy_font",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_easy_font\/include\/stb_easy_font.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-herringbone-wang-tile",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_herringbone_wang_tile",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_herringbone_wang_tile\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_herringbone_wang_tile\/stb_herringbone_wang_tile.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_herringbone_wang_tile",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_herringbone_wang_tile\/include\/stb_herringbone_wang_tile.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-hexwave",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_hexwave",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_hexwave\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_hexwave\/stb_hexwave.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_hexwave",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_hexwave\/include\/stb_hexwave.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-image",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_image",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_image\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_image\/stb_image.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_image",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_image\/include\/stb_image_allocator.h",
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_image\/include\/stb_image.h",
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_image\/include\/stb_image_include.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-image-resize",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_image_resize",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_image_resize\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_image_resize\/stb_image_resize.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_image_resize",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_image_resize\/include\/stb_image_resize.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-image-write",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_image_write",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_image_write\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_image_write\/stb_image_write.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_image_write",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_image_write\/include\/stb_image_write.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-include",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_include",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_include\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_include\/stb_include.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_include",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_include\/include\/stb_include.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-perlin",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_perlin",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_perlin\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_perlin\/stb_perlin.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_perlin",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_perlin\/include\/stb_perlin.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-rect-pack",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_rect_pack",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_rect_pack\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_rect_pack\/stb_rect_pack.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_rect_pack",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_rect_pack\/include\/stb_rect_pack.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-truetype",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_truetype",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_truetype\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_truetype\/stb_truetype.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_truetype",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_truetype\/include\/stb_truetype.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-vorbis",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_vorbis",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_vorbis\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_vorbis\/stb_vorbis.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_vorbis",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_vorbis\/include\/stb_vorbis.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "stb-voxel-render",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "stb_voxel_render",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/stb_voxel_render\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_voxel_render\/stb_voxel_render.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "stb_voxel_render",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/stb_voxel_render\/include\/stb_voxel_render.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "miniz",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "miniz",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/miniz\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/miniz\/miniz.c"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "miniz",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/miniz\/include\/miniz.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "tinyexr",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+            {
+              "target" : {
+                "name" : "miniz"
+              }
+            }
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "tinyexr",
+          "settings" : {
+            "base" : {
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "HEADER_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(SRCROOT)\/Sources\/tinyexr\/include",
+                    "$(SRCROOT)\/Sources\/miniz\/include"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/tinyexr\/tinyexr.cc"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "tinyexr",
+          "headers" : {
+            "public" : [
+              "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Sources\/tinyexr\/include\/tinyexr.h"
+            ],
+            "private" : [
+
+            ],
+            "project" : [
+
+            ]
+          },
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ]
+        }
+      ],
+      "settings" : {
+        "base" : {
+
+        },
+        "configurations" : [
+          {
+            "name" : "Debug",
+            "variant" : "debug"
+          },
+          {
+            "settings" : {
+
+            }
+          },
+          {
+            "name" : "Release",
+            "variant" : "release"
+          },
+          {
+            "settings" : {
+
+            }
+          }
+        ],
+        "defaultSettings" : {
+          "recommended" : {
+            "excluding" : [
+
+            ]
+          }
+        }
+      },
+      "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb",
+      "isExternal" : true,
+      "filesGroup" : {
+        "group" : {
+          "name" : "Project"
+        }
+      },
+      "packages" : [
+
+      ],
+      "xcodeProjPath" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb\/Cstb.xcodeproj",
+      "resourceSynthesizers" : [
+
+      ],
+      "lastUpgradeCheck" : "99.9.9",
+      "schemes" : [
+
+      ],
+      "name" : "Cstb"
+    },
+    "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections",
+    {
+      "sourceRootPath" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections",
+      "options" : {
+        "automaticSchemesOptions" : {
+          "disabled" : {
+
+          }
+        },
+        "disableShowEnvironmentVarsInScriptPhases" : false,
+        "disableBundleAccessors" : false,
+        "disableSynthesizedResourceAccessors" : false,
+        "textSettings" : {
+
+        }
+      },
+      "additionalFiles" : [
+
+      ],
+      "targets" : [
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "Collections",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+            {
+              "target" : {
+                "name" : "DequeModule"
+              }
+            },
+            {
+              "target" : {
+                "name" : "OrderedCollections"
+              }
+            }
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "Collections",
+          "settings" : {
+            "base" : {
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/Collections\/Collections.swift"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "Collections",
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ],
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          }
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "DequeModule",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "DequeModule",
+          "settings" : {
+            "base" : {
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+Codable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Compatibility.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/_DequeSlot.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/_DequeBufferHeader.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+Equatable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+Collection.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+Extras.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque._Storage.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+CustomStringConvertible.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/UnsafeMutableBufferPointer+Utilities.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+CustomReflectable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+ExpressibleByArrayLiteral.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque._UnsafeHandle.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+Hashable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/_DequeBuffer.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/_UnsafeWrappedBuffer.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+Testing.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/DequeModule\/Deque+CustomDebugStringConvertible.swift"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "DequeModule",
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ],
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          }
+        },
+        {
+          "scripts" : [
+
+          ],
+          "deploymentTarget" : {
+            "macOS" : {
+              "_0" : "10.10"
+            }
+          },
+          "prune" : false,
+          "bundleId" : "OrderedCollections",
+          "copyFiles" : [
+
+          ],
+          "launchArguments" : [
+
+          ],
+          "dependencies" : [
+
+          ],
+          "additionalFiles" : [
+
+          ],
+          "name" : "OrderedCollections",
+          "settings" : {
+            "base" : {
+              "SWIFT_ACTIVE_COMPILATION_CONDITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE"
+                  ]
+                }
+              },
+              "GCC_PREPROCESSOR_DEFINITIONS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "SWIFT_PACKAGE=1"
+                  ]
+                }
+              },
+              "ALWAYS_SEARCH_USER_PATHS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "FRAMEWORK_SEARCH_PATHS" : {
+                "array" : {
+                  "_0" : [
+                    "$(inherited)",
+                    "$(PLATFORM_DIR)\/Developer\/Library\/Frameworks"
+                  ]
+                }
+              },
+              "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_NO_COMMON_BLOCKS" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "USE_HEADERMAP" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "GCC_WARN_INHIBIT_ALL_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "SWIFT_SUPPRESS_WARNINGS" : {
+                "string" : {
+                  "_0" : "YES"
+                }
+              },
+              "CLANG_ENABLE_OBJC_WEAK" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              },
+              "ENABLE_STRICT_OBJC_MSGSEND" : {
+                "string" : {
+                  "_0" : "NO"
+                }
+              }
+            },
+            "configurations" : [
+              {
+                "name" : "Debug",
+                "variant" : "debug"
+              },
+              {
+                "settings" : {
+
+                }
+              },
+              {
+                "name" : "Release",
+                "variant" : "release"
+              },
+              {
+                "settings" : {
+
+                }
+              }
+            ],
+            "defaultSettings" : {
+              "recommended" : {
+                "excluding" : [
+
+                ]
+              }
+            }
+          },
+          "coreDataModels" : [
+
+          ],
+          "platform" : "macos",
+          "environment" : {
+
+          },
+          "sources" : [
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+RandomAccessCollection.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+ReserveCapacity.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+CustomStringConvertible.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Deprecations.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Partial SetAlgebra+Operations.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+CustomReflectable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Elements.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Values.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Partial MutableCollection.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Diffing.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Partial MutableCollection.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+ExpressibleByDictionaryLiteral.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/HashTable\/_HashTable+Constants.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Codable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+UnorderedView.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+CustomReflectable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/HashTable\/_HashTable+CustomStringConvertible.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Partial SetAlgebra+Basics.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Hashable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Initializers.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/Utilities\/RandomAccessCollection+Offsets.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Invariants.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Elements+SubSequence.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+CustomDebugStringConvertible.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Sequence.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+UnstableInternals.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Testing.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Equatable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/HashTable\/_HashTable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+CustomStringConvertible.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/Utilities\/_UnsafeBitset.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Partial RangeReplaceableCollection.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/HashTable\/_HashTable+Testing.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Invariants.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/HashTable\/_HashTable+Bucket.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Hashable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+CustomDebugStringConvertible.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedDictionary\/OrderedDictionary+Equatable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Partial SetAlgebra+Predicates.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+ExpressibleByArrayLiteral.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/HashTable\/_HashTable+BucketIterator.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/HashTable\/_Hashtable+Header.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Codable.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Insertions.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Partial RangeReplaceableCollection.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/HashTable\/_HashTable+UnsafeHandle.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+SubSequence.swift"
+            },
+            {
+              "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/Sources\/OrderedCollections\/OrderedSet\/OrderedSet+Initializers.swift"
+            }
+          ],
+          "resources" : [
+
+          ],
+          "product" : "staticFramework",
+          "playgrounds" : [
+
+          ],
+          "productName" : "OrderedCollections",
+          "filesGroup" : {
+            "group" : {
+              "name" : "Project"
+            }
+          },
+          "rawScriptBuildPhases" : [
+
+          ],
+          "infoPlist" : {
+            "extendingDefault" : {
+              "with" : {
+
+              }
+            }
+          }
+        }
+      ],
+      "settings" : {
+        "base" : {
+
+        },
+        "configurations" : [
+          {
+            "name" : "Release",
+            "variant" : "release"
+          },
+          {
+            "settings" : {
+
+            }
+          },
+          {
+            "name" : "Debug",
+            "variant" : "debug"
+          },
+          {
+            "settings" : {
+
+            }
+          }
+        ],
+        "defaultSettings" : {
+          "recommended" : {
+            "excluding" : [
+
+            ]
+          }
+        }
+      },
+      "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections",
+      "isExternal" : true,
+      "filesGroup" : {
+        "group" : {
+          "name" : "Project"
+        }
+      },
+      "packages" : [
+
+      ],
+      "xcodeProjPath" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections\/swift-collections.xcodeproj",
+      "resourceSynthesizers" : [
+
+      ],
+      "lastUpgradeCheck" : "99.9.9",
+      "schemes" : [
+
+      ],
+      "name" : "swift-collections"
+    }
+  ],
+  "externalDependencies" : {
+    "stb_include" : [
+      {
+        "project" : {
+          "target" : "stb_include",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "tinyexr" : [
+      {
+        "project" : {
+          "target" : "tinyexr",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "Collections" : [
+      {
+        "project" : {
+          "target" : "Collections",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections"
+        }
+      }
+    ],
+    "OrderedCollections" : [
+      {
+        "project" : {
+          "target" : "OrderedCollections",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections"
+        }
+      }
+    ],
+    "stb_ds" : [
+      {
+        "project" : {
+          "target" : "stb_ds",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_image_resize" : [
+      {
+        "project" : {
+          "target" : "stb_image_resize",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_easy_font" : [
+      {
+        "project" : {
+          "target" : "stb_easy_font",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_image_write" : [
+      {
+        "project" : {
+          "target" : "stb_image_write",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_dxt" : [
+      {
+        "project" : {
+          "target" : "stb_dxt",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_image" : [
+      {
+        "project" : {
+          "target" : "stb_image",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_truetype" : [
+      {
+        "project" : {
+          "target" : "stb_truetype",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_voxel_render" : [
+      {
+        "project" : {
+          "target" : "stb_voxel_render",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "swizgen" : [
+      {
+        "project" : {
+          "target" : "Tools",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math"
+        }
+      }
+    ],
+    "stb_connected_components" : [
+      {
+        "project" : {
+          "target" : "stb_connected_components",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_hexwave" : [
+      {
+        "project" : {
+          "target" : "stb_hexwave",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "miniz" : [
+      {
+        "project" : {
+          "target" : "miniz",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_herringbone_wang_tile" : [
+      {
+        "project" : {
+          "target" : "stb_herringbone_wang_tile",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "DequeModule" : [
+      {
+        "project" : {
+          "target" : "DequeModule",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/swift-collections"
+        }
+      }
+    ],
+    "stb_rect_pack" : [
+      {
+        "project" : {
+          "target" : "stb_rect_pack",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_perlin" : [
+      {
+        "project" : {
+          "target" : "stb_perlin",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_vorbis" : [
+      {
+        "project" : {
+          "target" : "stb_vorbis",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "SGLMath" : [
+      {
+        "project" : {
+          "target" : "SGLMath",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Math"
+        }
+      }
+    ],
+    "stb_divide" : [
+      {
+        "project" : {
+          "target" : "stb_divide",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ],
+    "stb_c_lexer" : [
+      {
+        "project" : {
+          "target" : "stb_c_lexer",
+          "path" : "\/Users\/v.prusakov\/Developer\/AdaEngine\/Tuist\/Dependencies\/SwiftPackageManager\/.build\/checkouts\/Cstb"
+        }
+      }
+    ]
+  }
+}

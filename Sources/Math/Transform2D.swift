@@ -23,14 +23,6 @@ public struct Transform2D: Hashable {
         self.y = Vector3(0, 1, 0)
         self.z = Vector3(0, 0, 1)
     }
-    
-    public var rotation: Float {
-        fatalError()
-    }
-    
-    public var scale: Float {
-        fatalError()
-    }
 }
 
 public extension Transform2D {
@@ -58,7 +50,7 @@ public extension Transform2D {
     }
     
     init(columns: [Vector3]) {
-        precondition(columns.count > 3, "Inconsist columns count")
+        precondition(columns.count == 3, "Inconsist columns count")
         self.x = columns[0]
         self.y = columns[1]
         self.z = columns[2]
@@ -108,6 +100,44 @@ public extension Transform2D {
     
     @inline(__always)
     static let identity: Transform2D = Transform2D()
+}
+
+public extension Transform2D {
+    
+    /// - SeeAlso: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
+    var rotation: Quat {
+        var quat = Quat.identity
+        
+        let trace = self[0, 0] + self[1, 1] + self[2, 2]
+        
+        if (trace > 0) {
+            let s = sqrt(trace + 1.0) * 2
+            quat.w = 0.25 * s
+            quat.x = (self[2, 1] - self[1, 2]) / s
+            quat.y = (self[0, 2] - self[2, 0]) / s
+            quat.z = (self[1, 0] - self[0, 1]) / s
+        } else if ((self[0, 0] > self[1, 1]) && (self[0, 0] > self[2, 2])) {
+            let s = sqrt(1.0 + self[0, 0] - self[1, 1] - self[2, 2]) * 2 // S=4*qx
+            quat.w = (self[2, 1] - self[1, 2]) / s
+            quat.x = 0.25 * s
+            quat.y = (self[0, 1] + self[1, 0]) / s
+            quat.z = (self[0, 2] + self[2, 0]) / s
+        } else if (self[1, 1] > self[2, 2]) {
+            let s = sqrt(1.0 + self[1, 1] - self[0, 0] - self[2, 2]) * 2 // S=4*qy
+            quat.w = (self[0, 2] - self[2, 0]) / s
+            quat.x = (self[0, 1] + self[1, 0]) / s
+            quat.y = 0.25 * s
+            quat.z = (self[1, 2] + self[2, 1]) / s
+        } else {
+            let s = sqrt(1.0 + self[2, 2] - self[0, 0] - self[1, 1]) * 2 // S=4*qz
+            quat.w = (self[1, 0] - self[0, 1]) / s
+            quat.x = (self[0, 2] + self[2, 0]) / s
+            quat.y = (self[1, 2] + self[2, 1]) / s
+            quat.z = 0.25 * s
+        }
+        
+        return quat
+    }
 }
 
 extension Transform2D: Equatable { }

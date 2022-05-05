@@ -1,16 +1,18 @@
 //
-//  CameraComponent.swift
+//  Camera.swift
 //  
 //
 //  Created by v.prusakov on 11/2/21.
 //
 
-public class CameraComponent: Component {
+public class Camera: Component {
     
     public enum Projection: UInt {
         case perspective
         case orthographic
     }
+    
+    private var isDirty = false
     
     // MARK: Properties
     
@@ -44,19 +46,24 @@ public class CameraComponent: Component {
     
     var viewMatrix: Transform3D = .identity
     
-    // FIXME: Looks like stupid idea
-    
-    public override func update(_ deltaTime: TimeInterval) {
-//        self.updateViewMatrixIfNeeded()
-    }
-    
-    private func updateViewMatrixIfNeeded() {
-        if self.matrix != self.transform.localTransform {
-            self.matrix = self.transform.localTransform
-            
-            let translation = Transform3D(translation: self.transform.position)
-            self.viewMatrix = translation.inverse
+    func makeCameraData(for viewportSize: Vector2i) -> CameraData {
+        let projection: Transform3D
+        
+        switch self.projection {
+        case .orthographic:
+            projection = .identity
+        case .perspective:
+            projection = Transform3D.perspective(
+                fieldOfView: self.fieldOfView,
+                aspectRatio: Float(viewportSize.x) / Float(viewportSize.y),
+                zNear: self.near,
+                zFar: self.far
+            )
         }
+        
+        let position = self.transform.position
+        
+        return CameraData(projection: projection, view: self.viewMatrix, position: position)
     }
 }
 

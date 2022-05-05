@@ -11,13 +11,13 @@ public class Scene {
     
     var entities: OrderedSet<Entity> = []
 
-    var defaultCamera: CameraComponent
+    var defaultCamera: Camera
     
     public init() {
         let cameraEntity = Entity()
         
-        let cameraComponent = CameraComponent()
-        cameraEntity.components[CameraComponent] = cameraComponent
+        let cameraComponent = Camera()
+        cameraEntity.components[Camera.self] = cameraComponent
         self.entities.append(cameraEntity)
         
         self.defaultCamera = cameraComponent

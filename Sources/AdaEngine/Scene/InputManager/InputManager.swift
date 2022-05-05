@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+import Darwin
+
 public final class Input {
     
     internal static let shared = Input()
@@ -13,7 +15,7 @@ public final class Input {
     
     internal var mousePosition: Vector2 = .zero
     
-    private var eventsPool: Set<Event> = []
+    private var eventsPool: [Event] = []
     
     internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
@@ -101,8 +103,9 @@ public final class Input {
         self.eventsPool.removeAll()
     }
     
+    
     func receiveEvent(_ event: Event) {
-        self.eventsPool.insert(event)
+        self.eventsPool.append(event)
     }
     
 }

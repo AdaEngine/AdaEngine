@@ -71,6 +71,22 @@ public extension Quat {
         let dot = self.dot(quat)
         return acos(clamp(dot * dot * 2 - 1, -1, 1))
     }
+    
+    var squaredLength: Float {
+        return x * x + y * y + z * z + w * w
+    }
+    
+    var normalized: Quat {
+        let normal = sqrt(self.squaredLength)
+        
+        return Quat(
+            x: self.x / normal,
+            y: self.y / normal,
+            z: self.z / normal,
+            w: self.w / normal
+        )
+    }
+    
 }
 
 public extension Quat {

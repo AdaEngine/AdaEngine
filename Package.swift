@@ -3,10 +3,6 @@
 
 import PackageDescription
 
-#if canImport(AppleProductTypes)
-import AppleProductTypes
-#endif
-
 #if os(Linux)
 import Glibc
 #else
@@ -28,33 +24,6 @@ var products: [Product] = [
     )
 ]
 
-#if canImport(AppleProductTypes)
-products.append(
-    .iOSApplication(
-        name: "AdaEditor",
-        targets: ["AdaEditor"],
-        bundleIdentifier: "dev.litecode.adaeditor",
-        teamIdentifier: nil,
-        displayVersion: "0.1.0",
-        bundleVersion: "1",
-        iconAssetName: "AppIcon",
-        accentColorAssetName: "AccentColor",
-        supportedDeviceFamilies: [
-            .pad,
-            .phone
-        ],
-        supportedInterfaceOrientations: [
-            .portrait,
-            .landscapeRight,
-            .landscapeLeft,
-            .portraitUpsideDown(.when(deviceFamilies: [.pad]))
-        ],
-        capabilities: [],
-        additionalInfoPlistContentFilePath: nil
-    )
-)
-#endif
-
 let package = Package(
     name: "AdaEngine",
     platforms: [
@@ -72,7 +41,8 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .executableTarget(
             name: "AdaEditor",
-            dependencies: ["AdaEngine", "Vulkan", "CSDL2", "Math"]
+            dependencies: ["AdaEngine", "Vulkan", "CSDL2", "Math"],
+            exclude: ["Project.swift"]
         ),
         
         .target(
@@ -81,10 +51,10 @@ let package = Package(
                 "Vulkan",
                 "Math",
                 "CSDL2",
-                "SGLMath",
                 .product(name: "stb_image", package: "Cstb"),
                 .product(name: "Collections", package: "swift-collections")
             ],
+            exclude: ["Project.swift"],
             resources: [
                 .copy("Rendering/Shaders/train.obj"),
                 .copy("Rendering/Shaders/train.mtl"),
@@ -94,12 +64,12 @@ let package = Package(
         
         // Just for test
         .systemLibrary(
-                name: "CSDL2",
-                pkgConfig: "sdl2",
-                providers: [
-                    .brew(["sdl2"]),
-                    .apt(["libsdl2-dev"])
-                ]
+            name: "CSDL2",
+            pkgConfig: "sdl2",
+            providers: [
+                .brew(["sdl2"]),
+                .apt(["libsdl2-dev"])
+            ]
         ),
         
         .systemLibrary(
@@ -107,11 +77,15 @@ let package = Package(
             pkgConfig: "vulkan"
         ),
         
-        .target(name: "Math"),
+        .target(
+            name: "Math",
+            exclude: ["Project.swift"]
+        ),
         
         .target(
             name: "Vulkan",
             dependencies: ["CVulkan"],
+            exclude: ["Project.swift"],
             cxxSettings: [
                 // Apple
                 .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
@@ -126,10 +100,17 @@ let package = Package(
             ]
         ),
         
+        // MARK: - Tests
+        
         .testTarget(
             name: "AdaEngineTests",
             dependencies: ["AdaEngine"]
         ),
+        
+        .testTarget(
+            name: "MathTests",
+            dependencies: ["Math"]
+        )
     ],
     swiftLanguageVersions: [.v5]
 )

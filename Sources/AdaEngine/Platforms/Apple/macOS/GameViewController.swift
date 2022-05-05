@@ -9,6 +9,7 @@
 
 import AppKit
 import MetalKit
+import Math
 
 final class GameViewController: NSViewController {
     
@@ -51,7 +52,7 @@ final class GameViewController: NSViewController {
         let mesh = Mesh.generateBox(extent: Vector3(1, 1, 1), segments: Vector3(1, 1, 1))
         
         meshRenderer.mesh = mesh
-        boxEntity.components[MeshRenderer] = meshRenderer
+        boxEntity.components[MeshRenderer.self] = meshRenderer
         scene.addEntity(boxEntity)
         
         let trainEntity = Entity(name: "train")
@@ -60,16 +61,15 @@ final class GameViewController: NSViewController {
         
         trainMeshRenderer.mesh = Mesh.loadMesh(from: train)
         trainMeshRenderer.materials = [BaseMaterial(diffuseColor: .orange, metalic: 0)]
-        trainEntity.components[MeshRenderer] = trainMeshRenderer
-        trainEntity.components[Transform]?.position = Vector3(2, 1, 1)
+        trainEntity.components[MeshRenderer.self] = trainMeshRenderer
+        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
         scene.addEntity(trainEntity)
         
         let userEntity = Entity(name: "user")
-        userEntity.components.set(EditorCameraComponent())
         
-        let camera = CameraComponent()
+        let camera = EditorCameraComponent()
         camera.makeCurrent()
-        userEntity.components[CameraComponent] = camera
+        userEntity.components.set(camera)
         
 
         camera.transform.localTransform = Transform3D(columns: [[0.96498215, -0.043567587, -0.25867215, -0.0], [-6.5283107e-10, 0.9861108, -0.16608849, -0.0], [0.26231548, 0.16027243, 0.95157933, -0.0], [-0.5, -0.4999999, 4.1150093, 0.99999994]])
@@ -101,49 +101,88 @@ extension GameViewController: MTKViewDelegate {
 
 #endif
 
-final class EditorCameraComponent: Component {
+final class EditorCameraComponent: Camera {
     
-    @RequiredComponent private var camera: CameraComponent
+    private var speed: Float = 20
     
-    private var speed: Float = 50
+    var cameraUp: Vector3 = Vector3(0, 1, 0)
+    var cameraFront: Vector3 = Vector3(0, 0, -1)
     
     var lastMousePosition: Point = .zero
+    
+    var yaw = Angle.radians(-90)
+    var pitch = Angle.radians(0)
+    
+    var isViewMatrixDirty = false
     
     override func update(_ deltaTime: TimeInterval) {
         
         if Input.isMouseButtonPressed(.left) {
             let position = Input.getMousePosition()
             
-            let delta = lastMousePosition - position
+            self.lastMousePosition = position
         }
         
         if Input.isMouseButtonRelease(.left) {
+            let position = Input.getMousePosition()
             
-        }
-        
-        if Input.isKeyPressed(.arrowDown) {
-            camera.transform.scale += -0.1
-        }
-        
-        if Input.isKeyPressed(.arrowUp) {
-            camera.transform.scale += 0.1
+            var xoffset = position.x - self.lastMousePosition.x;
+            var yoffset = self.lastMousePosition.y - position.y;
+            self.lastMousePosition = position
+
+            let sensitivity: Float = 0.1
+            xoffset *= sensitivity
+            yoffset *= sensitivity
+
+            self.yaw   += xoffset
+            self.pitch += yoffset
+            
+            if pitch.radians > 89.0 {
+                pitch = 89.0
+            } else if(pitch.radians < -89.0) {
+                pitch = -89.0
+            }
+            
+            var direction = Vector3()
+            direction.x = cos(yaw.radians) * cos(pitch.radians)
+            direction.y = sin(pitch.radians)
+            direction.z = sin(yaw.radians) * cos(pitch.radians)
+            
+            self.cameraFront = direction.normalized
+            self.isViewMatrixDirty = true
         }
         
         if Input.isKeyPressed(.w) {
-            camera.transform.position += .up * deltaTime * speed
+            self.transform.position += speed * cameraFront * deltaTime
+            self.isViewMatrixDirty = true
         }
         
         if Input.isKeyPressed(.a) {
-            camera.transform.position += .left * deltaTime * speed
+            self.transform.position -= cross(cameraFront, cameraUp).normalized * speed * deltaTime
+            self.isViewMatrixDirty = true
         }
         
         if Input.isKeyPressed(.d) {
-            camera.transform.position += .right * deltaTime * speed
+            self.transform.position += cross(cameraFront, cameraUp).normalized * speed * deltaTime
+            self.isViewMatrixDirty = true
         }
         
         if Input.isKeyPressed(.s) {
-            camera.transform.position += .down * deltaTime * speed
+            self.transform.position -= speed * cameraFront * deltaTime
+            self.isViewMatrixDirty = true
         }
+        
+        if self.isViewMatrixDirty {
+            self.viewMatrix = Transform3D.lookAt(
+                eye: self.transform.position,
+                center: self.transform.position + self.cameraFront,
+                up: self.cameraUp
+            )
+            
+            self.isViewMatrixDirty = false
+        }
+
+        print(viewMatrix)
     }
 }
 

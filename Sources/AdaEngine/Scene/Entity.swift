@@ -31,7 +31,7 @@ open class Entity {
         
         defer {
             self.components.entity = self
-            self.components[Transform] = Transform()
+            self.components[Transform.self] = Transform()
         }
     }
     

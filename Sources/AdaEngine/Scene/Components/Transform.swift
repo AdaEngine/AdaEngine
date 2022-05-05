@@ -16,12 +16,12 @@ public class Transform: Component {
     public var localTransform: Transform3D {
         get {
             self.updateLocalTransformIfNeeded()
-            
-            return self.data.localTransform
+            return self.data.matrix
         }
         
         set {
-            self.data.localTransform = newValue
+            self.data.matrix = newValue
+            self.data.status.insert(.dirtyGlobal)
         }
     }
     
@@ -30,15 +30,15 @@ public class Transform: Component {
         
         let matrix = self.localTransform
         
-        guard let parentTransform = self.entity?.parent?.components[Transform] else {
+        guard let parentTransform = self.entity?.parent?.components[Transform.self] else {
             return matrix
         }
         
-        return parentTransform.worldTransform * matrix
+        return matrix * parentTransform.worldTransform
     }
     
     public var parent: Transform? {
-        guard let parentTransform = self.entity?.parent?.components[Transform] else {
+        guard let parentTransform = self.entity?.parent?.components[Transform.self] else {
             return nil
         }
         
@@ -47,22 +47,27 @@ public class Transform: Component {
     
     public var position: Vector3 {
         get {
-            return self.data.localTransform.origin
+            self.updateLocalTransformIfNeeded()
+            return self.data.matrix.origin
         }
         
         set {
-            self.data.localTransform.origin = newValue
+            self.data.position = newValue
+            self.data.status.insert(.dirtyLocal)
         }
     }
     
     /// The scale of the transform
     public var scale: Vector3 {
         get {
-            return data.localTransform.scale
+            self.updateLocalTransformIfNeeded()
+            return data.matrix.scale
         }
         
         set {
-            self.data.localTransform.scale = newValue
+            self.data.scale = newValue
+            self.data.status.insert(.dirtyLocal)
+            self.updateLocalTransformIfNeeded()
         }
     }
 //    
@@ -71,13 +76,7 @@ public class Transform: Component {
 //    }
     
     public var worldPosition: Vector3 {
-        let position = self.position
-        
-        guard let parentTransform = self.entity?.parent?.components[Transform] else {
-            return position
-        }
-        
-        return parentTransform.worldPosition * position
+        return self.worldTransform.origin
     }
     
     override init() {
@@ -117,11 +116,19 @@ public class Transform: Component {
     // MARK: - Private
     
     func updateLocalTransformIfNeeded() {
-        guard self.data.status.contains(.dirtyLocal) else {
-            return
+        if self.data.status.contains(.dirtyLocal) {
+            let newMatrix = Transform3D(scale: self.data.scale) * Transform3D(quat: self.data.rotation) * Transform3D(translation: self.data.position)
+            self.data.matrix = newMatrix
+            self.data.status.remove(.dirtyLocal)
         }
         
-        self.data.status.remove(.dirtyLocal)
+        if self.data.status.contains(.dirtyGlobal) {
+            self.data.scale = self.data.matrix.scale
+            self.data.rotation = self.data.matrix.rotation
+            self.data.position = self.data.matrix.origin
+            
+            self.data.status.remove(.dirtyGlobal)
+        }
     }
     
 }
@@ -137,11 +144,11 @@ extension Transform {
     }
     
     struct TransformData {
-        var localTransform: Transform3D = .identity
-        var worldTransform: Transform3D = .identity
+        var matrix: Transform3D = .identity
         
-        var rotation: Vector3 = .zero
+        var rotation: Quat = .identity
         var scale: Vector3 = .zero
+        var position: Vector3 = .zero
         
         var status: TransformStatus = []
     }
@@ -150,6 +157,6 @@ extension Transform {
 public extension Component {
     var transform: Transform {
         // TODO: Maybe not efficent solution
-        return self.components[Transform]!
+        return self.components[Transform.self]!
     }
 }
