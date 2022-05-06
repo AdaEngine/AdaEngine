@@ -17,18 +17,23 @@ public class Camera: Component {
     // MARK: Properties
     
     /// The closest point relative to camera that drawing will occur.
-    @Export public var near: Float = 0.001
+    @Export
+    public var near: Float = 0.001
     
     /// The closest point relative to camera that drawing will occur
-    @Export public var far: Float = 100
+    @Export
+    public var far: Float = 100
     
     /// Angle of camera view
-    @Export public var fieldOfView: Angle = .degrees(70)
+    @Export
+    public var fieldOfView: Angle = .degrees(70)
     
     /// Base projection in camera
-    @Export public var projection: Projection = .perspective
+    @Export
+    public var projection: Projection = .perspective
     
-    @Export public var viewportSize: Vector2i = .zero
+    @Export
+    public var viewportSize: Vector2i = .zero
     
     // MARK: Computed Properties
     

@@ -19,27 +19,34 @@ public class Export<T: Codable> {
 }
 
 extension Export: _ExportCodable {
-    func initialize(from decoder: Decoder, key: CodingName) throws {
-        let container = try decoder.container(keyedBy: CodingName.self)
-        self.wrappedValue = try container.decode(T.self, forKey: key)
+    func decode(from container: DecodingContainer, propertyName: String) throws {
+        self.wrappedValue = try container.decode(T.self, forKey: CodingName(stringValue: propertyName))
     }
     
-    func encode(from encoder: Encoder, key: CodingName) throws {
-        var container = encoder.container(keyedBy: CodingName.self)
-        try container.encode(self.wrappedValue, forKey: key)
+    
+    func encode(to container: inout KeyedEncodingContainer<CodingName>, propertyName: String) throws {
+        try container.encode(self.wrappedValue, forKey: CodingName(stringValue: propertyName))
     }
+    
 }
 
+typealias _ExportCodable = _ExportDecodable & _ExportEncodable
+
 /// Helper to avoid generics problems
-protocol _ExportCodable {
-    func initialize(from decoder: Decoder, key: CodingName) throws
-    func encode(from encoder: Encoder, key: CodingName) throws
+protocol _ExportDecodable {
+    typealias DecodingContainer = KeyedDecodingContainer<CodingName>
+    func decode(from container: DecodingContainer, propertyName: String) throws
+}
+
+protocol _ExportEncodable {
+    typealias EncodingContainer = KeyedEncodingContainer<CodingName>
+    func encode(to container: inout EncodingContainer, propertyName: String) throws
 }
 
 struct CodingName: CodingKey {
     var stringValue: String
     
-    init?(stringValue: String) {
+    init(stringValue: String) {
         self.stringValue = stringValue
     }
     

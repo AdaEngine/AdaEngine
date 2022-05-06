@@ -6,11 +6,13 @@
 //
 
 /// Base class describe some unit of game logic
-open class Component {
+open class Component: Codable {
     
     internal var isAwaked: Bool = false
     
     public internal(set) weak var entity: Entity?
+    
+    public required init() {}
     
     /// Called once when component is ready to use
     open func ready() {
@@ -36,50 +38,55 @@ open class Component {
     
     public required convenience init(from decoder: Decoder) throws {
         self.init()
-        let mirror = Mirror(reflecting: self)
-        for (name, value) in mirror.children {
+        var mirror: Mirror? = Mirror(reflecting: self)
+        
+        let container = try decoder.container(keyedBy: CodingName.self)
+        
+        // Go through all mirrors (till top most superclass)
+        repeat {
+            // If mirror is nil (no superclassMirror was nil), break
+            guard let children = mirror?.children else { break }
             
-            guard var key = name else {
-                continue
+            // Try to decode each child
+            for child in children {
+                guard let decodableKey = child.value as? _ExportDecodable else { continue }
+                
+                // Get the propertyName of the property. By syntax, the property name is
+                // in the form: "_name". Dropping the "_" -> "name"
+                let propertyName = String((child.label ?? "").dropFirst())
+                
+                try decodableKey.decode(from: container, propertyName: propertyName)
             }
-            
-            if key.hasPrefix("_") {
-                key.remove(at: key.startIndex)
-            }
-            
-            try (value as? _ExportCodable)?.initialize(from: decoder, key: CodingName(stringValue: key)!)
-        }
+            mirror = mirror?.superclassMirror
+        } while mirror != nil
     }
     
     public func encode(to encoder: Encoder) throws {
-        let mirror = Mirror(reflecting: self)
         
-        try encode(to: encoder, children: mirror.children)
-
-        var superclass = mirror.superclassMirror
-        while superclass != nil {
-            try encode(to: encoder, children: superclass!.children)
-            superclass = superclass?.superclassMirror
-        }
-    }
-    
-    func encode(to encoder: Encoder, children: Mirror.Children) throws {
-        for (name, value) in children {
-            guard let exportedValue = value as? _ExportCodable, var key = name else {
-                continue
-            }
+        var container = encoder.container(keyedBy: CodingName.self)
+        
+        var mirror: Mirror? = Mirror(reflecting: self)
+        
+        // Go through all mirrors (till top most superclass)
+        repeat {
+            // If mirror is nil (no superclassMirror was nil), break
+            guard let children = mirror?.children else { break }
             
-            if key.hasPrefix("_") {
-                key.remove(at: key.startIndex)
+            // Try to encode each child
+            for child in children {
+                guard let encodableKey = child.value as? _ExportEncodable else { continue }
+                
+                // Get the propertyName of the property. By syntax, the property name is
+                // in the form: "_name". Dropping the "_" -> "name"
+                let propertyName = String((child.label ?? "").dropFirst())
+                
+                // propertyName here is not neceserly used in the `encodeValue` method
+                try encodableKey.encode(to: &container, propertyName: propertyName)
             }
-            
-            try exportedValue.encode(from: encoder, key: CodingName(stringValue: key)!)
-        }
+            mirror = mirror?.superclassMirror
+        } while mirror != nil
     }
-    
 }
-
-extension Component: Codable {}
 
 public extension Component {
     
@@ -98,4 +105,25 @@ public extension Component {
     func setComponent<T: Component>(_ component: T) {
         self.entity?.components.set(component)
     }
+}
+
+import Foundation
+
+extension Component {
+    
+    static func getRegistredComponent(for name: String) -> Component.Type? {
+        return self.registedComponents[name] ?? (NSClassFromString(name) as? Component.Type)
+    }
+    
+    private static var registedComponents: [String: Component.Type] = [:]
+    
+    static func registerComponent() {
+        let token = String(reflecting: Self.self)
+        self.registedComponents[token] = Self.self
+    }
+    
+    static var swiftName: String {
+        return String(reflecting: Self.self)
+    }
+    
 }

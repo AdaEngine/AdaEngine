@@ -9,15 +9,21 @@ import Foundation.NSUUID // TODO: Replace to own realization
 import OrderedCollections
 
 /// An enity describe
-open class Entity {
+open class Entity: Identifiable {
     
     public var name: String
     
-    public let identifier: UUID
+    public private(set) var id: UUID
     
     public internal(set) var components: ComponentSet
     
-    public internal(set) weak var scene: Scene?
+    public internal(set) weak var scene: Scene? {
+        didSet {
+            self.children.forEach {
+                $0.scene = scene
+            }
+        }
+    }
     
     public internal(set) var children: OrderedSet<Entity>
     
@@ -25,7 +31,7 @@ open class Entity {
     
     public init(name: String = "Entity") {
         self.name = name
-        self.identifier = UUID()
+        self.id = UUID()
         self.components = ComponentSet()
         self.children = []
         
@@ -34,6 +40,30 @@ open class Entity {
             self.components[Transform.self] = Transform()
         }
     }
+    
+    // MARK: - Codable
+    
+    public required convenience init(from decoder: Decoder) throws {
+        self.init()
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.children = try container.decode(OrderedSet<Entity>.self, forKey: .children)
+        var components = try container.decode(ComponentSet.self, forKey: .components)
+        self.components.set(components.buffer.values.elements)
+        
+        self.children.forEach { $0.parent = self }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.name, forKey: .name)
+        try container.encode(self.id, forKey: .id)
+        try container.encode(self.children, forKey: .children)
+        try container.encode(self.components, forKey: .components)
+    }
+    
+    // MARK: - Public
     
     open func update(_ deltaTime: TimeInterval) {
         for component in components.buffer.values {
@@ -72,70 +102,6 @@ extension Entity: Hashable {
 extension Entity: Identifiable {
     public var id: UUID {
         return self.identifier
-    }
-}
-
-public extension Entity {
-    
-    @frozen
-    struct ComponentSet {
-        
-        internal weak var entity: Entity?
-        
-        // TODO: looks like not efficient solution
-        private(set) var buffer: OrderedDictionary<ObjectIdentifier, Component> = [:]
-
-        /// Gets or sets the component of the specified type.
-        public subscript<T>(componentType: T.Type) -> T? where T : Component {
-            get {
-                let identifier = ObjectIdentifier(componentType)
-                return buffer[identifier] as? T
-            }
-            
-            set {
-                let identifier = ObjectIdentifier(componentType)
-                self.buffer[identifier] = newValue
-                newValue?.entity = entity
-            }
-        }
-
-        public mutating func set<T>(_ component: T) where T : Component {
-            let identifier = ObjectIdentifier(type(of: component))
-            self.buffer[identifier] = component
-            component.entity = self.entity
-        }
-
-        public mutating func set(_ components: [Component]) {
-            for component in components {
-                let identifier = ObjectIdentifier(type(of: component))
-                self.buffer[identifier] = component
-                component.entity = self.entity
-            }
-        }
-
-        /// Returns `true` if the collections contains a component of the specified type.
-        public func has(_ componentType: Component.Type) -> Bool {
-            return self.buffer[ObjectIdentifier(componentType)] != nil
-        }
-
-        /// Removes the component of the specified type from the collection.
-        public mutating func remove(_ componentType: Component.Type) {
-            let identifier = ObjectIdentifier(componentType)
-            self.buffer[identifier]?.destroy()
-            self.buffer[identifier] = nil
-        }
-
-        /// Removes all components from the collection.
-        public mutating func removeAll() {
-            self.buffer.forEach { $0.value.destroy() }
-            
-            self.buffer.removeAll()
-        }
-
-        /// The number of components in this collection.
-        public var count: Int {
-            return self.buffer.count
-        }
     }
 }
 
@@ -185,5 +151,13 @@ extension Entity {
     open func removeFromParent() {
         guard let parent = self.parent else { return }
         parent.removeChild(self)
+    }
+}
+
+extension Entity: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case components
+        case children
     }
 }

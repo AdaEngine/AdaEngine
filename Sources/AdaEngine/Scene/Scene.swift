@@ -13,6 +13,8 @@ public class Scene {
 
     var defaultCamera: Camera
     
+    var cameraEntity: Entity.ID?
+    
     public init() {
         let cameraEntity = Entity()
         
@@ -21,6 +23,22 @@ public class Scene {
         self.entities.append(cameraEntity)
         
         self.defaultCamera = cameraComponent
+    }
+    
+    public required convenience init(from decoder: Decoder) throws {
+        self.init()
+        
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let entities = try container.decode([Entity].self, forKey: .entities)
+        
+        for entity in entities {
+            self.addEntity(entity)
+        }
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.entities, forKey: .entities)
     }
     
     func update(_ deltaTime: TimeInterval) {
@@ -44,5 +62,11 @@ public class Scene {
     public func removeEntity(_ entity: Entity) {
         self.entities.remove(entity)
         entity.scene = nil
+    }
+}
+
+extension Scene: Codable {
+    enum CodingKeys: String, CodingKey {
+        case entities
     }
 }

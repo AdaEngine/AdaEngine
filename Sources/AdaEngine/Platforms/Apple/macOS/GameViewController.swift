@@ -10,6 +10,7 @@
 import AppKit
 import MetalKit
 import Math
+import Yams
 
 final class GameViewController: NSViewController {
     
@@ -69,15 +70,28 @@ final class GameViewController: NSViewController {
         
         let userEntity = Entity(name: "user")
         let camera = EditorCamera()
-        camera.makeCurrent()
         userEntity.components.set(camera)
         camera.transform.position.z = 1
         
         scene.addEntity(userEntity)
         
+        userEntity.addChild(Entity(name: "child"))
+        
+        let decoder = YAMLDecoder()
+        let encoder = YAMLEncoder()
+        
+        do {
+            let data = try encoder.encode(scene)
+            print(data)
+            let newScene = try decoder.decode(Scene.self, from: data)
+            SceneManager.shared.presentScene(newScene)
+        } catch {
+            print(error)
+        }
+        
         RenderEngine.shared.renderBackend.setClearColor(Color(212/255, 210/255, 213/255, 1))
         
-        SceneManager.shared.presentScene(scene)
+        
     }
 }
 

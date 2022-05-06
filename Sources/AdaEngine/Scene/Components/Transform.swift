@@ -10,7 +10,7 @@ import Math
 /// Component contains information about entity position in world space
 public class Transform: Component {
     
-    @Export private var data: TransformData
+    @Export private var data: TransformData = TransformData()
     
     /// Return current transform matrix
     public var localTransform: Transform3D {
@@ -84,10 +84,6 @@ public class Transform: Component {
     
     public var worldPosition: Vector3 {
         return self.worldTransform.origin
-    }
-    
-    override init() {
-        self.data = TransformData()
     }
     
     // MARK: - Public methods
