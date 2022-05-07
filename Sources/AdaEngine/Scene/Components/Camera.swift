@@ -5,9 +5,9 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
-public class Camera: Component {
+public class Camera: ScriptComponent {
     
-    public enum Projection: String, Codable {
+    public enum Projection: String, Codable, CaseIterable {
         case perspective
         case orthographic
     }

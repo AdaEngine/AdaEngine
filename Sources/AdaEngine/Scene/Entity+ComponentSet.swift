@@ -30,7 +30,7 @@ public extension Entity {
             var buffer: OrderedDictionary<String, Component> = [:]
             
             for key in container.allKeys {
-                guard let type = Component.getRegistredComponent(for: key.stringValue) else {
+                guard let type = ComponentStorage.getRegistredComponent(for: key.stringValue) else {
                     continue
                 }
                 
@@ -46,7 +46,8 @@ public extension Entity {
             var container = encoder.container(keyedBy: CodingName.self)
             
             for (token, value) in self.buffer {
-                try container.encode(value, forKey: CodingName(stringValue: token))
+                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: token))
+                try value.encode(to: superEncoder)
             }
         }
 
@@ -60,21 +61,22 @@ public extension Entity {
             set {
                 let identifier = componentType.swiftName
                 self.buffer[identifier] = newValue
-                newValue?.entity = entity
+                
+                (newValue as? ScriptComponent)?.entity = entity
             }
         }
 
         public mutating func set<T>(_ component: T) where T : Component {
             let identifier = type(of: component).swiftName
             self.buffer[identifier] = component
-            component.entity = self.entity
+            (component as? ScriptComponent)?.entity = self.entity
         }
 
         public mutating func set(_ components: [Component]) {
             for component in components {
                 let identifier = type(of: component).swiftName
                 self.buffer[identifier] = component
-                component.entity = self.entity
+                (component as? ScriptComponent)?.entity = self.entity
             }
         }
 
@@ -86,13 +88,13 @@ public extension Entity {
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
             let identifier = componentType.swiftName
-            self.buffer[identifier]?.destroy()
+            (self.buffer[identifier] as? ScriptComponent)?.destroy()
             self.buffer[identifier] = nil
         }
 
         /// Removes all components from the collection.
         public mutating func removeAll() {
-            self.buffer.forEach { $0.value.destroy() }
+            self.buffer.forEach { ($0.value as? ScriptComponent)?.destroy() }
             
             self.buffer.removeAll()
         }
@@ -100,6 +102,10 @@ public extension Entity {
         /// The number of components in this collection.
         public var count: Int {
             return self.buffer.count
+        }
+        
+        public var isEmpty: Bool {
+            return self.buffer.isEmpty
         }
     }
 }

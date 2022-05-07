@@ -5,8 +5,12 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+public protocol Component: Codable {
+    
+}
+
 /// Base class describe some unit of game logic
-open class Component: Codable {
+open class ScriptComponent: Component {
     
     internal var isAwaked: Bool = false
     
@@ -36,8 +40,7 @@ open class Component: Codable {
     
     // MARK: - Codable
     
-    public required convenience init(from decoder: Decoder) throws {
-        self.init()
+    public required init(from decoder: Decoder) throws {
         var mirror: Mirror? = Mirror(reflecting: self)
         
         let container = try decoder.container(keyedBy: CodingName.self)
@@ -55,7 +58,11 @@ open class Component: Codable {
                 // in the form: "_name". Dropping the "_" -> "name"
                 let propertyName = String((child.label ?? "").dropFirst())
                 
-                try decodableKey.decode(from: container, propertyName: propertyName)
+                try decodableKey.decode(
+                    from: container,
+                    propertyName: propertyName,
+                    userInfo: decoder.userInfo
+                )
             }
             mirror = mirror?.superclassMirror
         } while mirror != nil
@@ -81,23 +88,35 @@ open class Component: Codable {
                 let propertyName = String((child.label ?? "").dropFirst())
                 
                 // propertyName here is not neceserly used in the `encodeValue` method
-                try encodableKey.encode(to: &container, propertyName: propertyName)
+                try encodableKey.encode(
+                    to: &container,
+                    propertyName: propertyName,
+                    userInfo: encoder.userInfo
+                )
             }
             mirror = mirror?.superclassMirror
         } while mirror != nil
     }
+    
 }
 
-public extension Component {
+public extension ScriptComponent {
     
     /// Get collection of components in entity
     /// - Warning: Crashed if component not connected to any entity.
     var components: Entity.ComponentSet {
-        guard let entity = self.entity else {
-            fatalError("Component not connected to any entity")
+        get {
+            guard let entity = self.entity else {
+                fatalError("Component not connected to any entity")
+            }
+            
+            return entity.components
         }
         
-        return entity.components
+        set {
+            self.entity?.components = newValue
+        }
+        
     }
     
     
@@ -110,20 +129,23 @@ public extension Component {
 import Foundation
 
 extension Component {
+    static func registerComponent() {
+        let token = String(reflecting: Self.self)
+        ComponentStorage.registedComponents[token] = Self.self
+    }
+    
+    
+    static var swiftName: String {
+        return String(reflecting: Self.self)
+    }
+}
+
+struct ComponentStorage {
     
     static func getRegistredComponent(for name: String) -> Component.Type? {
         return self.registedComponents[name] ?? (NSClassFromString(name) as? Component.Type)
     }
     
-    private static var registedComponents: [String: Component.Type] = [:]
-    
-    static func registerComponent() {
-        let token = String(reflecting: Self.self)
-        self.registedComponents[token] = Self.self
-    }
-    
-    static var swiftName: String {
-        return String(reflecting: Self.self)
-    }
-    
+    static var registedComponents: [String: Component.Type] = [:]
+
 }

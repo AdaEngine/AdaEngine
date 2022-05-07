@@ -6,7 +6,7 @@
 //
 
 /// Component to render mesh on scene
-public class MeshRenderer: Component {
+public class MeshRenderer: ScriptComponent {
     
     public var material: Material? {
         get {

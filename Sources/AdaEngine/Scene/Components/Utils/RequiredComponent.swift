@@ -15,23 +15,23 @@ public struct RequiredComponent<T: Component> {
         fatalError()
     }
     
-    weak var storage: T?
-    
     public init() { }
     
     // Currently private method to get parent component 
-    public static subscript<EnclosingSelf: Component>(
+    public static subscript<EnclosingSelf: ScriptComponent>(
         _enclosingInstance object: EnclosingSelf,
         wrapped wrappedKeyPath: KeyPath<EnclosingSelf, T>,
         storage storageKeyPath: ReferenceWritableKeyPath<EnclosingSelf, Self>
     ) -> T {
-        if let storage = object[keyPath: storageKeyPath].storage {
-            return storage
+        
+        get {
+            return object.components[T.self]!
         }
         
-        let component: T! = object.components[T.self]
-        object[keyPath: storageKeyPath].storage = component
-        return component
+        set {
+            object.components[T.self] = newValue
+        }
+        
     }
     
 }

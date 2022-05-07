@@ -43,6 +43,8 @@ final class GameViewController: NSViewController {
     override func viewDidAppear() {
         super.viewDidAppear()
         
+        ScriptComponentUpdateSystem.registerSystem()
+        
         self.setupScene()
     }
     
@@ -65,13 +67,13 @@ final class GameViewController: NSViewController {
         trainMeshRenderer.mesh = Mesh.loadMesh(from: train)
         trainMeshRenderer.materials = [BaseMaterial(diffuseColor: .orange, metalic: 1)]
         trainEntity.components[MeshRenderer.self] = trainMeshRenderer
-        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
+//        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
         scene.addEntity(trainEntity)
         
         let userEntity = Entity(name: "user")
         let camera = EditorCamera()
         userEntity.components.set(camera)
-        camera.transform.position.z = 1
+//        camera.transform.position.z = 1
         
         scene.addEntity(userEntity)
         
@@ -116,15 +118,18 @@ extension GameViewController: MTKViewDelegate {
 
 final class EditorCamera: Camera {
     
-    @Export var speed: Float = 20
+    @Export
+    var speed: Float = 20
     
     var cameraUp: Vector3 = Vector3(0, 1, 0)
     var cameraFront: Vector3 = Vector3(0, 0, -1)
     
     var lastMousePosition: Point = .zero
     
-    @Export var yaw = Angle.radians(-90)
-    @Export var pitch = Angle.radians(0)
+    @Export
+    var yaw = Angle.radians(-90)
+    @Export
+    var pitch = Angle.radians(0)
     
     var isViewMatrixDirty = false
     

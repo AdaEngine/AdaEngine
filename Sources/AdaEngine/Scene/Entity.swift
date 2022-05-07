@@ -9,11 +9,11 @@ import Foundation.NSUUID // TODO: Replace to own realization
 import OrderedCollections
 
 /// An enity describe
-open class Entity: Identifiable {
+open class Entity {
     
     public var name: String
     
-    public private(set) var id: UUID
+    public private(set) var identifier: UUID
     
     public internal(set) var components: ComponentSet
     
@@ -31,7 +31,7 @@ open class Entity: Identifiable {
     
     public init(name: String = "Entity") {
         self.name = name
-        self.id = UUID()
+        self.identifier = UUID()
         self.components = ComponentSet()
         self.children = []
         
@@ -47,10 +47,13 @@ open class Entity: Identifiable {
         self.init()
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.name = try container.decode(String.self, forKey: .name)
-        self.id = try container.decode(UUID.self, forKey: .id)
-        self.children = try container.decode(OrderedSet<Entity>.self, forKey: .children)
-        var components = try container.decode(ComponentSet.self, forKey: .components)
-        self.components.set(components.buffer.values.elements)
+        self.identifier = try container.decode(UUID.self, forKey: .id)
+        self.children = try container.decodeIfPresent(OrderedSet<Entity>.self, forKey: .children) ?? []
+        let components = try container.decodeIfPresent(ComponentSet.self, forKey: .components)
+        
+        if let components = components {
+            self.components.set(components.buffer.values.elements)
+        }
         
         self.children.forEach { $0.parent = self }
     }
@@ -58,32 +61,53 @@ open class Entity: Identifiable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.name, forKey: .name)
-        try container.encode(self.id, forKey: .id)
-        try container.encode(self.children, forKey: .children)
-        try container.encode(self.components, forKey: .components)
+        try container.encode(self.identifier, forKey: .id)
+        
+        if !self.children.isEmpty {
+            try container.encode(self.children, forKey: .children)
+        }
+        
+        if !self.components.isEmpty {
+            try container.encode(self.components, forKey: .components)
+        }
     }
     
     // MARK: - Public
     
     open func update(_ deltaTime: TimeInterval) {
-        for component in components.buffer.values {
-            if !component.isAwaked {
-                component.ready()
-                component.isAwaked = true
-            }
-            
-            component.update(deltaTime)
-        }
+
     }
     
     open func physicsUpdate(_ deltaTime: TimeInterval) {
-        for component in components.buffer.values where component.isAwaked {
-            component.physicsUpdate(deltaTime)
-        }
+//        for component in components.buffer.values where component.isAwaked {
+//            component.physicsUpdate(deltaTime)
+//        }
     }
     
     public func removeFromScene() {
         self.scene?.removeEntity(self)
+    }
+    
+    func performQuery(_ query: EntityQuery) -> [Entity] {
+        
+        var entities = [Entity]()
+        
+        if query.predicate.fetch(self) {
+            entities.append(self)
+        }
+        
+        for child in children {
+            if query.predicate.fetch(child) {
+                entities.append(child)
+            }
+            
+            let array = child.performQuery(query)
+            if !array.isEmpty {
+                entities.append(contentsOf: array)
+            }
+        }
+        
+        return entities
     }
     
 }
