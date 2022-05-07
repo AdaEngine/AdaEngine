@@ -18,7 +18,9 @@ public class CameraManager {
     public private(set) var currentCamera: Camera?
     
     func setCurrentCamera(_ camera: Camera) {
+        self.currentCamera?.isPrimal = false
         self.currentCamera = camera
+        camera.isPrimal = true
         camera.viewportSize = RenderEngine.shared.renderBackend.viewportSize
     }
     

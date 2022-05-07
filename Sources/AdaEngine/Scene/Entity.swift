@@ -89,7 +89,6 @@ open class Entity {
     }
     
     func performQuery(_ query: EntityQuery) -> [Entity] {
-        
         var entities = [Entity]()
         
         if query.predicate.fetch(self) {
@@ -97,10 +96,6 @@ open class Entity {
         }
         
         for child in children {
-            if query.predicate.fetch(child) {
-                entities.append(child)
-            }
-            
             let array = child.performQuery(query)
             if !array.isEmpty {
                 entities.append(contentsOf: array)

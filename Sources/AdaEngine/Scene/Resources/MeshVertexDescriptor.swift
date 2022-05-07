@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 11/3/21.
 //
 
-public struct VertexDesciptorAttributesArray: Sequence {
+public struct VertexDesciptorAttributesArray: Sequence, Codable {
     
     public typealias Element = MeshVertexDescriptor.Attribute
     public typealias Iterator = Array<MeshVertexDescriptor.Attribute>.Iterator
@@ -35,7 +35,7 @@ public struct VertexDesciptorAttributesArray: Sequence {
     }
 }
 
-public struct VertexDesciptorLayoutsArray: Sequence {
+public struct VertexDesciptorLayoutsArray: Sequence, Codable {
     
     public typealias Element = MeshVertexDescriptor.Layout
     public typealias Iterator = Array<MeshVertexDescriptor.Layout>.Iterator
@@ -65,12 +65,12 @@ public struct VertexDesciptorLayoutsArray: Sequence {
     }
 }
 
-public struct MeshVertexDescriptor {
+public struct MeshVertexDescriptor: Codable {
     
     public var attributes: VertexDesciptorAttributesArray
     public var layouts: VertexDesciptorLayoutsArray
     
-    public enum VertexFormat: UInt {
+    public enum VertexFormat: UInt, Codable {
         case invalid
         
         case uint
@@ -84,7 +84,7 @@ public struct MeshVertexDescriptor {
         case matrix2x2
     }
     
-    public struct Attribute: CustomStringConvertible {
+    public struct Attribute: CustomStringConvertible, Codable {
         public var name: String
         public var offset: Int
         public var bufferIndex: Int
@@ -95,7 +95,7 @@ public struct MeshVertexDescriptor {
         }
     }
     
-    public struct Layout: CustomStringConvertible {
+    public struct Layout: CustomStringConvertible, Codable {
         public var stride: Int
         
         public var description: String {

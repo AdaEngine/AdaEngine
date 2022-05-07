@@ -6,11 +6,14 @@
 //
 
 public protocol Material: Resource {
-    var renderPriority: Int { get set }
+    
+}
+
+enum MaterialBox: Codable {
+    case base(BaseMaterial)
 }
 
 public struct BaseMaterial: Material {
-    public var renderPriority: Int = 0
     public var diffuseColor: Color
     public var metalic: Float
 }

@@ -32,19 +32,18 @@ public class Camera: ScriptComponent {
     @Export
     public var projection: Projection = .perspective
     
-    @Export
+    @Export(skipped: true)
     public var viewportSize: Vector2i = .zero
+    
+    /// Set camera is active
+    @Export
+    public var isPrimal = false
+    
     
     // MARK: Computed Properties
     
     public var isCurrent: Bool {
         return CameraManager.shared.currentCamera === self
-    }
-    
-    // MARK: - Public methods
-    
-    public func makeCurrent() {
-        CameraManager.shared.setCurrentCamera(self)
     }
     
     // MARK: - Internal
@@ -67,7 +66,6 @@ public class Camera: ScriptComponent {
         }
         
         let position = self.transform.position
-        
         return CameraData(projection: projection, view: self.viewMatrix, position: position)
     }
 }

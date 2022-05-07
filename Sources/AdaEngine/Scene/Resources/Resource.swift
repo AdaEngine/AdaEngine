@@ -5,6 +5,6 @@
 //  Created by v.prusakov on 11/10/21.
 //
 
-public protocol Resource {
+public protocol Resource: Codable {
     
 }

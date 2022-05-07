@@ -5,17 +5,23 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
+import Foundation
 import OrderedCollections
 
 public class Scene {
+    
+    public var name: String
+    public private(set) var id: UUID
     
     var entities: OrderedSet<Entity> = []
 
     var defaultCamera: Camera
     
-    var systems: OrderedDictionary<String, System> = [:]
+    var systems: [System] = []
     
-    public init() {
+    public init(name: String = "") {
+        self.id = UUID()
+        self.name = name.isEmpty ? "Scene \(id.uuidString)" : name
         let cameraEntity = Entity()
         
         let cameraComponent = Camera()
@@ -26,6 +32,7 @@ public class Scene {
         
         defer {
             self.addSystem(ScriptComponentUpdateSystem.self)
+            self.addSystem(CameraSystem.self)
         }
     }
     
@@ -33,17 +40,20 @@ public class Scene {
         self.init()
         
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        
         let entities = try container.decode([Entity].self, forKey: .entities)
         
         let systemNames = try container.decodeIfPresent([String].self, forKey: .systems) ?? []
-        var systems: OrderedDictionary<String, System> = [:]
+        var systems = [System]()
         
         for key in systemNames {
             guard let type = SystemStorage.getRegistredSystem(for: key) else {
                 continue
             }
             
-            systems[key] = type.init(scene: self)
+            systems.append(type.init(scene: self))
         }
         
         self.systems = systems
@@ -55,12 +65,14 @@ public class Scene {
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.id, forKey: .id)
+        try container.encode(self.name, forKey: .name)
         try container.encode(self.entities, forKey: .entities)
-        try container.encode(self.systems.keys.elements, forKey: .systems)
+        try container.encode(self.systems.map { type(of: $0).swiftName }, forKey: .systems)
     }
     
     func update(_ deltaTime: TimeInterval) {
-        for system in systems.elements.values {
+        for system in self.systems {
             system.update(context: SystemUpdateContext(scene: self, deltaTime: deltaTime))
         }
     }
@@ -72,7 +84,7 @@ public class Scene {
     }
     
     public func addSystem<T: System>(_ system: T.Type) {
-        self.systems[T.swiftName] = system.init(scene: self)
+        self.systems.append(system.init(scene: self))
     }
     
 
@@ -136,6 +148,6 @@ public extension Scene {
 
 extension Scene: Codable {
     enum CodingKeys: String, CodingKey {
-        case entities, systems
+        case id, name, entities, systems
     }
 }

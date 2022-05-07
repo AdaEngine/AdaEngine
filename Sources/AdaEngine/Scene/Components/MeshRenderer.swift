@@ -10,7 +10,7 @@ public class MeshRenderer: ScriptComponent {
     
     public var material: Material? {
         get {
-            self.materials?.first
+            self.materials.first
         }
         
         set {
@@ -18,12 +18,14 @@ public class MeshRenderer: ScriptComponent {
         }
     }
     
-    public var materials: [Material]? {
+//    @Export - currently not supported for protocols Material
+    public var materials: [Material] = [] {
         didSet {
             self.updateDrawableMaterials()
         }
     }
     
+    @Export
     public var mesh: Mesh? {
         didSet {
             self.updateDrawableSource()

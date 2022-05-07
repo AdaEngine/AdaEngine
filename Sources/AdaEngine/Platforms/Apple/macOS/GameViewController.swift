@@ -44,13 +44,14 @@ final class GameViewController: NSViewController {
         super.viewDidAppear()
         
         ScriptComponentUpdateSystem.registerSystem()
+        CameraSystem.registerSystem()
         
         self.setupScene()
     }
     
     private func setupScene() {
-        let scene = Scene()
-
+        let scene = Scene()        
+        
         let boxEntity = Entity(name: "box")
         let meshRenderer = MeshRenderer()
         meshRenderer.materials = [BaseMaterial(diffuseColor: .red, metalic: 0)]
@@ -72,6 +73,7 @@ final class GameViewController: NSViewController {
         
         let userEntity = Entity(name: "user")
         let camera = EditorCamera()
+        camera.isPrimal = true
         userEntity.components.set(camera)
 //        camera.transform.position.z = 1
         
@@ -81,7 +83,6 @@ final class GameViewController: NSViewController {
         
         let decoder = YAMLDecoder()
         let encoder = YAMLEncoder()
-        
         do {
             let data = try encoder.encode(scene)
             print(data)

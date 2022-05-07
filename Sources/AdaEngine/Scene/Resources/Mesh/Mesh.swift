@@ -38,9 +38,48 @@ public class Mesh: Resource {
     internal var models: [Mesh.Model] = []
    
     internal var vertexDescriptor: MeshVertexDescriptor
+    let source: Source
     
-    internal init(vertexDescriptor: MeshVertexDescriptor = .defaultVertexDescriptor) {
+    internal init(vertexDescriptor: MeshVertexDescriptor = .defaultVertexDescriptor, source: Source) {
         self.vertexDescriptor = vertexDescriptor
+        self.source = source
+    }
+    
+    public required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let source = try container.decode(Source.self, forKey: .source)
+        
+        let mesh: Mesh
+        
+        switch source {
+        case let .box(extent, segments):
+            mesh = Mesh.generateBox(extent: extent, segments: segments)
+        case let .sphere(extent, segments):
+            mesh = Mesh.generateSphere(extent: extent, segments: segments)
+        case .url(let url):
+            mesh = Mesh.loadMesh(from: url, vertexDescriptor: nil)
+        }
+        
+        self.source = source
+        self.vertexDescriptor = mesh.vertexDescriptor
+        self.models = mesh.models
+        
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.source, forKey: .source)
+    }
+    
+    enum Source: Codable {
+        case url(URL)
+        case box(extent: Vector3, segments: Vector3)
+        case sphere(extent: Vector3, segments: Vector2)
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case source
+        case vertexDescriptor
     }
     
 }
@@ -55,14 +94,17 @@ public extension Mesh {
         
         let mdlMesh = asset.childObjects(of: MDLMesh.self).first as! MDLMesh
         
-        return Mesh(mdlMesh: mdlMesh)
+        return Mesh(mdlMesh: mdlMesh, source: .url(url))
     }
 }
 
 #if canImport(ModelIO)
 extension Mesh {
-    convenience init(mdlMesh: MDLMesh) {
-        self.init(vertexDescriptor: MeshVertexDescriptor(mdlVertexDescriptor: mdlMesh.vertexDescriptor))
+    convenience init(mdlMesh: MDLMesh, source: Source) {
+        self.init(
+            vertexDescriptor: MeshVertexDescriptor(mdlVertexDescriptor: mdlMesh.vertexDescriptor),
+            source: source
+        )
         
         var model = Mesh.Model(
             name: mdlMesh.name,
@@ -107,7 +149,10 @@ extension Mesh {
             geometryType: .triangles,
             allocator: nil)
         
-        return Mesh(mdlMesh: mdlMesh)
+        return Mesh(
+            mdlMesh: mdlMesh,
+            source: .box(extent: extent, segments: segments)
+        )
     }
     
     static func generateSphere(extent: Vector3, segments: Vector2) -> Mesh {
@@ -119,6 +164,9 @@ extension Mesh {
             allocator: nil
         )
         
-        return Mesh(mdlMesh: mdlMesh)
+        return Mesh(
+            mdlMesh: mdlMesh,
+            source: .sphere(extent: extent, segments: segments)
+        )
     }
 }
