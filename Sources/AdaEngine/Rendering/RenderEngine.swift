@@ -21,8 +21,6 @@ public class RenderEngine {
     
     let renderBackend: RenderBackend
     
-    var drawableList: DrawableList = DrawableList()
-    
     private init(backendType: BackendType, renderBackend: RenderBackend) {
         self.backendType = backendType
         self.renderBackend = renderBackend
@@ -52,8 +50,8 @@ public class RenderEngine {
             return
         }
         
-        let cameraData = CameraManager.shared.makeCurrentCameraData()
-        self.renderBackend.renderDrawableList(self.drawableList, camera: cameraData)
+        //        let cameraData = CameraManager.shared.makeCurrentCameraData()
+        //        self.renderBackend.renderDrawableList(self.drawableList, camera: cameraData)
         
         try self.renderBackend.beginFrame()
         
@@ -80,44 +78,37 @@ public class RenderEngine {
     
     func setDrawableToQueue(_ drawable: Drawable, layer: Int) {
         
-        self.drawableList.drawables[drawable.layer]?.remove(drawable)
-        
-        if self.drawableList.drawables[layer] == nil {
-            self.drawableList.drawables[layer] = [drawable]
-        } else {
-            self.drawableList.drawables[layer]?.insert(drawable)
-        }
     }
     
     func removeDrawableFromQueue(_ drawable: Drawable) {
-        self.drawableList.drawables[drawable.layer]?.remove(drawable)
+        
     }
     
     func makePipelineDescriptor(for drawable: Drawable) {
         // TODO: Should create pipeline descriptor cache
         guard let material = drawable.materials?.first else { return }
         
-        do {
-            switch drawable.source {
-            case .mesh(let mesh):
-                drawable.pipelineState = try self.renderBackend.makePipelineDescriptor(for: material, vertexDescriptor: mesh.vertexDescriptor)
-            default:
-                drawable.pipelineState = try self.renderBackend.makePipelineDescriptor(for: material, vertexDescriptor: nil)
-            }
-        } catch {
-            fatalError(error.localizedDescription)
+        switch drawable.source {
+        case .mesh(let mesh):
+            drawable.pipelineState = self.renderBackend.makePipelineDescriptor(for: material, vertexDescriptor: mesh.vertexDescriptor)
+        default:
+            drawable.pipelineState = self.renderBackend.makePipelineDescriptor(for: material, vertexDescriptor: nil)
         }
         
     }
     
     // MARK: - Buffers
     
-    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer {
+    func makeBuffer(length: Int, options: ResourceOptions) -> RID {
         return self.renderBackend.makeBuffer(length: length, options: options)
     }
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer {
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RID {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
+    }
+    
+    func getBuffer(for rid: RID) -> RenderBuffer {
+        return self.renderBackend.getBuffer(for: rid)
     }
 }
 
@@ -149,7 +140,7 @@ public class Drawable: Identifiable {
     
     var isVisible = true
     
-    internal var pipelineState: Any?
+    internal var pipelineState: RID?
 }
 
 extension Drawable: Hashable {
@@ -167,25 +158,154 @@ final class DrawableList {
     var drawables: OrderedDictionary<Int, Set<Drawable>> = [:]
 }
 
-public class SceneRenderer {
+struct CircleVertexData {
+    var worldPosition: Vector3
+    var localPosition: Vector3
+    let thickness: Float
+    let fade: Float
+    let color: Color
+}
+
+public class RenderEngine2D {
     
-    struct Camera {
-        var projection: Transform3D
-        var view: Transform3D
+    static let shared = RenderEngine2D()
+    
+    private var uniform: Uniform = Uniform()
+    
+    struct Uniform {
+        var view: Transform3D = .identity
     }
     
-    private var camera: Camera
+    var currentDraw: RID!
+    var uniformRid: RID
+    var indexBuffer: RID!
+    var vertexBuffer: RID!
     
-    unowned let renderBackend: RenderBackend
+    var quadPosition: [Vector3] = []
+    var circleVertex: [CircleVertexData] = []
+    var circleIndexCount: Int = 0
     
-    init(renderBackend: RenderBackend) {
-        self.camera = Camera(projection: .identity, view: .identity)
-        self.renderBackend = renderBackend
+    var circlePiplineState: RID
+    
+    init() {
+        let device = RenderEngine.shared.renderBackend
+        
+        self.uniformRid = device.makeUniform(Uniform.self, count: 1, index: 1, offset: 0, options: .storageShared)
+        
+        let shader = device.makeShader("circle", vertexFuncName: "vertex_main", fragmentFuncName: "fragment_main")
+        
+        var circleVertexDescriptor = VertexDesciptorAttributesArray()
+        circleVertexDescriptor[0].format = .vector3
+        circleVertexDescriptor[0].bufferIndex = 0
+        circleVertexDescriptor[0].offset = MemoryLayout.offset(of: \CircleVertexData.worldPosition)!
+        
+        circleVertexDescriptor[1].format = .vector3
+        circleVertexDescriptor[1].bufferIndex = 0
+        circleVertexDescriptor[1].offset = MemoryLayout.offset(of: \CircleVertexData.localPosition)!
+
+        circleVertexDescriptor[2].format = .float
+        circleVertexDescriptor[2].bufferIndex = 0
+        circleVertexDescriptor[2].offset = MemoryLayout.offset(of: \CircleVertexData.thickness)!
+
+        circleVertexDescriptor[3].format = .float
+        circleVertexDescriptor[3].bufferIndex = 0
+        circleVertexDescriptor[3].offset = MemoryLayout.offset(of: \CircleVertexData.fade)!
+
+        circleVertexDescriptor[4].format = .vector4
+        circleVertexDescriptor[4].bufferIndex = 0
+        circleVertexDescriptor[4].offset = MemoryLayout.offset(of: \CircleVertexData.color)!
+        
+        var layouts = VertexDesciptorLayoutsArray()
+        layouts[0].stride = MemoryLayout<CircleVertexData>.stride
+        
+        device.bindAttributes(attributes: circleVertexDescriptor, forShader: shader)
+        device.bindLayouts(layouts: layouts, forShader: shader)
+        self.circlePiplineState = device.makePipelineState(for: shader)
+        
+        self.quadPosition = [
+            [-0.5,  -0.5, 0.0],
+            [0.5,   -0.5, 0.0],
+            [0.5,   0.5,  0.0],
+            [-0.5,  0.5,  0.0]
+        ]
     }
     
-    func setCamera(_ projection: Transform3D, view: Transform3D) {
-        self.camera.projection = projection
-        self.camera.view = view
+    public func beginContext(_ camera: Camera) {
+        let data = camera.makeCameraData()
+        
+        var uni = Uniform(view: data.view)
+        RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
+        
+        self.currentDraw = RenderEngine.shared.renderBackend.beginDrawList()
     }
     
+    public func drawQuad() {
+        
+    }
+    
+    public func setDebugName(_ name: String) {
+        RenderEngine.shared.renderBackend.bindDebugName(name: name, forDraw: self.currentDraw)
+    }
+    
+    public func drawCircle(
+        transform: Transform3D,
+        color: Color,
+        radius: Float,
+        thickness: Float,
+        fade: Float
+    ) {
+        for quad in quadPosition {
+            let data = CircleVertexData(
+                worldPosition: transform.origin * quad,
+                localPosition: quad * 2,
+                thickness: thickness,
+                fade: fade,
+                color: color
+            )
+            
+            self.circleVertex.append(data)
+        }
+        
+        self.circleIndexCount += 6
+    }
+    
+    public func commitContext() {
+        
+        let device = RenderEngine.shared.renderBackend
+        
+        device.bindUniformSet(self.currentDraw, uniformSet: self.uniformRid)
+        
+        if self.circleIndexCount > 0 {
+            
+            let vertexBuffer = device.makeVertexBuffer(
+                offset: 0,
+                index: 0,
+                bytes: &self.circleVertex,
+                length: MemoryLayout<CircleVertexData>.size * self.circleVertex.count
+            )
+            
+            let indexBuffer = device.makeIndexBuffer(
+                offset: 0,
+                index: 0,
+                bytes: &quadPosition,
+                length: MemoryLayout<Vector3>.size * circleIndexCount
+            )
+            
+            device.bindVertexBuffer(self.currentDraw, vertexBuffer: vertexBuffer)
+            device.bindRenderState(self.currentDraw, renderPassId: self.circlePiplineState)
+            device.bindIndexBuffer(self.currentDraw, indexBuffer: indexBuffer)
+            
+            device.draw(self.currentDraw, indexCount: self.circleIndexCount, instancesCount: 1)
+        }
+        
+        
+        self.clear()
+    }
+    
+    // MARK: - Private
+    
+    private func clear() {
+        uniform.view = .identity
+        self.circleVertex.removeAll(keepingCapacity: true)
+    }
 }

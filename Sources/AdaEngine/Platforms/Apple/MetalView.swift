@@ -62,7 +62,7 @@ extension MetalView {
     public override func mouseUp(with event: NSEvent) {
         let position = self.mousePosition(for: event)
         
-        let mouseEvent = Input.MouseEvent(
+        let mouseEvent = MouseEvent(
             button: .left,
             mousePosition: position,
             phase: .ended,
@@ -77,7 +77,7 @@ extension MetalView {
         
         let isContinious = Input.shared.mouseEvents[.left]?.phase == .began
         
-        let mouseEvent = Input.MouseEvent(
+        let mouseEvent = MouseEvent(
             button: .left,
             mousePosition: position,
             phase: isContinious ? .changed : .began,
@@ -116,7 +116,7 @@ extension MetalView {
         
         let modifers = KeyModifier(modifiers: event.modifierFlags)
         
-        let keyEvent = Input.KeyEvent(keyCode: keyCode, modifiers: modifers, status: .up, time: TimeInterval(event.timestamp))
+        let keyEvent = KeyEvent(keyCode: keyCode, modifiers: modifers, status: .up, time: TimeInterval(event.timestamp))
         Input.shared.receiveEvent(keyEvent)
     }
     
@@ -127,7 +127,7 @@ extension MetalView {
         
         let modifers = KeyModifier(modifiers: event.modifierFlags)
         
-        let keyEvent = Input.KeyEvent(keyCode: keyCode, modifiers: modifers, status: .down, time: TimeInterval(event.timestamp))
+        let keyEvent = KeyEvent(keyCode: keyCode, modifiers: modifers, status: .down, time: TimeInterval(event.timestamp))
         Input.shared.receiveEvent(keyEvent)
     }
     
@@ -144,7 +144,7 @@ extension MetalView {
         return position
     }
     
-    private func inputPhase(from phase: NSEvent.Phase) -> Input.MouseEvent.Phase {
+    private func inputPhase(from phase: NSEvent.Phase) -> MouseEvent.Phase {
         switch phase {
         case .began: return .began
         case .cancelled: return .cancelled

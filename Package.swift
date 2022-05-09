@@ -58,9 +58,9 @@ let package = Package(
             ],
             exclude: ["Project.swift"],
             resources: [
-                .copy("Rendering/Shaders/train.obj"),
-                .copy("Rendering/Shaders/train.mtl"),
-                .process("Rendering/Shaders/Metal/*.metal")
+//                .copy("Rendering/Shaders/train.obj"),
+//                .copy("Rendering/Shaders/train.mtl"),
+//                .process("Rendering/Shaders/Metal/circle.metal")
             ]
         ),
         

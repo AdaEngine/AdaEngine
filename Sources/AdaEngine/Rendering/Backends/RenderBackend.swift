@@ -38,11 +38,51 @@ protocol RenderBackend: AnyObject {
     
     func renderDrawableList(_ list: DrawableList, camera: CameraData)
     
-    func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) throws -> Any
+    func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) -> RID
     
     // MARK: - Buffers
     
-    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer
+    func makeBuffer(length: Int, options: ResourceOptions) -> RID
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RID
+    
+    func getBuffer(for rid: RID) -> RenderBuffer
+    
+    func makeIndexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer, length: Int) -> RID
+    
+    func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer, length: Int) -> RID
+    
+    // MARK: - Shaders
+    
+    func makeShader(_ shaderName: String, vertexFuncName: String, fragmentFuncName: String) -> RID
+    
+    func bindAttributes(attributes: VertexDesciptorAttributesArray, forShader rid: RID)
+    
+    func bindLayouts(layouts: VertexDesciptorLayoutsArray, forShader rid: RID)
+    
+    func makePipelineState(for shader: RID) -> RID
+    
+    // MARK: - Uniforms
+    
+    func makeUniform<T>(_ uniformType: T.Type, count: Int, index: Int, offset: Int, options: ResourceOptions) -> RID
+    
+    func updateUniform<T>(_ rid: RID, value: T, count: Int)
+    
+    func removeUniform(_ rid: RID)
+    
+    // MARK: - Draw
+    
+    func beginDrawList() -> RID
+    
+    func bindVertexBuffer(_ drawRid: RID, vertexBuffer: RID)
+    
+    func bindIndexBuffer(_ drawRid: RID, indexBuffer: RID)
+    
+    func bindUniformSet(_ drawRid: RID, uniformSet: RID)
+    
+    func bindRenderState(_ drawRid: RID, renderPassId: RID)
+    
+    func bindDebugName(name: String, forDraw drawId: RID)
+    
+    func draw(_ list: RID, indexCount: Int, instancesCount: Int)
 }

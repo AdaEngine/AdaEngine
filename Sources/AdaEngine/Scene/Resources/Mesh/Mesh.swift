@@ -106,28 +106,33 @@ extension Mesh {
             source: source
         )
         
+        let rid = RenderEngine.shared.makeBuffer(
+            bytes: mdlMesh.vertexBuffers[0].map().bytes,
+            length: mdlMesh.vertexBuffers[0].length,
+            options: []
+        )
+        
         var model = Mesh.Model(
             name: mdlMesh.name,
-            vertexBuffer: RenderEngine.shared.makeBuffer(
-                bytes: mdlMesh.vertexBuffers[0].map().bytes,
-                length: mdlMesh.vertexBuffers[0].length,
-                options: []
-            ),
+            vertexBuffer: RenderEngine.shared.getBuffer(for: rid),
             vertexCount: mdlMesh.vertexCount,
             surfaces: []
         )
         
         for (index, submesh) in (mdlMesh.submeshes as! [MDLSubmesh]).enumerated() {
+            
+            let rid = RenderEngine.shared.makeBuffer(
+                bytes: submesh.indexBuffer.map().bytes,
+                length: submesh.indexBuffer.length,
+                options: []
+            )
+            
             let surface = Mesh.Surface(
                 id: index,
                 name: submesh.name,
                 primitiveType: .triangles,
                 isUInt32: submesh.indexType == .uInt32,
-                indexBuffer: RenderEngine.shared.makeBuffer(
-                    bytes: submesh.indexBuffer.map().bytes,
-                    length: submesh.indexBuffer.length,
-                    options: []
-                ),
+                indexBuffer: RenderEngine.shared.getBuffer(for: rid),
                 indexCount: submesh.indexCount,
                 materialIndex: 0
             )

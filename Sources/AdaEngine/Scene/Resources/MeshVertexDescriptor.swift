@@ -75,6 +75,8 @@ public struct MeshVertexDescriptor: Codable {
         
         case uint
         
+        case float
+        
         case vector4
         case vector3
         case vector2
@@ -231,6 +233,7 @@ extension MeshVertexDescriptor.VertexFormat {
     var mdlVertexFormat: MDLVertexFormat {
         switch self {
         case .uint: return .uInt
+        case .float: return .float
         case .vector4: return .float4
         case .vector3: return .float3
         case .vector2: return .float2
@@ -244,6 +247,7 @@ extension MeshVertexDescriptor.VertexFormat {
     init(vertexFormat: MDLVertexFormat) {
         switch vertexFormat {
         case .uInt: self = .uint
+        case .float: self = .float
         case .float4: self = .vector4
         case .float3: self = .vector3
         case .float2: self = .vector2
@@ -252,6 +256,22 @@ extension MeshVertexDescriptor.VertexFormat {
         case .half2: self = .matrix2x2
         default:
             self = .invalid
+        }
+    }
+}
+
+extension MeshVertexDescriptor.VertexFormat {
+    var metalFormat: MTLVertexFormat {
+        switch self {
+        case .uint: return MTLVertexFormat.uint
+        case .vector4: return .float4
+        case .float: return .float
+        case .vector3: return .float3
+        case .vector2: return .float2
+        case .matrix4x4: return .half4
+        case .matrix3x3: return .half3
+        case .matrix2x2: return .half2
+        case .invalid: return .invalid
         }
     }
 }

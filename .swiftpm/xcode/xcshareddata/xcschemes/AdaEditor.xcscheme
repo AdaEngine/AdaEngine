@@ -73,6 +73,7 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
+      enableGPUShaderValidationMode = "2"
       allowLocationSimulation = "YES">
       <PreActions>
          <ExecutionAction

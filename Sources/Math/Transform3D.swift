@@ -275,6 +275,31 @@ public extension Transform3D {
         )
     }
     
+    /// - SeeAlso: https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixorthooffcenterlh
+    static func orthogonal(
+        left: Float,
+        right: Float,
+        top: Float,
+        bottom: Float,
+        zNear: Float,
+        zFar: Float
+    ) -> Transform3D {
+        
+        let m00 = 2/(right-left)
+        let m11 = 2/(top-bottom)
+        let m22 = 1/(zFar-zNear)
+        let m03 = (left+right)/(left-right)
+        let m13 = (top+bottom)/(bottom-top)
+        let m23 = zNear/(zNear-zFar)
+        
+        return Transform3D(
+            [m00, 0,   0,   0],
+            [0,   m11, 0,   0],
+            [0,   0,   m22, 0],
+            [m03, m13, m23, 1]
+        )
+    }
+    
     func rotate(angle: Angle, axis: Vector3) -> Transform3D {
         let c = cos(angle.radians)
         let s = sin(angle.radians)

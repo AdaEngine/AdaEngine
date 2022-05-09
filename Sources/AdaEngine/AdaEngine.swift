@@ -19,8 +19,7 @@ final public class Engine {
     
     // MARK: Private
     
-    private init() {
-    }
+    private init() { }
     
     // MARK: - Internal Methods
     
@@ -30,4 +29,7 @@ final public class Engine {
     
     // MARK: - Public Methods
     
+    public func setRootScene(_ scene: Scene) {
+        SceneManager.shared.presentScene(scene)
+    }
 }

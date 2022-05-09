@@ -13,6 +13,7 @@ open class Entity {
     
     public var name: String
     
+    // TODO: Replace to UInt32 to avoid big capacity on id
     public private(set) var identifier: UUID
     
     public internal(set) var components: ComponentSet
@@ -27,6 +28,7 @@ open class Entity {
     
     public internal(set) var children: OrderedSet<Entity>
     
+    // TODO: Looks like parentnes not a good choice to ECS data oriented way
     public internal(set) weak var parent: Entity?
     
     public init(name: String = "Entity") {
@@ -78,16 +80,13 @@ open class Entity {
 
     }
     
-    open func physicsUpdate(_ deltaTime: TimeInterval) {
-//        for component in components.buffer.values where component.isAwaked {
-//            component.physicsUpdate(deltaTime)
-//        }
-    }
+    open func physicsUpdate(_ deltaTime: TimeInterval) { }
     
     public func removeFromScene() {
         self.scene?.removeEntity(self)
     }
     
+    // TODO: think about more cache frendly
     func performQuery(_ query: EntityQuery) -> [Entity] {
         var entities = [Entity]()
         

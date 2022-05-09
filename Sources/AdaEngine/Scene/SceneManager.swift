@@ -8,15 +8,7 @@
 public class SceneManager {
     public static let shared = SceneManager()
     
-    public var currentScene: Scene? {
-        didSet {
-            if let scene = self.currentScene {
-                if CameraManager.shared.currentCamera == nil {
-                    CameraManager.shared.setCurrentCamera(scene.defaultCamera)
-                }
-            }
-        }
-    }
+    public var currentScene: Scene?
     
     // MARK: - Private
     
@@ -29,6 +21,7 @@ public class SceneManager {
     // MARK: - Public Methods
     
     public func presentScene(_ scene: Scene) {
+        scene.sceneManager = self
         self.currentScene = scene
     }
     

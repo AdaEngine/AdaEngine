@@ -33,6 +33,10 @@ open class ScriptComponent: Component {
         
     }
     
+    open func onEvent(_ event: Set<Event>) {
+        
+    }
+    
     /// Called once when component removed from entity
     open func destroy() {
         

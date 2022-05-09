@@ -8,31 +8,34 @@
 import Foundation
 import OrderedCollections
 
-public class Scene {
+public final class Scene {
     
     public var name: String
     public private(set) var id: UUID
     
     var entities: OrderedSet<Entity> = []
 
-    var defaultCamera: Camera
+    var activeCamera: Camera
     
     var systems: [System] = []
     
+    public weak var sceneManager: SceneManager?
+    
     public init(name: String = "") {
         self.id = UUID()
-        self.name = name.isEmpty ? "Scene \(id.uuidString)" : name
+        self.name = name.isEmpty ? "Scene" : name
         let cameraEntity = Entity()
         
         let cameraComponent = Camera()
         cameraEntity.components[Camera.self] = cameraComponent
         self.entities.append(cameraEntity)
         
-        self.defaultCamera = cameraComponent
+        self.activeCamera = cameraComponent
         
         defer {
             self.addSystem(ScriptComponentUpdateSystem.self)
             self.addSystem(CameraSystem.self)
+            self.addSystem(Circle2DRenderSystem.self)
         }
     }
     
@@ -149,5 +152,37 @@ public extension Scene {
 extension Scene: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name, entities, systems
+    }
+}
+
+class ViewportEntity: Entity {
+    
+    init(scene: Scene, size: Vector2i, name: String? = nil) {
+        super.init(name: name ?? "ViewportEntity-\(scene.name)")
+        
+        self.components[ViewportComponent.self] = ViewportComponent(scene: scene, size: size)
+    }
+    
+    public required convenience init(from decoder: Decoder) throws {
+        fatalError()
+    }
+    
+}
+
+struct ViewportComponent: Component {
+    var scene: Scene
+    var size: Vector2i
+}
+
+struct ViewportComponentSystem: System {
+    
+    static let query = EntityQuery(.has(ViewportComponent.self))
+    
+    init(scene: Scene) { }
+    
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.query).forEach {
+            $0.components[ViewportComponent.self]?.scene.update(context.deltaTime)
+        }
     }
 }

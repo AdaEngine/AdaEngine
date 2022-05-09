@@ -43,7 +43,7 @@ public class Camera: ScriptComponent {
     // MARK: Computed Properties
     
     public var isCurrent: Bool {
-        return CameraManager.shared.currentCamera === self
+        return self.entity?.scene?.activeCamera === self
     }
     
     // MARK: - Internal
@@ -55,7 +55,14 @@ public class Camera: ScriptComponent {
         
         switch self.projection {
         case .orthographic:
-            projection = .identity
+            projection = Transform3D.orthogonal(
+                left: Float(viewportSize.x / -2),
+                right: Float(viewportSize.x / 2),
+                top: Float(viewportSize.y / 2),
+                bottom: Float(viewportSize.y / -2),
+                zNear: self.near,
+                zFar: self.far
+            )
         case .perspective:
             projection = Transform3D.perspective(
                 fieldOfView: self.fieldOfView,

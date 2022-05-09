@@ -19,7 +19,7 @@ public final class Input {
     
     internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
- 
+    
     public static var horizontal: Bool {
         fatalError("")
     }
@@ -108,112 +108,110 @@ public final class Input {
     }
 }
 
-extension Input {
-    public class Event: Hashable, Identifiable {
-        
-        public let time: TimeInterval
-        
-        internal init(time: TimeInterval) {
-            self.time = time
-        }
-        
-        public static func == (lhs: Input.Event, rhs: Input.Event) -> Bool {
-            return lhs.time == rhs.time
-        }
-        
-        public func hash(into hasher: inout Hasher) {
-            hasher.combine(time)
-        }
-        
+public class Event: Hashable, Identifiable {
+    
+    public let time: TimeInterval
+    
+    internal init(time: TimeInterval) {
+        self.time = time
     }
     
-    public class KeyEvent: Event {
-        
-        public enum Status: UInt8, Hashable {
-            case up
-            case down
-        }
-        
-        public let keyCode: KeyCode
-        public let modifiers: KeyModifier
-        public let status: Status
-        
-        internal init(keyCode: KeyCode, modifiers: KeyModifier, status: Status, time: TimeInterval) {
-            self.keyCode = keyCode
-            self.modifiers = modifiers
-            self.status = status
-            
-            super.init(time: time)
-        }
-        
-        public override func hash(into hasher: inout Hasher) {
-            hasher.combine(keyCode)
-            hasher.combine(modifiers)
-        }
-        
+    public static func == (lhs: Event, rhs: Event) -> Bool {
+        return lhs.time == rhs.time
     }
     
-    public final class MouseEvent: Event {
-        
-        public enum Phase: UInt8, Hashable {
-            case began
-            case changed
-            case ended
-            case cancelled
-        }
-        
-        let button: MouseButton
-        let mousePosition: Vector2
-        let phase: Phase
-        
-        init(button: MouseButton, mousePosition: Vector2, phase: Phase, time: TimeInterval) {
-            self.button = button
-            self.mousePosition = mousePosition
-            self.phase = phase
-            super.init(time: time)
-        }
-        
-        public override func hash(into hasher: inout Hasher) {
-            hasher.combine(button)
-            hasher.combine(time)
-            hasher.combine(phase)
-        }
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(time)
     }
     
-    public final class TouchEvent: Event {
+}
+
+public class KeyEvent: Event {
+    
+    public enum Status: UInt8, Hashable {
+        case up
+        case down
+    }
+    
+    public let keyCode: KeyCode
+    public let modifiers: KeyModifier
+    public let status: Status
+    
+    internal init(keyCode: KeyCode, modifiers: KeyModifier, status: Status, time: TimeInterval) {
+        self.keyCode = keyCode
+        self.modifiers = modifiers
+        self.status = status
         
-        internal init(location: Vector2, time: TimeInterval) {
-            self.location = location
-            super.init(time: time)
-        }
-        
-        public let location: Vector2
-        
-        public override func hash(into hasher: inout Hasher) {
-            hasher.combine(location)
-            hasher.combine(time)
-        }
+        super.init(time: time)
+    }
+    
+    public override func hash(into hasher: inout Hasher) {
+        hasher.combine(keyCode)
+        hasher.combine(modifiers)
+    }
+    
+}
+
+public final class MouseEvent: Event {
+    
+    public enum Phase: UInt8, Hashable {
+        case began
+        case changed
+        case ended
+        case cancelled
+    }
+    
+    let button: MouseButton
+    let mousePosition: Vector2
+    let phase: Phase
+    
+    init(button: MouseButton, mousePosition: Vector2, phase: Phase, time: TimeInterval) {
+        self.button = button
+        self.mousePosition = mousePosition
+        self.phase = phase
+        super.init(time: time)
+    }
+    
+    public override func hash(into hasher: inout Hasher) {
+        hasher.combine(button)
+        hasher.combine(time)
+        hasher.combine(phase)
+    }
+}
+
+public final class TouchEvent: Event {
+    
+    internal init(location: Vector2, time: TimeInterval) {
+        self.location = location
+        super.init(time: time)
+    }
+    
+    public let location: Vector2
+    
+    public override func hash(into hasher: inout Hasher) {
+        hasher.combine(location)
+        hasher.combine(time)
     }
 }
 
 public protocol InputEventHandler: AnyObject {
-    func mouseUp(_ event: Input.MouseEvent)
+    func mouseUp(_ event: MouseEvent)
     
-    func mouseDown(_ event: Input.MouseEvent)
+    func mouseDown(_ event: MouseEvent)
     
-    func keyUp(_ event: Input.KeyEvent)
+    func keyUp(_ event: KeyEvent)
     
-    func keyDown(_ event: Input.KeyEvent)
+    func keyDown(_ event: KeyEvent)
 }
 
 public extension InputEventHandler {
-    func mouseUp(_ event: Input.MouseEvent) { }
+    func mouseUp(_ event: MouseEvent) { }
     
-    func mouseDown(_ event: Input.MouseEvent) { }
+    func mouseDown(_ event: MouseEvent) { }
     
-    func keyUp(_ event: Input.KeyEvent) { }
+    func keyUp(_ event: KeyEvent) { }
     
-    func keyDown(_ event: Input.KeyEvent) { }
+    func keyDown(_ event: KeyEvent) { }
 }
 
 class WeakBox<T: AnyObject>: Identifiable, Hashable {
