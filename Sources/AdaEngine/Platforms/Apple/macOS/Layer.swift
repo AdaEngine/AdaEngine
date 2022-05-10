@@ -7,14 +7,48 @@
 
 import Yams
 
+class ControllCircleComponent: ScriptComponent {
+    
+    @RequiredComponent var circle: Circle2DComponent
+    
+    override func update(_ deltaTime: TimeInterval) {
+        if Input.isKeyPressed(.arrowUp) {
+            self.circle.thickness += 0.1
+        }
+        
+        if Input.isKeyPressed(.arrowDown) {
+            self.circle.thickness -= 0.1
+        }
+
+        if Input.isKeyPressed(.arrowLeft) {
+            self.transform.position.y -= 1
+        }
+        
+        if Input.isKeyPressed(.arrowRight) {
+            self.transform.position.y += 1
+        }
+    }
+}
+
 class GameScene {
     func makeScene() -> Scene {
         let scene = Scene()
         
-        let boxEntity = Entity(name: "box")
-        boxEntity.components[Circle2DComponent.self] = Circle2DComponent(radius: 1, color: .orange)
+        let boxEntity = Entity(name: "box-1")
+        boxEntity.components[Circle2DComponent.self] = Circle2DComponent(color: .orange)
         
+        boxEntity.components[ControllCircleComponent.self] = ControllCircleComponent()
         scene.addEntity(boxEntity)
+        
+        let boxEntity1 = Entity(name: "box-2")
+        boxEntity1.components[Circle2DComponent.self] = Circle2DComponent(
+            color: .green,
+            thickness: 0.1
+        )
+        
+        boxEntity1.components[Transform.self]?.position.x = 0.4
+        scene.addEntity(boxEntity1)
+        
 //        let meshRenderer = MeshRenderer()
 //        meshRenderer.materials = [BaseMaterial(diffuseColor: .red, metalic: 0)]
 //        let mesh = Mesh.generateBox(extent: Vector3(1, 1, 1), segments: Vector3(1, 1, 1))
@@ -37,13 +71,9 @@ class GameScene {
         let camera = EditorCamera()
         camera.isPrimal = true
         userEntity.components.set(camera)
-//        camera.transform.position.z = 1
         
         scene.addEntity(userEntity)
         
-        
-        
-        userEntity.addChild(Entity(name: "child"))
 //
 //        let decoder = YAMLDecoder()
 //        let encoder = YAMLEncoder()

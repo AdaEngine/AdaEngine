@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-import Math
-
 struct Uniforms {
     var modelMatrix: Transform3D = .identity
     var viewMatrix: Transform3D = .identity
@@ -48,9 +46,13 @@ protocol RenderBackend: AnyObject {
     
     func getBuffer(for rid: RID) -> RenderBuffer
     
-    func makeIndexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer, length: Int) -> RID
+    func makeIndexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID
     
-    func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer, length: Int) -> RID
+    func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID
+    
+    func setVertexBufferData(_ vertexBuffer: RID, bytes: UnsafeRawPointer, length: Int)
+    
+    func setIndexBufferData(_ indexBuffer: RID, bytes: UnsafeRawPointer, length: Int)
     
     // MARK: - Shaders
     
@@ -85,4 +87,6 @@ protocol RenderBackend: AnyObject {
     func bindDebugName(name: String, forDraw drawId: RID)
     
     func draw(_ list: RID, indexCount: Int, instancesCount: Int)
+    
+    func drawEnd(_ drawId: RID)
 }

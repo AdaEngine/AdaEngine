@@ -9,18 +9,19 @@
 import Vulkan
 import CVulkan
 import CSDL2
-import Math
 import Foundation
 import AppKit
 import MetalKit
 
 class MacAppDelegate: NSObject, NSApplicationDelegate {
     
-    let window = NSWindow(contentRect: NSMakeRect(200, 200, 800, 600),
-                          styleMask: [.titled, .closable, .resizable, .miniaturizable],
-                          backing: .buffered,
-                          defer: false,
-                          screen: NSScreen.main)
+    let window = NSWindow(
+        contentRect: NSMakeRect(200, 200, 800, 600),
+        styleMask: [.titled, .closable, .resizable, .miniaturizable],
+        backing: .buffered,
+        defer: false,
+        screen: NSScreen.main
+    )
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         window.makeKeyAndOrderFront(nil)

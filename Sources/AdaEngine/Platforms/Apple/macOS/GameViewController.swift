@@ -9,7 +9,6 @@
 
 import AppKit
 import MetalKit
-import Math
 import Yams
 
 final class GameViewController: NSViewController {
@@ -94,7 +93,7 @@ final class EditorCamera: Camera {
     
     override func update(_ deltaTime: TimeInterval) {
         
-        self.mouseEvent()
+//        self.mouseEvent()
         
         if Input.isKeyPressed(.w) {
             self.transform.position += speed * cameraFront * deltaTime

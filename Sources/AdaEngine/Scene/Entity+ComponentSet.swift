@@ -109,3 +109,32 @@ public extension Entity {
         }
     }
 }
+
+public extension Entity.ComponentSet {
+    /// Gets the components of the specified types.
+    subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
+        return (
+            buffer[a.swiftName] as! A,
+            buffer[b.swiftName] as! B
+        )
+    }
+    
+    /// Gets the components of the specified types.
+    subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
+        return (
+            buffer[a.swiftName] as! A,
+            buffer[b.swiftName] as! B,
+            buffer[c.swiftName] as! C
+        )
+    }
+    
+    /// Gets the components of the specified types.
+    subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
+        return (
+            buffer[a.swiftName] as! A,
+            buffer[b.swiftName] as! B,
+            buffer[c.swiftName] as! C,
+            buffer[d.swiftName] as! D
+        )
+    }
+}

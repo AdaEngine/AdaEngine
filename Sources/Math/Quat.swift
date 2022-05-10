@@ -13,7 +13,7 @@ public struct Quat {
     public var w: Float
 }
 
-extension Quat: Codable {}
+extension Quat: Codable, Equatable, Hashable {}
 
 extension Quat: CustomStringConvertible {
     public var description: String {

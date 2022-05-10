@@ -19,7 +19,7 @@ enum BufferIndex {
 class MetalRenderBackend: RenderBackend {
     
     let context: Context
-    var currentBufferIndex: Int = 0
+    var currentFrameIndex: Int = 0
     var currentBuffers: [MTLCommandBuffer] = []
     var maxFramesInFlight = 3
     
@@ -60,21 +60,30 @@ class MetalRenderBackend: RenderBackend {
         self.context.windowUpdateSize(newSize)
     }
     
+    var currentBuffer: MTLCommandBuffer!
+    
     func beginFrame() throws {
-        
         self.inFlightSemaphore.wait()
+        self.currentBuffer = self.context.commandQueue.makeCommandBuffer()
+    }
+    
+    func endFrame() throws {
+//        self.inFlightSemaphore.wait()
+//        self.currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
+//        let currentBuffer = self.currentBuffers[self.currentFrameIndex]
         
-        self.currentBufferIndex = (currentBufferIndex + 1) % maxFramesInFlight
-        let currentBuffer = self.currentBuffers[self.currentBufferIndex]
+        
+        guard let currentDrawable = self.context.view.currentDrawable else {
+            return
+        }
+        
+        currentBuffer.present(currentDrawable)
         
         currentBuffer.addCompletedHandler { _ in
             self.inFlightSemaphore.signal()
         }
-    }
-    
-    func endFrame() throws {
-        self.cameraData = nil
-        self.drawableList = nil
+        
+        currentBuffer.commit()
     }
     
     func sync() {
@@ -123,7 +132,7 @@ class MetalRenderBackend: RenderBackend {
     
     func makeShader(_ shaderName: String, vertexFuncName: String, fragmentFuncName: String) -> RID {
         do {
-            let url = Bundle.module.url(forResource: "default", withExtension: "metallib")!
+            let url = Bundle.module.url(forResource: shaderName, withExtension: "metallib")!
             let library = try self.context.device.makeLibrary(URL: url)
             let vertexFunc = library.makeFunction(name: vertexFuncName)!
             let fragmentFunc = library.makeFunction(name: fragmentFuncName)!
@@ -184,18 +193,44 @@ class MetalRenderBackend: RenderBackend {
     
     // MARK: - Buffers
     
-    func makeIndexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer, length: Int) -> RID {
-        let buffer = self.context.device.makeBuffer(bytes: bytes, length: length, options: .storageModeShared)!
+    func makeIndexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID {
+        let buffer = self.context.device.makeBuffer(length: length, options: .storageModeShared)!
+        
+        if let bytes = bytes {
+            buffer.contents().copyMemory(from: bytes, byteCount: length)
+        }
         
         let indexBuffer = Buffer(buffer: buffer, offset: offset, index: index)
         return self.indexBuffers.setValue(indexBuffer)
     }
     
-    func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer, length: Int) -> RID {
-        let buffer = self.context.device.makeBuffer(bytes: bytes, length: length, options: .storageModeShared)!
+    func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID {
+        let buffer = self.context.device.makeBuffer(length: length, options: .storageModeShared)!
+        
+        if let bytes = bytes {
+            buffer.contents().copyMemory(from: bytes, byteCount: length)
+        }
         
         let indexBuffer = Buffer(buffer: buffer, offset: offset, index: index)
         return self.vertexBuffers.setValue(indexBuffer)
+    }
+    
+    func setVertexBufferData(_ vertexBuffer: RID, bytes: UnsafeRawPointer, length: Int) {
+        guard let buffer = self.vertexBuffers[vertexBuffer] else {
+            assertionFailure("Vertex buffer not found")
+            return
+        }
+        
+        buffer.buffer.contents().copyMemory(from: bytes, byteCount: length)
+    }
+    
+    func setIndexBufferData(_ indexBuffer: RID, bytes: UnsafeRawPointer, length: Int) {
+        guard let buffer = self.indexBuffers[indexBuffer] else {
+            assertionFailure("Vertex buffer not found")
+            return
+        }
+        
+        buffer.buffer.contents().copyMemory(from: bytes, byteCount: length)
     }
     
     func makeBuffer(length: Int, options: ResourceOptions) -> RID {
@@ -219,17 +254,18 @@ class MetalRenderBackend: RenderBackend {
     var drawList: ResourceHashMap<Draw> = [:]
 }
 
-struct Draw {
-    var debugName: String?
-    let commandBuffer: MTLCommandBuffer
-    let renderPassDescriptor: MTLRenderPassDescriptor
-    var vertexBuffer: RID? = nil
-    var indexBuffer: RID? = nil
-    var uniformSet: RID? = nil
-    var renderState: MTLRenderPipelineState? = nil
-}
-
 extension MetalRenderBackend {
+    
+    struct Draw {
+        var debugName: String?
+        let commandBuffer: MTLCommandBuffer
+        let renderPassDescriptor: MTLRenderPassDescriptor
+        var vertexBuffer: RID? = nil
+        var indexBuffer: RID? = nil
+        var uniformSet: RID? = nil
+        var renderState: MTLRenderPipelineState? = nil
+        var lineWidth: Float?
+    }
     
     struct Buffer {
         var buffer: MTLBuffer
@@ -250,7 +286,7 @@ extension MetalRenderBackend {
         }
         
         let draw = Draw(
-            commandBuffer: self.currentBuffers[self.currentBufferIndex],
+            commandBuffer: self.currentBuffer,//self.currentBuffers[self.currentFrameIndex],
             renderPassDescriptor: renderPass
         )
         return self.drawList.setValue(draw)
@@ -258,6 +294,10 @@ extension MetalRenderBackend {
     
     func bindDebugName(name: String, forDraw drawId: RID) {
         self.drawList[drawId]?.debugName = name
+    }
+    
+    func bindLineWidth(_ width: Float, forDraw drawId: RID) {
+        self.drawList[drawId]?.lineWidth = width
     }
     
     func bindRenderState(_ drawRid: RID, renderPassId: RID) {
@@ -311,7 +351,7 @@ extension MetalRenderBackend {
             fatalError("Can't find uniform for rid \(rid)")
         }
         var temp = value
-        memcpy(uniform.buffer.contents(), &temp, count)
+        uniform.buffer.contents().copyMemory(from: &temp, byteCount: MemoryLayout.stride(ofValue: value) * count)
     }
     
     func removeUniform(_ rid: RID) {
@@ -329,8 +369,8 @@ extension MetalRenderBackend {
         return self.resourceMap.setValue(texture)
     }
     
-    func draw(_ list: RID, indexCount: Int, instancesCount: Int) {
-        guard let draw = self.drawList[list] else {
+    func draw(_ drawRid: RID, indexCount: Int, instancesCount: Int) {
+        guard let draw = self.drawList[drawRid] else {
             fatalError("Draw list not found")
         }
         
@@ -370,17 +410,13 @@ extension MetalRenderBackend {
         
         encoder.endEncoding()
         
-        
-        guard let currentDrawable = self.context.view.currentDrawable else {
-            return
-        }
-        
-        draw.commandBuffer.present(currentDrawable)
-        draw.commandBuffer.commit()
-        
         if let _ = draw.debugName {
             draw.commandBuffer.popDebugGroup()
         }
+    }
+    
+    func drawEnd(_ drawId: RID) {
+        self.drawList[drawId] = nil
     }
     
 //    func drawDrawable(

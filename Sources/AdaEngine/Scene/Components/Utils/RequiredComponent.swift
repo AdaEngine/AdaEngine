@@ -12,7 +12,8 @@ public struct RequiredComponent<T: Component> {
     
     @available(*, unavailable, message: "RequiredComponents should call only inside `Component` classes.")
     public var wrappedValue: T {
-        fatalError()
+        set { fatalError() }
+        get { fatalError() }
     }
     
     public init() { }
@@ -21,9 +22,8 @@ public struct RequiredComponent<T: Component> {
     public static subscript<EnclosingSelf: ScriptComponent>(
         _enclosingInstance object: EnclosingSelf,
         wrapped wrappedKeyPath: KeyPath<EnclosingSelf, T>,
-        storage storageKeyPath: ReferenceWritableKeyPath<EnclosingSelf, Self>
+        storage storageKeyPath: ReferenceWritableKeyPath<EnclosingSelf, RequiredComponent>
     ) -> T {
-        
         get {
             return object.components[T.self]!
         }
@@ -31,7 +31,6 @@ public struct RequiredComponent<T: Component> {
         set {
             object.components[T.self] = newValue
         }
-        
     }
     
 }

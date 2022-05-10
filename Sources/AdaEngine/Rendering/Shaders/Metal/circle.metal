@@ -5,15 +5,15 @@ struct Uniforms {
     float4x4 view;
 };
 
-struct Vertex {
-    float3 worldPosition [[ attribute(0) ]];
+struct CircleVertex {
+    float4 worldPosition [[ attribute(0) ]];
     float3 localPosition [[ attribute(1) ]];
     float thickness [[ attribute(2) ]];
     float fade [[ attribute(3) ]];
     float4 color [[ attribute(4) ]];
 };
 
-struct VertexOut {
+struct CircleVertexOut {
     float4 position [[ position ]];
     float3 localPosition;
     float fade;
@@ -21,10 +21,10 @@ struct VertexOut {
     float4 color;
 };
 
-vertex VertexOut vertex_main(const Vertex vertexIn [[ stage_in ]], constant Uniforms &ubo [[ buffer(1) ]]) {
-    float4 position = ubo.view * float4(vertexIn.worldPosition, 1.0);
+vertex CircleVertexOut circle_vertex(const CircleVertex vertexIn [[ stage_in ]], constant Uniforms &ubo [[ buffer(1) ]]) {
+    float4 position = ubo.view * vertexIn.worldPosition;
                                       
-    VertexOut out {
+    CircleVertexOut out {
         .position = position,
         .fade = vertexIn.fade,
         .thickness = vertexIn.thickness,
@@ -35,17 +35,15 @@ vertex VertexOut vertex_main(const Vertex vertexIn [[ stage_in ]], constant Unif
     return out;
 }
 
-fragment float4 fragment_main(VertexOut in [[stage_in]]) {
+fragment float4 circle_fragment(CircleVertexOut in [[stage_in]]) {
     float distance = 1.0 - length(in.localPosition);
     float circle = smoothstep(0.0, in.fade, distance);
     circle *= smoothstep(in.thickness + in.fade, in.thickness, distance);
-                
-                
+    
     float4 color = in.color;
-    if (circle == 0.0) {
+    if (circle == 0.0)
         discard_fragment();
-    }
-
+    
     // Set output color
     color.a *= circle;
                 

@@ -124,6 +124,30 @@ class Transform3DTests: XCTestCase {
         assertQuatEquals(simdQuatNormalized, quatNormalized)
     }
     
+    func test_Transform3DMultipleVec4_And_SimdMatrix4MultipleVec4_AreEquals() {
+        // given
+        let columns = [
+            Vector4(1, 2, 0, 4),
+            Vector4(0, 1, 3, 4),
+            Vector4(5, 0, 1, 9),
+            Vector4(4, 0, 0, 1)
+        ]
+        
+        var simdMat = simd_float4x4(columns)
+        var transform = Transform3D(columns: columns)
+        
+        let vec4: Vector4 = [1, 2, 1, 2]
+        
+        // when
+        
+        let simdVec = simdMat * vec4
+        let myVec = transform * vec4
+        
+        // then
+        
+        XCTAssertEqual(simdVec, myVec)
+    }
+    
     func test_Transform3DInitializedFromSimd4x4Matrix_AreEquals() {
         // given
         let simdMatrix = matrix_float4x4([1, 2, 3, 4], [5, 6, 7, 8], [9, 7, 6, 5], [2, 3, 5, 7])
