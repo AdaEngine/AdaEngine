@@ -7,6 +7,34 @@
 
 import Yams
 
+struct ViewContainerSystem: System {
+    static let query = EntityQuery(.has(ViewContrainerComponent.self))
+    
+    init(scene: Scene) { }
+    
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.query).forEach { entity in
+            guard let container = entity.components[ViewContrainerComponent.self] else {
+                return
+            }
+            
+            if context.scene.viewportSize == .zero {
+                return
+            }
+            
+            if container.rootView.frame.size != context.scene.viewportSize {
+                container.rootView.frame.size = context.scene.viewportSize
+            }
+            
+            RenderEngine2D.shared.beginContext(in: container.rootView.frame)
+            
+            container.rootView.draw()
+            
+            RenderEngine2D.shared.commitContext()
+        }
+    }
+}
+
 class ControllCircleComponent: ScriptComponent {
     
     @RequiredComponent var circle: Circle2DComponent
@@ -33,21 +61,35 @@ class ControllCircleComponent: ScriptComponent {
 class GameScene {
     func makeScene() -> Scene {
         let scene = Scene()
+        scene.addSystem(ViewContainerSystem.self)
+//
+//        let boxEntity = Entity(name: "box-1")
+//        boxEntity.components[Circle2DComponent.self] = Circle2DComponent(color: .orange)
+//
+//        boxEntity.components[ControllCircleComponent.self] = ControllCircleComponent()
+//        scene.addEntity(boxEntity)
+//
+//        let boxEntity1 = Entity(name: "box-2")
+//        boxEntity1.components[Circle2DComponent.self] = Circle2DComponent(
+//            color: .green,
+//            thickness: 0.1
+//        )
+//
+//        boxEntity1.components[Transform.self]?.position.x = 0.4
+//        scene.addEntity(boxEntity1)
         
-        let boxEntity = Entity(name: "box-1")
-        boxEntity.components[Circle2DComponent.self] = Circle2DComponent(color: .orange)
+        let view = View()
+        view.backgroundColor = .red
         
-        boxEntity.components[ControllCircleComponent.self] = ControllCircleComponent()
-        scene.addEntity(boxEntity)
+        let blueView = View()
+        blueView.frame = Rect(offset: Vector2(x: 10, y: 10), size: Size(width: 30, height: 30))
+        blueView.backgroundColor = .blue
+        view.addSubview(blueView)
         
-        let boxEntity1 = Entity(name: "box-2")
-        boxEntity1.components[Circle2DComponent.self] = Circle2DComponent(
-            color: .green,
-            thickness: 0.1
-        )
+        let viewEntity = Entity(name: "View")
+        viewEntity.components[ViewContrainerComponent.self] = ViewContrainerComponent(rootView: view)
+        scene.addEntity(viewEntity)
         
-        boxEntity1.components[Transform.self]?.position.x = 0.4
-        scene.addEntity(boxEntity1)
         
 //        let meshRenderer = MeshRenderer()
 //        meshRenderer.materials = [BaseMaterial(diffuseColor: .red, metalic: 0)]
@@ -66,13 +108,13 @@ class GameScene {
 //        trainEntity.components[MeshRenderer.self] = trainMeshRenderer
 ////        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
 //        scene.addEntity(trainEntity)
-        
-        let userEntity = Entity(name: "user")
-        let camera = EditorCamera()
-        camera.isPrimal = true
-        userEntity.components.set(camera)
-        
-        scene.addEntity(userEntity)
+//
+//        let userEntity = Entity(name: "user")
+//        let camera = EditorCamera()
+//        camera.isPrimal = true
+//        userEntity.components.set(camera)
+//
+//        scene.addEntity(userEntity)
         
 //
 //        let decoder = YAMLDecoder()
@@ -86,7 +128,7 @@ class GameScene {
 //            print(error)
 //        }
 //
-        RenderEngine.shared.renderBackend.setClearColor(Color(212/255, 210/255, 213/255, 1))
+//        RenderEngine.shared.renderBackend.setClearColor(Color(212/255, 210/255, 213/255, 1))
         
         return scene
     }

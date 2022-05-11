@@ -46,25 +46,23 @@ public class RenderEngine {
     // MARK: Methods
     
     public func draw() throws {
-        guard self.renderBackend.viewportSize.x > 0 && self.renderBackend.viewportSize.y > 0 else {
+        guard self.renderBackend.viewportSize.width > 0 && self.renderBackend.viewportSize.height > 0 else {
             return
         }
         
         try self.renderBackend.beginFrame()
-        
-        
     }
     
     public func endDraw() throws {
         try self.renderBackend.endFrame()
     }
     
-    public func initialize(for view: RenderView, size: Vector2i) throws {
+    public func initialize(for view: RenderView, size: Size) throws {
         try self.renderBackend.createWindow(for: view, size: size)
     }
     
-    public func updateViewSize(newSize: Vector2i) throws {
-        guard newSize.x > 0 && newSize.y > 0 else {
+    public func updateViewSize(newSize: Size) throws {
+        guard newSize.width > 0 && newSize.height > 0 else {
             return
         }
         

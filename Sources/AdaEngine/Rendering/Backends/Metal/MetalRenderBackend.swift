@@ -39,12 +39,12 @@ class MetalRenderBackend: RenderBackend {
         self.context = Context()
     }
     
-    var viewportSize: Vector2i {
+    var viewportSize: Size {
         let viewport = self.context.viewport
-        return Vector2i(Int(viewport.width), Int(viewport.height))
+        return Size(width: Float(viewport.width), height: Float(viewport.height))
     }
     
-    func createWindow(for view: RenderView, size: Vector2i) throws {
+    func createWindow(for view: RenderView, size: Size) throws {
         let mtlView = (view as! MetalView)
         try self.context.createWindow(for: mtlView)
         
@@ -56,7 +56,7 @@ class MetalRenderBackend: RenderBackend {
         }
     }
     
-    func resizeWindow(newSize: Vector2i) throws {
+    func resizeWindow(newSize: Size) throws {
         self.context.windowUpdateSize(newSize)
     }
     
@@ -503,8 +503,8 @@ extension MetalRenderBackend {
             return view.preferredDevice ?? MTLCreateSystemDefaultDevice()!
         }
         
-        func windowUpdateSize(_ size: Vector2i) {
-            self.viewport = MTLViewport(originX: 0, originY: 0, width: Double(size.x), height: Double(size.y), znear: 0, zfar: 1)
+        func windowUpdateSize(_ size: Size) {
+            self.viewport = MTLViewport(originX: 0, originY: 0, width: Double(size.width), height: Double(size.height), znear: 0, zfar: 1)
         }
         
     }

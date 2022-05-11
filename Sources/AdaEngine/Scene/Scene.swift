@@ -19,6 +19,8 @@ public final class Scene {
     
     var systems: [System] = []
     
+    public var viewportSize: Size = .zero
+    
     public weak var sceneManager: SceneManager?
     
     public init(name: String = "") {

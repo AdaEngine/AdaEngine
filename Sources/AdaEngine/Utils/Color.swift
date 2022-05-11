@@ -62,6 +62,8 @@ public extension Color {
     static let brown = Color(red: 162 / 255, green: 132 / 255, blue: 94 / 255, alpha: 1)
     
     static let purple = Color(red: 175 / 255, green: 82 / 255, blue: 222 / 255, alpha: 1)
+    
+    static let clear = Color(red: 1, green: 1, blue: 1, alpha: 0)
 }
 
 public extension Color {

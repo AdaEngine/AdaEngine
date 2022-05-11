@@ -32,7 +32,10 @@ final class GameViewController: NSViewController {
             gameView.isPaused = true
             gameView.delegate = self
             
-            let size = Vector2i(x: Int(self.view.frame.size.width), y: Int(self.view.frame.size.height))
+            let size = Size(
+                width: Float(self.view.frame.size.width),
+                height: Float(self.view.frame.size.height)
+            )
             
             try renderer.initialize(for: gameView, size: size)
             
@@ -42,6 +45,8 @@ final class GameViewController: NSViewController {
         }
     }
     
+    var scene: Scene?
+    
     override func viewDidAppear() {
         super.viewDidAppear()
         
@@ -50,8 +55,8 @@ final class GameViewController: NSViewController {
         ViewportComponentSystem.registerSystem()
         
         let scene = gameScene.makeScene()
-        
         Engine.shared.setRootScene(scene)
+        self.scene = scene
     }
 }
 
@@ -65,7 +70,9 @@ extension GameViewController: MTKViewDelegate {
     
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         do {
-            try RenderEngine.shared.updateViewSize(newSize: Vector2i(x: Int(size.width), y: Int(size.height)))
+            let size = Size(width: Float(size.width), height: Float(size.height))
+            self.scene?.viewportSize = size
+            try RenderEngine.shared.updateViewSize(newSize: size)
         } catch {
             fatalError(error.localizedDescription)
         }

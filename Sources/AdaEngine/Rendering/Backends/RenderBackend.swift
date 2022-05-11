@@ -20,10 +20,10 @@ struct Vertex {
 
 protocol RenderBackend: AnyObject {
     
-    var viewportSize: Vector2i { get }
+    var viewportSize: Size { get }
     
-    func createWindow(for view: RenderView, size: Vector2i) throws
-    func resizeWindow(newSize: Vector2i) throws
+    func createWindow(for view: RenderView, size: Size) throws
+    func resizeWindow(newSize: Size) throws
 
     func beginFrame() throws
     func endFrame() throws

@@ -33,7 +33,7 @@ public class Camera: ScriptComponent {
     public var projection: Projection = .perspective
     
     @Export(skipped: true)
-    public var viewportSize: Vector2i = .zero
+    public var viewportSize: Size = .zero
     
     /// Set camera is active
     @Export
@@ -55,18 +55,20 @@ public class Camera: ScriptComponent {
         
         switch self.projection {
         case .orthographic:
-            projection = Transform3D.orthogonal(
-                left: Float(viewportSize.x / -2),
-                right: Float(viewportSize.x / 2),
-                top: Float(viewportSize.y / 2),
-                bottom: Float(viewportSize.y / -2),
-                zNear: self.near,
-                zFar: self.far
-            )
+//            projection = Transform3D.orthogonal(
+//                left: Float(viewportSize.width / -2),
+//                right: Float(viewportSize.x / 2),
+//                top: Float(viewportSize.y / 2),
+//                bottom: Float(viewportSize.y / -2),
+//                zNear: self.near,
+//                zFar: self.far
+//            )
+            
+            projection = .identity
         case .perspective:
             projection = Transform3D.perspective(
                 fieldOfView: self.fieldOfView,
-                aspectRatio: Float(viewportSize.x) / Float(viewportSize.y),
+                aspectRatio: Float(viewportSize.width) / Float(viewportSize.height),
                 zNear: self.near,
                 zFar: self.far
             )

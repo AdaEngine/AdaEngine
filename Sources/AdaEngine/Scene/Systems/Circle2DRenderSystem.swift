@@ -25,14 +25,10 @@ struct Circle2DRenderSystem: System {
         entities.forEach { entity in
             let (circle, transform) = entity.components[Circle2DComponent.self, Transform.self]
             
-            RenderEngine2D.shared.drawQuad(
-                transform: transform.matrix,
-                color: circle.color
-            )
+            RenderEngine2D.shared.setFillColor(circle.color)
             
             RenderEngine2D.shared.drawCircle(
                 transform: transform.matrix,
-                color: circle.color,
                 thickness: circle.thickness,
                 fade: circle.fade
             )

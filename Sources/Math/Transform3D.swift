@@ -78,6 +78,24 @@ public extension Transform3D {
         self.init(x, y, z, w)
     }
     
+    init(transform2D: Transform2D) {
+        var matrix = Transform3D.identity
+        
+        matrix[0, 0] = transform2D.x.x
+        matrix[0, 1] = transform2D.x.y
+        matrix[0, 2] = transform2D.x.z
+        
+        matrix[1, 0] = transform2D.y.x
+        matrix[1, 1] = transform2D.y.y
+        matrix[1, 2] = transform2D.y.z
+        
+        matrix[2, 0] = transform2D.z.x
+        matrix[2, 1] = transform2D.z.y
+        matrix[2, 2] = transform2D.z.z
+        
+        self = matrix
+    }
+    
 }
 
 extension Transform3D: CustomDebugStringConvertible {
@@ -191,6 +209,10 @@ public extension Transform3D {
         matrix[2, 2] = 1.0 - 2.0 * q.x * q.x - 2.0 * q.y * q.y
         
         self = matrix
+    }
+    
+    init(translation: Vector3, rotation: Quat, scale: Vector3) {
+        self = Transform3D(translation: translation) * Transform3D(quat: rotation) * Transform3D(scale: scale)
     }
 }
 

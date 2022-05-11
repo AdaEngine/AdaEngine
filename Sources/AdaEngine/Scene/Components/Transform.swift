@@ -14,7 +14,11 @@ public struct Transform: Component {
 
     public var matrix: Transform3D {
         get {
-            return Transform3D(scale: self.scale) * Transform3D(quat: self.rotation) * Transform3D(translation: self.position)
+            return Transform3D(
+                translation: self.position,
+                rotation: self.rotation,
+                scale: self.scale
+            )
         }
         
         set {
