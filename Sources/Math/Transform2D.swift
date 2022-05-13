@@ -140,6 +140,17 @@ public extension Transform2D {
         
         return quat
     }
+    
+    var position: Vector2 {
+        get {
+            Vector2(self[0, 2], self[1, 2])
+        }
+        
+        set {
+            self[0, 2] = newValue.x
+            self[1, 2] = newValue.y
+        }
+    }
 }
 
 extension Transform2D: Equatable { }

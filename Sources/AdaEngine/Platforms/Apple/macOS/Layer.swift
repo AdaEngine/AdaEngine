@@ -35,25 +35,36 @@ struct ViewContainerSystem: System {
     }
 }
 
-class ControllCircleComponent: ScriptComponent {
+class ControlCircleComponent: ScriptComponent {
     
-    @RequiredComponent var circle: Circle2DComponent
+//    @RequiredComponent var circle: Circle2DComponent
+    @RequiredComponent var viewHolder: ViewContrainerComponent
     
     override func update(_ deltaTime: TimeInterval) {
-        if Input.isKeyPressed(.arrowUp) {
-            self.circle.thickness += 0.1
+//        if Input.isKeyPressed(.arrowUp) {
+//            self.circle.thickness += 0.1
+//        }
+//
+//        if Input.isKeyPressed(.arrowDown) {
+//            self.circle.thickness -= 0.1
+//        }
+        
+        let view = viewHolder.rootView.subviews.first!
+
+        if Input.isKeyPressed(.arrowDown) {
+            view.frame.origin.y += 1
         }
         
-        if Input.isKeyPressed(.arrowDown) {
-            self.circle.thickness -= 0.1
+        if Input.isKeyPressed(.arrowUp) {
+            view.frame.origin.y -= 1
         }
-
+        
         if Input.isKeyPressed(.arrowLeft) {
-            self.transform.position.y -= 1
+            view.frame.origin.x += 1
         }
         
         if Input.isKeyPressed(.arrowRight) {
-            self.transform.position.y += 1
+            view.frame.origin.x -= 1
         }
     }
 }
@@ -82,12 +93,19 @@ class GameScene {
         view.backgroundColor = .red
         
         let blueView = View()
-        blueView.frame = Rect(offset: Vector2(x: 10, y: 10), size: Size(width: 30, height: 30))
-        blueView.backgroundColor = .blue
+        blueView.frame = Rect(origin: Vector2(x: 0, y: 0), size: Size(width: 130, height: 130))
+        blueView.backgroundColor = Color.blue.opacity(0.2)
         view.addSubview(blueView)
+        
+        let greenView = View()
+        greenView.frame = Rect(origin: Vector2(x: 0, y: 0), size: Size(width: 50, height: 50))
+        greenView.backgroundColor = Color.green
+        blueView.addSubview(greenView)
+        
         
         let viewEntity = Entity(name: "View")
         viewEntity.components[ViewContrainerComponent.self] = ViewContrainerComponent(rootView: view)
+        viewEntity.components[ControlCircleComponent.self] = ControlCircleComponent()
         scene.addEntity(viewEntity)
         
         

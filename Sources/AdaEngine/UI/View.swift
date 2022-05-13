@@ -9,11 +9,7 @@ import Math
 
 open class View {
     
-    open var frame: Rect = .zero {
-        didSet {
-            self.affineTransform = Transform2D(translation: self.frame.offset) * Transform2D(scale: Vector2(frame.size.width, frame.size.height))
-        }
-    }
+    open var frame: Rect = .zero
     
     public private(set) weak var superview: View?
     
@@ -31,21 +27,21 @@ open class View {
         }
     }
     
-    internal var worldTransform3D: Transform3D {
-        if let superview = superview {
-            return superview.worldTransform3D * self.transform3D
-        }
-        
-        return self.transform3D
-    }
-    
     public var transform3D: Transform3D = .identity
     
+    public convenience init(frame: Rect) {
+        self.init()
+        self.frame = frame
+    }
+    
+    public init() {
+        
+    }
+    
     open func draw(in rect: Rect) {
-        
+//        RenderEngine2D.shared.setOrhoTransform(for: rect)
         RenderEngine2D.shared.setFillColor(self.backgroundColor)
-        
-        RenderEngine2D.shared.drawQuad(transform: self.worldTransform3D)
+        RenderEngine2D.shared.drawQuad(rect)
         
         for subview in subviews {
             subview.draw()

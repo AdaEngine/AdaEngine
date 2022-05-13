@@ -46,7 +46,11 @@ protocol RenderBackend: AnyObject {
     
     func getBuffer(for rid: RID) -> RenderBuffer
     
-    func makeIndexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID
+    func makeIndexArray(indexBuffer: RID, indexOffset: Int, indexCount: Int) -> RID
+    
+    func makeVertexArray(vertexBuffers: [RID], vertexCount: Int) -> RID
+    
+    func makeIndexBuffer(offset: Int, index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer?, length: Int) -> RID
     
     func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID
     
@@ -76,9 +80,9 @@ protocol RenderBackend: AnyObject {
     
     func beginDrawList() -> RID
     
-    func bindVertexBuffer(_ drawRid: RID, vertexBuffer: RID)
+    func bindVertexArray(_ drawRid: RID, vertexArray: RID)
     
-    func bindIndexBuffer(_ drawRid: RID, indexBuffer: RID)
+    func bindIndexArray(_ drawRid: RID, indexArray: RID)
     
     func bindUniformSet(_ drawRid: RID, uniformSet: RID)
     

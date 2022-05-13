@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
+import Math
+
 public class RenderEngine2D {
     
     public static let shared = RenderEngine2D()
@@ -19,6 +21,7 @@ public class RenderEngine2D {
     var uniformRid: RID
     
     struct Data<V> {
+        var vertexArray: RID
         var vertexBuffer: RID
         var vertices: [V] = []
         var indeciesCount: Int = 0
@@ -30,8 +33,9 @@ public class RenderEngine2D {
     var quadPosition: [Vector4] = []
     
     var quadIndexBuffer: RID
+    var indexArray: RID
     
-    static var maxQuads = 20000
+    static var maxQuads = 100_000
     static var maxVerticies = maxQuads * 4
     static var maxIndecies = maxQuads * 6
     
@@ -67,30 +71,38 @@ public class RenderEngine2D {
         self.quadIndexBuffer = device.makeIndexBuffer(
             offset: 0,
             index: 0,
+            format: .uInt32,
             bytes: &quadIndices,
             length: Self.maxIndecies
         )
+        
+        self.indexArray = device.makeIndexArray(indexBuffer: self.quadIndexBuffer, indexOffset: 0, indexCount: Self.maxIndecies)
         
         self.circleData = Self.makeCircleData()
         self.quadData = Self.makeQuadData()
     }
     
+    /// Create orthogonal transform for this
     public func beginContext(in rect: Rect) {
+        self.setOrhoTransform(for: rect)
+        self.currentDraw = RenderEngine.shared.renderBackend.beginDrawList()
+    }
+    
+    public func setOrhoTransform(for rect: Rect) {
         let size = rect.size
-        let aspectRatio = size.width / size.height
+        
         let transform = Transform3D.orthogonal(
-            left: -aspectRatio,
-            right: aspectRatio,
-            top: -1,
-            bottom: 1,
-            zNear: -1,
+            left: -rect.minX,
+            right: size.width,
+            top: rect.minY,
+            bottom: -size.height,
+            zNear: 0,
             zFar: 1
         )
         
-        let uni = Uniform(view: transform * Transform3D.identity)
+        let uni = Uniform(view: transform)
+//        self.uniform = uni
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
-        
-        self.currentDraw = RenderEngine.shared.renderBackend.beginDrawList()
     }
     
     public func beginContext(_ camera: Camera) {
@@ -108,6 +120,18 @@ public class RenderEngine2D {
     
     public func drawQuad(_ rect: Rect) {
         
+        if rect.size.width < 0 || rect.size.height < 0 {
+            return
+        }
+        
+        let transform = Transform3D(
+            [rect.size.width, 0, 0, 0],
+            [0, rect.size.height, 0, 0 ],
+            [0, 0, 1.0, 0.0],
+            [rect.size.width / 2 + rect.minX, -rect.size.height / 2 + rect.minY, 0, 1]
+        )
+        
+        self.drawQuad(transform: transform)
     }
     
     public func drawQuad(transform: Transform3D) {
@@ -160,9 +184,9 @@ public class RenderEngine2D {
                 length: self.quadData.vertices.count * MemoryLayout<QuadVertexData>.stride
             )
            
-            device.bindVertexBuffer(self.currentDraw, vertexBuffer: self.quadData.vertexBuffer)
+            device.bindVertexArray(self.currentDraw, vertexArray: self.quadData.vertexArray)
             device.bindRenderState(self.currentDraw, renderPassId: self.quadData.piplineState)
-            device.bindIndexBuffer(self.currentDraw, indexBuffer: self.quadIndexBuffer)
+            device.bindIndexArray(self.currentDraw, indexArray: self.indexArray)
             
             device.draw(self.currentDraw, indexCount: self.quadData.indeciesCount, instancesCount: 1)
         }
@@ -175,9 +199,9 @@ public class RenderEngine2D {
                 length: self.circleData.vertices.count * MemoryLayout<CircleVertexData>.stride
             )
            
-            device.bindVertexBuffer(self.currentDraw, vertexBuffer: self.circleData.vertexBuffer)
+            device.bindVertexArray(self.currentDraw, vertexArray: self.circleData.vertexArray)
             device.bindRenderState(self.currentDraw, renderPassId: self.circleData.piplineState)
-            device.bindIndexBuffer(self.currentDraw, indexBuffer: self.quadIndexBuffer)
+            device.bindIndexArray(self.currentDraw, indexArray: self.indexArray)
             
             device.draw(self.currentDraw, indexCount: self.circleData.indeciesCount, instancesCount: 1)
         }
@@ -249,15 +273,17 @@ extension RenderEngine2D {
         device.bindLayouts(layouts: layouts, forShader: shader)
         let circlePiplineState = device.makePipelineState(for: shader)
         
-        let circleVertexBuffer = device.makeVertexBuffer(
+        let vertexBuffer = device.makeVertexBuffer(
             offset: 0,
             index: 0,
             bytes: nil,
             length: MemoryLayout<CircleVertexData>.stride * Self.maxVerticies
         )
         
+        let vertexArray = device.makeVertexArray(vertexBuffers: [vertexBuffer], vertexCount: Self.maxVerticies)
         return Data<CircleVertexData>(
-            vertexBuffer: circleVertexBuffer,
+            vertexArray: vertexArray,
+            vertexBuffer: vertexBuffer,
             vertices: [],
             indeciesCount: 0,
             piplineState: circlePiplineState
@@ -292,7 +318,10 @@ extension RenderEngine2D {
             length: MemoryLayout<QuadVertexData>.stride * Self.maxVerticies
         )
         
+        let vertexArray = device.makeVertexArray(vertexBuffers: [vertexBuffer], vertexCount: Self.maxVerticies)
+        
         return Data<QuadVertexData>(
+            vertexArray: vertexArray,
             vertexBuffer: vertexBuffer,
             vertices: [],
             indeciesCount: 0,

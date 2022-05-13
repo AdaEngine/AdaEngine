@@ -16,7 +16,14 @@ enum BufferIndex {
     static let material = 2
 }
 
+enum IndexBufferFormat {
+    case uInt32
+    case uInt16
+}
+
 class MetalRenderBackend: RenderBackend {
+    
+    var shaders: ResourceHashMap<Shader> = [:]
     
     let context: Context
     var currentFrameIndex: Int = 0
@@ -27,6 +34,9 @@ class MetalRenderBackend: RenderBackend {
     var vertexBuffers: ResourceHashMap<Buffer> = [:]
     var indexBuffers: ResourceHashMap<Buffer> = [:]
     var uniformSet: ResourceHashMap<Uniform> = [:]
+    
+    var indexArrays: ResourceHashMap<IndexArray> = [:]
+    var vertexArrays: ResourceHashMap<VertexArray> = [:]
     
     var renderPipelineStateMap: ResourceHashMap<MTLRenderPipelineState> = [:]
     
@@ -112,22 +122,19 @@ class MetalRenderBackend: RenderBackend {
             pipelineDescriptor.fragmentFunction = fragmentFunc
             pipelineDescriptor.vertexDescriptor = try vertexDescriptor?.makeMTKVertexDescriptor()
             pipelineDescriptor.colorAttachments[0].pixelFormat = self.context.view.colorPixelFormat
+            pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+            pipelineDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha
+            pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
+            pipelineDescriptor.colorAttachments[0].rgbBlendOperation = .add
+            pipelineDescriptor.colorAttachments[0].alphaBlendOperation = .add
+            pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+            pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
             
             let state = try self.context.device.makeRenderPipelineState(descriptor: pipelineDescriptor)
             return self.renderPipelineStateMap.setValue(state)
         } catch {
             fatalError(error.localizedDescription)
         }
-    }
-    
-    var shaders: ResourceHashMap<Shader> = [:]
-    
-    struct Shader {
-        let binary: MTLLibrary
-        let vertexFunction: MTLFunction
-        let fragmentFunction: MTLFunction
-        
-        var vertexDescriptor: MTLVertexDescriptor = MTLVertexDescriptor()
     }
     
     func makeShader(_ shaderName: String, vertexFuncName: String, fragmentFuncName: String) -> RID {
@@ -193,14 +200,34 @@ class MetalRenderBackend: RenderBackend {
     
     // MARK: - Buffers
     
-    func makeIndexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID {
+    func makeIndexArray(indexBuffer ibRid: RID, indexOffset: Int, indexCount: Int) -> RID {
+        guard let indexBuffer = self.indexBuffers[ibRid] else {
+            fatalError("Can't find index buffer for rid - \(ibRid)")
+        }
+        
+        let array = IndexArray(
+            buffer: ibRid,
+            format: indexBuffer.indexFormat!,
+            offset: indexOffset,
+            indecies: indexCount
+        )
+        
+        return self.indexArrays.setValue(array)
+    }
+    
+    func makeVertexArray(vertexBuffers: [RID], vertexCount: Int) -> RID {
+        let array = VertexArray(buffers: vertexBuffers, vertexCount: vertexCount)
+        return self.vertexArrays.setValue(array)
+    }
+    
+    func makeIndexBuffer(offset: Int, index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer?, length: Int) -> RID {
         let buffer = self.context.device.makeBuffer(length: length, options: .storageModeShared)!
         
         if let bytes = bytes {
             buffer.contents().copyMemory(from: bytes, byteCount: length)
         }
         
-        let indexBuffer = Buffer(buffer: buffer, offset: offset, index: index)
+        let indexBuffer = Buffer(buffer: buffer, offset: offset, index: index, indexFormat: format)
         return self.indexBuffers.setValue(indexBuffer)
     }
     
@@ -260,8 +287,8 @@ extension MetalRenderBackend {
         var debugName: String?
         let commandBuffer: MTLCommandBuffer
         let renderPassDescriptor: MTLRenderPassDescriptor
-        var vertexBuffer: RID? = nil
-        var indexBuffer: RID? = nil
+        var vertexArray: RID? = nil
+        var indexArray: RID? = nil
         var uniformSet: RID? = nil
         var renderState: MTLRenderPipelineState? = nil
         var lineWidth: Float?
@@ -271,12 +298,35 @@ extension MetalRenderBackend {
         var buffer: MTLBuffer
         var offset: Int
         var index: Int
+        
+        /// Only for index buffer
+        var indexFormat: IndexBufferFormat?
     }
     
     struct Uniform {
         var buffer: MTLBuffer
         var offset: Int
         var index: Int
+    }
+    
+    struct IndexArray {
+        var buffer: RID
+        var format: IndexBufferFormat
+        var offset: Int = 0
+        var indecies: Int = 0
+    }
+    
+    struct VertexArray {
+        var buffers: [RID] = []
+        var vertexCount: Int = 0
+    }
+    
+    struct Shader {
+        let binary: MTLLibrary
+        let vertexFunction: MTLFunction
+        let fragmentFunction: MTLFunction
+        
+        var vertexDescriptor: MTLVertexDescriptor = MTLVertexDescriptor()
     }
     
     func beginDrawList() -> RID {
@@ -317,17 +367,17 @@ extension MetalRenderBackend {
         self.drawList[drawRid] = draw
     }
     
-    func bindVertexBuffer(_ drawRid: RID, vertexBuffer: RID) {
+    func bindVertexArray(_ drawRid: RID, vertexArray: RID) {
         var draw = self.drawList[drawRid]
         assert(draw != nil, "Draw is not exists")
-        draw?.vertexBuffer = vertexBuffer
+        draw?.vertexArray = vertexArray
         self.drawList[drawRid] = draw
     }
     
-    func bindIndexBuffer(_ drawRid: RID, indexBuffer: RID) {
+    func bindIndexArray(_ drawRid: RID, indexArray: RID) {
         var draw = self.drawList[drawRid]
         assert(draw != nil, "Draw is not exists")
-        draw?.indexBuffer = indexBuffer
+        draw?.indexArray = indexArray
         self.drawList[drawRid] = draw
     }
     
@@ -387,24 +437,38 @@ extension MetalRenderBackend {
             encoder.setRenderPipelineState(renderState)
         }
         
-        guard let ibRid = draw.indexBuffer, let indexBuffer = self.indexBuffers[ibRid] else {
-            fatalError("can't draw without index buffer")
+        guard let iaRid = draw.indexArray, let indexArray = self.indexArrays[iaRid] else {
+            fatalError("can't draw without index array")
         }
         
-        if let vbRid = draw.vertexBuffer, let vertexBuffer = self.vertexBuffers[vbRid] {
-            encoder.setVertexBuffer(vertexBuffer.buffer, offset: vertexBuffer.offset, index: vertexBuffer.index)
+        if let vaRid = draw.vertexArray, let vertexArray = self.vertexArrays[vaRid] {
+            
+            for vertexRid in vertexArray.buffers {
+                guard let vertexBuffer = self.vertexBuffers[vertexRid] else {
+                    continue
+                }
+                
+                encoder.setVertexBuffer(vertexBuffer.buffer, offset: vertexBuffer.offset, index: vertexBuffer.index)
+            }
+
         }
         
         if let usId = draw.uniformSet, let uniformSet = self.uniformSet[usId] {
             encoder.setVertexBuffer(uniformSet.buffer, offset: uniformSet.offset, index: uniformSet.index)
         }
         
+        guard let indexBuffer = self.indexBuffers[indexArray.buffer] else {
+            fatalError("Can't get index buffer for draw")
+        }
+        
+//        encoder.setTriangleFillMode(.lines)
+        
         encoder.drawIndexedPrimitives(
             type: .triangle,
             indexCount: indexCount,
-            indexType: .uint32,
+            indexType: indexArray.format == .uInt32 ? .uint32 : .uint16,
             indexBuffer: indexBuffer.buffer,
-            indexBufferOffset: indexBuffer.offset,
+            indexBufferOffset: indexArray.offset,
             instanceCount: instancesCount
         )
         

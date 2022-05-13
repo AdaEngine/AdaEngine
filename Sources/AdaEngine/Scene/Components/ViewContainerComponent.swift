@@ -6,6 +6,7 @@
 //
 
 @_exported import Math
+import CoreGraphics
 
 public struct ViewContrainerComponent: Component {
     public var rootView: View
@@ -31,8 +32,60 @@ public struct Size: Equatable, Codable, Hashable {
 }
 
 public struct Rect: Equatable, Codable, Hashable {
-    public var offset: Vector2
+    public var origin: Vector2
     public var size: Size
     
-    public static let zero = Rect(offset: .zero, size: .zero)
+    public init(origin: Vector2, size: Size) {
+        self.origin = origin
+        self.size = size
+    }
+}
+
+public extension Rect {
+    static let zero = Rect(origin: .zero, size: .zero)
+    
+    init(x: Float, y: Float, width: Float, height: Float) {
+        self.origin = [x, y]
+        self.size = Size(width: width, height: height)
+    }
+}
+
+public extension Rect {
+
+    // FIXME: Not work correctly in affine space
+    func applying(_ transform: Transform2D) -> Rect {
+        var newRect = self
+        newRect.origin.x += transform.position.x
+        newRect.origin.y += transform.position.y
+        return newRect
+    }
+    
+    func contains(point: Vector2) -> Bool {
+        !(point.x < self.minX || point.x > self.maxX ||
+        point.y < self.minX || point.y > self.maxY)
+    }
+    
+    var minX: Float {
+        return self.origin.x
+    }
+    
+    var maxX: Float {
+        return self.size.width
+    }
+    
+    var midX: Float {
+        return self.maxX / 2
+    }
+    
+    var minY: Float {
+        return self.origin.y
+    }
+    
+    var maxY: Float {
+        return self.size.height
+    }
+    
+    var midY: Float {
+        return self.maxY / 2
+    }
 }
