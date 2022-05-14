@@ -6,7 +6,8 @@
 //
 
 @_exported import Math
-import CoreGraphics
+
+public typealias Point = Vector2
 
 public struct ViewContrainerComponent: Component {
     public var rootView: View
@@ -32,10 +33,10 @@ public struct Size: Equatable, Codable, Hashable {
 }
 
 public struct Rect: Equatable, Codable, Hashable {
-    public var origin: Vector2
+    public var origin: Point
     public var size: Size
     
-    public init(origin: Vector2, size: Size) {
+    public init(origin: Point, size: Size) {
         self.origin = origin
         self.size = size
     }
@@ -60,7 +61,7 @@ public extension Rect {
         return newRect
     }
     
-    func contains(point: Vector2) -> Bool {
+    func contains(point: Point) -> Bool {
         !(point.x < self.minX || point.x > self.maxX ||
         point.y < self.minX || point.y > self.maxY)
     }

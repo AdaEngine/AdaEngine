@@ -136,9 +136,9 @@ extension MetalView {
     @discardableResult
     private func mousePosition(for event: NSEvent) -> Vector2 {
         let x = Float(event.locationInWindow.x)
-        let y = Float(self.frame.origin.y - event.locationInWindow.y)
+        let y = Float(self.frame.size.height - event.locationInWindow.y)
         
-        let position = Vector2(x, y)
+        let position = Point(x, y)
         Input.shared.mousePosition = position
         
         return position

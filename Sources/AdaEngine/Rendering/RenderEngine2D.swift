@@ -92,7 +92,7 @@ public class RenderEngine2D {
             top: rect.minY,
             bottom: -size.height,
             zNear: 0,
-            zFar: 100
+            zFar: 1
         )
         
         let uni = Uniform(view: transform)
@@ -131,7 +131,7 @@ public class RenderEngine2D {
             [size.width, 0, 0, 0],
             [0, size.height, 0, 0 ],
             [0, 0, 1.0, 0.0],
-            [size.width / 2 + position.x, -size.height / 2 + position.y, position.z, 1]
+            [size.width / 2 + position.x, -size.height / 2 + position.y, 0, 1]
         )
         
         self.drawQuad(transform: transform)

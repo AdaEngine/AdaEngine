@@ -28,6 +28,8 @@ final class GameLoop {
             
             SceneManager.shared.update(deltaTime)
             
+            Input.shared.removeEvents()
+            
             try RenderEngine.shared.endDraw()
         } catch {
             fatalError(error.localizedDescription)

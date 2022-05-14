@@ -13,9 +13,9 @@ public final class Input {
     
     private var handlers: WeakSet<AnyObject> = []
     
-    internal var mousePosition: Vector2 = .zero
+    internal var mousePosition: Point = .zero
     
-    private var eventsPool: [Event] = []
+    internal var eventsPool: [Event] = []
     
     internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
@@ -99,7 +99,9 @@ public final class Input {
                 break
             }
         }
-        
+    }
+    
+    func removeEvents() {
         self.eventsPool.removeAll()
     }
     
@@ -162,10 +164,10 @@ public final class MouseEvent: Event {
     }
     
     let button: MouseButton
-    let mousePosition: Vector2
+    let mousePosition: Point
     let phase: Phase
     
-    init(button: MouseButton, mousePosition: Vector2, phase: Phase, time: TimeInterval) {
+    init(button: MouseButton, mousePosition: Point, phase: Phase, time: TimeInterval) {
         self.button = button
         self.mousePosition = mousePosition
         self.phase = phase
@@ -181,12 +183,12 @@ public final class MouseEvent: Event {
 
 public final class TouchEvent: Event {
     
-    internal init(location: Vector2, time: TimeInterval) {
+    internal init(location: Point, time: TimeInterval) {
         self.location = location
         super.init(time: time)
     }
     
-    public let location: Vector2
+    public let location: Point
     
     public override func hash(into hasher: inout Hasher) {
         hasher.combine(location)

@@ -161,5 +161,3 @@ final class EditorCamera: Camera {
         self.isViewMatrixDirty = true
     }
 }
-
-typealias Point = Vector2
