@@ -95,10 +95,11 @@ class GameScene {
         let blueView = View()
         blueView.frame = Rect(origin: Vector2(x: 0, y: 0), size: Size(width: 130, height: 130))
         blueView.backgroundColor = Color.blue.opacity(0.2)
+        blueView.zIndex = 1
         view.addSubview(blueView)
         
         let greenView = View()
-        greenView.frame = Rect(origin: Vector2(x: 0, y: 0), size: Size(width: 50, height: 50))
+        greenView.frame = Rect(origin: Vector2(x: 80, y: 0), size: Size(width: 50, height: 50))
         greenView.backgroundColor = Color.green
         blueView.addSubview(greenView)
         
@@ -146,7 +147,7 @@ class GameScene {
 //            print(error)
 //        }
 //
-//        RenderEngine.shared.renderBackend.setClearColor(Color(212/255, 210/255, 213/255, 1))
+        RenderEngine.shared.renderBackend.setClearColor(Color(212/255, 210/255, 213/255, 1))
         
         return scene
     }

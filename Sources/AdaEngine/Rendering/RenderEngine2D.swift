@@ -84,11 +84,6 @@ public class RenderEngine2D {
     
     /// Create orthogonal transform for this
     public func beginContext(in rect: Rect) {
-        self.setOrhoTransform(for: rect)
-        self.currentDraw = RenderEngine.shared.renderBackend.beginDrawList()
-    }
-    
-    public func setOrhoTransform(for rect: Rect) {
         let size = rect.size
         
         let transform = Transform3D.orthogonal(
@@ -97,12 +92,12 @@ public class RenderEngine2D {
             top: rect.minY,
             bottom: -size.height,
             zNear: 0,
-            zFar: 1
+            zFar: 100
         )
         
         let uni = Uniform(view: transform)
-//        self.uniform = uni
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
+        self.currentDraw = RenderEngine.shared.renderBackend.beginDrawList()
     }
     
     public func beginContext(_ camera: Camera) {
@@ -118,17 +113,25 @@ public class RenderEngine2D {
         self.fillColor = color
     }
     
-    public func drawQuad(_ rect: Rect) {
+    var currentTransform = Transform3D.identity
+    
+    public func setCurrentTransform(_ transform: Transform3D) {
+        self.currentTransform = transform
+    }
+    
+    public func drawQuad(origin: Vector2, size: Size) {
         
-        if rect.size.width < 0 || rect.size.height < 0 {
+        if size.width < 0 || size.height < 0 {
             return
         }
         
+        let position = currentTransform.origin
+        
         let transform = Transform3D(
-            [rect.size.width, 0, 0, 0],
-            [0, rect.size.height, 0, 0 ],
+            [size.width, 0, 0, 0],
+            [0, size.height, 0, 0 ],
             [0, 0, 1.0, 0.0],
-            [rect.size.width / 2 + rect.minX, -rect.size.height / 2 + rect.minY, 0, 1]
+            [size.width / 2 + position.x, -size.height / 2 + position.y, position.z, 1]
         )
         
         self.drawQuad(transform: transform)
@@ -214,6 +217,7 @@ public class RenderEngine2D {
      
     public func clearContext() {
         self.uniform.view = .identity
+        self.currentTransform = .identity
         
         self.circleData.vertices.removeAll(keepingCapacity: true)
         self.circleData.indeciesCount = 0

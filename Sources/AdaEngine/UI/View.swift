@@ -17,6 +17,8 @@ open class View {
     
     open var backgroundColor: Color = Color.white
     
+    var zIndex: Int = 0
+    
     public var affineTransform: Transform2D {
         get {
             return self.transform3D.basis
@@ -38,17 +40,42 @@ open class View {
         
     }
     
+    // FIXME:
+    // [x] - Ortho projection for each view instead of root
+    // [ ] - Blending mode (cuz alpha doesn't work)
+    // [ ] - z layers
+    // [ ] - texturing the views
+    // [ ] - draw lines
+    // [ ] - draw rectangles
+    // [ ] - create transperent API for 2D rendering
+    
     open func draw(in rect: Rect) {
-//        RenderEngine2D.shared.setOrhoTransform(for: rect)
         RenderEngine2D.shared.setFillColor(self.backgroundColor)
-        RenderEngine2D.shared.drawQuad(rect)
+        RenderEngine2D.shared.drawQuad(origin: rect.origin, size: rect.size)
         
-        for subview in subviews {
+        for subview in self.subviews {
             subview.draw()
         }
     }
     
-    open func draw() {
+    private var globalFrame: Rect {
+        if let origin = self.superview?.frame.origin {
+            let offset: Vector2 = [self.frame.origin.x + origin.x, self.frame.origin.y + origin.y]
+            return Rect(origin: offset, size: self.frame.size)
+        }
+        
+        return self.frame
+    }
+    
+    internal func draw() {
+        let globalOrigin = self.globalFrame.origin
+        
+        RenderEngine2D.shared.setCurrentTransform(
+            Transform3D(
+                translation: [globalOrigin.x , globalOrigin.y, Float(self.zIndex)]
+            )
+        )
+        
         self.draw(in: self.frame)
     }
     
