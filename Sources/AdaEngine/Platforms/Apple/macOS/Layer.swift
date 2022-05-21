@@ -7,53 +7,9 @@
 
 import Yams
 
-struct ViewContainerSystem: System {
-    static let query = EntityQuery(.has(ViewContrainerComponent.self))
-    
-    init(scene: Scene) { }
-    
-    func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
-            guard let container = entity.components[ViewContrainerComponent.self] else {
-                return
-            }
-            
-            if context.scene.viewportSize == .zero {
-                return
-            }
-            
-            if container.rootView.frame.size != context.scene.viewportSize {
-                container.rootView.frame.size = context.scene.viewportSize
-            }
-            
-            self.handleEvents(for: container.rootView)
-            
-            RenderEngine2D.shared.beginContext(in: container.rootView.frame)
-            
-            container.rootView.draw()
-            
-            RenderEngine2D.shared.commitContext()
-        }
-    }
-    
-    private func handleEvents(for view: View) {
-        let events = Input.shared.eventsPool
-        for event in events {
-            switch event {
-            case let event as MouseEvent:
-                view.handleMouseEvent(event)
-            case let event as TouchEvent:
-                view.handleTouchEvent(event)
-            case let event as KeyEvent:
-                view.handleKeyEvent(event)
-            default:
-                continue
-            }
-        }
-    }
-}
-
 class ControlCircleComponent: ScriptComponent {
+    
+    var speed: Float = 4
     
 //    @RequiredComponent var circle: Circle2DComponent
     @RequiredComponent var viewHolder: ViewContrainerComponent
@@ -67,66 +23,50 @@ class ControlCircleComponent: ScriptComponent {
 //            self.circle.thickness -= 0.1
 //        }
         
-        let view = viewHolder.rootView.subviews.last!
+        let view = viewHolder.rootView//.subviews.last!
 
         if Input.isKeyPressed(.arrowDown) {
-            view.frame.origin.y += 1
+            view.frame.origin.y += 1 * speed
         }
         
         if Input.isKeyPressed(.arrowUp) {
-            view.frame.origin.y -= 1
+            view.frame.origin.y -= 1 * speed
         }
         
         if Input.isKeyPressed(.arrowLeft) {
-            view.frame.origin.x += 1
+            view.frame.origin.x -= 1 * speed
         }
         
         if Input.isKeyPressed(.arrowRight) {
-            view.frame.origin.x -= 1
+            view.frame.origin.x += 1 * speed
         }
     }
+    
 }
 
 class GameScene {
     func makeScene() -> Scene {
         let scene = Scene()
-        scene.addSystem(ViewContainerSystem.self)
-//
-//        let boxEntity = Entity(name: "box-1")
-//        boxEntity.components[Circle2DComponent.self] = Circle2DComponent(color: .orange)
-//
-//        boxEntity.components[ControllCircleComponent.self] = ControllCircleComponent()
-//        scene.addEntity(boxEntity)
-//
-//        let boxEntity1 = Entity(name: "box-2")
-//        boxEntity1.components[Circle2DComponent.self] = Circle2DComponent(
-//            color: .green,
-//            thickness: 0.1
-//        )
-//
-//        boxEntity1.components[Transform.self]?.position.x = 0.4
-//        scene.addEntity(boxEntity1)
-        
+
         let view = View()
         view.backgroundColor = .red
-        
-        let blueView = View()
-        blueView.frame = Rect(origin: Point(x: 0, y: 0), size: Size(width: 130, height: 130))
-        blueView.backgroundColor = Color.blue.opacity(0.2)
-        blueView.zIndex = -1
-        view.addSubview(blueView)
-        
-        let blueView1 = View()
-        blueView1.frame = Rect(origin: Point(x: 130, y: 0), size: Size(width: 130, height: 130))
-        blueView1.backgroundColor = Color.orange
-        blueView1.zIndex = 0
-        view.addSubview(blueView1)
-        
-        let greenView = View()
-        greenView.frame = Rect(origin: Point(x: 80, y: 0), size: Size(width: 50, height: 50))
-        greenView.backgroundColor = Color.green
-        greenView.affineTransform = Transform2D(rotation: .degrees(45))
-        blueView.addSubview(greenView)
+//
+//        let blueView = View()
+//        blueView.frame = Rect(origin: Point(x: 0, y: 0), size: Size(width: 130, height: 130))
+//        blueView.backgroundColor = Color.blue.opacity(0.2)
+//        blueView.zIndex = -1
+//        view.addSubview(blueView)
+//        
+//        let blueView1 = View()
+//        blueView1.frame = Rect(origin: Point(x: 130, y: 0), size: Size(width: 130, height: 130))
+//        blueView1.backgroundColor = Color.orange
+//        blueView1.zIndex = 0
+//        view.addSubview(blueView1)
+//
+//        let greenView = View()
+//        greenView.frame = Rect(origin: Point(x: 30, y: 30), size: Size(width: 50, height: 50))
+//        greenView.backgroundColor = Color.green
+//        blueView.addSubview(greenView)
         
         
         let viewEntity = Entity(name: "View")

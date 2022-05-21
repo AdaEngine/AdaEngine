@@ -26,6 +26,7 @@ public struct Transform2D: Hashable {
 }
 
 public extension Transform2D {
+    @inline(__always)
     init(translation: Vector2) {
         var identity = Transform2D.identity
         identity[2, 0] = translation.x
@@ -33,6 +34,7 @@ public extension Transform2D {
         self = identity
     }
     
+    @inline(__always)
     init(scale: Vector2) {
         var identity = Transform2D.identity
         identity[0, 0] = scale.x
@@ -40,6 +42,7 @@ public extension Transform2D {
         self = identity
     }
     
+    @inline(__always)
     init(rotation: Angle) {
         var identity = Transform2D.identity
         identity[0, 0] = cos(rotation.degrees)
@@ -49,6 +52,7 @@ public extension Transform2D {
         self = identity
     }
     
+    @inline(__always)
     init(columns: [Vector3]) {
         precondition(columns.count == 3, "Inconsist columns count")
         self.x = columns[0]
@@ -56,6 +60,7 @@ public extension Transform2D {
         self.z = columns[2]
     }
     
+    @inline(__always)
     init(diagonal: Float) {
         var identity = Transform2D.identity
         identity[0, 0] = diagonal
@@ -63,9 +68,24 @@ public extension Transform2D {
         identity[2, 2] = diagonal
         self = identity
     }
+    
+    @inline(__always)
+    init(_ x: Vector3, _ y: Vector3, _ z: Vector3) {
+        self.x = x
+        self.y = y
+        self.z = z
+    }
 }
 
 extension Transform2D: Codable {}
+
+extension Transform2D: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        return String(describing: type(of: self)) + "(" + [x, y, z].map { (v: Vector3) -> String in
+            "[" + [v.x, v.y, v.z].map { String(describing: $0) }.joined(separator: ", ") + "]"
+        }.joined(separator: ", ") + ")"
+    }
+}
 
 public extension Transform2D {
     
@@ -151,6 +171,20 @@ public extension Transform2D {
             self[1, 2] = newValue.y
         }
     }
+    
+    var scale: Vector2 {
+        get {
+            Vector2(self[0, 0], self[1, 1])
+        }
+        
+        set {
+            self.y = self.x.normalized
+            self.x = self.y.normalized
+            
+            self.x *= newValue.x
+            self.y *= newValue.x
+        }
+    }
 }
 
 extension Transform2D: Equatable { }
@@ -165,11 +199,16 @@ public extension Transform2D {
     }
     
     static func * (lhs: Transform2D, rhs: Transform2D) -> Transform2D {
-        Transform2D(columns: [
-            Vector3(lhs[0, 0] * rhs[0, 0], lhs[0, 1] * rhs[0, 1], lhs[0, 2] * rhs[0, 2]),
-            Vector3(lhs[1, 0] * rhs[1, 0], lhs[1, 1] * rhs[1, 1], lhs[1, 2] * rhs[1, 2]),
-            Vector3(lhs[2, 0] * rhs[2, 0], lhs[2, 1] * rhs[2, 1], lhs[2, 2] * rhs[2, 2]),
-        ])
+        var x: Vector3 = lhs.x * rhs[0].x
+        x = x + lhs.y * rhs[0].y
+        x = x + lhs.z * rhs[0].z
+        var y: Vector3 = lhs.x * rhs[1].x
+        y = y + lhs.y * rhs[1].y
+        y = y + lhs.z * rhs[1].z
+        var z: Vector3 = lhs.x * rhs[2].x
+        z = z + lhs.y * rhs[2].y
+        z = z + lhs.z * rhs[2].z
+        return Transform2D(x, y, z)
     }
     
     static prefix func -(matrix: Transform2D) -> Transform2D {
@@ -179,4 +218,91 @@ public extension Transform2D {
             Vector3(-matrix[2, 0], -matrix[2, 1], -matrix[2, 2]),
         ])
     }
+}
+
+public extension Transform2D {
+    var inverse: Transform2D {
+        var mm = Transform2D()
+        mm.x.x = self.y.y * self.z.z
+        mm.x.x = mm.x.x - self.y.z * self.z.y
+        mm.y.x = self.y.z * self.z.x
+        mm.y.x = mm.y.x - self.y.x * self.z.z
+        mm.z.x = self.y.x * self.z.y
+        mm.z.x = mm.z.x - self.y.y * self.z.x
+        mm.x.y = self.x.z * self.z.y
+        mm.x.y = mm.x.y - self.x.y * self.z.z
+        mm.y.y = self.x.x * self.z.z
+        mm.y.y = mm.y.y - self.x.z * self.z.x
+        mm.z.y = self.x.y * self.z.x
+        mm.z.y = mm.z.y - self.x.x * self.z.y
+        mm.x.z = self.x.y * self.y.z
+        mm.x.z = mm.x.z - self.x.z * self.y.y
+        mm.y.z = self.x.z * self.y.x
+        mm.y.z = mm.y.z - self.x.x * self.y.z
+        mm.z.z = self.x.x * self.y.y
+        mm.z.z = mm.z.z - self.x.y * self.y.x
+        return mm * (1 / self.determinant)
+    }
+
+    var determinant: Float {
+        var d1 = self.y.y * self.z.z
+        d1 = d1 - self.z.y * self.y.z
+        var d2 = self.x.y * self.z.z
+        d2 = d2 - self.z.y * self.x.z
+        var d3 = self.x.y * self.y.z
+        d3 = d3 - self.y.y * self.x.z
+        var det = self.x.x * d1
+        det = det - self.y.x * d2
+        det = det + self.z.x * d3
+        return det
+    }
+
+}
+
+// MARK: - XForm
+
+public extension Transform2D {
+    
+    func tdotx(_ vector: Vector2) -> Float {
+        return self[0, 0] * vector.x + self[1, 0] * vector.y
+    }
+    
+    func tdoty(_ vector: Vector2) -> Float {
+        return self[0, 1] * vector.x + self[1, 1] * vector.y
+    }
+    
+    func getXformPosition(for point: Vector2) -> Vector2 {
+        return Vector2(tdotx(point), tdoty(point)) + Vector2(self[2, 0], self[2, 1])
+    }
+    
+    var xFormSize: Vector2 {
+        get {
+            return Vector2(self[0, 0], self[1, 1])
+        }
+        
+        set {
+            self[0, 0] = newValue.x
+            self[1, 1] = newValue.y
+        }
+    }
+    
+    var xFormOrigin: Vector2 {
+        get {
+            return Vector2(self[0, 2], self[1, 2])
+        }
+        
+        set {
+            self[0, 2] = newValue.x
+            self[1, 2] = newValue.y
+        }
+    }
+    
+//    func getXFormRect(for rect: Rect) -> Rect {
+//        let x = Vector2(self[0, 0], self[0, 1]) * rect.size.width
+//        let y = Vector2(self[1, 0], self[1, 1]) * rect.size.height
+//        let position = self.getXformPosition(for: rect.origin)
+//
+//        var newRect = Rect(origin: position, size: .zero)
+//        return newRect
+//    }
 }

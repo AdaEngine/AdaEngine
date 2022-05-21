@@ -9,7 +9,9 @@ import Foundation
 
 struct Circle2DRenderSystem: System {
     
-    static let query = EntityQuery(.has(Circle2DComponent.self) && .has(Transform.self))
+    static var dependencies: [SystemDependency] = [.after(ViewContainerSystem.self)]
+    
+    static let query = EntityQuery(where: .has(Circle2DComponent.self) && .has(Transform.self))
     
     init(scene: Scene) { }
     
@@ -25,12 +27,11 @@ struct Circle2DRenderSystem: System {
         entities.forEach { entity in
             let (circle, transform) = entity.components[Circle2DComponent.self, Transform.self]
             
-            RenderEngine2D.shared.setFillColor(circle.color)
-            
             RenderEngine2D.shared.drawCircle(
                 transform: transform.matrix,
                 thickness: circle.thickness,
-                fade: circle.fade
+                fade: circle.fade,
+                color: circle.color
             )
         }
         

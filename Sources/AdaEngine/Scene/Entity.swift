@@ -16,7 +16,7 @@ open class Entity {
     // TODO: Replace to UInt32 to avoid big capacity on id
     public private(set) var identifier: UUID
     
-    public internal(set) var components: ComponentSet
+    public var components: ComponentSet
     
     public internal(set) weak var scene: Scene? {
         didSet {
@@ -75,12 +75,6 @@ open class Entity {
     }
     
     // MARK: - Public
-    
-    open func update(_ deltaTime: TimeInterval) {
-
-    }
-    
-    open func physicsUpdate(_ deltaTime: TimeInterval) { }
     
     public func removeFromScene() {
         self.scene?.removeEntity(self)

@@ -32,12 +32,6 @@ protocol RenderBackend: AnyObject {
     
     func setClearColor(_ color: Color)
     
-    // MARK: - Drawable
-    
-    func renderDrawableList(_ list: DrawableList, camera: CameraData)
-    
-    func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) -> RID
-    
     // MARK: - Buffers
     
     func makeBuffer(length: Int, options: ResourceOptions) -> RID
@@ -70,7 +64,7 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Uniforms
     
-    func makeUniform<T>(_ uniformType: T.Type, count: Int, index: Int, offset: Int, options: ResourceOptions) -> RID
+    func makeUniform<T>(_ uniformType: T.Type, count: Int, offset: Int, options: ResourceOptions) -> RID
     
     func updateUniform<T>(_ rid: RID, value: T, count: Int)
     
@@ -78,17 +72,19 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Draw
     
-    func beginDrawList() -> RID
+    func beginDraw() -> RID
     
-    func bindVertexArray(_ drawRid: RID, vertexArray: RID)
+    func bindVertexArray(_ draw: RID, vertexArray: RID)
     
-    func bindIndexArray(_ drawRid: RID, indexArray: RID)
+    func bindIndexArray(_ draw: RID, indexArray: RID)
     
-    func bindUniformSet(_ drawRid: RID, uniformSet: RID)
+    func bindUniformSet(_ draw: RID, uniformSet: RID, at index: Int)
     
-    func bindRenderState(_ drawRid: RID, renderPassId: RID)
+    func bindRenderState(_ draw: RID, renderPassId: RID)
     
-    func bindDebugName(name: String, forDraw drawId: RID)
+    func bindDebugName(name: String, forDraw draw: RID)
+    
+    func setLineWidth(_ lineWidth: Float, forDraw draw: RID)
     
     func draw(_ list: RID, indexCount: Int, instancesCount: Int)
     

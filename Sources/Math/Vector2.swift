@@ -16,6 +16,8 @@ public typealias Vector2i = SIMD2<Int>
 public typealias Vector3 = SIMD3<Float>
 public typealias Vector4 = SIMD4<Float>
 
+public typealias Point = Vector2
+
 public protocol VectorScalar: Numeric, Hashable, Codable { }
 
 extension Float: VectorScalar {}

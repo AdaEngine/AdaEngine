@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
-public class Camera: ScriptComponent {
+public final class Camera: ScriptComponent {
     
     public enum Projection: String, Codable, CaseIterable {
         case perspective
@@ -46,9 +46,9 @@ public class Camera: ScriptComponent {
         return self.entity?.scene?.activeCamera === self
     }
     
-    // MARK: - Internal
+    public var viewMatrix: Transform3D = .identity
     
-    var viewMatrix: Transform3D = .identity
+    // MARK: - Internal
     
     func makeCameraData() -> CameraData {
         let projection: Transform3D

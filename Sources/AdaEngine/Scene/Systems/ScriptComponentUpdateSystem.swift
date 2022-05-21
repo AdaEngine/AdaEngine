@@ -6,7 +6,12 @@
 //
 
 struct ScriptComponentUpdateSystem: System {
-    init(scene: Scene) { }
+    
+    private let guiRenderContext: GUIRenderContext
+    
+    init(scene: Scene) {
+        self.guiRenderContext = GUIRenderContext()
+    }
     
     func update(context: UpdateContext) {
         context.scene.entities.forEach { entity in
@@ -20,6 +25,12 @@ struct ScriptComponentUpdateSystem: System {
                 }
                 
                 component.update(context.deltaTime)
+                
+                self.guiRenderContext.beginDraw(in: Rect(origin: .zero, size: context.scene.viewportSize))
+                
+                component.updateGUI(context.deltaTime, context: self.guiRenderContext)
+                
+                self.guiRenderContext.commitDraw()
             }
         }
     }

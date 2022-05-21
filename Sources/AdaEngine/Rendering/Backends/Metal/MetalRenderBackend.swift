@@ -12,7 +12,7 @@ import MetalKit
 import OrderedCollections
 
 enum BufferIndex {
-    static let uniform = 1
+    static let baseUniform = 1
     static let material = 2
 }
 
@@ -42,7 +42,6 @@ class MetalRenderBackend: RenderBackend {
     
     var inFlightSemaphore: DispatchSemaphore!
     
-    private var drawableList: DrawableList?
     private var cameraData: CameraData?
     
     init(appName: String) {
@@ -102,13 +101,6 @@ class MetalRenderBackend: RenderBackend {
     
     func setClearColor(_ color: Color) {
         self.context.view.clearColor = MTLClearColor(red: Double(color.red), green: Double(color.green), blue: Double(color.blue), alpha: Double(color.alpha))
-    }
-    
-    // MARK: - Drawable
-    
-    func renderDrawableList(_ list: DrawableList, camera: CameraData) {
-        self.drawableList = list
-        self.cameraData = camera
     }
     
     func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) -> RID {
@@ -287,10 +279,10 @@ extension MetalRenderBackend {
         var debugName: String?
         let commandBuffer: MTLCommandBuffer
         let renderPassDescriptor: MTLRenderPassDescriptor
-        var vertexArray: RID? = nil
-        var indexArray: RID? = nil
-        var uniformSet: RID? = nil
-        var renderState: MTLRenderPipelineState? = nil
+        var vertexArray: RID?
+        var indexArray: RID?
+        var uniformSet: [Int: RID] = [:]
+        var renderState: MTLRenderPipelineState?
         var lineWidth: Float?
     }
     
@@ -306,7 +298,6 @@ extension MetalRenderBackend {
     struct Uniform {
         var buffer: MTLBuffer
         var offset: Int
-        var index: Int
     }
     
     struct IndexArray {
@@ -329,7 +320,7 @@ extension MetalRenderBackend {
         var vertexDescriptor: MTLVertexDescriptor = MTLVertexDescriptor()
     }
     
-    func beginDrawList() -> RID {
+    func beginDraw() -> RID {
         
         guard let renderPass = self.context.view.currentRenderPassDescriptor else {
             fatalError("Can't get render pass descriptor")
@@ -360,10 +351,10 @@ extension MetalRenderBackend {
         self.drawList[drawRid] = draw
     }
     
-    func bindUniformSet(_ drawRid: RID, uniformSet: RID) {
+    func bindUniformSet(_ drawRid: RID, uniformSet: RID, at index: Int) {
         var draw = self.drawList[drawRid]
         assert(draw != nil, "Draw is not exists")
-        draw?.uniformSet = uniformSet
+        draw?.uniformSet[index] = uniformSet
         self.drawList[drawRid] = draw
     }
     
@@ -381,7 +372,7 @@ extension MetalRenderBackend {
         self.drawList[drawRid] = draw
     }
     
-    func makeUniform<T>(_ uniformType: T.Type, count: Int, index: Int, offset: Int, options: ResourceOptions) -> RID {
+    func makeUniform<T>(_ uniformType: T.Type, count: Int, offset: Int, options: ResourceOptions) -> RID {
         let buffer = self.context.device.makeBuffer(
             length: MemoryLayout<T>.size * count,
             options: options.metal
@@ -389,8 +380,7 @@ extension MetalRenderBackend {
         
         let uniform = Uniform(
             buffer: buffer,
-            offset: offset,
-            index: index
+            offset: offset
         )
         
         return self.uniformSet.setValue(uniform)
@@ -419,6 +409,15 @@ extension MetalRenderBackend {
         return self.resourceMap.setValue(texture)
     }
     
+    func setLineWidth(_ lineWidth: Float, forDraw drawRid: RID) {
+        guard var draw = self.drawList[drawRid] else {
+            fatalError("Draw list not found")
+        }
+        
+        draw.lineWidth = lineWidth
+        self.drawList[drawRid] = draw
+    }
+    
     func draw(_ drawRid: RID, indexCount: Int, instancesCount: Int) {
         guard let draw = self.drawList[drawRid] else {
             fatalError("Draw list not found")
@@ -442,7 +441,6 @@ extension MetalRenderBackend {
         }
         
         if let vaRid = draw.vertexArray, let vertexArray = self.vertexArrays[vaRid] {
-            
             for vertexRid in vertexArray.buffers {
                 guard let vertexBuffer = self.vertexBuffers[vertexRid] else {
                     continue
@@ -450,18 +448,18 @@ extension MetalRenderBackend {
                 
                 encoder.setVertexBuffer(vertexBuffer.buffer, offset: vertexBuffer.offset, index: vertexBuffer.index)
             }
-
         }
         
-        if let usId = draw.uniformSet, let uniformSet = self.uniformSet[usId] {
-            encoder.setVertexBuffer(uniformSet.buffer, offset: uniformSet.offset, index: uniformSet.index)
+        for (index, uniRid) in draw.uniformSet {
+            let uniform = self.uniformSet[uniRid]!
+            encoder.setVertexBuffer(uniform.buffer, offset: uniform.offset, index: index)
         }
         
         guard let indexBuffer = self.indexBuffers[indexArray.buffer] else {
             fatalError("Can't get index buffer for draw")
         }
         
-//        encoder.setTriangleFillMode(.lines)
+        encoder.setTriangleFillMode(.lines)
         
         encoder.drawIndexedPrimitives(
             type: .triangle,
@@ -481,96 +479,6 @@ extension MetalRenderBackend {
     
     func drawEnd(_ drawId: RID) {
         self.drawList[drawId] = nil
-    }
-    
-//    func drawDrawable(
-//        _ drawable: Drawable,
-//        commandBuffer: MTLCommandBuffer,
-//        descriptor: MTLRenderPassDescriptor,
-//        uniform: Uniforms
-//    ) throws {
-//        let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor)
-//
-//        defer {
-//            encoder?.endEncoding()
-//        }
-//
-//        var uniform = uniform
-//
-//        guard
-//            let rid = drawable.pipelineState,
-//            let pipelineState = self.renderPipelineStateMap.get(rid)
-//        else { return }
-//
-//        switch drawable.source {
-//        case .mesh(let mesh):
-//
-//            encoder?.setRenderPipelineState(pipelineState)
-//
-//            uniform.modelMatrix = drawable.transform
-//
-//            for model in mesh.models {
-//                encoder?.setVertexBuffer(model.vertexBuffer.get(), offset: 0, index: 0)
-//                encoder?.setVertexBytes(&uniform, length: MemoryLayout<Uniforms>.stride, index: BufferIndex.uniform)
-//
-//                for surface in model.surfaces {
-//                    // FIXME: Remove it later
-//                    if var material = (drawable.materials?[surface.materialIndex] as? BaseMaterial)?.diffuseColor {
-//                        encoder?.setVertexBytes(&material, length: MemoryLayout.size(ofValue: material), index: BufferIndex.material)
-//                    }
-//
-//                    encoder?.drawIndexedPrimitives(
-//                        type: surface.primitiveType.metal,
-//                        indexCount: surface.indexCount,
-//                        indexType: surface.isUInt32 ? .uint32 : .uint16,
-//                        indexBuffer: surface.indexBuffer.get()!,
-//                        indexBufferOffset: 0
-//                    )
-//                }
-//            }
-//
-//        case .light:
-//            encoder?.setRenderPipelineState(pipelineState)
-//            break
-//        case .empty:
-//            break
-//        }
-//    }
-}
-
-extension MetalRenderBackend {
-    
-    final class Context {
-        
-        weak var view: MetalView!
-        
-        var device: MTLDevice!
-        var commandQueue: MTLCommandQueue!
-        var viewport: MTLViewport = MTLViewport()
-        var pipelineState: MTLRenderPipelineState!
-        
-        // MARK: - Methods
-        
-        func createWindow(for view: MetalView) throws {
-            
-            self.view = view
-            
-            self.viewport = MTLViewport(originX: 0, originY: 0, width: Double(view.drawableSize.width), height: Double(view.drawableSize.height), znear: 0, zfar: 1)
-            
-            self.device = self.prefferedDevice(for: view)
-            view.device = self.device
-            
-            self.commandQueue = self.device.makeCommandQueue()
-        }
-        
-        func prefferedDevice(for view: MetalView) -> MTLDevice {
-            return view.preferredDevice ?? MTLCreateSystemDefaultDevice()!
-        }
-        
-        func windowUpdateSize(_ size: Size) {
-            self.viewport = MTLViewport(originX: 0, originY: 0, width: Double(size.width), height: Double(size.height), znear: 0, zfar: 1)
-        }
-        
     }
 }
 

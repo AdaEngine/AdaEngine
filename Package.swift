@@ -32,7 +32,6 @@ let package = Package(
     ],
     products: products,
     dependencies: [
-        .package(name: "SGLMath", url: "https://github.com/SwiftGL/Math.git", from: "3.0.0"), // TODO: remove it later
         .package(url: "https://github.com/troughton/Cstb.git", from: "1.0.5"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.1"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.1")

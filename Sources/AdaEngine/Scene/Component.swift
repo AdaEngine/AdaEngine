@@ -28,6 +28,11 @@ open class ScriptComponent: Component {
         
     }
     
+    /// Called each frame to update gui
+    open func updateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {
+        
+    }
+    
     /// Called each time with interval in seconds for physics and other updates.
     open func physicsUpdate(_ deltaTime: TimeInterval) {
         

@@ -52,7 +52,6 @@ final class GameViewController: NSViewController {
         
         ScriptComponentUpdateSystem.registerSystem()
         CameraSystem.registerSystem()
-        ViewportComponentSystem.registerSystem()
         
         let scene = gameScene.makeScene()
         Engine.shared.setRootScene(scene)
@@ -80,84 +79,3 @@ extension GameViewController: MTKViewDelegate {
 }
 
 #endif
-
-final class EditorCamera: Camera {
-    
-    @Export
-    var speed: Float = 20
-    
-    var cameraUp: Vector3 = Vector3(0, 1, 0)
-    var cameraFront: Vector3 = Vector3(0, 0, -1)
-    
-    var lastMousePosition: Point = .zero
-    
-    @Export
-    var yaw = Angle.radians(-90)
-    @Export
-    var pitch = Angle.radians(0)
-    
-    var isViewMatrixDirty = false
-    
-    override func update(_ deltaTime: TimeInterval) {
-        
-//        self.mouseEvent()
-        
-        if Input.isKeyPressed(.w) {
-            self.transform.position += speed * cameraFront * deltaTime
-            self.isViewMatrixDirty = true
-        }
-        
-        if Input.isKeyPressed(.a) {
-            self.transform.position -= cross(cameraFront, cameraUp).normalized * speed * deltaTime
-            self.isViewMatrixDirty = true
-        }
-        
-        if Input.isKeyPressed(.d) {
-            self.transform.position += cross(cameraFront, cameraUp).normalized * speed * deltaTime
-            self.isViewMatrixDirty = true
-        }
-        
-        if Input.isKeyPressed(.s) {
-            self.transform.position -= speed * cameraFront * deltaTime
-            self.isViewMatrixDirty = true
-        }
-        
-        if self.isViewMatrixDirty {
-            self.viewMatrix = Transform3D.lookAt(
-                eye: self.transform.position,
-                center: self.transform.position + self.cameraFront,
-                up: self.cameraUp
-            )
-            
-            self.isViewMatrixDirty = false
-        }
-    }
-    
-    func mouseEvent() {
-        let position = Input.getMousePosition()
-        var xoffset = position.x - self.lastMousePosition.x;
-        var yoffset = self.lastMousePosition.y - position.y;
-        self.lastMousePosition = position
-
-        let sensitivity: Float = 0.1
-        xoffset *= sensitivity
-        yoffset *= sensitivity
-
-        self.yaw   += xoffset
-        self.pitch += yoffset
-        
-        if self.pitch.radians > 89.0 {
-            self.pitch = 89.0
-        } else if(pitch.radians < -89.0) {
-            self.pitch = -89.0
-        }
-        
-        var direction = Vector3()
-        direction.x = cos(yaw.radians) * cos(pitch.radians)
-        direction.y = sin(pitch.radians)
-        direction.z = sin(yaw.radians) * cos(pitch.radians)
-        
-        self.cameraFront = direction.normalized
-        self.isViewMatrixDirty = true
-    }
-}

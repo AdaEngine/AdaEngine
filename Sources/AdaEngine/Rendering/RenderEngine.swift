@@ -69,33 +69,6 @@ public class RenderEngine {
         try self.renderBackend.resizeWindow(newSize: newSize)
     }
     
-    func makeDrawable() -> Drawable {
-        let drawable = Drawable()
-        drawable.renderEngine = self
-        return drawable
-    }
-    
-    func setDrawableToQueue(_ drawable: Drawable, layer: Int) {
-        
-    }
-    
-    func removeDrawableFromQueue(_ drawable: Drawable) {
-        
-    }
-    
-    func makePipelineDescriptor(for drawable: Drawable) {
-        // TODO: Should create pipeline descriptor cache
-        guard let material = drawable.materials?.first else { return }
-        
-        switch drawable.source {
-        case .mesh(let mesh):
-            drawable.pipelineState = self.renderBackend.makePipelineDescriptor(for: material, vertexDescriptor: mesh.vertexDescriptor)
-        default:
-            drawable.pipelineState = self.renderBackend.makePipelineDescriptor(for: material, vertexDescriptor: nil)
-        }
-        
-    }
-    
     // MARK: - Buffers
     
     func makeBuffer(length: Int, options: ResourceOptions) -> RID {
@@ -109,50 +82,4 @@ public class RenderEngine {
     func getBuffer(for rid: RID) -> RenderBuffer {
         return self.renderBackend.getBuffer(for: rid)
     }
-}
-
-public class Drawable: Identifiable {
-    
-    enum Source {
-        case mesh(Mesh)
-        case light
-        
-        case empty
-    }
-    
-    internal weak var renderEngine: RenderEngine?
-    
-    public let id: UUID = UUID()
-    
-    var source: Source = .empty
-    var transform: Transform3D = .identity
-    
-    var materials: [Material]? {
-        didSet {
-            self.renderEngine?.makePipelineDescriptor(for: self)
-        }
-    }
-    
-    var position: Vector3 = .zero
-    
-    var layer: Int = 0
-    
-    var isVisible = true
-    
-    internal var pipelineState: RID?
-}
-
-extension Drawable: Hashable {
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-        hasher.combine(position)
-    }
-    
-    public static func == (lhs: Drawable, rhs: Drawable) -> Bool {
-        lhs.id == rhs.id && lhs.position == rhs.position && lhs.transform == rhs.transform
-    }
-}
-
-final class DrawableList {
-    var drawables: OrderedDictionary<Int, Set<Drawable>> = [:]
 }

@@ -23,8 +23,8 @@ public class RenderEngine2D {
     struct Data<V> {
         var vertexArray: RID
         var vertexBuffer: RID
-        var vertices: [V] = []
-        var indeciesCount: Int = 0
+        var vertices: [Int: [V]] = [:]
+        var indeciesCount: [Int: Int] = [:]
         var piplineState: RID
     }
     
@@ -41,10 +41,12 @@ public class RenderEngine2D {
     
     private var fillColor: Color = .clear
     
+    var currentZIndex: Int = 0
+    
     init() {
         let device = RenderEngine.shared.renderBackend
         
-        self.uniformRid = device.makeUniform(Uniform.self, count: 1, index: 1, offset: 0, options: .storageShared)
+        self.uniformRid = device.makeUniform(Uniform.self, count: 1, offset: 0, options: .storageShared)
         
         self.quadPosition = [
             [-0.5, -0.5,  0.0, 1.0],
@@ -82,22 +84,15 @@ public class RenderEngine2D {
         self.quadData = Self.makeQuadData()
     }
     
-    /// Create orthogonal transform for this
-    public func beginContext(in rect: Rect) {
-        let size = rect.size
-        
-        let transform = Transform3D.orthogonal(
-            left: -rect.minX,
-            right: size.width,
-            top: rect.minY,
-            bottom: -size.height,
-            zNear: 0,
-            zFar: 1
-        )
-        
-        let uni = Uniform(view: transform)
+    public func beginContext(for viewTransform: Transform3D) {
+        let uni = Uniform(view: viewTransform)
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
-        self.currentDraw = RenderEngine.shared.renderBackend.beginDrawList()
+        
+        self.currentDraw = RenderEngine.shared.renderBackend.beginDraw()
+    }
+    
+    public func setZIndex(_ index: Int) {
+        self.currentZIndex = index
     }
     
     public func beginContext(_ camera: Camera) {
@@ -106,48 +101,20 @@ public class RenderEngine2D {
         let uni = Uniform(view: data.view)
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
         
-        self.currentDraw = RenderEngine.shared.renderBackend.beginDrawList()
+        self.currentDraw = RenderEngine.shared.renderBackend.beginDraw()
     }
     
-    public func setFillColor(_ color: Color) {
-        self.fillColor = color
-    }
-    
-    var currentTransform = Transform3D.identity
-    
-    public func setCurrentTransform(_ transform: Transform3D) {
-        self.currentTransform = transform
-    }
-    
-    public func drawQuad(origin: Vector2, size: Size) {
-        
-        if size.width < 0 || size.height < 0 {
-            return
-        }
-        
-        let position = currentTransform.origin
-        
-        let transform = Transform3D(
-            [size.width, 0, 0, 0],
-            [0, size.height, 0, 0 ],
-            [0, 0, 1.0, 0.0],
-            [size.width / 2 + position.x, -size.height / 2 + position.y, 0, 1]
-        )
-        
-        self.drawQuad(transform: transform)
-    }
-    
-    public func drawQuad(transform: Transform3D) {
+    public func drawQuad(transform: Transform3D, color: Color) {
         for quad in quadPosition {
             let data = QuadVertexData(
                 position: transform * quad,
-                color: self.fillColor
+                color: color
             )
             
-            self.quadData.vertices.append(data)
+            self.quadData.vertices[self.currentZIndex, default: []].append(data)
         }
         
-        self.quadData.indeciesCount += 6
+        self.quadData.indeciesCount[self.currentZIndex, default: 0] += 6
     }
     
     public func setDebugName(_ name: String) {
@@ -157,7 +124,8 @@ public class RenderEngine2D {
     public func drawCircle(
         transform: Transform3D,
         thickness: Float,
-        fade: Float
+        fade: Float,
+        color: Color
     ) {
         for quad in quadPosition {
             let data = CircleVertexData(
@@ -165,48 +133,61 @@ public class RenderEngine2D {
                 localPosition: quad * 2,
                 thickness: thickness,
                 fade: fade,
-                color: self.fillColor
+                color: color
             )
             
-            self.circleData.vertices.append(data)
+            self.circleData.vertices[self.currentZIndex, default: []].append(data)
         }
         
-        self.circleData.indeciesCount += 6
+        self.circleData.indeciesCount[self.currentZIndex, default: 0] += 6
     }
     
     public func commitContext() {
         
         let device = RenderEngine.shared.renderBackend
         
-        device.bindUniformSet(self.currentDraw, uniformSet: self.uniformRid)
+        device.bindUniformSet(self.currentDraw, uniformSet: self.uniformRid, at: BufferIndex.baseUniform)
         
-        if self.quadData.indeciesCount > 0 {
-            device.setVertexBufferData(
-                self.quadData.vertexBuffer,
-                bytes: self.quadData.vertices,
-                length: self.quadData.vertices.count * MemoryLayout<QuadVertexData>.stride
-            )
-           
-            device.bindVertexArray(self.currentDraw, vertexArray: self.quadData.vertexArray)
-            device.bindRenderState(self.currentDraw, renderPassId: self.quadData.piplineState)
-            device.bindIndexArray(self.currentDraw, indexArray: self.indexArray)
+        if !self.quadData.indeciesCount.isEmpty {
             
-            device.draw(self.currentDraw, indexCount: self.quadData.indeciesCount, instancesCount: 1)
+            let indecies = self.quadData.vertices.keys.sorted()
+            
+            for index in indecies {
+                let verticies = self.quadData.vertices[index]!
+                
+                device.setVertexBufferData(
+                    self.quadData.vertexBuffer,
+                    bytes: verticies,
+                    length: verticies.count * MemoryLayout<QuadVertexData>.stride
+                )
+               
+                device.bindVertexArray(self.currentDraw, vertexArray: self.quadData.vertexArray)
+                device.bindRenderState(self.currentDraw, renderPassId: self.quadData.piplineState)
+                device.bindIndexArray(self.currentDraw, indexArray: self.indexArray)
+                
+                device.draw(self.currentDraw, indexCount: self.quadData.indeciesCount[index]!, instancesCount: 1)
+            }
         }
         
-        if self.circleData.indeciesCount > 0 {
+        if !self.circleData.indeciesCount.isEmpty {
             
-            device.setVertexBufferData(
-                self.circleData.vertexBuffer,
-                bytes: self.circleData.vertices,
-                length: self.circleData.vertices.count * MemoryLayout<CircleVertexData>.stride
-            )
-           
-            device.bindVertexArray(self.currentDraw, vertexArray: self.circleData.vertexArray)
-            device.bindRenderState(self.currentDraw, renderPassId: self.circleData.piplineState)
-            device.bindIndexArray(self.currentDraw, indexArray: self.indexArray)
+            let indecies = self.circleData.vertices.keys.sorted()
             
-            device.draw(self.currentDraw, indexCount: self.circleData.indeciesCount, instancesCount: 1)
+            for index in indecies {
+                let verticies = self.circleData.vertices[index]!
+                
+                device.setVertexBufferData(
+                    self.circleData.vertexBuffer,
+                    bytes: verticies,
+                    length: verticies.count * MemoryLayout<CircleVertexData>.stride
+                )
+               
+                device.bindVertexArray(self.currentDraw, vertexArray: self.circleData.vertexArray)
+                device.bindRenderState(self.currentDraw, renderPassId: self.circleData.piplineState)
+                device.bindIndexArray(self.currentDraw, indexArray: self.indexArray)
+                
+                device.draw(self.currentDraw, indexCount: self.circleData.indeciesCount[index]!, instancesCount: 1)
+            }
         }
         
         device.drawEnd(self.currentDraw)
@@ -217,15 +198,14 @@ public class RenderEngine2D {
      
     public func clearContext() {
         self.uniform.view = .identity
-        self.currentTransform = .identity
+        
+        self.currentZIndex = 0
         
         self.circleData.vertices.removeAll(keepingCapacity: true)
-        self.circleData.indeciesCount = 0
+        self.circleData.indeciesCount.removeAll(keepingCapacity: true)
         
         self.quadData.vertices.removeAll(keepingCapacity: true)
-        self.quadData.indeciesCount = 0
-        
-        self.fillColor = .clear
+        self.quadData.indeciesCount.removeAll(keepingCapacity: true)
     }
 }
 
@@ -288,8 +268,8 @@ extension RenderEngine2D {
         return Data<CircleVertexData>(
             vertexArray: vertexArray,
             vertexBuffer: vertexBuffer,
-            vertices: [],
-            indeciesCount: 0,
+            vertices: [:],
+            indeciesCount: [:],
             piplineState: circlePiplineState
         )
     }
@@ -327,10 +307,9 @@ extension RenderEngine2D {
         return Data<QuadVertexData>(
             vertexArray: vertexArray,
             vertexBuffer: vertexBuffer,
-            vertices: [],
-            indeciesCount: 0,
+            vertices: [:],
+            indeciesCount: [:],
             piplineState: quadPiplineState
         )
     }
-    
 }

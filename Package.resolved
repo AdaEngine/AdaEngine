@@ -1,43 +1,32 @@
 {
-  "object": {
-    "pins": [
-      {
-        "package": "Cstb",
-        "repositoryURL": "https://github.com/troughton/Cstb.git",
-        "state": {
-          "branch": null,
-          "revision": "1452254ea570241e5228475c2973a62740ffa9cb",
-          "version": "1.0.5"
-        }
-      },
-      {
-        "package": "SGLMath",
-        "repositoryURL": "https://github.com/SwiftGL/Math.git",
-        "state": {
-          "branch": null,
-          "revision": "8bdd2e542f28828d0c224c1ea8e046c6f652ec40",
-          "version": "3.0.0"
-        }
-      },
-      {
-        "package": "swift-collections",
-        "repositoryURL": "https://github.com/apple/swift-collections.git",
-        "state": {
-          "branch": null,
-          "revision": "2d33a0ea89c961dcb2b3da2157963d9c0370347e",
-          "version": "1.0.1"
-        }
-      },
-      {
-        "package": "Yams",
-        "repositoryURL": "https://github.com/jpsim/Yams.git",
-        "state": {
-          "branch": null,
-          "revision": "01835dc202670b5bb90d07f3eae41867e9ed29f6",
-          "version": "5.0.1"
-        }
+  "pins" : [
+    {
+      "identity" : "cstb",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/troughton/Cstb.git",
+      "state" : {
+        "revision" : "1452254ea570241e5228475c2973a62740ffa9cb",
+        "version" : "1.0.5"
       }
-    ]
-  },
-  "version": 1
+    },
+    {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections.git",
+      "state" : {
+        "revision" : "2d33a0ea89c961dcb2b3da2157963d9c0370347e",
+        "version" : "1.0.1"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams.git",
+      "state" : {
+        "revision" : "01835dc202670b5bb90d07f3eae41867e9ed29f6",
+        "version" : "5.0.1"
+      }
+    }
+  ],
+  "version" : 2
 }

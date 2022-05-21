@@ -38,6 +38,7 @@ public final class Scene {
             self.addSystem(ScriptComponentUpdateSystem.self)
             self.addSystem(CameraSystem.self)
             self.addSystem(Circle2DRenderSystem.self)
+            self.addSystem(ViewContainerSystem.self)
         }
     }
     
@@ -76,32 +77,29 @@ public final class Scene {
         try container.encode(self.systems.map { type(of: $0).swiftName }, forKey: .systems)
     }
     
+    public func addSystem<T: System>(_ systemType: T.Type) {
+        let system = systemType.init(scene: self)
+        self.systems.append(system)
+    }
+    
     func update(_ deltaTime: TimeInterval) {
         for system in self.systems {
-            system.update(context: SystemUpdateContext(scene: self, deltaTime: deltaTime))
+            system.update(context: SceneUpdateContext(scene: self, deltaTime: deltaTime))
         }
     }
     
     func physicsUpdate(_ deltaTime: TimeInterval) {
-        for entity in entities.elements {
-            entity.physicsUpdate(deltaTime)
-        }
+        
     }
-    
-    public func addSystem<T: System>(_ system: T.Type) {
-        self.systems.append(system.init(scene: self))
-    }
-    
-
 }
 
 // MARK: - Query
 
 public struct QueryPredicate<Value> {
-    var fetch: (Value) -> Bool
+    let fetch: (Value) -> Bool
 }
 
-extension QueryPredicate {
+public extension QueryPredicate {
     static func has<T: Component>(_ type: T.Type) -> QueryPredicate<Entity> {
         QueryPredicate<Entity> { entity in
             return entity.components.has(type)
@@ -125,7 +123,7 @@ public struct EntityQuery {
     
     let predicate: QueryPredicate<Entity>
     
-    public init(_ predicate: QueryPredicate<Entity>) {
+    public init(where predicate: QueryPredicate<Entity>) {
         self.predicate = predicate
     }
 }
@@ -157,34 +155,3 @@ extension Scene: Codable {
     }
 }
 
-class ViewportEntity: Entity {
-    
-    init(scene: Scene, size: Vector2i, name: String? = nil) {
-        super.init(name: name ?? "ViewportEntity-\(scene.name)")
-        
-        self.components[ViewportComponent.self] = ViewportComponent(scene: scene, size: size)
-    }
-    
-    public required convenience init(from decoder: Decoder) throws {
-        fatalError()
-    }
-    
-}
-
-struct ViewportComponent: Component {
-    var scene: Scene
-    var size: Vector2i
-}
-
-struct ViewportComponentSystem: System {
-    
-    static let query = EntityQuery(.has(ViewportComponent.self))
-    
-    init(scene: Scene) { }
-    
-    func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach {
-            $0.components[ViewportComponent.self]?.scene.update(context.deltaTime)
-        }
-    }
-}
