@@ -50,12 +50,21 @@ open class View {
     open var zIndex: Int = 0
     
     /// Affine matrix to apply any transformation to current view
-    public var affineTransform: Transform2D = .identity
+    public var affineTransform: Transform2D {
+        get {
+            return Transform2D(transform: self.transform3D)
+        }
+        
+        set {
+            self.transform3D = Transform3D(newValue)
+        }
+    }
+    
+    public var transform3D: Transform3D = .identity
     
     // MARK: - Private Fields -
     
-    /// Internal transformation matrix contains xform
-    private var _localTransform: Transform2D = .identity
+    private var _localTransform: Transform3D = .identity
     
     private var data: Data = Data()
     
@@ -70,10 +79,12 @@ open class View {
     // MARK: - Private
     
     private func setFrame(_ frame: Rect) {
-        self._localTransform.position = frame.origin
-        self._localTransform.scale = [frame.size.width, frame.size.height]
-//        self._localTransform.xFormOrigin = frame.origin
-//        self._localTransform.xFormSize = [frame.size.width, frame.size.height]
+        
+        self._localTransform = Transform3D(
+            translation: [frame.origin.x, frame.origin.y, 0],
+            rotation: .identity,
+            scale: [frame.size.width, frame.size.height, 1]
+        )
         
         self.bounds.size = frame.size
         self.data.frame = frame
@@ -123,7 +134,8 @@ extension View {
     }
     
     func convert(_ point: Point, from view: View) -> Point {
-        return point//view.data.cacheWorldTransform.inverse * point
+        let transform = Transform2D(transform: self.data.cacheWorldTransform * view.data.cacheWorldTransform).inverse
+        return point.applying(transform)
     }
     
     func sendEvent(_ event: Event) {
@@ -169,9 +181,9 @@ extension View {
 
 extension View {
     
-    private var worldTransform: Transform2D {
+    private var worldTransform: Transform3D {
         if let superView = self.superview {
-            return self._localTransform * superView.worldTransform
+            return superView.worldTransform * self._localTransform
         }
         
         return self._localTransform
@@ -189,7 +201,7 @@ extension View {
     }
 
     internal func draw(with context: GUIRenderContext) {
-        context.setXformTransform(self.data.cacheWorldTransform)
+        context.setTransform(self.data.cacheWorldTransform)
         context.setZIndex(self.zIndex)
         self.draw(in: self.bounds, with: context)
     }
@@ -197,7 +209,7 @@ extension View {
 
 private extension View {
     struct Data {
-        var cacheWorldTransform: Transform2D = .identity
+        var cacheWorldTransform: Transform3D = .identity
         var frame: Rect = .zero
     }
 }

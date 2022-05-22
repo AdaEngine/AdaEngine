@@ -14,7 +14,7 @@ public class RenderEngine2D {
     private var uniform: Uniform = Uniform()
     
     struct Uniform {
-        var view: Transform3D = .identity
+        var viewProjection: Transform3D = .identity
     }
     
     var currentDraw: RID!
@@ -85,10 +85,11 @@ public class RenderEngine2D {
     }
     
     public func beginContext(for viewTransform: Transform3D) {
-        let uni = Uniform(view: viewTransform)
+        let uni = Uniform(viewProjection: viewTransform)
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
         
         self.currentDraw = RenderEngine.shared.renderBackend.beginDraw()
+        self.startBatch()
     }
     
     public func setZIndex(_ index: Int) {
@@ -97,14 +98,20 @@ public class RenderEngine2D {
     
     public func beginContext(_ camera: Camera) {
         let data = camera.makeCameraData()
-        
-        let uni = Uniform(view: data.view)
+        let viewProjection = data.projection * data.view
+        let uni = Uniform(viewProjection: viewProjection * camera.transform.matrix.inverse)
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
         
         self.currentDraw = RenderEngine.shared.renderBackend.beginDraw()
+        self.startBatch()
     }
     
     public func drawQuad(transform: Transform3D, color: Color) {
+        
+        if self.quadData.indeciesCount.count >= Self.maxIndecies {
+            self.nextBatch()
+        }
+        
         for quad in quadPosition {
             let data = QuadVertexData(
                 position: transform * quad,
@@ -127,6 +134,11 @@ public class RenderEngine2D {
         fade: Float,
         color: Color
     ) {
+        
+        if self.circleData.indeciesCount.count >= Self.maxIndecies {
+            self.nextBatch()
+        }
+        
         for quad in quadPosition {
             let data = CircleVertexData(
                 worldPosition: transform * quad,
@@ -143,7 +155,34 @@ public class RenderEngine2D {
     }
     
     public func commitContext() {
+        self.flush()
         
+        RenderEngine.shared.renderBackend.drawEnd(self.currentDraw)
+        self.currentDraw = nil
+        
+        self.clearContext()
+    }
+     
+    public func clearContext() {
+        self.uniform.viewProjection = .identity
+    }
+    
+    func nextBatch() {
+        self.flush()
+        self.startBatch()
+    }
+    
+    func startBatch() {
+        self.currentZIndex = 0
+        
+        self.circleData.vertices.removeAll(keepingCapacity: true)
+        self.circleData.indeciesCount.removeAll(keepingCapacity: true)
+        
+        self.quadData.vertices.removeAll(keepingCapacity: true)
+        self.quadData.indeciesCount.removeAll(keepingCapacity: true)
+    }
+    
+    public func flush() {
         let device = RenderEngine.shared.renderBackend
         
         device.bindUniformSet(self.currentDraw, uniformSet: self.uniformRid, at: BufferIndex.baseUniform)
@@ -189,23 +228,6 @@ public class RenderEngine2D {
                 device.draw(self.currentDraw, indexCount: self.circleData.indeciesCount[index]!, instancesCount: 1)
             }
         }
-        
-        device.drawEnd(self.currentDraw)
-        self.currentDraw = nil
-        
-        self.clearContext()
-    }
-     
-    public func clearContext() {
-        self.uniform.view = .identity
-        
-        self.currentZIndex = 0
-        
-        self.circleData.vertices.removeAll(keepingCapacity: true)
-        self.circleData.indeciesCount.removeAll(keepingCapacity: true)
-        
-        self.quadData.vertices.removeAll(keepingCapacity: true)
-        self.quadData.indeciesCount.removeAll(keepingCapacity: true)
     }
 }
 

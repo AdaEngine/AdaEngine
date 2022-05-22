@@ -9,6 +9,7 @@
 import Darwin
 #elseif os(Linux) || os(Android)
 import Glibc
+import simd
 #endif
 
 @frozen
@@ -45,10 +46,10 @@ public extension Transform2D {
     @inline(__always)
     init(rotation: Angle) {
         var identity = Transform2D.identity
-        identity[0, 0] = cos(rotation.degrees)
-        identity[0, 1] = sin(rotation.degrees)
-        identity[1, 0] = -sin(rotation.degrees)
-        identity[1, 1] = cos(rotation.degrees)
+        identity[0, 0] = cos(rotation.radians)
+        identity[0, 1] = sin(rotation.radians)
+        identity[1, 0] = -sin(rotation.radians)
+        identity[1, 1] = cos(rotation.radians)
         self = identity
     }
     
@@ -126,49 +127,32 @@ public extension Transform2D {
 
 public extension Transform2D {
     
-    /// - SeeAlso: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
-    var rotation: Quat {
-        var quat = Quat.identity
-        
-        let trace = self[0, 0] + self[1, 1] + self[2, 2]
-        
-        if (trace > 0) {
-            let s = sqrt(trace + 1.0) * 2
-            quat.w = 0.25 * s
-            quat.x = (self[2, 1] - self[1, 2]) / s
-            quat.y = (self[0, 2] - self[2, 0]) / s
-            quat.z = (self[1, 0] - self[0, 1]) / s
-        } else if ((self[0, 0] > self[1, 1]) && (self[0, 0] > self[2, 2])) {
-            let s = sqrt(1.0 + self[0, 0] - self[1, 1] - self[2, 2]) * 2 // S=4*qx
-            quat.w = (self[2, 1] - self[1, 2]) / s
-            quat.x = 0.25 * s
-            quat.y = (self[0, 1] + self[1, 0]) / s
-            quat.z = (self[0, 2] + self[2, 0]) / s
-        } else if (self[1, 1] > self[2, 2]) {
-            let s = sqrt(1.0 + self[1, 1] - self[0, 0] - self[2, 2]) * 2 // S=4*qy
-            quat.w = (self[0, 2] - self[2, 0]) / s
-            quat.x = (self[0, 1] + self[1, 0]) / s
-            quat.y = 0.25 * s
-            quat.z = (self[1, 2] + self[2, 1]) / s
-        } else {
-            let s = sqrt(1.0 + self[2, 2] - self[0, 0] - self[1, 1]) * 2 // S=4*qz
-            quat.w = (self[1, 0] - self[0, 1]) / s
-            quat.x = (self[0, 2] + self[2, 0]) / s
-            quat.y = (self[1, 2] + self[2, 1]) / s
-            quat.z = 0.25 * s
+    /// Rotation in radians
+    var rotation: Float {
+        get {
+            return atan2(self[0].y, self[0].x)
         }
         
-        return quat
+        set {
+            let scale = self.scale
+            let cosRotation = cos(newValue);
+            let sinRotation = sin(newValue);
+            self[0, 0] = cosRotation
+            self[0, 1] = sinRotation
+            self[1, 0] = -sinRotation
+            self[1, 1] = cosRotation
+            self.scale = scale
+        }
     }
     
     var position: Vector2 {
         get {
-            Vector2(self[0, 2], self[1, 2])
+            Vector2(self[2, 0], self[2, 1])
         }
         
         set {
-            self[0, 2] = newValue.x
-            self[1, 2] = newValue.y
+            self[2, 0] = newValue.x
+            self[2, 1] = newValue.y
         }
     }
     
@@ -178,12 +162,32 @@ public extension Transform2D {
         }
         
         set {
-            self.y = self.x.normalized
-            self.x = self.y.normalized
+            self.x = self.x.normalized
+            self.y = self.y.normalized
             
             self.x *= newValue.x
-            self.y *= newValue.x
+            self.y *= newValue.y
         }
+    }
+}
+
+public extension Transform2D {
+    func rotated(by angle: Angle) -> Transform2D {
+        var mat = self
+        mat.rotation = angle.radians
+        return mat
+    }
+    
+    func translatedBy(x: Float, y: Float) -> Transform2D {
+        var mat = self
+        mat.position = [x, y]
+        return mat
+    }
+    
+    func scaledBy(x: Float, y: Float) -> Transform2D {
+        var mat = self
+        mat.scale = [x, y]
+        return mat
     }
 }
 
@@ -259,6 +263,17 @@ public extension Transform2D {
 
 }
 
+public extension Transform2D {
+    init(transform t: Transform3D) {
+        let pos = t.origin
+        self = Transform2D(
+            [t[0, 0], t[1, 0], 0],
+            [t[0, 1], t[1, 1], 0],
+            [pos.x,   pos.y,   1]
+        )
+    }
+}
+
 // MARK: - XForm
 
 public extension Transform2D {
@@ -296,13 +311,4 @@ public extension Transform2D {
             self[1, 2] = newValue.y
         }
     }
-    
-//    func getXFormRect(for rect: Rect) -> Rect {
-//        let x = Vector2(self[0, 0], self[0, 1]) * rect.size.width
-//        let y = Vector2(self[1, 0], self[1, 1]) * rect.size.height
-//        let position = self.getXformPosition(for: rect.origin)
-//
-//        var newRect = Rect(origin: position, size: .zero)
-//        return newRect
-//    }
 }

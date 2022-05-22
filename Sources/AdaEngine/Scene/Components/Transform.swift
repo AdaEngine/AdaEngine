@@ -11,8 +11,16 @@ public struct Transform: Component {
     public var scale: Vector3
 
     public var position: Vector3
+    
+    public init(rotation: Quat = .identity, scale: Vector3 = [1, 1, 1], position: Vector3 = .zero) {
+        self.rotation = rotation
+        self.scale = scale
+        self.position = position
+    }
+}
 
-    public var matrix: Transform3D {
+public extension Transform {
+    var matrix: Transform3D {
         get {
             return Transform3D(
                 translation: self.position,
@@ -26,12 +34,6 @@ public struct Transform: Component {
             self.rotation = newValue.rotation
             self.position = newValue.origin
         }
-    }
-    
-    public init(rotation: Quat = .identity, scale: Vector3 = [1, 1, 1], position: Vector3 = .zero) {
-        self.rotation = rotation
-        self.scale = scale
-        self.position = position
     }
 }
 

@@ -12,6 +12,10 @@ import XCTest
 import simd
 #endif
 
+#if canImport(QuartzCore)
+import QuartzCore
+#endif
+
 class Transform3DTests: XCTestCase {
     
     func test_MatrixScale() {
@@ -59,7 +63,7 @@ class Transform3DTests: XCTestCase {
         let transform = Transform3D(columns: columns1) * Transform3D(columns: columns2)
         
         // then
-        assertMatrixEquals(simdMatrix, transform)
+        TestUtils.assertEqual(simdMatrix, transform)
     }
     
     func test_QuatFromSimdQuat_AreEquals() {
@@ -70,7 +74,7 @@ class Transform3DTests: XCTestCase {
         let quat = Quat(simdQuat)
         
         // then
-        assertQuatEquals(simdQuat, quat)
+        TestUtils.assertEqual(simdQuat, quat)
         
     }
     
@@ -83,7 +87,7 @@ class Transform3DTests: XCTestCase {
         let transform = Transform3D(quat: Quat(quat))
         
         // then
-        assertMatrixEquals(simdMatrix, transform)
+        TestUtils.assertEqual(simdMatrix, transform)
     }
     
     func test_quatFromMatrixAndSimdQuatFromMatrix_AreEquals() {
@@ -103,7 +107,7 @@ class Transform3DTests: XCTestCase {
         let quat = transform.rotation
         
         // then
-        assertQuatEquals(simdQuat, quat, accuracy: 0.1)
+        TestUtils.assertEqual(simdQuat, quat, accuracy: -1)
     }
     
     func test_quatNormalizedAndSimdQuatNormalized_AreEquals() {
@@ -121,7 +125,7 @@ class Transform3DTests: XCTestCase {
         
         // then
         
-        assertQuatEquals(simdQuatNormalized, quatNormalized)
+        TestUtils.assertEqual(simdQuatNormalized, quatNormalized)
     }
     
     func test_Transform3DMultipleVec4_And_SimdMatrix4MultipleVec4_AreEquals() {
@@ -133,8 +137,8 @@ class Transform3DTests: XCTestCase {
             Vector4(4, 0, 0, 1)
         ]
         
-        var simdMat = simd_float4x4(columns)
-        var transform = Transform3D(columns: columns)
+        let simdMat = simd_float4x4(columns)
+        let transform = Transform3D(columns: columns)
         
         let vec4: Vector4 = [1, 2, 1, 2]
         
@@ -158,38 +162,25 @@ class Transform3DTests: XCTestCase {
         
         // then
         
-        assertMatrixEquals(simdMatrix, transform)
+        TestUtils.assertEqual(simdMatrix, transform)
     }
     
-    private func assertMatrixEquals(_ simd_matrix: matrix_float4x4, _ transform: Transform3D) {
-        XCTAssertEqual(simd_matrix[0, 0], transform[0, 0])
-        XCTAssertEqual(simd_matrix[0, 1], transform[0, 1])
-        XCTAssertEqual(simd_matrix[0, 2], transform[0, 2])
-        XCTAssertEqual(simd_matrix[0, 3], transform[0, 3])
-        
-        XCTAssertEqual(simd_matrix[1, 0], transform[1, 0])
-        XCTAssertEqual(simd_matrix[1, 1], transform[1, 1])
-        XCTAssertEqual(simd_matrix[1, 2], transform[1, 2])
-        XCTAssertEqual(simd_matrix[1, 3], transform[1, 3])
-        
-        XCTAssertEqual(simd_matrix[2, 0], transform[2, 0])
-        XCTAssertEqual(simd_matrix[2, 1], transform[2, 1])
-        XCTAssertEqual(simd_matrix[2, 2], transform[2, 2])
-        XCTAssertEqual(simd_matrix[2, 3], transform[2, 3])
-        
-        XCTAssertEqual(simd_matrix[3, 0], transform[3, 0])
-        XCTAssertEqual(simd_matrix[3, 1], transform[3, 1])
-        XCTAssertEqual(simd_matrix[3, 2], transform[3, 2])
-        XCTAssertEqual(simd_matrix[3, 3], transform[3, 3])
-    }
+    #endif
     
-    private func assertQuatEquals(_ simd_quat: simd_quatf, _ quat: Quat, accuracy: Float = 0.0000001) {
-        XCTAssertEqual(simd_quat.vector.x, quat.x, accuracy: accuracy)
-        XCTAssertEqual(simd_quat.vector.y, quat.y, accuracy: accuracy)
-        XCTAssertEqual(simd_quat.vector.z, quat.z, accuracy: accuracy)
-        XCTAssertEqual(simd_quat.vector.w, quat.w, accuracy: accuracy)
-    }
+    #if canImport(QuartzCore)
     
+    func test_AffineTransformTo3D_Equals_QuartzAffineToTransform3D() {
+        // given
+        let cgAffine = CGAffineTransform(translationX: 30, y: 4).scaledBy(x: 2, y: 2).rotated(by: 30)
+        let myAffine = Transform2D(translation: [30, 4]).scaledBy(x: 2, y: 2).rotated(by: 30)
+        
+        // when
+        let caTransform3D = CATransform3DMakeAffineTransform(cgAffine)
+        let myTransform3D = Transform3D(myAffine)
+        
+        // then
+        TestUtils.assertEqual(caTransform3D, myTransform3D)
+    }
     #endif
 
 }

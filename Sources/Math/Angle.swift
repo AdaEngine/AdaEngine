@@ -60,3 +60,9 @@ extension Angle: ExpressibleByFloatLiteral {
         self = Angle(radians: Float(value))
     }
 }
+
+extension Angle: ExpressibleByIntegerLiteral {
+    public init(integerLiteral value: IntegerLiteralType) {
+        self = Angle(radians: Float(value))
+    }
+}

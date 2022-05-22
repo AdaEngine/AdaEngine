@@ -6,5 +6,5 @@
 //
 
 public struct SpriteComponent: Component {
-    var color: Color
+    public var color: Color
 }

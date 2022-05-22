@@ -398,11 +398,11 @@ extension MetalRenderBackend {
         self.uniformSet.setValue(nil, forKey: rid)
     }
     
-    func createTexture(size: Vector2i?) -> RID {
+    func createTexture(size: Size?) -> RID {
         let descriptor = MTLTextureDescriptor()
         descriptor.textureType = .type2D
-        descriptor.height = size?.y ?? 1
-        descriptor.width = size?.x ?? 1
+        descriptor.height = Int(size?.height ?? 1)
+        descriptor.width = Int(size?.width ?? 1)
         guard let texture = self.context.device.makeTexture(descriptor: descriptor) else {
             fatalError()
         }
@@ -459,7 +459,7 @@ extension MetalRenderBackend {
             fatalError("Can't get index buffer for draw")
         }
         
-        encoder.setTriangleFillMode(.lines)
+//        encoder.setTriangleFillMode(.lines)
         
         encoder.drawIndexedPrimitives(
             type: .triangle,
@@ -483,89 +483,6 @@ extension MetalRenderBackend {
 }
 
 #endif
-
-/// Resource Identifier
-public struct RID: Equatable, Hashable, Codable {
-    public let id: Int
-}
-
-extension RID {
-    
-    /// Generate random unique rid
-    init() {
-        self.id = Self.readTime()
-    }
-    
-    private static func readTime() -> Int {
-        var time = timespec()
-        clock_gettime(CLOCK_MONOTONIC, &time)
-        
-        return (time.tv_sec * 10000000) + (time.tv_nsec / 100) + 0x01B21DD213814000;
-    }
-}
-
-/// The data type contains any values usign RID as key
-/// - Note: ResourceHashMap is thread safety
-public struct ResourceHashMap<T> {
-    
-    private var queue: DispatchQueue = DispatchQueue(label: "ResourceMap-\(T.self)")
-    
-    private var dictionary: OrderedDictionary<RID, T> = [:]
-    
-    public func get(_ rid: RID) -> T? {
-        return self.queue.sync {
-            return self.dictionary[rid]
-        }
-    }
-    
-    /// Generate new RID and set value for it
-    /// - Returns: RID instance of holded resource
-    public mutating func setValue(_ value: T) -> RID {
-        self.queue.sync(flags: .barrier) {
-            let rid = RID()
-            self.dictionary[rid] = value
-            
-            return rid
-        }
-    }
-    
-    public mutating func setValue(_ value: T?, forKey rid: RID) {
-        self.queue.sync(flags: .barrier) {
-            self.dictionary[rid] = value
-        }
-    }
-    
-    public mutating func removeAll() {
-        self.queue.sync(flags: .barrier) {
-            self.dictionary.removeAll()
-        }
-    }
-    
-    public subscript(_ rid: RID) -> T? {
-        get {
-            return self.get(rid)
-        }
-        
-        set {
-            self.setValue(newValue, forKey: rid)
-        }
-    }
-}
-
-extension ResourceHashMap: Sequence {
-    public typealias Iterator = OrderedDictionary<RID, T>.Iterator
-    
-    public func makeIterator() -> OrderedDictionary<RID, T>.Iterator {
-        return self.dictionary.makeIterator()
-    }
-}
-
-extension ResourceHashMap: ExpressibleByDictionaryLiteral {
-    
-    public init(dictionaryLiteral elements: (RID, T)...) {
-        self.dictionary.merge(elements, uniquingKeysWith: { $1 })
-    }
-}
 
 // TODO: Move to utils folder
 public func mem_size<T>(of object: T) -> Int {

@@ -6,6 +6,7 @@
 //
 
 import Math
+import GLKit
 
 /// Special object to render user interface on the screen
 /// Context use orthogonal projection
@@ -30,21 +31,17 @@ final public class GUIRenderContext {
         self.currentTransform = transform
     }
     
-    private var screenMatrix: Transform3D = .identity
-    
     public func beginDraw(in rect: Rect) {
         let size = rect.size
         
         let view = Transform3D.orthogonal(
             left: 0,
-            right: size.width,
+            right: size.width / 2,
             top: 0,
-            bottom: -size.height,
+            bottom: -size.height / 2,
             zNear: -1,
             zFar: 1
         )
-        
-        self.screenMatrix = view
         
         self.engine.beginContext(for: view)
     }
@@ -61,8 +58,8 @@ final public class GUIRenderContext {
         self.strokeColor = color
     }
     
-    public func setXformTransform(_ transform: Transform2D) {
-        self.currentTransform = self.makeCanvasTransform3D(from: transform)
+    public func setTransform(_ transform: Transform3D) {
+        self.currentTransform = transform
     }
     
     public func setDebugName(_ name: String) {
@@ -93,23 +90,12 @@ final public class GUIRenderContext {
         self.fillColor = .clear
         self.strokeColor = .black
         self.currentTransform = .identity
-        
-        self.screenMatrix = .identity
     }
 }
 
 extension GUIRenderContext {
-    func makeCanvasTransform3D(from transform: Transform2D) -> Transform3D {
-        
-        let origin = transform.xFormOrigin
-        let size = transform.xFormSize
-        
-        return Transform3D(
-            [size.x, 0, 0, 0],
-            [0, size.y, 0, 0],
-            [0, 0, 1, 0],
-            [origin.x, origin.y, 0, 1]
-        )
+    func makeCanvasTransform3D(from affineTransform: Transform2D) -> Transform3D {
+        return Transform3D(affineTransform)
     }
     
     func makeCanvasTransform3D(from rect: Rect) -> Transform3D {
@@ -121,10 +107,16 @@ extension GUIRenderContext {
         }
         
         return Transform3D(
-            [size.width, 0, 0, 0],
-            [0, size.height, 0, 0 ],
-            [0, 0, 1.0, 0.0],
-            [size.width / 2 + origin.x, -size.height / 2 - origin.y, 0, 1]
+            translation: [origin.x, origin.y, 0],
+            rotation: .identity,
+            scale: [size.width, size.height, 1]
         )
+//
+//        return Transform3D(
+//            [size.width, 0, 0, 0],
+//            [0, size.height, 0, 0 ],
+//            [0, 0, 1.0, 0.0],
+//            [size.width / 2 + origin.x, -size.height / 2 - origin.y, 0, 1]
+//        )
     }
 }

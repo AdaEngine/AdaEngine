@@ -23,7 +23,7 @@ class ControlCircleComponent: ScriptComponent {
 //            self.circle.thickness -= 0.1
 //        }
         
-        let view = viewHolder.rootView//.subviews.last!
+        let view = viewHolder.rootView.subviews.last!
 
         if Input.isKeyPressed(.arrowDown) {
             view.frame.origin.y += 1 * speed
@@ -50,12 +50,12 @@ class GameScene {
 
         let view = View()
         view.backgroundColor = .red
-//
-//        let blueView = View()
-//        blueView.frame = Rect(origin: Point(x: 0, y: 0), size: Size(width: 130, height: 130))
-//        blueView.backgroundColor = Color.blue.opacity(0.2)
+
+        let blueView = View()
+        blueView.frame = Rect(origin: Point(x: 1600 / 2, y: 0), size: Size(width: 1600 / 2, height: 1144 / 2))
+        blueView.backgroundColor = Color.blue.opacity(0.2)
 //        blueView.zIndex = -1
-//        view.addSubview(blueView)
+        view.addSubview(blueView)
 //        
 //        let blueView1 = View()
 //        blueView1.frame = Rect(origin: Point(x: 130, y: 0), size: Size(width: 130, height: 130))

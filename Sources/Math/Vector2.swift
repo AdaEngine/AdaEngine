@@ -12,7 +12,6 @@ import simd
 
 /// Vector with floats
 public typealias Vector2 = SIMD2<Float>
-public typealias Vector2i = SIMD2<Int>
 public typealias Vector3 = SIMD3<Float>
 public typealias Vector4 = SIMD4<Float>
 
@@ -182,5 +181,22 @@ public extension Vector4 {
             lhs[0, 2] * rhs.x + lhs[1, 2] * rhs.y + lhs[2, 2] * rhs.z + lhs[3, 2] * rhs.w,
             lhs[0, 3] * rhs.x + lhs[1, 3] * rhs.y + lhs[2, 3] * rhs.z + lhs[3, 3] * rhs.w
         ]
+    }
+}
+
+public extension Vector3 {
+    static func * (lhs: Transform2D, rhs: Vector3) -> Vector3 {
+        [
+            lhs[0, 0] * rhs.x + lhs[1, 0] * rhs.y + lhs[2, 0] * rhs.z,
+            lhs[0, 1] * rhs.x + lhs[1, 1] * rhs.y + lhs[2, 1] * rhs.z,
+            lhs[0, 2] * rhs.x + lhs[1, 2] * rhs.y + lhs[2, 2] * rhs.z
+        ]
+    }
+}
+
+public extension Point {
+    func applying(_ affineTransform: Transform2D) -> Point {
+        let point = (affineTransform * Vector3(self.x, self.y, 1))
+        return [point.x, point.y]
     }
 }

@@ -27,11 +27,11 @@ struct ViewContainerSystem: System {
                 return
             }
             
-            container.rootView.frame.size = Size(width: 400, height: 400)
+//            container.rootView.frame.size = Size(width: 400, height: 400)
             
-//            if container.rootView.frame.size != context.scene.viewportSize {
-//                container.rootView.frame.size = context.scene.viewportSize
-//            }
+            if container.rootView.frame.size != context.scene.viewportSize {
+                container.rootView.frame.size = context.scene.viewportSize
+            }
             
             for event in Input.shared.eventsPool {
                 container.rootView.sendEvent(event)

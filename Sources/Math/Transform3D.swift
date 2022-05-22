@@ -78,25 +78,40 @@ public extension Transform3D {
         self.init(x, y, z, w)
     }
     
-    init(transform2D: Transform2D) {
+    init(basis: Transform2D) {
         var matrix = Transform3D.identity
         
-        matrix[0, 0] = transform2D.x.x
-        matrix[0, 1] = transform2D.x.y
-        matrix[0, 2] = transform2D.x.z
+        matrix[0, 0] = basis.x.x
+        matrix[0, 1] = basis.x.y
+        matrix[0, 2] = basis.x.z
         
-        matrix[1, 0] = transform2D.y.x
-        matrix[1, 1] = transform2D.y.y
-        matrix[1, 2] = transform2D.y.z
+        matrix[1, 0] = basis.y.x
+        matrix[1, 1] = basis.y.y
+        matrix[1, 2] = basis.y.z
         
-        matrix[2, 0] = transform2D.z.x
-        matrix[2, 1] = transform2D.z.y
-        matrix[2, 2] = transform2D.z.z
+        matrix[2, 0] = basis.z.x
+        matrix[2, 1] = basis.z.y
+        matrix[2, 2] = basis.z.z
         
         self = matrix
     }
-    
 }
+
+// MARK: - Affine
+
+public extension Transform3D {
+    init(_ affineTransform: Transform2D) {
+        let at = affineTransform
+        
+        self = Transform3D(
+            [at[0, 0], at[1, 0], 0, at[2, 0]],
+            [at[0, 1], at[1, 1], 0, at[2, 1]],
+            [0,        0,        1, 0],
+            [0,        0,        0, 1]
+        )
+    }
+}
+
 
 extension Transform3D: CustomDebugStringConvertible {
     public var debugDescription: String {
@@ -171,7 +186,37 @@ public extension Transform3D {
     
     /// - SeeAlso: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
     var rotation: Quat {
-        self.basis.rotation
+        var quat = Quat.identity
+        
+        let trace = self[0, 0] + self[1, 1] + self[2, 2]
+        
+        if (trace > 0) {
+            let s = sqrt(trace + 1.0) * 2
+            quat.w = 0.25 * s
+            quat.x = (self[2, 1] - self[1, 2]) / s
+            quat.y = (self[0, 2] - self[2, 0]) / s
+            quat.z = (self[1, 0] - self[0, 1]) / s
+        } else if ((self[0, 0] > self[1, 1]) && (self[0, 0] > self[2, 2])) {
+            let s = sqrt(1.0 + self[0, 0] - self[1, 1] - self[2, 2]) * 2 // S=4*qx
+            quat.w = (self[2, 1] - self[1, 2]) / s
+            quat.x = 0.25 * s
+            quat.y = (self[0, 1] + self[1, 0]) / s
+            quat.z = (self[0, 2] + self[2, 0]) / s
+        } else if (self[1, 1] > self[2, 2]) {
+            let s = sqrt(1.0 + self[1, 1] - self[0, 0] - self[2, 2]) * 2 // S=4*qy
+            quat.w = (self[0, 2] - self[2, 0]) / s
+            quat.x = (self[0, 1] + self[1, 0]) / s
+            quat.y = 0.25 * s
+            quat.z = (self[1, 2] + self[2, 1]) / s
+        } else {
+            let s = sqrt(1.0 + self[2, 2] - self[0, 0] - self[1, 1]) * 2 // S=4*qz
+            quat.w = (self[1, 0] - self[0, 1]) / s
+            quat.x = (self[0, 2] + self[2, 0]) / s
+            quat.y = (self[1, 2] + self[2, 1]) / s
+            quat.z = 0.25 * s
+        }
+        
+        return quat
     }
     
     var origin: Vector3 {
