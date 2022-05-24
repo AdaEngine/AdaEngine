@@ -25,7 +25,6 @@ extension Component {
     }
 }
 
-
 enum ComponentStorage {
     
     private static var registedComponents: [String: Component.Type] = [:]

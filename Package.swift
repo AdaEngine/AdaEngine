@@ -72,7 +72,18 @@ let package = Package(
         .executableTarget(
             name: "AdaEditor",
             dependencies: ["AdaEngine", "Vulkan", "CSDL2", "Math"],
-            exclude: ["Project.swift"]
+            exclude: ["Project.swift"],
+            swiftSettings: [
+                .define("EDITOR_DEBUG", .when(configuration: .debug)),
+                
+                // List of defines availables only for editor
+                .define("EDITOR_MACOS", .when(platforms: [.macOS])),
+                .define("EDITOR_WINDOWS", .when(platforms: [.windows])),
+                .define("EDITOR_IOS", .when(platforms: [.iOS])),
+                .define("EDITOR_TVOS", .when(platforms: [.tvOS])),
+                .define("EDITOR_ANDROID", .when(platforms: [.android])),
+                .define("EDITOR_LINUX", .when(platforms: [.linux]))
+            ]
         ),
         
         .target(
@@ -86,7 +97,18 @@ let package = Package(
                 "Yams"
             ],
             exclude: ["Project.swift"],
-            resources: []
+            resources: [],
+            swiftSettings: [
+                .define("MACOS", .when(platforms: [.macOS])),
+                .define("WINDOWS", .when(platforms: [.windows])),
+                .define("IOS", .when(platforms: [.iOS])),
+                .define("TVOS", .when(platforms: [.tvOS])),
+                .define("ANDROID", .when(platforms: [.android])),
+                .define("LINUX", .when(platforms: [.linux])),
+                
+                /// Turn on metal
+                .define("METAL", .when(platforms: applePlatforms))
+            ]
         ),
         
         // Just for test
