@@ -30,7 +30,7 @@ final public class Engine {
     // MARK: - Public Methods
     
     public func setRootScene(_ scene: Scene) {
-        scene.viewportSize = RenderEngine.shared.renderBackend.viewportSize
+//        scene.viewportSize = RenderEngine.shared.renderBackend.viewportSize
         SceneManager.shared.presentScene(scene)
     }
 }

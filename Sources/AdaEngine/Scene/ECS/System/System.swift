@@ -5,11 +5,15 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
-import Foundation
-
 public struct SceneUpdateContext {
     public let scene: Scene
     public let deltaTime: TimeInterval
+}
+
+// TODO: Make dependency
+public enum SystemDependency {
+    case before(System.Type)
+    case after(System.Type)
 }
 
 public protocol System {
@@ -29,34 +33,6 @@ public extension System {
     static var dependencies: [SystemDependency] {
         return []
     }
-}
-
-extension System {
-    
-    public static func registerSystem() {
-        SystemStorage.register(self)
-    }
-    
-    static var swiftName: String {
-        return String(reflecting: self)
-    }
-}
-
-struct SystemStorage {
-    private static var registeredSystem: [String: System.Type] = [:]
-    
-    static func getRegistredSystem(for name: String) -> System.Type? {
-        return self.registeredSystem[name] ?? (NSClassFromString(name) as? System.Type)
-    }
-    
-    static func register<T: System>(_ system: T.Type) {
-        self.registeredSystem[T.swiftName] = system
-    }
-}
-
-public enum SystemDependency {
-    case before(System.Type)
-    case after(System.Type)
 }
 
 extension SystemDependency: Equatable {

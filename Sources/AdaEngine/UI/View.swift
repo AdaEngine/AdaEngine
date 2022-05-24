@@ -183,7 +183,7 @@ extension View {
     
     private var worldTransform: Transform3D {
         if let superView = self.superview {
-            return superView.worldTransform * self._localTransform
+            return self._localTransform * superView.worldTransform
         }
         
         return self._localTransform

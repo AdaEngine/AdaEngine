@@ -33,13 +33,6 @@ public final class Scene {
         self.entities.append(cameraEntity)
         
         self.activeCamera = cameraComponent
-        
-        defer {
-            self.addSystem(ScriptComponentUpdateSystem.self)
-            self.addSystem(CameraSystem.self)
-            self.addSystem(Circle2DRenderSystem.self)
-            self.addSystem(ViewContainerSystem.self)
-        }
     }
     
     public required convenience init(from decoder: Decoder) throws {
@@ -59,6 +52,7 @@ public final class Scene {
                 continue
             }
             
+            // FIXME: We should initiate scene after engine run
             systems.append(type.init(scene: self))
         }
         
@@ -82,49 +76,25 @@ public final class Scene {
         self.systems.append(system)
     }
     
+    // MARK: - Internal methods
+    
+    /// Check the scene will not run earlier
+    var isReady = false
+    
+    func ready() {
+        // Add base systems
+        self.addSystem(ScriptComponentUpdateSystem.self)
+        self.addSystem(CameraSystem.self)
+        self.addSystem(Circle2DRenderSystem.self)
+        self.addSystem(ViewContainerSystem.self)
+        
+        self.isReady = true
+    }
+    
     func update(_ deltaTime: TimeInterval) {
         for system in self.systems {
             system.update(context: SceneUpdateContext(scene: self, deltaTime: deltaTime))
         }
-    }
-    
-    func physicsUpdate(_ deltaTime: TimeInterval) {
-        
-    }
-}
-
-// MARK: - Query
-
-public struct QueryPredicate<Value> {
-    let fetch: (Value) -> Bool
-}
-
-public extension QueryPredicate {
-    static func has<T: Component>(_ type: T.Type) -> QueryPredicate<Entity> {
-        QueryPredicate<Entity> { entity in
-            return entity.components.has(type)
-        }
-    }
-    
-    static func && (lhs: QueryPredicate<Value>, rhs: QueryPredicate<Value>) -> QueryPredicate<Value> {
-        QueryPredicate { value in
-            lhs.fetch(value) && rhs.fetch(value)
-        }
-    }
-    
-    static func || (lhs: QueryPredicate<Value>, rhs: QueryPredicate<Value>) -> QueryPredicate<Value> {
-        QueryPredicate { value in
-            lhs.fetch(value) || rhs.fetch(value)
-        }
-    }
-}
-
-public struct EntityQuery {
-    
-    let predicate: QueryPredicate<Entity>
-    
-    public init(where predicate: QueryPredicate<Entity>) {
-        self.predicate = predicate
     }
 }
 

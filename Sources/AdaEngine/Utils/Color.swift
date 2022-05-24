@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 11/4/21.
 //
 
-
 public struct Color: Codable, Hashable {
     
     public private(set) var red: Float

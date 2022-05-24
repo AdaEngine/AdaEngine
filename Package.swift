@@ -3,6 +3,10 @@
 
 import PackageDescription
 
+#if canImport(AppleProductTypes)
+import AppleProductTypes
+#endif
+
 #if os(Linux)
 import Glibc
 #else
@@ -24,10 +28,36 @@ var products: [Product] = [
     )
 ]
 
+// TODO: It's works if we wrap sources to .swiftpm container
+//#if canImport(AppleProductTypes)
+//let ios = Product.iOSApplication(
+//    name: "AdaEditor",
+//    targets: ["AdaEditor"],
+//    bundleIdentifier: "dev.litecode.TestApp",
+//    teamIdentifier: "8PYCRS3EA3",
+//    displayVersion: "1.0",
+//    bundleVersion: "1",
+//    iconAssetName: "AppIcon",
+//    accentColorAssetName: "AccentColor",
+//    supportedDeviceFamilies: [
+//        .pad,
+//        .phone
+//    ],
+//    supportedInterfaceOrientations: [
+//        .portrait,
+//        .landscapeRight,
+//        .landscapeLeft,
+//        .portraitUpsideDown(.when(deviceFamilies: [.pad]))
+//    ]
+//)
+//
+//products.append(ios)
+//#endif
+
 let package = Package(
     name: "AdaEngine",
     platforms: [
-        .iOS(.v12),
+        .iOS(.v13),
         .macOS(.v11),
     ],
     products: products,
@@ -56,11 +86,7 @@ let package = Package(
                 "Yams"
             ],
             exclude: ["Project.swift"],
-            resources: [
-//                .copy("Rendering/Shaders/train.obj"),
-//                .copy("Rendering/Shaders/train.mtl"),
-//                .process("Rendering/Shaders/Metal/circle.metal")
-            ]
+            resources: []
         ),
         
         // Just for test

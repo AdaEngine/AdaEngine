@@ -10,8 +10,8 @@ import Collections
 
 public extension Entity {
     
-    @frozen
-    struct ComponentSet: Codable {
+    /// Hold entity components
+    @frozen struct ComponentSet: Codable {
         
         internal weak var entity: Entity?
         
@@ -99,11 +99,12 @@ public extension Entity {
             self.buffer.removeAll()
         }
 
-        /// The number of components in this collection.
+        /// The number of components in the set.
         public var count: Int {
             return self.buffer.count
         }
         
+        /// A Boolean value indicating whether the set is empty.
         public var isEmpty: Bool {
             return self.buffer.isEmpty
         }

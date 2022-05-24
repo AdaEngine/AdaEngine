@@ -1,17 +1,15 @@
 //
-//  File.swift
+//  MacOSGameViewController.swift
 //  
 //
 //  Created by v.prusakov on 11/11/21.
 //
 
 #if canImport(AppKit)
-
 import AppKit
 import MetalKit
-import Yams
 
-final class GameViewController: NSViewController {
+final class MacOSGameViewController: NSViewController {
     
     var gameView: MetalView {
         return self.view as! MetalView
@@ -20,9 +18,6 @@ final class GameViewController: NSViewController {
     override func loadView() {
         self.view = MetalView()
     }
-    
-    // TODO: test
-    let gameScene = GameScene()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -44,24 +39,11 @@ final class GameViewController: NSViewController {
             fatalError(error.localizedDescription)
         }
     }
-    
-    var scene: Scene?
-    
-    override func viewDidAppear() {
-        super.viewDidAppear()
-        
-        ScriptComponentUpdateSystem.registerSystem()
-        CameraSystem.registerSystem()
-        
-        let scene = gameScene.makeScene()
-        Engine.shared.setRootScene(scene)
-        self.scene = scene
-    }
 }
 
 // MARK: - MTKViewDelegate
 
-extension GameViewController: MTKViewDelegate {
+extension MacOSGameViewController: MTKViewDelegate {
     
     func draw(in view: MTKView) {
         GameLoop.current.iterate()
@@ -70,7 +52,6 @@ extension GameViewController: MTKViewDelegate {
     func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         do {
             let size = Size(width: Float(size.width), height: Float(size.height))
-            self.scene?.viewportSize = size
             try RenderEngine.shared.updateViewSize(newSize: size)
         } catch {
             fatalError(error.localizedDescription)

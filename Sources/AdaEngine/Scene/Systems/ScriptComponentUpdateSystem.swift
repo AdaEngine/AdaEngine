@@ -13,12 +13,14 @@ struct ScriptComponentUpdateSystem: System {
         self.guiRenderContext = GUIRenderContext()
     }
     
+    // TODO: Think about iteration scripts components in child entities
     func update(context: UpdateContext) {
         context.scene.entities.forEach { entity in
             for component in entity.components.buffer.values {
                 
                 guard let component = component as? ScriptComponent else { continue }
                 
+                /// Initialize component
                 if !component.isAwaked {
                     component.ready()
                     component.isAwaked = true

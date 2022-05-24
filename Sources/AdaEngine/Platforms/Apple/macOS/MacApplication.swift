@@ -10,11 +10,8 @@ import Foundation
 import AppKit
 
 class MacApplication: Application {
-    required init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        try super.init(argc: argc, argv: argv)
-    }
     
-    override func run() throws {
+    override func run(options: ApplicationRunOptions) throws {
         let app = AdaApplication.shared
         app.setActivationPolicy(.regular)
         

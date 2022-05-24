@@ -7,7 +7,7 @@
 
 import Foundation.NSURL
 
-public class Application {
+open class Application {
     
     // MARK: - Public
     
@@ -34,11 +34,12 @@ public class Application {
     
     // MARK: - Internal
     
-    required init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        
-    }
+    public init(
+        argc: Int32,
+        argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
+    ) throws { }
     
-    func run() throws {
+    func run(options: ApplicationRunOptions) throws {
         assertionFailure("Not implemented")
     }
     

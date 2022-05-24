@@ -1,13 +1,9 @@
 //
-//  Component.swift
+//  ScriptComponent.swift
 //  
 //
-//  Created by v.prusakov on 11/2/21.
+//  Created by v.prusakov on 5/24/22.
 //
-
-public protocol Component: Codable {
-    
-}
 
 /// Base class describe some unit of game logic
 open class ScriptComponent: Component {
@@ -133,28 +129,4 @@ public extension ScriptComponent {
     func setComponent<T: Component>(_ component: T) {
         self.entity?.components.set(component)
     }
-}
-
-import Foundation
-
-extension Component {
-    static func registerComponent() {
-        let token = String(reflecting: Self.self)
-        ComponentStorage.registedComponents[token] = Self.self
-    }
-    
-    
-    static var swiftName: String {
-        return String(reflecting: Self.self)
-    }
-}
-
-struct ComponentStorage {
-    
-    static func getRegistredComponent(for name: String) -> Component.Type? {
-        return self.registedComponents[name] ?? (NSClassFromString(name) as? Component.Type)
-    }
-    
-    static var registedComponents: [String: Component.Type] = [:]
-
 }

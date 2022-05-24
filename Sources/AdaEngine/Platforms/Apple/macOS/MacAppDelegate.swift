@@ -28,7 +28,7 @@ class MacAppDelegate: NSObject, NSApplicationDelegate {
         window.title = "Ada Editor"
         window.center()
         
-        let viewController = GameViewController(nibName: nil, bundle: nil)
+        let viewController = MacOSGameViewController(nibName: nil, bundle: nil)
         window.contentViewController = viewController
         
         window.setFrame(NSMakeRect(200, 200, 800, 600), display: true)

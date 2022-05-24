@@ -15,6 +15,11 @@ public class SceneManager {
     private init() {}
     
     func update(_ deltaTime: TimeInterval) {
+        
+        if self.currentScene?.isReady == false {
+            self.currentScene?.ready()
+        }
+        
         self.currentScene?.update(deltaTime)
     }
     

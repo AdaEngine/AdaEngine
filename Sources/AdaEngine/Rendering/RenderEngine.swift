@@ -45,6 +45,10 @@ public class RenderEngine {
     
     // MARK: Methods
     
+    public func setClearColor(_ color: Color) {
+        self.renderBackend.setClearColor(color)
+    }
+    
     public func draw() throws {
         guard self.renderBackend.viewportSize.width > 0 && self.renderBackend.viewportSize.height > 0 else {
             return

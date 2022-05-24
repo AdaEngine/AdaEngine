@@ -7,7 +7,11 @@
 
 import AdaEngine
 
+let scene = GameScene().makeScene()
+let options = ApplicationRunOptions(initialScene: scene)
+
 ApplicationCreate(
     argc: CommandLine.argc,
-    argv: CommandLine.unsafeArgv
+    argv: CommandLine.unsafeArgv,
+    options: options
 )

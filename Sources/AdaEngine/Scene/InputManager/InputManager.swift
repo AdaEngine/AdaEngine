@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
-import Darwin
+#if os(Linux)
+import Glibc
+#else
+import Darwin.C
+#endif
 
 public final class Input {
     
@@ -53,6 +57,7 @@ public final class Input {
         return self.shared.keyEvents[code]?.status == .up
     }
     
+    // TODO: Make action list
     public static func isActionPressed(_ action: String) -> Bool {
         fatalError()
     }

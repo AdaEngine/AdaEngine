@@ -35,7 +35,7 @@ public class RenderEngine2D {
     var quadIndexBuffer: RID
     var indexArray: RID
     
-    static var maxQuads = 100_000
+    static var maxQuads = 20_000
     static var maxVerticies = maxQuads * 4
     static var maxIndecies = maxQuads * 6
     
