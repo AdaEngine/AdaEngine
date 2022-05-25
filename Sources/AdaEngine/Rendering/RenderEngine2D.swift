@@ -58,14 +58,14 @@ public class RenderEngine2D {
         var quadIndices = [UInt32].init(repeating: 0, count: Self.maxIndecies)
 
         var offset: UInt32 = 0
-        for i in stride(from: 0, to: Self.maxIndecies, by: 6) {
-            quadIndices[i + 0] = offset + 0
-            quadIndices[i + 1] = offset + 1
-            quadIndices[i + 2] = offset + 2
+        for index in stride(from: 0, to: Self.maxIndecies, by: 6) {
+            quadIndices[index + 0] = offset + 0
+            quadIndices[index + 1] = offset + 1
+            quadIndices[index + 2] = offset + 2
 
-            quadIndices[i + 3] = offset + 2
-            quadIndices[i + 4] = offset + 3
-            quadIndices[i + 5] = offset + 0
+            quadIndices[index + 3] = offset + 2
+            quadIndices[index + 4] = offset + 3
+            quadIndices[index + 5] = offset + 0
 
             offset += 4
         }

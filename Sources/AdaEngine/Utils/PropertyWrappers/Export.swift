@@ -63,8 +63,7 @@ extension Export: _ExportCodable {
         
         self.wrappedValue = value
     }
-    
-    
+     
     func encode(to container: inout EncodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws {
         /// we have difference between initial value
         if self.hasChanges && !self.skipped {
@@ -122,7 +121,7 @@ extension Export {
     }
     
     struct EditorInfo: Codable {
-        var modifiers: Modifiers? = nil
+        var modifiers: Modifiers?
     }
 }
 

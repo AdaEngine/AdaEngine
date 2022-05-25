@@ -10,6 +10,8 @@ import simd
 // TODO: Create object aka CGFloat for float or doubles
 // TODO: when move to new vector object, we should use same object size
 
+// swiftlint:disable identifier_name
+
 /// Vector with floats
 public typealias Vector2 = SIMD2<Float>
 public typealias Vector3 = SIMD3<Float>
@@ -24,7 +26,6 @@ extension Double: VectorScalar {}
 extension Int: VectorScalar {}
 extension UInt32: VectorScalar {}
 extension UInt64: VectorScalar {}
-
 
 /// Base vector protocol
 public protocol Vector: Codable, Hashable {
@@ -81,7 +82,6 @@ public extension Vector_2 {
         return newVector
     }
 }
-
 
 public struct _Vector3<Scalar: VectorScalar> {
     public var x: Scalar
@@ -200,3 +200,5 @@ public extension Point {
         return [point.x, point.y]
     }
 }
+
+// swiftlint:enable identifier_name

@@ -140,7 +140,6 @@ extension MeshDescriptor {
     }
 }
 
-
 extension MeshDescriptor {
     
     public typealias Positions = MeshArray<Vector3>

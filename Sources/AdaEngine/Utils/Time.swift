@@ -24,10 +24,10 @@ public struct Time {
         #if os(iOS) || os(tvOS) || os(OSX) || os(watchOS)
         return TimeInterval(CACurrentMediaTime())
         #else
-        var t = timespec()
-        clock_gettime(CLOCK_MONOTONIC, &t)
+        var time = timespec()
+        clock_gettime(CLOCK_MONOTONIC, &time)
 
-        return TimeInterval(t.tv_sec) + TimeInterval(t.tv_nsec) / TimeInterval(1.0e-9)
+        return TimeInterval(time.tv_sec) + TimeInterval(time.tv_nsec) / TimeInterval(1.0e-9)
         #endif
     }
 }

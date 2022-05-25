@@ -15,7 +15,6 @@ public final class MetalView: MTKView {
     var currentTrackingArea: NSTrackingArea?
     #endif
     
-    
 }
 
 #endif
@@ -154,7 +153,6 @@ extension MetalView {
             return .ended
         }
     }
-
 
 }
 

@@ -38,4 +38,3 @@ public extension QueryPredicate {
         }
     }
 }
-

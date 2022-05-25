@@ -74,8 +74,8 @@ class EditorCameraSystem: System {
     
     func mouseEvent(for editorComponent: inout EditorCameraComponent) {
         let position = Input.getMousePosition()
-        var xoffset = position.x - self.lastMousePosition.x;
-        var yoffset = self.lastMousePosition.y - position.y;
+        var xoffset = position.x - self.lastMousePosition.x
+        var yoffset = self.lastMousePosition.y - position.y
         self.lastMousePosition = position
 
         let sensitivity: Float = 0.1

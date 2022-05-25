@@ -7,6 +7,8 @@
 
 import Foundation
 
+// swiftlint:disable all
+
 /// Object contains identifier to resource.
 public struct RID: Equatable, Hashable {
     public let id: Int
@@ -26,3 +28,5 @@ extension RID {
         return (time.tv_sec * 10000000) + (time.tv_nsec / 100) + 0x01B21DD213814000;
     }
 }
+
+// swiftlint:enable all

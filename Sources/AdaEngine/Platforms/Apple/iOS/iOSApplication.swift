@@ -8,7 +8,8 @@
 #if canImport(UIKit)
 import UIKit
 
-class iOSApplication: Application {
+// swiftlint:disable type_name
+final public class iOSApplication: Application {
     
     let argc: Int32
     let argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
@@ -41,5 +42,7 @@ class iOSApplication: Application {
 }
 
 class AdaApplication: UIApplication { }
+
+// swiftlint:enable type_name
 
 #endif

@@ -124,4 +124,3 @@ extension Scene: Codable {
         case id, name, entities, systems
     }
 }
-

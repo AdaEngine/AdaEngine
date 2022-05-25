@@ -9,6 +9,7 @@
 import UIKit
 import MetalKit
 
+// swiftlint:disable:next type_name
 class iOSGameViewController: UIViewController {
     var gameView: MetalView {
         return self.view as! MetalView

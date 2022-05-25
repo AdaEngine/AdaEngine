@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
-import CSDL2
+// swiftlint:disable all
 
 public enum KeyCode: String, Hashable {
     
@@ -353,3 +353,5 @@ public enum MouseButton: UInt8, Hashable {
     case wheelLeft
     case wheelRight
 }
+
+// swiftlint:enable all

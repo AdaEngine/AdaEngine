@@ -11,24 +11,24 @@ public struct MeshArray<Element>: Sequence {
     
     public typealias Iterator = ChunkIterator<Element>
     
-    internal var _buffer: _MeshArrayBuffer
+    internal var buffer: _MeshArrayBuffer
     
     // MARK: - Public Methods
     
     public func makeIterator() -> Iterator {
-        return Iterator(buffer: self._buffer)
+        return Iterator(buffer: self.buffer)
     }
     
     public var elements: [Element] {
-        return self._buffer.getData()
+        return self.buffer.getData()
     }
     
     public var count: Int {
-        return self._buffer.count
+        return self.buffer.count
     }
     
     public func forEach(_ body: (Element, Element) throws -> Void) rethrows {
-        let iterator = ChunkIterator<(Element, Element)>(buffer: self._buffer)
+        let iterator = ChunkIterator<(Element, Element)>(buffer: self.buffer)
         
         while let element = iterator.next() {
             try body(element.0, element.1)
@@ -36,7 +36,7 @@ public struct MeshArray<Element>: Sequence {
     }
     
     public func forEach(_ body: (Element, Element, Element) throws -> Void) rethrows {
-        let iterator = ChunkIterator<(Element, Element, Element)>(buffer: self._buffer)
+        let iterator = ChunkIterator<(Element, Element, Element)>(buffer: self.buffer)
         
         while let element = iterator.next() {
             try body(element.0, element.1, element.2)
@@ -44,7 +44,7 @@ public struct MeshArray<Element>: Sequence {
     }
     
     public func forEach(_ body: (Element, Element, Element, Element) throws -> Void) rethrows {
-        let iterator = ChunkIterator<(Element, Element, Element, Element)>(buffer: self._buffer)
+        let iterator = ChunkIterator<(Element, Element, Element, Element)>(buffer: self.buffer)
         
         while let element = iterator.next() {
             try body(element.0, element.1, element.2, element.3)
@@ -54,11 +54,11 @@ public struct MeshArray<Element>: Sequence {
     // MARK: - Internal Methods
     
     var indices: [UInt32] {
-        return self._buffer.getIndices()
+        return self.buffer.getIndices()
     }
     
     init(buffer: _MeshArrayBuffer) {
-        self._buffer = buffer
+        self.buffer = buffer
     }
 }
 
@@ -153,180 +153,180 @@ extension MeshArray: Equatable { }
 public extension MeshArray where Element == Int8 {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .int8)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .int8)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .int8)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .int8)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .int8)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .int8)
     }
 }
 
 public extension MeshArray where Element == UInt8 {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .uint8)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .uint8)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .uint8)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .uint8)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .uint8)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .uint8)
     }
 }
 
 public extension MeshArray where Element == Int16 {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .int16)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .int16)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .int16)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .int16)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .int16)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .int16)
     }
 }
 
 public extension MeshArray where Element == UInt16 {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .uint16)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .uint16)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .uint16)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .uint16)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .uint16)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .uint16)
     }
 }
 
 public extension MeshArray where Element == Int32 {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .int32)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .int32)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .int32)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .int32)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .int32)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .int32)
     }
 }
 
 public extension MeshArray where Element == UInt32 {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .uint32)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .uint32)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .uint32)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .uint32)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .uint32)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .uint32)
     }
 }
 
 public extension MeshArray where Element == Float {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .float)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .float)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .float)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .float)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .float)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .float)
     }
 }
 
 public extension MeshArray where Element == Double {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .double)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .double)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .double)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .double)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .double)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .double)
     }
 }
 
 public extension MeshArray where Element == Vector2 {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .vector2)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .vector2)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .vector2)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .vector2)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .vector2)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .vector2)
     }
 }
 
 public extension MeshArray where Element == Vector3 {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .vector3)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .vector3)
     }
     
     init(elements: [Element], indecies: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indecies, elementType: .vector3)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indecies, elementType: .vector3)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .vector3)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .vector3)
     }
 }
 
 public extension MeshArray where Element == Vector4 {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .vector4)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .vector4)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .vector4)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .vector4)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .vector4)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .vector4)
     }
 }
 
 public extension MeshArray where Element == Color {
     
     init(_ array: [Element]) {
-        self._buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .vector4)
+        self.buffer = _MeshArrayBuffer(elements: array, indices: [], elementType: .vector4)
     }
     
     init(elements: [Element], indices: [UInt32]) {
-        self._buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .vector4)
+        self.buffer = _MeshArrayBuffer(elements: elements, indices: indices, elementType: .vector4)
     }
     
     init<S>(_ sequence: S) where S : Sequence, S.Element == Element {
-        self._buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .vector4)
+        self.buffer = _MeshArrayBuffer(elements: Array(sequence), indices: [], elementType: .vector4)
     }
 }
 
@@ -341,7 +341,7 @@ public struct AnyMeshArray {
     }
     
     init<V>(_ meshArray: MeshArray<V>) {
-        self.buffer = meshArray._buffer
+        self.buffer = meshArray.buffer
     }
     
     public var count: Int {

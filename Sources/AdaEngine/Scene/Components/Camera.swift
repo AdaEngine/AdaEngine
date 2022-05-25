@@ -39,7 +39,6 @@ public final class Camera: ScriptComponent {
     @Export
     public var isPrimal = false
     
-    
     // MARK: Computed Properties
     
     public var isCurrent: Bool {
@@ -78,4 +77,3 @@ public final class Camera: ScriptComponent {
         return CameraData(projection: projection, view: self.viewMatrix, position: position)
     }
 }
-

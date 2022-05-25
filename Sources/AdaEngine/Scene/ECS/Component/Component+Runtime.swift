@@ -11,7 +11,7 @@ import Foundation
 // TODO: Add components list to editor and generate file with registred components.
 extension Component {
     
-    /// Call this method to add component to engine.
+    /// Call this method to add component to the engine.
     /// When engine will initiate component from scene file, it will try to find
     /// component in registred list.
     /// Otherwise component will not be initialized.

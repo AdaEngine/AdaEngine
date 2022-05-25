@@ -6,24 +6,26 @@
 //
 
 #if os(macOS)
-import Vulkan
-import CVulkan
-import CSDL2
 import Foundation
 import AppKit
 import MetalKit
 
 class MacAppDelegate: NSObject, NSApplicationDelegate {
     
-    let window = NSWindow(
-        contentRect: NSMakeRect(200, 200, 800, 600),
-        styleMask: [.titled, .closable, .resizable, .miniaturizable],
-        backing: .buffered,
-        defer: false,
-        screen: NSScreen.main
-    )
+    var window: NSWindow?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        
+        let contentRect = NSRect(x: 200, y: 200, width: 800, height: 800)
+        
+        let window = NSWindow(
+            contentRect: contentRect,
+            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            backing: .buffered,
+            defer: false,
+            screen: NSScreen.main
+        )
+        
         window.makeKeyAndOrderFront(nil)
         window.title = "Ada Editor"
         window.center()
@@ -31,7 +33,9 @@ class MacAppDelegate: NSObject, NSApplicationDelegate {
         let viewController = MacOSGameViewController(nibName: nil, bundle: nil)
         window.contentViewController = viewController
         
-        window.setFrame(NSMakeRect(200, 200, 800, 600), display: true)
+        window.setFrame(contentRect, display: true)
+        
+        self.window = window
     }
 }
 #endif

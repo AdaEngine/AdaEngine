@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/12/21.
 //
 
+// swiftlint:disable identifier_name
+
 /// The struct describe Quaternion
 public struct Quat {
     public var x: Float
@@ -115,3 +117,5 @@ public extension Quat {
 }
 
 #endif
+
+// swiftlint:enable identifier_name

@@ -12,6 +12,8 @@ import Glibc
 import simd
 #endif
 
+// swiftlint:disable identifier_name
+
 @frozen
 public struct Transform2D: Hashable {
     public var x: Vector3
@@ -135,8 +137,8 @@ public extension Transform2D {
         
         set {
             let scale = self.scale
-            let cosRotation = cos(newValue);
-            let sinRotation = sin(newValue);
+            let cosRotation = cos(newValue)
+            let sinRotation = sin(newValue)
             self[0, 0] = cosRotation
             self[0, 1] = sinRotation
             self[1, 0] = -sinRotation
@@ -215,7 +217,7 @@ public extension Transform2D {
         return Transform2D(x, y, z)
     }
     
-    static prefix func -(matrix: Transform2D) -> Transform2D {
+    static prefix func - (matrix: Transform2D) -> Transform2D {
         Transform2D(columns: [
             Vector3(-matrix[0, 0], -matrix[0, 1], -matrix[0, 2]),
             Vector3(-matrix[1, 0], -matrix[1, 1], -matrix[1, 2]),
@@ -312,3 +314,4 @@ public extension Transform2D {
         }
     }
 }
+// swiftlint:enable identifier_name

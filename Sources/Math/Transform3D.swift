@@ -13,6 +13,8 @@ import SGLMath
 #endif
 import simd
 
+// swiftlint:disable identifier_name
+
 @frozen
 public struct Transform3D: Hashable {
     public var x: Vector4
@@ -112,7 +114,6 @@ public extension Transform3D {
     }
 }
 
-
 extension Transform3D: CustomDebugStringConvertible {
     public var debugDescription: String {
         return String(describing: type(of: self)) + "(" + [x, y, z, w].map { (v: Vector4) -> String in
@@ -182,7 +183,6 @@ public extension Transform3D {
             self = Transform3D(scale: newValue) * self
         }
     }
-    
     
     /// - SeeAlso: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
     var rotation: Quat {
@@ -304,7 +304,6 @@ public extension Transform3D {
         )
     }
 }
-
 
 public extension Transform3D {
     /// Left-handed
@@ -531,3 +530,5 @@ public extension Transform3D {
         return det
     }
 }
+
+// swiftlint:enable identifier_name

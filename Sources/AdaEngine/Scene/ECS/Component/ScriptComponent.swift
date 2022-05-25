@@ -14,17 +14,17 @@ open class ScriptComponent: Component {
     
     public required init() {}
     
-    /// Called once when component is ready to use
+    /// Called once when component is on scene and ready to use.
     open func ready() {
         
     }
     
-    /// Called each frame
+    /// Called each frame.
     open func update(_ deltaTime: TimeInterval) {
         
     }
     
-    /// Called each frame to update gui
+    /// Called each frame to update gui.
     open func updateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {
         
     }
@@ -34,6 +34,7 @@ open class ScriptComponent: Component {
         
     }
     
+    /// Called each time when scene recive events.
     open func onEvent(_ event: Set<Event>) {
         
     }
@@ -108,7 +109,7 @@ open class ScriptComponent: Component {
 public extension ScriptComponent {
     
     /// Get collection of components in entity
-    /// - Warning: Crashed if component not connected to any entity.
+    /// - Warning: Crashed if component not connected to entity.
     var components: Entity.ComponentSet {
         get {
             guard let entity = self.entity else {
@@ -123,7 +124,6 @@ public extension ScriptComponent {
         }
         
     }
-    
     
     /// Set component to entity
     func setComponent<T: Component>(_ component: T) {

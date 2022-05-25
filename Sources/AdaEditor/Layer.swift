@@ -67,12 +67,10 @@ class GameScene {
 //        greenView.backgroundColor = Color.green
 //        blueView.addSubview(greenView)
         
-        
         let viewEntity = Entity(name: "View")
         viewEntity.components[ViewContrainerComponent.self] = ViewContrainerComponent(rootView: view)
         viewEntity.components[ControlCircleComponent.self] = ControlCircleComponent()
         scene.addEntity(viewEntity)
-        
         
 //        let meshRenderer = MeshRenderer()
 //        meshRenderer.materials = [BaseMaterial(diffuseColor: .red, metalic: 0)]
@@ -89,7 +87,7 @@ class GameScene {
 //        trainMeshRenderer.mesh = Mesh.loadMesh(from: train)
 //        trainMeshRenderer.materials = [BaseMaterial(diffuseColor: .orange, metalic: 1)]
 //        trainEntity.components[MeshRenderer.self] = trainMeshRenderer
-////        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
+//        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
 //        scene.addEntity(trainEntity)
 //
 //        let userEntity = Entity(name: "user")

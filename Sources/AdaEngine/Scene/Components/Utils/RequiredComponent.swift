@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
+// swiftlint:disable unused_setter_value
+
 /// Get components from entity if exists.
 /// Only works inside `Component` class.
 @propertyWrapper
@@ -12,8 +14,8 @@ public struct RequiredComponent<T: Component> {
     
     @available(*, unavailable, message: "RequiredComponents should call only inside `Component` classes.")
     public var wrappedValue: T {
-        set { fatalError() }
         get { fatalError() }
+        set { fatalError() }
     }
     
     public init() { }
@@ -34,3 +36,5 @@ public struct RequiredComponent<T: Component> {
     }
     
 }
+
+// swiftlint:enable unused_setter_value

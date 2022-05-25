@@ -38,6 +38,7 @@ public extension Color {
     
     @inlinable
     @inline(__always)
+    // swiftlint:disable:next identifier_name
     init(_ r: Float, _ g: Float, _ b: Float, _ a: Float) {
         self.init(red: r, green: g, blue: b, alpha: a)
     }

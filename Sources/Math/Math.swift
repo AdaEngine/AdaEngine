@@ -11,6 +11,8 @@
     import Darwin.C
 #endif
 
+// swiftlint:disable identifier_name
+
 @inline(__always)
 public func clamp(_ value: Float, _ min: Float, _ max: Float) -> Float {
     return value < min ? (min) : (value > max ? max : value)
@@ -58,3 +60,5 @@ public func cos<T: FloatingPoint>(_ angle: T) -> T {
     
     fatalError("Supports only float and double")
 }
+
+// swiftlint:enable identifier_name

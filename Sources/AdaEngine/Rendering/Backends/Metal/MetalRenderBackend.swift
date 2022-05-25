@@ -81,7 +81,6 @@ class MetalRenderBackend: RenderBackend {
 //        self.currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
 //        let currentBuffer = self.currentBuffers[self.currentFrameIndex]
         
-        
         guard let currentDrawable = self.context.view.currentDrawable else {
             return
         }
@@ -105,7 +104,7 @@ class MetalRenderBackend: RenderBackend {
     
     func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) -> RID {
         do {
-            let defaultLibrary = try self.context.device.makeDefaultLibrary(bundle: .module)
+            let defaultLibrary = try self.context.device.makeDefaultLibrary(bundle: .current)
             let vertexFunc = defaultLibrary.makeFunction(name: "vertex_main")
             let fragmentFunc = defaultLibrary.makeFunction(name: "fragment_main")
             
@@ -131,7 +130,7 @@ class MetalRenderBackend: RenderBackend {
     
     func makeShader(_ shaderName: String, vertexFuncName: String, fragmentFuncName: String) -> RID {
         do {
-            let url = Bundle.module.url(forResource: shaderName, withExtension: "metallib")!
+            let url = Bundle.current.url(forResource: shaderName, withExtension: "metallib")!
             let library = try self.context.device.makeLibrary(URL: url)
             let vertexFunc = library.makeFunction(name: vertexFuncName)!
             let fragmentFunc = library.makeFunction(name: fragmentFuncName)!
@@ -418,6 +417,7 @@ extension MetalRenderBackend {
         self.drawList[drawRid] = draw
     }
     
+    // swiftlint:disable:next cyclomatic_complexity
     func draw(_ drawRid: RID, indexCount: Int, instancesCount: Int) {
         guard let draw = self.drawList[drawRid] else {
             fatalError("Draw list not found")
@@ -472,7 +472,7 @@ extension MetalRenderBackend {
         
         encoder.endEncoding()
         
-        if let _ = draw.debugName {
+        if draw.debugName != nil {
             draw.commandBuffer.popDebugGroup()
         }
     }
@@ -484,11 +484,18 @@ extension MetalRenderBackend {
 
 #endif
 
-// TODO: Move to utils folder
-public func mem_size<T>(of object: T) -> Int {
-    return MemoryLayout.size(ofValue: object)
+// FIXME: Think about it
+
+extension Bundle {
+    static var current: Bundle {
+#if SWIFT_PACKAGE
+        return Bundle.module
+#else
+        return Bundle.init(for: BundleToken.self)
+#endif
+    }
 }
 
-public func mem_size<T>(_ object: T.Type) -> Int {
-    return MemoryLayout<T>.size
-}
+#if !SWIFT_PACKAGE
+class BundleToken {}
+#endif

@@ -111,6 +111,8 @@ public extension Entity {
     }
 }
 
+// swiftlint:disable identifier_name
+
 public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
@@ -139,3 +141,5 @@ public extension Entity.ComponentSet {
         )
     }
 }
+
+// swiftlint:enable identifier_name

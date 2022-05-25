@@ -20,7 +20,7 @@ struct ScriptComponentUpdateSystem: System {
                 
                 guard let component = component as? ScriptComponent else { continue }
                 
-                /// Initialize component
+                // Initialize component
                 if !component.isAwaked {
                     component.ready()
                     component.isAwaked = true

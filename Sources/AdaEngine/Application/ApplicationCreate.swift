@@ -19,6 +19,8 @@ public struct ApplicationRunOptions {
     }
 }
 
+// swiftlint:disable identifier_name
+
 /// Create application instance
 @discardableResult
 public func ApplicationCreate(
@@ -49,3 +51,5 @@ public func ApplicationCreate(
         return EXIT_FAILURE
     }
 }
+
+// swiftlint:enable identifier_name

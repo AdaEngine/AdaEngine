@@ -37,6 +37,7 @@ open class Entity {
         self.components = ComponentSet()
         self.children = []
         
+        // swiftlint:disable:next inert_defer
         defer {
             self.components.entity = self
             self.components[Transform.self] = Transform()

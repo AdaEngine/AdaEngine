@@ -8,6 +8,7 @@
 #if canImport(UIKit)
 import UIKit
 
+// swiftlint:disable type_name
 class iOSAppDelegate: NSObject, UIApplicationDelegate {
     
     var window: UIWindow?
@@ -25,4 +26,5 @@ class iOSAppDelegate: NSObject, UIApplicationDelegate {
     }
 }
 
+// swiftlint:enable type_name
 #endif
