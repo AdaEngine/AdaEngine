@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
-import Foundation
-
 /// Fields marked as `@Export` can be serializable and deserializable.
 /// - Note: You can use `private`, `fileprivate` modifiers, because `@Export` use reflection
 @propertyWrapper

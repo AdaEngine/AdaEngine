@@ -1,12 +1,11 @@
 //
-//  File.swift
+//  EditorCamera.swift
 //  
 //
 //  Created by v.prusakov on 5/21/22.
 //
 
 import AdaEngine
-import Math
 
 struct EditorCameraComponent: Component {
     var speed: Float = 20

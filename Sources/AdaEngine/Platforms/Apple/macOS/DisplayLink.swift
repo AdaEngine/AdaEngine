@@ -1,15 +1,14 @@
 //
-//  File.swift
+//  DisplayLink.swift
 //  
 //
 //  Created by v.prusakov on 5/31/22.
 //
 
 #if MACOS
-import Foundation
 import AppKit
 
-public class DisplayLink {
+public final class DisplayLink {
     private let timer: CVDisplayLink
     private let source: DispatchSourceUserDataAdd
     

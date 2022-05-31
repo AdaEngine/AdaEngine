@@ -37,7 +37,8 @@ open class Window: View {
     // Flag indicates that window is active.
     public internal(set) var isActive: Bool = false
     
-    internal var sceneManager: SceneManager
+    
+    public internal(set) var sceneManager: SceneManager
     
     public required init(scene: Scene, frame: Rect) {
         self.sceneManager = SceneManager()
@@ -95,6 +96,11 @@ open class Window: View {
     
     open func windowDidResignActive() {
         
+    }
+    
+    /// Called when user did press `Close` button
+    open func windowShouldClose() -> Bool {
+        return true
     }
     
     // MARK: - Overriding

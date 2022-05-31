@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
-import Foundation
-
 // We should register our components in engine, because we should initiate them in memory
 // TODO: Add components list to editor and generate file with registred components.
 extension Component {

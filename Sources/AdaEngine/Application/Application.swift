@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-import Foundation.NSURL
-
 /// Main class represented application instance.
 /// Application cannot be created manualy use [ApplicationCreate](x-source-tag://ApplicationCreate) function instead.
 /// To get access to Application instance, use static property `shared`

@@ -114,16 +114,3 @@ class GameScene {
     }
     
 }
-
-class EditorWindow: Window {
-    
-    override func windowDidReady() {
-        self.title = "Ada Editor"
-        self.canDraw = true
-        
-        let blueView = View(frame: .init(origin: .zero, size: Size(width: 30, height: 30)))
-        blueView.backgroundColor = .blue
-        
-        self.addSubview(blueView)
-    }
-}

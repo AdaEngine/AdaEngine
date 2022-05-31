@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
-import Foundation
-
 struct Circle2DRenderSystem: System {
     
     static var dependencies: [SystemDependency] = [.after(ViewContainerSystem.self)]

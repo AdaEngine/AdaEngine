@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
-import Foundation
 import Yams
 
 public class SceneSerializer {

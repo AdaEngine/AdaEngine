@@ -6,7 +6,6 @@
 //
 
 #if MACOS
-import Foundation
 import AppKit
 
 final class MacOSWindowManager: WindowManager {
@@ -173,6 +172,16 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
         }
         
         window.isFullscreen = true
+    }
+    
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard
+            let window = self.windowManager.findWindow(for: sender)
+        else {
+            return
+        }
+        
+        return window.windowShouldClose()
     }
 }
 

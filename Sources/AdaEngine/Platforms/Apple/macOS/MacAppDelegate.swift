@@ -6,7 +6,6 @@
 //
 
 #if MACOS
-import Foundation
 import AppKit
 import MetalKit
 
