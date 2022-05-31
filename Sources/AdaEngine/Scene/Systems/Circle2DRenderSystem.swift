@@ -21,7 +21,11 @@ struct Circle2DRenderSystem: System {
         
         guard !entities.isEmpty else { return }
         
-        RenderEngine2D.shared.beginContext(context.scene.activeCamera)
+        guard let window = context.scene.window else {
+            return
+        }
+        
+        RenderEngine2D.shared.beginContext(for: window.id, camera: context.scene.activeCamera)
         RenderEngine2D.shared.setDebugName("Circle2D Rendering")
         
         entities.forEach { entity in

@@ -58,6 +58,11 @@ public struct ResourceHashMap<T> {
     public func contains(_ rid: RID) -> Bool {
         return self.get(rid) != nil
     }
+    
+    /// The number of elements in the hash map.
+    public var count: Int {
+        return self.dictionary.count
+    }
 }
 
 extension ResourceHashMap: Sequence {

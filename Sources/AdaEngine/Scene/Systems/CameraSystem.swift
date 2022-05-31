@@ -19,8 +19,8 @@ struct CameraSystem: System {
                 return
             }
             
-            if camera.viewportSize == .zero {
-                camera.viewportSize = RenderEngine.shared.renderBackend.viewportSize
+            if camera.viewportSize != context.scene.viewportSize {
+                camera.viewportSize = context.scene.viewportSize
             }
             
             if !camera.isCurrent && camera.isPrimal {

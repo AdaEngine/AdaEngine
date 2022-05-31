@@ -19,7 +19,10 @@ final public class GUIRenderContext {
     
     private var currentTransform = Transform3D.identity
     
-    public init(engine: RenderEngine2D = .shared) {
+    private var window: Window.ID
+    
+    public init(window: Window.ID, engine: RenderEngine2D = .shared) {
+        self.window = window
         self.engine = engine
     }
     
@@ -43,7 +46,7 @@ final public class GUIRenderContext {
             zFar: 1
         )
         
-        self.engine.beginContext(for: view)
+        self.engine.beginContext(for: self.window, viewTransform: view)
     }
     
     public func setZIndex(_ index: Int) {

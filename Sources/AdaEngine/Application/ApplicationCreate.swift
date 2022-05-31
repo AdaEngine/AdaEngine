@@ -9,13 +9,16 @@
 import Glibc
 #else
 import Darwin.C
+import AppKit
 #endif
 
 public struct ApplicationRunOptions {
     public var initialScene: Scene?
+    public var sceneName: String?
     
-    public init(initialScene: Scene? = nil) {
+    public init(initialScene: Scene? = nil, sceneName: String? = nil) {
         self.initialScene = initialScene
+        self.sceneName = sceneName
     }
 }
 
@@ -24,8 +27,8 @@ public struct ApplicationRunOptions {
 /// Create application instance
 @discardableResult
 public func ApplicationCreate(
-    argc: Int32,
-    argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>,
+    argc: Int32 = CommandLine.argc,
+    argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?> = CommandLine.unsafeArgv,
     options: ApplicationRunOptions = ApplicationRunOptions()) -> Int32 {
     do {
         var application: Application!
@@ -40,9 +43,25 @@ public func ApplicationCreate(
         
         Application.shared = application
         
-        if let scene = options.initialScene {
-            Engine.shared.setRootScene(scene)
+        var scene: Scene? = options.initialScene
+        
+        var window: Window?
+        
+        if let scene = scene {
+//            let size = NSScreen.main?.frame.size ?? .zero
+//            let frame = Rect(origin: .zero, size: Size(width: Float(size.width), height: Float(size.height)))
+            let frame = Rect(origin: .zero, size: Size(width: 800, height: 600))
+            
+            window = Window(scene: scene, frame: frame)
         }
+        
+        if window == nil {
+            print("We don't have any window to present")
+            return EXIT_FAILURE
+        }
+        
+        window?.title = "Ada Engine"
+        window?.showWindow(makeFocused: true)
         
         try application.run(options: options)
         

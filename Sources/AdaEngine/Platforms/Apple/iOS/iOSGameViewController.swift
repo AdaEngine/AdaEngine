@@ -23,7 +23,6 @@ class iOSGameViewController: UIViewController {
         super.viewDidLoad()
         
         do {
-            let renderer = try RenderEngine.createRenderEngine(backendType: .metal, appName: "Ada")
             gameView.isPaused = true
             gameView.delegate = self
             
@@ -32,7 +31,7 @@ class iOSGameViewController: UIViewController {
                 height: Float(self.view.frame.size.height)
             )
             
-            try renderer.initialize(for: gameView, size: size)
+            try RenderEngine.shared.initialize(for: gameView, size: size)
             
             gameView.isPaused = false
         } catch {

@@ -15,7 +15,7 @@ class ControlCircleComponent: ScriptComponent {
     @RequiredComponent var viewHolder: ViewContrainerComponent
     
     override func ready() {
-        RenderEngine.shared.setClearColor(Color(212/255, 210/255, 213/255, 1))
+//        RenderEngine.shared.setClearColor(Color(212/255, 210/255, 213/255, 1), forWindow: <#Window.ID#>)
     }
     
     override func update(_ deltaTime: TimeInterval) {
@@ -53,7 +53,7 @@ class GameScene {
         let scene = Scene()
 
         let view = View()
-        view.backgroundColor = .red
+        view.backgroundColor = .blue
 //
 //        let blueView = View()
 //        blueView.zIndex = 1
@@ -66,7 +66,7 @@ class GameScene {
 //        greenView.frame = Rect(origin: Point(x: 30, y: 30), size: Size(width: 50, height: 50))
 //        greenView.backgroundColor = Color.green
 //        blueView.addSubview(greenView)
-        
+//
         let viewEntity = Entity(name: "View")
         viewEntity.components[ViewContrainerComponent.self] = ViewContrainerComponent(rootView: view)
         viewEntity.components[ControlCircleComponent.self] = ControlCircleComponent()

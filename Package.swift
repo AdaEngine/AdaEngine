@@ -17,24 +17,20 @@ import Darwin.C
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS]
 
 var products: [Product] = [
-    
-    .executable(
-        name: "AdaEditor",
-        targets: ["AdaEditor"]
-    ),
-    
-        .library(
-            name: "AdaEngine",
-            type: .dynamic,
-            targets: ["AdaEngine"]
-        ),
-    
-        .library(
-            name: "AdaEngine-Static",
-            type: .static,
-            targets: ["AdaEngine"]
-        )
+    .executable(name: "AdaEditor", targets: ["AdaEditor"]),
+    .library(name: "AdaEngine", type: .dynamic, targets: ["AdaEngine"]),
+    .library(name: "AdaEngine-Static", type: .static, targets: ["AdaEngine"])
 ]
+
+// Check that we target on vulkan dependency
+
+let isVulkanEnabled = true//ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil
+
+if isVulkanEnabled {
+    products.append(
+        .plugin(name: "SPIR-V", targets: ["SPIRVPlugin"])
+    )
+}
 
 // TODO: It's works if we wrap sources to .swiftpm container
 #if canImport(AppleProductTypes)
@@ -84,9 +80,12 @@ let swiftLintTargets: [Target] = [
 var commonPlugins: [Target.PluginUsage] = []
 
 #if os(macOS)
-commonPlugins.append(.plugin(name: "BuildPlugin"))
-
 commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
+
+//if isVulkanEnabled {
+    commonPlugins.append(.plugin(name: "SPIRVBuildPlugin"))
+//}
+
 #endif
 
 let editorTarget = Target.executableTarget(
@@ -118,7 +117,9 @@ let adaEngineTarget = Target.target(
         "Yams"
     ],
     exclude: ["Project.swift"],
-    resources: [],
+    resources: [
+        .copy("Assets/Shaders/Vulkan")
+    ],
     swiftSettings: [
         .define("MACOS", .when(platforms: [.macOS])),
         .define("WINDOWS", .when(platforms: [.windows])),
@@ -127,7 +128,7 @@ let adaEngineTarget = Target.target(
         .define("ANDROID", .when(platforms: [.android])),
         .define("LINUX", .when(platforms: [.linux])),
         
-        /// Turn on metal
+        /// Define metal
         .define("METAL", .when(platforms: applePlatforms))
     ],
     plugins: commonPlugins
@@ -140,11 +141,6 @@ var targets: [Target] = [
     editorTarget,
     
     adaEngineTarget,
-    
-        .plugin(
-            name: "BuildPlugin",
-            capability: Target.PluginCapability.buildTool()
-        ),
     
         .target(
             name: "Math",
@@ -170,6 +166,7 @@ targets.append(contentsOf: swiftLintTargets)
 
 let package = Package(
     name: "AdaEngine",
+    defaultLocalization: "en",
     platforms: [
         .iOS(.v13),
         .macOS(.v11),
@@ -189,7 +186,7 @@ let package = Package(
 
 
 // We turn on vulkan via build
-if ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil {
+if isVulkanEnabled {
     
     let vulkanName = "Vulkan"
     
@@ -212,10 +209,10 @@ if ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil {
             ]
         ),
         
-        .systemLibrary(
-            name: "CVulkan",
-            pkgConfig: "vulkan"
-        ),
+            .systemLibrary(
+                name: "CVulkan",
+                pkgConfig: "vulkan"
+            ),
         
         
         //        // Just for test
@@ -227,6 +224,23 @@ if ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil {
         //                .apt(["libsdl2-dev"])
         //            ]
         //        ),
+        
+        
+            .plugin(
+                name: "SPIRVBuildPlugin",
+                capability: .buildTool()
+            ),
+
+            .plugin(
+                name: "SPIRVPlugin",
+                capability:
+                        .command(
+                            intent: .custom(verb: "spirv", description: "Compile vert and frag shaders to spirv binary"),
+                            permissions: [
+                                .writeToPackageDirectory(reason: "Compile vert and frag shaders to spirv binary")
+                            ]
+                        )
+            )
     ]
     
     package.targets.append(contentsOf: vulkanTargets)
@@ -234,5 +248,3 @@ if ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil {
     editorTarget.dependencies.append(.target(name: vulkanName))
     adaEngineTarget.dependencies.append(.target(name: vulkanName))
 }
-
-

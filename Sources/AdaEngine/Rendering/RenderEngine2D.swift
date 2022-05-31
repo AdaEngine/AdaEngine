@@ -84,11 +84,11 @@ public class RenderEngine2D {
         self.quadData = Self.makeQuadData()
     }
     
-    public func beginContext(for viewTransform: Transform3D) {
+    public func beginContext(for window: Window.ID, viewTransform: Transform3D) {
         let uni = Uniform(viewProjection: viewTransform)
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
         
-        self.currentDraw = RenderEngine.shared.renderBackend.beginDraw()
+        self.currentDraw = RenderEngine.shared.renderBackend.beginDraw(for: window)
         self.startBatch()
     }
     
@@ -96,13 +96,13 @@ public class RenderEngine2D {
         self.currentZIndex = index
     }
     
-    public func beginContext(_ camera: Camera) {
+    public func beginContext(for window: Window.ID, camera: Camera) {
         let data = camera.makeCameraData()
         let viewProjection = data.projection * data.view
         let uni = Uniform(viewProjection: viewProjection * camera.transform.matrix.inverse)
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
         
-        self.currentDraw = RenderEngine.shared.renderBackend.beginDraw()
+        self.currentDraw = RenderEngine.shared.renderBackend.beginDraw(for: window)
         self.startBatch()
     }
     

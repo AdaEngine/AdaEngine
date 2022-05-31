@@ -68,13 +68,14 @@ open class View {
     
     private var data: Data = Data()
     
-    public convenience init(frame: Rect) {
-        self.init()
+    public required init(frame: Rect) {
         self.frame = frame
         self.bounds.size = frame.size
     }
 
-    public init() { }
+    public init() {
+        self.frame = .zero
+    }
     
     // MARK: - Private
     
@@ -100,11 +101,35 @@ open class View {
         }
     }
     
-}
+    // MARK: Rendering
+    
+    open func draw(in rect: Rect, with context: GUIRenderContext) {
+        guard self.isVisible else { return }
+        
+        context.setFillColor(self.backgroundColor)
+        context.fillRect(rect)
 
-// MARK: - Interaction
+        for subview in self.subviews {
+            subview.draw(with: context)
+        }
+    }
 
-extension View {
+    internal func draw(with context: GUIRenderContext) {
+        context.setTransform(self.data.cacheWorldTransform)
+        context.setZIndex(self.zIndex)
+        self.draw(in: self.bounds, with: context)
+    }
+    
+    private var worldTransform: Transform3D {
+        if let superView = self.superview {
+            return self._localTransform * superView.worldTransform
+        }
+        
+        return self._localTransform
+    }
+    
+    // MARK: - Interaction
+    
     open func hitTest(_ point: Point, with event: Event) -> View? {
         guard self.isInteractionEnabled && self.isVisible else {
             return nil
@@ -174,36 +199,6 @@ extension View {
         
         let view = self.hitTest(position, with: event)
         view?.backgroundColor = .mint
-    }
-}
-
-// MARK: - Rendering
-
-extension View {
-    
-    private var worldTransform: Transform3D {
-        if let superView = self.superview {
-            return self._localTransform * superView.worldTransform
-        }
-        
-        return self._localTransform
-    }
-    
-    open func draw(in rect: Rect, with context: GUIRenderContext) {
-        guard self.isVisible else { return }
-        
-        context.setFillColor(self.backgroundColor)
-        context.fillRect(rect)
-
-        for subview in self.subviews {
-            subview.draw(with: context)
-        }
-    }
-
-    internal func draw(with context: GUIRenderContext) {
-        context.setTransform(self.data.cacheWorldTransform)
-        context.setZIndex(self.zIndex)
-        self.draw(in: self.bounds, with: context)
     }
 }
 

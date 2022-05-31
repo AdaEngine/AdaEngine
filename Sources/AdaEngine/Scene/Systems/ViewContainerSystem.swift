@@ -11,13 +11,12 @@ struct ViewContainerSystem: System {
     
     private static let query = EntityQuery(where: .has(ViewContrainerComponent.self))
     
-    private let guiContext: GUIRenderContext
-    
-    init(scene: Scene) {
-        self.guiContext = GUIRenderContext()
-    }
+    init(scene: Scene) { }
     
     func update(context: UpdateContext) {
+        
+        let guiRenderContext = GUIRenderContext(window: context.scene.window!.id)
+        
         context.scene.performQuery(Self.query).forEach { entity in
             guard let container = entity.components[ViewContrainerComponent.self] else {
                 return
@@ -37,11 +36,11 @@ struct ViewContainerSystem: System {
                 container.rootView.sendEvent(event)
             }
             
-            self.guiContext.beginDraw(in: container.rootView.frame)
+            guiRenderContext.beginDraw(in: container.rootView.frame)
             
-            container.rootView.draw(with: self.guiContext)
+            container.rootView.draw(with: guiRenderContext)
             
-            self.guiContext.commitDraw()
+            guiRenderContext.commitDraw()
         }
     }
 

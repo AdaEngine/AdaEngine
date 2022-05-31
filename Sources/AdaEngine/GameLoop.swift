@@ -7,13 +7,22 @@
 
 final class GameLoop {
     
-    private(set) static var current: GameLoop!
+    private(set) static var current: GameLoop = GameLoop()
     
     private var lastUpdate: TimeInterval = 0
     
+    public private(set) var isIterating = false
+    
     // MARK: Internal Methods
     
-    func iterate() {
+    func iterate() throws {
+        if self.isIterating {
+            assertionFailure("Can't iterated twice.")
+            return
+        }
+        
+        self.isIterating = true
+        
         let now = Time.absolute
         let deltaTime = max(0, now - self.lastUpdate)
         self.lastUpdate = now
@@ -23,20 +32,14 @@ final class GameLoop {
         
         Input.shared.processEvents()
         
-        do {
-            try RenderEngine.shared.draw()
-            
-            SceneManager.shared.update(deltaTime)
-            
-            Input.shared.removeEvents()
-            
-            try RenderEngine.shared.endDraw()
-        } catch {
-            fatalError(error.localizedDescription)
-        }
-    }
-    
-    func makeCurrent() {
-        GameLoop.current = self
+        try RenderEngine.shared.beginFrame()
+        
+        Application.shared.windowManager.update(deltaTime)
+        
+        try RenderEngine.shared.endFrame()
+        
+        Input.shared.removeEvents()
+        
+        self.isIterating = false
     }
 }

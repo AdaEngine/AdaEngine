@@ -42,38 +42,48 @@ class MetalRenderBackend: RenderBackend {
     
     var inFlightSemaphore: DispatchSemaphore!
     
-    private var cameraData: CameraData?
-    
     init(appName: String) {
         self.context = Context()
     }
     
-    var viewportSize: Size {
-        let viewport = self.context.viewport
-        return Size(width: Float(viewport.width), height: Float(viewport.height))
-    }
-    
-    func createWindow(for view: RenderView, size: Size) throws {
+    func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
         let mtlView = (view as! MetalView)
-        try self.context.createWindow(for: mtlView)
+        try self.context.createRenderWindow(with: windowId, view: mtlView, size: size)
         
         self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
         
-        for _ in 0..<maxFramesInFlight {
-            let cmdBuffer = self.context.commandQueue.makeCommandBuffer()!
-            self.currentBuffers.append(cmdBuffer)
+//        for _ in 0 ..< maxFramesInFlight {
+//            let cmdBuffer = self.context.commandQueue.makeCommandBuffer()!
+//            self.currentBuffers.append(cmdBuffer)
+//        }
+    }
+    
+    func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
+        self.context.updateSizeForRenderWindow(windowId, size: newSize)
+    }
+    
+    func destroyWindow(_ windowId: Window.ID) throws {
+        guard let window = self.context.windows[windowId] else {
+            return
         }
+        
+        guard let draw = self.drawList.first(where: { $0.value.window === window }) else {
+            return
+        }
+        
+        self.drawList[draw.key] = nil
+        
+        self.context.destroyWindow(by: windowId)
     }
     
-    func resizeWindow(newSize: Size) throws {
-        self.context.windowUpdateSize(newSize)
-    }
-    
-    var currentBuffer: MTLCommandBuffer!
+//    var currentBuffer: MTLCommandBuffer!
     
     func beginFrame() throws {
-        self.inFlightSemaphore.wait()
-        self.currentBuffer = self.context.commandQueue.makeCommandBuffer()
+//        self.inFlightSemaphore.wait()
+        
+        for (_, window) in self.context.windows {
+            window.commandBuffer = window.commandQueue.makeCommandBuffer()
+        }
     }
     
     func endFrame() throws {
@@ -81,30 +91,30 @@ class MetalRenderBackend: RenderBackend {
 //        self.currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
 //        let currentBuffer = self.currentBuffers[self.currentFrameIndex]
         
-        guard let currentDrawable = self.context.view.currentDrawable else {
+        for (_, window) in self.context.windows {
+            guard let currentDrawable = window.view?.currentDrawable else {
+                return
+            }
+            
+            window.commandBuffer?.present(currentDrawable)
+            
+            window.commandBuffer?.commit()
+            
+            window.commandBuffer?.waitUntilCompleted()
+        }
+    }
+    
+    func setClearColor(_ color: Color, forWindow windowId: Window.ID) {
+        guard let window = self.context.windows[windowId] else {
             return
         }
         
-        currentBuffer.present(currentDrawable)
-        
-        currentBuffer.addCompletedHandler { _ in
-            self.inFlightSemaphore.signal()
-        }
-        
-        currentBuffer.commit()
-    }
-    
-    func sync() {
-        
-    }
-    
-    func setClearColor(_ color: Color) {
-        self.context.view.clearColor = MTLClearColor(red: Double(color.red), green: Double(color.green), blue: Double(color.blue), alpha: Double(color.alpha))
+        window.view?.clearColor = MTLClearColor(red: Double(color.red), green: Double(color.green), blue: Double(color.blue), alpha: Double(color.alpha))
     }
     
     func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) -> RID {
         do {
-            let defaultLibrary = try self.context.device.makeDefaultLibrary(bundle: .current)
+            let defaultLibrary = try self.context.physicalDevice.makeDefaultLibrary(bundle: .current)
             let vertexFunc = defaultLibrary.makeFunction(name: "vertex_main")
             let fragmentFunc = defaultLibrary.makeFunction(name: "fragment_main")
             
@@ -112,7 +122,7 @@ class MetalRenderBackend: RenderBackend {
             pipelineDescriptor.vertexFunction = vertexFunc
             pipelineDescriptor.fragmentFunction = fragmentFunc
             pipelineDescriptor.vertexDescriptor = try vertexDescriptor?.makeMTKVertexDescriptor()
-            pipelineDescriptor.colorAttachments[0].pixelFormat = self.context.view.colorPixelFormat
+            pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
             pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
             pipelineDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha
             pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
@@ -121,7 +131,7 @@ class MetalRenderBackend: RenderBackend {
             pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
             pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
             
-            let state = try self.context.device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+            let state = try self.context.physicalDevice.makeRenderPipelineState(descriptor: pipelineDescriptor)
             return self.renderPipelineStateMap.setValue(state)
         } catch {
             fatalError(error.localizedDescription)
@@ -131,7 +141,7 @@ class MetalRenderBackend: RenderBackend {
     func makeShader(_ shaderName: String, vertexFuncName: String, fragmentFuncName: String) -> RID {
         do {
             let url = Bundle.current.url(forResource: shaderName, withExtension: "metallib")!
-            let library = try self.context.device.makeLibrary(URL: url)
+            let library = try self.context.physicalDevice.makeLibrary(URL: url)
             let vertexFunc = library.makeFunction(name: vertexFuncName)!
             let fragmentFunc = library.makeFunction(name: fragmentFuncName)!
             
@@ -178,10 +188,9 @@ class MetalRenderBackend: RenderBackend {
         pipelineDescriptor.vertexFunction = shader.vertexFunction
         pipelineDescriptor.fragmentFunction = shader.fragmentFunction
         pipelineDescriptor.vertexDescriptor = shader.vertexDescriptor
-        pipelineDescriptor.colorAttachments[0].pixelFormat = self.context.view.colorPixelFormat
-
+        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
         do {
-            let state = try self.context.device.makeRenderPipelineState(descriptor: pipelineDescriptor)
+            let state = try self.context.physicalDevice.makeRenderPipelineState(descriptor: pipelineDescriptor)
             return self.renderPipelineStateMap.setValue(state)
         } catch {
             fatalError(error.localizedDescription)
@@ -212,7 +221,7 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func makeIndexBuffer(offset: Int, index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer?, length: Int) -> RID {
-        let buffer = self.context.device.makeBuffer(length: length, options: .storageModeShared)!
+        let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
         
         if let bytes = bytes {
             buffer.contents().copyMemory(from: bytes, byteCount: length)
@@ -223,7 +232,7 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID {
-        let buffer = self.context.device.makeBuffer(length: length, options: .storageModeShared)!
+        let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
         
         if let bytes = bytes {
             buffer.contents().copyMemory(from: bytes, byteCount: length)
@@ -252,12 +261,12 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func makeBuffer(length: Int, options: ResourceOptions) -> RID {
-        let buffer = self.context.device.makeBuffer(length: length, options: options.metal)!
+        let buffer = self.context.physicalDevice.makeBuffer(length: length, options: options.metal)!
         return self.resourceMap.setValue(buffer)
     }
     
     func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RID {
-        let buffer = self.context.device.makeBuffer(bytes: bytes, length: length, options: options.metal)!
+        let buffer = self.context.physicalDevice.makeBuffer(bytes: bytes, length: length, options: options.metal)!
         return self.resourceMap.setValue(buffer)
     }
     
@@ -275,6 +284,7 @@ class MetalRenderBackend: RenderBackend {
 extension MetalRenderBackend {
     
     struct Draw {
+        var window: Context.RenderWindow
         var debugName: String?
         let commandBuffer: MTLCommandBuffer
         let renderPassDescriptor: MTLRenderPassDescriptor
@@ -319,16 +329,21 @@ extension MetalRenderBackend {
         var vertexDescriptor: MTLVertexDescriptor = MTLVertexDescriptor()
     }
     
-    func beginDraw() -> RID {
+    func beginDraw(for window: Window.ID) -> RID {
+        guard let window = self.context.windows[window] else {
+            fatalError("Render Window not exists.")
+        }
         
-        guard let renderPass = self.context.view.currentRenderPassDescriptor else {
+        guard let renderPass = window.view?.currentRenderPassDescriptor else {
             fatalError("Can't get render pass descriptor")
         }
         
         let draw = Draw(
-            commandBuffer: self.currentBuffer,//self.currentBuffers[self.currentFrameIndex],
+            window: window,
+            commandBuffer: window.commandBuffer!,
             renderPassDescriptor: renderPass
         )
+        
         return self.drawList.setValue(draw)
     }
     
@@ -372,7 +387,7 @@ extension MetalRenderBackend {
     }
     
     func makeUniform<T>(_ uniformType: T.Type, count: Int, offset: Int, options: ResourceOptions) -> RID {
-        let buffer = self.context.device.makeBuffer(
+        let buffer = self.context.physicalDevice.makeBuffer(
             length: MemoryLayout<T>.size * count,
             options: options.metal
         )!
@@ -402,7 +417,7 @@ extension MetalRenderBackend {
         descriptor.textureType = .type2D
         descriptor.height = Int(size?.height ?? 1)
         descriptor.width = Int(size?.width ?? 1)
-        guard let texture = self.context.device.makeTexture(descriptor: descriptor) else {
+        guard let texture = self.context.physicalDevice.makeTexture(descriptor: descriptor) else {
             fatalError()
         }
         return self.resourceMap.setValue(texture)
@@ -420,7 +435,7 @@ extension MetalRenderBackend {
     // swiftlint:disable:next cyclomatic_complexity
     func draw(_ drawRid: RID, indexCount: Int, instancesCount: Int) {
         guard let draw = self.drawList[drawRid] else {
-            fatalError("Draw list not found")
+            fatalError("Draw not found")
         }
         
         guard let encoder = draw.commandBuffer.makeRenderCommandEncoder(descriptor: draw.renderPassDescriptor) else {

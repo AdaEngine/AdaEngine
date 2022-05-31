@@ -15,7 +15,9 @@ public final class Scene {
     
     var entities: OrderedSet<Entity> = []
 
-    var activeCamera: Camera
+    public internal(set) var activeCamera: Camera
+    
+    public internal(set) weak var window: Window?
     
     var systems: [System] = []
     

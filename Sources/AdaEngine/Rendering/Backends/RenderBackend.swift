@@ -20,17 +20,16 @@ struct Vertex {
 
 protocol RenderBackend: AnyObject {
     
-    var viewportSize: Size { get }
+    func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws
+    func resizeWindow(_ windowId: Window.ID, newSize: Size) throws
+    func destroyWindow(_ windowId: Window.ID) throws
     
-    func createWindow(for view: RenderView, size: Size) throws
-    func resizeWindow(newSize: Size) throws
-
+//    func sync() throws
+    
     func beginFrame() throws
     func endFrame() throws
     
-    func sync()
-    
-    func setClearColor(_ color: Color)
+    func setClearColor(_ color: Color, forWindow windowId: Window.ID)
     
     // MARK: - Buffers
     
@@ -72,7 +71,7 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Draw
     
-    func beginDraw() -> RID
+    func beginDraw(for window: Window.ID) -> RID
     
     func bindVertexArray(_ draw: RID, vertexArray: RID)
     

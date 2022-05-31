@@ -6,16 +6,20 @@
 //
 
 public class SceneManager {
-    public static let shared = SceneManager()
     
     public var currentScene: Scene?
     
+    weak var window: Window?
+    
+    public let serializer: SceneSerializer
+    
     // MARK: - Private
     
-    private init() {}
+    internal init() {
+        self.serializer = SceneSerializer()
+    }
     
     func update(_ deltaTime: TimeInterval) {
-        
         if self.currentScene?.isReady == false {
             self.currentScene?.ready()
         }
@@ -27,6 +31,7 @@ public class SceneManager {
     
     public func presentScene(_ scene: Scene) {
         scene.sceneManager = self
+        scene.window = self.window
         self.currentScene = scene
     }
     

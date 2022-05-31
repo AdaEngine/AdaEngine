@@ -14,6 +14,8 @@ open class Application {
     /// Contains application instance if application created from `ApplicationCreate`
     public internal(set) static var shared: Application!
     
+    private(set) var gameLoop: GameLoop = GameLoop.current
+    
     public var platform: RuntimePlatform {
         #if os(macOS)
         return .macOS
@@ -31,6 +33,8 @@ open class Application {
         return .android
         #endif
     }
+    
+    public var windowManager: WindowManager = WindowManager()
     
     // MARK: - Internal
     

@@ -7,14 +7,13 @@
 
 struct ScriptComponentUpdateSystem: System {
     
-    private let guiRenderContext: GUIRenderContext
-    
-    init(scene: Scene) {
-        self.guiRenderContext = GUIRenderContext()
-    }
+    init(scene: Scene) { }
     
     // TODO: Think about iteration scripts components in child entities
     func update(context: UpdateContext) {
+        
+        let guiRenderContext = GUIRenderContext(window: context.scene.window!.id)
+        
         context.scene.entities.forEach { entity in
             for component in entity.components.buffer.values {
                 
@@ -28,11 +27,11 @@ struct ScriptComponentUpdateSystem: System {
                 
                 component.update(context.deltaTime)
                 
-                self.guiRenderContext.beginDraw(in: Rect(origin: .zero, size: context.scene.viewportSize))
+                guiRenderContext.beginDraw(in: Rect(origin: .zero, size: context.scene.viewportSize))
                 
-                component.updateGUI(context.deltaTime, context: self.guiRenderContext)
+                component.updateGUI(context.deltaTime, context: guiRenderContext)
                 
-                self.guiRenderContext.commitDraw()
+                guiRenderContext.commitDraw()
             }
         }
     }

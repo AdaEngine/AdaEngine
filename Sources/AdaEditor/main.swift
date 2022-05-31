@@ -10,8 +10,4 @@ import AdaEngine
 let scene = GameScene().makeScene()
 let options = ApplicationRunOptions(initialScene: scene)
 
-ApplicationCreate(
-    argc: CommandLine.argc,
-    argv: CommandLine.unsafeArgv,
-    options: options
-)
+ApplicationCreate(options: options)
