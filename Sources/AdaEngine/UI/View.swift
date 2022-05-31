@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 5/11/22.
 //
 
-import Math
-
 // TODO:
 // [ ] - Ortho projection for each view instead of root
 // [ ] - Add transforms for drawing (translation/rotation/scale)

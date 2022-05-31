@@ -178,7 +178,7 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
         guard
             let window = self.windowManager.findWindow(for: sender)
         else {
-            return
+            return true
         }
         
         return window.windowShouldClose()

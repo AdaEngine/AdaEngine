@@ -249,34 +249,38 @@ extension RenderEngine2D {
     private static func makeCircleData() -> Data<CircleVertexData> {
         let device = RenderEngine.shared.renderBackend
         
-        let shader = device.makeShader("default", vertexFuncName: "circle_vertex", fragmentFuncName: "circle_fragment")
+        var shaderDescriptor = ShaderDescriptor(
+            shaderName: "default",
+            vertexFunction: "circle_vertex",
+            fragmentFunction: "circle_fragment"
+        )
         
-        var circleVertexDescriptor = VertexDesciptorAttributesArray()
-        circleVertexDescriptor[0].format = .vector4
-        circleVertexDescriptor[0].bufferIndex = 0
-        circleVertexDescriptor[0].offset = MemoryLayout.offset(of: \CircleVertexData.worldPosition)!
+        var vertDescriptor = shaderDescriptor.vertexDescriptor
         
-        circleVertexDescriptor[1].format = .vector4
-        circleVertexDescriptor[1].bufferIndex = 0
-        circleVertexDescriptor[1].offset = MemoryLayout.offset(of: \CircleVertexData.localPosition)!
+        vertDescriptor.attributes[0].format = .vector4
+        vertDescriptor.attributes[0].bufferIndex = 0
+        vertDescriptor.attributes[0].offset = MemoryLayout.offset(of: \CircleVertexData.worldPosition)!
+        
+        vertDescriptor.attributes[1].format = .vector4
+        vertDescriptor.attributes[1].bufferIndex = 0
+        vertDescriptor.attributes[1].offset = MemoryLayout.offset(of: \CircleVertexData.localPosition)!
 
-        circleVertexDescriptor[2].format = .float
-        circleVertexDescriptor[2].bufferIndex = 0
-        circleVertexDescriptor[2].offset = MemoryLayout.offset(of: \CircleVertexData.thickness)!
+        vertDescriptor.attributes[2].format = .float
+        vertDescriptor.attributes[2].bufferIndex = 0
+        vertDescriptor.attributes[2].offset = MemoryLayout.offset(of: \CircleVertexData.thickness)!
 
-        circleVertexDescriptor[3].format = .float
-        circleVertexDescriptor[3].bufferIndex = 0
-        circleVertexDescriptor[3].offset = MemoryLayout.offset(of: \CircleVertexData.fade)!
+        vertDescriptor.attributes[3].format = .float
+        vertDescriptor.attributes[3].bufferIndex = 0
+        vertDescriptor.attributes[3].offset = MemoryLayout.offset(of: \CircleVertexData.fade)!
 
-        circleVertexDescriptor[4].format = .vector4
-        circleVertexDescriptor[4].bufferIndex = 0
-        circleVertexDescriptor[4].offset = MemoryLayout.offset(of: \CircleVertexData.color)!
+        vertDescriptor.attributes[4].format = .vector4
+        vertDescriptor.attributes[4].bufferIndex = 0
+        vertDescriptor.attributes[4].offset = MemoryLayout.offset(of: \CircleVertexData.color)!
         
-        var layouts = VertexDesciptorLayoutsArray()
-        layouts[0].stride = MemoryLayout<CircleVertexData>.stride
+        vertDescriptor.layouts[0].stride = MemoryLayout<CircleVertexData>.stride
+        shaderDescriptor.vertexDescriptor = vertDescriptor
         
-        device.bindAttributes(attributes: circleVertexDescriptor, forShader: shader)
-        device.bindLayouts(layouts: layouts, forShader: shader)
+        let shader = device.makeShader(from: shaderDescriptor)
         let circlePiplineState = device.makePipelineState(for: shader)
         
         let vertexBuffer = device.makeVertexBuffer(
@@ -299,22 +303,26 @@ extension RenderEngine2D {
     private static func makeQuadData() -> Data<QuadVertexData> {
         let device = RenderEngine.shared.renderBackend
         
-        let shader = device.makeShader("default", vertexFuncName: "quad_vertex", fragmentFuncName: "quad_fragment")
+        var shaderDescriptor = ShaderDescriptor(
+            shaderName: "default",
+            vertexFunction: "quad_vertex",
+            fragmentFunction: "quad_fragment"
+        )
         
-        var quadVertexAttributes = VertexDesciptorAttributesArray()
-        quadVertexAttributes[0].format = .vector4
-        quadVertexAttributes[0].bufferIndex = 0
-        quadVertexAttributes[0].offset = MemoryLayout.offset(of: \QuadVertexData.position)!
+        var vertDescriptor = shaderDescriptor.vertexDescriptor
+
+        vertDescriptor.attributes[0].format = .vector4
+        vertDescriptor.attributes[0].bufferIndex = 0
+        vertDescriptor.attributes[0].offset = MemoryLayout.offset(of: \QuadVertexData.position)!
         
-        quadVertexAttributes[1].format = .vector4
-        quadVertexAttributes[1].bufferIndex = 0
-        quadVertexAttributes[1].offset = MemoryLayout.offset(of: \QuadVertexData.color)!
+        vertDescriptor.attributes[1].format = .vector4
+        vertDescriptor.attributes[1].bufferIndex = 0
+        vertDescriptor.attributes[1].offset = MemoryLayout.offset(of: \QuadVertexData.color)!
         
-        var layouts = VertexDesciptorLayoutsArray()
-        layouts[0].stride = MemoryLayout<QuadVertexData>.stride
+        vertDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
+        shaderDescriptor.vertexDescriptor = vertDescriptor
         
-        device.bindAttributes(attributes: quadVertexAttributes, forShader: shader)
-        device.bindLayouts(layouts: layouts, forShader: shader)
+        let shader = device.makeShader(from: shaderDescriptor)
         let quadPiplineState = device.makePipelineState(for: shader)
         
         let vertexBuffer = device.makeVertexBuffer(

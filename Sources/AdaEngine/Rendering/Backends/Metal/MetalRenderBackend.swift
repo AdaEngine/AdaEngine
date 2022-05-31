@@ -138,44 +138,28 @@ class MetalRenderBackend: RenderBackend {
         }
     }
     
-    func makeShader(_ shaderName: String, vertexFuncName: String, fragmentFuncName: String) -> RID {
+    func makeShader(from descriptor: ShaderDescriptor) -> RID {
         do {
-            let url = Bundle.current.url(forResource: shaderName, withExtension: "metallib")!
+            let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "metallib")!
             let library = try self.context.physicalDevice.makeLibrary(URL: url)
-            let vertexFunc = library.makeFunction(name: vertexFuncName)!
-            let fragmentFunc = library.makeFunction(name: fragmentFuncName)!
+            let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
+            let fragmentFunc = library.makeFunction(name: descriptor.fragmentFunction)!
             
-            return self.shaders.setValue(
-                Shader(
-                    binary: library,
-                    vertexFunction: vertexFunc,
-                    fragmentFunction: fragmentFunc
-                )
-            )
+            var shader = Shader(binary: library, vertexFunction: vertexFunc, fragmentFunction: fragmentFunc)
+            
+            for (index, attribute) in descriptor.vertexDescriptor.attributes.enumerated() {
+                shader.vertexDescriptor.attributes[index].offset = attribute.offset
+                shader.vertexDescriptor.attributes[index].bufferIndex = attribute.bufferIndex
+                shader.vertexDescriptor.attributes[index].format = attribute.format.metalFormat
+            }
+            
+            for (index, layout) in descriptor.vertexDescriptor.layouts.enumerated() {
+                shader.vertexDescriptor.layouts[index].stride = layout.stride
+            }
+            
+            return self.shaders.setValue(shader)
         } catch {
             fatalError(error.localizedDescription)
-        }
-    }
-    
-    func bindAttributes(attributes: VertexDesciptorAttributesArray, forShader rid: RID) {
-        guard let shader = self.shaders[rid] else {
-            return
-        }
-        
-        for (index, attribute) in attributes.enumerated() {
-            shader.vertexDescriptor.attributes[index].offset = attribute.offset
-            shader.vertexDescriptor.attributes[index].bufferIndex = attribute.bufferIndex
-            shader.vertexDescriptor.attributes[index].format = attribute.format.metalFormat
-        }
-    }
-    
-    func bindLayouts(layouts: VertexDesciptorLayoutsArray, forShader rid: RID) {
-        guard let shader = self.shaders[rid] else {
-            return
-        }
-        
-        for (index, layout) in layouts.enumerated() {
-            shader.vertexDescriptor.layouts[index].stride = layout.stride
         }
     }
     
@@ -188,6 +172,7 @@ class MetalRenderBackend: RenderBackend {
         pipelineDescriptor.vertexFunction = shader.vertexFunction
         pipelineDescriptor.fragmentFunction = shader.fragmentFunction
         pipelineDescriptor.vertexDescriptor = shader.vertexDescriptor
+        
         pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
         do {
             let state = try self.context.physicalDevice.makeRenderPipelineState(descriptor: pipelineDescriptor)

@@ -53,12 +53,12 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Shaders
     
-    func makeShader(_ shaderName: String, vertexFuncName: String, fragmentFuncName: String) -> RID
+    /// Create shader from descriptor and register it in engine.
+    /// - Returns: Resource ID referenced to shader instance.
+    func makeShader(from descriptor: ShaderDescriptor) -> RID
     
-    func bindAttributes(attributes: VertexDesciptorAttributesArray, forShader rid: RID)
-    
-    func bindLayouts(layouts: VertexDesciptorLayoutsArray, forShader rid: RID)
-    
+    /// Create pipeline state from shader and register it in engine.
+    /// - Returns: Resource ID referenced to pipeline instance.
     func makePipelineState(for shader: RID) -> RID
     
     // MARK: - Uniforms
