@@ -5,11 +5,17 @@
 //  Created by v.prusakov on 5/29/22.
 //
 
-public class Window: View {
+/// The base class describe window in the system.
+/// Each instance of window can be presented on screen.
+/// Window holds `SceneManager` instance to manage game scenes, but, you can also use UI kit instead.
+/// - Tag: AdaEngine.Window
+open class Window: View {
     
     public typealias ID = RID
     
     // TODO: Maybe, we should use unique ID without RID
+    /// Identifier using to register window in the render engine.
+    /// We use this id to start drawing.
     public var id: ID = RID()
     
     public var title: String {
@@ -23,7 +29,13 @@ public class Window: View {
         return Application.shared.windowManager
     }
     
-    public var shouldDraw: Bool = false
+    /// Flag indicates that window can draw content in method [draw(with:)](x-source-tag://AdaEngine.Window.drawWithContext).
+    open var canDraw: Bool = false
+    
+    public internal(set) var isFullscreen: Bool = false
+    
+    // Flag indicates that window is active.
+    public internal(set) var isActive: Bool = false
     
     internal var sceneManager: SceneManager
     
@@ -46,31 +58,84 @@ public class Window: View {
         self.windowManager.createWindow(for: self)
     }
     
-    public var isActive: Bool = false
-    
-    public func showWindow(makeFocused flag: Bool) {
+    open func showWindow(makeFocused flag: Bool) {
         self.windowManager.showWindow(self, isFocused: flag)
     }
     
-    public func close() {
+    open func close() {
         self.windowManager.closeWindow(self)
+    }
+    
+    // MARK: - Public Methods
+    
+    open func setWindowMode(_ mode: Window.Mode) {
+        self.windowManager.setWindowMode(self, mode: mode)
     }
     
     // MARK: - Lifecycle
     
+    /// Called one when window ready to use.
+    open func windowDidReady() {
+        
+    }
+    
+    /// Called each time when window did appear on screen.
     open func windowDidAppear() {
         
     }
     
+    /// Called once when window did disapper from screen.
     open func windowDidDisappear() {
         
     }
+    
+    open func windowDidBecameActive() {
+        
+    }
+    
+    open func windowDidResignActive() {
+        
+    }
+    
+    // MARK: - Overriding
+    
+    /// - Tag: AdaEngine.Window.drawWithContext
+    override func draw(with context: GUIRenderContext) {
+        super.draw(with: context)
+    }
+    
+    /// - Tag: AdaEngine.Window.drawInRectWithContext
+    public override func draw(in rect: Rect, with context: GUIRenderContext) {
+        super.draw(in: rect, with: context)
+    }
+    
+    public override func addSubview(_ view: View) {
+        
+        if let anotherWindow = view.window {
+            if anotherWindow === self {
+                assertionFailure("View already added on this window.")
+            } else {
+                fatalError("You cannot add view as subview, because view holded by another window.")
+            }
+        }
+        
+        view.window = self
+        super.addSubview(view)
+    }
+    
+    public override func removeSubview(_ view: View) {
+        if let window = view.window, window !== self {
+            fatalError("You cant remove view from another window instance.")
+        }
+        
+        view.window = nil
+        super.removeSubview(view)
+    }
 }
 
-func fatalErrorMethodNotImplemented(
-    functionName: String = #function,
-    line: Int = #line,
-    file: String = #fileID
-) -> Never {
-    fatalError("Method \(functionName):\(line) not implemented in \(file).")
+public extension Window {
+    enum Mode: UInt64 {
+        case windowed
+        case fullscreen
+    }
 }

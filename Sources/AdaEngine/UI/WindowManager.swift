@@ -5,6 +5,20 @@
 //  Created by v.prusakov on 5/29/22.
 //
 
+/// Base protocol describes platform specific window.
+public protocol SystemWindow {
+    /// Window title.
+    var title: String { get set }
+    
+    /// Window size.
+    var size: Size { get set }
+    
+    /// Window position on screen.
+    var position: Point { get set }
+}
+
+/// Base class using to manage windows in application. All created window should be registred there.
+/// Application has only one window manager per instance.
 open class WindowManager {
     
     public internal(set) var windows: [Window] = []
@@ -13,6 +27,7 @@ open class WindowManager {
     
     internal init() { }
     
+    /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) {
         for window in self.windows {
             
@@ -22,20 +37,21 @@ open class WindowManager {
             
             window.sceneManager.update(deltaTime)
             
-            if window.shouldDraw {
+            if window.canDraw {
                 let context = GUIRenderContext(window: window.id)
                 
-                context.beginDraw(in: window.frame)
-                
+                context.beginDraw(in: window.bounds)
                 window.draw(with: context)
-                
                 context.commitDraw()
             }
         }
     }
     
+    /// Create platform window and register app window inside the manager.
+    /// - Warning: You should call this method when override this method!
     open func createWindow(for window: Window) {
         self.windows.append(window)
+        window.windowDidReady()
     }
     
     open func showWindow(_ window: Window, isFocused: Bool) {
@@ -46,14 +62,21 @@ open class WindowManager {
         fatalErrorMethodNotImplemented()
     }
     
+    open func setWindowMode(_ window: Window, mode: Window.Mode) {
+        fatalErrorMethodNotImplemented()
+    }
+    
     internal func setActiveWindow(_ window: Window) {
         self.activeWindow?.isActive = false
         
+        self.activeWindow?.windowDidResignActive()
+        
         self.activeWindow = window
         window.isActive = true
+        window.windowDidBecameActive()
     }
     
-    func removeWindow(_ window: Window, setActiveAnotherIfNeeded: Bool = true) {
+    public final func removeWindow(_ window: Window, setActiveAnotherIfNeeded: Bool = true) {
         guard let index = self.windows.firstIndex(where: { $0 === window }) else {
             assertionFailure("We don't have window in windows stack. That strange problem.")
             return
@@ -78,12 +101,4 @@ open class WindowManager {
             self.setActiveWindow(newWindow)
         }
     }
-}
-
-public protocol SystemWindow {
-    var title: String { get set }
-    
-    var size: Size { get set }
-    
-    var position: Point { get set }
 }

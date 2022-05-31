@@ -6,7 +6,6 @@
 //
 
 import Math
-import AppKit
 
 // TODO:
 // [ ] - Ortho projection for each view instead of root
@@ -19,6 +18,8 @@ import AppKit
 // [ ] - create transperent API for 2D rendering
 // [ ] - Interaction (hit testing)
 // [ ] - Scaling problem (hit testing)
+
+/// - Tag: AdaEngine.View
 open class View {
     
     // MARK: - Public Fields -
@@ -48,6 +49,8 @@ open class View {
     open var isVisible: Bool = true
     
     open var zIndex: Int = 0
+    
+    public internal(set) weak var window: Window?
     
     /// Affine matrix to apply any transformation to current view
     public var affineTransform: Transform2D {
@@ -128,6 +131,13 @@ open class View {
         return self._localTransform
     }
     
+    // MARK: - Life cycle
+    
+    /// - Parameter superView: Return view instance if view attached to superview or nil if view deattached from superview. Also superview can be [Window](x-source-tag://AdaEngine.Window) instance.
+    open func viewDidMove(to superView: View?) {
+        
+    }
+    
     // MARK: - Interaction
     
     open func hitTest(_ point: Point, with event: Event) -> View? {
@@ -200,20 +210,10 @@ open class View {
         let view = self.hitTest(position, with: event)
         view?.backgroundColor = .mint
     }
-}
-
-private extension View {
-    struct Data {
-        var cacheWorldTransform: Transform3D = .identity
-        var frame: Rect = .zero
-    }
-}
-
-// MARK: - View Hierarchy
-
-public extension View {
     
-    func addSubview(_ view: View) {
+    // MARK: - View Hierarchy
+    
+    open func addSubview(_ view: View) {
         if self === view {
             fatalError("Can't add self as subview")
         }
@@ -224,15 +224,25 @@ public extension View {
         
         self.subviews.append(view)
         view.superview = self
+        
+        view.viewDidMove(to: self)
     }
     
-    func removeFromSuperview() {
+    open func removeFromSuperview() {
         self.superview?.removeSubview(self)
     }
     
-    func removeSubview(_ view: View) {
+    open func removeSubview(_ view: View) {
         guard let index = self.subviews.firstIndex(where: { $0 === view }) else { return }
         let deletedView = self.subviews.remove(at: index)
         deletedView.superview = nil
+        view.viewDidMove(to: nil)
+    }
+}
+
+private extension View {
+    struct Data {
+        var cacheWorldTransform: Transform3D = .identity
+        var frame: Rect = .zero
     }
 }

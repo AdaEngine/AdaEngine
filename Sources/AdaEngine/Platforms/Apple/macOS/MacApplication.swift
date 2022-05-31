@@ -5,15 +5,14 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-#if os(macOS)
+#if MACOS
 import Foundation
 import AppKit
-import QuartzCore
 
 final class MacApplication: Application {
     
-    var timer: Timer!
-    var displayLink: DisplayLink
+    // Timer that synced with display refresh rate.
+    private let displayLink: DisplayLink
     
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         self.displayLink = DisplayLink(on: .main)!
@@ -49,6 +48,32 @@ final class MacApplication: Application {
         NSWorkspace.shared.open(url)
     }
     
+    override func showAlert(_ alert: Alert) {
+        let nsAlert = NSAlert()
+        nsAlert.alertStyle = .warning
+        nsAlert.messageText = alert.title
+        nsAlert.informativeText = alert.message ?? ""
+        
+        for button in alert.buttons {
+            let nsButton = nsAlert.addButton(withTitle: button.title)
+            
+            // hack from that thread: https://stackoverflow.com/a/16627982
+            if button.kind == .cancel {
+                nsButton.keyEquivalent = "\\r"
+            }
+        }
+        
+        let result = nsAlert.runModal() // synchronous call
+        
+        // hack from that thread: https://stackoverflow.com/a/59245758
+        let index = result.rawValue - 1000
+        alert.buttons[index].action?()
+        
+        Application.shared.windowManager.activeWindow?.showWindow(makeFocused: true)
+    }
+    
+    // MARK: - Private
+    
     @objc private func update() {
         do {
             try self.gameLoop.iterate()
@@ -65,74 +90,6 @@ class AdaApplication: NSApplication {
             self.keyWindow?.sendEvent(event)
         } else {
             super.sendEvent(event)
-        }
-    }
-}
-
-class DisplayLink {
-    private let timer: CVDisplayLink
-    private let source: DispatchSourceUserDataAdd
-    
-    var isRunning: Bool {
-        return CVDisplayLinkIsRunning(timer)
-    }
-    
-    init?(on queue: DispatchQueue = DispatchQueue.main) {
-        self.source = DispatchSource.makeUserDataAddSource(queue: queue)
-        
-        var timerRef: CVDisplayLink?
-        
-        var successLink = CVDisplayLinkCreateWithActiveCGDisplays(&timerRef)
-        
-        if let timer = timerRef {
-            
-            successLink = CVDisplayLinkSetOutputCallback(timer, { _, _, _, _, _, source -> CVReturn in
-                if let source = source {
-                    let sourceUnmanaged = Unmanaged<DispatchSourceUserDataAdd>.fromOpaque(source)
-                    sourceUnmanaged.takeUnretainedValue().add(data: 1)
-                }
-                
-                return kCVReturnSuccess
-            }, Unmanaged.passUnretained(self.source).toOpaque())
-            
-            guard successLink == kCVReturnSuccess else {
-                print("Failed to create timer with active display")
-                return nil
-            }
-            
-            successLink = CVDisplayLinkSetCurrentCGDisplay(timer, CGMainDisplayID())
-            
-            guard successLink == kCVReturnSuccess else {
-                return nil
-            }
-            
-            self.timer = timer
-        } else {
-            return nil
-        }
-    }
-    
-    func start() {
-        guard !self.isRunning else { return }
-        
-        CVDisplayLinkStart(self.timer)
-        self.source.resume()
-    }
-    
-    func pause() {
-        guard self.isRunning else { return }
-        
-        CVDisplayLinkStop(timer)
-        self.source.cancel()
-    }
-    
-    func setHandler(_ handler: @escaping () -> Void) {
-        self.source.setEventHandler(handler: handler)
-    }
-    
-    deinit {
-        if self.isRunning {
-            self.pause()
         }
     }
 }

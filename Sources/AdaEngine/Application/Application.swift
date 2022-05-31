@@ -7,11 +7,14 @@
 
 import Foundation.NSURL
 
+/// Main class represented application instance.
+/// Application cannot be created manualy use [ApplicationCreate](x-source-tag://ApplicationCreate) function instead.
+/// To get access to Application instance, use static property `shared`
 open class Application {
     
     // MARK: - Public
     
-    /// Contains application instance if application created from `ApplicationCreate`
+    /// Contains application instance if application created from [ApplicationCreate](x-source-tag://ApplicationCreate) function.
     public internal(set) static var shared: Application!
     
     private(set) var gameLoop: GameLoop = GameLoop.current
@@ -43,6 +46,7 @@ open class Application {
         argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
     ) throws { }
     
+    /// Call this method to start main loop.
     func run(options: ApplicationRunOptions) throws {
         assertionFailure("Not implemented")
     }
@@ -57,5 +61,10 @@ open class Application {
     open func openURL(_ url: URL) -> Bool {
         assertionFailure("Not implemented")
         return false
+    }
+    
+    /// Call this method to show specific alert.
+    open func showAlert(_ alert: Alert) {
+        assertionFailure("Not implemented")
     }
 }

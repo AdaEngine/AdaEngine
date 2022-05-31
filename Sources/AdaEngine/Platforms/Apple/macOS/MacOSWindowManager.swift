@@ -1,21 +1,19 @@
 //
-//  File.swift
+//  MacOSWindowManager.swift
 //  
 //
 //  Created by v.prusakov on 5/29/22.
 //
 
-#if os(macOS)
+#if MACOS
 import Foundation
 import AppKit
 
-class MacOSWindowManager: WindowManager {
+final class MacOSWindowManager: WindowManager {
     
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)
     
     override func createWindow(for window: Window) {
-        super.createWindow(for: window)
-        
         let frame = window.frame
         
         let contentRect = CGRect(
@@ -42,10 +40,13 @@ class MacOSWindowManager: WindowManager {
         systemWindow.contentMinSize = minSize
         systemWindow.minSize = minSize
         systemWindow.contentView = metalView
+        systemWindow.collectionBehavior = [.fullScreenPrimary]
         systemWindow.center()
         systemWindow.delegate = nsWindowDelegate
         
         window.systemWindow = systemWindow
+        
+        super.createWindow(for: window)
     }
     
     override func showWindow(_ window: Window, isFocused: Bool) {
@@ -62,6 +63,19 @@ class MacOSWindowManager: WindowManager {
         window.windowDidAppear()
         
         self.setActiveWindow(window)
+    }
+    
+    override func setWindowMode(_ window: Window, mode: Window.Mode) {
+        guard let nsWindow = window.systemWindow as? NSWindow else {
+            fatalError("System window not exist.")
+        }
+        
+        let isFullScreen = nsWindow.styleMask.contains(.fullScreen)
+        let shouldToggleFullScreen = isFullScreen != (mode == .fullscreen)
+        
+        if shouldToggleFullScreen {
+            nsWindow.toggleFullScreen(nil)
+        }
     }
     
     override func closeWindow(_ window: Window) {
@@ -81,26 +95,6 @@ class MacOSWindowManager: WindowManager {
     }
 }
 
-extension NSWindow: SystemWindow {
-    public var position: Point {
-        get {
-            Point(x: Float(self.frame.origin.x), y: Float(self.frame.origin.y))
-        }
-        set {
-            self.setFrameOrigin(NSPoint(x: CGFloat(newValue.x), y: CGFloat(newValue.y)))
-        }
-    }
-    
-    public var size: Size {
-        get {
-            Size(width: Float(self.frame.size.width), height: Float(self.frame.size.height))
-        }
-        set {
-            self.setContentSize(NSSize(width: CGFloat(newValue.width), height: CGFloat(newValue.height)))
-        }
-    }
-}
-
 // MARK: - NSWindowDelegate
 
 final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
@@ -110,6 +104,8 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
     init(windowManager: MacOSWindowManager) {
         self.windowManager = windowManager
     }
+    
+    // MARK: NSWindowDelegate impl
     
     func windowWillClose(_ notification: Notification) {
         guard
@@ -142,7 +138,81 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
         }
         
         let size = nsWindow.size
+        window.frame = Rect(origin: nsWindow.position, size: size)
         try? RenderEngine.shared.renderBackend.resizeWindow(window.id, newSize: size)
+    }
+    
+    func windowDidMove(_ notification: Notification) {
+        guard
+            let nsWindow = notification.object as? NSWindow,
+            let window = self.windowManager.findWindow(for: nsWindow)
+        else {
+            return
+        }
+        
+        window.frame.origin = nsWindow.position
+    }
+    
+    func windowDidExitFullScreen(_ notification: Notification) {
+        guard
+            let nsWindow = notification.object as? NSWindow,
+            let window = self.windowManager.findWindow(for: nsWindow)
+        else {
+            return
+        }
+        
+        window.isFullscreen = false
+    }
+    
+    func windowDidEnterFullScreen(_ notification: Notification) {
+        guard
+            let nsWindow = notification.object as? NSWindow,
+            let window = self.windowManager.findWindow(for: nsWindow)
+        else {
+            return
+        }
+        
+        window.isFullscreen = true
+    }
+}
+
+// MARK: - NSWindow + SystemWindow
+
+extension NSWindow: SystemWindow {
+    public var position: Point {
+        get {
+            return self.frame.origin.toEnginePoint
+        }
+        set {
+            self.setFrameOrigin(NSPoint(x: CGFloat(newValue.x), y: CGFloat(newValue.y)))
+        }
+    }
+    
+    public var size: Size {
+        get {
+            return self.frame.size.toEngineSize
+        }
+        set {
+            self.setContentSize(NSSize(width: CGFloat(newValue.width), height: CGFloat(newValue.height)))
+        }
+    }
+}
+
+extension CGRect {
+    var toEngineRect: Rect {
+        return Rect(origin: self.origin.toEnginePoint, size: self.size.toEngineSize)
+    }
+}
+
+extension CGPoint {
+    var toEnginePoint: Point {
+        return Point(x: Float(self.x), y: Float(self.y))
+    }
+}
+
+extension CGSize {
+    var toEngineSize: Size {
+        return Size(width: Float(self.width), height: Float(self.height))
     }
 }
 

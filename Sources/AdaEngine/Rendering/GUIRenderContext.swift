@@ -8,8 +8,8 @@
 import Math
 import GLKit
 
-/// Special object to render user interface on the screen
-/// Context use orthogonal projection
+/// Special object to render user interface on the screen.
+/// Context use orthogonal projection.
 final public class GUIRenderContext {
     
     private let engine: RenderEngine2D
@@ -19,7 +19,8 @@ final public class GUIRenderContext {
     
     private var currentTransform = Transform3D.identity
     
-    private var window: Window.ID
+    /// Window Identifier related presented window.
+    private let window: Window.ID
     
     public init(window: Window.ID, engine: RenderEngine2D = .shared) {
         self.window = window
