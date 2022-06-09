@@ -53,25 +53,25 @@ class GameScene {
         let scene = Scene()
 
         let view = View()
-        view.backgroundColor = .blue
-//
-//        let blueView = View()
+        view.backgroundColor = .green
+        
+        let blueView = View()
 //        blueView.zIndex = 1
-//        blueView.frame = Rect(origin: Point(x: 1600 / 2, y: 0), size: Size(width: 1600 / 2, height: 1144 / 2))
+        blueView.frame = Rect(origin: Point(x: 1600 / 2, y: 0), size: Size(width: 1600 / 2, height: 1144 / 2))
 //        blueView.backgroundColor = Color.blue.opacity(0.2)
-//        view.addSubview(blueView)
+        view.addSubview(blueView)
 //
 //        let greenView = View()
 //        greenView.zIndex = 2
 //        greenView.frame = Rect(origin: Point(x: 30, y: 30), size: Size(width: 50, height: 50))
 //        greenView.backgroundColor = Color.green
 //        blueView.addSubview(greenView)
-//
-        let viewEntity = Entity(name: "View")
-        viewEntity.components[ViewContrainerComponent.self] = ViewContrainerComponent(rootView: view)
-        viewEntity.components[ControlCircleComponent.self] = ControlCircleComponent()
-        scene.addEntity(viewEntity)
-        
+////
+//        let viewEntity = Entity(name: "View")
+//        viewEntity.components[ViewContrainerComponent.self] = ViewContrainerComponent(rootView: view)
+//        viewEntity.components[ControlCircleComponent.self] = ControlCircleComponent()
+//        scene.addEntity(viewEntity)
+//        
 //        let meshRenderer = MeshRenderer()
 //        meshRenderer.materials = [BaseMaterial(diffuseColor: .red, metalic: 0)]
 //        let mesh = Mesh.generateBox(extent: Vector3(1, 1, 1), segments: Vector3(1, 1, 1))

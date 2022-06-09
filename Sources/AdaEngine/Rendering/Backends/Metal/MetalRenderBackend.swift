@@ -40,10 +40,17 @@ class MetalRenderBackend: RenderBackend {
     
     var renderPipelineStateMap: ResourceHashMap<MTLRenderPipelineState> = [:]
     
+    var depthState: MTLDepthStencilState!
+    
     var inFlightSemaphore: DispatchSemaphore!
     
     init(appName: String) {
         self.context = Context()
+        
+        let depthStateDescriptor = MTLDepthStencilDescriptor()
+        depthStateDescriptor.depthCompareFunction = MTLCompareFunction.less
+        depthStateDescriptor.isDepthWriteEnabled = true
+        self.depthState = self.context.physicalDevice.makeDepthStencilState(descriptor:depthStateDescriptor)
     }
     
     func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
@@ -75,8 +82,6 @@ class MetalRenderBackend: RenderBackend {
         
         self.context.destroyWindow(by: windowId)
     }
-    
-//    var currentBuffer: MTLCommandBuffer!
     
     func beginFrame() throws {
 //        self.inFlightSemaphore.wait()
@@ -112,32 +117,6 @@ class MetalRenderBackend: RenderBackend {
         window.view?.clearColor = MTLClearColor(red: Double(color.red), green: Double(color.green), blue: Double(color.blue), alpha: Double(color.alpha))
     }
     
-    func makePipelineDescriptor(for material: Material, vertexDescriptor: MeshVertexDescriptor?) -> RID {
-        do {
-            let defaultLibrary = try self.context.physicalDevice.makeDefaultLibrary(bundle: .current)
-            let vertexFunc = defaultLibrary.makeFunction(name: "vertex_main")
-            let fragmentFunc = defaultLibrary.makeFunction(name: "fragment_main")
-            
-            let pipelineDescriptor = MTLRenderPipelineDescriptor()
-            pipelineDescriptor.vertexFunction = vertexFunc
-            pipelineDescriptor.fragmentFunction = fragmentFunc
-            pipelineDescriptor.vertexDescriptor = try vertexDescriptor?.makeMTKVertexDescriptor()
-            pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
-            pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
-            pipelineDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha
-            pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
-            pipelineDescriptor.colorAttachments[0].rgbBlendOperation = .add
-            pipelineDescriptor.colorAttachments[0].alphaBlendOperation = .add
-            pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
-            pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
-            
-            let state = try self.context.physicalDevice.makeRenderPipelineState(descriptor: pipelineDescriptor)
-            return self.renderPipelineStateMap.setValue(state)
-        } catch {
-            fatalError(error.localizedDescription)
-        }
-    }
-    
     func makeShader(from descriptor: ShaderDescriptor) -> RID {
         do {
             let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "metallib")!
@@ -145,7 +124,7 @@ class MetalRenderBackend: RenderBackend {
             let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
             let fragmentFunc = library.makeFunction(name: descriptor.fragmentFunction)!
             
-            var shader = Shader(binary: library, vertexFunction: vertexFunc, fragmentFunction: fragmentFunc)
+            let shader = Shader(binary: library, vertexFunction: vertexFunc, fragmentFunction: fragmentFunc)
             
             for (index, attribute) in descriptor.vertexDescriptor.attributes.enumerated() {
                 shader.vertexDescriptor.attributes[index].offset = attribute.offset
@@ -172,8 +151,17 @@ class MetalRenderBackend: RenderBackend {
         pipelineDescriptor.vertexFunction = shader.vertexFunction
         pipelineDescriptor.fragmentFunction = shader.fragmentFunction
         pipelineDescriptor.vertexDescriptor = shader.vertexDescriptor
+        pipelineDescriptor.depthAttachmentPixelFormat = .depth32Float_stencil8
+        pipelineDescriptor.stencilAttachmentPixelFormat = .depth32Float_stencil8
+        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb
+        pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
+        pipelineDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha
+        pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
+        pipelineDescriptor.colorAttachments[0].rgbBlendOperation = .add
+        pipelineDescriptor.colorAttachments[0].alphaBlendOperation = .add
+        pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
+        pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
         
-        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
         do {
             let state = try self.context.physicalDevice.makeRenderPipelineState(descriptor: pipelineDescriptor)
             return self.renderPipelineStateMap.setValue(state)
@@ -265,6 +253,8 @@ class MetalRenderBackend: RenderBackend {
     
     var drawList: ResourceHashMap<Draw> = [:]
 }
+
+// MARK: - Drawings
 
 extension MetalRenderBackend {
     
@@ -429,12 +419,19 @@ extension MetalRenderBackend {
         }
         
         if let name = draw.debugName {
-            draw.commandBuffer.pushDebugGroup(name)
+            encoder.label = name
         }
+        
+        // Should be in draw settings
+        encoder.setCullMode(.back)
+
+        encoder.setFrontFacing(.counterClockwise)
         
         if let renderState = draw.renderState {
             encoder.setRenderPipelineState(renderState)
         }
+        
+        encoder.setDepthStencilState(depthState)
         
         guard let iaRid = draw.indexArray, let indexArray = self.indexArrays[iaRid] else {
             fatalError("can't draw without index array")
@@ -471,10 +468,6 @@ extension MetalRenderBackend {
         )
         
         encoder.endEncoding()
-        
-        if draw.debugName != nil {
-            draw.commandBuffer.popDebugGroup()
-        }
     }
     
     func drawEnd(_ drawId: RID) {

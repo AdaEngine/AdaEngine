@@ -42,6 +42,7 @@ final class MacOSWindowManager: WindowManager {
         systemWindow.collectionBehavior = [.fullScreenPrimary]
         systemWindow.center()
         systemWindow.delegate = nsWindowDelegate
+        systemWindow.backgroundColor = .black
         
         window.systemWindow = systemWindow
         

@@ -61,7 +61,10 @@ extension MetalRenderBackend {
                 viewport: viewport
             )
             
+            view.depthStencilPixelFormat = .depth32Float_stencil8
+            view.colorPixelFormat = .bgra8Unorm_srgb
             view.device = self.physicalDevice
+            view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
             
             self.windows[id] = window
         }

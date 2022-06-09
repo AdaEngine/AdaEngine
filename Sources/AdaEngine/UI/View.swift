@@ -116,8 +116,8 @@ open class View {
     }
 
     internal func draw(with context: GUIRenderContext) {
-        context.setTransform(self.data.cacheWorldTransform)
-        context.setZIndex(self.zIndex)
+//        context.setTransform(self.data.cacheWorldTransform)
+//        context.setZIndex(self.zIndex)
         self.draw(in: self.bounds, with: context)
     }
     

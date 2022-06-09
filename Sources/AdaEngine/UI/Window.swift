@@ -37,7 +37,6 @@ open class Window: View {
     // Flag indicates that window is active.
     public internal(set) var isActive: Bool = false
     
-    
     public internal(set) var sceneManager: SceneManager
     
     public required init(scene: Scene, frame: Rect) {
@@ -111,7 +110,7 @@ open class Window: View {
     }
     
     /// - Tag: AdaEngine.Window.drawInRectWithContext
-    public override func draw(in rect: Rect, with context: GUIRenderContext) {
+    open override func draw(in rect: Rect, with context: GUIRenderContext) {
         super.draw(in: rect, with: context)
     }
     
