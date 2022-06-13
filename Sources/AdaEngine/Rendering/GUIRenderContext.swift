@@ -40,9 +40,9 @@ final public class GUIRenderContext {
         
         let view = Transform3D.orthogonal(
             left: 0,
-            right: size.width / 2,
+            right: size.width,
             top: 0,
-            bottom: -size.height / 2,
+            bottom: -size.height,
             zNear: -1,
             zFar: 1
         )
@@ -50,6 +50,7 @@ final public class GUIRenderContext {
         self.engine.beginContext(for: self.window, viewTransform: view)
     }
     
+    // TODO: Currently not work
     public func setZIndex(_ index: Int) {
         self.engine.setZIndex(index)
     }
@@ -62,8 +63,8 @@ final public class GUIRenderContext {
         self.strokeColor = color
     }
     
-    public func setTransform(_ transform: Transform3D) {
-        self.currentTransform = transform
+    public func setTransform(_ transform: Transform2D) {
+        self.currentTransform = self.makeCanvasTransform3D(from: transform)
     }
     
     public func setDebugName(_ name: String) {
@@ -79,7 +80,7 @@ final public class GUIRenderContext {
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
     public func fillEllipse(in rect: Rect) {
         let transform = self.makeCanvasTransform3D(from: rect)
-        self.engine.drawCircle(transform: self.currentTransform * transform, thickness: 0, fade: 0.005, color: self.fillColor)
+        self.engine.drawCircle(transform: self.currentTransform * transform, thickness: 1, fade: 0.005, color: self.fillColor)
     }
     
     public func commitDraw() {
@@ -99,7 +100,14 @@ final public class GUIRenderContext {
 
 extension GUIRenderContext {
     func makeCanvasTransform3D(from affineTransform: Transform2D) -> Transform3D {
-        return Transform3D(affineTransform)
+        // swiftlint:disable:next identifier_name
+        let m = affineTransform
+        return Transform3D(
+            [m[0, 0], m[0, 1], 0, m[0, 2]],
+            [m[1, 0], m[1, 1], 0, m[1, 2]],
+            [0,       0,       1, 0      ],
+            [m[2, 0], -m[2, 1], 0, m[2, 2]]
+        )
     }
     
     func makeCanvasTransform3D(from rect: Rect) -> Transform3D {
@@ -109,18 +117,18 @@ extension GUIRenderContext {
         if size.width < 0 || size.height < 0 {
             return .identity
         }
-        
+
         return Transform3D(
-            translation: [origin.x, origin.y, 0],
-            rotation: .identity,
-            scale: [size.width, size.height, 1]
+            [size.width * 2, 0, 0, 0],
+            [0, size.height * 2, 0, 0 ],
+            [0, 0, 1.0, 0.0],
+            [origin.x, -origin.y, 0, 1]
         )
-//
-//        return Transform3D(
-//            [size.width, 0, 0, 0],
-//            [0, size.height, 0, 0 ],
-//            [0, 0, 1.0, 0.0],
-//            [size.width / 2 + origin.x, -size.height / 2 - origin.y, 0, 1]
-//        )
     }
 }
+
+// model -> view -> projection
+// quad -> .identity -> ortho
+// quad -> ortho
+
+// position = ortho * quad

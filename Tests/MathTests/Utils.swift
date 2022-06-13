@@ -99,6 +99,17 @@ enum TestUtils {
         XCTAssertEqual(Float(cgPoint.y), point.y, accuracy: accuracy)
     }
     
+    static func assertEqual(
+        _ cgRect: CGRect,
+        _ rect: Rect,
+        accuracy: Float = 0.00001
+    ) {
+        XCTAssertEqual(Float(cgRect.minX), rect.minX, accuracy: accuracy)
+        XCTAssertEqual(Float(cgRect.minY), rect.minY, accuracy: accuracy)
+        XCTAssertEqual(Float(cgRect.maxX), rect.maxX, accuracy: accuracy)
+        XCTAssertEqual(Float(cgRect.maxY), rect.maxY, accuracy: accuracy)
+    }
+    
 #endif
     
 }

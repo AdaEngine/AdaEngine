@@ -12,47 +12,29 @@ import Darwin.C
 import AppKit
 #endif
 
-public struct ApplicationRunOptions {
-    public var initialScene: Scene?
-    public var sceneName: String?
+/// A type that represents the structure and behavior of an app.
+public protocol App {
+    /// Creates an instance of the app using the body that you define for its content.
+    init()
     
-    public var windowConfiguration: WindowConfiguration
-    
-    public init(
-        initialScene: Scene? = nil,
-        sceneName: String? = nil,
-        windowConfiguration: WindowConfiguration = WindowConfiguration()
-    ) {
-        self.initialScene = initialScene
-        self.sceneName = sceneName
-        self.windowConfiguration = windowConfiguration
-    }
+    associatedtype Content: AppScene
+    var scene: Content { get }
 }
 
-public extension ApplicationRunOptions {
-    struct WindowConfiguration {
-        public var windowClass: Window.Type?
-        public var windowMode: Window.Mode = .windowed
-        
-        public init(windowClass: Window.Type? = nil, windowMode: Window.Mode = .windowed) {
-            self.windowClass = windowClass
-            self.windowMode = windowMode
-        }
+public extension App {
+    
+    init() {
+        self.init()
     }
-}
-
-// swiftlint:disable identifier_name
-
-/// Create application instance
-/// - Tag: ApplicationCreate
-@discardableResult
-public func ApplicationCreate(
-    argc: Int32 = CommandLine.argc,
-    argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?> = CommandLine.unsafeArgv,
-    options: ApplicationRunOptions = ApplicationRunOptions()
-) -> Int32 {
-    do {
+    
+    // Initializes and runs the app.
+    static func main() async throws {
         var application: Application!
+        
+        let argc = CommandLine.argc
+        let argv = CommandLine.unsafeArgv
+        
+        let app = Self.init()
         
         #if os(macOS)
         application = try MacApplication(argc: argc, argv: argv)
@@ -64,34 +46,114 @@ public func ApplicationCreate(
         
         Application.shared = application
         
-        var scene: Scene? = options.initialScene
+        let appScene = app.scene
+        let configuration = appScene._configuration
+        let window = appScene._makeWindow(with: configuration)
         
-        let windowClass = options.windowConfiguration.windowClass ?? Window.self
-        let frame = Rect(origin: .zero, size: Size(width: 800, height: 600))
+        window.showWindow(makeFocused: true)
         
-        var window: Window?
-        
-        if let scene = scene {
-//            let size = NSScreen.main?.frame.size ?? .zero
-//            let frame = Rect(origin: .zero, size: Size(width: Float(size.width), height: Float(size.height)))
-            window = windowClass.init(scene: scene, frame: frame)
-        } else {
-            window = windowClass.init(frame: frame)
-        }
-        
-        if window == nil {
-            print("We don't have any window to present")
-            return EXIT_FAILURE
-        }
-        
-        window?.showWindow(makeFocused: true)
-        
-        try application.run(options: options)
-        
-        return EXIT_SUCCESS
-    } catch {
-        return EXIT_FAILURE
+        try application.run()
     }
 }
 
-// swiftlint:enable identifier_name
+enum AppError: LocalizedError {
+    case configurationFailure
+}
+
+public protocol AppScene {
+    associatedtype Body: AppScene
+    var scene: Body { get }
+    
+    var _configuration: _AppSceneConfiguration { get set }
+    func _makeWindow(with configuration: _AppSceneConfiguration) -> Window
+}
+
+public extension AppScene {
+    func minimumSize(_ size: Size) -> some AppScene {
+        var newValue = self
+        newValue._configuration.minimumSize = size
+        return newValue
+    }
+    
+    func windowMode(_ mode: Window.Mode) -> some AppScene {
+        var newValue = self
+        newValue._configuration.windowMode = mode
+        return newValue
+    }
+    
+    func singleWindow(_ isSingleWindow: Bool) -> some AppScene {
+        var newValue = self
+        newValue._configuration.isSingleWindow = isSingleWindow
+        return newValue
+    }
+}
+
+public struct _AppSceneConfiguration {
+    var frame: Rect = .zero
+    var minimumSize: Size = Size(width: 800, height: 600)
+    var windowMode: Window.Mode = .fullscreen
+    var isSingleWindow: Bool = false
+}
+
+extension Never: AppScene {
+    public var _configuration: _AppSceneConfiguration {
+        get {
+            fatalError()
+        }
+        // swiftlint:disable:next unused_setter_value
+        set {
+            fatalError()
+        }
+    }
+    
+    public var scene: Never {
+        fatalError()
+    }
+    
+    public func _makeWindow(with configuration: _AppSceneConfiguration) -> Window {
+        fatalError()
+    }
+}
+
+
+/// GUI App Scene relative to work with GUI Applications.
+/// That match for application without needed to implement game logic.
+public struct GUIAppScene: AppScene {
+    public var scene: Never { fatalError() }
+    
+    public var _configuration = _AppSceneConfiguration()
+    let window: () -> Window
+    
+    /// - Parameters window: Window for presenting on screen
+    public init(window: @escaping () -> Window) {
+        self.window = window
+    }
+    
+    public func _makeWindow(with configuration: _AppSceneConfiguration) -> Window {
+        let window = window()
+        window.frame = Rect(origin: .zero, size: configuration.minimumSize)
+        window.setWindowMode(configuration.windowMode)
+        window.minSize = configuration.minimumSize
+        return window
+    }
+}
+
+public struct GameScene: AppScene {
+    
+    public var scene: Never { fatalError() }
+    
+    public var _configuration = _AppSceneConfiguration()
+    let gameScene: () -> Scene
+    
+    public init(scene: @escaping () -> Scene) {
+        self.gameScene = scene
+    }
+    
+    public func _makeWindow(with configuration: _AppSceneConfiguration) -> Window {
+        let scene = self.gameScene()
+        let window = Window(scene: scene, frame: Rect(origin: .zero, size: configuration.minimumSize))
+        window.setWindowMode(configuration.windowMode)
+        window.minSize = configuration.minimumSize
+        return window
+    }
+}

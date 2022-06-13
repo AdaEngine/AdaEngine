@@ -29,8 +29,19 @@ open class Window: View {
         return Application.shared.windowManager
     }
     
-    /// Flag indicates that window can draw content in method [draw(with:)](x-source-tag://AdaEngine.Window.drawWithContext).
+    /// Flag indicates that window can draw itself content in method [draw(with:)](x-source-tag://AdaEngine.Window.drawWithContext).
     open var canDraw: Bool = false
+    
+    private var _minSize: Size = .zero
+    public var minSize: Size {
+        get {
+            return _minSize
+        }
+        set {
+            self.windowManager.setMinimumSize(newValue, for: self)
+            self._minSize = newValue
+        }
+    }
     
     public internal(set) var isFullscreen: Bool = false
     
@@ -47,6 +58,10 @@ open class Window: View {
         self.sceneManager.window = self
         self.sceneManager.presentScene(scene)
         self.windowManager.createWindow(for: self)
+    }
+    
+    public convenience override init() {
+        self.init(frame: .zero)
     }
     
     public required init(frame: Rect) {
@@ -103,6 +118,12 @@ open class Window: View {
     }
     
     // MARK: - Overriding
+    
+    override func frameDidChange() {
+        self.windowManager.resizeWindow(self, size: self.frame.size)
+        
+        super.frameDidChange()
+    }
     
     /// - Tag: AdaEngine.Window.drawWithContext
     override func draw(with context: GUIRenderContext) {

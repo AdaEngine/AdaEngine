@@ -26,7 +26,10 @@ protocol RenderBackend: AnyObject {
     
 //    func sync() throws
     
+    /// Begin rendering a frame.
     func beginFrame() throws
+    
+    /// Release any data associated with the current frame.
     func endFrame() throws
     
     func setClearColor(_ color: Color, forWindow windowId: Window.ID)
@@ -87,5 +90,6 @@ protocol RenderBackend: AnyObject {
     
     func draw(_ list: RID, indexCount: Int, instancesCount: Int)
     
+    /// Release any data associated with the current draw.
     func drawEnd(_ drawId: RID)
 }

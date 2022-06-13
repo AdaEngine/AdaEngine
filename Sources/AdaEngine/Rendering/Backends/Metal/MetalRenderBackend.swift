@@ -47,9 +47,11 @@ class MetalRenderBackend: RenderBackend {
     init(appName: String) {
         self.context = Context()
         
+        // TEST
         let depthStateDescriptor = MTLDepthStencilDescriptor()
         depthStateDescriptor.depthCompareFunction = MTLCompareFunction.less
         depthStateDescriptor.isDepthWriteEnabled = true
+        
         self.depthState = self.context.physicalDevice.makeDepthStencilState(descriptor:depthStateDescriptor)
     }
     
@@ -431,7 +433,7 @@ extension MetalRenderBackend {
             encoder.setRenderPipelineState(renderState)
         }
         
-        encoder.setDepthStencilState(depthState)
+//        encoder.setDepthStencilState(depthState)
         
         guard let iaRid = draw.indexArray, let indexArray = self.indexArrays[iaRid] else {
             fatalError("can't draw without index array")

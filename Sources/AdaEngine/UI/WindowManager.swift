@@ -66,6 +66,14 @@ open class WindowManager {
         fatalErrorMethodNotImplemented()
     }
     
+    open func setMinimumSize(_ size: Size, for window: Window) {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    open func resizeWindow(_ window: Window, size: Size) {
+        fatalErrorMethodNotImplemented()
+    }
+    
     internal func setActiveWindow(_ window: Window) {
         self.activeWindow?.isActive = false
         

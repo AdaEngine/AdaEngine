@@ -189,9 +189,9 @@ public class RenderEngine2D {
         
         if !self.quadData.indeciesCount.isEmpty {
             
-            let indecies = self.quadData.vertices.keys.sorted()
+            let indicies = self.quadData.vertices.keys.sorted()
             
-            for index in indecies {
+            for index in indicies {
                 let verticies = self.quadData.vertices[index]!
                 
                 device.setVertexBufferData(

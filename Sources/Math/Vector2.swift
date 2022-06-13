@@ -146,7 +146,6 @@ public extension Vector3 {
 }
 
 public extension Vector4 {
-    
     var squaredLength: Float {
         return x * x + y * y + z * z + w * w
     }
@@ -158,6 +157,27 @@ public extension Vector4 {
     
     func dot(_ vector: Vector4) -> Float {
         return x * vector.x + y * vector.y + z * vector.z + w * vector.w
+    }
+}
+
+public extension Vector2 {
+    var squaredLength: Float {
+        return x * x + y * y
+    }
+    
+    var normalized: Vector2 {
+        let length = self.squaredLength
+        return self / sqrt(length)
+    }
+    
+    func dot(_ vector: Vector2) -> Float {
+        return x * vector.x + y * vector.y
+    }
+}
+
+extension Vector2 {
+    public var description: String {
+        return String(describing: type(of: self)) + "(\(x), \(y))"
     }
 }
 

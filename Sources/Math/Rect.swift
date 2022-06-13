@@ -28,10 +28,14 @@ public extension Rect {
 
     // FIXME: Not work correctly in affine space
     func applying(_ transform: Transform2D) -> Rect {
-        var newRect = self
-        newRect.origin.x += transform.position.x
-        newRect.origin.y += transform.position.y
-        return newRect
+        let size = Vector2(size.width, size.height)
+        
+        let upLeft = self.origin.applying(transform)
+        let downLeft = Point(self.origin.y, self.maxY).applying(transform)
+        let upRight = Point(self.origin.x, self.maxX).applying(transform)
+        let downRight = Point(self.maxX, self.maxY).applying(transform)
+        
+        return Rect(x: upLeft.x, y: upLeft.y, width: downLeft.x - downRight.x, height: downLeft.y - downRight.y)
     }
     
     func contains(point: Point) -> Bool {
@@ -48,7 +52,7 @@ public extension Rect {
     }
     
     var midX: Float {
-        return self.maxX / 2
+        return self.size.width / 2 + self.origin.x
     }
     
     var minY: Float {
@@ -60,6 +64,6 @@ public extension Rect {
     }
     
     var midY: Float {
-        return self.maxY / 2
+        return self.size.height / 2 + self.origin.y
     }
 }

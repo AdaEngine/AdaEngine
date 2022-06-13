@@ -45,7 +45,7 @@ open class Application {
     ) throws { }
     
     /// Call this method to start main loop.
-    func run(options: ApplicationRunOptions) throws {
+    func run() throws {
         assertionFailure("Not implemented")
     }
     

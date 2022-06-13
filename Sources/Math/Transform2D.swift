@@ -7,9 +7,9 @@
 
 #if (os(OSX) || os(iOS) || os(tvOS) || os(watchOS))
 import Darwin
+import simd
 #elseif os(Linux) || os(Android)
 import Glibc
-import simd
 #endif
 
 // swiftlint:disable identifier_name
@@ -273,45 +273,6 @@ public extension Transform2D {
             [t[0, 1], t[1, 1], 0],
             [pos.x,   pos.y,   1]
         )
-    }
-}
-
-// MARK: - XForm
-
-public extension Transform2D {
-    
-    func tdotx(_ vector: Vector2) -> Float {
-        return self[0, 0] * vector.x + self[1, 0] * vector.y
-    }
-    
-    func tdoty(_ vector: Vector2) -> Float {
-        return self[0, 1] * vector.x + self[1, 1] * vector.y
-    }
-    
-    func getXformPosition(for point: Vector2) -> Vector2 {
-        return Vector2(tdotx(point), tdoty(point)) + Vector2(self[2, 0], self[2, 1])
-    }
-    
-    var xFormSize: Vector2 {
-        get {
-            return Vector2(self[0, 0], self[1, 1])
-        }
-        
-        set {
-            self[0, 0] = newValue.x
-            self[1, 1] = newValue.y
-        }
-    }
-    
-    var xFormOrigin: Vector2 {
-        get {
-            return Vector2(self[0, 2], self[1, 2])
-        }
-        
-        set {
-            self[0, 2] = newValue.x
-            self[1, 2] = newValue.y
-        }
     }
 }
 // swiftlint:enable identifier_name

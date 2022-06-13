@@ -10,6 +10,7 @@ disabled_rules: # rule identifiers turned on by default to exclude from running
   - force_cast
   - function_parameter_count
   - shorthand_operator
+  - identifier_name
 opt_in_rules: # some rules are turned off by default, so you need to opt-in
   - empty_count # Find all the available rules by running: `swiftlint rules`
   - private_over_fileprivate
@@ -56,17 +57,4 @@ type_name:
     - iPhone
     - ID
   allowed_symbols: ["_"] # these are allowed in type names
-identifier_name:
-  min_length: # only min_length
-    error: 1 # only error
-  excluded: # excluded via string array
-    - id
-    - ID
-    - up
-    - x
-    - y
-    - w
-    - z
-    - uv
-    - URL
 reporter: "xcode"

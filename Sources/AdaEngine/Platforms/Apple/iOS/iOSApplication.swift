@@ -21,7 +21,7 @@ final public class iOSApplication: Application {
         try super.init(argc: argc, argv: argv)
     }
     
-    override func run(options: ApplicationRunOptions) throws {
+    override func run() throws {
         let exitCode = UIApplicationMain(
             argc,
             argv,

@@ -5,17 +5,20 @@
 //  Created by v.prusakov on 5/11/22.
 //
 
+import Math
+
 // TODO:
 // [ ] - Ortho projection for each view instead of root
 // [ ] - Add transforms for drawing (translation/rotation/scale)
-// [ ] - Blending mode (cuz alpha doesn't work)
+// [x] - Blending mode (cuz alpha doesn't work)
 // [ ] - z layers
 // [ ] - texturing the views
 // [ ] - draw lines
-// [ ] - draw rectangles
+// [x] - draw rectangles
 // [ ] - create transperent API for 2D rendering
 // [ ] - Interaction (hit testing)
 // [ ] - Scaling problem (hit testing)
+// [ ] - Cropping
 
 /// - Tag: AdaEngine.View
 open class View {
@@ -25,7 +28,7 @@ open class View {
     /// Contains size and position coordinates relative to parent local coordinates
     open var frame: Rect {
         get {
-            return self.data.frame
+            return self._data.frame
         }
         set {
             self.setFrame(newValue)
@@ -51,23 +54,13 @@ open class View {
     public internal(set) weak var window: Window?
     
     /// Affine matrix to apply any transformation to current view
-    public var affineTransform: Transform2D {
-        get {
-            return Transform2D(transform: self.transform3D)
-        }
-        
-        set {
-            self.transform3D = Transform3D(newValue)
-        }
-    }
-    
-    public var transform3D: Transform3D = .identity
+    public var affineTransform: Transform2D = .identity
     
     // MARK: - Private Fields -
     
-    private var _localTransform: Transform3D = .identity
+    private var _localTransform: Transform2D = .identity
     
-    private var data: Data = Data()
+    private var _data: ViewData = ViewData()
     
     public required init(frame: Rect) {
         self.frame = frame
@@ -80,22 +73,20 @@ open class View {
     
     // MARK: - Private
     
-    private func setFrame(_ frame: Rect) {
+    func setFrame(_ frame: Rect) {
         
-        self._localTransform = Transform3D(
-            translation: [frame.origin.x, frame.origin.y, 0],
-            rotation: .identity,
-            scale: [frame.size.width, frame.size.height, 1]
-        )
+        self._localTransform = self._localTransform
+            .scaledBy(x: frame.size.width, y: frame.size.height)
+            .translatedBy(x: frame.origin.x, y: frame.origin.y)// * affineTransform
         
         self.bounds.size = frame.size
-        self.data.frame = frame
+        self._data.frame = frame
         
         self.frameDidChange()
     }
     
-    private func frameDidChange() {
-        self.data.cacheWorldTransform = self.worldTransform
+    func frameDidChange() {
+        self._data.cacheWorldTransform = self.worldTransform
         
         for view in subviews {
             view.frameDidChange()
@@ -116,14 +107,13 @@ open class View {
     }
 
     internal func draw(with context: GUIRenderContext) {
-//        context.setTransform(self.data.cacheWorldTransform)
-//        context.setZIndex(self.zIndex)
+        context.setTransform(self._data.cacheWorldTransform)
         self.draw(in: self.bounds, with: context)
     }
     
-    private var worldTransform: Transform3D {
+    private var worldTransform: Transform2D {
         if let superView = self.superview {
-            return self._localTransform * superView.worldTransform
+            return superView.worldTransform * self._localTransform
         }
         
         return self._localTransform
@@ -131,7 +121,8 @@ open class View {
     
     // MARK: - Life cycle
     
-    /// - Parameter superView: Return view instance if view attached to superview or nil if view deattached from superview. Also superview can be [Window](x-source-tag://AdaEngine.Window) instance.
+    /// - Parameter superView: Return view instance if view attached to superview or nil if view deattached from superview.
+    /// Also superview can be [Window](x-source-tag://AdaEngine.Window) instance.
     open func viewDidMove(to superView: View?) {
         
     }
@@ -167,8 +158,9 @@ open class View {
     }
     
     func convert(_ point: Point, from view: View) -> Point {
-        let transform = Transform2D(transform: self.data.cacheWorldTransform * view.data.cacheWorldTransform).inverse
-        return point.applying(transform)
+//        let transform = Transform2D(transform: self.data.cacheWorldTransform * view.data.cacheWorldTransform).inverse
+//        return point.applying(transform)
+        return .zero
     }
     
     func sendEvent(_ event: Event) {
@@ -239,8 +231,12 @@ open class View {
 }
 
 private extension View {
-    struct Data {
-        var cacheWorldTransform: Transform3D = .identity
+    struct ViewData {
+        var cacheWorldTransform: Transform2D = .identity
         var frame: Rect = .zero
     }
 }
+
+// frame is a size and position view in scene, relative to parent.
+// If we set position or size, we should calculate new local coordinates relative to parent.
+// and also we should set that transform to the render context. If we want calculate position relative to screen space or another view space, we should calculate world transform matrix.

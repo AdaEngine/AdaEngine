@@ -34,10 +34,6 @@ final class MacOSWindowManager: WindowManager {
             screen: NSScreen.main
         )
         
-        let minSize = CGSize(width: 800, height: 600)
-        
-        systemWindow.contentMinSize = minSize
-        systemWindow.minSize = minSize
         systemWindow.contentView = metalView
         systemWindow.collectionBehavior = [.fullScreenPrimary]
         systemWindow.center()
@@ -47,6 +43,9 @@ final class MacOSWindowManager: WindowManager {
         window.systemWindow = systemWindow
         
         super.createWindow(for: window)
+        
+        let minSize = Size(width: 800, height: 600)
+        window.minSize = minSize
     }
     
     override func showWindow(_ window: Window, isFocused: Bool) {
@@ -86,6 +85,24 @@ final class MacOSWindowManager: WindowManager {
         self.removeWindow(window, setActiveAnotherIfNeeded: true)
         
         nsWindow.close()
+    }
+    
+    override func resizeWindow(_ window: Window, size: Size) {
+        let nsWindow = window.systemWindow as? NSWindow
+
+        let cgSize = CGSize(width: CGFloat(size.width), height: CGFloat(size.height))
+        nsWindow?.setContentSize(cgSize)
+    }
+    
+    override func setMinimumSize(_ size: Size, for window: Window) {
+        guard let nsWindow = window.systemWindow as? NSWindow else {
+            fatalError("System window not exist.")
+        }
+
+        let minSize = CGSize(width: CGFloat(size.width), height: CGFloat(size.height))
+        
+        nsWindow.contentMinSize = minSize
+        nsWindow.minSize = minSize
     }
     
     func findWindow(for nsWindow: NSWindow) -> Window? {
@@ -138,19 +155,12 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
         }
         
         let size = nsWindow.size
-        window.frame = Rect(origin: nsWindow.position, size: size)
-        try? RenderEngine.shared.renderBackend.resizeWindow(window.id, newSize: size)
-    }
-    
-    func windowDidMove(_ notification: Notification) {
-        guard
-            let nsWindow = notification.object as? NSWindow,
-            let window = self.windowManager.findWindow(for: nsWindow)
-        else {
-            return
+        
+        if window.frame.size != nsWindow.size {
+            window.frame = Rect(origin: .zero, size: size)
         }
         
-        window.frame.origin = nsWindow.position
+        try? RenderEngine.shared.renderBackend.resizeWindow(window.id, newSize: size)
     }
     
     func windowDidExitFullScreen(_ notification: Notification) {
@@ -200,7 +210,8 @@ extension NSWindow: SystemWindow {
     
     public var size: Size {
         get {
-            return self.frame.size.toEngineSize
+            // we always should contain content view
+            return self.contentView!.frame.size.toEngineSize
         }
         set {
             self.setContentSize(NSSize(width: CGFloat(newValue.width), height: CGFloat(newValue.height)))

@@ -19,7 +19,7 @@ final class MacApplication: Application {
         self.windowManager = MacOSWindowManager()
     }
     
-    override func run(options: ApplicationRunOptions) throws {
+    override func run() throws {
         let app = AdaApplication.shared
         app.setActivationPolicy(.regular)
         app.finishLaunching()

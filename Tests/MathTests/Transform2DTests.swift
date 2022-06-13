@@ -56,5 +56,25 @@ class Transform2DTests: XCTestCase {
         
         TestUtils.assertEqual(newCGPoint, myAffinePoint)
     }
+    
+    func test_RectApplyingMatrix_Equals_QuartzAnalog() {
+        // given
+        let rect = Rect(x: 59, y: 43, width: 200, height: 110)
+        let cgRect = CGRect(x: 59, y: 43, width: 200, height: 110)
+        
+        let affine = CGAffineTransform(translationX: 32, y: 2)//.rotated(by: 20)
+        let myAffine = Transform2D(translation: [32, 2])//.rotated(by: 20)
+        
+        // when
+        
+        let newCGRect = cgRect.applying(affine)
+        let newRect = rect.applying(myAffine)
+        
+        // then
+        
+        TestUtils.assertEqual(newCGRect, newRect)
+    }
+    
+    
     #endif
 }

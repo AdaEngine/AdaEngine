@@ -13,22 +13,15 @@ class EditorWindow: Window {
         
         self.canDraw = true
         
-        let blueView = View(frame: Rect(origin: .zero, size: Size(width: 30, height: 30)))
+        let blueView = View(frame: Rect(origin: .zero, size: Size(width: 400, height: 400)))
         blueView.backgroundColor = .blue
         
-        self.addSubview(blueView)
-    }
-    
-    override func draw(in rect: Rect, with context: GUIRenderContext) {
-        context.setFillColor(.green)
-        context.fillRect(rect)
+        self.backgroundColor = .white
         
-        context.setZIndex(1)
-        context.setFillColor(Color.blue.opacity(0.1))
-        context.fillRect(
-            Rect(
-                origin: .zero,
-                size: Size(width: rect.size.width / 2, height: rect.size.height / 2))
-        )
+        let redView = View(frame: Rect(origin: Point(x: 400, y: 0), size: Size(width: 400, height: 400)))
+        redView.backgroundColor = .red.opacity(0.3)
+        
+        self.addSubview(blueView)
+        self.addSubview(redView)
     }
 }
