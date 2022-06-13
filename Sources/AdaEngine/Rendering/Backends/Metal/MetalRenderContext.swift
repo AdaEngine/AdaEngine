@@ -49,8 +49,8 @@ extension MetalRenderBackend {
             let viewport = MTLViewport(
                 originX: 0,
                 originY: 0,
-                width: Double(view.drawableSize.width),
-                height: Double(view.drawableSize.height),
+                width: Double(size.width),
+                height: Double(size.height),
                 znear: 0,
                 zfar: 1
             )

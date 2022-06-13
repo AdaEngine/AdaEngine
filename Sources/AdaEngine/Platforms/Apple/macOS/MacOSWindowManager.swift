@@ -13,18 +13,22 @@ final class MacOSWindowManager: WindowManager {
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)
     
     override func createWindow(for window: Window) {
+        
+        let minSize = Window.defaultMinimumSize
+        
         let frame = window.frame
+        let size = frame.size == .zero ? minSize : frame.size
         
         let contentRect = CGRect(
             x: CGFloat(frame.origin.x),
             y: CGFloat(frame.origin.y),
-            width: CGFloat(frame.size.width),
-            height: CGFloat(frame.size.height)
+            width: CGFloat(size.width),
+            height: CGFloat(size.height)
         )
         
         /// Register view in engine
         let metalView = MetalView(frame: contentRect)
-        try? RenderEngine.shared.createWindow(window.id, for: metalView, size: frame.size)
+        try? RenderEngine.shared.createWindow(window.id, for: metalView, size: size)
         
         let systemWindow = NSWindow(
             contentRect: contentRect,
@@ -41,11 +45,9 @@ final class MacOSWindowManager: WindowManager {
         systemWindow.backgroundColor = .black
         
         window.systemWindow = systemWindow
+        window.minSize = minSize
         
         super.createWindow(for: window)
-        
-        let minSize = Size(width: 800, height: 600)
-        window.minSize = minSize
     }
     
     override func showWindow(_ window: Window, isFocused: Bool) {

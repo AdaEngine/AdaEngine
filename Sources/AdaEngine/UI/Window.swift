@@ -164,4 +164,6 @@ public extension Window {
         case windowed
         case fullscreen
     }
+    
+    static let defaultMinimumSize = Size(width: 800, height: 600)
 }

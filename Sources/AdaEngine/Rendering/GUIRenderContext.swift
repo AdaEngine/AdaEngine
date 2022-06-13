@@ -74,7 +74,7 @@ final public class GUIRenderContext {
     /// Paints the area contained within the provided rectangle, using the fill color in the current graphics state.
     public func fillRect(_ rect: Rect) {
         let transform = self.makeCanvasTransform3D(from: rect)
-        self.engine.drawQuad(transform: self.currentTransform * transform, color: self.fillColor)
+        self.engine.drawQuad(transform: transform, color: self.fillColor)
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.

@@ -13,5 +13,6 @@ struct AdaEditorApp: App {
         GUIAppScene {
             EditorWindow()
         }
+        .windowMode(.windowed)
     }
 }
