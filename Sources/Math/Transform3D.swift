@@ -272,29 +272,23 @@ public extension Transform3D {
     }
     
     static func * (lhs: Transform3D, rhs: Transform3D) -> Transform3D {
-//        var x: Vector4 = lhs.x * rhs[0].x
-//        x = x + lhs.y * rhs[0].y
-//        x = x + lhs.z * rhs[0].z
-//        x = x + lhs.w * rhs[0].w
-//        var y: Vector4 = lhs.x * rhs[1].x
-//        y = y + lhs.y * rhs[1].y
-//        y = y + lhs.z * rhs[1].z
-//        y = y + lhs.w * rhs[1].w
-//        var z: Vector4 = lhs.x * rhs[2].x
-//        z = z + lhs.y * rhs[2].y
-//        z = z + lhs.z * rhs[2].z
-//        z = z + lhs.w * rhs[2].w
-//        var w: Vector4 = lhs.x * rhs.w.x
-//        w = w + lhs.y * rhs[3].y
-//        w = w + lhs.z * rhs[3].z
-//        w = w + lhs.w * rhs[3].w
-//        return Transform3D(x, y, z, w)
-        return Transform3D(
-            Vector4(lhs[0][0] * rhs[0][0], lhs[0][1] * rhs[0][1], lhs[0][2] * rhs[0][2], lhs[0][3] * rhs[0][3]),
-            Vector4(lhs[1][0] * rhs[1][0], lhs[1][1] * rhs[1][1], lhs[1][2] * rhs[1][2], lhs[1][3] * rhs[1][3]),
-            Vector4(lhs[2][0] * rhs[2][0], lhs[2][1] * rhs[2][1], lhs[2][2] * rhs[2][2], lhs[2][3] * rhs[2][3]),
-            Vector4(lhs[3][0] * rhs[3][0], lhs[3][1] * rhs[3][1], lhs[3][2] * rhs[3][2], lhs[3][3] * rhs[3][3])
-        )
+        var x: Vector4 = lhs.x * rhs[0].x
+        x = x + lhs.y * rhs[0].y
+        x = x + lhs.z * rhs[0].z
+        x = x + lhs.w * rhs[0].w
+        var y: Vector4 = lhs.x * rhs[1].x
+        y = y + lhs.y * rhs[1].y
+        y = y + lhs.z * rhs[1].z
+        y = y + lhs.w * rhs[1].w
+        var z: Vector4 = lhs.x * rhs[2].x
+        z = z + lhs.y * rhs[2].y
+        z = z + lhs.z * rhs[2].z
+        z = z + lhs.w * rhs[2].w
+        var w: Vector4 = lhs.x * rhs.w.x
+        w = w + lhs.y * rhs[3].y
+        w = w + lhs.z * rhs[3].z
+        w = w + lhs.w * rhs[3].w
+        return Transform3D(x, y, z, w)
     }
     
     static func *= (lhs: inout Transform3D, rhs: Transform3D) {

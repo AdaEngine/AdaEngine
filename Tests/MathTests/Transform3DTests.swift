@@ -40,6 +40,39 @@ class Transform3DTests: XCTestCase {
         // when
         XCTAssertEqual(a, c)
     }
+    
+    func test_MatrixMultiply() {
+        // given
+        
+        let matA = Transform3D(
+            [5, 7, 9, 10],
+            [2, 3, 3, 8],
+            [8, 10, 2, 3],
+            [3, 3, 4, 8]
+        )
+        
+        let matB = Transform3D(
+            [3, 10, 12, 18],
+            [12, 1, 4, 9],
+            [9, 10, 12, 2],
+            [3, 12, 4, 10]
+        )
+        
+        let expectedRes = Transform3D(
+            [210, 267, 236, 271],
+            [93, 149, 104, 149],
+            [171, 146, 172, 268],
+            [105, 169, 128, 169]
+        )
+        
+        // when
+        
+        let res = matB * matA
+        
+        // then
+        
+        XCTAssertEqual(expectedRes, res)
+    }
 
     #if canImport(simd)
     func test_Transform3DMultiplicationAndSimd4x4Multiplication_Equals() {
@@ -61,6 +94,29 @@ class Transform3DTests: XCTestCase {
         // when
         let simdMatrix = matrix_float4x4(columns1) * matrix_float4x4(columns2)
         let transform = Transform3D(columns: columns1) * Transform3D(columns: columns2)
+        
+        // then
+        TestUtils.assertEqual(simdMatrix, transform)
+    }
+    
+    func test_Transform3DMultiplicationAndSimd4x4Multiplication_inTRS_Equals() {
+        // given
+        let translation: Vector3 = [3, 10, 3]
+        let rotation = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1)
+        let scale: Vector3 = [1, 1, 1]
+        
+        // when
+        
+        let simdMatrix = simd_float4x4([
+            [1, 0, 0, translation.x],
+            [0, 1, 0, translation.y],
+            [0, 0, 1, translation.z],
+            [0, 0, 0, 1],
+        ])
+        * simd_float4x4(rotation)
+        * simd_float4x4(diagonal: Vector4(scale, 1))
+        
+        let transform = Transform3D(translation: translation, rotation: Quat(rotation), scale: scale)
         
         // then
         TestUtils.assertEqual(simdMatrix, transform)

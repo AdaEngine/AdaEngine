@@ -7,12 +7,14 @@
 
 public struct Circle2DComponent: Component {
     public var color: Color
-    public var thickness: Float
-    public var fade: Float
+    
+    @InRange public var thickness: Float
+    
+    @InRange public var fade: Float
     
     public init(color: Color, thickness: Float = 1, fade: Float = 0.005) {
         self.color = color
-        self.thickness = thickness
-        self.fade = fade
+        self._thickness = InRange(wrappedValue: thickness, 0...1)
+        self._fade = InRange(wrappedValue: fade, 0...1)
     }
 }

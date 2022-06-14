@@ -20,7 +20,26 @@ public final class Scene {
     
     var systems: [System] = []
     
-    public var viewportSize: Size = .zero
+    public var viewportRelativeWindowSize: Bool = true
+    
+    private var _viewportSize: Size = .zero
+    public var viewportSize: Size {
+        get {
+            if self.viewportRelativeWindowSize {
+                return self.window?.frame.size ?? .zero
+            }
+            
+            return self._viewportSize
+        }
+        
+        set {
+            if self.viewportRelativeWindowSize {
+               print("You set viewport size when scene size relative to window. That not affect getter.")
+            }
+            
+            self._viewportSize = newValue
+        }
+    }
     
     public weak var sceneManager: SceneManager?
     

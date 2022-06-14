@@ -75,9 +75,7 @@ open class View {
     
     func setFrame(_ frame: Rect) {
         
-        self._localTransform = self._localTransform
-            .scaledBy(x: frame.size.width, y: frame.size.height)
-            .translatedBy(x: frame.origin.x, y: frame.origin.y)// * affineTransform
+        self._localTransform = Transform2D(scale: Vector2(frame.size.width, frame.size.height)) * Transform2D(translation: frame.origin)
         
         self.bounds.size = frame.size
         self._data.frame = frame

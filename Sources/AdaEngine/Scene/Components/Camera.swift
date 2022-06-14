@@ -7,7 +7,7 @@
 
 public final class Camera: ScriptComponent {
     
-    public enum Projection: String, Codable, CaseIterable {
+    public enum Projection: UInt8, Codable, CaseIterable {
         case perspective
         case orthographic
     }
@@ -51,23 +51,23 @@ public final class Camera: ScriptComponent {
     
     func makeCameraData() -> CameraData {
         let projection: Transform3D
+        let aspectRation = Float(viewportSize.width) / Float(viewportSize.height)
         
         switch self.projection {
         case .orthographic:
-//            projection = Transform3D.orthogonal(
-//                left: Float(viewportSize.width / -2),
-//                right: Float(viewportSize.x / 2),
-//                top: Float(viewportSize.y / 2),
-//                bottom: Float(viewportSize.y / -2),
-//                zNear: self.near,
-//                zFar: self.far
-//            )
             
-            projection = .identity
+            projection = Transform3D.orthogonal(
+                left: 0,
+                right: aspectRation,
+                top: 0,
+                bottom: -aspectRation,
+                zNear: self.near,
+                zFar: self.far
+            )
         case .perspective:
             projection = Transform3D.perspective(
                 fieldOfView: self.fieldOfView,
-                aspectRatio: Float(viewportSize.width) / Float(viewportSize.height),
+                aspectRatio: aspectRation,
                 zNear: self.near,
                 zFar: self.far
             )

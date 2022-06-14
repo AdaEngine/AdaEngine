@@ -18,6 +18,8 @@ public protocol App {
     init()
     
     associatedtype Content: AppScene
+    
+    /// Main scene in your app.
     var scene: Content { get }
 }
 

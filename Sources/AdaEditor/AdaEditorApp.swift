@@ -9,9 +9,12 @@ import AdaEngine
 
 @main
 struct AdaEditorApp: App {
+    
+    let gameScene = GameScene()
+    
     var scene: some AppScene {
-        GUIAppScene {
-            EditorWindow()
+        GameAppScene {
+            gameScene.makeScene()
         }
         .windowMode(.windowed)
     }

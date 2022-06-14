@@ -14,7 +14,6 @@ struct Circle2DRenderSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        
         let entities = context.scene.performQuery(Self.query)
         
         guard !entities.isEmpty else { return }

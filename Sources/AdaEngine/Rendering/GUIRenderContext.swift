@@ -35,6 +35,8 @@ final public class GUIRenderContext {
         self.currentTransform = transform
     }
     
+    var view: Transform3D = .identity
+    
     public func beginDraw(in rect: Rect) {
         let size = rect.size
         
@@ -46,6 +48,8 @@ final public class GUIRenderContext {
             zNear: -1,
             zFar: 1
         )
+        
+        self.view = view
         
         self.engine.beginContext(for: self.window, viewTransform: view)
     }
@@ -75,6 +79,10 @@ final public class GUIRenderContext {
     public func fillRect(_ rect: Rect) {
         let transform = self.makeCanvasTransform3D(from: rect)
         self.engine.drawQuad(transform: transform, color: self.fillColor)
+    }
+    
+    public func fillRect(_ xform: Transform3D) {
+        self.engine.drawQuad(transform: xform, color: self.fillColor)
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.

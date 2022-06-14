@@ -141,4 +141,10 @@ public extension Entity.ComponentSet {
     }
 }
 
+public extension Entity.ComponentSet {
+    static func += <T: Component>(lhs: inout Self, rhs: T) {
+        lhs[T.self] = rhs
+    }
+}
+
 // swiftlint:enable identifier_name

@@ -11,39 +11,39 @@ class ControlCircleComponent: ScriptComponent {
     
     var speed: Float = 4
     
-//    @RequiredComponent var circle: Circle2DComponent
-    @RequiredComponent var viewHolder: ViewContrainerComponent
+    @RequiredComponent var circle: Circle2DComponent
+    
     
     override func ready() {
-//        RenderEngine.shared.setClearColor(Color(212/255, 210/255, 213/255, 1), forWindow: <#Window.ID#>)
+        self.transform.scale = [0.2, 0.2, 0.2]
     }
     
     override func update(_ deltaTime: TimeInterval) {
-//        if Input.isKeyPressed(.arrowUp) {
-//            self.circle.thickness += 0.1
-//        }
-//
-//        if Input.isKeyPressed(.arrowDown) {
-//            self.circle.thickness -= 0.1
-//        }
-        
-        let view = viewHolder.rootView//.subviews.last!
+        if Input.isKeyPressed(.arrowUp) {
+            self.circle.thickness += 0.1
+        }
 
         if Input.isKeyPressed(.arrowDown) {
-            view.frame.origin.y += 1 * speed
+            self.circle.thickness -= 0.1
         }
         
-        if Input.isKeyPressed(.arrowUp) {
-            view.frame.origin.y -= 1 * speed
+        if Input.isKeyPressed(.w) {
+            self.transform.position.y -= 0.1 * speed
+        }
+
+        if Input.isKeyPressed(.s) {
+            self.transform.position.y += 0.1 * speed
         }
         
-        if Input.isKeyPressed(.arrowLeft) {
-            view.frame.origin.x -= 1 * speed
+        if Input.isKeyPressed(.a) {
+            self.transform.position.x -= 0.1 * speed
+        }
+
+        if Input.isKeyPressed(.d) {
+            self.transform.position.x += 0.1 * speed
         }
         
-        if Input.isKeyPressed(.arrowRight) {
-            view.frame.origin.x += 1 * speed
-        }
+        print(self.transform.position)
     }
     
 }
@@ -52,25 +52,6 @@ class GameScene {
     func makeScene() -> Scene {
         let scene = Scene()
 
-        let view = View()
-        view.backgroundColor = .green
-        
-        let blueView = View()
-//        blueView.zIndex = 1
-        blueView.frame = Rect(origin: Point(x: 1600 / 2, y: 0), size: Size(width: 1600 / 2, height: 1144 / 2))
-//        blueView.backgroundColor = Color.blue.opacity(0.2)
-        view.addSubview(blueView)
-//
-//        let greenView = View()
-//        greenView.zIndex = 2
-//        greenView.frame = Rect(origin: Point(x: 30, y: 30), size: Size(width: 50, height: 50))
-//        greenView.backgroundColor = Color.green
-//        blueView.addSubview(greenView)
-////
-//        let viewEntity = Entity(name: "View")
-//        viewEntity.components[ViewContrainerComponent.self] = ViewContrainerComponent(rootView: view)
-//        viewEntity.components[ControlCircleComponent.self] = ControlCircleComponent()
-//        scene.addEntity(viewEntity)
 //        
 //        let meshRenderer = MeshRenderer()
 //        meshRenderer.materials = [BaseMaterial(diffuseColor: .red, metalic: 0)]
@@ -90,25 +71,21 @@ class GameScene {
 //        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
 //        scene.addEntity(trainEntity)
 //
-//        let userEntity = Entity(name: "user")
-//        let camera = EditorCamera()
-//        camera.isPrimal = true
-//        userEntity.components.set(camera)
-//
-//        scene.addEntity(userEntity)
         
-//
-//        let decoder = YAMLDecoder()
-//        let encoder = YAMLEncoder()
-//        do {
-//            let data = try encoder.encode(scene)
-//            print(data)
-//            let newScene = try decoder.decode(Scene.self, from: data)
-//            SceneManager.shared.presentScene(newScene)
-//        } catch {
-//            print(error)
-//        }
-//
+        let viewEntity = Entity(name: "Circle")
+        viewEntity.components += Circle2DComponent(color: .red, thickness: 1)
+        viewEntity.components += ControlCircleComponent()
+        scene.addEntity(viewEntity)
+        
+        let userEntity = Entity(name: "camera")
+        let camera = Camera()
+        camera.projection = .orthographic
+        camera.isPrimal = true
+        camera.near = 0
+        camera.far = 1
+        userEntity.components += camera
+        
+        scene.addEntity(userEntity)
         
         return scene
     }
