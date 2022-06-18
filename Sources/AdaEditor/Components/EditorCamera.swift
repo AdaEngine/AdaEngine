@@ -104,6 +104,7 @@ class EditorCameraEntity: Entity {
     public override init(name: String = "Entity") {
         super.init(name: name)
         
-        self.components[EditorCameraComponent.self] = EditorCameraComponent()
+        self.components += EditorCameraComponent()
+        self.components += Camera()
     }
 }

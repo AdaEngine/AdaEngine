@@ -13,7 +13,6 @@ class ControlCircleComponent: ScriptComponent {
     
     @RequiredComponent var circle: Circle2DComponent
     
-    
     override func ready() {
         self.transform.scale = [0.2, 0.2, 0.2]
     }
@@ -26,7 +25,7 @@ class ControlCircleComponent: ScriptComponent {
         if Input.isKeyPressed(.arrowDown) {
             self.circle.thickness -= 0.1
         }
-        
+
         if Input.isKeyPressed(.w) {
             self.transform.position.y -= 0.1 * speed
         }
@@ -34,7 +33,7 @@ class ControlCircleComponent: ScriptComponent {
         if Input.isKeyPressed(.s) {
             self.transform.position.y += 0.1 * speed
         }
-        
+
         if Input.isKeyPressed(.a) {
             self.transform.position.x -= 0.1 * speed
         }
@@ -43,7 +42,6 @@ class ControlCircleComponent: ScriptComponent {
             self.transform.position.x += 0.1 * speed
         }
         
-        print(self.transform.position)
     }
     
 }
@@ -77,6 +75,12 @@ class GameScene {
         viewEntity.components += ControlCircleComponent()
         scene.addEntity(viewEntity)
         
+        let viewEntity1 = Entity(name: "Circle")
+        viewEntity1.components += Circle2DComponent(color: .yellow, thickness: 0.3)
+        viewEntity1.components[Transform.self]!.position = [4, 4, 4]
+        viewEntity1.components[Transform.self]!.scale = [0.2, 0.2, 0.2]
+        scene.addEntity(viewEntity1)
+        
         let userEntity = Entity(name: "camera")
         let camera = Camera()
         camera.projection = .orthographic
@@ -84,8 +88,14 @@ class GameScene {
         camera.near = 0
         camera.far = 1
         userEntity.components += camera
-        
         scene.addEntity(userEntity)
+        
+//        let editorCamera = EditorCameraEntity()
+//        let camera = editorCamera.components[Camera.self]!
+//        camera.isPrimal = true
+//        scene.addEntity(editorCamera)
+//
+//        scene.addSystem(EditorCameraSystem.selfa)
         
         return scene
     }

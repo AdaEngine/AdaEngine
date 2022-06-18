@@ -98,8 +98,7 @@ public class RenderEngine2D {
     
     public func beginContext(for window: Window.ID, camera: Camera) {
         let data = camera.makeCameraData()
-        let viewProjection = data.projection * data.view
-        let uni = Uniform(viewProjection: viewProjection * camera.transform.matrix.inverse)
+        let uni = Uniform(viewProjection: data.viewProjection * camera.transform.matrix.inverse)
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
         
         self.currentDraw = RenderEngine.shared.renderBackend.beginDraw(for: window)

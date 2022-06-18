@@ -325,7 +325,12 @@ public extension Transform3D {
     }
     
     /// A left-handed perspective projection
-    static func perspective(fieldOfView: Angle, aspectRatio: Float, zNear: Float, zFar: Float) -> Transform3D {
+    static func perspective(
+        fieldOfView: Angle,
+        aspectRatio: Float,
+        zNear: Float,
+        zFar: Float
+    ) -> Transform3D {
         precondition(aspectRatio > 0, "Aspect should be more than 0")
         
         let rotate11 = 1 / tanf(fieldOfView.radians * 0.5)
@@ -359,10 +364,10 @@ public extension Transform3D {
         let m23 = zNear/(zNear-zFar)
         
         return Transform3D(
-            [m00, 0,   0,   0],
-            [0,   m11, 0,   0],
-            [0,   0,   m22, 0],
-            [m03, m13, m23, 1]
+            [m00, 0,   0,   m03],
+            [0,   m11, 0,   m13],
+            [0,   0,   m22, m23],
+            [0,   0,   0,   1]
         )
     }
     

@@ -39,6 +39,9 @@ public final class Camera: ScriptComponent {
     @Export
     public var isPrimal = false
     
+    @Export
+    public var orthographicScale: Float = 1
+    
     // MARK: Computed Properties
     
     public var isCurrent: Bool {
@@ -57,10 +60,10 @@ public final class Camera: ScriptComponent {
         case .orthographic:
             
             projection = Transform3D.orthogonal(
-                left: 0,
-                right: aspectRation,
-                top: 0,
-                bottom: -aspectRation,
+                left: -aspectRation * self.orthographicScale,
+                right: aspectRation * self.orthographicScale,
+                top: self.orthographicScale,
+                bottom: -self.orthographicScale,
                 zNear: self.near,
                 zFar: self.far
             )
@@ -73,7 +76,13 @@ public final class Camera: ScriptComponent {
             )
         }
         
-        let position = self.transform.position
-        return CameraData(projection: projection, view: self.viewMatrix, position: position)
+        return CameraData(viewProjection: projection * self.viewMatrix, position: self.transform.position)
+    }
+}
+
+extension Camera {
+    struct CameraData {
+        var viewProjection: Transform3D = .identity
+        var position: Vector3 = .zero
     }
 }
