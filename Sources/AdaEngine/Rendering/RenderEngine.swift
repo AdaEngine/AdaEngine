@@ -12,11 +12,11 @@ public class RenderEngine {
     public static let shared: RenderEngine = {
         let renderBackend: RenderBackend
         
-        #if METAL
+//        #if METAL
         renderBackend = MetalRenderBackend(appName: "Ada Engine")
-        #else
-        fatalError()
-        #endif
+//        #else
+//        fatalError()
+//        #endif
         
         return RenderEngine(renderBackend: renderBackend)
     }()

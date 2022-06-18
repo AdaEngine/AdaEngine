@@ -5,11 +5,11 @@
 //  Created by v.prusakov on 8/14/21.
 //
 
-#if METAL
+//#if METAL
 import MetalKit
-#else
-import Vulkan
-#endif
+//#else
+//import Vulkan
+//#endif
 
 final public class Engine {
     

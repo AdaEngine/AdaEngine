@@ -57,33 +57,10 @@ import ProjectDescription
 //    ]
 //)
 
-public extension Project {
-    
-    static func makeEditorProject() -> Project {
-        Project(
-            name: "AdaEngine",
-            organizationName: "$(PRODUCT_BUNDLE_IDENTIFIER).editor",
-            packages: [],
-            settings: nil,
-            targets: [
-                Target(
-                    name: "AdaEditor",
-                    platform: .macOS,
-                    product: .app,
-                    bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).editor",
-                    deploymentTarget: .macOS(targetVersion: "11.0"),
-                    scripts: [],
-                    dependencies: [
-                        .project(target: "AdaEngine", path: "../AdaEngine")
-                    ]
-                )
-            ]
-        )
-    }
-}
-
-extension Settings {
-    var app: Settings {
-        Settings.settings(base: ["PRODUCT_BUNDLE_IDENTIFIER": "dev.litecode.adaengine"])
+public extension Settings {
+    static var adaEngine: Settings {
+        Settings.settings(base: [
+            "PRODUCT_BUNDLE_IDENTIFIER": "dev.litecode.adaengine",
+        ])
     }
 }

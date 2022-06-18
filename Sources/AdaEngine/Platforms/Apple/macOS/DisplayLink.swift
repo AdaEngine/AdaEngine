@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/31/22.
 //
 
-#if MACOS
+#if os(macOS)
 import AppKit
 
 public final class DisplayLink {

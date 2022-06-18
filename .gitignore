@@ -11,6 +11,28 @@ xcuserdata/
 DerivedData/
 .swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
 /*.xcscheme
+*.xcworkspace
+
+*.xcodeproj/
+
+# Tuist
+
+Sources/AdaEditor/Derived/
+Sources/AdaEditor/*.xcodeproj/
+
+Sources/AdaEngine/Derived/
+Sources/AdaEngine/*.xcodeproj/
+
+Sources/Math/Derived/
+Sources/Math/*.xcodeproj/
+
+Sources/Vulkan/Derived/
+Sources/Vulkan/*.xcodeproj/
+
+Sources/CVulkan/Derived/
+Sources/CVulkan/*.xcodeproj/
+
+/Tuist/Dependencies/
 
 # Compiled Shaders
 

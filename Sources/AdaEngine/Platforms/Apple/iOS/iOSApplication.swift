@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
-#if canImport(UIKit)
+#if os(iOS) || os(tvOS) || os(watchOS)
 import UIKit
 
 // swiftlint:disable type_name

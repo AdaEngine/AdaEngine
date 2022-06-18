@@ -14,7 +14,7 @@ let workspace = Workspace(
         "Sources/AdaEngine",
         "Sources/AdaEditor",
         "Sources/Math",
-        "Sources/Vulkan",
-        "Sources/CVulkan"
+//        "Sources/Vulkan",
+//        "Sources/CVulkan"
     ]
 )

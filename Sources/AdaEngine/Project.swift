@@ -16,14 +16,21 @@ let targets: [Target] = [
         bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER)",
         deploymentTarget: .macOS(targetVersion: "11.0"),
         sources: [
-            
-        ]
+            .glob("**/*", excluding: ["Project.swift"])
+        ],
         scripts: [],
         dependencies: [
-            .project(target: "Vulkan", path: "../Vulkan"),
-            .project(target: "Math", path: "../Math"),
+//            .project(
+//                target: "Vulkan",
+//                path: .relativeToRoot("Sources/Vulkan")
+//            ),
+            .project(
+                target: "Math",
+                path: .relativeToRoot("Sources/Math")
+            ),
             .external(name: "stb_image"),
-            .external(name: "Collections")
+            .external(name: "Collections"),
+            .external(name: "Yams")
         ]
     ),
 //    Target(
@@ -40,5 +47,6 @@ let targets: [Target] = [
 
 let project = Project(
     name: "AdaEngine",
+    settings: .adaEngine,
     targets: targets
 )

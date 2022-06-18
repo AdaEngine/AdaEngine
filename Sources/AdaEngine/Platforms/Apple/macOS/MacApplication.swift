@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-#if MACOS
+#if os(macOS)
 import AppKit
 
 final class MacApplication: Application {

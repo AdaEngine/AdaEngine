@@ -18,6 +18,10 @@ let dependencies = Dependencies(
             url: "https://github.com/apple/swift-collections",
             requirement: .upToNextMajor(from: "1.0.1")
         ),
+        .remote(
+            url: "https://github.com/jpsim/Yams.git",
+            requirement: .upToNextMajor(from: "5.0.1")
+        )
     ],
-    platforms: [.macOS, .iOS]
+    platforms: [.macOS]
 )

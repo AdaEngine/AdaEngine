@@ -10,13 +10,27 @@ import ProjectDescriptionHelpers
 
 let project = Project(
     name: "Math",
+    settings: .adaEngine,
     targets: [
         Target(
             name: "Math",
             platform: .macOS,
             product: .framework,
             bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).math",
-            deploymentTarget: .macOS(targetVersion: "11.0")
+            deploymentTarget: .macOS(targetVersion: "11.0"),
+            sources: [
+                .glob("**/*", excluding: ["Project.swift"])
+            ]
+        ),
+        Target(
+            name: "MathTests",
+            platform: .macOS,
+            product: .unitTests,
+            bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).math",
+            deploymentTarget: .macOS(targetVersion: "11.0"),
+            sources: [
+                .glob(.relativeToRoot("Tests/MathTests/**/*"))
+            ]
         )
     ]
 )
