@@ -195,12 +195,31 @@ extension Vector4 {
 
 public extension Vector4 {
     static func * (lhs: Transform3D, rhs: Vector4) -> Vector4 {
-        [
-            lhs[0, 0] * rhs.x + lhs[1, 0] * rhs.y + lhs[2, 0] * rhs.z + lhs[3, 0] * rhs.w,
-            lhs[0, 1] * rhs.x + lhs[1, 1] * rhs.y + lhs[2, 1] * rhs.z + lhs[3, 1] * rhs.w,
-            lhs[0, 2] * rhs.x + lhs[1, 2] * rhs.y + lhs[2, 2] * rhs.z + lhs[3, 2] * rhs.w,
-            lhs[0, 3] * rhs.x + lhs[1, 3] * rhs.y + lhs[2, 3] * rhs.z + lhs[3, 3] * rhs.w
-        ]
+        var rv = lhs.x * rhs.x
+        rv = rv + lhs.y * rhs.y
+        rv = rv + lhs.z * rhs.z
+        rv = rv + lhs.w * rhs.w
+        return rv
+    }
+    
+    static func * (lhs: Vector4, rhs: Transform3D) -> Vector4 {
+        var x = lhs.x * rhs.x.x
+        x = x + lhs.y * rhs.x.y
+        x = x + lhs.z * rhs.x.z
+        x = x + lhs.w * rhs.x.w
+        var y = lhs.x * rhs.y.x
+        y = y + lhs.y * rhs.y.y
+        y = y + lhs.z * rhs.y.z
+        y = y + lhs.w * rhs.y.w
+        var z = lhs.x * rhs.z.x
+        z = z + lhs.y * rhs.z.y
+        z = z + lhs.z * rhs.z.z
+        z = z + lhs.w * rhs.z.w
+        var w = lhs.x * rhs.w.x
+        w = w + lhs.y * rhs.w.y
+        w = w + lhs.z * rhs.w.z
+        w = w + lhs.w * rhs.w.w
+        return Vector4(x, y, z, w)
     }
 }
 

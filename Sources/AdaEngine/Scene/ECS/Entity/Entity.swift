@@ -53,10 +53,10 @@ open class Entity {
         self.identifier = try container.decode(UUID.self, forKey: .id)
         self.children = try container.decodeIfPresent(OrderedSet<Entity>.self, forKey: .children) ?? []
         let components = try container.decodeIfPresent(ComponentSet.self, forKey: .components)
-        
-        if let components = components {
-            self.components.set(components.buffer.values.elements)
-        }
+//        
+//        if let components = components {
+//            self.components.set(components.buffer.values.elements)
+//        }
         
         self.children.forEach { $0.parent = self }
     }

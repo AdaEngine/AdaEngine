@@ -15,7 +15,7 @@ public extension Entity {
         internal weak var entity: Entity?
         
         // TODO: looks like not efficient solution
-        private(set) var buffer: OrderedDictionary<String, Component>
+        private(set) var buffer: Dictionary<ObjectIdentifier, Component>
         
         // MARK: - Codable
         
@@ -26,7 +26,7 @@ public extension Entity {
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
             
-            var buffer: OrderedDictionary<String, Component> = [:]
+            var buffer: Dictionary<ObjectIdentifier, Component> = [:]
             
             for key in container.allKeys {
                 guard let type = ComponentStorage.getRegistredComponent(for: key.stringValue) else {
@@ -35,7 +35,7 @@ public extension Entity {
                 
                 let component = try type.init(from: container.superDecoder(forKey: key))
                 
-                buffer[key.stringValue] = component
+                buffer[ObjectIdentifier(type)] = component
             }
             
             self.buffer = buffer
@@ -44,8 +44,8 @@ public extension Entity {
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingName.self)
             
-            for (token, value) in self.buffer {
-                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: token))
+            for (_, value) in self.buffer {
+                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
                 try value.encode(to: superEncoder)
             }
         }
@@ -53,40 +53,36 @@ public extension Entity {
         /// Gets or sets the component of the specified type.
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
             get {
-                let identifier = componentType.swiftName
-                return buffer[identifier] as? T
+                return buffer[ObjectIdentifier(componentType)] as? T
             }
             
             set {
-                let identifier = componentType.swiftName
-                self.buffer[identifier] = newValue
+                self.buffer[ObjectIdentifier(componentType)] = newValue
                 
                 (newValue as? ScriptComponent)?.entity = entity
             }
         }
 
         public mutating func set<T>(_ component: T) where T : Component {
-            let identifier = type(of: component).swiftName
-            self.buffer[identifier] = component
+            self.buffer[ObjectIdentifier(T.self)] = component
             (component as? ScriptComponent)?.entity = self.entity
         }
 
         public mutating func set(_ components: [Component]) {
             for component in components {
-                let identifier = type(of: component).swiftName
-                self.buffer[identifier] = component
+                self.buffer[ObjectIdentifier(type(of: component))] = component
                 (component as? ScriptComponent)?.entity = self.entity
             }
         }
 
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentType: Component.Type) -> Bool {
-            return self.buffer[componentType.swiftName] != nil
+            return self.buffer[ObjectIdentifier(componentType)] != nil
         }
 
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
-            let identifier = componentType.swiftName
+            let identifier = ObjectIdentifier(componentType)
             (self.buffer[identifier] as? ScriptComponent)?.destroy()
             self.buffer[identifier] = nil
         }
@@ -116,27 +112,27 @@ public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
         return (
-            buffer[a.swiftName] as! A,
-            buffer[b.swiftName] as! B
+            buffer[ObjectIdentifier(a)] as! A,
+            buffer[ObjectIdentifier(b)] as! B
         )
     }
     
     /// Gets the components of the specified types.
     subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
         return (
-            buffer[a.swiftName] as! A,
-            buffer[b.swiftName] as! B,
-            buffer[c.swiftName] as! C
+            buffer[ObjectIdentifier(a)] as! A,
+            buffer[ObjectIdentifier(b)] as! B,
+            buffer[ObjectIdentifier(c)] as! C
         )
     }
     
     /// Gets the components of the specified types.
     subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
         return (
-            buffer[a.swiftName] as! A,
-            buffer[b.swiftName] as! B,
-            buffer[c.swiftName] as! C,
-            buffer[d.swiftName] as! D
+            buffer[ObjectIdentifier(a)] as! A,
+            buffer[ObjectIdentifier(b)] as! B,
+            buffer[ObjectIdentifier(c)] as! C,
+            buffer[ObjectIdentifier(d)] as! D
         )
     }
 }

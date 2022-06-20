@@ -7,23 +7,19 @@
 
 import AdaEngine
 
-class ControlCircleComponent: ScriptComponent {
+class ControlCameraComponent: ScriptComponent {
     
     var speed: Float = 4
     
-    @RequiredComponent var circle: Circle2DComponent
-    
-    override func ready() {
-        self.transform.scale = [0.2, 0.2, 0.2]
-    }
+    @RequiredComponent var circle: Camera
     
     override func update(_ deltaTime: TimeInterval) {
         if Input.isKeyPressed(.arrowUp) {
-            self.circle.thickness += 0.1
+            self.circle.orthographicScale += 0.1
         }
 
         if Input.isKeyPressed(.arrowDown) {
-            self.circle.thickness -= 0.1
+            self.circle.orthographicScale -= 0.1
         }
 
         if Input.isKeyPressed(.w) {
@@ -45,6 +41,42 @@ class ControlCircleComponent: ScriptComponent {
     }
     
 }
+
+class ControlCircleComponent: ScriptComponent {
+    
+    var speed: Float = 2
+    
+    @RequiredComponent var circle: Circle2DComponent
+    
+    override func update(_ deltaTime: TimeInterval) {
+        if Input.isKeyPressed(.arrowUp) {
+            self.circle.thickness += 0.1
+        }
+
+        if Input.isKeyPressed(.arrowDown) {
+            self.circle.thickness -= 0.1
+        }
+
+        if Input.isKeyPressed(.w) {
+            self.transform.position.y += 0.1 * speed
+        }
+
+        if Input.isKeyPressed(.s) {
+            self.transform.position.y -= 0.1 * speed
+        }
+
+        if Input.isKeyPressed(.a) {
+            self.transform.position.x -= 0.1 * speed
+        }
+
+        if Input.isKeyPressed(.d) {
+            self.transform.position.x += 0.1 * speed
+        }
+        
+    }
+    
+}
+
 
 class GameScene {
     func makeScene() -> Scene {
@@ -69,25 +101,53 @@ class GameScene {
 //        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
 //        scene.addEntity(trainEntity)
 //
+            
+        for i in 0..<1000 {
+            let viewEntity = Entity(name: "Circle \(i)")
+            
+            let alpha: Float = Float.random(in: 0.3...1)
+            
+            viewEntity.components += Circle2DComponent(
+                color: Color(
+                    Float.random(in: 0..<255) / 255,
+                    Float.random(in: 0..<255) / 255,
+                    Float.random(in: 0..<255) / 255,
+                    alpha
+                ),
+                thickness: 1
+            )
+            
+            let scale: Float = Float.random(in: 0.3...1)
+            
+            var transform = Transform()
+            transform.position = [Float.random(in: -5..<5), Float.random(in: -5..<5), 0]
+            transform.scale = [scale, scale, scale]
+            
+            viewEntity.components += transform
+            
+            scene.addEntity(viewEntity)
+        }
         
-        let viewEntity = Entity(name: "Circle")
-        viewEntity.components += Circle2DComponent(color: .red, thickness: 1)
-        viewEntity.components += ControlCircleComponent()
-        scene.addEntity(viewEntity)
-        
-        let viewEntity1 = Entity(name: "Circle")
-        viewEntity1.components += Circle2DComponent(color: .yellow, thickness: 0.3)
-        viewEntity1.components[Transform.self]!.position = [4, 4, 4]
-        viewEntity1.components[Transform.self]!.scale = [0.2, 0.2, 0.2]
-        scene.addEntity(viewEntity1)
+//        let viewEntity = Entity(name: "Circle")
+//        viewEntity.components += Circle2DComponent(color: .blue, thickness: 1)
+//        scene.addEntity(viewEntity)
+//
+//        let viewEntity1 = Entity(name: "Circle 1")
+//        viewEntity1.components += Circle2DComponent(color: .yellow, thickness: 1)
+//
+//        var transform = Transform()
+//        transform.position = [4, 4, 4]
+//        transform.scale = [0.2, 0.2, 0.2]
+//        viewEntity1.components += transform
+//        viewEntity1.components += ControlCircleComponent()
+//        scene.addEntity(viewEntity1)
         
         let userEntity = Entity(name: "camera")
         let camera = Camera()
         camera.projection = .orthographic
         camera.isPrimal = true
-        camera.near = 0
-        camera.far = 1
         userEntity.components += camera
+//        userEntity.components += ControlCameraComponent()
         scene.addEntity(userEntity)
         
 //        let editorCamera = EditorCameraEntity()

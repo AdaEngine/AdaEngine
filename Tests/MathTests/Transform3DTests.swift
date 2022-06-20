@@ -187,25 +187,29 @@ class Transform3DTests: XCTestCase {
     func test_Transform3DMultipleVec4_And_SimdMatrix4MultipleVec4_AreEquals() {
         // given
         let columns = [
-            Vector4(1, 2, 0, 4),
-            Vector4(0, 1, 3, 4),
-            Vector4(5, 0, 1, 9),
-            Vector4(4, 0, 0, 1)
+            Vector4(43, 2, 12, 4),
+            Vector4(52, 12, 3, 4),
+            Vector4(5, 32, 43, 9),
+            Vector4(4, 55, 2, 92)
         ]
         
         let simdMat = simd_float4x4(columns)
         let transform = Transform3D(columns: columns)
         
-        let vec4: Vector4 = [1, 2, 1, 2]
+        let vec4: Vector4 = [3, 2, 6, 2]
         
         // when
         
         let simdVec = simdMat * vec4
         let myVec = transform * vec4
         
+        let invSimdVec = vec4 * simdMat
+        let invMyVec = vec4 * transform
+        
         // then
         
         XCTAssertEqual(simdVec, myVec)
+        XCTAssertEqual(invSimdVec, invMyVec)
     }
     
     func test_Transform3DInitializedFromSimd4x4Matrix_AreEquals() {
@@ -219,6 +223,40 @@ class Transform3DTests: XCTestCase {
         // then
         
         TestUtils.assertEqual(simdMatrix, transform)
+    }
+    
+    func test_OrthoTransform3DMultipleByVector_isEqual_SimdOrthoMyltiplyByVector() {
+        // given
+        let aspectRation: Float = 800.0/600.0
+        let scale: Float = 1.0
+        
+        let myTransform = Transform3D.orthogonal(left: -aspectRation * scale, right: aspectRation * scale, top: scale, bottom: -scale, zNear: 0, zFar: 1)
+        let simdTransform = makeOrthoSimd(left: -aspectRation * scale, right: aspectRation * scale, top: scale, bottom: -scale, zNear: 0, zFar: 1)
+        
+        let vector: Vector4 = [12, 5, 8, 1]
+        
+        // when
+        let resMyVector = vector * myTransform
+        let resSimdVector = vector * simdTransform
+        
+        // then
+        XCTAssertEqual(resMyVector, resSimdVector)
+    }
+    
+    private func makeOrthoSimd(left: Float, right: Float, top: Float, bottom: Float, zNear: Float, zFar: Float) -> float4x4 {
+        let m00 = 2 / (right - left)
+        let m11 = 2 / (top - bottom)
+        let m22 = 1 / (zFar - zNear)
+        let m03 = (left + right) / (left - right)
+        let m13 = (top + bottom) / (bottom - top)
+        let m23 = zNear / (zNear - zFar)
+        
+        return float4x4(
+            [m00, 0,   0,   m03],
+            [0,   m11, 0,   m13],
+            [0,   0,   m22, m23],
+            [0,   0,   0,   1]
+        )
     }
     
     #endif

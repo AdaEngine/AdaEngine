@@ -42,20 +42,20 @@ public extension Transform3D {
     
     @inline(__always)
     init(translation: Vector3) {
-        var identity = Transform3D.identity
-        identity[0, 3] = translation.x
-        identity[1, 3] = translation.y
-        identity[2, 3] = translation.z
-        self = identity
+        var matrix = Transform3D.identity
+        matrix[0, 3] = translation.x
+        matrix[1, 3] = translation.y
+        matrix[2, 3] = translation.z
+        self = matrix
     }
     
     @inline(__always)
     init(diagonal: Vector3) {
-        var identity = Transform3D.identity
-        identity[0, 0] = diagonal.x
-        identity[1, 1] = diagonal.y
-        identity[2, 2] = diagonal.z
-        self = identity
+        var matrix = Transform3D.identity
+        matrix[0, 0] = diagonal.x
+        matrix[1, 1] = diagonal.y
+        matrix[2, 2] = diagonal.z
+        self = matrix
     }
     
     @inline(__always)
@@ -341,8 +341,8 @@ public extension Transform3D {
         return Transform3D(
             Vector4(rotate01, 0, 0, 0),
             Vector4(0, rotate11, 0, 0),
-            Vector4(0, 0, rotate22, 1),
-            Vector4(0, 0, rotate32, 0)
+            Vector4(0, 0, rotate22, rotate32),
+            Vector4(0, 0, 1, 0)
         )
     }
     
@@ -356,12 +356,12 @@ public extension Transform3D {
         zFar: Float
     ) -> Transform3D {
         
-        let m00 = 2/(right-left)
-        let m11 = 2/(top-bottom)
-        let m22 = 1/(zFar-zNear)
-        let m03 = (left+right)/(left-right)
-        let m13 = (top+bottom)/(bottom-top)
-        let m23 = zNear/(zNear-zFar)
+        let m00 = 2 / (right - left)
+        let m11 = 2 / (top - bottom)
+        let m22 = 1 / (zFar - zNear)
+        let m03 = (left + right) / (left - right)
+        let m13 = (top + bottom) / (bottom - top)
+        let m23 = zNear / (zNear - zFar)
         
         return Transform3D(
             [m00, 0,   0,   m03],

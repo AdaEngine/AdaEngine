@@ -98,7 +98,7 @@ public class RenderEngine2D {
     
     public func beginContext(for window: Window.ID, camera: Camera) {
         let data = camera.makeCameraData()
-        let uni = Uniform(viewProjection: data.viewProjection * camera.transform.matrix.inverse)
+        let uni = Uniform(viewProjection: camera.transform.matrix * data.viewProjection)
         RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
         
         self.currentDraw = RenderEngine.shared.renderBackend.beginDraw(for: window)
@@ -113,7 +113,7 @@ public class RenderEngine2D {
         
         for quad in quadPosition {
             let data = QuadVertexData(
-                position: transform * quad,
+                position: quad * transform,
                 color: color
             )
             
@@ -140,7 +140,7 @@ public class RenderEngine2D {
         
         for quad in quadPosition {
             let data = CircleVertexData(
-                worldPosition: transform * quad,
+                worldPosition: quad * transform,
                 localPosition: quad * 2,
                 thickness: thickness,
                 fade: fade,

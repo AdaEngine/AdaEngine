@@ -58,7 +58,6 @@ public final class Camera: ScriptComponent {
         
         switch self.projection {
         case .orthographic:
-            
             projection = Transform3D.orthogonal(
                 left: -aspectRation * self.orthographicScale,
                 right: aspectRation * self.orthographicScale,
