@@ -124,6 +124,10 @@ extension Transform3D: CustomDebugStringConvertible {
 
 public extension Transform3D {
     
+    /// Get value from matrix.
+    /// - Parameter column: a column in matrix.
+    /// - Parameter row: a row in matrix.
+    /// - Returns: matrix value.
     subscript (_ column: Int, _ row: Int) -> Float {
         get {
             self[column][row]
@@ -155,12 +159,19 @@ public extension Transform3D {
         }
     }
     
-    @inline(__always)
-    static let identity: Transform3D = Transform3D()
+    /// Return identity matrix
+    /// ```swift
+    /// [1, 0, 0, 0]
+    /// [0, 1, 0, 0]
+    /// [0, 0, 1, 0]
+    /// [0, 0, 0, 1]
+    /// ```
+    @inline(__always) static let identity: Transform3D = Transform3D()
 }
 
 public extension Transform3D {
     
+    /// Return upper left matrix 3x3.
     var basis: Transform2D {
         return Transform2D(columns: [
             [self.x.x, self.x.y, self.x.z],
@@ -235,7 +246,6 @@ public extension Transform3D {
 public extension Transform3D {
     
     /// - SeeAlso: https://stackoverflow.com/questions/1556260/convert-quaternion-rotation-to-rotation-matrix
-    
     init(quat: Quat) {
         var matrix = Transform3D.identity
         
@@ -256,6 +266,7 @@ public extension Transform3D {
         self = matrix
     }
     
+    /// Create TRS matrix
     init(translation: Vector3, rotation: Quat, scale: Vector3) {
         self = Transform3D(translation: translation) * Transform3D(quat: rotation) * Transform3D(scale: scale)
     }
@@ -264,10 +275,10 @@ public extension Transform3D {
 public extension Transform3D {
     static func * (lhs: Transform3D, rhs: Float) -> Transform3D {
         Transform3D(
-            Vector4(lhs[0, 0] * rhs, lhs[0, 1] * rhs, lhs[0, 2] * rhs, lhs[0, 3] * rhs),
-            Vector4(lhs[1, 0] * rhs, lhs[1, 1] * rhs, lhs[1, 2] * rhs, lhs[1, 3] * rhs),
-            Vector4(lhs[2, 0] * rhs, lhs[2, 1] * rhs, lhs[2, 2] * rhs, lhs[2, 3] * rhs),
-            Vector4(lhs[3, 0] * rhs, lhs[3, 1] * rhs, lhs[3, 2] * rhs, lhs[3, 3] * rhs)
+            [lhs[0, 0] * rhs, lhs[0, 1] * rhs, lhs[0, 2] * rhs, lhs[0, 3] * rhs],
+            [lhs[1, 0] * rhs, lhs[1, 1] * rhs, lhs[1, 2] * rhs, lhs[1, 3] * rhs],
+            [lhs[2, 0] * rhs, lhs[2, 1] * rhs, lhs[2, 2] * rhs, lhs[2, 3] * rhs],
+            [lhs[3, 0] * rhs, lhs[3, 1] * rhs, lhs[3, 2] * rhs, lhs[3, 3] * rhs]
         )
     }
     
@@ -297,10 +308,10 @@ public extension Transform3D {
     
     static prefix func - (matrix: Transform3D) -> Transform3D {
         Transform3D(
-            Vector4(-matrix[0, 0], -matrix[0, 1], -matrix[0, 2], -matrix[0, 3]),
-            Vector4(-matrix[1, 0], -matrix[1, 1], -matrix[1, 2], -matrix[1, 3]),
-            Vector4(-matrix[2, 0], -matrix[2, 1], -matrix[2, 2], -matrix[2, 3]),
-            Vector4(-matrix[3, 0], -matrix[3, 1], -matrix[3, 2], -matrix[3, 3])
+            [-matrix[0, 0], -matrix[0, 1], -matrix[0, 2], -matrix[0, 3]],
+            [-matrix[1, 0], -matrix[1, 1], -matrix[1, 2], -matrix[1, 3]],
+            [-matrix[2, 0], -matrix[2, 1], -matrix[2, 2], -matrix[2, 3]],
+            [-matrix[3, 0], -matrix[3, 1], -matrix[3, 2], -matrix[3, 3]]
         )
     }
 }
@@ -317,10 +328,10 @@ public extension Transform3D {
         let rotate32 = -z.dot(eye)
         
         return Transform3D(
-            Vector4(x.x, y.x, z.x, 0),
-            Vector4(x.y, y.y, z.y, 0),
-            Vector4(x.z, y.z, z.z, 0),
-            Vector4(rotate30, rotate31, rotate32, 1)
+            [x.x, y.x, z.x, 0],
+            [x.y, y.y, z.y, 0],
+            [x.z, y.z, z.z, 0],
+            [rotate30, rotate31, rotate32, 1]
         )
     }
     
@@ -339,10 +350,10 @@ public extension Transform3D {
         let rotate32 = -zNear * rotate22
         
         return Transform3D(
-            Vector4(rotate01, 0, 0, 0),
-            Vector4(0, rotate11, 0, 0),
-            Vector4(0, 0, rotate22, rotate32),
-            Vector4(0, 0, 1, 0)
+            [rotate01, 0,        0,        0       ],
+            [0,        rotate11, 0,        0       ],
+            [0,        0,        rotate22, rotate32],
+            [0,        0,        1,        0       ]
         )
     }
     
@@ -399,10 +410,10 @@ public extension Transform3D {
         r22 += (1 - c) * axis.z * axis.z
         
         return Transform3D(
-            Vector4(r00, r01, r02, 0),
-            Vector4(r10, r11, r12, 0),
-            Vector4(r20, r21, r22, 0),
-            Vector4(0, 0, 0, 1)
+            [r00, r01, r02, 0],
+            [r10, r11, r12, 0],
+            [r20, r21, r22, 0],
+            [0,   0,   0,   1]
         )
     }
     

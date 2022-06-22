@@ -31,28 +31,28 @@ public struct Transform2D: Hashable {
 public extension Transform2D {
     @inline(__always)
     init(translation: Vector2) {
-        var identity = Transform2D.identity
-        identity[2, 0] = translation.x
-        identity[2, 1] = translation.y
-        self = identity
+        var matrix = Transform2D.identity
+        matrix[2, 0] = translation.x
+        matrix[2, 1] = translation.y
+        self = matrix
     }
     
     @inline(__always)
     init(scale: Vector2) {
-        var identity = Transform2D.identity
-        identity[0, 0] = scale.x
-        identity[1, 1] = scale.y
-        self = identity
+        var matrix = Transform2D.identity
+        matrix[0, 0] = scale.x
+        matrix[1, 1] = scale.y
+        self = matrix
     }
     
     @inline(__always)
     init(rotation: Angle) {
-        var identity = Transform2D.identity
-        identity[0, 0] = cos(rotation.radians)
-        identity[0, 1] = sin(rotation.radians)
-        identity[1, 0] = -sin(rotation.radians)
-        identity[1, 1] = cos(rotation.radians)
-        self = identity
+        var matrix = Transform2D.identity
+        matrix[0, 0] = cos(rotation.radians)
+        matrix[0, 1] = sin(rotation.radians)
+        matrix[1, 0] = -sin(rotation.radians)
+        matrix[1, 1] = cos(rotation.radians)
+        self = matrix
     }
     
     @inline(__always)
@@ -65,11 +65,11 @@ public extension Transform2D {
     
     @inline(__always)
     init(diagonal: Float) {
-        var identity = Transform2D.identity
-        identity[0, 0] = diagonal
-        identity[1, 1] = diagonal
-        identity[2, 2] = diagonal
-        self = identity
+        var matrix = Transform2D.identity
+        matrix[0, 0] = diagonal
+        matrix[1, 1] = diagonal
+        matrix[2, 2] = diagonal
+        self = matrix
     }
     
     @inline(__always)
@@ -198,9 +198,9 @@ extension Transform2D: Equatable { }
 public extension Transform2D {
     static func * (lhs: Transform2D, rhs: Float) -> Transform2D {
         Transform2D(columns: [
-            Vector3(lhs[0, 0] * rhs, lhs[0, 1] * rhs, lhs[0, 2] * rhs),
-            Vector3(lhs[1, 0] * rhs, lhs[1, 1] * rhs, lhs[1, 2] * rhs),
-            Vector3(lhs[2, 0] * rhs, lhs[2, 1] * rhs, lhs[2, 2] * rhs),
+            [lhs[0, 0] * rhs, lhs[0, 1] * rhs, lhs[0, 2] * rhs],
+            [lhs[1, 0] * rhs, lhs[1, 1] * rhs, lhs[1, 2] * rhs],
+            [lhs[2, 0] * rhs, lhs[2, 1] * rhs, lhs[2, 2] * rhs],
         ])
     }
     
@@ -219,9 +219,9 @@ public extension Transform2D {
     
     static prefix func - (matrix: Transform2D) -> Transform2D {
         Transform2D(columns: [
-            Vector3(-matrix[0, 0], -matrix[0, 1], -matrix[0, 2]),
-            Vector3(-matrix[1, 0], -matrix[1, 1], -matrix[1, 2]),
-            Vector3(-matrix[2, 0], -matrix[2, 1], -matrix[2, 2]),
+            [-matrix[0, 0], -matrix[0, 1], -matrix[0, 2]],
+            [-matrix[1, 0], -matrix[1, 1], -matrix[1, 2]],
+            [-matrix[2, 0], -matrix[2, 1], -matrix[2, 2]],
         ])
     }
 }
