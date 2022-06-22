@@ -17,14 +17,25 @@ import Darwin.C
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS]
 
 var products: [Product] = [
-    .executable(name: "AdaEditor", targets: ["AdaEditor"]),
-    .library(name: "AdaEngine", type: .dynamic, targets: ["AdaEngine"]),
-    .library(name: "AdaEngine-Static", type: .static, targets: ["AdaEngine"])
+    .executable(
+        name: "AdaEditor",
+        targets: ["AdaEditor"]
+    ),
+    .library(
+        name: "AdaEngine",
+        type: .dynamic,
+        targets: ["AdaEngine"]
+    ),
+    .library(
+        name: "AdaEngine-Static",
+        type: .static,
+        targets: ["AdaEngine"]
+    )
 ]
 
 // Check that we target on vulkan dependency
 
-let isVulkanEnabled = true//ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil
+let isVulkanEnabled = ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil
 
 if isVulkanEnabled {
     products.append(
@@ -82,16 +93,16 @@ var commonPlugins: [Target.PluginUsage] = []
 #if os(macOS)
 commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
 
-//if isVulkanEnabled {
+if isVulkanEnabled {
     commonPlugins.append(.plugin(name: "SPIRVBuildPlugin"))
-//}
+}
 
 #endif
 
-let editorTarget = Target.executableTarget(
+let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
     dependencies: ["AdaEngine", "Math"],
-    exclude: ["Project.swift"],
+    exclude: ["Project.swift", "Derived"],
     swiftSettings: [
         .define("EDITOR_DEBUG", .when(configuration: .debug)),
         
@@ -108,7 +119,7 @@ let editorTarget = Target.executableTarget(
 
 // MARK: Ada Engine SDK
 
-let adaEngineTarget = Target.target(
+let adaEngineTarget: Target = .target(
     name: "AdaEngine",
     dependencies: [
         "Math",
@@ -116,7 +127,7 @@ let adaEngineTarget = Target.target(
         .product(name: "Collections", package: "swift-collections"),
         "Yams"
     ],
-    exclude: ["Project.swift"],
+    exclude: ["Project.swift", "Derived"],
     resources: [
         .copy("Assets/Shaders/Vulkan")
     ],
@@ -137,32 +148,83 @@ let adaEngineTarget = Target.target(
 // MARK: Other Targets
 
 var targets: [Target] = [
-    
     editorTarget,
-    
     adaEngineTarget,
-    
-        .target(
-            name: "Math",
-            exclude: ["Project.swift"]
-        ),
-    
-    // MARK: - Tests
-    
-        .testTarget(
-            name: "AdaEngineTests",
-            dependencies: ["AdaEngine"]
-        ),
-    
-        .testTarget(
-            name: "MathTests",
-            dependencies: ["Math"]
-        )
+    .target(
+        name: "Math",
+        exclude: ["Project.swift", "Derived"]
+    ),
+]
+
+// MARK: - Tests
+
+targets += [
+    .testTarget(
+        name: "AdaEngineTests",
+        dependencies: ["AdaEngine"]
+    ),
+    .testTarget(
+        name: "MathTests",
+        dependencies: ["Math"]
+    )
 ]
 
 #if os(macOS)
 targets.append(contentsOf: swiftLintTargets)
 #endif
+
+// MARK: - Vulkan
+
+// We turn on vulkan via build
+if isVulkanEnabled {
+    
+    let vulkanName = "Vulkan"
+    
+    let vulkanTargets: [Target] = [
+        .target(
+            name: vulkanName,
+            dependencies: ["CVulkan"],
+            exclude: ["Project.swift", "Derived"],
+            cxxSettings: [
+                // Apple
+                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
+                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
+                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
+                
+                // Android
+                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
+                
+                // Windows
+                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
+            ]
+        ),
+        .systemLibrary(
+            name: "CVulkan",
+            pkgConfig: "vulkan"
+        ),
+        .plugin(
+            name: "SPIRVBuildPlugin",
+            capability: .buildTool()
+        ),
+        .plugin(
+            name: "SPIRVPlugin",
+            capability:
+                    .command(
+                        intent: .custom(verb: "spirv", description: "Compile vert and frag shaders to spirv binary"),
+                        permissions: [
+                            .writeToPackageDirectory(reason: "Compile vert and frag shaders to spirv binary")
+                        ]
+                    )
+        )
+    ]
+    
+    targets.append(contentsOf: vulkanTargets)
+    
+    editorTarget.dependencies.append(.target(name: vulkanName))
+    adaEngineTarget.dependencies.append(.target(name: vulkanName))
+}
+
+// MARK: - Package -
 
 let package = Package(
     name: "AdaEngine",
@@ -183,68 +245,3 @@ let package = Package(
     targets: targets,
     swiftLanguageVersions: [.v5]
 )
-
-
-// We turn on vulkan via build
-if isVulkanEnabled {
-    
-    let vulkanName = "Vulkan"
-    
-    let vulkanTargets: [Target] = [
-        .target(
-            name: vulkanName,
-            dependencies: ["CVulkan"],
-            exclude: ["Project.swift"],
-            cxxSettings: [
-                // Apple
-                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
-                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
-                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
-                
-                // Android
-                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
-                
-                // Windows
-                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
-            ]
-        ),
-        
-            .systemLibrary(
-                name: "CVulkan",
-                pkgConfig: "vulkan"
-            ),
-        
-        
-        //        // Just for test
-        //        .systemLibrary(
-        //            name: "CSDL2",
-        //            pkgConfig: "sdl2",
-        //            providers: [
-        //                .brew(["sdl2"]),
-        //                .apt(["libsdl2-dev"])
-        //            ]
-        //        ),
-        
-        
-            .plugin(
-                name: "SPIRVBuildPlugin",
-                capability: .buildTool()
-            ),
-
-            .plugin(
-                name: "SPIRVPlugin",
-                capability:
-                        .command(
-                            intent: .custom(verb: "spirv", description: "Compile vert and frag shaders to spirv binary"),
-                            permissions: [
-                                .writeToPackageDirectory(reason: "Compile vert and frag shaders to spirv binary")
-                            ]
-                        )
-            )
-    ]
-    
-    package.targets.append(contentsOf: vulkanTargets)
-    
-    editorTarget.dependencies.append(.target(name: vulkanName))
-    adaEngineTarget.dependencies.append(.target(name: vulkanName))
-}
