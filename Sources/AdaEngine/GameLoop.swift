@@ -11,7 +11,7 @@ final class GameLoop {
     
     private var lastUpdate: TimeInterval = 0
     
-    public private(set) var isIterating = false
+    private(set) var isIterating = false
     
     // MARK: Internal Methods
     
@@ -22,13 +22,11 @@ final class GameLoop {
         }
         
         self.isIterating = true
+        defer { self.isIterating = false }
         
         let now = Time.absolute
         let deltaTime = max(0, now - self.lastUpdate)
         self.lastUpdate = now
-        
-        // FIXME: Think about it later
-        Time.deltaTime = deltaTime
         
         Input.shared.processEvents()
         
@@ -39,7 +37,5 @@ final class GameLoop {
         try RenderEngine.shared.endFrame()
         
         Input.shared.removeEvents()
-        
-        self.isIterating = false
     }
 }

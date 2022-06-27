@@ -15,11 +15,11 @@ import Quartz
 import Glibc
 #endif
 
+/// Represent time interval in system.
 public typealias TimeInterval = Float
 
 public struct Time {
-    public static var deltaTime: TimeInterval = 0
-    
+    /// Return current time in system.
     public static var absolute: TimeInterval {
         #if os(iOS) || os(tvOS) || os(OSX) || os(watchOS)
         return TimeInterval(CACurrentMediaTime())

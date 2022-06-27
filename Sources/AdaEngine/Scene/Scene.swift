@@ -11,14 +11,13 @@ public final class Scene {
     
     public var name: String
     public private(set) var id: UUID
-    
-    var entities: OrderedSet<Entity> = []
 
     public internal(set) var activeCamera: Camera
     
     public internal(set) weak var window: Window?
     
     var systems: [System] = []
+    private(set) var world: World
     
     public var viewportRelativeWindowSize: Bool = true
     
@@ -46,11 +45,13 @@ public final class Scene {
     public init(name: String = "") {
         self.id = UUID()
         self.name = name.isEmpty ? "Scene" : name
+        self.world = World()
+        
         let cameraEntity = Entity()
         
         let cameraComponent = Camera()
-        cameraEntity.components[Camera.self] = cameraComponent
-        self.entities.append(cameraEntity)
+        cameraEntity.components += cameraComponent
+        self.world.appendEntity(cameraEntity)
         
         self.activeCamera = cameraComponent
     }
@@ -87,7 +88,7 @@ public final class Scene {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.id, forKey: .id)
         try container.encode(self.name, forKey: .name)
-        try container.encode(self.entities, forKey: .entities)
+//        try container.encode(self.entities, forKey: .entities)
         try container.encode(self.systems.map { type(of: $0).swiftName }, forKey: .systems)
     }
     
@@ -118,9 +119,17 @@ public final class Scene {
     }
 }
 
+// MARK: - ECS
+
 public extension Scene {
-    func performQuery(_ query: EntityQuery) -> [Entity] {
-        return entities.flatMap { $0.performQuery(query) }
+    func performQuery(_ query: EntityQuery) -> QueryResult {
+        return self.world.performQuery(query)
+    }
+}
+
+extension Scene {
+    func mergeWorlds(_ newWorld: World) {
+        
     }
 }
 
@@ -130,11 +139,11 @@ public extension Scene {
     func addEntity(_ entity: Entity) {
         precondition(entity.scene == nil, "Entity has scene reference, can't be added")
         entity.scene = self
-        self.entities.updateOrAppend(entity)
+        self.world.appendEntity(entity)
     }
     
     func removeEntity(_ entity: Entity) {
-        self.entities.remove(entity)
+        self.world.removeEntity(entity)
         entity.scene = nil
     }
 }

@@ -9,12 +9,11 @@ import Foundation.NSUUID // TODO: Replace to own realization
 import OrderedCollections
 
 /// An enity describe
-open class Entity {
+open class Entity: Identifiable {
     
     public var name: String
     
-    // TODO: Replace to UInt32 to avoid big capacity on id
-    public private(set) var identifier: UUID
+    public private(set) var id: Int
     
     public var components: ComponentSet
     
@@ -26,6 +25,7 @@ open class Entity {
         }
     }
     
+    // TODO: We should reimagine how it works, fit it to ECS World
     public internal(set) var children: OrderedSet<Entity>
     
     // TODO: Looks like parentnes not a good choice to ECS data oriented way
@@ -33,14 +33,17 @@ open class Entity {
     
     public init(name: String = "Entity") {
         self.name = name
-        self.identifier = UUID()
-        self.components = ComponentSet()
+        self.id = RID().id
+        
+        var components = ComponentSet()
+        components += Transform()
+        
+        self.components = components
         self.children = []
         
         // swiftlint:disable:next inert_defer
         defer {
             self.components.entity = self
-            self.components[Transform.self] = Transform()
         }
     }
     
@@ -50,7 +53,7 @@ open class Entity {
         self.init()
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.name = try container.decode(String.self, forKey: .name)
-        self.identifier = try container.decode(UUID.self, forKey: .id)
+        self.id = try container.decode(Int.self, forKey: .id)
         self.children = try container.decodeIfPresent(OrderedSet<Entity>.self, forKey: .children) ?? []
         let components = try container.decodeIfPresent(ComponentSet.self, forKey: .components)
 //        
@@ -64,7 +67,7 @@ open class Entity {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.name, forKey: .name)
-        try container.encode(self.identifier, forKey: .id)
+        try container.encode(self.id, forKey: .id)
         
         if !self.children.isEmpty {
             try container.encode(self.children, forKey: .children)
@@ -81,40 +84,16 @@ open class Entity {
         self.scene?.removeEntity(self)
     }
     
-    // TODO: think about more cache frendly
-    func performQuery(_ query: EntityQuery) -> [Entity] {
-        var entities = [Entity]()
-        
-        if query.predicate.fetch(self) {
-            entities.append(self)
-        }
-        
-        for child in children {
-            let array = child.performQuery(query)
-            if !array.isEmpty {
-                entities.append(contentsOf: array)
-            }
-        }
-        
-        return entities
-    }
-    
 }
 
 extension Entity: Hashable {
     public static func == (lhs: Entity, rhs: Entity) -> Bool {
-        return lhs === rhs
+        return lhs.id == rhs.id && lhs.name == rhs.name
     }
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.name)
-        hasher.combine(self.identifier)
-    }
-}
-
-extension Entity: Identifiable {
-    public var id: UUID {
-        return self.identifier
+        hasher.combine(self.id)
     }
 }
 

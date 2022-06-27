@@ -16,10 +16,19 @@ extension Component {
     public static func registerComponent() {
         ComponentStorage.addComponent(self)
     }
+}
+
+extension Component {
     
     /// Return name with Bundle -> AdaEngine.ComponentName
+    /// - Note: We use reflection, we paid a huge cost for that.
     static var swiftName: String {
         return String(reflecting: self)
+    }
+    
+    /// Return identifier of component based on Component.Type
+    @inline(__always) static var identifier: UInt {
+        UInt(bitPattern: ObjectIdentifier(self))
     }
 }
 
