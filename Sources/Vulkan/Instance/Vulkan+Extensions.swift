@@ -7,7 +7,7 @@
 
 import CVulkan
 
-public extension Vulkan {
+public extension VulkanInstance {
     
     /// Get list of all available extensions
     static func getExtensions() throws -> [ExtensionProperties] {
