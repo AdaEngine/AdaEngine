@@ -33,29 +33,41 @@ public final class Device {
         let queueCreateInfos = createInfo.queueCreateInfo.map { $0.vulkanValue }
         var devicePointer: VkDevice?
         
-        var layers = createInfo.layers.map { $0.asCString() }
-        var extensions = createInfo.enabledExtensions.map { $0.asCString() }
+        let layers = createInfo.layers.map { $0.asCString() }
+        let extensions = createInfo.enabledExtensions.map { $0.asCString() }
+        let features = createInfo.enabledFeatures ?? VkPhysicalDeviceFeatures()
         
-        var info = VkDeviceCreateInfo(
-            sType: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            pNext: nil,
-            flags: UInt32(0),
-            queueCreateInfoCount: UInt32(createInfo.queueCreateInfo.count),
-            pQueueCreateInfos: queueCreateInfos,
-            enabledLayerCount: UInt32(createInfo.layers.count),
-            ppEnabledLayerNames: layers,
-            enabledExtensionCount: UInt32(createInfo.enabledExtensions.count),
-            ppEnabledExtensionNames: extensions,
-            pEnabledFeatures: nil
-        )
-        
-        let result = vkCreateDevice(physicalDevice.pointer, &info, nil, &devicePointer)
-        
+        let result = withUnsafePointer(to: features) { featuresPtr -> VkResult in
+            var info = VkDeviceCreateInfo(
+                sType: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+                pNext: nil,
+                flags: 0,
+                queueCreateInfoCount: UInt32(createInfo.queueCreateInfo.count),
+                pQueueCreateInfos: queueCreateInfos,
+                enabledLayerCount: UInt32(createInfo.layers.count),
+                ppEnabledLayerNames: layers,
+                enabledExtensionCount: UInt32(createInfo.enabledExtensions.count),
+                ppEnabledExtensionNames: extensions,
+                pEnabledFeatures: createInfo.enabledFeatures != nil ? featuresPtr : nil
+            )
+            
+            return vkCreateDevice(physicalDevice.pointer, &info, nil, &devicePointer)
+        }
+
         guard let pointer = devicePointer, result == VK_SUCCESS else {
             throw VKError(code: result, message: "Cannot create VkDevice for passed GPU and create info")
         }
         
         self.init(pointer)
+    }
+    
+    public func waitIdle() throws {
+        let result = vkDeviceWaitIdle(self.rawPointer)
+        try vkCheck(result, "Device waiting idle error")
+    }
+    
+    public func getQueue(at index: Int) -> Queue? {
+        return Queue(device: self, index: UInt32(index))
     }
     
     deinit {

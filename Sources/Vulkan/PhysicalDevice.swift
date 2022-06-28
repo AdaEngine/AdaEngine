@@ -7,12 +7,31 @@
 
 import CVulkan
 
+/// Taked from Godot Engine drivers/vulkan/vulkan_context.cpp
+/// - SeeAlso: https://github.com/godotengine/godot
+public enum GPUVendor: UInt32, Equatable {
+    case amd = 0x1002
+    case imgTec = 0x1010
+    case nvidia = 0x10DE
+    case arm = 0x13B5
+    case qualcomm = 0x5143
+    case intel = 0x8086
+    
+    case undefined = 0x0
+}
+
 /// Wrapper on Vulkan API
-/// Represent GPU
+/// Represent GPU device
 public final class PhysicalDevice {
     
     /// Pointer to physical device
     public let pointer: VkPhysicalDevice
+    
+    public var vendor: GPUVendor {
+        let vendorId = self.properties.vendorID
+        
+        return GPUVendor(rawValue: vendorId) ?? .undefined
+    }
     
     init(_ pointer: VkPhysicalDevice) {
         self.pointer = pointer
@@ -30,11 +49,11 @@ public final class PhysicalDevice {
         return features
     }
     
-    public var memoryProperties: VkPhysicalDeviceMemoryProperties {
+    public lazy var memoryProperties: VkPhysicalDeviceMemoryProperties = {
         var memory = VkPhysicalDeviceMemoryProperties()
         vkGetPhysicalDeviceMemoryProperties(self.pointer, &memory)
         return memory
-    }
+    }()
     
     public func getExtensions() throws -> [ExtensionProperties] {
         var count: UInt32 = 0
@@ -48,9 +67,7 @@ public final class PhysicalDevice {
         var properties = [VkExtensionProperties](repeating: VkExtensionProperties(), count: Int(count))
         result = vkEnumerateDeviceExtensionProperties(self.pointer, nil, &count, &properties)
         
-        guard result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Can't get extensions properties for GPU")
-        }
+        try vkCheck(result, "Can't get extensions properties for GPU")
         
         return properties.map(ExtensionProperties.init)
     }
@@ -86,28 +103,56 @@ public final class PhysicalDevice {
             throw VKError(code: result, message: "Can't get surface formats")
         }
         
-        var formats = [VkSurfaceFormatKHR](repeating: VkSurfaceFormatKHR(), count: Int(count))
-        result = vkGetPhysicalDeviceSurfaceFormatsKHR(self.pointer, surface.rawPointer, &count, &formats)
+        var items = [VkSurfaceFormatKHR](repeating: VkSurfaceFormatKHR(), count: Int(count))
+        result = vkGetPhysicalDeviceSurfaceFormatsKHR(self.pointer, surface.rawPointer, &count, &items)
         
-        guard result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Can't get surface formats")
+        try vkCheck(result, "Can't get surface formats")
+        
+        return items
+    }
+    
+    public func presentModes(for surface: Surface) throws -> [VkPresentModeKHR] {
+        var count: UInt32 = 0
+        var result = vkGetPhysicalDeviceSurfacePresentModesKHR(self.pointer, surface.rawPointer, &count, nil)
+        
+        guard result == VK_SUCCESS, count > 0 else {
+            throw VKError(code: result, message: "Can't get present modes")
         }
         
-        return formats
+        var items = [VkPresentModeKHR](repeating: VkPresentModeKHR(0), count: Int(count))
+        result = vkGetPhysicalDeviceSurfacePresentModesKHR(self.pointer, surface.rawPointer, &count, &items)
+        
+        try vkCheck(result, "Can't get present modes")
+        
+        return items
     }
     
     public func supportSurface(_ surface: Surface, queueFamily: QueueFamilyProperties) throws -> Bool {
         var support: VkBool32 = false
         let result = vkGetPhysicalDeviceSurfaceSupportKHR(self.pointer, queueFamily.index, surface.rawPointer, &support)
         
-        if result != VK_SUCCESS {
-            throw VKError(code: result, message: "Can't check surface support")
-        }
+        try vkCheck(result, "Can't check surface support")
         
         return support.boolValue
     }
     
     public func surfaceCapabilities(for surface: Surface) throws -> VkSurfaceCapabilitiesKHR {
-        fatalError()
+        var capabilities = VkSurfaceCapabilitiesKHR()
+        let result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(self.pointer, surface.rawPointer, &capabilities)
+        
+        try vkCheck(result, "Cannot get VkSurfaceCapabilitiesKHR")
+        
+        return capabilities
     }
 }
+
+public extension VkPresentModeKHR {
+    static let immediate: VkPresentModeKHR = VK_PRESENT_MODE_IMMEDIATE_KHR
+    static let mailbox: VkPresentModeKHR = VK_PRESENT_MODE_MAILBOX_KHR
+    static let fifo: VkPresentModeKHR = VK_PRESENT_MODE_FIFO_KHR
+    static let fifoRelaxed: VkPresentModeKHR = VK_PRESENT_MODE_FIFO_RELAXED_KHR
+    static let sharedDemandRefresh: VkPresentModeKHR = VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR
+    static let sharedContinuousRefresh: VkPresentModeKHR = VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR
+    static let maxEnum: VkPresentModeKHR = VK_PRESENT_MODE_MAX_ENUM_KHR
+}
+
