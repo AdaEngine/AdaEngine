@@ -94,13 +94,10 @@ final class World {
 }
 
 extension World {
+    // TODO: We should avoid additional allocation
     func performQuery(_ query: EntityQuery) -> QueryResult {
-        guard let archetype = archetypes.first(where: { query.predicate.evaluate($0) }) else {
-            return QueryResult(entities: [])
-        }
-        
-        // TODO: We should avoid additional allocation
-        return QueryResult(entities: archetype.entities)
+        let archetypes = self.archetypes.filter { query.predicate.evaluate($0) }
+        return QueryResult(archetypes: archetypes)
     }
 }
 

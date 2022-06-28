@@ -147,7 +147,7 @@ class GameScene {
         camera.projection = .orthographic
         camera.isPrimal = true
         userEntity.components += camera
-//        userEntity.components += ControlCameraComponent()
+        userEntity.components += ControlCameraComponent()
         scene.addEntity(userEntity)
         
 //        let editorCamera = EditorCameraEntity()
