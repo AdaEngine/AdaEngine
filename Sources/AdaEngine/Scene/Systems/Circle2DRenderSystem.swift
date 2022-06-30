@@ -5,18 +5,18 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
-struct Circle2DRenderSystem: System {
+struct Render2DSystem: System {
     
     static var dependencies: [SystemDependency] = [.after(ViewContainerSystem.self)]
     
-    static let query = EntityQuery(where: .has(Circle2DComponent.self) && .has(Transform.self))
+    static let spriteQuery = EntityQuery(where: (.has(Circle2DComponent.self) || .has(SpriteComponent.self)) && .has(Transform.self))
     
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        let entities = context.scene.performQuery(Self.query)
+        let spriteEntities = context.scene.performQuery(Self.spriteQuery)
         
-        guard !entities.isEmpty else { return }
+        guard !spriteEntities.isEmpty else { return }
         
         guard let window = context.scene.window else {
             return
@@ -25,17 +25,29 @@ struct Circle2DRenderSystem: System {
         RenderEngine2D.shared.beginContext(for: window.id, camera: context.scene.activeCamera)
         RenderEngine2D.shared.setDebugName("Circle2D Rendering")
         
-        entities.forEach { entity in
-            let (circle, transform) = entity.components[Circle2DComponent.self, Transform.self]
+        spriteEntities.forEach { entity in
+            guard let transform = entity.components[Transform.self] else {
+                assert(true, "Render 2d System don't have required Transform component")
+                
+                return
+            }
             
-//            RenderEngine2D.shared.drawQuad(transform: transform.matrix, color: circle.color)
+            if let circle = entity.components[Circle2DComponent.self] {
+                RenderEngine2D.shared.drawCircle(
+                    transform: transform.matrix,
+                    thickness: circle.thickness,
+                    fade: circle.fade,
+                    color: circle.color
+                )
+            }
             
-            RenderEngine2D.shared.drawCircle(
-                transform: transform.matrix,
-                thickness: circle.thickness,
-                fade: circle.fade,
-                color: circle.color
-            )
+            if let sprite = entity.components[SpriteComponent.self] {
+                RenderEngine2D.shared.drawQuad(
+                    transform: transform.matrix,
+                    texture: sprite.texture,
+                    color: .white
+                )
+            }
         }
         
         RenderEngine2D.shared.commitContext()

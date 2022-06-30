@@ -23,26 +23,27 @@ enum IndexBufferFormat {
 
 class MetalRenderBackend: RenderBackend {
     
-    var shaders: ResourceHashMap<Shader> = [:]
+    private let context: Context
+    private var currentFrameIndex: Int = 0
+    private var currentBuffers: [MTLCommandBuffer] = []
+    private var maxFramesInFlight = 3
     
-    let context: Context
-    var currentFrameIndex: Int = 0
-    var currentBuffers: [MTLCommandBuffer] = []
-    var maxFramesInFlight = 3
+    private var resourceMap: ResourceHashMap<MTLResource> = [:]
+    private var vertexBuffers: ResourceHashMap<Buffer> = [:]
+    private var indexBuffers: ResourceHashMap<Buffer> = [:]
+    private var uniformSet: ResourceHashMap<Uniform> = [:]
     
-    var resourceMap: ResourceHashMap<MTLResource> = [:]
-    var vertexBuffers: ResourceHashMap<Buffer> = [:]
-    var indexBuffers: ResourceHashMap<Buffer> = [:]
-    var uniformSet: ResourceHashMap<Uniform> = [:]
+    private var indexArrays: ResourceHashMap<IndexArray> = [:]
+    private var vertexArrays: ResourceHashMap<VertexArray> = [:]
     
-    var indexArrays: ResourceHashMap<IndexArray> = [:]
-    var vertexArrays: ResourceHashMap<VertexArray> = [:]
+    private var shaders: ResourceHashMap<Shader> = [:]
+    private var textures: ResourceHashMap<GPUTexture> = [:]
     
-    var renderPipelineStateMap: ResourceHashMap<MTLRenderPipelineState> = [:]
+    private var renderPipelineStateMap: ResourceHashMap<MTLRenderPipelineState> = [:]
     
-    var depthState: MTLDepthStencilState!
+    private var depthState: MTLDepthStencilState!
     
-    var inFlightSemaphore: DispatchSemaphore!
+    private var inFlightSemaphore: DispatchSemaphore!
     
     init(appName: String) {
         self.context = Context()
@@ -256,55 +257,90 @@ class MetalRenderBackend: RenderBackend {
     var drawList: ResourceHashMap<Draw> = [:]
 }
 
+// MARK: Texture
+
+extension MetalRenderBackend {
+    func makeTexture(from image: Image, type: Texture.TextureType, usage: Texture.Usage) -> RID {
+        
+        let descriptor = MTLTextureDescriptor()
+        
+        switch type {
+        case .cube:
+            descriptor.textureType = .typeCube
+        case .texture2D:
+            descriptor.textureType = .type2D
+        case .texture3D:
+            descriptor.textureType = .type3D
+        }
+        
+        var mtlUsage: MTLTextureUsage = []
+        
+        if usage.contains(.read) {
+            mtlUsage.insert(.shaderRead)
+        }
+        
+        if usage.contains(.write) {
+            mtlUsage.insert(.shaderWrite)
+        }
+        
+        if usage.contains(.render) {
+            mtlUsage.insert(.renderTarget)
+        }
+        
+        descriptor.usage = mtlUsage
+        
+        descriptor.width = image.width
+        descriptor.height = image.height
+        
+        let pixelFormat: MTLPixelFormat
+        
+        switch image.format {
+        case .rgba, .rgb:
+            pixelFormat = .rgba8Unorm_srgb
+        default:
+            pixelFormat = .bgra8Unorm_srgb
+        }
+        
+        descriptor.pixelFormat = pixelFormat
+        
+        guard let texture = self.context.physicalDevice.makeTexture(descriptor: descriptor) else {
+            fatalError("Cannot create texture")
+        }
+        
+        let region = MTLRegion(
+            origin: MTLOrigin(x: 0, y: 0, z: 0),
+            size: MTLSize(width: image.width, height: image.height, depth: 1)
+        )
+        
+        let bytesPerRow = 4 * image.width
+        
+        image.data.withUnsafeBytes { buffer in
+            precondition(buffer.baseAddress != nil, "Image should not contains empty address.")
+            
+            texture.replace(region: region, mipmapLevel: 0, withBytes: buffer.baseAddress!, bytesPerRow: bytesPerRow)
+        }
+        
+        return self.textures.setValue(GPUTexture(resource: texture, images: [image]))
+    }
+    
+    func removeTexture(by rid: RID) {
+        self.textures[rid] = nil
+    }
+    
+    func getImage(for texture2D: RID) -> Image? {
+        guard let texture = self.textures[texture2D] else {
+            assertionFailure("Texture for given rid not exists")
+            
+            return nil
+        }
+        
+        return texture.images.first!
+    }
+}
+
 // MARK: - Drawings
 
 extension MetalRenderBackend {
-    
-    struct Draw {
-        var window: Context.RenderWindow
-        var debugName: String?
-        let commandBuffer: MTLCommandBuffer
-        let renderPassDescriptor: MTLRenderPassDescriptor
-        var vertexArray: RID?
-        var indexArray: RID?
-        var uniformSet: [Int: RID] = [:]
-        var renderState: MTLRenderPipelineState?
-        var lineWidth: Float?
-    }
-    
-    struct Buffer {
-        var buffer: MTLBuffer
-        var offset: Int
-        var index: Int
-        
-        /// Only for index buffer
-        var indexFormat: IndexBufferFormat?
-    }
-    
-    struct Uniform {
-        var buffer: MTLBuffer
-        var offset: Int
-    }
-    
-    struct IndexArray {
-        var buffer: RID
-        var format: IndexBufferFormat
-        var offset: Int = 0
-        var indecies: Int = 0
-    }
-    
-    struct VertexArray {
-        var buffers: [RID] = []
-        var vertexCount: Int = 0
-    }
-    
-    struct Shader {
-        let binary: MTLLibrary
-        let vertexFunction: MTLFunction
-        let fragmentFunction: MTLFunction
-        
-        var vertexDescriptor: MTLVertexDescriptor = MTLVertexDescriptor()
-    }
     
     func beginDraw(for window: Window.ID) -> RID {
         guard let window = self.context.windows[window] else {
@@ -322,6 +358,10 @@ extension MetalRenderBackend {
         )
         
         return self.drawList.setValue(draw)
+    }
+    
+    func bindTexture(_ drawId: RID, texture: RID, at index: Int) {
+        self.drawList[drawId]?.textures[index] = texture
     }
     
     func bindDebugName(name: String, forDraw drawId: RID) {
@@ -449,6 +489,11 @@ extension MetalRenderBackend {
             }
         }
         
+        for (index, textureRid) in draw.textures {
+            let texture = self.textures[textureRid]?.resource
+            encoder.setFragmentTexture(texture, index: index)
+        }
+        
         for (index, uniRid) in draw.uniformSet {
             let uniform = self.uniformSet[uniRid]!
             encoder.setVertexBuffer(uniform.buffer, offset: uniform.offset, index: index)
@@ -477,6 +522,62 @@ extension MetalRenderBackend {
     }
 }
 
+extension MetalRenderBackend {
+    
+    struct Draw {
+        var window: Context.RenderWindow
+        var debugName: String?
+        let commandBuffer: MTLCommandBuffer
+        let renderPassDescriptor: MTLRenderPassDescriptor
+        var vertexArray: RID?
+        var indexArray: RID?
+        var uniformSet: [Int: RID] = [:]
+        var textures: [Int: RID] = [:]
+        var renderState: MTLRenderPipelineState?
+        var lineWidth: Float?
+    }
+    
+    struct Buffer {
+        var buffer: MTLBuffer
+        var offset: Int
+        var index: Int
+        
+        /// Only for index buffer
+        var indexFormat: IndexBufferFormat?
+    }
+    
+    struct Uniform {
+        var buffer: MTLBuffer
+        var offset: Int
+    }
+    
+    struct IndexArray {
+        var buffer: RID
+        var format: IndexBufferFormat
+        var offset: Int = 0
+        var indecies: Int = 0
+    }
+    
+    struct VertexArray {
+        var buffers: [RID] = []
+        var vertexCount: Int = 0
+    }
+    
+    struct Shader {
+        let binary: MTLLibrary
+        let vertexFunction: MTLFunction
+        let fragmentFunction: MTLFunction
+        
+        var vertexDescriptor: MTLVertexDescriptor = MTLVertexDescriptor()
+    }
+    
+    struct GPUTexture {
+        let resource: MTLTexture
+        let images: [Image]
+    }
+    
+}
+
 #endif
 
 // FIXME: Think about it
@@ -486,7 +587,7 @@ extension Bundle {
 #if SWIFT_PACKAGE
         return Bundle.module
 #else
-        return Bundle.init(for: BundleToken.self)
+        return Bundle(for: BundleToken.self)
 #endif
     }
 }

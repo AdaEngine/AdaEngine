@@ -79,7 +79,7 @@ class ControlCircleComponent: ScriptComponent {
 
 
 class GameScene {
-    func makeScene() -> Scene {
+    func makeScene() async throws -> Scene {
         let scene = Scene()
 
 //        
@@ -101,29 +101,35 @@ class GameScene {
 //        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
 //        scene.addEntity(trainEntity)
 //
+        
+//        let texture = try await ResourceManager.load("Assets/dog.png", from: .module) as Image
+        let image = await try Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/dog.png"))
+        let texture = Texture2D(from: image)
             
-        for i in 0..<1000 {
+        for i in 0..<2 {
             let viewEntity = Entity(name: "Circle \(i)")
             
-            let alpha: Float = Float.random(in: 0.3...1)
+//            let alpha: Float = Float.random(in: 0.3...1)
             
-            viewEntity.components += Circle2DComponent(
-                color: Color(
-                    Float.random(in: 0..<255) / 255,
-                    Float.random(in: 0..<255) / 255,
-                    Float.random(in: 0..<255) / 255,
-                    alpha
-                ),
-                thickness: 1
-            )
+//            viewEntity.components += Circle2DComponent(
+//                color: Color(
+//                    Float.random(in: 0..<255) / 255,
+//                    Float.random(in: 0..<255) / 255,
+//                    Float.random(in: 0..<255) / 255,
+//                    alpha
+//                ),
+//                thickness: 1
+//            )
             
-            let scale: Float = Float.random(in: 0.3...1)
+            viewEntity.components += SpriteComponent(texture: texture)
             
-            var transform = Transform()
-            transform.position = [Float.random(in: -5..<5), Float.random(in: -5..<5), 0]
-            transform.scale = [scale, scale, scale]
-            
-            viewEntity.components += transform
+//            let scale: Float = Float.random(in: 0.3...1)
+//
+//            var transform = Transform()
+//            transform.position = [Float.random(in: -5..<5), Float.random(in: -5..<5), 0]
+//            transform.scale = [scale, scale, scale]
+//
+//            viewEntity.components += transform
             
             scene.addEntity(viewEntity)
         }

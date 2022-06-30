@@ -13,6 +13,7 @@ import AppKit
 #endif
 
 /// A type that represents the structure and behavior of an app.
+/// - Tag: App
 public protocol App {
     /// Creates an instance of the app using the body that you define for its content.
     init()
@@ -50,7 +51,7 @@ public extension App {
         
         let appScene = app.scene
         let configuration = appScene._configuration
-        let window = appScene._makeWindow(with: configuration)
+        let window = try await appScene._makeWindow(with: configuration)
         
         window.showWindow(makeFocused: true)
         

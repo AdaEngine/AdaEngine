@@ -16,6 +16,8 @@ public struct RID: Equatable, Hashable {
 
 extension RID {
     
+    public static var empty = RID(id: -1)
+    
     /// Generate random unique rid
     init() {
         self.id = Self.readTime()

@@ -67,6 +67,7 @@ extension Archetype {
 
 extension Archetype {
     struct BitMask: Equatable, Hashable {
+        // TODO: Not efficient in memory layout.
         private var mask: Set<UInt>
         
         init(count: Int = 0) {
@@ -88,6 +89,10 @@ extension Archetype {
         
         func contains(_ identifier: UInt) -> Bool {
             return self.mask.contains(identifier)
+        }
+        
+        mutating func clear() {
+            self.mask.removeAll()
         }
         
         // MARK: Unsafe

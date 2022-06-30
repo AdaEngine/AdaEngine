@@ -26,6 +26,8 @@ public class RenderEngine2D {
         var vertices: [Int: [V]] = [:]
         var indeciesCount: [Int: Int] = [:]
         var piplineState: RID
+        var textureSlots: [Texture2D] = []
+        var textureSlotIndex: Int = 1 // 0 for white texture
     }
     
     var circleData: Data<CircleVertexData>
@@ -105,16 +107,28 @@ public class RenderEngine2D {
         self.startBatch()
     }
     
-    public func drawQuad(transform: Transform3D, color: Color) {
+    public func drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color) {
         
         if self.quadData.indeciesCount.count >= Self.maxIndecies {
             self.nextBatch()
         }
         
-        for quad in quadPosition {
+        let textureCoordinates: [Vector2] = [
+            [0, 1], [1, 1], [1, 0], [0, 0]
+        ]
+        
+        // TODO: Not efficient
+        if let texture = texture, !self.quadData.textureSlots.contains(where: { $0.rid == texture.rid }) {
+            self.quadData.textureSlots.append(texture)
+        }
+        
+        for index in 0..<quadPosition.count {
             let data = QuadVertexData(
-                position: quad * transform,
-                color: color
+                position: quadPosition[index] * transform,
+                color: color,
+                textureCoordinate: textureCoordinates[index],
+                textureIndex: 0,
+                tilingFactor: 0
             )
             
             self.quadData.vertices[self.currentZIndex, default: []].append(data)
@@ -193,6 +207,10 @@ public class RenderEngine2D {
             for index in indicies {
                 let verticies = self.quadData.vertices[index]!
                 
+                for texture in self.quadData.textureSlots {
+                    device.bindTexture(self.currentDraw, texture: texture.rid, at: 0)
+                }
+                
                 device.setVertexBufferData(
                     self.quadData.vertexBuffer,
                     bytes: verticies,
@@ -243,6 +261,9 @@ extension RenderEngine2D {
     struct QuadVertexData {
         var position: Vector4
         var color: Color
+        var textureCoordinate: Vector2
+        var textureIndex: Float
+        var tilingFactor: Float
     }
     
     private static func makeCircleData() -> Data<CircleVertexData> {
@@ -317,6 +338,10 @@ extension RenderEngine2D {
         vertDescriptor.attributes[1].format = .vector4
         vertDescriptor.attributes[1].bufferIndex = 0
         vertDescriptor.attributes[1].offset = MemoryLayout.offset(of: \QuadVertexData.color)!
+        
+        vertDescriptor.attributes[2].format = .vector2
+        vertDescriptor.attributes[2].bufferIndex = 0
+        vertDescriptor.attributes[2].offset = MemoryLayout.offset(of: \QuadVertexData.textureCoordinate)!
         
         vertDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
         shaderDescriptor.vertexDescriptor = vertDescriptor

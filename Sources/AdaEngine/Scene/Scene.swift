@@ -106,7 +106,7 @@ public final class Scene {
         // Add base systems
         self.addSystem(ScriptComponentUpdateSystem.self)
         self.addSystem(CameraSystem.self)
-        self.addSystem(Circle2DRenderSystem.self)
+        self.addSystem(Render2DSystem.self)
         self.addSystem(ViewContainerSystem.self)
         
         self.isReady = true
