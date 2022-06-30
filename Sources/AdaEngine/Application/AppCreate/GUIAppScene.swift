@@ -18,7 +18,7 @@ public struct GUIAppScene: AppScene {
         self.window = window
     }
     
-    public func _makeWindow(with configuration: _AppSceneConfiguration) -> Window {
+    public func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window {
         let window = window()
         
         if window.frame.size == .zero {

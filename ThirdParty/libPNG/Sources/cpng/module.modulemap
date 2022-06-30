@@ -1,0 +1,5 @@
+module cpng [system] {
+  header "libpng.h"
+  link "png"
+  export *
+}

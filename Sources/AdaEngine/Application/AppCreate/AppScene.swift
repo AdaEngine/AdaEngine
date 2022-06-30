@@ -10,7 +10,7 @@ public protocol AppScene {
     var scene: Body { get }
     
     var _configuration: _AppSceneConfiguration { get set }
-    func _makeWindow(with configuration: _AppSceneConfiguration) -> Window
+    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window
 }
 
 public struct _AppSceneConfiguration {

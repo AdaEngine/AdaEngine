@@ -8,7 +8,7 @@
 import MetalKit
 import ModelIO
 
-public class Mesh: Resource {
+public class Mesh {
     
     public struct Surface: Identifiable {
         

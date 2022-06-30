@@ -6,13 +6,13 @@
 //
 
 /// Main class represented application instance.
-/// Application cannot be created manualy use [ApplicationCreate](x-source-tag://ApplicationCreate) function instead.
+/// Application cannot be created manualy use interface [App](x-source-tag://App) instead.
 /// To get access to Application instance, use static property `shared`
 open class Application {
     
     // MARK: - Public
     
-    /// Contains application instance if application created from [ApplicationCreate](x-source-tag://ApplicationCreate) function.
+    /// Contains application instance if application created from [App](x-source-tag://App).
     public internal(set) static var shared: Application!
     
     private(set) var gameLoop: GameLoop = GameLoop.current
@@ -64,5 +64,13 @@ open class Application {
     /// Call this method to show specific alert.
     open func showAlert(_ alert: Alert) {
         assertionFailure("Not implemented")
+    }
+}
+
+public extension Application {
+    enum State {
+        case active
+        case inactive
+        case background
     }
 }

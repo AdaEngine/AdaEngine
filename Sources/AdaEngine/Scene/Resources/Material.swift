@@ -9,11 +9,7 @@ public protocol Material: Resource {
     
 }
 
-enum MaterialBox: Codable {
-    case base(BaseMaterial)
-}
-
-public struct BaseMaterial: Material {
+public struct BaseMaterial {
     public var diffuseColor: Color
     public var metalic: Float
 }

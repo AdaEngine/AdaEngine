@@ -37,12 +37,6 @@ var products: [Product] = [
 
 let isVulkanEnabled = ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil
 
-if isVulkanEnabled {
-    products.append(
-        .plugin(name: "SPIR-V", targets: ["SPIRVPlugin"])
-    )
-}
-
 // TODO: It's works if we wrap sources to .swiftpm container
 #if canImport(AppleProductTypes)
 //let ios = Product.iOSApplication(
@@ -103,6 +97,9 @@ let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
     dependencies: ["AdaEngine", "Math"],
     exclude: ["Project.swift", "Derived"],
+    resources: [
+        .copy("Assets")
+    ],
     swiftSettings: [
         .define("EDITOR_DEBUG", .when(configuration: .debug)),
         
@@ -125,7 +122,8 @@ let adaEngineTarget: Target = .target(
         "Math",
         .product(name: "stb_image", package: "Cstb"),
         .product(name: "Collections", package: "swift-collections"),
-        "Yams"
+        "Yams",
+        "LibPNG"
     ],
     exclude: ["Project.swift", "Derived"],
     resources: [
@@ -173,57 +171,6 @@ targets += [
 targets.append(contentsOf: swiftLintTargets)
 #endif
 
-// MARK: - Vulkan
-
-// We turn on vulkan via build
-if isVulkanEnabled {
-    
-    let vulkanName = "Vulkan"
-    
-    let vulkanTargets: [Target] = [
-        .target(
-            name: vulkanName,
-            dependencies: ["CVulkan"],
-            exclude: ["Project.swift", "Derived"],
-            cxxSettings: [
-                // Apple
-                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
-                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
-                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
-                
-                // Android
-                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
-                
-                // Windows
-                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
-            ]
-        ),
-        .systemLibrary(
-            name: "CVulkan",
-            pkgConfig: "vulkan"
-        ),
-        .plugin(
-            name: "SPIRVBuildPlugin",
-            capability: .buildTool()
-        ),
-        .plugin(
-            name: "SPIRVPlugin",
-            capability:
-                    .command(
-                        intent: .custom(verb: "spirv", description: "Compile vert and frag shaders to spirv binary"),
-                        permissions: [
-                            .writeToPackageDirectory(reason: "Compile vert and frag shaders to spirv binary")
-                        ]
-                    )
-        )
-    ]
-    
-    targets.append(contentsOf: vulkanTargets)
-    
-    editorTarget.dependencies.append(.target(name: vulkanName))
-    adaEngineTarget.dependencies.append(.target(name: vulkanName))
-}
-
 // MARK: - Package -
 
 let package = Package(
@@ -238,6 +185,7 @@ let package = Package(
         .package(url: "https://github.com/troughton/Cstb.git", from: "1.0.5"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.1"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.1"),
+        .package(name: "LibPNG", path: "ThirdParty/libPNG"),
         
         // Plugins
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")
@@ -245,3 +193,11 @@ let package = Package(
     targets: targets,
     swiftLanguageVersions: [.v5]
 )
+
+// MARK: - Vulkan
+//
+//// We turn on vulkan via build
+//if isVulkanEnabled {
+//    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
+//    package.dependencies.append(.package(path: "ThirdParty/Vulkan"))
+//}

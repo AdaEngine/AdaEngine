@@ -72,6 +72,14 @@ protocol RenderBackend: AnyObject {
     
     func removeUniform(_ rid: RID)
     
+    // MARK: - Texture
+    
+    func makeTexture(from image: Image, type: Texture.TextureType, usage: Texture.Usage) -> RID
+    
+    func removeTexture(by rid: RID)
+    
+    func getImage(for texture2D: RID) -> Image?
+    
     // MARK: - Draw
     
     func beginDraw(for window: Window.ID) -> RID
@@ -81,6 +89,8 @@ protocol RenderBackend: AnyObject {
     func bindIndexArray(_ draw: RID, indexArray: RID)
     
     func bindUniformSet(_ draw: RID, uniformSet: RID, at index: Int)
+    
+    func bindTexture(_ draw: RID, texture: RID, at index: Int)
     
     func bindRenderState(_ draw: RID, renderPassId: RID)
     
@@ -92,4 +102,10 @@ protocol RenderBackend: AnyObject {
     
     /// Release any data associated with the current draw.
     func drawEnd(_ drawId: RID)
+}
+
+extension RenderBackend {
+    func makeTexture(_ type: Texture.TextureType, usage: Texture.Usage, width: Int = 1, height: Int = 1) -> RID {
+        self.makeTexture(type, usage: usage, width: width, height: height)
+    }
 }

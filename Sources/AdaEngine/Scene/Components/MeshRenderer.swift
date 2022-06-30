@@ -25,7 +25,7 @@ public class MeshRenderer: ScriptComponent {
         }
     }
     
-    @Export
+//    @Export - currently not supported for resources
     public var mesh: Mesh? {
         didSet {
             self.updateDrawableSource()
