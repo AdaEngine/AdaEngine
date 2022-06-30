@@ -22,11 +22,11 @@ public final class Image {
         self.data = Data()
         self.height = 1
         self.width = 1
-        self.format = .rgba
+        self.format = .rgba8
     }
     
     /// Create an empty image with given height and width.
-    public init(width: Int, height: Int, data: Data? = nil, format: Format = .rgba) {
+    public init(width: Int, height: Int, data: Data? = nil, format: Format = .rgba8) {
         assert(width > 0, "Width must be greater than 0.")
         assert(height > 0, "Height must be greater than 0.")
         
@@ -36,12 +36,16 @@ public final class Image {
         self.format = format
     }
 
+    public required init(assetFrom data: Data) async throws {
+        fatalError()
+    }
 }
 
 public extension Image {
     enum Format: UInt16 {
-        case rgba
-        case rgb
+        case rgba8
+        case rgb8
+        case bgra8
         case gray
     }
 }
@@ -89,15 +93,11 @@ public extension Image {
 }
 
 extension Image: Resource {
-//    
+//
 //    struct ImageAssetRepresentation: Codable {
 //        let format: Image.Format
 //        let image: Data
 //    }
-    
-    public static func load(from data: Data) async throws -> Image {
-        fatalError()
-    }
     
     public func encodeContents() async throws -> Data {
         fatalError()

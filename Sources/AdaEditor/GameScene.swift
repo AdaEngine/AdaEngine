@@ -103,13 +103,23 @@ class GameScene {
 //
         
 //        let texture = try await ResourceManager.load("Assets/dog.png", from: .module) as Image
-        let image = await try Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/dog.png"))
-        let texture = Texture2D(from: image)
+//        let dog = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/dog.png"))
+        
+        let tiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
+        
+        let texture = TextureAtlas(from: tiles, size: [18, 18])
             
         for i in 0..<2 {
             let viewEntity = Entity(name: "Circle \(i)")
-            
+//
 //            let alpha: Float = Float.random(in: 0.3...1)
+//
+//            let color = Color(
+//                Float.random(in: 0..<255) / 255,
+//                Float.random(in: 0..<255) / 255,
+//                Float.random(in: 0..<255) / 255,
+//                alpha
+//            )
             
 //            viewEntity.components += Circle2DComponent(
 //                color: Color(
@@ -121,16 +131,10 @@ class GameScene {
 //                thickness: 1
 //            )
             
-            viewEntity.components += SpriteComponent(texture: texture)
-            
-//            let scale: Float = Float.random(in: 0.3...1)
-//
-//            var transform = Transform()
-//            transform.position = [Float.random(in: -5..<5), Float.random(in: -5..<5), 0]
-//            transform.scale = [scale, scale, scale]
-//
-//            viewEntity.components += transform
-            
+            viewEntity.components += SpriteComponent(
+                texture: texture[4, 3]
+            )
+
             scene.addEntity(viewEntity)
         }
         
@@ -161,7 +165,7 @@ class GameScene {
 //        camera.isPrimal = true
 //        scene.addEntity(editorCamera)
 //
-//        scene.addSystem(EditorCameraSystem.selfa)
+//        scene.addSystem(EditorCameraSystem.self)
         
         return scene
     }

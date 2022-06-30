@@ -41,9 +41,11 @@ struct PNGImageSerializer: ImageLoaderStrategy {
         
         switch pngImage.format {
         case PNG_FORMAT_RGB:
-            format = .rgb
+            format = .rgb8
         case (PNG_FORMAT_RGB | PNG_FORMAT_FLAG_ALPHA): // rgba
-            format = .rgba
+            format = .rgba8
+        case PNG_FORMAT_BGRA:
+            format = .bgra8
         case UInt32(PNG_FORMAT_GRAY):
             format = .gray
         default:

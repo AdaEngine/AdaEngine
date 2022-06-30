@@ -7,8 +7,10 @@
 
 public struct SpriteComponent: Component {
     public var texture: Texture2D
+    public var tintColor: Color
     
-    public init(texture: Texture2D) {
+    public init(texture: Texture2D, tintColor: Color = .white) {
         self.texture = texture
+        self.tintColor = tintColor
     }
 }

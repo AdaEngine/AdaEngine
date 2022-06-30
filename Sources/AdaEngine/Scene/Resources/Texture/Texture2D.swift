@@ -8,29 +8,43 @@
 import Foundation
 import Yams
 
-public final class Texture2D: Texture {
+open class Texture2D: Texture {
     
-    public convenience init(from image: Image) {
-        let rid = RenderEngine.shared.renderBackend.makeTexture(from: image, type: .texture2D, usage: [.read, .write, .render])
+    public private(set) var width: Float
+    public private(set) var height: Float
+    
+    public init(from image: Image) {
+        let rid = RenderEngine.shared.renderBackend.makeTexture(from: image, type: .texture2D, usage: [.read, .render])
         
-        self.init(rid: rid, textureType: .texture2D)
+        self.width = Float(image.width)
+        self.height = Float(image.height)
+        
+        super.init(rid: rid, textureType: .texture2D)
     }
-}
-
-// MARK: - Resource
-
-extension Texture2D: Resource {
+    
+    open var textureCoordinates: [Vector2] = [
+        [0, 1], [1, 1], [1, 0], [0, 0]
+    ]
+    
+    internal init(rid: RID, size: Size) {
+        self.width = size.width
+        self.height = size.height
+        
+        super.init(rid: rid, textureType: .texture2D)
+    }
+    
+    // MARK: - Resource
     
     struct TextureRepresentation: Codable {
         let type: TextureType
         let imageData: Data
     }
     
-    public static func load(from data: Data) async throws -> Texture2D {
+    public required init(assetFrom data: Data) async throws {
         let decoder = YAMLDecoder()
         let representation = try decoder.decode(TextureRepresentation.self, from: data)
 
-        let image = try await Image.load(from: representation.imageData)
+        let image = try await Image(assetFrom: representation.imageData)
         
         let rid = RenderEngine.shared.renderBackend.makeTexture(
             from: image,
@@ -38,10 +52,13 @@ extension Texture2D: Resource {
             usage: [.read, .render]
         )
         
-        return Texture2D(rid: rid, textureType: representation.type)
+        self.width = Float(image.width)
+        self.height = Float(image.height)
+        
+        super.init(rid: rid, textureType: representation.type)
     }
-    
-    public func encodeContents() async throws -> Data {
+
+    public override func encodeContents() async throws -> Data {
         guard let image = RenderEngine.shared.renderBackend.getImage(for: self.rid) else {
             throw ResourceError.message("Image not exists for texture.")
         }

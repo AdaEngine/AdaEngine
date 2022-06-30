@@ -35,7 +35,7 @@ public protocol Resource: AnyObject {
     /// Data is the same data given from `encodedContents()` method.
     /// - Parameter data: Resource data.
     /// - Returns: Return instance of resource
-    static func load(from data: Data) async throws -> Self
+    init(assetFrom data: Data) async throws
     
     /// To store resource on the disk, you should implement this method.
     /// This data will return to `load(from:)` method when Resource will load.

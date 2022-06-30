@@ -269,6 +269,8 @@ extension MetalRenderBackend {
             descriptor.textureType = .typeCube
         case .texture2D:
             descriptor.textureType = .type2D
+        case .texture2DArray:
+            descriptor.textureType = .type2DArray
         case .texture3D:
             descriptor.textureType = .type3D
         }
@@ -288,15 +290,16 @@ extension MetalRenderBackend {
         }
         
         descriptor.usage = mtlUsage
-        
         descriptor.width = image.width
         descriptor.height = image.height
         
         let pixelFormat: MTLPixelFormat
         
         switch image.format {
-        case .rgba, .rgb:
+        case .rgba8, .rgb8:
             pixelFormat = .rgba8Unorm_srgb
+        case .bgra8:
+            pixelFormat = .bgra8Unorm_srgb
         default:
             pixelFormat = .bgra8Unorm_srgb
         }

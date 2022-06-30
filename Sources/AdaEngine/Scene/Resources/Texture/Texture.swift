@@ -7,7 +7,7 @@
 
 import Foundation
 
-public class Texture {
+open class Texture: Resource {
     
     private(set) var rid: RID
     private(set) var textureType: TextureType
@@ -16,12 +16,28 @@ public class Texture {
         self.rid = rid
         self.textureType = textureType
     }
+    
+    deinit {
+        /// We should remove it from memory if nobody use it
+        RenderEngine.shared.renderBackend.removeTexture(by: self.rid)
+    }
+    
+    // MARK: - Resources
+    
+    public required init(assetFrom data: Data) async throws {
+        fatalError()
+    }
+    
+    public func encodeContents() async throws -> Data {
+        fatalError()
+    }
 }
 
 public extension Texture {
     enum TextureType: UInt16, Codable {
         case cube
         case texture2D
+        case texture2DArray
         case texture3D
     }
     

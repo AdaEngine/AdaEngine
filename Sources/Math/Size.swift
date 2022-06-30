@@ -18,3 +18,11 @@ public struct Size: Equatable, Codable, Hashable {
 public extension Size {
     static let zero = Size(width: 0, height: 0)
 }
+
+extension Size: ExpressibleByArrayLiteral {
+    public init(arrayLiteral elements: Float...) {
+        assert(elements.count == 2, "Array must be contains only two elements.")
+        
+        self.init(width: elements[0], height: elements[1])
+    }
+}
