@@ -27,7 +27,6 @@ public class RenderEngine2D {
         var indeciesCount: [Int: Int] = [:]
         var piplineState: RID
         var textureSlots: [Texture2D] = []
-        var textureSlotIndex: Int = 1 // 0 for white texture
     }
     
     var circleData: Data<CircleVertexData>
@@ -113,10 +112,6 @@ public class RenderEngine2D {
             self.nextBatch()
         }
         
-        let textureCoordinates: [Vector2] = [
-            [0, 1], [1, 1], [1, 0], [0, 0]
-        ]
-        
         // TODO: Not efficient
         if let texture = texture, !self.quadData.textureSlots.contains(where: { $0.rid == texture.rid }) {
             self.quadData.textureSlots.append(texture)
@@ -126,9 +121,7 @@ public class RenderEngine2D {
             let data = QuadVertexData(
                 position: quadPosition[index] * transform,
                 color: color,
-                textureCoordinate: textureCoordinates[index],
-                textureIndex: 0,
-                tilingFactor: 0
+                textureCoordinate: texture?.textureCoordinates[index] ?? .zero
             )
             
             self.quadData.vertices[self.currentZIndex, default: []].append(data)
@@ -262,8 +255,6 @@ extension RenderEngine2D {
         var position: Vector4
         var color: Color
         var textureCoordinate: Vector2
-        var textureIndex: Float
-        var tilingFactor: Float
     }
     
     private static func makeCircleData() -> Data<CircleVertexData> {

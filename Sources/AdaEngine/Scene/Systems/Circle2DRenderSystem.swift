@@ -23,11 +23,11 @@ struct Render2DSystem: System {
         }
         
         RenderEngine2D.shared.beginContext(for: window.id, camera: context.scene.activeCamera)
-        RenderEngine2D.shared.setDebugName("Circle2D Rendering")
+        RenderEngine2D.shared.setDebugName("Start 2D Rendering scene")
         
         spriteEntities.forEach { entity in
             guard let transform = entity.components[Transform.self] else {
-                assert(true, "Render 2d System don't have required Transform component")
+                assert(true, "Render 2D System don't have required Transform component")
                 
                 return
             }
@@ -45,7 +45,7 @@ struct Render2DSystem: System {
                 RenderEngine2D.shared.drawQuad(
                     transform: transform.matrix,
                     texture: sprite.texture,
-                    color: .white
+                    color: sprite.tintColor
                 )
             }
         }

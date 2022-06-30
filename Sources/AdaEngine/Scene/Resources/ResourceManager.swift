@@ -54,7 +54,7 @@ public final class ResourceManager {
             throw ResourceError.notExistAtPath(path)
         }
         
-        let resource = try await R.load(from: data)
+        let resource = try await R.init(assetFrom: data)
         
         self.loadedResources[path] = resource
         
