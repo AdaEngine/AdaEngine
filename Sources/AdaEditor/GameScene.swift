@@ -110,7 +110,6 @@ class GameScene {
         let texture = TextureAtlas(from: tiles, size: [18, 18])
         let animated = AnimatedTexture()
         animated.framePerSeconds = 1
-        animated.isRepeated = false
         
         animated.framesCount = 3
         animated[0] = texture[4, 3]
