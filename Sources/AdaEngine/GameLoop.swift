@@ -13,6 +13,8 @@ final class GameLoop {
     
     private(set) var isIterating = false
     
+    var isFirstTick: Bool = true
+    
     // MARK: Internal Methods
     
     func iterate() throws {
@@ -27,6 +29,13 @@ final class GameLoop {
         let now = Time.absolute
         let deltaTime = max(0, now - self.lastUpdate)
         self.lastUpdate = now
+        
+        if isFirstTick {
+            isFirstTick = false
+            return
+        }
+        
+        EventManager.default.send(EngineEvent.GameLoopBegan(deltaTime: deltaTime))
         
         Input.shared.processEvents()
         

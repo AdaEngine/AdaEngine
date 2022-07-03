@@ -108,7 +108,15 @@ class GameScene {
         let tiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
         
         let texture = TextureAtlas(from: tiles, size: [18, 18])
-            
+        let animated = AnimatedTexture()
+        animated.framePerSeconds = 1
+        animated.isRepeated = false
+        
+        animated.framesCount = 3
+        animated[0] = texture[4, 3]
+        animated[1] = texture[5, 3]
+        animated[2] = texture[6, 3]
+        
         for i in 0..<2 {
             let viewEntity = Entity(name: "Circle \(i)")
 //
@@ -132,7 +140,7 @@ class GameScene {
 //            )
             
             viewEntity.components += SpriteComponent(
-                texture: texture[4, 3]
+                texture: animated
             )
 
             scene.addEntity(viewEntity)

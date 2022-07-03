@@ -18,7 +18,15 @@ open class Texture: Resource {
     }
     
     deinit {
-        /// We should remove it from memory if nobody use it
+        self.freeTexture()
+    }
+    
+    /// This method remove texture from GPU.
+    ///
+    /// - Warning: You should not use it method directly, this called once when Resource deinited from memory
+    /// In some cases we shouldn't release texture from GPU memory, than we need override this method
+    /// with empty realisation.
+    func freeTexture() {
         RenderEngine.shared.renderBackend.removeTexture(by: self.rid)
     }
     
