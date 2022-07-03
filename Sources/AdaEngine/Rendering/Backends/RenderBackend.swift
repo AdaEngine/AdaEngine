@@ -103,9 +103,3 @@ protocol RenderBackend: AnyObject {
     /// Release any data associated with the current draw.
     func drawEnd(_ drawId: RID)
 }
-
-extension RenderBackend {
-    func makeTexture(_ type: Texture.TextureType, usage: Texture.Usage, width: Int = 1, height: Int = 1) -> RID {
-        self.makeTexture(type, usage: usage, width: width, height: height)
-    }
-}

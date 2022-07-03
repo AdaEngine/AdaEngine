@@ -9,12 +9,11 @@ import Foundation
 import Math
 
 public final class TextureAtlas: Texture2D {
-    private var spriteSize: Size
-    private var margin: Size
+    
+    private let spriteSize: Size
     
     public init(from image: Image, size: Size) {
         self.spriteSize = size
-        self.margin = .zero
         
         super.init(from: image)
     }
@@ -35,6 +34,7 @@ public final class TextureAtlas: Texture2D {
         return self.textureSlice(at: Vector2(x: x, y: y))
     }
     
+    /// Create slice of texture referenced on 
     public func textureSlice(at position: Vector2) -> Slice {
         let min = Vector2(
             (position.x * spriteSize.width) / Float(self.width),
@@ -58,6 +58,7 @@ public final class TextureAtlas: Texture2D {
 
 public extension TextureAtlas {
     
+    /// Slice from texture atlas needed to reference on specific texture.
     final class Slice: Texture2D {
         
         // we should store ref to atlas, because if altas deiniting from memory
@@ -78,6 +79,10 @@ public extension TextureAtlas {
             ]
         }
         
+        override func freeTexture() {
+            // we should not release atlas
+        }
+        
         public required init(assetFrom data: Data) async throws {
             fatalError("You cannot load slice from asset.")
         }
@@ -85,6 +90,5 @@ public extension TextureAtlas {
         public override func encodeContents() async throws -> Data {
             fatalError("You cannot save slice to asset")
         }
-        
     }
 }

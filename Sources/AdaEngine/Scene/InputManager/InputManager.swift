@@ -19,7 +19,7 @@ public final class Input {
     
     internal var mousePosition: Point = .zero
     
-    internal var eventsPool: [Event] = []
+    internal var eventsPool: [InputEvent] = []
     
     internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
@@ -110,12 +110,12 @@ public final class Input {
         self.eventsPool.removeAll()
     }
     
-    func receiveEvent(_ event: Event) {
+    func receiveEvent(_ event: InputEvent) {
         self.eventsPool.append(event)
     }
 }
 
-public class Event: Hashable, Identifiable {
+public class InputEvent: Hashable, Identifiable {
     
     public let time: TimeInterval
     
@@ -123,7 +123,7 @@ public class Event: Hashable, Identifiable {
         self.time = time
     }
     
-    public static func == (lhs: Event, rhs: Event) -> Bool {
+    public static func == (lhs: InputEvent, rhs: InputEvent) -> Bool {
         return lhs.time == rhs.time
     }
     
@@ -133,7 +133,7 @@ public class Event: Hashable, Identifiable {
     
 }
 
-public class KeyEvent: Event {
+public class KeyEvent: InputEvent {
     
     public enum Status: UInt8, Hashable {
         case up
@@ -159,7 +159,7 @@ public class KeyEvent: Event {
     
 }
 
-public final class MouseEvent: Event {
+public final class MouseEvent: InputEvent {
     
     public enum Phase: UInt8, Hashable {
         case began
@@ -186,7 +186,7 @@ public final class MouseEvent: Event {
     }
 }
 
-public final class TouchEvent: Event {
+public final class TouchEvent: InputEvent {
     
     internal init(location: Point, time: TimeInterval) {
         self.location = location
@@ -219,86 +219,4 @@ public extension InputEventHandler {
     func keyUp(_ event: KeyEvent) { }
     
     func keyDown(_ event: KeyEvent) { }
-}
-
-class WeakBox<T: AnyObject>: Identifiable, Hashable {
-    
-    weak var value: T?
-    
-    var isEmpty: Bool {
-        return value == nil
-    }
-    
-    let id: ObjectIdentifier
-    
-    init(value: T) {
-        self.value = value
-        self.id = ObjectIdentifier(value)
-    }
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(self.id)
-    }
-    
-    static func == (lhs: WeakBox<T>, rhs: WeakBox<T>) -> Bool {
-        return lhs.id == rhs.id
-    }
-}
-
-struct WeakSet<T: AnyObject>: Sequence {
-    
-    typealias Element = T
-    typealias Iterator = WeakIterator
-    
-    var buffer: Set<WeakBox<T>>
-    
-    class WeakIterator: IteratorProtocol {
-        
-        let buffer: [WeakBox<T>]
-        let currentIndex: UnsafeMutablePointer<Int>
-        
-        init(buffer: Set<WeakBox<T>>) {
-            self.buffer = Array(buffer.filter { !$0.isEmpty })
-            self.currentIndex = UnsafeMutablePointer<Int>.allocate(capacity: 1)
-            self.currentIndex.pointee = -1
-        }
-        
-        deinit {
-            self.currentIndex.deallocate()
-        }
-        
-        func next() -> Element? {
-            
-            self.currentIndex.pointee += 0
-            
-            if buffer.endIndex == self.currentIndex.pointee {
-                return nil
-            }
-            
-            return buffer[self.currentIndex.pointee].value
-        }
-        
-    }
-    
-    @inlinable func makeIterator() -> Iterator {
-        return WeakIterator(buffer: self.buffer)
-    }
-    
-    mutating func insert(_ member: T) {
-        var buffer = self.buffer.filter { !$0.isEmpty }
-        buffer.insert(WeakBox(value: member))
-        self.buffer = buffer
-    }
-    
-    mutating func remove(_ member: T) {
-        self.buffer.remove(WeakBox(value: member))
-    }
-}
-
-extension WeakSet: ExpressibleByArrayLiteral {
-    typealias ArrayLiteralElement = T
-    
-    init(arrayLiteral elements: ArrayLiteralElement...) {
-        self.buffer = Set(elements.map { WeakBox(value: $0) })
-    }
 }

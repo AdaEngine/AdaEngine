@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  Texture2D.swift
 //  
 //
 //  Created by v.prusakov on 6/28/22.
@@ -22,7 +22,7 @@ open class Texture2D: Texture {
         super.init(rid: rid, textureType: .texture2D)
     }
     
-    open var textureCoordinates: [Vector2] = [
+    open internal(set) var textureCoordinates: [Vector2] = [
         [0, 1], [1, 1], [1, 0], [0, 0]
     ]
     

@@ -24,3 +24,9 @@ final public class Engine {
     // MARK: - Internal Methods
     
 }
+
+public enum EngineEvent {
+    public struct GameLoopBegan: Event {
+        public let deltaTime: TimeInterval
+    }
+}

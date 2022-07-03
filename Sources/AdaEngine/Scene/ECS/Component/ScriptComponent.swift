@@ -35,7 +35,7 @@ open class ScriptComponent: Component {
     }
     
     /// Called each time when scene recive events.
-    open func onEvent(_ event: Set<Event>) {
+    open func onEvent(_ event: Set<InputEvent>) {
         
     }
     
