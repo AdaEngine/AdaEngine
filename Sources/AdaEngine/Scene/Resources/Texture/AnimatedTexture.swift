@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 7/3/22.
 //
 
+import Yams
+
 /// Animated textures can be applied to sprites to animate it.
 /// This kind of textures can apply any 2D Textures to animate them.
 public final class AnimatedTexture: Texture2D {
@@ -91,12 +93,50 @@ public final class AnimatedTexture: Texture2D {
     
     // MARK: - Resources
     
+    struct AssetRepresentation: Codable {
+        
+        struct Frame: Codable {
+            let texture: Data
+            let delay: Float
+        }
+        
+        var frames: [Frame]
+        var fps: Float
+        var isRepeated: Bool
+    }
+    
     public required init(assetFrom data: Data) async throws {
         fatalError("init(assetFrom:) has not been implemented")
     }
     
     public override func encodeContents() async throws -> Data {
-        fatalError()
+        var frames: [AssetRepresentation.Frame] = []
+        
+        for index in 0 ..< self.framesCount {
+            
+            let frame = self.frames[index]
+            guard let texture = frame.texture else {
+                continue
+            }
+            
+            let data = try await texture.encodeContents()
+            
+            let item = AssetRepresentation.Frame(
+                texture: data,
+                delay: frame.delay
+            )
+            
+            frames.append(item)
+        }
+        
+        let asset = AssetRepresentation(
+            frames: frames,
+            fps: self.framePerSeconds,
+            isRepeated: self.isRepeated
+        )
+        
+        let encoder = YAMLEncoder()
+        return try encoder.encode(asset).data(using: .utf8)!
     }
     
     public subscript(_ frame: Int) -> Texture2D? {
