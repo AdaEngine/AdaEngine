@@ -40,13 +40,13 @@ public final class AnimatedTexture: Texture2D {
     
     /// Indicates how much frames will animated per second.
     @InRange(1..<1000)
-    public var framePerSeconds: Float = 4.0
+    public var framesPerSecond: Float = 4.0
     
     /// Indicates that animation on pause.
     public var isPaused: Bool = false
     
-    /// Indicates that animated texture repeat animation. Default value is true.
-    public var isRepeated: Bool = true
+    /// Include options for texture. By default contains `repeat` animation.
+    public var options: Options = [.repeat]
     
     /// Return RID of current frame
     override var rid: RID {
@@ -100,9 +100,9 @@ public final class AnimatedTexture: Texture2D {
             let delay: Float
         }
         
-        var frames: [Frame]
-        var fps: Float
-        var isRepeated: Bool
+        let frames: [Frame]
+        let fps: Float
+        let options: UInt8
     }
     
     public required init(assetFrom data: Data) async throws {
@@ -131,8 +131,8 @@ public final class AnimatedTexture: Texture2D {
         
         let asset = AssetRepresentation(
             frames: frames,
-            fps: self.framePerSeconds,
-            isRepeated: self.isRepeated
+            fps: self.framesPerSecond,
+            options: self.options.rawValue
         )
         
         let encoder = YAMLEncoder()
@@ -177,14 +177,14 @@ public final class AnimatedTexture: Texture2D {
         
         self.time += event.deltaTime
         
-        let limit = self.framePerSeconds != 0 ? 1 / self.framePerSeconds : 0
+        let limit = self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0
         let frameTime = limit + self.frames[self.currentFrame].delay
         
         if self.time > frameTime {
             self.currentFrame += 1
             
             if self.currentFrame >= self.framesCount {
-                if !self.isRepeated {
+                if !self.options.contains(.repeat) {
                     self.currentFrame = self.framesCount - 1
                 } else {
                     self.currentFrame = 0
@@ -193,5 +193,18 @@ public final class AnimatedTexture: Texture2D {
             
             self.time -= frameTime
         }
+    }
+}
+
+public extension AnimatedTexture {
+    struct Options: OptionSet {
+        public var rawValue: UInt8
+        
+        public init(rawValue: UInt8) {
+            self.rawValue = rawValue
+        }
+        
+        /// Repeats animation forever.
+        public static let `repeat` = Options(rawValue: 0 << 1)
     }
 }
