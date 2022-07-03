@@ -10,12 +10,12 @@
 public final class AnimatedTexture: Texture2D {
     
     struct Frame {
-        let texture: Texture2D
-        let delay: Float
+        var texture: Texture2D?
+        var delay: Float
     }
     
     /// Contains information about frames
-    private var frames: [Frame?]
+    private var frames: [Frame]
     
     /// Contains ref to subscription of event
     private var gameLoopToken: Cancellable?
@@ -31,7 +31,7 @@ public final class AnimatedTexture: Texture2D {
         }
         
         set {
-            assert(newValue > self.framesCount)
+            assert(self.framesCount >= newValue || newValue < 0)
             self._currentFrame = newValue
         }
     }
@@ -48,31 +48,34 @@ public final class AnimatedTexture: Texture2D {
     
     /// Return RID of current frame
     override var rid: RID {
-        self.frames[currentFrame]!.texture.rid
+        self.frames[currentFrame].texture!.rid
     }
     
     /// Return texture coordinates of current frame.
     public override var textureCoordinates: [Vector2] {
         get {
             print(currentFrame)
-            return self.frames[currentFrame]!.texture.textureCoordinates
+            return self.frames[currentFrame].texture!.textureCoordinates
         }
-        set { fatalError("You cannot set texture coordinates for animated texture.") }
+        // swiftlint:disable:next unused_setter_value
+        set {
+            fatalError("You cannot set texture coordinates for animated texture.")
+        }
     }
     
     /// Return width of the current frame.
     public override var width: Float {
-        return self.frames[currentFrame]!.texture.width
+        return self.frames[currentFrame].texture!.width
     }
     
     /// Return height of the current frame.
     public override var height: Float {
-        return self.frames[currentFrame]!.texture.height
+        return self.frames[currentFrame].texture!.height
     }
     
     /// Create animated texture with 256 frames.
     public init() {
-        self.frames = [Frame?].init(repeating: nil, count: 256)
+        self.frames = [Frame].init(repeating: Frame(texture: nil, delay: 0), count: 256)
         
         super.init(rid: RID(), size: .zero)
         
@@ -107,15 +110,19 @@ public final class AnimatedTexture: Texture2D {
     }
     
     public func setTexture(_ texture: Texture2D?, for frame: Int) {
-        self.frames[frame] = texture.flatMap { Frame(texture: $0, delay: 0) }
+        self.frames[frame].texture = texture
     }
     
     public func getTexture(for frame: Int) -> Texture2D? {
-        return self.frames[frame]?.texture
+        return self.frames[frame].texture
     }
     
     public func setDelay(_ delay: Float, for frame: Int) {
-        self.frames[frame]?.delay =
+        self.frames[frame].delay = delay
+    }
+    
+    public func getDelay(for frame: Int) -> Float {
+        return self.frames[frame].delay
     }
     
     // MARK: - Private
@@ -131,7 +138,7 @@ public final class AnimatedTexture: Texture2D {
         self.time += event.deltaTime
         
         let limit = self.framePerSeconds != 0 ? 1 / self.framePerSeconds : 0
-        let frameTime = limit + self.frames[self.currentFrame]!.delay
+        let frameTime = limit + self.frames[self.currentFrame].delay
         
         if self.time > frameTime {
             self.currentFrame += 1
