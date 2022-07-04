@@ -8,6 +8,8 @@
 import Foundation
 import Yams
 
+/// The base class represented 2D texture.
+/// When texture not holded by any object, than GPU resource will free immediately.
 open class Texture2D: Texture {
     
     public private(set) var width: Float
