@@ -109,12 +109,13 @@ class GameScene {
         
         let texture = TextureAtlas(from: tiles, size: [18, 18])
         let animated = AnimatedTexture()
-        animated.framesPerSecond = 1
-        
-        animated.framesCount = 3
+        animated.framesPerSecond = 2
+
+        animated.framesCount = 4
         animated[0] = texture[4, 3]
         animated[1] = texture[5, 3]
         animated[2] = texture[6, 3]
+        animated[3] = texture[5, 3]
         
         for i in 0..<2 {
             let viewEntity = Entity(name: "Circle \(i)")

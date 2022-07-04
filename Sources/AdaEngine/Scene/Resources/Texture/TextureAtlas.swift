@@ -8,12 +8,24 @@
 import Foundation
 import Math
 
+/// The atlas, also know as Sprite Sheet is a object contains a image and can provide
+/// a little piece of texture for specific stride. You can describe which size of sprite you expect
+/// and grab specific sprite by coordinates.
+/// Atlas is more efficient way to use 2D textures, because GPU working with one piece of data.
 public final class TextureAtlas: Texture2D {
     
     private let spriteSize: Size
     
-    public init(from image: Image, size: Size) {
+    /// For unpacked sprite sheets we should use margins between sprites to fit slice into correct coordinates
+    public var margin: Size
+    
+    /// Create texture atlas.
+    /// - Parameter image: The image from atlas will build.
+    /// - Parameter size: The sprite size in atlas (in pixels).
+    /// - Parameter margin: The margin between sprites (in pixels).
+    public init(from image: Image, size: Size, margin: Size = .zero) {
         self.spriteSize = size
+        self.margin = margin
         
         super.init(from: image)
     }
@@ -30,20 +42,21 @@ public final class TextureAtlas: Texture2D {
     
     // MARK: - Slices
     
+    /// Create slice of texture referenced on.
     public subscript(x: Float, y: Float) -> Slice {
         return self.textureSlice(at: Vector2(x: x, y: y))
     }
     
-    /// Create slice of texture referenced on 
+    /// Create slice of texture referenced on.
     public func textureSlice(at position: Vector2) -> Slice {
         let min = Vector2(
-            (position.x * spriteSize.width) / Float(self.width),
-            (position.y * spriteSize.height) / Float(self.height)
+            (position.x * (spriteSize.width + margin.width)) / Float(self.width),
+            (position.y * (spriteSize.height + margin.height)) / Float(self.height)
         )
         
         let max = Vector2(
-            ((position.x + 1) * spriteSize.width) / Float(self.width),
-            ((position.y + 1) * spriteSize.height) / Float(self.height)
+            ((position.x + 1) * (spriteSize.width + margin.width)) / Float(self.width),
+            ((position.y + 1) * (spriteSize.height + margin.height)) / Float(self.height)
         )
         
         return Slice(
