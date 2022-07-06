@@ -23,6 +23,11 @@ public struct GameAppScene: AppScene {
         let window = Window(scene: scene, frame: Rect(origin: .zero, size: configuration.minimumSize))
         window.setWindowMode(configuration.windowMode)
         window.minSize = configuration.minimumSize
+        
+        if let title = configuration.title {
+            window.title = title
+        }
+        
         return window
     }
 }

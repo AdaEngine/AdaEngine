@@ -26,12 +26,15 @@ public class RenderEngine2D {
         var vertices: [Int: [V]] = [:]
         var indeciesCount: [Int: Int] = [:]
         var piplineState: RID
-        var textureSlots: [Texture2D] = []
     }
     
     var circleData: Data<CircleVertexData>
     var quadData: Data<QuadVertexData>
     var quadPosition: [Vector4] = []
+    
+    var textureSlots: [Texture2D?]
+    var textureSlotIndex = 1
+    let whiteTexture: Texture2D
     
     var quadIndexBuffer: RID
     var indexArray: RID
@@ -79,6 +82,13 @@ public class RenderEngine2D {
             length: Self.maxIndecies
         )
         
+        // Create an empty white texture
+        // because if user don't pass texture to render, we will use this white texture
+        let image = Image(width: 1, height: 1, color: .white)
+        self.whiteTexture = Texture2D(from: image)
+        self.textureSlots = [Texture2D?].init(repeating: nil, count: 32)
+        self.textureSlots[0] = self.whiteTexture
+        
         self.indexArray = device.makeIndexArray(indexBuffer: self.quadIndexBuffer, indexOffset: 0, indexCount: Self.maxIndecies)
         
         self.circleData = Self.makeCircleData()
@@ -112,16 +122,39 @@ public class RenderEngine2D {
             self.nextBatch()
         }
         
-        // TODO: Not efficient
-        if let texture = texture, !self.quadData.textureSlots.contains(where: { $0.rid == texture.rid }) {
-            self.quadData.textureSlots.append(texture)
+        // Flush all data if textures count more than 32
+        if self.textureSlotIndex >= 31 {
+            self.nextBatch()
+            self.textureSlots.removeAll(keepingCapacity: true)
+            self.textureSlots[0] = self.whiteTexture
+            self.textureSlotIndex = 1
         }
         
-        for index in 0..<quadPosition.count {
+        // Select a texture index for draw
+        
+        let textureIndex: Int
+        
+        if let texture = texture {
+            if let index = self.textureSlots.firstIndex(where: { $0 == texture }) {
+                textureIndex = index
+            } else {
+                self.textureSlots[self.textureSlotIndex] = texture
+                textureIndex = self.textureSlotIndex
+                self.textureSlotIndex += 1
+            }
+        } else {
+            // for white texture
+            textureIndex = 0
+        }
+        
+        let texture = self.textureSlots[textureIndex]
+        
+        for index in 0 ..< quadPosition.count {
             let data = QuadVertexData(
                 position: quadPosition[index] * transform,
                 color: color,
-                textureCoordinate: texture?.textureCoordinates[index] ?? .zero
+                textureCoordinate: texture!.textureCoordinates[index],
+                textureIndex: textureIndex
             )
             
             self.quadData.vertices[self.currentZIndex, default: []].append(data)
@@ -200,8 +233,10 @@ public class RenderEngine2D {
             for index in indicies {
                 let verticies = self.quadData.vertices[index]!
                 
-                for texture in self.quadData.textureSlots {
-                    device.bindTexture(self.currentDraw, texture: texture.rid, at: 0)
+                let textures = self.textureSlots[0..<self.textureSlotIndex].compactMap { $0 }
+                
+                for (index, texture) in textures.enumerated() {
+                    device.bindTexture(self.currentDraw, texture: texture.rid, at: index)
                 }
                 
                 device.setVertexBufferData(
@@ -255,6 +290,7 @@ extension RenderEngine2D {
         var position: Vector4
         var color: Color
         var textureCoordinate: Vector2
+        let textureIndex: Int
     }
     
     private static func makeCircleData() -> Data<CircleVertexData> {
@@ -333,6 +369,10 @@ extension RenderEngine2D {
         vertDescriptor.attributes[2].format = .vector2
         vertDescriptor.attributes[2].bufferIndex = 0
         vertDescriptor.attributes[2].offset = MemoryLayout.offset(of: \QuadVertexData.textureCoordinate)!
+        
+        vertDescriptor.attributes[3].format = .int
+        vertDescriptor.attributes[3].bufferIndex = 0
+        vertDescriptor.attributes[3].offset = MemoryLayout.offset(of: \QuadVertexData.textureIndex)!
         
         vertDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
         shaderDescriptor.vertexDescriptor = vertDescriptor

@@ -25,6 +25,10 @@ public struct GUIAppScene: AppScene {
             window.frame = Rect(origin: .zero, size: configuration.minimumSize)
         }
         
+        if let title = configuration.title {
+            window.title = title
+        }
+        
         window.setWindowMode(configuration.windowMode)
         window.minSize = configuration.minimumSize
         return window

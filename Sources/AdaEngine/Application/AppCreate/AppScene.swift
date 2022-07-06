@@ -17,6 +17,7 @@ public struct _AppSceneConfiguration {
     var minimumSize: Size = Window.defaultMinimumSize
     var windowMode: Window.Mode = .fullscreen
     var isSingleWindow: Bool = false
+    var title: String?
 }
 
 public extension AppScene {
@@ -35,6 +36,12 @@ public extension AppScene {
     func singleWindow(_ isSingleWindow: Bool) -> some AppScene {
         var newValue = self
         newValue._configuration.isSingleWindow = isSingleWindow
+        return newValue
+    }
+    
+    func windowTitle(_ title: String) -> some AppScene {
+        var newValue = self
+        newValue._configuration.title = title
         return newValue
     }
 }

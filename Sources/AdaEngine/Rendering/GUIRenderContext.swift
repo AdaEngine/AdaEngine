@@ -12,7 +12,7 @@ import GLKit
 /// Context use orthogonal projection.
 final public class GUIRenderContext {
     
-    private let engine: RenderEngine2D
+    private unowned let engine: RenderEngine2D
     
     private var fillColor: Color = .clear
     private var strokeColor: Color = .black
@@ -36,9 +36,10 @@ final public class GUIRenderContext {
     }
     
     var view: Transform3D = .identity
+    private var screenRect: Rect = .zero
     
-    public func beginDraw(in rect: Rect) {
-        let size = rect.size
+    public func beginDraw(in screenRect: Rect) {
+        let size = screenRect.size
         
         let view = Transform3D.orthogonal(
             left: 0,
@@ -49,6 +50,7 @@ final public class GUIRenderContext {
             zFar: 1
         )
         
+        self.screenRect = screenRect
         self.view = view
         
         self.engine.beginContext(for: self.window, viewTransform: view)
@@ -121,14 +123,15 @@ extension GUIRenderContext {
     func makeCanvasTransform3D(from rect: Rect) -> Transform3D {
         let origin = rect.origin
         let size = rect.size
+        let screenSize = self.screenRect.size
         
         if size.width < 0 || size.height < 0 {
             return .identity
         }
 
         return Transform3D(
-            [size.width * 2, 0, 0, 0],
-            [0, size.height * 2, 0, 0 ],
+            [size.width / screenSize.width, 0, 0, 0],
+            [0, size.height / screenSize.height, 0, 0 ],
             [0, 0, 1.0, 0.0],
             [origin.x, -origin.y, 0, 1]
         )

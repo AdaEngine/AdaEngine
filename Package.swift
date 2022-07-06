@@ -185,7 +185,7 @@ let package = Package(
         .package(url: "https://github.com/troughton/Cstb.git", from: "1.0.5"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.1"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.1"),
-        .package(name: "LibPNG", path: "ThirdParty/libPNG"),
+        .package(name: "LibPNG", path: "ThirdParty/LibPNG"),
         
         // Plugins
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")

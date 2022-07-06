@@ -78,3 +78,13 @@ open class Texture2D: Texture {
         return data
     }
 }
+
+// MARK: - Equatable
+
+extension Texture2D: Equatable {
+    public static func == (lhs: Texture2D, rhs: Texture2D) -> Bool {
+        lhs.rid == rhs.rid &&
+        lhs.height == rhs.height &&
+        lhs.textureCoordinates == rhs.textureCoordinates
+    }
+}
