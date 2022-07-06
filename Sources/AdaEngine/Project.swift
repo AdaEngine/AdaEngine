@@ -20,29 +20,20 @@ let targets: [Target] = [
         ],
         scripts: [],
         dependencies: [
-//            .project(
-//                target: "Vulkan",
-//                path: .relativeToRoot("Sources/Vulkan")
-//            ),
             .project(
                 target: "Math",
                 path: .relativeToRoot("Sources/Math")
             ),
+            .project(
+                target: "LibPNG",
+                path: .relativeToRoot("ThirdParty/LibPNG")
+            ),
             .external(name: "stb_image"),
             .external(name: "Collections"),
-            .external(name: "Yams")
-        ]
+            .external(name: "Yams"),
+        ],
+        settings: .adaEngine
     ),
-//    Target(
-//        name: "AdaEngineTests",
-//        platform: .macOS,
-//        product: .unitTests,
-//        bundleId: "dev.litecode.adaengine",
-//        sources: ["Tests/**"],
-//        dependencies: [
-//            .target(name: "AdaEngine")
-//        ]
-//    )
 ]
 
 let project = Project(

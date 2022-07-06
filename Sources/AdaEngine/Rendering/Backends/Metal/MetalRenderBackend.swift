@@ -39,7 +39,7 @@ class MetalRenderBackend: RenderBackend {
     private var shaders: ResourceHashMap<Shader> = [:]
     private var textures: ResourceHashMap<GPUTexture> = [:]
     
-    private var renderPipelineStateMap: ResourceHashMap<MTLRenderPipelineState> = [:]
+    private var renderPipelineStateMap: ResourceHashMap<PipelineState> = [:]
     
     private var depthState: MTLDepthStencilState!
     
@@ -145,8 +145,8 @@ class MetalRenderBackend: RenderBackend {
         }
     }
     
-    func makePipelineState(for shader: RID) -> RID {
-        guard let shader = self.shaders[shader] else {
+    func makePipelineState(for shaderRid: RID) -> RID {
+        guard let shader = self.shaders[shaderRid] else {
             fatalError("Shader not found")
         }
         
@@ -167,7 +167,9 @@ class MetalRenderBackend: RenderBackend {
         
         do {
             let state = try self.context.physicalDevice.makeRenderPipelineState(descriptor: pipelineDescriptor)
-            return self.renderPipelineStateMap.setValue(state)
+            
+            let pipelineState = PipelineState(state: state)
+            return self.renderPipelineStateMap.setValue(pipelineState)
         } catch {
             fatalError(error.localizedDescription)
         }
@@ -378,9 +380,7 @@ extension MetalRenderBackend {
     func bindRenderState(_ drawRid: RID, renderPassId: RID) {
         var draw = self.drawList[drawRid]
         assert(draw != nil, "Draw is not exists")
-        
-        let renderState = self.renderPipelineStateMap[renderPassId]
-        draw?.renderState = renderState
+        draw?.pipelineState = renderPassId
         
         self.drawList[drawRid] = draw
     }
@@ -458,6 +458,10 @@ extension MetalRenderBackend {
             fatalError("Draw not found")
         }
         
+        guard let state = draw.pipelineState, let piplineState = self.renderPipelineStateMap[state] else {
+            fatalError("Draw doesn't have a pipeline state")
+        }
+        
         guard let encoder = draw.commandBuffer.makeRenderCommandEncoder(descriptor: draw.renderPassDescriptor) else {
             assertionFailure("Can't create render command encoder")
             return
@@ -472,8 +476,8 @@ extension MetalRenderBackend {
 
         encoder.setFrontFacing(.counterClockwise)
         
-        if let renderState = draw.renderState {
-            encoder.setRenderPipelineState(renderState)
+        if let state = piplineState.state {
+            encoder.setRenderPipelineState(state)
         }
         
 //        encoder.setDepthStencilState(depthState)
@@ -492,9 +496,13 @@ extension MetalRenderBackend {
             }
         }
         
-        for (index, textureRid) in draw.textures {
-            let texture = self.textures[textureRid]?.resource
-            encoder.setFragmentTexture(texture, index: index)
+        let textures: [MTLTexture] = draw.textures.compactMap {
+            guard let rid = $0 else { return nil }
+            return self.textures[rid]?.resource
+        }
+        
+        if !textures.isEmpty {
+            encoder.setFragmentTextures(textures, range: 0..<textures.count)
         }
         
         for (index, uniRid) in draw.uniformSet {
@@ -535,8 +543,8 @@ extension MetalRenderBackend {
         var vertexArray: RID?
         var indexArray: RID?
         var uniformSet: [Int: RID] = [:]
-        var textures: [Int: RID] = [:]
-        var renderState: MTLRenderPipelineState?
+        var textures: [RID?] = [RID?].init(repeating: nil, count: 32)
+        var pipelineState: RID?
         var lineWidth: Float?
     }
     
@@ -572,6 +580,10 @@ extension MetalRenderBackend {
         let fragmentFunction: MTLFunction
         
         var vertexDescriptor: MTLVertexDescriptor = MTLVertexDescriptor()
+    }
+    
+    struct PipelineState {
+        var state: MTLRenderPipelineState?
     }
     
     struct GPUTexture {

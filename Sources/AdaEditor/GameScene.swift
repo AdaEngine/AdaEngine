@@ -81,44 +81,80 @@ class ControlCircleComponent: ScriptComponent {
 class GameScene {
     func makeScene() async throws -> Scene {
         let scene = Scene()
-
-//        
-//        let meshRenderer = MeshRenderer()
-//        meshRenderer.materials = [BaseMaterial(diffuseColor: .red, metalic: 0)]
-//        let mesh = Mesh.generateBox(extent: Vector3(1, 1, 1), segments: Vector3(1, 1, 1))
-//
-//        meshRenderer.mesh = mesh
-//        boxEntity.components[MeshRenderer.self] = meshRenderer
-//        scene.addEntity(boxEntity)
-//
-//        let trainEntity = Entity(name: "train")
-//        let trainMeshRenderer = MeshRenderer()
-//        let train = Bundle.module.url(forResource: "train", withExtension: "obj")!
-//
-//        trainMeshRenderer.mesh = Mesh.loadMesh(from: train)
-//        trainMeshRenderer.materials = [BaseMaterial(diffuseColor: .orange, metalic: 1)]
-//        trainEntity.components[MeshRenderer.self] = trainMeshRenderer
-//        trainEntity.components[Transform.self]?.position = Vector3(2, 1, 1)
-//        scene.addEntity(trainEntity)
-//
-        
-//        let texture = try await ResourceManager.load("Assets/dog.png", from: .module) as Image
-//        let dog = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/dog.png"))
         
         let tiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
         
-        let texture = TextureAtlas(from: tiles, size: [18, 18])
-        let animated = AnimatedTexture()
-        animated.framesPerSecond = 2
-
-        animated.framesCount = 4
-        animated[0] = texture[4, 3]
-        animated[1] = texture[5, 3]
-        animated[2] = texture[6, 3]
-        animated[3] = texture[5, 3]
+        let charactersTiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/characters_packed.png"))
         
-        for i in 0..<2 {
-            let viewEntity = Entity(name: "Circle \(i)")
+        let charAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
+        
+        let animated = AnimatedTexture()
+        animated.framesPerSecond = 5
+        animated.framesCount = 2
+        animated[0] = charAtlas[0, 0]
+        animated[1] = charAtlas[1, 0]
+        
+        let texture = TextureAtlas(from: tiles, size: [18, 18])
+        
+        let heartAnimated = AnimatedTexture()
+        heartAnimated.framesPerSecond = 5
+        
+        heartAnimated.framesCount = 4
+        heartAnimated[0] = texture[4, 2]
+        heartAnimated[1] = texture[5, 2]
+        heartAnimated[2] = texture[6, 2]
+        heartAnimated[3] = texture[5, 2]
+        
+        var transform = Transform()
+        transform.scale = [4, 4, 4]
+        
+        let untexturedEntity = Entity()
+        untexturedEntity.components += SpriteComponent(tintColor: Color(135/255, 206/255, 235/255, 1))
+        untexturedEntity.components += transform
+        scene.addEntity(untexturedEntity)
+        
+        transform.position = [-0.45, 0.65, 0]
+        transform.scale = [0.35, 0.35, 0.35]
+        
+        let animatedEntity = Entity()
+        animatedEntity.components += SpriteComponent(texture: animated)
+        animatedEntity.components += transform
+        scene.addEntity(animatedEntity)
+        
+        transform.position = [-8, 6, 0]
+        transform.scale = [0.15, 0.15, 0.15]
+        
+        let heartEntity = Entity()
+        heartEntity.components += SpriteComponent(texture: heartAnimated)
+        heartEntity.components += transform
+        scene.addEntity(heartEntity)
+        
+        transform.position = [-0.3, -0.3, 0]
+        transform.scale = [0.3, 0.3, 0.3]
+        
+        let plainEntity = Entity()
+        plainEntity.components += SpriteComponent(texture: texture[2, 0])
+        plainEntity.components += transform
+        scene.addEntity(plainEntity)
+        
+        transform.position = [-1.3, -0.3, 0]
+        transform.scale = [0.3, 0.3, 0.3]
+        
+        let plainEntity1 = Entity()
+        plainEntity1.components += SpriteComponent(texture: texture[1, 0])
+        plainEntity1.components += transform
+        scene.addEntity(plainEntity1)
+        
+        transform.position = [0.6, -0.3, 0]
+        transform.scale = [0.3, 0.3, 0.3]
+        
+        let plainEntity2 = Entity()
+        plainEntity2.components += SpriteComponent(texture: texture[3, 0])
+        plainEntity2.components += transform
+        scene.addEntity(plainEntity2)
+        
+//        for i in 0..<10 {
+//            let viewEntity = Entity(name: "Circle \(i)")
 //
 //            let alpha: Float = Float.random(in: 0.3...1)
 //
@@ -139,12 +175,12 @@ class GameScene {
 //                thickness: 1
 //            )
             
-            viewEntity.components += SpriteComponent(
-                texture: animated
-            )
-
-            scene.addEntity(viewEntity)
-        }
+//            viewEntity.components += SpriteComponent(
+//                texture: nil
+//            )
+//
+//            scene.addEntity(viewEntity)
+//        }
         
 //        let viewEntity = Entity(name: "Circle")
 //        viewEntity.components += Circle2DComponent(color: .blue, thickness: 1)
@@ -167,13 +203,6 @@ class GameScene {
         userEntity.components += camera
         userEntity.components += ControlCameraComponent()
         scene.addEntity(userEntity)
-        
-//        let editorCamera = EditorCameraEntity()
-//        let camera = editorCamera.components[Camera.self]!
-//        camera.isPrimal = true
-//        scene.addEntity(editorCamera)
-//
-//        scene.addSystem(EditorCameraSystem.self)
         
         return scene
     }

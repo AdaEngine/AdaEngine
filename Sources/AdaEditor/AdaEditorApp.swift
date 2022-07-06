@@ -17,5 +17,6 @@ struct AdaEditorApp: App {
             try await gameScene.makeScene()
         }
         .windowMode(.windowed)
+        .windowTitle("AdaEngine")
     }
 }

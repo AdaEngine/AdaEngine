@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+/// The main class responds to update all systems in engine.
+/// You can have only one GameLoop per app.
 final class GameLoop {
     
     private(set) static var current: GameLoop = GameLoop()
@@ -13,7 +15,7 @@ final class GameLoop {
     
     private(set) var isIterating = false
     
-    var isFirstTick: Bool = true
+    private var isFirstTick: Bool = true
     
     // MARK: Internal Methods
     
@@ -30,8 +32,9 @@ final class GameLoop {
         let deltaTime = max(0, now - self.lastUpdate)
         self.lastUpdate = now
         
-        if isFirstTick {
-            isFirstTick = false
+        // that little hack to avoid big delta in the first tick, because delta is equals Time.absolute value.
+        if self.isFirstTick {
+            self.isFirstTick = false
             return
         }
         

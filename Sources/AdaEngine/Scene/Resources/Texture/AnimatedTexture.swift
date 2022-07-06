@@ -56,7 +56,6 @@ public final class AnimatedTexture: Texture2D {
     /// Return texture coordinates of current frame.
     public override var textureCoordinates: [Vector2] {
         get {
-            print(currentFrame)
             return self.frames[currentFrame].texture!.textureCoordinates
         }
         // swiftlint:disable:next unused_setter_value

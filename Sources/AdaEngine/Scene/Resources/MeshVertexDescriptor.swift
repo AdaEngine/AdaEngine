@@ -74,6 +74,9 @@ public struct MeshVertexDescriptor: Codable {
         case invalid
         
         case uint
+        case char
+        case short
+        case int
         
         case float
         
@@ -240,6 +243,9 @@ extension MeshVertexDescriptor.VertexFormat {
         case .matrix4x4: return .half4
         case .matrix3x3: return .half3
         case .matrix2x2: return .half2
+        case .char: return .char
+        case .short: return .short
+        case .int: return .int
         case .invalid: return .invalid
         }
     }
@@ -254,6 +260,9 @@ extension MeshVertexDescriptor.VertexFormat {
         case .half4: self = .matrix4x4
         case .half3: self = .matrix3x3
         case .half2: self = .matrix2x2
+        case .char: self = .char
+        case .int: self = .int
+        case .short: self = .short
         default:
             self = .invalid
         }
@@ -271,6 +280,9 @@ extension MeshVertexDescriptor.VertexFormat {
         case .matrix4x4: return .half4
         case .matrix3x3: return .half3
         case .matrix2x2: return .half2
+        case .short: return .short
+        case .int: return .int
+        case .char: return .char
         case .invalid: return .invalid
         }
     }

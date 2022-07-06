@@ -25,12 +25,26 @@ public final class Image {
         self.format = .rgba8
     }
     
-    /// Create an empty image with given height and width.
+    /// Create an image with given height and width.
+    /// - Parameter width: The image width.
+    /// - Parameter height: The image height.
+    /// - Parameter data: Data passed to the image, but if you will pass nil, than image with fill with 0.
+    /// - Parameter format: The image format. Default value is `Image.Format.rgba8`
     public init(width: Int, height: Int, data: Data? = nil, format: Format = .rgba8) {
         assert(width > 0, "Width must be greater than 0.")
         assert(height > 0, "Height must be greater than 0.")
         
-        self.data = data ?? Data()
+        self.data = data ?? Self.makeEmptyData(for: format, width: width, height: height)
+        self.width = width
+        self.height = height
+        self.format = format
+    }
+    
+    public init(width: Int, height: Int, color: Color, format: Format = .rgba8) {
+        assert(width > 0, "Width must be greater than 0.")
+        assert(height > 0, "Height must be greater than 0.")
+        
+        self.data = Self.makeEmptyData(for: format, width: width, height: height, color: color)
         self.width = width
         self.height = height
         self.format = format
@@ -38,6 +52,41 @@ public final class Image {
 
     public required init(assetFrom data: Data) async throws {
         fatalError()
+    }
+    
+    public func setPixel(in position: Point, color: Color) {
+        let offset = Int(position.y) * self.width + Int(position.x)
+        
+        Self.setPixel(with: offset, color: color, in: &self.data, format: self.format)
+    }
+    
+    public func getPixel(in position: Point) -> Color {
+        let offset = Int(position.y) * self.width + Int(position.x)
+        
+        switch self.format {
+        case .rgb8:
+            let red     = Float(self.data[offset * 3 + 0]) / 255
+            let green   = Float(self.data[offset * 3 + 1]) / 255
+            let blue    = Float(self.data[offset * 3 + 2]) / 255
+            
+            return Color(red, green, blue, 1)
+        case .rgba8:
+            let red     = Float(self.data[offset * 4 + 0]) / 255
+            let green   = Float(self.data[offset * 4 + 1]) / 255
+            let blue    = Float(self.data[offset * 4 + 2]) / 255
+            let alpha   = Float(self.data[offset * 4 + 3]) / 255
+            
+            return Color(red, green, blue, alpha)
+        case .bgra8:
+            let blue    = Float(self.data[offset * 4 + 0]) / 255
+            let green   = Float(self.data[offset * 4 + 1]) / 255
+            let red     = Float(self.data[offset * 4 + 2]) / 255
+            let alpha   = Float(self.data[offset * 4 + 3]) / 255
+            
+            return Color(red, green, blue, alpha)
+        default:
+            fatalError("Not supported format to get pixel.")
+        }
     }
 }
 
@@ -101,5 +150,63 @@ extension Image: Resource {
     
     public func encodeContents() async throws -> Data {
         fatalError()
+    }
+}
+
+private extension Image {
+    static func makeEmptyData(
+        for format: Format,
+        width: Int,
+        height: Int,
+        color: Color? = nil
+    ) -> Data {
+        let stride = self.getPixelSize(for: format)
+        let size = width * height
+        var data = Data(repeating: 0, count: size * stride)
+        
+        guard let color = color else {
+            return data
+        }
+        
+        var currentIndex = 0
+        
+        while currentIndex < size {
+            Self.setPixel(with: currentIndex, color: color, in: &data, format: format)
+            currentIndex += 1
+        }
+        
+        return data
+    }
+    
+    static func getPixelSize(for format: Format) -> Int {
+        switch format {
+        case .rgba8, .bgra8:
+            return 4
+        case .rgb8:
+            return 3
+        case .gray:
+            return 1
+        }
+    }
+    
+    static func setPixel(with offset: Int, color: Color, in data: inout Data, format: Format) {
+        switch format {
+        case .rgb8:
+            data[offset * 3 + 0] = UInt8(clamp(color.red * 255.0, 0, 255))
+            data[offset * 3 + 1] = UInt8(clamp(color.green * 255.0, 0, 255))
+            data[offset * 3 + 2] = UInt8(clamp(color.blue * 255.0, 0, 255))
+        case .rgba8:
+            data[offset * 4 + 0] = UInt8(clamp(color.red * 255.0, 0, 255))
+            data[offset * 4 + 1] = UInt8(clamp(color.green * 255.0, 0, 255))
+            data[offset * 4 + 2] = UInt8(clamp(color.blue * 255.0, 0, 255))
+            data[offset * 4 + 3] = UInt8(clamp(color.alpha * 255.0, 0, 255))
+        case .bgra8:
+            data[offset * 4 + 0] = UInt8(clamp(color.blue * 255.0, 0, 255))
+            data[offset * 4 + 1] = UInt8(clamp(color.green * 255.0, 0, 255))
+            data[offset * 4 + 2] = UInt8(clamp(color.red * 255.0, 0, 255))
+            data[offset * 4 + 3] = UInt8(clamp(color.alpha * 255.0, 0, 255))
+        default:
+            fatalError("Not supported type for set pixel")
+        }
     }
 }

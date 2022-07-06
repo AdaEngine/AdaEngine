@@ -9,7 +9,7 @@ import ProjectDescription
 import ProjectDescriptionHelpers
 
 let project = Project(
-    name: "AdaEngine",
+    name: "AdaEditor",
     organizationName: "$(PRODUCT_BUNDLE_IDENTIFIER).editor",
     packages: [],
     settings: .adaEngine,
