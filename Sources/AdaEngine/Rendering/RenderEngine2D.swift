@@ -7,6 +7,8 @@
 
 import Math
 
+// TODO: Render engine shouldn't use current draw, because it can be raise a conflict in multiple windows or nested scenes!
+
 public class RenderEngine2D {
     
     public static let shared = RenderEngine2D()

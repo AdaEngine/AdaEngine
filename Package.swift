@@ -123,7 +123,8 @@ let adaEngineTarget: Target = .target(
         .product(name: "stb_image", package: "Cstb"),
         .product(name: "Collections", package: "swift-collections"),
         "Yams",
-        "LibPNG"
+        "libpng",
+//        "Physics"
     ],
     exclude: ["Project.swift", "Derived"],
     resources: [
@@ -138,7 +139,7 @@ let adaEngineTarget: Target = .target(
         .define("LINUX", .when(platforms: [.linux])),
         
         /// Define metal
-        .define("METAL", .when(platforms: applePlatforms))
+        .define("METAL", .when(platforms: applePlatforms)),
     ],
     plugins: commonPlugins
 )
@@ -152,6 +153,17 @@ var targets: [Target] = [
         name: "Math",
         exclude: ["Project.swift", "Derived"]
     ),
+    .target(
+        name: "Physics",
+        dependencies: [
+            .product(name: "box2d", package: "box2d-swift"),
+            "Math"
+        ],
+        swiftSettings: [
+            /// For c++ interop
+            .unsafeFlags(["-Xfrontend", "-enable-cxx-interop"])
+        ]
+    )
 ]
 
 // MARK: - Tests
@@ -185,7 +197,8 @@ let package = Package(
         .package(url: "https://github.com/troughton/Cstb.git", from: "1.0.5"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.1"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.1"),
-        .package(name: "LibPNG", path: "ThirdParty/LibPNG"),
+        .package(url: "https://github.com/SpectralDragon/box2d-swift", from: "1.0.0"),
+        .package(name: "libpng", path: "ThirdParty/LibPNG"),
         
         // Plugins
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")
