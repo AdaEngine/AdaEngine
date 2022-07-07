@@ -25,7 +25,11 @@ let targets: [Target] = [
                 path: .relativeToRoot("Sources/Math")
             ),
             .project(
-                target: "LibPNG",
+                target: "Physics",
+                path: .relativeToRoot("Sources/Physics")
+            ),
+            .project(
+                target: "libpng",
                 path: .relativeToRoot("ThirdParty/LibPNG")
             ),
             .external(name: "stb_image"),

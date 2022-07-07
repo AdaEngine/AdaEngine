@@ -1,6 +1,15 @@
 {
   "pins" : [
     {
+      "identity" : "box2d-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SpectralDragon/box2d-swift",
+      "state" : {
+        "revision" : "3ae1efa0bc3368d73819a0aee76c76f6490142be",
+        "version" : "1.0.0"
+      }
+    },
+    {
       "identity" : "cstb",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/troughton/Cstb.git",
