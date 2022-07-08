@@ -385,6 +385,9 @@ public:
 
 	/// Dump this body to a file
 	void Dump();
+    
+    b2Body(const b2BodyDef* bd, b2World* world);
+    ~b2Body();
 
 private:
 
@@ -416,9 +419,6 @@ private:
 		e_enabledFlag		= 0x0020,
 		e_toiFlag			= 0x0040
 	};
-
-	b2Body(const b2BodyDef* bd, b2World* world);
-	~b2Body();
 
 	void SynchronizeFixtures();
 	void SynchronizeTransform();

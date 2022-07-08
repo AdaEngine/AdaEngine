@@ -82,6 +82,10 @@ class GameScene {
     func makeScene() async throws -> Scene {
         let scene = Scene()
         
+        // DEBUG
+        
+        scene.debugOptions = [.showPhysicsShapes, .showFPS]
+        
         let tiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
         
         let charactersTiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/characters_packed.png"))
