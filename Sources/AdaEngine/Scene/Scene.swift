@@ -21,6 +21,9 @@ public final class Scene {
     
     public var viewportRelativeWindowSize: Bool = true
     
+    // Options for content in a scene that can aid debugging.
+    public var debugOptions: DebugOptions = []
+    
     private var _viewportSize: Size = .zero
     public var viewportSize: Size {
         get {
@@ -127,12 +130,6 @@ public extension Scene {
     }
 }
 
-extension Scene {
-    func mergeWorlds(_ newWorld: World) {
-        
-    }
-}
-
 // MARK: - Entity
 
 public extension Scene {
@@ -151,5 +148,18 @@ public extension Scene {
 extension Scene: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name, entities, systems
+    }
+}
+
+public extension Scene {
+    struct DebugOptions: OptionSet {
+        public var rawValue: UInt16
+        
+        public init(rawValue: UInt16) {
+            self.rawValue = rawValue
+        }
+        
+        public static let showPhysicsShapes = DebugOptions(rawValue: 1 << 0)
+        public static let showFPS = DebugOptions(rawValue: 1 << 1)
     }
 }

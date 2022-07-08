@@ -8,9 +8,14 @@
 import ProjectDescription
 import ProjectDescriptionHelpers
 
+let settings = Settings.settings(base: [
+    "PRODUCT_BUNDLE_IDENTIFIER": "dev.litecode.adaengine",
+    "CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER": false
+])
+
 let project = Project(
     name: "box2d",
-    settings: .adaEngine,
+    settings: settings,
     targets: [
         Target(
             name: "box2d",

@@ -164,6 +164,10 @@ public:
 
 	/// Evaluate this contact with your own manifold and transforms.
 	virtual void Evaluate(b2Manifold* manifold, const b2Transform& xfA, const b2Transform& xfB) = 0;
+    
+    b2Contact() : m_fixtureA(nullptr), m_fixtureB(nullptr) {}
+    b2Contact(b2Fixture* fixtureA, int32 indexA, b2Fixture* fixtureB, int32 indexB);
+    virtual ~b2Contact() {}
 
 protected:
 	friend class b2ContactManager;
@@ -203,11 +207,7 @@ protected:
 	static b2Contact* Create(b2Fixture* fixtureA, int32 indexA, b2Fixture* fixtureB, int32 indexB, b2BlockAllocator* allocator);
 	static void Destroy(b2Contact* contact, b2Shape::Type typeA, b2Shape::Type typeB, b2BlockAllocator* allocator);
 	static void Destroy(b2Contact* contact, b2BlockAllocator* allocator);
-
-	b2Contact() : m_fixtureA(nullptr), m_fixtureB(nullptr) {}
-	b2Contact(b2Fixture* fixtureA, int32 indexA, b2Fixture* fixtureB, int32 indexB);
-	virtual ~b2Contact() {}
-
+    
 	void Update(b2ContactListener* listener);
 
 	static b2ContactRegister s_registers[b2Shape::e_typeCount][b2Shape::e_typeCount];
