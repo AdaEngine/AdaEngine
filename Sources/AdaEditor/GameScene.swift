@@ -42,35 +42,34 @@ class ControlCameraComponent: ScriptComponent {
     
 }
 
-class ControlCircleComponent: ScriptComponent {
+class PlayerComponent: ScriptComponent {
     
-    var speed: Float = 2
+    var speed: Float = 10
     
-    @RequiredComponent var circle: Circle2DComponent
+    @RequiredComponent var body: PhysicsBody2DComponent
     
     override func update(_ deltaTime: TimeInterval) {
-        if Input.isKeyPressed(.arrowUp) {
-            self.circle.thickness += 0.1
+        
+        if Input.isKeyPressed(.space) {
+            body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+        }
+//
+//        if Input.isKeyPressed(.arrowUp) {
+//            self.transform.position.y += 0.1 * speed
+//        }
+//
+//        if Input.isKeyPressed(.arrowDown) {
+//            self.transform.position.y -= 0.1 * speed
+//        }
+
+        if Input.isKeyPressed(.arrowLeft) {
+            self.body.applyForce(force: [-speed, 0], point: .zero, wake: true)
+//            self.transform.position.x -= 0.1 * speed
         }
 
-        if Input.isKeyPressed(.arrowDown) {
-            self.circle.thickness -= 0.1
-        }
-
-        if Input.isKeyPressed(.w) {
-            self.transform.position.y += 0.1 * speed
-        }
-
-        if Input.isKeyPressed(.s) {
-            self.transform.position.y -= 0.1 * speed
-        }
-
-        if Input.isKeyPressed(.a) {
-            self.transform.position.x -= 0.1 * speed
-        }
-
-        if Input.isKeyPressed(.d) {
-            self.transform.position.x += 0.1 * speed
+        if Input.isKeyPressed(.arrowRight) {
+//            self.transform.position.x += 0.1 * speed
+            self.body.applyForce(force: [speed, 0], point: .zero, wake: true)
         }
         
     }
@@ -117,15 +116,17 @@ class GameScene {
         untexturedEntity.components += transform
         scene.addEntity(untexturedEntity)
         
-        transform.position = [-0.45, 0.65, 0]
+        transform.position = [-0.45, 2, 0]
         transform.scale = [0.35, 0.35, 0.35]
         
         let playerEntity = Entity()
         playerEntity.components += SpriteComponent(texture: playerTexture)
         playerEntity.components += transform
-        playerEntity.components += Collision2DComponent(
-            shapes: [.generateBox(width: 0.3, height: 0.3)]
+        playerEntity.components += PhysicsBody2DComponent(
+            shapes: [.generateBox(width: 0.3, height: 0.3)],
+            density: 0
         )
+        playerEntity.components += PlayerComponent()
         
         scene.addEntity(playerEntity)
         
@@ -143,6 +144,9 @@ class GameScene {
         let plainEntity = Entity()
         plainEntity.components += SpriteComponent(texture: texture[2, 0])
         plainEntity.components += transform
+        plainEntity.components += Collision2DComponent(
+            shapes: [.generateBox(width: 0.3, height: 0.6)]
+        )
         scene.addEntity(plainEntity)
         
         transform.position = [-1.3, -0.3, 0]
@@ -151,6 +155,9 @@ class GameScene {
         let plainEntity1 = Entity()
         plainEntity1.components += SpriteComponent(texture: texture[1, 0])
         plainEntity1.components += transform
+        plainEntity1.components += Collision2DComponent(
+            shapes: [.generateBox(width: 0.3, height: 0.6)]
+        )
         scene.addEntity(plainEntity1)
         
         transform.position = [0.6, -0.3, 0]
@@ -159,6 +166,9 @@ class GameScene {
         let plainEntity2 = Entity()
         plainEntity2.components += SpriteComponent(texture: texture[3, 0])
         plainEntity2.components += transform
+        plainEntity2.components += Collision2DComponent(
+            shapes: [.generateBox(width: 0.3, height: 0.6)]
+        )
         scene.addEntity(plainEntity2)
         
 //        for i in 0..<10 {

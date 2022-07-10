@@ -61,7 +61,7 @@ public final class Shape2DResource {
 
 public struct PhysicsBody2DComponent: Component {
     
-    public var mode: PhysicsBodyMode = .dynamic
+    public var mode: PhysicsBodyMode
     public var filter: CollisionFilter = CollisionFilter()
     
     internal var runtimeBody: Body2D?
@@ -69,18 +69,26 @@ public struct PhysicsBody2DComponent: Component {
     public var density: Float
     public var mass: Float
     
-    public init(shapes: [Shape2DResource], density: Float, mode: PhysicsBodyMode) {
+    public init(shapes: [Shape2DResource], density: Float, mode: PhysicsBodyMode = .dynamic) {
         self.mode = mode
         self.shapes = shapes
         self.density = density
         self.mass = 0
     }
     
-    public init(shapes: [Shape2DResource], mass: Float, mode: PhysicsBodyMode) {
+    public init(shapes: [Shape2DResource], mass: Float, mode: PhysicsBodyMode = .dynamic) {
         self.mode = mode
         self.shapes = shapes
         self.density = 0
         self.mass = mass
+    }
+    
+    public func applyForce(force: Vector2, point: Vector2, wake: Bool) {
+        self.runtimeBody?.ref.applyForce(force.b2Vec, point: point.b2Vec, wake: wake)
+    }
+    
+    public func applyLinearImpulse(_ impulse: Vector2, point: Vector2, wake: Bool) {
+        self.runtimeBody?.ref.applyLinearImpulse(impulse.b2Vec, point: point.b2Vec, wake: wake)
     }
 }
 
@@ -136,10 +144,6 @@ public final class Body2D {
         self.entity = entity
     }
     
-    public func applyForce(force: Vector2, point: Vector2, wake: Bool) {
-        self.ref.applyForce(force.b2Vec, point: point.b2Vec, wake: wake)
-    }
-    
     func addFixture(for shape: Shape2DResource) {
         self.ref.createFixture(shape.fixtureDef)
     }
@@ -171,20 +175,14 @@ public struct Body2DDefinition {
 
 public enum CollisionEvent2D {
     public struct Began: Event {
-        let bodyA: Body2D
         let entityA: Entity
-        
-        let bodyB: Body2D
         let entityB: Entity
         
         let collisionImpulse: Float
     }
     
     public struct Ended: Event {
-        let bodyA: Body2D
         let entityA: Entity
-        
-        let bodyB: Body2D
         let entityB: Entity
         
         let collisionImpulse: Float
@@ -209,7 +207,8 @@ public final class PhysicsWorld2D {
         }
     }
     
-    public init(gravity: Vector2 = .zero) {
+    /// - Parameter gravity: default gravity is 9.8.
+    init(gravity: Vector2 = [0, -9.8]) {
         self.world = b2World(gravity: gravity.b2Vec)
         let contactListner = Physics2DContactListner()
         self.world.setContactListener(contactListner)
@@ -301,9 +300,7 @@ final class Physics2DContactListner: b2ContactListener {
         let bodyB = contact.fixtureB.body.userData as! Body2D
         
         let event = CollisionEvent2D.Began(
-            bodyA: bodyA,
             entityA: bodyA.entity,
-            bodyB: bodyB,
             entityB: bodyB.entity,
             collisionImpulse: 0
         )
@@ -316,9 +313,7 @@ final class Physics2DContactListner: b2ContactListener {
         let bodyB = contact.fixtureB.body.userData as! Body2D
         
         let event = CollisionEvent2D.Began(
-            bodyA: bodyA,
             entityA: bodyA.entity,
-            bodyB: bodyB,
             entityB: bodyB.entity,
             collisionImpulse: 0
         )
