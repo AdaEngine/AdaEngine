@@ -166,6 +166,7 @@ public final class AnimatedTexture: Texture2D {
     
     // MARK: - Private
     
+    // FIXME: After breakpoint can increase animation speed. 
     private var time: TimeInterval = 0
     
     /// Called each frame to update current frame.

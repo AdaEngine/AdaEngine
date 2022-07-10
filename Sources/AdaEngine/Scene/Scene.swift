@@ -19,10 +19,13 @@ public final class Scene {
     var systems: [System] = []
     private(set) var world: World
     
+    public private(set) var physicsWorld2D: PhysicsWorld2D
+    
     public var viewportRelativeWindowSize: Bool = true
     
     // Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
+    public var debugPhysicsColor: Color = .green
     
     private var _viewportSize: Size = .zero
     public var viewportSize: Size {
@@ -49,6 +52,7 @@ public final class Scene {
         self.id = UUID()
         self.name = name.isEmpty ? "Scene" : name
         self.world = World()
+        self.physicsWorld2D = PhysicsWorld2D()
         
         let cameraEntity = Entity()
         
@@ -107,6 +111,7 @@ public final class Scene {
     
     func ready() {
         // Add base systems
+        self.addSystem(Physics2DSystem.self)
         self.addSystem(ScriptComponentUpdateSystem.self)
         self.addSystem(CameraSystem.self)
         self.addSystem(Render2DSystem.self)

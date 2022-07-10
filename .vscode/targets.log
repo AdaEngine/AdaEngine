@@ -6,11 +6,8 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # PARTICULAR PURPOSE.
 
 # This program built for i386-apple-darwin11.3.0
- 
-make: *** No rule to make target `all'.  Stop.
 
-
-# Make data base, printed on Thu Jul  7 18:37:41 2022
+# Make data base, printed on Sat Jul  9 19:38:37 2022
 
 # Variables
 
@@ -45,9 +42,9 @@ VSCODE_VERBOSE_LOGGING = true
 # environment
 __CFBundleIdentifier = com.microsoft.VSCode
 # environment
-VSCODE_IPC_HOOK_EXTHOST = /var/folders/wr/fz9y255s23q1w83n8ndbjfl80000gp/T/vscode-ipc-980e3d8e-2a7e-4f99-ae1e-bcbaf3883a24.sock
+VSCODE_IPC_HOOK_EXTHOST = /var/folders/wr/fz9y255s23q1w83n8ndbjfl80000gp/T/vscode-ipc-f1f016d8-2e51-47e1-8863-fc1ded487741.sock
 # environment
-VSCODE_CWD = /Users/v.prusakov/Developer/AdaEngine
+VSCODE_CWD = /Users/v.prusakov/Developer/AdaEngine/ThirdParty/box2d
 # environment
 MONO_HOME = /Library/Frameworks/Mono.framework/Home
 # environment
@@ -111,7 +108,7 @@ VK_ICD_FILENAMES = /Users/v.prusakov/VulkanSDK/1.2.182.0/macOS/etc/vulkan/icd.d/
 # makefile
 .DEFAULT_GOAL := install_vulkan
 # environment
-TERM_SESSION_ID = 3B0E7D22-75F0-4607-92BF-BDCB8362572B
+TERM_SESSION_ID = 215BDC09-0FE8-4917-9DA4-4ACD67C88542
 # environment
 LESS = -R
 # automatic
@@ -137,7 +134,7 @@ MFLAGS = -Rrqp
 # environment
 TERM_PROGRAM_VERSION = 445
 # environment
-XPC_SERVICE_NAME = application.com.microsoft.VSCode.73909987.73909993.6099DE85-5462-42D6-A524-9530F99F45BA
+XPC_SERVICE_NAME = application.com.microsoft.VSCode.73909987.73909993.195F915B-3CCD-4032-A63E-0414E17B68D7
 # automatic
 +D = $(patsubst %/,%,$(dir $+))
 # automatic
@@ -181,9 +178,9 @@ VSCODE_PID = 15332
 
 # Directories
 
-# . (device 16777220, inode 25823005): 24 files, no impossibilities.
+# . (device 16777220, inode 25823005): 23 files, no impossibilities.
 
-# 24 files, no impossibilities in 1 directories.
+# 23 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -252,6 +249,8 @@ install_vulkan:
 # strcache size: total = 4096 / max = 4096 / min = 4096 / avg = 4096
 # strcache free: total = 4087 / max = 4087 / min = 4087 / avg = 4087
 
-# Finished Make data base on Thu Jul  7 18:37:41 2022
+# Finished Make data base on Sat Jul  9 19:38:37 2022
 
  
+make: *** No rule to make target `all'.  Stop.
+

@@ -18,6 +18,12 @@ struct Vertex {
     var color: Color
 }
 
+
+public enum TriangleFillMode {
+    case fill
+    case lines
+}
+
 protocol RenderBackend: AnyObject {
     
     func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws
@@ -91,6 +97,8 @@ protocol RenderBackend: AnyObject {
     func bindUniformSet(_ draw: RID, uniformSet: RID, at index: Int)
     
     func bindTexture(_ draw: RID, texture: RID, at index: Int)
+    
+    func bindTriangleFillMode(_ draw: RID, mode: TriangleFillMode)
     
     func bindRenderState(_ draw: RID, renderPassId: RID)
     

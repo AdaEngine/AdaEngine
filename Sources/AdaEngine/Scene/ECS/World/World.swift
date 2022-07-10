@@ -33,6 +33,7 @@ final class World {
     // MARK: - Methods
     
     func appendEntity(_ entity: Entity) {
+        // FIXME: Can crash if we change components set during runtime
         let bitmask = entity.components.bitmask
         
         for (column, archetype) in self.archetypes.enumerated() where archetype.componentsBitMask.contains(bitmask) {

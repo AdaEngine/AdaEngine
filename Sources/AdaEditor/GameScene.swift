@@ -92,11 +92,11 @@ class GameScene {
         
         let charAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
         
-        let animated = AnimatedTexture()
-        animated.framesPerSecond = 5
-        animated.framesCount = 2
-        animated[0] = charAtlas[0, 0]
-        animated[1] = charAtlas[1, 0]
+        let playerTexture = AnimatedTexture()
+        playerTexture.framesPerSecond = 5
+        playerTexture.framesCount = 2
+        playerTexture[0] = charAtlas[0, 0]
+        playerTexture[1] = charAtlas[1, 0]
         
         let texture = TextureAtlas(from: tiles, size: [18, 18])
         
@@ -120,10 +120,14 @@ class GameScene {
         transform.position = [-0.45, 0.65, 0]
         transform.scale = [0.35, 0.35, 0.35]
         
-        let animatedEntity = Entity()
-        animatedEntity.components += SpriteComponent(texture: animated)
-        animatedEntity.components += transform
-        scene.addEntity(animatedEntity)
+        let playerEntity = Entity()
+        playerEntity.components += SpriteComponent(texture: playerTexture)
+        playerEntity.components += transform
+        playerEntity.components += Collision2DComponent(
+            shapes: [.generateBox(width: 0.3, height: 0.3)]
+        )
+        
+        scene.addEntity(playerEntity)
         
         transform.position = [-8, 6, 0]
         transform.scale = [0.15, 0.15, 0.15]

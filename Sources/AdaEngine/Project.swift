@@ -30,7 +30,7 @@ let targets: [Target] = [
             ),
             .project(
                 target: "libpng",
-                path: .relativeToRoot("ThirdParty/LibPNG")
+                path: .relativeToRoot("ThirdParty/libpng")
             ),
             .external(name: "stb_image"),
             .external(name: "Collections"),
