@@ -377,6 +377,10 @@ extension MetalRenderBackend {
         self.drawList[drawId]?.lineWidth = width
     }
     
+    func bindTriangleFillMode(_ draw: RID, mode: TriangleFillMode) {
+        self.drawList[draw]?.triangleFillMode = mode
+    }
+    
     func bindRenderState(_ drawRid: RID, renderPassId: RID) {
         var draw = self.drawList[drawRid]
         assert(draw != nil, "Draw is not exists")
@@ -514,7 +518,12 @@ extension MetalRenderBackend {
             fatalError("Can't get index buffer for draw")
         }
         
-//        encoder.setTriangleFillMode(.lines)
+        switch draw.triangleFillMode {
+        case .fill:
+            encoder.setTriangleFillMode(.fill)
+        case .lines:
+            encoder.setTriangleFillMode(.lines)
+        }
         
         encoder.drawIndexedPrimitives(
             type: .triangle,
@@ -546,6 +555,7 @@ extension MetalRenderBackend {
         var textures: [RID?] = [RID?].init(repeating: nil, count: 32)
         var pipelineState: RID?
         var lineWidth: Float?
+        var triangleFillMode: TriangleFillMode = .fill
     }
     
     struct Buffer {

@@ -12,7 +12,8 @@ let package = Package(
         )
     ],
     targets: [
-        .target(name: "box2d")
-    ],
-    cxxLanguageStandard: .cxx11
+        .target(
+            name: "box2d"
+        ),
+    ]
 )

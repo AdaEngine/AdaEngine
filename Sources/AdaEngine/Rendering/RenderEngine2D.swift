@@ -8,7 +8,6 @@
 import Math
 
 // TODO: Render engine shouldn't use current draw, because it can be raise a conflict in multiple windows or nested scenes!
-
 public class RenderEngine2D {
     
     public static let shared = RenderEngine2D()
@@ -48,6 +47,7 @@ public class RenderEngine2D {
     private var fillColor: Color = .clear
     
     var currentZIndex: Int = 0
+    var triangleFillMode: TriangleFillMode = .fill
     
     init() {
         let device = RenderEngine.shared.renderBackend
@@ -206,6 +206,11 @@ public class RenderEngine2D {
      
     public func clearContext() {
         self.uniform.viewProjection = .identity
+        self.triangleFillMode = .fill
+    }
+    
+    public func setTriangleFillMode(_ mode: TriangleFillMode) {
+        self.triangleFillMode = mode
     }
     
     func nextBatch() {
@@ -224,9 +229,14 @@ public class RenderEngine2D {
     }
     
     public func flush() {
+        guard let currentDraw = self.currentDraw else {
+            return
+        }
+        
         let device = RenderEngine.shared.renderBackend
         
-        device.bindUniformSet(self.currentDraw, uniformSet: self.uniformRid, at: BufferIndex.baseUniform)
+        device.bindUniformSet(currentDraw, uniformSet: self.uniformRid, at: BufferIndex.baseUniform)
+        device.bindTriangleFillMode(currentDraw, mode: self.triangleFillMode)
         
         if !self.quadData.indeciesCount.isEmpty {
             
@@ -238,7 +248,7 @@ public class RenderEngine2D {
                 let textures = self.textureSlots[0..<self.textureSlotIndex].compactMap { $0 }
                 
                 for (index, texture) in textures.enumerated() {
-                    device.bindTexture(self.currentDraw, texture: texture.rid, at: index)
+                    device.bindTexture(currentDraw, texture: texture.rid, at: index)
                 }
                 
                 device.setVertexBufferData(
@@ -247,11 +257,11 @@ public class RenderEngine2D {
                     length: verticies.count * MemoryLayout<QuadVertexData>.stride
                 )
                
-                device.bindVertexArray(self.currentDraw, vertexArray: self.quadData.vertexArray)
-                device.bindRenderState(self.currentDraw, renderPassId: self.quadData.piplineState)
-                device.bindIndexArray(self.currentDraw, indexArray: self.indexArray)
+                device.bindVertexArray(currentDraw, vertexArray: self.quadData.vertexArray)
+                device.bindRenderState(currentDraw, renderPassId: self.quadData.piplineState)
+                device.bindIndexArray(currentDraw, indexArray: self.indexArray)
                 
-                device.draw(self.currentDraw, indexCount: self.quadData.indeciesCount[index]!, instancesCount: 1)
+                device.draw(currentDraw, indexCount: self.quadData.indeciesCount[index]!, instancesCount: 1)
             }
         }
         
@@ -268,11 +278,11 @@ public class RenderEngine2D {
                     length: verticies.count * MemoryLayout<CircleVertexData>.stride
                 )
                
-                device.bindVertexArray(self.currentDraw, vertexArray: self.circleData.vertexArray)
-                device.bindRenderState(self.currentDraw, renderPassId: self.circleData.piplineState)
-                device.bindIndexArray(self.currentDraw, indexArray: self.indexArray)
+                device.bindVertexArray(currentDraw, vertexArray: self.circleData.vertexArray)
+                device.bindRenderState(currentDraw, renderPassId: self.circleData.piplineState)
+                device.bindIndexArray(currentDraw, indexArray: self.indexArray)
                 
-                device.draw(self.currentDraw, indexCount: self.circleData.indeciesCount[index]!, instancesCount: 1)
+                device.draw(currentDraw, indexCount: self.circleData.indeciesCount[index]!, instancesCount: 1)
             }
         }
     }
