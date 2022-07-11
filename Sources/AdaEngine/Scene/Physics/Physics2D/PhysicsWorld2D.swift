@@ -7,7 +7,6 @@
 
 import box2d
 import Math
-import Yams
 
 // TODO: Add hashable and equatable and resource
 public final class Shape2DResource {

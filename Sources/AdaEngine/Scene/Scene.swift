@@ -111,10 +111,10 @@ public final class Scene {
     
     func ready() {
         // Add base systems
-        self.addSystem(Physics2DSystem.self)
         self.addSystem(ScriptComponentUpdateSystem.self)
         self.addSystem(CameraSystem.self)
         self.addSystem(Render2DSystem.self)
+        self.addSystem(Physics2DSystem.self)
         self.addSystem(ViewContainerSystem.self)
         
         self.isReady = true
