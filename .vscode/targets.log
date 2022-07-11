@@ -7,7 +7,7 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 
 # This program built for i386-apple-darwin11.3.0
 
-# Make data base, printed on Mon Jul 11 15:44:22 2022
+# Make data base, printed on Mon Jul 11 22:35:00 2022
 
 # Variables
 
@@ -42,7 +42,7 @@ VSCODE_VERBOSE_LOGGING = true
 # environment
 __CFBundleIdentifier = com.microsoft.VSCode
 # environment
-VSCODE_IPC_HOOK_EXTHOST = /var/folders/wr/fz9y255s23q1w83n8ndbjfl80000gp/T/vscode-ipc-c509744e-84cc-4cf6-8322-75aa97632d55.sock
+VSCODE_IPC_HOOK_EXTHOST = /var/folders/wr/fz9y255s23q1w83n8ndbjfl80000gp/T/vscode-ipc-38151f3c-5855-4ecb-a36e-87a34a596e98.sock
 # environment
 VSCODE_CWD = /Users/v.prusakov/Developer/AdaEngine
 # environment
@@ -84,7 +84,7 @@ VSCODE_CODE_CACHE_PATH = /Users/v.prusakov/Library/Application Support/Code/Cach
 # environment
 LOGNAME = v.prusakov
 # environment
-APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = true
+APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = 1
 # environment
 ZSH = /Users/v.prusakov/.oh-my-zsh
 # environment
@@ -108,7 +108,7 @@ VK_ICD_FILENAMES = /Users/v.prusakov/VulkanSDK/1.2.182.0/macOS/etc/vulkan/icd.d/
 # makefile
 .DEFAULT_GOAL := install_vulkan
 # environment
-TERM_SESSION_ID = EF5E8754-305F-4B78-835B-C5EFB3B9BCAF
+TERM_SESSION_ID = 3B0E7D22-75F0-4607-92BF-BDCB8362572B
 # environment
 LESS = -R
 # automatic
@@ -134,7 +134,7 @@ MFLAGS = -Rrqp
 # environment
 TERM_PROGRAM_VERSION = 445
 # environment
-XPC_SERVICE_NAME = application.com.microsoft.VSCode.73909987.73909993.E44945A8-E595-49BD-9E89-4FCA6E59248A
+XPC_SERVICE_NAME = application.com.microsoft.VSCode.73909987.73909993.9201A824-AC05-42C1-944E-CE192B067189
 # automatic
 +D = $(patsubst %/,%,$(dir $+))
 # automatic
@@ -178,12 +178,9 @@ VSCODE_PID = 15332
 
 # Directories
 
-# . (device 16777220, inode 25823005): 24 files, no impossibilities.
+# . (device 16777220, inode 25823005): 25 files, no impossibilities.
 
-# 24 files, no impossibilities in 1 directories.
-
- 
-make: *** No rule to make target `all'.  Stop.
+# 25 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -252,6 +249,8 @@ install_vulkan:
 # strcache size: total = 4096 / max = 4096 / min = 4096 / avg = 4096
 # strcache free: total = 4087 / max = 4087 / min = 4087 / avg = 4087
 
-# Finished Make data base on Mon Jul 11 15:44:22 2022
+# Finished Make data base on Mon Jul 11 22:35:00 2022
 
  
+make: *** No rule to make target `all'.  Stop.
+
