@@ -12,6 +12,7 @@ import box2d
 // - TODO: Draw circles and polygons for debug
 // - TODO: Joints
 // - TODO: Runtime update shape resource
+// - TODO: Debug render in other system?
 final class Physics2DSystem: System {
     
     private var physicsFrame: Int = 0

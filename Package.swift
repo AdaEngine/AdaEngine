@@ -38,29 +38,29 @@ var products: [Product] = [
 let isVulkanEnabled = ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil
 
 // TODO: It's works if we wrap sources to .swiftpm container
-#if canImport(AppleProductTypes)
-//let ios = Product.iOSApplication(
-//    name: "AdaEditor",
-//    targets: ["AdaEditor"],
-//    bundleIdentifier: "dev.litecode.adaengine.editor",
-//    teamIdentifier: "",
-//    displayVersion: "1.0",
-//    bundleVersion: "1",
-//    iconAssetName: "AppIcon",
-//    accentColorAssetName: "AccentColor",
-//    supportedDeviceFamilies: [
-//        .pad,
-//        .phone
-//    ],
-//    supportedInterfaceOrientations: [
-//        .portrait,
-//        .landscapeRight,
-//        .landscapeLeft,
-//        .portraitUpsideDown(.when(deviceFamilies: [.pad]))
-//    ]
-//)
-//
-//products.append(ios)
+#if canImport(AppleProductTypes) && os(iOS)
+let ios = Product.iOSApplication(
+    name: "AdaEditor",
+    targets: ["AdaEditor"],
+    bundleIdentifier: "com.adaengine.editor",
+    teamIdentifier: "",
+    displayVersion: "1.0",
+    bundleVersion: "1",
+    iconAssetName: "AppIcon",
+    accentColorAssetName: "AccentColor",
+    supportedDeviceFamilies: [
+        .pad,
+        .phone
+    ],
+    supportedInterfaceOrientations: [
+        .portrait,
+        .landscapeRight,
+        .landscapeLeft,
+        .portraitUpsideDown(.when(deviceFamilies: [.pad]))
+    ]
+)
+
+products.append(ios)
 #endif
 
 // MARK: - Targets
