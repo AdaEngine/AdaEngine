@@ -7,10 +7,16 @@
 
 import box2d
 
-class Physics2DSystem: System {
+// - TODO: Delete bodies if entity will delete physic component
+// - TODO: Update system fixed times (Timer?)
+// - TODO: Draw circles and polygons for debug
+// - TODO: Joints
+// - TODO: Runtime update shape resource
+final class Physics2DSystem: System {
     
     private var physicsFrame: Int = 0
     private var time: TimeInterval = 0
+    
     // TODO: Should be modified
     private var physicsTicksPerSecond: Float = 60
     
@@ -22,7 +28,7 @@ class Physics2DSystem: System {
         where: .has(Collision2DComponent.self) && .has(Transform.self)
     )
     
-    let world: PhysicsWorld2D
+    unowned let world: PhysicsWorld2D
     
     required init(scene: Scene) {
         self.world = scene.physicsWorld2D
@@ -30,14 +36,10 @@ class Physics2DSystem: System {
     
     func update(context: UpdateContext) {
         
-        let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes)
-        
-        guard let window = context.scene.window else {
-            return
-        }
+        let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.window != nil
         
         if needDrawPolygons {
-            RenderEngine2D.shared.beginContext(for: window.id, camera: context.scene.activeCamera)
+            RenderEngine2D.shared.beginContext(for: context.scene.window!.id, camera: context.scene.activeCamera)
             RenderEngine2D.shared.setTriangleFillMode(.lines)
         }
         

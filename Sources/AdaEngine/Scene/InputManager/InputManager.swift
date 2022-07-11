@@ -11,11 +11,10 @@ import Glibc
 import Darwin.C
 #endif
 
+// - TODO: Input manager doesn't work if keyboard set to cirillic mode.
 public final class Input {
     
     internal static let shared = Input()
-    
-    private var handlers: WeakSet<AnyObject> = []
     
     internal var mousePosition: Point = .zero
     
@@ -23,14 +22,6 @@ public final class Input {
     
     internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
-    
-    public static var horizontal: Bool {
-        fatalError("")
-    }
-    
-    public static var vertical: Bool {
-        fatalError("")
-    }
     
     // MARK: - Public Methods
     
@@ -82,14 +73,6 @@ public final class Input {
         return self.shared.mousePosition
     }
     
-    public static func subscribe(_ handler: InputEventHandler) {
-        self.shared.handlers.insert(handler)
-    }
-    
-    public static func unsubscribe(_ handler: InputEventHandler) {
-        self.shared.handlers.remove(handler)
-    }
-    
     // MARK: Internal
     
     func processEvents() {
@@ -113,110 +96,4 @@ public final class Input {
     func receiveEvent(_ event: InputEvent) {
         self.eventsPool.append(event)
     }
-}
-
-public class InputEvent: Hashable, Identifiable {
-    
-    public let time: TimeInterval
-    
-    internal init(time: TimeInterval) {
-        self.time = time
-    }
-    
-    public static func == (lhs: InputEvent, rhs: InputEvent) -> Bool {
-        return lhs.time == rhs.time
-    }
-    
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(time)
-    }
-    
-}
-
-public class KeyEvent: InputEvent {
-    
-    public enum Status: UInt8, Hashable {
-        case up
-        case down
-    }
-    
-    public let keyCode: KeyCode
-    public let modifiers: KeyModifier
-    public let status: Status
-    
-    internal init(keyCode: KeyCode, modifiers: KeyModifier, status: Status, time: TimeInterval) {
-        self.keyCode = keyCode
-        self.modifiers = modifiers
-        self.status = status
-        
-        super.init(time: time)
-    }
-    
-    public override func hash(into hasher: inout Hasher) {
-        hasher.combine(keyCode)
-        hasher.combine(modifiers)
-    }
-    
-}
-
-public final class MouseEvent: InputEvent {
-    
-    public enum Phase: UInt8, Hashable {
-        case began
-        case changed
-        case ended
-        case cancelled
-    }
-    
-    let button: MouseButton
-    let mousePosition: Point
-    let phase: Phase
-    
-    init(button: MouseButton, mousePosition: Point, phase: Phase, time: TimeInterval) {
-        self.button = button
-        self.mousePosition = mousePosition
-        self.phase = phase
-        super.init(time: time)
-    }
-    
-    public override func hash(into hasher: inout Hasher) {
-        hasher.combine(button)
-        hasher.combine(time)
-        hasher.combine(phase)
-    }
-}
-
-public final class TouchEvent: InputEvent {
-    
-    internal init(location: Point, time: TimeInterval) {
-        self.location = location
-        super.init(time: time)
-    }
-    
-    public let location: Point
-    
-    public override func hash(into hasher: inout Hasher) {
-        hasher.combine(location)
-        hasher.combine(time)
-    }
-}
-
-public protocol InputEventHandler: AnyObject {
-    func mouseUp(_ event: MouseEvent)
-    
-    func mouseDown(_ event: MouseEvent)
-    
-    func keyUp(_ event: KeyEvent)
-    
-    func keyDown(_ event: KeyEvent)
-}
-
-public extension InputEventHandler {
-    func mouseUp(_ event: MouseEvent) { }
-    
-    func mouseDown(_ event: MouseEvent) { }
-    
-    func keyUp(_ event: KeyEvent) { }
-    
-    func keyDown(_ event: KeyEvent) { }
 }

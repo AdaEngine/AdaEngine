@@ -27,7 +27,8 @@ final class MacOSWindowManager: WindowManager {
         )
         
         /// Register view in engine
-        let metalView = MetalView(frame: contentRect)
+        let metalView = MetalView(windowId: window.id, frame: contentRect)
+        
         try? RenderEngine.shared.createWindow(window.id, for: metalView, size: size)
         
         let systemWindow = NSWindow(
@@ -218,24 +219,6 @@ extension NSWindow: SystemWindow {
         set {
             self.setContentSize(NSSize(width: CGFloat(newValue.width), height: CGFloat(newValue.height)))
         }
-    }
-}
-
-extension CGRect {
-    var toEngineRect: Rect {
-        return Rect(origin: self.origin.toEnginePoint, size: self.size.toEngineSize)
-    }
-}
-
-extension CGPoint {
-    var toEnginePoint: Point {
-        return Point(x: Float(self.x), y: Float(self.y))
-    }
-}
-
-extension CGSize {
-    var toEngineSize: Size {
-        return Size(width: Float(self.width), height: Float(self.height))
     }
 }
 
