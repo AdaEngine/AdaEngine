@@ -73,7 +73,7 @@ final class MacApplication: Application {
     
     // MARK: - Private
     
-    @objc private func update() {
+    private func update() {
         do {
             try self.gameLoop.iterate()
         } catch {

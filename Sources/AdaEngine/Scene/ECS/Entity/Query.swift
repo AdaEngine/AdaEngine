@@ -71,7 +71,7 @@ public extension QueryPredicate {
     }
 }
 
-/// Contains array of entities matched for given EntityQuery request.
+/// Contains array of entities matched for the given EntityQuery request.
 public struct QueryResult: Sequence {
     
     // TODO: I'm not sure that archetype as ref types should right choise.
