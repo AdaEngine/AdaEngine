@@ -53,6 +53,16 @@ class PlayerComponent: ScriptComponent {
         if Input.isKeyPressed(.space) {
             body.applyLinearImpulse([0, 1], point: .zero, wake: true)
         }
+        
+        if Input.isKeyPressed(.m) {
+            let scene = self.entity?.scene
+            if scene?.debugOptions.contains(.showPhysicsShapes) == true {
+                scene?.debugOptions.remove(.showPhysicsShapes)
+            } else {
+                scene?.debugOptions.insert(.showPhysicsShapes)
+            }
+            
+        }
 //
 //        if Input.isKeyPressed(.arrowUp) {
 //            self.transform.position.y += 0.1 * speed
@@ -160,7 +170,7 @@ class GameScene {
         )
         scene.addEntity(plainEntity1)
         
-        transform.position = [0.6, -0.3, 0]
+        transform.position = [0.7, -0.3, 0]
         transform.scale = [0.3, 0.3, 0.3]
         
         let plainEntity2 = Entity()

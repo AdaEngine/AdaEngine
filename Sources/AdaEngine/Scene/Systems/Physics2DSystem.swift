@@ -32,8 +32,12 @@ class Physics2DSystem: System {
         
         let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes)
         
+        guard let window = context.scene.window else {
+            return
+        }
+        
         if needDrawPolygons {
-            RenderEngine2D.shared.flush()
+            RenderEngine2D.shared.beginContext(for: window.id, camera: context.scene.activeCamera)
             RenderEngine2D.shared.setTriangleFillMode(.lines)
         }
         
@@ -47,8 +51,7 @@ class Physics2DSystem: System {
         self.world.updateSimulation(context.deltaTime)
         
         if needDrawPolygons {
-            RenderEngine2D.shared.flush()
-            RenderEngine2D.shared.setTriangleFillMode(.fill)
+            RenderEngine2D.shared.commitContext()
         }
     }
     
