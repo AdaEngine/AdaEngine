@@ -355,10 +355,6 @@ extension MetalRenderBackend {
             fatalError("Render Window not exists.")
         }
         
-//        guard let renderPass = window.view?.currentRenderPassDescriptor else {
-//            fatalError("Can't get render pass descriptor")
-//        }
-        
         let draw = Draw(
             window: window,
             commandBuffer: window.commandBuffer!,
