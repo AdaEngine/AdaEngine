@@ -10,7 +10,7 @@ import ProjectDescription
 public extension Settings {
     static var adaEngine: Settings {
         Settings.settings(base: [
-            "PRODUCT_BUNDLE_IDENTIFIER": "dev.litecode.adaengine",
+            "PRODUCT_BUNDLE_IDENTIFIER": "org.adaengine",
         ])
     }
 }

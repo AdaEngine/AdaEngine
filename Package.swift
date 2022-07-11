@@ -4,7 +4,7 @@
 import PackageDescription
 import Foundation
 
-#if canImport(AppleProductTypes)
+#if canImport(AppleProductTypes) && os(iOS)
 import AppleProductTypes
 #endif
 
