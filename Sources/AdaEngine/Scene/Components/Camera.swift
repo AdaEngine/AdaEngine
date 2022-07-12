@@ -5,14 +5,13 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+// FIXME: Change camera to component, instead of script component
 public final class Camera: ScriptComponent {
     
     public enum Projection: UInt8, Codable, CaseIterable {
         case perspective
         case orthographic
     }
-    
-    private var isDirty = false
     
     // MARK: Properties
     
@@ -76,7 +75,10 @@ public final class Camera: ScriptComponent {
             )
         }
         
-        return CameraData(viewProjection: projection * self.viewMatrix, position: self.transform.position)
+        return CameraData(
+            viewProjection: projection * self.viewMatrix,
+            position: self.transform.position
+        )
     }
 }
 
