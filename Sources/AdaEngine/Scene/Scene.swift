@@ -55,7 +55,6 @@ public final class Scene {
         self.name = name.isEmpty ? "Scene" : name
         self.world = World()
         self.physicsWorld2D = PhysicsWorld2D()
-        
         let cameraEntity = Entity()
         
         let cameraComponent = Camera()
@@ -63,6 +62,10 @@ public final class Scene {
         self.world.appendEntity(cameraEntity)
         
         self.activeCamera = cameraComponent
+        
+        defer {
+            self.physicsWorld2D.scene = self
+        }
     }
     
     public required convenience init(from decoder: Decoder) throws {
@@ -106,6 +109,10 @@ public final class Scene {
         self.systems.append(system)
     }
     
+    /// Receives events of the given type.
+    /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
+    /// - Parameters completion: A closure to call with the event.
+    /// - Returns: A cancellable object. You should store it in memory, to recieve events.
     public func subscribe<E: Event>(
         _ event: E.Type,
         completion: @escaping (E) -> Void

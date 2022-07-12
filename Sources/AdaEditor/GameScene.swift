@@ -88,6 +88,9 @@ class PlayerComponent: ScriptComponent {
 
 
 class GameScene {
+    
+    var collision: Cancellable!
+    
     func makeScene() async throws -> Scene {
         let scene = Scene()
         
@@ -189,6 +192,10 @@ class GameScene {
         userEntity.components += camera
         userEntity.components += ControlCameraComponent()
         scene.addEntity(userEntity)
+        
+        collision = scene.subscribe(CollisionEvent.Began.self, completion: { event in
+            print(event.entityA, event.entityB)
+        })
         
         return scene
     }
