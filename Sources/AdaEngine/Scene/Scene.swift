@@ -21,6 +21,8 @@ public final class Scene {
     
     public private(set) var physicsWorld2D: PhysicsWorld2D
     
+    private(set) var eventManager: EventManager = EventManager()
+    
     public var viewportRelativeWindowSize: Bool = true
     
     // Options for content in a scene that can aid debugging.
@@ -102,6 +104,13 @@ public final class Scene {
     public func addSystem<T: System>(_ systemType: T.Type) {
         let system = systemType.init(scene: self)
         self.systems.append(system)
+    }
+    
+    public func subscribe<E: Event>(
+        _ event: E.Type,
+        completion: @escaping (E) -> Void
+    ) -> Cancellable {
+        return self.eventManager.subscribe(for: event, completion: completion)
     }
     
     // MARK: - Internal methods

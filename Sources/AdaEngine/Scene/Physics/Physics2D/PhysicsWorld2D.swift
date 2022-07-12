@@ -45,6 +45,8 @@ public final class PhysicsWorld2D {
     
     private var world: b2World
     
+    weak var scene: Scene?
+    
     public var velocityIterations: Int = 6
     public var positionIterations: Int = 2
     
@@ -149,6 +151,7 @@ final class _Physics2DContactListner: b2ContactListener {
         let bodyA = contact.fixtureA.body.userData as! Body2D
         let bodyB = contact.fixtureB.body.userData as! Body2D
         
+        // FIXME: We should get correct impulse of contact
         let impulse = contact.manifold.points.first?.normalImpulse
         
         let event = CollisionEvent.Began(
@@ -157,7 +160,7 @@ final class _Physics2DContactListner: b2ContactListener {
             impulse: impulse ?? 0
         )
         
-        EventManager.default.send(event)
+        bodyA.world.scene?.eventManager.send(event)
     }
     
     func endContact(_ contact: b2Contact) {
@@ -169,7 +172,7 @@ final class _Physics2DContactListner: b2ContactListener {
             entityB: bodyB.entity
         )
         
-        EventManager.default.send(event)
+        bodyA.world.scene?.eventManager.send(event)
     }
     
     func postSolve(_ contact: b2Contact, impulse: b2ContactImpulse) {
@@ -180,56 +183,3 @@ final class _Physics2DContactListner: b2ContactListener {
         return
     }
 }
-
-
-//// This functions help us to work with contact listner
-//
-//private func b2_ContactListner_BeginContact(
-//    _ contact: UnsafeMutablePointer<b2Contact>!,
-//    _ userObject: UnsafeMutableRawPointer!
-//) {
-//    let world = Unmanaged<PhysicsWorld2D>.fromOpaque(userObject).takeUnretainedValue()
-//
-//    var contact = contact.pointee
-//    let manifold: UnsafePointer<b2Manifold>! = contact.GetManifold()
-//    let impulse = manifold.pointee.points.0.normalImpulse
-//
-//    let bodyA = Body2D(world: world, ref: contact.GetFixtureA().pointee.GetBody())
-//    let bodyB = Body2D(world: world, ref: contact.GetFixtureB().pointee.GetBody())
-//
-//    let physicsContact = Body2DContact(
-//        bodyA: bodyA,
-//        bodyB: bodyB,
-//        collisionImpulse: impulse
-//    )
-//    world.delegate?.physicsWorld(world, didEndContact: physicsContact)
-//}
-//
-//private func b2_ContactListner_EndContact(
-//    _ contact: UnsafeMutablePointer<b2Contact>!,
-//    _ userObject: UnsafeMutableRawPointer!
-//) {
-//    let world = Unmanaged<PhysicsWorld2D>.fromOpaque(userObject).takeUnretainedValue()
-//
-//    var contact = contact.pointee
-//    let manifold: UnsafePointer<b2Manifold>! = contact.GetManifold()
-//    let impulse = manifold.pointee.points.0.normalImpulse
-//
-//    let bodyA = Body2D(world: world, ref: contact.GetFixtureA().pointee.GetBody())
-//    let bodyB = Body2D(world: world, ref: contact.GetFixtureB().pointee.GetBody())
-//
-//    let physicsContact = Body2DContact(
-//        bodyA: bodyA,
-//        bodyB: bodyB,
-//        collisionImpulse: impulse
-//    )
-//
-//    world.delegate?.physicsWorld(world, didEndContact: physicsContact)
-//}
-//
-//private func b2_ContactListner_Deconstructor(
-//    _ userObject: UnsafeMutableRawPointer!
-//) {
-//    Unmanaged<PhysicsWorld2D>.fromOpaque(userObject).release()
-//}
-//
