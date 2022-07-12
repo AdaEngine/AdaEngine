@@ -110,8 +110,6 @@ class MetalRenderBackend: RenderBackend {
             window.commandBuffer?.present(currentDrawable)
             
             window.commandBuffer?.commit()
-            
-            window.commandBuffer?.waitUntilCompleted()
         }
     }
     
