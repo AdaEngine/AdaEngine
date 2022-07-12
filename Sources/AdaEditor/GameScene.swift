@@ -93,7 +93,7 @@ class GameScene {
         
         // DEBUG
         
-        scene.debugOptions = [.showPhysicsShapes, .showFPS]
+//        scene.debugOptions = [.showPhysicsShapes, .showFPS]
         
         let tiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
         
@@ -135,7 +135,6 @@ class GameScene {
         playerEntity.components += PhysicsBody2DComponent(
             shapes: [
                 .generateBox(width: 0.3, height: 0.3)
-//                .generateCircle(radius: 0.3)
             ],
             mass: 1
         )

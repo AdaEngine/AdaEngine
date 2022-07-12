@@ -6,6 +6,7 @@
 //
 
 import box2d
+import Math
 
 // - TODO: Delete bodies if entity will delete physic component
 // - TODO: Update system fixed times (Timer?)
@@ -36,12 +37,10 @@ final class Physics2DSystem: System {
     }
     
     func update(context: UpdateContext) {
-        
         let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.window != nil
         
         if needDrawPolygons {
             RenderEngine2D.shared.beginContext(for: context.scene.window!.id, camera: context.scene.activeCamera)
-            RenderEngine2D.shared.setTriangleFillMode(.lines)
         }
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
@@ -57,6 +56,8 @@ final class Physics2DSystem: System {
             RenderEngine2D.shared.commitContext()
         }
     }
+    
+    // MARK: - Private
     
     private func updatePhysicsBodyEntities(_ entities: QueryResult, needDrawPolygons: Bool, context: UpdateContext) {
         for entity in entities {
@@ -94,8 +95,9 @@ final class Physics2DSystem: System {
                 }
             }
             
-            if needDrawPolygons {
-                RenderEngine2D.shared.drawQuad(
+            if let body = physicsBody.runtimeBody?.ref, needDrawPolygons {
+                self.drawDebug(
+                    body: body,
                     transform: transform.matrix,
                     color: context.scene.debugPhysicsColor
                 )
@@ -147,8 +149,9 @@ final class Physics2DSystem: System {
                 }
             }
             
-            if needDrawPolygons {
-                RenderEngine2D.shared.drawQuad(
+            if let body = collisionBody.runtimeBody?.ref, needDrawPolygons {
+                self.drawDebug(
+                    body: body,
                     transform: transform.matrix,
                     color: context.scene.debugPhysicsColor
                 )
@@ -157,5 +160,38 @@ final class Physics2DSystem: System {
             entity.components += transform
             entity.components += collisionBody
         }
+    }
+    
+    // MARK: - Debug draw
+    
+    // FIXME: Use body transform instead
+    private func drawDebug(body: b2Body, transform: Transform3D, color: Color) {
+        guard let fixture = body.getFixtureList() else { return }
+        
+        switch fixture.shape.type {
+        case .circle:
+            self.drawCircle(transform: transform, color: color)
+        case .polygon:
+            self.drawQuad(transform: transform, color: color)
+        default:
+            return
+        }
+    }
+    
+    private func drawCircle(transform: Transform3D, color: Color) {
+        RenderEngine2D.shared.drawCircle(
+            transform: transform,
+            thickness: 0.1,
+            fade: 0,
+            color: color
+        )
+    }
+    
+    private func drawQuad(transform: Transform3D, color: Color) {
+        RenderEngine2D.shared.drawQuad(transform: transform, color: color)
+    }
+    
+    private func drawMesh(transform: Transform3D, color: Color) {
+        // TODO: Draw 2d mesh here
     }
 }
