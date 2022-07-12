@@ -133,8 +133,11 @@ class GameScene {
         playerEntity.components += SpriteComponent(texture: playerTexture)
         playerEntity.components += transform
         playerEntity.components += PhysicsBody2DComponent(
-            shapes: [.generateBox(width: 0.3, height: 0.3)],
-            density: 0
+            shapes: [
+                .generateBox(width: 0.3, height: 0.3)
+//                .generateCircle(radius: 0.3)
+            ],
+            mass: 1
         )
         playerEntity.components += PlayerComponent()
         

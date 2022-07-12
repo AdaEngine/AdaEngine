@@ -75,7 +75,9 @@ final class Physics2DSystem: System {
                 physicsBody.runtimeBody = body
                 
                 for shape in physicsBody.shapes {
-                    shape.fixtureDef.density = physicsBody.density
+                    shape.fixtureDef.density = physicsBody.material.density
+                    shape.fixtureDef.restitution = physicsBody.material.restitution
+                    shape.fixtureDef.friction = physicsBody.material.friction
                     body.addFixture(for: shape)
                 }
             }
@@ -117,12 +119,17 @@ final class Physics2DSystem: System {
                 var def = Body2DDefinition()
                 def.position = [transform.position.x, transform.position.y]
                 def.angle = transform.rotation.z
-                def.bodyMode = collisionBody.mode
+                def.bodyMode = .static
                 
                 let body = world.createBody(definition: def, for: entity)
                 collisionBody.runtimeBody = body
                 
                 for shape in collisionBody.shapes {
+                    
+                    if case .trigger = collisionBody.mode {
+                        shape.fixtureDef.isSensor = true
+                    }
+                    
                     body.addFixture(for: shape)
                 }
             }
