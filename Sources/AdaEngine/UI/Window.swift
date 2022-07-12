@@ -5,9 +5,9 @@
 //  Created by v.prusakov on 5/29/22.
 //
 
-/// The base class describe window in the system.
-/// Each instance of window can be presented on screen.
-/// Window holds `SceneManager` instance to manage game scenes, but, you can also use UI kit instead.
+/// The base class describes the window in the system.
+/// Each window instance can be presented on the screen.
+/// The window holds a `SceneManager` instance to manage the game scene, but you can also use UI kit instead.
 /// - Tag: AdaEngine.Window
 open class Window: View {
     

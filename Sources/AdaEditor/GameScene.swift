@@ -111,7 +111,6 @@ class GameScene {
         
         let heartAnimated = AnimatedTexture()
         heartAnimated.framesPerSecond = 5
-        
         heartAnimated.framesCount = 4
         heartAnimated[0] = texture[4, 2]
         heartAnimated[1] = texture[5, 2]
@@ -182,50 +181,7 @@ class GameScene {
             shapes: [.generateBox(width: 0.3, height: 0.6)]
         )
         scene.addEntity(plainEntity2)
-        
-//        for i in 0..<10 {
-//            let viewEntity = Entity(name: "Circle \(i)")
-//
-//            let alpha: Float = Float.random(in: 0.3...1)
-//
-//            let color = Color(
-//                Float.random(in: 0..<255) / 255,
-//                Float.random(in: 0..<255) / 255,
-//                Float.random(in: 0..<255) / 255,
-//                alpha
-//            )
-            
-//            viewEntity.components += Circle2DComponent(
-//                color: Color(
-//                    Float.random(in: 0..<255) / 255,
-//                    Float.random(in: 0..<255) / 255,
-//                    Float.random(in: 0..<255) / 255,
-//                    alpha
-//                ),
-//                thickness: 1
-//            )
-            
-//            viewEntity.components += SpriteComponent(
-//                texture: nil
-//            )
-//
-//            scene.addEntity(viewEntity)
-//        }
-        
-//        let viewEntity = Entity(name: "Circle")
-//        viewEntity.components += Circle2DComponent(color: .blue, thickness: 1)
-//        scene.addEntity(viewEntity)
-//
-//        let viewEntity1 = Entity(name: "Circle 1")
-//        viewEntity1.components += Circle2DComponent(color: .yellow, thickness: 1)
-//
-//        var transform = Transform()
-//        transform.position = [4, 4, 4]
-//        transform.scale = [0.2, 0.2, 0.2]
-//        viewEntity1.components += transform
-//        viewEntity1.components += ControlCircleComponent()
-//        scene.addEntity(viewEntity1)
-        
+
         let userEntity = Entity(name: "camera")
         let camera = Camera()
         camera.projection = .orthographic
