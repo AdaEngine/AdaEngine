@@ -113,7 +113,7 @@ public final class Scene {
         // Add base systems
         self.addSystem(ScriptComponentUpdateSystem.self)
         self.addSystem(CameraSystem.self)
-//        self.addSystem(Render2DSystem.self)
+        self.addSystem(Render2DSystem.self)
         self.addSystem(Physics2DSystem.self)
         self.addSystem(ViewContainerSystem.self)
         
