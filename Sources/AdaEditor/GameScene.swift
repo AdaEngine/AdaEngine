@@ -96,7 +96,7 @@ class GameScene {
         
         // DEBUG
         
-//        scene.debugOptions = [.showPhysicsShapes, .showFPS]
+        scene.debugOptions = [.showPhysicsShapes]
         
         let tiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
         
@@ -192,10 +192,10 @@ class GameScene {
         userEntity.components += camera
         userEntity.components += ControlCameraComponent()
         scene.addEntity(userEntity)
-        
-        collision = scene.subscribe(CollisionEvent.Began.self, completion: { event in
-            print(event.entityA, event.entityB)
-        })
+//
+//        collision = scene.subscribe(CollisionEvent.Began.self, completion: { event in
+//            print(event.entityA, event.entityB)
+//        })
         
         return scene
     }
