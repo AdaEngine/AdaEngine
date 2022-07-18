@@ -32,8 +32,8 @@ final class World {
     
     // MARK: - Methods
     
+    // FIXME: Can crash if we change components set during runtime
     func appendEntity(_ entity: Entity) {
-        // FIXME: Can crash if we change components set during runtime
         let bitmask = entity.components.bitmask
         
         for (column, archetype) in self.archetypes.enumerated() where archetype.componentsBitMask.contains(bitmask) {
@@ -73,6 +73,7 @@ final class World {
         self.records[entity.id] = nil
         
         let arch = self.archetypes[record.column]
+        // FIXME: Can crash if we change components set during runtime
         // TODO: we should use separate array for fried entities, because removing entity from arrary is O(n)
         arch.entities.remove(at: record.row)
         

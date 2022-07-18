@@ -76,7 +76,7 @@ public final class PhysicsWorld2D {
         )
     }
     
-    func createBody(definition: Body2DDefinition, for entity: Entity) -> Body2D {
+    public func createBody(definition: Body2DDefinition, for entity: Entity) -> Body2D {
         let body = b2BodyDef()
         body.angle = definition.angle
         body.position = definition.position.b2Vec
@@ -100,11 +100,21 @@ public final class PhysicsWorld2D {
         return body2D
     }
     
+    public func createJoint(_ def: b2JointDef) -> b2Joint {
+        return self.world.createJoint(def)
+    }
+    
+    public func destroyJoint(_ joint: b2Joint) {
+        self.world.destroyJoint(joint)
+    }
+    
     public func destroyBody(_ body: Body2D) {
         self.world.destroyBody(body.ref)
     }
     
 }
+
+// MARK: - Casting
 
 extension Vector2 {
     @inline(__always) var b2Vec: b2Vec2 {
