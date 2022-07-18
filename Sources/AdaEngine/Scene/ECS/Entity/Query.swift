@@ -134,6 +134,13 @@ public extension QueryResult {
             }
             
             let currentArchetype = self.pointer.advanced(by: self.currentArchetypeIndex).pointee
+            
+            while currentArchetype.entities[currentEntityIndex] == nil {
+                if self.currentEntityIndex < currentEntitiesCount - 1 {
+                    self.currentEntityIndex += 1
+                }
+            }
+            
             return currentArchetype.entities[currentEntityIndex]
         }
     }
