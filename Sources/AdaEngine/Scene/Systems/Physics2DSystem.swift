@@ -30,6 +30,10 @@ final class Physics2DSystem: System {
         where: .has(Collision2DComponent.self) && .has(Transform.self)
     )
     
+    static let jointsQuery = EntityQuery(
+        where: .has(PhysicsJoint2DComponent.self) && .has(Transform.self)
+    )
+    
     unowned let world: PhysicsWorld2D
     
     required init(scene: Scene) {
@@ -45,10 +49,11 @@ final class Physics2DSystem: System {
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
         let colissionBody = context.scene.performQuery(Self.collisionQuery)
+        let joints = context.scene.performQuery(Self.jointsQuery)
 
         self.updatePhysicsBodyEntities(physicsBody, needDrawPolygons: needDrawPolygons, context: context)
-        
         self.updateCollisionEntities(colissionBody, needDrawPolygons: needDrawPolygons, context: context)
+        self.updateJointsEntities(joints, needDrawPolygons: needDrawPolygons, context: context)
         
         self.world.updateSimulation(context.deltaTime)
         
@@ -160,6 +165,50 @@ final class Physics2DSystem: System {
             entity.components += transform
             entity.components += collisionBody
         }
+    }
+    
+    private func updateJointsEntities(_ entities: QueryResult, needDrawPolygons: Bool, context: UpdateContext) {
+        for entity in entities {
+            var (jointComponent, transform) = entity.components[PhysicsJoint2DComponent.self, Transform.self]
+            
+            if jointComponent.runtimeJoint == nil {
+                switch jointComponent.jointDescriptor.joint {
+                case .rope(let entityA, let entityB, let vectorA, let vectorB):
+                    let joint = b2RopeJointDef()
+                    guard
+                        let bodyA = self.getBody(from: entityA)?.ref,
+                        let bodyB = self.getBody(from: entityB)?.ref
+                    else {
+                        continue
+                    }
+                    
+                    joint.bodyA = bodyA
+                    joint.bodyB = bodyB
+                    let ref = self.world.createJoint(joint)
+                    jointComponent.runtimeJoint = ref
+                case .revolute(let entityA):
+                    guard
+                        let bodyA = self.getBody(from: entityA)?.ref,
+                        let current = self.getBody(from: entity)?.ref
+                    else {
+                        continue
+                    }
+                    
+                    let anchor = transform.position.xy.b2Vec
+                    let joint = b2RevoluteJointDef(bodyA: bodyA, bodyB: current, anchor: anchor)
+                    
+                    let ref = self.world.createJoint(joint)
+                    jointComponent.runtimeJoint = ref
+                }
+            }
+            
+            entity.components += jointComponent
+        }
+    }
+    
+    private func getBody(from entity: Entity) -> Body2D? {
+        entity.components[PhysicsBody2DComponent.self]?.runtimeBody ??
+        entity.components[Collision2DComponent.self]?.runtimeBody
     }
     
     // MARK: - Debug draw

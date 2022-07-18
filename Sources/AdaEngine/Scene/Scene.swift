@@ -141,6 +141,8 @@ public final class Scene {
             system.update(context: SceneUpdateContext(scene: self, deltaTime: deltaTime))
         }
     }
+    
+    var removeEntities: [Entity] = []
 }
 
 // MARK: - ECS
