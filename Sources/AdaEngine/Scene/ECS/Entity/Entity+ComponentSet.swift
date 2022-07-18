@@ -10,7 +10,7 @@ import Collections
 public extension Entity {
     
     /// Hold entity components
-    @frozen struct ComponentSet: Codable {
+    struct ComponentSet: Codable {
         
         internal weak var entity: Entity?
         
@@ -18,7 +18,7 @@ public extension Entity {
             return self.entity?.scene?.world
         }
         
-        private(set) var buffer: [UInt: Component]
+        private(set) var buffer: [ComponentId: Component]
         
         // MARK: - Codable
         
@@ -28,7 +28,7 @@ public extension Entity {
         
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
-            var buffer: [UInt: Component] = [:]
+            var buffer: [ComponentId: Component] = [:]
             
 //            for key in container.allKeys {
 //                guard let type = ComponentStorage.getRegistredComponent(for: key.stringValue) else {

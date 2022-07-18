@@ -230,15 +230,6 @@ class GameScene {
         
         scene.addEntity(plainEntity1)
         
-
-        
-        
-        
-        
-        
-        
-        
-
         let userEntity = Entity(name: "camera")
         let camera = Camera()
         camera.projection = .orthographic
@@ -254,17 +245,17 @@ class GameScene {
         destroyer.components += SpriteComponent(tintColor: .blue)
         destroyer.components += transform
         destroyer.components += Collision2DComponent(shapes: [
-            .generateBox(width: 10, height: 0.3)
+            .generateBox(width: 15, height: 0.3)
         ], mode: .trigger)
         scene.addEntity(destroyer)
 
-//        collision = scene.subscribe(CollisionEvent.Began.self, completion: { event in
-//            
-//            if event.entityA.name == "Destroy" {
-//                event.entityB.scene?.removeEntity(event.entityB)
-//            }
-//            
-//        })
+        collision = scene.subscribe(CollisionEvent.Began.self, completion: { event in
+            
+            if event.entityA.name == "Destroy" {
+                event.entityB.scene?.removeEntity(event.entityB)
+            }
+            
+        })
         
         return scene
     }
