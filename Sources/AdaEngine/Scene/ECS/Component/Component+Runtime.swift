@@ -30,7 +30,7 @@ extension Component {
     
     /// Return identifier of component based on Component.Type
     @inline(__always) static var identifier: ComponentId {
-        ComponentId(id: UInt(bitPattern: ObjectIdentifier(self)))
+        ComponentId(id: Int(bitPattern: ObjectIdentifier(self)))
     }
 }
 

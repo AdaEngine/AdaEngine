@@ -54,7 +54,7 @@ public extension QueryPredicate {
     /// Set the rule that entity should contains given type.
     static func has<T: Component>(_ type: T.Type) -> QueryPredicate {
         QueryPredicate { archetype in
-            return archetype.componentsBitMask.contains(type)
+            return archetype.componentsBitMask.contains(type.identifier)
         }
     }
     

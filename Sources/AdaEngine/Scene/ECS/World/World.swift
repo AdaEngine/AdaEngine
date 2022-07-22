@@ -30,7 +30,7 @@ public final class World {
     func appendEntity(_ entity: Entity) {
         let bitmask = entity.components.bitmask
         
-        for archetype in self.archetypes where archetype.componentsBitMask.contains(bitmask) {
+        for archetype in self.archetypes where archetype.componentsBitMask == bitmask {
             let location = archetype.append(entity)
             self.records[entity.id] = location
             
@@ -97,7 +97,7 @@ public final class World {
         let bitmask = ent.components.bitmask
         
         var archetype = self.archetypes.first(where: {
-            $0.componentsBitMask.contains(bitmask)
+            $0.componentsBitMask == bitmask
         })
         
         if archetype == nil {
@@ -144,7 +144,7 @@ public final class World {
         let bitmask = ent.components.bitmask
         
         var archetype = self.archetypes.first(where: {
-            $0.componentsBitMask.contains(bitmask)
+            $0.componentsBitMask == bitmask
         })
         
         if archetype == nil {
@@ -184,10 +184,10 @@ extension World {
 }
 
 extension Entity.ComponentSet {
-    var bitmask: Archetype.BitMask {
-        var mask = Archetype.BitMask(count: self.count)
+    var bitmask: Bitset {
+        var mask = Bitset(count: self.count)
         for component in self.buffer {
-            mask.add(component.key)
+            mask.insert(component.key)
         }
         return mask
     }
