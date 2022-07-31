@@ -14,7 +14,6 @@ struct ViewContainerSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        
         let guiRenderContext = GUIRenderContext(window: context.scene.window!.id)
         
         context.scene.performQuery(Self.query).forEach { entity in
@@ -26,8 +25,6 @@ struct ViewContainerSystem: System {
                 return
             }
             
-//            container.rootView.frame.size = Size(width: 400, height: 400)
-            
             if container.rootView.frame.size != context.scene.viewportSize {
                 container.rootView.frame.size = context.scene.viewportSize
             }
@@ -37,9 +34,7 @@ struct ViewContainerSystem: System {
             }
             
             guiRenderContext.beginDraw(in: container.rootView.frame)
-            
             container.rootView.draw(with: guiRenderContext)
-            
             guiRenderContext.commitDraw()
         }
     }

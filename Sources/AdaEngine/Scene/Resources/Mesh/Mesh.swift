@@ -162,7 +162,7 @@ extension Mesh {
     
     static func generateSphere(extent: Vector3, segments: Vector2) -> Mesh {
         let mdlMesh = MDLMesh(
-            sphereWithExtent: extent,
+            sphereWithExtent: [extent.x, extent.y, extent.z],
             segments: [UInt32(segments.x), UInt32(segments.y)],
             inwardNormals: false,
             geometryType: .triangles,

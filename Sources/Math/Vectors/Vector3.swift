@@ -5,9 +5,74 @@
 //  Created by v.prusakov on 6/22/22.
 //
 
-import simd
+import Foundation
 
-public typealias Vector3 = SIMD3<Float>
+public struct Vector3: Hashable, Equatable, Codable {
+    public var x: Float
+    public var y: Float
+    public var z: Float
+    
+    @inline(__always)
+    public init(x: Float, y: Float, z: Float) {
+        self.x = x
+        self.y = y
+        self.z = z
+    }
+}
+
+public extension Vector3 {
+    @inline(__always)
+    init(_ scalar: Float) {
+        self.x = scalar
+        self.y = scalar
+        self.z = scalar
+    }
+    
+    @inline(__always)
+    init(_ x: Float, _ y: Float, _ z: Float) {
+        self.x = x
+        self.y = y
+        self.z = z
+    }
+}
+
+public extension Vector3 {
+    subscript(_ index: Int) -> Float {
+        get {
+            switch index {
+            case 0:
+                return x
+            case 1:
+                return y
+            case 2:
+                return z
+            default:
+                fatalError("Index out of range.")
+            }
+        }
+        
+        set {
+            switch index {
+            case 0:
+                self.x = newValue
+            case 1:
+                self.y = newValue
+            case 2:
+                self.z = newValue
+            default: fatalError("Index out of range.")
+            }
+        }
+    }
+}
+
+extension Vector3: ExpressibleByArrayLiteral {
+    public init(arrayLiteral elements: Float...) {
+        assert(elements.count == 3)
+        self.x = elements[0]
+        self.y = elements[1]
+        self.z = elements[2]
+    }
+}
 
 extension Vector3 {
     public var description: String {
@@ -23,6 +88,123 @@ public extension Vector3 {
             lhs[0, 2] * rhs.x + lhs[1, 2] * rhs.y + lhs[2, 2] * rhs.z
         ]
     }
+}
+
+// MARK: Math Operations
+
+public extension Vector3 {
+    
+    // MARK: Scalar
+    
+    @inline(__always)
+    static func * (lhs: Vector3, rhs: Float) -> Vector3 {
+        return [lhs.x * rhs, lhs.y * rhs, lhs.z * rhs]
+    }
+    
+    @inline(__always)
+    static func + (lhs: Vector3, rhs: Float) -> Vector3 {
+        return [lhs.x + rhs, lhs.y + rhs, lhs.z + rhs]
+    }
+    
+    @inline(__always)
+    static func - (lhs: Vector3, rhs: Float) -> Vector3 {
+        return [lhs.x - rhs, lhs.y - rhs, lhs.z - rhs]
+    }
+    
+    @inline(__always)
+    static func * (lhs: Float, rhs: Vector3) -> Vector3 {
+        return [lhs * rhs.x, lhs * rhs.y, lhs * rhs.z]
+    }
+    
+    @inline(__always)
+    static func + (lhs: Float, rhs: Vector3) -> Vector3 {
+        return [lhs + rhs.x, lhs + rhs.y, lhs + rhs.z]
+    }
+    
+    @inline(__always)
+    static func - (lhs: Float, rhs: Vector3) -> Vector3 {
+        return [lhs - rhs.x, lhs - rhs.y, lhs - rhs.z]
+    }
+    
+    @inline(__always)
+    static func / (lhs: Float, rhs: Vector3) -> Vector3 {
+        return [lhs / rhs.x, lhs / rhs.y, lhs / rhs.z]
+    }
+    
+    @inline(__always)
+    static func *= (lhs: inout Vector3, rhs: Float) {
+        lhs = lhs * rhs
+    }
+    
+    @inline(__always)
+    static func += (lhs: inout Vector3, rhs: Float) {
+        lhs = lhs + rhs
+    }
+    
+    @inline(__always)
+    static func -= (lhs: inout Vector3, rhs: Float) {
+        lhs = lhs - rhs
+    }
+    
+    @inline(__always)
+    static func /= (lhs: inout Vector3, rhs: Float) {
+        lhs = lhs / rhs
+    }
+    
+    // MARK: Vector
+    
+    @inline(__always)
+    static func + (lhs: Vector3, rhs: Vector3) -> Vector3 {
+        return [lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z]
+    }
+    
+    @inline(__always)
+    static func - (lhs: Vector3, rhs: Vector3) -> Vector3 {
+        return [lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z]
+    }
+
+    @inline(__always)
+    static func * (lhs: Vector3, rhs: Vector3) -> Vector3 {
+        return [lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z]
+    }
+    
+    @inline(__always)
+    static func / (lhs: Vector3, rhs: Float) -> Vector3 {
+        return [lhs.x / rhs, lhs.y / rhs, lhs.z / rhs]
+    }
+    
+    @inline(__always)
+    static func / (lhs: Vector3, rhs: Vector3) -> Vector3 {
+        return [lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z]
+    }
+    
+    @inline(__always)
+    static func *= (lhs: inout Vector3, rhs: Vector3) {
+        lhs = lhs * rhs
+    }
+    
+    @inline(__always)
+    static func += (lhs: inout Vector3, rhs: Vector3) {
+        lhs = lhs + rhs
+    }
+    
+    @inline(__always)
+    static func -= (lhs: inout Vector3, rhs: Vector3) {
+        lhs = lhs - rhs
+    }
+    
+    @inline(__always)
+    static func /= (lhs: inout Vector3, rhs: Vector3) {
+        lhs = lhs / rhs
+    }
+}
+
+public extension Vector3 {
+    @inline(__always)
+    static let zero: Vector3 = Vector3(0)
+    
+    @inline(__always)
+    static let one: Vector3 = Vector3(1)
 }
 
 public extension Vector3 {
