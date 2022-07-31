@@ -5,12 +5,7 @@
 //  Created by v.prusakov on 10/19/21.
 //
 
-#if (os(OSX) || os(iOS) || os(tvOS) || os(watchOS))
-import Darwin
-#elseif os(Linux) || os(Android)
-import Glibc
-#endif
-import simd
+import Foundation
 
 // swiftlint:disable identifier_name
 
