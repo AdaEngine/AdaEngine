@@ -34,6 +34,20 @@ public extension Vector3 {
         self.y = y
         self.z = z
     }
+    
+    @inline(__always)
+    init(_ xy: Float, _ z: Float) {
+        self.x = xy
+        self.y = xy
+        self.z = z
+    }
+    
+    @inline(__always)
+    init(_ vector2: Vector2, _ z: Float) {
+        self.x = vector2.x
+        self.y = vector2.y
+        self.z = z
+    }
 }
 
 public extension Vector3 {

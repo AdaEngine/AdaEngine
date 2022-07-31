@@ -113,3 +113,48 @@ enum TestUtils {
 #endif
     
 }
+
+#if canImport(simd)
+
+extension Vector2 {
+    var simd: SIMD2<Float> {
+        return [x, y]
+    }
+}
+
+extension Vector3 {
+    var simd: SIMD3<Float> {
+        return [x, y, z]
+    }
+}
+
+extension Vector4 {
+    var simd: SIMD4<Float> {
+        return [x, y, z, w]
+    }
+}
+
+extension simd_float4x4 {
+    init(columnsVector4: [Vector4]) {
+        self.init(columnsVector4.map { $0.simd })
+    }
+}
+
+extension SIMD3 where Scalar == Float {
+    var vec: Vector3 {
+        return [x, y, z]
+    }
+}
+
+extension SIMD2 where Scalar == Float {
+    var vec: Vector2 {
+        return [x, y]
+    }
+}
+
+extension SIMD4 where Scalar == Float {
+    var vec: Vector4 {
+        return [x, y, z, w]
+    }
+}
+#endif

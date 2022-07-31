@@ -38,6 +38,22 @@ public extension Vector4 {
         self.z = z
         self.w = w
     }
+    
+    @inline(__always)
+    init(_ xyz: Float, _ w: Float) {
+        self.x = xyz
+        self.y = xyz
+        self.z = xyz
+        self.w = w
+    }
+    
+    @inline(__always)
+    init(_ vector3: Vector3, _ w: Float) {
+        self.x = vector3.x
+        self.y = vector3.y
+        self.z = vector3.z
+        self.w = w
+    }
 }
 
 extension Vector4: ExpressibleByArrayLiteral {
