@@ -8,6 +8,8 @@
 import Foundation.NSUUID // TODO: Replace to own realization
 import OrderedCollections
 
+// - TODO: Should fix
+// - [ ] Entity children
 /// An enity describe
 open class Entity: Identifiable {
     

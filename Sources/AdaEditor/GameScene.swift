@@ -39,38 +39,70 @@ class ControlCameraComponent: ScriptComponent {
         }
         
     }
-    
 }
 
-class ControlCircleComponent: ScriptComponent {
-    
-    var speed: Float = 2
-    
-    @RequiredComponent var circle: Circle2DComponent
+class SpawnerComponent: ScriptComponent {
     
     override func update(_ deltaTime: TimeInterval) {
-        if Input.isKeyPressed(.arrowUp) {
-            self.circle.thickness += 0.1
+        if Input.isKeyPressed(.g) {
+            
+            var transform = self.transform
+            transform.scale = [0.2, 0.2, 0.2]
+            transform.position.x += Float.random(in: -0.3...0.3)
+            
+            let playerEntity = Entity()
+            playerEntity.components += Circle2DComponent(color: .red.opacity(0.5))
+            playerEntity.components += transform
+            playerEntity.components += PhysicsBody2DComponent(
+                shapes: [
+                    .generateCircle(radius: 0.2)
+                ],
+                mass: 1
+            )
+            playerEntity.components += PlayerComponent()
+            
+            self.entity?.scene?.addEntity(playerEntity)
+        }
+    }
+}
+
+class PlayerComponent: ScriptComponent {
+    
+    var speed: Float = 10
+    
+    @RequiredComponent var body: PhysicsBody2DComponent
+    
+    override func update(_ deltaTime: TimeInterval) {
+        
+        if Input.isKeyPressed(.space) {
+            body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+        }
+        
+        if Input.isKeyPressed(.m) {
+            let scene = self.entity?.scene
+            if scene?.debugOptions.contains(.showPhysicsShapes) == true {
+                scene?.debugOptions.remove(.showPhysicsShapes)
+            } else {
+                scene?.debugOptions.insert(.showPhysicsShapes)
+            }
+        }
+//
+//        if Input.isKeyPressed(.arrowUp) {
+//            self.transform.position.y += 0.1 * speed
+//        }
+//
+//        if Input.isKeyPressed(.arrowDown) {
+//            self.transform.position.y -= 0.1 * speed
+//        }
+
+        if Input.isKeyPressed(.arrowLeft) {
+            self.body.applyForce(force: [-speed, 0], point: .zero, wake: true)
+//            self.transform.position.x -= 0.1 * speed
         }
 
-        if Input.isKeyPressed(.arrowDown) {
-            self.circle.thickness -= 0.1
-        }
-
-        if Input.isKeyPressed(.w) {
-            self.transform.position.y += 0.1 * speed
-        }
-
-        if Input.isKeyPressed(.s) {
-            self.transform.position.y -= 0.1 * speed
-        }
-
-        if Input.isKeyPressed(.a) {
-            self.transform.position.x -= 0.1 * speed
-        }
-
-        if Input.isKeyPressed(.d) {
-            self.transform.position.x += 0.1 * speed
+        if Input.isKeyPressed(.arrowRight) {
+//            self.transform.position.x += 0.1 * speed
+            self.body.applyForce(force: [speed, 0], point: .zero, wake: true)
         }
         
     }
@@ -79,8 +111,15 @@ class ControlCircleComponent: ScriptComponent {
 
 
 class GameScene {
+    
+    var collision: Cancellable!
+    
     func makeScene() async throws -> Scene {
         let scene = Scene()
+        
+        // DEBUG
+        
+//        scene.debugOptions = [.showPhysicsShapes]
         
         let tiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
         
@@ -88,17 +127,16 @@ class GameScene {
         
         let charAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
         
-        let animated = AnimatedTexture()
-        animated.framesPerSecond = 5
-        animated.framesCount = 2
-        animated[0] = charAtlas[0, 0]
-        animated[1] = charAtlas[1, 0]
+        let playerTexture = AnimatedTexture()
+        playerTexture.framesPerSecond = 5
+        playerTexture.framesCount = 2
+        playerTexture[0] = charAtlas[0, 0]
+        playerTexture[1] = charAtlas[1, 0]
         
         let texture = TextureAtlas(from: tiles, size: [18, 18])
         
         let heartAnimated = AnimatedTexture()
         heartAnimated.framesPerSecond = 5
-        
         heartAnimated.framesCount = 4
         heartAnimated[0] = texture[4, 2]
         heartAnimated[1] = texture[5, 2]
@@ -108,93 +146,89 @@ class GameScene {
         var transform = Transform()
         transform.scale = [4, 4, 4]
         
-        let untexturedEntity = Entity()
+        let untexturedEntity = Entity(name: "Background")
         untexturedEntity.components += SpriteComponent(tintColor: Color(135/255, 206/255, 235/255, 1))
         untexturedEntity.components += transform
         scene.addEntity(untexturedEntity)
         
-        transform.position = [-0.45, 0.65, 0]
-        transform.scale = [0.35, 0.35, 0.35]
+        transform.position = [-0.45, 9, 0]
+        transform.scale = [0.1, 0.1, 0.1]
         
-        let animatedEntity = Entity()
-        animatedEntity.components += SpriteComponent(texture: animated)
-        animatedEntity.components += transform
-        scene.addEntity(animatedEntity)
+        let spawner = Entity(name: "Spawner")
+        spawner.components += transform
+        spawner.components += SpawnerComponent()
+        spawner.components += SpriteComponent(tintColor: .green)
+        scene.addEntity(spawner)
         
-        transform.position = [-8, 6, 0]
-        transform.scale = [0.15, 0.15, 0.15]
+//        transform.position = [-8, 6, 0]
+//        transform.scale = [0.15, 0.15, 0.15]
         
-        let heartEntity = Entity()
-        heartEntity.components += SpriteComponent(texture: heartAnimated)
-        heartEntity.components += transform
-        scene.addEntity(heartEntity)
+//        let heartEntity = Entity()
+//        heartEntity.components += SpriteComponent(texture: heartAnimated)
+//        heartEntity.components += transform
+//        scene.addEntity(heartEntity)
         
-        transform.position = [-0.3, -0.3, 0]
+        transform.position = [-3, -2, 0]
         transform.scale = [0.3, 0.3, 0.3]
         
-        let plainEntity = Entity()
-        plainEntity.components += SpriteComponent(texture: texture[2, 0])
-        plainEntity.components += transform
-        scene.addEntity(plainEntity)
-        
-        transform.position = [-1.3, -0.3, 0]
-        transform.scale = [0.3, 0.3, 0.3]
-        
-        let plainEntity1 = Entity()
-        plainEntity1.components += SpriteComponent(texture: texture[1, 0])
-        plainEntity1.components += transform
-        scene.addEntity(plainEntity1)
-        
-        transform.position = [0.6, -0.3, 0]
-        transform.scale = [0.3, 0.3, 0.3]
-        
-        let plainEntity2 = Entity()
-        plainEntity2.components += SpriteComponent(texture: texture[3, 0])
+        let plainEntity2 = Entity(name: "floor1")
+        plainEntity2.components += SpriteComponent(texture: texture[0, 0])
         plainEntity2.components += transform
+        plainEntity2.components += Collision2DComponent(
+            shapes: [
+                .generateBox(width: 0.3, height: 0.6)
+            ]
+        )
         scene.addEntity(plainEntity2)
         
-//        for i in 0..<10 {
-//            let viewEntity = Entity(name: "Circle \(i)")
-//
-//            let alpha: Float = Float.random(in: 0.3...1)
-//
-//            let color = Color(
-//                Float.random(in: 0..<255) / 255,
-//                Float.random(in: 0..<255) / 255,
-//                Float.random(in: 0..<255) / 255,
-//                alpha
-//            )
-            
-//            viewEntity.components += Circle2DComponent(
-//                color: Color(
-//                    Float.random(in: 0..<255) / 255,
-//                    Float.random(in: 0..<255) / 255,
-//                    Float.random(in: 0..<255) / 255,
-//                    alpha
-//                ),
-//                thickness: 1
-//            )
-            
-//            viewEntity.components += SpriteComponent(
-//                texture: nil
-//            )
-//
-//            scene.addEntity(viewEntity)
-//        }
+        transform.position = [-3, -2, 0]
+        transform.scale = [0.3, 0.3, 0.3]
         
-//        let viewEntity = Entity(name: "Circle")
-//        viewEntity.components += Circle2DComponent(color: .blue, thickness: 1)
-//        scene.addEntity(viewEntity)
-//
-//        let viewEntity1 = Entity(name: "Circle 1")
-//        viewEntity1.components += Circle2DComponent(color: .yellow, thickness: 1)
-//
-//        var transform = Transform()
-//        transform.position = [4, 4, 4]
-//        transform.scale = [0.2, 0.2, 0.2]
-//        viewEntity1.components += transform
-//        viewEntity1.components += ControlCircleComponent()
-//        scene.addEntity(viewEntity1)
+        var prevEnt: Entity = plainEntity2
+        
+        for i in 0...8 {
+            
+            transform.position.x += 0.6
+            
+            let joint1 = Entity(name: "joint \(i)")
+            joint1.components += Circle2DComponent(color: .orange.opacity(0.5), thickness: 0.2)
+            joint1.components += transform
+            joint1.components += PhysicsBody2DComponent(
+                shapes: [
+                    .generateCircle(radius: 0.3)
+                ],
+                massProperties: .init(),
+                material: .generate(friction: 0.2, restitution: 0, density: 20)
+            )
+            
+            joint1.components += PhysicsJoint2DComponent(
+                joint: .revolute(entityA: prevEnt)
+            )
+            
+            prevEnt = joint1
+            
+            scene.addEntity(joint1)
+            
+        }
+        
+        transform.position.x += 0.3
+        
+        transform.position = [3, -2, 0]
+        transform.scale = [0.3, 0.3, 0.3]
+        
+        let plainEntity1 = Entity(name: "floor2")
+        plainEntity1.components += SpriteComponent(texture: texture[0, 0])
+        plainEntity1.components += transform
+        plainEntity1.components += Collision2DComponent(
+            shapes: [
+                .generateBox(width: 0.3, height: 0.6)
+            ]
+        )
+        plainEntity1.components += PhysicsJoint2DComponent(
+            joint: .revolute(entityA: prevEnt)
+        )
+        
+        scene.addEntity(plainEntity1)
         
         let userEntity = Entity(name: "camera")
         let camera = Camera()
@@ -203,6 +237,25 @@ class GameScene {
         userEntity.components += camera
         userEntity.components += ControlCameraComponent()
         scene.addEntity(userEntity)
+        
+        transform.position = [0, -10, 0]
+        transform.scale = [10, 0.3, 0.3]
+        
+        let destroyer = Entity(name: "Destroy")
+        destroyer.components += SpriteComponent(tintColor: .blue)
+        destroyer.components += transform
+        destroyer.components += Collision2DComponent(shapes: [
+            .generateBox(width: 15, height: 0.3)
+        ], mode: .trigger)
+        scene.addEntity(destroyer)
+
+        collision = scene.subscribe(CollisionEvent.Began.self, completion: { event in
+            
+            if event.entityA.name == "Destroy" {
+                event.entityB.scene?.removeEntity(event.entityB)
+            }
+            
+        })
         
         return scene
     }

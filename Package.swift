@@ -4,7 +4,7 @@
 import PackageDescription
 import Foundation
 
-#if canImport(AppleProductTypes)
+#if canImport(AppleProductTypes) && os(iOS)
 import AppleProductTypes
 #endif
 
@@ -38,29 +38,29 @@ var products: [Product] = [
 let isVulkanEnabled = ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil
 
 // TODO: It's works if we wrap sources to .swiftpm container
-#if canImport(AppleProductTypes)
-//let ios = Product.iOSApplication(
-//    name: "AdaEditor",
-//    targets: ["AdaEditor"],
-//    bundleIdentifier: "dev.litecode.adaengine.editor",
-//    teamIdentifier: "",
-//    displayVersion: "1.0",
-//    bundleVersion: "1",
-//    iconAssetName: "AppIcon",
-//    accentColorAssetName: "AccentColor",
-//    supportedDeviceFamilies: [
-//        .pad,
-//        .phone
-//    ],
-//    supportedInterfaceOrientations: [
-//        .portrait,
-//        .landscapeRight,
-//        .landscapeLeft,
-//        .portraitUpsideDown(.when(deviceFamilies: [.pad]))
-//    ]
-//)
-//
-//products.append(ios)
+#if canImport(AppleProductTypes) && os(iOS)
+let ios = Product.iOSApplication(
+    name: "AdaEditor",
+    targets: ["AdaEditor"],
+    bundleIdentifier: "com.adaengine.editor",
+    teamIdentifier: "",
+    displayVersion: "1.0",
+    bundleVersion: "1",
+    iconAssetName: "AppIcon",
+    accentColorAssetName: "AccentColor",
+    supportedDeviceFamilies: [
+        .pad,
+        .phone
+    ],
+    supportedInterfaceOrientations: [
+        .portrait,
+        .landscapeRight,
+        .landscapeLeft,
+        .portraitUpsideDown(.when(deviceFamilies: [.pad]))
+    ]
+)
+
+products.append(ios)
 #endif
 
 // MARK: - Targets
@@ -123,7 +123,8 @@ let adaEngineTarget: Target = .target(
         .product(name: "stb_image", package: "Cstb"),
         .product(name: "Collections", package: "swift-collections"),
         "Yams",
-        "LibPNG"
+        "libpng",
+        "box2d"
     ],
     exclude: ["Project.swift", "Derived"],
     resources: [
@@ -138,7 +139,7 @@ let adaEngineTarget: Target = .target(
         .define("LINUX", .when(platforms: [.linux])),
         
         /// Define metal
-        .define("METAL", .when(platforms: applePlatforms))
+        .define("METAL", .when(platforms: applePlatforms)),
     ],
     plugins: commonPlugins
 )
@@ -185,7 +186,8 @@ let package = Package(
         .package(url: "https://github.com/troughton/Cstb.git", from: "1.0.5"),
         .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.1"),
         .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.1"),
-        .package(name: "LibPNG", path: "ThirdParty/LibPNG"),
+        .package(path: "ThirdParty/libpng"),
+        .package(path: "ThirdParty/box2d"),
         
         // Plugins
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")

@@ -5,9 +5,9 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-/// Main class represented application instance.
-/// Application cannot be created manualy use interface [App](x-source-tag://App) instead.
-/// To get access to Application instance, use static property `shared`
+/// The main class represents application instance.
+/// The application cannot be created manualy, instead use an [App](x-source-tag://App) protocol.
+/// To get access to the application instance, use static property `shared`
 open class Application {
     
     // MARK: - Public

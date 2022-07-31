@@ -91,6 +91,7 @@ class MetalRenderBackend: RenderBackend {
         
         for (_, window) in self.context.windows {
             window.commandBuffer = window.commandQueue.makeCommandBuffer()
+            window.renderEncoder = window.commandBuffer?.makeRenderCommandEncoder(descriptor: window.view!.currentRenderPassDescriptor!)
         }
     }
     
@@ -104,11 +105,11 @@ class MetalRenderBackend: RenderBackend {
                 return
             }
             
+            window.renderEncoder.endEncoding()
+            
             window.commandBuffer?.present(currentDrawable)
             
             window.commandBuffer?.commit()
-            
-            window.commandBuffer?.waitUntilCompleted()
         }
     }
     
@@ -352,14 +353,11 @@ extension MetalRenderBackend {
             fatalError("Render Window not exists.")
         }
         
-        guard let renderPass = window.view?.currentRenderPassDescriptor else {
-            fatalError("Can't get render pass descriptor")
-        }
-        
         let draw = Draw(
             window: window,
             commandBuffer: window.commandBuffer!,
-            renderPassDescriptor: renderPass
+            renderPassDescriptor: window.renderPassDescriptor,
+            renderEncoder: window.renderEncoder
         )
         
         return self.drawList.setValue(draw)
@@ -375,6 +373,10 @@ extension MetalRenderBackend {
     
     func bindLineWidth(_ width: Float, forDraw drawId: RID) {
         self.drawList[drawId]?.lineWidth = width
+    }
+    
+    func bindTriangleFillMode(_ draw: RID, mode: TriangleFillMode) {
+        self.drawList[draw]?.triangleFillMode = mode
     }
     
     func bindRenderState(_ drawRid: RID, renderPassId: RID) {
@@ -462,10 +464,12 @@ extension MetalRenderBackend {
             fatalError("Draw doesn't have a pipeline state")
         }
         
-        guard let encoder = draw.commandBuffer.makeRenderCommandEncoder(descriptor: draw.renderPassDescriptor) else {
-            assertionFailure("Can't create render command encoder")
-            return
-        }
+        let encoder = draw.renderEncoder
+        
+//        guard let encoder = draw.commandBuffer.makeRenderCommandEncoder(descriptor: draw.renderPassDescriptor) else {
+//            assertionFailure("Can't create render command encoder")
+//            return
+//        }
         
         if let name = draw.debugName {
             encoder.label = name
@@ -514,7 +518,12 @@ extension MetalRenderBackend {
             fatalError("Can't get index buffer for draw")
         }
         
-//        encoder.setTriangleFillMode(.lines)
+        switch draw.triangleFillMode {
+        case .fill:
+            encoder.setTriangleFillMode(.fill)
+        case .lines:
+            encoder.setTriangleFillMode(.lines)
+        }
         
         encoder.drawIndexedPrimitives(
             type: .triangle,
@@ -525,7 +534,21 @@ extension MetalRenderBackend {
             instanceCount: instancesCount
         )
         
-        encoder.endEncoding()
+//        encoder.endEncoding()
+        
+//        let view = draw.window.view!
+        
+//        let blitEncoder = draw.commandBuffer.makeBlitCommandEncoder()!
+//        blitEncoder.label = "Blit encoder"
+//        let origin = MTLOriginMake(0, 0, 0)
+//        let size = MTLSizeMake(Int(view.drawableSize.width), Int(view.drawableSize.height), 1)
+//
+//        blitEncoder.copy(from: draw.window.albedoTexture, sourceSlice: 0, sourceLevel: 0,
+//                         sourceOrigin: origin, sourceSize: size,
+//                         to: view.currentDrawable!.texture, destinationSlice: 0,
+//                         destinationLevel: 0, destinationOrigin: origin)
+//
+//        blitEncoder.endEncoding()
     }
     
     func drawEnd(_ drawId: RID) {
@@ -546,6 +569,8 @@ extension MetalRenderBackend {
         var textures: [RID?] = [RID?].init(repeating: nil, count: 32)
         var pipelineState: RID?
         var lineWidth: Float?
+        var triangleFillMode: TriangleFillMode = .fill
+        var renderEncoder: MTLRenderCommandEncoder
     }
     
     struct Buffer {

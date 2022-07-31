@@ -20,7 +20,7 @@ let spm = SwiftPackageManagerDependencies([
     .remote(
         url: "https://github.com/jpsim/Yams.git",
         requirement: .upToNextMajor(from: "5.0.1")
-    )
+    ),
 ], baseSettings: .adaEngine)
 
 let dependencies = Dependencies(

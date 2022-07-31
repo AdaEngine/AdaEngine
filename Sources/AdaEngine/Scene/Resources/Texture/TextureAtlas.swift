@@ -8,18 +8,17 @@
 import Foundation
 import Math
 
-/// The atlas, also know as Sprite Sheet is a object contains a image and can provide
-/// a little piece of texture for specific stride. You can describe which size of sprite you expect
-/// and grab specific sprite by coordinates.
-/// Atlas is more efficient way to use 2D textures, because GPU working with one piece of data.
+/// The atlas, also know as Sprite Sheet is an object contains an image and can provide
+/// a little piece of the texture for specific stride. You can describe size of sprite you expect and grab specific sprite by coordinates.
+/// The Atlas is more efficient way to use 2D textures, because the GPU works with one piece of data.
 public final class TextureAtlas: Texture2D {
     
     private let spriteSize: Size
     
-    /// For unpacked sprite sheets we should use margins between sprites to fit slice into correct coordinates
+    /// For unpacked sprite sheets we should use margins between sprites to fit slice into correct coordinates.
     public var margin: Size
     
-    /// Create texture atlas.
+    /// Create a texture atlas.
     /// - Parameter image: The image from atlas will build.
     /// - Parameter size: The sprite size in atlas (in pixels).
     /// - Parameter margin: The margin between sprites (in pixels).
@@ -42,12 +41,12 @@ public final class TextureAtlas: Texture2D {
     
     // MARK: - Slices
     
-    /// Create slice of texture referenced on.
+    /// Create a slice of the texture.
     public subscript(x: Float, y: Float) -> Slice {
         return self.textureSlice(at: Vector2(x: x, y: y))
     }
     
-    /// Create slice of texture referenced on.
+    /// Create a slice of the texture.
     public func textureSlice(at position: Vector2) -> Slice {
         let min = Vector2(
             (position.x * (spriteSize.width + margin.width)) / Float(self.width),
@@ -71,12 +70,12 @@ public final class TextureAtlas: Texture2D {
 
 public extension TextureAtlas {
     
-    /// Slice from texture atlas needed to reference on specific texture.
+    /// A slice represents piece of the texture region. The slices is an efficient way to work with the texture.
     final class Slice: Texture2D {
         
-        // we should store ref to atlas, because if altas deiniting from memory
-        // that gpu representation will also deinited.
-        // that also doesn't have ref cycles here, because atlas don't store slices.
+        // We should store reference to the atlas, because if the altas deiniting from memory
+        // then the GPU representation will be also deinited.
+        // This also doesn't has reference cycle here, because the atlas don't store slices.
         public private(set) var atlas: TextureAtlas
         
         required init(atlas: TextureAtlas, min: Vector2, max: Vector2, size: Size) {

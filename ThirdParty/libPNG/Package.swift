@@ -4,21 +4,18 @@
 import PackageDescription
 
 let package = Package(
-    name: "LibPNG",
+    name: "libpng",
     products: [
         .library(
-            name: "LibPNG",
-            targets: ["cpng"]
+            name: "libpng",
+            targets: ["libpng"]
         )
     ],
     targets: [
-        .systemLibrary(
-            name: "cpng",
-            pkgConfig: "libpng",
-            providers: [
-                .brewItem(["libpng"]),
-                .aptItem(["libpng"])
-            ]
+        .target(
+            name: "libpng",
+            publicHeadersPath: "."
         )
-    ]
+    ],
+    cLanguageStandard: .c11
 )

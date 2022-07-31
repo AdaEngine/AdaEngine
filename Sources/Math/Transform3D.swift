@@ -9,7 +9,6 @@
 import Darwin
 #elseif os(Linux) || os(Android)
 import Glibc
-import SGLMath
 #endif
 import simd
 

@@ -54,7 +54,7 @@ public extension QueryPredicate {
     /// Set the rule that entity should contains given type.
     static func has<T: Component>(_ type: T.Type) -> QueryPredicate {
         QueryPredicate { archetype in
-            return archetype.componentsBitMask.contains(type)
+            return archetype.componentsBitMask.contains(type.identifier)
         }
     }
     
@@ -71,7 +71,7 @@ public extension QueryPredicate {
     }
 }
 
-/// Contains array of entities matched for given EntityQuery request.
+/// Contains array of entities matched for the given EntityQuery request.
 public struct QueryResult: Sequence {
     
     // TODO: I'm not sure that archetype as ref types should right choise.
@@ -134,6 +134,13 @@ public extension QueryResult {
             }
             
             let currentArchetype = self.pointer.advanced(by: self.currentArchetypeIndex).pointee
+            
+            while currentArchetype.entities[currentEntityIndex] == nil {
+                if self.currentEntityIndex < currentEntitiesCount - 1 {
+                    self.currentEntityIndex += 1
+                }
+            }
+            
             return currentArchetype.entities[currentEntityIndex]
         }
     }
