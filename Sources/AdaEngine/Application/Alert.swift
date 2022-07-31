@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/31/22.
 //
 
-/// Object describe alert.
+/// The object describes an alert.
 public struct Alert {
     public let title: String
     public let message: String?

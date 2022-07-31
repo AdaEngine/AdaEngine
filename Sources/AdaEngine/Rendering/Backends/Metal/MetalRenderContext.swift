@@ -17,14 +17,38 @@ extension MetalRenderBackend {
             let commandQueue: MTLCommandQueue
             var viewport: MTLViewport
             
+            var albedoTexture: MTLTexture!
+            var renderPassDescriptor: MTLRenderPassDescriptor
             var commandBuffer: MTLCommandBuffer?
+            var renderEncoder: MTLRenderCommandEncoder!
             
             internal init(view: MetalView? = nil, commandQueue: MTLCommandQueue, viewport: MTLViewport, commandBuffer: MTLCommandBuffer? = nil) {
                 self.view = view
                 self.commandQueue = commandQueue
                 self.viewport = viewport
                 self.commandBuffer = commandBuffer
+                
+                self.renderPassDescriptor = MTLRenderPassDescriptor()
             }
+            
+            func updateSize() {
+                let textureDesc = MTLTextureDescriptor.texture2DDescriptor(
+                    pixelFormat: .bgra8Unorm_srgb,
+                    width: Int(self.view!.drawableSize.width),
+                    height: Int(self.view!.drawableSize.height),
+                    mipmapped: false
+                )
+                
+                textureDesc.usage = [.renderTarget, .shaderRead]
+                let texture = self.view!.device?.makeTexture(descriptor: textureDesc)
+                
+                self.albedoTexture = texture
+                
+                self.renderPassDescriptor.colorAttachments[0].texture = texture
+                self.renderPassDescriptor.colorAttachments[0].storeAction = .store
+                self.renderPassDescriptor.colorAttachments[0].loadAction = .clear
+            }
+            
         }
         
         private(set) var windows: [Window.ID: RenderWindow] = [:]
@@ -65,6 +89,9 @@ extension MetalRenderBackend {
             view.colorPixelFormat = .bgra8Unorm_srgb
             view.device = self.physicalDevice
             view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+            view.framebufferOnly = false
+            
+            window.updateSize()
             
             self.windows[id] = window
         }
@@ -84,7 +111,7 @@ extension MetalRenderBackend {
                 zfar: 1
             )
             
-            self.windows[windowId] = window
+            window.updateSize()
         }
         
         func destroyWindow(by id: Window.ID) {

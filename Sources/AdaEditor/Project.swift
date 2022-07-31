@@ -26,9 +26,7 @@ let project = Project(
             sources: [
                 .glob("**/*", excluding: ["Project.swift"])
             ],
-            scripts: [
-                
-            ],
+            resources: [ResourceFileElement.folderReference(path: "Assets", tags: [])],
             dependencies: [
                 .project(target: "AdaEngine", path: "../AdaEngine")
             ]

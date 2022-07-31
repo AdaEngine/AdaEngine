@@ -1,4 +1,4 @@
-#include <png.h>
+#include "png.h"
 
 png_uint_32 png_image_row_stride(png_image image) {
     return PNG_IMAGE_ROW_STRIDE(image);

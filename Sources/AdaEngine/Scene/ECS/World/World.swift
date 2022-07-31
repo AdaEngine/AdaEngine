@@ -7,13 +7,6 @@
 
 import Collections
 
-struct Record {
-    // which archetypes contains info about entity
-    var column: Int
-    // index of entity in archetype
-    var row: Int
-}
-
 /// TODO:
 /// [] Recalculate archetype for removed and added components. Archetype should use graph
 /// [] Archetype to struct?
@@ -21,25 +14,25 @@ struct Record {
 
 /// This object represent ECS world.
 /// - Warning: Still work in progress.
-final class World {
+public final class World {
     
-    private var records: [Entity.ID: Record] = [:]
-    private var archetypes: [Archetype] = []
+    private var records: [Entity.ID: EntityRecord] = [:]
+    private(set) var archetypes: [Archetype] = []
     private var freeArchetypeIndices: [Int] = []
+    private var removedComponents: [ComponentId: [Entity]] = [:]
     
     /// FIXME: Not efficient, should refactor later
-    private(set) var scripts: [UInt: ScriptComponent] = [:]
+    private(set) var scripts: [ComponentId: ScriptComponent] = [:]
     
     // MARK: - Methods
     
+    // FIXME: Can crash if we change components set during runtime
     func appendEntity(_ entity: Entity) {
         let bitmask = entity.components.bitmask
         
-        for (column, archetype) in self.archetypes.enumerated() where archetype.componentsBitMask.contains(bitmask) {
-            archetype.entities.append(entity)
-            let index = archetype.entities.count - 1
-            
-            self.records[entity.id] = Record(column: column, row: index)
+        for archetype in self.archetypes where archetype.componentsBitMask == bitmask {
+            let location = archetype.append(entity)
+            self.records[entity.id] = location
             
             return
         }
@@ -47,7 +40,7 @@ final class World {
         let newArch: Archetype
         
         if self.freeArchetypeIndices.isEmpty {
-            newArch = Archetype.new()
+            newArch = Archetype.new(index: self.archetypes.count)
 
             self.archetypes.append(newArch)
         } else {
@@ -55,7 +48,7 @@ final class World {
             newArch = self.archetypes[index]
         }
         
-        newArch.entities.append(entity)
+        let location = newArch.append(entity)
         newArch.componentsBitMask = bitmask
         
         for (identifier, component) in entity.components.buffer {
@@ -64,50 +57,79 @@ final class World {
             }
         }
         
-        self.records[entity.id] = Record(column: self.archetypes.count - 1, row: 0)
+        self.records[entity.id] = location
     }
     
     func removeEntity(_ entity: Entity) {
         guard let record = self.records[entity.id] else { return }
         self.records[entity.id] = nil
         
-        let arch = self.archetypes[record.column]
+        let currentArchetype = self.archetypes[record.archetypeId]
+        // FIXME: Can crash if we change components set during runtime
         // TODO: we should use separate array for fried entities, because removing entity from arrary is O(n)
-        arch.entities.remove(at: record.row)
+        currentArchetype.remove(at: record.row)
         
-        if arch.entities.isEmpty {
-            self.archetypes[record.column].componentsBitMask.clear()
-            self.freeArchetypeIndices.append(record.column)
+        if currentArchetype.entities.isEmpty {
+            self.archetypes[record.archetypeId].clear()
+            self.freeArchetypeIndices.append(record.archetypeId)
         }
     }
     
-    // MARK: - Components
+    // MARK: - Components Delegate
     
-    func entity(_ ent: Entity, didAddComponent component: Component, with identifier: UInt) {
+    func entity(_ ent: Entity, didAddComponent component: Component, with identifier: ComponentId) {
         guard let record = self.records[ent.id] else {
             assertionFailure("We don't have recorded archetype.")
             return
         }
         
-        let archetype = self.archetypes[record.column]
+        let currentArchetype = self.archetypes[record.archetypeId]
         
         // we update existed value
-        if archetype.componentsBitMask.contains(identifier) {
+        if currentArchetype.componentsBitMask.contains(identifier) {
             return
         }
-        
-        self.removeEntity(ent)
         
         if let script = component as? ScriptComponent {
             self.scripts[identifier] = script
         }
         
-        self.appendEntity(ent)
+        let bitmask = ent.components.bitmask
+        
+        var archetype = self.archetypes.first(where: {
+            $0.componentsBitMask == bitmask
+        })
+        
+        if archetype == nil {
+            let newArch: Archetype
+            
+            if self.freeArchetypeIndices.isEmpty {
+                newArch = Archetype.new(index: self.archetypes.count)
+
+                self.archetypes.append(newArch)
+            } else {
+                let index = self.freeArchetypeIndices.removeFirst()
+                newArch = self.archetypes[index]
+            }
+            newArch.componentsBitMask = bitmask
+            
+            archetype = newArch
+        }
+        
+        let location = archetype?.append(ent)
+        self.records[ent.id] = location
     }
     
-    func entity(_ ent: Entity, didRemoveComponent component: Component.Type, with identifier: UInt) {
+    func entity(_ ent: Entity, didRemoveComponent component: Component.Type, with identifier: ComponentId) {
         guard let record = self.records[ent.id] else {
             assertionFailure("We don't have recorded archetype.")
+            return
+        }
+        
+        // Remove entity if components set is empty.
+        if ent.components.isEmpty {
+            self.removeEntity(ent)
+            
             return
         }
         
@@ -115,8 +137,38 @@ final class World {
             self.scripts[identifier] = nil
         }
         
-        self.removeEntity(ent)
-        self.appendEntity(ent)
+        self.removedComponents[identifier, default: []].append(ent)
+        let currentArchetype = self.archetypes[record.archetypeId]
+        currentArchetype.remove(at: record.row)
+        
+        let bitmask = ent.components.bitmask
+        
+        var archetype = self.archetypes.first(where: {
+            $0.componentsBitMask == bitmask
+        })
+        
+        if archetype == nil {
+            let newArch: Archetype
+            
+            if self.freeArchetypeIndices.isEmpty {
+                newArch = Archetype.new(index: self.archetypes.count)
+
+                self.archetypes.append(newArch)
+            } else {
+                let index = self.freeArchetypeIndices.removeFirst()
+                newArch = self.archetypes[index]
+            }
+            newArch.componentsBitMask = bitmask
+            
+            archetype = newArch
+        }
+        
+        let location = archetype?.append(ent)
+        self.records[ent.id] = location
+    }
+    
+    func tick() {
+        self.removedComponents.removeAll()
     }
     
 }
@@ -124,16 +176,18 @@ final class World {
 extension World {
     // TODO: We should avoid additional allocation
     func performQuery(_ query: EntityQuery) -> QueryResult {
-        let archetypes = self.archetypes.filter { query.predicate.evaluate($0) }
+        let archetypes = self.archetypes.filter {
+            query.predicate.evaluate($0)
+        }
         return QueryResult(archetypes: archetypes)
     }
 }
 
 extension Entity.ComponentSet {
-    var bitmask: Archetype.BitMask {
-        var mask = Archetype.BitMask(count: self.count)
+    var bitmask: Bitset {
+        var mask = Bitset(count: self.count)
         for component in self.buffer {
-            mask.add(component.key)
+            mask.insert(component.key)
         }
         return mask
     }

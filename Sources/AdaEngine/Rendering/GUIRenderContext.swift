@@ -6,7 +6,6 @@
 //
 
 import Math
-import GLKit
 
 /// Special object to render user interface on the screen.
 /// Context use orthogonal projection.

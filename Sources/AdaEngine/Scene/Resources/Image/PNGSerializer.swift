@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 6/29/22.
 //
 
-import cpng
+import libpng
 
 struct PNGImageSerializer: ImageLoaderStrategy {
     

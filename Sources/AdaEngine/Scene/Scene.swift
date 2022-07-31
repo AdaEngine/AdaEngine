@@ -19,7 +19,15 @@ public final class Scene {
     var systems: [System] = []
     private(set) var world: World
     
+    public private(set) var physicsWorld2D: PhysicsWorld2D
+    
+    private(set) var eventManager: EventManager = EventManager()
+    
     public var viewportRelativeWindowSize: Bool = true
+    
+    // Options for content in a scene that can aid debugging.
+    public var debugOptions: DebugOptions = []
+    public var debugPhysicsColor: Color = .green
     
     private var _viewportSize: Size = .zero
     public var viewportSize: Size {
@@ -46,7 +54,7 @@ public final class Scene {
         self.id = UUID()
         self.name = name.isEmpty ? "Scene" : name
         self.world = World()
-        
+        self.physicsWorld2D = PhysicsWorld2D()
         let cameraEntity = Entity()
         
         let cameraComponent = Camera()
@@ -54,6 +62,10 @@ public final class Scene {
         self.world.appendEntity(cameraEntity)
         
         self.activeCamera = cameraComponent
+        
+        defer {
+            self.physicsWorld2D.scene = self
+        }
     }
     
     public required convenience init(from decoder: Decoder) throws {
@@ -97,6 +109,17 @@ public final class Scene {
         self.systems.append(system)
     }
     
+    /// Receives events of the given type.
+    /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
+    /// - Parameters completion: A closure to call with the event.
+    /// - Returns: A cancellable object. You should store it in memory, to recieve events.
+    public func subscribe<E: Event>(
+        _ event: E.Type,
+        completion: @escaping (E) -> Void
+    ) -> Cancellable {
+        return self.eventManager.subscribe(for: event, completion: completion)
+    }
+    
     // MARK: - Internal methods
     
     /// Check the scene will not run earlier
@@ -107,16 +130,21 @@ public final class Scene {
         self.addSystem(ScriptComponentUpdateSystem.self)
         self.addSystem(CameraSystem.self)
         self.addSystem(Render2DSystem.self)
+        self.addSystem(Physics2DSystem.self)
         self.addSystem(ViewContainerSystem.self)
         
         self.isReady = true
     }
     
     func update(_ deltaTime: TimeInterval) {
+        self.world.tick()
+        
         for system in self.systems {
             system.update(context: SceneUpdateContext(scene: self, deltaTime: deltaTime))
         }
     }
+    
+    var removeEntities: [Entity] = []
 }
 
 // MARK: - ECS
@@ -124,12 +152,6 @@ public final class Scene {
 public extension Scene {
     func performQuery(_ query: EntityQuery) -> QueryResult {
         return self.world.performQuery(query)
-    }
-}
-
-extension Scene {
-    func mergeWorlds(_ newWorld: World) {
-        
     }
 }
 
@@ -151,5 +173,18 @@ public extension Scene {
 extension Scene: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name, entities, systems
+    }
+}
+
+public extension Scene {
+    struct DebugOptions: OptionSet {
+        public var rawValue: UInt16
+        
+        public init(rawValue: UInt16) {
+            self.rawValue = rawValue
+        }
+        
+        public static let showPhysicsShapes = DebugOptions(rawValue: 1 << 0)
+        public static let showFPS = DebugOptions(rawValue: 1 << 1)
     }
 }

@@ -9,17 +9,18 @@ import ProjectDescription
 import ProjectDescriptionHelpers
 
 let project = Project(
-    name: "LibPNG",
+    name: "libpng",
     settings: .adaEngine,
     targets: [
         Target(
-            name: "LibPNG",
+            name: "libpng",
             platform: .macOS,
             product: .framework,
-            productName: "cpng",
+            productName: "libpng",
             bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).libpng",
             deploymentTarget: .macOS(targetVersion: "11.0"),
-            headers: .allHeaders(from: "Sources/cpng/*", umbrella: "Sources/cpng/module.modulemap"),
+            sources: ["Sources/libpng/**"],
+            headers: .headers(public: ["Sources/libpng/*.h"]),
             dependencies: [
                 .sdk(name: "c++", type: .library)
             ]

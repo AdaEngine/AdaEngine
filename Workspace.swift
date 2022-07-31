@@ -13,6 +13,7 @@ let workspace = Workspace(
     projects: [
         "Sources/AdaEngine",
         "Sources/AdaEditor",
-        "Sources/Math"
+        "Sources/Math",
+        "Sources/Physics"
     ]
 )

@@ -26,6 +26,19 @@ public extension Vector3 {
 }
 
 public extension Vector3 {
+    var xy: Vector2 {
+        get {
+            return [x, y]
+        }
+        
+        set {
+            self.x = newValue.x
+            self.y = newValue.y
+        }
+    }
+}
+
+public extension Vector3 {
     func cross(_ vec: Vector3) -> Vector3 {
         var x1 = self.y * vec.z
         x1 = x1 - vec.y * self.z
