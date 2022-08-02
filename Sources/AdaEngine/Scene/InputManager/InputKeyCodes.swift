@@ -83,7 +83,7 @@ public enum KeyCode: String, Hashable {
     case underScore = "_"
     case backquote = "`"
     
-    // TODO: Currenty macos
+    // TODO: (Vlad) Currenty macos
     case arrowDown = "125"
     case arrowUp = "126"
     case arrowLeft = "123"

@@ -16,6 +16,7 @@ public struct Size: Equatable, Codable, Hashable {
 }
 
 public extension Size {
+    @inline(__always)
     static let zero = Size(width: 0, height: 0)
 }
 

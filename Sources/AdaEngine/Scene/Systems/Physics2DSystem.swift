@@ -8,12 +8,12 @@
 import box2d
 import Math
 
-// - TODO: Delete bodies if entity will delete physic component
-// - TODO: Update system fixed times (Timer?)
-// - TODO: Draw circles and polygons for debug
-// - TODO: Joints
-// - TODO: Runtime update shape resource
-// - TODO: Debug render in other system?
+// - TODO: (Vlad) Delete bodies if entity will delete physic component
+// - TODO: (Vlad) Update system fixed times (Timer?)
+// - TODO: (Vlad) Draw circles and polygons for debug
+// - TODO: (Vlad) Joints
+// - TODO: (Vlad) Runtime update shape resource
+// - TODO: (Vlad) Debug render in other system?
 final class Physics2DSystem: System {
     
     private var physicsFrame: Int = 0

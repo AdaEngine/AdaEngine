@@ -40,7 +40,7 @@ public final class ResourceManager {
     /// - Returns: Instance of resource.
     public static func load<R: Resource>(
         _ path: String,
-        from bundle: Bundle, // TODO: that temp solution, fix that later
+        from bundle: Bundle, // TODO: (Vlad) that temp solution, fix that later
         ignoreCache: Bool = false
     ) async throws -> R {
         

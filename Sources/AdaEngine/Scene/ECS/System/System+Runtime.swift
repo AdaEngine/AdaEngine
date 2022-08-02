@@ -6,7 +6,7 @@
 //
 
 // We should register our systems in engine, because we should initiate them in memory
-// TODO: Add system list to editor and generate file with registred systems.
+// TODO: (Vlad) Add system list to editor and generate file with registred systems.
 extension System {
     
     /// Call this method to add system to engine.

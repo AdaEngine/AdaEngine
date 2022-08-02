@@ -100,7 +100,7 @@ extension Archetype {
 }
 
 struct Bitset: Equatable, Hashable {
-    // TODO: Not efficient in memory layout.
+    // TODO: (Vlad) Not efficient in memory layout.
     private var mask: Set<ComponentId>
     
     init(count: Int = 0) {

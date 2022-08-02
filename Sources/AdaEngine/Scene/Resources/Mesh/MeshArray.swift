@@ -102,7 +102,7 @@ class _MeshArrayBuffer: Equatable {
         
         self.bufferPointer = UnsafeMutableRawBufferPointer.allocate(
             byteCount: self.elementStride * elements.count,
-            alignment: 0 // TODO: needs tests
+            alignment: 0 // TODO: (Vlad) needs tests
         )
         
         self.bufferPointer.baseAddress?.copyMemory(

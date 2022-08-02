@@ -95,6 +95,7 @@ extension Vector3 {
 }
 
 public extension Vector3 {
+    @inline(__always)
     static func * (lhs: Transform2D, rhs: Vector3) -> Vector3 {
         [
             lhs[0, 0] * rhs.x + lhs[1, 0] * rhs.y + lhs[2, 0] * rhs.z,
@@ -235,6 +236,7 @@ public extension Vector3 {
 }
 
 public extension Vector3 {
+    @inline(__always)
     func cross(_ vec: Vector3) -> Vector3 {
         var x1 = self.y * vec.z
         x1 = x1 - vec.y * self.z
@@ -246,27 +248,35 @@ public extension Vector3 {
         return Vector3(x1, y1, z1)
     }
     
+    @inline(__always)
     var squaredLength: Float {
         return x * x + y * y + z * z
     }
     
+    @inline(__always)
     var length: Float {
         return sqrt(squaredLength)
     }
     
+    @inline(__always)
     var normalized: Vector3 {
         return self / self.length
     }
     
+    @inline(__always)
     func dot(_ vector: Vector3) -> Float {
         return x * vector.x + y * vector.y + z * vector.z
     }
     
+    @inline(__always)
     static let up: Vector3 = Vector3(0, 1, 0)
     
+    @inline(__always)
     static let down: Vector3 = Vector3(0, -1, 0)
     
+    @inline(__always)
     static let left: Vector3 = Vector3(-1, 0, 0)
     
+    @inline(__always)
     static let right: Vector3 = Vector3(1, 0, 0)
 }

@@ -5,10 +5,10 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
-import Foundation.NSUUID // TODO: Replace to own realization
+import Foundation.NSUUID // TODO: (Vlad) Replace to own realization
 import OrderedCollections
 
-// - TODO: Should fix
+// - TODO: (Vlad) Should fix
 // - [ ] Entity children
 /// An enity describe
 open class Entity: Identifiable {
@@ -27,10 +27,10 @@ open class Entity: Identifiable {
         }
     }
     
-    // TODO: We should reimagine how it works, fit it to ECS World
+    // TODO: (Vlad) We should reimagine how it works, fit it to ECS World
     public internal(set) var children: OrderedSet<Entity>
     
-    // TODO: Looks like parentnes not a good choice to ECS data oriented way
+    // TODO: (Vlad) Looks like parentnes not a good choice to ECS data oriented way
     public internal(set) weak var parent: Entity?
     
     public init(name: String = "Entity") {

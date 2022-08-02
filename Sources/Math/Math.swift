@@ -13,6 +13,8 @@
 
 // swiftlint:disable identifier_name
 
+// TODO: (Vlad) Replace to Foundation realization instead?
+
 @inline(__always)
 public func clamp(_ value: Float, _ min: Float, _ max: Float) -> Float {
     return value < min ? (min) : (value > max ? max : value)

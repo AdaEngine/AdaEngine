@@ -7,7 +7,7 @@
 
 import Collections
 
-/// TODO:
+/// TODO: (Vlad)
 /// [] Recalculate archetype for removed and added components. Archetype should use graph
 /// [] Archetype to struct?
 /// [] Use sparse set?
@@ -65,8 +65,8 @@ public final class World {
         self.records[entity.id] = nil
         
         let currentArchetype = self.archetypes[record.archetypeId]
-        // FIXME: Can crash if we change components set during runtime
-        // TODO: we should use separate array for fried entities, because removing entity from arrary is O(n)
+        // FIXME: (Vlad) Can crash if we change components set during runtime
+        // TODO: (Vlad) we should use separate array for fried entities, because removing entity from arrary is O(n)
         currentArchetype.remove(at: record.row)
         
         if currentArchetype.entities.isEmpty {
