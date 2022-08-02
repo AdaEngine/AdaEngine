@@ -7,7 +7,7 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 
 # This program built for i386-apple-darwin11.3.0
 
-# Make data base, printed on Sun Jul 31 21:47:29 2022
+# Make data base, printed on Tue Aug  2 14:14:50 2022
 
 # Variables
 
@@ -21,8 +21,6 @@ ELECTRON_NO_ATTACH_CONSOLE = 1
 VK_LAYER_PATH = /Users/v.prusakov/VulkanSDK/1.2.182.0/macOS/etc/vulkan/explicit_layer.d
 # automatic
 ?D = $(patsubst %/,%,$(dir $?))
-# environment
-PLATFORMIO_IDE = 2.5.1
 # automatic
 @D = $(patsubst %/,%,$(dir $@))
 # automatic
@@ -44,7 +42,7 @@ VSCODE_CWD = /Users/v.prusakov/Developer/AdaEngine
 # environment
 MONO_HOME = /Library/Frameworks/Mono.framework/Home
 # environment
-NO_PROXY = 127.0.0.1
+PATH = /Library/Frameworks/Mono.framework/Home/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Applications/VMware Fusion.app/Contents/Public:/opt/osquery:/opt/puppetlabs/bin:/usr/local/share/dotnet:~/.dotnet/tools:/Library/Apple/usr/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/opt/pfutil
 # environment
 LSCOLORS = Gxfxcxdxbxegedabagacad
 # environment
@@ -82,17 +80,13 @@ VSCODE_HANDLES_UNCAUGHT_ERRORS = true
 # automatic
 ^D = $(patsubst %/,%,$(dir $^))
 # environment
-PLATFORMIO_PATH = /Users/v.prusakov/.platformio/python3/bin:/Library/Frameworks/Mono.framework/Home/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Applications/VMware Fusion.app/Contents/Public:/opt/osquery:/opt/puppetlabs/bin:/usr/local/share/dotnet:~/.dotnet/tools:/Library/Apple/usr/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/opt/pfutil
+XPC_FLAGS = 0x0
 # default
 MAKE = $(MAKE_COMMAND)
 # default
 MAKECMDGOALS := all
 # environment
-PATH = /Library/Frameworks/Mono.framework/Home/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Applications/VMware Fusion.app/Contents/Public:/opt/osquery:/opt/puppetlabs/bin:/usr/local/share/dotnet:~/.dotnet/tools:/Library/Apple/usr/bin:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/opt/pfutil
-# environment
 SHLVL = 3
-# environment
-XPC_FLAGS = 0x0
 # default
 MAKE_VERSION := 3.81
 # environment
@@ -130,7 +124,7 @@ MFLAGS = -Rrqp
 # environment
 TERM_PROGRAM_VERSION = 445
 # environment
-XPC_SERVICE_NAME = application.com.microsoft.VSCode.78610657.78610663.6BA0A29E-29AC-429C-9A0B-AF33C6AB92B7
+XPC_SERVICE_NAME = application.com.microsoft.VSCode.78610657.78610663.C00E0CA7-DACE-4922-B5CB-2D2C4705468B
 # automatic
 +D = $(patsubst %/,%,$(dir $+))
 # automatic
@@ -143,8 +137,6 @@ COMMAND_MODE = unix2003
 MAKEFILES := 
 # automatic
 <F = $(notdir $<)
-# environment
-PLATFORMIO_CALLER = vscode
 # environment
 PAGER = less
 # environment
@@ -164,9 +156,9 @@ LANG = C
 # environment
 TERM = xterm-256color
 # environment
-VSCODE_PID = 62581
+VSCODE_PID = 94988
 # variable set hash-table stats:
-# Load=77/1024=8%, Rehash=0, Collisions=3/101=3%
+# Load=73/1024=7%, Rehash=0, Collisions=1/97=1%
 
 # Pattern-specific Variable Values
 
@@ -211,7 +203,7 @@ compile_shaders:
 # Not a target:
 Makefile:
 #  Implicit rule search has been done.
-#  Last modified 2022-07-31 21:46:55
+#  Last modified 2022-07-31 22:26:25
 #  File has been updated.
 #  Successfully updated.
 # variable set hash-table stats:
@@ -254,7 +246,7 @@ install_vulkan:
 # strcache size: total = 4096 / max = 4096 / min = 4096 / avg = 4096
 # strcache free: total = 4087 / max = 4087 / min = 4087 / avg = 4087
 
-# Finished Make data base on Sun Jul 31 21:47:29 2022
+# Finished Make data base on Tue Aug  2 14:14:50 2022
 
  
 make: *** No rule to make target `all'.  Stop.

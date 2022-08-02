@@ -128,7 +128,8 @@ let adaEngineTarget: Target = .target(
     ],
     exclude: ["Project.swift", "Derived"],
     resources: [
-        .copy("Assets/Shaders/Vulkan")
+        .process("Assets/Shaders/Metal"),
+        .copy("Assets/Models")
     ],
     swiftSettings: [
         .define("MACOS", .when(platforms: [.macOS])),

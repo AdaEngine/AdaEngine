@@ -307,9 +307,16 @@ extension RenderEngine2D {
     
     private static func makeCircleData() -> Data<CircleVertexData> {
         let device = RenderEngine.shared.renderBackend
+
+        let shaderName: String
+        #if SWIFT_PACKAGE
+        shaderName = "circle.metal"
+        #else
+        shaderName = "default.metallib"
+        #endif
         
         var shaderDescriptor = ShaderDescriptor(
-            shaderName: "default",
+            shaderName: shaderName,
             vertexFunction: "circle_vertex",
             fragmentFunction: "circle_fragment"
         )
@@ -361,9 +368,17 @@ extension RenderEngine2D {
     
     private static func makeQuadData() -> Data<QuadVertexData> {
         let device = RenderEngine.shared.renderBackend
-        
+
+        // FIXME: We should compile metal
+        let shaderName: String
+        #if SWIFT_PACKAGE
+        shaderName = "quad.metal"
+        #else
+        shaderName = "default.metallib"
+        #endif
+
         var shaderDescriptor = ShaderDescriptor(
-            shaderName: "default",
+            shaderName: shaderName,
             vertexFunction: "quad_vertex",
             fragmentFunction: "quad_fragment"
         )
