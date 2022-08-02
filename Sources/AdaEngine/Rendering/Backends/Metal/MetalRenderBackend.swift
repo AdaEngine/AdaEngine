@@ -123,8 +123,16 @@ class MetalRenderBackend: RenderBackend {
     
     func makeShader(from descriptor: ShaderDescriptor) -> RID {
         do {
-            let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "metallib")!
-            let library = try self.context.physicalDevice.makeLibrary(URL: url)
+            let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: nil)!
+            let library: MTLLibrary
+
+            #if SWIFT_PACKAGE
+            let source = try String(contentsOf: url)
+            library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
+            #else 
+            library = try self.context.physicalDevice.makeLibrary(URL: url)
+            #endif
+
             let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
             let fragmentFunc = library.makeFunction(name: descriptor.fragmentFunction)!
             
