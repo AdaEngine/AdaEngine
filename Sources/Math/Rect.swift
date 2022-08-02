@@ -16,6 +16,7 @@ public struct Rect: Equatable, Codable, Hashable {
 }
 
 public extension Rect {
+    @inline(__always)
     static let zero = Rect(origin: .zero, size: .zero)
     
     init(x: Float, y: Float, width: Float, height: Float) {

@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  iOSWindowManager.swift
 //  
 //
 //  Created by v.prusakov on 7/11/22.
@@ -35,7 +35,7 @@ final class iOSWindowManager: WindowManager {
         super.createWindow(for: window)
     }
     
-    // - TODO: I'm not really sure, that we should make window unfocused
+    // - TODO: (Vlad) I'm not really sure, that we should make window unfocused
     override func showWindow(_ window: Window, isFocused: Bool) {
         guard let uiWindow = window.systemWindow as? UIWindow else {
             fatalError("System window not exist.")

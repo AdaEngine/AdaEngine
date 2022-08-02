@@ -7,8 +7,8 @@
 
 import box2d
 
-// TODO: Add hashable and equatable and resource
-// TODO: Looks like we should share resources in ECS world
+// TODO: (Vlad) Add hashable and equatable and resource
+// TODO: (Vlad) Looks like we should share resources in ECS world
 public final class Shape2DResource {
     
     let fixtureDef: b2FixtureDef

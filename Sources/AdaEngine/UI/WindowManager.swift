@@ -104,7 +104,7 @@ open class WindowManager {
         
         if setActiveAnotherIfNeeded {
             // Set last window as active
-            // TODO: I think we should have any order
+            // TODO: (Vlad) I think we should have any order
             let newWindow = self.windows.last!
             self.setActiveWindow(newWindow)
         }

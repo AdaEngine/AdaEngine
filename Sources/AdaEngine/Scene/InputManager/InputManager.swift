@@ -11,7 +11,7 @@ import Glibc
 import Darwin.C
 #endif
 
-// - TODO: Input manager doesn't work if keyboard set to cirillic mode.
+// - TODO: (Vlad) Input manager doesn't work if keyboard set to cirillic mode.
 public final class Input {
     
     internal static let shared = Input()
@@ -48,7 +48,7 @@ public final class Input {
         return self.shared.keyEvents[code]?.status == .up
     }
     
-    // TODO: Make action list
+    // TODO: (Vlad) Make action list
     public static func isActionPressed(_ action: String) -> Bool {
         fatalError()
     }

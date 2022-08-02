@@ -133,7 +133,7 @@ extension MetalRenderBackend {
             
 //            let allDevices = MTLCopyAllDevices()
             
-            /// TODO: Make picking preffered device, currently we picked descrete GPU
+            // TODO: (Vlad) Make picking preffered device, currently we picked descrete GPU
             var prefferedDevice: MTLDevice?
             
             return prefferedDevice ?? MTLCreateSystemDefaultDevice()!

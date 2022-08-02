@@ -7,17 +7,17 @@
 
 import Math
 
-// - TODO: Ortho projection for each view instead of root
-// - TODO: Add transforms for drawing (translation/rotation/scale)
-// - TODO: Blending mode (cuz alpha doesn't work)
-// - TODO: z layers
-// - TODO: texturing the views
-// - TODO: draw lines
-// - TODO: draw rectangles
-// - TODO: create transperent API for 2D rendering
-// - TODO: Interaction (hit testing)
-// - TODO: Scaling problem (hit testing)
-// - TODO: Cropping
+// - TODO: (Vlad) Ortho projection for each view instead of root
+// - TODO: (Vlad) Add transforms for drawing (translation/rotation/scale)
+// - TODO: (Vlad) Blending mode (cuz alpha doesn't work)
+// - TODO: (Vlad) z layers
+// - TODO: (Vlad) texturing the views
+// - TODO: (Vlad) draw lines
+// - TODO: (Vlad) draw rectangles
+// - TODO: (Vlad) create transperent API for 2D rendering
+// - TODO: (Vlad) Interaction (hit testing)
+// - TODO: (Vlad) Scaling problem (hit testing)
+// - TODO: (Vlad) Cropping
 
 /// - Tag: AdaEngine.View
 open class View {

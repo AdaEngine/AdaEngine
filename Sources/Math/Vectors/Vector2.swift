@@ -7,8 +7,8 @@
 
 import Foundation
 
-// TODO: Create object aka CGFloat for float or doubles
-// TODO: when move to new vector object, we should use same object size
+// TODO: (Vlad) Create object aka CGFloat for float or doubles
+// TODO: (Vlad) when move to new vector object, we should use same object size
 
 public struct Vector2: Hashable, Equatable, Codable {
     public var x: Float
@@ -69,15 +69,18 @@ public extension Vector2 {
 }
 
 public extension Vector2 {
+    @inline(__always)
     var squaredLength: Float {
         return x * x + y * y
     }
     
+    @inline(__always)
     var normalized: Vector2 {
         let length = self.squaredLength
         return self / sqrt(length)
     }
     
+    @inline(__always)
     func dot(_ vector: Vector2) -> Float {
         return x * vector.x + y * vector.y
     }

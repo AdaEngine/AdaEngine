@@ -29,6 +29,7 @@ public final class Scene {
     public var debugOptions: DebugOptions = []
     public var debugPhysicsColor: Color = .green
     
+    // TODO: (Vlad) Looks like isn't good solution.
     private var _viewportSize: Size = .zero
     public var viewportSize: Size {
         get {

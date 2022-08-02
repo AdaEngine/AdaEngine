@@ -13,7 +13,7 @@ open class Window: View {
     
     public typealias ID = RID
     
-    // TODO: Maybe, we should use unique ID without RID
+    // TODO: (Vlad) Maybe, we should use unique ID without RID
     /// Identifier using to register window in the render engine.
     /// We use this id to start drawing.
     public var id: ID = RID()

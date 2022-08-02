@@ -255,15 +255,18 @@ public extension Vector4 {
 }
 
 public extension Vector4 {
+    @inline(__always)
     var squaredLength: Float {
         return x * x + y * y + z * z + w * w
     }
     
+    @inline(__always)
     var normalized: Vector4 {
         let length = self.squaredLength
         return self / sqrt(length)
     }
     
+    @inline(__always)
     func dot(_ vector: Vector4) -> Float {
         return x * vector.x + y * vector.y + z * vector.z + w * vector.w
     }
