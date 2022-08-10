@@ -82,10 +82,12 @@ public struct QueryResult: Sequence {
     }
     
     public typealias Element = Entity
-    public typealias Iterator = EntityIterator
+    public typealias Iterator = IndexingIterator<[Element]>
+//    public typealias Iterator = EntityIterator
     
     public func makeIterator() -> Iterator {
-        return EntityIterator(pointer: buffer, count: buffer.count)
+        // FIXME: Avoid additional allocation here
+        return buffer.flatMap { $0.entities }.compactMap { $0 }.makeIterator()
     }
     
     /// A Boolean value indicating whether the collection is empty.
@@ -135,6 +137,7 @@ public extension QueryResult {
             
             let currentArchetype = self.pointer.advanced(by: self.currentArchetypeIndex).pointee
             
+            // FIXME: Can be crash there
             while currentArchetype.entities[currentEntityIndex] == nil {
                 if self.currentEntityIndex < currentEntitiesCount - 1 {
                     self.currentEntityIndex += 1

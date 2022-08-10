@@ -91,7 +91,7 @@ open class WindowManager {
         }
         
         // Destory window from render window
-        try? RenderEngine.shared.renderBackend.destroyWindow(window.id)
+        try? RenderEngine.shared.destroyWindow(window.id)
         
         self.windows.remove(at: index)
         window.windowDidDisappear()

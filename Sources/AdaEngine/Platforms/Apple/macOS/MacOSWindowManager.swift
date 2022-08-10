@@ -163,7 +163,7 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
             window.frame = Rect(origin: .zero, size: size)
         }
         
-        try? RenderEngine.shared.renderBackend.resizeWindow(window.id, newSize: size)
+        try? RenderEngine.shared.resizeWindow(window.id, newSize: size)
     }
     
     func windowDidExitFullScreen(_ notification: Notification) {

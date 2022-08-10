@@ -69,6 +69,10 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
+        guard newSize.width > 0 && newSize.height > 0 else {
+            return
+        }
+        
         self.context.updateSizeForRenderWindow(windowId, size: newSize)
     }
     

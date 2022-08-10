@@ -27,7 +27,11 @@ public struct Transform: Component {
     
     private var _matrix: Transform3D = .identity
     
-    public init(rotation: Quat = .identity, scale: Vector3 = [1, 1, 1], position: Vector3 = .zero) {
+    public init(
+        rotation: Quat = .identity,
+        scale: Vector3 = [1, 1, 1],
+        position: Vector3 = .zero
+    ) {
         self.rotation = rotation
         self.scale = scale
         self.position = position

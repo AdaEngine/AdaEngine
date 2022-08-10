@@ -71,6 +71,7 @@ final class Physics2DSystem: System {
             if let body = physicsBody.runtimeBody {
                 transform.position.x = body.ref.position.x
                 transform.position.y = body.ref.position.y
+//                transform.rotation = body.ref.angle
             } else {
                 var def = Body2DDefinition()
                 def.position = [transform.position.x, transform.position.y]

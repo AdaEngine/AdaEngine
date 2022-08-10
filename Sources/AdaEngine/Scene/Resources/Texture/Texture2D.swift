@@ -16,7 +16,7 @@ open class Texture2D: Texture {
     public private(set) var height: Float
     
     public init(from image: Image) {
-        let rid = RenderEngine.shared.renderBackend.makeTexture(from: image, type: .texture2D, usage: [.read, .render])
+        let rid = RenderEngine.shared.makeTexture(from: image, type: .texture2D, usage: [.read, .render])
         
         self.width = Float(image.width)
         self.height = Float(image.height)
@@ -48,7 +48,7 @@ open class Texture2D: Texture {
 
         let image = try await Image(assetFrom: representation.imageData)
         
-        let rid = RenderEngine.shared.renderBackend.makeTexture(
+        let rid = RenderEngine.shared.makeTexture(
             from: image,
             type: representation.type,
             usage: [.read, .render]
@@ -61,7 +61,7 @@ open class Texture2D: Texture {
     }
 
     public override func encodeContents() async throws -> Data {
-        guard let image = RenderEngine.shared.renderBackend.getImage(for: self.rid) else {
+        guard let image = RenderEngine.shared.getImage(for: self.rid) else {
             throw ResourceError.message("Image not exists for texture.")
         }
         
