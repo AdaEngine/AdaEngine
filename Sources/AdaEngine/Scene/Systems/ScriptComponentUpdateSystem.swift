@@ -9,8 +9,10 @@ struct ScriptComponentUpdateSystem: System {
     
     init(scene: Scene) { }
     
+    let renderer2D = RenderEngine2D()
+    
     func update(context: UpdateContext) {
-        let guiRenderContext = GUIRenderContext(window: context.scene.window!.id)
+        let guiRenderContext = GUIRenderContext(window: context.scene.window!.id, engine: renderer2D)
         
         context.scene.world.scripts.values.forEach { component in
             

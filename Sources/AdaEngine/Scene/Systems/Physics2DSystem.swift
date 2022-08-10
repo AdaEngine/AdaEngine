@@ -35,6 +35,7 @@ final class Physics2DSystem: System {
     )
     
     unowned let world: PhysicsWorld2D
+    let render2D = RenderEngine2D()
     
     required init(scene: Scene) {
         self.world = scene.physicsWorld2D
@@ -44,7 +45,7 @@ final class Physics2DSystem: System {
         let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.window != nil
         
         if needDrawPolygons {
-            RenderEngine2D.shared.beginContext(for: context.scene.window!.id, camera: context.scene.activeCamera)
+            render2D.beginContext(for: context.scene.window!.id, camera: context.scene.activeCamera)
         }
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
@@ -58,7 +59,7 @@ final class Physics2DSystem: System {
         self.world.updateSimulation(context.deltaTime)
         
         if needDrawPolygons {
-            RenderEngine2D.shared.commitContext()
+            render2D.commitContext()
         }
     }
     
@@ -71,11 +72,11 @@ final class Physics2DSystem: System {
             if let body = physicsBody.runtimeBody {
                 transform.position.x = body.ref.position.x
                 transform.position.y = body.ref.position.y
-//                transform.rotation = body.ref.angle
+                transform.rotation = Quat(axis: [0, 0, 1], angle: body.ref.angle)
             } else {
                 var def = Body2DDefinition()
                 def.position = [transform.position.x, transform.position.y]
-                def.angle = transform.rotation.z
+//                def.angle = transform.rotation.z
                 def.bodyMode = physicsBody.mode
                 
                 let body = self.world.createBody(definition: def, for: entity)
@@ -104,7 +105,6 @@ final class Physics2DSystem: System {
             if let body = physicsBody.runtimeBody?.ref, needDrawPolygons {
                 self.drawDebug(
                     body: body,
-                    transform: transform.matrix,
                     color: context.scene.debugPhysicsColor
                 )
             }
@@ -158,7 +158,6 @@ final class Physics2DSystem: System {
             if let body = collisionBody.runtimeBody?.ref, needDrawPolygons {
                 self.drawDebug(
                     body: body,
-                    transform: transform.matrix,
                     color: context.scene.debugPhysicsColor
                 )
             }
@@ -174,7 +173,7 @@ final class Physics2DSystem: System {
             
             if jointComponent.runtimeJoint == nil {
                 switch jointComponent.jointDescriptor.joint {
-                case .rope(let entityA, let entityB, let vectorA, let vectorB):
+                case .rope(let entityA, let entityB, _, _):
                     let joint = b2RopeJointDef()
                     guard
                         let bodyA = self.getBody(from: entityA)?.ref,
@@ -215,30 +214,43 @@ final class Physics2DSystem: System {
     // MARK: - Debug draw
     
     // FIXME: Use body transform instead
-    private func drawDebug(body: b2Body, transform: Transform3D, color: Color) {
+    private func drawDebug(body: b2Body, color: Color) {
         guard let fixture = body.getFixtureList() else { return }
         
         switch fixture.shape.type {
         case .circle:
-            self.drawCircle(transform: transform, color: color)
+            self.drawCircle(
+                position: body.position.asVector2,
+                angle: body.angle,
+                radius: fixture.shape.radius,
+                color: color
+            )
         case .polygon:
-            self.drawQuad(transform: transform, color: color)
+            self.drawQuad(
+                position: body.position.asVector2,
+                angle: body.angle,
+                size: .zero, // FIXME: We should set size
+                color: color
+            )
         default:
             return
         }
     }
     
-    private func drawCircle(transform: Transform3D, color: Color) {
-        RenderEngine2D.shared.drawCircle(
-            transform: transform,
+    private func drawCircle(position: Vector2, angle: Float, radius: Float, color: Color) {
+        render2D.drawCircle(
+            position: Vector3(position, 0),
+            rotation: [0, 0, angle], // FIXME: We should set rotation angle
+            radius: radius,
             thickness: 0.1,
             fade: 0,
             color: color
         )
     }
     
-    private func drawQuad(transform: Transform3D, color: Color) {
-        RenderEngine2D.shared.drawQuad(transform: transform, color: color)
+    private func drawQuad(position: Vector2, angle: Float, size: Vector2, color: Color) {
+        // TODO: We should use rotation quad there
+        render2D.drawQuad(position: Vector3(position, 0), size: size, texture: nil, color: color)
     }
     
     private func drawMesh(transform: Transform3D, color: Color) {
