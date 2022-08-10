@@ -13,8 +13,10 @@ struct ViewContainerSystem: System {
     
     init(scene: Scene) { }
     
+    let renderer2D = RenderEngine2D()
+    
     func update(context: UpdateContext) {
-        let guiRenderContext = GUIRenderContext(window: context.scene.window!.id)
+        let guiRenderContext = GUIRenderContext(window: context.scene.window!.id, engine: renderer2D)
         
         context.scene.performQuery(Self.query).forEach { entity in
             guard let container = entity.components[ViewContrainerComponent.self] else {

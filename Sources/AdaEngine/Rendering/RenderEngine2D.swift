@@ -10,7 +10,7 @@ import Math
 // TODO: (Vlad) Render engine shouldn't use current draw, because it can be raise a conflict in multiple windows or nested scenes!
 public class RenderEngine2D {
     
-    public static let shared = RenderEngine2D()
+//    public static let shared = RenderEngine2D()
     
     private var uniform: Uniform = Uniform()
     
@@ -118,6 +118,11 @@ public class RenderEngine2D {
         self.startBatch()
     }
     
+    public func drawQuad(position: Vector3, size: Vector2, texture: Texture2D? = nil, color: Color) {
+        let transform = Transform3D(translation: position) * Transform3D(scale: Vector3(size, 1))
+        self.drawQuad(transform: transform, texture: texture, color: color)
+    }
+    
     public func drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color) {
         
         if self.quadData.indeciesCount.count >= Self.maxIndecies {
@@ -167,6 +172,23 @@ public class RenderEngine2D {
     
     public func setDebugName(_ name: String) {
         RenderEngine.shared.bindDebugName(name: name, forDraw: self.currentDraw)
+    }
+    
+    public func drawCircle(
+        position: Vector3,
+        rotation: Vector3,
+        radius: Float,
+        thickness: Float,
+        fade: Float,
+        color: Color
+    ) {
+        let transform = Transform3D(translation: position)
+        * Transform3D(quat: Quat(axis: [1, 0, 0], angle: rotation.x))
+        * Transform3D(quat: Quat(axis: [0, 1, 0], angle: rotation.y))
+        * Transform3D(quat: Quat(axis: [0, 0, 1], angle: rotation.z))
+        * Transform3D(scale: Vector3(radius))
+        
+        self.drawCircle(transform: transform, thickness: thickness, fade: fade, color: color)
     }
     
     public func drawCircle(

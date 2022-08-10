@@ -11,6 +11,8 @@ struct Render2DSystem: System {
     
     static let spriteQuery = EntityQuery(where: (.has(Circle2DComponent.self) || .has(SpriteComponent.self)) && .has(Transform.self))
     
+    let render2D = RenderEngine2D()
+    
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
@@ -22,8 +24,8 @@ struct Render2DSystem: System {
             return
         }
         
-        RenderEngine2D.shared.beginContext(for: window.id, camera: context.scene.activeCamera)
-        RenderEngine2D.shared.setDebugName("Start 2D Rendering scene")
+        render2D.beginContext(for: window.id, camera: context.scene.activeCamera)
+        render2D.setDebugName("Start 2D Rendering scene")
         
         spriteEntities.forEach { entity in
             guard let transform = entity.components[Transform.self] else {
@@ -33,7 +35,7 @@ struct Render2DSystem: System {
             }
             
             if let circle = entity.components[Circle2DComponent.self] {
-                RenderEngine2D.shared.drawCircle(
+                render2D.drawCircle(
                     transform: transform.matrix,
                     thickness: circle.thickness,
                     fade: circle.fade,
@@ -42,7 +44,7 @@ struct Render2DSystem: System {
             }
             
             if let sprite = entity.components[SpriteComponent.self] {
-                RenderEngine2D.shared.drawQuad(
+                render2D.drawQuad(
                     transform: transform.matrix,
                     texture: sprite.texture,
                     color: sprite.tintColor
@@ -50,6 +52,6 @@ struct Render2DSystem: System {
             }
         }
         
-        RenderEngine2D.shared.commitContext()
+        render2D.commitContext()
     }
 }

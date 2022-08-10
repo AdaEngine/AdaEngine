@@ -119,7 +119,7 @@ class GameScene {
         
         // DEBUG
         
-//        scene.debugOptions = [.showPhysicsShapes]
+        scene.debugOptions = [.showPhysicsShapes]
         
         let tiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
         
@@ -186,9 +186,9 @@ class GameScene {
         
         var prevEnt: Entity = plainEntity2
         
-        for i in 0...8 {
+        for i in 0...12 {
             
-            transform.position.x += 0.6
+            transform.position.x += 0.4
             
             let joint1 = Entity(name: "joint \(i)")
             joint1.components += Circle2DComponent(color: .orange.opacity(0.5), thickness: 0.2)
@@ -198,7 +198,7 @@ class GameScene {
                     .generateCircle(radius: 0.3)
                 ],
                 massProperties: .init(),
-                material: .generate(friction: 0.2, restitution: 0, density: 20)
+                material: .generate(friction: 3, restitution: 0, density: 50)
             )
             
             joint1.components += PhysicsJoint2DComponent(

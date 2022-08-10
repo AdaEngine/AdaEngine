@@ -11,7 +11,7 @@ import Math
 /// Context use orthogonal projection.
 final public class GUIRenderContext {
     
-    private unowned let engine: RenderEngine2D
+    private let engine: RenderEngine2D
     
     private var fillColor: Color = .clear
     private var strokeColor: Color = .black
@@ -21,7 +21,7 @@ final public class GUIRenderContext {
     /// Window Identifier related presented window.
     private let window: Window.ID
     
-    public init(window: Window.ID, engine: RenderEngine2D = .shared) {
+    public init(window: Window.ID, engine: RenderEngine2D) {
         self.window = window
         self.engine = engine
     }
@@ -93,7 +93,7 @@ final public class GUIRenderContext {
     }
     
     public func commitDraw() {
-        RenderEngine2D.shared.commitContext()
+        self.engine.commitContext()
         
         self.clear()
     }

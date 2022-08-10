@@ -38,7 +38,7 @@ open class WindowManager {
             window.sceneManager.update(deltaTime)
             
             if window.canDraw {
-                let context = GUIRenderContext(window: window.id)
+                let context = GUIRenderContext(window: window.id, engine: window.renderer2D)
                 
                 context.beginDraw(in: window.bounds)
                 window.draw(with: context)
