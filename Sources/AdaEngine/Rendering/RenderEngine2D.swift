@@ -50,7 +50,7 @@ public class RenderEngine2D {
     var triangleFillMode: TriangleFillMode = .fill
     
     init() {
-        let device = RenderEngine.shared.renderBackend
+        let device = RenderEngine.shared
         
         self.uniformRid = device.makeUniform(Uniform.self, count: 1, offset: 0, options: .storageShared)
         
@@ -99,9 +99,9 @@ public class RenderEngine2D {
     
     public func beginContext(for window: Window.ID, viewTransform: Transform3D) {
         let uni = Uniform(viewProjection: viewTransform)
-        RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
+        RenderEngine.shared.updateUniform(self.uniformRid, value: uni, count: 1)
         
-        self.currentDraw = RenderEngine.shared.renderBackend.beginDraw(for: window)
+        self.currentDraw = RenderEngine.shared.beginDraw(for: window)
         self.startBatch()
     }
     
@@ -112,9 +112,9 @@ public class RenderEngine2D {
     public func beginContext(for window: Window.ID, camera: Camera) {
         let data = camera.makeCameraData()
         let uni = Uniform(viewProjection: camera.transform.matrix * data.viewProjection)
-        RenderEngine.shared.renderBackend.updateUniform(self.uniformRid, value: uni, count: 1)
+        RenderEngine.shared.updateUniform(self.uniformRid, value: uni, count: 1)
         
-        self.currentDraw = RenderEngine.shared.renderBackend.beginDraw(for: window)
+        self.currentDraw = RenderEngine.shared.beginDraw(for: window)
         self.startBatch()
     }
     
@@ -166,7 +166,7 @@ public class RenderEngine2D {
     }
     
     public func setDebugName(_ name: String) {
-        RenderEngine.shared.renderBackend.bindDebugName(name: name, forDraw: self.currentDraw)
+        RenderEngine.shared.bindDebugName(name: name, forDraw: self.currentDraw)
     }
     
     public func drawCircle(
@@ -198,7 +198,7 @@ public class RenderEngine2D {
     public func commitContext() {
         self.flush()
         
-        RenderEngine.shared.renderBackend.drawEnd(self.currentDraw)
+        RenderEngine.shared.drawEnd(self.currentDraw)
         self.currentDraw = nil
         
         self.clearContext()
@@ -233,7 +233,7 @@ public class RenderEngine2D {
             return
         }
         
-        let device = RenderEngine.shared.renderBackend
+        let device = RenderEngine.shared
         
         device.bindUniformSet(currentDraw, uniformSet: self.uniformRid, at: BufferIndex.baseUniform)
         device.bindTriangleFillMode(currentDraw, mode: self.triangleFillMode)
@@ -306,7 +306,7 @@ extension RenderEngine2D {
     }
     
     private static func makeCircleData() -> Data<CircleVertexData> {
-        let device = RenderEngine.shared.renderBackend
+        let device = RenderEngine.shared
 
         let shaderName: String
         #if SWIFT_PACKAGE
@@ -367,7 +367,7 @@ extension RenderEngine2D {
     }
     
     private static func makeQuadData() -> Data<QuadVertexData> {
-        let device = RenderEngine.shared.renderBackend
+        let device = RenderEngine.shared
 
         // FIXME: We should compile metal
         let shaderName: String

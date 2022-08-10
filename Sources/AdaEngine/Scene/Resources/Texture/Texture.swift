@@ -27,7 +27,7 @@ open class Texture: Resource {
     /// In some cases we shouldn't release texture from GPU memory, than we need override this method
     /// with empty realisation.
     func freeTexture() {
-        RenderEngine.shared.renderBackend.removeTexture(by: self.rid)
+        RenderEngine.shared.removeTexture(by: self.rid)
     }
     
     // MARK: - Resources
