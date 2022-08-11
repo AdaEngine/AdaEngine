@@ -10,7 +10,7 @@ import AdaEngine
 @main
 struct AdaEditorApp: App {
     
-    let gameScene = GameScene2D()
+    let gameScene = GameScene3D()
     
     var scene: some AppScene {
         GameAppScene {
