@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  GameScene2D.swift
 //  
 //
 //  Created by v.prusakov on 5/7/22.

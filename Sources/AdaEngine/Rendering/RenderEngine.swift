@@ -7,6 +7,7 @@
 
 import OrderedCollections
 
+// TODO: (Vlad) we should compile all shader on setup
 public class RenderEngine: RenderBackend {
     
     public static let shared: RenderEngine = {
