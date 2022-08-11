@@ -31,5 +31,23 @@ let project = Project(
                 .project(target: "AdaEngine", path: "../AdaEngine")
             ]
         )
+    ],
+    schemes: [
+        Scheme(
+            name: "AdaEditor",
+            buildAction: .buildAction(targets: ["AdaEditor"]),
+            runAction: RunAction.runAction(
+                configuration: .debug,
+                attachDebugger: true,
+                executable: "AdaEditor",
+                options: .options(enableGPUFrameCaptureMode: .metal),
+                diagnosticsOptions: []
+            ),
+            profileAction: .profileAction(
+                configuration: .debug,
+                executable: "AdaEditor"
+            ),
+            analyzeAction: .analyzeAction(configuration: .debug)
+        )
     ]
 )

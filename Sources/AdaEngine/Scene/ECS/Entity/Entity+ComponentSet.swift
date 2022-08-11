@@ -27,8 +27,8 @@ public extension Entity {
         }
         
         public init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingName.self)
-            var buffer: [ComponentId: Component] = [:]
+//            let container = try decoder.container(keyedBy: CodingName.self)
+            let buffer: [ComponentId: Component] = [:]
             
 //            for key in container.allKeys {
 //                guard let type = ComponentStorage.getRegistredComponent(for: key.stringValue) else {
@@ -44,7 +44,7 @@ public extension Entity {
         }
         
         public func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingName.self)
+//            var container = encoder.container(keyedBy: CodingName.self)
             
 //            for (_, value) in self.buffer {
 //                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
@@ -128,6 +128,7 @@ public extension Entity {
 
 public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
+    @inline(__always)
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
         return (
             buffer[a.identifier] as! A,
@@ -136,6 +137,7 @@ public extension Entity.ComponentSet {
     }
     
     /// Gets the components of the specified types.
+    @inline(__always)
     subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
         return (
             buffer[a.identifier] as! A,
@@ -145,6 +147,7 @@ public extension Entity.ComponentSet {
     }
     
     /// Gets the components of the specified types.
+    @inline(__always)
     subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
         return (
             buffer[a.identifier] as! A,
@@ -156,6 +159,7 @@ public extension Entity.ComponentSet {
 }
 
 public extension Entity.ComponentSet {
+    @inline(__always)
     static func += <T: Component>(lhs: inout Self, rhs: T) {
         lhs[T.self] = rhs
     }

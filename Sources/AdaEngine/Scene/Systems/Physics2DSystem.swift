@@ -10,11 +10,12 @@ import Math
 
 // - TODO: (Vlad) Delete bodies if entity will delete physic component
 // - TODO: (Vlad) Update system fixed times (Timer?)
-// - TODO: (Vlad) Draw circles and polygons for debug
-// - TODO: (Vlad) Joints
+// - TODO: (Vlad) Draw polygons for debug
 // - TODO: (Vlad) Runtime update shape resource
 // - TODO: (Vlad) Debug render in other system?
 final class Physics2DSystem: System {
+    
+    init(scene: Scene) { }
     
     private var physicsFrame: Int = 0
     private var time: TimeInterval = 0
@@ -34,38 +35,66 @@ final class Physics2DSystem: System {
         where: .has(PhysicsJoint2DComponent.self) && .has(Transform.self)
     )
     
-    unowned let world: PhysicsWorld2D
-    let render2D = RenderEngine2D()
+    static let physicsWorld = EntityQuery(
+        where: .has(Physics2DWorldComponent.self)
+    )
     
-    required init(scene: Scene) {
-        self.world = scene.physicsWorld2D
-    }
+    // I think it should be smth like scene renderer here.
+    private let render2D = RenderEngine2D()
     
     func update(context: UpdateContext) {
         let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.window != nil
         
         if needDrawPolygons {
-            render2D.beginContext(for: context.scene.window!.id, camera: context.scene.activeCamera)
+            self.render2D.beginContext(for: context.scene.window!.id, camera: context.scene.activeCamera)
         }
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
         let colissionBody = context.scene.performQuery(Self.collisionQuery)
         let joints = context.scene.performQuery(Self.jointsQuery)
-
-        self.updatePhysicsBodyEntities(physicsBody, needDrawPolygons: needDrawPolygons, context: context)
-        self.updateCollisionEntities(colissionBody, needDrawPolygons: needDrawPolygons, context: context)
-        self.updateJointsEntities(joints, needDrawPolygons: needDrawPolygons, context: context)
+        // We should have only one physics world
+        let worlds = context.scene.performQuery(Self.physicsWorld)
         
-        self.world.updateSimulation(context.deltaTime)
+        guard let world = worlds.first?.components[Physics2DWorldComponent.self]?.world else {
+            return
+        }
+
+        self.updatePhysicsBodyEntities(
+            physicsBody,
+            world: world,
+            needDrawPolygons: needDrawPolygons,
+            context: context
+        )
+        
+        self.updateCollisionEntities(
+            colissionBody,
+            world: world,
+            needDrawPolygons: needDrawPolygons,
+            context: context
+        )
+        
+        self.updateJointsEntities(
+            joints,
+            world: world,
+            needDrawPolygons: needDrawPolygons,
+            context: context
+        )
+        
+        world.updateSimulation(context.deltaTime)
         
         if needDrawPolygons {
-            render2D.commitContext()
+            self.render2D.commitContext()
         }
     }
     
     // MARK: - Private
     
-    private func updatePhysicsBodyEntities(_ entities: QueryResult, needDrawPolygons: Bool, context: UpdateContext) {
+    private func updatePhysicsBodyEntities(
+        _ entities: QueryResult,
+        world: PhysicsWorld2D,
+        needDrawPolygons: Bool,
+        context: UpdateContext
+    ) {
         for entity in entities {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
             
@@ -79,7 +108,7 @@ final class Physics2DSystem: System {
 //                def.angle = transform.rotation.z
                 def.bodyMode = physicsBody.mode
                 
-                let body = self.world.createBody(definition: def, for: entity)
+                let body = world.createBody(definition: def, for: entity)
                 physicsBody.runtimeBody = body
                 
                 for shape in physicsBody.shapes {
@@ -114,7 +143,12 @@ final class Physics2DSystem: System {
         }
     }
     
-    private func updateCollisionEntities(_ entities: QueryResult, needDrawPolygons: Bool, context: UpdateContext) {
+    private func updateCollisionEntities(
+        _ entities: QueryResult,
+        world: PhysicsWorld2D,
+        needDrawPolygons: Bool,
+        context: UpdateContext
+    ) {
         for entity in entities {
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
             
@@ -167,7 +201,12 @@ final class Physics2DSystem: System {
         }
     }
     
-    private func updateJointsEntities(_ entities: QueryResult, needDrawPolygons: Bool, context: UpdateContext) {
+    private func updateJointsEntities(
+        _ entities: QueryResult,
+        world: PhysicsWorld2D,
+        needDrawPolygons: Bool,
+        context: UpdateContext
+    ) {
         for entity in entities {
             var (jointComponent, transform) = entity.components[PhysicsJoint2DComponent.self, Transform.self]
             
@@ -184,7 +223,7 @@ final class Physics2DSystem: System {
                     
                     joint.bodyA = bodyA
                     joint.bodyB = bodyB
-                    let ref = self.world.createJoint(joint)
+                    let ref = world.createJoint(joint)
                     jointComponent.runtimeJoint = ref
                 case .revolute(let entityA):
                     guard
@@ -197,7 +236,7 @@ final class Physics2DSystem: System {
                     let anchor = transform.position.xy.b2Vec
                     let joint = b2RevoluteJointDef(bodyA: bodyA, bodyB: current, anchor: anchor)
                     
-                    let ref = self.world.createJoint(joint)
+                    let ref = world.createJoint(joint)
                     jointComponent.runtimeJoint = ref
                 }
             }

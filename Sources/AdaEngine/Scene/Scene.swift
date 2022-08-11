@@ -7,6 +7,7 @@
 
 import OrderedCollections
 
+// TODO: Scene should be inherit Resource
 public final class Scene {
     
     public var name: String
@@ -16,10 +17,9 @@ public final class Scene {
     
     public internal(set) weak var window: Window?
     
-    var systems: [System] = []
+    private var systems: [System] = []
+    private var plugins: [ScenePlugin] = []
     private(set) var world: World
-    
-    public private(set) var physicsWorld2D: PhysicsWorld2D
     
     private(set) var eventManager: EventManager = EventManager()
     
@@ -55,7 +55,6 @@ public final class Scene {
         self.id = UUID()
         self.name = name.isEmpty ? "Scene" : name
         self.world = World()
-        self.physicsWorld2D = PhysicsWorld2D()
         let cameraEntity = Entity()
         
         let cameraComponent = Camera()
@@ -63,10 +62,6 @@ public final class Scene {
         self.world.appendEntity(cameraEntity)
         
         self.activeCamera = cameraComponent
-        
-        defer {
-            self.physicsWorld2D.scene = self
-        }
     }
     
     public required convenience init(from decoder: Decoder) throws {
@@ -105,9 +100,16 @@ public final class Scene {
         try container.encode(self.systems.map { type(of: $0).swiftName }, forKey: .systems)
     }
     
+    /// Add new system to the scene.
     public func addSystem<T: System>(_ systemType: T.Type) {
         let system = systemType.init(scene: self)
         self.systems.append(system)
+    }
+    
+    /// Add new scene plugin to the scene.
+    public func addPlugin<T: ScenePlugin>(_ plugin: T) {
+        plugin.setup(in: self)
+        self.plugins.append(plugin)
     }
     
     /// Receives events of the given type.
@@ -123,34 +125,30 @@ public final class Scene {
     
     // MARK: - Internal methods
     
+    // TODO: Looks like not a good solution here
     /// Check the scene will not run earlier
-    var isReady = false
+    private(set) var isReady = false
     
     func ready() {
-        // Add base systems
-        self.addSystem(ScriptComponentUpdateSystem.self)
-        self.addSystem(CameraSystem.self)
-        self.addSystem(Render2DSystem.self)
-        self.addSystem(Physics2DSystem.self)
-        self.addSystem(ViewContainerSystem.self)
-        
+        self.addPlugin(DefaultScenePlugin())
         self.isReady = true
     }
     
     func update(_ deltaTime: TimeInterval) {
         self.world.tick()
         
+        let context = SceneUpdateContext(scene: self, deltaTime: deltaTime)
+        
         for system in self.systems {
-            system.update(context: SceneUpdateContext(scene: self, deltaTime: deltaTime))
+            system.update(context: context)
         }
     }
-    
-    var removeEntities: [Entity] = []
 }
 
 // MARK: - ECS
 
 public extension Scene {
+    /// Perform query to the ECS World.
     func performQuery(_ query: EntityQuery) -> QueryResult {
         return self.world.performQuery(query)
     }
@@ -173,7 +171,7 @@ public extension Scene {
 
 extension Scene: Codable {
     enum CodingKeys: String, CodingKey {
-        case id, name, entities, systems
+        case id, name, entities, systems, plugins
     }
 }
 

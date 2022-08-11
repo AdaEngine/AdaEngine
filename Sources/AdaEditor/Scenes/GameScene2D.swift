@@ -110,7 +110,7 @@ class PlayerComponent: ScriptComponent {
 }
 
 
-class GameScene {
+final class GameScene2D {
     
     var collision: Cancellable!
     
