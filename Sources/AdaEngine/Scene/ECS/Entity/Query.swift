@@ -75,24 +75,29 @@ public extension QueryPredicate {
 public struct QueryResult: Sequence {
     
     // TODO: (Vlad) I'm not sure that archetype as ref types should right choise.
-    private var buffer: [Archetype]
+//    private var buffer: [Archetype]
+    
+    var entities: [Entity]
     
     internal init(archetypes: [Archetype]) {
-        self.buffer = archetypes
+        self.entities = archetypes.flatMap { $0.entities }.compactMap { $0 }
     }
     
     public typealias Element = Entity
     public typealias Iterator = IndexingIterator<[Element]>
-//    public typealias Iterator = EntityIterator
+    
+    var first: Element? {
+        return self.first { _ in return true }
+    }
     
     public func makeIterator() -> Iterator {
         // FIXME: Avoid additional allocation here
-        return buffer.flatMap { $0.entities }.compactMap { $0 }.makeIterator()
+        return self.entities.makeIterator()
     }
     
     /// A Boolean value indicating whether the collection is empty.
     public var isEmpty: Bool {
-        return self.buffer.isEmpty
+        return self.entities.isEmpty
     }
 }
 
