@@ -11,8 +11,6 @@ public protocol RenderBuffer {
     func contents() -> UnsafeMutableRawPointer
     
     func copy(bytes: UnsafeRawPointer, length: Int)
-    
-    func get<T>() -> T?
 }
 
 public struct ResourceOptions: OptionSet {
@@ -27,7 +25,7 @@ public struct ResourceOptions: OptionSet {
     public static let storageShared = ResourceOptions(rawValue: 1 << 1)
 }
 
-#if canImport(Metal)
+#if METAL
 
 extension ResourceOptions {
     var metal: MTLResourceOptions {
@@ -48,7 +46,7 @@ extension ResourceOptions {
 
 #endif
 
-#if canImport(Metal)
+#if METAL
 import Metal
 
 public class MetalBuffer: RenderBuffer {
@@ -64,10 +62,6 @@ public class MetalBuffer: RenderBuffer {
     
     public func copy(bytes: UnsafeRawPointer, length: Int) {
         self.base.contents().copyMemory(from: bytes, byteCount: length)
-    }
-    
-    public func get<T>() -> T? {
-        return self.base as? T
     }
     
 }

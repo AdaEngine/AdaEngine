@@ -1,0 +1,4 @@
+module SPIRV_Cross {
+    umbrella "/Users/v.prusakov/Developer/AdaEngine/vendors/SPIRV-Cross"
+    export *
+}

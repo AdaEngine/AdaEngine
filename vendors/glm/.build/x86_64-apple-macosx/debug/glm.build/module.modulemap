@@ -1,0 +1,4 @@
+module glm {
+    umbrella "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/glm"
+    export *
+}

@@ -17,6 +17,12 @@ class GameScene3D {
         camera.components[Camera.self]?.isPrimal = true
         scene.addEntity(camera)
         
+        let mesh = Mesh.generateBox(extent: [1, 1, 1], segments: [1, 1, 1])
+        
+        let train = Entity(name: "Train")
+        train.components += ModelComponent(mesh: mesh)
+        scene.addEntity(train)
+        
         return scene
     }
 }

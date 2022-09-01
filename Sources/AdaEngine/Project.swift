@@ -26,15 +26,15 @@ let targets: [Target] = [
             ),
             .project(
                 target: "libpng",
-                path: .relativeToRoot("ThirdParty/libpng")
+                path: .relativeToRoot("vendors/libpng")
             ),
             .project(
                 target: "box2d",
-                path: .relativeToRoot("ThirdParty/box2d")
+                path: .relativeToRoot("vendors/box2d")
             ),
             .external(name: "stb_image"),
             .external(name: "Collections"),
-            .external(name: "Yams"),
+            .external(name: "Yams")
         ],
         settings: .adaEngine
     ),

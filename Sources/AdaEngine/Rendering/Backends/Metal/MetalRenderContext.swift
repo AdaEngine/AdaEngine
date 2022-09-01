@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/16/22.
 //
 
-#if canImport(Metal)
+#if METAL
 import Metal
 
 extension MetalRenderBackend {

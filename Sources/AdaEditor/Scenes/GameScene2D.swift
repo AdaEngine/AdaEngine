@@ -157,7 +157,7 @@ final class GameScene2D {
         let spawner = Entity(name: "Spawner")
         spawner.components += transform
         spawner.components += SpawnerComponent()
-        spawner.components += SpriteComponent(tintColor: .green)
+        spawner.components += SpriteComponent(texture: heartAnimated)
         scene.addEntity(spawner)
         
 //        transform.position = [-8, 6, 0]

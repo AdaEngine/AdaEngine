@@ -13,6 +13,7 @@ struct DefaultScenePlugin: ScenePlugin {
         
         // Setup Rendering
         scene.addSystem(CameraSystem.self)
+//        scene.addSystem(Render3DSystem.self)
         scene.addSystem(Render2DSystem.self)
         scene.addSystem(ViewContainerSystem.self)
         

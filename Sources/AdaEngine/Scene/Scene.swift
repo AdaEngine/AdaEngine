@@ -25,6 +25,8 @@ public final class Scene {
     
     public var viewportRelativeWindowSize: Bool = true
     
+    public private(set) lazy var sceneRenderer = SceneRendering(scene: self)
+    
     // Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     public var debugPhysicsColor: Color = .green
@@ -135,6 +137,9 @@ public final class Scene {
     }
     
     func update(_ deltaTime: TimeInterval) {
+        
+//        self.sceneRenderer.beginRendering()
+        
         self.world.tick()
         
         let context = SceneUpdateContext(scene: self, deltaTime: deltaTime)
@@ -142,6 +147,8 @@ public final class Scene {
         for system in self.systems {
             system.update(context: context)
         }
+        
+//        self.sceneRenderer.endRendering()
     }
 }
 
