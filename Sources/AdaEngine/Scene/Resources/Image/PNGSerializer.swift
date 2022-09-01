@@ -58,8 +58,8 @@ struct PNGImageSerializer: ImageLoaderStrategy {
             throw DecodingError.cannotReadFromMemmory
         }
         
-        let stride = png_image_row_stride(pngImage)
-        var imageBuffer = Data(count: Int(png_image_buffer_size(pngImage, stride)))
+        let stride = swift_png_image_row_stride(pngImage)
+        var imageBuffer = Data(count: Int(swift_png_image_buffer_size(pngImage, stride)))
         
         isSuccess = imageBuffer.withUnsafeMutableBytes {
             png_image_finish_read(&pngImage, nil, $0.baseAddress, png_int_32(stride), nil) == 1

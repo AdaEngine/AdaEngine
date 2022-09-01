@@ -4,7 +4,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug AdaEditor",
-            "program": ".build/debug/AdaEditor",
+            "program": "${workspaceFolder:AdaEngine}/.build/debug/AdaEditor",
             "args": [],
             "cwd": "${workspaceFolder:AdaEngine}",
             "preLaunchTask": "swift: Build Debug AdaEditor"
@@ -13,7 +13,7 @@
             "type": "lldb",
             "request": "launch",
             "name": "Release AdaEditor",
-            "program": ".build/release/AdaEditor",
+            "program": "${workspaceFolder:AdaEngine}/.build/release/AdaEditor",
             "args": [],
             "cwd": "${workspaceFolder:AdaEngine}",
             "preLaunchTask": "swift: Build Release AdaEditor"

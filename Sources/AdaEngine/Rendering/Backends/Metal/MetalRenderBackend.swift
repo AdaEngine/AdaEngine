@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 10/20/21.
 //
 
-#if canImport(Metal)
+#if METAL
 import Metal
 import ModelIO
 import MetalKit
@@ -127,16 +127,16 @@ class MetalRenderBackend: RenderBackend {
     
     func makeShader(from descriptor: ShaderDescriptor) -> RID {
         do {
-            let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: nil)!
-            let library: MTLLibrary
-
-            #if SWIFT_PACKAGE
+            let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "metal", subdirectory: "Metal")!
             let source = try String(contentsOf: url)
-            library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
-            #else 
-            library = try self.context.physicalDevice.makeLibrary(URL: url)
-            #endif
+//            let library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
 
+//            let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "spv", subdirectory: "Metal")!
+
+//            let compiler = try MetalCompiler(url: url, disableOptimization: false)
+//            let source = try compiler.compile()
+
+            let library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
             let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
             let fragmentFunc = library.makeFunction(name: descriptor.fragmentFunction)!
             

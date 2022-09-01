@@ -9,7 +9,6 @@
 import Glibc
 #else
 import Darwin.C
-import AppKit
 #endif
 
 /// A type that represents the structure and behavior of an app.

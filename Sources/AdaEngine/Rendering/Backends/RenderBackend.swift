@@ -63,7 +63,6 @@ protocol RenderBackend: AnyObject {
     // MARK: - Shaders
     
     /// Create shader from descriptor and register it in engine.
-    /// - Returns: Resource ID referenced to shader instance.
     func makeShader(from descriptor: ShaderDescriptor) -> RID
     
     /// Create pipeline state from shader and register it in engine.

@@ -7,6 +7,8 @@
 
 // swiftlint:disable identifier_name
 
+import Foundation
+
 /// The struct describe Quaternion
 public struct Quat {
     public var x: Float
@@ -105,17 +107,22 @@ public extension Quat {
 }
 
 #if canImport(simd)
-import simd
-
-public extension Quat {
-    init(_ simd_quat: simd_quatf) {
-        self.x = simd_quat.vector.x
-        self.y = simd_quat.vector.y
-        self.z = simd_quat.vector.z
-        self.w = simd_quat.vector.w
-    }
-}
+//import simd
+//
+//public extension Quat {
+//    init(_ simd_quat: simd_quatf) {
+//        self.x = simd_quat.vector.x
+//        self.y = simd_quat.vector.y
+//        self.z = simd_quat.vector.z
+//        self.w = simd_quat.vector.w
+//    }
+//}
 
 #endif
 
 // swiftlint:enable identifier_name
+
+
+public func sign(_ x: Float) -> Float {
+    return x == 0 ? 0 : x < 0 ? -1 : 1
+}

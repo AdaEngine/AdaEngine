@@ -1,0 +1,91 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.Test-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "importPath" : "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/Example/main.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug/glm.build/detail/glm.cpp.o"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "Test",
+      "moduleOutputPath" : "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug/Test.swiftmodule",
+      "objects" : [
+        "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug/Test.build/main.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-apple-macosx10.10",
+        "-swift-version",
+        "5",
+        "-enable-batch-mode",
+        "-index-store-path",
+        "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-g",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-Xcc",
+        "-fmodule-map-file=/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug/glm.build/module.modulemap",
+        "-Xcc",
+        "-I",
+        "-Xcc",
+        "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/glm",
+        "-module-cache-path",
+        "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "Test_main",
+        "-enable-experimental-cxx-interop",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib"
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug/Test.build/main.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug/Test.swiftmodule"
+        }
+      ],
+      "sources" : [
+        "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/Example/main.swift"
+      ],
+      "tempsPath" : "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/.build/x86_64-apple-macosx/debug/Test.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "testDiscoveryCommands" : {
+
+  }
+}

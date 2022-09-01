@@ -24,5 +24,4 @@ public struct ShaderDescriptor {
         self.fragmentFunction = fragmentFunction
         self.vertexDescriptor = MeshVertexDescriptor()
     }
-    
 }

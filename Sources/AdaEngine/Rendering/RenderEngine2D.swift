@@ -7,10 +7,7 @@
 
 import Math
 
-// TODO: (Vlad) Render engine shouldn't use current draw, because it can be raise a conflict in multiple windows or nested scenes!
 public class RenderEngine2D {
-    
-//    public static let shared = RenderEngine2D()
     
     private var uniform: Uniform = Uniform()
     
@@ -330,15 +327,8 @@ extension RenderEngine2D {
     private static func makeCircleData() -> Data<CircleVertexData> {
         let device = RenderEngine.shared
 
-        let shaderName: String
-        #if SWIFT_PACKAGE
-        shaderName = "circle.metal"
-        #else
-        shaderName = "default.metallib"
-        #endif
-        
         var shaderDescriptor = ShaderDescriptor(
-            shaderName: shaderName,
+            shaderName: "circle",
             vertexFunction: "circle_vertex",
             fragmentFunction: "circle_fragment"
         )
@@ -391,16 +381,8 @@ extension RenderEngine2D {
     private static func makeQuadData() -> Data<QuadVertexData> {
         let device = RenderEngine.shared
 
-        // FIXME: We should compile metal
-        let shaderName: String
-        #if SWIFT_PACKAGE
-        shaderName = "quad.metal"
-        #else
-        shaderName = "default.metallib"
-        #endif
-
         var shaderDescriptor = ShaderDescriptor(
-            shaderName: shaderName,
+            shaderName: "quad",
             vertexFunction: "quad_vertex",
             fragmentFunction: "quad_fragment"
         )
