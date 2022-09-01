@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
-#if os(macOS)
+#if MACOS
 
 import AppKit
 

@@ -13,7 +13,7 @@ public final class MetalView: MTKView {
     
     let windowID: Window.ID
     
-    #if os(macOS)
+    #if MACOS
     var currentTrackingArea: NSTrackingArea?
     #endif
     

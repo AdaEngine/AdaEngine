@@ -1,0 +1,6 @@
+module X11 [system] {
+    umbrella header "x11-umbrella.h"
+    link "X11"
+    export *
+    module * { export * }
+}

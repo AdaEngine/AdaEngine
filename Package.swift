@@ -139,16 +139,22 @@ var adaEngineSwiftSettings = swiftSettings
 //    ])
 //]
 
+var adaEngineDependencies: [Target.Dependency] = [
+    "Math",
+    .product(name: "stb_image", package: "Cstb"),
+    .product(name: "Collections", package: "swift-collections"),
+    "Yams",
+    "libpng",
+    "box2d",
+]
+
+#if os(Linux)
+adaEngineDependencies += ["X11"]
+#endif
+
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
-    dependencies: [
-        "Math",
-        .product(name: "stb_image", package: "Cstb"),
-        .product(name: "Collections", package: "swift-collections"),
-        "Yams",
-        "libpng",
-        "box2d",
-    ],
+    dependencies: adaEngineDependencies,
     exclude: ["Project.swift", "Derived"],
     resources: [
         .copy("Assets/Shaders/Metal"),
@@ -168,6 +174,17 @@ var targets: [Target] = [
         exclude: ["Project.swift", "Derived"]
     )
 ]
+
+#if os(Android) || os(Linux)
+targets += [
+    .systemLibrary(
+        name: "X11",
+        pkgConfig: "x11",
+        providers: [
+            .apt(["libx11-dev"])
+        ]),
+]
+#endif
 
 // MARK: - Tests
 
