@@ -1,6 +1,0 @@
-make --dry-run --always-make --keep-going --print-directory
-make: Entering directory `/Users/v.prusakov/Developer/AdaEngine'
-cp Sources/CVulkan/vulkan.pc /usr/local/lib/pkgconfig/vulkan.pc
-pkg-config --libs --cflags vulkan
-make: Leaving directory `/Users/v.prusakov/Developer/AdaEngine'
- 
