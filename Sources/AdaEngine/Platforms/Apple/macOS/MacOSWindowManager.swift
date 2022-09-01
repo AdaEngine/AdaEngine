@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/29/22.
 //
 
-#if os(macOS)
+#if MACOS
 import AppKit
 
 final class MacOSWindowManager: WindowManager {

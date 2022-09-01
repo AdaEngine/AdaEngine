@@ -19,7 +19,7 @@ class GameScene3D {
         
         let mesh = Mesh.generateBox(extent: [1, 1, 1], segments: [1, 1, 1])
         
-        let train = Entity(name: "Train")
+        let train = Entity(name: "Box")
         train.components += ModelComponent(mesh: mesh)
         scene.addEntity(train)
         

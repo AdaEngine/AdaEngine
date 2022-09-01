@@ -276,7 +276,6 @@ class MetalRenderBackend: RenderBackend {
 
 extension MetalRenderBackend {
     func makeTexture(from image: Image, type: Texture.TextureType, usage: Texture.Usage) -> RID {
-        
         let descriptor = MTLTextureDescriptor()
         
         switch type {
