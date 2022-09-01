@@ -6,9 +6,8 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # PARTICULAR PURPOSE.
 
 # This program built for i386-apple-darwin11.3.0
- 
 
-# Make data base, printed on Sat Aug 27 20:51:53 2022
+# Make data base, printed on Fri Sep  2 01:39:18 2022
 
 # Variables
 
@@ -65,7 +64,7 @@ VSCODE_AMD_ENTRYPOINT = vs/workbench/api/node/extensionHostProcess
 # environment
 HOME = /Users/v.prusakov
 # default
-MAKEFILEPATH := /Applications/Xcode.app/Contents/Developer/Makefiles
+MAKEFILEPATH := /Applications/Xcode-beta.app/Contents/Developer/Makefiles
 # environment
 VSCODE_CLI = 1
 # environment
@@ -99,13 +98,13 @@ VK_ICD_FILENAMES = /Users/v.prusakov/VulkanSDK/1.2.182.0/macOS/etc/vulkan/icd.d/
 # makefile
 .DEFAULT_GOAL := install_vulkan
 # environment
-TERM_SESSION_ID = CA50A9E4-B357-4491-8E71-6F43AB078C5B
+TERM_SESSION_ID = 71B7683A-C817-4B52-874A-20AEA4264780
 # environment
 LESS = -R
 # automatic
 %D = $(patsubst %/,%,$(dir $%))
 # default
-MAKE_COMMAND := /Applications/Xcode.app/Contents/Developer/usr/bin/make
+MAKE_COMMAND := /Applications/Xcode-beta.app/Contents/Developer/usr/bin/make
 # environment
 TERM_PROGRAM = Apple_Terminal
 # default
@@ -127,7 +126,7 @@ MFLAGS = -Rrqp
 # environment
 TERM_PROGRAM_VERSION = 445
 # environment
-XPC_SERVICE_NAME = application.com.microsoft.VSCode.10984518.10984524.7FF31B82-8125-494D-B31B-F6F61C31F9FA
+XPC_SERVICE_NAME = application.com.microsoft.VSCode.10984518.10984524.76145E6F-F3E4-4BAE-9EB5-6E2BAC82605E
 # automatic
 +D = $(patsubst %/,%,$(dir $+))
 # automatic
@@ -169,9 +168,9 @@ VSCODE_PID = 82548
 
 # Directories
 
-# . (device 16777231, inode 465510): 25 files, no impossibilities.
+# . (device 16777231, inode 465510): 28 files, no impossibilities.
 
-# 25 files, no impossibilities in 1 directories.
+# 28 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -249,7 +248,7 @@ install_vulkan:
 # strcache size: total = 4096 / max = 4096 / min = 4096 / avg = 4096
 # strcache free: total = 4087 / max = 4087 / min = 4087 / avg = 4087
 
-# Finished Make data base on Sat Aug 27 20:51:53 2022
+# Finished Make data base on Fri Sep  2 01:39:18 2022
 
  
 make: *** No rule to make target `all'.  Stop.

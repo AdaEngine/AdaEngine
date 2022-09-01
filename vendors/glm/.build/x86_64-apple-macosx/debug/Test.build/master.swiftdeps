@@ -1,6 +1,0 @@
-version: "Apple Swift version 5.6 (swiftlang-5.6.0.323.62 clang-1316.0.20.8)"
-options: "658720b612b91e7f648bde5105285c5a7bae84a112e00e840ff0902032c1fbca"
-build_start_time: [1660474727, 527625083]
-build_end_time: [1660474730, 807765960]
-inputs:
-  "/Users/v.prusakov/Developer/AdaEngine/vendors/glm/Example/main.swift": !private [1660471457, 439329624]
