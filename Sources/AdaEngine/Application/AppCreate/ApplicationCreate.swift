@@ -13,6 +13,7 @@ import Darwin.C
 
 /// A type that represents the structure and behavior of an app.
 /// - Tag: App
+@MainActor
 public protocol App {
     /// Creates an instance of the app using the body that you define for its content.
     init()
@@ -38,18 +39,19 @@ public extension App {
         
         let app = Self.init()
         
-        #if os(macOS)
+#if os(macOS)
         application = try MacApplication(argc: argc, argv: argv)
-        #endif
+#endif
         
-        #if os(iOS) || os(tvOS)
+#if os(iOS) || os(tvOS)
         application = try iOSApplication(argc: argc, argv: argv)
-        #endif
+#endif
         
         Application.shared = application
         
         let appScene = app.scene
         let configuration = appScene._configuration
+        
         let window = try await appScene._makeWindow(with: configuration)
         
         window.showWindow(makeFocused: true)

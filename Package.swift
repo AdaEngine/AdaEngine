@@ -1,4 +1,4 @@
-// swift-tools-version:5.6
+// swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -130,14 +130,6 @@ let editorTarget: Target = .executableTarget(
 // MARK: Ada Engine SDK
 
 var adaEngineSwiftSettings = swiftSettings
-//+ [
-//    .unsafeFlags([
-//        "-Xfrontend",
-//        "-enable-cxx-interop",
-//        "-Xfrontend",
-//        "-enable-objc-interop"
-//    ])
-//]
 
 var adaEngineDependencies: [Target.Dependency] = [
     "Math",
@@ -219,8 +211,6 @@ let package = Package(
         .package(path: "vendors/Yams"),
         .package(path: "vendors/libpng"),
         .package(path: "vendors/box2d"),
-//        .package(path: "vendors/SPIRV-Cross-SPM"),
-//        .package(path: "vendors/glslang"),
         // Plugins
         .package(path: "vendors/swift-docc-plugin"),
     ],

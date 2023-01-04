@@ -250,7 +250,6 @@ final class GameScene2D {
         scene.addEntity(destroyer)
 
         collision = scene.subscribe(CollisionEvent.Began.self, completion: { event in
-            
             if event.entityA.name == "Destroy" {
                 event.entityB.scene?.removeEntity(event.entityB)
             }
