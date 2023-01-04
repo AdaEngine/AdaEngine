@@ -9,7 +9,7 @@
 
 import MetalKit
 
-public final class MetalView: MTKView {
+open class MetalView: MTKView {
     
     let windowID: Window.ID
     
@@ -17,12 +17,12 @@ public final class MetalView: MTKView {
     var currentTrackingArea: NSTrackingArea?
     #endif
     
-    init(windowId: Window.ID, frame: CGRect) {
+    public init(windowId: Window.ID, frame: CGRect) {
         self.windowID = windowId
         super.init(frame: frame, device: nil)
     }
     
-    required init(coder: NSCoder) {
+    public required init(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     

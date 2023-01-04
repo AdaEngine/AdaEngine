@@ -10,25 +10,24 @@ import AppKit
 
 public final class DisplayLink {
     private let timer: CVDisplayLink
-    private let source: DispatchSourceUserDataAdd
+    private let source: CVDisplayLinkCallback
     
     public var isRunning: Bool {
         return CVDisplayLinkIsRunning(timer)
     }
     
     public init?(on queue: DispatchQueue = DispatchQueue.main) {
-        self.source = DispatchSource.makeUserDataAddSource(queue: queue)
+        self.source = CVDisplayLinkCallback(queue: queue)
         
         var timerRef: CVDisplayLink?
         
         var successLink = CVDisplayLinkCreateWithActiveCGDisplays(&timerRef)
         
         if let timer = timerRef {
-            
             successLink = CVDisplayLinkSetOutputCallback(timer, { _, _, _, _, _, source -> CVReturn in
                 if let source = source {
-                    let sourceUnmanaged = Unmanaged<DispatchSourceUserDataAdd>.fromOpaque(source)
-                    sourceUnmanaged.takeUnretainedValue().add(data: 1)
+                    let sourceUnmanaged = Unmanaged<CVDisplayLinkCallback>.fromOpaque(source)
+                    sourceUnmanaged.takeUnretainedValue().call()
                 }
                 
                 return kCVReturnSuccess
@@ -55,14 +54,13 @@ public final class DisplayLink {
         guard !self.isRunning else { return }
         
         CVDisplayLinkStart(self.timer)
-        self.source.resume()
     }
     
     public func pause() {
         guard self.isRunning else { return }
         
         CVDisplayLinkStop(timer)
-        self.source.cancel()
+//        self.source.cancel()
     }
     
     public func setHandler(_ handler: @escaping () -> Void) {
@@ -74,6 +72,27 @@ public final class DisplayLink {
             self.pause()
         }
     }
+}
+
+class CVDisplayLinkCallback {
+
+    let queue: DispatchQueue
+    var callback: (() -> Void)?
+
+    init(queue: DispatchQueue) {
+        self.queue = queue
+    }
+
+    func setEventHandler(handler: @escaping () -> Void) {
+        self.callback = handler
+    }
+
+    func call() {
+//        queue.async {
+            self.callback?()
+//        }
+    }
+
 }
 
 #endif

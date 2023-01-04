@@ -129,12 +129,6 @@ class MetalRenderBackend: RenderBackend {
         do {
             let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "metal", subdirectory: "Metal")!
             let source = try String(contentsOf: url)
-//            let library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
-
-//            let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "spv", subdirectory: "Metal")!
-
-//            let compiler = try MetalCompiler(url: url, disableOptimization: false)
-//            let source = try compiler.compile()
 
             let library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
             let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
@@ -544,22 +538,6 @@ extension MetalRenderBackend {
             indexBufferOffset: indexArray.offset,
             instanceCount: instancesCount
         )
-        
-//        encoder.endEncoding()
-        
-//        let view = draw.window.view!
-        
-//        let blitEncoder = draw.commandBuffer.makeBlitCommandEncoder()!
-//        blitEncoder.label = "Blit encoder"
-//        let origin = MTLOriginMake(0, 0, 0)
-//        let size = MTLSizeMake(Int(view.drawableSize.width), Int(view.drawableSize.height), 1)
-//
-//        blitEncoder.copy(from: draw.window.albedoTexture, sourceSlice: 0, sourceLevel: 0,
-//                         sourceOrigin: origin, sourceSize: size,
-//                         to: view.currentDrawable!.texture, destinationSlice: 0,
-//                         destinationLevel: 0, destinationOrigin: origin)
-//
-//        blitEncoder.endEncoding()
     }
     
     func drawEnd(_ drawId: RID) {
@@ -646,3 +624,26 @@ extension Bundle {
 #if !SWIFT_PACKAGE
 class BundleToken {}
 #endif
+
+
+public protocol RenderPass: AnyObject {
+    var name: String { get }
+    
+    var input: [String] { get }
+    
+    var output: [String] { get }
+}
+
+public extension RenderPass {
+    var name: String {
+        return String(reflecting: type(of: self))
+    }
+    
+    var input : [String] { return [] }
+    var output : [String] { return [] }
+}
+
+
+class RenderGraph {
+    var resources: Set<String> = []
+}

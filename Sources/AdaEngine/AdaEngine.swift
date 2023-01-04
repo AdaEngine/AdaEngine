@@ -7,7 +7,7 @@
 
 /// Main events available from the engine.
 public enum EngineEvent {
-    /// Called each time, when main game loop was itterating.
+    /// Called each time, when main game loop was iterating.
     public struct GameLoopBegan: Event {
         /// The delta time after previous tick.
         public let deltaTime: TimeInterval
