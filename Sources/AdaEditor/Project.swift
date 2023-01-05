@@ -24,12 +24,19 @@ let project = Project(
                 "NSMainStoryboardFile": .string(""),
             ]),
             sources: [
-                .glob("**/*", excluding: ["Project.swift"])
+                .glob("**/*.swift", excluding: ["Project.swift"])
             ],
-            resources: [ResourceFileElement.folderReference(path: "Assets", tags: [])],
+            resources: [
+                .folderReference(path: "Assets")
+            ],
             dependencies: [
                 .project(target: "AdaEngine", path: "../AdaEngine")
-            ]
+            ],
+            settings: .targetSettings(swiftFlags: [
+                .define("MACOS"),
+                .define("METAL"),
+                .define("TUIST")
+            ])
         )
     ],
     schemes: [

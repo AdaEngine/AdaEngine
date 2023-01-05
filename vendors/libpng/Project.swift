@@ -8,6 +8,12 @@
 import ProjectDescription
 import ProjectDescriptionHelpers
 
+#if (arch(arm64) || arch(arm))
+let useNeon = true
+#else
+let useNeon = false
+#endif
+
 let project = Project(
     name: "libpng",
     settings: .adaEngine,
@@ -20,10 +26,13 @@ let project = Project(
             bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).libpng",
             deploymentTarget: .macOS(targetVersion: "11.0"),
             sources: ["Sources/libpng/**"],
-            headers: .headers(public: ["Sources/libpng/*.h"]),
+            headers: .headers(public: ["Sources/libpng/include/*.h"]),
             dependencies: [
                 .sdk(name: "c++", type: .library)
-            ]
+            ],
+            settings: .targetSettings(cFlags: [
+                .define("PNG_ARM_NEON_OPT", to: useNeon ? "2" : "0")
+            ])
         )
     ]
 )

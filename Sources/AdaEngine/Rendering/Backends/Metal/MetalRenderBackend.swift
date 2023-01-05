@@ -62,10 +62,10 @@ class MetalRenderBackend: RenderBackend {
         
         self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
         
-//        for _ in 0 ..< maxFramesInFlight {
-//            let cmdBuffer = self.context.commandQueue.makeCommandBuffer()!
-//            self.currentBuffers.append(cmdBuffer)
-//        }
+        //        for _ in 0 ..< maxFramesInFlight {
+        //            let cmdBuffer = self.context.commandQueue.makeCommandBuffer()!
+        //            self.currentBuffers.append(cmdBuffer)
+        //        }
     }
     
     func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
@@ -91,7 +91,7 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func beginFrame() throws {
-//        self.inFlightSemaphore.wait()
+        //        self.inFlightSemaphore.wait()
         
         for (_, window) in self.context.windows {
             window.commandBuffer = window.commandQueue.makeCommandBuffer()
@@ -100,9 +100,9 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func endFrame() throws {
-//        self.inFlightSemaphore.wait()
-//        self.currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
-//        let currentBuffer = self.currentBuffers[self.currentFrameIndex]
+        //        self.inFlightSemaphore.wait()
+        //        self.currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
+        //        let currentBuffer = self.currentBuffers[self.currentFrameIndex]
         
         for (_, window) in self.context.windows {
             guard let currentDrawable = window.view?.currentDrawable else {
@@ -127,10 +127,20 @@ class MetalRenderBackend: RenderBackend {
     
     func makeShader(from descriptor: ShaderDescriptor) -> RID {
         do {
+            let library: MTLLibrary
+            
+            #if os(macOS) || os(iOS)
+            library = try self.context.physicalDevice.makeDefaultLibrary(bundle: .current)
+            #else
+            
             let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "metal", subdirectory: "Metal")!
             let source = try String(contentsOf: url)
 
-            let library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
+            library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
+            
+            fatalError("Not yet supported")
+            #endif
+            
             let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
             let fragmentFunc = library.makeFunction(name: descriptor.fragmentFunction)!
             
@@ -471,10 +481,10 @@ extension MetalRenderBackend {
         
         let encoder = draw.renderEncoder
         
-//        guard let encoder = draw.commandBuffer.makeRenderCommandEncoder(descriptor: draw.renderPassDescriptor) else {
-//            assertionFailure("Can't create render command encoder")
-//            return
-//        }
+        //        guard let encoder = draw.commandBuffer.makeRenderCommandEncoder(descriptor: draw.renderPassDescriptor) else {
+        //            assertionFailure("Can't create render command encoder")
+        //            return
+        //        }
         
         if let name = draw.debugName {
             encoder.label = name
@@ -482,14 +492,14 @@ extension MetalRenderBackend {
         
         // Should be in draw settings
         encoder.setCullMode(.back)
-
+        
         encoder.setFrontFacing(.counterClockwise)
         
         if let state = piplineState.state {
             encoder.setRenderPipelineState(state)
         }
         
-//        encoder.setDepthStencilState(depthState)
+        //        encoder.setDepthStencilState(depthState)
         
         guard let iaRid = draw.indexArray, let indexArray = self.indexArrays[iaRid] else {
             fatalError("can't draw without index array")
