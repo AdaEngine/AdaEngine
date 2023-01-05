@@ -114,16 +114,16 @@ final class GameScene2D {
     
     var collision: Cancellable!
     
-    func makeScene() async throws -> Scene {
+    func makeScene() throws -> Scene {
         let scene = Scene()
         
         // DEBUG
         
         scene.debugOptions = [.showPhysicsShapes]
         
-        let tiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
+        let tiles = try Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
         
-        let charactersTiles = try await Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/characters_packed.png"))
+        let charactersTiles = try Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/characters_packed.png"))
         
         let charAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
         
@@ -160,13 +160,13 @@ final class GameScene2D {
         spawner.components += SpriteComponent(texture: heartAnimated)
         scene.addEntity(spawner)
         
-//        transform.position = [-8, 6, 0]
-//        transform.scale = [0.15, 0.15, 0.15]
+        transform.position = [-8, 6, 0]
+        transform.scale = [0.15, 0.15, 0.15]
         
-//        let heartEntity = Entity()
-//        heartEntity.components += SpriteComponent(texture: heartAnimated)
-//        heartEntity.components += transform
-//        scene.addEntity(heartEntity)
+        let heartEntity = Entity()
+        heartEntity.components += SpriteComponent(texture: heartAnimated)
+        heartEntity.components += transform
+        scene.addEntity(heartEntity)
         
         transform.position = [-3, -2, 0]
         transform.scale = [0.3, 0.3, 0.3]
@@ -183,34 +183,6 @@ final class GameScene2D {
         
         transform.position = [-3, -2, 0]
         transform.scale = [0.3, 0.3, 0.3]
-        
-        var prevEnt: Entity = plainEntity2
-        
-        for i in 0...12 {
-            
-            transform.position.x += 0.4
-            
-            let joint1 = Entity(name: "joint \(i)")
-            joint1.components += Circle2DComponent(color: .orange.opacity(0.5), thickness: 0.2)
-            joint1.components += transform
-            joint1.components += PhysicsBody2DComponent(
-                shapes: [
-                    .generateCircle(radius: 0.3)
-                ],
-                massProperties: .init(),
-                material: .generate(friction: 3, restitution: 0, density: 50)
-            )
-            
-            joint1.components += PhysicsJoint2DComponent(
-                joint: .revolute(entityA: prevEnt)
-            )
-            
-            prevEnt = joint1
-            
-            scene.addEntity(joint1)
-            
-        }
-        
         transform.position.x += 0.3
         
         transform.position = [3, -2, 0]
@@ -223,9 +195,6 @@ final class GameScene2D {
             shapes: [
                 .generateBox(width: 0.3, height: 0.6)
             ]
-        )
-        plainEntity1.components += PhysicsJoint2DComponent(
-            joint: .revolute(entityA: prevEnt)
         )
         
         scene.addEntity(plainEntity1)

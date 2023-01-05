@@ -7,7 +7,7 @@
 
 public struct GameAppScene: AppScene {
     
-    public typealias SceneBlock = () async throws -> Scene
+    public typealias SceneBlock = () throws -> Scene
     
     public var scene: Never { fatalError() }
     
@@ -18,8 +18,8 @@ public struct GameAppScene: AppScene {
         self.gameScene = scene
     }
     
-    public func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window {
-        let scene = try await self.gameScene()
+    public func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window {
+        let scene = try self.gameScene()
         let window = Window(scene: scene, frame: Rect(origin: .zero, size: configuration.minimumSize))
         window.setWindowMode(configuration.windowMode)
         window.minSize = configuration.minimumSize

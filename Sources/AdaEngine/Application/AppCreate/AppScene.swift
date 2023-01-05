@@ -5,13 +5,12 @@
 //  Created by v.prusakov on 6/14/22.
 //
 
-@MainActor
 public protocol AppScene {
     associatedtype Body: AppScene
     var scene: Body { get }
     
     var _configuration: _AppSceneConfiguration { get set }
-    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window
+    func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window
 }
 
 public struct _AppSceneConfiguration {

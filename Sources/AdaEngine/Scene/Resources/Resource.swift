@@ -19,12 +19,12 @@ import Foundation
 ///
 ///     let text: String
 ///
-///     static func load(from data: Data) async throws -> MyResource {
+///     static func load(from data: Data) throws -> MyResource {
 ///         let text = try JSONDecoder().decode(String.self, from: data)
 ///         return MyResource(text: text)
 ///     }
 ///
-///     func encodeContents() async throws -> Data {
+///     func encodeContents() throws -> Data {
 ///         return try JSONEncoder().encode(self.text)
 ///     }
 /// }
@@ -35,10 +35,10 @@ public protocol Resource: AnyObject {
     /// Data is the same data given from `encodedContents()` method.
     /// - Parameter data: Resource data.
     /// - Returns: Return instance of resource
-    init(assetFrom data: Data) async throws
+    init(assetFrom data: Data) throws
     
     /// To store resource on the disk, you should implement this method.
     /// This data will return to `load(from:)` method when Resource will load.
     /// - Returns: the resource data to be saved
-    func encodeContents() async throws -> Data
+    func encodeContents() throws -> Data
 }
