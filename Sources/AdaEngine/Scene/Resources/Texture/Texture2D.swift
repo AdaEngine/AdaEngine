@@ -42,11 +42,11 @@ open class Texture2D: Texture {
         let imageData: Data
     }
     
-    public required init(assetFrom data: Data) async throws {
+    public required init(assetFrom data: Data) throws {
         let decoder = YAMLDecoder()
         let representation = try decoder.decode(TextureRepresentation.self, from: data)
 
-        let image = try await Image(assetFrom: representation.imageData)
+        let image = try Image(assetFrom: representation.imageData)
         
         let rid = RenderEngine.shared.makeTexture(
             from: image,
@@ -60,12 +60,12 @@ open class Texture2D: Texture {
         super.init(rid: rid, textureType: representation.type)
     }
 
-    public override func encodeContents() async throws -> Data {
+    public override func encodeContents() throws -> Data {
         guard let image = RenderEngine.shared.getImage(for: self.rid) else {
             throw ResourceError.message("Image not exists for texture.")
         }
         
-        let imageData = try await image.encodeContents()
+        let imageData = try image.encodeContents()
         
         let representation = TextureRepresentation(type: self.textureType, imageData: imageData)
         

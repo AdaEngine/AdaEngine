@@ -31,11 +31,11 @@ public final class TextureAtlas: Texture2D {
     
     // MARK: - Resource
     
-    public required init(assetFrom data: Data) async throws {
+    public required init(assetFrom data: Data) throws {
         fatalError()
     }
 
-    public override func encodeContents() async throws -> Data {
+    public override func encodeContents() throws -> Data {
         fatalError()
     }
     
@@ -95,11 +95,11 @@ public extension TextureAtlas {
             // we should not release atlas
         }
         
-        public required init(assetFrom data: Data) async throws {
+        public required init(assetFrom data: Data) throws {
             fatalError("You cannot load slice from asset.")
         }
         
-        public override func encodeContents() async throws -> Data {
+        public override func encodeContents() throws -> Data {
             fatalError("You cannot save slice to asset")
         }
     }

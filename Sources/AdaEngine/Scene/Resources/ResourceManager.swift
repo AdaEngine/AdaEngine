@@ -30,11 +30,11 @@ public final class ResourceManager {
     
     ///
     /// ```swift
-    /// let texture = try await ResourceManager.load("armor.png") as Texture2D
+    /// let texture = try ResourceManager.load("armor.png") as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try await ResourceManager.load("armor.png")
+    /// let texture: Texture2D = try ResourceManager.load("armor.png")
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
@@ -42,7 +42,7 @@ public final class ResourceManager {
         _ path: String,
         from bundle: Bundle, // TODO: (Vlad) that temp solution, fix that later
         ignoreCache: Bool = false
-    ) async throws -> R {
+    ) throws -> R {
         
         if let cachedResource = self.loadedResources[path], !ignoreCache {
             return cachedResource as! R
@@ -54,7 +54,7 @@ public final class ResourceManager {
             throw ResourceError.notExistAtPath(path)
         }
         
-        let resource = try await R.init(assetFrom: data)
+        let resource = try R.init(assetFrom: data)
         
         self.loadedResources[path] = resource
         
@@ -62,7 +62,7 @@ public final class ResourceManager {
     }
     
 //    public static func save<R: Resource>(_ resource: R, at path: String) async throws {
-//        let data = try await resource.encodeContents()
+//        let data = try resource.encodeContents()
 //
 //        let uri = self.fileSystemPath.appendingPathComponent(path)
 //        try data.write(to: uri)

@@ -32,11 +32,11 @@ open class Texture: Resource {
     
     // MARK: - Resources
     
-    public required init(assetFrom data: Data) async throws {
+    public required init(assetFrom data: Data) throws {
         fatalError()
     }
     
-    public func encodeContents() async throws -> Data {
+    public func encodeContents() throws -> Data {
         fatalError()
     }
 }

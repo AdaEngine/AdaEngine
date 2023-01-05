@@ -8,7 +8,7 @@
 import AdaEngine
 
 class GameScene3D {
-    func makeScene() async throws -> Scene {
+    func makeScene() throws -> Scene {
         let scene = Scene(name: "3D")
         
         scene.addSystem(EditorCameraSystem.self)

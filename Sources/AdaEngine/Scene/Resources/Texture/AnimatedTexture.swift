@@ -104,11 +104,11 @@ public final class AnimatedTexture: Texture2D {
         let options: UInt8
     }
     
-    public required init(assetFrom data: Data) async throws {
+    public required init(assetFrom data: Data) throws {
         fatalError("init(assetFrom:) has not been implemented")
     }
     
-    public override func encodeContents() async throws -> Data {
+    public override func encodeContents() throws -> Data {
         var frames: [AssetRepresentation.Frame] = []
         
         for index in 0 ..< self.framesCount {
@@ -118,7 +118,7 @@ public final class AnimatedTexture: Texture2D {
                 continue
             }
             
-            let data = try await texture.encodeContents()
+            let data = try texture.encodeContents()
             
             let item = AssetRepresentation.Frame(
                 texture: data,

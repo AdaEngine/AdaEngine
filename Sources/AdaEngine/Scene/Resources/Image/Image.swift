@@ -50,7 +50,7 @@ public final class Image {
         self.format = format
     }
 
-    public required init(assetFrom data: Data) async throws {
+    public required init(assetFrom data: Data) throws {
         fatalError()
     }
     
@@ -116,20 +116,13 @@ public extension Image {
         PNGImageSerializer()
     ]
     
-    convenience init(contentsOf file: URL) async throws {
+    convenience init(contentsOf file: URL) throws {
         guard let loader = Self.loaders.first(where: { $0.canDecodeImage(with: file.pathExtension) }) else {
             throw LoadingError.formatNotSupported(file.pathExtension)
         }
         
-        let image: Image = try await withCheckedThrowingContinuation { continuation in
-            do {
-                let data = try Data(contentsOf: file, options: .uncached)
-                let image = try loader.decodeImage(from: data)
-                continuation.resume(returning: image)
-            } catch {
-                continuation.resume(throwing: error)
-            }
-        }
+        let data = try Data(contentsOf: file, options: .uncached)
+        let image = try loader.decodeImage(from: data)
         
         self.init(
             width: image.width,
@@ -148,7 +141,7 @@ extension Image: Resource {
 //        let image: Data
 //    }
     
-    public func encodeContents() async throws -> Data {
+    public func encodeContents() throws -> Data {
         fatalError()
     }
 }

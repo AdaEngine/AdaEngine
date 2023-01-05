@@ -13,7 +13,6 @@ import Darwin.C
 
 /// A type that represents the structure and behavior of an app.
 /// - Tag: App
-@MainActor
 public protocol App {
     /// Creates an instance of the app using the body that you define for its content.
     init()
@@ -31,7 +30,7 @@ public extension App {
     }
     
     // Initializes and runs the app.
-    static func main() async throws {
+    static func main() throws {
         var application: Application!
         
         let argc = CommandLine.argc
@@ -52,7 +51,7 @@ public extension App {
         let appScene = app.scene
         let configuration = appScene._configuration
         
-        let window = try await appScene._makeWindow(with: configuration)
+        let window = try appScene._makeWindow(with: configuration)
         
         window.showWindow(makeFocused: true)
         
