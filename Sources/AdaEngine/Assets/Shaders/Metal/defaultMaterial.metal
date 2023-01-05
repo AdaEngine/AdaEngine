@@ -27,15 +27,15 @@ vertex RasterizerData vertex_main(
                                   constant Uniforms &ubo [[ buffer(1) ]],
                                   constant float4 &modelColor [[ buffer(2) ]]
                                   ) {
-
+                                      
                                       float4 position = ubo.projection * ubo.view * ubo.model * vertexIn.position;
-
+                                      
                                       RasterizerData out {
                                           .position = position,
                                           .wolrdPosition = (ubo.model * vertexIn.position).xyz,
                                           .color = modelColor
                                       };
-
+                                      
                                       return out;
                                   }
 

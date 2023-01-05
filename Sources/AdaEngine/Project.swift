@@ -16,7 +16,10 @@ let targets: [Target] = [
         bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER)",
         deploymentTarget: .macOS(targetVersion: "11.0"),
         sources: [
-            .glob("**/*", excluding: ["Project.swift"])
+            .glob("**/*.swift", excluding: ["Project.swift"])
+        ],
+        resources: [
+            "Assets/**/*.metal"
         ],
         scripts: [],
         dependencies: [
@@ -36,7 +39,11 @@ let targets: [Target] = [
             .external(name: "Collections"),
             .external(name: "Yams")
         ],
-        settings: .adaEngine
+        settings: .targetSettings(swiftFlags: [
+            .define("MACOS"),
+            .define("METAL"),
+            .define("TUIST")
+        ])
     ),
 ]
 

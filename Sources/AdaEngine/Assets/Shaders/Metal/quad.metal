@@ -21,14 +21,14 @@ struct QuadVertexOut {
 
 vertex QuadVertexOut quad_vertex(const QuadVertex vertexIn [[ stage_in ]], constant Uniforms &ubo [[ buffer(1) ]]) {
     float4 position = ubo.view * vertexIn.position;
-                                      
+    
     QuadVertexOut out {
         .position = position,
         .color = vertexIn.color,
         .textureCoordinate = vertexIn.textureCoordinate,
         .textureIndex = vertexIn.textureIndex
     };
-                                      
+    
     return out;
 }
 
