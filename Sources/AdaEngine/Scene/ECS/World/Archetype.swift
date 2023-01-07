@@ -35,7 +35,6 @@ public final class Archetype: Hashable, Identifiable {
     }
     
     func append(_ entity: Entity) -> EntityRecord {
-        
         let row: Int
         
         if !friedEntities.isEmpty {

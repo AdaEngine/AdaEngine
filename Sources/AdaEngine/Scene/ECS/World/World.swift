@@ -17,7 +17,11 @@ import Collections
 public final class World {
     
     private var records: [Entity.ID: EntityRecord] = [:]
-    private(set) var archetypes: [Archetype] = []
+    
+    private var removedEntities: Set<Entity.ID> = []
+    private var addedEntities: Set<Entity.ID> = []
+    
+    private(set) var archetypes: ContiguousArray<Archetype> = []
     private var freeArchetypeIndices: [Int] = []
     private var removedComponents: [ComponentId: [Entity]] = [:]
     
@@ -58,11 +62,21 @@ public final class World {
         }
         
         self.records[entity.id] = location
+        self.addedEntities.insert(entity.id)
     }
     
     func removeEntity(_ entity: Entity) {
-        guard let record = self.records[entity.id] else { return }
-        self.records[entity.id] = nil
+        self.removeEntityRecord(entity.id)
+    }
+    
+    func removeEntityOnNextTick(_ entity: Entity) {
+        guard self.records[entity.id] != nil else { return }
+        self.removedEntities.insert(entity.id)
+    }
+    
+    private func removeEntityRecord(_ entity: Entity.ID) {
+        guard let record = self.records[entity] else { return }
+        self.records[entity] = nil
         
         let currentArchetype = self.archetypes[record.archetypeId]
         // FIXME: (Vlad) Can crash if we change components set during runtime
@@ -168,18 +182,44 @@ public final class World {
     }
     
     func tick() {
+        for entityId in self.removedEntities {
+            self.removeEntityRecord(entityId)
+        }
+        
         self.removedComponents.removeAll()
+        self.removedEntities.removeAll()
+        self.addedEntities.removeAll()
     }
-    
 }
 
 extension World {
-    // TODO: We should avoid additional allocation
+    // FIXME: (Vlad) We should avoid additional allocation
     func performQuery(_ query: EntityQuery) -> QueryResult {
         let archetypes = self.archetypes.filter {
             query.predicate.evaluate($0)
         }
-        return QueryResult(archetypes: archetypes)
+        
+        let entities: [Entity] = archetypes.flatMap { $0.entities }.compactMap { entity in
+            guard let entity = entity else {
+                return nil
+            }
+            
+            if query.filter.contains(.removed) && self.removedEntities.contains(entity.id) {
+                return entity
+            }
+            
+            if query.filter.contains(.added) && self.addedEntities.contains(entity.id) {
+                return entity
+            }
+            
+            if query.filter.contains(.stored) {
+                return entity
+            }
+            
+            return nil
+        }
+        
+        return QueryResult(entities: entities)
     }
 }
 

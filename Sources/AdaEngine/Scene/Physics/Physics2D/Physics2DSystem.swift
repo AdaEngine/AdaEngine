@@ -40,6 +40,11 @@ final class Physics2DSystem: System {
         where: .has(Physics2DWorldComponent.self)
     )
     
+    static let removedEntities = EntityQuery(
+        where: .has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self),
+        filter: .removed
+    )
+    
     // I think it should be smth like scene renderer here.
     private let render2D = RenderEngine2D()
     
@@ -53,12 +58,17 @@ final class Physics2DSystem: System {
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
         let colissionBody = context.scene.performQuery(Self.collisionQuery)
         let joints = context.scene.performQuery(Self.jointsQuery)
+        
+        let removedEntities = context.scene.performQuery(Self.removedEntities)
+        
         // We should have only one physics world
         let worlds = context.scene.performQuery(Self.physicsWorld)
         
         guard let world = worlds.first?.components[Physics2DWorldComponent.self]?.world else {
             return
         }
+        
+        world.updateSimulation(context.deltaTime)
 
         self.updatePhysicsBodyEntities(
             physicsBody,
@@ -81,11 +91,11 @@ final class Physics2DSystem: System {
             context: context
         )
         
-        world.updateSimulation(context.deltaTime)
-        
         if needDrawPolygons {
             self.render2D.commitContext()
         }
+        
+        self.removePhysicsBodiesInRemovedEntities(removedEntities, world: world)
     }
     
     // MARK: - Private
@@ -105,18 +115,24 @@ final class Physics2DSystem: System {
                 transform.rotation = Quat(axis: [0, 0, 1], angle: body.ref.angle)
             } else {
                 var def = Body2DDefinition()
-                def.position = [transform.position.x, transform.position.y]
-//                def.angle = transform.rotation.z
+                def.position = transform.position.xy
                 def.bodyMode = physicsBody.mode
                 
                 let body = world.createBody(definition: def, for: entity)
                 physicsBody.runtimeBody = body
                 
-                for shape in physicsBody.shapes {
-                    shape.fixtureDef.density = physicsBody.material.density
-                    shape.fixtureDef.restitution = physicsBody.material.restitution
-                    shape.fixtureDef.friction = physicsBody.material.friction
-                    body.addFixture(for: shape)
+                for shapeResource in physicsBody.shapes {
+                    
+                    let shape = self.makeShape(for: shapeResource, transform: transform)
+                    
+                    let fixtureDef = b2FixtureDef()
+                    fixtureDef.shape = shape
+                    
+                    fixtureDef.density = physicsBody.material.density
+                    fixtureDef.restitution = physicsBody.material.restitution
+                    fixtureDef.friction = physicsBody.material.friction
+                    
+                    body.addFixture(for: fixtureDef)
                 }
             }
             
@@ -135,6 +151,7 @@ final class Physics2DSystem: System {
             if let body = physicsBody.runtimeBody?.ref, needDrawPolygons {
                 self.drawDebug(
                     body: body,
+                    transform: transform,
                     color: context.scene.debugPhysicsColor
                 )
             }
@@ -154,26 +171,32 @@ final class Physics2DSystem: System {
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
             
             if let body = collisionBody.runtimeBody {
-                transform.position.x = body.ref.position.x
-                transform.position.y = body.ref.position.y
                 
-                transform.rotation.z = body.ref.angle
+                body.ref.setTransform(
+                    position: transform.position.xy.b2Vec,
+                    angle: transform.position.z
+                )
             } else {
                 var def = Body2DDefinition()
-                def.position = [transform.position.x, transform.position.y]
+                def.position = transform.position.xy
                 def.angle = transform.rotation.z
                 def.bodyMode = .static
                 
                 let body = world.createBody(definition: def, for: entity)
                 collisionBody.runtimeBody = body
                 
-                for shape in collisionBody.shapes {
+                for shapeResource in collisionBody.shapes {
+                    
+                    let shape = self.makeShape(for: shapeResource, transform: transform)
+                    
+                    let fixtureDef = b2FixtureDef()
+                    fixtureDef.shape = shape
                     
                     if case .trigger = collisionBody.mode {
-                        shape.fixtureDef.isSensor = true
+                        fixtureDef.isSensor = true
                     }
                     
-                    body.addFixture(for: shape)
+                    body.addFixture(for: fixtureDef)
                 }
             }
             
@@ -193,6 +216,7 @@ final class Physics2DSystem: System {
             if let body = collisionBody.runtimeBody?.ref, needDrawPolygons {
                 self.drawDebug(
                     body: body,
+                    transform: transform,
                     color: context.scene.debugPhysicsColor
                 )
             }
@@ -246,41 +270,84 @@ final class Physics2DSystem: System {
         }
     }
     
+    private func removePhysicsBodiesInRemovedEntities(_ entities: QueryResult, world: PhysicsWorld2D) {
+        entities.forEach { entity in
+            guard let body = self.getBody(from: entity) else { return }
+            world.destroyBody(body)
+        }
+    }
+    
+    // MARK: - Helpers
+    
     private func getBody(from entity: Entity) -> Body2D? {
         entity.components[PhysicsBody2DComponent.self]?.runtimeBody ??
         entity.components[Collision2DComponent.self]?.runtimeBody
     }
     
+    private func makeShape(for shape: Shape2DResource, transform: Transform) -> b2Shape {
+        switch shape.fixture {
+        case .polygon(let shape):
+            let polygon = b2PolygonShape()
+            polygon.set(vertices: unsafeBitCast(shape.verticies, to: [b2Vec2].self))
+            return polygon
+        case .circle(let shape):
+            let circle = b2CircleShape()
+            circle.radius = shape.radius * transform.scale.x
+            circle.p = shape.offset.b2Vec
+            return circle
+        case .box(let shape):
+            let polygon = b2PolygonShape()
+            polygon.setAsBox(
+                halfWidth: transform.scale.x * shape.halfWidth,
+                halfHeight: transform.scale.y * shape.halfHeight,
+                center: shape.offset.b2Vec,
+                angle: 0
+            )
+            
+            return polygon
+        }
+    }
+    
     // MARK: - Debug draw
     
     // FIXME: Use body transform instead
-    private func drawDebug(body: b2Body, color: Color) {
-        guard let fixture = body.getFixtureList() else { return }
+    private func drawDebug(
+        body: b2Body,
+        transform: Transform,
+        color: Color
+    ) {
+        guard let fixtureList = body.getFixtureList() else { return }
         
-        switch fixture.shape.type {
-        case .circle:
-            self.drawCircle(
-                position: body.position.asVector2,
-                angle: body.angle,
-                radius: fixture.shape.radius,
-                color: color
-            )
-        case .polygon:
-            self.drawQuad(
-                position: body.position.asVector2,
-                angle: body.angle,
-                size: .zero, // FIXME: We should set size
-                color: color
-            )
-        default:
-            return
+        var nextFixture: b2Fixture? = fixtureList
+        
+        while let fixture = nextFixture {
+            switch fixture.shape.type {
+            case .circle:
+                self.drawCircle(
+                    position: body.position.asVector2,
+                    angle: body.angle,
+                    radius: fixture.shape.radius,
+                    color: color
+                )
+            case .polygon:
+                self.drawQuad(
+                    position: body.position.asVector2,
+                    angle: body.angle,
+                    size: transform.scale.xy,
+                    color: color
+                )
+            default:
+                continue
+            }
+            
+            nextFixture = fixture.getNext()
         }
     }
     
     private func drawCircle(position: Vector2, angle: Float, radius: Float, color: Color) {
         render2D.drawCircle(
             position: Vector3(position, 0),
-            rotation: [0, 0, angle], // FIXME: We should set rotation angle
+            rotation: [0, 0, 0], // FIXME(Vlad): We should set rotation angle
             radius: radius,
             thickness: 0.1,
             fade: 0,
@@ -289,11 +356,36 @@ final class Physics2DSystem: System {
     }
     
     private func drawQuad(position: Vector2, angle: Float, size: Vector2, color: Color) {
-        // TODO: We should use rotation quad there
-        render2D.drawQuad(position: Vector3(position, 0), size: size, texture: nil, color: color)
-    }
-    
-    private func drawMesh(transform: Transform3D, color: Color) {
-        // TODO: Draw 2d mesh here
+        render2D.drawQuad(position: Vector3(position, 1), size: size, color: color.opacity(0.2))
+        
+//        render2D.drawLine(
+//            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
+//            end: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
+//            color: color
+//        )
+//
+//        render2D.drawLine(
+//            start: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
+//            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
+//            color: color
+//        )
+//
+//        render2D.drawLine(
+//            start: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
+//            end: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
+//            color: color
+//        )
+//
+//        render2D.drawLine(
+//            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
+//            end: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
+//            color: color
+//        )
+//
+//        render2D.drawLine(
+//            start: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
+//            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
+//            color: color
+//        )
     }
 }

@@ -19,8 +19,8 @@ public final class Body2D {
         self.entity = entity
     }
     
-    func addFixture(for shape: Shape2DResource) {
-        self.ref.createFixture(shape.fixtureDef)
+    func addFixture(for fixtureDef: b2FixtureDef) {
+        self.ref.createFixture(fixtureDef)
     }
 }
 
@@ -62,7 +62,7 @@ public final class PhysicsWorld2D {
     }
     
     /// - Parameter gravity: default gravity is 9.8.
-    init(gravity: Vector2 = [0, -9.8]) {
+    init(gravity: Vector2 = [0, -9.81]) {
         self.world = b2World(gravity: gravity.b2Vec)
         let contactListner = _Physics2DContactListner()
         self.world.setContactListener(contactListner)

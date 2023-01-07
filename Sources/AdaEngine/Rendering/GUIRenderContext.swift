@@ -55,11 +55,6 @@ final public class GUIRenderContext {
         self.engine.beginContext(for: self.window, viewTransform: view)
     }
     
-    // TODO: (Vlad) Currently not work
-    public func setZIndex(_ index: Int) {
-        self.engine.setZIndex(index)
-    }
-    
     public func setFillColor(_ color: Color) {
         self.fillColor = color
     }

@@ -128,6 +128,10 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.bindIndexArray(draw, indexArray: indexArray)
     }
     
+    func bindIndexPrimitive(_ draw: RID, mode: IndexPrimitive) {
+        self.renderBackend.bindIndexPrimitive(draw, mode: mode)
+    }
+    
     func bindUniformSet(_ draw: RID, uniformSet: RID, at index: Int) {
         self.renderBackend.bindUniformSet(draw, uniformSet: uniformSet, at: index)
     }

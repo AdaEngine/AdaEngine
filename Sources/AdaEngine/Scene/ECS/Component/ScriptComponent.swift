@@ -34,7 +34,7 @@ open class ScriptComponent: Component {
         
     }
     
-    /// Called each time when scene recive events.
+    /// Called each time when scene receive events.
     open func onEvent(_ event: Set<InputEvent>) {
         
     }
@@ -93,7 +93,7 @@ open class ScriptComponent: Component {
                 // in the form: "_name". Dropping the "_" -> "name"
                 let propertyName = String((child.label ?? "").dropFirst())
                 
-                // propertyName here is not neceserly used in the `encodeValue` method
+                // propertyName here is not necessarily used in the `encodeValue` method
                 try encodableKey.encode(
                     to: &container,
                     propertyName: propertyName,

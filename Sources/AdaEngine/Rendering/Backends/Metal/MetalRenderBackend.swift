@@ -5,12 +5,6 @@
 //  Created by v.prusakov on 10/20/21.
 //
 
-#if METAL
-import Metal
-import ModelIO
-import MetalKit
-import OrderedCollections
-
 enum BufferIndex {
     static let baseUniform = 1
     static let material = 2
@@ -20,6 +14,17 @@ enum IndexBufferFormat {
     case uInt32
     case uInt16
 }
+
+enum IndexPrimitive {
+    case triangle
+    case line
+}
+
+#if METAL
+import Metal
+import ModelIO
+import MetalKit
+import OrderedCollections
 
 class MetalRenderBackend: RenderBackend {
     
@@ -53,19 +58,14 @@ class MetalRenderBackend: RenderBackend {
         depthStateDescriptor.depthCompareFunction = MTLCompareFunction.less
         depthStateDescriptor.isDepthWriteEnabled = true
         
-        self.depthState = self.context.physicalDevice.makeDepthStencilState(descriptor:depthStateDescriptor)
+        self.depthState = self.context.physicalDevice.makeDepthStencilState(descriptor: depthStateDescriptor)
+        
+        self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
     }
     
     func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
         let mtlView = (view as! MetalView)
         try self.context.createRenderWindow(with: windowId, view: mtlView, size: size)
-        
-        self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
-        
-        //        for _ in 0 ..< maxFramesInFlight {
-        //            let cmdBuffer = self.context.commandQueue.makeCommandBuffer()!
-        //            self.currentBuffers.append(cmdBuffer)
-        //        }
     }
     
     func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
@@ -91,8 +91,6 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func beginFrame() throws {
-        //        self.inFlightSemaphore.wait()
-        
         for (_, window) in self.context.windows {
             window.commandBuffer = window.commandQueue.makeCommandBuffer()
             window.renderEncoder = window.commandBuffer?.makeRenderCommandEncoder(descriptor: window.view!.currentRenderPassDescriptor!)
@@ -100,9 +98,7 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func endFrame() throws {
-        //        self.inFlightSemaphore.wait()
-        //        self.currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
-        //        let currentBuffer = self.currentBuffers[self.currentFrameIndex]
+        self.inFlightSemaphore.wait()
         
         for (_, window) in self.context.windows {
             guard let currentDrawable = window.view?.currentDrawable else {
@@ -114,6 +110,10 @@ class MetalRenderBackend: RenderBackend {
             window.commandBuffer?.present(currentDrawable)
             
             window.commandBuffer?.commit()
+            
+            window.commandBuffer?.addCompletedHandler { _ in
+                self.inFlightSemaphore.signal()
+            }
         }
     }
     
@@ -129,7 +129,7 @@ class MetalRenderBackend: RenderBackend {
         do {
             let library: MTLLibrary
             
-            #if os(macOS) || os(iOS)
+            #if (os(macOS) || os(iOS)) && TUIST
             library = try self.context.physicalDevice.makeDefaultLibrary(bundle: .current)
             #else
             
@@ -137,8 +137,6 @@ class MetalRenderBackend: RenderBackend {
             let source = try String(contentsOf: url)
 
             library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
-            
-            fatalError("Not yet supported")
             #endif
             
             let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
@@ -204,7 +202,7 @@ class MetalRenderBackend: RenderBackend {
             buffer: ibRid,
             format: indexBuffer.indexFormat!,
             offset: indexOffset,
-            indecies: indexCount
+            indices: indexCount
         )
         
         return self.indexArrays.setValue(array)
@@ -394,6 +392,10 @@ extension MetalRenderBackend {
         self.drawList[draw]?.triangleFillMode = mode
     }
     
+    func bindIndexPrimitive(_ draw: RID, mode: IndexPrimitive) {
+        self.drawList[draw]?.indexPrimitive = mode
+    }
+    
     func bindRenderState(_ drawRid: RID, renderPassId: RID) {
         var draw = self.drawList[drawRid]
         assert(draw != nil, "Draw is not exists")
@@ -541,7 +543,7 @@ extension MetalRenderBackend {
         }
         
         encoder.drawIndexedPrimitives(
-            type: .triangle,
+            type: draw.indexPrimitive == .line ? .line : .triangle,
             indexCount: indexCount,
             indexType: indexArray.format == .uInt32 ? .uint32 : .uint16,
             indexBuffer: indexBuffer.buffer,
@@ -569,6 +571,7 @@ extension MetalRenderBackend {
         var pipelineState: RID?
         var lineWidth: Float?
         var triangleFillMode: TriangleFillMode = .fill
+        var indexPrimitive: IndexPrimitive = .triangle
         var renderEncoder: MTLRenderCommandEncoder
     }
     
@@ -590,7 +593,7 @@ extension MetalRenderBackend {
         var buffer: RID
         var format: IndexBufferFormat
         var offset: Int = 0
-        var indecies: Int = 0
+        var indices: Int = 0
     }
     
     struct VertexArray {
@@ -614,12 +617,11 @@ extension MetalRenderBackend {
         let resource: MTLTexture
         let images: [Image]
     }
-    
 }
 
 #endif
 
-// FIXME: Think about it
+// FIXME(Vlad): Think about it
 
 extension Bundle {
     static var current: Bundle {
@@ -634,26 +636,3 @@ extension Bundle {
 #if !SWIFT_PACKAGE
 class BundleToken {}
 #endif
-
-
-public protocol RenderPass: AnyObject {
-    var name: String { get }
-    
-    var input: [String] { get }
-    
-    var output: [String] { get }
-}
-
-public extension RenderPass {
-    var name: String {
-        return String(reflecting: type(of: self))
-    }
-    
-    var input : [String] { return [] }
-    var output : [String] { return [] }
-}
-
-
-class RenderGraph {
-    var resources: Set<String> = []
-}

@@ -271,3 +271,17 @@ public extension Vector4 {
         return x * vector.x + y * vector.y + z * vector.z + w * vector.w
     }
 }
+
+public extension Vector4 {
+    var xyz: Vector3 {
+        get {
+            return [self.x, self.y, self.z]
+        }
+        
+        set {
+            self.x = newValue.x
+            self.y = newValue.y
+            self.z = newValue.z
+        }
+    }
+}

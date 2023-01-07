@@ -138,8 +138,6 @@ public final class Scene {
     
     func update(_ deltaTime: TimeInterval) {
         
-//        self.sceneRenderer.beginRendering()
-        
         self.world.tick()
         
         let context = SceneUpdateContext(scene: self, deltaTime: deltaTime)
@@ -147,8 +145,6 @@ public final class Scene {
         for system in self.systems {
             system.update(context: context)
         }
-        
-//        self.sceneRenderer.endRendering()
     }
 }
 
@@ -171,8 +167,7 @@ public extension Scene {
     }
     
     func removeEntity(_ entity: Entity) {
-        self.world.removeEntity(entity)
-        entity.scene = nil
+        self.world.removeEntityOnNextTick(entity)
     }
 }
 

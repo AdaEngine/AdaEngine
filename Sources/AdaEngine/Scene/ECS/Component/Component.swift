@@ -7,5 +7,5 @@
 
 /// The base component in data oriented programming.
 /// Component contains data described some entity characteristic in game world, like:
-/// color, transformtation and etc.
+/// color, transformation and etc.
 public protocol Component { }
