@@ -6,14 +6,14 @@
 //
 
 // We should register our components in engine, because we should initiate them in memory
-// TODO: (Vlad) Add components list to editor and generate file with registred components.
+// TODO: (Vlad) Add components list to editor and generate file with registered components.
 // TODO: (Vlad) We can think about `swift_getMangledTypeName` and `swift_getTypeByMangledNameInContext`
-// This can help to avoid registring components during runtime.
+// This can help to avoid registering components during runtime.
 extension Component {
     
     /// Call this method to add component to the engine.
     /// When engine will initiate component from scene file, it will try to find
-    /// component in registred list.
+    /// component in registered list.
     /// Otherwise component will not be initialized.
     public static func registerComponent() {
         ComponentStorage.addComponent(self)
@@ -36,18 +36,20 @@ extension Component {
 
 enum ComponentStorage {
     
-    private static var registedComponents: [String: Component.Type] = [:]
+    private static var registeredComponents: [String: Component.Type] = [:]
     
-    /// Return registred component or try to find it by NSClassFromString (works only for objc runtime)
-    static func getRegistredComponent(for name: String) -> Component.Type? {
-        return self.registedComponents[name] ?? (NSClassFromString(name) as? Component.Type)
+    /// Return registered component or try to find it by NSClassFromString (works only for objc runtime)
+    static func getRegisteredComponent(for name: String) -> Component.Type? {
+        return self.registeredComponents[name] ?? (NSClassFromString(name) as? Component.Type)
     }
     
     static func addComponent<T: Component>(_ type: T.Type) {
-        self.registedComponents[T.swiftName] = type
+        self.registeredComponents[T.swiftName] = type
     }
 
 }
+
+// This hack can help us to find struct or classes in binary
 
 // https://github.com/apple/swift/blob/4435a37088b20fa7eca3c48947b0532e5221629b/stdlib/public/core/Misc.swift
 //@_silgen_name("swift_getTypeByMangledNameInContext")

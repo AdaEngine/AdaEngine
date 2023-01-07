@@ -10,7 +10,7 @@ import OrderedCollections
 
 // - TODO: (Vlad) Should fix
 // - [ ] Entity children
-/// An enity describe
+/// Describe an entity and his characteristics.
 open class Entity: Identifiable {
     
     public var name: String
@@ -30,7 +30,7 @@ open class Entity: Identifiable {
     // TODO: (Vlad) We should reimagine how it works, fit it to ECS World
     public internal(set) var children: OrderedSet<Entity>
     
-    // TODO: (Vlad) Looks like parentnes not a good choice to ECS data oriented way
+    // TODO: (Vlad) Looks like store parent isn't a good choice to ECS data oriented way
     public internal(set) weak var parent: Entity?
     
     public init(name: String = "Entity") {
@@ -103,7 +103,7 @@ extension Entity {
     
     /// Copying entity with components
     /// - Parameter recursive: Flags indicate that child enities will copying too
-    open func copy(recursive: Bool = true) -> Entity {
+    public func copy(recursive: Bool = true) -> Entity {
         let newEntity = Entity()
         
         if recursive {
@@ -124,14 +124,14 @@ extension Entity {
         return newEntity
     }
     
-    open func addChild(_ entity: Entity) {
-        assert(!self.children.contains { $0 === entity }, "Currenlty has entity in child")
+    public func addChild(_ entity: Entity) {
+        assert(!self.children.contains { $0 === entity }, "Currently has entity in child")
         
         self.children.append(entity)
         entity.parent = self
     }
     
-    open func removeChild(_ entity: Entity) {
+    public func removeChild(_ entity: Entity) {
         guard let index = self.children.firstIndex(where: { $0 === entity }) else {
             return
         }
@@ -142,7 +142,7 @@ extension Entity {
     }
     
     /// Remove entity from parent
-    open func removeFromParent() {
+    public func removeFromParent() {
         guard let parent = self.parent else { return }
         parent.removeChild(self)
     }

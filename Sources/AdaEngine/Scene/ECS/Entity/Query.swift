@@ -36,11 +36,32 @@
 /// }
 /// ```
 @frozen public struct EntityQuery {
+    
+    public struct Filter: OptionSet {
+        public typealias RawValue = UInt8
+        
+        public var rawValue: UInt8
+        
+        public init(rawValue: UInt8) {
+            self.rawValue = rawValue
+        }
+        
+        public static let added = Filter(rawValue: 1 << 0)
+        
+        public static let stored = Filter(rawValue: 1 << 1)
+        
+        public static let removed = Filter(rawValue: 1 << 2)
+        
+        public static let all: Filter = [.added, .stored, .removed]
+    }
+    
     let predicate: QueryPredicate
+    let filter: Filter
     
     /// - Parameter predicate: Describe what entity should contains to satisfy query.
-    public init(where predicate: QueryPredicate) {
+    public init(where predicate: QueryPredicate, filter: Filter = .all) {
         self.predicate = predicate
+        self.filter = filter
     }
 }
 
@@ -83,6 +104,10 @@ public struct QueryResult: Sequence {
         self.entities = archetypes.flatMap { $0.entities }.compactMap { $0 }
     }
     
+    internal init(entities: [Entity]) {
+        self.entities = entities
+    }
+    
     public typealias Element = Entity
     public typealias Iterator = IndexingIterator<[Element]>
     
@@ -104,7 +129,7 @@ public struct QueryResult: Sequence {
 // MARK: Iterator
 
 public extension QueryResult {
-    /// This iterator iterrate by each entity in passed archetype array
+    /// This iterator iterate by each entity in passed archetype array
     struct EntityIterator: IteratorProtocol {
         
         // We use pointer to avoid additional allocation in memory

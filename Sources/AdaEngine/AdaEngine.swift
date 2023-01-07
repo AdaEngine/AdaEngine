@@ -12,4 +12,8 @@ public enum EngineEvent {
         /// The delta time after previous tick.
         public let deltaTime: TimeInterval
     }
+    
+    public struct FramesPerSecondEvent: Event {
+        public let framesPerSecond: Int
+    }
 }

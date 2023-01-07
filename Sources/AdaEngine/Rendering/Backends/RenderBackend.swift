@@ -99,6 +99,8 @@ protocol RenderBackend: AnyObject {
     
     func bindTriangleFillMode(_ draw: RID, mode: TriangleFillMode)
     
+    func bindIndexPrimitive(_ draw: RID, mode: IndexPrimitive)
+    
     func bindRenderState(_ draw: RID, renderPassId: RID)
     
     func bindDebugName(name: String, forDraw draw: RID)
