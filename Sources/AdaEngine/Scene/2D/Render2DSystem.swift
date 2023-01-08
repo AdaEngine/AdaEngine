@@ -23,8 +23,8 @@ struct Render2DSystem: System {
             return
         }
         
-        render2D.beginContext(for: window.id, camera: context.scene.activeCamera)
-        render2D.setDebugName("Start 2D Rendering scene")
+        let drawContext = render2D.beginContext(for: window.id, camera: context.scene.activeCamera)
+        drawContext.setDebugName("Start 2D Rendering scene")
         
         spriteEntities.forEach { entity in
             guard let transform = entity.components[Transform.self] else {
@@ -34,7 +34,7 @@ struct Render2DSystem: System {
             }
             
             if let circle = entity.components[Circle2DComponent.self] {
-                render2D.drawCircle(
+                drawContext.drawCircle(
                     transform: transform.matrix,
                     thickness: circle.thickness,
                     fade: circle.fade,
@@ -43,7 +43,7 @@ struct Render2DSystem: System {
             }
             
             if let sprite = entity.components[SpriteComponent.self] {
-                render2D.drawQuad(
+                drawContext.drawQuad(
                     transform: transform.matrix,
                     texture: sprite.texture,
                     color: sprite.tintColor
@@ -51,6 +51,6 @@ struct Render2DSystem: System {
             }
         }
         
-        render2D.commitContext()
+        drawContext.commitContext()
     }
 }

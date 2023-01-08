@@ -37,6 +37,8 @@ final public class GUIRenderContext {
     var view: Transform3D = .identity
     private var screenRect: Rect = .zero
     
+    private var currentDrawContext: RenderEngine2D.DrawContext?
+    
     public func beginDraw(in screenRect: Rect) {
         let size = screenRect.size
         
@@ -52,7 +54,7 @@ final public class GUIRenderContext {
         self.screenRect = screenRect
         self.view = view
         
-        self.engine.beginContext(for: self.window, viewTransform: view)
+        self.currentDrawContext = self.engine.beginContext(for: self.window, viewTransform: view)
     }
     
     public func setFillColor(_ color: Color) {
@@ -68,27 +70,27 @@ final public class GUIRenderContext {
     }
     
     public func setDebugName(_ name: String) {
-        self.engine.setDebugName(name)
+        self.currentDrawContext?.setDebugName(name)
     }
     
     /// Paints the area contained within the provided rectangle, using the fill color in the current graphics state.
     public func fillRect(_ rect: Rect) {
         let transform = self.makeCanvasTransform3D(from: rect)
-        self.engine.drawQuad(transform: transform, color: self.fillColor)
+        self.currentDrawContext?.drawQuad(transform: transform, color: self.fillColor)
     }
     
     public func fillRect(_ xform: Transform3D) {
-        self.engine.drawQuad(transform: xform, color: self.fillColor)
+        self.currentDrawContext?.drawQuad(transform: xform, color: self.fillColor)
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
     public func fillEllipse(in rect: Rect) {
         let transform = self.makeCanvasTransform3D(from: rect)
-        self.engine.drawCircle(transform: self.currentTransform * transform, thickness: 1, fade: 0.005, color: self.fillColor)
+        self.currentDrawContext?.drawCircle(transform: self.currentTransform * transform, thickness: 1, fade: 0.005, color: self.fillColor)
     }
     
     public func commitDraw() {
-        self.engine.commitContext()
+        self.currentDrawContext?.commitContext()
         
         self.clear()
     }

@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 11/3/21.
 //
 
-public struct VertexDesciptorAttributesArray: Sequence, Codable {
+public struct VertexDescriptorAttributesArray: Sequence, Codable {
     
     public typealias Element = MeshVertexDescriptor.Attribute
     public typealias Iterator = Array<MeshVertexDescriptor.Attribute>.Iterator
@@ -33,9 +33,24 @@ public struct VertexDesciptorAttributesArray: Sequence, Codable {
     public func makeIterator() -> Iterator {
         return buffer.makeIterator()
     }
+    
+    public mutating func append(_ attributes: [MeshVertexDescriptor.Attribute]) {
+        var lastOffset: Int = 0
+        
+        for var attribute in attributes {
+            if attribute.offset != -1 {
+                lastOffset = attribute.offset
+            }
+            
+            attribute.offset = lastOffset
+            lastOffset += attribute.format.offset
+            
+            self.buffer.append(attribute)
+        }
+    }
 }
 
-public struct VertexDesciptorLayoutsArray: Sequence, Codable {
+public struct VertexDescriptorLayoutsArray: Sequence, Codable {
     
     public typealias Element = MeshVertexDescriptor.Layout
     public typealias Iterator = Array<MeshVertexDescriptor.Layout>.Iterator
@@ -67,8 +82,8 @@ public struct VertexDesciptorLayoutsArray: Sequence, Codable {
 
 public struct MeshVertexDescriptor: Codable {
     
-    public var attributes: VertexDesciptorAttributesArray
-    public var layouts: VertexDesciptorLayoutsArray
+    public var attributes: VertexDescriptorAttributesArray
+    public var layouts: VertexDescriptorLayoutsArray
     
     public enum VertexFormat: UInt, Codable {
         case invalid
@@ -87,6 +102,23 @@ public struct MeshVertexDescriptor: Codable {
         case matrix4x4
         case matrix3x3
         case matrix2x2
+        
+        var offset: Int {
+            switch self {
+            case .invalid: return 0
+            case .uint: return MemoryLayout<UInt>.size
+            case .char: return MemoryLayout<UInt8>.size
+            case .short: return MemoryLayout<UInt16>.size
+            case .int: return MemoryLayout<Int>.size
+            case .float: return MemoryLayout<Float>.size
+            case .vector4: return MemoryLayout<Vector4>.size
+            case .vector3: return MemoryLayout<Vector3>.size
+            case .vector2: return MemoryLayout<Vector2>.size
+            case .matrix4x4: return MemoryLayout<Transform3D>.size
+            case .matrix3x3: return MemoryLayout<Transform2D>.size
+            case .matrix2x2: return MemoryLayout<Vector2>.size * 2
+            }
+        }
     }
     
     public struct Attribute: CustomStringConvertible, Codable {
@@ -97,6 +129,10 @@ public struct MeshVertexDescriptor: Codable {
         
         public var description: String {
             return "Attribute: name=\(name) offset=\(offset) bufferIndex=\(bufferIndex) format=\(format)"
+        }
+        
+        public static func attribute(_ format: VertexFormat, name: String, bufferIndex: Int = 0) -> Self {
+            Attribute(name: name, offset: -1, bufferIndex: bufferIndex, format: format)
         }
     }
     
@@ -109,11 +145,11 @@ public struct MeshVertexDescriptor: Codable {
     }
     
     public init() {
-        self.attributes = VertexDesciptorAttributesArray()
-        self.layouts = VertexDesciptorLayoutsArray()
+        self.attributes = VertexDescriptorAttributesArray()
+        self.layouts = VertexDescriptorLayoutsArray()
     }
     
-    init(attributes: VertexDesciptorAttributesArray, layouts: VertexDesciptorLayoutsArray) {
+    init(attributes: VertexDescriptorAttributesArray, layouts: VertexDescriptorLayoutsArray) {
         self.attributes = attributes
         self.layouts = layouts
     }
@@ -206,8 +242,8 @@ public extension MeshVertexDescriptor {
         
         self.init()
         
-        self.attributes = VertexDesciptorAttributesArray(buffer: attributes)
-        self.layouts = VertexDesciptorLayoutsArray(buffer: layouts)
+        self.attributes = VertexDescriptorAttributesArray(buffer: attributes)
+        self.layouts = VertexDescriptorLayoutsArray(buffer: layouts)
     }
     
     func makeMTKVertexDescriptor() throws -> MTLVertexDescriptor? {

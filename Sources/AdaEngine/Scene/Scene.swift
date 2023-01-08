@@ -106,6 +106,8 @@ public final class Scene {
     public func addSystem<T: System>(_ systemType: T.Type) {
         let system = systemType.init(scene: self)
         self.systems.append(system)
+
+        self.systems = self.sortSystems(self.systems)
     }
     
     /// Add new scene plugin to the scene.
@@ -168,6 +170,49 @@ public extension Scene {
     
     func removeEntity(_ entity: Entity) {
         self.world.removeEntityOnNextTick(entity)
+    }
+}
+
+// MARK: - Private
+
+extension Scene {
+    // TODO: (Vlad) Not sure that it's good solution
+    private func sortSystems(_ systems: [System]) -> [System] {
+        var sortedSystems = systems
+
+        for var systemIndex in 0 ..< systems.count {
+            let system = systems[systemIndex]
+            let dependencies = type(of: system).dependencies
+
+            for dependency in dependencies {
+                switch dependency {
+                case .before(let systemType):
+                    if let index = sortedSystems.firstIndex(where: { type(of: $0) == systemType }) {
+                        var indexBefore = sortedSystems.index(before: index)
+                        
+                        if !sortedSystems.indices.contains(indexBefore) {
+                            indexBefore = index
+                        }
+                        
+                        sortedSystems.swapAt(systemIndex, indexBefore)
+                        systemIndex = indexBefore
+                    }
+                case .after(let systemType):
+                    if let index = sortedSystems.firstIndex(where: { type(of: $0) == systemType }) {
+                        var indexAfter = sortedSystems.index(after: index)
+                        
+                        if !sortedSystems.indices.contains(indexAfter) {
+                            indexAfter = index
+                        }
+                        
+                        sortedSystems.swapAt(systemIndex, indexAfter)
+                        systemIndex = indexAfter
+                    }
+                }
+            }
+        }
+
+        return sortedSystems
     }
 }
 

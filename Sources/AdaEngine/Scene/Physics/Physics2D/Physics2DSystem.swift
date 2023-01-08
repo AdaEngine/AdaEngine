@@ -9,7 +9,6 @@
 import box2d
 import Math
 
-// - TODO: (Vlad) Delete bodies if entity will delete physic component
 // - TODO: (Vlad) Update system fixed times (Timer?)
 // - TODO: (Vlad) Draw polygons for debug
 // - TODO: (Vlad) Runtime update shape resource
@@ -20,9 +19,6 @@ final class Physics2DSystem: System {
     
     private var physicsFrame: Int = 0
     private var time: TimeInterval = 0
-    
-    // TODO: Should be modified
-    private var physicsTicksPerSecond: Float = 60
     
     static let physicsBodyQuery = EntityQuery(
         where: .has(PhysicsBody2DComponent.self) && .has(Transform.self)
@@ -51,8 +47,10 @@ final class Physics2DSystem: System {
     func update(context: UpdateContext) {
         let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.window != nil
         
+        var drawContext: RenderEngine2D.DrawContext?
+        
         if needDrawPolygons {
-            self.render2D.beginContext(for: context.scene.window!.id, camera: context.scene.activeCamera)
+            drawContext = self.render2D.beginContext(for: context.scene.window!.id, camera: context.scene.activeCamera)
         }
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
@@ -74,14 +72,16 @@ final class Physics2DSystem: System {
             physicsBody,
             world: world,
             needDrawPolygons: needDrawPolygons,
-            context: context
+            context: context,
+            drawContext: drawContext
         )
         
         self.updateCollisionEntities(
             colissionBody,
             world: world,
             needDrawPolygons: needDrawPolygons,
-            context: context
+            context: context,
+            drawContext: drawContext
         )
         
         self.updateJointsEntities(
@@ -92,7 +92,7 @@ final class Physics2DSystem: System {
         )
         
         if needDrawPolygons {
-            self.render2D.commitContext()
+            drawContext?.commitContext()
         }
         
         self.removePhysicsBodiesInRemovedEntities(removedEntities, world: world)
@@ -104,7 +104,8 @@ final class Physics2DSystem: System {
         _ entities: QueryResult,
         world: PhysicsWorld2D,
         needDrawPolygons: Bool,
-        context: UpdateContext
+        context: UpdateContext,
+        drawContext: RenderEngine2D.DrawContext?
     ) {
         for entity in entities {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
@@ -150,6 +151,7 @@ final class Physics2DSystem: System {
             
             if let body = physicsBody.runtimeBody?.ref, needDrawPolygons {
                 self.drawDebug(
+                    context: drawContext,
                     body: body,
                     transform: transform,
                     color: context.scene.debugPhysicsColor
@@ -165,7 +167,8 @@ final class Physics2DSystem: System {
         _ entities: QueryResult,
         world: PhysicsWorld2D,
         needDrawPolygons: Bool,
-        context: UpdateContext
+        context: UpdateContext,
+        drawContext: RenderEngine2D.DrawContext?
     ) {
         for entity in entities {
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
@@ -215,6 +218,7 @@ final class Physics2DSystem: System {
             
             if let body = collisionBody.runtimeBody?.ref, needDrawPolygons {
                 self.drawDebug(
+                    context: drawContext,
                     body: body,
                     transform: transform,
                     color: context.scene.debugPhysicsColor
@@ -312,11 +316,12 @@ final class Physics2DSystem: System {
     
     // FIXME: Use body transform instead
     private func drawDebug(
+        context: RenderEngine2D.DrawContext?,
         body: b2Body,
         transform: Transform,
         color: Color
     ) {
-        guard let fixtureList = body.getFixtureList() else { return }
+        guard let fixtureList = body.getFixtureList(), let context = context else { return }
         
         var nextFixture: b2Fixture? = fixtureList
         
@@ -324,6 +329,7 @@ final class Physics2DSystem: System {
             switch fixture.shape.type {
             case .circle:
                 self.drawCircle(
+                    context: context,
                     position: body.position.asVector2,
                     angle: body.angle,
                     radius: fixture.shape.radius,
@@ -331,6 +337,7 @@ final class Physics2DSystem: System {
                 )
             case .polygon:
                 self.drawQuad(
+                    context: context,
                     position: body.position.asVector2,
                     angle: body.angle,
                     size: transform.scale.xy,
@@ -344,8 +351,8 @@ final class Physics2DSystem: System {
         }
     }
     
-    private func drawCircle(position: Vector2, angle: Float, radius: Float, color: Color) {
-        render2D.drawCircle(
+    private func drawCircle(context: RenderEngine2D.DrawContext, position: Vector2, angle: Float, radius: Float, color: Color) {
+        context.drawCircle(
             position: Vector3(position, 0),
             rotation: [0, 0, 0], // FIXME(Vlad): We should set rotation angle
             radius: radius,
@@ -355,8 +362,8 @@ final class Physics2DSystem: System {
         )
     }
     
-    private func drawQuad(position: Vector2, angle: Float, size: Vector2, color: Color) {
-        render2D.drawQuad(position: Vector3(position, 1), size: size, color: color.opacity(0.2))
+    private func drawQuad(context: RenderEngine2D.DrawContext, position: Vector2, angle: Float, size: Vector2, color: Color) {
+        context.drawQuad(position: Vector3(position, 1), size: size, color: color.opacity(0.2))
         
 //        render2D.drawLine(
 //            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],

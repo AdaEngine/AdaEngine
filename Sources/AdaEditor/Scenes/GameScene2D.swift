@@ -31,7 +31,7 @@ struct TubeMovementSystem: System {
     func update(context: UpdateContext) {
         context.scene.performQuery(Self.tubeQuery).forEach { entity in
             var transform = entity.components[Transform.self]!
-            transform.position.x -= 0.5 * context.deltaTime
+            transform.position.x -= 2 * context.deltaTime
             entity.components += transform
         }
     }
@@ -66,7 +66,7 @@ class TubeSpawnerSystem: System {
         counter += context.deltaTime
 
         if lastSpawnTime < counter {
-            self.lastSpawnTime = counter + 7
+            self.lastSpawnTime = counter + 3
 
             var transform = Transform()
             transform.scale = [0.4, 1, 1]

@@ -15,7 +15,6 @@ public class RenderEngine2D {
         var viewProjection: Transform3D = .identity
     }
     
-    private var currentDraw: RID!
     private var uniformRid: RID
     
     struct Data<V> {
@@ -43,12 +42,6 @@ public class RenderEngine2D {
     private static let maxLines = 2000;
     private static let maxLineVertices = maxLines * 2;
     private static let maxLineIndices = maxLines * 6;
-    
-    private var fillColor: Color = .clear
-    
-    private var lineWidth: Float = 1
-    
-    private var triangleFillMode: TriangleFillMode = .fill
     
     init() {
         let device = RenderEngine.shared
@@ -99,229 +92,251 @@ public class RenderEngine2D {
         self.lineData = Self.makeLineData()
     }
     
-    public func beginContext(for window: Window.ID, viewTransform: Transform3D) {
+    public func beginContext(for window: Window.ID, viewTransform: Transform3D) -> DrawContext {
         let uni = Uniform(viewProjection: viewTransform)
         RenderEngine.shared.updateUniform(self.uniformRid, value: uni, count: 1)
         
-        self.currentDraw = RenderEngine.shared.beginDraw(for: window)
-        self.startBatch()
+        let currentDraw = RenderEngine.shared.beginDraw(for: window)
+        let context = DrawContext(currentDraw: currentDraw, window: window, renderEngine: self)
+        context.startBatch()
+        return context
     }
     
-    public func beginContext(for window: Window.ID, camera: Camera) {
+    public func beginContext(for window: Window.ID, camera: Camera) -> DrawContext {
         let data = camera.makeCameraData()
         let uni = Uniform(viewProjection: camera.transform.matrix * data.viewProjection)
         RenderEngine.shared.updateUniform(self.uniformRid, value: uni, count: 1)
         
-        self.currentDraw = RenderEngine.shared.beginDraw(for: window)
-        self.startBatch()
-    }
-    
-    public func drawQuad(position: Vector3, size: Vector2, texture: Texture2D? = nil, color: Color) {
-        let transform = Transform3D(translation: position) * Transform3D(scale: Vector3(size, 1))
-        self.drawQuad(transform: transform, texture: texture, color: color)
-    }
-    
-    public func drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color) {
+        let currentDraw = RenderEngine.shared.beginDraw(for: window)
         
-        if self.quadData.indeciesCount >= Self.maxIndecies {
-            self.nextBatch()
+        let context = DrawContext(currentDraw: currentDraw, window: window, renderEngine: self)
+        context.startBatch()
+        return context
+    }
+}
+
+extension RenderEngine2D {
+    public class DrawContext {
+        let currentDraw: RID
+        let window: Window.ID
+        
+        private var fillColor: Color = .clear
+        
+        private var lineWidth: Float = 1
+        
+        private var triangleFillMode: TriangleFillMode = .fill
+        private let renderEngine: RenderEngine2D
+        
+        init(currentDraw: RID, window: Window.ID, renderEngine: RenderEngine2D) {
+            self.currentDraw = currentDraw
+            self.window = window
+            self.renderEngine = renderEngine
         }
         
-        // Flush all data if textures count more than 32
-        if self.textureSlotIndex >= 31 {
-            self.nextBatch()
-            self.textureSlots.removeAll(keepingCapacity: true)
-            self.textureSlots[0] = self.whiteTexture
-            self.textureSlotIndex = 1
+        public func drawQuad(position: Vector3, size: Vector2, texture: Texture2D? = nil, color: Color) {
+            let transform = Transform3D(translation: position) * Transform3D(scale: Vector3(size, 1))
+            self.drawQuad(transform: transform, texture: texture, color: color)
         }
         
-        // Select a texture index for draw
-        
-        let textureIndex: Int
-        
-        if let texture = texture {
-            if let index = self.textureSlots.firstIndex(where: { $0 == texture }) {
-                textureIndex = index
-            } else {
-                self.textureSlots[self.textureSlotIndex] = texture
-                textureIndex = self.textureSlotIndex
-                self.textureSlotIndex += 1
+        public func drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color) {
+            
+            if self.renderEngine.quadData.indeciesCount >= RenderEngine2D.maxIndecies {
+                self.nextBatch()
             }
-        } else {
-            // for white texture
-            textureIndex = 0
+            
+            // Flush all data if textures count more than 32
+            if self.renderEngine.textureSlotIndex >= 31 {
+                self.nextBatch()
+                self.renderEngine.textureSlots.removeAll(keepingCapacity: true)
+                self.renderEngine.textureSlots[0] = self.renderEngine.whiteTexture
+                self.renderEngine.textureSlotIndex = 1
+            }
+            
+            // Select a texture index for draw
+            
+            let textureIndex: Int
+            
+            if let texture = texture {
+                if let index = self.renderEngine.textureSlots.firstIndex(where: { $0 == texture }) {
+                    textureIndex = index
+                } else {
+                    self.renderEngine.textureSlots[self.renderEngine.textureSlotIndex] = texture
+                    textureIndex = self.renderEngine.textureSlotIndex
+                    self.renderEngine.textureSlotIndex += 1
+                }
+            } else {
+                // for white texture
+                textureIndex = 0
+            }
+            
+            let texture = self.renderEngine.textureSlots[textureIndex]
+            
+            for index in 0 ..< renderEngine.quadPosition.count {
+                let data = QuadVertexData(
+                    position: renderEngine.quadPosition[index] * transform,
+                    color: color,
+                    textureCoordinate: texture!.textureCoordinates[index],
+                    textureIndex: textureIndex
+                )
+                
+                self.renderEngine.quadData.vertices.append(data)
+            }
+            
+            self.renderEngine.quadData.indeciesCount += 6
         }
         
-        let texture = self.textureSlots[textureIndex]
+        public func setDebugName(_ name: String) {
+            RenderEngine.shared.bindDebugName(name: name, forDraw: self.currentDraw)
+        }
         
-        for index in 0 ..< quadPosition.count {
-            let data = QuadVertexData(
-                position: quadPosition[index] * transform,
+        public func setLineWidth(_ width: Float) {
+            self.lineWidth = width
+        }
+        
+        public func drawCircle(
+            position: Vector3,
+            rotation: Vector3,
+            radius: Float,
+            thickness: Float,
+            fade: Float,
+            color: Color
+        ) {
+            let transform = Transform3D(translation: position)
+            * Transform3D(quat: Quat(axis: [1, 0, 0], angle: rotation.x))
+            * Transform3D(quat: Quat(axis: [0, 1, 0], angle: rotation.y))
+            * Transform3D(quat: Quat(axis: [0, 0, 1], angle: rotation.z))
+            * Transform3D(scale: Vector3(radius))
+            
+            self.drawCircle(transform: transform, thickness: thickness, fade: fade, color: color)
+        }
+        
+        public func drawCircle(
+            transform: Transform3D,
+            thickness: Float,
+            fade: Float,
+            color: Color
+        ) {
+            if self.renderEngine.circleData.indeciesCount >= RenderEngine2D.maxIndecies {
+                self.nextBatch()
+            }
+            
+            for quad in renderEngine.quadPosition {
+                let data = CircleVertexData(
+                    worldPosition: quad * transform,
+                    localPosition: quad * 2,
+                    thickness: thickness,
+                    fade: fade,
+                    color: color
+                )
+                
+                self.renderEngine.circleData.vertices.append(data)
+            }
+            
+            self.renderEngine.circleData.indeciesCount += 6
+        }
+        
+        public func drawLine(start: Vector3, end: Vector3, color: Color) {
+            if self.renderEngine.lineData.indeciesCount >= RenderEngine2D.maxLineIndices {
+                self.nextBatch()
+            }
+            
+            let startData = LineVertexData(
+                position: start,
                 color: color,
-                textureCoordinate: texture!.textureCoordinates[index],
-                textureIndex: textureIndex
+                lineWidth: lineWidth
             )
             
-            self.quadData.vertices.append(data)
-        }
-        
-        self.quadData.indeciesCount += 6
-    }
-    
-    public func setDebugName(_ name: String) {
-        RenderEngine.shared.bindDebugName(name: name, forDraw: self.currentDraw)
-    }
-    
-    public func setLineWidth(_ width: Float) {
-        self.lineWidth = width
-    }
-    
-    public func drawCircle(
-        position: Vector3,
-        rotation: Vector3,
-        radius: Float,
-        thickness: Float,
-        fade: Float,
-        color: Color
-    ) {
-        let transform = Transform3D(translation: position)
-        * Transform3D(quat: Quat(axis: [1, 0, 0], angle: rotation.x))
-        * Transform3D(quat: Quat(axis: [0, 1, 0], angle: rotation.y))
-        * Transform3D(quat: Quat(axis: [0, 0, 1], angle: rotation.z))
-        * Transform3D(scale: Vector3(radius))
-        
-        self.drawCircle(transform: transform, thickness: thickness, fade: fade, color: color)
-    }
-    
-    public func drawCircle(
-        transform: Transform3D,
-        thickness: Float,
-        fade: Float,
-        color: Color
-    ) {
-        if self.circleData.indeciesCount >= Self.maxIndecies {
-            self.nextBatch()
-        }
-        
-        for quad in quadPosition {
-            let data = CircleVertexData(
-                worldPosition: quad * transform,
-                localPosition: quad * 2,
-                thickness: thickness,
-                fade: fade,
-                color: color
+            let endData = LineVertexData(
+                position: end,
+                color: color,
+                lineWidth: lineWidth
             )
             
-            self.circleData.vertices.append(data)
+            self.renderEngine.lineData.vertices.append(startData)
+            self.renderEngine.lineData.vertices.append(endData)
+            
+            self.renderEngine.lineData.indeciesCount += 2
         }
         
-        self.circleData.indeciesCount += 6
-    }
-    
-    public func drawLine(start: Vector3, end: Vector3, color: Color) {
-        if self.lineData.indeciesCount >= Self.maxLineIndices {
-            self.nextBatch()
-        }
-
-        let startData = LineVertexData(
-            position: start,
-            color: color,
-            lineWidth: lineWidth
-        )
-
-        let endData = LineVertexData(
-            position: end,
-            color: color,
-            lineWidth: lineWidth
-        )
-
-        self.lineData.vertices.append(startData)
-        self.lineData.vertices.append(endData)
-
-        self.lineData.indeciesCount += 2
-    }
-    
-    public func commitContext() {
-        self.flush()
-        
-        RenderEngine.shared.drawEnd(self.currentDraw)
-        self.currentDraw = nil
-        
-        self.clearContext()
-    }
-    
-    public func clearContext() {
-        self.uniform.viewProjection = .identity
-        self.triangleFillMode = .fill
-        self.lineWidth = 1
-    }
-    
-    public func setTriangleFillMode(_ mode: TriangleFillMode) {
-        self.triangleFillMode = mode
-    }
-    
-    func nextBatch() {
-        self.flush()
-        self.startBatch()
-    }
-    
-    func startBatch() {
-        self.circleData.vertices.removeAll(keepingCapacity: true)
-        self.circleData.indeciesCount = 0
-        
-        self.quadData.vertices.removeAll(keepingCapacity: true)
-        self.quadData.indeciesCount = 0
-        
-        self.lineData.vertices.removeAll(keepingCapacity: true)
-        self.lineData.indeciesCount = 0
-    }
-    
-    public func flush() {
-        guard let currentDraw = self.currentDraw else {
-            return
+        public func commitContext() {
+            self.flush()
+            
+            RenderEngine.shared.drawEnd(self.currentDraw)
+            
+            self.clearContext()
         }
         
-        let device = RenderEngine.shared
-        
-        device.bindUniformSet(currentDraw, uniformSet: self.uniformRid, at: BufferIndex.baseUniform)
-        device.bindTriangleFillMode(currentDraw, mode: self.triangleFillMode)
-        
-        self.flush(for: self.quadData, currentDraw: currentDraw)
-        self.flush(for: self.lineData, indexPrimitive: .line, currentDraw: currentDraw)
-        self.flush(for: self.circleData, currentDraw: currentDraw)
-    }
-    
-    private func flush<D>(for data: Data<D>, indexPrimitive: IndexPrimitive = .triangle, currentDraw: RID) {
-        if data.indeciesCount == 0 {
-            return
+        public func clearContext() {
+            self.renderEngine.uniform.viewProjection = .identity // FIXME(Vlad): Should store in draw contexrt
+            self.triangleFillMode = .fill
+            self.lineWidth = 1
         }
         
-        let verticies = data.vertices
-        
-        let textures = self.textureSlots[0..<self.textureSlotIndex].compactMap { $0 }
-        
-        for (index, texture) in textures.enumerated() {
-            RenderEngine.shared.bindTexture(currentDraw, texture: texture.rid, at: index)
+        public func setTriangleFillMode(_ mode: TriangleFillMode) {
+            self.triangleFillMode = mode
         }
         
-        RenderEngine.shared.setVertexBufferData(
-            data.vertexBuffer,
-            bytes: verticies,
-            length: verticies.count * MemoryLayout<D>.stride
-        )
+        func nextBatch() {
+            self.flush()
+            self.startBatch()
+        }
         
-        RenderEngine.shared.bindVertexArray(currentDraw, vertexArray: data.vertexArray)
-        RenderEngine.shared.bindRenderState(currentDraw, renderPassId: data.piplineState)
-        RenderEngine.shared.bindIndexArray(currentDraw, indexArray: data.indexArray)
-        RenderEngine.shared.bindIndexPrimitive(currentDraw, mode: indexPrimitive)
+        func startBatch() {
+            // TODO: Should store in draw context
+            self.renderEngine.circleData.vertices.removeAll(keepingCapacity: true)
+            self.renderEngine.circleData.indeciesCount = 0
+            
+            self.renderEngine.quadData.vertices.removeAll(keepingCapacity: true)
+            self.renderEngine.quadData.indeciesCount = 0
+            
+            self.renderEngine.lineData.vertices.removeAll(keepingCapacity: true)
+            self.renderEngine.lineData.indeciesCount = 0
+        }
         
-        RenderEngine.shared.draw(currentDraw, indexCount: data.indeciesCount, instancesCount: 1)
+        public func flush() {
+            let device = RenderEngine.shared
+            
+            device.bindUniformSet(currentDraw, uniformSet: self.renderEngine.uniformRid, at: BufferIndex.baseUniform)
+            device.bindTriangleFillMode(currentDraw, mode: self.triangleFillMode)
+            
+            self.flush(for: self.renderEngine.quadData, currentDraw: currentDraw)
+            self.flush(for: self.renderEngine.lineData, indexPrimitive: .line, currentDraw: currentDraw)
+            self.flush(for: self.renderEngine.circleData, currentDraw: currentDraw)
+        }
+        
+        private func flush<D>(for data: Data<D>, indexPrimitive: IndexPrimitive = .triangle, currentDraw: RID) {
+            if data.indeciesCount == 0 {
+                return
+            }
+            
+            let verticies = data.vertices
+            
+            let textures = self.renderEngine.textureSlots[0..<self.renderEngine.textureSlotIndex].compactMap { $0 }
+            
+            for (index, texture) in textures.enumerated() {
+                RenderEngine.shared.bindTexture(currentDraw, texture: texture.rid, at: index)
+            }
+            
+            RenderEngine.shared.setVertexBufferData(
+                data.vertexBuffer,
+                bytes: verticies,
+                length: verticies.count * MemoryLayout<D>.stride
+            )
+            
+            RenderEngine.shared.bindVertexArray(currentDraw, vertexArray: data.vertexArray)
+            RenderEngine.shared.bindRenderState(currentDraw, renderPassId: data.piplineState)
+            RenderEngine.shared.bindIndexArray(currentDraw, indexArray: data.indexArray)
+            RenderEngine.shared.bindIndexPrimitive(currentDraw, mode: indexPrimitive)
+            
+            RenderEngine.shared.draw(currentDraw, indexCount: data.indeciesCount, instancesCount: 1)
+        }
+        
     }
 }
 
 // MARK: - Utilities
 
-extension RenderEngine2D {
+fileprivate extension RenderEngine2D {
     
     struct CircleVertexData {
         let worldPosition: Vector4
@@ -355,25 +370,13 @@ extension RenderEngine2D {
         
         var vertDescriptor = shaderDescriptor.vertexDescriptor
         
-        vertDescriptor.attributes[0].format = .vector4
-        vertDescriptor.attributes[0].bufferIndex = 0
-        vertDescriptor.attributes[0].offset = MemoryLayout.offset(of: \CircleVertexData.worldPosition)!
-        
-        vertDescriptor.attributes[1].format = .vector4
-        vertDescriptor.attributes[1].bufferIndex = 0
-        vertDescriptor.attributes[1].offset = MemoryLayout.offset(of: \CircleVertexData.localPosition)!
-        
-        vertDescriptor.attributes[2].format = .float
-        vertDescriptor.attributes[2].bufferIndex = 0
-        vertDescriptor.attributes[2].offset = MemoryLayout.offset(of: \CircleVertexData.thickness)!
-        
-        vertDescriptor.attributes[3].format = .float
-        vertDescriptor.attributes[3].bufferIndex = 0
-        vertDescriptor.attributes[3].offset = MemoryLayout.offset(of: \CircleVertexData.fade)!
-        
-        vertDescriptor.attributes[4].format = .vector4
-        vertDescriptor.attributes[4].bufferIndex = 0
-        vertDescriptor.attributes[4].offset = MemoryLayout.offset(of: \CircleVertexData.color)!
+        vertDescriptor.attributes.append([
+            .attribute(.vector4, name: "worldPosition"),
+            .attribute(.vector4, name: "localPosition"),
+            .attribute(.float, name: "thickness"),
+            .attribute(.float, name: "fade"),
+            .attribute(.vector4, name: "color"),
+        ])
         
         vertDescriptor.layouts[0].stride = MemoryLayout<CircleVertexData>.stride
         shaderDescriptor.vertexDescriptor = vertDescriptor
@@ -410,21 +413,12 @@ extension RenderEngine2D {
         
         var vertDescriptor = shaderDescriptor.vertexDescriptor
         
-        vertDescriptor.attributes[0].format = .vector4
-        vertDescriptor.attributes[0].bufferIndex = 0
-        vertDescriptor.attributes[0].offset = MemoryLayout.offset(of: \QuadVertexData.position)!
-        
-        vertDescriptor.attributes[1].format = .vector4
-        vertDescriptor.attributes[1].bufferIndex = 0
-        vertDescriptor.attributes[1].offset = MemoryLayout.offset(of: \QuadVertexData.color)!
-        
-        vertDescriptor.attributes[2].format = .vector2
-        vertDescriptor.attributes[2].bufferIndex = 0
-        vertDescriptor.attributes[2].offset = MemoryLayout.offset(of: \QuadVertexData.textureCoordinate)!
-        
-        vertDescriptor.attributes[3].format = .int
-        vertDescriptor.attributes[3].bufferIndex = 0
-        vertDescriptor.attributes[3].offset = MemoryLayout.offset(of: \QuadVertexData.textureIndex)!
+        vertDescriptor.attributes.append([
+            .attribute(.vector4, name: "position"),
+            .attribute(.vector4, name: "color"),
+            .attribute(.vector2, name: "textureCoordinate"),
+            .attribute(.int, name: "textureIndex"),
+        ])
         
         vertDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
         shaderDescriptor.vertexDescriptor = vertDescriptor
@@ -462,17 +456,11 @@ extension RenderEngine2D {
         
         var vertDescriptor = shaderDescriptor.vertexDescriptor
         
-        vertDescriptor.attributes[0].format = .vector3
-        vertDescriptor.attributes[0].bufferIndex = 0
-        vertDescriptor.attributes[0].offset = MemoryLayout.offset(of: \LineVertexData.position)!
-        
-        vertDescriptor.attributes[1].format = .vector4
-        vertDescriptor.attributes[1].bufferIndex = 0
-        vertDescriptor.attributes[1].offset = MemoryLayout.offset(of: \LineVertexData.color)!
-        
-        vertDescriptor.attributes[2].format = .float
-        vertDescriptor.attributes[2].bufferIndex = 0
-        vertDescriptor.attributes[2].offset = MemoryLayout.offset(of: \LineVertexData.lineWidth)!
+        vertDescriptor.attributes.append([
+            .attribute(.vector3, name: "position"),
+            .attribute(.vector4, name: "color"),
+            .attribute(.float, name: "lineWidth"),
+        ])
         
         vertDescriptor.layouts[0].stride = MemoryLayout<LineVertexData>.stride
         shaderDescriptor.vertexDescriptor = vertDescriptor
