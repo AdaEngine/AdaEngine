@@ -10,8 +10,9 @@ import Math
 
 public final class Body2D {
     unowned let world: PhysicsWorld2D
+    unowned let entity: Entity
+    
     let ref: b2Body
-    let entity: Entity
     
     internal init(world: PhysicsWorld2D, ref: b2Body, entity: Entity) {
         self.world = world
@@ -110,6 +111,7 @@ public final class PhysicsWorld2D {
     
     public func destroyBody(_ body: Body2D) {
         self.world.destroyBody(body.ref)
+        body.ref.setUserData(nil)
     }
     
 }

@@ -10,7 +10,6 @@ public struct SceneUpdateContext {
     public let deltaTime: TimeInterval
 }
 
-// TODO: (Vlad) Make dependency sorting
 public enum SystemDependency {
     case before(System.Type)
     case after(System.Type)
