@@ -16,6 +16,16 @@ final class PlayerComponent: ScriptComponent {
             body.applyLinearImpulse([0, 1], point: .zero, wake: true)
         }
     }
+    
+    override func onEvent(_ events: Set<InputEvent>) {
+        for event in events {
+            if let touch = event as? TouchEvent {
+                if touch.phase == .began {
+                    body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+                }
+            }
+        }
+    }
 }
 
 struct TubeComponent: Component { }

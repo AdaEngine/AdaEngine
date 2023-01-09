@@ -10,6 +10,7 @@ public class InputEvent: Hashable, Identifiable {
     
     public let window: Window.ID
     public let time: TimeInterval
+    public let eventId = RID()
     
     internal init(window: Window.ID, time: TimeInterval) {
         self.window = window
@@ -17,12 +18,12 @@ public class InputEvent: Hashable, Identifiable {
     }
     
     public static func == (lhs: InputEvent, rhs: InputEvent) -> Bool {
-        return lhs.time == rhs.time && lhs.window == rhs.window
+        return lhs.time == rhs.time && lhs.window == rhs.window && lhs.eventId == rhs.eventId
     }
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(time)
         hasher.combine(window)
+        hasher.combine(eventId)
     }
-    
 }

@@ -22,6 +22,8 @@ struct ScriptComponentUpdateSystem: System {
                 component.isAwaked = true
             }
             
+            component.onEvent(Input.shared.eventsPool)
+            
             component.update(context.deltaTime)
             
             guiRenderContext.beginDraw(in: Rect(origin: .zero, size: context.scene.viewportSize))

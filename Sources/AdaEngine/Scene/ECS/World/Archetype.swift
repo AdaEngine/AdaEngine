@@ -98,6 +98,7 @@ extension Archetype {
     }
 }
 
+// FIXME: (Vlad) not a bit set!
 struct Bitset: Equatable, Hashable {
     // TODO: (Vlad) Not efficient in memory layout.
     private var mask: Set<ComponentId>

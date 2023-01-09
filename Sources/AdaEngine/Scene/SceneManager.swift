@@ -9,7 +9,11 @@ public class SceneManager {
     
     public var currentScene: Scene?
     
-    weak var window: Window?
+    weak var window: Window? {
+        didSet {
+            self.currentScene?.window = self.window
+        }
+    }
     
     public let serializer: SceneSerializer
     

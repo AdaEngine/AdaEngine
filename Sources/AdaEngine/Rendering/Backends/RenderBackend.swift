@@ -18,7 +18,6 @@ struct Vertex {
     var color: Color
 }
 
-
 public enum TriangleFillMode {
     case fill
     case lines

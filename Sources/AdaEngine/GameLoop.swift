@@ -7,9 +7,9 @@
 
 /// The main class responds to update all systems in engine.
 /// You can have only one GameLoop per app.
-final class GameLoop {
+public final class GameLoop {
     
-    private(set) static var current: GameLoop = GameLoop()
+    public private(set) static var current: GameLoop = GameLoop()
     
     private var lastUpdate: TimeInterval = 0
     
@@ -19,7 +19,7 @@ final class GameLoop {
     
     // MARK: Internal Methods
     
-    func iterate() throws {
+    public func iterate() throws {
         if self.isIterating {
             assertionFailure("Can't iterated twice.")
             return

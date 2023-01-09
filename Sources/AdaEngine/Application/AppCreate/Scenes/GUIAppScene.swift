@@ -8,9 +8,9 @@
 /// GUI App Scene relative to work with GUI Applications.
 /// That match for application without needed to implement game logic.
 public struct GUIAppScene: AppScene {
+    
     public var scene: Never { fatalError() }
     
-    public var _configuration = _AppSceneConfiguration()
     let window: () -> Window
     
     /// - Parameters window: Window for presenting on screen
@@ -18,7 +18,11 @@ public struct GUIAppScene: AppScene {
         self.window = window
     }
     
-    public func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window {
+}
+
+extension GUIAppScene: InternalAppScene {
+    
+    func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window {
         let window = window()
         
         if window.frame.size == .zero {

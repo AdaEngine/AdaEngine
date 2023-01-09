@@ -25,7 +25,7 @@ open class WindowManager {
     
     public private(set) var activeWindow: Window?
     
-    internal init() { }
+    public init() { }
     
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) {
@@ -35,8 +35,6 @@ open class WindowManager {
                 window.sendEvent(event)
             }
             
-            window.sceneManager.update(deltaTime)
-            
             if window.canDraw {
                 let context = GUIRenderContext(window: window.id, engine: window.renderer2D)
                 
@@ -44,6 +42,8 @@ open class WindowManager {
                 window.draw(with: context)
                 context.commitDraw()
             }
+            
+            window.update(deltaTime)
         }
     }
     

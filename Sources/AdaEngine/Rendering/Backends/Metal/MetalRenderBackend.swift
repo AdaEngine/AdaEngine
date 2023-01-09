@@ -10,14 +10,17 @@ enum BufferIndex {
     static let material = 2
 }
 
-enum IndexBufferFormat {
+public enum IndexBufferFormat: UInt8 {
     case uInt32
     case uInt16
 }
 
-enum IndexPrimitive {
+public enum IndexPrimitive: UInt8 {
     case triangle
+    case triangleStrip
     case line
+    case lineStrip
+    case points
 }
 
 #if METAL
@@ -81,11 +84,9 @@ class MetalRenderBackend: RenderBackend {
             return
         }
         
-        guard let draw = self.drawList.first(where: { $0.value.window === window }) else {
-            return
+        if let draw = self.drawList.first(where: { $0.value.window === window }) {
+            self.drawList[draw.key] = nil
         }
-        
-        self.drawList[draw.key] = nil
         
         self.context.destroyWindow(by: windowId)
     }

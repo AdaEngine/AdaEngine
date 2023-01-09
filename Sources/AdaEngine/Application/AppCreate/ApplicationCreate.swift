@@ -48,9 +48,12 @@ public extension App {
         
         Application.shared = application
         
-        let appScene = app.scene
-        let configuration = appScene._configuration
+        guard let appScene = app.scene as? InternalAppScene else {
+            fatalError("Incorrect object of App Scene")
+        }
         
+        var configuration = _AppSceneConfiguration()
+        appScene._buildConfiguration(&configuration)
         let window = try appScene._makeWindow(with: configuration)
         
         window.showWindow(makeFocused: true)

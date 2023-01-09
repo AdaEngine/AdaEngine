@@ -30,6 +30,10 @@ var products: [Product] = [
     .library(
         name: "AdaEngine",
         targets: ["AdaEngine"]
+    ),
+    .library(
+        name: "AdaEngineEmbeddable",
+        targets: ["AdaEngineEmbeddable"]
     )
 ]
 
@@ -156,11 +160,18 @@ let adaEngineTarget: Target = .target(
     plugins: commonPlugins
 )
 
+let adaEngineEmbeddable: Target = .target(
+    name: "AdaEngineEmbeddable",
+    dependencies: ["AdaEngine"],
+    exclude: ["Project.swift", "Derived"]
+)
+
 // MARK: Other Targets
 
 var targets: [Target] = [
     editorTarget,
     adaEngineTarget,
+    adaEngineEmbeddable,
     .target(
         name: "Math",
         exclude: ["Project.swift", "Derived"]

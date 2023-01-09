@@ -139,7 +139,6 @@ public final class Scene {
     }
     
     func update(_ deltaTime: TimeInterval) {
-        
         self.world.tick()
         
         let context = SceneUpdateContext(scene: self, deltaTime: deltaTime)

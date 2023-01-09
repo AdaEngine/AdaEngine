@@ -24,15 +24,15 @@ public class RenderEngine: RenderBackend {
         self.renderBackend = renderBackend
     }
     
-    func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
+    public func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
         try self.renderBackend.createWindow(windowId, for: view, size: size)
     }
     
-    func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
+    public func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
         try self.renderBackend.resizeWindow(windowId, newSize: newSize)
     }
     
-    func destroyWindow(_ windowId: Window.ID) throws {
+    public func destroyWindow(_ windowId: Window.ID) throws {
         try self.renderBackend.destroyWindow(windowId)
     }
     
