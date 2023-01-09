@@ -18,9 +18,6 @@ open class Window: View {
     /// We use this id to start drawing.
     public var id: ID = RID()
     
-    // FIXME: (Vlad) Shouldn't be there
-    let renderer2D = RenderEngine2D()
-    
     public var title: String {
         get { self.systemWindow?.title ?? "" }
         set { self.systemWindow?.title = newValue }

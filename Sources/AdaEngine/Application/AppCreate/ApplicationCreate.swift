@@ -46,8 +46,6 @@ public extension App {
         application = try iOSApplication(argc: argc, argv: argv)
 #endif
         
-        Application.shared = application
-        
         guard let appScene = app.scene as? InternalAppScene else {
             fatalError("Incorrect object of App Scene")
         }
