@@ -39,9 +39,9 @@ public class RenderEngine2D {
     private static var maxVerticies = maxQuads * 4
     private static var maxIndecies = maxQuads * 6
     
-    private static let maxLines = 2000;
-    private static let maxLineVertices = maxLines * 2;
-    private static let maxLineIndices = maxLines * 6;
+    private static let maxLines = 2000
+    private static let maxLineVertices = maxLines * 2
+    private static let maxLineIndices = maxLines * 6
     
     init() {
         let device = RenderEngine.shared

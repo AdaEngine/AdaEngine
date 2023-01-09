@@ -27,6 +27,8 @@ open class WindowManager {
     
     public init() { }
     
+    let renderEngine = RenderEngine2D()
+    
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) {
         for window in self.windows {
@@ -36,7 +38,7 @@ open class WindowManager {
             }
             
             if window.canDraw {
-                let context = GUIRenderContext(window: window.id, engine: window.renderer2D)
+                let context = GUIRenderContext(window: window.id, engine: renderEngine)
                 
                 context.beginDraw(in: window.bounds)
                 window.draw(with: context)

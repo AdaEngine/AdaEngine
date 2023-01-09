@@ -6,22 +6,32 @@
 import MetalKit
 import AdaEngine
 
-public class AEView: MetalView {
+/// The view for rendering AdaEngine scenes and views.
+/// You can insert this view in your application and just pass scene or view to constructor.
+/// This view will perfectly fit for any sizes.
+public final class AEView: MetalView {
     
-    private let engineWindow: Window
-    private unowned let sceneView: SceneView
-    private let application: Application
+    /// Contains view where all render happens.
+    /// You can grab information about all views.
+    public let engineWindow: Window
     
-    public init(scene: Scene, frame: CGRect) {
-        
+    /// Create AEView with game scene.
+    public convenience init(scene: Scene, frame: CGRect) {
+        let sceneView = SceneView(scene: scene, frame: frame.toEngineRect)
+        self.init(view: sceneView, frame: frame)
+    }
+    
+    /// Create AEView with AdaEngine.View.
+    public init(view: View, frame: CGRect) {
         let rect = frame.toEngineRect
         
-        self.application = try! AppleApplication(argc: CommandLine.argc, argv: CommandLine.unsafeArgv)
+        /// We should avoid multiple instancing of this object
+        if Application.shared == nil {
+            _ = try! AppleApplication(argc: CommandLine.argc, argv: CommandLine.unsafeArgv)
+        }
         
         let window = Window(frame: rect)
-        let sceneView = SceneView(scene: scene, frame: rect)
-        window.addSubview(sceneView)
-        self.sceneView = sceneView
+        window.addSubview(view)
         
         self.engineWindow = window
         
@@ -30,7 +40,7 @@ public class AEView: MetalView {
         self.delegate = self
         
         do {
-            /// Register view in engine
+            // Register view in the engine.
             try RenderEngine.shared.createWindow(window.id, for: self, size: rect.size)
         } catch {
             print("[AEView Error]", error.localizedDescription)
@@ -42,6 +52,7 @@ public class AEView: MetalView {
     }
     
     deinit {
+        // We should destroy renderable view to avoid unpredictable behaviour.
         try! RenderEngine.shared.destroyWindow(self.engineWindow.id)
     }
 }
@@ -64,41 +75,6 @@ extension AEView: MTKViewDelegate {
         } catch {
             print("[AEView Error]", error.localizedDescription)
         }
-    }
-}
-
-class AppleApplication: Application {
-    override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        try super.init(argc: argc, argv: argv)
-        
-        
-        self.windowManager = AppleWindowManager()
-    }
-}
-
-class AppleWindowManager: WindowManager {
-    override init() {
-        
-    }
-    
-    override func resizeWindow(_ window: Window, size: Size) {
-        
-    }
-    
-    override func createWindow(for window: Window) {
-        super.createWindow(for: window)
-    }
-    
-    override func setWindowMode(_ window: Window, mode: Window.Mode) {
-        
-    }
-    
-    override func closeWindow(_ window: Window) {
-        
-    }
-    
-    override func showWindow(_ window: Window, isFocused: Bool) {
-        
     }
 }
 
