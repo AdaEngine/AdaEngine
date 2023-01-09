@@ -42,7 +42,9 @@ open class Application {
     public init(
         argc: Int32,
         argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
-    ) throws { }
+    ) throws {
+        Self.shared = self
+    }
     
     /// Call this method to start main loop.
     func run() throws {

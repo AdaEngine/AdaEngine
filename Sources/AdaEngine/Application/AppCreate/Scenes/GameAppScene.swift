@@ -5,22 +5,32 @@
 //  Created by v.prusakov on 6/14/22.
 //
 
+/// GameAppScene will present game scene in the pre-configured window.
 public struct GameAppScene: AppScene {
     
     public typealias SceneBlock = () throws -> Scene
     
     public var scene: Never { fatalError() }
     
-    public var _configuration = _AppSceneConfiguration()
-    let gameScene: SceneBlock
+    private let gameScene: SceneBlock
     
     public init(scene: @escaping SceneBlock) {
         self.gameScene = scene
     }
-    
-    public func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window {
+}
+
+// MARK: - InternalAppScene
+
+extension GameAppScene: InternalAppScene {
+    func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window {
         let scene = try self.gameScene()
-        let window = Window(scene: scene, frame: Rect(origin: .zero, size: configuration.minimumSize))
+        
+        let frame = Rect(origin: .zero, size: configuration.minimumSize)
+        let window = Window(frame: frame)
+        
+        let gameSceneView = SceneView(scene: scene, frame: frame)
+        window.addSubview(gameSceneView)
+        
         window.setWindowMode(configuration.windowMode)
         window.minSize = configuration.minimumSize
         

@@ -6,9 +6,5 @@
 //
 
 public protocol Shader {
-    
-}
-
-public protocol RenderPipeline {
-
+    var name: String { get }
 }

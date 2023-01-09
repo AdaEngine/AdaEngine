@@ -32,10 +32,15 @@ extension MetalRenderBackend {
             }
             
             func updateSize() {
+                let size = self.view!.drawableSize
+                if size.width <= 0 && size.height <= 0 {
+                    return
+                }
+                
                 let textureDesc = MTLTextureDescriptor.texture2DDescriptor(
                     pixelFormat: .bgra8Unorm_srgb,
-                    width: Int(self.view!.drawableSize.width),
-                    height: Int(self.view!.drawableSize.height),
+                    width: Int(size.width),
+                    height: Int(size.height),
                     mipmapped: false
                 )
                 

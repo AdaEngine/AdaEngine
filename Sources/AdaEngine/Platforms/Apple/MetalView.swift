@@ -28,19 +28,19 @@ open class MetalView: MTKView {
     
 }
 
-extension CGRect {
+public extension CGRect {
     var toEngineRect: Rect {
         return Rect(origin: self.origin.toEnginePoint, size: self.size.toEngineSize)
     }
 }
 
-extension CGPoint {
+public extension CGPoint {
     var toEnginePoint: Point {
         return Point(x: Float(self.x), y: Float(self.y))
     }
 }
 
-extension CGSize {
+public extension CGSize {
     var toEngineSize: Size {
         return Size(width: Float(self.width), height: Float(self.height))
     }

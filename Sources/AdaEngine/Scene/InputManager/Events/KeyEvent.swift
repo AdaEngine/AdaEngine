@@ -30,4 +30,8 @@ public class KeyEvent: InputEvent {
         hasher.combine(modifiers)
     }
     
+    public static func == (lhs: KeyEvent, rhs: KeyEvent) -> Bool {
+        return lhs.time == rhs.time && lhs.window == rhs.window && lhs.eventId == rhs.eventId && lhs.keyCode == rhs.keyCode && lhs.modifiers == rhs.modifiers
+    }
+    
 }

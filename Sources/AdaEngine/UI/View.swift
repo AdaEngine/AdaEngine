@@ -225,6 +225,13 @@ open class View {
         deletedView.superview = nil
         view.viewDidMove(to: nil)
     }
+    
+    /// Called each frame
+    open func update(_ deltaTime: TimeInterval) {
+        self.subviews.forEach {
+            $0.update(deltaTime)
+        }
+    }
 }
 
 private extension View {

@@ -51,28 +51,14 @@ open class Window: View {
     // Flag indicates that window is active.
     public internal(set) var isActive: Bool = false
     
-    public internal(set) var sceneManager: SceneManager
-    
-    public required init(scene: Scene, frame: Rect) {
-        self.sceneManager = SceneManager()
-        super.init(frame: frame)
-        
-        self.backgroundColor = .clear
-        self.sceneManager.window = self
-        self.sceneManager.presentScene(scene)
-        self.windowManager.createWindow(for: self)
-    }
-    
     public convenience override init() {
         self.init(frame: .zero)
     }
     
     public required init(frame: Rect) {
-        self.sceneManager = SceneManager()
         super.init(frame: frame)
         
         self.backgroundColor = .clear
-        self.sceneManager.window = self
         self.windowManager.createWindow(for: self)
     }
     

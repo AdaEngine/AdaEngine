@@ -12,14 +12,16 @@ import Darwin.C
 #endif
 
 // - TODO: (Vlad) Input manager doesn't work if keyboard set to cirillic mode.
+// - TODO: (Vlad) Add touches handling
 public final class Input {
     
     internal static let shared = Input()
     
     internal var mousePosition: Point = .zero
     
-    internal var eventsPool: [InputEvent] = []
+    internal var eventsPool: Set<InputEvent> = []
     
+    // FIXME: (Vlad) Should think about capacity. We should store ~256 keycode events
     internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
     
@@ -94,6 +96,6 @@ public final class Input {
     }
     
     func receiveEvent(_ event: InputEvent) {
-        self.eventsPool.append(event)
+        self.eventsPool.insert(event)
     }
 }

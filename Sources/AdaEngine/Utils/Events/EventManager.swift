@@ -30,8 +30,8 @@ public final class EventManager {
     }
 }
 
-class EventSubscriber: Cancellable {
-    var completion: ((Any) -> Void)?
+private class EventSubscriber: Cancellable {
+    private(set) var completion: ((Any) -> Void)?
     
     init<T>(completion: @escaping (T) -> Void) {
         self.completion = { value in
