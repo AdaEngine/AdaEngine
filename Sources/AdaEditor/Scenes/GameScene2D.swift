@@ -7,26 +7,28 @@
 
 import AdaEngine
 
-final class PlayerComponent: ScriptComponent {
+struct PlayerMovementSystem: System {
     
-    @RequiredComponent var body: PhysicsBody2DComponent
+    static let playerQuery = EntityQuery(where: .has(PlayerComponent.self) && .has(PhysicsBody2DComponent.self))
     
-    override func update(_ deltaTime: TimeInterval) {
-        if Input.isKeyPressed(.space) {
-            body.applyLinearImpulse([0, 1], point: .zero, wake: true)
-        }
-    }
+    init(scene: Scene) { }
     
-    override func onEvent(_ events: Set<InputEvent>) {
-        for event in events {
-            if let touch = event as? TouchEvent {
-                if touch.phase == .began {
-                    body.applyLinearImpulse([0, 1], point: .zero, wake: true)
-                }
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.playerQuery).forEach { entity in
+            let body = entity.components[PhysicsBody2DComponent.self]!
+            
+            if Input.isKeyPressed(.space) {
+                body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+            }
+            
+            for touch in Input.getTouches() where touch.phase == .began {
+                body.applyLinearImpulse([0, 1], point: .zero, wake: true)
             }
         }
     }
 }
+
+struct PlayerComponent: Component { }
 
 struct TubeComponent: Component { }
 
@@ -150,7 +152,7 @@ final class GameScene2D {
         scene.addSystem(TubeMovementSystem.self)
         scene.addSystem(TubeSpawnerSystem.self)
         scene.addSystem(TubeDestoryerSystem.self)
-        
+        scene.addSystem(PlayerMovementSystem.self)
         return scene
     }
 

@@ -24,8 +24,13 @@ public final class Input {
     // FIXME: (Vlad) Should think about capacity. We should store ~256 keycode events
     internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
+    internal private(set) var touches: Set<TouchEvent> = []
     
     // MARK: - Public Methods
+    
+    public static func getTouches() -> Set<TouchEvent> {
+        return self.shared.touches
+    }
     
     public static func isKeyPressed(_ keyCode: KeyCode) -> Bool {
         return self.shared.keyEvents[keyCode]?.status == .down
@@ -77,14 +82,16 @@ public final class Input {
     
     // MARK: Internal
     
+    // TODO: (Vlad) Think about moving this code to receiveEvent(_:) method
     func processEvents() {
         for event in eventsPool {
-            
             switch event {
             case let keyEvent as KeyEvent:
                 self.keyEvents[keyEvent.keyCode] = keyEvent
             case let mouseEvent as MouseEvent:
                 self.mouseEvents[mouseEvent.button] = mouseEvent
+            case let touchEvent as TouchEvent:
+                self.touches.insert(touchEvent)
             default:
                 break
             }
