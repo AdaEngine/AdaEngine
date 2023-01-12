@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
+// TODO: (Vlad) Should we know information about viewport where event happend?
+// TODO: (Vlad) Should we use protocol instead of inheritence the base class?
+
 /// Base class for all input events
 public class InputEvent: Hashable, Identifiable {
     

@@ -75,7 +75,7 @@ public extension TextureAtlas {
         
         // We should store reference to the atlas, because if the altas deiniting from memory
         // then the GPU representation will be also deinited.
-        // This also doesn't has reference cycle here, because the atlas don't store slices.
+        // This also doesn't has reference cycle here, because the atlas doesn't store slices.
         public private(set) var atlas: TextureAtlas
         
         required init(atlas: TextureAtlas, min: Vector2, max: Vector2, size: Size) {

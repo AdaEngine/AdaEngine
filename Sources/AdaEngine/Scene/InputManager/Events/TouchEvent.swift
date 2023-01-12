@@ -5,8 +5,15 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
+// TODO: (Vlad) Number of taps?
+// TODO: (Vlad) finger index?
+// TODO: (Vlad) Angles?
+// TODO: (Vlad) radius of pressure?
+
+/// Event describing the status of a finger touching the screen.
 public final class TouchEvent: InputEvent {
     
+    /// Describe the phase of a finger touch
     public enum Phase: Equatable, Hashable {
         case began
         case moved
@@ -14,14 +21,17 @@ public final class TouchEvent: InputEvent {
         case cancelled
     }
     
+    /// The position of the touch in screen space pixel coordinates.
+    public let location: Point
+    
+    /// Describe the phase of a finger touch
+    public let phase: Phase
+    
     internal init(window: Window.ID, location: Point, phase: Phase, time: TimeInterval) {
         self.location = location
         self.phase = phase
         super.init(window: window, time: time)
     }
-    
-    public let location: Point
-    public let phase: Phase
     
     public override func hash(into hasher: inout Hasher) {
         super.hash(into: &hasher)
