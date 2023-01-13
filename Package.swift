@@ -14,6 +14,12 @@ import Glibc
 import Darwin.C
 #endif
 
+#if (arch(arm64) || arch(arm))
+let useNeon = true
+#else
+let useNeon = false
+#endif
+
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 let isVulkanEnabled = false
 #else
@@ -137,7 +143,6 @@ var adaEngineSwiftSettings = swiftSettings
 
 var adaEngineDependencies: [Target.Dependency] = [
     "Math",
-    .product(name: "stb_image", package: "Cstb"),
     .product(name: "Collections", package: "swift-collections"),
     "Yams",
     "libpng",
@@ -206,6 +211,29 @@ targets += [
 targets.append(contentsOf: swiftLintTargets)
 #endif
 
+// MARK: - Vendors -
+
+// libpng
+
+targets += [
+    .target(
+        name: "libpng",
+        exclude: ["Project.swift"],
+        cSettings: [
+            .define("PNG_ARM_NEON_OPT", to: useNeon ? "2" : "0")
+        ]
+    )
+]
+
+// box2d
+
+targets += [
+    .target(
+        name: "box2d",
+        exclude: ["Project.swift"]
+    )
+]
+
 // MARK: - Package -
 
 let package = Package(
@@ -216,21 +244,22 @@ let package = Package(
         .macOS(.v11),
     ],
     products: products,
-    dependencies: [
-        .package(path: "vendors/Cstb"),
-        .package(path: "vendors/swift-collections"),
-        .package(path: "vendors/Yams"),
-        .package(path: "vendors/libpng"),
-        .package(path: "vendors/box2d"),
-        // Plugins
-        .package(path: "vendors/swift-docc-plugin"),
-    ],
+    dependencies: [ ],
     targets: targets,
     swiftLanguageVersions: [.v5],
     cxxLanguageStandard: .cxx14
 )
 
-// MARK: - Vulkan
+// FIXME: If possible - move to local `vendors` folder
+package.dependencies += [
+    .package(url: "https://github.com/apple/swift-collections", from: "1.0.4"),
+    .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
+    
+    // Plugins
+    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+]
+
+// MARK: - Vulkan -
 //
 //// We turn on vulkan via build
 //if isVulkanEnabled {
