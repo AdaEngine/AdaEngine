@@ -12,8 +12,6 @@ DerivedData/
 /*.xcscheme
 *.xcworkspace
 
-!/Example/EmbeddableView/*.xcodeproj
-
 *.xcodeproj/
 .swiftpm/
 
