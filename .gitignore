@@ -12,7 +12,7 @@ DerivedData/
 /*.xcscheme
 *.xcworkspace
 
-!Example/**/*.xcodeproj
+!/Example/EmbeddableView/*.xcodeproj
 
 *.xcodeproj/
 .swiftpm/
