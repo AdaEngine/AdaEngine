@@ -46,6 +46,14 @@ public extension App {
         application = try iOSApplication(argc: argc, argv: argv)
 #endif
         
+#if os(Android)
+        application = try AndroidApplication(argc: argc, argv: argv)
+#endif
+        
+#if os(Linux)
+        application = try LinuxApplication(argc: argc, argv: argv)
+#endif
+        
         guard let appScene = app.scene as? InternalAppScene else {
             fatalError("Incorrect object of App Scene")
         }
