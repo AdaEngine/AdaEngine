@@ -183,6 +183,13 @@ var targets: [Target] = [
     )
 ]
 
+// MARK: Documentations
+
+targets += [
+    // Empty target with documentation docc files
+    .target(name: "Documentation")
+]
+
 #if os(Android) || os(Linux)
 targets += [
     .systemLibrary(
@@ -218,7 +225,7 @@ targets.append(contentsOf: swiftLintTargets)
 targets += [
     .target(
         name: "libpng",
-        exclude: ["Project.swift"],
+        exclude: ["Project.swift", "Derived"],
         cSettings: [
             .define("PNG_ARM_NEON_OPT", to: useNeon ? "2" : "0")
         ]
@@ -230,7 +237,7 @@ targets += [
 targets += [
     .target(
         name: "box2d",
-        exclude: ["Project.swift"]
+        exclude: ["Project.swift", "Derived"]
     )
 ]
 
