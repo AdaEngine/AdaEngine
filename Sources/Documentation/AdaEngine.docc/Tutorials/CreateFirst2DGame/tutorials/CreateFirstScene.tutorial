@@ -1,0 +1,90 @@
+@Tutorial(time: 20) {
+    @Intro(title: "Create your first scene") {
+        In this tutorial you can learn how to create your first 2D scene using AdaEngine
+    }
+    
+    @Section(title: "Create an app") {
+        
+        @ContentAndMedia {
+            For the first time, we should create base files to launch our application
+        }
+
+        @Steps {
+            @Step {
+                Let's create entry point in your game. Create file called `FirstGameApp.swift` and import AdaEngine.
+                Create a struct named `FirstGameApp` and extend it using protocol `App`.
+                This protocol using to create AdaEngine Application.
+                
+                @Code(name: "FirstGameApp.swift", file: CF2G-1-1-app.swift)
+            }
+            
+            @Step {
+                Ok, now we should create a game scene. To do this, let's create a file named `FirstScene.swift`. 
+                Import AdaEngine, and create a class named `FirstScene`. After that add method `makeScene` which returns `Scene` object.
+                In this method we will create and configure our scene later.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-1-2-scene.swift)
+            }
+            
+            @Step {
+                Great! Now we can pass our game scene to the `GameAppScene` object.
+                
+                @Code(name: "FirstGameApp.swift", file: CF2G-1-3-app.swift)
+            }
+            
+            @Step {
+                The last one but not least, we should create a scene to avoid compile error. Create the `Scene` instance in your `FirstScene.swift` file.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-1-4-scene.swift)
+            }
+        }
+    }
+        
+    @Section(title: "Create a main camera.") {
+        
+        @ContentAndMedia {
+            Our game needs to have a camera, where all game entities will render. By default, Scene object has a camera, but for our 2D game isn't enough this camera. All objects in AdaEngine called `Entity`. Entities can store data called `Component`.
+<!--            We should link to ECS article here -->
+        }
+        
+        @Steps {
+            @Step {
+                Let's create our first entity who will hold our camera component.
+                Create instance of Entity with name "Camera" and then create instance of `Camera`
+                
+                @Code(name: "FirstScene.swift", file: CF2G-2-1-camera.swift)
+            }
+            
+            @Step {
+                For 2D game we should use orthogonal projection, let's set this projection to our camera instance.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-2-2-camera.swift)
+            }
+            
+            @Step {
+                We should set our camera as primal. AdaEngine will catch this flag and set camera as main for this scene.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-2-3-camera.swift)
+            }
+            
+            @Step {
+                And last, add camera to the entity using `+=` operator and add this entity to the scene.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-2-4-camera.swift)
+            }
+        }
+    }
+        
+    @Section(title: "The first sprite") {
+        @ContentAndMedia {
+            Now we can create our first sprite
+        }
+        
+        @Steps {
+            @Step {
+                
+                @Code(name: "FirstScene.swift", file: CF2G-3-1-sprite.swift)
+            }
+        }
+    }
+}
