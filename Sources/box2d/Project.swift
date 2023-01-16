@@ -19,7 +19,9 @@ let project = Project(
             productName: "box2d",
             bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).box2d",
             deploymentTarget: .macOS(targetVersion: "11.0"),
-            sources: ["Sources/box2d/**"]
+            sources: [
+                .glob("**/*", excluding: ["Project.swift"])
+            ]
         )
     ]
 )

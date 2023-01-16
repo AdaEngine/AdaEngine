@@ -41,8 +41,6 @@ public final class SceneRendering {
     let cameraUniformRID: RID
     let spotlightUniformRID: RID
     
-    let shader: RID
-    
     init(scene: Scene) {
         self.scene = scene
         
@@ -50,7 +48,6 @@ public final class SceneRendering {
         
         self.spotlightUniformRID = RenderEngine.shared.makeUniform(SpotLightUniform.self, count: 1, offset: 0, options: .storageShared)
         
-        self.shader = Self.makeShaders()
     }
     
     func beginRendering() {
@@ -59,12 +56,12 @@ public final class SceneRendering {
             return
         }
         
-        self.currentDraw = RenderEngine.shared.beginDraw(for: window)
+//        self.currentDraw = RenderEngine.shared.beginDraw(for: window)
     }
     
     func endRendering() {
         self.flush()
-        RenderEngine.shared.drawEnd(self.currentDraw)
+//        RenderEngine.shared.drawEnd(self.currentDraw)
     }
     
     func renderMesh(_ mesh: Mesh, material: Material) {
@@ -76,21 +73,9 @@ public final class SceneRendering {
     }
     
     func flush() {
-        RenderEngine.shared.bindUniformSet(self.currentDraw, uniformSet: self.cameraUniformRID, at: 0)
-        RenderEngine.shared.bindUniformSet(self.currentDraw, uniformSet: self.spotlightUniformRID, at: 1)
+//        RenderEngine.shared.bindUniformSet(self.currentDraw, uniformSet: self.cameraUniformRID, at: 0)
+//        RenderEngine.shared.bindUniformSet(self.currentDraw, uniformSet: self.spotlightUniformRID, at: 1)
         
-        RenderEngine.shared.bindRenderState(self.cameraUniformRID, renderPassId: self.shader)
-    }
-    
-    // MARK: Prepare Shaders
-    
-    private static func makeShaders() -> RID {
-        let shaderDesc = ShaderDescriptor(
-            shaderName: "defaultMaterial",
-            vertexFunction: "vertex_main",
-            fragmentFunction: "fragment_main"
-        )
-        
-        return RenderEngine.shared.makeShader(from: shaderDesc)
+//        RenderEngine.shared.bindRenderState(self.cameraUniformRID, renderPipeline: self.shader)
     }
 }

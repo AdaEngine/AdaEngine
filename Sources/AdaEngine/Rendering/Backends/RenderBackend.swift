@@ -61,12 +61,13 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Shaders
     
-    /// Create shader from descriptor and register it in engine.
-    func makeShader(from descriptor: ShaderDescriptor) -> RID
+    /// Create shader from descriptor.
+    func makeShader(from descriptor: ShaderDescriptor) -> Shader
     
-    /// Create pipeline state from shader and register it in engine.
-    /// - Returns: Resource ID referenced to pipeline instance.
-    func makePipelineState(for shader: RID) -> RID
+    func makeRenderPass(from descriptor: RenderPassDescriptor) -> RenderPass
+    
+    /// Create pipeline state from shader.
+    func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline
     
     // MARK: - Uniforms
     
@@ -86,28 +87,11 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Draw
     
-    func beginDraw(for window: Window.ID) -> RID
+    func beginDraw(for window: Window.ID) -> DrawList
     
-    func bindVertexArray(_ draw: RID, vertexArray: RID)
+    func beginDraw(for window: Window.ID, renderPass: RenderPass) -> DrawList
     
-    func bindIndexArray(_ draw: RID, indexArray: RID)
+    func draw(_ list: DrawList, indexCount: Int, instancesCount: Int)
     
-    func bindUniformSet(_ draw: RID, uniformSet: RID, at index: Int)
-    
-    func bindTexture(_ draw: RID, texture: RID, at index: Int)
-    
-    func bindTriangleFillMode(_ draw: RID, mode: TriangleFillMode)
-    
-    func bindIndexPrimitive(_ draw: RID, mode: IndexPrimitive)
-    
-    func bindRenderState(_ draw: RID, renderPassId: RID)
-    
-    func bindDebugName(name: String, forDraw draw: RID)
-    
-    func setLineWidth(_ lineWidth: Float, forDraw draw: RID)
-    
-    func draw(_ list: RID, indexCount: Int, instancesCount: Int)
-    
-    /// Release any data associated with the current draw.
-    func drawEnd(_ drawId: RID)
+    func endDrawList(_ drawList: DrawList)
 }

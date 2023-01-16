@@ -33,7 +33,6 @@ class MetalRenderBackend: RenderBackend {
     
     private let context: Context
     private var currentFrameIndex: Int = 0
-    private var currentBuffers: [MTLCommandBuffer] = []
     private var maxFramesInFlight = 3
     
     private var resourceMap: ResourceHashMap<MTLResource> = [:]
@@ -44,24 +43,14 @@ class MetalRenderBackend: RenderBackend {
     private var indexArrays: ResourceHashMap<IndexArray> = [:]
     private var vertexArrays: ResourceHashMap<VertexArray> = [:]
     
-    private var shaders: ResourceHashMap<Shader> = [:]
     private var textures: ResourceHashMap<GPUTexture> = [:]
     
     private var renderPipelineStateMap: ResourceHashMap<PipelineState> = [:]
-    
-    private var depthState: MTLDepthStencilState!
     
     private var inFlightSemaphore: DispatchSemaphore!
     
     init(appName: String) {
         self.context = Context()
-        
-        // TEST
-        let depthStateDescriptor = MTLDepthStencilDescriptor()
-        depthStateDescriptor.depthCompareFunction = MTLCompareFunction.less
-        depthStateDescriptor.isDepthWriteEnabled = true
-        
-        self.depthState = self.context.physicalDevice.makeDepthStencilState(descriptor: depthStateDescriptor)
         
         self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
     }
@@ -80,42 +69,38 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func destroyWindow(_ windowId: Window.ID) throws {
-        guard let window = self.context.windows[windowId] else {
+        guard self.context.windows[windowId] != nil else {
             return
-        }
-        
-        if let draw = self.drawList.first(where: { $0.value.window === window }) {
-            self.drawList[draw.key] = nil
         }
         
         self.context.destroyWindow(by: windowId)
     }
     
+    // FIXME: (Vlad) I'm not sure how it should works with multiple window instances.
     func beginFrame() throws {
         for (_, window) in self.context.windows {
             window.commandBuffer = window.commandQueue.makeCommandBuffer()
-            window.renderEncoder = window.commandBuffer?.makeRenderCommandEncoder(descriptor: window.view!.currentRenderPassDescriptor!)
         }
     }
     
     func endFrame() throws {
         self.inFlightSemaphore.wait()
         
-        for (_, window) in self.context.windows {
-            guard let currentDrawable = window.view?.currentDrawable else {
+        for window in self.context.windows.values {
+            guard let currentDrawable = window.view?.currentDrawable, let commandBuffer = window.commandBuffer else {
                 return
             }
             
-            window.renderEncoder.endEncoding()
+            commandBuffer.present(currentDrawable)
             
-            window.commandBuffer?.present(currentDrawable)
+            commandBuffer.commit()
             
-            window.commandBuffer?.commit()
-            
-            window.commandBuffer?.addCompletedHandler { _ in
+            commandBuffer.addCompletedHandler { _ in
                 self.inFlightSemaphore.signal()
             }
         }
+        
+        currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
     }
     
     func setClearColor(_ color: Color, forWindow windowId: Window.ID) {
@@ -123,10 +108,24 @@ class MetalRenderBackend: RenderBackend {
             return
         }
         
-        window.view?.clearColor = MTLClearColor(red: Double(color.red), green: Double(color.green), blue: Double(color.blue), alpha: Double(color.alpha))
+        window.view?.clearColor = color.toMetalClearColor
     }
     
-    func makeShader(from descriptor: ShaderDescriptor) -> RID {
+    func makeRenderPass(with descriptor: RenderPassDescriptor) -> RenderPass {
+        let renderPass = MTLRenderPassDescriptor()
+
+        for (index, attachment) in descriptor.attachments.enumerated() {
+            let mtlAttachment = renderPass.colorAttachments[index]!
+            mtlAttachment.loadAction = attachment.loadAction.toMetal
+            mtlAttachment.clearColor = attachment.clearColor.toMetalClearColor
+        }
+        
+        renderPass.depthAttachment.loadAction = descriptor.depthLoadAction.toMetal
+        
+        return MetalRenderPass(descriptor: descriptor, renderPass: renderPass)
+    }
+    
+    func makeShader(from descriptor: ShaderDescriptor) -> Shader {
         do {
             let library: MTLLibrary
             
@@ -143,53 +142,111 @@ class MetalRenderBackend: RenderBackend {
             let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
             let fragmentFunc = library.makeFunction(name: descriptor.fragmentFunction)!
             
-            let shader = Shader(binary: library, vertexFunction: vertexFunc, fragmentFunction: fragmentFunc)
-            
-            for (index, attribute) in descriptor.vertexDescriptor.attributes.enumerated() {
-                shader.vertexDescriptor.attributes[index].offset = attribute.offset
-                shader.vertexDescriptor.attributes[index].bufferIndex = attribute.bufferIndex
-                shader.vertexDescriptor.attributes[index].format = attribute.format.metalFormat
-            }
-            
-            for (index, layout) in descriptor.vertexDescriptor.layouts.enumerated() {
-                shader.vertexDescriptor.layouts[index].stride = layout.stride
-            }
-            
-            return self.shaders.setValue(shader)
+            return MetalShader(
+                name: descriptor.shaderName,
+                library: library,
+                vertexFunction: vertexFunc,
+                fragmentFunction: fragmentFunc
+            )
         } catch {
             fatalError(error.localizedDescription)
         }
     }
     
-    func makePipelineState(for shaderRid: RID) -> RID {
-        guard let shader = self.shaders[shaderRid] else {
-            fatalError("Shader not found")
+    func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
+        let pipelineDescriptor = MTLRenderPipelineDescriptor()
+        pipelineDescriptor.label = descriptor.debugName
+        
+        let vertexDescriptor = MTLVertexDescriptor()
+        
+        for (index, attribute) in descriptor.vertexDescriptor.attributes.enumerated() {
+            vertexDescriptor.attributes[index].offset = attribute.offset
+            vertexDescriptor.attributes[index].bufferIndex = attribute.bufferIndex
+            vertexDescriptor.attributes[index].format = attribute.format.metalFormat
         }
         
-        let pipelineDescriptor = MTLRenderPipelineDescriptor()
+        for (index, layout) in descriptor.vertexDescriptor.layouts.enumerated() {
+            vertexDescriptor.layouts[index].stride = layout.stride
+        }
+        
+        guard let shader = descriptor.shader as? MetalShader else {
+            fatalError("Incorrect type of shader")
+        }
+        
         pipelineDescriptor.vertexFunction = shader.vertexFunction
         pipelineDescriptor.fragmentFunction = shader.fragmentFunction
-        pipelineDescriptor.vertexDescriptor = shader.vertexDescriptor
-        pipelineDescriptor.depthAttachmentPixelFormat = .depth32Float_stencil8
-        pipelineDescriptor.stencilAttachmentPixelFormat = .depth32Float_stencil8
-        pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb
-        pipelineDescriptor.colorAttachments[0].sourceRGBBlendFactor = .sourceAlpha
-        pipelineDescriptor.colorAttachments[0].sourceAlphaBlendFactor = .sourceAlpha
-        pipelineDescriptor.colorAttachments[0].isBlendingEnabled = true
-        pipelineDescriptor.colorAttachments[0].rgbBlendOperation = .add
-        pipelineDescriptor.colorAttachments[0].alphaBlendOperation = .add
-        pipelineDescriptor.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
-        pipelineDescriptor.colorAttachments[0].destinationRGBBlendFactor = .oneMinusSourceAlpha
+        
+        pipelineDescriptor.vertexDescriptor = vertexDescriptor
+        
+        for (index, attachment) in descriptor.colorAttachments.enumerated() {
+            let colorAttachment = pipelineDescriptor.colorAttachments[index]!
+            
+            colorAttachment.pixelFormat = attachment.format.toMetal
+            colorAttachment.isBlendingEnabled = attachment.isBlendingEnabled
+            colorAttachment.rgbBlendOperation = attachment.rgbBlendOperation.toMetal
+            colorAttachment.alphaBlendOperation = attachment.alphaBlendOperation.toMetal
+            colorAttachment.sourceRGBBlendFactor = attachment.sourceRGBBlendFactor.toMetal
+            colorAttachment.sourceAlphaBlendFactor = attachment.sourceAlphaBlendFactor.toMetal
+            colorAttachment.destinationRGBBlendFactor = attachment.destinationRGBBlendFactor.toMetal
+            colorAttachment.destinationAlphaBlendFactor = attachment.destinationAlphaBlendFactor.toMetal
+        }
+        
+        var depthStencilState: MTLDepthStencilState?
+        
+        if let depthStencilDesc = descriptor.depthStencilDescriptor {
+            pipelineDescriptor.depthAttachmentPixelFormat = descriptor.depthPixelFormat.toMetal
+            pipelineDescriptor.stencilAttachmentPixelFormat = descriptor.depthPixelFormat.toMetal
+            
+            let depthStencilDescriptor = MTLDepthStencilDescriptor()
+            depthStencilDescriptor.depthCompareFunction = depthStencilDesc.depthCompareOperator.toMetal
+            depthStencilDescriptor.isDepthWriteEnabled = depthStencilDesc.isDepthWriteEnabled
+            
+            if depthStencilDesc.isEnableStencil {
+                
+                guard let stencilDesc = depthStencilDesc.stencilOperationDescriptor else {
+                    fatalError("StencilOperationDescriptor instance not passed to DepthStencilDescriptor object.")
+                }
+                
+                let stencilDescriptor = MTLStencilDescriptor()
+                stencilDescriptor.depthFailureOperation = stencilDesc.depthFail.toMetal
+                stencilDescriptor.depthStencilPassOperation = stencilDesc.pass.toMetal
+                stencilDescriptor.stencilFailureOperation = stencilDesc.fail.toMetal
+                stencilDescriptor.stencilCompareFunction = stencilDesc.compare.toMetal
+                
+                depthStencilDescriptor.backFaceStencil = stencilDescriptor
+                depthStencilDescriptor.frontFaceStencil = stencilDescriptor
+            }
+
+            depthStencilState = self.context.physicalDevice.makeDepthStencilState(descriptor: depthStencilDescriptor)
+        }
         
         do {
             let state = try self.context.physicalDevice.makeRenderPipelineState(descriptor: pipelineDescriptor)
-            
-            let pipelineState = PipelineState(state: state)
-            return self.renderPipelineStateMap.setValue(pipelineState)
+            return MetalRenderPipeline(
+                descriptor: descriptor,
+                renderPipeline: state,
+                depthState: depthStencilState
+            )
         } catch {
             fatalError(error.localizedDescription)
         }
+    }
+    
+    func makeRenderPass(from descriptor: RenderPassDescriptor) -> RenderPass {
+        let renderPassDescriptor = MTLRenderPassDescriptor()
         
+        for (index, attachment) in descriptor.attachments.enumerated() {
+            if attachment.format.isDepthFormat {
+                renderPassDescriptor.depthAttachment.loadAction = descriptor.depthLoadAction.toMetal
+                renderPassDescriptor.depthAttachment.clearDepth = descriptor.clearDepth
+            } else {
+                renderPassDescriptor.colorAttachments[index].clearColor = attachment.clearColor.toMetalClearColor
+                renderPassDescriptor.colorAttachments[index].slice = attachment.slice
+                renderPassDescriptor.colorAttachments[index].loadAction = attachment.loadAction.toMetal
+            }
+        }
+        
+        return MetalRenderPass(descriptor: descriptor, renderPass: renderPassDescriptor)
     }
     
     // MARK: - Buffers
@@ -271,8 +328,6 @@ class MetalRenderBackend: RenderBackend {
         
         return MetalBuffer(buffer)
     }
-    
-    var drawList: ResourceHashMap<Draw> = [:]
 }
 
 // MARK: Texture
@@ -302,7 +357,7 @@ extension MetalRenderBackend {
             mtlUsage.insert(.shaderWrite)
         }
         
-        if usage.contains(.render) {
+        if usage.contains(.renderTarget) {
             mtlUsage.insert(.renderTarget)
         }
         
@@ -362,68 +417,50 @@ extension MetalRenderBackend {
 
 extension MetalRenderBackend {
     
-    func beginDraw(for window: Window.ID) -> RID {
+    func beginDraw(for window: Window.ID) -> DrawList {
         guard let window = self.context.windows[window] else {
             fatalError("Render Window not exists.")
         }
         
-        let draw = Draw(
-            window: window,
-            commandBuffer: window.commandBuffer!,
-            renderPassDescriptor: window.renderPassDescriptor,
-            renderEncoder: window.renderEncoder
+        guard let mtlRenderPass = window.view?.currentRenderPassDescriptor else {
+            fatalError("Can't get render pass for window")
+        }
+        
+        let renderPass = MetalRenderPass(descriptor: RenderPassDescriptor(), renderPass: mtlRenderPass)
+        
+        guard let mtlCommandBuffer = window.commandBuffer else {
+            fatalError("Command Buffer not exists")
+        }
+        
+        let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
+        let commandBuffer = MetalRenderCommandBuffer(encoder: encoder)
+        
+        return DrawList(
+            renderPass: renderPass,
+            commandBuffer: commandBuffer
         )
+    }
+    
+    func beginDraw(for window: Window.ID, renderPass: RenderPass) -> DrawList {
+        guard let window = self.context.windows[window] else {
+            fatalError("Render Window not exists.")
+        }
         
-        return self.drawList.setValue(draw)
-    }
-    
-    func bindTexture(_ drawId: RID, texture: RID, at index: Int) {
-        self.drawList[drawId]?.textures[index] = texture
-    }
-    
-    func bindDebugName(name: String, forDraw drawId: RID) {
-        self.drawList[drawId]?.debugName = name
-    }
-    
-    func bindLineWidth(_ width: Float, forDraw drawId: RID) {
-        self.drawList[drawId]?.lineWidth = width
-    }
-    
-    func bindTriangleFillMode(_ draw: RID, mode: TriangleFillMode) {
-        self.drawList[draw]?.triangleFillMode = mode
-    }
-    
-    func bindIndexPrimitive(_ draw: RID, mode: IndexPrimitive) {
-        self.drawList[draw]?.indexPrimitive = mode
-    }
-    
-    func bindRenderState(_ drawRid: RID, renderPassId: RID) {
-        var draw = self.drawList[drawRid]
-        assert(draw != nil, "Draw is not exists")
-        draw?.pipelineState = renderPassId
+        guard let mtlCommandBuffer = window.commandBuffer else {
+            fatalError("Command Buffer not exists")
+        }
         
-        self.drawList[drawRid] = draw
-    }
-    
-    func bindUniformSet(_ drawRid: RID, uniformSet: RID, at index: Int) {
-        var draw = self.drawList[drawRid]
-        assert(draw != nil, "Draw is not exists")
-        draw?.uniformSet[index] = uniformSet
-        self.drawList[drawRid] = draw
-    }
-    
-    func bindVertexArray(_ drawRid: RID, vertexArray: RID) {
-        var draw = self.drawList[drawRid]
-        assert(draw != nil, "Draw is not exists")
-        draw?.vertexArray = vertexArray
-        self.drawList[drawRid] = draw
-    }
-    
-    func bindIndexArray(_ drawRid: RID, indexArray: RID) {
-        var draw = self.drawList[drawRid]
-        assert(draw != nil, "Draw is not exists")
-        draw?.indexArray = indexArray
-        self.drawList[drawRid] = draw
+        guard let mtlRenderPassDesc = (renderPass as? MetalRenderPass)?.renderPass else {
+            fatalError("Not supported render pass type")
+        }
+        
+        let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPassDesc)!
+        let commandBuffer = MetalRenderCommandBuffer(encoder: encoder)
+        
+        return DrawList(
+            renderPass: renderPass,
+            commandBuffer: commandBuffer
+        )
     }
     
     func makeUniform<T>(_ uniformType: T.Type, count: Int, offset: Int, options: ResourceOptions) -> RID {
@@ -463,52 +500,49 @@ extension MetalRenderBackend {
         return self.resourceMap.setValue(texture)
     }
     
-    func setLineWidth(_ lineWidth: Float, forDraw drawRid: RID) {
-        guard var draw = self.drawList[drawRid] else {
-            fatalError("Draw list not found")
-        }
-        
-        draw.lineWidth = lineWidth
-        self.drawList[drawRid] = draw
-    }
-    
-    // swiftlint:disable:next cyclomatic_complexity
-    func draw(_ drawRid: RID, indexCount: Int, instancesCount: Int) {
-        guard let draw = self.drawList[drawRid] else {
-            fatalError("Draw not found")
-        }
-        
-        guard let state = draw.pipelineState, let piplineState = self.renderPipelineStateMap[state] else {
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
+    func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {
+        guard let renderPipeline = (list.renderPipeline as? MetalRenderPipeline) else {
             fatalError("Draw doesn't have a pipeline state")
         }
         
-        let encoder = draw.renderEncoder
+        guard let encoder = (list.commandBuffer as? MetalRenderCommandBuffer)?.encoder else {
+            fatalError("Command buffer")
+        }
         
-        //        guard let encoder = draw.commandBuffer.makeRenderCommandEncoder(descriptor: draw.renderPassDescriptor) else {
-        //            assertionFailure("Can't create render command encoder")
-        //            return
-        //        }
-        
-        if let name = draw.debugName {
+        if let name = list.debugName {
             encoder.label = name
         }
         
+        if let depthStencilState = renderPipeline.depthStencilState {
+//            encoder.setDepthStencilState(depthStencilState)
+        }
+        
         // Should be in draw settings
-        encoder.setCullMode(.back)
+        encoder.setCullMode(renderPipeline.descriptor.backfaceCulling ? .back : .front)
         
         encoder.setFrontFacing(.counterClockwise)
         
-        if let state = piplineState.state {
-            encoder.setRenderPipelineState(state)
+        encoder.setRenderPipelineState(renderPipeline.renderPipeline)
+        
+        if list.isScissorEnabled {
+            let rect = list.scissorRect
+            
+            encoder.setScissorRect(
+                MTLScissorRect(
+                    x: Int(rect.origin.x),
+                    y: Int(rect.origin.y),
+                    width: Int(rect.size.width),
+                    height: Int(rect.size.height)
+                )
+            )
         }
         
-        //        encoder.setDepthStencilState(depthState)
-        
-        guard let iaRid = draw.indexArray, let indexArray = self.indexArrays[iaRid] else {
+        guard let iaRid = list.indexArray, let indexArray = self.indexArrays[iaRid] else {
             fatalError("can't draw without index array")
         }
         
-        if let vaRid = draw.vertexArray, let vertexArray = self.vertexArrays[vaRid] {
+        if let vaRid = list.vertexArray, let vertexArray = self.vertexArrays[vaRid] {
             for vertexRid in vertexArray.buffers {
                 guard let vertexBuffer = self.vertexBuffers[vertexRid] else {
                     continue
@@ -518,7 +552,7 @@ extension MetalRenderBackend {
             }
         }
         
-        let textures: [MTLTexture] = draw.textures.compactMap {
+        let textures: [MTLTexture] = list.textures.compactMap {
             guard let rid = $0 else { return nil }
             return self.textures[rid]?.resource
         }
@@ -527,7 +561,7 @@ extension MetalRenderBackend {
             encoder.setFragmentTextures(textures, range: 0..<textures.count)
         }
         
-        for (index, uniRid) in draw.uniformSet {
+        for (index, uniRid) in list.uniformSet {
             let uniform = self.uniformSet[uniRid]!
             encoder.setVertexBuffer(uniform.buffer, offset: uniform.offset, index: index)
         }
@@ -536,7 +570,7 @@ extension MetalRenderBackend {
             fatalError("Can't get index buffer for draw")
         }
         
-        switch draw.triangleFillMode {
+        switch list.triangleFillMode {
         case .fill:
             encoder.setTriangleFillMode(.fill)
         case .lines:
@@ -544,7 +578,7 @@ extension MetalRenderBackend {
         }
         
         encoder.drawIndexedPrimitives(
-            type: draw.indexPrimitive == .line ? .line : .triangle,
+            type: list.indexPrimitive == .line ? .line : .triangle,
             indexCount: indexCount,
             indexType: indexArray.format == .uInt32 ? .uint32 : .uint16,
             indexBuffer: indexBuffer.buffer,
@@ -553,28 +587,12 @@ extension MetalRenderBackend {
         )
     }
     
-    func drawEnd(_ drawId: RID) {
-        self.drawList[drawId] = nil
+    func endDrawList(_ drawList: DrawList) {
+        (drawList.commandBuffer as? MetalRenderCommandBuffer)?.encoder.endEncoding()
     }
 }
 
 extension MetalRenderBackend {
-    
-    struct Draw {
-        var window: Context.RenderWindow
-        var debugName: String?
-        let commandBuffer: MTLCommandBuffer
-        let renderPassDescriptor: MTLRenderPassDescriptor
-        var vertexArray: RID?
-        var indexArray: RID?
-        var uniformSet: [Int: RID] = [:]
-        var textures: [RID?] = [RID?].init(repeating: nil, count: 32)
-        var pipelineState: RID?
-        var lineWidth: Float?
-        var triangleFillMode: TriangleFillMode = .fill
-        var indexPrimitive: IndexPrimitive = .triangle
-        var renderEncoder: MTLRenderCommandEncoder
-    }
     
     struct Buffer {
         var buffer: MTLBuffer
@@ -602,14 +620,6 @@ extension MetalRenderBackend {
         var vertexCount: Int = 0
     }
     
-    struct Shader {
-        let binary: MTLLibrary
-        let vertexFunction: MTLFunction
-        let fragmentFunction: MTLFunction
-        
-        var vertexDescriptor: MTLVertexDescriptor = MTLVertexDescriptor()
-    }
-    
     struct PipelineState {
         var state: MTLRenderPipelineState?
     }
@@ -620,9 +630,153 @@ extension MetalRenderBackend {
     }
 }
 
+extension PixelFormat {
+    var toMetal: MTLPixelFormat {
+        switch self {
+        case .depth_32f_stencil8:
+            return .depth32Float_stencil8
+        case .depth_32f:
+            return .depth32Float
+        case .depth24_stencil8:
+            return .depth24Unorm_stencil8
+        case .bgra8:
+            return .bgra8Unorm
+        case .bgra8_srgb:
+            return .bgra8Unorm_srgb
+        case .rgba8:
+            return .rgba8Unorm
+        case .rgba_16f:
+            return .rgba16Float
+        case .rgba_32f:
+            return .rgba32Float
+        case .none:
+            return .invalid
+        }
+    }
+}
+
+extension BlendOperation {
+    var toMetal: MTLBlendOperation {
+        switch self {
+        case .add:
+            return .add
+        case .subtract:
+            return .subtract
+        case .reverseSubtract:
+            return .reverseSubtract
+        case .min:
+            return .min
+        case .max:
+            return .max
+        }
+    }
+}
+
+extension BlendFactor {
+    var toMetal: MTLBlendFactor {
+        switch self {
+        case .zero:
+            return .zero
+        case .one:
+            return .one
+        case .sourceColor:
+            return .sourceColor
+        case .oneMinusSourceColor:
+            return .oneMinusSourceColor
+        case .destinationColor:
+            return .destinationColor
+        case .oneMinusDestinationColor:
+            return .oneMinusDestinationColor
+        case .sourceAlpha:
+            return .sourceAlpha
+        case .oneMinusSourceAlpha:
+            return .oneMinusSourceAlpha
+        case .destinationAlpha:
+            return .destinationAlpha
+        case .oneMinusDestinationAlpha:
+            return .oneMinusDestinationAlpha
+        case .sourceAlphaSaturated:
+            return .sourceAlphaSaturated
+        case .blendColor:
+            return .blendColor
+        case .oneMinusBlendColor:
+            return .oneMinusBlendColor
+        case .blendAlpha:
+            return .blendAlpha
+        case .oneMinusBlendAlpha:
+            return .oneMinusBlendAlpha
+        }
+    }
+}
+
+extension CompareOperation {
+    var toMetal: MTLCompareFunction {
+        switch self {
+        case .never:
+            return .never
+        case .less:
+            return .less
+        case .equal:
+            return .equal
+        case .lessOrEqual:
+            return .lessEqual
+        case .greater:
+            return .greater
+        case .notEqual:
+            return .notEqual
+        case .greaterOrEqual:
+            return .greaterEqual
+        case .always:
+            return .always
+        }
+    }
+}
+
+extension AttachmentLoadAction {
+    var toMetal: MTLLoadAction {
+        switch self {
+        case .clear:
+            return .clear
+        case .dontCare:
+            return .dontCare
+        case .load:
+            return .load
+        }
+    }
+}
+
+extension Color {
+    var toMetalClearColor: MTLClearColor {
+        MTLClearColor(red: Double(self.red), green: Double(self.green), blue: Double(self.blue), alpha: Double(self.alpha))
+    }
+}
+
+extension StencilOperation {
+    var toMetal: MTLStencilOperation {
+        switch self {
+        case .zero:
+            return .zero
+        case .keep:
+            return .keep
+        case .replace:
+            return .replace
+        case .incrementAndClamp:
+            return .incrementClamp
+        case .decrementAndClamp:
+            return .decrementClamp
+        case .invert:
+            return .invert
+        case .incrementAndWrap:
+            return .incrementWrap
+        case .decrementAndWrap:
+            return .decrementWrap
+        }
+    }
+}
+
 #endif
 
-// FIXME(Vlad): Think about it
+// FIXME: (Vlad) Think about it
 
 extension Bundle {
     static var current: Bundle {
@@ -637,3 +791,108 @@ extension Bundle {
 #if !SWIFT_PACKAGE
 class BundleToken {}
 #endif
+
+public final class DrawList {
+    
+    public let renderPass: RenderPass
+    let commandBuffer: CommandBuffer
+    
+    public private(set) var renderPipeline: RenderPipeline?
+    private(set) var indexArray: RID?
+    private(set) var debugName: String?
+    private(set) var lineWidth: Float?
+    
+    private(set) var vertexArray: RID?
+    private(set) var uniformSet: [Int: RID] = [:]
+    private(set) var textures: [RID?] = [RID?].init(repeating: nil, count: 32)
+    private(set) var renderPipline: RenderPipeline?
+    private(set) var triangleFillMode: TriangleFillMode = .fill
+    private(set) var indexPrimitive: IndexPrimitive = .triangle
+    private(set) var isScissorEnabled: Bool = false
+    private(set) var scissorRect: Rect = .zero
+    
+    init(renderPass: RenderPass, commandBuffer: CommandBuffer) {
+        self.renderPass = renderPass
+        self.commandBuffer = commandBuffer
+    }
+    
+    public func setDebugName(_ name: String) {
+        self.debugName = name
+    }
+    
+    public func bindRenderPipeline(_ renderPipeline: RenderPipeline) {
+        self.renderPipeline = renderPipeline
+    }
+    
+    public func bindIndexArray(_ indexArray: RID) {
+        self.indexArray = indexArray
+    }
+    
+    public func bindVertexArray(_ vertexArray: RID) {
+        self.vertexArray = vertexArray
+    }
+    
+    public func setLineWidth(_ lineWidth: Float?) {
+        self.lineWidth = lineWidth
+    }
+    
+    public func bindTexture(_ texture: RID, at index: Int) {
+        self.textures[index] = texture
+    }
+    
+    public func bindUniformSet(_ uniformSet: RID, at index: Int) {
+        self.uniformSet[index] = uniformSet
+    }
+    
+    public func setScissorRect(_ rect: Rect) {
+        self.scissorRect = rect
+    }
+    
+    public func setScissorEnabled(_ isEnabled: Bool) {
+        self.isScissorEnabled = isEnabled
+    }
+    
+    public func bindTriangleFillMode(_ mode: TriangleFillMode) {
+        self.triangleFillMode = mode
+    }
+    
+    public func bindIndexPrimitive(_ primitive: IndexPrimitive) {
+        self.indexPrimitive = primitive
+    }
+    
+    public func clear() {
+        self.renderPipeline = nil
+        self.indexArray = nil
+        self.debugName = nil
+        self.lineWidth = nil
+        
+        self.vertexArray = nil
+        self.uniformSet = [:]
+        self.textures.removeAll(keepingCapacity: true)
+        self.triangleFillMode = .fill
+        self.indexPrimitive = .triangle
+        self.scissorRect = .zero
+        self.isScissorEnabled = false
+    }
+}
+
+public protocol CommandBuffer {
+    
+}
+
+class MetalCommandBuffer: CommandBuffer {
+    
+    let commandBuffer: MTLCommandBuffer
+    
+    init(commandBuffer: MTLCommandBuffer) {
+        self.commandBuffer = commandBuffer
+    }
+}
+
+class MetalRenderCommandBuffer: CommandBuffer {
+    let encoder: MTLRenderCommandEncoder
+    
+    init(encoder: MTLRenderCommandEncoder) {
+        self.encoder = encoder
+    }
+}

@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 11/4/21.
 //
 
-public protocol RenderBuffer {
+public protocol RenderBuffer: AnyObject {
     var length: Int { get }
     
     func contents() -> UnsafeMutableRawPointer

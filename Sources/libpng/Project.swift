@@ -25,8 +25,10 @@ let project = Project(
             productName: "libpng",
             bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).libpng",
             deploymentTarget: .macOS(targetVersion: "11.0"),
-            sources: ["Sources/libpng/**"],
-            headers: .headers(public: ["Sources/libpng/include/*.h"]),
+            sources: [
+                .glob("**/*", excluding: ["Project.swift"])
+            ],
+            headers: .headers(public: ["include/*.h"]),
             dependencies: [
                 .sdk(name: "c++", type: .library)
             ],
