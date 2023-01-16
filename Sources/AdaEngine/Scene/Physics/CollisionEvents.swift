@@ -10,6 +10,7 @@ public enum CollisionEvent {
     
     /// An event raised when two objects collide.
     public struct Began: Event {
+        
         /// The first entity involved in the collision.
         public let entityA: Entity
         

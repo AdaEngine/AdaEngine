@@ -29,11 +29,11 @@ let targets: [Target] = [
             ),
             .project(
                 target: "libpng",
-                path: .relativeToRoot("vendors/libpng")
+                path: .relativeToRoot("Sources/libpng")
             ),
             .project(
                 target: "box2d",
-                path: .relativeToRoot("vendors/box2d")
+                path: .relativeToRoot("Sources/box2d")
             ),
             .external(name: "stb_image"),
             .external(name: "Collections"),

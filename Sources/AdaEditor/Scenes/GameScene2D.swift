@@ -49,7 +49,8 @@ struct TubeMovementSystem: System {
     }
 }
 
-struct TubeDestoryerSystem: System {
+struct TubeDestroyerSystem: System {
+    
     static let tubeQuery = EntityQuery(
         where: .has(TubeComponent.self) && .has(Transform.self)
     )
@@ -130,6 +131,7 @@ final class GameScene2D {
     
     func makeScene() throws -> Scene {
         let scene = Scene()
+        scene.activeCamera.projection = .orthographic
         
         // DEBUG
         
@@ -141,18 +143,12 @@ final class GameScene2D {
         self.makeGround(for: scene)
         self.collisionHandler(for: scene)
         self.fpsCounter(for: scene)
-        
-        let userEntity = Entity(name: "camera")
-        let camera = Camera()
-        camera.projection = .orthographic
-        camera.isPrimal = true
-        userEntity.components += camera
-        scene.addEntity(userEntity)
 
         scene.addSystem(TubeMovementSystem.self)
         scene.addSystem(TubeSpawnerSystem.self)
-        scene.addSystem(TubeDestoryerSystem.self)
+        scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
+        
         return scene
     }
 

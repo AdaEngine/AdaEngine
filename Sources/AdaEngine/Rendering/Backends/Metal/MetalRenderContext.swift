@@ -13,22 +13,19 @@ extension MetalRenderBackend {
     final class Context {
         
         class RenderWindow {
+            
             private(set) weak var view: MetalView?
             let commandQueue: MTLCommandQueue
             var viewport: MTLViewport
             
             var albedoTexture: MTLTexture!
-            var renderPassDescriptor: MTLRenderPassDescriptor
             var commandBuffer: MTLCommandBuffer?
-            var renderEncoder: MTLRenderCommandEncoder!
             
             internal init(view: MetalView? = nil, commandQueue: MTLCommandQueue, viewport: MTLViewport, commandBuffer: MTLCommandBuffer? = nil) {
                 self.view = view
                 self.commandQueue = commandQueue
                 self.viewport = viewport
                 self.commandBuffer = commandBuffer
-                
-                self.renderPassDescriptor = MTLRenderPassDescriptor()
             }
             
             func updateSize() {
@@ -49,9 +46,9 @@ extension MetalRenderBackend {
                 
                 self.albedoTexture = texture
                 
-                self.renderPassDescriptor.colorAttachments[0].texture = texture
-                self.renderPassDescriptor.colorAttachments[0].storeAction = .store
-                self.renderPassDescriptor.colorAttachments[0].loadAction = .clear
+//                self.renderPassDescriptor.colorAttachments[0].texture = texture
+//                self.renderPassDescriptor.colorAttachments[0].storeAction = .store
+//                self.renderPassDescriptor.colorAttachments[0].loadAction = .clear
             }
             
         }

@@ -16,12 +16,16 @@ open class Texture2D: Texture {
     public private(set) var height: Float
     
     public init(from image: Image) {
-        let rid = RenderEngine.shared.makeTexture(from: image, type: .texture2D, usage: [.read, .render])
+        let rid = RenderEngine.shared.makeTexture(from: image, type: .texture2D, usage: [.read, .renderTarget])
         
         self.width = Float(image.width)
         self.height = Float(image.height)
         
         super.init(rid: rid, textureType: .texture2D)
+    }
+    
+    public var image: Image? {
+        RenderEngine.shared.getImage(for: self.rid)
     }
     
     open internal(set) var textureCoordinates: [Vector2] = [
@@ -51,7 +55,7 @@ open class Texture2D: Texture {
         let rid = RenderEngine.shared.makeTexture(
             from: image,
             type: representation.type,
-            usage: [.read, .render]
+            usage: [.read]
         )
         
         self.width = Float(image.width)

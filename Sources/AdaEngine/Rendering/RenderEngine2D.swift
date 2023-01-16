@@ -23,8 +23,10 @@ public class RenderEngine2D {
         var vertices: [V] = []
         var indeciesCount: Int
         var indexArray: RID
-        var piplineState: RID
+        let renderPipeline: RenderPipeline
     }
+    
+    private let renderPass: RenderPass
     
     private var circleData: Data<CircleVertexData>
     private var quadData: Data<QuadVertexData>
@@ -43,6 +45,8 @@ public class RenderEngine2D {
     private static let maxLineVertices = maxLines * 2
     private static let maxLineIndices = maxLines * 6
     
+    // TODO: (Vlad) Maybe we should split this code
+    // swiftlint:disable:next function_body_length
     init() {
         let device = RenderEngine.shared
         
@@ -87,9 +91,181 @@ public class RenderEngine2D {
         
         let indexArray = device.makeIndexArray(indexBuffer: quadIndexBuffer, indexOffset: 0, indexCount: Self.maxIndecies)
         
-        self.circleData = Self.makeCircleData(indexArray: indexArray)
-        self.quadData = Self.makeQuadData(indexArray: indexArray)
-        self.lineData = Self.makeLineData()
+        var stencilDesc = StencilOperationDescriptor()
+        stencilDesc.pass = .zero
+        stencilDesc.pass = .zero
+        stencilDesc.depthFail = .zero
+        stencilDesc.compare = .always
+        
+        var depthStencilDesc = DepthStencilDescriptor()
+        depthStencilDesc.isEnableStencil = true
+        depthStencilDesc.stencilOperationDescriptor = stencilDesc
+        
+        depthStencilDesc.isDepthTestEnabled = true
+        depthStencilDesc.isDepthWriteEnabled = true
+        depthStencilDesc.depthCompareOperator = .greaterOrEqual
+        
+        var renderPassDesc = RenderPassDescriptor()
+        renderPassDesc.clearDepth = 0.0
+        renderPassDesc.attachments = [
+            RenderAttachmentDescriptor(format: .bgra8_srgb, loadAction: .dontCare),
+            RenderAttachmentDescriptor(format: .depth_32f_stencil8, loadAction: .load)
+        ]
+        renderPassDesc.depthLoadAction = .clear
+        
+        self.renderPass = device.makeRenderPass(from: renderPassDesc)
+        
+        // Circle
+        
+        let circleShaderDesc = ShaderDescriptor(
+            shaderName: "circle",
+            vertexFunction: "circle_vertex",
+            fragmentFunction: "circle_fragment"
+        )
+        
+        let circleShader: Shader = device.makeShader(from: circleShaderDesc)
+        
+        var piplineDesc = RenderPipelineDescriptor(shader: circleShader)
+        piplineDesc.debugName = "Circle Pipeline"
+        piplineDesc.depthStencilDescriptor = depthStencilDesc
+        
+        piplineDesc.vertexDescriptor.attributes.append([
+            .attribute(.vector4, name: "worldPosition"),
+            .attribute(.vector4, name: "localPosition"),
+            .attribute(.float, name: "thickness"),
+            .attribute(.float, name: "fade"),
+            .attribute(.vector4, name: "color"),
+        ])
+        
+        piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<CircleVertexData>.stride
+        
+        var attachment = ColorAttachmentDescriptor(format: .bgra8_srgb)
+        attachment.isBlendingEnabled = true
+        
+        piplineDesc.colorAttachments = [attachment]
+        
+        let circlePipeline = device.makeRenderPipeline(from: piplineDesc)
+        
+        let circleVertexBuffer = device.makeVertexBuffer(
+            offset: 0,
+            index: 0,
+            bytes: nil,
+            length: MemoryLayout<CircleVertexData>.stride * Self.maxVerticies
+        )
+        
+        let circleVertexArray = device.makeVertexArray(vertexBuffers: [circleVertexBuffer], vertexCount: Self.maxVerticies)
+        self.circleData = Data<CircleVertexData>(
+            vertexArray: circleVertexArray,
+            vertexBuffer: circleVertexBuffer,
+            vertices: [],
+            indeciesCount: 0,
+            indexArray: indexArray,
+            renderPipeline: circlePipeline
+        )
+        
+        // Quads
+        
+        piplineDesc.vertexDescriptor.reset()
+        
+        piplineDesc.debugName = "Quad Pipline"
+        
+        let quadShaderDesc = ShaderDescriptor(
+            shaderName: "quad",
+            vertexFunction: "quad_vertex",
+            fragmentFunction: "quad_fragment"
+        )
+        
+        let quadShader: Shader = device.makeShader(from: quadShaderDesc)
+        
+        piplineDesc.shader = quadShader
+        
+        piplineDesc.vertexDescriptor.attributes.append([
+            .attribute(.vector4, name: "position"),
+            .attribute(.vector4, name: "color"),
+            .attribute(.vector2, name: "textureCoordinate"),
+            .attribute(.int, name: "textureIndex"),
+        ])
+        
+        piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
+        
+        let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
+        
+        let quadVertexBuffer = device.makeVertexBuffer(
+            offset: 0,
+            index: 0,
+            bytes: nil,
+            length: MemoryLayout<QuadVertexData>.stride * Self.maxVerticies
+        )
+        
+        let quadVertexArray = device.makeVertexArray(vertexBuffers: [quadVertexBuffer], vertexCount: Self.maxVerticies)
+        
+        self.quadData =  Data<QuadVertexData>(
+            vertexArray: quadVertexArray,
+            vertexBuffer: quadVertexBuffer,
+            vertices: [],
+            indeciesCount: 0,
+            indexArray: indexArray,
+            renderPipeline: quadPipeline
+        )
+        
+        // Lines
+        
+        piplineDesc.vertexDescriptor.reset()
+        
+        piplineDesc.debugName = "Lines Pipeline"
+        
+        let lineShaderDesc = ShaderDescriptor(
+            shaderName: "line",
+            vertexFunction: "line_vertex",
+            fragmentFunction: "line_fragment"
+        )
+        
+        let lineShader: Shader = device.makeShader(from: lineShaderDesc)
+        piplineDesc.shader = lineShader
+        
+        piplineDesc.vertexDescriptor.attributes.append([
+            .attribute(.vector3, name: "position"),
+            .attribute(.vector4, name: "color"),
+            .attribute(.float, name: "lineWidth"),
+        ])
+        
+        piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<LineVertexData>.stride
+        
+        let linesPipeline = device.makeRenderPipeline(from: piplineDesc)
+        
+        let linesVertexBuffer = device.makeVertexBuffer(
+            offset: 0,
+            index: 0,
+            bytes: nil,
+            length: MemoryLayout<LineVertexData>.stride * Self.maxLineVertices
+        )
+        
+        let linesVertexArray = device.makeVertexArray(vertexBuffers: [linesVertexBuffer], vertexCount: Self.maxLineVertices)
+        
+        var buffer: [Int32] = [Int32].init(repeating: 0, count: Self.maxLineIndices)
+        
+        for i in 0 ..< Self.maxLineIndices {
+            buffer[i] = Int32(i)
+        }
+        
+        let indexBuffer = device.makeIndexBuffer(
+            offset: 0,
+            index: 0,
+            format: .uInt32,
+            bytes: &buffer,
+            length: Self.maxLineIndices
+        )
+        
+        let linesIndexArray = device.makeIndexArray(indexBuffer: indexBuffer, indexOffset: 0, indexCount: Self.maxLineIndices)
+        
+        self.lineData =  Data<LineVertexData>(
+            vertexArray: linesVertexArray,
+            vertexBuffer: linesVertexBuffer,
+            vertices: [],
+            indeciesCount: 0,
+            indexArray: linesIndexArray,
+            renderPipeline: linesPipeline
+        )
     }
     
     public func beginContext(for window: Window.ID, viewTransform: Transform3D) -> DrawContext {
@@ -117,17 +293,17 @@ public class RenderEngine2D {
 
 extension RenderEngine2D {
     public class DrawContext {
-        let currentDraw: RID
+        
+        let currentDraw: DrawList
         let window: Window.ID
         
         private var fillColor: Color = .clear
         
         private var lineWidth: Float = 1
         
-        private var triangleFillMode: TriangleFillMode = .fill
         private let renderEngine: RenderEngine2D
         
-        init(currentDraw: RID, window: Window.ID, renderEngine: RenderEngine2D) {
+        init(currentDraw: DrawList, window: Window.ID, renderEngine: RenderEngine2D) {
             self.currentDraw = currentDraw
             self.window = window
             self.renderEngine = renderEngine
@@ -186,11 +362,11 @@ extension RenderEngine2D {
         }
         
         public func setDebugName(_ name: String) {
-            RenderEngine.shared.bindDebugName(name: name, forDraw: self.currentDraw)
+            self.currentDraw.setDebugName(name)
         }
         
         public func setLineWidth(_ width: Float) {
-            self.lineWidth = width
+            self.currentDraw.setLineWidth(width)
         }
         
         public func drawCircle(
@@ -258,22 +434,21 @@ extension RenderEngine2D {
             self.renderEngine.lineData.indeciesCount += 2
         }
         
+        /// - Note: When you commited context, you can't modify it. Your drawing will flush and free immidiatly.
         public func commitContext() {
             self.flush()
             
-            RenderEngine.shared.drawEnd(self.currentDraw)
-            
             self.clearContext()
+            
+            RenderEngine.shared.endDrawList(self.currentDraw)
         }
         
         public func clearContext() {
-            self.renderEngine.uniform.viewProjection = .identity // FIXME(Vlad): Should store in draw contexrt
-            self.triangleFillMode = .fill
-            self.lineWidth = 1
+            self.renderEngine.uniform.viewProjection = .identity // FIXME: (Vlad) Should store in draw contexrt
         }
         
         public func setTriangleFillMode(_ mode: TriangleFillMode) {
-            self.triangleFillMode = mode
+            self.currentDraw.bindTriangleFillMode(mode)
         }
         
         func nextBatch() {
@@ -282,7 +457,7 @@ extension RenderEngine2D {
         }
         
         func startBatch() {
-            // TODO: Should store in draw context
+            // TODO: (Vlad) Should store in draw context
             self.renderEngine.circleData.vertices.removeAll(keepingCapacity: true)
             self.renderEngine.circleData.indeciesCount = 0
             
@@ -296,15 +471,14 @@ extension RenderEngine2D {
         public func flush() {
             let device = RenderEngine.shared
             
-            device.bindUniformSet(currentDraw, uniformSet: self.renderEngine.uniformRid, at: BufferIndex.baseUniform)
-            device.bindTriangleFillMode(currentDraw, mode: self.triangleFillMode)
+            self.currentDraw.bindUniformSet(self.renderEngine.uniformRid, at: BufferIndex.baseUniform)
             
             self.flush(for: self.renderEngine.quadData, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.lineData, indexPrimitive: .line, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.circleData, currentDraw: currentDraw)
         }
         
-        private func flush<D>(for data: Data<D>, indexPrimitive: IndexPrimitive = .triangle, currentDraw: RID) {
+        private func flush<D>(for data: Data<D>, indexPrimitive: IndexPrimitive = .triangle, currentDraw: DrawList) {
             if data.indeciesCount == 0 {
                 return
             }
@@ -314,7 +488,7 @@ extension RenderEngine2D {
             let textures = self.renderEngine.textureSlots[0..<self.renderEngine.textureSlotIndex].compactMap { $0 }
             
             for (index, texture) in textures.enumerated() {
-                RenderEngine.shared.bindTexture(currentDraw, texture: texture.rid, at: index)
+                currentDraw.bindTexture(texture.rid, at: index)
             }
             
             RenderEngine.shared.setVertexBufferData(
@@ -323,10 +497,10 @@ extension RenderEngine2D {
                 length: verticies.count * MemoryLayout<D>.stride
             )
             
-            RenderEngine.shared.bindVertexArray(currentDraw, vertexArray: data.vertexArray)
-            RenderEngine.shared.bindRenderState(currentDraw, renderPassId: data.piplineState)
-            RenderEngine.shared.bindIndexArray(currentDraw, indexArray: data.indexArray)
-            RenderEngine.shared.bindIndexPrimitive(currentDraw, mode: indexPrimitive)
+            currentDraw.bindVertexArray(data.vertexArray)
+            currentDraw.bindRenderPipeline(data.renderPipeline)
+            currentDraw.bindIndexArray(data.indexArray)
+            currentDraw.bindIndexPrimitive(indexPrimitive)
             
             RenderEngine.shared.draw(currentDraw, indexCount: data.indeciesCount, instancesCount: 1)
         }
@@ -357,149 +531,5 @@ fileprivate extension RenderEngine2D {
         let position: Vector3
         let color: Color
         let lineWidth: Float
-    }
-    
-    private static func makeCircleData(indexArray: RID) -> Data<CircleVertexData> {
-        let device = RenderEngine.shared
-        
-        var shaderDescriptor = ShaderDescriptor(
-            shaderName: "circle",
-            vertexFunction: "circle_vertex",
-            fragmentFunction: "circle_fragment"
-        )
-        
-        var vertDescriptor = shaderDescriptor.vertexDescriptor
-        
-        vertDescriptor.attributes.append([
-            .attribute(.vector4, name: "worldPosition"),
-            .attribute(.vector4, name: "localPosition"),
-            .attribute(.float, name: "thickness"),
-            .attribute(.float, name: "fade"),
-            .attribute(.vector4, name: "color"),
-        ])
-        
-        vertDescriptor.layouts[0].stride = MemoryLayout<CircleVertexData>.stride
-        shaderDescriptor.vertexDescriptor = vertDescriptor
-        
-        let shader = device.makeShader(from: shaderDescriptor)
-        let circlePiplineState = device.makePipelineState(for: shader)
-        
-        let vertexBuffer = device.makeVertexBuffer(
-            offset: 0,
-            index: 0,
-            bytes: nil,
-            length: MemoryLayout<CircleVertexData>.stride * Self.maxVerticies
-        )
-        
-        let vertexArray = device.makeVertexArray(vertexBuffers: [vertexBuffer], vertexCount: Self.maxVerticies)
-        return Data<CircleVertexData>(
-            vertexArray: vertexArray,
-            vertexBuffer: vertexBuffer,
-            vertices: [],
-            indeciesCount: 0,
-            indexArray: indexArray,
-            piplineState: circlePiplineState
-        )
-    }
-    
-    private static func makeQuadData(indexArray: RID) -> Data<QuadVertexData> {
-        let device = RenderEngine.shared
-        
-        var shaderDescriptor = ShaderDescriptor(
-            shaderName: "quad",
-            vertexFunction: "quad_vertex",
-            fragmentFunction: "quad_fragment"
-        )
-        
-        var vertDescriptor = shaderDescriptor.vertexDescriptor
-        
-        vertDescriptor.attributes.append([
-            .attribute(.vector4, name: "position"),
-            .attribute(.vector4, name: "color"),
-            .attribute(.vector2, name: "textureCoordinate"),
-            .attribute(.int, name: "textureIndex"),
-        ])
-        
-        vertDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
-        shaderDescriptor.vertexDescriptor = vertDescriptor
-        
-        let shader = device.makeShader(from: shaderDescriptor)
-        let quadPiplineState = device.makePipelineState(for: shader)
-        
-        let vertexBuffer = device.makeVertexBuffer(
-            offset: 0,
-            index: 0,
-            bytes: nil,
-            length: MemoryLayout<QuadVertexData>.stride * Self.maxVerticies
-        )
-        
-        let vertexArray = device.makeVertexArray(vertexBuffers: [vertexBuffer], vertexCount: Self.maxVerticies)
-        
-        return Data<QuadVertexData>(
-            vertexArray: vertexArray,
-            vertexBuffer: vertexBuffer,
-            vertices: [],
-            indeciesCount: 0,
-            indexArray: indexArray,
-            piplineState: quadPiplineState
-        )
-    }
-    
-    private static func makeLineData() -> Data<LineVertexData> {
-        let device = RenderEngine.shared
-        
-        var shaderDescriptor = ShaderDescriptor(
-            shaderName: "line",
-            vertexFunction: "line_vertex",
-            fragmentFunction: "line_fragment"
-        )
-        
-        var vertDescriptor = shaderDescriptor.vertexDescriptor
-        
-        vertDescriptor.attributes.append([
-            .attribute(.vector3, name: "position"),
-            .attribute(.vector4, name: "color"),
-            .attribute(.float, name: "lineWidth"),
-        ])
-        
-        vertDescriptor.layouts[0].stride = MemoryLayout<LineVertexData>.stride
-        shaderDescriptor.vertexDescriptor = vertDescriptor
-        
-        let shader = device.makeShader(from: shaderDescriptor)
-        let circlePiplineState = device.makePipelineState(for: shader)
-        
-        let vertexBuffer = device.makeVertexBuffer(
-            offset: 0,
-            index: 0,
-            bytes: nil,
-            length: MemoryLayout<LineVertexData>.stride * Self.maxLineVertices
-        )
-        
-        let vertexArray = device.makeVertexArray(vertexBuffers: [vertexBuffer], vertexCount: Self.maxLineVertices)
-        
-        var buffer: [Int32] = [Int32].init(repeating: 0, count: Self.maxLineIndices)
-        
-        for i in 0 ..< Self.maxLineIndices {
-            buffer[i] = Int32(i)
-        }
-        
-        let indexBuffer = device.makeIndexBuffer(
-            offset: 0,
-            index: 0,
-            format: .uInt32,
-            bytes: &buffer,
-            length: Self.maxLineIndices
-        )
-        
-        let indexArray = device.makeIndexArray(indexBuffer: indexBuffer, indexOffset: 0, indexCount: Self.maxLineIndices)
-        
-        return Data<LineVertexData>(
-            vertexArray: vertexArray,
-            vertexBuffer: vertexBuffer,
-            vertices: [],
-            indeciesCount: 0,
-            indexArray: indexArray,
-            piplineState: circlePiplineState
-        )
     }
 }

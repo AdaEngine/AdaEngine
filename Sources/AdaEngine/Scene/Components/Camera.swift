@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+// TODO: We should translate mouse coordinate space to scene coordinate space
 // FIXME: Change camera to component, instead of script component
 public final class Camera: ScriptComponent {
     

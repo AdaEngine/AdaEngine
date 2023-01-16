@@ -84,12 +84,16 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.setIndexBufferData(indexBuffer, bytes: bytes, length: length)
     }
     
-    func makeShader(from descriptor: ShaderDescriptor) -> RID {
-        return self.renderBackend.makeShader(from: descriptor)
+    func makeRenderPass(from descriptor: RenderPassDescriptor) -> RenderPass {
+        return self.renderBackend.makeRenderPass(from: descriptor)
     }
     
-    func makePipelineState(for shader: RID) -> RID {
-        return self.renderBackend.makePipelineState(for: shader)
+    func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
+        return self.renderBackend.makeRenderPipeline(from: descriptor)
+    }
+    
+    func makeShader(from descriptor: ShaderDescriptor) -> Shader {
+        return self.renderBackend.makeShader(from: descriptor)
     }
     
     func makeUniform<T>(_ uniformType: T.Type, count: Int, offset: Int, options: ResourceOptions) -> RID {
@@ -116,51 +120,19 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.getImage(for: texture2D)
     }
     
-    func beginDraw(for window: Window.ID) -> RID {
+    func beginDraw(for window: Window.ID) -> DrawList {
         self.renderBackend.beginDraw(for: window)
     }
     
-    func bindVertexArray(_ draw: RID, vertexArray: RID) {
-        self.renderBackend.bindVertexArray(draw, vertexArray: vertexArray)
+    func beginDraw(for window: Window.ID, renderPass: RenderPass) -> DrawList {
+        self.renderBackend.beginDraw(for: window, renderPass: renderPass)
     }
     
-    func bindIndexArray(_ draw: RID, indexArray: RID) {
-        self.renderBackend.bindIndexArray(draw, indexArray: indexArray)
-    }
-    
-    func bindIndexPrimitive(_ draw: RID, mode: IndexPrimitive) {
-        self.renderBackend.bindIndexPrimitive(draw, mode: mode)
-    }
-    
-    func bindUniformSet(_ draw: RID, uniformSet: RID, at index: Int) {
-        self.renderBackend.bindUniformSet(draw, uniformSet: uniformSet, at: index)
-    }
-    
-    func bindTexture(_ draw: RID, texture: RID, at index: Int) {
-        self.renderBackend.bindTexture(draw, texture: texture, at: index)
-    }
-    
-    func bindTriangleFillMode(_ draw: RID, mode: TriangleFillMode) {
-        self.renderBackend.bindTriangleFillMode(draw, mode: mode)
-    }
-    
-    func bindRenderState(_ draw: RID, renderPassId: RID) {
-        self.renderBackend.bindRenderState(draw, renderPassId: renderPassId)
-    }
-    
-    func bindDebugName(name: String, forDraw draw: RID) {
-        self.renderBackend.bindDebugName(name: name, forDraw: draw)
-    }
-    
-    func setLineWidth(_ lineWidth: Float, forDraw draw: RID) {
-        self.renderBackend.setLineWidth(lineWidth, forDraw: draw)
-    }
-    
-    func draw(_ list: RID, indexCount: Int, instancesCount: Int) {
+    func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {
         self.renderBackend.draw(list, indexCount: indexCount, instancesCount: instancesCount)
     }
     
-    func drawEnd(_ drawId: RID) {
-        self.renderBackend.drawEnd(drawId)
+    func endDrawList(_ drawList: DrawList) {
+        self.renderBackend.endDrawList(drawList)
     }
 }

@@ -61,6 +61,6 @@ public extension Texture {
         
         public static var read = Usage(rawValue: 1 << 0)
         public static var write = Usage(rawValue: 1 << 1)
-        public static var render = Usage(rawValue: 1 << 2)
+        public static var renderTarget = Usage(rawValue: 1 << 2)
     }
 }
