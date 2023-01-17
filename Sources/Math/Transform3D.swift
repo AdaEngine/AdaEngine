@@ -360,14 +360,13 @@ public extension Transform3D {
         zNear: Float,
         zFar: Float
     ) -> Transform3D {
-        
         let m00 = 2 / (right - left)
         let m11 = 2 / (top - bottom)
         let m22 = 1 / (zFar - zNear)
         let m03 = (right + left) / (right - left)
         let m13 = (top + bottom) / (top - bottom)
-        let m23 = zNear / (zNear - zFar)
-        
+        let m23 = zNear / (zFar - zNear)
+
         return Transform3D(
             [m00, 0,   0,   0],
             [0,   m11, 0,   0],

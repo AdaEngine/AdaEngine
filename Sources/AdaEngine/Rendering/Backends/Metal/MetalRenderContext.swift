@@ -21,7 +21,12 @@ extension MetalRenderBackend {
             var albedoTexture: MTLTexture!
             var commandBuffer: MTLCommandBuffer?
             
-            internal init(view: MetalView? = nil, commandQueue: MTLCommandQueue, viewport: MTLViewport, commandBuffer: MTLCommandBuffer? = nil) {
+            internal init(
+                view: MetalView? = nil,
+                commandQueue: MTLCommandQueue,
+                viewport: MTLViewport,
+                commandBuffer: MTLCommandBuffer? = nil
+            ) {
                 self.view = view
                 self.commandQueue = commandQueue
                 self.viewport = viewport

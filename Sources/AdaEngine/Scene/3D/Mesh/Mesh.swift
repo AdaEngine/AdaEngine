@@ -19,7 +19,7 @@ public class Mesh {
         
         var isUInt32: Bool
         
-        var indexBuffer: RenderBuffer
+        var indexBuffer: Buffer
         var indexCount: Int
         
         public var materialIndex: Int
@@ -28,7 +28,7 @@ public class Mesh {
     struct Model {
         var name: String
         
-        var vertexBuffer: RenderBuffer
+        var vertexBuffer: Buffer
         var vertexCount: Int
         
         var surfaces: [Surface] = []

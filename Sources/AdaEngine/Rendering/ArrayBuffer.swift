@@ -1,11 +1,12 @@
 //
-//  Buffer.swift
+//  ArrayBuffer.swift
 //  
 //
 //  Created by v.prusakov on 11/3/21.
 //
 
-public class Buffer {
+// TODO: (Vlad) remove that?
+public class ArrayBuffer {
     
     public private(set) var contents: UnsafeMutableRawPointer
     public private(set) var length: Int
