@@ -39,6 +39,13 @@ fragment float4 quad_fragment(QuadVertexOut in [[stage_in]],
                                       min_filter::linear);
     
     const half4 colorSample = textures[in.textureIndex].sample(textureSampler, in.textureCoordinate);
-    return float4(colorSample) * in.color;
+    const float4 resultColor = float4(colorSample) * in.color;
+    
+    // to avoid depth write
+    if (resultColor.a == 0.0) {
+        discard_fragment();
+    }
+    
+    return resultColor;
 }
 

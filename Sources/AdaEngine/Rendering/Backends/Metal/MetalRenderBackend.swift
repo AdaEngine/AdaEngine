@@ -311,22 +311,14 @@ class MetalRenderBackend: RenderBackend {
         buffer.buffer.contents().copyMemory(from: bytes, byteCount: length)
     }
     
-    func makeBuffer(length: Int, options: ResourceOptions) -> RID {
+    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(length: length, options: options.metal)!
-        return self.resourceMap.setValue(buffer)
+        return MetalBuffer(device: self.context.physicalDevice, buffer: buffer)
     }
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RID {
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(bytes: bytes, length: length, options: options.metal)!
-        return self.resourceMap.setValue(buffer)
-    }
-    
-    func getBuffer(for rid: RID) -> RenderBuffer {
-        guard let buffer = self.resourceMap.get(rid) as? MTLBuffer else {
-            fatalError("Can't find buffer for rid \(rid)")
-        }
-        
-        return MetalBuffer(buffer)
+        return MetalBuffer(device: self.context.physicalDevice, buffer: buffer)
     }
 }
 
@@ -515,7 +507,7 @@ extension MetalRenderBackend {
         }
         
         if let depthStencilState = renderPipeline.depthStencilState {
-//            encoder.setDepthStencilState(depthStencilState)
+            encoder.setDepthStencilState(depthStencilState)
         }
         
         // Should be in draw settings

@@ -9,6 +9,10 @@ import Math
 
 public class RenderEngine2D {
     
+    static var minimumZIndex = -4096
+    
+    static var maximumZIndex = 4096
+    
     private var uniform: Uniform = Uniform()
     
     struct Uniform {
@@ -92,7 +96,7 @@ public class RenderEngine2D {
         let indexArray = device.makeIndexArray(indexBuffer: quadIndexBuffer, indexOffset: 0, indexCount: Self.maxIndecies)
         
         var stencilDesc = StencilOperationDescriptor()
-        stencilDesc.pass = .zero
+        stencilDesc.fail = .zero
         stencilDesc.pass = .zero
         stencilDesc.depthFail = .zero
         stencilDesc.compare = .always
@@ -103,7 +107,7 @@ public class RenderEngine2D {
         
         depthStencilDesc.isDepthTestEnabled = true
         depthStencilDesc.isDepthWriteEnabled = true
-        depthStencilDesc.depthCompareOperator = .greaterOrEqual
+        depthStencilDesc.depthCompareOperator = .less
         
         var renderPassDesc = RenderPassDescriptor()
         renderPassDesc.clearDepth = 0.0

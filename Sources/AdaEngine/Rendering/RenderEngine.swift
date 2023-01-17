@@ -48,16 +48,12 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.setClearColor(color, forWindow: windowId)
     }
     
-    func makeBuffer(length: Int, options: ResourceOptions) -> RID {
+    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer {
         return self.renderBackend.makeBuffer(length: length, options: options)
     }
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RID {
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
-    }
-    
-    func getBuffer(for rid: RID) -> RenderBuffer {
-        return self.renderBackend.getBuffer(for: rid)
     }
     
     func makeIndexArray(indexBuffer: RID, indexOffset: Int, indexCount: Int) -> RID {
@@ -119,6 +115,8 @@ public class RenderEngine: RenderBackend {
     func getImage(for texture2D: RID) -> Image? {
         self.renderBackend.getImage(for: texture2D)
     }
+    
+    // MARK: - Drawing
     
     func beginDraw(for window: Window.ID) -> DrawList {
         self.renderBackend.beginDraw(for: window)

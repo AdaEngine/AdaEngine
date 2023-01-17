@@ -105,7 +105,7 @@ extension Mesh {
             source: source
         )
         
-        let rid = RenderEngine.shared.makeBuffer(
+        let buffer = RenderEngine.shared.makeBuffer(
             bytes: mdlMesh.vertexBuffers[0].map().bytes,
             length: mdlMesh.vertexBuffers[0].length,
             options: []
@@ -113,14 +113,14 @@ extension Mesh {
         
         var model = Mesh.Model(
             name: mdlMesh.name,
-            vertexBuffer: RenderEngine.shared.getBuffer(for: rid),
+            vertexBuffer: buffer,
             vertexCount: mdlMesh.vertexCount,
             surfaces: []
         )
         
         for (index, submesh) in (mdlMesh.submeshes as! [MDLSubmesh]).enumerated() {
             
-            let rid = RenderEngine.shared.makeBuffer(
+            let buffer = RenderEngine.shared.makeBuffer(
                 bytes: submesh.indexBuffer.map().bytes,
                 length: submesh.indexBuffer.length,
                 options: []
@@ -131,7 +131,7 @@ extension Mesh {
                 name: submesh.name,
                 primitiveType: .triangles,
                 isUInt32: submesh.indexType == .uInt32,
-                indexBuffer: RenderEngine.shared.getBuffer(for: rid),
+                indexBuffer: buffer,
                 indexCount: submesh.indexCount,
                 materialIndex: 0
             )
