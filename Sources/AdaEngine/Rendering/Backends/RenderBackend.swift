@@ -41,11 +41,9 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Buffers
     
-    func makeBuffer(length: Int, options: ResourceOptions) -> RID
+    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RID
-    
-    func getBuffer(for rid: RID) -> RenderBuffer
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer
     
     func makeIndexArray(indexBuffer: RID, indexOffset: Int, indexCount: Int) -> RID
     

@@ -364,15 +364,15 @@ public extension Transform3D {
         let m00 = 2 / (right - left)
         let m11 = 2 / (top - bottom)
         let m22 = 1 / (zFar - zNear)
-        let m03 = (left + right) / (left - right)
-        let m13 = (top + bottom) / (bottom - top)
+        let m03 = (right + left) / (right - left)
+        let m13 = (top + bottom) / (top - bottom)
         let m23 = zNear / (zNear - zFar)
         
         return Transform3D(
-            [m00, 0,   0,   m03],
-            [0,   m11, 0,   m13],
-            [0,   0,   m22, m23],
-            [0,   0,   0,   1]
+            [m00, 0,   0,   0],
+            [0,   m11, 0,   0],
+            [0,   0,   m22, 0],
+            [m03, m13, m23, 1]
         )
     }
     

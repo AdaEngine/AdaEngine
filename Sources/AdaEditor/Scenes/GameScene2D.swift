@@ -83,12 +83,13 @@ class TubeSpawnerSystem: System {
 
             var transform = Transform()
             transform.scale = [0.4, 1, 1]
+            transform.position.z = -4
             let position = Vector3(x: 4, y: Float.random(in: 0.4 ... 1.2), z: 0)
             transform.position = position
 
             self.spawnTube(in: context.scene, transform: transform, isUp: true)
             transform.position.y -= 1.5
-
+            
             self.spawnTube(in: context.scene, transform: transform, isUp: false)
         }
     }
@@ -134,9 +135,25 @@ final class GameScene2D {
         scene.activeCamera.projection = .orthographic
         
         // DEBUG
-        
         scene.debugOptions = [.showPhysicsShapes]
         scene.debugPhysicsColor = .red
+        
+//        var transform = Transform(scale: [0.19, 0.19, 0.19])
+//        transform.position.z = 30
+//
+//        let entityA = Entity()
+//        entityA.components += transform
+//        entityA.components += SpriteComponent(tintColor: .red)
+//
+//        transform.position.z = 0
+//        transform.position.x = 0.5
+//
+//        let entityB = Entity()
+//        entityB.components += transform
+//        entityB.components += SpriteComponent(tintColor: .green)
+//
+//        scene.addEntity(entityA)
+//        scene.addEntity(entityB)
         
         self.makeBackground(for: scene)
         self.makePlayer(for: scene)
@@ -165,7 +182,7 @@ final class GameScene2D {
     private func makeBackground(for scene: Scene) {
         var transform = Transform()
         transform.scale = [10, 10, 10]
-
+        transform.position.z = 5
         let untexturedEntity = Entity(name: "Background")
         untexturedEntity.components += SpriteComponent(tintColor: Color(135/255, 206/255, 235/255, 1))
         untexturedEntity.components += transform
@@ -176,7 +193,7 @@ final class GameScene2D {
 
         var transform = Transform()
         transform.scale = [0.2, 0.2, 0.2]
-
+        
         let playerTexture = AnimatedTexture()
         playerTexture.framesPerSecond = 5
         playerTexture.framesCount = 2

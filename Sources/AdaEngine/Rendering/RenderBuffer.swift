@@ -50,9 +50,11 @@ extension ResourceOptions {
 import Metal
 
 public class MetalBuffer: RenderBuffer {
+    let device: MTLDevice
     let base: MTLBuffer
     
-    init(_ buffer: MTLBuffer) {
+    init(device: MTLDevice, buffer: MTLBuffer) {
+        self.device = device
         self.base = buffer
     }
     
