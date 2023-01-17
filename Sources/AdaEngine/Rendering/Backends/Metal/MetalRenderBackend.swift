@@ -10,11 +10,6 @@ enum BufferIndex {
     static let material = 2
 }
 
-public enum IndexBufferFormat: UInt8 {
-    case uInt32
-    case uInt16
-}
-
 public enum IndexPrimitive: UInt8 {
     case triangle
     case triangleStrip
@@ -36,8 +31,7 @@ class MetalRenderBackend: RenderBackend {
     private var maxFramesInFlight = 3
     
     private var resourceMap: ResourceHashMap<MTLResource> = [:]
-    private var vertexBuffers: ResourceHashMap<Buffer> = [:]
-    private var indexBuffers: ResourceHashMap<Buffer> = [:]
+    private var vertexBuffers: ResourceHashMap<InternalBuffer> = [:]
     private var uniformSet: ResourceHashMap<Uniform> = [:]
     
     private var indexArrays: ResourceHashMap<IndexArray> = [:]
@@ -251,14 +245,9 @@ class MetalRenderBackend: RenderBackend {
     
     // MARK: - Buffers
     
-    func makeIndexArray(indexBuffer ibRid: RID, indexOffset: Int, indexCount: Int) -> RID {
-        guard let indexBuffer = self.indexBuffers[ibRid] else {
-            fatalError("Can't find index buffer for rid - \(ibRid)")
-        }
-        
+    func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID {
         let array = IndexArray(
-            buffer: ibRid,
-            format: indexBuffer.indexFormat!,
+            buffer: indexBuffer,
             offset: indexOffset,
             indices: indexCount
         )
@@ -271,15 +260,11 @@ class MetalRenderBackend: RenderBackend {
         return self.vertexArrays.setValue(array)
     }
     
-    func makeIndexBuffer(offset: Int, index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer?, length: Int) -> RID {
+    func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
+        buffer.contents().copyMemory(from: bytes, byteCount: length)
         
-        if let bytes = bytes {
-            buffer.contents().copyMemory(from: bytes, byteCount: length)
-        }
-        
-        let indexBuffer = Buffer(buffer: buffer, offset: offset, index: index, indexFormat: format)
-        return self.indexBuffers.setValue(indexBuffer)
+        return MetalIndexBuffer(buffer: buffer, indexFormat: format)
     }
     
     func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID {
@@ -289,7 +274,7 @@ class MetalRenderBackend: RenderBackend {
             buffer.contents().copyMemory(from: bytes, byteCount: length)
         }
         
-        let indexBuffer = Buffer(buffer: buffer, offset: offset, index: index)
+        let indexBuffer = InternalBuffer(buffer: buffer, offset: offset, index: index)
         return self.vertexBuffers.setValue(indexBuffer)
     }
     
@@ -302,23 +287,14 @@ class MetalRenderBackend: RenderBackend {
         buffer.buffer.contents().copyMemory(from: bytes, byteCount: length)
     }
     
-    func setIndexBufferData(_ indexBuffer: RID, bytes: UnsafeRawPointer, length: Int) {
-        guard let buffer = self.indexBuffers[indexBuffer] else {
-            assertionFailure("Vertex buffer not found")
-            return
-        }
-        
-        buffer.buffer.contents().copyMemory(from: bytes, byteCount: length)
-    }
-    
-    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer {
+    func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
         let buffer = self.context.physicalDevice.makeBuffer(length: length, options: options.metal)!
-        return MetalBuffer(device: self.context.physicalDevice, buffer: buffer)
+        return MetalBuffer(buffer: buffer)
     }
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer {
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
         let buffer = self.context.physicalDevice.makeBuffer(bytes: bytes, length: length, options: options.metal)!
-        return MetalBuffer(device: self.context.physicalDevice, buffer: buffer)
+        return MetalBuffer(buffer: buffer)
     }
 }
 
@@ -544,8 +520,8 @@ extension MetalRenderBackend {
             }
         }
         
-        let textures: [MTLTexture] = list.textures.compactMap {
-            guard let rid = $0 else { return nil }
+        let textures: [MTLTexture] = list.textures.compactMap { (texture: Texture?) in
+            guard let rid = texture?.rid else { return nil }
             return self.textures[rid]?.resource
         }
         
@@ -558,10 +534,6 @@ extension MetalRenderBackend {
             encoder.setVertexBuffer(uniform.buffer, offset: uniform.offset, index: index)
         }
         
-        guard let indexBuffer = self.indexBuffers[indexArray.buffer] else {
-            fatalError("Can't get index buffer for draw")
-        }
-        
         switch list.triangleFillMode {
         case .fill:
             encoder.setTriangleFillMode(.fill)
@@ -572,8 +544,8 @@ extension MetalRenderBackend {
         encoder.drawIndexedPrimitives(
             type: list.indexPrimitive == .line ? .line : .triangle,
             indexCount: indexCount,
-            indexType: indexArray.format == .uInt32 ? .uint32 : .uint16,
-            indexBuffer: indexBuffer.buffer,
+            indexType: indexArray.buffer.indexFormat == .uInt32 ? .uint32 : .uint16,
+            indexBuffer: (indexArray.buffer as! MetalIndexBuffer).buffer,
             indexBufferOffset: indexArray.offset,
             instanceCount: instancesCount
         )
@@ -586,7 +558,7 @@ extension MetalRenderBackend {
 
 extension MetalRenderBackend {
     
-    struct Buffer {
+    struct InternalBuffer {
         var buffer: MTLBuffer
         var offset: Int
         var index: Int
@@ -601,8 +573,7 @@ extension MetalRenderBackend {
     }
     
     struct IndexArray {
-        var buffer: RID
-        var format: IndexBufferFormat
+        var buffer: IndexBuffer
         var offset: Int = 0
         var indices: Int = 0
     }
@@ -796,7 +767,7 @@ public final class DrawList {
     
     private(set) var vertexArray: RID?
     private(set) var uniformSet: [Int: RID] = [:]
-    private(set) var textures: [RID?] = [RID?].init(repeating: nil, count: 32)
+    private(set) var textures: [Texture?] = [Texture?].init(repeating: nil, count: 32)
     private(set) var renderPipline: RenderPipeline?
     private(set) var triangleFillMode: TriangleFillMode = .fill
     private(set) var indexPrimitive: IndexPrimitive = .triangle
@@ -828,7 +799,7 @@ public final class DrawList {
         self.lineWidth = lineWidth
     }
     
-    public func bindTexture(_ texture: RID, at index: Int) {
+    public func bindTexture(_ texture: Texture, at index: Int) {
         self.textures[index] = texture
     }
     

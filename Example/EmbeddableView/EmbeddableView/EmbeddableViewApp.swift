@@ -6,12 +6,11 @@
 //
 
 import SwiftUI
-import AdaEngine
 
 @main
-struct EmbeddableViewApp: SwiftUI.App {
+struct EmbeddableViewApp: App {
     
-    var body: some SwiftUI.Scene {
+    var body: some Scene {
         WindowGroup {
             ContentView()
         }

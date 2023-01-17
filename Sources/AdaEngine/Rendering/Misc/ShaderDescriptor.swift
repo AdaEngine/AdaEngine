@@ -11,8 +11,6 @@ public struct ShaderDescriptor {
     
     public let vertexFunction: String
     public let fragmentFunction: String
-    
-    public var vertexDescriptor: MeshVertexDescriptor
 
     public init(
         shaderName: String,
@@ -22,6 +20,5 @@ public struct ShaderDescriptor {
         self.shaderName = shaderName
         self.vertexFunction = vertexFunction
         self.fragmentFunction = fragmentFunction
-        self.vertexDescriptor = MeshVertexDescriptor()
     }
 }

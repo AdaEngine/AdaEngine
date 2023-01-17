@@ -48,15 +48,15 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.setClearColor(color, forWindow: windowId)
     }
     
-    func makeBuffer(length: Int, options: ResourceOptions) -> RenderBuffer {
+    func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
         return self.renderBackend.makeBuffer(length: length, options: options)
     }
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RenderBuffer {
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
     }
     
-    func makeIndexArray(indexBuffer: RID, indexOffset: Int, indexCount: Int) -> RID {
+    func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID {
         return self.renderBackend.makeIndexArray(indexBuffer: indexBuffer, indexOffset: indexOffset, indexCount: indexCount)
     }
     
@@ -64,8 +64,8 @@ public class RenderEngine: RenderBackend {
         return self.renderBackend.makeVertexArray(vertexBuffers: vertexBuffers, vertexCount: vertexCount)
     }
     
-    func makeIndexBuffer(offset: Int, index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer?, length: Int) -> RID {
-        return self.renderBackend.makeIndexBuffer(offset: offset, index: index, format: format, bytes: bytes, length: length)
+    func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+        return self.renderBackend.makeIndexBuffer(index: index, format: format, bytes: bytes, length: length)
     }
     
     func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID {
@@ -74,10 +74,6 @@ public class RenderEngine: RenderBackend {
     
     func setVertexBufferData(_ vertexBuffer: RID, bytes: UnsafeRawPointer, length: Int) {
         self.renderBackend.setVertexBufferData(vertexBuffer, bytes: bytes, length: length)
-    }
-    
-    func setIndexBufferData(_ indexBuffer: RID, bytes: UnsafeRawPointer, length: Int) {
-        self.renderBackend.setIndexBufferData(indexBuffer, bytes: bytes, length: length)
     }
     
     func makeRenderPass(from descriptor: RenderPassDescriptor) -> RenderPass {

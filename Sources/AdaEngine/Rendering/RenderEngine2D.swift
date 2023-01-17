@@ -79,7 +79,6 @@ public class RenderEngine2D {
         }
         
         let quadIndexBuffer = device.makeIndexBuffer(
-            offset: 0,
             index: 0,
             format: .uInt32,
             bytes: &quadIndices,
@@ -253,7 +252,6 @@ public class RenderEngine2D {
         }
         
         let indexBuffer = device.makeIndexBuffer(
-            offset: 0,
             index: 0,
             format: .uInt32,
             bytes: &buffer,
@@ -473,8 +471,6 @@ extension RenderEngine2D {
         }
         
         public func flush() {
-            let device = RenderEngine.shared
-            
             self.currentDraw.bindUniformSet(self.renderEngine.uniformRid, at: BufferIndex.baseUniform)
             
             self.flush(for: self.renderEngine.quadData, currentDraw: currentDraw)
@@ -492,7 +488,7 @@ extension RenderEngine2D {
             let textures = self.renderEngine.textureSlots[0..<self.renderEngine.textureSlotIndex].compactMap { $0 }
             
             for (index, texture) in textures.enumerated() {
-                currentDraw.bindTexture(texture.rid, at: index)
+                currentDraw.bindTexture(texture, at: index)
             }
             
             RenderEngine.shared.setVertexBufferData(

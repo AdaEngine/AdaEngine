@@ -22,7 +22,7 @@ public final class Camera: ScriptComponent {
     
     /// The closest point relative to camera that drawing will occur
     @Export
-    public var far: Float = 100
+    public var far: Float = 1000
     
     /// Angle of camera view
     @Export
