@@ -49,10 +49,6 @@ public final class Image {
         self.height = height
         self.format = format
     }
-
-    public required init(assetFrom data: Data) throws {
-        fatalError()
-    }
     
     public func setPixel(in position: Point, color: Color) {
         let offset = Int(position.y) * self.width + Int(position.x)
@@ -91,7 +87,7 @@ public final class Image {
 }
 
 public extension Image {
-    enum Format: UInt16 {
+    enum Format: UInt16, Codable {
         case rgba8
         case rgb8
         case bgra8
@@ -135,15 +131,49 @@ public extension Image {
 }
 
 extension Image: Resource {
-//
-//    struct ImageAssetRepresentation: Codable {
-//        let format: Image.Format
-//        let image: Data
-//    }
     
-    public func encodeContents() throws -> Data {
-        fatalError()
+    private struct ImageRepresentation: Decodable, Encodable {
+        let imageSize: Size
+        let data: Data
+        let colorFormat: Format
     }
+    
+    public convenience init(asset decoder: AssetDecoder) throws {
+        
+        let pathExt = decoder.assetMeta.filePath.pathExtension
+        
+        if pathExt.isEmpty || pathExt == "res" {
+            let rep = try decoder.decode(ImageRepresentation.self)
+            
+            self.init(
+                width: Int(rep.imageSize.width),
+                height: Int(rep.imageSize.height),
+                data: rep.data,
+                format: rep.colorFormat        
+            )
+        } else {
+            try self.init(contentsOf: decoder.assetMeta.filePath)
+        }
+    }
+    
+    public func encodeContents(with encoder: AssetEncoder) throws {
+        
+        let pathExt = encoder.assetMeta.filePath.pathExtension
+        
+        if pathExt.isEmpty || pathExt == "res" {
+            let rep = ImageRepresentation(
+                imageSize: Size(width: Float(width), height: Float(height)),
+                data: self.data,
+                colorFormat: self.format
+            )
+            
+            try encoder.encode(rep)
+        } else {
+            try encoder.encode(self.data)
+        }
+    }
+    
+    public static let resourceType: ResourceType = .texture
 }
 
 private extension Image {

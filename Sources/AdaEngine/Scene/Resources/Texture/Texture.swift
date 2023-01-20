@@ -32,13 +32,15 @@ open class Texture: Resource {
     
     // MARK: - Resources
     
-    public required init(assetFrom data: Data) throws {
+    public required init(asset decoder: AssetDecoder) throws {
         fatalError()
     }
     
-    public func encodeContents() throws -> Data {
+    public func encodeContents(with encoder: AssetEncoder) throws {
         fatalError()
     }
+    
+    public static let resourceType: ResourceType = .texture
 }
 
 public extension Texture {

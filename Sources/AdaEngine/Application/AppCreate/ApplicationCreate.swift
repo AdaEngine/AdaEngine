@@ -36,6 +36,8 @@ public extension App {
         let argc = CommandLine.argc
         let argv = CommandLine.unsafeArgv
         
+        try ResourceManager.initialize()
+        
         let app = Self.init()
         
 #if os(macOS)

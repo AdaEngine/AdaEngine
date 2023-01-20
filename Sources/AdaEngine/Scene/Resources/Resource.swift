@@ -35,10 +35,82 @@ public protocol Resource: AnyObject {
     /// Data is the same data given from `encodedContents()` method.
     /// - Parameter data: Resource data.
     /// - Returns: Return instance of resource
-    init(assetFrom data: Data) throws
+    init(asset decoder: AssetDecoder) throws
     
     /// To store resource on the disk, you should implement this method.
     /// This data will return to `load(from:)` method when Resource will load.
     /// - Returns: the resource data to be saved
-    func encodeContents() throws -> Data
+    func encodeContents(with encoder: AssetEncoder) throws
+    
+    static var resourceType: ResourceType { get }
+}
+
+public enum ResourceType: UInt {
+    case texture
+    case mesh
+    case material
+    case text
+    case scene
+    case audio
+    
+    case none
+}
+
+public struct AssetMeta {
+    public let filePath: URL
+}
+
+public protocol AssetEncoder {
+    var assetMeta: AssetMeta { get }
+    
+    func encode<T: Encodable>(_ value: T) throws
+}
+
+public protocol AssetDecoder {
+    var assetMeta: AssetMeta { get }
+    
+    func decode<T: Decodable>(_ type: T.Type) throws -> T
+}
+
+public class DefaultAssetDecoder: AssetDecoder {
+    
+    public let assetMeta: AssetMeta
+    let yamlDecoder = YAMLDecoder()
+    let data: Data
+    
+    init(meta: AssetMeta, data: Data) {
+        self.assetMeta = meta
+        self.data = data
+    }
+    
+    public func decode<T: Decodable>(_ type: T.Type) throws -> T {
+        if T.self == Data.self {
+            return data as! T
+        }
+        
+        return try yamlDecoder.decode(T.self, from: data)
+    }
+}
+
+import Yams
+
+public class DefaultAssetEncoder: AssetEncoder {
+    
+    public let assetMeta: AssetMeta
+    let yamlEncoder = YAMLEncoder()
+    
+    var encodedData: Data?
+    
+    init(meta: AssetMeta) {
+        self.assetMeta = meta
+    }
+    
+    public func encode<T>(_ value: T) throws where T : Encodable {
+        if let data = value as? Data {
+            encodedData = data
+        } else {
+            let data = try yamlEncoder.encode(value).data(using: .utf8)
+            encodedData = data
+        }
+    }
 }

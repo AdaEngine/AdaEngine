@@ -41,45 +41,23 @@ open class Texture2D: Texture {
     
     // MARK: - Resource
     
-    struct TextureRepresentation: Codable {
-        let type: TextureType
-        let imageData: Data
-    }
-    
-    public required init(assetFrom data: Data) throws {
-        let decoder = YAMLDecoder()
-        let representation = try decoder.decode(TextureRepresentation.self, from: data)
-
-        let image = try Image(assetFrom: representation.imageData)
+    public required init(asset decoder: AssetDecoder) throws {
+        let image = try Image(asset: decoder)
         
         let rid = RenderEngine.shared.makeTexture(
             from: image,
-            type: representation.type,
+            type: .texture2D,
             usage: [.read]
         )
         
         self.width = Float(image.width)
         self.height = Float(image.height)
         
-        super.init(rid: rid, textureType: representation.type)
+        super.init(rid: rid, textureType: .texture2D)
     }
-
-    public override func encodeContents() throws -> Data {
-        guard let image = RenderEngine.shared.getImage(for: self.rid) else {
-            throw ResourceError.message("Image not exists for texture.")
-        }
-        
-        let imageData = try image.encodeContents()
-        
-        let representation = TextureRepresentation(type: self.textureType, imageData: imageData)
-        
-        let encoder = YAMLEncoder()
-        
-        guard let data = try encoder.encode(representation).data(using: .utf8) else {
-            throw ResourceError.message("Can't convert String to data.")
-        }
-        
-        return data
+    
+    public override func encodeContents(with encoder: AssetEncoder) throws {
+        try self.image?.encodeContents(with: encoder)
     }
 }
 

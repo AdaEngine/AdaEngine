@@ -31,11 +31,11 @@ public final class TextureAtlas: Texture2D {
     
     // MARK: - Resource
     
-    public required init(assetFrom data: Data) throws {
+    public required init(asset decoder: AssetDecoder) throws {
         fatalError()
     }
-
-    public override func encodeContents() throws -> Data {
+    
+    public override func encodeContents(with encoder: AssetEncoder) throws {
         fatalError()
     }
     
@@ -95,12 +95,20 @@ public extension TextureAtlas {
             // we should not release atlas
         }
         
-        public required init(assetFrom data: Data) throws {
-            fatalError("You cannot load slice from asset.")
+        // MARK: Asset
+        
+        struct AssetError: LocalizedError {
+            var errorDescription: String? {
+                "Couldn't use texture slice as asset."
+            }
         }
         
-        public override func encodeContents() throws -> Data {
-            fatalError("You cannot save slice to asset")
+        public required init(asset decoder: AssetDecoder) throws {
+            throw AssetError()
+        }
+        
+        public override func encodeContents(with encoder: AssetEncoder) throws {
+            throw AssetError()
         }
     }
 }

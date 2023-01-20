@@ -86,6 +86,10 @@ public final class AnimatedTexture: Texture2D {
         )
     }
     
+    public required init(asset decoder: AssetDecoder) throws {
+        fatalError("init(asset:) has not been implemented")
+    }
+    
     override func freeTexture() {
         // we should not manage free of texture, because we don't create it on GPU
     }
@@ -104,39 +108,35 @@ public final class AnimatedTexture: Texture2D {
         let options: UInt8
     }
     
-    public required init(assetFrom data: Data) throws {
-        fatalError("init(assetFrom:) has not been implemented")
-    }
-    
-    public override func encodeContents() throws -> Data {
-        var frames: [AssetRepresentation.Frame] = []
-        
-        for index in 0 ..< self.framesCount {
-            
-            let frame = self.frames[index]
-            guard let texture = frame.texture else {
-                continue
-            }
-            
-            let data = try texture.encodeContents()
-            
-            let item = AssetRepresentation.Frame(
-                texture: data,
-                delay: frame.delay
-            )
-            
-            frames.append(item)
-        }
-        
-        let asset = AssetRepresentation(
-            frames: frames,
-            fps: self.framesPerSecond,
-            options: self.options.rawValue
-        )
-        
-        let encoder = YAMLEncoder()
-        return try encoder.encode(asset).data(using: .utf8)!
-    }
+//    public override func encodeContents() throws -> Data {
+//        var frames: [AssetRepresentation.Frame] = []
+//
+//        for index in 0 ..< self.framesCount {
+//
+//            let frame = self.frames[index]
+//            guard let texture = frame.texture else {
+//                continue
+//            }
+//
+//            let data = try texture.encodeContents()
+//
+//            let item = AssetRepresentation.Frame(
+//                texture: data,
+//                delay: frame.delay
+//            )
+//
+//            frames.append(item)
+//        }
+//
+//        let asset = AssetRepresentation(
+//            frames: frames,
+//            fps: self.framesPerSecond,
+//            options: self.options.rawValue
+//        )
+//
+//        let encoder = YAMLEncoder()
+//        return try encoder.encode(asset).data(using: .utf8)!
+//    }
     
     public subscript(_ frame: Int) -> Texture2D? {
         get {
