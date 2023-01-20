@@ -120,8 +120,18 @@ final class GameScene2D {
     
     init() {
         do {
-            let tiles = try Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
-            let charactersTiles = try Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/characters_packed.png"))
+            let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.module) as Image
+            
+            ResourceManager.loadAsync(Texture2D.self, at: "Assets/tiles_packed.png", completion: { result in
+                switch result {
+                case .success(let texture):
+                    print(texture)
+                case .failure(let error):
+                    print(error.localizedDescription)
+                }
+            })
+            
+            let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.module) as Image
             
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
