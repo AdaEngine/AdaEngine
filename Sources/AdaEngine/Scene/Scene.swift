@@ -7,8 +7,15 @@
 
 import OrderedCollections
 
-// TODO: Scene should be inherit Resource
-public final class Scene {
+enum SceneSerializationError: Error {
+    case invalidExtensionType
+    case unsupportedVersion
+    case notRegistedObject(Any)
+}
+
+public final class Scene: Resource {
+    
+    static var currentVersion: Version = "1.0.0"
     
     public var name: String
     public private(set) var id: UUID
@@ -16,6 +23,9 @@ public final class Scene {
     public internal(set) var activeCamera: Camera
     
     public internal(set) weak var window: Window?
+    
+    public var resourcePath: String = ""
+    public var resourceName: String = ""
     
     private var systems: [System] = []
     private var plugins: [ScenePlugin] = []
@@ -53,6 +63,8 @@ public final class Scene {
     
     public weak var sceneManager: SceneManager?
     
+    // MARK: - Initialization -
+    
     public init(name: String = "") {
         self.id = UUID()
         self.name = name.isEmpty ? "Scene" : name
@@ -66,41 +78,64 @@ public final class Scene {
         self.activeCamera = cameraComponent
     }
     
-    public required convenience init(from decoder: Decoder) throws {
-        self.init()
-        
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.id = try container.decode(UUID.self, forKey: .id)
-        self.name = try container.decode(String.self, forKey: .name)
-        
-        let entities = try container.decode([Entity].self, forKey: .entities)
-        
-        let systemNames = try container.decodeIfPresent([String].self, forKey: .systems) ?? []
-        var systems = [System]()
-        
-        for key in systemNames {
-            guard let type = SystemStorage.getRegistredSystem(for: key) else {
-                continue
-            }
-            
-            // FIXME: We should initiate scene after engine run
-            systems.append(type.init(scene: self))
+    // MARK: - Resource -
+    
+    public static var resourceType: ResourceType = .scene
+    
+    public func encodeContents(with encoder: AssetEncoder) throws {
+        guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+            throw SceneSerializationError.invalidExtensionType
         }
         
-        self.systems = systems
+        let sceneData = SceneRepresentation(
+            version: Self.currentVersion,
+            scene: self.name,
+            plugins: self.plugins.map {
+                ScenePluginRepresentation(name: type(of: $0).swiftName)
+            },
+            systems: self.systems.map {
+                SystemRepresentation(name: type(of: $0).swiftName)
+            },
+            entities: self.world.getEntities()
+        )
         
-        for entity in entities {
+        try encoder.encode(sceneData)
+    }
+    
+    public convenience init(asset decoder: AssetDecoder) throws {
+        guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+            throw SceneSerializationError.invalidExtensionType
+        }
+        
+        let sceneData = try decoder.decode(SceneRepresentation.self)
+        
+        if Self.currentVersion < sceneData.version {
+            throw SceneSerializationError.unsupportedVersion
+        }
+        
+        self.init(name: sceneData.scene)
+        
+        for system in sceneData.systems {
+            guard let systemType = SystemStorage.getRegistredSystem(for: system.name) else {
+                throw SceneSerializationError.notRegistedObject(system)
+            }
+            self.addSystem(systemType)
+        }
+        
+        for plugin in sceneData.plugins {
+            guard let pluginType = ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
+                throw SceneSerializationError.notRegistedObject(plugin)
+            }
+            
+            self.addPlugin(pluginType.init())
+        }
+        
+        for entity in sceneData.entities {
             self.addEntity(entity)
         }
     }
     
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.id, forKey: .id)
-        try container.encode(self.name, forKey: .name)
-//        try container.encode(self.entities, forKey: .entities)
-        try container.encode(self.systems.map { type(of: $0).swiftName }, forKey: .systems)
-    }
+    // MARK: - Public methods -
     
     /// Add new system to the scene.
     public func addSystem<T: System>(_ systemType: T.Type) {
@@ -114,17 +149,6 @@ public final class Scene {
     public func addPlugin<T: ScenePlugin>(_ plugin: T) {
         plugin.setup(in: self)
         self.plugins.append(plugin)
-    }
-    
-    /// Receives events of the given type.
-    /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
-    /// - Parameters completion: A closure to call with the event.
-    /// - Returns: A cancellable object. You should store it in memory, to recieve events.
-    public func subscribe<E: Event>(
-        _ event: E.Type,
-        completion: @escaping (E) -> Void
-    ) -> Cancellable {
-        return self.eventManager.subscribe(for: event, completion: completion)
     }
     
     // MARK: - Internal methods
@@ -165,6 +189,18 @@ public extension Scene {
         precondition(entity.scene == nil, "Entity has scene reference, can't be added")
         entity.scene = self
         self.world.appendEntity(entity)
+    }
+    
+    func findEntityByID(_ id: Entity.ID) -> Entity? {
+        return self.world.getEntityByID(id)
+    }
+    
+    /// Find an entity by name.
+    /// - Note: Not efficient way to find an entity.
+    /// - Complexity: O(n)
+    /// - Returns: An entity with matched name or nil if entity with given name not exists.
+    func findEntityByName(_ name: String) -> Entity? {
+        self.world.getEntityByName(name)
     }
     
     func removeEntity(_ entity: Entity) {
@@ -215,9 +251,17 @@ extension Scene {
     }
 }
 
-extension Scene: Codable {
-    enum CodingKeys: String, CodingKey {
-        case id, name, entities, systems, plugins
+// MARK: - EventSource
+
+extension Scene: EventSource {
+    
+    /// Receives events of the given type.
+    /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
+    /// - Parameters completion: A closure to call with the event.
+    /// - Returns: A cancellable object. You should store it in memory, to recieve events.
+    
+    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> Cancellable where E : Event {
+        return self.eventManager.subscribe(to: event, on: eventSource, completion: completion)
     }
 }
 

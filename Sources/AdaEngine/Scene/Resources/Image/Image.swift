@@ -17,6 +17,9 @@ public final class Image {
     
     public private(set) var format: Format
     
+    public var resourceName: String = ""
+    public var resourcePath: String = ""
+    
     /// Create an empty image.
     public init() {
         self.data = Data()

@@ -9,25 +9,25 @@ import box2d
 
 // TODO: (Vlad) Add hashable and equatable and resource
 // TODO: (Vlad) Looks like we should share resources in ECS world
-public final class Shape2DResource {
+public final class Shape2DResource: Codable {
     
-    struct CircleShape {
+    struct CircleShape: Codable {
         let radius: Float
         var offset: Vector2 = .zero
     }
     
-    struct BoxShape {
+    struct BoxShape: Codable {
         let halfWidth: Float
         let halfHeight: Float
         var offset: Vector2 = .zero
     }
     
-    struct PolygonShape {
+    struct PolygonShape: Codable {
         let verticies: [Vector2]
         var offset: Vector2 = .zero
     }
     
-    enum Fixture {
+    enum Fixture: Codable {
         case circle(CircleShape)
         case box(BoxShape)
         case polygon(PolygonShape)

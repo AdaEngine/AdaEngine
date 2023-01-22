@@ -30,6 +30,8 @@ public final class ResourceManager {
     
     private static var resourceDirectory: URL!
     
+    private static let resKeyWord = "@res:"
+    
     private static var loadedResources: [Int: Resource] = [:]
     
     // TODO: (Vlad) maybe latter we will use mutex lock instead GCD or Actor system
@@ -41,11 +43,11 @@ public final class ResourceManager {
     /// Load a resource and saving it to memory cache
     ///
     /// ```swift
-    /// let texture = try ResourceManager.load("Assets/armor.png") as Texture2D
+    /// let texture = try ResourceManager.load("@res:Assets/armor.png") as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try ResourceManager.load("Assets/armor.png")
+    /// let texture: Texture2D = try ResourceManager.load("@res:Assets/armor.png")
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
@@ -53,19 +55,36 @@ public final class ResourceManager {
         _ path: String
     ) throws -> R {
         try self.syncQueue.sync {
+            
             let key = self.makeCacheKey(resource: R.self, path: path)
             
             if let cachedResource = self.loadedResources[key], cachedResource is R {
                 return cachedResource as! R
             }
             
-            let uri = self.resourceDirectory.appendingPathComponent(path)
+            var uri: URL
             
-            guard FileSystem.current.fileExists(at: uri) else {
+            if path.hasPrefix(self.resKeyWord) {
+                var path = path
+                path.removeFirst(self.resKeyWord.count)
+                uri = self.resourceDirectory.appendingPathComponent(path)
+            } else {
+                uri = URL(fileURLWithPath: path)
+            }
+            
+            let hasFileExt = !uri.pathExtension.isEmpty
+            
+            if !hasFileExt {
+                uri.appendPathExtension(R.resourceType.fileExtenstion)
+            }
+            
+            guard FileSystem.current.itemExists(at: uri) else {
                 throw ResourceError.notExistAtPath(uri.path)
             }
             
             let resource: R = try self.load(from: uri)
+            
+            resource.resourcePath = hasFileExt ? path : path.appending(".\(R.resourceType.fileExtenstion)")
             
             self.loadedResources[key] = resource
             
@@ -98,7 +117,7 @@ public final class ResourceManager {
                 return cachedResource as! R
             }
             
-            guard let uri = bundle.url(forResource: path, withExtension: nil), FileSystem.current.fileExists(at: uri) else {
+            guard let uri = bundle.url(forResource: path, withExtension: nil), FileSystem.current.itemExists(at: uri) else {
                 throw ResourceError.notExistAtPath(path)
             }
             
@@ -145,12 +164,25 @@ public final class ResourceManager {
     // MARK: - SAVING -
     
     /// Save resource at path.
-    public static func save<R: Resource>(_ resource: R, at path: String) throws {
+    public static func save<R: Resource>(
+        _ resource: R,
+        at path: String
+    ) throws {
         try self.syncQueue.sync {
             let fileSystem = FileSystem.current
             
-            guard var newFilePath = self.resourceDirectory?.appendingPathComponent(path) else {
-                throw ResourceError.message("Couldn't initialize a save file path.")
+            var newFilePath: URL
+            
+            if path.hasPrefix(self.resKeyWord) {
+                var path = path
+                path.removeFirst(self.resKeyWord.count)
+                newFilePath = self.resourceDirectory.appendingPathComponent(path)
+            } else {
+                newFilePath = URL(fileURLWithPath: path)
+            }
+            
+            if newFilePath.pathExtension.isEmpty {
+                newFilePath.appendPathExtension(R.resourceType.fileExtenstion)
             }
             
             let meta = AssetMeta(filePath: newFilePath)
@@ -160,21 +192,19 @@ public final class ResourceManager {
             
             let intermediateDirs = newFilePath.deletingLastPathComponent()
             
-            if !fileSystem.fileExists(at: intermediateDirs) {
+            if !fileSystem.itemExists(at: intermediateDirs) {
                 try fileSystem.createDirectory(at: intermediateDirs, withIntermediateDirectories: true)
             }
             
-            if (newFilePath.pathExtension.isEmpty) {
-                newFilePath.appendPathExtension("aeres")
+            if fileSystem.itemExists(at: newFilePath) {
+                try fileSystem.removeItem(at: newFilePath)
             }
             
             guard let encodedData = defaultEncoder.encodedData else {
                 throw ResourceError.message("Can't get encoded data from resource.")
             }
             
-            if !fileSystem.createFile(at: newFilePath, contents: encodedData) {
-                throw ResourceError.message("Can't create file for resource \(R.self)")
-            }
+            try encodedData.write(to: newFilePath)
         }
     }
     
@@ -188,6 +218,23 @@ public final class ResourceManager {
         }
     }
     
+    // MARK: - Public methods
+    
+    /// Set the root folder of all resources and remove all cached items.
+    public static func setResourceDirectory(_ url: URL) throws {
+        if url.hasDirectoryPath {
+            throw ResourceError.message("URL doesn't has directory path.")
+        }
+        
+        if !FileSystem.current.itemExists(at: url) {
+            try FileSystem.current.createDirectory(at: url, withIntermediateDirectories: true)
+        }
+        
+        self.resourceDirectory = url
+        
+        self.loadedResources.removeAll()
+    }
+    
     // MARK: - Internal
     
     // TODO: (Vlad) where we should call this method in embeddable view?
@@ -196,7 +243,7 @@ public final class ResourceManager {
         
         let resources = fileSystem.applicationFolderURL.appendingPathComponent("Resources")
         
-        if !fileSystem.fileExists(at: resources) {
+        if !fileSystem.itemExists(at: resources) {
             try fileSystem.createDirectory(at: resources, withIntermediateDirectories: true)
         }
         
@@ -213,6 +260,8 @@ public final class ResourceManager {
         let meta = AssetMeta(filePath: uri)
         let decoder = DefaultAssetDecoder(meta: meta, data: data)
         let resource = try R.init(asset: decoder)
+        resource.resourceName = uri.lastPathComponent
+        resource.resourcePath = uri.path
         
         return resource
     }

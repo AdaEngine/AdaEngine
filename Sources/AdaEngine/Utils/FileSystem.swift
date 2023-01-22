@@ -32,7 +32,7 @@ public class FileSystem {
         fatalErrorMethodNotImplemented()
     }
     
-    public func fileExists(at url: URL) -> Bool {
+    public func itemExists(at url: URL) -> Bool {
         fatalErrorMethodNotImplemented()
     }
     
@@ -87,7 +87,7 @@ final class FoundationFileSystem: FileSystem {
         return try self.fileManager.url(for: searchPathDir, in: .userDomainMask, appropriateFor: nil, create: create)
     }
     
-    override func fileExists(at url: URL) -> Bool {
+    override func itemExists(at url: URL) -> Bool {
         return fileManager.fileExists(atPath: url.path)
     }
     

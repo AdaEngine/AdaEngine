@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/12/22.
 //
 
-public struct PhysicsMassProperties {
+public struct PhysicsMassProperties: Codable {
     public var mass: Float
     public var inertia: Vector3
     

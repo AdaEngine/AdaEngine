@@ -42,7 +42,13 @@ public struct Body2DDefinition {
     public var isEnabled = true
 }
 
-public final class PhysicsWorld2D {
+public final class PhysicsWorld2D: Codable {
+    
+    enum CodingKeys: CodingKey {
+        case velocityIterations
+        case positionIterations
+        case gravity
+    }
     
     private var world: b2World
     
@@ -60,6 +66,23 @@ public final class PhysicsWorld2D {
         set {
             self.world.setGravity(newValue.b2Vec)
         }
+    }
+    
+    public convenience init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let gravity = try container.decode(Vector2.self, forKey: .gravity)
+        
+        self.init(gravity: gravity)
+        
+        self.velocityIterations = try container.decode(Int.self, forKey: .velocityIterations)
+        self.positionIterations = try container.decode(Int.self, forKey: .positionIterations)
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.gravity, forKey: .gravity)
+        try container.encode(self.velocityIterations, forKey: .velocityIterations)
+        try container.encode(self.positionIterations, forKey: .positionIterations)
     }
     
     /// - Parameter gravity: default gravity is 9.8.

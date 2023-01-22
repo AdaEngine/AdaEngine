@@ -18,7 +18,7 @@ public extension Entity {
             return self.entity?.scene?.world
         }
         
-        private(set) var buffer: [ComponentId: Component]
+        private(set) var buffer: OrderedDictionary<ComponentId, Component>
         
         // MARK: - Codable
         
@@ -27,29 +27,29 @@ public extension Entity {
         }
         
         public init(from decoder: Decoder) throws {
-//            let container = try decoder.container(keyedBy: CodingName.self)
-            let buffer: [ComponentId: Component] = [:]
+            let container = try decoder.container(keyedBy: CodingName.self)
+            var buffer: OrderedDictionary<ComponentId, Component> = [:]
             
-//            for key in container.allKeys {
-//                guard let type = ComponentStorage.getRegistredComponent(for: key.stringValue) else {
-//                    continue
-//                }
-//
-//                let component = try type.init(from: container.superDecoder(forKey: key))
-//
-//                buffer[ObjectIdentifier(type)] = component
-//            }
+            for key in container.allKeys {
+                guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue) else {
+                    continue
+                }
+
+                let component = try type.init(from: container.superDecoder(forKey: key))
+
+                buffer[type.identifier] = component
+            }
             
             self.buffer = buffer
         }
         
         public func encode(to encoder: Encoder) throws {
-//            var container = encoder.container(keyedBy: CodingName.self)
+            var container = encoder.container(keyedBy: CodingName.self)
             
-//            for (_, value) in self.buffer {
-//                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
-//                try value.encode(to: superEncoder)
-//            }
+            for value in self.buffer.values {
+                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
+                try value.encode(to: superEncoder)
+            }
         }
 
         /// Gets or sets the component of the specified type.

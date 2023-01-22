@@ -15,13 +15,9 @@ public class SceneManager {
         }
     }
     
-    public let serializer: SceneSerializer
-    
     // MARK: - Private
     
-    internal init() {
-        self.serializer = SceneSerializer()
-    }
+    internal init() { }
     
     func update(_ deltaTime: TimeInterval) {
         if self.currentScene?.isReady == false {

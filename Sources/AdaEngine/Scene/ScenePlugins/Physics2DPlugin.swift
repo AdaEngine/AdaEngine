@@ -7,6 +7,9 @@
 
 /// Setup physics in the scene.
 struct Physics2DPlugin: ScenePlugin {
+    
+    init() {}
+    
     func setup(in scene: Scene) {
         /// We have physics world as an entity, because it's more flexible solution then store
         /// physics world in the scene object.

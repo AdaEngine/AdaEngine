@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/12/22.
 //
 
-final public class PhysicsMaterial {
+final public class PhysicsMaterial: Codable {
     
     let friction: Float
     let restitution: Float

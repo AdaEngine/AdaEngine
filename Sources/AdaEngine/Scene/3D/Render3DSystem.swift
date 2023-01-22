@@ -7,7 +7,7 @@
 
 struct Render3DSystem: System {
     
-    static let meshComponents = EntityQuery(where: .has(ModelComponent.self) && .has(Transform.self))
+    static let meshComponents = EntityQuery(where: .has(Transform.self))
     
     init(scene: Scene) { }
     

@@ -12,6 +12,7 @@ struct ComponentId: Hashable, Equatable {
 struct EntityRecord {
     // which archetype contains info about an entity
     var archetypeId: Archetype.ID
+    
     // index of entity in archetype
     var row: Int
 }

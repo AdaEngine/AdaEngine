@@ -121,16 +121,6 @@ final class GameScene2D {
     init() {
         do {
             let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.module) as Image
-            
-            ResourceManager.loadAsync(Texture2D.self, at: "Assets/tiles_packed.png", completion: { result in
-                switch result {
-                case .success(let texture):
-                    print(texture)
-                case .failure(let error):
-                    print(error.localizedDescription)
-                }
-            })
-            
             let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.module) as Image
             
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
@@ -141,46 +131,41 @@ final class GameScene2D {
     }
     
     func makeScene() throws -> Scene {
+        
+        let scenePath = "@res:Scene/MyFirstScene"
+        
+        TubeMovementSystem.registerSystem()
+        TubeSpawnerSystem.registerSystem()
+        TubeDestroyerSystem.registerSystem()
+        PlayerMovementSystem.registerSystem()
+        
         let scene = Scene()
+//        let scene = try ResourceManager.load(scenePath) as Scene
+        
         scene.activeCamera.projection = .orthographic
         
         // DEBUG
         scene.debugOptions = [.showPhysicsShapes]
         scene.debugPhysicsColor = .red
         
-        //        var transform = Transform(scale: [0.19, 0.19, 0.19])
-        //        transform.position.z = 30
-        //
-        //        let entityA = Entity()
-        //        entityA.components += transform
-        //        entityA.components += SpriteComponent(tintColor: .red)
-        //
-        //        transform.position.z = 0
-        //        transform.position.x = 0.5
-        //
-        //        let entityB = Entity()
-        //        entityB.components += transform
-        //        entityB.components += SpriteComponent(tintColor: .green)
-        //
-        //        scene.addEntity(entityA)
-        //        scene.addEntity(entityB)
-        
         self.makeBackground(for: scene)
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
         self.collisionHandler(for: scene)
         self.fpsCounter(for: scene)
-        
+
         scene.addSystem(TubeMovementSystem.self)
         scene.addSystem(TubeSpawnerSystem.self)
         scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
         
+        try ResourceManager.save(scene, at: scenePath)
+        
         return scene
     }
     
     private func collisionHandler(for scene: Scene) {
-        self.collision = scene.subscribe(CollisionEvent.Began.self) { event in
+        self.collision = scene.subscribe(to: CollisionEvent.Began.self) { event in
             if event.entityA.name == "Player" && (event.entityB.name == "Tube") {
                 //                event.entityA.scene?.removeEntity(event.entityA)
                 print("collide with tube")
@@ -249,7 +234,7 @@ final class GameScene2D {
     }
     
     private func fpsCounter(for scene: Scene) {
-        self.fpsCounter = EventManager.default.subscribe(for: EngineEvent.FramesPerSecondEvent.self, completion: { event in
+        self.fpsCounter = EventManager.default.subscribe(to: EngineEvent.FramesPerSecondEvent.self, completion: { event in
             //            print("FPS", event.framesPerSecond)
         })
     }

@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
-public struct ModelComponent: Component {
+public struct ModelComponent {
     
     public var mesh: Mesh
     
