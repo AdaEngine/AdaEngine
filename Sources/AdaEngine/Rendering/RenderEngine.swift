@@ -80,6 +80,10 @@ public class RenderEngine: RenderBackend {
         return self.renderBackend.makeRenderPass(from: descriptor)
     }
     
+    func makeSampler(from descriptor: SamplerDescriptor) -> Sampler {
+        return self.renderBackend.makeSampler(from: descriptor)
+    }
+    
     func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
         return self.renderBackend.makeRenderPipeline(from: descriptor)
     }

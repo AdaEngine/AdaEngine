@@ -143,6 +143,8 @@ final class GameScene2D {
 //        let scene = try ResourceManager.load(scenePath) as Scene
         
         scene.activeCamera.projection = .orthographic
+        scene.activeCamera.far = 1000
+        scene.activeCamera.orthographicScale = 0.4
         
         // DEBUG
         scene.debugOptions = [.showPhysicsShapes]

@@ -65,6 +65,8 @@ protocol RenderBackend: AnyObject {
     /// Create pipeline state from shader.
     func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline
     
+    func makeSampler(from descriptor: SamplerDescriptor) -> Sampler
+    
     // MARK: - Uniforms
     
     func makeUniform<T>(_ uniformType: T.Type, count: Int, offset: Int, options: ResourceOptions) -> RID

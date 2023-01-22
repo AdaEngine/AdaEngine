@@ -36,6 +36,8 @@ public class Export<T: Codable>: Codable {
         )
     }
     
+    // MARK: - Codable
+    
     public required init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         self.wrappedValue = try container.decode(T.self)
@@ -52,6 +54,8 @@ public class Export<T: Codable>: Codable {
         }
     }
 }
+
+// MARK: - _ExportCodable
 
 extension Export: _ExportCodable {
     func decode(from container: DecodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws {
@@ -72,19 +76,6 @@ extension Export: _ExportCodable {
             try container.encodeIfPresent(self.editorInfo, forKey: .editor)
         }
     }
-}
-
-typealias _ExportCodable = _ExportDecodable & _ExportEncodable
-
-/// Helper to avoid generics problems
-protocol _ExportDecodable {
-    typealias DecodingContainer = KeyedDecodingContainer<CodingName>
-    func decode(from container: DecodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws
-}
-
-protocol _ExportEncodable {
-    typealias EncodingContainer = KeyedEncodingContainer<CodingName>
-    func encode(to container: inout EncodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws
 }
 
 public extension Export {
@@ -121,26 +112,6 @@ extension Export {
     struct EditorInfo: Codable {
         var modifiers: Modifiers?
     }
-}
-
-struct CodingName: CodingKey {
-    var stringValue: String
-    
-    init(stringValue: String) {
-        self.stringValue = stringValue
-    }
-    
-    var intValue: Int?
-    
-    init?(intValue: Int) {
-        self.intValue = intValue
-        self.stringValue = String(intValue)
-    }
-}
-
-extension CodingName {
-    static var editor = CodingName(stringValue: "_editor")
-    static var value = CodingName(stringValue: "_value")
 }
 
 extension CodingUserInfoKey {

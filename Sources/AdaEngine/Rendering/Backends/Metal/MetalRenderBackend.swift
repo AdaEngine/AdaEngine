@@ -243,6 +243,26 @@ class MetalRenderBackend: RenderBackend {
         return MetalRenderPass(descriptor: descriptor, renderPass: renderPassDescriptor)
     }
     
+    func makeSampler(from descriptor: SamplerDescriptor) -> Sampler {
+        let mtlDescriptor = MTLSamplerDescriptor()
+        mtlDescriptor.minFilter = descriptor.minFilter.toMetal
+        mtlDescriptor.magFilter = descriptor.magFilter.toMetal
+        mtlDescriptor.lodMinClamp = descriptor.lodMinClamp
+        mtlDescriptor.lodMaxClamp = descriptor.lodMaxClamp
+        
+        switch descriptor.mipFilter {
+        case .nearest:
+            mtlDescriptor.mipFilter = .nearest
+        case .linear:
+            mtlDescriptor.mipFilter = .linear
+        case .notMipmapped:
+            mtlDescriptor.mipFilter = .notMipmapped
+        }
+        
+        let sampler = self.context.physicalDevice.makeSamplerState(descriptor: mtlDescriptor)!
+        return MetalSampler(descriptor: descriptor, mtlSampler: sampler)
+    }
+    
     // MARK: - Buffers
     
     func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID {
@@ -529,6 +549,11 @@ extension MetalRenderBackend {
             encoder.setFragmentTextures(textures, range: 0..<textures.count)
         }
         
+        // I think it should be passed to draw list
+        if let mtlSampler = (renderPipeline.descriptor.sampler as? MetalSampler)?.mtlSampler {
+            encoder.setFragmentSamplerState(mtlSampler, index: 0)
+        }
+        
         for (index, uniRid) in list.uniformSet {
             let uniform = self.uniformSet[uniRid]!
             encoder.setVertexBuffer(uniform.buffer, offset: uniform.offset, index: index)
@@ -733,6 +758,17 @@ extension StencilOperation {
             return .incrementWrap
         case .decrementAndWrap:
             return .decrementWrap
+        }
+    }
+}
+
+extension SamplerMigMagFilter {
+    var toMetal: MTLSamplerMinMagFilter {
+        switch self {
+        case .nearest:
+            return .nearest
+        case .linear:
+            return .linear
         }
     }
 }

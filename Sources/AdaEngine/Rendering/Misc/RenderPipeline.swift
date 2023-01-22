@@ -60,6 +60,8 @@ public struct RenderPipelineDescriptor {
     public var primitive: IndexPrimitive = .triangle
     public var vertexDescriptor: VertexBufferDescriptor = VertexBufferDescriptor()
     
+    public var sampler: Sampler?
+    
     public var depthStencilDescriptor: DepthStencilDescriptor?
     public var depthPixelFormat: PixelFormat = .depth_32f_stencil8
     

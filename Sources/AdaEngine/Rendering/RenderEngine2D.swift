@@ -118,6 +118,10 @@ public class RenderEngine2D {
         
         self.renderPass = device.makeRenderPass(from: renderPassDesc)
         
+        var samplerDesc = SamplerDescriptor()
+        samplerDesc.magFilter = .nearest
+        let sampler = device.makeSampler(from: samplerDesc)
+        
         // Circle
         
         let circleShaderDesc = ShaderDescriptor(
@@ -131,6 +135,7 @@ public class RenderEngine2D {
         var piplineDesc = RenderPipelineDescriptor(shader: circleShader)
         piplineDesc.debugName = "Circle Pipeline"
         piplineDesc.depthStencilDescriptor = depthStencilDesc
+        piplineDesc.sampler = sampler
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "worldPosition"),

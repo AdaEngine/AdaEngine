@@ -65,15 +65,18 @@ public final class Scene: Resource {
     
     // MARK: - Initialization -
     
-    public init(name: String = "") {
+    public init(name: String? = nil) {
         self.id = UUID()
-        self.name = name.isEmpty ? "Scene" : name
+        self.name = name ?? "Scene"
         self.world = World()
-        let cameraEntity = Entity()
         
+        let cameraEntity = Entity()
         let cameraComponent = Camera()
         cameraEntity.components += cameraComponent
-        self.world.appendEntity(cameraEntity)
+        
+        defer {
+            self.addEntity(cameraEntity)
+        }
         
         self.activeCamera = cameraComponent
     }
