@@ -7,6 +7,9 @@
 
 /// Contains base configuration for any scene in the game.
 struct DefaultScenePlugin: ScenePlugin {
+    
+    init() {}
+    
     func setup(in scene: Scene) {
         // Add base systems
         scene.addSystem(ScriptComponentUpdateSystem.self)

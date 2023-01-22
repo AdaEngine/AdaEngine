@@ -31,12 +31,69 @@ public final class TextureAtlas: Texture2D {
     
     // MARK: - Resource
     
+    struct TextureAtlasAssetRepresentation: Codable {
+        let filePath: String
+        let spriteSize: Size
+        let margin: Size
+    }
+    
     public required init(asset decoder: AssetDecoder) throws {
-        fatalError()
+        guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+            throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
+        }
+        
+        let atlas = try decoder.decode(TextureAtlasAssetRepresentation.self)
+        
+        self.margin = atlas.margin
+        self.spriteSize = atlas.spriteSize
+        
+        let image = try ResourceManager.load(atlas.filePath) as Image
+        
+        super.init(from: image)
     }
     
     public override func encodeContents(with encoder: AssetEncoder) throws {
-        fatalError()
+        guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+            throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
+        }
+        
+        let atlas = TextureAtlasAssetRepresentation(
+            filePath: self.resourcePath,
+            spriteSize: self.spriteSize,
+            margin: self.margin
+        )
+        
+        try encoder.encode(atlas)
+    }
+    
+    // MARK: - Codable
+    
+    enum CodingKeys: CodingKey {
+        case margin
+        case spriteSize
+        case resource
+    }
+    
+    public required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        self.margin = try container.decode(Size.self, forKey: .margin)
+        self.spriteSize = try container.decode(Size.self, forKey: .spriteSize)
+        
+        let path = try container.decode(String.self, forKey: .resource)
+        let image = try ResourceManager.load(path) as Image
+        
+        super.init(from: image)
+        
+        let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
+        context?.appendResource(self)
+    }
+    
+    public override func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.margin, forKey: .margin)
+        try container.encode(self.spriteSize, forKey: .spriteSize)
+        try container.encode(self.resourcePath, forKey: .resource)
     }
     
     // MARK: - Slices
@@ -78,8 +135,13 @@ public extension TextureAtlas {
         // This also doesn't has reference cycle here, because the atlas doesn't store slices.
         public private(set) var atlas: TextureAtlas
         
+        private let min: Vector2
+        private let max: Vector2
+        
         required init(atlas: TextureAtlas, min: Vector2, max: Vector2, size: Size) {
             self.atlas = atlas
+            self.max = max
+            self.min = min
             
             super.init(rid: atlas.rid, size: size)
             
@@ -95,7 +157,7 @@ public extension TextureAtlas {
             // we should not release atlas
         }
         
-        // MARK: Asset
+        // MARK: - Resource
         
         struct AssetError: LocalizedError {
             var errorDescription: String? {
@@ -109,6 +171,42 @@ public extension TextureAtlas {
         
         public override func encodeContents(with encoder: AssetEncoder) throws {
             throw AssetError()
+        }
+        
+        // MARK: - Codable
+        
+        enum CodingKeys: CodingKey {
+            case textureAtlasResource
+            case min
+            case max
+            case size
+        }
+        
+        public convenience required init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            
+            let path = try container.decode(String.self, forKey: .textureAtlasResource)
+            let min = try container.decode(Vector2.self, forKey: .min)
+            let max = try container.decode(Vector2.self, forKey: .max)
+            let size = try container.decode(Size.self, forKey: .size)
+            
+            guard let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext else {
+                fatalError()
+            }
+            
+            guard let atlas = context.getResource(at: path) as TextureAtlas? else {
+                fatalError()
+            }
+            
+            self.init(atlas: atlas, min: min, max: max, size: size)
+        }
+        
+        public override func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(self.atlas.resourcePath, forKey: .textureAtlasResource)
+            try container.encode(self.min, forKey: .min)
+            try container.encode(self.max, forKey: .max)
+            try container.encode(Size(width: self.width, height: self.height), forKey: .size)
         }
     }
 }

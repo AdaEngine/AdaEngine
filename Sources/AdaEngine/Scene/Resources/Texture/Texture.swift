@@ -7,14 +7,25 @@
 
 import Foundation
 
-open class Texture: Resource {
+open class Texture: Resource, Codable {
     
     private(set) var rid: RID
     private(set) var textureType: TextureType
     
+    public var resourcePath: String = ""
+    public var resourceName: String = ""
+    
     init(rid: RID, textureType: TextureType) {
         self.rid = rid
         self.textureType = textureType
+    }
+    
+    public required init(from decoder: Decoder) throws {
+        fatalError()
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        fatalError()
     }
     
     deinit {

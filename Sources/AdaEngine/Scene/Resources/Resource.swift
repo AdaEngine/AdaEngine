@@ -43,27 +43,47 @@ public protocol Resource: AnyObject {
     func encodeContents(with encoder: AssetEncoder) throws
     
     static var resourceType: ResourceType { get }
+    
+    var resourcePath: String { get set }
+    var resourceName: String { get set }
 }
 
-public enum ResourceType: UInt {
-    case texture
-    case mesh
-    case material
-    case text
-    case scene
-    case audio
+public enum ResourceType: String {
+    case texture = "atres"
+    case mesh = "amsh"
+    case material = "mat"
+    case text = "res"
+    case scene = "ascn"
+    case audio = "audiores"
     
     case none
+    
+    public var fileExtenstion: String {
+        return self.rawValue
+    }
 }
 
 public struct AssetMeta {
     public let filePath: URL
+    
+    public var fileName: String { self.filePath.lastPathComponent }
 }
 
 public protocol AssetEncoder {
     var assetMeta: AssetMeta { get }
     
     func encode<T: Encodable>(_ value: T) throws
+}
+
+public enum AssetDecodingError: LocalizedError {
+    case invalidAssetExtension(String)
+    
+    public var errorDescription: String? {
+        switch self {
+        case .invalidAssetExtension(let string):
+            return "[Asset Decoding Error] Invalid asset file extension \(string)"
+        }
+    }
 }
 
 public protocol AssetDecoder {
@@ -75,12 +95,17 @@ public protocol AssetDecoder {
 public class DefaultAssetDecoder: AssetDecoder {
     
     public let assetMeta: AssetMeta
-    let yamlDecoder = YAMLDecoder()
+    let yamlDecoder: YAMLDecoder
     let data: Data
+    let context: AssetDecodingContext
     
     init(meta: AssetMeta, data: Data) {
         self.assetMeta = meta
         self.data = data
+        
+        self.context = AssetDecodingContext()
+        
+        self.yamlDecoder = YAMLDecoder(encoding: .utf16)
     }
     
     public func decode<T: Decodable>(_ type: T.Type) throws -> T {
@@ -88,7 +113,7 @@ public class DefaultAssetDecoder: AssetDecoder {
             return data as! T
         }
         
-        return try yamlDecoder.decode(T.self, from: data)
+        return try yamlDecoder.decode(T.self, from: data, userInfo: [.assetsDecodingContext: self.context])
     }
 }
 
@@ -97,12 +122,14 @@ import Yams
 public class DefaultAssetEncoder: AssetEncoder {
     
     public let assetMeta: AssetMeta
-    let yamlEncoder = YAMLEncoder()
+    let yamlEncoder: YAMLEncoder
     
     var encodedData: Data?
     
     init(meta: AssetMeta) {
         self.assetMeta = meta
+        
+        self.yamlEncoder = YAMLEncoder()
     }
     
     public func encode<T>(_ value: T) throws where T : Encodable {
@@ -112,5 +139,22 @@ public class DefaultAssetEncoder: AssetEncoder {
             let data = try yamlEncoder.encode(value).data(using: .utf8)
             encodedData = data
         }
+    }
+}
+
+public extension CodingUserInfoKey {
+    static var assetsDecodingContext: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetdecoder.context")!
+}
+
+public class AssetDecodingContext {
+    
+    private var resources: [String: WeakBox<AnyObject>] = [:]
+    
+    public func getResource<R: Resource>(at path: String) -> R? {
+        self.resources[path]?.value as? R
+    }
+    
+    public func appendResource<R: Resource>(_ resource: R) {
+        self.resources[resource.resourcePath] = WeakBox(value: resource)
     }
 }

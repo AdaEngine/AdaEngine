@@ -6,13 +6,13 @@
 //
 
 @frozen
-public enum PhysicsBodyMode {
+public enum PhysicsBodyMode: Codable {
     case `static`
     case `dynamic`
     case kinematic
 }
 
-public struct CollisionFilter {
+public struct CollisionFilter: Codable {
     public var categoryBitMask: CollisionGroup = .default
     public var collisionBitMask: CollisionGroup = .default
     
@@ -25,7 +25,7 @@ public struct CollisionFilter {
     }
 }
 
-public struct CollisionGroup: OptionSet {
+public struct CollisionGroup: OptionSet, Codable {
     public var rawValue: UInt16
     
     public init(rawValue: UInt16) {

@@ -5,7 +5,8 @@
 //  Created by v.prusakov on 7/3/22.
 //
 
-import Yams
+
+// TODO: Make encoding/decoding for scene serialization
 
 /// Animated texture is represents a frame-based animations, where multiple textures can be chained with a predifined delay for each frame.
 /// This kind of textures can apply any 2D Textures to animate them.
@@ -81,13 +82,9 @@ public final class AnimatedTexture: Texture2D {
         super.init(rid: RID(), size: .zero)
         
         self.gameLoopToken = EventManager.default.subscribe(
-            for: EngineEvent.GameLoopBegan.self,
+            to: EngineEvent.GameLoopBegan.self,
             completion: update(_:)
         )
-    }
-    
-    public required init(asset decoder: AssetDecoder) throws {
-        fatalError("init(asset:) has not been implemented")
     }
     
     override func freeTexture() {
@@ -97,46 +94,86 @@ public final class AnimatedTexture: Texture2D {
     // MARK: - Resources
     
     struct AssetRepresentation: Codable {
-        
         struct Frame: Codable {
-            let texture: Data
+            let texture: Texture2D // FIXME: (Vlad) resource id/path
             let delay: Float
         }
         
         let frames: [Frame]
         let fps: Float
-        let options: UInt8
+        let framesCount: Int
+        let options: Options
     }
     
-//    public override func encodeContents() throws -> Data {
-//        var frames: [AssetRepresentation.Frame] = []
-//
-//        for index in 0 ..< self.framesCount {
-//
-//            let frame = self.frames[index]
-//            guard let texture = frame.texture else {
-//                continue
-//            }
-//
-//            let data = try texture.encodeContents()
-//
-//            let item = AssetRepresentation.Frame(
-//                texture: data,
-//                delay: frame.delay
-//            )
-//
-//            frames.append(item)
-//        }
-//
-//        let asset = AssetRepresentation(
-//            frames: frames,
-//            fps: self.framesPerSecond,
-//            options: self.options.rawValue
-//        )
-//
-//        let encoder = YAMLEncoder()
-//        return try encoder.encode(asset).data(using: .utf8)!
-//    }
+    public convenience required init(asset decoder: AssetDecoder) throws {
+        guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+            throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
+        }
+        
+        let asset = try decoder.decode(AssetRepresentation.self)
+        
+        self.init()
+        
+        self.framesCount = asset.framesCount
+        self.framesPerSecond = asset.fps
+        self.options = asset.options
+        
+        for (frameIndex, frame) in asset.frames.enumerated() {
+            self.setTexture(frame.texture, for: frameIndex)
+            self.setDelay(frame.delay, for: frameIndex)
+        }
+    }
+    
+    public override func encodeContents(with encoder: AssetEncoder) throws {
+        guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+            throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
+        }
+        
+        var frames: [AssetRepresentation.Frame] = []
+        
+        for index in 0 ..< self.framesCount {
+            let frame = self.frames[index]
+            guard let texture = frame.texture else {
+                continue
+            }
+
+            let item = AssetRepresentation.Frame(
+                texture: texture,
+                delay: frame.delay
+            )
+
+            frames.append(item)
+        }
+        
+        let asset = AssetRepresentation(
+            frames: frames,
+            fps: self.framesPerSecond,
+            framesCount: self.framesCount,
+            options: self.options
+        )
+        
+        try encoder.encode(asset)
+    }
+    
+    // MARK: - Codable
+    
+    public convenience required init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let path = try container.decode(String.self)
+        let texture = try ResourceManager.load(path) as AnimatedTexture
+        
+        self.init()
+        
+        self.frames = texture.frames
+        self.framesPerSecond = texture.framesPerSecond
+    }
+    
+    public override func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(self.resourcePath)
+    }
+    
+    // MARK: - Public methods
     
     public subscript(_ frame: Int) -> Texture2D? {
         get {
@@ -197,7 +234,7 @@ public final class AnimatedTexture: Texture2D {
 }
 
 public extension AnimatedTexture {
-    struct Options: OptionSet {
+    struct Options: OptionSet, Codable {
         public var rawValue: UInt8
         
         public init(rawValue: UInt8) {

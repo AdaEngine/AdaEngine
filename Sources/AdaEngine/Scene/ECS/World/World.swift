@@ -11,12 +11,13 @@ import Collections
 /// [] Recalculate archetype for removed and added components. Archetype should use graph
 /// [] Archetype to struct?
 /// [] Use sparse set?
+/// [] Entities relationship
 
 /// This object represent ECS world.
 /// - Warning: Still work in progress.
 public final class World {
     
-    private var records: [Entity.ID: EntityRecord] = [:]
+    private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
     
     private var removedEntities: Set<Entity.ID> = []
     private var addedEntities: Set<Entity.ID> = []
@@ -29,6 +30,34 @@ public final class World {
     private(set) var scripts: [ComponentId: ScriptComponent] = [:]
     
     // MARK: - Methods
+    
+    func getEntities() -> [Entity] {
+        return self.records.values
+            .map { record in
+                let archetype = self.archetypes[record.archetypeId]
+                return archetype.entities[record.row]
+            }
+            .compactMap { $0 }
+    }
+    
+    func getEntityByID(_ entityID: Entity.ID) -> Entity? {
+        guard let record = self.records[entityID] else {
+            return nil
+        }
+        
+        let archetype = self.archetypes[record.archetypeId]
+        return archetype.entities[record.row]
+    }
+    
+    func getEntityByName(_ name: String) -> Entity? {
+        for arch in archetypes {
+            if let ent = arch.entities.first(where: { $0?.name == name }) {
+                return ent
+            }
+        }
+        
+        return nil
+    }
     
     // FIXME: Can crash if we change components set during runtime
     func appendEntity(_ entity: Entity) {
@@ -45,7 +74,7 @@ public final class World {
         
         if self.freeArchetypeIndices.isEmpty {
             newArch = Archetype.new(index: self.archetypes.count)
-
+            
             self.archetypes.append(newArch)
         } else {
             let index = self.freeArchetypeIndices.removeFirst()
@@ -119,7 +148,7 @@ public final class World {
             
             if self.freeArchetypeIndices.isEmpty {
                 newArch = Archetype.new(index: self.archetypes.count)
-
+                
                 self.archetypes.append(newArch)
             } else {
                 let index = self.freeArchetypeIndices.removeFirst()
@@ -166,7 +195,7 @@ public final class World {
             
             if self.freeArchetypeIndices.isEmpty {
                 newArch = Archetype.new(index: self.archetypes.count)
-
+                
                 self.archetypes.append(newArch)
             } else {
                 let index = self.freeArchetypeIndices.removeFirst()

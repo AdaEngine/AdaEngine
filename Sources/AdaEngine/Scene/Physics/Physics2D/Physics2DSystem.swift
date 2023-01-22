@@ -241,9 +241,12 @@ final class Physics2DSystem: System {
             
             if jointComponent.runtimeJoint == nil {
                 switch jointComponent.jointDescriptor.joint {
-                case .rope(let entityA, let entityB, _, _):
+                case .rope(let entityAId, let entityBId, _, _):
+                    
                     let joint = b2RopeJointDef()
                     guard
+                        let entityA = context.scene.world.getEntityByID(entityAId),
+                        let entityB = context.scene.world.getEntityByID(entityBId),
                         let bodyA = self.getBody(from: entityA)?.ref,
                         let bodyB = self.getBody(from: entityB)?.ref
                     else {
@@ -254,8 +257,9 @@ final class Physics2DSystem: System {
                     joint.bodyB = bodyB
                     let ref = world.createJoint(joint)
                     jointComponent.runtimeJoint = ref
-                case .revolute(let entityA):
+                case .revolute(let entityAId):
                     guard
+                        let entityA = context.scene.world.getEntityByID(entityAId),
                         let bodyA = self.getBody(from: entityA)?.ref,
                         let current = self.getBody(from: entity)?.ref
                     else {
