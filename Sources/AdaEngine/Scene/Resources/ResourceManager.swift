@@ -40,7 +40,7 @@ public final class ResourceManager {
     
     // MARK: - LOADING -
     
-    /// Load a resource and saving it to memory cache
+    /// Load a resource and saving it to memory cache. We use `@res:` prefix to link to resource folder.
     ///
     /// ```swift
     /// let texture = try ResourceManager.load("@res:Assets/armor.png") as Texture2D
@@ -62,15 +62,7 @@ public final class ResourceManager {
                 return cachedResource as! R
             }
             
-            var uri: URL
-            
-            if path.hasPrefix(self.resKeyWord) {
-                var path = path
-                path.removeFirst(self.resKeyWord.count)
-                uri = self.resourceDirectory.appendingPathComponent(path)
-            } else {
-                uri = URL(fileURLWithPath: path)
-            }
+            var uri = self.processPath(path)
             
             let hasFileExt = !uri.pathExtension.isEmpty
             
@@ -171,40 +163,32 @@ public final class ResourceManager {
         try self.syncQueue.sync {
             let fileSystem = FileSystem.current
             
-            var newFilePath: URL
+            var newFileURI = self.processPath(path)
             
-            if path.hasPrefix(self.resKeyWord) {
-                var path = path
-                path.removeFirst(self.resKeyWord.count)
-                newFilePath = self.resourceDirectory.appendingPathComponent(path)
-            } else {
-                newFilePath = URL(fileURLWithPath: path)
+            if newFileURI.pathExtension.isEmpty {
+                newFileURI.appendPathExtension(R.resourceType.fileExtenstion)
             }
             
-            if newFilePath.pathExtension.isEmpty {
-                newFilePath.appendPathExtension(R.resourceType.fileExtenstion)
-            }
-            
-            let meta = AssetMeta(filePath: newFilePath)
+            let meta = AssetMeta(filePath: newFileURI)
             
             let defaultEncoder = DefaultAssetEncoder(meta: meta)
             try resource.encodeContents(with: defaultEncoder)
             
-            let intermediateDirs = newFilePath.deletingLastPathComponent()
+            let intermediateDirs = newFileURI.deletingLastPathComponent()
             
             if !fileSystem.itemExists(at: intermediateDirs) {
                 try fileSystem.createDirectory(at: intermediateDirs, withIntermediateDirectories: true)
             }
             
-            if fileSystem.itemExists(at: newFilePath) {
-                try fileSystem.removeItem(at: newFilePath)
+            if fileSystem.itemExists(at: newFileURI) {
+                try fileSystem.removeItem(at: newFileURI)
             }
             
             guard let encodedData = defaultEncoder.encodedData else {
                 throw ResourceError.message("Can't get encoded data from resource.")
             }
             
-            try encodedData.write(to: newFilePath)
+            try encodedData.write(to: newFileURI)
         }
     }
     
@@ -270,5 +254,20 @@ public final class ResourceManager {
     private static func makeCacheKey<R: Resource>(resource: R.Type, path: String) -> Int {
         let cacheKey = path + "\(UInt(bitPattern: ObjectIdentifier(resource)))"
         return cacheKey.hashValue
+    }
+    
+    /// Replace tag `@res:` to relative path or create url from given path.
+    private static func processPath(_ path: String) -> URL {
+        var path = path
+        var url: URL
+        
+        if path.hasPrefix(self.resKeyWord) {
+            path.removeFirst(self.resKeyWord.count)
+            url = self.resourceDirectory.appendingPathComponent(path)
+        } else {
+            url = URL(fileURLWithPath: path)
+        }
+        
+        return url
     }
 }

@@ -33,10 +33,12 @@ vertex QuadVertexOut quad_vertex(const QuadVertex vertexIn [[ stage_in ]], const
 }
 
 fragment float4 quad_fragment(QuadVertexOut in [[stage_in]],
-                              array<texture2d<half>, 32> textures [[ texture(0) ]]) {
+                              array<texture2d<half>, 32> textures [[ texture(0) ]],
+                              sampler textureSampler [[ sampler(0) ]]
+                              ) {
     
-    constexpr sampler textureSampler (mag_filter::nearest,
-                                      min_filter::linear);
+//    constexpr sampler textureSampler (mag_filter::nearest,
+//                                      min_filter::linear);
     
     const half4 colorSample = textures[in.textureIndex].sample(textureSampler, in.textureCoordinate);
     const float4 resultColor = float4(colorSample) * in.color;
