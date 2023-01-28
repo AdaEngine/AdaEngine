@@ -29,6 +29,14 @@ extension MetalRenderBackend {
                 self.commandQueue = commandQueue
                 self.commandBuffer = commandBuffer
             }
+            
+            func getDrawableRenderPass() -> MTLRenderPassDescriptor {
+                let mtlRenderPass = MTLRenderPassDescriptor()
+                mtlRenderPass.colorAttachments[0].texture = self.drawable?.texture
+                mtlRenderPass.colorAttachments[0].loadAction = .clear
+                mtlRenderPass.colorAttachments[0].storeAction = .store
+                return mtlRenderPass
+            }
         }
         
         private(set) var windows: [Window.ID: RenderWindow] = [:]

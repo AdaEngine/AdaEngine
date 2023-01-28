@@ -17,13 +17,13 @@ public final class EventManager {
         to: T.Type,
         on source: EventSource? = nil,
         completion: @escaping (T) -> Void
-    ) -> Cancellable {
+    ) -> AnyCancellable {
         let subscriber = EventSubscriber(source: source, completion: completion)
         
         let key = ObjectIdentifier(T.self)
         self.subscribers[key, default: []].insert(subscriber)
         
-        return subscriber
+        return AnyCancellable(subscriber)
     }
     
     public func send<T: Event>(_ event: T) {
@@ -62,7 +62,7 @@ private class EventSubscriber: Cancellable {
 }
 
 public protocol EventSource: AnyObject {
-    func subscribe<E: Event>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> Cancellable
+    func subscribe<E: Event>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> AnyCancellable
 }
 
 public extension EventSource {
@@ -70,7 +70,7 @@ public extension EventSource {
         to event: E.Type,
         on source: EventSource? = nil,
         completion: @escaping (E) -> Void
-    ) -> Cancellable {
+    ) -> AnyCancellable {
         return self.subscribe(to: event, on: source, completion: completion)
     }
 }
