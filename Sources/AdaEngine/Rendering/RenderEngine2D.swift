@@ -140,7 +140,7 @@ public class RenderEngine2D {
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<CircleVertexData>.stride
         
         var attachment = ColorAttachmentDescriptor(format: .bgra8)
-//        attachment.isBlendingEnabled = true
+        attachment.isBlendingEnabled = true
         
         piplineDesc.colorAttachments = [attachment]
         
@@ -292,8 +292,8 @@ public class RenderEngine2D {
         renderPassDesc.depthLoadAction = .clear
         renderPassDesc.attachments = [
             RenderAttachmentDescriptor(
-                format: viewport.renderTexture.pixelFormat,
-                texture: viewport.renderTexture,
+                format: viewport.renderTargetTexture.pixelFormat,
+                texture: viewport.renderTargetTexture,
                 clearColor: camera.backgroundColor,
                 loadAction: .clear
             ),
@@ -304,8 +304,8 @@ public class RenderEngine2D {
 //            )
         ]
         
-        renderPassDesc.width = Int(viewport.renderTexture.width)
-        renderPassDesc.height = Int(viewport.renderTexture.height)
+        renderPassDesc.width = Int(viewport.renderTargetTexture.width)
+        renderPassDesc.height = Int(viewport.renderTargetTexture.height)
         
         let renderPass = RenderEngine.shared.makeRenderPass(from: renderPassDesc)
         

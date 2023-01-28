@@ -6,15 +6,36 @@
 //
 
 public struct FramebufferDescriptor {
-    public var width: Int = 0
-    public var height: Int = 0
-    
     public var sampleCount = 0
+    public var renderPass: RenderPassDescriptor
+}
+
+public struct FramebufferAttachmentUsage: OptionSet {
+    public var rawValue: UInt16
+    
+    public init(rawValue: UInt16) {
+        self.rawValue = rawValue
+    }
+}
+
+public extension FramebufferAttachmentUsage {
+    static let colorAttachment = FramebufferAttachmentUsage(rawValue: 1 << 0)
+    
+    static let depthStencilAttachment = FramebufferAttachmentUsage(rawValue: 1 << 1)
+    
+    static let sampling = FramebufferAttachmentUsage(rawValue: 1 << 2)
+    
+    static let empty: FramebufferAttachmentUsage = []
+}
+
+public struct FramebufferAttachment {
+    public let texture: Texture2D?
+    public let pixelFormat: PixelFormat
+    public let usage: FramebufferAttachmentUsage
 }
 
 public protocol Framebuffer: AnyObject {
-    
-    var size: Size { get }
+    var attachments: [FramebufferAttachment] { get }
     
     var descriptor: FramebufferDescriptor { get }
     var renderPass: RenderPass { get }
@@ -26,18 +47,18 @@ import Metal
 
 class MetalFramebuffer: Framebuffer {
     
-    private let mtlViewport: MTLViewport
+    private(set) var attachments: [FramebufferAttachment]
+    private(set) var descriptor: FramebufferDescriptor
+    private(set) var renderPass: RenderPass
     
-    let size: Size
-    
-    let descriptor: FramebufferDescriptor
-    let renderPass: RenderPass
-    
-    init(viewport: MTLViewport, descriptor: FramebufferDescriptor, renderPass: RenderPass) {
-        self.mtlViewport = viewport
+    init(
+        descriptor: FramebufferDescriptor,
+        renderPass: RenderPass,
+        attachments: [FramebufferAttachment]
+    ) {
         self.descriptor = descriptor
-        self.size = Size(width: Float(descriptor.width), height: Float(descriptor.height))
         self.renderPass = renderPass
+        self.attachments = attachments
     }
 }
 

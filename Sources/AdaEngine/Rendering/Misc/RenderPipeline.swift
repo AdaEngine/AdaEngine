@@ -43,7 +43,7 @@ public struct DepthStencilDescriptor {
 public struct ColorAttachmentDescriptor {
     public var format: PixelFormat
     
-    public var isBlendingEnabled: Bool = true
+    public var isBlendingEnabled: Bool = false
     
     public var sourceRGBBlendFactor: BlendFactor = .sourceAlpha
     public var sourceAlphaBlendFactor: BlendFactor = .sourceAlpha

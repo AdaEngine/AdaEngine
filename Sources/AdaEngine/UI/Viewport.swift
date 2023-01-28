@@ -10,14 +10,13 @@ import Math
 /// Viewport is an object where all draws happend.
 public class Viewport: EventSource {
     
-    public internal(set) var renderTexture: RenderTexture
-    
-    // TODO: (Vlad) should we have depth texture?
-    public internal(set) var depthTexture: RenderTexture
-    
     public internal(set) weak var window: Window?
     
     internal private(set) var viewportRid: RID!
+    
+    var renderTargetTexture: RenderTexture {
+        ViewportRenderer.shared.getRenderTexture(for: self) as! RenderTexture
+    }
     
     public var isVisible = true
     
@@ -48,11 +47,10 @@ public class Viewport: EventSource {
     
     public init(frame: Rect) {
         let textureSize = Size(width: frame.size.width, height: frame.size.height)
-        self.renderTexture = RenderTexture(size: textureSize, format: .bgra8)
-        self.depthTexture = RenderTexture(size: textureSize, format: .depth_32f_stencil8)
         
         defer {
             self.viewportRid = ViewportRenderer.shared.addViewport(self)
+            ViewportRenderer.shared.viewportUpdateSize(textureSize, viewport: self)
         }
         
         self._viewportFrame = frame
@@ -70,12 +68,7 @@ public class Viewport: EventSource {
         let scale = window?.screen?.scale ?? 1.0
         let textureSize = Size(width: newSize.width * scale, height: newSize.height * scale)
         
-        self.renderTexture.setActive(false)
-        self.depthTexture.setActive(false)
-        
-        self.renderTexture = RenderTexture(size: textureSize, format: .bgra8)
-        self.depthTexture = RenderTexture(size: textureSize, format: .depth_32f_stencil8)
-        
+        ViewportRenderer.shared.viewportUpdateSize(textureSize, viewport: self)
         EventManager.default.send(ViewportEvents.DidResize(size: newSize, viewport: self), source: self)
     }
     

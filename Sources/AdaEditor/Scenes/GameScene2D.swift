@@ -123,7 +123,7 @@ class TubeSpawnerSystem: System {
     private func spawnTube(in scene: Scene, transform: Transform, isUp: Bool) {
         let tube = Entity(name: "Tube")
         tube.components += TubeComponent()
-        tube.components += SpriteComponent(tintColor: isUp ? .green : .blue)
+        tube.components += SpriteComponent(tintColor: isUp ? Color.green : Color.blue)
         tube.components += transform
         tube.components += Collision2DComponent(
             shapes: [
@@ -172,7 +172,7 @@ final class GameScene2D {
         scene.activeCamera.clearFlags = .solid
         
         // DEBUG
-//        scene.debugOptions = [.showPhysicsShapes]
+        scene.debugOptions = [.showPhysicsShapes]
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)

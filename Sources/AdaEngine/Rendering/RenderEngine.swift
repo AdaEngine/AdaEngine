@@ -86,6 +86,10 @@ public class RenderEngine: RenderBackend {
         return self.renderBackend.makeSampler(from: descriptor)
     }
     
+    func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
+        return self.renderBackend.makeFramebuffer(from: descriptor)
+    }
+    
     func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
         return self.renderBackend.makeRenderPipeline(from: descriptor)
     }
