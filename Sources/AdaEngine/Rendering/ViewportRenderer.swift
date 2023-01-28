@@ -9,25 +9,26 @@ class ViewportRenderer {
     
     static let shared = ViewportRenderer()
     
-    var viewports = ResourceHashMap<Viewport>()
+    private var viewports = ResourceHashMap<Viewport>()
+    private var framebuffers = ResourceHashMap<Framebuffer>()
     
-    let renderPipeline: RenderPipeline
-    let quadIndexArray: RID
-    let viewportUniform: RID
-    let quadVertexArray: RID
-    let quadVertexBuffer: RID
+    private let renderPipeline: RenderPipeline
+    private let quadIndexArray: RID
+    private let viewportUniform: RID
+    private let quadVertexArray: RID
+    private let quadVertexBuffer: RID
     
-    struct Quad {
+    private struct Quad {
         var position: Vector3
         var textureCoordinate: Vector2
     }
     
-    struct ViewportUniform {
+    private struct ViewportUniform {
         let viewTransform: Transform3D
     }
     
     // FIXME: Remove it
-    let greenTexture: Texture2D
+    private let greenTexture: Texture2D
     
     private init() {
         let device = RenderEngine.shared
@@ -102,6 +103,37 @@ class ViewportRenderer {
         viewports.setValue(viewport)
     }
     
+    func viewportUpdateSize(_ newSize: Size, viewport: Viewport) {
+        if let frambuffer = self.framebuffers[viewport.viewportRid] {
+            frambuffer.attachments.forEach { ($0.texture as? RenderTexture)?.setActive(false) }
+        }
+        
+        let renderTarget = RenderTexture(size: newSize, format: .bgra8)
+        let depthTexture = RenderTexture(size: newSize, format: .depth_32f_stencil8)
+        
+        var renderPass = RenderPassDescriptor()
+        renderPass.attachments = [
+            RenderAttachmentDescriptor(
+                format: renderTarget.pixelFormat,
+                texture: renderTarget
+            ),
+            RenderAttachmentDescriptor(
+                format: depthTexture.pixelFormat,
+                texture: depthTexture
+            )
+        ]
+        
+        let descriptor = FramebufferDescriptor(renderPass: renderPass)
+        let framebuffer = RenderEngine.shared.makeFramebuffer(from: descriptor)
+        self.framebuffers.setValue(framebuffer, forKey: viewport.viewportRid)
+    }
+    
+    func getRenderTexture(for viewport: Viewport) -> Texture2D? {
+        return self.framebuffers[viewport.viewportRid]?.attachments.first(where: {
+            return $0.usage.contains(.colorAttachment)
+        })?.texture
+    }
+    
     func removeViewport(_ viewport: Viewport) {
         viewports[viewport.viewportRid] = nil
     }
@@ -134,7 +166,7 @@ class ViewportRenderer {
             draw.bindUniformSet(self.viewportUniform, at: BufferIndex.baseUniform)
             draw.bindIndexArray(self.quadIndexArray)
             draw.bindVertexArray(self.quadVertexArray)
-            draw.bindTexture(viewport.renderTexture, at: 0)
+            draw.bindTexture(viewport.renderTargetTexture, at: 0)
 //            draw.bindTexture(self.greenTexture, at: 0)
             draw.bindRenderPipeline(self.renderPipeline)
             

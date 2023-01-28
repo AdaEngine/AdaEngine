@@ -120,14 +120,37 @@ class MetalRenderBackend: RenderBackend {
         }
     }
     
-//    func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
-//        return MetalFramebuffer(
-//            viewport: <#T##MTLViewport#>,
-//            descriptor: descriptor,
-//            renderPass: <#T##RenderPass#>
-//        )
-//    }
-//
+    func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
+        let renderPass = self.makeRenderPass(from: descriptor.renderPass) as! MetalRenderPass
+        let mtlRenderPass = renderPass.renderPass
+        var attachments = [FramebufferAttachment]()
+        
+        for attachment in renderPass.descriptor.attachments {
+            
+            var usage: FramebufferAttachmentUsage = []
+            
+            if attachment.format.isDepthFormat {
+                usage.insert(.depthStencilAttachment)
+            } else {
+                usage.insert(.colorAttachment)
+            }
+            
+            attachments.append(
+                FramebufferAttachment(
+                    texture: attachment.texture,
+                    pixelFormat: attachment.format,
+                    usage: usage
+                )
+            )
+        }
+        
+        return MetalFramebuffer(
+            descriptor: descriptor,
+            renderPass: renderPass,
+            attachments: attachments
+        )
+    }
+    
     func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.label = descriptor.debugName

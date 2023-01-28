@@ -62,6 +62,9 @@ protocol RenderBackend: AnyObject {
     
     func makeRenderPass(from descriptor: RenderPassDescriptor) -> RenderPass
     
+    /// Create a framebuffer from descriptor.
+    func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer
+    
     /// Create pipeline state from shader.
     func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline
     
