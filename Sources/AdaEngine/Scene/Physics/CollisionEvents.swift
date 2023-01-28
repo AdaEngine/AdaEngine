@@ -1,12 +1,12 @@
 //
-//  CollisionEvent.swift
+//  CollisionEvents.swift
 //  
 //
 //  Created by v.prusakov on 7/11/22.
 //
 
 /// Events associated with collisions.
-public enum CollisionEvent {
+public enum CollisionEvents {
     
     /// An event raised when two objects collide.
     public struct Began: Event {

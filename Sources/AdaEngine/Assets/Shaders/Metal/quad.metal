@@ -37,9 +37,6 @@ fragment float4 quad_fragment(QuadVertexOut in [[stage_in]],
                               sampler textureSampler [[ sampler(0) ]]
                               ) {
     
-//    constexpr sampler textureSampler (mag_filter::nearest,
-//                                      min_filter::linear);
-    
     const half4 colorSample = textures[in.textureIndex].sample(textureSampler, in.textureCoordinate);
     const float4 resultColor = float4(colorSample) * in.color;
     

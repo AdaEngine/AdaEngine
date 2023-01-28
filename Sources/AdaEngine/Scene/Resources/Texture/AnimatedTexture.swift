@@ -82,7 +82,7 @@ public final class AnimatedTexture: Texture2D {
         super.init(rid: RID(), size: .zero)
         
         self.gameLoopToken = EventManager.default.subscribe(
-            to: EngineEvent.GameLoopBegan.self,
+            to: EngineEvents.GameLoopBegan.self,
             completion: update(_:)
         )
     }
@@ -207,7 +207,7 @@ public final class AnimatedTexture: Texture2D {
     private var time: TimeInterval = 0
     
     /// Called each frame to update current frame.
-    private func update(_ event: EngineEvent.GameLoopBegan) {
+    private func update(_ event: EngineEvents.GameLoopBegan) {
         if self.isPaused {
             return
         }

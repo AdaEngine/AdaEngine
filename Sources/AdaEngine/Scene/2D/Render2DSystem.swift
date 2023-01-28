@@ -19,15 +19,11 @@ struct Render2DSystem: System {
         
         guard !spriteEntities.isEmpty else { return }
         
-        guard let window = context.scene.window else {
-            return
-        }
-        
-        let drawContext = render2D.beginContext(for: window.id, camera: context.scene.activeCamera)
+        let drawContext = render2D.beginContext(for: context.scene.activeCamera)
         drawContext.setDebugName("Start 2D Rendering scene")
         
         spriteEntities.forEach { entity in
-            guard let transform = entity.components[Transform.self] else {
+            guard let matrix = entity.components[Transform.self]?.matrix else {
                 assert(true, "Render 2D System don't have required Transform component")
                 
                 return
@@ -35,7 +31,7 @@ struct Render2DSystem: System {
             
             if let circle = entity.components[Circle2DComponent.self] {
                 drawContext.drawCircle(
-                    transform: transform.matrix,
+                    transform: matrix,
                     thickness: circle.thickness,
                     fade: circle.fade,
                     color: circle.color
@@ -44,7 +40,7 @@ struct Render2DSystem: System {
             
             if let sprite = entity.components[SpriteComponent.self] {
                 drawContext.drawQuad(
-                    transform: transform.matrix,
+                    transform: matrix,
                     texture: sprite.texture,
                     color: sprite.tintColor
                 )

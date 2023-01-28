@@ -7,25 +7,11 @@
 
 public struct Transform: Component {
     
-    public var rotation: Quat {
-        didSet {
-            self.updateMatrix()
-        }
-    }
+    public var rotation: Quat
 
-    public var scale: Vector3 {
-        didSet {
-            self.updateMatrix()
-        }
-    }
+    public var scale: Vector3
 
-    public var position: Vector3 {
-        didSet {
-            self.updateMatrix()
-        }
-    }
-    
-    private var _matrix: Transform3D = .identity
+    public var position: Vector3
     
     public init(
         rotation: Quat = .identity,
@@ -35,31 +21,24 @@ public struct Transform: Component {
         self.rotation = rotation
         self.scale = scale
         self.position = position
-        
-        self.updateMatrix()
     }
     
-    private mutating func updateMatrix() {
-        self._matrix = Transform3D(
-            translation: self.position,
-            rotation: self.rotation,
-            scale: self.scale
-        )
-    }
 }
 
 public extension Transform {
     var matrix: Transform3D {
         get {
-            _matrix
+            Transform3D(
+                translation: self.position,
+                rotation: self.rotation,
+                scale: self.scale
+            )
         }
         
         set {
             self.scale = newValue.scale
             self.rotation = newValue.rotation
             self.position = newValue.origin
-            
-            self._matrix = newValue
         }
     }
 }

@@ -11,6 +11,8 @@ struct PlayerMovementSystem: System {
     
     static let playerQuery = EntityQuery(where: .has(PlayerComponent.self) && .has(PhysicsBody2DComponent.self))
     
+    static let cameraQuery = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
+    
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
@@ -24,6 +26,30 @@ struct PlayerMovementSystem: System {
             for touch in Input.getTouches() where touch.phase == .began {
                 body.applyLinearImpulse([0, 1], point: .zero, wake: true)
             }
+        }
+        
+        context.scene.performQuery(Self.cameraQuery).forEach { entity in
+            var transform = entity.components[Transform.self]!
+            
+            let speed: Float = 2 * context.deltaTime
+            
+            if Input.isKeyPressed(.w) {
+                transform.position.y += speed
+            }
+            
+            if Input.isKeyPressed(.s) {
+                transform.position.y -= speed
+            }
+            
+            if Input.isKeyPressed(.a) {
+                transform.position.x -= speed
+            }
+            
+            if Input.isKeyPressed(.d) {
+                transform.position.x += speed
+            }
+            
+            entity.components += transform
         }
     }
 }
@@ -114,6 +140,8 @@ final class GameScene2D {
     
     var collision: Cancellable!
     var fpsCounter: Cancellable!
+    var sceneReady: Cancellable!
+    var viewportChanged: Cancellable!
     
     let textureAtlas: TextureAtlas
     let characterAtlas: TextureAtlas
@@ -143,14 +171,12 @@ final class GameScene2D {
 //        let scene = try ResourceManager.load(scenePath) as Scene
         
         scene.activeCamera.projection = .orthographic
-        scene.activeCamera.far = 1000
-        scene.activeCamera.orthographicScale = 0.4
+        scene.activeCamera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
+        scene.activeCamera.clearFlags = .solid
         
         // DEBUG
-        scene.debugOptions = [.showPhysicsShapes]
+//        scene.debugOptions = [.showPhysicsShapes]
         scene.debugPhysicsColor = .red
-        
-        self.makeBackground(for: scene)
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
         self.collisionHandler(for: scene)
@@ -163,28 +189,34 @@ final class GameScene2D {
         
         try ResourceManager.save(scene, at: scenePath)
         
+        sceneReady = scene.subscribe(to: SceneEvents.OnReady.self) { [weak self] event in
+            
+            let viewport = event.scene.viewport
+            
+            let entity = Entity(name: "viewport")
+            entity.components += Transform(scale: [0.5, 0.5, 0.5], position: [2, 0, 0])
+            entity.components += SpriteComponent(texture: viewport?.renderTexture)
+            event.scene.addEntity(entity)
+            
+            self?.viewportChanged = scene.subscribe(to: ViewportEvents.DidResize.self, on: viewport, completion: { [weak entity] event in
+                let texture = event.viewport.renderTexture
+                entity?.components += SpriteComponent(texture: texture)
+            })
+            
+        }
+        
+
         return scene
     }
     
     private func collisionHandler(for scene: Scene) {
-        self.collision = scene.subscribe(to: CollisionEvent.Began.self) { event in
+        self.collision = scene.subscribe(to: CollisionEvents.Began.self) { event in
             if event.entityA.name == "Player" && (event.entityB.name == "Tube") {
                 //                event.entityA.scene?.removeEntity(event.entityA)
                 print("collide with tube")
                 //                self.gameOver()
             }
         }
-    }
-    
-    private func makeBackground(for scene: Scene) {
-        var transform = Transform()
-        transform.scale = [10, 10, 10]
-        transform.position.z = 5
-        
-        let untexturedEntity = Entity(name: "Background")
-        untexturedEntity.components += SpriteComponent(tintColor: Color(135/255, 206/255, 235/255, 1))
-        untexturedEntity.components += transform
-        scene.addEntity(untexturedEntity)
     }
     
     private func makePlayer(for scene: Scene) {
@@ -236,7 +268,7 @@ final class GameScene2D {
     }
     
     private func fpsCounter(for scene: Scene) {
-        self.fpsCounter = EventManager.default.subscribe(to: EngineEvent.FramesPerSecondEvent.self, completion: { event in
+        self.fpsCounter = EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { event in
             //            print("FPS", event.framesPerSecond)
         })
     }

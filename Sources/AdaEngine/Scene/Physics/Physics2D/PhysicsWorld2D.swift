@@ -92,7 +92,7 @@ public final class PhysicsWorld2D: Codable {
         self.world.setContactListener(contactListner)
     }
     
-    public func updateSimulation(_ delta: Float) {
+    internal func updateSimulation(_ delta: Float) {
         self.world.step(
             timeStep: delta,
             velocityIterations: self.velocityIterations,
@@ -189,7 +189,7 @@ final class _Physics2DContactListner: b2ContactListener {
         // FIXME: We should get correct impulse of contact
         let impulse = contact.manifold.points.first?.normalImpulse
         
-        let event = CollisionEvent.Began(
+        let event = CollisionEvents.Began(
             entityA: bodyA.entity,
             entityB: bodyB.entity,
             impulse: impulse ?? 0
@@ -202,7 +202,7 @@ final class _Physics2DContactListner: b2ContactListener {
         let bodyA = contact.fixtureA.body.userData as! Body2D
         let bodyB = contact.fixtureB.body.userData as! Body2D
         
-        let event = CollisionEvent.Ended(
+        let event = CollisionEvents.Ended(
             entityA: bodyA.entity,
             entityB: bodyB.entity
         )

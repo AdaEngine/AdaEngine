@@ -22,7 +22,7 @@ public final class Scene: Resource {
 
     public internal(set) var activeCamera: Camera
     
-    public internal(set) weak var window: Window?
+    public internal(set) weak var viewport: Viewport?
     
     public var resourcePath: String = ""
     public var resourceName: String = ""
@@ -31,35 +31,13 @@ public final class Scene: Resource {
     private var plugins: [ScenePlugin] = []
     private(set) var world: World
     
-    private(set) var eventManager: EventManager = EventManager()
-    
-    public var viewportRelativeWindowSize: Bool = true
+    private(set) var eventManager: EventManager = EventManager.default
     
     public private(set) lazy var sceneRenderer = SceneRendering(scene: self)
     
     // Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     public var debugPhysicsColor: Color = .green
-    
-    // TODO: (Vlad) Looks like isn't good solution.
-    private var _viewportSize: Size = .zero
-    public var viewportSize: Size {
-        get {
-            if self.viewportRelativeWindowSize {
-                return self.window?.frame.size ?? .zero
-            }
-            
-            return self._viewportSize
-        }
-        
-        set {
-            if self.viewportRelativeWindowSize {
-               print("You set viewport size when scene size relative to window. That not affect getter.")
-            }
-            
-            self._viewportSize = newValue
-        }
-    }
     
     public weak var sceneManager: SceneManager?
     
@@ -72,6 +50,7 @@ public final class Scene: Resource {
         
         let cameraEntity = Entity()
         let cameraComponent = Camera()
+        cameraComponent.isActive = true
         cameraEntity.components += cameraComponent
         
         defer {
@@ -161,8 +140,11 @@ public final class Scene: Resource {
     private(set) var isReady = false
     
     func ready() {
+        // TODO: In the future we need minimal scene plugin for headless mode.
         self.addPlugin(DefaultScenePlugin())
         self.isReady = true
+        
+        self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
     }
     
     func update(_ deltaTime: TimeInterval) {
@@ -192,6 +174,8 @@ public extension Scene {
         precondition(entity.scene == nil, "Entity has scene reference, can't be added")
         entity.scene = self
         self.world.appendEntity(entity)
+        
+        self.eventManager.send(SceneEvents.DidAddEntity(entity: entity), source: self)
     }
     
     func findEntityByID(_ id: Entity.ID) -> Entity? {
@@ -207,6 +191,8 @@ public extension Scene {
     }
     
     func removeEntity(_ entity: Entity) {
+        self.eventManager.send(SceneEvents.WillRemoveEntity(entity: entity), source: self)
+        
         self.world.removeEntityOnNextTick(entity)
     }
 }
@@ -262,9 +248,8 @@ extension Scene: EventSource {
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
     /// - Parameters completion: A closure to call with the event.
     /// - Returns: A cancellable object. You should store it in memory, to recieve events.
-    
     public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> Cancellable where E : Event {
-        return self.eventManager.subscribe(to: event, on: eventSource, completion: completion)
+        return self.eventManager.subscribe(to: event, on: eventSource ?? self, completion: completion)
     }
 }
 
@@ -279,4 +264,20 @@ public extension Scene {
         public static let showPhysicsShapes = DebugOptions(rawValue: 1 << 0)
         public static let showFPS = DebugOptions(rawValue: 1 << 1)
     }
+}
+
+public enum SceneEvents {
+    
+    public struct OnReady: Event {
+        public let scene: Scene
+    }
+    
+    public struct DidAddEntity: Event {
+        public let entity: Entity
+    }
+    
+    public struct WillRemoveEntity: Event {
+        public let entity: Entity
+    }
+    
 }

@@ -6,7 +6,7 @@
 //
 
 /// Main events available from the engine.
-public enum EngineEvent {
+public enum EngineEvents {
     /// Called each time, when main game loop was iterating.
     public struct GameLoopBegan: Event {
         /// The delta time after previous tick.

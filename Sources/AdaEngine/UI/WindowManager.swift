@@ -38,7 +38,7 @@ open class WindowManager {
             }
             
             if window.canDraw {
-                let context = GUIRenderContext(window: window.id, engine: renderEngine)
+                let context = GUIRenderContext(viewport: window.viewport, engine: renderEngine)
                 
                 context.beginDraw(in: window.bounds)
                 window.draw(with: context)
@@ -73,6 +73,10 @@ open class WindowManager {
     }
     
     open func resizeWindow(_ window: Window, size: Size) {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    open func getScreen(for window: Window) -> Screen? {
         fatalErrorMethodNotImplemented()
     }
     

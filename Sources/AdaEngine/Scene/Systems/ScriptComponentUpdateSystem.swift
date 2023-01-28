@@ -12,7 +12,7 @@ struct ScriptComponentUpdateSystem: System {
     let renderer2D = RenderEngine2D()
     
     func update(context: UpdateContext) {
-        let guiRenderContext = GUIRenderContext(window: context.scene.window!.id, engine: renderer2D)
+//        let guiRenderContext = GUIRenderContext(window: context.scene.viewport!.window!.id, engine: renderer2D)
         
         context.scene.world.scripts.values.forEach { component in
             
@@ -25,12 +25,12 @@ struct ScriptComponentUpdateSystem: System {
             component.onEvent(Input.shared.eventsPool)
             
             component.update(context.deltaTime)
+
+//            guiRenderContext.beginDraw(in: Rect(origin: .zero, size: context.scene.viewportSize))
             
-            guiRenderContext.beginDraw(in: Rect(origin: .zero, size: context.scene.viewportSize))
+//            component.updateGUI(context.deltaTime, context: guiRenderContext)
             
-            component.updateGUI(context.deltaTime, context: guiRenderContext)
-            
-            guiRenderContext.commitDraw()
+//            guiRenderContext.commitDraw()
         }
     }
 }

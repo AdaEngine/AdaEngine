@@ -19,10 +19,10 @@ final public class GUIRenderContext {
     private var currentTransform = Transform3D.identity
     
     /// Window Identifier related presented window.
-    private let window: Window.ID
+    private unowned let viewport: Viewport
     
-    public init(window: Window.ID, engine: RenderEngine2D) {
-        self.window = window
+    public init(viewport: Viewport, engine: RenderEngine2D) {
+        self.viewport = viewport
         self.engine = engine
     }
     
@@ -54,7 +54,7 @@ final public class GUIRenderContext {
         self.screenRect = screenRect
         self.view = view
         
-        self.currentDrawContext = self.engine.beginContext(for: self.window, viewTransform: view)
+        self.currentDrawContext = self.engine.beginContext(for: self.viewport, viewTransform: view)
     }
     
     public func setFillColor(_ color: Color) {

@@ -9,7 +9,7 @@ struct CameraSystem: System {
     
     static var dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
     
-    static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
+    static let query = EntityQuery(where: .has(Camera.self))
     
     init(scene: Scene) { }
     
@@ -19,11 +19,13 @@ struct CameraSystem: System {
                 return
             }
             
-            if camera.viewportSize != context.scene.viewportSize {
-                camera.viewportSize = context.scene.viewportSize
-            }
+            let sceneViewport = context.scene.viewport
             
-            if !camera.isCurrent && camera.isPrimal {
+            if camera.isActive && sceneViewport?.camera !== camera {
+                
+                camera.viewport = sceneViewport // Should we set a viewport in the system??
+                sceneViewport?.camera = camera
+                
                 context.scene.activeCamera = camera
             }
         }

@@ -25,6 +25,8 @@ open class Window: View {
     
     internal var systemWindow: SystemWindow?
     
+    public let viewport: Viewport
+    
     public var windowManager: WindowManager {
         return Application.shared.windowManager
     }
@@ -45,6 +47,10 @@ open class Window: View {
     
     public internal(set) var isFullscreen: Bool = false
     
+    public var screen: Screen? {
+        return windowManager.getScreen(for: self)
+    }
+    
     // Flag indicates that window is active.
     public internal(set) var isActive: Bool = false
     
@@ -53,7 +59,11 @@ open class Window: View {
     }
     
     public required init(frame: Rect) {
+        self.viewport = Viewport(frame: frame)
+        
         super.init(frame: frame)
+        
+        self.viewport.window = self
         
         self.backgroundColor = .clear
         self.windowManager.createWindow(for: self)
@@ -107,6 +117,7 @@ open class Window: View {
     
     override func frameDidChange() {
         self.windowManager.resizeWindow(self, size: self.frame.size)
+        self.updateViewport()
         
         super.frameDidChange()
     }
@@ -122,6 +133,10 @@ open class Window: View {
     }
     
     public override func addSubview(_ view: View) {
+        
+        if view is Window {
+            fatalError("You cannot add window as subview to another window")
+        }
         
         if let anotherWindow = view.window {
             if anotherWindow === self {
@@ -142,6 +157,13 @@ open class Window: View {
         
         view.window = nil
         super.removeSubview(view)
+    }
+    
+    // MARK: - Private
+    
+    private func updateViewport() {
+        self.viewport.size = self.frame.size
+        self.viewport.position = self.frame.origin
     }
 }
 

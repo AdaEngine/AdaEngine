@@ -25,6 +25,8 @@ public enum TriangleFillMode {
 
 protocol RenderBackend: AnyObject {
     
+    var currentFrameIndex: Int { get }
+    
     func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws
     func resizeWindow(_ windowId: Window.ID, newSize: Size) throws
     func destroyWindow(_ windowId: Window.ID) throws
@@ -36,8 +38,6 @@ protocol RenderBackend: AnyObject {
     
     /// Release any data associated with the current frame.
     func endFrame() throws
-    
-    func setClearColor(_ color: Color, forWindow windowId: Window.ID)
     
     // MARK: - Buffers
     
@@ -77,7 +77,7 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Texture
     
-    func makeTexture(from image: Image, type: Texture.TextureType, usage: Texture.Usage) -> RID
+    func makeTexture(from descriptor: TextureDescriptor) -> RID
     
     func removeTexture(by rid: RID)
     

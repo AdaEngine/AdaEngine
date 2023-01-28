@@ -35,13 +35,14 @@ final class MacOSWindowManager: WindowManager {
             contentRect: contentRect,
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
-            defer: false,
-            screen: NSScreen.main
+            defer: false
         )
         
         systemWindow.contentView = metalView
         systemWindow.collectionBehavior = [.fullScreenPrimary]
         systemWindow.center()
+        systemWindow.isRestorable = false
+        systemWindow.acceptsMouseMovedEvents = true
         systemWindow.delegate = nsWindowDelegate
         systemWindow.backgroundColor = .black
         
@@ -106,6 +107,14 @@ final class MacOSWindowManager: WindowManager {
         
         nsWindow.contentMinSize = minSize
         nsWindow.minSize = minSize
+    }
+    
+    override func getScreen(for window: Window) -> Screen? {
+        guard let nsWindow = window.systemWindow as? NSWindow, let screen = nsWindow.screen else {
+            return nil
+        }
+        
+        return ScreenManager.shared.makeScreen(from: screen)
     }
     
     func findWindow(for nsWindow: NSWindow) -> Window? {

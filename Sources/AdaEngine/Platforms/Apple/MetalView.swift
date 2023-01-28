@@ -46,4 +46,16 @@ public extension CGSize {
     }
 }
 
+extension Size {
+    var toCGSize: CGSize {
+        return CGSize(width: Double(self.width), height: Double(self.height))
+    }
+}
+
+extension Point {
+    var toCGPoint: CGPoint {
+        return CGPoint(x: Double(self.x), y: Double(self.y))
+    }
+}
+
 #endif

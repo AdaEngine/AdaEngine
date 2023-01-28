@@ -51,10 +51,6 @@ public final class SceneRendering {
     }
     
     func beginRendering() {
-        guard let window = self.scene.window?.id else {
-            assertionFailure("Window not found. We can't render without window.")
-            return
-        }
         
 //        self.currentDraw = RenderEngine.shared.beginDraw(for: window)
     }
