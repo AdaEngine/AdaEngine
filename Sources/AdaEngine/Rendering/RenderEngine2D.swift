@@ -7,6 +7,8 @@
 
 import Math
 
+// TODO: (Vlad) Fix depth stencil
+// TODO: (Vlad) Store render pass 
 public class RenderEngine2D {
     
     static var minimumZIndex = -4096
@@ -19,6 +21,8 @@ public class RenderEngine2D {
         var viewProjection: Transform3D = .identity
     }
     
+    public static let `default` = RenderEngine2D()
+    
     private var uniformRid: RID
     
     struct Data<V> {
@@ -29,8 +33,6 @@ public class RenderEngine2D {
         var indexArray: RID
         let renderPipeline: RenderPipeline
     }
-    
-    private let renderPass: RenderPass
     
     private var circleData: Data<CircleVertexData>
     private var quadData: Data<QuadVertexData>
@@ -88,7 +90,7 @@ public class RenderEngine2D {
         // Create an empty white texture
         // because if user don't pass texture to render, we will use this white texture
         let image = Image(width: 1, height: 1, color: .white)
-        self.whiteTexture = Texture2D(from: image)
+        self.whiteTexture = Texture2D(image: image)
         self.textureSlots = [Texture2D?].init(repeating: nil, count: 32)
         self.textureSlots[0] = self.whiteTexture
         
@@ -108,16 +110,6 @@ public class RenderEngine2D {
         depthStencilDesc.isDepthWriteEnabled = true
         depthStencilDesc.depthCompareOperator = .less
         
-        var renderPassDesc = RenderPassDescriptor()
-        renderPassDesc.clearDepth = 0.0
-        renderPassDesc.attachments = [
-            RenderAttachmentDescriptor(format: .bgra8_srgb, loadAction: .dontCare),
-            RenderAttachmentDescriptor(format: .depth_32f_stencil8, loadAction: .load)
-        ]
-        renderPassDesc.depthLoadAction = .clear
-        
-        self.renderPass = device.makeRenderPass(from: renderPassDesc)
-        
         var samplerDesc = SamplerDescriptor()
         samplerDesc.magFilter = .nearest
         let sampler = device.makeSampler(from: samplerDesc)
@@ -134,7 +126,7 @@ public class RenderEngine2D {
         
         var piplineDesc = RenderPipelineDescriptor(shader: circleShader)
         piplineDesc.debugName = "Circle Pipeline"
-        piplineDesc.depthStencilDescriptor = depthStencilDesc
+//        piplineDesc.depthStencilDescriptor = depthStencilDesc
         piplineDesc.sampler = sampler
         
         piplineDesc.vertexDescriptor.attributes.append([
@@ -147,8 +139,8 @@ public class RenderEngine2D {
         
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<CircleVertexData>.stride
         
-        var attachment = ColorAttachmentDescriptor(format: .bgra8_srgb)
-        attachment.isBlendingEnabled = true
+        var attachment = ColorAttachmentDescriptor(format: .bgra8)
+//        attachment.isBlendingEnabled = true
         
         piplineDesc.colorAttachments = [attachment]
         
@@ -275,24 +267,51 @@ public class RenderEngine2D {
         )
     }
     
-    public func beginContext(for window: Window.ID, viewTransform: Transform3D) -> DrawContext {
+    public func beginContext(for viewport: Viewport, viewTransform: Transform3D) -> DrawContext {
         let uni = Uniform(viewProjection: viewTransform)
         RenderEngine.shared.updateUniform(self.uniformRid, value: uni, count: 1)
+
+        let window = viewport.window!
         
-        let currentDraw = RenderEngine.shared.beginDraw(for: window)
-        let context = DrawContext(currentDraw: currentDraw, window: window, renderEngine: self)
+        let currentDraw = RenderEngine.shared.beginDraw(for: window.id)
+        let context = DrawContext(currentDraw: currentDraw, window: window.id, renderEngine: self)
         context.startBatch()
         return context
     }
     
-    public func beginContext(for window: Window.ID, camera: Camera) -> DrawContext {
+    public func beginContext(for camera: Camera) -> DrawContext {
         let data = camera.makeCameraData()
+        
         let uni = Uniform(viewProjection: camera.transform.matrix * data.viewProjection)
         RenderEngine.shared.updateUniform(self.uniformRid, value: uni, count: 1)
         
-        let currentDraw = RenderEngine.shared.beginDraw(for: window)
+        let viewport = camera.viewport!
+        let window = viewport.window!
         
-        let context = DrawContext(currentDraw: currentDraw, window: window, renderEngine: self)
+        var renderPassDesc = RenderPassDescriptor()
+        renderPassDesc.depthLoadAction = .clear
+        renderPassDesc.attachments = [
+            RenderAttachmentDescriptor(
+                format: viewport.renderTexture.pixelFormat,
+                texture: viewport.renderTexture,
+                clearColor: camera.backgroundColor,
+                loadAction: .clear
+            ),
+//
+//            RenderAttachmentDescriptor(
+//                format: viewport.depthTexture.pixelFormat,
+//                texture: viewport.depthTexture
+//            )
+        ]
+        
+        renderPassDesc.width = Int(viewport.renderTexture.width)
+        renderPassDesc.height = Int(viewport.renderTexture.height)
+        
+        let renderPass = RenderEngine.shared.makeRenderPass(from: renderPassDesc)
+        
+        let currentDraw = RenderEngine.shared.beginDraw(for: window.id, renderPass: renderPass)
+        
+        let context = DrawContext(currentDraw: currentDraw, window: window.id, renderEngine: self)
         context.startBatch()
         return context
     }
@@ -330,7 +349,7 @@ extension RenderEngine2D {
             // Flush all data if textures count more than 32
             if self.renderEngine.textureSlotIndex >= 31 {
                 self.nextBatch()
-                self.renderEngine.textureSlots.removeAll(keepingCapacity: true)
+                self.renderEngine.textureSlots = [Texture2D?].init(repeating: nil, count: 32)
                 self.renderEngine.textureSlots[0] = self.renderEngine.whiteTexture
                 self.renderEngine.textureSlotIndex = 1
             }

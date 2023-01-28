@@ -5,6 +5,20 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+public struct CameraClearFlags: OptionSet, Codable {
+    public var rawValue: UInt8
+    
+    public init(rawValue: UInt8) {
+        self.rawValue = rawValue
+    }
+    
+    public static let solid = CameraClearFlags(rawValue: 1 << 0)
+    
+    public static let depthBuffer = CameraClearFlags(rawValue: 1 << 1)
+    
+    public static let nothing: CameraClearFlags = []
+}
+
 // TODO: We should translate mouse coordinate space to scene coordinate space
 // FIXME: Change camera to component, instead of script component
 public final class Camera: ScriptComponent {
@@ -32,18 +46,25 @@ public final class Camera: ScriptComponent {
     @Export
     public var projection: Projection = .perspective
     
-    @Export(skipped: true)
-    public var viewportSize: Size = .zero
+    /// A viewport where camera will render
+    internal var viewport: Viewport?
     
     /// Set camera is active
     @Export
-    public var isPrimal = false
+    public var isActive = false
+    
+    @Export
+    public var backgroundColor: Color = .black
+    
+    @Export
+    public var clearFlags: CameraClearFlags = .nothing
     
     @Export
     public var orthographicScale: Float = 1
     
     // MARK: Computed Properties
     
+    // TODO: Should we have this flag? Looks like isActive is enough for us
     public var isCurrent: Bool {
         return self.entity?.scene?.activeCamera === self
     }
@@ -53,6 +74,8 @@ public final class Camera: ScriptComponent {
     // MARK: - Internal
     
     func makeCameraData() -> CameraData {
+        let viewportSize = self.viewport?.size ?? .zero
+        
         let projection: Transform3D
         let aspectRation = Float(viewportSize.width) / Float(viewportSize.height)
         

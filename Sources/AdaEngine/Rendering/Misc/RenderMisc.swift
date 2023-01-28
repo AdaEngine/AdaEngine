@@ -78,11 +78,31 @@ public enum StencilOperation: UInt {
 
 // MARK: - Others -
 
+public enum IndexPrimitive: UInt8 {
+    
+    case triangle
+    
+    case triangleStrip
+    
+    case line
+    
+    case lineStrip
+    
+    case points
+}
+
 public enum AttachmentLoadAction {
     
     case clear
     
     case load
+    
+    case dontCare
+}
+
+public enum AttachmentStoreAction {
+    
+    case store
     
     case dontCare
 }

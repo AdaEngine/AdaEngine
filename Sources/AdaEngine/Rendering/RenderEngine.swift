@@ -24,6 +24,12 @@ public class RenderEngine: RenderBackend {
         self.renderBackend = renderBackend
     }
     
+    // MARK: - RenderBackend
+    
+    public var currentFrameIndex: Int {
+        return self.renderBackend.currentFrameIndex
+    }
+    
     public func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
         try self.renderBackend.createWindow(windowId, for: view, size: size)
     }
@@ -42,10 +48,6 @@ public class RenderEngine: RenderBackend {
     
     func endFrame() throws {
         try self.renderBackend.endFrame()
-    }
-    
-    func setClearColor(_ color: Color, forWindow windowId: Window.ID) {
-        self.renderBackend.setClearColor(color, forWindow: windowId)
     }
     
     func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
@@ -104,8 +106,8 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.removeUniform(rid)
     }
     
-    func makeTexture(from image: Image, type: Texture.TextureType, usage: Texture.Usage) -> RID {
-        self.renderBackend.makeTexture(from: image, type: type, usage: usage)
+    func makeTexture(from descriptor: TextureDescriptor) -> RID {
+        self.renderBackend.makeTexture(from: descriptor)
     }
     
     func removeTexture(by rid: RID) {

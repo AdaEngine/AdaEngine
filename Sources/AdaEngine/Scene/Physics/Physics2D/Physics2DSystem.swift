@@ -45,12 +45,13 @@ final class Physics2DSystem: System {
     private let render2D = RenderEngine2D()
     
     func update(context: UpdateContext) {
-        let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.window != nil
+        let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.viewport != nil
         
         var drawContext: RenderEngine2D.DrawContext?
         
         if needDrawPolygons {
-            drawContext = self.render2D.beginContext(for: context.scene.window!.id, camera: context.scene.activeCamera)
+            drawContext = self.render2D.beginContext(for: context.scene.activeCamera)
+            drawContext?.setDebugName("Physics 2D Debug")
         }
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)

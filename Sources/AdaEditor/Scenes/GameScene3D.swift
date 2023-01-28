@@ -11,26 +11,28 @@ class GameScene3D {
     func makeScene() throws -> Scene {
         let scene = Scene(name: "3D")
         
-//        scene.addSystem(EditorCameraSystem.self)
+        scene.addSystem(EditorCameraSystem.self)
         
-//        let camera = EditorCameraEntity()
-//        camera.components[Camera.self]?.isPrimal = true
-//        scene.addEntity(camera)
+        let camera = EditorCameraEntity()
+        camera.components[Camera.self]?.isActive = true
+        scene.addEntity(camera)
         
         var transform = Transform()
         transform.scale = [10, 10, 10]
+        
+//        scene.activeCamera.projection = .orthographic
 
         let untexturedEntity = Entity(name: "Background")
-        untexturedEntity.components += SpriteComponent(tintColor: Color.blue)
+        untexturedEntity.components += SpriteComponent(tintColor: Color.green)
         untexturedEntity.components += transform
         scene.addEntity(untexturedEntity)
-        
-        let userEntity = Entity(name: "camera")
-        let camera = Camera()
-        camera.projection = .orthographic
-        camera.isPrimal = true
-        userEntity.components += camera
-        scene.addEntity(userEntity)
+//
+//        let userEntity = Entity(name: "camera")
+//        let camera = Camera()
+//        camera.projection = .orthographic
+//        camera.isActive = true
+//        userEntity.components += camera
+//        scene.addEntity(userEntity)
         
 //        let mesh = Mesh.generateBox(extent: [1, 1, 1], segments: [1, 1, 1])
         

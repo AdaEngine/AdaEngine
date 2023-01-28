@@ -74,6 +74,7 @@ public extension Transform3D {
         self.init(x, y, z, w)
     }
     
+    @inline(__always)
     init(basis: Transform2D) {
         var matrix = Transform3D.identity
         
@@ -96,6 +97,7 @@ public extension Transform3D {
 // MARK: - Affine
 
 public extension Transform3D {
+    @inline(__always)
     init(_ affineTransform: Transform2D) {
         let at = affineTransform
         
@@ -261,6 +263,7 @@ public extension Transform3D {
     }
     
     /// Create TRS matrix
+    @inline(__always)
     init(translation: Vector3, rotation: Quat, scale: Vector3) {
         self = Transform3D(translation: translation) * Transform3D(quat: rotation) * Transform3D(scale: scale)
     }
@@ -363,8 +366,8 @@ public extension Transform3D {
         let m00 = 2 / (right - left)
         let m11 = 2 / (top - bottom)
         let m22 = 1 / (zFar - zNear)
-        let m03 = (right + left) / (right - left)
-        let m13 = (top + bottom) / (top - bottom)
+        let m03 = (right + left) / (left - right)
+        let m13 = (top + bottom) / (bottom - top)
         let m23 = zNear / (zFar - zNear)
 
         return Transform3D(

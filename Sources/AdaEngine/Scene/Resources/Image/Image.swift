@@ -94,6 +94,7 @@ public extension Image {
         case rgba8
         case rgb8
         case bgra8
+        case bgra8_sRGB
         case gray
     }
 }
@@ -206,7 +207,7 @@ private extension Image {
     
     static func getPixelSize(for format: Format) -> Int {
         switch format {
-        case .rgba8, .bgra8:
+        case .rgba8, .bgra8, .bgra8_sRGB:
             return 4
         case .rgb8:
             return 3
@@ -233,6 +234,23 @@ private extension Image {
             data[offset * 4 + 3] = UInt8(clamp(color.alpha * 255.0, 0, 255))
         default:
             fatalError("Not supported type for set pixel")
+        }
+    }
+}
+
+public extension Image.Format {
+    var toPixelFormat: PixelFormat {
+        switch self {
+        case .rgba8:
+            return .rgba8
+        case .rgb8:
+            return .none
+        case .bgra8:
+            return .bgra8
+        case .bgra8_sRGB:
+            return .bgra8_srgb
+        case .gray:
+            return .none
         }
     }
 }

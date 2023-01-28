@@ -192,7 +192,7 @@ final class GameScene2D {
     }
 
     private func collisionHandler(for scene: Scene) {
-        self.collision = scene.subscribe(to: CollisionEvent.Began.self) { event in
+        self.collision = scene.subscribe(to: CollisionEvents.Began.self) { event in
             if event.entityA.name == "Player" && (event.entityB.name == "Tube") {
 //                event.entityA.scene?.removeEntity(event.entityA)
                 print("collide with tube")
@@ -262,7 +262,7 @@ final class GameScene2D {
     }
     
     private func fpsCounter(for scene: Scene) {
-        self.fpsCounter = EventManager.default.subscribe(for: EngineEvent.FramesPerSecondEvent.self, completion: { event in
+        self.fpsCounter = EventManager.default.subscribe(for: EngineEvents.FramesPerSecondEvent.self, completion: { event in
 //            print("FPS", event.framesPerSecond)
         })
     }

@@ -15,8 +15,17 @@ open class Texture2D: Texture {
     public private(set) var width: Float
     public private(set) var height: Float
     
-    public init(from image: Image) {
-        let rid = RenderEngine.shared.makeTexture(from: image, type: .texture2D, usage: [.read, .renderTarget])
+    public init(image: Image) {
+        let descriptor = TextureDescriptor(
+            width: image.width,
+            height: image.height,
+            pixelFormat: image.format.toPixelFormat,
+            textureUsage: [.read],
+            textureType: .texture2D,
+            image: image
+        )
+        
+        let rid = RenderEngine.shared.makeTexture(from: descriptor)
         
         self.width = Float(image.width)
         self.height = Float(image.height)
@@ -46,7 +55,7 @@ open class Texture2D: Texture {
         let path = try container.decode(String.self)
         
         let image = try ResourceManager.load(path) as Image
-        self.init(from: image)
+        self.init(image: image)
         
         let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
         context?.appendResource(self)
@@ -68,11 +77,16 @@ open class Texture2D: Texture {
     public required init(asset decoder: AssetDecoder) throws {
         let image = try Image(asset: decoder)
         
-        let rid = RenderEngine.shared.makeTexture(
-            from: image,
-            type: .texture2D,
-            usage: [.read]
+        let descriptor = TextureDescriptor(
+            width: image.width,
+            height: image.height,
+            pixelFormat: image.format.toPixelFormat,
+            textureUsage: [.read],
+            textureType: .texture2D,
+            image: image
         )
+        
+        let rid = RenderEngine.shared.makeTexture(from: descriptor)
         
         self.width = Float(image.width)
         self.height = Float(image.height)

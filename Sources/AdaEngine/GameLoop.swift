@@ -38,13 +38,19 @@ public final class GameLoop {
             return
         }
         
-        EventManager.default.send(EngineEvent.GameLoopBegan(deltaTime: deltaTime))
+        EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
         
         Input.shared.processEvents()
         
         try RenderEngine.shared.beginFrame()
         
         Application.shared.windowManager.update(deltaTime)
+        
+        ViewportRenderer.shared.beginFrame()
+        
+        ViewportRenderer.shared.renderViewports()
+        
+        ViewportRenderer.shared.endFrame()
         
         try RenderEngine.shared.endFrame()
         
@@ -87,6 +93,6 @@ class FPSCounter {
     
     private func notifyUpdateForElapsedTime(_ elapsedTime: TimeInterval) {
         let fps = Int(round(Double(self.numberOfFrames) / Double(elapsedTime)))
-        EventManager.default.send(EngineEvent.FramesPerSecondEvent(framesPerSecond: fps))
+        EventManager.default.send(EngineEvents.FramesPerSecondEvent(framesPerSecond: fps))
     }
 }

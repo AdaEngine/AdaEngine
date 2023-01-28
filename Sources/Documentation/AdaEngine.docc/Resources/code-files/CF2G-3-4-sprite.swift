@@ -22,7 +22,7 @@ class FirstScene {
         let url = Bundle.main.url(forResource: "player", withExtension: "png")!
         let image = try! Image(contentsOf: url)
         
-        let texture = Texture2D(from: image)
+        let texture = Texture2D(image: image)
         
         let playerEntity = Entity(name: "Player")
         playerEntity.components += SpriteComponent(texture: texture)

@@ -26,7 +26,7 @@ public final class TextureAtlas: Texture2D {
         self.spriteSize = size
         self.margin = margin
         
-        super.init(from: image)
+        super.init(image: image)
     }
     
     // MARK: - Resource
@@ -49,7 +49,7 @@ public final class TextureAtlas: Texture2D {
         
         let image = try ResourceManager.load(atlas.filePath) as Image
         
-        super.init(from: image)
+        super.init(image: image)
     }
     
     public override func encodeContents(with encoder: AssetEncoder) throws {
@@ -83,7 +83,7 @@ public final class TextureAtlas: Texture2D {
         let path = try container.decode(String.self, forKey: .resource)
         let image = try ResourceManager.load(path) as Image
         
-        super.init(from: image)
+        super.init(image: image)
         
         let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
         context?.appendResource(self)

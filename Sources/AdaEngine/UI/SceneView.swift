@@ -8,9 +8,19 @@
 public class SceneView: View {
     
     public let sceneManager: SceneManager
+//    private let viewport: Viewport
+    
+    public override var window: Window? {
+        didSet {
+//            self.viewport.window = window?.id
+            self.sceneManager.viewport = self.window?.viewport
+        }
+    }
     
     public required init(frame: Rect) {
         self.sceneManager = SceneManager()
+//        self.viewport = Viewport(frame: frame)
+//        self.sceneManager.viewport = self.viewport
         super.init(frame: frame)
     }
     
@@ -19,10 +29,11 @@ public class SceneView: View {
         self.sceneManager.presentScene(scene)
     }
     
-    public override var window: Window? {
-        didSet {
-            self.sceneManager.window = self.window
-        }
+    override func frameDidChange() {
+        super.frameDidChange()
+        
+//        self.viewport.size = self.frame.size
+//        self.viewport.position = self.frame.origin
     }
     
     public override func update(_ deltaTime: TimeInterval) {
