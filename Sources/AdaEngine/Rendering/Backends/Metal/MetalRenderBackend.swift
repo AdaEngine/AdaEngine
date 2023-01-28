@@ -10,6 +10,8 @@ enum BufferIndex {
     static let material = 2
 }
 
+// TODO: (Vlad) We should support bgra8Unorm_srgb
+
 #if METAL
 import Metal
 import ModelIO
@@ -66,8 +68,7 @@ class MetalRenderBackend: RenderBackend {
     func beginFrame() throws {
         for (_, window) in self.context.windows {
             window.commandBuffer = window.commandQueue.makeCommandBuffer()
-            window.drawable = window.view?.currentDrawable
-//            window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
+            window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
         }
     }
     
@@ -230,8 +231,13 @@ class MetalRenderBackend: RenderBackend {
             }
         }
         
-        renderPassDescriptor.renderTargetWidth = Int(descriptor.width)
-        renderPassDescriptor.renderTargetHeight = Int(descriptor.height)
+        if descriptor.width > 0 {
+            renderPassDescriptor.renderTargetWidth = Int(descriptor.width)
+        }
+        
+        if descriptor.height > 0 {
+            renderPassDescriptor.renderTargetHeight = Int(descriptor.height)
+        }
         
         return MetalRenderPass(descriptor: descriptor, renderPass: renderPassDescriptor)
     }
@@ -436,11 +442,12 @@ extension MetalRenderBackend {
             fatalError("Render Window not exists.")
         }
         
-        guard let mtlRenderPass = window.view?.currentRenderPassDescriptor else {
-            fatalError("Can't get render pass for window")
-        }
+        let mtlRenderPass = window.getDrawableRenderPass()
         
-        let renderPass = MetalRenderPass(descriptor: RenderPassDescriptor(), renderPass: mtlRenderPass)
+        let renderPass = MetalRenderPass(
+            descriptor: RenderPassDescriptor(),
+            renderPass: mtlRenderPass
+        )
         
         guard let mtlCommandBuffer = window.commandBuffer else {
             fatalError("Command Buffer not exists")

@@ -248,7 +248,7 @@ extension Scene: EventSource {
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
     /// - Parameters completion: A closure to call with the event.
     /// - Returns: A cancellable object. You should store it in memory, to recieve events.
-    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> Cancellable where E : Event {
+    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> AnyCancellable where E : Event {
         return self.eventManager.subscribe(to: event, on: eventSource ?? self, completion: completion)
     }
 }

@@ -138,10 +138,7 @@ class TubeSpawnerSystem: System {
 
 final class GameScene2D {
     
-    var collision: Cancellable!
-    var fpsCounter: Cancellable!
-    var sceneReady: Cancellable!
-    var viewportChanged: Cancellable!
+    var disposeBag: Set<AnyCancellable> = []
     
     let textureAtlas: TextureAtlas
     let characterAtlas: TextureAtlas
@@ -188,35 +185,19 @@ final class GameScene2D {
         scene.addSystem(PlayerMovementSystem.self)
         
         try ResourceManager.save(scene, at: scenePath)
-        
-        sceneReady = scene.subscribe(to: SceneEvents.OnReady.self) { [weak self] event in
-            
-            let viewport = event.scene.viewport
-            
-            let entity = Entity(name: "viewport")
-            entity.components += Transform(scale: [0.5, 0.5, 0.5], position: [2, 0, 0])
-            entity.components += SpriteComponent(texture: viewport?.renderTexture)
-            event.scene.addEntity(entity)
-            
-            self?.viewportChanged = scene.subscribe(to: ViewportEvents.DidResize.self, on: viewport, completion: { [weak entity] event in
-                let texture = event.viewport.renderTexture
-                entity?.components += SpriteComponent(texture: texture)
-            })
-            
-        }
-        
 
         return scene
     }
     
     private func collisionHandler(for scene: Scene) {
-        self.collision = scene.subscribe(to: CollisionEvents.Began.self) { event in
+        scene.subscribe(to: CollisionEvents.Began.self) { event in
             if event.entityA.name == "Player" && (event.entityB.name == "Tube") {
                 //                event.entityA.scene?.removeEntity(event.entityA)
                 print("collide with tube")
                 //                self.gameOver()
             }
         }
+        .store(in: &disposeBag)
     }
     
     private func makePlayer(for scene: Scene) {
@@ -268,8 +249,9 @@ final class GameScene2D {
     }
     
     private func fpsCounter(for scene: Scene) {
-        self.fpsCounter = EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { event in
-            //            print("FPS", event.framesPerSecond)
+        EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { event in
+//            print("FPS", event.framesPerSecond)
         })
+        .store(in: &disposeBag)
     }
 }
