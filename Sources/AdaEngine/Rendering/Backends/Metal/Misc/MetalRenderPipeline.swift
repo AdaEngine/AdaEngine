@@ -14,7 +14,11 @@ class MetalRenderPipeline: RenderPipeline {
     let renderPipeline: MTLRenderPipelineState
     let depthStencilState: MTLDepthStencilState?
     
-    init(descriptor: RenderPipelineDescriptor, renderPipeline: MTLRenderPipelineState, depthState: MTLDepthStencilState?) {
+    init(
+        descriptor: RenderPipelineDescriptor,
+        renderPipeline: MTLRenderPipelineState,
+        depthState: MTLDepthStencilState?
+    ) {
         self.descriptor = descriptor
         self.renderPipeline = renderPipeline
         self.depthStencilState = depthState

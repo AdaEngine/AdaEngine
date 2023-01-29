@@ -288,28 +288,11 @@ public class RenderEngine2D {
         let viewport = camera.viewport!
         let window = viewport.window!
         
-        var renderPassDesc = RenderPassDescriptor()
-        renderPassDesc.depthLoadAction = .clear
-        renderPassDesc.attachments = [
-            RenderAttachmentDescriptor(
-                format: viewport.renderTargetTexture.pixelFormat,
-                texture: viewport.renderTargetTexture,
-                clearColor: camera.backgroundColor,
-                loadAction: .clear
-            ),
-//
-//            RenderAttachmentDescriptor(
-//                format: viewport.depthTexture.pixelFormat,
-//                texture: viewport.depthTexture
-//            )
-        ]
+        guard let framebuffer = ViewportStorage.getFramebuffer(for: viewport) else {
+            fatalError("Viewport doesn't has a framebuffer")
+        }
         
-        renderPassDesc.width = Int(viewport.renderTargetTexture.width)
-        renderPassDesc.height = Int(viewport.renderTargetTexture.height)
-        
-        let renderPass = RenderEngine.shared.makeRenderPass(from: renderPassDesc)
-        
-        let currentDraw = RenderEngine.shared.beginDraw(for: window.id, renderPass: renderPass)
+        let currentDraw = RenderEngine.shared.beginDraw(for: window.id, framebuffer: framebuffer)
         
         let context = DrawContext(currentDraw: currentDraw, window: window.id, renderEngine: self)
         context.startBatch()
@@ -359,7 +342,7 @@ extension RenderEngine2D {
             let textureIndex: Int
             
             if let texture = texture {
-                if let index = self.renderEngine.textureSlots.firstIndex(where: { $0 == texture }) {
+                if let index = self.renderEngine.textureSlots.firstIndex(where: { $0 === texture }) {
                     textureIndex = index
                 } else {
                     self.renderEngine.textureSlots[self.renderEngine.textureSlotIndex] = texture

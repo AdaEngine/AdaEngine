@@ -24,16 +24,10 @@ class MetalRenderBackend: RenderBackend {
     private(set) var currentFrameIndex: Int = 0
     private var maxFramesInFlight = 3
     
-    private var resourceMap: ResourceHashMap<MTLResource> = [:]
     private var vertexBuffers: ResourceHashMap<InternalBuffer> = [:]
     private var uniformSet: ResourceHashMap<Uniform> = [:]
-    
     private var indexArrays: ResourceHashMap<IndexArray> = [:]
     private var vertexArrays: ResourceHashMap<VertexArray> = [:]
-    
-    private var textures: ResourceHashMap<GPUTexture> = [:]
-    
-    private var renderPipelineStateMap: ResourceHashMap<PipelineState> = [:]
     
     private var inFlightSemaphore: DispatchSemaphore
     
@@ -121,34 +115,7 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
-        let renderPass = self.makeRenderPass(from: descriptor.renderPass) as! MetalRenderPass
-        let mtlRenderPass = renderPass.renderPass
-        var attachments = [FramebufferAttachment]()
-        
-        for attachment in renderPass.descriptor.attachments {
-            
-            var usage: FramebufferAttachmentUsage = []
-            
-            if attachment.format.isDepthFormat {
-                usage.insert(.depthStencilAttachment)
-            } else {
-                usage.insert(.colorAttachment)
-            }
-            
-            attachments.append(
-                FramebufferAttachment(
-                    texture: attachment.texture,
-                    pixelFormat: attachment.format,
-                    usage: usage
-                )
-            )
-        }
-        
-        return MetalFramebuffer(
-            descriptor: descriptor,
-            renderPass: renderPass,
-            attachments: attachments
-        )
+        return MetalFramebuffer(descriptor: descriptor)
     }
     
     func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
@@ -238,9 +205,9 @@ class MetalRenderBackend: RenderBackend {
                 renderPassDescriptor.depthAttachment.loadAction = descriptor.depthLoadAction.toMetal
                 renderPassDescriptor.depthAttachment.clearDepth = descriptor.clearDepth
                 
-                if let renderTarget = attachment.texture, let texture = self.textures[renderTarget.rid] {
-                    renderPassDescriptor.depthAttachment.texture = texture.resource
-                    renderPassDescriptor.stencilAttachment.texture = texture.resource
+                if let renderTarget = attachment.texture?.gpuTexture as? MetalGPUTexture {
+                    renderPassDescriptor.depthAttachment.texture = renderTarget.texture
+                    renderPassDescriptor.stencilAttachment.texture = renderTarget.texture
                 }
             } else {
                 renderPassDescriptor.colorAttachments[index].slice = attachment.slice
@@ -248,8 +215,8 @@ class MetalRenderBackend: RenderBackend {
                 renderPassDescriptor.colorAttachments[index].loadAction = attachment.loadAction.toMetal
                 renderPassDescriptor.colorAttachments[index].storeAction = attachment.storeAction.toMetal
                 
-                if let renderTarget = attachment.texture, let texture = self.textures[renderTarget.rid] {
-                    renderPassDescriptor.colorAttachments[index].texture = texture.resource
+                if let renderTarget = attachment.texture?.gpuTexture as? MetalGPUTexture {
+                    renderPassDescriptor.colorAttachments[index].texture = renderTarget.texture
                 }
             }
         }
@@ -343,7 +310,7 @@ class MetalRenderBackend: RenderBackend {
 // MARK: Texture
 
 extension MetalRenderBackend {
-    func makeTexture(from descriptor: TextureDescriptor) -> RID {
+    func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture {
         let textureDesc = MTLTextureDescriptor()
         
         switch descriptor.textureType {
@@ -380,8 +347,6 @@ extension MetalRenderBackend {
             fatalError("Cannot create texture")
         }
         
-        var gpuTexture = GPUTexture(resource: texture, images: [])
-        
         if let image = descriptor.image {
             let region = MTLRegion(
                 origin: MTLOrigin(x: 0, y: 0, z: 0),
@@ -400,59 +365,50 @@ extension MetalRenderBackend {
                     bytesPerRow: bytesPerRow
                 )
             }
-            
-            gpuTexture.images.append(image)
         }
         
-        return self.textures.setValue(gpuTexture)
-    }
-    
-    func removeTexture(by rid: RID) {
-        self.textures[rid] = nil
+        return MetalGPUTexture(texture: texture)
     }
     
     // TODO: (Vlad) think about it later
     func getImage(for texture2D: RID) -> Image? {
-        guard let texture = self.textures[texture2D] else {
-            assertionFailure("Texture for given rid not exists")
-            
-            return nil
-        }
         
-        let mtlTexture = texture.resource
+        return nil
         
-        if mtlTexture.isFramebufferOnly {
-            return nil
-        }
-        
-        let imageFormat: Image.Format
-        let bytesInPixel: Int
-        
-        switch mtlTexture.pixelFormat {
-        case .bgra8Unorm_srgb, .bgra8Unorm:
-            imageFormat = .bgra8
-            bytesInPixel = 4
-        default:
-            imageFormat = .rgba8
-            bytesInPixel = 4
-        }
-        
-        let bytesPerRow = bytesInPixel * mtlTexture.width
-        
-        var data = Data(capacity: mtlTexture.allocatedSize)
-        data.withUnsafeMutableBytes { bufferPtr in
-            mtlTexture.getBytes(
-                bufferPtr.baseAddress!,
-                bytesPerRow: bytesPerRow,
-                from: MTLRegion(
-                    origin: MTLOrigin(x: 0, y: 0, z: 0),
-                    size: MTLSize(width: mtlTexture.width, height: mtlTexture.height, depth: 1)
-                ),
-                mipmapLevel: 0
-            )
-        }
-        
-        return Image(width: mtlTexture.width, height: mtlTexture.height, data: data, format: imageFormat)
+//        let mtlTexture = texture.resource
+//
+//        if mtlTexture.isFramebufferOnly {
+//            return nil
+//        }
+//
+//        let imageFormat: Image.Format
+//        let bytesInPixel: Int
+//
+//        switch mtlTexture.pixelFormat {
+//        case .bgra8Unorm_srgb, .bgra8Unorm:
+//            imageFormat = .bgra8
+//            bytesInPixel = 4
+//        default:
+//            imageFormat = .rgba8
+//            bytesInPixel = 4
+//        }
+//
+//        let bytesPerRow = bytesInPixel * mtlTexture.width
+//
+//        var data = Data(capacity: mtlTexture.allocatedSize)
+//        data.withUnsafeMutableBytes { bufferPtr in
+//            mtlTexture.getBytes(
+//                bufferPtr.baseAddress!,
+//                bytesPerRow: bytesPerRow,
+//                from: MTLRegion(
+//                    origin: MTLOrigin(x: 0, y: 0, z: 0),
+//                    size: MTLSize(width: mtlTexture.width, height: mtlTexture.height, depth: 1)
+//                ),
+//                mipmapLevel: 0
+//            )
+//        }
+//
+//        return Image(width: mtlTexture.width, height: mtlTexture.height, data: data, format: imageFormat)
     }
 }
 
@@ -479,8 +435,7 @@ extension MetalRenderBackend {
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
         let commandBuffer = MetalRenderCommandBuffer(
             encoder: encoder,
-            commandBuffer: mtlCommandBuffer,
-            destinationTexture: window.drawable!.texture
+            commandBuffer: mtlCommandBuffer
         )
         
         return DrawList(
@@ -489,7 +444,7 @@ extension MetalRenderBackend {
         )
     }
     
-    func beginDraw(for window: Window.ID, renderPass: RenderPass) -> DrawList {
+    func beginDraw(for window: Window.ID, framebuffer: Framebuffer) -> DrawList {
         guard let window = self.context.windows[window] else {
             fatalError("Render Window not exists.")
         }
@@ -498,15 +453,15 @@ extension MetalRenderBackend {
             fatalError("Command Buffer not exists")
         }
         
-        guard let mtlRenderPassDesc = (renderPass as? MetalRenderPass)?.renderPass else {
-            fatalError("Not supported render pass type")
+        guard let mtlRenderPassDesc = (framebuffer as? MetalFramebuffer)?.renderPassDescriptor else {
+            fatalError("Cannot get a render pass descriptor for current draw")
         }
         
+        let renderPass = MetalRenderPass(descriptor: RenderPassDescriptor(), renderPass: mtlRenderPassDesc)
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPassDesc)!
         let commandBuffer = MetalRenderCommandBuffer(
             encoder: encoder,
-            commandBuffer: mtlCommandBuffer,
-            destinationTexture: window.drawable!.texture
+            commandBuffer: mtlCommandBuffer
         )
         
         return DrawList(
@@ -608,9 +563,8 @@ extension MetalRenderBackend {
             }
         }
         
-        let textures: [MTLTexture] = list.textures.compactMap { (texture: Texture?) in
-            guard let rid = texture?.rid else { return nil }
-            return self.textures[rid]?.resource
+        let textures: [MTLTexture] = list.textures.compactMap {
+            return ($0?.gpuTexture as? MetalGPUTexture)?.texture
         }
         
         if !textures.isEmpty {
@@ -653,6 +607,8 @@ extension MetalRenderBackend {
     }
 }
 
+// MARK: - Data
+
 extension MetalRenderBackend {
     
     struct InternalBuffer {
@@ -682,11 +638,6 @@ extension MetalRenderBackend {
     
     struct PipelineState {
         var state: MTLRenderPipelineState?
-    }
-    
-    struct GPUTexture {
-        let resource: MTLTexture
-        var images: [Image]
     }
 }
 
@@ -986,11 +937,9 @@ class MetalCommandBuffer: CommandBuffer {
 class MetalRenderCommandBuffer: CommandBuffer {
     let encoder: MTLRenderCommandEncoder
     let commandBuffer: MTLCommandBuffer
-    let destinationTexture: MTLTexture
     
-    init(encoder: MTLRenderCommandEncoder, commandBuffer: MTLCommandBuffer, destinationTexture: MTLTexture) {
+    init(encoder: MTLRenderCommandEncoder, commandBuffer: MTLCommandBuffer) {
         self.encoder = encoder
         self.commandBuffer = commandBuffer
-        self.destinationTexture = destinationTexture
     }
 }

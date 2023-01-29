@@ -15,7 +15,7 @@ public class Viewport: EventSource {
     internal private(set) var viewportRid: RID!
     
     var renderTargetTexture: RenderTexture {
-        ViewportRenderer.shared.getRenderTexture(for: self) as! RenderTexture
+        ViewportStorage.getRenderTexture(for: self) as! RenderTexture
     }
     
     public var isVisible = true
@@ -49,15 +49,15 @@ public class Viewport: EventSource {
         let textureSize = Size(width: frame.size.width, height: frame.size.height)
         
         defer {
-            self.viewportRid = ViewportRenderer.shared.addViewport(self)
-            ViewportRenderer.shared.viewportUpdateSize(textureSize, viewport: self)
+            self.viewportRid = ViewportStorage.addViewport(self)
+            ViewportStorage.viewportUpdateSize(textureSize, viewport: self)
         }
         
         self._viewportFrame = frame
     }
     
     deinit {
-        ViewportRenderer.shared.removeViewport(self)
+        ViewportStorage.removeViewport(self)
     }
     
     private func updateRenderTarget(with newSize: Size) {
@@ -68,7 +68,7 @@ public class Viewport: EventSource {
         let scale = window?.screen?.scale ?? 1.0
         let textureSize = Size(width: newSize.width * scale, height: newSize.height * scale)
         
-        ViewportRenderer.shared.viewportUpdateSize(textureSize, viewport: self)
+        ViewportStorage.viewportUpdateSize(textureSize, viewport: self)
         EventManager.default.send(ViewportEvents.DidResize(size: newSize, viewport: self), source: self)
     }
     

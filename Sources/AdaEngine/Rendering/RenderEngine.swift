@@ -110,12 +110,8 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.removeUniform(rid)
     }
     
-    func makeTexture(from descriptor: TextureDescriptor) -> RID {
+    func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture {
         self.renderBackend.makeTexture(from: descriptor)
-    }
-    
-    func removeTexture(by rid: RID) {
-        self.renderBackend.removeTexture(by: rid)
     }
     
     func getImage(for texture2D: RID) -> Image? {
@@ -128,8 +124,8 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.beginDraw(for: window)
     }
     
-    func beginDraw(for window: Window.ID, renderPass: RenderPass) -> DrawList {
-        self.renderBackend.beginDraw(for: window, renderPass: renderPass)
+    func beginDraw(for window: Window.ID, framebuffer: Framebuffer) -> DrawList {
+        self.renderBackend.beginDraw(for: window, framebuffer: framebuffer)
     }
     
     func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {

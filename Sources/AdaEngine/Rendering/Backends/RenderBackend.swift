@@ -80,9 +80,7 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Texture
     
-    func makeTexture(from descriptor: TextureDescriptor) -> RID
-    
-    func removeTexture(by rid: RID)
+    func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture
     
     func getImage(for texture2D: RID) -> Image?
     
@@ -90,7 +88,7 @@ protocol RenderBackend: AnyObject {
     
     func beginDraw(for window: Window.ID) -> DrawList
     
-    func beginDraw(for window: Window.ID, renderPass: RenderPass) -> DrawList
+    func beginDraw(for window: Window.ID, framebuffer: Framebuffer) -> DrawList
     
     func draw(_ list: DrawList, indexCount: Int, instancesCount: Int)
     
