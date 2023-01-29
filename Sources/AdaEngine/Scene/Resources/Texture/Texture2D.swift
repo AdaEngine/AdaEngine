@@ -25,27 +25,29 @@ open class Texture2D: Texture {
             image: image
         )
         
-        let rid = RenderEngine.shared.makeTexture(from: descriptor)
+        let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
         
         self.width = Float(image.width)
         self.height = Float(image.height)
         
-        super.init(rid: rid, textureType: .texture2D)
+        super.init(gpuTexture: gpuTexture, textureType: .texture2D)
     }
     
+    // FIXME: Should return image?
     public var image: Image? {
-        RenderEngine.shared.getImage(for: self.rid)
+//        RenderEngine.shared.getImage(for: self.rid)
+        return nil
     }
     
     open internal(set) var textureCoordinates: [Vector2] = [
         [0, 1], [1, 1], [1, 0], [0, 0]
     ]
     
-    internal init(rid: RID, size: Size) {
+    internal init(gpuTexture: GPUTexture, size: Size) {
         self.width = size.width
         self.height = size.height
         
-        super.init(rid: rid, textureType: .texture2D)
+        super.init(gpuTexture: gpuTexture, textureType: .texture2D)
     }
     
     // MARK: - Codable
@@ -86,25 +88,15 @@ open class Texture2D: Texture {
             image: image
         )
         
-        let rid = RenderEngine.shared.makeTexture(from: descriptor)
+        let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
         
         self.width = Float(image.width)
         self.height = Float(image.height)
         
-        super.init(rid: rid, textureType: .texture2D)
+        super.init(gpuTexture: gpuTexture, textureType: .texture2D)
     }
     
     public override func encodeContents(with encoder: AssetEncoder) throws {
         try self.image?.encodeContents(with: encoder)
-    }
-}
-
-// MARK: - Equatable
-
-extension Texture2D: Equatable {
-    public static func == (lhs: Texture2D, rhs: Texture2D) -> Bool {
-        lhs.rid == rhs.rid &&
-        lhs.height == rhs.height &&
-        lhs.textureCoordinates == rhs.textureCoordinates
     }
 }

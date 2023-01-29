@@ -26,9 +26,9 @@ public class RenderTexture: Texture2D {
         
         self.pixelFormat = format
         
-        let rid = RenderEngine.shared.makeTexture(from: descriptor)
+        let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
         
-        super.init(rid: rid, size: size)
+        super.init(gpuTexture: gpuTexture, size: size)
     }
     
     public required init(asset decoder: AssetDecoder) throws {

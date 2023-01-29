@@ -6,8 +6,14 @@
 //
 
 public struct FramebufferDescriptor {
+    public var scale: Float = 1.0
     public var sampleCount = 0
-    public var renderPass: RenderPassDescriptor
+    public var clearDepth: Double = 0
+    public var depthLoadAction: AttachmentLoadAction = .clear
+    public var attachments: [RenderAttachmentDescriptor] = []
+    
+    public var width: Int = 0
+    public var height: Int = 0
 }
 
 public struct FramebufferAttachmentUsage: OptionSet {
@@ -29,37 +35,16 @@ public extension FramebufferAttachmentUsage {
 }
 
 public struct FramebufferAttachment {
-    public let texture: Texture2D?
-    public let pixelFormat: PixelFormat
-    public let usage: FramebufferAttachmentUsage
+    public let texture: RenderTexture?
+    public internal(set) var clearColor: Color = Color(0, 0, 0, 1)
+    public internal(set) var usage: FramebufferAttachmentUsage = []
+    public internal(set) var slice: Int = 0
 }
 
 public protocol Framebuffer: AnyObject {
     var attachments: [FramebufferAttachment] { get }
-    
     var descriptor: FramebufferDescriptor { get }
-    var renderPass: RenderPass { get }
-}
-
-#if METAL
-
-import Metal
-
-class MetalFramebuffer: Framebuffer {
     
-    private(set) var attachments: [FramebufferAttachment]
-    private(set) var descriptor: FramebufferDescriptor
-    private(set) var renderPass: RenderPass
-    
-    init(
-        descriptor: FramebufferDescriptor,
-        renderPass: RenderPass,
-        attachments: [FramebufferAttachment]
-    ) {
-        self.descriptor = descriptor
-        self.renderPass = renderPass
-        self.attachments = attachments
-    }
+    func resize(to newSize: Size)
+    func invalidate()
 }
-
-#endif

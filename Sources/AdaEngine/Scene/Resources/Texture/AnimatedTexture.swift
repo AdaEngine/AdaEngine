@@ -50,8 +50,8 @@ public final class AnimatedTexture: Texture2D {
     public var options: Options = [.repeat]
     
     /// Return RID of current frame
-    override var rid: RID {
-        self.frames[currentFrame].texture!.rid
+    override var gpuTexture: GPUTexture {
+        self.frames[currentFrame].texture!.gpuTexture
     }
     
     /// Return texture coordinates of current frame.
@@ -79,16 +79,12 @@ public final class AnimatedTexture: Texture2D {
     public init() {
         self.frames = [Frame].init(repeating: Frame(texture: nil, delay: 0), count: 256)
         
-        super.init(rid: RID(), size: .zero)
+        super.init(gpuTexture: GPUTexture(), size: .zero)
         
         self.gameLoopToken = EventManager.default.subscribe(
             to: EngineEvents.GameLoopBegan.self,
             completion: update(_:)
         )
-    }
-    
-    override func freeTexture() {
-        // we should not manage free of texture, because we don't create it on GPU
     }
     
     // MARK: - Resources

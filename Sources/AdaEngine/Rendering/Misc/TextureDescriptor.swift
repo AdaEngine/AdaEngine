@@ -15,3 +15,5 @@ public struct TextureDescriptor {
     
     public var image: Image?
 }
+
+public class GPUTexture { }

@@ -9,19 +9,11 @@ class ViewportRenderer {
     
     static let shared = ViewportRenderer()
     
-    private var viewports = ResourceHashMap<Viewport>()
-    private var framebuffers = ResourceHashMap<Framebuffer>()
-    
     private let renderPipeline: RenderPipeline
     private let quadIndexArray: RID
     private let viewportUniform: RID
     private let quadVertexArray: RID
     private let quadVertexBuffer: RID
-    
-    private struct Quad {
-        var position: Vector3
-        var textureCoordinate: Vector2
-    }
     
     private struct ViewportUniform {
         let viewTransform: Transform3D
@@ -59,6 +51,11 @@ class ViewportRenderer {
                 isBlendingEnabled: false
             )
         ]
+        
+        struct Quad {
+            var position: Vector3
+            var textureCoordinate: Vector2
+        }
         
         var quadData = [
             Quad(position: [-1, -1, 0.0], textureCoordinate: [0, 1]),
@@ -99,45 +96,6 @@ class ViewportRenderer {
     
     // MARK: Methods
     
-    func addViewport(_ viewport: Viewport) -> RID {
-        viewports.setValue(viewport)
-    }
-    
-    func viewportUpdateSize(_ newSize: Size, viewport: Viewport) {
-        if let frambuffer = self.framebuffers[viewport.viewportRid] {
-            frambuffer.attachments.forEach { ($0.texture as? RenderTexture)?.setActive(false) }
-        }
-        
-        let renderTarget = RenderTexture(size: newSize, format: .bgra8)
-        let depthTexture = RenderTexture(size: newSize, format: .depth_32f_stencil8)
-        
-        var renderPass = RenderPassDescriptor()
-        renderPass.attachments = [
-            RenderAttachmentDescriptor(
-                format: renderTarget.pixelFormat,
-                texture: renderTarget
-            ),
-            RenderAttachmentDescriptor(
-                format: depthTexture.pixelFormat,
-                texture: depthTexture
-            )
-        ]
-        
-        let descriptor = FramebufferDescriptor(renderPass: renderPass)
-        let framebuffer = RenderEngine.shared.makeFramebuffer(from: descriptor)
-        self.framebuffers.setValue(framebuffer, forKey: viewport.viewportRid)
-    }
-    
-    func getRenderTexture(for viewport: Viewport) -> Texture2D? {
-        return self.framebuffers[viewport.viewportRid]?.attachments.first(where: {
-            return $0.usage.contains(.colorAttachment)
-        })?.texture
-    }
-    
-    func removeViewport(_ viewport: Viewport) {
-        viewports[viewport.viewportRid] = nil
-    }
-    
     func beginFrame() {
         
     }
@@ -147,9 +105,9 @@ class ViewportRenderer {
     }
     
     func renderViewports() {
-        let activeViewports = self.viewports.map { $0.value }
+        let viewports = ViewportStorage.getViewports()
         
-        for viewport in activeViewports {
+        for viewport in viewports {
             
             guard let window = viewport.window, viewport.isVisible else {
                 continue
@@ -173,5 +131,53 @@ class ViewportRenderer {
             RenderEngine.shared.draw(draw, indexCount: 6, instancesCount: 1)
             RenderEngine.shared.endDrawList(draw)
         }
+    }
+}
+
+class ViewportStorage {
+    private static var viewports: ResourceHashMap<WeakBox<Viewport>> = [:]
+    private static var framebuffers: ResourceHashMap<Framebuffer> = [:]
+    
+    static func addViewport(_ viewport: Viewport) -> RID {
+        viewports.setValue(WeakBox(value: viewport))
+    }
+    
+    static func removeViewport(_ viewport: Viewport) {
+        self.viewports[viewport.viewportRid] = nil
+        self.framebuffers[viewport.viewportRid] = nil
+    }
+    
+    static func getViewports() -> [Viewport] {
+        return self.viewports.values.compactMap { $0.value }
+    }
+    
+    static func viewportUpdateSize(_ newSize: Size, viewport: Viewport) {
+        if let frambuffer = self.framebuffers[viewport.viewportRid] {
+            frambuffer.resize(to: newSize)
+            
+            return
+        }
+        
+        var descriptor = FramebufferDescriptor()
+        descriptor.scale = viewport.window?.screen?.scale ?? 1.0
+        descriptor.width = Int(newSize.width)
+        descriptor.height = Int(newSize.height)
+        
+        descriptor.attachments = [
+            RenderAttachmentDescriptor(format: .bgra8)
+        ]
+        
+        let framebuffer = RenderEngine.shared.makeFramebuffer(from: descriptor)
+        self.framebuffers.setValue(framebuffer, forKey: viewport.viewportRid)
+    }
+    
+    static func getRenderTexture(for viewport: Viewport) -> Texture2D? {
+        return self.framebuffers[viewport.viewportRid]?.attachments.first(where: {
+            return $0.usage.contains(.colorAttachment)
+        })?.texture
+    }
+    
+    static func getFramebuffer(for viewport: Viewport) -> Framebuffer? {
+        return self.framebuffers[viewport.viewportRid]
     }
 }

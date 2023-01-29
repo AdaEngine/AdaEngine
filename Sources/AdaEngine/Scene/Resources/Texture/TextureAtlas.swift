@@ -143,7 +143,7 @@ public extension TextureAtlas {
             self.max = max
             self.min = min
             
-            super.init(rid: atlas.rid, size: size)
+            super.init(gpuTexture: atlas.gpuTexture, size: size)
             
             self.textureCoordinates = [
                 [min.x, max.y],
@@ -151,10 +151,6 @@ public extension TextureAtlas {
                 [max.x, min.y],
                 [min.x, min.y]
             ]
-        }
-        
-        override func freeTexture() {
-            // we should not release atlas
         }
         
         // MARK: - Resource

@@ -9,14 +9,14 @@ import Foundation
 
 open class Texture: Resource, Codable {
     
-    private(set) var rid: RID
+    private(set) var gpuTexture: GPUTexture
     private(set) var textureType: TextureType
     
     public var resourcePath: String = ""
     public var resourceName: String = ""
     
-    init(rid: RID, textureType: TextureType) {
-        self.rid = rid
+    init(gpuTexture: GPUTexture, textureType: TextureType) {
+        self.gpuTexture = gpuTexture
         self.textureType = textureType
     }
     
@@ -26,19 +26,6 @@ open class Texture: Resource, Codable {
     
     public func encode(to encoder: Encoder) throws {
         fatalError()
-    }
-    
-    deinit {
-        self.freeTexture()
-    }
-    
-    /// This method remove texture from GPU.
-    ///
-    /// - Warning: You should not use it method directly, this called once when Resource deinited from memory
-    /// In some cases we shouldn't release texture from GPU memory, than we need override this method
-    /// with empty realisation.
-    func freeTexture() {
-        RenderEngine.shared.removeTexture(by: self.rid)
     }
     
     // MARK: - Resources
