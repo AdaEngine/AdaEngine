@@ -275,7 +275,7 @@ public class RenderEngine2D {
     public func beginContext(for viewport: Viewport, viewTransform: Transform3D) -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
-        let uniform = self.uniformSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: frameIndex)
+        let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(Uniform(viewProjection: viewTransform))
 
         let window = viewport.window!
@@ -291,7 +291,7 @@ public class RenderEngine2D {
         
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
-        let uniform = self.uniformSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: frameIndex)
+        let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(Uniform(viewProjection: camera.transform.matrix * data.viewProjection))
         
         let viewport = camera.viewport!
