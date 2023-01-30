@@ -25,7 +25,6 @@ class MetalRenderBackend: RenderBackend {
     private var maxFramesInFlight = 3
     
     private var vertexBuffers: ResourceHashMap<InternalBuffer> = [:]
-    private var uniformSet: ResourceHashMap<Uniform> = [:]
     private var indexArrays: ResourceHashMap<IndexArray> = [:]
     private var vertexArrays: ResourceHashMap<VertexArray> = [:]
     
@@ -195,41 +194,6 @@ class MetalRenderBackend: RenderBackend {
         } catch {
             fatalError(error.localizedDescription)
         }
-    }
-    
-    func makeRenderPass(from descriptor: RenderPassDescriptor) -> RenderPass {
-        let renderPassDescriptor = MTLRenderPassDescriptor()
-        
-        for (index, attachment) in descriptor.attachments.enumerated() {
-            if attachment.format.isDepthFormat {
-                renderPassDescriptor.depthAttachment.loadAction = descriptor.depthLoadAction.toMetal
-                renderPassDescriptor.depthAttachment.clearDepth = descriptor.clearDepth
-                
-                if let renderTarget = attachment.texture?.gpuTexture as? MetalGPUTexture {
-                    renderPassDescriptor.depthAttachment.texture = renderTarget.texture
-                    renderPassDescriptor.stencilAttachment.texture = renderTarget.texture
-                }
-            } else {
-                renderPassDescriptor.colorAttachments[index].slice = attachment.slice
-                renderPassDescriptor.colorAttachments[index].clearColor = attachment.clearColor.toMetalClearColor
-                renderPassDescriptor.colorAttachments[index].loadAction = attachment.loadAction.toMetal
-                renderPassDescriptor.colorAttachments[index].storeAction = attachment.storeAction.toMetal
-                
-                if let renderTarget = attachment.texture?.gpuTexture as? MetalGPUTexture {
-                    renderPassDescriptor.colorAttachments[index].texture = renderTarget.texture
-                }
-            }
-        }
-        
-        if descriptor.width > 0 {
-            renderPassDescriptor.renderTargetWidth = Int(descriptor.width)
-        }
-        
-        if descriptor.height > 0 {
-            renderPassDescriptor.renderTargetHeight = Int(descriptor.height)
-        }
-        
-        return MetalRenderPass(descriptor: descriptor, renderPass: renderPassDescriptor)
     }
     
     func makeSampler(from descriptor: SamplerDescriptor) -> Sampler {
@@ -416,17 +380,15 @@ extension MetalRenderBackend {
 
 extension MetalRenderBackend {
     
-    func beginDraw(for window: Window.ID) -> DrawList {
+    func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList {
         guard let window = self.context.windows[window] else {
             fatalError("Render Window not exists.")
         }
         
-        let mtlRenderPass = window.getDrawableRenderPass()
+        let mtlRenderPass = window.getRenderPass()
+        mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
         
-        let renderPass = MetalRenderPass(
-            descriptor: RenderPassDescriptor(),
-            renderPass: mtlRenderPass
-        )
+        let renderPass = MetalRenderPass(renderPass: mtlRenderPass)
         
         guard let mtlCommandBuffer = window.commandBuffer else {
             fatalError("Command Buffer not exists")
@@ -444,7 +406,10 @@ extension MetalRenderBackend {
         )
     }
     
-    func beginDraw(for window: Window.ID, framebuffer: Framebuffer) -> DrawList {
+    func beginDraw(
+        for window: Window.ID, // FIXME: We shouldn't use window here
+        framebuffer: Framebuffer
+    ) -> DrawList {
         guard let window = self.context.windows[window] else {
             fatalError("Render Window not exists.")
         }
@@ -457,7 +422,7 @@ extension MetalRenderBackend {
             fatalError("Cannot get a render pass descriptor for current draw")
         }
         
-        let renderPass = MetalRenderPass(descriptor: RenderPassDescriptor(), renderPass: mtlRenderPassDesc)
+        let renderPass = MetalRenderPass(renderPass: mtlRenderPassDesc)
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPassDesc)!
         let commandBuffer = MetalRenderCommandBuffer(
             encoder: encoder,
@@ -470,30 +435,20 @@ extension MetalRenderBackend {
         )
     }
     
-    func makeUniform<T>(_ uniformType: T.Type, count: Int, offset: Int, options: ResourceOptions) -> RID {
+    // MARK: - Uniforms -
+    
+    func makeUniformBufferSet() -> UniformBufferSet {
+        return MetalUniformBufferSet(frames: self.maxFramesInFlight, backend: self)
+    }
+    
+    func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(
-            length: MemoryLayout<T>.size * count,
-            options: options.metal
+            length: length,
+            options: [.storageModeShared]
         )!
         
-        let uniform = Uniform(
-            buffer: buffer,
-            offset: offset
-        )
-        
-        return self.uniformSet.setValue(uniform)
-    }
-    
-    func updateUniform<T>(_ rid: RID, value: T, count: Int) {
-        guard let uniform = self.uniformSet.get(rid) else {
-            fatalError("Can't find uniform for rid \(rid)")
-        }
-        var temp = value
-        uniform.buffer.contents().copyMemory(from: &temp, byteCount: MemoryLayout.stride(ofValue: value) * count)
-    }
-    
-    func removeUniform(_ rid: RID) {
-        self.uniformSet.setValue(nil, forKey: rid)
+        let uniformBuffer = MetalUniformBuffer(buffer: buffer, binding: binding)
+        return uniformBuffer
     }
     
     // swiftlint:disable:next cyclomatic_complexity function_body_length
@@ -576,9 +531,9 @@ extension MetalRenderBackend {
             encoder.setFragmentSamplerState(mtlSampler, index: 0)
         }
         
-        for (index, uniRid) in list.uniformSet {
-            let uniform = self.uniformSet[uniRid]!
-            encoder.setVertexBuffer(uniform.buffer, offset: uniform.offset, index: index)
+        for index in 0 ..< list.uniformBufferCount {
+            let buffer = list.uniformBuffers[index] as! MetalUniformBuffer
+            encoder.setVertexBuffer(buffer.buffer, offset: 0, index: buffer.binding)
         }
         
         switch list.triangleFillMode {
@@ -618,11 +573,6 @@ extension MetalRenderBackend {
         
         /// Only for index buffer
         var indexFormat: IndexBufferFormat?
-    }
-    
-    struct Uniform {
-        var buffer: MTLBuffer
-        var offset: Int
     }
     
     struct IndexArray {
@@ -824,102 +774,6 @@ extension Bundle {
 #if !SWIFT_PACKAGE
 class BundleToken {}
 #endif
-
-public final class DrawList {
-    
-    public let renderPass: RenderPass
-    let commandBuffer: CommandBuffer
-    
-    public private(set) var renderPipeline: RenderPipeline?
-    private(set) var indexArray: RID?
-    private(set) var debugName: String?
-    private(set) var lineWidth: Float?
-    
-    private(set) var vertexArray: RID?
-    private(set) var uniformSet: [Int: RID] = [:]
-    private(set) var textures: [Texture?] = [Texture?].init(repeating: nil, count: 32)
-    private(set) var renderPipline: RenderPipeline?
-    private(set) var triangleFillMode: TriangleFillMode = .fill
-    private(set) var indexPrimitive: IndexPrimitive = .triangle
-    private(set) var isScissorEnabled: Bool = false
-    private(set) var scissorRect: Rect = .zero
-    private(set) var viewportRect: Rect = .zero
-    private(set) var isViewportEnabled: Bool = false
-    
-    init(renderPass: RenderPass, commandBuffer: CommandBuffer) {
-        self.renderPass = renderPass
-        self.commandBuffer = commandBuffer
-    }
-    
-    public func setDebugName(_ name: String) {
-        self.debugName = name
-    }
-    
-    public func bindRenderPipeline(_ renderPipeline: RenderPipeline) {
-        self.renderPipeline = renderPipeline
-    }
-    
-    public func bindIndexArray(_ indexArray: RID) {
-        self.indexArray = indexArray
-    }
-    
-    public func bindVertexArray(_ vertexArray: RID) {
-        self.vertexArray = vertexArray
-    }
-    
-    public func setLineWidth(_ lineWidth: Float?) {
-        self.lineWidth = lineWidth
-    }
-    
-    public func bindTexture(_ texture: Texture, at index: Int) {
-        self.textures[index] = texture
-    }
-    
-    public func bindUniformSet(_ uniformSet: RID, at index: Int) {
-        self.uniformSet[index] = uniformSet
-    }
-    
-    public func setScissorRect(_ rect: Rect) {
-        self.scissorRect = rect
-    }
-    
-    public func setScissorEnabled(_ isEnabled: Bool) {
-        self.isScissorEnabled = isEnabled
-    }
-    
-    public func bindTriangleFillMode(_ mode: TriangleFillMode) {
-        self.triangleFillMode = mode
-    }
-    
-    public func bindIndexPrimitive(_ primitive: IndexPrimitive) {
-        self.indexPrimitive = primitive
-    }
-    
-    public func setViewport(_ rect: Rect) {
-        self.viewportRect = rect
-    }
-    
-    public func setViewportEnabled(_ isEnabled: Bool) {
-        self.isViewportEnabled = isEnabled
-    }
-    
-    public func clear() {
-        self.renderPipeline = nil
-        self.indexArray = nil
-        self.debugName = nil
-        self.lineWidth = nil
-        
-        self.vertexArray = nil
-        self.uniformSet = [:]
-        self.textures.removeAll(keepingCapacity: true)
-        self.triangleFillMode = .fill
-        self.indexPrimitive = .triangle
-        self.scissorRect = .zero
-        self.viewportRect = .zero
-        self.isScissorEnabled = false
-        self.isViewportEnabled = false
-    }
-}
 
 public protocol CommandBuffer {
     

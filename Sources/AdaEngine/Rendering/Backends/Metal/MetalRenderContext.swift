@@ -30,7 +30,7 @@ extension MetalRenderBackend {
                 self.commandBuffer = commandBuffer
             }
             
-            func getDrawableRenderPass() -> MTLRenderPassDescriptor {
+            func getRenderPass() -> MTLRenderPassDescriptor {
                 let mtlRenderPass = MTLRenderPassDescriptor()
                 mtlRenderPass.colorAttachments[0].texture = self.drawable?.texture
                 mtlRenderPass.colorAttachments[0].loadAction = .clear

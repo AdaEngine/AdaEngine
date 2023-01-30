@@ -10,11 +10,9 @@ import Metal
 
 class MetalRenderPass: RenderPass {
     
-    let descriptor: RenderPassDescriptor
     let renderPass: MTLRenderPassDescriptor
     
-    init(descriptor: RenderPassDescriptor, renderPass: MTLRenderPassDescriptor) {
-        self.descriptor = descriptor
+    init(renderPass: MTLRenderPassDescriptor) {
         self.renderPass = renderPass
     }
 }
