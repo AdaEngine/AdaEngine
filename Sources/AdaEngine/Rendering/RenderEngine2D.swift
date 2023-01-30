@@ -11,6 +11,10 @@ import Math
 // TODO: (Vlad) Store render pass 
 public class RenderEngine2D {
     
+    enum Bindings {
+        static let cameraUniform: Int = 1
+    }
+    
     static var minimumZIndex = -4096
     
     static var maximumZIndex = 4096
@@ -23,7 +27,7 @@ public class RenderEngine2D {
     
     public static let `default` = RenderEngine2D()
     
-    private var uniformRid: RID
+    private var uniformSet: UniformBufferSet
     
     struct Data<V> {
         var vertexArray: RID
@@ -56,7 +60,8 @@ public class RenderEngine2D {
     init() {
         let device = RenderEngine.shared
         
-        self.uniformRid = device.makeUniform(Uniform.self, count: 1, offset: 0, options: .storageShared)
+        self.uniformSet = device.makeUniformBufferSet()
+        self.uniformSet.initBuffers(for: Uniform.self, binding: Bindings.cameraUniform, set: 0)
         
         self.quadPosition = [
             [-0.5, -0.5,  0.0, 1.0],
@@ -268,13 +273,15 @@ public class RenderEngine2D {
     }
     
     public func beginContext(for viewport: Viewport, viewTransform: Transform3D) -> DrawContext {
-        let uni = Uniform(viewProjection: viewTransform)
-        RenderEngine.shared.updateUniform(self.uniformRid, value: uni, count: 1)
+        let frameIndex = RenderEngine.shared.currentFrameIndex
+        
+        let uniform = self.uniformSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: frameIndex)
+        uniform.setData(Uniform(viewProjection: viewTransform))
 
         let window = viewport.window!
         
-        let currentDraw = RenderEngine.shared.beginDraw(for: window.id)
-        let context = DrawContext(currentDraw: currentDraw, window: window.id, renderEngine: self)
+        let currentDraw = RenderEngine.shared.beginDraw(for: window.id, clearColor: .black)
+        let context = DrawContext(currentDraw: currentDraw, renderEngine: self, frameIndex: frameIndex)
         context.startBatch()
         return context
     }
@@ -282,8 +289,10 @@ public class RenderEngine2D {
     public func beginContext(for camera: Camera) -> DrawContext {
         let data = camera.makeCameraData()
         
-        let uni = Uniform(viewProjection: camera.transform.matrix * data.viewProjection)
-        RenderEngine.shared.updateUniform(self.uniformRid, value: uni, count: 1)
+        let frameIndex = RenderEngine.shared.currentFrameIndex
+        
+        let uniform = self.uniformSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: frameIndex)
+        uniform.setData(Uniform(viewProjection: camera.transform.matrix * data.viewProjection))
         
         let viewport = camera.viewport!
         let window = viewport.window!
@@ -294,7 +303,7 @@ public class RenderEngine2D {
         
         let currentDraw = RenderEngine.shared.beginDraw(for: window.id, framebuffer: framebuffer)
         
-        let context = DrawContext(currentDraw: currentDraw, window: window.id, renderEngine: self)
+        let context = DrawContext(currentDraw: currentDraw, renderEngine: self, frameIndex: frameIndex)
         context.startBatch()
         return context
     }
@@ -304,18 +313,18 @@ extension RenderEngine2D {
     public class DrawContext {
         
         let currentDraw: DrawList
-        let window: Window.ID
         
         private var fillColor: Color = .clear
         
         private var lineWidth: Float = 1
         
         private let renderEngine: RenderEngine2D
+        private let frameIndex: Int
         
-        init(currentDraw: DrawList, window: Window.ID, renderEngine: RenderEngine2D) {
+        init(currentDraw: DrawList, renderEngine: RenderEngine2D, frameIndex: Int) {
             self.currentDraw = currentDraw
-            self.window = window
             self.renderEngine = renderEngine
+            self.frameIndex = frameIndex
         }
         
         public func drawQuad(position: Vector3, size: Vector2, texture: Texture2D? = nil, color: Color) {
@@ -478,7 +487,13 @@ extension RenderEngine2D {
         }
         
         public func flush() {
-            self.currentDraw.bindUniformSet(self.renderEngine.uniformRid, at: BufferIndex.baseUniform)
+            let buffer = self.renderEngine.uniformSet.getBuffer(
+                binding: Bindings.cameraUniform,
+                set: 0,
+                frameIndex: self.frameIndex
+            )
+            
+            self.currentDraw.appendUniformBuffer(buffer)
             
             self.flush(for: self.renderEngine.quadData, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.lineData, indexPrimitive: .line, currentDraw: currentDraw)

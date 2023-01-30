@@ -9,7 +9,9 @@ struct Render2DSystem: System {
     
     static var dependencies: [SystemDependency] = [.after(ViewContainerSystem.self)]
     
-    static let spriteQuery = EntityQuery(where: (.has(Circle2DComponent.self) || .has(SpriteComponent.self)) && .has(Transform.self))
+    static let spriteQuery = EntityQuery(
+        where: (.has(Circle2DComponent.self) || .has(SpriteComponent.self)) && .has(Transform.self)
+    )
     
     init(scene: Scene) { }
     

@@ -11,9 +11,9 @@ class ViewportRenderer {
     
     private let renderPipeline: RenderPipeline
     private let quadIndexArray: RID
-    private let viewportUniform: RID
     private let quadVertexArray: RID
     private let quadVertexBuffer: RID
+    private let viewportUniformSet: UniformBufferSet
     
     private struct ViewportUniform {
         let viewTransform: Transform3D
@@ -87,7 +87,9 @@ class ViewportRenderer {
         )
         
         self.quadVertexArray = device.makeVertexArray(vertexBuffers: [quadVertexBuffer], vertexCount: quadData.count)
-        self.viewportUniform = device.makeUniform(ViewportUniform.self, count: 1, offset: 0, options: .storageShared)
+        self.viewportUniformSet = device.makeUniformBufferSet()
+        self.viewportUniformSet.initBuffers(for: ViewportUniform.self, binding: BufferIndex.baseUniform, set: 0)
+        
         self.renderPipeline = device.makeRenderPipeline(from: piplineDesc)
         
         let image = Image(width: 1, height: 1, color: .green)
@@ -96,6 +98,7 @@ class ViewportRenderer {
     
     // MARK: Methods
     
+    // TODO: Add statistics how long viewports renders
     func beginFrame() {
         
     }
@@ -113,15 +116,18 @@ class ViewportRenderer {
                 continue
             }
             
-            let scale = window.screen?.scale ?? 1.0
+            let frameIndex = RenderEngine.shared.currentFrameIndex
+            let buffer = self.viewportUniformSet.getBuffer(
+                binding: BufferIndex.baseUniform,
+                set: 0,
+                frameIndex: frameIndex
+            )
+            buffer.setData(ViewportUniform(viewTransform: .identity))
             
-            let uniform = ViewportUniform(viewTransform: .identity)
-            RenderEngine.shared.updateUniform(self.viewportUniform, value: uniform, count: 1)
-            
-            let draw = RenderEngine.shared.beginDraw(for: window.id)
+            let draw = RenderEngine.shared.beginDraw(for: window.id, clearColor: .black)
             draw.setDebugName("Rendering viewport \(viewport.viewportRid!)")
             
-            draw.bindUniformSet(self.viewportUniform, at: BufferIndex.baseUniform)
+            draw.appendUniformBuffer(buffer)
             draw.bindIndexArray(self.quadIndexArray)
             draw.bindVertexArray(self.quadVertexArray)
             draw.bindTexture(viewport.renderTargetTexture, at: 0)
@@ -134,7 +140,9 @@ class ViewportRenderer {
     }
 }
 
+/// Contains information about all viewports in the engine. Also create and store a framebuffer.
 class ViewportStorage {
+    
     private static var viewports: ResourceHashMap<WeakBox<Viewport>> = [:]
     private static var framebuffers: ResourceHashMap<Framebuffer> = [:]
     
@@ -164,7 +172,7 @@ class ViewportStorage {
         descriptor.height = Int(newSize.height)
         
         descriptor.attachments = [
-            RenderAttachmentDescriptor(format: .bgra8)
+            FramebufferAttachmentDescriptor(format: .bgra8)
         ]
         
         let framebuffer = RenderEngine.shared.makeFramebuffer(from: descriptor)

@@ -60,8 +60,6 @@ protocol RenderBackend: AnyObject {
     /// Create shader from descriptor.
     func makeShader(from descriptor: ShaderDescriptor) -> Shader
     
-    func makeRenderPass(from descriptor: RenderPassDescriptor) -> RenderPass
-    
     /// Create a framebuffer from descriptor.
     func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer
     
@@ -72,11 +70,9 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Uniforms
     
-    func makeUniform<T>(_ uniformType: T.Type, count: Int, offset: Int, options: ResourceOptions) -> RID
+    func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer
     
-    func updateUniform<T>(_ rid: RID, value: T, count: Int)
-    
-    func removeUniform(_ rid: RID)
+    func makeUniformBufferSet() -> UniformBufferSet
     
     // MARK: - Texture
     
@@ -86,7 +82,7 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Draw
     
-    func beginDraw(for window: Window.ID) -> DrawList
+    func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList
     
     func beginDraw(for window: Window.ID, framebuffer: Framebuffer) -> DrawList
     

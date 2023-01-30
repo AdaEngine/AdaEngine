@@ -38,15 +38,15 @@ public final class SceneRendering {
     var currentDraw: RID!
     
     var renderUniforms: Uniforms = Uniforms()
-    let cameraUniformRID: RID
-    let spotlightUniformRID: RID
+//    let cameraUniformRID: RID
+//    let spotlightUniformRID: RID
     
     init(scene: Scene) {
         self.scene = scene
-        
-        self.cameraUniformRID = RenderEngine.shared.makeUniform(CameraUniform.self, count: 1, offset: 0, options: .storageShared)
-        
-        self.spotlightUniformRID = RenderEngine.shared.makeUniform(SpotLightUniform.self, count: 1, offset: 0, options: .storageShared)
+//
+//        self.cameraUniformRID = RenderEngine.shared.makeUniform(CameraUniform.self, count: 1, offset: 0, options: .storageShared)
+//
+//        self.spotlightUniformRID = RenderEngine.shared.makeUniform(SpotLightUniform.self, count: 1, offset: 0, options: .storageShared)
         
     }
     

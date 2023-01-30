@@ -20,6 +20,14 @@ public extension Buffer {
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int) {
         self.setData(bytes, byteCount: byteCount, offset: 0)
     }
+    
+    // TODO: (Vlad) Looks how it works with arrays
+    func setData<T>(_ value: T) {
+        let size = MemoryLayout<T>.size
+        
+        var value = value
+        self.setData(&value, byteCount: size)
+    }
 }
 
 public struct ResourceOptions: OptionSet {

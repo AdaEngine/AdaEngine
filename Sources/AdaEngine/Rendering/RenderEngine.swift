@@ -7,13 +7,17 @@
 
 import OrderedCollections
 
-// TODO: (Vlad) we should compile all shader on setup
+@_spi(rendering) /* If we need a use "low level" rendering */
 public class RenderEngine: RenderBackend {
     
     public static let shared: RenderEngine = {
         let renderBackend: RenderBackend
         
+        #if METAL
         renderBackend = MetalRenderBackend(appName: "Ada Engine")
+        #elseif VULKAN
+        // vulkan here
+        #endif
         
         return RenderEngine(renderBackend: renderBackend)
     }()
@@ -50,6 +54,8 @@ public class RenderEngine: RenderBackend {
         try self.renderBackend.endFrame()
     }
     
+    // MARK: - Buffers -
+    
     func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
         return self.renderBackend.makeBuffer(length: length, options: options)
     }
@@ -78,9 +84,7 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.setVertexBufferData(vertexBuffer, bytes: bytes, length: length)
     }
     
-    func makeRenderPass(from descriptor: RenderPassDescriptor) -> RenderPass {
-        return self.renderBackend.makeRenderPass(from: descriptor)
-    }
+    // MARK: - Shaders
     
     func makeSampler(from descriptor: SamplerDescriptor) -> Sampler {
         return self.renderBackend.makeSampler(from: descriptor)
@@ -98,17 +102,17 @@ public class RenderEngine: RenderBackend {
         return self.renderBackend.makeShader(from: descriptor)
     }
     
-    func makeUniform<T>(_ uniformType: T.Type, count: Int, offset: Int, options: ResourceOptions) -> RID {
-        self.renderBackend.makeUniform(uniformType, count: count, offset: offset, options: options)
+    // MARK: - Uniforms -
+    
+    func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {
+        self.renderBackend.makeUniformBuffer(length: length, binding: binding)
     }
     
-    func updateUniform<T>(_ rid: RID, value: T, count: Int) {
-        self.renderBackend.updateUniform(rid, value: value, count: count)
+    func makeUniformBufferSet() -> UniformBufferSet {
+        self.renderBackend.makeUniformBufferSet()
     }
     
-    func removeUniform(_ rid: RID) {
-        self.renderBackend.removeUniform(rid)
-    }
+    // MARK: - Texture -
     
     func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture {
         self.renderBackend.makeTexture(from: descriptor)
@@ -118,10 +122,10 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.getImage(for: texture2D)
     }
     
-    // MARK: - Drawing
+    // MARK: - Drawing -
     
-    func beginDraw(for window: Window.ID) -> DrawList {
-        self.renderBackend.beginDraw(for: window)
+    func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList {
+        self.renderBackend.beginDraw(for: window, clearColor: clearColor)
     }
     
     func beginDraw(for window: Window.ID, framebuffer: Framebuffer) -> DrawList {
@@ -134,5 +138,11 @@ public class RenderEngine: RenderBackend {
     
     func endDrawList(_ drawList: DrawList) {
         self.renderBackend.endDrawList(drawList)
+    }
+}
+
+public extension RenderEngine {
+    func makeUniformBuffer<T>(_ uniformType: T.Type, count: Int = 1, binding: Int) -> UniformBuffer {
+        self.makeUniformBuffer(length: MemoryLayout<T>.stride * count, binding: binding)
     }
 }
