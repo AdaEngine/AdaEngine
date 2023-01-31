@@ -30,8 +30,7 @@ public class RenderEngine2D {
     private var uniformSet: UniformBufferSet
     
     struct Data<V> {
-        var vertexArray: RID
-        var vertexBuffer: RID
+        var vertexBuffer: VertexBuffer
         var vertices: [V] = []
         var indeciesCount: Int
         var indexArray: RID
@@ -152,15 +151,11 @@ public class RenderEngine2D {
         let circlePipeline = device.makeRenderPipeline(from: piplineDesc)
         
         let circleVertexBuffer = device.makeVertexBuffer(
-            offset: 0,
-            index: 0,
-            bytes: nil,
-            length: MemoryLayout<CircleVertexData>.stride * Self.maxVerticies
+            length: MemoryLayout<CircleVertexData>.stride * Self.maxVerticies,
+            binding: 0
         )
         
-        let circleVertexArray = device.makeVertexArray(vertexBuffers: [circleVertexBuffer], vertexCount: Self.maxVerticies)
         self.circleData = Data<CircleVertexData>(
-            vertexArray: circleVertexArray,
             vertexBuffer: circleVertexBuffer,
             vertices: [],
             indeciesCount: 0,
@@ -196,16 +191,11 @@ public class RenderEngine2D {
         let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
         
         let quadVertexBuffer = device.makeVertexBuffer(
-            offset: 0,
-            index: 0,
-            bytes: nil,
-            length: MemoryLayout<QuadVertexData>.stride * Self.maxVerticies
+            length: MemoryLayout<QuadVertexData>.stride * Self.maxVerticies,
+            binding: 0
         )
         
-        let quadVertexArray = device.makeVertexArray(vertexBuffers: [quadVertexBuffer], vertexCount: Self.maxVerticies)
-        
         self.quadData =  Data<QuadVertexData>(
-            vertexArray: quadVertexArray,
             vertexBuffer: quadVertexBuffer,
             vertices: [],
             indeciesCount: 0,
@@ -239,13 +229,9 @@ public class RenderEngine2D {
         let linesPipeline = device.makeRenderPipeline(from: piplineDesc)
         
         let linesVertexBuffer = device.makeVertexBuffer(
-            offset: 0,
-            index: 0,
-            bytes: nil,
-            length: MemoryLayout<LineVertexData>.stride * Self.maxLineVertices
+            length: MemoryLayout<LineVertexData>.stride * Self.maxLineVertices,
+            binding: 0
         )
-        
-        let linesVertexArray = device.makeVertexArray(vertexBuffers: [linesVertexBuffer], vertexCount: Self.maxLineVertices)
         
         var buffer: [Int32] = [Int32].init(repeating: 0, count: Self.maxLineIndices)
         
@@ -263,7 +249,6 @@ public class RenderEngine2D {
         let linesIndexArray = device.makeIndexArray(indexBuffer: indexBuffer, indexOffset: 0, indexCount: Self.maxLineIndices)
         
         self.lineData =  Data<LineVertexData>(
-            vertexArray: linesVertexArray,
             vertexBuffer: linesVertexBuffer,
             vertices: [],
             indeciesCount: 0,
@@ -505,7 +490,7 @@ extension RenderEngine2D {
                 return
             }
             
-            let verticies = data.vertices
+            var verticies = data.vertices
             
             let textures = self.renderEngine.textureSlots[0..<self.renderEngine.textureSlotIndex].compactMap { $0 }
             
@@ -513,13 +498,9 @@ extension RenderEngine2D {
                 currentDraw.bindTexture(texture, at: index)
             }
             
-            RenderEngine.shared.setVertexBufferData(
-                data.vertexBuffer,
-                bytes: verticies,
-                length: verticies.count * MemoryLayout<D>.stride
-            )
+            data.vertexBuffer.setData(&verticies, byteCount: verticies.count * MemoryLayout<D>.stride)
             
-            currentDraw.bindVertexArray(data.vertexArray)
+            currentDraw.appendVertexBuffer(data.vertexBuffer)
             currentDraw.bindRenderPipeline(data.renderPipeline)
             currentDraw.bindIndexArray(data.indexArray)
             currentDraw.bindIndexPrimitive(indexPrimitive)

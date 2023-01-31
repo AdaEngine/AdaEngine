@@ -47,13 +47,9 @@ protocol RenderBackend: AnyObject {
     
     func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID
     
-    func makeVertexArray(vertexBuffers: [RID], vertexCount: Int) -> RID
-    
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer
     
-    func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID
-    
-    func setVertexBufferData(_ vertexBuffer: RID, bytes: UnsafeRawPointer, length: Int)
+    func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer
     
     // MARK: - Shaders
     

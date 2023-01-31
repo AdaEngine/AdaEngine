@@ -20,7 +20,7 @@ public final class DrawList {
     private(set) var debugName: String?
     private(set) var lineWidth: Float?
     
-    private(set) var vertexArray: RID?
+    private(set) var vertexBuffers: [VertexBuffer] = []
     private(set) var uniformBuffers: [UniformBuffer?] = [UniformBuffer?].init(repeating: nil, count: maximumUniformsCount)
     private(set) var uniformBufferCount: Int = 0
     private(set) var textures: [Texture?] = [Texture?].init(repeating: nil, count: maximumTexturesCount)
@@ -49,8 +49,8 @@ public final class DrawList {
         self.indexArray = indexArray
     }
     
-    public func bindVertexArray(_ vertexArray: RID) {
-        self.vertexArray = vertexArray
+    public func appendVertexBuffer(_ vertexBuffer: VertexBuffer) {
+        self.vertexBuffers.append(vertexBuffer)
     }
     
     public func setLineWidth(_ lineWidth: Float?) {
@@ -96,7 +96,7 @@ public final class DrawList {
         self.debugName = nil
         self.lineWidth = nil
         
-        self.vertexArray = nil
+        self.vertexBuffers = []
         self.uniformBuffers = [UniformBuffer?].init(repeating: nil, count: Self.maximumUniformsCount)
         self.uniformBufferCount = 0
         self.textures = [Texture?].init(repeating: nil, count: Self.maximumTexturesCount)
