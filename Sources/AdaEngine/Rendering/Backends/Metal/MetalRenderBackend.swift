@@ -24,9 +24,7 @@ class MetalRenderBackend: RenderBackend {
     private(set) var currentFrameIndex: Int = 0
     private var maxFramesInFlight = 3
     
-    private var vertexBuffers: ResourceHashMap<InternalBuffer> = [:]
     private var indexArrays: ResourceHashMap<IndexArray> = [:]
-    private var vertexArrays: ResourceHashMap<VertexArray> = [:]
     
     private var inFlightSemaphore: DispatchSemaphore
     
@@ -228,11 +226,6 @@ class MetalRenderBackend: RenderBackend {
         return self.indexArrays.setValue(array)
     }
     
-    func makeVertexArray(vertexBuffers: [RID], vertexCount: Int) -> RID {
-        let array = VertexArray(buffers: vertexBuffers, vertexCount: vertexCount)
-        return self.vertexArrays.setValue(array)
-    }
-    
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
         buffer.contents().copyMemory(from: bytes, byteCount: length)
@@ -240,24 +233,9 @@ class MetalRenderBackend: RenderBackend {
         return MetalIndexBuffer(buffer: buffer, indexFormat: format)
     }
     
-    func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID {
+    func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
-        
-        if let bytes = bytes {
-            buffer.contents().copyMemory(from: bytes, byteCount: length)
-        }
-        
-        let vertexBuffer = InternalBuffer(buffer: buffer, offset: offset, index: index)
-        return self.vertexBuffers.setValue(vertexBuffer)
-    }
-    
-    func setVertexBufferData(_ vertexBuffer: RID, bytes: UnsafeRawPointer, length: Int) {
-        guard let buffer = self.vertexBuffers[vertexBuffer] else {
-            assertionFailure("Vertex buffer not found")
-            return
-        }
-        
-        buffer.buffer.contents().copyMemory(from: bytes, byteCount: length)
+        return MetalVertexBuffer(buffer: buffer, binding: 0, offset: 0)
     }
     
     func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
@@ -508,14 +486,9 @@ extension MetalRenderBackend {
             fatalError("can't draw without index array")
         }
         
-        if let vaRid = list.vertexArray, let vertexArray = self.vertexArrays[vaRid] {
-            for vertexRid in vertexArray.buffers {
-                guard let vertexBuffer = self.vertexBuffers[vertexRid] else {
-                    continue
-                }
-                
-                encoder.setVertexBuffer(vertexBuffer.buffer, offset: vertexBuffer.offset, index: vertexBuffer.index)
-            }
+        for buffer in list.vertexBuffers {
+            let vertexBuffer = buffer as! MetalVertexBuffer
+            encoder.setVertexBuffer(vertexBuffer.buffer, offset: 0, index: vertexBuffer.binding)
         }
         
         let textures: [MTLTexture] = list.textures.compactMap {
@@ -579,11 +552,6 @@ extension MetalRenderBackend {
         var buffer: IndexBuffer
         var offset: Int = 0
         var indices: Int = 0
-    }
-    
-    struct VertexArray {
-        var buffers: [RID] = []
-        var vertexCount: Int = 0
     }
     
     struct PipelineState {

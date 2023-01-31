@@ -68,20 +68,12 @@ public class RenderEngine: RenderBackend {
         return self.renderBackend.makeIndexArray(indexBuffer: indexBuffer, indexOffset: indexOffset, indexCount: indexCount)
     }
     
-    func makeVertexArray(vertexBuffers: [RID], vertexCount: Int) -> RID {
-        return self.renderBackend.makeVertexArray(vertexBuffers: vertexBuffers, vertexCount: vertexCount)
-    }
-    
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         return self.renderBackend.makeIndexBuffer(index: index, format: format, bytes: bytes, length: length)
     }
     
-    func makeVertexBuffer(offset: Int, index: Int, bytes: UnsafeRawPointer?, length: Int) -> RID {
-        return self.renderBackend.makeVertexBuffer(offset: offset, index: index, bytes: bytes, length: length)
-    }
-    
-    func setVertexBufferData(_ vertexBuffer: RID, bytes: UnsafeRawPointer, length: Int) {
-        self.renderBackend.setVertexBufferData(vertexBuffer, bytes: bytes, length: length)
+    func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
+        self.renderBackend.makeVertexBuffer(length: length, binding: binding)
     }
     
     // MARK: - Shaders

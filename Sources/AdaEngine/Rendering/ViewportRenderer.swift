@@ -11,8 +11,7 @@ class ViewportRenderer {
     
     private let renderPipeline: RenderPipeline
     private let quadIndexArray: RID
-    private let quadVertexArray: RID
-    private let quadVertexBuffer: RID
+    private let quadVertexBuffer: VertexBuffer
     private let viewportUniformSet: UniformBufferSet
     
     private struct ViewportUniform {
@@ -80,13 +79,11 @@ class ViewportRenderer {
         )
         
         self.quadVertexBuffer = device.makeVertexBuffer(
-            offset: 0,
-            index: 0,
-            bytes: &quadData,
-            length: MemoryLayout<Quad>.size * quadData.count
+            length: MemoryLayout<Quad>.size * quadData.count,
+            binding: 0
         )
+        self.quadVertexBuffer.setData(&quadData, byteCount: MemoryLayout<Quad>.size * quadData.count)
         
-        self.quadVertexArray = device.makeVertexArray(vertexBuffers: [quadVertexBuffer], vertexCount: quadData.count)
         self.viewportUniformSet = device.makeUniformBufferSet()
         self.viewportUniformSet.initBuffers(for: ViewportUniform.self, binding: BufferIndex.baseUniform, set: 0)
         
@@ -129,7 +126,7 @@ class ViewportRenderer {
             
             draw.appendUniformBuffer(buffer)
             draw.bindIndexArray(self.quadIndexArray)
-            draw.bindVertexArray(self.quadVertexArray)
+            draw.appendVertexBuffer(self.quadVertexBuffer)
             draw.bindTexture(viewport.renderTargetTexture, at: 0)
 //            draw.bindTexture(self.greenTexture, at: 0)
             draw.bindRenderPipeline(self.renderPipeline)
