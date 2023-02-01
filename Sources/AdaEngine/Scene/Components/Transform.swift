@@ -23,6 +23,11 @@ public struct Transform: Component {
         self.position = position
     }
     
+    public init(matrix: Transform3D) {
+        self.rotation = matrix.rotation
+        self.scale = matrix.scale
+        self.position = matrix.origin
+    }
 }
 
 public extension Transform {

@@ -27,11 +27,13 @@ class MetalRenderBackend: RenderBackend {
     private var indexArrays: ResourceHashMap<IndexArray> = [:]
     
     private var inFlightSemaphore: DispatchSemaphore
+    private var commandQueue: MTLCommandQueue
     
     init(appName: String) {
         self.context = Context()
         
         self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
+        self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
     }
     
     func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
@@ -58,7 +60,7 @@ class MetalRenderBackend: RenderBackend {
     // FIXME: (Vlad) I'm not sure how it should works with multiple window instances.
     func beginFrame() throws {
         for (_, window) in self.context.windows {
-            window.commandBuffer = window.commandQueue.makeCommandBuffer()
+            window.commandBuffer = self.commandQueue.makeCommandBuffer()
             window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
         }
     }
@@ -375,7 +377,8 @@ extension MetalRenderBackend {
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
         let commandBuffer = MetalRenderCommandBuffer(
             encoder: encoder,
-            commandBuffer: mtlCommandBuffer
+            commandBuffer: mtlCommandBuffer,
+            shouldCommit: false
         )
         
         return DrawList(
@@ -384,16 +387,10 @@ extension MetalRenderBackend {
         )
     }
     
-    func beginDraw(
-        for window: Window.ID, // FIXME: We shouldn't use window here
-        framebuffer: Framebuffer
-    ) -> DrawList {
-        guard let window = self.context.windows[window] else {
-            fatalError("Render Window not exists.")
-        }
+    func beginDraw(to framebuffer: Framebuffer) -> DrawList {
         
-        guard let mtlCommandBuffer = window.commandBuffer else {
-            fatalError("Command Buffer not exists")
+        guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
+            fatalError("Cannot get a command buffer")
         }
         
         guard let mtlRenderPassDesc = (framebuffer as? MetalFramebuffer)?.renderPassDescriptor else {
@@ -404,7 +401,8 @@ extension MetalRenderBackend {
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPassDesc)!
         let commandBuffer = MetalRenderCommandBuffer(
             encoder: encoder,
-            commandBuffer: mtlCommandBuffer
+            commandBuffer: mtlCommandBuffer,
+            shouldCommit: true
         )
         
         return DrawList(
@@ -532,6 +530,12 @@ extension MetalRenderBackend {
         }
         
         commandBuffer.encoder.endEncoding()
+        
+        
+        // TODO: Think about it later.
+        if commandBuffer.shouldCommit {
+            commandBuffer.commandBuffer.commit()
+        }
     }
 }
 
@@ -725,6 +729,32 @@ extension SamplerMigMagFilter {
     }
 }
 
+class MetalCommandBuffer: CommandBuffer {
+    
+    let commandBuffer: MTLCommandBuffer
+    
+    init(commandBuffer: MTLCommandBuffer) {
+        self.commandBuffer = commandBuffer
+    }
+}
+
+public protocol DrawCommandBuffer {
+    
+}
+
+class MetalRenderCommandBuffer: DrawCommandBuffer {
+    let encoder: MTLRenderCommandEncoder
+    let commandBuffer: MTLCommandBuffer
+    let shouldCommit: Bool
+    
+    init(encoder: MTLRenderCommandEncoder, commandBuffer: MTLCommandBuffer, shouldCommit: Bool) {
+        self.encoder = encoder
+        self.commandBuffer = commandBuffer
+        self.shouldCommit = shouldCommit
+    }
+}
+
+
 #endif
 
 // FIXME: (Vlad) Think about it
@@ -747,21 +777,3 @@ public protocol CommandBuffer {
     
 }
 
-class MetalCommandBuffer: CommandBuffer {
-    
-    let commandBuffer: MTLCommandBuffer
-    
-    init(commandBuffer: MTLCommandBuffer) {
-        self.commandBuffer = commandBuffer
-    }
-}
-
-class MetalRenderCommandBuffer: CommandBuffer {
-    let encoder: MTLRenderCommandEncoder
-    let commandBuffer: MTLCommandBuffer
-    
-    init(encoder: MTLRenderCommandEncoder, commandBuffer: MTLCommandBuffer) {
-        self.encoder = encoder
-        self.commandBuffer = commandBuffer
-    }
-}

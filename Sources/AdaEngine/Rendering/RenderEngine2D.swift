@@ -277,16 +277,15 @@ public class RenderEngine2D {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)
-        uniform.setData(Uniform(viewProjection: camera.transform.matrix * data.viewProjection))
+        uniform.setData(Uniform(viewProjection: data.viewProjection))
         
         let viewport = camera.viewport!
-        let window = viewport.window!
         
         guard let framebuffer = ViewportStorage.getFramebuffer(for: viewport) else {
             fatalError("Viewport doesn't has a framebuffer")
         }
         
-        let currentDraw = RenderEngine.shared.beginDraw(for: window.id, framebuffer: framebuffer)
+        let currentDraw = RenderEngine.shared.beginDraw(to: framebuffer)
         
         let context = DrawContext(currentDraw: currentDraw, renderEngine: self, frameIndex: frameIndex)
         context.startBatch()

@@ -197,6 +197,29 @@ public extension Scene {
     }
 }
 
+// MARK: - World Transform
+
+public extension Scene {
+    func worldTransform(for entity: Entity) -> Transform {
+        let worldMatrix = self.worldTransformMatrix(for: entity)
+        return Transform(matrix: worldMatrix)
+    }
+    
+    func worldTransformMatrix(for entity: Entity) -> Transform3D {
+        var transform = Transform3D.identity
+        
+        if let parent = entity.parent {
+            transform = self.worldTransformMatrix(for: parent)
+        }
+        
+        guard let entityTransform = entity.components[Transform.self] else {
+            return transform
+        }
+        
+        return transform * entityTransform.matrix
+    }
+}
+
 // MARK: - Private
 
 extension Scene {

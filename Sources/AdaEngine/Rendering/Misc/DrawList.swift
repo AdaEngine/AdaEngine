@@ -10,7 +10,7 @@
 public final class DrawList {
     
     let renderPass: RenderPass
-    let commandBuffer: CommandBuffer
+    let commandBuffer: DrawCommandBuffer
     
     static let maximumUniformsCount = 16
     static let maximumTexturesCount = 32
@@ -32,7 +32,7 @@ public final class DrawList {
     private(set) var viewportRect: Rect = .zero
     private(set) var isViewportEnabled: Bool = false
     
-    init(renderPass: RenderPass, commandBuffer: CommandBuffer) {
+    init(renderPass: RenderPass, commandBuffer: DrawCommandBuffer) {
         self.renderPass = renderPass
         self.commandBuffer = commandBuffer
     }

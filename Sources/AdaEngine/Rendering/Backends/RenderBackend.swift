@@ -5,19 +5,6 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-struct Uniforms {
-    var modelMatrix: Transform3D = .identity
-    var viewMatrix: Transform3D = .identity
-    var projectionMatrix: Transform3D = .identity
-}
-
-struct Vertex {
-    var position: Vector3
-    var normal: Vector3
-    var uv: Vector2
-    var color: Color
-}
-
 public enum TriangleFillMode {
     case fill
     case lines
@@ -80,7 +67,7 @@ protocol RenderBackend: AnyObject {
     
     func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList
     
-    func beginDraw(for window: Window.ID, framebuffer: Framebuffer) -> DrawList
+    func beginDraw(to framebuffer: Framebuffer) -> DrawList
     
     func draw(_ list: DrawList, indexCount: Int, instancesCount: Int)
     

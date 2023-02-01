@@ -13,32 +13,6 @@ extension MetalRenderBackend {
     
     final class Context {
         
-        class RenderWindow {
-            
-            private(set) weak var view: MetalView?
-            let commandQueue: MTLCommandQueue
-            var drawable: CAMetalDrawable?
-            var commandBuffer: MTLCommandBuffer?
-            
-            internal init(
-                view: MetalView? = nil,
-                commandQueue: MTLCommandQueue,
-                commandBuffer: MTLCommandBuffer? = nil
-            ) {
-                self.view = view
-                self.commandQueue = commandQueue
-                self.commandBuffer = commandBuffer
-            }
-            
-            func getRenderPass() -> MTLRenderPassDescriptor {
-                let mtlRenderPass = MTLRenderPassDescriptor()
-                mtlRenderPass.colorAttachments[0].texture = self.drawable?.texture
-                mtlRenderPass.colorAttachments[0].loadAction = .clear
-                mtlRenderPass.colorAttachments[0].storeAction = .store
-                return mtlRenderPass
-            }
-        }
-        
         private(set) var windows: [Window.ID: RenderWindow] = [:]
         
         let physicalDevice: MTLDevice
@@ -120,7 +94,32 @@ extension MetalRenderBackend {
                 }
             }
         }
+    }
+    
+    final class RenderWindow {
         
+        private(set) weak var view: MetalView?
+        let commandQueue: MTLCommandQueue
+        var drawable: CAMetalDrawable?
+        var commandBuffer: MTLCommandBuffer?
+        
+        internal init(
+            view: MetalView? = nil,
+            commandQueue: MTLCommandQueue,
+            commandBuffer: MTLCommandBuffer? = nil
+        ) {
+            self.view = view
+            self.commandQueue = commandQueue
+            self.commandBuffer = commandBuffer
+        }
+        
+        func getRenderPass() -> MTLRenderPassDescriptor {
+            let mtlRenderPass = MTLRenderPassDescriptor()
+            mtlRenderPass.colorAttachments[0].texture = self.drawable?.texture
+            mtlRenderPass.colorAttachments[0].loadAction = .clear
+            mtlRenderPass.colorAttachments[0].storeAction = .store
+            return mtlRenderPass
+        }
     }
 }
 

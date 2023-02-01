@@ -183,25 +183,25 @@ public extension MeshVertexDescriptor {
         descriptor.attributes[0].format = .vector4
         descriptor.attributes[0].offset = offset
         
-        offset += MemoryLayout.offset(of: \Vertex.position)!
+//        offset += MemoryLayout.offset(of: \Vertex.position)!
         
         descriptor.attributes[1].bufferIndex = 0
         descriptor.attributes[1].format = .vector4
         descriptor.attributes[1].offset = offset
         
-        offset += MemoryLayout.offset(of: \Vertex.normal)!
+//        offset += MemoryLayout.offset(of: \Vertex.normal)!
         
         descriptor.attributes[2].bufferIndex = 0
         descriptor.attributes[2].format = .vector2
         descriptor.attributes[2].offset = offset
         
-        offset += MemoryLayout.offset(of: \Vertex.uv)!
+//        offset += MemoryLayout.offset(of: \Vertex.uv)!
         
         descriptor.attributes[3].bufferIndex = 0
         descriptor.attributes[3].format = .vector4
         descriptor.attributes[3].offset = offset
         
-        offset += MemoryLayout.offset(of: \Vertex.color)!
+//        offset += MemoryLayout.offset(of: \Vertex.color)!
         
         descriptor.layouts[0].stride = offset
         
