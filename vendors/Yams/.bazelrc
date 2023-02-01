@@ -1,3 +1,0 @@
-build --macos_minimum_os=10.9
-build --repo_env=CC=clang
-test --test_output=errors
