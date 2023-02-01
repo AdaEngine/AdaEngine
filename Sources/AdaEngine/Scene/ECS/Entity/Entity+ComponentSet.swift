@@ -10,7 +10,7 @@ import Collections
 public extension Entity {
     
     /// Hold entity components
-    @frozen struct ComponentSet: Codable {
+    struct ComponentSet: Codable {
         
         internal weak var entity: Entity?
         
@@ -18,7 +18,7 @@ public extension Entity {
             return self.entity?.scene?.world
         }
         
-        private(set) var buffer: [UInt: Component]
+        private(set) var buffer: OrderedDictionary<ComponentId, Component>
         
         // MARK: - Codable
         
@@ -28,17 +28,17 @@ public extension Entity {
         
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
-            var buffer: [UInt: Component] = [:]
+            var buffer: OrderedDictionary<ComponentId, Component> = [:]
             
-//            for key in container.allKeys {
-//                guard let type = ComponentStorage.getRegistredComponent(for: key.stringValue) else {
-//                    continue
-//                }
-//
-//                let component = try type.init(from: container.superDecoder(forKey: key))
-//
-//                buffer[ObjectIdentifier(type)] = component
-//            }
+            for key in container.allKeys {
+                guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue) else {
+                    continue
+                }
+
+                let component = try type.init(from: container.superDecoder(forKey: key))
+
+                buffer[type.identifier] = component
+            }
             
             self.buffer = buffer
         }
@@ -46,10 +46,10 @@ public extension Entity {
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingName.self)
             
-//            for (_, value) in self.buffer {
-//                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
-//                try value.encode(to: superEncoder)
-//            }
+            for value in self.buffer.values {
+                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
+                try value.encode(to: superEncoder)
+            }
         }
 
         /// Gets or sets the component of the specified type.
@@ -128,6 +128,7 @@ public extension Entity {
 
 public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
+    @inline(__always)
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
         return (
             buffer[a.identifier] as! A,
@@ -136,6 +137,7 @@ public extension Entity.ComponentSet {
     }
     
     /// Gets the components of the specified types.
+    @inline(__always)
     subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
         return (
             buffer[a.identifier] as! A,
@@ -145,6 +147,7 @@ public extension Entity.ComponentSet {
     }
     
     /// Gets the components of the specified types.
+    @inline(__always)
     subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
         return (
             buffer[a.identifier] as! A,
@@ -156,6 +159,7 @@ public extension Entity.ComponentSet {
 }
 
 public extension Entity.ComponentSet {
+    @inline(__always)
     static func += <T: Component>(lhs: inout Self, rhs: T) {
         lhs[T.self] = rhs
     }

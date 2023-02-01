@@ -5,36 +5,36 @@
 //  Created by v.prusakov on 6/14/22.
 //
 
+/// Describe which kind of scene will present on start.
 public protocol AppScene {
     associatedtype Body: AppScene
     var scene: Body { get }
-    
-    var _configuration: _AppSceneConfiguration { get set }
-    func _makeWindow(with configuration: _AppSceneConfiguration) -> Window
 }
 
-public struct _AppSceneConfiguration {
-    var minimumSize: Size = Window.defaultMinimumSize
-    var windowMode: Window.Mode = .fullscreen
-    var isSingleWindow: Bool = false
-}
+// MARK: - Modifiers
 
 public extension AppScene {
+    /// Set the minimum size of the window.
     func minimumSize(width: Float, height: Float) -> some AppScene {
-        var newValue = self
-        newValue._configuration.minimumSize = Size(width: width, height: height)
-        return newValue
+        return self.modifier(MinimumWindowSizeSceneModifier(size: Size(width: width, height: height)))
     }
-    
+
+    /// Set the window presentation mode.
     func windowMode(_ mode: Window.Mode) -> some AppScene {
-        var newValue = self
-        newValue._configuration.windowMode = mode
-        return newValue
+        return self.modifier(WindowModeSceneModifier(windowMode: mode))
+    }
+
+    /// Set the flag which describe can we create more than one window.
+    func singleWindow(_ isSingleWindow: Bool) -> some AppScene {
+        return self.modifier(IsSingleWindowSceneModifier(isSingleWindow: isSingleWindow))
+    }
+
+    /// Set the window title.
+    func windowTitle(_ title: String) -> some AppScene {
+        self.modifier(WindowTitleSceneModifier(title: title))
     }
     
-    func singleWindow(_ isSingleWindow: Bool) -> some AppScene {
-        var newValue = self
-        newValue._configuration.isSingleWindow = isSingleWindow
-        return newValue
+    private func modifier<M: SceneModifier>(_ modifier: M) -> some AppScene {
+        return ModifiedScene(storedScene: self, modifier: modifier)
     }
 }

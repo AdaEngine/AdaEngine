@@ -1,10 +1,10 @@
-// swift-tools-version:5.6
+// swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 import Foundation
 
-#if canImport(AppleProductTypes)
+#if canImport(AppleProductTypes) && os(iOS)
 import AppleProductTypes
 #endif
 
@@ -12,6 +12,18 @@ import AppleProductTypes
 import Glibc
 #else
 import Darwin.C
+#endif
+
+#if (arch(arm64) || arch(arm))
+let useNeon = true
+#else
+let useNeon = false
+#endif
+
+#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+let isVulkanEnabled = false
+#else
+let isVulkanEnabled = true
 #endif
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS]
@@ -23,50 +35,40 @@ var products: [Product] = [
     ),
     .library(
         name: "AdaEngine",
-        type: .dynamic,
         targets: ["AdaEngine"]
     ),
     .library(
-        name: "AdaEngine-Static",
-        type: .static,
-        targets: ["AdaEngine"]
+        name: "AdaEngineEmbeddable",
+        targets: ["AdaEngineEmbeddable"]
     )
 ]
 
 // Check that we target on vulkan dependency
 
-let isVulkanEnabled = ProcessInfo.processInfo.environment["VULKAN_ENABLED"] != nil
-
-if isVulkanEnabled {
-    products.append(
-        .plugin(name: "SPIR-V", targets: ["SPIRVPlugin"])
-    )
-}
-
 // TODO: It's works if we wrap sources to .swiftpm container
-#if canImport(AppleProductTypes)
-//let ios = Product.iOSApplication(
-//    name: "AdaEditor",
-//    targets: ["AdaEditor"],
-//    bundleIdentifier: "dev.litecode.adaengine.editor",
-//    teamIdentifier: "",
-//    displayVersion: "1.0",
-//    bundleVersion: "1",
-//    iconAssetName: "AppIcon",
-//    accentColorAssetName: "AccentColor",
-//    supportedDeviceFamilies: [
-//        .pad,
-//        .phone
-//    ],
-//    supportedInterfaceOrientations: [
-//        .portrait,
-//        .landscapeRight,
-//        .landscapeLeft,
-//        .portraitUpsideDown(.when(deviceFamilies: [.pad]))
-//    ]
-//)
-//
-//products.append(ios)
+#if canImport(AppleProductTypes) && os(iOS)
+let ios = Product.iOSApplication(
+    name: "AdaEditor",
+    targets: ["AdaEditor"],
+    bundleIdentifier: "com.adaengine.editor",
+    teamIdentifier: "",
+    displayVersion: "1.0",
+    bundleVersion: "1",
+    iconAssetName: "AppIcon",
+    accentColorAssetName: "AccentColor",
+    supportedDeviceFamilies: [
+        .pad,
+        .phone
+    ],
+    supportedInterfaceOrientations: [
+        .portrait,
+        .landscapeRight,
+        .landscapeLeft,
+        .portraitUpsideDown(.when(deviceFamilies: [.pad]))
+    ]
+)
+
+products.append(ios)
 #endif
 
 // MARK: - Targets
@@ -93,17 +95,35 @@ var commonPlugins: [Target.PluginUsage] = []
 #if os(macOS)
 commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
 
-if isVulkanEnabled {
-    commonPlugins.append(.plugin(name: "SPIRVBuildPlugin"))
-}
+//if isVulkanEnabled {
+//    commonPlugins.append(.plugin(name: "SPIRVBuildPlugin"))
+//}
 
 #endif
+
+var swiftSettings: [SwiftSetting] = [
+    .define("MACOS", .when(platforms: [.macOS])),
+    .define("WINDOWS", .when(platforms: [.windows])),
+    .define("IOS", .when(platforms: [.iOS])),
+    .define("TVOS", .when(platforms: [.tvOS])),
+    .define("ANDROID", .when(platforms: [.android])),
+    .define("LINUX", .when(platforms: [.linux])),
+]
+
+if isVulkanEnabled {
+    swiftSettings.append(.define("VULKAN"))
+} else {
+    swiftSettings.append(.define("METAL"))
+}
 
 let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
     dependencies: ["AdaEngine", "Math"],
     exclude: ["Project.swift", "Derived"],
-    swiftSettings: [
+    resources: [
+        .copy("Assets")
+    ],
+    swiftSettings: swiftSettings + [
         .define("EDITOR_DEBUG", .when(configuration: .debug)),
         
         // List of defines availables only for editor
@@ -119,30 +139,36 @@ let editorTarget: Target = .executableTarget(
 
 // MARK: Ada Engine SDK
 
+var adaEngineSwiftSettings = swiftSettings
+
+var adaEngineDependencies: [Target.Dependency] = [
+    "Math",
+    .product(name: "Collections", package: "swift-collections"),
+    "Yams",
+    "libpng",
+    "box2d",
+]
+
+#if os(Linux)
+adaEngineDependencies += ["X11"]
+#endif
+
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
-    dependencies: [
-        "Math",
-        .product(name: "stb_image", package: "Cstb"),
-        .product(name: "Collections", package: "swift-collections"),
-        "Yams"
-    ],
+    dependencies: adaEngineDependencies,
     exclude: ["Project.swift", "Derived"],
     resources: [
-        .copy("Assets/Shaders/Vulkan")
+        .copy("Assets/Shaders/Metal"),
+        .copy("Assets/Models")
     ],
-    swiftSettings: [
-        .define("MACOS", .when(platforms: [.macOS])),
-        .define("WINDOWS", .when(platforms: [.windows])),
-        .define("IOS", .when(platforms: [.iOS])),
-        .define("TVOS", .when(platforms: [.tvOS])),
-        .define("ANDROID", .when(platforms: [.android])),
-        .define("LINUX", .when(platforms: [.linux])),
-        
-        /// Define metal
-        .define("METAL", .when(platforms: applePlatforms))
-    ],
+    swiftSettings: adaEngineSwiftSettings,
     plugins: commonPlugins
+)
+
+let adaEngineEmbeddable: Target = .target(
+    name: "AdaEngineEmbeddable",
+    dependencies: ["AdaEngine"],
+    exclude: ["Project.swift", "Derived"]
 )
 
 // MARK: Other Targets
@@ -150,11 +176,30 @@ let adaEngineTarget: Target = .target(
 var targets: [Target] = [
     editorTarget,
     adaEngineTarget,
+    adaEngineEmbeddable,
     .target(
         name: "Math",
         exclude: ["Project.swift", "Derived"]
-    ),
+    )
 ]
+
+// MARK: Documentations
+
+targets += [
+    // Empty target with documentation docc files
+    .target(name: "Documentation")
+]
+
+#if os(Android) || os(Linux)
+targets += [
+    .systemLibrary(
+        name: "X11",
+        pkgConfig: "x11",
+        providers: [
+            .apt(["libx11-dev"])
+        ]),
+]
+#endif
 
 // MARK: - Tests
 
@@ -173,56 +218,28 @@ targets += [
 targets.append(contentsOf: swiftLintTargets)
 #endif
 
-// MARK: - Vulkan
+// MARK: - Vendors -
 
-// We turn on vulkan via build
-if isVulkanEnabled {
-    
-    let vulkanName = "Vulkan"
-    
-    let vulkanTargets: [Target] = [
-        .target(
-            name: vulkanName,
-            dependencies: ["CVulkan"],
-            exclude: ["Project.swift", "Derived"],
-            cxxSettings: [
-                // Apple
-                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
-                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
-                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
-                
-                // Android
-                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
-                
-                // Windows
-                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
-            ]
-        ),
-        .systemLibrary(
-            name: "CVulkan",
-            pkgConfig: "vulkan"
-        ),
-        .plugin(
-            name: "SPIRVBuildPlugin",
-            capability: .buildTool()
-        ),
-        .plugin(
-            name: "SPIRVPlugin",
-            capability:
-                    .command(
-                        intent: .custom(verb: "spirv", description: "Compile vert and frag shaders to spirv binary"),
-                        permissions: [
-                            .writeToPackageDirectory(reason: "Compile vert and frag shaders to spirv binary")
-                        ]
-                    )
-        )
-    ]
-    
-    targets.append(contentsOf: vulkanTargets)
-    
-    editorTarget.dependencies.append(.target(name: vulkanName))
-    adaEngineTarget.dependencies.append(.target(name: vulkanName))
-}
+// libpng
+
+targets += [
+    .target(
+        name: "libpng",
+        exclude: ["Project.swift", "Derived"],
+        cSettings: [
+            .define("PNG_ARM_NEON_OPT", to: useNeon ? "2" : "0")
+        ]
+    )
+]
+
+// box2d
+
+targets += [
+    .target(
+        name: "box2d",
+        exclude: ["Project.swift", "Derived"]
+    )
+]
 
 // MARK: - Package -
 
@@ -234,14 +251,25 @@ let package = Package(
         .macOS(.v11),
     ],
     products: products,
-    dependencies: [
-        .package(url: "https://github.com/troughton/Cstb.git", from: "1.0.5"),
-        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.1"),
-        .package(url: "https://github.com/jpsim/Yams.git", from: "5.0.1"),
-        
-        // Plugins
-        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0")
-    ],
+    dependencies: [ ],
     targets: targets,
-    swiftLanguageVersions: [.v5]
+    swiftLanguageVersions: [.v5],
+    cxxLanguageStandard: .cxx14
 )
+
+// FIXME: If possible - move to local `vendors` folder
+package.dependencies += [
+    .package(url: "https://github.com/apple/swift-collections", from: "1.0.4"),
+    .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
+    
+    // Plugins
+    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+]
+
+// MARK: - Vulkan -
+//
+//// We turn on vulkan via build
+//if isVulkanEnabled {
+//    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
+//    package.dependencies.append(.package(path: "vendors/Vulkan"))
+//}

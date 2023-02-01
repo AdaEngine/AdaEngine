@@ -15,6 +15,10 @@ public struct ResourceHashMap<T> {
     
     private var dictionary: OrderedDictionary<RID, T> = [:]
     
+    public var values: OrderedDictionary<RID, T>.Values {
+        self.dictionary.values
+    }
+    
     public func get(_ rid: RID) -> T? {
         return self.queue.sync {
             return self.dictionary[rid]

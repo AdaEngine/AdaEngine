@@ -5,14 +5,28 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+public struct CameraClearFlags: OptionSet, Codable {
+    public var rawValue: UInt8
+    
+    public init(rawValue: UInt8) {
+        self.rawValue = rawValue
+    }
+    
+    public static let solid = CameraClearFlags(rawValue: 1 << 0)
+    
+    public static let depthBuffer = CameraClearFlags(rawValue: 1 << 1)
+    
+    public static let nothing: CameraClearFlags = []
+}
+
+// TODO: We should translate mouse coordinate space to scene coordinate space
+// FIXME: Change camera to component, instead of script component
 public final class Camera: ScriptComponent {
     
     public enum Projection: UInt8, Codable, CaseIterable {
         case perspective
         case orthographic
     }
-    
-    private var isDirty = false
     
     // MARK: Properties
     
@@ -22,7 +36,7 @@ public final class Camera: ScriptComponent {
     
     /// The closest point relative to camera that drawing will occur
     @Export
-    public var far: Float = 100
+    public var far: Float = 1000
     
     /// Angle of camera view
     @Export
@@ -32,18 +46,26 @@ public final class Camera: ScriptComponent {
     @Export
     public var projection: Projection = .perspective
     
-    @Export(skipped: true)
-    public var viewportSize: Size = .zero
+    /// A viewport where camera will render
+    internal var viewport: Viewport?
     
     /// Set camera is active
     @Export
-    public var isPrimal = false
+    public var isActive = false
+    
+    /// Fill color for unused pixel.
+    @Export
+    public var backgroundColor: Color = .black
+    
+    @Export
+    public var clearFlags: CameraClearFlags = .nothing
     
     @Export
     public var orthographicScale: Float = 1
     
     // MARK: Computed Properties
     
+    // TODO: Should we have this flag? Looks like isActive is enough for us
     public var isCurrent: Bool {
         return self.entity?.scene?.activeCamera === self
     }
@@ -53,11 +75,14 @@ public final class Camera: ScriptComponent {
     // MARK: - Internal
     
     func makeCameraData() -> CameraData {
+        let viewportSize = self.viewport?.size ?? .zero
+        
         let projection: Transform3D
         let aspectRation = Float(viewportSize.width) / Float(viewportSize.height)
         
         switch self.projection {
         case .orthographic:
+            // TODO: (Vlad) not works when use translate position
             projection = Transform3D.orthogonal(
                 left: -aspectRation * self.orthographicScale,
                 right: aspectRation * self.orthographicScale,
@@ -75,7 +100,14 @@ public final class Camera: ScriptComponent {
             )
         }
         
-        return CameraData(viewProjection: projection * self.viewMatrix, position: self.transform.position)
+        let viewMatrix = self.entity.flatMap { entity in
+            entity.scene?.worldTransformMatrix(for: entity)
+        } ?? .identity
+        
+        return CameraData(
+            viewProjection: projection * viewMatrix,
+            position: self.transform.position
+        )
     }
 }
 

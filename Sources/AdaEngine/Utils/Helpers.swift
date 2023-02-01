@@ -13,3 +13,11 @@ func fatalErrorMethodNotImplemented(
 ) -> Never {
     fatalError("Method \(functionName):\(line) not implemented in \(file).")
 }
+
+@inlinable public func assert(_ condition: @autoclosure () -> Bool, _ message: @autoclosure () -> String = "", file: StaticString = #file, line: UInt = #line) {
+    Swift.assert(condition(), message(), file: file, line: line)
+}
+
+@inlinable public func assertionFailure(_ message: @autoclosure () -> String = "", file: StaticString = #file, line: UInt = #line) {
+    Swift.assertionFailure(message(), file: file, line: line)
+}

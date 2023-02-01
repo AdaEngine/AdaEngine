@@ -25,7 +25,9 @@ open class WindowManager {
     
     public private(set) var activeWindow: Window?
     
-    internal init() { }
+    public init() { }
+    
+    let renderEngine = RenderEngine2D()
     
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) {
@@ -35,15 +37,15 @@ open class WindowManager {
                 window.sendEvent(event)
             }
             
-            window.sceneManager.update(deltaTime)
-            
             if window.canDraw {
-                let context = GUIRenderContext(window: window.id)
+                let context = GUIRenderContext(viewport: window.viewport, engine: renderEngine)
                 
                 context.beginDraw(in: window.bounds)
                 window.draw(with: context)
                 context.commitDraw()
             }
+            
+            window.update(deltaTime)
         }
     }
     
@@ -74,6 +76,10 @@ open class WindowManager {
         fatalErrorMethodNotImplemented()
     }
     
+    open func getScreen(for window: Window) -> Screen? {
+        fatalErrorMethodNotImplemented()
+    }
+    
     internal func setActiveWindow(_ window: Window) {
         self.activeWindow?.isActive = false
         
@@ -91,7 +97,7 @@ open class WindowManager {
         }
         
         // Destory window from render window
-        try? RenderEngine.shared.renderBackend.destroyWindow(window.id)
+        try? RenderEngine.shared.destroyWindow(window.id)
         
         self.windows.remove(at: index)
         window.windowDidDisappear()
@@ -104,7 +110,7 @@ open class WindowManager {
         
         if setActiveAnotherIfNeeded {
             // Set last window as active
-            // TODO: I think we should have any order
+            // TODO: (Vlad) I think we should have any order
             let newWindow = self.windows.last!
             self.setActiveWindow(newWindow)
         }

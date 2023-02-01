@@ -92,8 +92,25 @@ class Transform3DTests: XCTestCase {
         ]
         
         // when
-        let simdMatrix = matrix_float4x4(columns1) * matrix_float4x4(columns2)
+        let simdMatrix = matrix_float4x4(columnsVector4: columns1) * matrix_float4x4(columnsVector4: columns2)
         let transform = Transform3D(columns: columns1) * Transform3D(columns: columns2)
+        
+        // then
+        TestUtils.assertEqual(simdMatrix, transform)
+    }
+    
+    func test_Transform3DInverse_and_Simd4x4Inverse_Equals() {
+        // given
+        let columns1 = [
+            Vector4(1, 2, 5, 4),
+            Vector4(3, 1, 3, 4),
+            Vector4(5, 1, 1, 9),
+            Vector4(4, 2, 5, 1)
+        ]
+        
+        // when
+        let simdMatrix = matrix_float4x4(columnsVector4: columns1).inverse
+        let transform = Transform3D(columns: columns1).inverse
         
         // then
         TestUtils.assertEqual(simdMatrix, transform)
@@ -104,9 +121,9 @@ class Transform3DTests: XCTestCase {
         let translation: Vector3 = [3, 10, 3]
         let rotation = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1)
         let scale: Vector3 = [1, 1, 1]
-        
+
         // when
-        
+
         let simdMatrix = simd_float4x4([
             [1, 0, 0, translation.x],
             [0, 1, 0, translation.y],
@@ -114,10 +131,10 @@ class Transform3DTests: XCTestCase {
             [0, 0, 0, 1],
         ])
         * simd_float4x4(rotation)
-        * simd_float4x4(diagonal: Vector4(scale, 1))
-        
+        * simd_float4x4(diagonal: Vector4(scale, 1).simd)
+
         let transform = Transform3D(translation: translation, rotation: Quat(rotation), scale: scale)
-        
+
         // then
         TestUtils.assertEqual(simdMatrix, transform)
     }
@@ -125,13 +142,12 @@ class Transform3DTests: XCTestCase {
     func test_QuatFromSimdQuat_AreEquals() {
         // given
         let simdQuat = simd_quatf(ix: 3, iy: 2, iz: 1, r: 1)
-        
+
         // when
         let quat = Quat(simdQuat)
-        
+
         // then
         TestUtils.assertEqual(simdQuat, quat)
-        
     }
     
     func test_quatToMatrixAndSimdQuatToMatrix_AreEquals() {
@@ -155,7 +171,7 @@ class Transform3DTests: XCTestCase {
             Vector4(4, 0, 0, 1)
         ]
         
-        let matrix = matrix_float4x4(columns)
+        let matrix = matrix_float4x4(columnsVector4: columns)
         let transform = Transform3D(columns: columns)
         
         // when
@@ -172,7 +188,7 @@ class Transform3DTests: XCTestCase {
         let quatVector = Vector4(3, 2, 1, 1)
         
         let quat = Quat(x: quatVector.x, y: quatVector.y, z: quatVector.z, w: quatVector.w)
-        let simdQuat = simd_quatf(vector: quatVector)
+        let simdQuat = simd_quatf(vector: quatVector.simd)
         
         // when
         
@@ -193,23 +209,23 @@ class Transform3DTests: XCTestCase {
             Vector4(4, 55, 2, 92)
         ]
         
-        let simdMat = simd_float4x4(columns)
+        let simdMat = simd_float4x4(columnsVector4: columns)
         let transform = Transform3D(columns: columns)
         
         let vec4: Vector4 = [3, 2, 6, 2]
         
         // when
         
-        let simdVec = simdMat * vec4
+        let simdVec = simdMat * vec4.simd
         let myVec = transform * vec4
         
-        let invSimdVec = vec4 * simdMat
+        let invSimdVec = vec4.simd * simdMat
         let invMyVec = vec4 * transform
         
         // then
         
-        XCTAssertEqual(simdVec, myVec)
-        XCTAssertEqual(invSimdVec, invMyVec)
+        XCTAssertEqual(simdVec, myVec.simd)
+        XCTAssertEqual(invSimdVec, invMyVec.simd)
     }
     
     func test_Transform3DInitializedFromSimd4x4Matrix_AreEquals() {
@@ -218,7 +234,12 @@ class Transform3DTests: XCTestCase {
         let columns = simdMatrix.columns
         
         // when
-        let transform = Transform3D(columns: [columns.0, columns.1, columns.2, columns.3])
+        let transform = Transform3D(columns: [
+            columns.0.vec,
+            columns.1.vec,
+            columns.2.vec,
+            columns.3.vec
+        ])
         
         // then
         
@@ -237,10 +258,10 @@ class Transform3DTests: XCTestCase {
         
         // when
         let resMyVector = vector * myTransform
-        let resSimdVector = vector * simdTransform
+        let resSimdVector = vector.simd * simdTransform
         
         // then
-        XCTAssertEqual(resMyVector, resSimdVector)
+        XCTAssertEqual(resMyVector.simd, resSimdVector)
     }
     
     private func makeOrthoSimd(left: Float, right: Float, top: Float, bottom: Float, zNear: Float, zFar: Float) -> float4x4 {
@@ -313,3 +334,17 @@ class Transform3DTests: XCTestCase {
 //  }
 //}
 //
+
+#if canImport(simd)
+import simd
+
+public extension Quat {
+    init(_ simd_quat: simd_quatf) {
+        let x = simd_quat.vector.x
+        let y = simd_quat.vector.y
+        let z = simd_quat.vector.z
+        let w = simd_quat.vector.w
+        self.init(x: x, y: y, z: z, w: w)
+    }
+}
+#endif

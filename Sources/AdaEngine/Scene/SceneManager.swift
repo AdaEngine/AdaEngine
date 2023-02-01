@@ -9,15 +9,15 @@ public class SceneManager {
     
     public var currentScene: Scene?
     
-    weak var window: Window?
-    
-    public let serializer: SceneSerializer
+    weak var viewport: Viewport? {
+        didSet {
+            self.currentScene?.viewport = self.viewport
+        }
+    }
     
     // MARK: - Private
     
-    internal init() {
-        self.serializer = SceneSerializer()
-    }
+    internal init() { }
     
     func update(_ deltaTime: TimeInterval) {
         if self.currentScene?.isReady == false {
@@ -31,7 +31,7 @@ public class SceneManager {
     
     public func presentScene(_ scene: Scene) {
         scene.sceneManager = self
-        scene.window = self.window
+        scene.viewport = self.viewport
         self.currentScene = scene
     }
     

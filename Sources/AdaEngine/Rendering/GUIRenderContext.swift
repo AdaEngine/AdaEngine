@@ -6,7 +6,6 @@
 //
 
 import Math
-import GLKit
 
 /// Special object to render user interface on the screen.
 /// Context use orthogonal projection.
@@ -20,10 +19,10 @@ final public class GUIRenderContext {
     private var currentTransform = Transform3D.identity
     
     /// Window Identifier related presented window.
-    private let window: Window.ID
+    private unowned let viewport: Viewport
     
-    public init(window: Window.ID, engine: RenderEngine2D = .shared) {
-        self.window = window
+    public init(viewport: Viewport, engine: RenderEngine2D) {
+        self.viewport = viewport
         self.engine = engine
     }
     
@@ -36,9 +35,12 @@ final public class GUIRenderContext {
     }
     
     var view: Transform3D = .identity
+    private var screenRect: Rect = .zero
     
-    public func beginDraw(in rect: Rect) {
-        let size = rect.size
+    private var currentDrawContext: RenderEngine2D.DrawContext?
+    
+    public func beginDraw(in screenRect: Rect) {
+        let size = screenRect.size
         
         let view = Transform3D.orthogonal(
             left: 0,
@@ -49,14 +51,10 @@ final public class GUIRenderContext {
             zFar: 1
         )
         
+        self.screenRect = screenRect
         self.view = view
         
-        self.engine.beginContext(for: self.window, viewTransform: view)
-    }
-    
-    // TODO: Currently not work
-    public func setZIndex(_ index: Int) {
-        self.engine.setZIndex(index)
+        self.currentDrawContext = self.engine.beginContext(for: self.viewport, viewTransform: view)
     }
     
     public func setFillColor(_ color: Color) {
@@ -72,27 +70,27 @@ final public class GUIRenderContext {
     }
     
     public func setDebugName(_ name: String) {
-        self.engine.setDebugName(name)
+        self.currentDrawContext?.setDebugName(name)
     }
     
     /// Paints the area contained within the provided rectangle, using the fill color in the current graphics state.
     public func fillRect(_ rect: Rect) {
         let transform = self.makeCanvasTransform3D(from: rect)
-        self.engine.drawQuad(transform: transform, color: self.fillColor)
+        self.currentDrawContext?.drawQuad(transform: transform, color: self.fillColor)
     }
     
     public func fillRect(_ xform: Transform3D) {
-        self.engine.drawQuad(transform: xform, color: self.fillColor)
+        self.currentDrawContext?.drawQuad(transform: xform, color: self.fillColor)
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
     public func fillEllipse(in rect: Rect) {
         let transform = self.makeCanvasTransform3D(from: rect)
-        self.engine.drawCircle(transform: self.currentTransform * transform, thickness: 1, fade: 0.005, color: self.fillColor)
+        self.currentDrawContext?.drawCircle(transform: self.currentTransform * transform, thickness: 1, fade: 0.005, color: self.fillColor)
     }
     
     public func commitDraw() {
-        RenderEngine2D.shared.commitContext()
+        self.currentDrawContext?.commitContext()
         
         self.clear()
     }
@@ -121,14 +119,15 @@ extension GUIRenderContext {
     func makeCanvasTransform3D(from rect: Rect) -> Transform3D {
         let origin = rect.origin
         let size = rect.size
+        let screenSize = self.screenRect.size
         
         if size.width < 0 || size.height < 0 {
             return .identity
         }
 
         return Transform3D(
-            [size.width * 2, 0, 0, 0],
-            [0, size.height * 2, 0, 0 ],
+            [size.width / screenSize.width, 0, 0, 0],
+            [0, size.height / screenSize.height, 0, 0 ],
             [0, 0, 1.0, 0.0],
             [origin.x, -origin.y, 0, 1]
         )
