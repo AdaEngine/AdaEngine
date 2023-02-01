@@ -120,8 +120,8 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.beginDraw(for: window, clearColor: clearColor)
     }
     
-    func beginDraw(for window: Window.ID, framebuffer: Framebuffer) -> DrawList {
-        self.renderBackend.beginDraw(for: window, framebuffer: framebuffer)
+    func beginDraw(to framebuffer: Framebuffer) -> DrawList {
+        self.renderBackend.beginDraw(to: framebuffer)
     }
     
     func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {

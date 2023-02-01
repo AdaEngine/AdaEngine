@@ -53,6 +53,7 @@ public final class Camera: ScriptComponent {
     @Export
     public var isActive = false
     
+    /// Fill color for unused pixel.
     @Export
     public var backgroundColor: Color = .black
     
@@ -99,8 +100,12 @@ public final class Camera: ScriptComponent {
             )
         }
         
+        let viewMatrix = self.entity.flatMap { entity in
+            entity.scene?.worldTransformMatrix(for: entity)
+        } ?? .identity
+        
         return CameraData(
-            viewProjection: projection * self.viewMatrix,
+            viewProjection: projection * viewMatrix,
             position: self.transform.position
         )
     }
