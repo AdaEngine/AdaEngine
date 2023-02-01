@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-#if os(macOS)
+#if MACOS
 import AppKit
 import MetalKit
 

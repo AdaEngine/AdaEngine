@@ -7,18 +7,17 @@
 
 import Math
 
-// TODO:
-// [ ] - Ortho projection for each view instead of root
-// [ ] - Add transforms for drawing (translation/rotation/scale)
-// [x] - Blending mode (cuz alpha doesn't work)
-// [ ] - z layers
-// [ ] - texturing the views
-// [ ] - draw lines
-// [x] - draw rectangles
-// [ ] - create transperent API for 2D rendering
-// [ ] - Interaction (hit testing)
-// [ ] - Scaling problem (hit testing)
-// [ ] - Cropping
+// - TODO: (Vlad) Ortho projection for each view instead of root
+// - TODO: (Vlad) Add transforms for drawing (translation/rotation/scale)
+// - TODO: (Vlad) Blending mode (cuz alpha doesn't work)
+// - TODO: (Vlad) z layers
+// - TODO: (Vlad) texturing the views
+// - TODO: (Vlad) draw lines
+// - TODO: (Vlad) draw rectangles
+// - TODO: (Vlad) create transperent API for 2D rendering
+// - TODO: (Vlad) Interaction (hit testing)
+// - TODO: (Vlad) Scaling problem (hit testing)
+// - TODO: (Vlad) Cropping
 
 /// - Tag: AdaEngine.View
 open class View {
@@ -127,7 +126,7 @@ open class View {
     
     // MARK: - Interaction
     
-    open func hitTest(_ point: Point, with event: Event) -> View? {
+    open func hitTest(_ point: Point, with event: InputEvent) -> View? {
         guard self.isInteractionEnabled && self.isVisible else {
             return nil
         }
@@ -151,7 +150,7 @@ open class View {
     }
     
     /// - Returns: true if point is inside the receiver’s bounds; otherwise, false.
-    open func point(inside point: Point, with event: Event) -> Bool {
+    open func point(inside point: Point, with event: InputEvent) -> Bool {
         return self.bounds.contains(point: point)
     }
     
@@ -161,7 +160,7 @@ open class View {
         return .zero
     }
     
-    func sendEvent(_ event: Event) {
+    func sendEvent(_ event: InputEvent) {
         switch event {
         case let event as MouseEvent:
             self.handleMouseEvent(event)
@@ -190,7 +189,7 @@ open class View {
         
     }
     
-    private func handleClick(_ position: Point, with event: Event) {
+    private func handleClick(_ position: Point, with event: InputEvent) {
         guard self.isInteractionEnabled else { return }
 //        let position = Point(x: 80, y: 26)
         print("Mouse", position.x, position.y)
@@ -225,6 +224,13 @@ open class View {
         let deletedView = self.subviews.remove(at: index)
         deletedView.superview = nil
         view.viewDidMove(to: nil)
+    }
+    
+    /// Called each frame
+    open func update(_ deltaTime: TimeInterval) {
+        self.subviews.forEach {
+            $0.update(deltaTime)
+        }
     }
 }
 

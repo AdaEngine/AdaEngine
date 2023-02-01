@@ -5,14 +5,14 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-/// Main class represented application instance.
-/// Application cannot be created manualy use [ApplicationCreate](x-source-tag://ApplicationCreate) function instead.
-/// To get access to Application instance, use static property `shared`
+/// The main class represents application instance.
+/// The application cannot be created manualy, instead use an [App](x-source-tag://App) protocol.
+/// To get access to the application instance, use static property `shared`
 open class Application {
     
     // MARK: - Public
     
-    /// Contains application instance if application created from [ApplicationCreate](x-source-tag://ApplicationCreate) function.
+    /// Contains application instance if application created from [App](x-source-tag://App).
     public internal(set) static var shared: Application!
     
     private(set) var gameLoop: GameLoop = GameLoop.current
@@ -42,7 +42,9 @@ open class Application {
     public init(
         argc: Int32,
         argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
-    ) throws { }
+    ) throws {
+        Self.shared = self
+    }
     
     /// Call this method to start main loop.
     func run() throws {
@@ -64,5 +66,13 @@ open class Application {
     /// Call this method to show specific alert.
     open func showAlert(_ alert: Alert) {
         assertionFailure("Not implemented")
+    }
+}
+
+public extension Application {
+    enum State {
+        case active
+        case inactive
+        case background
     }
 }

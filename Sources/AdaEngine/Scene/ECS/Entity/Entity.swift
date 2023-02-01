@@ -5,10 +5,12 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
-import Foundation.NSUUID // TODO: Replace to own realization
+import Foundation.NSUUID // TODO: (Vlad) Replace to own realization
 import OrderedCollections
 
-/// An enity describe
+// - TODO: (Vlad) Should fix
+// - [ ] Entity children
+/// Describe an entity and his characteristics.
 open class Entity: Identifiable {
     
     public var name: String
@@ -17,19 +19,25 @@ open class Entity: Identifiable {
     
     public var components: ComponentSet
     
-    public internal(set) weak var scene: Scene? {
-        didSet {
-            self.children.forEach {
-                $0.scene = scene
-            }
+    public internal(set) weak var scene: Scene?
+    
+    public var children: [Entity] {
+        guard let relationship = self.components[RelationshipComponent.self] else {
+            return []
+        }
+        
+        return relationship.children.compactMap {
+            self.scene?.world.getEntityByID($0)
         }
     }
     
-    // TODO: We should reimagine how it works, fit it to ECS World
-    public internal(set) var children: OrderedSet<Entity>
-    
-    // TODO: Looks like parentnes not a good choice to ECS data oriented way
-    public internal(set) weak var parent: Entity?
+    public var parent: Entity? {
+        guard let relationship = self.components[RelationshipComponent.self], let parent = relationship.parent else {
+            return nil
+        }
+        
+        return self.scene?.world.getEntityByID(parent)
+    }
     
     public init(name: String = "Entity") {
         self.name = name
@@ -37,9 +45,9 @@ open class Entity: Identifiable {
         
         var components = ComponentSet()
         components += Transform()
+        components += RelationshipComponent()
         
         self.components = components
-        self.children = []
         
         // swiftlint:disable:next inert_defer
         defer {
@@ -54,28 +62,15 @@ open class Entity: Identifiable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.name = try container.decode(String.self, forKey: .name)
         self.id = try container.decode(Int.self, forKey: .id)
-        self.children = try container.decodeIfPresent(OrderedSet<Entity>.self, forKey: .children) ?? []
-        let components = try container.decodeIfPresent(ComponentSet.self, forKey: .components)
-//        
-//        if let components = components {
-//            self.components.set(components.buffer.values.elements)
-//        }
-        
-        self.children.forEach { $0.parent = self }
+        self.components = try container.decode(ComponentSet.self, forKey: .components)
+        self.components.entity = self
     }
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.name, forKey: .name)
         try container.encode(self.id, forKey: .id)
-        
-        if !self.children.isEmpty {
-            try container.encode(self.children, forKey: .children)
-        }
-        
-        if !self.components.isEmpty {
-            try container.encode(self.components, forKey: .components)
-        }
+        try container.encode(self.components, forKey: .components)
     }
     
     // MARK: - Public
@@ -97,50 +92,31 @@ extension Entity: Hashable {
     }
 }
 
-extension Entity {
+// MARK: - Relationship
+
+public extension Entity {
     
-    /// Copying entity with components
-    /// - Parameter recursive: Flags indicate that child enities will copying too
-    open func copy(recursive: Bool = true) -> Entity {
-        let newEntity = Entity()
+    func addChild(_ entity: Entity) {
+        assert(!self.children.contains { $0 === entity }, "Currently has entity in child")
         
-        if recursive {
-            var childrens = self.children
-            
-            for index in 0..<childrens.count {
-                let child = self.children[index].copy(recursive: true)
-                childrens.updateOrAppend(child)
-            }
-            
-            newEntity.children = childrens
-        }
-        
-        newEntity.components = self.components
-        newEntity.scene = self.scene
-        newEntity.parent = self.parent
-        
-        return newEntity
-    }
-    
-    open func addChild(_ entity: Entity) {
-        assert(!self.children.contains { $0 === entity }, "Currenlty has entity in child")
-        
-        self.children.append(entity)
-        entity.parent = self
-    }
-    
-    open func removeChild(_ entity: Entity) {
-        guard let index = self.children.firstIndex(where: { $0 === entity }) else {
+        guard var relationship = self.components[RelationshipComponent.self] else {
             return
         }
         
-        entity.parent = nil
+        relationship.parent = entity.id
+    }
+    
+    func removeChild(_ entity: Entity) {
+        guard var relationship = self.components[RelationshipComponent.self] else {
+            return
+        }
         
-        self.children.remove(at: index)
+        entity.components[RelationshipComponent.self]?.parent = nil
+        relationship.children.remove(entity.id)
     }
     
     /// Remove entity from parent
-    open func removeFromParent() {
+    func removeFromParent() {
         guard let parent = self.parent else { return }
         parent.removeChild(self)
     }
@@ -150,6 +126,5 @@ extension Entity: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name
         case components
-        case children
     }
 }

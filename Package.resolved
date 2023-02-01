@@ -1,21 +1,12 @@
 {
   "pins" : [
     {
-      "identity" : "cstb",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/troughton/Cstb.git",
-      "state" : {
-        "revision" : "1452254ea570241e5228475c2973a62740ffa9cb",
-        "version" : "1.0.5"
-      }
-    },
-    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/apple/swift-collections.git",
+      "location" : "https://github.com/apple/swift-collections",
       "state" : {
-        "revision" : "2d33a0ea89c961dcb2b3da2157963d9c0370347e",
-        "version" : "1.0.1"
+        "revision" : "937e904258d22af6e447a0b72c0bc67583ef64a2",
+        "version" : "1.0.4"
       }
     },
     {
@@ -30,7 +21,7 @@
     {
       "identity" : "yams",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/jpsim/Yams.git",
+      "location" : "https://github.com/jpsim/Yams",
       "state" : {
         "revision" : "01835dc202670b5bb90d07f3eae41867e9ed29f6",
         "version" : "5.0.1"

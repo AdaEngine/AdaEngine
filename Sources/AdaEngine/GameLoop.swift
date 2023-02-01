@@ -5,17 +5,23 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
-final class GameLoop {
+// FIXME: (Vlad) Make physics frames
+
+/// The main class responds to update all systems in engine.
+/// You can have only one GameLoop per app.
+public final class GameLoop {
     
-    private(set) static var current: GameLoop = GameLoop()
+    public private(set) static var current: GameLoop = GameLoop()
     
     private var lastUpdate: TimeInterval = 0
     
     private(set) var isIterating = false
     
+    private var isFirstTick: Bool = true
+    
     // MARK: Internal Methods
     
-    func iterate() throws {
+    public func iterate() throws {
         if self.isIterating {
             assertionFailure("Can't iterated twice.")
             return
@@ -28,14 +34,30 @@ final class GameLoop {
         let deltaTime = max(0, now - self.lastUpdate)
         self.lastUpdate = now
         
+        // that little hack to avoid big delta in the first tick, because delta is equals Time.absolute value.
+        if self.isFirstTick {
+            self.isFirstTick = false
+            return
+        }
+        
+        EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
+        
         Input.shared.processEvents()
         
         try RenderEngine.shared.beginFrame()
         
         Application.shared.windowManager.update(deltaTime)
         
+        ViewportRenderer.shared.beginFrame()
+        
+        ViewportRenderer.shared.renderViewports()
+        
+        ViewportRenderer.shared.endFrame()
+        
         try RenderEngine.shared.endFrame()
         
         Input.shared.removeEvents()
+        
+        FPSCounter.shared.tick()
     }
 }

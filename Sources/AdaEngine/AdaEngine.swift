@@ -5,22 +5,15 @@
 //  Created by v.prusakov on 8/14/21.
 //
 
-//#if METAL
-import MetalKit
-//#else
-//import Vulkan
-//#endif
-
-final public class Engine {
-    
-    public static let shared: Engine = Engine()
-    
-    // MARK: Private
-    
-    private init() {
-        
+/// Main events available from the engine.
+public enum EngineEvents {
+    /// Called each time, when main game loop was iterating.
+    public struct GameLoopBegan: Event {
+        /// The delta time after previous tick.
+        public let deltaTime: TimeInterval
     }
     
-    // MARK: - Internal Methods
-    
+    public struct FramesPerSecondEvent: Event {
+        public let framesPerSecond: Int
+    }
 }

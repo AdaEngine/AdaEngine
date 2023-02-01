@@ -16,33 +16,35 @@ let targets: [Target] = [
         bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER)",
         deploymentTarget: .macOS(targetVersion: "11.0"),
         sources: [
-            .glob("**/*", excluding: ["Project.swift"])
+            .glob("**/*.swift", excluding: ["Project.swift"])
+        ],
+        resources: [
+            "Assets/**/*.metal"
         ],
         scripts: [],
         dependencies: [
-//            .project(
-//                target: "Vulkan",
-//                path: .relativeToRoot("Sources/Vulkan")
-//            ),
             .project(
                 target: "Math",
                 path: .relativeToRoot("Sources/Math")
             ),
+            .project(
+                target: "libpng",
+                path: .relativeToRoot("Sources/libpng")
+            ),
+            .project(
+                target: "box2d",
+                path: .relativeToRoot("Sources/box2d")
+            ),
             .external(name: "stb_image"),
             .external(name: "Collections"),
             .external(name: "Yams")
-        ]
+        ],
+        settings: .targetSettings(swiftFlags: [
+            .define("MACOS"),
+            .define("METAL"),
+            .define("TUIST")
+        ])
     ),
-//    Target(
-//        name: "AdaEngineTests",
-//        platform: .macOS,
-//        product: .unitTests,
-//        bundleId: "dev.litecode.adaengine",
-//        sources: ["Tests/**"],
-//        dependencies: [
-//            .target(name: "AdaEngine")
-//        ]
-//    )
 ]
 
 let project = Project(

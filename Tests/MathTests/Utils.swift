@@ -21,26 +21,26 @@ enum TestUtils {
     
 #if canImport(simd)
     
-    static func assertEqual(_ simd_matrix: matrix_float4x4, _ transform: Transform3D) {
-        XCTAssertEqual(simd_matrix[0, 0], transform[0, 0])
-        XCTAssertEqual(simd_matrix[0, 1], transform[0, 1])
-        XCTAssertEqual(simd_matrix[0, 2], transform[0, 2])
-        XCTAssertEqual(simd_matrix[0, 3], transform[0, 3])
+    static func assertEqual(_ simd_matrix: matrix_float4x4, _ transform: Transform3D, accuracy: Float = 0.00001) {
+        XCTAssertEqual(simd_matrix[0, 0], transform[0, 0], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[0, 1], transform[0, 1], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[0, 2], transform[0, 2], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[0, 3], transform[0, 3], accuracy: accuracy)
         
-        XCTAssertEqual(simd_matrix[1, 0], transform[1, 0])
-        XCTAssertEqual(simd_matrix[1, 1], transform[1, 1])
-        XCTAssertEqual(simd_matrix[1, 2], transform[1, 2])
-        XCTAssertEqual(simd_matrix[1, 3], transform[1, 3])
+        XCTAssertEqual(simd_matrix[1, 0], transform[1, 0], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[1, 1], transform[1, 1], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[1, 2], transform[1, 2], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[1, 3], transform[1, 3], accuracy: accuracy)
         
-        XCTAssertEqual(simd_matrix[2, 0], transform[2, 0])
-        XCTAssertEqual(simd_matrix[2, 1], transform[2, 1])
-        XCTAssertEqual(simd_matrix[2, 2], transform[2, 2])
-        XCTAssertEqual(simd_matrix[2, 3], transform[2, 3])
+        XCTAssertEqual(simd_matrix[2, 0], transform[2, 0], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[2, 1], transform[2, 1], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[2, 2], transform[2, 2], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[2, 3], transform[2, 3], accuracy: accuracy)
         
-        XCTAssertEqual(simd_matrix[3, 0], transform[3, 0])
-        XCTAssertEqual(simd_matrix[3, 1], transform[3, 1])
-        XCTAssertEqual(simd_matrix[3, 2], transform[3, 2])
-        XCTAssertEqual(simd_matrix[3, 3], transform[3, 3])
+        XCTAssertEqual(simd_matrix[3, 0], transform[3, 0], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[3, 1], transform[3, 1], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[3, 2], transform[3, 2], accuracy: accuracy)
+        XCTAssertEqual(simd_matrix[3, 3], transform[3, 3], accuracy: accuracy)
     }
     
     static func assertEqual(_ simd_quat: simd_quatf, _ quat: Quat, accuracy: Float = 0.00001) {
@@ -113,3 +113,48 @@ enum TestUtils {
 #endif
     
 }
+
+#if canImport(simd)
+
+extension Vector2 {
+    var simd: SIMD2<Float> {
+        return [x, y]
+    }
+}
+
+extension Vector3 {
+    var simd: SIMD3<Float> {
+        return [x, y, z]
+    }
+}
+
+extension Vector4 {
+    var simd: SIMD4<Float> {
+        return [x, y, z, w]
+    }
+}
+
+extension simd_float4x4 {
+    init(columnsVector4: [Vector4]) {
+        self.init(columnsVector4.map { $0.simd })
+    }
+}
+
+extension SIMD3 where Scalar == Float {
+    var vec: Vector3 {
+        return [x, y, z]
+    }
+}
+
+extension SIMD2 where Scalar == Float {
+    var vec: Vector2 {
+        return [x, y]
+    }
+}
+
+extension SIMD4 where Scalar == Float {
+    var vec: Vector4 {
+        return [x, y, z, w]
+    }
+}
+#endif

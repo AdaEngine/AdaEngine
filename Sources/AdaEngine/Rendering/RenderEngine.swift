@@ -7,63 +7,134 @@
 
 import OrderedCollections
 
-public class RenderEngine {
+@_spi(rendering) /* If we need a use "low level" rendering */
+public class RenderEngine: RenderBackend {
     
     public static let shared: RenderEngine = {
         let renderBackend: RenderBackend
         
-//        #if METAL
+        #if METAL
         renderBackend = MetalRenderBackend(appName: "Ada Engine")
-//        #else
-//        fatalError()
-//        #endif
+        #elseif VULKAN
+        // vulkan here
+        #endif
         
         return RenderEngine(renderBackend: renderBackend)
     }()
     
-    let renderBackend: RenderBackend
+    private let renderBackend: RenderBackend
     
     private init(renderBackend: RenderBackend) {
         self.renderBackend = renderBackend
     }
     
-    // MARK: Methods
+    // MARK: - RenderBackend
     
-    public func setClearColor(_ color: Color, forWindow windowId: Window.ID) {
-        self.renderBackend.setClearColor(color, forWindow: windowId)
-    }
-    
-    public func beginFrame() throws {
-        try self.renderBackend.beginFrame()
-    }
-    
-    public func endFrame() throws {
-        try self.renderBackend.endFrame()
+    public var currentFrameIndex: Int {
+        return self.renderBackend.currentFrameIndex
     }
     
     public func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
         try self.renderBackend.createWindow(windowId, for: view, size: size)
     }
     
-    public func updateWindowSize(_ window: Window.ID, newSize: Size) throws {
-        guard newSize.width > 0 && newSize.height > 0 else {
-            return
-        }
-        
-        try self.renderBackend.resizeWindow(window, newSize: newSize)
+    public func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
+        try self.renderBackend.resizeWindow(windowId, newSize: newSize)
     }
     
-    // MARK: - Buffers
+    public func destroyWindow(_ windowId: Window.ID) throws {
+        try self.renderBackend.destroyWindow(windowId)
+    }
     
-    func makeBuffer(length: Int, options: ResourceOptions) -> RID {
+    func beginFrame() throws {
+        try self.renderBackend.beginFrame()
+    }
+    
+    func endFrame() throws {
+        try self.renderBackend.endFrame()
+    }
+    
+    // MARK: - Buffers -
+    
+    func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
         return self.renderBackend.makeBuffer(length: length, options: options)
     }
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> RID {
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
     }
     
-    func getBuffer(for rid: RID) -> RenderBuffer {
-        return self.renderBackend.getBuffer(for: rid)
+    func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID {
+        return self.renderBackend.makeIndexArray(indexBuffer: indexBuffer, indexOffset: indexOffset, indexCount: indexCount)
+    }
+    
+    func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+        return self.renderBackend.makeIndexBuffer(index: index, format: format, bytes: bytes, length: length)
+    }
+    
+    func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
+        self.renderBackend.makeVertexBuffer(length: length, binding: binding)
+    }
+    
+    // MARK: - Shaders
+    
+    func makeSampler(from descriptor: SamplerDescriptor) -> Sampler {
+        return self.renderBackend.makeSampler(from: descriptor)
+    }
+    
+    func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
+        return self.renderBackend.makeFramebuffer(from: descriptor)
+    }
+    
+    func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
+        return self.renderBackend.makeRenderPipeline(from: descriptor)
+    }
+    
+    func makeShader(from descriptor: ShaderDescriptor) -> Shader {
+        return self.renderBackend.makeShader(from: descriptor)
+    }
+    
+    // MARK: - Uniforms -
+    
+    func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {
+        self.renderBackend.makeUniformBuffer(length: length, binding: binding)
+    }
+    
+    func makeUniformBufferSet() -> UniformBufferSet {
+        self.renderBackend.makeUniformBufferSet()
+    }
+    
+    // MARK: - Texture -
+    
+    func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture {
+        self.renderBackend.makeTexture(from: descriptor)
+    }
+    
+    func getImage(for texture2D: RID) -> Image? {
+        self.renderBackend.getImage(for: texture2D)
+    }
+    
+    // MARK: - Drawing -
+    
+    func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList {
+        self.renderBackend.beginDraw(for: window, clearColor: clearColor)
+    }
+    
+    func beginDraw(to framebuffer: Framebuffer) -> DrawList {
+        self.renderBackend.beginDraw(to: framebuffer)
+    }
+    
+    func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {
+        self.renderBackend.draw(list, indexCount: indexCount, instancesCount: instancesCount)
+    }
+    
+    func endDrawList(_ drawList: DrawList) {
+        self.renderBackend.endDrawList(drawList)
+    }
+}
+
+public extension RenderEngine {
+    func makeUniformBuffer<T>(_ uniformType: T.Type, count: Int = 1, binding: Int) -> UniformBuffer {
+        self.makeUniformBuffer(length: MemoryLayout<T>.stride * count, binding: binding)
     }
 }

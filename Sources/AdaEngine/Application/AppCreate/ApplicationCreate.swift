@@ -9,10 +9,10 @@
 import Glibc
 #else
 import Darwin.C
-import AppKit
 #endif
 
 /// A type that represents the structure and behavior of an app.
+/// - Tag: App
 public protocol App {
     /// Creates an instance of the app using the body that you define for its content.
     init()
@@ -30,27 +30,39 @@ public extension App {
     }
     
     // Initializes and runs the app.
-    static func main() async throws {
+    static func main() throws {
         var application: Application!
         
         let argc = CommandLine.argc
         let argv = CommandLine.unsafeArgv
         
+        try ResourceManager.initialize()
+        
         let app = Self.init()
         
-        #if os(macOS)
+#if os(macOS)
         application = try MacApplication(argc: argc, argv: argv)
-        #endif
+#endif
         
-        #if os(iOS) || os(tvOS)
+#if os(iOS) || os(tvOS)
         application = try iOSApplication(argc: argc, argv: argv)
-        #endif
+#endif
         
-        Application.shared = application
+#if os(Android)
+        application = try AndroidApplication(argc: argc, argv: argv)
+#endif
         
-        let appScene = app.scene
-        let configuration = appScene._configuration
-        let window = appScene._makeWindow(with: configuration)
+#if os(Linux)
+        application = try LinuxApplication(argc: argc, argv: argv)
+#endif
+        
+        guard let appScene = app.scene as? InternalAppScene else {
+            fatalError("Incorrect object of App Scene")
+        }
+        
+        var configuration = _AppSceneConfiguration()
+        appScene._buildConfiguration(&configuration)
+        let window = try appScene._makeWindow(with: configuration)
         
         window.showWindow(makeFocused: true)
         

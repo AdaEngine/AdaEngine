@@ -23,7 +23,7 @@ struct CircleVertexOut {
 
 vertex CircleVertexOut circle_vertex(const CircleVertex vertexIn [[ stage_in ]], constant Uniforms &ubo [[ buffer(1) ]]) {
     float4 position = ubo.view * vertexIn.worldPosition;
-                                      
+    
     CircleVertexOut out {
         .position = position,
         .fade = vertexIn.fade,
@@ -31,7 +31,7 @@ vertex CircleVertexOut circle_vertex(const CircleVertex vertexIn [[ stage_in ]],
         .localPosition = vertexIn.localPosition,
         .color = vertexIn.color
     };
-                                      
+    
     return out;
 }
 
@@ -46,6 +46,6 @@ fragment float4 circle_fragment(CircleVertexOut in [[stage_in]]) {
     
     // Set output color
     color.a *= circle;
-                
+    
     return color;
 }

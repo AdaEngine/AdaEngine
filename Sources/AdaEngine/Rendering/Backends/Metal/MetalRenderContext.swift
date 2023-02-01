@@ -5,27 +5,13 @@
 //  Created by v.prusakov on 5/16/22.
 //
 
-#if canImport(Metal)
+#if METAL
 import Metal
+import QuartzCore
 
 extension MetalRenderBackend {
     
     final class Context {
-        
-        class RenderWindow {
-            private(set) weak var view: MetalView?
-            let commandQueue: MTLCommandQueue
-            var viewport: MTLViewport
-            
-            var commandBuffer: MTLCommandBuffer?
-            
-            internal init(view: MetalView? = nil, commandQueue: MTLCommandQueue, viewport: MTLViewport, commandBuffer: MTLCommandBuffer? = nil) {
-                self.view = view
-                self.commandQueue = commandQueue
-                self.viewport = viewport
-                self.commandBuffer = commandBuffer
-            }
-        }
         
         private(set) var windows: [Window.ID: RenderWindow] = [:]
         
@@ -46,25 +32,17 @@ extension MetalRenderBackend {
                 throw ContextError.commandQueueCreationFailed
             }
             
-            let viewport = MTLViewport(
-                originX: 0,
-                originY: 0,
-                width: Double(size.width),
-                height: Double(size.height),
-                znear: 0,
-                zfar: 1
-            )
-            
             let window = RenderWindow(
                 view: view,
-                commandQueue: commandQueue,
-                viewport: viewport
+                commandQueue: commandQueue
             )
             
-            view.depthStencilPixelFormat = .depth32Float_stencil8
-            view.colorPixelFormat = .bgra8Unorm_srgb
+            // TODO: (Vlad) We should setup it in different place?
+            view.colorPixelFormat = .bgra8Unorm
             view.device = self.physicalDevice
             view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+            view.framebufferOnly = false
+            view.sampleCount = 1
             
             self.windows[id] = window
         }
@@ -75,16 +53,7 @@ extension MetalRenderBackend {
                 return
             }
             
-            window.viewport = MTLViewport(
-                originX: 0,
-                originY: 0,
-                width: Double(size.width),
-                height: Double(size.height),
-                znear: 0,
-                zfar: 1
-            )
-            
-            self.windows[windowId] = window
+//            window.view?.drawableSize = size.toCGSize
         }
         
         func destroyWindow(by id: Window.ID) {
@@ -106,7 +75,7 @@ extension MetalRenderBackend {
             
 //            let allDevices = MTLCopyAllDevices()
             
-            /// TODO: Make picking preffered device, currently we picked descrete GPU
+            // TODO: (Vlad) Make picking preffered device, currently we picked descrete GPU
             var prefferedDevice: MTLDevice?
             
             return prefferedDevice ?? MTLCreateSystemDefaultDevice()!
@@ -125,7 +94,32 @@ extension MetalRenderBackend {
                 }
             }
         }
+    }
+    
+    final class RenderWindow {
         
+        private(set) weak var view: MetalView?
+        let commandQueue: MTLCommandQueue
+        var drawable: CAMetalDrawable?
+        var commandBuffer: MTLCommandBuffer?
+        
+        internal init(
+            view: MetalView? = nil,
+            commandQueue: MTLCommandQueue,
+            commandBuffer: MTLCommandBuffer? = nil
+        ) {
+            self.view = view
+            self.commandQueue = commandQueue
+            self.commandBuffer = commandBuffer
+        }
+        
+        func getRenderPass() -> MTLRenderPassDescriptor {
+            let mtlRenderPass = MTLRenderPassDescriptor()
+            mtlRenderPass.colorAttachments[0].texture = self.drawable?.texture
+            mtlRenderPass.colorAttachments[0].loadAction = .clear
+            mtlRenderPass.colorAttachments[0].storeAction = .store
+            return mtlRenderPass
+        }
     }
 }
 

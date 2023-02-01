@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/29/22.
 //
 
-#if os(macOS)
+#if MACOS
 import AppKit
 
 final class MacOSWindowManager: WindowManager {
@@ -27,20 +27,22 @@ final class MacOSWindowManager: WindowManager {
         )
         
         /// Register view in engine
-        let metalView = MetalView(frame: contentRect)
+        let metalView = MetalView(windowId: window.id, frame: contentRect)
+        
         try? RenderEngine.shared.createWindow(window.id, for: metalView, size: size)
         
         let systemWindow = NSWindow(
             contentRect: contentRect,
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
             backing: .buffered,
-            defer: false,
-            screen: NSScreen.main
+            defer: false
         )
         
         systemWindow.contentView = metalView
         systemWindow.collectionBehavior = [.fullScreenPrimary]
         systemWindow.center()
+        systemWindow.isRestorable = false
+        systemWindow.acceptsMouseMovedEvents = true
         systemWindow.delegate = nsWindowDelegate
         systemWindow.backgroundColor = .black
         
@@ -107,6 +109,14 @@ final class MacOSWindowManager: WindowManager {
         nsWindow.minSize = minSize
     }
     
+    override func getScreen(for window: Window) -> Screen? {
+        guard let nsWindow = window.systemWindow as? NSWindow, let screen = nsWindow.screen else {
+            return nil
+        }
+        
+        return ScreenManager.shared.makeScreen(from: screen)
+    }
+    
     func findWindow(for nsWindow: NSWindow) -> Window? {
         return self.windows.first {
             ($0.systemWindow as? NSWindow) === nsWindow
@@ -162,7 +172,7 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
             window.frame = Rect(origin: .zero, size: size)
         }
         
-        try? RenderEngine.shared.renderBackend.resizeWindow(window.id, newSize: size)
+        try? RenderEngine.shared.resizeWindow(window.id, newSize: size)
     }
     
     func windowDidExitFullScreen(_ notification: Notification) {
@@ -218,24 +228,6 @@ extension NSWindow: SystemWindow {
         set {
             self.setContentSize(NSSize(width: CGFloat(newValue.width), height: CGFloat(newValue.height)))
         }
-    }
-}
-
-extension CGRect {
-    var toEngineRect: Rect {
-        return Rect(origin: self.origin.toEnginePoint, size: self.size.toEngineSize)
-    }
-}
-
-extension CGPoint {
-    var toEnginePoint: Point {
-        return Point(x: Float(self.x), y: Float(self.y))
-    }
-}
-
-extension CGSize {
-    var toEngineSize: Size {
-        return Size(width: Float(self.width), height: Float(self.height))
     }
 }
 

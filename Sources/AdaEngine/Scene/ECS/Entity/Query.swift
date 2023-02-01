@@ -36,11 +36,32 @@
 /// }
 /// ```
 @frozen public struct EntityQuery {
+    
+    public struct Filter: OptionSet {
+        public typealias RawValue = UInt8
+        
+        public var rawValue: UInt8
+        
+        public init(rawValue: UInt8) {
+            self.rawValue = rawValue
+        }
+        
+        public static let added = Filter(rawValue: 1 << 0)
+        
+        public static let stored = Filter(rawValue: 1 << 1)
+        
+        public static let removed = Filter(rawValue: 1 << 2)
+        
+        public static let all: Filter = [.added, .stored, .removed]
+    }
+    
     let predicate: QueryPredicate
+    let filter: Filter
     
     /// - Parameter predicate: Describe what entity should contains to satisfy query.
-    public init(where predicate: QueryPredicate) {
+    public init(where predicate: QueryPredicate, filter: Filter = .all) {
         self.predicate = predicate
+        self.filter = filter
     }
 }
 
@@ -54,7 +75,7 @@ public extension QueryPredicate {
     /// Set the rule that entity should contains given type.
     static func has<T: Component>(_ type: T.Type) -> QueryPredicate {
         QueryPredicate { archetype in
-            return archetype.componentsBitMask.contains(type)
+            return archetype.componentsBitMask.contains(type.identifier)
         }
     }
     
@@ -71,33 +92,44 @@ public extension QueryPredicate {
     }
 }
 
-/// Contains array of entities matched for given EntityQuery request.
+/// Contains array of entities matched for the given EntityQuery request.
 public struct QueryResult: Sequence {
     
-    // TODO: I'm not sure that archetype as ref types should right choise.
-    private var buffer: [Archetype]
+    // TODO: (Vlad) I'm not sure that archetype as ref types should right choise.
+//    private var buffer: [Archetype]
+    
+    var entities: [Entity]
     
     internal init(archetypes: [Archetype]) {
-        self.buffer = archetypes
+        self.entities = archetypes.flatMap { $0.entities }.compactMap { $0 }
+    }
+    
+    internal init(entities: [Entity]) {
+        self.entities = entities
     }
     
     public typealias Element = Entity
-    public typealias Iterator = EntityIterator
+    public typealias Iterator = IndexingIterator<[Element]>
+    
+    var first: Element? {
+        return self.first { _ in return true }
+    }
     
     public func makeIterator() -> Iterator {
-        return EntityIterator(pointer: buffer, count: buffer.count)
+        // FIXME: Avoid additional allocation here
+        return self.entities.makeIterator()
     }
     
     /// A Boolean value indicating whether the collection is empty.
     public var isEmpty: Bool {
-        return self.buffer.isEmpty
+        return self.entities.isEmpty
     }
 }
 
 // MARK: Iterator
 
 public extension QueryResult {
-    /// This iterator iterrate by each entity in passed archetype array
+    /// This iterator iterate by each entity in passed archetype array
     struct EntityIterator: IteratorProtocol {
         
         // We use pointer to avoid additional allocation in memory
@@ -134,6 +166,14 @@ public extension QueryResult {
             }
             
             let currentArchetype = self.pointer.advanced(by: self.currentArchetypeIndex).pointee
+            
+            // FIXME: Can be crash there
+            while currentArchetype.entities[currentEntityIndex] == nil {
+                if self.currentEntityIndex < currentEntitiesCount - 1 {
+                    self.currentEntityIndex += 1
+                }
+            }
+            
             return currentArchetype.entities[currentEntityIndex]
         }
     }

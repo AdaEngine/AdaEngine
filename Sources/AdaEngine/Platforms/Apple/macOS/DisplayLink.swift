@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/31/22.
 //
 
-#if os(macOS)
+#if MACOS
 import AppKit
 
 public final class DisplayLink {
@@ -24,7 +24,6 @@ public final class DisplayLink {
         var successLink = CVDisplayLinkCreateWithActiveCGDisplays(&timerRef)
         
         if let timer = timerRef {
-            
             successLink = CVDisplayLinkSetOutputCallback(timer, { _, _, _, _, _, source -> CVReturn in
                 if let source = source {
                     let sourceUnmanaged = Unmanaged<DispatchSourceUserDataAdd>.fromOpaque(source)

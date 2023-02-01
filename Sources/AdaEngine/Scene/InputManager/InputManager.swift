@@ -11,28 +11,26 @@ import Glibc
 import Darwin.C
 #endif
 
+// - TODO: (Vlad) Input manager doesn't work if keyboard set to cirillic mode.
+// - TODO: (Vlad) Add touches handling
 public final class Input {
     
     internal static let shared = Input()
     
-    private var handlers: WeakSet<AnyObject> = []
-    
     internal var mousePosition: Point = .zero
     
-    internal var eventsPool: [Event] = []
+    internal var eventsPool: Set<InputEvent> = []
     
+    // FIXME: (Vlad) Should think about capacity. We should store ~256 keycode events
     internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
-    
-    public static var horizontal: Bool {
-        fatalError("")
-    }
-    
-    public static var vertical: Bool {
-        fatalError("")
-    }
+    internal private(set) var touches: Set<TouchEvent> = []
     
     // MARK: - Public Methods
+    
+    public static func getTouches() -> Set<TouchEvent> {
+        return self.shared.touches
+    }
     
     public static func isKeyPressed(_ keyCode: KeyCode) -> Bool {
         return self.shared.keyEvents[keyCode]?.status == .down
@@ -57,7 +55,7 @@ public final class Input {
         return self.shared.keyEvents[code]?.status == .up
     }
     
-    // TODO: Make action list
+    // TODO: (Vlad) Make action list
     public static func isActionPressed(_ action: String) -> Bool {
         fatalError()
     }
@@ -82,24 +80,18 @@ public final class Input {
         return self.shared.mousePosition
     }
     
-    public static func subscribe(_ handler: InputEventHandler) {
-        self.shared.handlers.insert(handler)
-    }
-    
-    public static func unsubscribe(_ handler: InputEventHandler) {
-        self.shared.handlers.remove(handler)
-    }
-    
     // MARK: Internal
     
+    // TODO: (Vlad) Think about moving this code to receiveEvent(_:) method
     func processEvents() {
         for event in eventsPool {
-            
             switch event {
             case let keyEvent as KeyEvent:
                 self.keyEvents[keyEvent.keyCode] = keyEvent
             case let mouseEvent as MouseEvent:
                 self.mouseEvents[mouseEvent.button] = mouseEvent
+            case let touchEvent as TouchEvent:
+                self.touches.insert(touchEvent)
             default:
                 break
             }
@@ -110,195 +102,7 @@ public final class Input {
         self.eventsPool.removeAll()
     }
     
-    func receiveEvent(_ event: Event) {
-        self.eventsPool.append(event)
-    }
-}
-
-public class Event: Hashable, Identifiable {
-    
-    public let time: TimeInterval
-    
-    internal init(time: TimeInterval) {
-        self.time = time
-    }
-    
-    public static func == (lhs: Event, rhs: Event) -> Bool {
-        return lhs.time == rhs.time
-    }
-    
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(time)
-    }
-    
-}
-
-public class KeyEvent: Event {
-    
-    public enum Status: UInt8, Hashable {
-        case up
-        case down
-    }
-    
-    public let keyCode: KeyCode
-    public let modifiers: KeyModifier
-    public let status: Status
-    
-    internal init(keyCode: KeyCode, modifiers: KeyModifier, status: Status, time: TimeInterval) {
-        self.keyCode = keyCode
-        self.modifiers = modifiers
-        self.status = status
-        
-        super.init(time: time)
-    }
-    
-    public override func hash(into hasher: inout Hasher) {
-        hasher.combine(keyCode)
-        hasher.combine(modifiers)
-    }
-    
-}
-
-public final class MouseEvent: Event {
-    
-    public enum Phase: UInt8, Hashable {
-        case began
-        case changed
-        case ended
-        case cancelled
-    }
-    
-    let button: MouseButton
-    let mousePosition: Point
-    let phase: Phase
-    
-    init(button: MouseButton, mousePosition: Point, phase: Phase, time: TimeInterval) {
-        self.button = button
-        self.mousePosition = mousePosition
-        self.phase = phase
-        super.init(time: time)
-    }
-    
-    public override func hash(into hasher: inout Hasher) {
-        hasher.combine(button)
-        hasher.combine(time)
-        hasher.combine(phase)
-    }
-}
-
-public final class TouchEvent: Event {
-    
-    internal init(location: Point, time: TimeInterval) {
-        self.location = location
-        super.init(time: time)
-    }
-    
-    public let location: Point
-    
-    public override func hash(into hasher: inout Hasher) {
-        hasher.combine(location)
-        hasher.combine(time)
-    }
-}
-
-public protocol InputEventHandler: AnyObject {
-    func mouseUp(_ event: MouseEvent)
-    
-    func mouseDown(_ event: MouseEvent)
-    
-    func keyUp(_ event: KeyEvent)
-    
-    func keyDown(_ event: KeyEvent)
-}
-
-public extension InputEventHandler {
-    func mouseUp(_ event: MouseEvent) { }
-    
-    func mouseDown(_ event: MouseEvent) { }
-    
-    func keyUp(_ event: KeyEvent) { }
-    
-    func keyDown(_ event: KeyEvent) { }
-}
-
-class WeakBox<T: AnyObject>: Identifiable, Hashable {
-    
-    weak var value: T?
-    
-    var isEmpty: Bool {
-        return value == nil
-    }
-    
-    let id: ObjectIdentifier
-    
-    init(value: T) {
-        self.value = value
-        self.id = ObjectIdentifier(value)
-    }
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(self.id)
-    }
-    
-    static func == (lhs: WeakBox<T>, rhs: WeakBox<T>) -> Bool {
-        return lhs.id == rhs.id
-    }
-}
-
-struct WeakSet<T: AnyObject>: Sequence {
-    
-    typealias Element = T
-    typealias Iterator = WeakIterator
-    
-    var buffer: Set<WeakBox<T>>
-    
-    class WeakIterator: IteratorProtocol {
-        
-        let buffer: [WeakBox<T>]
-        let currentIndex: UnsafeMutablePointer<Int>
-        
-        init(buffer: Set<WeakBox<T>>) {
-            self.buffer = Array(buffer.filter { !$0.isEmpty })
-            self.currentIndex = UnsafeMutablePointer<Int>.allocate(capacity: 1)
-            self.currentIndex.pointee = -1
-        }
-        
-        deinit {
-            self.currentIndex.deallocate()
-        }
-        
-        func next() -> Element? {
-            
-            self.currentIndex.pointee += 0
-            
-            if buffer.endIndex == self.currentIndex.pointee {
-                return nil
-            }
-            
-            return buffer[self.currentIndex.pointee].value
-        }
-        
-    }
-    
-    @inlinable func makeIterator() -> Iterator {
-        return WeakIterator(buffer: self.buffer)
-    }
-    
-    mutating func insert(_ member: T) {
-        var buffer = self.buffer.filter { !$0.isEmpty }
-        buffer.insert(WeakBox(value: member))
-        self.buffer = buffer
-    }
-    
-    mutating func remove(_ member: T) {
-        self.buffer.remove(WeakBox(value: member))
-    }
-}
-
-extension WeakSet: ExpressibleByArrayLiteral {
-    typealias ArrayLiteralElement = T
-    
-    init(arrayLiteral elements: ArrayLiteralElement...) {
-        self.buffer = Set(elements.map { WeakBox(value: $0) })
+    func receiveEvent(_ event: InputEvent) {
+        self.eventsPool.insert(event)
     }
 }
