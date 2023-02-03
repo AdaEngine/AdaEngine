@@ -123,7 +123,7 @@ class Transform3DTests: XCTestCase {
         let scale: Vector3 = [1, 1, 1]
 
         // when
-
+        
         let simdMatrix = simd_float4x4([
             [1, 0, 0, translation.x],
             [0, 1, 0, translation.y],

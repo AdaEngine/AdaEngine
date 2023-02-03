@@ -9,7 +9,7 @@ struct ScriptComponentUpdateSystem: System {
     
     init(scene: Scene) { }
     
-    let renderer2D = RenderEngine2D()
+    let renderer2D = RenderEngine2D.default
     
     func update(context: UpdateContext) {
 //        let guiRenderContext = GUIRenderContext(window: context.scene.viewport!.window!.id, engine: renderer2D)

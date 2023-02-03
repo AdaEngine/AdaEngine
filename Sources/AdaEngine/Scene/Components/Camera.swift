@@ -32,22 +32,48 @@ public final class Camera: ScriptComponent {
     
     /// The closest point relative to camera that drawing will occur.
     @Export
-    public var near: Float = 0.001
+    public var near: Float = -1 {
+        didSet {
+            self.updateProjectionMatrix()
+        }
+    }
     
     /// The closest point relative to camera that drawing will occur
     @Export
-    public var far: Float = 1000
+    public var far: Float = 1 {
+        didSet {
+            self.updateProjectionMatrix()
+        }
+    }
     
     /// Angle of camera view
     @Export
-    public var fieldOfView: Angle = .degrees(70)
+    public var fieldOfView: Angle = .degrees(70) {
+        didSet {
+            self.updateProjectionMatrix()
+        }
+    }
     
     /// Base projection in camera
     @Export
-    public var projection: Projection = .perspective
+    public var projection: Projection = .perspective {
+        didSet {
+            self.updateProjectionMatrix()
+        }
+    }
     
     /// A viewport where camera will render
-    internal var viewport: Viewport?
+    internal var viewport: Viewport? {
+        didSet {
+            self.updateProjectionMatrix()
+            
+            self.resizeEvent = nil
+            
+            if let viewport {
+                self.resizeEvent = viewport.subscribe(to: ViewportEvents.DidResize.self, on: viewport, completion: self.onViewportResized(_:))
+            }
+        }
+    }
     
     /// Set camera is active
     @Export
@@ -61,7 +87,11 @@ public final class Camera: ScriptComponent {
     public var clearFlags: CameraClearFlags = .nothing
     
     @Export
-    public var orthographicScale: Float = 1
+    public var orthographicScale: Float = 1 {
+        didSet {
+            self.updateProjectionMatrix()
+        }
+    }
     
     // MARK: Computed Properties
     
@@ -74,11 +104,27 @@ public final class Camera: ScriptComponent {
     
     // MARK: - Internal
     
+    private var resizeEvent: AnyCancellable?
+    
+    private var projectionMatrix: Transform3D = .identity
+    
     func makeCameraData() -> CameraData {
+        let viewMatrix = self.entity.flatMap { entity in
+            entity.scene?.worldTransformMatrix(for: entity)
+        } ?? .identity
+        
+        return CameraData(
+            projection: self.projectionMatrix,
+            viewProjection: self.projectionMatrix * viewMatrix.inverse,
+            position: self.transform.position
+        )
+    }
+    
+    private func updateProjectionMatrix() {
         let viewportSize = self.viewport?.size ?? .zero
         
         let projection: Transform3D
-        let aspectRation = Float(viewportSize.width) / Float(viewportSize.height)
+        let aspectRation = viewportSize.width / viewportSize.height
         
         switch self.projection {
         case .orthographic:
@@ -100,20 +146,18 @@ public final class Camera: ScriptComponent {
             )
         }
         
-        let viewMatrix = self.entity.flatMap { entity in
-            entity.scene?.worldTransformMatrix(for: entity)
-        } ?? .identity
-        
-        return CameraData(
-            viewProjection: projection * viewMatrix,
-            position: self.transform.position
-        )
+        self.projectionMatrix = projection
+    }
+    
+    private func onViewportResized(_ event: ViewportEvents.DidResize) {
+        self.updateProjectionMatrix()
     }
 }
 
 extension Camera {
     struct CameraData {
-        var viewProjection: Transform3D = .identity
-        var position: Vector3 = .zero
+        let projection: Transform3D
+        let viewProjection: Transform3D
+        let position: Vector3
     }
 }

@@ -9,6 +9,16 @@
 @_spi(rendering)
 public final class DrawList {
     
+    public enum ShaderFunction {
+        case vertex
+        case fragment
+    }
+    
+    struct BufferData<T> {
+        let buffer: T
+        let function: ShaderFunction
+    }
+    
     let renderPass: RenderPass
     let commandBuffer: DrawCommandBuffer
     
@@ -21,7 +31,7 @@ public final class DrawList {
     private(set) var lineWidth: Float?
     
     private(set) var vertexBuffers: [VertexBuffer] = []
-    private(set) var uniformBuffers: [UniformBuffer?] = [UniformBuffer?].init(repeating: nil, count: maximumUniformsCount)
+    private(set) var uniformBuffers: [BufferData<UniformBuffer>?] = [BufferData<UniformBuffer>?].init(repeating: nil, count: maximumUniformsCount)
     private(set) var uniformBufferCount: Int = 0
     private(set) var textures: [Texture?] = [Texture?].init(repeating: nil, count: maximumTexturesCount)
     private(set) var renderPipline: RenderPipeline?
@@ -61,8 +71,8 @@ public final class DrawList {
         self.textures[index] = texture
     }
     
-    public func appendUniformBuffer(_ uniformBuffer: UniformBuffer?) {
-        self.uniformBuffers[self.uniformBufferCount] = uniformBuffer
+    public func appendUniformBuffer(_ uniformBuffer: UniformBuffer, for shaderFunction: ShaderFunction = .vertex) {
+        self.uniformBuffers[self.uniformBufferCount] = BufferData(buffer: uniformBuffer, function: shaderFunction)
         self.uniformBufferCount += 1
     }
     
@@ -97,7 +107,7 @@ public final class DrawList {
         self.lineWidth = nil
         
         self.vertexBuffers = []
-        self.uniformBuffers = [UniformBuffer?].init(repeating: nil, count: Self.maximumUniformsCount)
+        self.uniformBuffers = [BufferData<UniformBuffer>?].init(repeating: nil, count: Self.maximumUniformsCount)
         self.uniformBufferCount = 0
         self.textures = [Texture?].init(repeating: nil, count: Self.maximumTexturesCount)
         self.triangleFillMode = .fill

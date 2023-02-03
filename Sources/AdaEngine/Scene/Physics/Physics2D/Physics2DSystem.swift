@@ -42,7 +42,7 @@ final class Physics2DSystem: System {
     )
     
     // I think it should be smth like scene renderer here.
-    private let render2D = RenderEngine2D()
+    private let render2D = RenderEngine2D.default
     
     func update(context: UpdateContext) {
         let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.viewport != nil
