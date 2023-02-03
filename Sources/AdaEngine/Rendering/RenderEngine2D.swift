@@ -64,9 +64,9 @@ public class RenderEngine2D {
         
         self.quadPosition = [
             [-0.5, -0.5,  0.0, 1.0],
-            [ 0.5, -0.5,  0.0, 1.0],
+            [-0.5,  0.5,  0.0, 1.0],
             [ 0.5,  0.5,  0.0, 1.0],
-            [-0.5,  0.5,  0.0, 1.0]
+            [ 0.5, -0.5,  0.0, 1.0]
         ]
         
         var quadIndices = [UInt32].init(repeating: 0, count: Self.maxIndecies)
@@ -130,6 +130,7 @@ public class RenderEngine2D {
         
         var piplineDesc = RenderPipelineDescriptor(shader: circleShader)
         piplineDesc.debugName = "Circle Pipeline"
+        piplineDesc.backfaceCulling = false
 //        piplineDesc.depthStencilDescriptor = depthStencilDesc
         piplineDesc.sampler = sampler
         
@@ -351,7 +352,7 @@ extension RenderEngine2D {
             
             for index in 0 ..< renderEngine.quadPosition.count {
                 let data = QuadVertexData(
-                    position: renderEngine.quadPosition[index] * transform,
+                    position: transform * renderEngine.quadPosition[index],
                     color: color,
                     textureCoordinate: texture!.textureCoordinates[index],
                     textureIndex: textureIndex

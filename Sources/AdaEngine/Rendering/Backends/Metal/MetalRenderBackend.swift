@@ -503,8 +503,15 @@ extension MetalRenderBackend {
         }
         
         for index in 0 ..< list.uniformBufferCount {
-            let buffer = list.uniformBuffers[index] as! MetalUniformBuffer
-            encoder.setVertexBuffer(buffer.buffer, offset: 0, index: buffer.binding)
+            let data = list.uniformBuffers[index]!
+            let buffer = data.buffer as! MetalUniformBuffer
+            
+            switch data.function {
+            case .vertex:
+                encoder.setVertexBuffer(buffer.buffer, offset: 0, index: buffer.binding)
+            case .fragment:
+                encoder.setFragmentBuffer(buffer.buffer, offset: 0, index: buffer.binding)
+            }
         }
         
         switch list.triangleFillMode {
@@ -530,7 +537,6 @@ extension MetalRenderBackend {
         }
         
         commandBuffer.encoder.endEncoding()
-        
         
         // TODO: Think about it later.
         if commandBuffer.shouldCommit {
