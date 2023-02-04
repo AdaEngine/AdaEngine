@@ -417,7 +417,7 @@ extension RenderEngine2D {
             
             for quad in renderEngine.quadPosition {
                 let data = CircleVertexData(
-                    worldPosition: quad * transform,
+                    worldPosition: transform * quad,
                     localPosition: quad * 2,
                     thickness: thickness,
                     fade: fade,
