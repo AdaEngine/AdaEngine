@@ -42,17 +42,17 @@ final public class GUIRenderContext {
     public func beginDraw(in screenRect: Rect) {
         let size = screenRect.size
         
-        let view = Transform3D.orthogonal(
-            left: 0,
-            right: size.width,
-            top: 0,
-            bottom: -size.height,
-            zNear: -1,
-            zFar: 1
-        )
+//        let view = Transform3D.orthographic(
+//            left: 0,
+//            right: size.width,
+//            top: 0,
+//            bottom: -size.height,
+//            zNear: -1,
+//            zFar: 1
+//        )
         
         self.screenRect = screenRect
-        self.view = view
+        self.view = .identity//view
         
         self.currentDrawContext = self.engine.beginContext(for: self.viewport, viewTransform: view)
     }

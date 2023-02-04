@@ -251,7 +251,7 @@ class Transform3DTests: XCTestCase {
         let aspectRation: Float = 800.0/600.0
         let scale: Float = 1.0
         
-        let myTransform = Transform3D.orthogonal(left: -aspectRation * scale, right: aspectRation * scale, top: scale, bottom: -scale, zNear: 0, zFar: 1)
+        let myTransform = Transform3D.orthographic(left: -aspectRation * scale, right: aspectRation * scale, top: scale, bottom: -scale, zNear: 0, zFar: 1)
         let simdTransform = makeOrthoSimd(left: -aspectRation * scale, right: aspectRation * scale, top: scale, bottom: -scale, zNear: 0, zFar: 1)
         
         let vector: Vector4 = [12, 5, 8, 1]

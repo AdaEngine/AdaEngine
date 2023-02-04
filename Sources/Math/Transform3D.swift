@@ -36,11 +36,10 @@ public extension Transform3D {
     
     @inline(__always)
     init(translation: Vector3) {
-        var matrix = Transform3D.identity
-        matrix[0, 3] = translation.x
-        matrix[1, 3] = translation.y
-        matrix[2, 3] = translation.z
-        self = matrix
+        self.x = Vector4(1, 0, 0, 0)
+        self.y = Vector4(0, 1, 0, 0)
+        self.z = Vector4(0, 0, 1, 0)
+        self.w = Vector4(translation.x, translation.y, translation.z, 1)
     }
     
     @inline(__always)
@@ -74,6 +73,7 @@ public extension Transform3D {
         self.init(x, y, z, w)
     }
     
+    // TODO: (Vlad) check that's ok
     @inline(__always)
     init(basis: Transform2D) {
         var matrix = Transform3D.identity
@@ -332,7 +332,7 @@ public extension Transform3D {
         )
     }
     
-    /// A left-handed perspective projection
+    /// Create a left-handed perspective projection
     static func perspective(
         fieldOfView: Angle,
         aspectRatio: Float,
@@ -354,8 +354,9 @@ public extension Transform3D {
         )
     }
     
+    /// Create a left-handed orthographic projection
     /// - SeeAlso: https://docs.microsoft.com/en-us/windows/win32/direct3d9/d3dxmatrixorthooffcenterlh
-    static func orthogonal(
+    static func orthographic(
         left: Float,
         right: Float,
         top: Float,
