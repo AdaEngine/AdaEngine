@@ -129,7 +129,7 @@ public final class Camera: ScriptComponent {
         switch self.projection {
         case .orthographic:
             // TODO: (Vlad) not works when use translate position
-            projection = Transform3D.orthogonal(
+            projection = Transform3D.orthographic(
                 left: -aspectRation * self.orthographicScale,
                 right: aspectRation * self.orthographicScale,
                 top: self.orthographicScale,

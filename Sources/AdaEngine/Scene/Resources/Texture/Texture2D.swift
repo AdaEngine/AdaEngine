@@ -41,7 +41,7 @@ open class Texture2D: Texture {
     
     // FIXME: (Vlad) Should remove it from Texture2D.
     open internal(set) var textureCoordinates: [Vector2] = [
-        [0, 0], [1, 0], [1, 1], [0, 1]
+        [0, 1], [1, 1], [1, 0], [0, 0]
     ]
     
     internal init(gpuTexture: GPUTexture, size: Size) {

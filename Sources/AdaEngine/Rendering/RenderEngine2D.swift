@@ -6,6 +6,7 @@
 //
 
 import Math
+import simd
 
 // TODO: (Vlad) Fix depth stencil
 // TODO: (Vlad) Store render pass 
@@ -18,8 +19,6 @@ public class RenderEngine2D {
     static var minimumZIndex = -4096
     
     static var maximumZIndex = 4096
-    
-    private var uniform: Uniform = Uniform()
     
     struct Uniform {
         var viewProjection: Transform3D = .identity
@@ -54,6 +53,8 @@ public class RenderEngine2D {
     private static let maxLineVertices = maxLines * 2
     private static let maxLineIndices = maxLines * 6
     
+    private let framebuffer: Framebuffer
+    
     // TODO: (Vlad) Maybe we should split this code
     // swiftlint:disable:next function_body_length
     init() {
@@ -61,6 +62,21 @@ public class RenderEngine2D {
         
         self.uniformSet = device.makeUniformBufferSet()
         self.uniformSet.initBuffers(for: Uniform.self, binding: Bindings.cameraUniform, set: 0)
+        
+        var framebufferDesc = FramebufferDescriptor()
+        framebufferDesc.sampleCount = 1
+        framebufferDesc.scale = Screen.main?.scale ?? 1
+        framebufferDesc.attachments = [
+            FramebufferAttachmentDescriptor(
+                format: .bgra8,
+                loadAction: .dontCare
+            ),
+            FramebufferAttachmentDescriptor(
+                format: .depth_32f_stencil8
+            )
+        ]
+        
+        self.framebuffer = device.makeFramebuffer(from: framebufferDesc)
         
         self.quadPosition = [
             [-0.5, -0.5,  0.0, 1.0],
@@ -116,6 +132,7 @@ public class RenderEngine2D {
         
         var samplerDesc = SamplerDescriptor()
         samplerDesc.magFilter = .nearest
+        samplerDesc.mipFilter = .nearest
         let sampler = device.makeSampler(from: samplerDesc)
         
         // Circle
@@ -441,13 +458,7 @@ extension RenderEngine2D {
         public func commitContext() {
             self.flush()
             
-            self.clearContext()
-            
             RenderEngine.shared.endDrawList(self.currentDraw)
-        }
-        
-        public func clearContext() {
-            self.renderEngine.uniform.viewProjection = .identity // FIXME: (Vlad) Should store in draw contexrt
         }
         
         public func setTriangleFillMode(_ mode: TriangleFillMode) {
@@ -534,5 +545,17 @@ fileprivate extension RenderEngine2D {
         let position: Vector3
         let color: Color
         let lineWidth: Float
+    }
+}
+
+extension Transform3D {
+    var simd: simd_float4x4 {
+        return unsafeBitCast(self, to: simd_float4x4.self)
+    }
+}
+
+extension Vector4 {
+    var simd: SIMD4<Float> {
+        return unsafeBitCast(self, to: SIMD4<Float>.self)
     }
 }

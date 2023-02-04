@@ -208,6 +208,11 @@ public final class AnimatedTexture: Texture2D {
             return
         }
         
+        // Avoid bug when we play animation very fast, because we need to fit to frames per second rate
+        if event.deltaTime > 1 {
+            return
+        }
+        
         self.time += event.deltaTime
         
         let limit = self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0

@@ -170,18 +170,19 @@ final class GameScene2D {
         scene.activeCamera.projection = .orthographic
         scene.activeCamera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         scene.activeCamera.clearFlags = .solid
+        scene.activeCamera.orthographicScale = 1.5
         
         // DEBUG
-        scene.debugOptions = [.showPhysicsShapes]
+//        scene.debugOptions = [.showPhysicsShapes]
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
         self.collisionHandler(for: scene)
         self.fpsCounter(for: scene)
 
-        scene.addSystem(TubeMovementSystem.self)
-        scene.addSystem(TubeSpawnerSystem.self)
-        scene.addSystem(TubeDestroyerSystem.self)
+//        scene.addSystem(TubeMovementSystem.self)
+//        scene.addSystem(TubeSpawnerSystem.self)
+//        scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
         
         try ResourceManager.save(scene, at: scenePath)
@@ -228,7 +229,7 @@ final class GameScene2D {
     private func makeGround(for scene: Scene) {
         var transform = Transform()
         transform.scale = [3, 0.19, 0.19]
-        transform.position.y = -4.9
+        transform.position.y = -1
         
         let untexturedEntity = Entity(name: "Ground")
         untexturedEntity.components += SpriteComponent(texture: self.textureAtlas[0, 0])
