@@ -9,6 +9,8 @@ import Foundation
 
 // swiftlint:disable identifier_name
 
+// TODO: (Vlad) Check all math using https://github.com/nicklockwood/VectorMath/blob/master/VectorMath/VectorMath.swift
+
 @frozen
 public struct Transform3D: Hashable {
     public var x: Vector4
