@@ -49,6 +49,14 @@ struct PlayerMovementSystem: System {
                 transform.position.x += speed
             }
             
+            if Input.isKeyPressed(.arrowUp) {
+                context.scene.activeCamera.orthographicScale -= speed
+            }
+            
+            if Input.isKeyPressed(.arrowDown) {
+                context.scene.activeCamera.orthographicScale += speed
+            }
+            
             entity.components += transform
         }
     }
