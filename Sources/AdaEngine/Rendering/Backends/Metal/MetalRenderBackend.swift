@@ -387,14 +387,19 @@ extension MetalRenderBackend {
         )
     }
     
-    func beginDraw(to framebuffer: Framebuffer) -> DrawList {
-        
+    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList {
         guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
             fatalError("Cannot get a command buffer")
         }
         
         guard let mtlRenderPassDesc = (framebuffer as? MetalFramebuffer)?.renderPassDescriptor else {
             fatalError("Cannot get a render pass descriptor for current draw")
+        }
+        
+        if let clearColors {
+            for (index, color) in clearColors.enumerated() {
+                mtlRenderPassDesc.colorAttachments[index].clearColor = color.toMetalClearColor
+            }
         }
         
         let renderPass = MetalRenderPass(renderPass: mtlRenderPassDesc)

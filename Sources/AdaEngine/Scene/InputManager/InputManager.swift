@@ -13,6 +13,7 @@ import Darwin.C
 
 // - TODO: (Vlad) Input manager doesn't work if keyboard set to cirillic mode.
 // - TODO: (Vlad) Add touches handling
+// - TODO: (Vlad) Use physics processes for proccessing events
 public final class Input {
     
     internal static let shared = Input()

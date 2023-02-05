@@ -9,16 +9,16 @@
 import box2d
 import Math
 
-// - TODO: (Vlad) Update system fixed times (Timer?)
 // - TODO: (Vlad) Draw polygons for debug
 // - TODO: (Vlad) Runtime update shape resource
 // - TODO: (Vlad) Debug render in other system?
 final class Physics2DSystem: System {
     
-    init(scene: Scene) { }
+    let fixedTimestep: FixedTimestep
     
-    private var physicsFrame: Int = 0
-    private var time: TimeInterval = 0
+    init(scene: Scene) {
+        self.fixedTimestep = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
+    }
     
     static let physicsBodyQuery = EntityQuery(
         where: .has(PhysicsBody2DComponent.self) && .has(Transform.self)
@@ -45,6 +45,8 @@ final class Physics2DSystem: System {
     private let render2D = RenderEngine2D.default
     
     func update(context: UpdateContext) {
+        let result = self.fixedTimestep.advance(with: context.deltaTime)
+        
         let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.viewport != nil
         
         var drawContext: RenderEngine2D.DrawContext?
@@ -67,7 +69,9 @@ final class Physics2DSystem: System {
             return
         }
         
-        world.updateSimulation(context.deltaTime)
+        if result.isFixedTick {
+            world.updateSimulation(result.fixedTime)
+        }
 
         self.updatePhysicsBodyEntities(
             physicsBody,
@@ -370,31 +374,31 @@ final class Physics2DSystem: System {
     private func drawQuad(context: RenderEngine2D.DrawContext, position: Vector2, angle: Float, size: Vector2, color: Color) {
         context.drawQuad(position: Vector3(position, 1), size: size, color: color.opacity(0.2))
         
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
 //            end: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
 //            color: color
 //        )
 //
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
 //            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
 //            color: color
 //        )
 //
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
 //            end: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
 //            color: color
 //        )
 //
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
 //            end: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
 //            color: color
 //        )
 //
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
 //            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
 //            color: color
