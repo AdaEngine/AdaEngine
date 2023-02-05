@@ -11,6 +11,15 @@ import Foundation
 
 // TODO: (Vlad) Check all math using https://github.com/nicklockwood/VectorMath/blob/master/VectorMath/VectorMath.swift
 
+// Columns
+//
+//  x  y  z  w
+// [1, 0, 0, 0]
+// [0, 1, 0, 0]
+// [0, 0, 1, 0]
+// [0, 0, 0, 1]
+//
+
 @frozen
 public struct Transform3D: Hashable {
     public var x: Vector4
@@ -63,6 +72,20 @@ public extension Transform3D {
     }
     
     @inline(__always)
+    init(rows: [Vector4]) {
+        precondition(rows.count == 4, "Inconsist rows count")
+        let x = rows[0]
+        let y = rows[1]
+        let z = rows[2]
+        let w = rows[3]
+        
+        self.x = [x.x, y.x, z.x, w.x]
+        self.y = [x.y, y.y, z.y, w.y]
+        self.z = [x.z, y.z, z.z, w.z]
+        self.w = [x.w, y.w, z.w, w.w]
+    }
+    
+    @inline(__always)
     init(_ x: Vector4, _ y: Vector4, _ z: Vector4, _ w: Vector4) {
         self.x = x
         self.y = y
@@ -99,16 +122,17 @@ public extension Transform3D {
 // MARK: - Affine
 
 public extension Transform3D {
+    // FIXME: (Vlad) Looks like it doesn't works
     @inline(__always)
     init(_ affineTransform: Transform2D) {
         let at = affineTransform
         
-        self = Transform3D(
+        self = Transform3D(columns: [
             [at[0, 0], at[1, 0], 0, at[2, 0]],
             [at[0, 1], at[1, 1], 0, at[2, 1]],
             [0,        0,        1, 0],
             [0,        0,        0, 1]
-        )
+        ])
     }
 }
 
@@ -326,12 +350,12 @@ public extension Transform3D {
         let rotate31 = -y.dot(eye)
         let rotate32 = -z.dot(eye)
         
-        return Transform3D(
+        return Transform3D(rows: [
             [x.x, y.x, z.x, 0],
             [x.y, y.y, z.y, 0],
             [x.z, y.z, z.z, 0],
             [rotate30, rotate31, rotate32, 1]
-        )
+        ])
     }
     
     /// Create a left-handed perspective projection
@@ -348,12 +372,12 @@ public extension Transform3D {
         let rotate22 = zFar / (zFar - zNear)
         let rotate32 = -zNear * rotate22
         
-        return Transform3D(
+        return Transform3D(rows: [
             [rotate01, 0,        0,        0       ],
             [0,        rotate11, 0,        0       ],
             [0,        0,        rotate22, rotate32],
             [0,        0,        1,        0       ]
-        )
+        ])
     }
     
     /// Create a left-handed orthographic projection
@@ -373,12 +397,12 @@ public extension Transform3D {
         let m13 = (top + bottom) / (bottom - top)
         let m23 = zNear / (zNear - zFar)
 
-        return Transform3D(
-            [m00, 0,   0,   0],
-            [0,   m11, 0,   0],
-            [0,   0,   m22, 0],
-            [m03, m13, m23, 1]
-        )
+        return Transform3D(rows: [
+            [m00, 0,   0,   m03],
+            [0,   m11, 0,   m13],
+            [0,   0,   m22, m23],
+            [0,   0,   0,   1]
+        ])
     }
     
     func rotate(angle: Angle, axis: Vector3) -> Transform3D {
@@ -408,12 +432,12 @@ public extension Transform3D {
         var r22 = c
         r22 += (1 - c) * axis.z * axis.z
         
-        return Transform3D(
+        return Transform3D(rows: [
             [r00, r01, r02, 0],
             [r10, r11, r12, 0],
             [r20, r21, r22, 0],
             [0,   0,   0,   1]
-        )
+        ])
     }
     
     var inverse: Transform3D {

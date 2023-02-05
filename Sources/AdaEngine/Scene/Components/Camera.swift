@@ -87,6 +87,7 @@ public final class Camera: ScriptComponent {
     public var clearFlags: CameraClearFlags = .nothing
     
     @Export
+    @MinValue(0.1)
     public var orthographicScale: Float = 1 {
         didSet {
             self.updateProjectionMatrix()
@@ -128,7 +129,6 @@ public final class Camera: ScriptComponent {
         
         switch self.projection {
         case .orthographic:
-            // TODO: (Vlad) not works when use translate position
             projection = Transform3D.orthographic(
                 left: -aspectRation * self.orthographicScale,
                 right: aspectRation * self.orthographicScale,
@@ -149,6 +149,7 @@ public final class Camera: ScriptComponent {
         self.projectionMatrix = projection
     }
     
+    // TODO: (Vlad) looks like we should update projection in CameraSystem
     private func onViewportResized(_ event: ViewportEvents.DidResize) {
         self.updateProjectionMatrix()
     }

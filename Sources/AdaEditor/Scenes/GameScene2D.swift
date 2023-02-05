@@ -20,11 +20,11 @@ struct PlayerMovementSystem: System {
             let body = entity.components[PhysicsBody2DComponent.self]!
             
             if Input.isKeyPressed(.space) {
-                body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+                body.applyLinearImpulse([0, 0.1], point: .zero, wake: true)
             }
             
             for touch in Input.getTouches() where touch.phase == .began {
-                body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+                body.applyLinearImpulse([0, 0.1], point: .zero, wake: true)
             }
         }
         
@@ -121,7 +121,7 @@ class TubeSpawnerSystem: System {
             let position = Vector3(x: 4, y: Float.random(in: 0.4 ... 1.2), z: 0)
             transform.position = position
             
-            self.spawnTube(in: context.scene, transform: transform, isUp: true)
+//            self.spawnTube(in: context.scene, transform: transform, isUp: true)
             transform.position.y -= 1.5
             
             self.spawnTube(in: context.scene, transform: transform, isUp: false)
@@ -188,12 +188,21 @@ final class GameScene2D {
         self.collisionHandler(for: scene)
         self.fpsCounter(for: scene)
 
-//        scene.addSystem(TubeMovementSystem.self)
-//        scene.addSystem(TubeSpawnerSystem.self)
-//        scene.addSystem(TubeDestroyerSystem.self)
+        scene.addSystem(TubeMovementSystem.self)
+        scene.addSystem(TubeSpawnerSystem.self)
+        scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
         
         try ResourceManager.save(scene, at: scenePath)
+        
+        // Change gravitation
+        scene.subscribe(to: SceneEvents.OnReady.self, on: scene) { event in
+            let physicsQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
+            event.scene.performQuery(physicsQuery).forEach { entity in
+                entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -1)
+            }
+        }
+        .store(in: &disposeBag)
 
         return scene
     }
@@ -244,7 +253,7 @@ final class GameScene2D {
         untexturedEntity.components += transform
         untexturedEntity.components += PhysicsBody2DComponent(
             shapes: [
-                .generateBox(width: 1, height: 1).offsetBy(x: 0, y: 1)
+                .generateBox(width: 1, height: 1).offsetBy(x: 0, y: 0.065)
             ],
             mass: 0,
             mode: .static

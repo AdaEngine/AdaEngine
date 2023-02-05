@@ -19,7 +19,10 @@ extension MetalRenderBackend {
         
         init() {
             self.physicalDevice = Self.prefferedDevice()
-            UserDefaults.standard.set(NSNumber(booleanLiteral: true), forKey: "MetalForceHudEnabled")
+            
+            #if SWIFT_PACKAGE
+            UserDefaults.standard.set(NSNumber(booleanLiteral: false), forKey: "MetalForceHudEnabled")
+            #endif
         }
         
         // MARK: - Methods

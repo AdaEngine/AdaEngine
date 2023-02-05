@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
-// FIXME: (Vlad) Make physics frames
-
 /// The main class responds to update all systems in engine.
 /// You can have only one GameLoop per app.
 public final class GameLoop {
@@ -18,6 +16,8 @@ public final class GameLoop {
     private(set) var isIterating = false
     
     private var isFirstTick: Bool = true
+    
+    private var fixedTimestep: FixedTimestep = FixedTimestep(step: 0)
     
     // MARK: Internal Methods
     
@@ -40,23 +40,30 @@ public final class GameLoop {
             return
         }
         
+        let physicsTickPerSecond = Engine.shared.physicsTickPerSecond
+        self.fixedTimestep.step = 1 / physicsTickPerSecond
+        
+        let physicsTime = self.fixedTimestep.advance(with: deltaTime)
+        
         EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
         
-        Input.shared.processEvents()
+        if physicsTime.isFixedTick {
+            Input.shared.processEvents()
+        }
         
         try RenderEngine.shared.beginFrame()
         
         Application.shared.windowManager.update(deltaTime)
         
         ViewportRenderer.shared.beginFrame()
-        
         ViewportRenderer.shared.renderViewports()
-        
         ViewportRenderer.shared.endFrame()
         
         try RenderEngine.shared.endFrame()
         
-        Input.shared.removeEvents()
+        if physicsTime.isFixedTick {
+            Input.shared.removeEvents()
+        }
         
         FPSCounter.shared.tick()
     }

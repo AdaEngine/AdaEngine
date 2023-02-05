@@ -6,7 +6,6 @@
 //
 
 import Math
-import simd
 
 // TODO: (Vlad) Fix depth stencil
 // TODO: (Vlad) Store render pass 
@@ -147,7 +146,7 @@ public class RenderEngine2D {
         
         var piplineDesc = RenderPipelineDescriptor(shader: circleShader)
         piplineDesc.debugName = "Circle Pipeline"
-//        piplineDesc.depthStencilDescriptor = depthStencilDesc
+        //        piplineDesc.depthStencilDescriptor = depthStencilDesc
         piplineDesc.sampler = sampler
         
         piplineDesc.vertexDescriptor.attributes.append([
@@ -279,7 +278,7 @@ public class RenderEngine2D {
         
         let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(Uniform(viewProjection: viewTransform))
-
+        
         let window = viewport.window!
         
         let currentDraw = RenderEngine.shared.beginDraw(for: window.id, clearColor: .black)
@@ -302,7 +301,8 @@ public class RenderEngine2D {
             fatalError("Viewport doesn't has a framebuffer")
         }
         
-        let currentDraw = RenderEngine.shared.beginDraw(to: framebuffer)
+        let clearColors = camera.clearFlags.contains(.solid) ? [camera.backgroundColor] : nil
+        let currentDraw = RenderEngine.shared.beginDraw(to: framebuffer, clearColors: clearColors)
         
         let context = DrawContext(currentDraw: currentDraw, renderEngine: self, frameIndex: frameIndex)
         context.startBatch()
@@ -544,17 +544,5 @@ fileprivate extension RenderEngine2D {
         let position: Vector3
         let color: Color
         let lineWidth: Float
-    }
-}
-
-extension Transform3D {
-    var simd: simd_float4x4 {
-        return unsafeBitCast(self, to: simd_float4x4.self)
-    }
-}
-
-extension Vector4 {
-    var simd: SIMD4<Float> {
-        return unsafeBitCast(self, to: SIMD4<Float>.self)
     }
 }

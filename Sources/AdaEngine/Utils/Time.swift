@@ -15,6 +15,8 @@ import Quartz
 import Glibc
 #endif
 
+// TODO: (Vlad) Time for Windows OS
+
 /// Represent time interval in system.
 public typealias TimeInterval = Float
 

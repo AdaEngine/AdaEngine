@@ -125,10 +125,10 @@ class Transform3DTests: XCTestCase {
         // when
         
         let simdMatrix = simd_float4x4([
-            [1, 0, 0, translation.x],
-            [0, 1, 0, translation.y],
-            [0, 0, 1, translation.z],
-            [0, 0, 0, 1],
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [translation.x, translation.y, translation.z, 1],
         ])
         * simd_float4x4(rotation)
         * simd_float4x4(diagonal: Vector4(scale, 1).simd)
@@ -264,6 +264,19 @@ class Transform3DTests: XCTestCase {
         XCTAssertEqual(resMyVector.simd, resSimdVector)
     }
     
+    func test_Transform3DRowsInit_Equals_SimdRowsInit() {
+        // given
+        let rows: [Vector4] = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 7, 6, 5], [2, 3, 5, 7]]
+        let simdRows = unsafeBitCast(rows, to: [SIMD4<Float>].self)
+        
+        // when
+        let transform = Transform3D(rows: rows)
+        let simd = simd_float4x4.init(rows: simdRows)
+        
+        // then
+        TestUtils.assertEqual(simd, transform)
+    }
+    
     private func makeOrthoSimd(left: Float, right: Float, top: Float, bottom: Float, zNear: Float, zFar: Float) -> float4x4 {
         let m00 = 2 / (right - left)
         let m11 = 2 / (top - bottom)
@@ -294,6 +307,7 @@ class Transform3DTests: XCTestCase {
         let myTransform3D = Transform3D(myAffine)
         
         // then
+        TestUtils.assertEqual(cgAffine, myAffine)
         TestUtils.assertEqual(caTransform3D, myTransform3D)
     }
     #endif

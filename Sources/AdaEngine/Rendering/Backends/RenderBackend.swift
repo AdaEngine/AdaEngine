@@ -67,7 +67,7 @@ protocol RenderBackend: AnyObject {
     
     func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList
     
-    func beginDraw(to framebuffer: Framebuffer) -> DrawList
+    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList
     
     func draw(_ list: DrawList, indexCount: Int, instancesCount: Int)
     

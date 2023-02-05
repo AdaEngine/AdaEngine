@@ -17,3 +17,12 @@ public enum EngineEvents {
         public let framesPerSecond: Int
     }
 }
+
+public final class Engine {
+    
+    public static let shared: Engine = Engine()
+    
+    private init() { }
+    
+    public var physicsTickPerSecond: Float = 60
+}
