@@ -22,5 +22,6 @@ struct DefaultScenePlugin: ScenePlugin {
         
         // Setup Physics
         scene.addPlugin(Physics2DPlugin())
+        scene.addPlugin(VisibilityPlugin())
     }
 }

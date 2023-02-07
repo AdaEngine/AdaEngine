@@ -21,6 +21,8 @@ struct CameraSystem: System {
             
             let sceneViewport = context.scene.viewport
             
+            self.updateFrustum(for: camera, entity: entity, scene: context.scene)
+            
             if camera.isActive && sceneViewport?.camera !== camera {
                 
                 camera.viewport = sceneViewport // Should we set a viewport in the system??
@@ -29,5 +31,10 @@ struct CameraSystem: System {
                 context.scene.activeCamera = camera
             }
         }
+    }
+    
+    private func updateFrustum(for camera: Camera, entity: Entity, scene: Scene) {
+        let viewMatrix = scene.worldTransformMatrix(for: entity).inverse
+        camera.frustum = Frustum.make(from: camera.projectionMatrix * viewMatrix)
     }
 }

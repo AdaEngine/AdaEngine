@@ -79,6 +79,13 @@ public extension QueryPredicate {
         }
     }
     
+    /// Set the rule that entity doesn't contains given type.
+    static func without<T: Component>(_ type: T.Type) -> QueryPredicate {
+        QueryPredicate { archetype in
+            return !archetype.componentsBitMask.contains(type.identifier)
+        }
+    }
+    
     static func && (lhs: QueryPredicate, rhs: QueryPredicate) -> QueryPredicate {
         QueryPredicate { value in
             lhs.evaluate(value) && rhs.evaluate(value)

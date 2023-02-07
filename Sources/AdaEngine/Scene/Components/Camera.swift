@@ -75,6 +75,9 @@ public final class Camera: ScriptComponent {
         }
     }
     
+    /// Camera frustum
+    public internal(set) var frustum: Frustum = Frustum()
+    
     /// Set camera is active
     @Export
     public var isActive = false
@@ -107,7 +110,7 @@ public final class Camera: ScriptComponent {
     
     private var resizeEvent: AnyCancellable?
     
-    private var projectionMatrix: Transform3D = .identity
+    internal private(set) var projectionMatrix: Transform3D = .identity
     
     func makeCameraData() -> CameraData {
         let viewMatrix = self.entity.flatMap { entity in
