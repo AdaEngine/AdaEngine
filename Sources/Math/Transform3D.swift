@@ -20,8 +20,8 @@ import Foundation
 // [0, 0, 0, 1]
 //
 
-@frozen
-public struct Transform3D: Hashable {
+/// The 3D transformation matrix 4x4 (column major). This matrix can represent transformations such as translation, rotation or scaling.
+@frozen public struct Transform3D: Hashable, Codable {
     public var x: Vector4
     public var y: Vector4
     public var z: Vector4
@@ -35,8 +35,6 @@ public struct Transform3D: Hashable {
         self.w = Vector4(0, 0, 0, 1)
     }
 }
-
-extension Transform3D: Codable {}
 
 public extension Transform3D {
     
@@ -150,7 +148,7 @@ public extension Transform3D {
     /// - Parameter column: a column in matrix.
     /// - Parameter row: a row in matrix.
     /// - Returns: matrix value.
-    subscript (_ column: Int, _ row: Int) -> Float {
+    subscript(_ column: Int, _ row: Int) -> Float {
         get {
             self[column][row]
         }
@@ -160,7 +158,7 @@ public extension Transform3D {
         }
     }
     
-    subscript (column: Int) -> Vector4 {
+    subscript(column: Int) -> Vector4 {
         get {
             switch(column) {
             case 0: return x
@@ -181,7 +179,18 @@ public extension Transform3D {
         }
     }
     
-    /// Return identity matrix
+    func row(at index: Int) -> Vector4 {
+        switch(index) {
+        case 0: return [x.x, y.x, z.x, w.x]
+        case 1: return [x.y, y.y, z.y, w.y]
+        case 2: return [x.z, y.z, z.z, w.z]
+        case 3: return [x.w, y.w, z.w, w.w]
+        default: preconditionFailure("Matrix index out of range")
+        }
+    }
+    
+    /// Transform3D with no translation, rotation or scaling applied.
+    ///
     /// ```swift
     /// [1, 0, 0, 0]
     /// [0, 1, 0, 0]
@@ -202,6 +211,7 @@ public extension Transform3D {
         ])
     }
     
+    /// The scale of the transform.
     var scale: Vector3 {
         get {
             let basis = self.basis
@@ -217,6 +227,7 @@ public extension Transform3D {
         }
     }
     
+    /// The rotation of the transform.
     /// - SeeAlso: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
     var rotation: Quat {
         var quat = Quat.identity
@@ -252,6 +263,7 @@ public extension Transform3D {
         return quat
     }
     
+    ///  The translation offset of the transform
     var origin: Vector3 {
         get {
             return Vector3(self[0, 3], self[1, 3], self[2, 3])

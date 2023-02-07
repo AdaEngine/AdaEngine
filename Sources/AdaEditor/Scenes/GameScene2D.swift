@@ -199,7 +199,7 @@ final class GameScene2D {
         scene.subscribe(to: SceneEvents.OnReady.self, on: scene) { event in
             let physicsQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
             event.scene.performQuery(physicsQuery).forEach { entity in
-                entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -1)
+                entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -1.62)
             }
         }
         .store(in: &disposeBag)
