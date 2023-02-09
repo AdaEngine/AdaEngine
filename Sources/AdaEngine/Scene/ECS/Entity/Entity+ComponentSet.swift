@@ -19,16 +19,19 @@ public extension Entity {
         }
         
         private(set) var buffer: OrderedDictionary<ComponentId, Component>
+        private(set) var bitset: Bitset
         
         // MARK: - Codable
         
         init() {
+            self.bitset = Bitset()
             self.buffer = [:]
         }
         
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
-            var buffer: OrderedDictionary<ComponentId, Component> = [:]
+            self.buffer = OrderedDictionary<ComponentId, Component>.init(minimumCapacity: container.allKeys.count)
+            self.bitset = Bitset(count: container.allKeys.count)
             
             for key in container.allKeys {
                 guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue) else {
@@ -36,11 +39,8 @@ public extension Entity {
                 }
 
                 let component = try type.init(from: container.superDecoder(forKey: key))
-
-                buffer[type.identifier] = component
+                self.set(component)
             }
-            
-            self.buffer = buffer
         }
         
         public func encode(to encoder: Encoder) throws {
@@ -59,27 +59,21 @@ public extension Entity {
             }
             
             set {
-                self.buffer[T.identifier] = newValue
-                (newValue as? ScriptComponent)?.entity = entity
-                
-                guard let ent = self.entity else {
-                    return
-                }
-                
-                if let component = newValue {
-                    self.world?.entity(ent, didAddComponent: component, with: T.identifier)
+                if let newValue {
+                    self.set(newValue)
                 } else {
-                    self.world?.entity(ent, didRemoveComponent: T.self, with: T.identifier)
+                    self.remove(T.self)
                 }
             }
         }
 
         public mutating func set<T>(_ component: T) where T : Component {
-            self.buffer[T.identifier] = component
+            let identifier = T.identifier
+            self.buffer[identifier] = component
             (component as? ScriptComponent)?.entity = self.entity
-            
+            self.bitset.insert(T.self)
             if let ent = self.entity {
-                self.world?.entity(ent, didAddComponent: component, with: T.identifier)
+                self.world?.entity(ent, didAddComponent: component, with: identifier)
             }
         }
 
@@ -88,11 +82,13 @@ public extension Entity {
                 
                 let componentType = type(of: component)
                 
-                self.buffer[componentType.identifier] = component
+                let identifier = componentType.identifier
+                self.buffer[identifier] = component
                 (component as? ScriptComponent)?.entity = self.entity
+                self.bitset.insert(identifier)
                 
                 if let ent = self.entity {
-                    self.world?.entity(ent, didAddComponent: component , with: componentType.identifier)
+                    self.world?.entity(ent, didAddComponent: component , with: identifier)
                 }
             }
         }
@@ -104,11 +100,14 @@ public extension Entity {
 
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
-            (self.buffer[componentType.identifier] as? ScriptComponent)?.destroy()
-            self.buffer[componentType.identifier] = nil
+            let identifier = componentType.identifier
+            (self.buffer[identifier] as? ScriptComponent)?.destroy()
+            self.buffer[identifier] = nil
+            
+            self.bitset.remove(componentType)
             
             if let ent = self.entity {
-                self.world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
+                self.world?.entity(ent, didRemoveComponent: componentType, with: identifier)
             }
         }
         

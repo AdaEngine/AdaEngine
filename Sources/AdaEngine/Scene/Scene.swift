@@ -144,6 +144,7 @@ public final class Scene: Resource {
         self.addPlugin(DefaultScenePlugin())
         self.isReady = true
         
+        self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
     }
     

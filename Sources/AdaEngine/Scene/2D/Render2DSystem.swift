@@ -31,6 +31,21 @@ struct Render2DSystem: System {
                 return
             }
             
+            if let bounding = entity.components[BoundingComponent.self] {
+                switch bounding.bounds {
+                case .aabb(let aabb):
+                    
+                    let position: Vector3 = [aabb.max.x / 2, aabb.max.y / 2, 1]
+                    let size: Vector2 = [aabb.min.x + aabb.max.x, aabb.min.y + aabb.max.y]
+                    
+                    drawContext.drawQuad(
+                        position: position,
+                        size: size,
+                        color: .red.opacity(0.2)
+                    )
+                }
+            }
+            
             if let circle = entity.components[Circle2DComponent.self] {
                 drawContext.drawCircle(
                     transform: matrix,
