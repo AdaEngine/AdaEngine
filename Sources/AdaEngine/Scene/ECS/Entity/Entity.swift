@@ -46,6 +46,7 @@ open class Entity: Identifiable {
         var components = ComponentSet()
         components += Transform()
         components += RelationshipComponent()
+        components += Visibility()
         
         self.components = components
         

@@ -18,7 +18,7 @@ struct DefaultScenePlugin: ScenePlugin {
         scene.addSystem(CameraSystem.self)
 //        scene.addSystem(Render3DSystem.self)
         scene.addSystem(Render2DSystem.self)
-        scene.addSystem(ViewContainerSystem.self)
+//        scene.addSystem(ViewContainerSystem.self)
         
         // Setup Physics
         scene.addPlugin(Physics2DPlugin())

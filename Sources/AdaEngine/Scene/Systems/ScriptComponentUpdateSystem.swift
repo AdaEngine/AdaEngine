@@ -14,7 +14,11 @@ struct ScriptComponentUpdateSystem: System {
     func update(context: UpdateContext) {
 //        let guiRenderContext = GUIRenderContext(window: context.scene.viewport!.window!.id, engine: renderer2D)
         
-        context.scene.world.scripts.values.forEach { component in
+        context.scene.world.scripts.forEach { component in
+            
+            guard let component else {
+                return
+            }
             
             // Initialize component
             if !component.isAwaked {

@@ -39,7 +39,7 @@ public final class Archetype: Hashable, Identifiable {
         let row: Int
         
         if !friedEntities.isEmpty {
-            let index = self.friedEntities.removeFirst()
+            let index = self.friedEntities.removeLast()
             self.entities[index] = entity
             row = index
         } else {
