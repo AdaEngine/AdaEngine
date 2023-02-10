@@ -5,51 +5,36 @@
 //  Created by v.prusakov on 2/6/23.
 //
 
-public struct VisibleEntities: Component {
-    public var entities: [Entity]
-}
+// TODO: (Vlad) add sphere supports
 
-public struct Visibility: Component {
-    public var isVisible: Bool = false
-}
-
-public struct BoundingComponent: Component {
-    
-    public enum Bounds: Codable {
-        case aabb(AABB)
-    }
-    
-    var bounds: Bounds
-}
-
-public struct NoFrustumCulling: Component { }
-
+// This system add frustum culling for cameras.
 struct VisibilitySystem: System {
     
-    static let visibleEntities = EntityQuery(where: .has(VisibleEntities.self))
-    static let entities = EntityQuery(where: .has(Transform.self) && .has(Visibility.self) && .has(BoundingComponent.self))
-    static let withoutBounding = EntityQuery(
-        where: .has(Transform.self) && .without(BoundingComponent.self) && .without(NoFrustumCulling.self)
+    static let cameras = EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
+    static let entities = EntityQuery(
+        where: .has(Transform.self) && .has(Visibility.self) && .has(BoundingComponent.self) && .without(NoFrustumCulling.self)
+    )
+    static let entitiesWithTransform = EntityQuery(
+        where: .has(Transform.self) && .without(NoFrustumCulling.self)
     )
     
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
         
-        let camera = context.scene.activeCamera
+        self.updateBoundings(context: context)
         
-//        self.updateBoundings(context: context)
-
-//        var filtredEntities = self.filterVisibileEntities(context: context)
-//        context.scene.performQuery(Self.visibleEntities).forEach { entity in
-//            var visibleEntities = entity.components[VisibleEntities.self]!
-//            visibleEntities.entities = filtredEntities
-//            entity.components[VisibleEntities.self] = visibleEntities
-//        }
+        context.scene.performQuery(Self.cameras).forEach { entity in
+            var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
+            let filtredEntities = self.filterVisibileEntities(context: context, for: camera)
+            visibleEntities.entities = filtredEntities
+            entity.components[VisibleEntities.self] = visibleEntities
+        }
     }
     
+    // Update or create bounding boxes.
     private func updateBoundings(context: UpdateContext) {
-        context.scene.performQuery(Self.withoutBounding).forEach { entity in
+        context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
             
             var bounds: BoundingComponent.Bounds?
             
@@ -60,22 +45,31 @@ struct VisibilitySystem: System {
                 let position = transform.position
                 let scale = transform.scale
                 
-                let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, -1)
-                let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 1)
+                let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
+                let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
                 
                 bounds = .aabb(AABB(min: min, max: max))
             }
             
             if let bounds {
-//                entity.components += BoundingComponent(bounds: bounds)
+                entity.components += BoundingComponent(bounds: bounds)
             }
-            
         }
     }
     
-    private func filterVisibileEntities(context: UpdateContext) -> [Entity] {
-        context.scene.performQuery(Self.entities).filter { _ in
-            return true
+    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> [Entity] {
+        let frustum = camera.frustum
+        return context.scene.performQuery(Self.entities).filter { entity in
+            let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
+            
+            if !visibility.isVisible {
+                return false
+            }
+            
+            switch bounding.bounds {
+            case .aabb(let aabb):
+                return frustum.intersectsAABB(aabb)
+            }
         }
     }
 }

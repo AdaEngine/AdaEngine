@@ -363,7 +363,7 @@ final class Physics2DSystem: System {
     private func drawCircle(context: RenderEngine2D.DrawContext, position: Vector2, angle: Float, radius: Float, color: Color) {
         context.drawCircle(
             position: Vector3(position, 0),
-            rotation: [0, 0, 0], // FIXME: (Vlad) We should set rotation angle
+            rotation: [0, 0, angle], // FIXME: (Vlad) We should set rotation angle
             radius: radius,
             thickness: 0.1,
             fade: 0,

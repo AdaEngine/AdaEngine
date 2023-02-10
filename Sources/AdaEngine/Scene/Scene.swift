@@ -20,6 +20,7 @@ public final class Scene: Resource {
     public var name: String
     public private(set) var id: UUID
 
+    // TODO: Remove it later
     public internal(set) var activeCamera: Camera
     
     public internal(set) weak var viewport: Viewport?
@@ -48,7 +49,7 @@ public final class Scene: Resource {
         self.name = name ?? "Scene"
         self.world = World()
         
-        let cameraEntity = Entity()
+        let cameraEntity = CameraEntity()
         let cameraComponent = Camera()
         cameraComponent.isActive = true
         cameraEntity.components += cameraComponent
@@ -287,6 +288,7 @@ public extension Scene {
         
         public static let showPhysicsShapes = DebugOptions(rawValue: 1 << 0)
         public static let showFPS = DebugOptions(rawValue: 1 << 1)
+        public static let showBoundingBoxes = DebugOptions(rawValue: 1 << 2)
     }
 }
 

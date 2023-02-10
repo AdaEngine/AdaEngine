@@ -5,9 +5,16 @@
 //  Created by v.prusakov on 2/6/23.
 //
 
+import Math
+
 public struct Plane: Hashable, Codable {
+    
     public var normal: Vector3
     public var d: Float
+    
+    public var normal_d: Vector4 {
+        return Vector4(normal, d)
+    }
     
     @inline(__always)
     public init(normal: Vector3, d: Float) {
