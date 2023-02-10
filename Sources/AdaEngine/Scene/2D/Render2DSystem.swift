@@ -9,41 +9,27 @@ struct Render2DSystem: System {
     
     static var dependencies: [SystemDependency] = [.before(Physics2DSystem.self)]
     
-    static let spriteQuery = EntityQuery(
-        where: (.has(Circle2DComponent.self) || .has(SpriteComponent.self)) && .has(Transform.self)
-    )
+    static let cameras = EntityQuery(where: .has(Camera.self) && .has(VisibleEntities.self))
     
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        let render2D = context.scene.sceneRenderer.renderer2D
-        let spriteEntities = context.scene.performQuery(Self.spriteQuery)
-        
-        guard !spriteEntities.isEmpty else { return }
-        
-        let drawContext = render2D.beginContext(for: context.scene.activeCamera)
+        context.scene.performQuery(Self.cameras).forEach { entity in
+            let (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
+            self.draw(camera: camera, entities: visibleEntities.entities, context: context)
+        }
+    }
+    
+    private func draw(camera: Camera, entities: [Entity], context: UpdateContext) {
+        let renderer = context.scene.sceneRenderer.renderer2D
+        let drawContext = renderer.beginContext(for: camera)
         drawContext.setDebugName("Start 2D Rendering scene")
         
-        spriteEntities.forEach { entity in
+        entities.forEach { entity in
             guard let matrix = entity.components[Transform.self]?.matrix else {
                 assert(true, "Render 2D System don't have required Transform component")
                 
                 return
-            }
-            
-            if let bounding = entity.components[BoundingComponent.self] {
-                switch bounding.bounds {
-                case .aabb(let aabb):
-                    
-                    let position: Vector3 = [aabb.max.x / 2, aabb.max.y / 2, 1]
-                    let size: Vector2 = [aabb.min.x + aabb.max.x, aabb.min.y + aabb.max.y]
-                    
-                    drawContext.drawQuad(
-                        position: position,
-                        size: size,
-                        color: .red.opacity(0.2)
-                    )
-                }
             }
             
             if let circle = entity.components[Circle2DComponent.self] {
@@ -61,6 +47,21 @@ struct Render2DSystem: System {
                     texture: sprite.texture,
                     color: sprite.tintColor
                 )
+            }
+            
+            if context.scene.debugOptions.contains(.showBoundingBoxes) {
+                if let bounding = entity.components[BoundingComponent.self] {
+                    switch bounding.bounds {
+                    case .aabb(let aabb):
+                        let size: Vector2 = [aabb.halfExtents.x * 2, aabb.halfExtents.y * 2]
+                        
+                        drawContext.drawQuad(
+                            position: aabb.center,
+                            size: size,
+                            color: context.scene.debugPhysicsColor.opacity(0.5)
+                        )
+                    }
+                }
             }
         }
         

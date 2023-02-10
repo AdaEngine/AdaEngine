@@ -5,8 +5,34 @@
 //  Created by v.prusakov on 2/7/23.
 //
 
+import Math
+
 public struct Frustum: Hashable, Codable {
     var planes: FixedArray<Plane> = FixedArray(repeating: Plane(normal: .zero, d: 0), count: 6)
+}
+
+public extension Frustum {
+    func intersectsAABB(_ aabb: AABB) -> Bool {
+        let aabbMin = aabb.min
+        let aabbMax = aabb.max
+        
+        for plane in planes {
+            guard let plane else {
+                continue
+            }
+            
+            let distance = max(aabbMin.x * plane.normal.x, aabbMax.x * plane.normal.x)
+            + max(aabbMin.y * plane.normal.y, aabbMax.y * plane.normal.y)
+            + max(aabbMin.z * plane.normal.z, aabbMax.z * plane.normal.z)
+            + plane.d
+            
+            if distance < 0 {
+                return false
+            }
+        }
+        
+        return true
+    }
 }
 
 public extension Frustum {
