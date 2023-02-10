@@ -99,11 +99,6 @@ public final class Camera: ScriptComponent {
     
     // MARK: Computed Properties
     
-    // TODO: Should we have this flag? Looks like isActive is enough for us
-    public var isCurrent: Bool {
-        return self.entity?.scene?.activeCamera === self
-    }
-    
     public var viewMatrix: Transform3D = .identity
     
     // MARK: - Internal

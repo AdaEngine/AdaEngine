@@ -20,7 +20,7 @@ class GameScene3D {
         var transform = Transform()
         transform.scale = [10, 10, 10]
         
-//        scene.activeCamera.projection = .orthographic
+//        scene.defaultCamera.projection = .orthographic
 
         let untexturedEntity = Entity(name: "Background")
         untexturedEntity.components += SpriteComponent(tintColor: Color.green)
@@ -104,7 +104,7 @@ class StressTestGameScene {
     
     func makeScene() throws -> Scene {
         let scene = Scene()
-        scene.activeCamera.projection = .orthographic
+        scene.defaultCamera.projection = .orthographic
         
         self.makeBackground(for: scene)
         self.makeWalls(for: scene)

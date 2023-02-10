@@ -9,7 +9,9 @@ public class CameraEntity: Entity {
     public override init(name: String = "CameraEntity") {
         super.init(name: name)
         
-        self.components += Camera()
+        let camera = Camera()
+        camera.isActive = true
+        self.components += camera
         self.components += VisibleEntities(entities: [])
     }
 }

@@ -52,7 +52,7 @@ final class Physics2DSystem: System {
         var drawContext: RenderEngine2D.DrawContext?
         
         if needDrawPolygons {
-            drawContext = self.render2D.beginContext(for: context.scene.activeCamera)
+            drawContext = self.render2D.beginContext(for: context.scene.defaultCamera)
             drawContext?.setDebugName("Physics 2D Debug")
         }
         
