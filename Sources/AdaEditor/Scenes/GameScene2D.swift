@@ -50,11 +50,11 @@ struct PlayerMovementSystem: System {
             }
             
             if Input.isKeyPressed(.arrowUp) {
-                context.scene.activeCamera.orthographicScale -= speed
+                context.scene.defaultCamera.orthographicScale -= speed
             }
             
             if Input.isKeyPressed(.arrowDown) {
-                context.scene.activeCamera.orthographicScale += speed
+                context.scene.defaultCamera.orthographicScale += speed
             }
             
             entity.components += transform
@@ -175,10 +175,10 @@ final class GameScene2D {
         let scene = Scene()
 //        let scene = try ResourceManager.load(scenePath) as Scene
         
-        scene.activeCamera.projection = .orthographic
-        scene.activeCamera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
-        scene.activeCamera.clearFlags = .solid
-        scene.activeCamera.orthographicScale = 1.5
+        scene.defaultCamera.projection = .orthographic
+        scene.defaultCamera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
+        scene.defaultCamera.clearFlags = .solid
+        scene.defaultCamera.orthographicScale = 1.5
         
         // DEBUG
 //        scene.debugOptions = [.showPhysicsShapes]

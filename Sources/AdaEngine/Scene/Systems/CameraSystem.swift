@@ -27,8 +27,6 @@ struct CameraSystem: System {
                 
                 camera.viewport = sceneViewport // Should we set a viewport in the system??
                 sceneViewport?.camera = camera
-                
-                context.scene.activeCamera = camera
             }
         }
     }

@@ -26,6 +26,11 @@ struct VisibilitySystem: System {
         
         context.scene.performQuery(Self.cameras).forEach { entity in
             var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
+            
+            if !camera.isActive {
+                return
+            }
+            
             let filtredEntities = self.filterVisibileEntities(context: context, for: camera)
             visibleEntities.entities = filtredEntities
             entity.components[VisibleEntities.self] = visibleEntities

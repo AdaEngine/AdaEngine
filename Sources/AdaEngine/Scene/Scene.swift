@@ -21,7 +21,7 @@ public final class Scene: Resource {
     public private(set) var id: UUID
 
     // TODO: Remove it later
-    public internal(set) var activeCamera: Camera
+    public internal(set) var defaultCamera: Camera
     
     public internal(set) weak var viewport: Viewport?
     
@@ -58,7 +58,7 @@ public final class Scene: Resource {
             self.addEntity(cameraEntity)
         }
         
-        self.activeCamera = cameraComponent
+        self.defaultCamera = cameraComponent
     }
     
     // MARK: - Resource -

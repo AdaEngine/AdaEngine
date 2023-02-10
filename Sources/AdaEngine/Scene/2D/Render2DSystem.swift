@@ -16,6 +16,11 @@ struct Render2DSystem: System {
     func update(context: UpdateContext) {
         context.scene.performQuery(Self.cameras).forEach { entity in
             let (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
+            
+            if !camera.isActive {
+                return
+            }
+            
             self.draw(camera: camera, entities: visibleEntities.entities, context: context)
         }
     }
