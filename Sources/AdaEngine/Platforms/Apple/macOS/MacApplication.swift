@@ -10,6 +10,8 @@ import AppKit
 
 final class MacApplication: Application {
     
+    // TODO: DisplayLink has very strange behaviour sometimes
+    
     // Timer that synced with display refresh rate.
     private let displayLink: DisplayLink
     

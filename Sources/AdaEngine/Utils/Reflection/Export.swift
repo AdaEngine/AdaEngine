@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
+// TODO: Add export name
+// TODO: Add more options for export
+
 /// Fields marked as `@Export` can be serializable and deserializable.
 /// - Note: You can use `private`, `fileprivate` modifiers, because `@Export` use reflection
 @propertyWrapper
@@ -116,4 +119,28 @@ extension Export {
 
 extension CodingUserInfoKey {
     static var editorIntrospection = CodingUserInfoKey(rawValue: "export.editor.introspection")!
+}
+
+public protocol DefaultValue {
+    static var defaultValue: Self { get }
+}
+
+@propertyWrapper
+public struct NoExport<T: DefaultValue>: Codable {
+    
+    public var wrappedValue: T
+    
+    public init(wrappedValue: T) {
+        self.wrappedValue = wrappedValue
+    }
+    
+    public init() {
+        self.wrappedValue = T.defaultValue
+    }
+    
+    public init(from decoder: Decoder) throws {
+        self.wrappedValue = T.defaultValue
+    }
+    
+    public func encode(to encoder: Encoder) throws { }
 }

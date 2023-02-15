@@ -10,6 +10,8 @@
 // This system add frustum culling for cameras.
 struct VisibilitySystem: System {
     
+    static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    
     static let cameras = EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
     static let entities = EntityQuery(
         where: .has(Transform.self) && .has(Visibility.self) && .has(BoundingComponent.self) && .without(NoFrustumCulling.self)
@@ -63,7 +65,7 @@ struct VisibilitySystem: System {
     }
     
     private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> [Entity] {
-        let frustum = camera.frustum
+        let frustum = camera.computedData.frustum
         return context.scene.performQuery(Self.entities).filter { entity in
             let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
             

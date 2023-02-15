@@ -273,13 +273,11 @@ public class RenderEngine2D {
         )
     }
     
-    public func beginContext(for viewport: Viewport, viewTransform: Transform3D) -> DrawContext {
+    public func beginContext(for window: Window, viewTransform: Transform3D) -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(Uniform(viewProjection: viewTransform))
-        
-        let window = viewport.window!
         
         let currentDraw = RenderEngine.shared.beginDraw(for: window.id, clearColor: .black)
         let context = DrawContext(currentDraw: currentDraw, renderEngine: self, frameIndex: frameIndex)
@@ -287,25 +285,41 @@ public class RenderEngine2D {
         return context
     }
     
-    public func beginContext(for camera: Camera) -> DrawContext {
-        let data = camera.makeCameraData()
+    public func beginContext(for camera: Camera, transform: Transform) -> DrawContext {
+        let data = camera.makeCameraData(transform: transform)
         
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(Uniform(viewProjection: data.viewProjection))
         
-        let viewport = camera.viewport!
+        let currentDraw: DrawList
         
-        guard let framebuffer = ViewportStorage.getFramebuffer(for: viewport) else {
-            fatalError("Viewport doesn't has a framebuffer")
+        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .black
+        
+        switch camera.renderTarget {
+        case .window(let windowId):
+            currentDraw = RenderEngine.shared.beginDraw(for: windowId, clearColor: clearColor)
+        case .texture(let texture):
+            let desc = FramebufferDescriptor(
+                scale: texture.scaleFactor,
+                width: texture.width,
+                height: texture.height,
+                attachments: [
+                    FramebufferAttachmentDescriptor(
+                        format: texture.pixelFormat,
+                        texture: texture,
+                        clearColor: clearColor
+                    )
+                ]
+            )
+            let framebuffer = RenderEngine.shared.makeFramebuffer(from: desc)
+            currentDraw = RenderEngine.shared.beginDraw(to: framebuffer, clearColors: [])
         }
-        
-        let clearColors = camera.clearFlags.contains(.solid) ? [camera.backgroundColor] : nil
-        let currentDraw = RenderEngine.shared.beginDraw(to: framebuffer, clearColors: clearColors)
         
         let context = DrawContext(currentDraw: currentDraw, renderEngine: self, frameIndex: frameIndex)
         context.startBatch()
+        
         return context
     }
 }

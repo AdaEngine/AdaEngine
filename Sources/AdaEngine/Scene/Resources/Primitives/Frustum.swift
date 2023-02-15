@@ -11,6 +11,10 @@ public struct Frustum: Hashable, Codable {
     var planes: FixedArray<Plane> = FixedArray(repeating: Plane(normal: .zero, d: 0), count: 6)
 }
 
+extension Frustum: DefaultValue {
+    public static var defaultValue: Frustum = Frustum()
+}
+
 public extension Frustum {
     func intersectsAABB(_ aabb: AABB) -> Bool {
         let aabbMin = aabb.min

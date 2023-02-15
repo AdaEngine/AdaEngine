@@ -6,7 +6,6 @@
 //
 
 /// Contains information about draw. You can configure your draw whatever you want.
-@_spi(rendering)
 public final class DrawList {
     
     public enum ShaderFunction {

@@ -8,14 +8,14 @@
 import Math
 
 /// Viewport is an object where all draws happend.
-public class Viewport: EventSource {
+public class WindowViewport: EventSource {
     
     public internal(set) weak var window: Window?
     
     internal private(set) var viewportRid: RID!
     
     var renderTargetTexture: RenderTexture {
-        ViewportStorage.getRenderTexture(for: self) as! RenderTexture
+        WindowViewportStorage.getRenderTexture(for: self) as! RenderTexture
     }
     
     public var isVisible = true
@@ -43,21 +43,19 @@ public class Viewport: EventSource {
     
     private var _viewportFrame: Rect
     
-    internal weak var camera: Camera?
-    
     public init(frame: Rect) {
         let textureSize = Size(width: frame.size.width, height: frame.size.height)
         
         defer {
-            self.viewportRid = ViewportStorage.addViewport(self)
-            ViewportStorage.viewportUpdateSize(textureSize, viewport: self)
+            self.viewportRid = WindowViewportStorage.addViewport(self)
+            WindowViewportStorage.viewportUpdateSize(textureSize, viewport: self)
         }
         
         self._viewportFrame = frame
     }
     
     deinit {
-        ViewportStorage.removeViewport(self)
+        WindowViewportStorage.removeViewport(self)
     }
     
     private func updateRenderTarget(with newSize: Size) {
@@ -68,7 +66,7 @@ public class Viewport: EventSource {
         let scale = window?.screen?.scale ?? 1.0
         let textureSize = Size(width: newSize.width * scale, height: newSize.height * scale)
         
-        ViewportStorage.viewportUpdateSize(textureSize, viewport: self)
+        WindowViewportStorage.viewportUpdateSize(textureSize, viewport: self)
         EventManager.default.send(ViewportEvents.DidResize(size: newSize, viewport: self), source: self)
     }
     
@@ -82,6 +80,6 @@ public class Viewport: EventSource {
 public enum ViewportEvents {
     public struct DidResize: Event {
         public let size: Size
-        public let viewport: Viewport
+        public let viewport: WindowViewport
     }
 }

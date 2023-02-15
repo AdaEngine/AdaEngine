@@ -47,14 +47,14 @@ final class Physics2DSystem: System {
     func update(context: UpdateContext) {
         let result = self.fixedTimestep.advance(with: context.deltaTime)
         
-        let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.viewport != nil
+        let needDrawPolygons = false//context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.window != nil
         
         var drawContext: RenderEngine2D.DrawContext?
         
-        if needDrawPolygons {
-            drawContext = self.render2D.beginContext(for: context.scene.defaultCamera)
-            drawContext?.setDebugName("Physics 2D Debug")
-        }
+//        if needDrawPolygons {
+//            drawContext = self.render2D.beginContext(for: context.scene.defaultCamera)
+//            drawContext?.setDebugName("Physics 2D Debug")
+//        }
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
         let colissionBody = context.scene.performQuery(Self.collisionQuery)

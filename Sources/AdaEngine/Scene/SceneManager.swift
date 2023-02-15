@@ -9,9 +9,9 @@ public class SceneManager {
     
     public var currentScene: Scene?
     
-    weak var viewport: Viewport? {
+    weak var window: Window? {
         didSet {
-            self.currentScene?.viewport = self.viewport
+            self.currentScene?.window = self.window
         }
     }
     
@@ -31,7 +31,7 @@ public class SceneManager {
     
     public func presentScene(_ scene: Scene) {
         scene.sceneManager = self
-        scene.viewport = self.viewport
+        scene.window = self.window
         self.currentScene = scene
     }
     

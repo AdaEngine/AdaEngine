@@ -66,12 +66,12 @@ public final class AnimatedTexture: Texture2D {
     }
     
     /// Return width of the current frame.
-    public override var width: Float {
+    public override var width: Int {
         return self.frames[currentFrame].texture!.width
     }
     
     /// Return height of the current frame.
-    public override var height: Float {
+    public override var height: Int {
         return self.frames[currentFrame].texture!.height
     }
     

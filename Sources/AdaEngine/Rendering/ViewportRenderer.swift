@@ -18,9 +18,6 @@ class ViewportRenderer {
         let viewTransform: Transform3D
     }
     
-    // FIXME: Remove it
-    private let greenTexture: Texture2D
-    
     private init() {
         let device = RenderEngine.shared
         
@@ -88,9 +85,6 @@ class ViewportRenderer {
         self.viewportUniformSet.initBuffers(for: ViewportUniform.self, binding: BufferIndex.baseUniform, set: 0)
         
         self.renderPipeline = device.makeRenderPipeline(from: piplineDesc)
-        
-        let image = Image(width: 1, height: 1, color: .green)
-        self.greenTexture = Texture2D(image: image)
     }
     
     // MARK: Methods
@@ -105,7 +99,7 @@ class ViewportRenderer {
     }
     
     func renderViewports() {
-        let viewports = ViewportStorage.getViewports()
+        let viewports = WindowViewportStorage.getViewports()
         
         for viewport in viewports {
             
@@ -128,7 +122,6 @@ class ViewportRenderer {
             draw.bindIndexArray(self.quadIndexArray)
             draw.appendVertexBuffer(self.quadVertexBuffer)
             draw.bindTexture(viewport.renderTargetTexture, at: 0)
-//            draw.bindTexture(self.greenTexture, at: 0)
             draw.bindRenderPipeline(self.renderPipeline)
             
             RenderEngine.shared.draw(draw, indexCount: 6, instancesCount: 1)
@@ -138,25 +131,25 @@ class ViewportRenderer {
 }
 
 /// Contains information about all viewports in the engine. Also create and store a framebuffer.
-class ViewportStorage {
+class WindowViewportStorage {
     
-    private static var viewports: ResourceHashMap<WeakBox<Viewport>> = [:]
+    private static var viewports: ResourceHashMap<WeakBox<WindowViewport>> = [:]
     private static var framebuffers: ResourceHashMap<Framebuffer> = [:]
     
-    static func addViewport(_ viewport: Viewport) -> RID {
+    static func addViewport(_ viewport: WindowViewport) -> RID {
         viewports.setValue(WeakBox(value: viewport))
     }
     
-    static func removeViewport(_ viewport: Viewport) {
+    static func removeViewport(_ viewport: WindowViewport) {
         self.viewports[viewport.viewportRid] = nil
         self.framebuffers[viewport.viewportRid] = nil
     }
     
-    static func getViewports() -> [Viewport] {
+    static func getViewports() -> [WindowViewport] {
         return self.viewports.values.compactMap { $0.value }
     }
     
-    static func viewportUpdateSize(_ newSize: Size, viewport: Viewport) {
+    static func viewportUpdateSize(_ newSize: Size, viewport: WindowViewport) {
         if let frambuffer = self.framebuffers[viewport.viewportRid] {
             frambuffer.resize(to: newSize)
             
@@ -176,13 +169,13 @@ class ViewportStorage {
         self.framebuffers.setValue(framebuffer, forKey: viewport.viewportRid)
     }
     
-    static func getRenderTexture(for viewport: Viewport) -> Texture2D? {
+    static func getRenderTexture(for viewport: WindowViewport) -> Texture2D? {
         return self.framebuffers[viewport.viewportRid]?.attachments.first(where: {
             return $0.usage.contains(.colorAttachment)
         })?.texture
     }
     
-    static func getFramebuffer(for viewport: Viewport) -> Framebuffer? {
+    static func getFramebuffer(for viewport: WindowViewport) -> Framebuffer? {
         return self.framebuffers[viewport.viewportRid]
     }
 }

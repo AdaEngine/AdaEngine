@@ -104,7 +104,7 @@ class StressTestGameScene {
     
     func makeScene() throws -> Scene {
         let scene = Scene()
-        scene.defaultCamera.projection = .orthographic
+//        scene.defaultCamera.projection = .orthographic
         
         self.makeBackground(for: scene)
         self.makeWalls(for: scene)

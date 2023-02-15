@@ -29,7 +29,7 @@ struct PlayerMovementSystem: System {
         }
         
         context.scene.performQuery(Self.cameraQuery).forEach { entity in
-            var transform = entity.components[Transform.self]!
+            var (camera, transform) = entity.components[Camera.self, Transform.self]
             
             let speed: Float = 2 * context.deltaTime
             
@@ -50,14 +50,15 @@ struct PlayerMovementSystem: System {
             }
             
             if Input.isKeyPressed(.arrowUp) {
-                context.scene.defaultCamera.orthographicScale -= speed
+                camera.orthographicScale -= speed
             }
             
             if Input.isKeyPressed(.arrowDown) {
-                context.scene.defaultCamera.orthographicScale += speed
+                camera.orthographicScale += speed
             }
             
             entity.components += transform
+            entity.components += camera
         }
     }
 }
@@ -78,7 +79,7 @@ struct TubeMovementSystem: System {
         context.scene.performQuery(Self.tubeQuery).forEach { entity in
             var transform = entity.components[Transform.self]!
             transform.position.x -= 2 * context.deltaTime
-            entity.components += transform
+            entity.components[Transform.self] = transform
         }
     }
 }
@@ -175,10 +176,10 @@ final class GameScene2D {
         let scene = Scene()
 //        let scene = try ResourceManager.load(scenePath) as Scene
         
-        scene.defaultCamera.projection = .orthographic
-        scene.defaultCamera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
-        scene.defaultCamera.clearFlags = .solid
-        scene.defaultCamera.orthographicScale = 1.5
+        scene.defaultCamera.camera.projection = .orthographic
+        scene.defaultCamera.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
+        scene.defaultCamera.camera.clearFlags = .solid
+        scene.defaultCamera.camera.orthographicScale = 1.5
         
         // DEBUG
 //        scene.debugOptions = [.showPhysicsShapes]

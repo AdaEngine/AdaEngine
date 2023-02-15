@@ -99,14 +99,12 @@ class MetalRenderBackend: RenderBackend {
             library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
             #endif
             
-            let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
-            let fragmentFunc = library.makeFunction(name: descriptor.fragmentFunction)!
+            let functions = descriptor.functions.compactMap { library.makeFunction(name: $0.entry) }
             
             return MetalShader(
                 name: descriptor.shaderName,
                 library: library,
-                vertexFunction: vertexFunc,
-                fragmentFunction: fragmentFunc
+                functions: functions
             )
         } catch {
             fatalError(error.localizedDescription)
@@ -137,8 +135,16 @@ class MetalRenderBackend: RenderBackend {
             fatalError("Incorrect type of shader")
         }
         
-        pipelineDescriptor.vertexFunction = shader.vertexFunction
-        pipelineDescriptor.fragmentFunction = shader.fragmentFunction
+        shader.functions.forEach {
+            switch $0.functionType {
+            case .fragment:
+                pipelineDescriptor.fragmentFunction = $0
+            case .vertex:
+                pipelineDescriptor.vertexFunction = $0
+            default:
+                return
+            }
+         }
         
         pipelineDescriptor.vertexDescriptor = vertexDescriptor
         

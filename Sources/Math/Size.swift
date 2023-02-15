@@ -16,6 +16,12 @@ public struct Size: Equatable, Codable, Hashable {
 }
 
 public extension Size {
+    var asVector2: Vector2 {
+        unsafeBitCast(self, to: Vector2.self)
+    }
+}
+
+public extension Size {
     @inline(__always)
     static let zero = Size(width: 0, height: 0)
 }
