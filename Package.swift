@@ -146,7 +146,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     "Yams",
     "libpng",
-    "box2d",
+    "box2d"
 ]
 
 #if os(Linux)

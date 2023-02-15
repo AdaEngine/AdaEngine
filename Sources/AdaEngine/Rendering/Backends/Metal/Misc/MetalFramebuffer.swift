@@ -51,7 +51,6 @@ class MetalFramebuffer: Framebuffer {
     }
     
     func invalidate() {
-        let needsCreateTextures = self.attachments.isEmpty
         
         let renderPassDescriptor = MTLRenderPassDescriptor()
         
@@ -68,6 +67,7 @@ class MetalFramebuffer: Framebuffer {
             
             let texture = RenderTexture(
                 size: size,
+                scaleFactor: self.descriptor.scale,
                 format: attachmentDesc.format
             )
             

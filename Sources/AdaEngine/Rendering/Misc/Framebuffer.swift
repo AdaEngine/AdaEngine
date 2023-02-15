@@ -9,13 +9,14 @@
 
 public struct FramebufferDescriptor {
     public var scale: Float = 1.0
+    
+    public var width: Int = 0
+    public var height: Int = 0
+    
     public var sampleCount = 0
     public var clearDepth: Double = 0
     public var depthLoadAction: AttachmentLoadAction = .clear
     public var attachments: [FramebufferAttachmentDescriptor] = []
-    
-    public var width: Int = 0
-    public var height: Int = 0
 }
 
 public struct FramebufferAttachmentUsage: OptionSet {

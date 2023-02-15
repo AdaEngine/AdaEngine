@@ -7,7 +7,6 @@
 
 import OrderedCollections
 
-@_spi(rendering) /* If we need a use "low level" rendering */
 public class RenderEngine: RenderBackend {
     
     public static let shared: RenderEngine = {

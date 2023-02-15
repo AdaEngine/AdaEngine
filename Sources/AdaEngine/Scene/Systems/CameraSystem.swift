@@ -5,34 +5,89 @@
 //  Created by v.prusakov on 5/7/22.
 //
 
+/// System for updating a ``Camera`` data like projection matrix or frustum.
 struct CameraSystem: System {
     
     static var dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
     
-    static let query = EntityQuery(where: .has(Camera.self))
+    static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
     
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
         context.scene.performQuery(Self.query).forEach { entity in
-            guard let camera = entity.components[Camera.self] else {
+            guard var camera = entity.components[Camera.self] else {
                 return
             }
             
-            let sceneViewport = context.scene.viewport
+            let viewMatrix = context.scene.worldTransformMatrix(for: entity).inverse
+            camera.viewMatrix = viewMatrix
             
-            self.updateFrustum(for: camera, entity: entity, scene: context.scene)
+            self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
+            self.updateProjectionMatrix(for: &camera)
+            self.updateFrustum(for: &camera)
             
-            if camera.isActive && sceneViewport?.camera !== camera {
-                
-                camera.viewport = sceneViewport // Should we set a viewport in the system??
-                sceneViewport?.camera = camera
-            }
+            entity.components[Camera.self] = camera
         }
     }
     
-    private func updateFrustum(for camera: Camera, entity: Entity, scene: Scene) {
-        let viewMatrix = scene.worldTransformMatrix(for: entity).inverse
-        camera.frustum = Frustum.make(from: camera.projectionMatrix * viewMatrix)
+    private func updateViewportSizeIfNeeded(for camera: inout Camera, window: Window?) {
+        switch camera.renderTarget {
+        case .window(let id):
+            
+            if id != window?.id {
+                camera.renderTarget = .window(window?.id ?? .empty)
+            }
+            
+            let windowSize = window?.frame.size ?? .zero
+            
+            if camera.viewport == nil {
+                camera.viewport = Viewport(rect: Rect(origin: .zero, size: windowSize))
+                return
+            }
+            
+            if camera.viewport?.rect.size != windowSize {
+                camera.viewport?.rect.size = windowSize
+            }
+        case .texture:
+            return
+        }
+    }
+    
+    private func updateFrustum(for camera: inout Camera) {
+        camera.computedData.frustum = Frustum.make(from: camera.computedData.projectionMatrix * camera.viewMatrix)
+    }
+    
+    // TODO: Not efficient?
+    private func updateProjectionMatrix(for camera: inout Camera) {
+        let viewportSize = camera.viewport?.rect.size ?? .zero
+        
+        let projection: Transform3D
+        let aspectRation = viewportSize.width / viewportSize.height
+        
+        let scale = camera.orthographicScale
+        let near = camera.near
+        let far = camera.far
+        
+        switch camera.projection {
+        case .orthographic:
+            projection = Transform3D.orthographic(
+                left: -aspectRation * scale,
+                right: aspectRation * scale,
+                top: scale,
+                bottom: -scale,
+                zNear: near,
+                zFar: far
+            )
+        case .perspective:
+            projection = Transform3D.perspective(
+                fieldOfView: camera.fieldOfView,
+                aspectRatio: aspectRation,
+                zNear: near,
+                zFar: far
+            )
+        }
+        
+        camera.computedData.projectionMatrix = projection
     }
 }

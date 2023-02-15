@@ -38,7 +38,7 @@ open class WindowManager {
             }
             
             if window.canDraw {
-                let context = GUIRenderContext(viewport: window.viewport, engine: renderEngine)
+                let context = GUIRenderContext(window: window, engine: renderEngine)
                 
                 context.beginDraw(in: window.bounds)
                 window.draw(with: context)

@@ -4,6 +4,17 @@
 //
 //  Created by v.prusakov on 11/2/21.
 //
+//
+
+public struct Viewport: Codable, Equatable {
+    public var rect: Rect
+    public var depth: ClosedRange<Float>
+
+    init(rect: Rect = Rect.zero, depth: ClosedRange<Float> = Float(0.0)...Float(1.0)) {
+        self.rect = rect
+        self.depth = depth
+    }
+}
 
 public struct CameraClearFlags: OptionSet, Codable {
     public var rawValue: UInt8
@@ -20,63 +31,38 @@ public struct CameraClearFlags: OptionSet, Codable {
 }
 
 // TODO: We should translate mouse coordinate space to scene coordinate space
-// FIXME: Change camera to component, instead of script component
-public final class Camera: ScriptComponent {
+public struct Camera: Component {
     
     public enum Projection: UInt8, Codable, CaseIterable {
         case perspective
         case orthographic
     }
     
+    public enum RenderTarget: Codable {
+        case window(Window.ID)
+        case texture(RenderTexture)
+    }
+    
     // MARK: Properties
     
     /// The closest point relative to camera that drawing will occur.
     @Export
-    public var near: Float = -1 {
-        didSet {
-            self.updateProjectionMatrix()
-        }
-    }
+    public var near: Float = -1
     
     /// The closest point relative to camera that drawing will occur
     @Export
-    public var far: Float = 1 {
-        didSet {
-            self.updateProjectionMatrix()
-        }
-    }
+    public var far: Float = 1
     
     /// Angle of camera view
     @Export
-    public var fieldOfView: Angle = .degrees(70) {
-        didSet {
-            self.updateProjectionMatrix()
-        }
-    }
+    public var fieldOfView: Angle = .degrees(70)
     
     /// Base projection in camera
     @Export
-    public var projection: Projection = .perspective {
-        didSet {
-            self.updateProjectionMatrix()
-        }
-    }
+    public var projection: Projection = .perspective
     
-    /// A viewport where camera will render
-    internal var viewport: Viewport? {
-        didSet {
-            self.updateProjectionMatrix()
-            
-            self.resizeEvent = nil
-            
-            if let viewport {
-                self.resizeEvent = viewport.subscribe(to: ViewportEvents.DidResize.self, on: viewport, completion: self.onViewportResized(_:))
-            }
-        }
-    }
-    
-    /// Camera frustum
-    public internal(set) var frustum: Frustum = Frustum()
+    @Export
+    public var viewport: Viewport?
     
     /// Set camera is active
     @Export
@@ -91,65 +77,34 @@ public final class Camera: ScriptComponent {
     
     @Export
     @MinValue(0.1)
-    public var orthographicScale: Float = 1 {
-        didSet {
-            self.updateProjectionMatrix()
-        }
+    public var orthographicScale: Float = 1
+    
+    public internal(set) var renderTarget: RenderTarget
+    
+    @NoExport
+    public internal(set) var computedData: CameraComputedData
+    
+    // MARK: - Init
+    
+    public init(renderTarget: RenderTexture, viewport: Viewport? = nil) {
+        self.renderTarget = .texture(renderTarget)
+        self.viewport = viewport
     }
     
-    // MARK: Computed Properties
+    public init() {
+        self.renderTarget = .window(.empty)
+    }
     
     public var viewMatrix: Transform3D = .identity
     
-    // MARK: - Internal
-    
-    private var resizeEvent: AnyCancellable?
-    
-    internal private(set) var projectionMatrix: Transform3D = .identity
-    
-    func makeCameraData() -> CameraData {
-        let viewMatrix = self.entity.flatMap { entity in
-            entity.scene?.worldTransformMatrix(for: entity)
-        } ?? .identity
+    func makeCameraData(transform: Transform) -> CameraData {
+        let projectionMatrix = self.computedData.projectionMatrix
         
         return CameraData(
-            projection: self.projectionMatrix,
-            viewProjection: self.projectionMatrix * viewMatrix.inverse,
-            position: self.transform.position
+            projection: projectionMatrix,
+            viewProjection: projectionMatrix * viewMatrix,
+            position: transform.position
         )
-    }
-    
-    private func updateProjectionMatrix() {
-        let viewportSize = self.viewport?.size ?? .zero
-        
-        let projection: Transform3D
-        let aspectRation = viewportSize.width / viewportSize.height
-        
-        switch self.projection {
-        case .orthographic:
-            projection = Transform3D.orthographic(
-                left: -aspectRation * self.orthographicScale,
-                right: aspectRation * self.orthographicScale,
-                top: self.orthographicScale,
-                bottom: -self.orthographicScale,
-                zNear: self.near,
-                zFar: self.far
-            )
-        case .perspective:
-            projection = Transform3D.perspective(
-                fieldOfView: self.fieldOfView,
-                aspectRatio: aspectRation,
-                zNear: self.near,
-                zFar: self.far
-            )
-        }
-        
-        self.projectionMatrix = projection
-    }
-    
-    // TODO: (Vlad) looks like we should update projection in CameraSystem
-    private func onViewportResized(_ event: ViewportEvents.DidResize) {
-        self.updateProjectionMatrix()
     }
 }
 
@@ -158,5 +113,14 @@ extension Camera {
         let projection: Transform3D
         let viewProjection: Transform3D
         let position: Vector3
+    }
+    
+    public struct CameraComputedData: DefaultValue {
+        
+        public static var defaultValue: Camera.CameraComputedData = .init()
+        
+        public internal(set) var projectionMatrix: Transform3D = .identity
+        public internal(set) var viewMatrix: Transform3D = .identity
+        public internal(set) var frustum: Frustum = Frustum()
     }
 }

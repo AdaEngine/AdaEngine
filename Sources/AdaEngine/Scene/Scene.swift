@@ -19,11 +19,10 @@ public final class Scene: Resource {
     
     public var name: String
     public private(set) var id: UUID
-
-    // TODO: Remove it later
-    public internal(set) var defaultCamera: Camera
     
-    public internal(set) weak var viewport: Viewport?
+    public internal(set) weak var window: Window?
+    
+    public private(set) var defaultCamera: CameraEntity
     
     public var resourcePath: String = ""
     public var resourceName: String = ""
@@ -50,15 +49,10 @@ public final class Scene: Resource {
         self.world = World()
         
         let cameraEntity = CameraEntity()
-        let cameraComponent = Camera()
-        cameraComponent.isActive = true
-        cameraEntity.components += cameraComponent
-        
+        self.defaultCamera = cameraEntity
         defer {
             self.addEntity(cameraEntity)
         }
-        
-        self.defaultCamera = cameraComponent
     }
     
     // MARK: - Resource -
