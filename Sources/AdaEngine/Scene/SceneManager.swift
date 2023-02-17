@@ -9,13 +9,12 @@ public class SceneManager {
     
     public var currentScene: Scene?
     
-    weak var window: Window? {
-        didSet {
-            self.currentScene?.window = self.window
-        }
-    }
+    /// View where all renders happend
+    public internal(set) weak var sceneView: SceneView?
     
     // MARK: - Private
+    
+    private weak var window: Window?
     
     internal init() { }
     
@@ -27,11 +26,21 @@ public class SceneManager {
         self.currentScene?.update(deltaTime)
     }
     
+    func setViewport(_ viewport: Viewport) {
+        self.currentScene?.viewport = viewport
+    }
+    
+    func setWindow(_ window: Window?) {
+        self.currentScene?.window = window
+        self.window = window
+    }
+    
     // MARK: - Public Methods
     
     public func presentScene(_ scene: Scene) {
         scene.sceneManager = self
         scene.window = self.window
+        scene.viewport = self.sceneView?.viewport ?? Viewport()
         self.currentScene = scene
     }
     

@@ -9,7 +9,7 @@ public final class CameraEntity: Entity {
     
     public var camera: Camera {
         get {
-            self.components[Camera.self] ?? Camera()
+            self.components[Camera.self]!
         }
         
         set {

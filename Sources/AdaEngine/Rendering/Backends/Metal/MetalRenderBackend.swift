@@ -10,7 +10,7 @@ enum BufferIndex {
     static let material = 2
 }
 
-// TODO: (Vlad) We should support bgra8Unorm_srgb
+// TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
 #if METAL
 import Metal
@@ -322,7 +322,6 @@ extension MetalRenderBackend {
     
     // TODO: (Vlad) think about it later
     func getImage(for texture2D: RID) -> Image? {
-        
         return nil
         
 //        let mtlTexture = texture.resource
@@ -374,23 +373,17 @@ extension MetalRenderBackend {
         let mtlRenderPass = window.getRenderPass()
         mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
         
-        let renderPass = MetalRenderPass(renderPass: mtlRenderPass)
-        
-        guard let mtlCommandBuffer = window.commandBuffer else {
+        guard let mtlCommandBuffer = window.commandQueue.makeCommandBuffer() else {
             fatalError("Command Buffer not exists")
         }
         
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
         let commandBuffer = MetalRenderCommandBuffer(
             encoder: encoder,
-            commandBuffer: mtlCommandBuffer,
-            shouldCommit: false
+            commandBuffer: mtlCommandBuffer
         )
         
-        return DrawList(
-            renderPass: renderPass,
-            commandBuffer: commandBuffer
-        )
+        return DrawList(commandBuffer: commandBuffer)
     }
     
     func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList {
@@ -408,18 +401,13 @@ extension MetalRenderBackend {
             }
         }
         
-        let renderPass = MetalRenderPass(renderPass: mtlRenderPassDesc)
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPassDesc)!
         let commandBuffer = MetalRenderCommandBuffer(
             encoder: encoder,
-            commandBuffer: mtlCommandBuffer,
-            shouldCommit: true
+            commandBuffer: mtlCommandBuffer
         )
         
-        return DrawList(
-            renderPass: renderPass,
-            commandBuffer: commandBuffer
-        )
+        return DrawList(commandBuffer: commandBuffer)
     }
     
     // MARK: - Uniforms -
@@ -477,7 +465,8 @@ extension MetalRenderBackend {
         }
         
         if list.isViewportEnabled {
-            let rect = list.viewportRect
+            let viewport = list.viewport
+            let rect = viewport.rect
             
             encoder.setViewport(
                 MTLViewport(
@@ -485,8 +474,8 @@ extension MetalRenderBackend {
                     originY: Double(rect.origin.y),
                     width: Double(rect.size.width),
                     height: Double(rect.size.height),
-                    znear: Double(0),
-                    zfar: Double(1)
+                    znear: Double(viewport.depth.lowerBound),
+                    zfar: Double(viewport.depth.upperBound)
                 )
             )
         }
@@ -549,10 +538,7 @@ extension MetalRenderBackend {
         
         commandBuffer.encoder.endEncoding()
         
-        // TODO: Think about it later.
-        if commandBuffer.shouldCommit {
-            commandBuffer.commandBuffer.commit()
-        }
+        commandBuffer.commandBuffer.commit()
     }
 }
 
@@ -762,12 +748,10 @@ public protocol DrawCommandBuffer {
 class MetalRenderCommandBuffer: DrawCommandBuffer {
     let encoder: MTLRenderCommandEncoder
     let commandBuffer: MTLCommandBuffer
-    let shouldCommit: Bool
     
-    init(encoder: MTLRenderCommandEncoder, commandBuffer: MTLCommandBuffer, shouldCommit: Bool) {
+    init(encoder: MTLRenderCommandEncoder, commandBuffer: MTLCommandBuffer) {
         self.encoder = encoder
         self.commandBuffer = commandBuffer
-        self.shouldCommit = shouldCommit
     }
 }
 

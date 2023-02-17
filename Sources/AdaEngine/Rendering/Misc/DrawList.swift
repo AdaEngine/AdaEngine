@@ -18,7 +18,6 @@ public final class DrawList {
         let function: ShaderFunction
     }
     
-    let renderPass: RenderPass
     let commandBuffer: DrawCommandBuffer
     
     static let maximumUniformsCount = 16
@@ -38,11 +37,10 @@ public final class DrawList {
     private(set) var indexPrimitive: IndexPrimitive = .triangle
     private(set) var isScissorEnabled: Bool = false
     private(set) var scissorRect: Rect = .zero
-    private(set) var viewportRect: Rect = .zero
+    private(set) var viewport: Viewport = Viewport()
     private(set) var isViewportEnabled: Bool = false
     
-    init(renderPass: RenderPass, commandBuffer: DrawCommandBuffer) {
-        self.renderPass = renderPass
+    init(commandBuffer: DrawCommandBuffer) {
         self.commandBuffer = commandBuffer
     }
     
@@ -91,8 +89,8 @@ public final class DrawList {
         self.indexPrimitive = primitive
     }
     
-    public func setViewport(_ rect: Rect) {
-        self.viewportRect = rect
+    public func setViewport(_ viewport: Viewport) {
+        self.viewport = viewport
     }
     
     public func setViewportEnabled(_ isEnabled: Bool) {
@@ -112,7 +110,7 @@ public final class DrawList {
         self.triangleFillMode = .fill
         self.indexPrimitive = .triangle
         self.scissorRect = .zero
-        self.viewportRect = .zero
+        self.viewport = Viewport()
         self.isScissorEnabled = false
         self.isViewportEnabled = false
     }
