@@ -176,10 +176,13 @@ final class GameScene2D {
         let scene = Scene()
 //        let scene = try ResourceManager.load(scenePath) as Scene
         
-        scene.defaultCamera.camera.projection = .orthographic
-        scene.defaultCamera.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
-        scene.defaultCamera.camera.clearFlags = .solid
-        scene.defaultCamera.camera.orthographicScale = 1.5
+        let cameraEntity = CameraEntity()
+        cameraEntity.camera.projection = .orthographic
+        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
+        cameraEntity.camera.clearFlags = .solid
+        cameraEntity.camera.orthographicScale = 1.5
+        
+        scene.addEntity(cameraEntity)
         
         // DEBUG
 //        scene.debugOptions = [.showPhysicsShapes]
@@ -198,15 +201,19 @@ final class GameScene2D {
         try ResourceManager.save(scene, at: scenePath)
         
         // Change gravitation
-        scene.subscribe(to: SceneEvents.OnReady.self, on: scene) { event in
-            let physicsQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
-            event.scene.performQuery(physicsQuery).forEach { entity in
-                entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -1.62)
-            }
+        scene.subscribe(to: SceneEvents.OnReady.self, on: scene) { [weak self] event in
+            self?.sceneDidReady(event.scene)
         }
         .store(in: &disposeBag)
 
         return scene
+    }
+    
+    private func sceneDidReady(_ scene: Scene) {
+        let physicsQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
+        scene.performQuery(physicsQuery).forEach { entity in
+            entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -1.62)
+        }
     }
     
     private func collisionHandler(for scene: Scene) {

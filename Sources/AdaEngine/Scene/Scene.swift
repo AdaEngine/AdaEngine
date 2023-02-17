@@ -21,8 +21,7 @@ public final class Scene: Resource {
     public private(set) var id: UUID
     
     public internal(set) weak var window: Window?
-    
-    public private(set) var defaultCamera: CameraEntity
+    public internal(set) var viewport: Viewport = Viewport()
     
     public var resourcePath: String = ""
     public var resourceName: String = ""
@@ -47,12 +46,6 @@ public final class Scene: Resource {
         self.id = UUID()
         self.name = name ?? "Scene"
         self.world = World()
-        
-        let cameraEntity = CameraEntity()
-        self.defaultCamera = cameraEntity
-        defer {
-            self.addEntity(cameraEntity)
-        }
     }
     
     // MARK: - Resource -

@@ -10,7 +10,7 @@ public struct Viewport: Codable, Equatable {
     public var rect: Rect
     public var depth: ClosedRange<Float>
 
-    init(rect: Rect = Rect.zero, depth: ClosedRange<Float> = Float(0.0)...Float(1.0)) {
+    public init(rect: Rect = Rect.zero, depth: ClosedRange<Float> = Float(0.0)...Float(1.0)) {
         self.rect = rect
         self.depth = depth
     }
@@ -83,6 +83,8 @@ public struct Camera: Component {
     
     @NoExport
     public internal(set) var computedData: CameraComputedData
+    
+    public var renderOrder: Int = 0
     
     // MARK: - Init
     

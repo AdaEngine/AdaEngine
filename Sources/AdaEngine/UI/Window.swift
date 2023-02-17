@@ -29,7 +29,7 @@ open class Window: View {
         return Application.shared.windowManager
     }
     
-    /// Flag indicates that window can draw itself content in method [draw(with:)](x-source-tag://AdaEngine.Window.drawWithContext).
+    /// Flag indicates that window can draw itself content in method ``draw(in:with:)``.
     open var canDraw: Bool = false
     
     private var _minSize: Size = .zero
