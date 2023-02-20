@@ -5,80 +5,7 @@
 //  Created by v.prusakov on 2/15/23.
 //
 
-// Inspired by Bevy Render Graph
-
-public protocol RenderNode {
-    
-    typealias Context = RenderGraphContext
-    
-    var name: String { get }
-    
-    var inputResources: [RenderSlot] { get }
-    var outputResources: [RenderSlot] { get }
-    
-    func execute(context: Context) -> [RenderSlotValue]
-}
-
-public enum RenderResource {
-    case texture(Texture)
-    case buffer(Buffer)
-    case sampler(Sampler)
-    case entity(Entity)
-}
-
-public extension RenderResource {
-    var resourceKind: RenderResourceKind {
-        switch self {
-        case .texture:
-            return .texture
-        case .buffer:
-            return .buffer
-        case .sampler:
-            return .sampler
-        case .entity:
-            return .entity
-        }
-    }
-    
-    var texture: Texture? {
-        guard case .texture(let texture) = self else {
-            return nil
-        }
-        
-        return texture
-    }
-    
-    var buffer: Buffer? {
-        guard case .buffer(let buffer) = self else {
-            return nil
-        }
-        
-        return buffer
-    }
-    
-    var sampler: Sampler? {
-        guard case .sampler(let sampler) = self else {
-            return nil
-        }
-        
-        return sampler
-    }
-    
-    var entity: Entity? {
-        guard case .entity(let entity) = self else {
-            return nil
-        }
-        
-        return entity
-    }
-}
-
-public enum RenderResourceKind {
-    case texture
-    case buffer
-    case sampler
-    case entity
-}
+// Inspired by Bevy https://github.com/bevyengine/bevy/tree/main/crates/bevy_render/src/render_graph
 
 public struct RenderSlot {
     public let name: String
@@ -113,17 +40,28 @@ enum Edge: Equatable, Hashable {
     }
 }
 
+struct EmptyNode: RenderNode {
+    func execute(context: Context) -> [RenderSlotValue] {
+        return []
+    }
+}
+
 struct GraphEntryNode: RenderNode {
     
-    var name: String = RenderGraph.entryNodeName
+    var inputResources: [RenderSlot]
+    var outputResources: [RenderSlot]
     
-    var inputResources: [RenderSlot] = []
-    var outputResources: [RenderSlot] = []
+    init(inputResources: [RenderSlot]) {
+        self.inputResources = inputResources
+        self.outputResources = inputResources
+    }
     
     func execute(context: Context) -> [RenderSlotValue] {
         return context.inputResources
     }
 }
+
+// Inspired by Bevy Render Graph
 
 public final class RenderGraph {
     
@@ -140,15 +78,18 @@ public final class RenderGraph {
         var outputEdges: [Edge] = []
     }
     
-    internal var nodes: [Node.ID: Node] = [:]
+    internal private(set) var nodes: [Node.ID: Node] = [:]
+    internal private(set) var subGraphs: [String: RenderGraph] = [:]
     
-    internal var entryNode: Node?
+    internal private(set) var entryNode: Node?
     
-    public func addEntry(inputs: [RenderSlot]) {
-        let node = GraphEntryNode(name: Self.entryNodeName, inputResources: inputs, outputResources: inputs)
+    public func addEntryNode(inputs: [RenderSlot]) -> String {
+        let node = GraphEntryNode(inputResources: inputs)
         let renderNode = Node(name: Self.entryNodeName, node: node)
         self.nodes[Self.entryNodeName] = renderNode
         self.entryNode = renderNode
+        
+        return Self.entryNodeName
     }
     
     public func addNode(with name: String, node: RenderNode) {
@@ -163,8 +104,8 @@ public final class RenderGraph {
     ) {
         let oNode = self.nodes[outputNodeName]
         let iNode = self.nodes[inputNodeName]
-        assert(oNode == nil, "Can't find node by name \(outputNodeName)")
-        assert(iNode == nil, "Can't find node by name \(inputNodeName)")
+        assert(oNode != nil, "Can't find node by name \(outputNodeName)")
+        assert(iNode != nil, "Can't find node by name \(inputNodeName)")
         guard var iNode, var oNode else {
             return
         }
@@ -172,8 +113,8 @@ public final class RenderGraph {
         let outputSlotIndex = oNode.node.outputResources.firstIndex(where: { $0.name == outputSlot })
         let inputSlotIndex = iNode.node.inputResources.firstIndex(where: { $0.name == inputSlot })
         
-        assert(outputSlotIndex == nil, "Can't find slot by name \(outputSlot)")
-        assert(inputSlotIndex == nil, "Can't find slot by name \(inputSlot)")
+        assert(outputSlotIndex != nil, "Can't find slot by name \(outputSlot)")
+        assert(inputSlotIndex != nil, "Can't find slot by name \(inputSlot)")
         
         guard var outputSlotIndex, var inputSlotIndex else {
             return
@@ -195,8 +136,8 @@ public final class RenderGraph {
     public func addNodeEdge(from outputNodeName: String, to inputNodeName: String) {
         let oNode = self.nodes[outputNodeName]
         let iNode = self.nodes[inputNodeName]
-        assert(oNode == nil, "Can't find node by name \(outputNodeName)")
-        assert(iNode == nil, "Can't find node by name \(inputNodeName)")
+        assert(oNode != nil, "Can't find node by name \(outputNodeName)")
+        assert(iNode != nil, "Can't find node by name \(inputNodeName)")
         guard var iNode, var oNode else {
             return
         }
@@ -257,14 +198,17 @@ public final class RenderGraph {
         return true
     }
     
+    public func addSubgraph(_ graph: RenderGraph, name: String) {
+        self.subGraphs[name] = graph
+    }
+    
     // MARK: Private
     
-    func getOutputNodes(for node: Node.ID) -> [(Edge, Node)] {
+    internal func getOutputNodes(for node: Node.ID) -> [(Edge, Node)] {
         guard let node = self.nodes[node] else {
             return []
         }
         
-
         return node.outputEdges.compactMap { edge in
             guard let node = self.nodes[edge.inputNode] else {
                 return nil
@@ -274,12 +218,11 @@ public final class RenderGraph {
         }
     }
     
-    func getInputNodes(for node: Node.ID) -> [(Edge, Node)] {
+    internal func getInputNodes(for node: Node.ID) -> [(Edge, Node)] {
         guard let node = self.nodes[node] else {
             return []
         }
         
-
         return node.inputEdges.compactMap { edge in
             guard let node = self.nodes[edge.outputNode] else {
                 return nil
@@ -346,73 +289,4 @@ public final class RenderGraph {
         return true
     }
     
-}
-
-import Collections
-
-public struct RenderGraphContext {
-    public internal(set) var inputResources: [RenderSlotValue]
-}
-
-public class RenderGraphExecutor {
-    public func executeGraph(_ graph: RenderGraph, inputResources: [RenderSlotValue]) {
-        
-        var writtenResources = [RenderGraph.Node.ID: [RenderSlotValue]]()
-        
-        /// Should execute firsts
-        var nodes: Deque<RenderGraph.Node> = Deque(graph.nodes.filter { $0.value.inputEdges.isEmpty }.values)
-        
-        if let entryNode = graph.entryNode {
-            for (index, inputSlot) in entryNode.node.inputResources.enumerated() {
-                let resource = inputResources[index]
-                
-                if resource.value.resourceKind != inputSlot.kind {
-                    fatalError("Mismatched slot type")
-                }
-                   
-            }
-            
-            writtenResources[entryNode.name] = inputResources
-            
-            for (_, node) in graph.getOutputNodes(for: entryNode.name) {
-                nodes.prepend(node)
-            }
-        }
-        
-        nextNode: while let node = nodes.popLast() {
-            // if we has a outputs for node we should skip it
-            if writtenResources[node.name] != nil {
-                continue
-            }
-            
-            var inputSlots: [(Int, RenderSlotValue)] = []
-            
-            for (edge, inputNode) in graph.getInputNodes(for: node.name) {
-                switch edge {
-                case .slot(_, let outputSlotIndex, _, let inputSlotIndex):
-                    if let outputs = writtenResources[inputNode.name] {
-                        inputSlots.append(
-                            (
-                                inputSlotIndex,
-                                outputs[outputSlotIndex]
-                            )
-                        )
-                    } else {
-                        nodes.prepend(node)
-                        continue nextNode
-                    }
-                case .node:
-                    if writtenResources[inputNode.name] != nil {
-                        nodes.prepend(node)
-                        continue nextNode
-                    }
-                }
-            }
-            let inputs = inputSlots.sorted(by: { $0.0 > $1.0 }).map { $0.1 }
-            let context = RenderGraphContext(inputResources: inputs)
-            let outputs = node.node.execute(context: context)
-            
-            
-        }
-    }
 }

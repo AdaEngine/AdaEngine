@@ -24,14 +24,16 @@ public final class CameraEntity: Entity {
         camera.isActive = true
         self.components += camera
         self.components += VisibleEntities(entities: [])
+        self.components += RenderItems<Transparent2DRenderItem>()
     }
     
     public init(name: String = "CameraEntity", camera: Camera) {
         super.init(name: name)
         
-        var camera = camera
+        let camera = camera
         camera.isActive = true
         self.components += camera
         self.components += VisibleEntities(entities: [])
+        self.components += RenderItems<Transparent2DRenderItem>()
     }
 }

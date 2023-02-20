@@ -52,8 +52,6 @@ public class RenderEngine2D {
     private static let maxLineVertices = maxLines * 2
     private static let maxLineIndices = maxLines * 6
     
-    private let framebuffer: Framebuffer
-    
     // TODO: (Vlad) Maybe we should split this code
     // swiftlint:disable:next function_body_length
     init() {
@@ -61,21 +59,6 @@ public class RenderEngine2D {
         
         self.uniformSet = device.makeUniformBufferSet()
         self.uniformSet.initBuffers(for: Uniform.self, binding: Bindings.cameraUniform, set: 0)
-        
-        var framebufferDesc = FramebufferDescriptor()
-        framebufferDesc.sampleCount = 1
-        framebufferDesc.scale = Screen.main?.scale ?? 1
-        framebufferDesc.attachments = [
-            FramebufferAttachmentDescriptor(
-                format: .bgra8,
-                loadAction: .dontCare
-            ),
-            FramebufferAttachmentDescriptor(
-                format: .depth_32f_stencil8
-            )
-        ]
-        
-        self.framebuffer = device.makeFramebuffer(from: framebufferDesc)
         
         self.quadPosition = [
             [-0.5, -0.5,  0.0, 1.0],
@@ -114,20 +97,6 @@ public class RenderEngine2D {
         self.textureSlots[0] = self.whiteTexture
         
         let indexArray = device.makeIndexArray(indexBuffer: quadIndexBuffer, indexOffset: 0, indexCount: Self.maxIndecies)
-        
-        var stencilDesc = StencilOperationDescriptor()
-        stencilDesc.fail = .zero
-        stencilDesc.pass = .zero
-        stencilDesc.depthFail = .zero
-        stencilDesc.compare = .always
-        
-        var depthStencilDesc = DepthStencilDescriptor()
-        depthStencilDesc.isEnableStencil = true
-        depthStencilDesc.stencilOperationDescriptor = stencilDesc
-        
-        depthStencilDesc.isDepthTestEnabled = true
-        depthStencilDesc.isDepthWriteEnabled = true
-        depthStencilDesc.depthCompareOperator = .less
         
         var samplerDesc = SamplerDescriptor()
         samplerDesc.magFilter = .nearest

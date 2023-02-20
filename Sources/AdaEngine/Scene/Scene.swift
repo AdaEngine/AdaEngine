@@ -13,6 +13,8 @@ enum SceneSerializationError: Error {
     case notRegistedObject(Any)
 }
 
+// FIXME: (Vlad) Systems should updated and stored in a DAG graph
+
 public final class Scene: Resource {
     
     static var currentVersion: Version = "1.0.0"
@@ -32,7 +34,7 @@ public final class Scene: Resource {
     
     private(set) var eventManager: EventManager = EventManager.default
     
-    public private(set) lazy var sceneRenderer = SceneRendering(scene: self)
+    public private(set) lazy var sceneRenderGraph = RenderGraph()
     
     // Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
@@ -130,6 +132,9 @@ public final class Scene: Resource {
     func ready() {
         // TODO: In the future we need minimal scene plugin for headless mode.
         self.addPlugin(DefaultScenePlugin())
+        
+        self.systems = self.sortSystems(self.systems)
+        
         self.isReady = true
         
         self.world.tick() // prepare all values
@@ -141,6 +146,7 @@ public final class Scene: Resource {
         
         let context = SceneUpdateContext(scene: self, deltaTime: deltaTime)
         
+        // FIXME: change it to DAG graph runner
         for system in self.systems {
             system.update(context: context)
         }
@@ -212,13 +218,13 @@ public extension Scene {
 // MARK: - Private
 
 extension Scene {
-    // TODO: (Vlad) Not sure that it's good solution
+    // FIXME: (Vlad) Replace it to DAG graph
     private func sortSystems(_ systems: [System]) -> [System] {
         var sortedSystems = systems
 
         for var systemIndex in 0 ..< systems.count {
-            let system = systems[systemIndex]
-            let dependencies = type(of: system).dependencies
+            let currentSystem = systems[systemIndex]
+            let dependencies = type(of: currentSystem).dependencies
 
             for dependency in dependencies {
                 switch dependency {

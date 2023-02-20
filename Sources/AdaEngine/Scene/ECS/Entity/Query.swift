@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
+// TODO: (Vlad) add state for entity. Update once per tick
+
 /// This object describe query to ecs world.
 ///
 /// ```swift

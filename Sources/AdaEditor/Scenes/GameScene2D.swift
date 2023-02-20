@@ -118,8 +118,8 @@ class TubeSpawnerSystem: System {
             
             var transform = Transform()
             transform.scale = [0.4, 1, 1]
-            transform.position.z = -4
-            let position = Vector3(x: 4, y: Float.random(in: 0.4 ... 1.2), z: 0)
+            
+            let position = Vector3(x: 4, y: Float.random(in: 0.4 ... 1.2), z: -1)
             transform.position = position
             
 //            self.spawnTube(in: context.scene, transform: transform, isUp: true)

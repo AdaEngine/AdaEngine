@@ -7,6 +7,7 @@
 
 // TODO: Add export name
 // TODO: Add more options for export
+// TODO: Should me mutating
 
 /// Fields marked as `@Export` can be serializable and deserializable.
 /// - Note: You can use `private`, `fileprivate` modifiers, because `@Export` use reflection

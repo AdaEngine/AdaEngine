@@ -114,4 +114,8 @@ public final class DrawList {
         self.isScissorEnabled = false
         self.isViewportEnabled = false
     }
+    
+    public func drawIndexed(indexCount: Int, instancesCount: Int) {
+        RenderEngine.shared.draw(self, indexCount: indexCount, instancesCount: instancesCount)
+    }
 }
