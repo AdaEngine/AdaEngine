@@ -32,7 +32,7 @@ public final class World {
     
     // MARK: - Methods
     
-    func getEntities() -> [Entity] {
+    public func getEntities() -> [Entity] {
         return self.records.values
             .map { record in
                 let archetype = self.archetypes[record.archetypeId]
@@ -41,7 +41,7 @@ public final class World {
             .compactMap { $0 }
     }
     
-    func getEntityByID(_ entityID: Entity.ID) -> Entity? {
+    public func getEntityByID(_ entityID: Entity.ID) -> Entity? {
         guard let record = self.records[entityID] else {
             return nil
         }
@@ -196,7 +196,7 @@ public final class World {
 
 extension World {
     // FIXME: (Vlad) We should avoid additional allocation
-    func performQuery(_ query: EntityQuery) -> QueryResult {
+    public func performQuery(_ query: EntityQuery) -> QueryResult {
         let archetypes = self.archetypes.filter {
             query.predicate.evaluate($0)
         }

@@ -19,6 +19,18 @@ struct Physics2DPlugin: ScenePlugin {
         physicsWorldEntity.components += Physics2DWorldComponent(world: world)
         
         scene.addEntity(physicsWorldEntity)
+        scene.addSystem(DebugPhysics2DSystem.self)
         scene.addSystem(Physics2DSystem.self)
+    }
+}
+
+struct DebugPhysics2DSystem: System {
+    
+    static var dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
+    
+    init(scene: Scene) { }
+    
+    func update(context: UpdateContext) {
+
     }
 }

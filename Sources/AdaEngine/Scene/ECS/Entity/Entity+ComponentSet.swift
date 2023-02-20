@@ -19,27 +19,27 @@ public extension Entity {
         }
         
         private(set) var buffer: OrderedDictionary<ComponentId, Component>
-        private(set) var bitset: Bitset
+        private(set) var bitset: BitSet
         
         // MARK: - Codable
         
         init() {
-            self.bitset = Bitset()
+            self.bitset = BitSet()
             self.buffer = [:]
         }
         
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
             self.buffer = OrderedDictionary<ComponentId, Component>.init(minimumCapacity: container.allKeys.count)
-            self.bitset = Bitset(count: container.allKeys.count)
+            self.bitset = BitSet(reservingCapacity: container.allKeys.count)
             
             for key in container.allKeys {
                 guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue) else {
                     continue
                 }
 
-                let component = try type.init(from: container.superDecoder(forKey: key))
-                self.set(component)
+//                let component = try type.init(from: container.superDecoder(forKey: key))
+//                self.set(component)
             }
         }
         
@@ -47,8 +47,8 @@ public extension Entity {
             var container = encoder.container(keyedBy: CodingName.self)
             
             for value in self.buffer.values {
-                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
-                try value.encode(to: superEncoder)
+//                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
+//                try value.encode(to: superEncoder)
             }
         }
 
@@ -109,6 +109,21 @@ public extension Entity {
             if let ent = self.entity {
                 self.world?.entity(ent, didRemoveComponent: componentType, with: identifier)
             }
+        }
+        
+        public mutating func removeAll(keepingCapacity: Bool = false) {
+            for component in self.buffer.values.elements {
+                let componentType = type(of: component)
+                (component as? ScriptComponent)?.destroy()
+                
+                if let ent = self.entity {
+                    self.world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
+                }
+            }
+            
+            self.bitset = BitSet(reservingCapacity: self.buffer.count)
+            
+            self.buffer.removeAll(keepingCapacity: keepingCapacity)
         }
         
         /// The number of components in the set.
