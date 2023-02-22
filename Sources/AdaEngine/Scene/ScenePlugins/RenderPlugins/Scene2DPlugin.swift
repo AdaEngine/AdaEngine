@@ -42,16 +42,16 @@ public struct Scene2DPlugin: ScenePlugin {
 
 public struct ClearTransparent2DRenderItemsSystem: System {
     
-    public static var dependencies: [SystemDependency] = [.before(CameraSystem.self)]
+    public static var dependencies: [SystemDependency] = [.before(SpriteRenderSystem.self)]
     
     static let query = EntityQuery(where: .has(RenderItems<Transparent2DRenderItem>.self))
     
     public init(scene: Scene) { }
     
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
-            entity.components[RenderItems<Transparent2DRenderItem>.self]?.items.removeAll()
-        }
+//        context.scene.performQuery(Self.query).forEach { entity in
+//            entity.components[RenderItems<Transparent2DRenderItem>.self]?.items.removeAll()
+//        }
     }
 }
 
@@ -80,8 +80,7 @@ public struct Main2DRenderNode: RenderNode {
             return []
         }
         
-        renderItems.sort()
-        
+        let sortedRenderItems = renderItems.sorted()
         let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .gray
         
         let drawList: DrawList
@@ -112,9 +111,13 @@ public struct Main2DRenderNode: RenderNode {
             drawList.setViewport(viewport)
         }
         
-        try renderItems.render(drawList, scene: context.scene, view: entity)
+        try sortedRenderItems.render(drawList, world: context.world, view: entity)
         
         RenderEngine.shared.endDrawList(drawList)
+        
+        // FIXME: Should be removed from here when we add a scene system graph
+        renderItems.items.removeAll(keepingCapacity: true)
+        entity.components[RenderItems<Transparent2DRenderItem>.self] = renderItems
         
         return []
     }
@@ -131,26 +134,32 @@ public struct RenderItems<T: RenderItem>: Component {
         self.items.sort(by: { $0.sortKey < $1.sortKey })
     }
     
-    public func sortedItems() -> [T] {
-        self.items.sorted(by: { $0.sortKey < $1.sortKey })
+    public func sorted() -> Self {
+        var value = self
+        value.items.sort(by: { $0.sortKey < $1.sortKey })
+        return value
     }
     
-    public func render(_ renderPass: DrawList, scene: Scene, view: Entity) throws {
+    public func render(_ drawList: DrawList, world: World, view: Entity) throws {
         for item in self.items {
-            guard let drawPass = DrawPassStorage.getDrawPass(by: item.drawPassId) else {
+            guard let drawPass = DrawPassStorage.getDrawPass(for: item) else {
                 continue
             }
             
             let context = RenderContext(
                 device: .shared,
                 entity: item.entity,
-                scene: scene,
+                world: world,
                 view: view,
-                renderPass: renderPass
+                drawList: drawList
             )
             
-            try drawPass.render(in: context)
+            try drawPass.render(in: context, item: item)
         }
+    }
+    
+    private func render(in context: RenderContext, item: T, drawPass: any DrawPass<T>) throws {
+        try drawPass.render(in: context, item: item)
     }
 }
 
@@ -170,16 +179,17 @@ public protocol RenderItem {
 public struct RenderContext {
     public let device: RenderEngine
     public let entity: Entity
-    public let scene: Scene
+    public let world: World
     public let view: Entity
-    public let renderPass: DrawList
+    public let drawList: DrawList
 }
 
-public protocol DrawPass {
+public protocol DrawPass<Item> {
     
+    associatedtype Item: RenderItem
     typealias Context = RenderContext
     
-    func render(in context: Context) throws
+    func render(in context: Context, item: Item) throws
 }
 
 public extension DrawPass {
@@ -191,22 +201,27 @@ public extension DrawPass {
 
 public struct Transparent2DRenderItem: RenderItem {
     public var entity: Entity
+    public var batchEntity: Entity
     public var drawPassId: DrawPassId
     public var renderPipeline: RenderPipeline
     public var sortKey: Float
-    public var batchRange: Range<Int>?
+    public var batchRange: Range<Int32>?
 }
 
 public enum DrawPassStorage {
     
-    private static var draws: [DrawPassId: DrawPass] = [:]
+    private static var draws: [DrawPassId: any DrawPass] = [:]
     
     private static let lock: NSLock = NSLock()
     
-    public static func getDrawPass(by identifier: DrawPassId) -> DrawPass? {
+    public static func getDrawPass<I: RenderItem>(for item: I) -> AnyDrawPass<I>? {
         lock.lock()
         defer { lock.unlock() }
-        return draws[identifier]
+        guard let drawPass = draws[item.drawPassId] else {
+            return nil
+        }
+        
+        return AnyDrawPass(drawPass)
     }
     
     public static func setDrawPass<T: DrawPass>(_ drawPass: T) {
@@ -224,8 +239,24 @@ public struct SpritePlugin: ScenePlugin {
     
     public func setup(in scene: Scene) {
         scene.addSystem(SpriteRenderSystem.self)
+        scene.addSystem(BatchTransparent2DItemsSystem.self)
         
         let spriteDraw = SpriteDrawPass()
         DrawPassStorage.setDrawPass(spriteDraw)
+    }
+}
+
+public struct AnyDrawPass<T: RenderItem>: DrawPass {
+    
+    private var render: (Context, Any) throws -> Void
+    
+    public init<Value: DrawPass>(_ base: Value) {
+        self.render = { context, item in
+            try base.render(in: context, item: item as! Value.Item)
+        }
+    }
+    
+    public func render(in context: Context, item: T) throws {
+        try render(context, item)
     }
 }

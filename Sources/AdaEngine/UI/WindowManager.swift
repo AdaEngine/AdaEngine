@@ -27,7 +27,7 @@ open class WindowManager {
     
     public init() { }
     
-    lazy var renderEngine = RenderEngine2D.default
+    lazy var renderEngine = Renderer2D.default
     
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) {

@@ -30,7 +30,7 @@ public class SceneManager {
         currentScene.update(deltaTime)
         
         do {
-            try self.renderGraphExecutor.execute(currentScene.sceneRenderGraph, in: currentScene)
+            try self.renderGraphExecutor.execute(currentScene.sceneRenderGraph, in: currentScene.world)
         } catch {
             fatalError(error.localizedDescription)
         }

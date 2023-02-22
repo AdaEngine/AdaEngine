@@ -166,8 +166,7 @@ public extension Scene {
 
 public extension Scene {
     func addEntity(_ entity: Entity) {
-        precondition(entity.scene == nil, "Entity has scene reference, can't be added")
-        entity.scene = self
+        precondition(entity.world !== self.world, "Entity has different world reference, and can't be added")
         self.world.appendEntity(entity)
         
         self.eventManager.send(SceneEvents.DidAddEntity(entity: entity), source: self)

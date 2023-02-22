@@ -15,7 +15,7 @@ public extension Entity {
         internal weak var entity: Entity?
         
         var world: World? {
-            return self.entity?.scene?.world
+            return self.entity?.world
         }
         
         private(set) var buffer: OrderedDictionary<ComponentId, Component>

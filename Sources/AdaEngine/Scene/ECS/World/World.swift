@@ -68,6 +68,8 @@ public final class World {
             }
         }
         
+        entity.world = self
+        
         self.updatedEntities.insert(entity)
         self.addedEntities.insert(entity.id)
     }

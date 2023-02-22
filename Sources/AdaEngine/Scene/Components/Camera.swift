@@ -98,24 +98,9 @@ public struct Camera: Component {
     }
     
     public var viewMatrix: Transform3D = .identity
-    
-    func makeCameraData(transform: Transform) -> CameraData {
-        let projectionMatrix = self.computedData.projectionMatrix
-        
-        return CameraData(
-            projection: projectionMatrix,
-            viewProjection: projectionMatrix * viewMatrix,
-            position: transform.position
-        )
-    }
 }
 
 extension Camera {
-    struct CameraData {
-        let projection: Transform3D
-        let viewProjection: Transform3D
-        let position: Vector3
-    }
     
     public struct CameraComputedData: DefaultValue {
         
@@ -125,4 +110,10 @@ extension Camera {
         public internal(set) var viewMatrix: Transform3D = .identity
         public internal(set) var frustum: Frustum = Frustum()
     }
+}
+
+public struct ViewUniform: Component {
+    var projectionMatrix: Transform3D = .identity
+    var viewProjectionMatrix: Transform3D = .identity
+    var viewMatrix: Transform3D = .identity
 }
