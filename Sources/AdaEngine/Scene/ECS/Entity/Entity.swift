@@ -19,7 +19,7 @@ open class Entity: Identifiable {
     
     public var components: ComponentSet
     
-    public internal(set) weak var scene: Scene?
+    public internal(set) weak var world: World?
     
     public var children: [Entity] {
         guard let relationship = self.components[RelationshipComponent.self] else {
@@ -27,7 +27,7 @@ open class Entity: Identifiable {
         }
         
         return relationship.children.compactMap {
-            self.scene?.world.getEntityByID($0)
+            self.world?.getEntityByID($0)
         }
     }
     
@@ -36,7 +36,7 @@ open class Entity: Identifiable {
             return nil
         }
         
-        return self.scene?.world.getEntityByID(parent)
+        return self.world?.getEntityByID(parent)
     }
     
     public init(name: String = "Entity") {
@@ -77,7 +77,7 @@ open class Entity: Identifiable {
     // MARK: - Public
     
     public func removeFromScene() {
-        self.scene?.removeEntity(self)
+        self.world?.removeEntityOnNextTick(self)
     }
     
 }

@@ -8,13 +8,13 @@
 public class RenderGraphContext {
     public let graph: RenderGraph
     public let device: RenderEngine
-    public let scene: Scene
+    public let world: World
     public internal(set) var inputResources: [RenderSlotValue]
     
-    init(graph: RenderGraph, scene: Scene, device: RenderEngine, inputResources: [RenderSlotValue]) {
+    init(graph: RenderGraph, world: World, device: RenderEngine, inputResources: [RenderSlotValue]) {
         self.graph = graph
         self.device = device
-        self.scene = scene
+        self.world = world
         self.inputResources = inputResources
     }
     

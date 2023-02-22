@@ -14,7 +14,7 @@ struct ViewContainerSystem: System {
     
     init(scene: Scene) { }
     
-    let renderer2D = RenderEngine2D.default
+    let renderer2D = Renderer2D.default
     
     func update(context: UpdateContext) {
 //        let guiRenderContext = GUIRenderContext(window: context.scene.window!.id, engine: renderer2D)

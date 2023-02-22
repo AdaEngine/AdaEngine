@@ -17,7 +17,7 @@ struct CameraRenderNode: RenderNode {
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
     
     func execute(context: Context) -> [RenderSlotValue] {
-        context.scene.performQuery(Self.query).forEach { entity in
+        context.world.performQuery(Self.query).forEach { entity in
             guard let camera = entity.components[Camera.self], camera.isActive else {
                 return
             }

@@ -1,5 +1,5 @@
 //
-//  RenderEngine2D.swift
+//  Renderer2D.swift
 //  
 //
 //  Created by v.prusakov on 5/10/22.
@@ -9,7 +9,7 @@ import Math
 
 // TODO: (Vlad) Fix depth stencil
 // TODO: (Vlad) Store render pass 
-public class RenderEngine2D {
+public class Renderer2D {
     
     enum Bindings {
         static let cameraUniform: Int = 1
@@ -23,7 +23,7 @@ public class RenderEngine2D {
         var viewProjection: Transform3D = .identity
     }
     
-    public static let `default` = RenderEngine2D()
+    public static let `default` = Renderer2D()
     
     private var uniformSet: UniformBufferSet
     
@@ -180,7 +180,7 @@ public class RenderEngine2D {
             binding: 0
         )
         
-        self.quadData =  Data<QuadVertexData>(
+        self.quadData = Data<QuadVertexData>(
             vertexBuffer: quadVertexBuffer,
             vertices: [],
             indeciesCount: 0,
@@ -254,13 +254,11 @@ public class RenderEngine2D {
         return context
     }
     
-    public func beginContext(for camera: Camera, transform: Transform) -> DrawContext {
-        let data = camera.makeCameraData(transform: transform)
-        
+    public func beginContext(for camera: Camera, viewUniform: ViewUniform, transform: Transform) -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)
-        uniform.setData(Uniform(viewProjection: data.viewProjection))
+        uniform.setData(Uniform(viewProjection: viewUniform.viewProjectionMatrix))
         
         let currentDraw: DrawList
         
@@ -293,7 +291,7 @@ public class RenderEngine2D {
     }
 }
 
-extension RenderEngine2D {
+extension Renderer2D {
     public class DrawContext {
         
         let currentDraw: DrawList
@@ -302,10 +300,10 @@ extension RenderEngine2D {
         
         private var lineWidth: Float = 1
         
-        private let renderEngine: RenderEngine2D
+        private let renderEngine: Renderer2D
         private let frameIndex: Int
         
-        init(currentDraw: DrawList, renderEngine: RenderEngine2D, frameIndex: Int) {
+        init(currentDraw: DrawList, renderEngine: Renderer2D, frameIndex: Int) {
             self.currentDraw = currentDraw
             self.renderEngine = renderEngine
             self.frameIndex = frameIndex
@@ -318,7 +316,7 @@ extension RenderEngine2D {
         
         public func drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color) {
             
-            if self.renderEngine.quadData.indeciesCount >= RenderEngine2D.maxIndecies {
+            if self.renderEngine.quadData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()
             }
             
@@ -394,7 +392,7 @@ extension RenderEngine2D {
             fade: Float,
             color: Color
         ) {
-            if self.renderEngine.circleData.indeciesCount >= RenderEngine2D.maxIndecies {
+            if self.renderEngine.circleData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()
             }
             
@@ -414,7 +412,7 @@ extension RenderEngine2D {
         }
         
         public func drawLine(start: Vector3, end: Vector3, color: Color) {
-            if self.renderEngine.lineData.indeciesCount >= RenderEngine2D.maxLineIndices {
+            if self.renderEngine.lineData.indeciesCount >= Renderer2D.maxLineIndices {
                 self.nextBatch()
             }
             
@@ -506,7 +504,7 @@ extension RenderEngine2D {
 
 // MARK: - Utilities
 
-fileprivate extension RenderEngine2D {
+fileprivate extension Renderer2D {
     
     struct CircleVertexData {
         let worldPosition: Vector4

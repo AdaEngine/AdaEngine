@@ -11,12 +11,12 @@ import Collections
 
 public class RenderGraphExecutor {
     
-    public func execute(_ graph: RenderGraph, in scene: Scene) throws {
-        try self.executeGraph(graph, scene: scene, inputResources: [])
+    public func execute(_ graph: RenderGraph, in world: World) throws {
+        try self.executeGraph(graph, world: world, inputResources: [])
     }
     
     // swiftlint:disable:next cyclomatic_complexity
-    private func executeGraph(_ graph: RenderGraph, scene: Scene, inputResources: [RenderSlotValue]) throws {
+    private func executeGraph(_ graph: RenderGraph, world: World, inputResources: [RenderSlotValue]) throws {
         var writtenResources = [RenderGraph.Node.ID: [RenderSlotValue]]()
         
         /// Should execute firsts
@@ -69,11 +69,11 @@ public class RenderGraphExecutor {
                 }
             }
             let inputs = inputSlots.sorted(by: { $0.0 > $1.0 }).map { $0.1 }
-            let context = RenderGraphContext(graph: graph, scene: scene, device: RenderEngine.shared, inputResources: inputs)
+            let context = RenderGraphContext(graph: graph, world: world, device: RenderEngine.shared, inputResources: inputs)
             let outputs = try currentNode.node.execute(context: context)
             
             for (subGraph, inputValues) in context.pendingSubgraphs {
-                try self.executeGraph(subGraph, scene: scene, inputResources: inputValues)
+                try self.executeGraph(subGraph, world: world, inputResources: inputValues)
             }
             
             precondition(outputs.count == currentNode.node.outputResources.count)

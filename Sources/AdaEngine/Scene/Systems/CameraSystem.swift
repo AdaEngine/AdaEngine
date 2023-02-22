@@ -20,13 +20,19 @@ struct CameraSystem: System {
                 return
             }
             
-            let viewMatrix = context.scene.worldTransformMatrix(for: entity).inverse
+            let transform = context.scene.worldTransformMatrix(for: entity)
+            let viewMatrix = transform.inverse
             camera.viewMatrix = viewMatrix
             
             self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
             self.updateProjectionMatrix(for: &camera)
             self.updateFrustum(for: &camera)
             
+            entity.components[ViewUniform.self] = ViewUniform(
+                projectionMatrix: camera.computedData.projectionMatrix,
+                viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
+                viewMatrix: camera.viewMatrix
+            )
             entity.components[Camera.self] = camera
         }
     }
