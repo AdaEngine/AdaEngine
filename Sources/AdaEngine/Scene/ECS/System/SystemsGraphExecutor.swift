@@ -7,12 +7,15 @@
 
 import Collections
 
+// TODO: Add parallels execution for nodes without inputs
+
 class SystemsGraphExecutor {
     func execute(_ graph: SystemsGraph, context: SceneUpdateContext) {
         var completedSystems: Set<String> = []
         completedSystems.reserveCapacity(graph.nodes.count)
         
-        var nodes: Deque<SystemsGraph.Node> = Deque(graph.nodes.filter { $0.value.inputEdges.isEmpty }.values)
+        let values = graph.nodes.values.elements.filter { $0.inputEdges.isEmpty }
+        var nodes: Deque<SystemsGraph.Node> = Deque(values)
         
     nextNode:
         while let currentNode = nodes.popLast() {

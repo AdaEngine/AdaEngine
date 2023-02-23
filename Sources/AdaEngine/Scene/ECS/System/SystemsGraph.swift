@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 2/23/23.
 //
 
+import OrderedCollections
+
 class SystemsGraph {
     
     struct Edge: Equatable {
@@ -24,7 +26,7 @@ class SystemsGraph {
         var outputEdges: [Edge] = []
     }
     
-    private(set) var nodes: [String: Node] = [:]
+    private(set) var nodes: OrderedDictionary<String, Node> = [:]
     
     func addSystem<T: System>(_ system: T) {
         let node = Node(name: T.swiftName, system: system, dependencies: T.dependencies)
