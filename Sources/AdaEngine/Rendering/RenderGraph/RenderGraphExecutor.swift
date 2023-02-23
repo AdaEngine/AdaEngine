@@ -62,7 +62,7 @@ public class RenderGraphExecutor {
                         continue nextNode
                     }
                 case .node:
-                    if writtenResources[inputNode.name] != nil {
+                    if writtenResources[inputNode.name] == nil {
                         nodes.prepend(currentNode)
                         continue nextNode
                     }

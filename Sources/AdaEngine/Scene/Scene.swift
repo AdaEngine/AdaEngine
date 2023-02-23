@@ -36,6 +36,9 @@ public final class Scene: Resource {
     
     public private(set) lazy var sceneRenderGraph = RenderGraph()
     
+    private let systemGraph = SystemsGraph()
+    private let systemGraphExecutor = SystemsGraphExecutor()
+    
     // Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     public var debugPhysicsColor: Color = .green
@@ -112,9 +115,11 @@ public final class Scene: Resource {
     /// Add new system to the scene.
     public func addSystem<T: System>(_ systemType: T.Type) {
         let system = systemType.init(scene: self)
-        self.systems.append(system)
+//        self.systems.append(system)
+        
+        systemGraph.addSystem(system)
 
-        self.systems = self.sortSystems(self.systems)
+//        self.systems = self.sortSystems(self.systems)
     }
     
     /// Add new scene plugin to the scene.
@@ -137,6 +142,8 @@ public final class Scene: Resource {
         
         self.isReady = true
         
+        self.systemGraph.linkSystems()
+        
         self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
     }
@@ -145,11 +152,12 @@ public final class Scene: Resource {
         self.world.tick()
         
         let context = SceneUpdateContext(scene: self, deltaTime: deltaTime)
+        self.systemGraphExecutor.execute(self.systemGraph, context: context)
         
-        // FIXME: change it to DAG graph runner
-        for system in self.systems {
-            system.update(context: context)
-        }
+//        // FIXME: change it to DAG graph runner
+//        for system in self.systems {
+//            system.update(context: context)
+//        }
     }
 }
 
