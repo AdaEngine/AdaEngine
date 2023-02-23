@@ -17,29 +17,6 @@ public struct RenderSlotValue {
     public let value: RenderResource
 }
 
-enum Edge: Equatable, Hashable {
-    case slot(outputNode: String, outputSlotIndex: Int, inputNode: String, inputSlotIndex: Int)
-    case node(outputNode: String, inputNode: String)
-    
-    var inputNode: String {
-        switch self {
-        case let .node(_, inputNode):
-            return inputNode
-        case let .slot(_, _, inputNode, _):
-            return inputNode
-        }
-    }
-    
-    var outputNode: String {
-        switch self {
-        case let .node(outputNode, _):
-            return outputNode
-        case let .slot(outputNode, _, _, _):
-            return outputNode
-        }
-    }
-}
-
 struct EmptyNode: RenderNode {
     func execute(context: Context) -> [RenderSlotValue] {
         return []
@@ -66,6 +43,29 @@ struct GraphEntryNode: RenderNode {
 public final class RenderGraph {
     
     static let entryNodeName: String = "_GraphEntryNode"
+    
+    enum Edge: Equatable, Hashable {
+        case slot(outputNode: String, outputSlotIndex: Int, inputNode: String, inputSlotIndex: Int)
+        case node(outputNode: String, inputNode: String)
+        
+        var inputNode: String {
+            switch self {
+            case let .node(_, inputNode):
+                return inputNode
+            case let .slot(_, _, inputNode, _):
+                return inputNode
+            }
+        }
+        
+        var outputNode: String {
+            switch self {
+            case let .node(outputNode, _):
+                return outputNode
+            case let .slot(outputNode, _, _, _):
+                return outputNode
+            }
+        }
+    }
     
     struct Node {
         
