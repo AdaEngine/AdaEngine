@@ -6,6 +6,8 @@
 //
 
 public struct BatchTransparent2DItemsSystem: System {
+    
+    public static var dependencies: [SystemDependency] = [.after(CameraSystem.self), .after(VisibilitySystem.self)]
 
     static let query = EntityQuery(where: .has(RenderItems<Transparent2DRenderItem>.self))
 

@@ -116,7 +116,7 @@ public final class RenderGraph {
         assert(outputSlotIndex != nil, "Can't find slot by name \(outputSlot)")
         assert(inputSlotIndex != nil, "Can't find slot by name \(inputSlot)")
         
-        guard var outputSlotIndex, var inputSlotIndex else {
+        guard let outputSlotIndex, let inputSlotIndex else {
             return
         }
         
@@ -251,7 +251,7 @@ public final class RenderGraph {
     
     // TODO: (Vlad) Throw errors?
     private func validateEdge(_ edge: Edge, shouldExsits: Bool) -> Bool {
-        if shouldExsits && self.hasEdge(edge) {
+        if !shouldExsits && hasEdge(edge) {
             return false
         }
         
@@ -289,4 +289,17 @@ public final class RenderGraph {
         return true
     }
     
+}
+
+extension RenderGraph: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        var string = ""
+        for node in self.nodes.values {
+            string = "\(node.name)\n"
+            string = " in: \(node.inputEdges.debugDescription)\n"
+            string = " out: \(node.outputEdges.debugDescription)\n\n"
+        }
+        
+        return string
+    }
 }

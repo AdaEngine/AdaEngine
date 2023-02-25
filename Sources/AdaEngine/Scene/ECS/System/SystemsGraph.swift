@@ -7,7 +7,7 @@
 
 import OrderedCollections
 
-class SystemsGraph {
+public class SystemsGraph {
     
     struct Edge: Equatable {
         let outputNode: String
@@ -26,17 +26,24 @@ class SystemsGraph {
         var outputEdges: [Edge] = []
     }
     
+    var systems: [System] {
+        self.nodes.values.elements.map { $0.system }
+    }
+    
     private(set) var nodes: OrderedDictionary<String, Node> = [:]
+    
+    // MARK: - Internal methods
     
     func addSystem<T: System>(_ system: T) {
         let node = Node(name: T.swiftName, system: system, dependencies: T.dependencies)
         self.nodes[node.name] = node
     }
     
+    /// Create an execution order for all systems.
     func linkSystems() {
         for node in nodes.values {
             let systemName = node.name
-            print(systemName)
+            
             for dependency in node.dependencies {
                 switch dependency {
                 case .after(let system):
@@ -76,7 +83,7 @@ class SystemsGraph {
         }
     }
     
-    // MARK: - Private
+    // MARK: - Private methods
     
     private func tryAddEdge(from outputSystemName: String, to inputSystemName: String) {
         var outputNode = self.nodes[outputSystemName]
@@ -86,8 +93,10 @@ class SystemsGraph {
         assert(inputNode != nil, "[SystemsGraph] System not exists \(inputSystemName)")
         
         let edge = Edge(outputNode: outputSystemName, inputNode: inputSystemName)
+        let reversedEdge = Edge(outputNode: inputSystemName, inputNode: outputSystemName)
         
-        guard self.validateEdge(edge, shouldExists: false) else {
+        guard self.validateEdge(edge, shouldExists: false) && self.validateEdge(reversedEdge, shouldExists: false) else {
+            assertionFailure("[SystemsGraph] Detected a cycle betweens \"\(outputSystemName)\" and \"\(inputSystemName)\"")
             return
         }
         
@@ -99,11 +108,11 @@ class SystemsGraph {
     }
     
     private func validateEdge(_ edge: Edge, shouldExists: Bool) -> Bool {
-        if shouldExists && self.hasEdge(edge) {
-            return false
+        if shouldExists {
+            return hasEdge(edge)
+        } else {
+            return !hasEdge(edge)
         }
-        
-        return true
     }
     
     private func hasEdge(_ edge: Edge) -> Bool {
@@ -114,4 +123,35 @@ class SystemsGraph {
         return inputNode.inputEdges.firstIndex(of: edge) != nil && outputNode.outputEdges.firstIndex(of: edge) != nil
     }
     
+}
+
+extension SystemsGraph: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        var string = ""
+        for node in nodes.values.elements {
+            string += "\(node.name)\n"
+            
+            string += " in: \n"
+            for inputNode in getInputNodes(for: node.name) {
+                string += "  \(node.name) --> \(inputNode.name)\n"
+            }
+            
+            string += " out: \n"
+            for ouputNode in getOuputNodes(for: node.name) {
+                string += "  \(node.name) --> \(ouputNode.name)\n"
+            }
+        }
+        
+        return string
+    }
+    
+    public var visualizeDescription: String {
+        var string = ""
+        for node in nodes.values.elements {
+            for outputNode in getOuputNodes(for: node.name) {
+                string += "\(node.name) --> \(outputNode.name)\n"
+            }
+        }
+        return string
+    }
 }
