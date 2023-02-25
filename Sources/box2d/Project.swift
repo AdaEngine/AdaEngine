@@ -10,14 +10,14 @@ import ProjectDescriptionHelpers
 
 let project = Project(
     name: "box2d",
-    settings: .adaEngine,
+    settings: .common,
     targets: [
         Target(
             name: "box2d",
             platform: .macOS,
             product: .framework,
             productName: "box2d",
-            bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).box2d",
+            bundleId: .bundleIdentifier(name: "box2d"),
             deploymentTarget: .macOS(targetVersion: "11.0"),
             sources: [
                 .glob("**/*", excluding: ["Project.swift"])

@@ -13,7 +13,7 @@ let targets: [Target] = [
         name: "AdaEngine",
         platform: .macOS,
         product: .framework,
-        bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER)",
+        bundleId: .bundleIdentifier(name: "engine"),
         deploymentTarget: .macOS(targetVersion: "11.0"),
         sources: [
             .glob("**/*.swift", excluding: ["Project.swift"])
@@ -49,6 +49,6 @@ let targets: [Target] = [
 
 let project = Project(
     name: "AdaEngine",
-    settings: .adaEngine,
+    settings: .common,
     targets: targets
 )

@@ -16,14 +16,14 @@ let useNeon = false
 
 let project = Project(
     name: "libpng",
-    settings: .adaEngine,
+    settings: .common,
     targets: [
         Target(
             name: "libpng",
             platform: .macOS,
             product: .framework,
             productName: "libpng",
-            bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).libpng",
+            bundleId: .bundleIdentifier(name: "libpng"),
             deploymentTarget: .macOS(targetVersion: "11.0"),
             sources: [
                 .glob("**/*", excluding: ["Project.swift"])

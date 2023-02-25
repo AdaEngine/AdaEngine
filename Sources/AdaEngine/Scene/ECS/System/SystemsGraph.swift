@@ -7,6 +7,7 @@
 
 import OrderedCollections
 
+/// Contains information about execution order of system.
 public class SystemsGraph {
     
     struct Edge: Equatable {
@@ -34,6 +35,8 @@ public class SystemsGraph {
     
     // MARK: - Internal methods
     
+    /// Add node of current system. If node exist with same type, than we will override it.
+    /// - Note: Systems will added node without edges.
     func addSystem<T: System>(_ system: T) {
         let node = Node(name: T.swiftName, system: system, dependencies: T.dependencies)
         self.nodes[node.name] = node
@@ -85,6 +88,7 @@ public class SystemsGraph {
     
     // MARK: - Private methods
     
+    /// Try to add edge. If some dependency is cycled, than we will skip it with error
     private func tryAddEdge(from outputSystemName: String, to inputSystemName: String) {
         var outputNode = self.nodes[outputSystemName]
         var inputNode = self.nodes[inputSystemName]

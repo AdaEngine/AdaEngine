@@ -7,12 +7,14 @@
 
 struct ScriptComponentUpdateSystem: System {
     
-    init(scene: Scene) { }
+    let fixedTime: FixedTimestep
     
-    let renderer2D = Renderer2D.default
+    init(scene: Scene) {
+        self.fixedTime = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
+    }
     
     func update(context: UpdateContext) {
-//        let guiRenderContext = GUIRenderContext(window: context.scene.viewport!.window!.id, engine: renderer2D)
+        let fixedTimeResult = self.fixedTime.advance(with: context.deltaTime)
         
         context.scene.world.scripts.forEach { component in
             
@@ -30,11 +32,9 @@ struct ScriptComponentUpdateSystem: System {
             
             component.update(context.deltaTime)
 
-//            guiRenderContext.beginDraw(in: Rect(origin: .zero, size: context.scene.viewportSize))
-            
-//            component.updateGUI(context.deltaTime, context: guiRenderContext)
-            
-//            guiRenderContext.commitDraw()
+            if fixedTimeResult.isFixedTick {
+                component.physicsUpdate(fixedTimeResult.fixedTime)
+            }
         }
     }
 }
