@@ -28,7 +28,6 @@ public final class Scene: Resource {
     public var resourcePath: String = ""
     public var resourceName: String = ""
     
-    private var systems: [System] = []
     private var plugins: [ScenePlugin] = []
     private(set) var world: World
     
@@ -68,7 +67,7 @@ public final class Scene: Resource {
             plugins: self.plugins.map {
                 ScenePluginRepresentation(name: type(of: $0).swiftName)
             },
-            systems: self.systems.map {
+            systems: self.systemGraph.systems.map {
                 SystemRepresentation(name: type(of: $0).swiftName)
             },
             entities: self.world.getEntities()
@@ -115,11 +114,7 @@ public final class Scene: Resource {
     /// Add new system to the scene.
     public func addSystem<T: System>(_ systemType: T.Type) {
         let system = systemType.init(scene: self)
-//        self.systems.append(system)
-        
-        systemGraph.addSystem(system)
-
-//        self.systems = self.sortSystems(self.systems)
+        self.systemGraph.addSystem(system)
     }
     
     /// Add new scene plugin to the scene.
@@ -138,12 +133,9 @@ public final class Scene: Resource {
         // TODO: In the future we need minimal scene plugin for headless mode.
         self.addPlugin(DefaultScenePlugin())
         
-        self.systems = self.sortSystems(self.systems)
-        
         self.isReady = true
         
         self.systemGraph.linkSystems()
-        
         self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
     }
@@ -153,11 +145,6 @@ public final class Scene: Resource {
         
         let context = SceneUpdateContext(scene: self, deltaTime: deltaTime)
         self.systemGraphExecutor.execute(self.systemGraph, context: context)
-        
-//        // FIXME: change it to DAG graph runner
-//        for system in self.systems {
-//            system.update(context: context)
-//        }
     }
 }
 
@@ -219,49 +206,6 @@ public extension Scene {
         }
         
         return transform * entityTransform.matrix
-    }
-}
-
-// MARK: - Private
-
-extension Scene {
-    // FIXME: (Vlad) Replace it to DAG graph
-    private func sortSystems(_ systems: [System]) -> [System] {
-        var sortedSystems = systems
-
-        for var systemIndex in 0 ..< systems.count {
-            let currentSystem = systems[systemIndex]
-            let dependencies = type(of: currentSystem).dependencies
-
-            for dependency in dependencies {
-                switch dependency {
-                case .before(let systemType):
-                    if let index = sortedSystems.firstIndex(where: { type(of: $0) == systemType }) {
-                        var indexBefore = sortedSystems.index(before: index)
-                        
-                        if !sortedSystems.indices.contains(indexBefore) {
-                            indexBefore = index
-                        }
-                        
-                        sortedSystems.swapAt(systemIndex, indexBefore)
-                        systemIndex = indexBefore
-                    }
-                case .after(let systemType):
-                    if let index = sortedSystems.firstIndex(where: { type(of: $0) == systemType }) {
-                        var indexAfter = sortedSystems.index(after: index)
-                        
-                        if !sortedSystems.indices.contains(indexAfter) {
-                            indexAfter = index
-                        }
-                        
-                        sortedSystems.swapAt(systemIndex, indexAfter)
-                        systemIndex = indexAfter
-                    }
-                }
-            }
-        }
-
-        return sortedSystems
     }
 }
 

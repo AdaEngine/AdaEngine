@@ -7,7 +7,11 @@
 
 public struct SpriteRenderSystem: System {
     
-    public static var dependencies: [SystemDependency] = [.before(Physics2DSystem.self)]
+    public static var dependencies: [SystemDependency] = [
+        .before(Physics2DSystem.self),
+        .before(BatchTransparent2DItemsSystem.self),
+        .after(VisibilitySystem.self)
+    ]
     
     static let cameras = EntityQuery(where:
             .has(Camera.self) &&
