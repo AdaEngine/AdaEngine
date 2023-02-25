@@ -24,6 +24,7 @@ open class ScriptComponent: Component {
         
     }
     
+    // TODO: Fix that
     /// Called each frame to update gui.
     open func updateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {
         

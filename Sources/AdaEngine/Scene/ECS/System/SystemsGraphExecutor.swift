@@ -32,16 +32,12 @@ class SystemsGraphExecutor {
                 }
             }
             
-            print("Execute system", currentNode.name)
             currentNode.system.update(context: context)
-            
             completedSystems.insert(currentNode.name)
             
             for outputNode in graph.getOuputNodes(for: currentNode.name) {
                 nodes.prepend(outputNode)
             }
         }
-        
-        print("completed")
     }
 }
