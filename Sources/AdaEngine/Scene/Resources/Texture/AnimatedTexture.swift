@@ -14,7 +14,7 @@ public final class AnimatedTexture: Texture2D {
     
     struct Frame {
         var texture: Texture2D?
-        var delay: Float
+        var delay: TimeInterval
     }
     
     /// Contains information about frames
@@ -92,7 +92,7 @@ public final class AnimatedTexture: Texture2D {
     struct AssetRepresentation: Codable {
         struct Frame: Codable {
             let texture: Texture2D // FIXME: (Vlad) resource id/path
-            let delay: Float
+            let delay: TimeInterval
         }
         
         let frames: [Frame]
@@ -189,11 +189,11 @@ public final class AnimatedTexture: Texture2D {
         return self.frames[frame].texture
     }
     
-    public func setDelay(_ delay: Float, for frame: Int) {
+    public func setDelay(_ delay: TimeInterval, for frame: Int) {
         self.frames[frame].delay = delay
     }
     
-    public func getDelay(for frame: Int) -> Float {
+    public func getDelay(for frame: Int) -> TimeInterval {
         return self.frames[frame].delay
     }
     
@@ -215,7 +215,7 @@ public final class AnimatedTexture: Texture2D {
         
         self.time += event.deltaTime
         
-        let limit = self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0
+        let limit: TimeInterval = TimeInterval(self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0)
         let frameTime = limit + self.frames[self.currentFrame].delay
         
         if self.time > frameTime {

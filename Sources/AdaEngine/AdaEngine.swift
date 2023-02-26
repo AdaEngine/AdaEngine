@@ -24,5 +24,5 @@ public final class Engine {
     
     private init() { }
     
-    public var physicsTickPerSecond: Float = 60
+    public var physicsTickPerSecond: Int = 60
 }

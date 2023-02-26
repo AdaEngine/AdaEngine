@@ -70,7 +70,7 @@ final class Physics2DSystem: System {
         }
         
         if result.isFixedTick {
-            world.updateSimulation(result.fixedTime)
+            world.updateSimulation(Float(result.fixedTime))
         }
 
         self.updatePhysicsBodyEntities(

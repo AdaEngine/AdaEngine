@@ -27,8 +27,8 @@ public final class FixedTimestep {
     }
     
     /// Creates a FixedTimestep that ticks once every `stepsPerSecond` times per second.
-    public init(stepsPerSecond: TimeInterval) {
-        self.step = 1 / stepsPerSecond
+    public init(stepsPerSecond: Int) {
+        self.step = 1 / TimeInterval(stepsPerSecond)
     }
     
     /// - Parameter deltaTime: The delta time between frame updates.
