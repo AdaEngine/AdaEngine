@@ -18,10 +18,6 @@ struct ScriptComponentUpdateSystem: System {
         
         context.scene.world.scripts.forEach { component in
             
-            guard let component else {
-                return
-            }
-            
             // Initialize component
             if !component.isAwaked {
                 component.ready()

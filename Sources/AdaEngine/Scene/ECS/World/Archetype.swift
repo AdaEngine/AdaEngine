@@ -20,14 +20,14 @@ struct EntityRecord {
 public final class Archetype: Hashable, Identifiable {
     
     public let id: Int
-    public internal(set) var entities: [Entity?] = []
+    public internal(set) var entities: SparseArray<Entity> = []
     private(set) var friedEntities: [Int] = []
     var edge: Edge = Edge()
     var componentsBitMask: BitSet = BitSet()
     
     private init(id: Archetype.ID, entities: [Entity] = [], componentsBitMask: BitSet = BitSet()) {
         self.id = id
-        self.entities = entities
+        self.entities = SparseArray(entities)
         self.componentsBitMask = componentsBitMask
     }
     
@@ -40,7 +40,7 @@ public final class Archetype: Hashable, Identifiable {
         
         if !friedEntities.isEmpty {
             let index = self.friedEntities.removeLast()
-            self.entities[index] = entity
+            self.entities.insert(entity, at: index)
             row = index
         } else {
             self.entities.append(entity)
@@ -54,8 +54,7 @@ public final class Archetype: Hashable, Identifiable {
     }
     
     func remove(at index: Int) {
-        self.entities[index] = nil
-        
+        self.entities.remove(at: index)
         self.friedEntities.append(index)
     }
     
@@ -85,7 +84,7 @@ extension Archetype: CustomStringConvertible {
         """
         Archetype(
             id: \(id)
-            entityIds: \(entities.compactMap { $0?.id })
+            entityIds: \(entities.compactMap { $0.id })
             componentsBitMask: \(componentsBitMask)
         )
         """

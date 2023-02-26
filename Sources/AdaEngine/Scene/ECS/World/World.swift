@@ -21,21 +21,22 @@ public final class World {
     internal private(set) var removedEntities: Set<Entity.ID> = []
     internal private(set) var addedEntities: Set<Entity.ID> = []
     
-    private(set) var archetypes: ContiguousArray<Archetype> = []
+    private(set) var archetypes: SparseArray<Archetype> = []
     private var freeArchetypeIndices: [Int] = []
+    
     private var updatedEntities: Set<Entity> = []
     
     /// FIXME: Not efficient, should refactor later
-    private(set) var scripts: [ScriptComponent?] = []
+    private(set) var scripts: SparseArray<ScriptComponent> = []
     private(set) var scriptRecords: [Entity.ID: [ComponentId: Int]] = [:]
     private(set) var friedScriptsIndecies: [Int] = []
     
     // MARK: - Methods
     
     public func getEntities() -> [Entity] {
-        return self.records.values
+        return self.records.values.elements
             .map { record in
-                let archetype = self.archetypes[record.archetypeId]
+                let archetype = self.archetypes[record.archetypeId]!
                 return archetype.entities[record.row]
             }
             .compactMap { $0 }
@@ -47,12 +48,12 @@ public final class World {
         }
         
         let archetype = self.archetypes[record.archetypeId]
-        return archetype.entities[record.row]
+        return archetype?.entities[record.row]
     }
     
     func getEntityByName(_ name: String) -> Entity? {
         for arch in archetypes {
-            if let ent = arch.entities.first(where: { $0?.name == name }) {
+            if let ent = arch.entities.first(where: { $0.name == name }) {
                 return ent
             }
         }
@@ -87,13 +88,14 @@ public final class World {
         guard let record = self.records[entity] else { return }
         self.records[entity] = nil
         
-        let currentArchetype = self.archetypes[record.archetypeId]
-        // FIXME: (Vlad) Can crash if we change components set during runtime
-        // TODO: (Vlad) we should use separate array for fried entities, because removing entity from arrary is O(n)
+        guard let currentArchetype = self.archetypes[record.archetypeId] else {
+            assertionFailure("Incorrect record of archetype \(record)")
+            return
+        }
         currentArchetype.remove(at: record.row)
         
         if currentArchetype.entities.isEmpty {
-            self.archetypes[record.archetypeId].clear()
+            self.archetypes[record.archetypeId]!.clear()
             self.freeArchetypeIndices.append(record.archetypeId)
         }
     }
@@ -137,8 +139,7 @@ public final class World {
         for entity in self.updatedEntities {
             let bitmask = entity.components.bitset
             
-            if let record = self.records[entity.id] {
-                let currentArchetype = self.archetypes[record.archetypeId]
+            if let record = self.records[entity.id], let currentArchetype = self.archetypes[record.archetypeId] {
                 
                 // We currently updated existed components
                 if currentArchetype.componentsBitMask == bitmask {
@@ -163,7 +164,7 @@ public final class World {
                     self.archetypes.append(newArch)
                 } else {
                     let index = self.freeArchetypeIndices.removeFirst()
-                    newArch = self.archetypes[index]
+                    newArch = self.archetypes[index]!
                 }
                 newArch.componentsBitMask = bitmask
                 
