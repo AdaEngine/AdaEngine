@@ -123,8 +123,8 @@ class _MeshArrayBuffer: Equatable {
     // MARK: - Internal
 
     static func == (lhs: _MeshArrayBuffer, rhs: _MeshArrayBuffer) -> Bool {
-        return lhs.bufferPointer.baseAddress == rhs.bufferPointer.baseAddress &&
-        lhs.indicesPointer.baseAddress == rhs.indicesPointer.baseAddress &&
+        lhs.bufferPointer.elementsEqual(rhs.bufferPointer) &&
+        lhs.indicesPointer.elementsEqual(rhs.indicesPointer) &&
         lhs.elementStride == rhs.elementStride
     }
 
