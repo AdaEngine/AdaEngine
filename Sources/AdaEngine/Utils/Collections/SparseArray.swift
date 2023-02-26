@@ -63,6 +63,12 @@ extension SparseArray {
     }
     
     @inline(__always)
+    @discardableResult
+    public mutating func removeLast() -> Element? {
+        return self.remove(at: self.count - 1)
+    }
+    
+    @inline(__always)
     public mutating func insert(_ element: Element?, at index: Index) {
         if index >= self.count {
             values.reserveCapacity(index + 1)
