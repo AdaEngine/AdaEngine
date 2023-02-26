@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/7/22.
 //
 
+// TODO: Currently we render on window directly
+
 /// System for updating a ``Camera`` data like projection matrix or frustum.
 struct CameraSystem: System {
     

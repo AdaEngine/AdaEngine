@@ -7,15 +7,15 @@
 
 public struct ClearTransparent2DRenderItemsSystem: System {
     
-    public static var dependencies: [SystemDependency] = [.before(SpriteRenderSystem.self)]
+    public static var dependencies: [SystemDependency] = [.before(CameraSystem.self)]
     
     static let query = EntityQuery(where: .has(RenderItems<Transparent2DRenderItem>.self))
     
     public init(scene: Scene) { }
     
     public func update(context: UpdateContext) {
-//        context.scene.performQuery(Self.query).forEach { entity in
-//            entity.components[RenderItems<Transparent2DRenderItem>.self]?.items.removeAll()
-//        }
+        context.scene.performQuery(Self.query).forEach { entity in
+            entity.components[RenderItems<Transparent2DRenderItem>.self]?.items.removeAll()
+        }
     }
 }

@@ -16,12 +16,12 @@ public struct Scene2DPlugin: ScenePlugin {
     }
     
     public func setup(in scene: Scene) {
-        // Add Systems
         
+        // Add Systems
         scene.addSystem(ClearTransparent2DRenderItemsSystem.self)
+        scene.addSystem(BatchTransparent2DItemsSystem.self)
         
         // Add Render graph
-        
         let graph = RenderGraph()
         
         let entryNode = graph.addEntryNode(inputs: [
@@ -59,7 +59,7 @@ public struct Main2DRenderNode: RenderNode {
             return []
         }
         
-        var (camera, renderItems) = entity.components[Camera.self, RenderItems<Transparent2DRenderItem>.self]
+        let (camera, renderItems) = entity.components[Camera.self, RenderItems<Transparent2DRenderItem>.self]
         
         if case .window(let id) = camera.renderTarget, id == .empty {
             return []
@@ -99,10 +99,6 @@ public struct Main2DRenderNode: RenderNode {
         try sortedRenderItems.render(drawList, world: context.world, view: entity)
         
         RenderEngine.shared.endDrawList(drawList)
-        
-        // FIXME: Should be removed from here when we add a scene system graph
-        renderItems.items.removeAll(keepingCapacity: true)
-        entity.components[RenderItems<Transparent2DRenderItem>.self] = renderItems
         
         return []
     }
