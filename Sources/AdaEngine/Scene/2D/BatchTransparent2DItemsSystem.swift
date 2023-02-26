@@ -24,7 +24,6 @@ public struct BatchTransparent2DItemsSystem: System {
             batchedItems.reserveCapacity(items.count)
             
             if var currentItem = items.first {
-                
                 for nextItemIndex in 1..<items.count {
                     let nextItem = items[nextItemIndex]
                     

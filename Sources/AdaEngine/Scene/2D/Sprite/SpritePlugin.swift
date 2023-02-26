@@ -11,7 +11,6 @@ public struct SpritePlugin: ScenePlugin {
     
     public func setup(in scene: Scene) {
         scene.addSystem(SpriteRenderSystem.self)
-        scene.addSystem(BatchTransparent2DItemsSystem.self)
         
         let spriteDraw = SpriteDrawPass()
         DrawPassStorage.setDrawPass(spriteDraw)
