@@ -10,15 +10,15 @@ import ProjectDescriptionHelpers
 
 let project = Project(
     name: "AdaEditor",
-    organizationName: "$(PRODUCT_BUNDLE_IDENTIFIER).editor",
+    organizationName: "AdaEngine",
     packages: [],
-    settings: .adaEngine,
+    settings: .editor,
     targets: [
         Target(
             name: "AdaEditor",
             platform: .macOS,
             product: .app,
-            bundleId: "$(PRODUCT_BUNDLE_IDENTIFIER).editor",
+            bundleId: .bundleIdentifier(name: "editor"),
             deploymentTarget: .macOS(targetVersion: "11.0"),
             infoPlist: .extendingDefault(with: [
                 "NSMainStoryboardFile": .string(""),
@@ -38,6 +38,31 @@ let project = Project(
                 .define("TUIST")
             ])
         )
+        // TODO: Add multiplatform target
+//        Target(
+//            name: "AdaEditor",
+//            platform: .iOS,
+//            product: .app,
+//            bundleId: .bundleIdentifier(name: "editor"),
+//            deploymentTarget: .iOS(targetVersion: "13.0", devices: [.ipad, .iphone, .mac]),
+//            infoPlist: .extendingDefault(with: [
+//                "UIMainStoryboardFile": .string("")
+//            ]),
+//            sources: [
+//                .glob("**/*.swift", excluding: ["Project.swift"])
+//            ],
+//            resources: [
+//                .folderReference(path: "Assets")
+//            ],
+//            dependencies: [
+//                .project(target: "AdaEngine", path: "../AdaEngine")
+//            ],
+//            settings: .targetSettings(swiftFlags: [
+//                .define("IOS"),
+//                .define("METAL"),
+//                .define("TUIST")
+//            ])
+//        )
     ],
     schemes: [
         Scheme(
@@ -47,8 +72,12 @@ let project = Project(
                 configuration: .debug,
                 attachDebugger: true,
                 executable: "AdaEditor",
-                options: .options(enableGPUFrameCaptureMode: .metal),
-                diagnosticsOptions: []
+                options: .options(
+                    enableGPUFrameCaptureMode: .metal
+                ),
+                diagnosticsOptions: [
+//                    .mainThreadChecker
+                ]
             ),
             profileAction: .profileAction(
                 configuration: .debug,

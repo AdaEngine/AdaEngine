@@ -33,7 +33,7 @@ public final class SceneRendering {
     
     public unowned let scene: Scene
     
-    public var renderer2D = RenderEngine2D()
+    public var renderer2D = Renderer2D.default
     
     var currentDraw: RID!
     

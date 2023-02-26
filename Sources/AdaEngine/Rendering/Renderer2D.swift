@@ -1,5 +1,5 @@
 //
-//  RenderEngine2D.swift
+//  Renderer2D.swift
 //  
 //
 //  Created by v.prusakov on 5/10/22.
@@ -7,9 +7,8 @@
 
 import Math
 
-// TODO: (Vlad) Fix depth stencil
-// TODO: (Vlad) Store render pass 
-public class RenderEngine2D {
+// TODO: Needs optimizations
+public class Renderer2D {
     
     enum Bindings {
         static let cameraUniform: Int = 1
@@ -19,13 +18,11 @@ public class RenderEngine2D {
     
     static var maximumZIndex = 4096
     
-    private var uniform: Uniform = Uniform()
-    
     struct Uniform {
         var viewProjection: Transform3D = .identity
     }
     
-    public static let `default` = RenderEngine2D()
+    public static let `default` = Renderer2D()
     
     private var uniformSet: UniformBufferSet
     
@@ -33,7 +30,7 @@ public class RenderEngine2D {
         var vertexBuffer: VertexBuffer
         var vertices: [V] = []
         var indeciesCount: Int
-        var indexArray: RID
+        var indexBuffer: IndexBuffer
         let renderPipeline: RenderPipeline
     }
     
@@ -98,24 +95,9 @@ public class RenderEngine2D {
         self.textureSlots = [Texture2D?].init(repeating: nil, count: 32)
         self.textureSlots[0] = self.whiteTexture
         
-        let indexArray = device.makeIndexArray(indexBuffer: quadIndexBuffer, indexOffset: 0, indexCount: Self.maxIndecies)
-        
-        var stencilDesc = StencilOperationDescriptor()
-        stencilDesc.fail = .zero
-        stencilDesc.pass = .zero
-        stencilDesc.depthFail = .zero
-        stencilDesc.compare = .always
-        
-        var depthStencilDesc = DepthStencilDescriptor()
-        depthStencilDesc.isEnableStencil = true
-        depthStencilDesc.stencilOperationDescriptor = stencilDesc
-        
-        depthStencilDesc.isDepthTestEnabled = true
-        depthStencilDesc.isDepthWriteEnabled = true
-        depthStencilDesc.depthCompareOperator = .less
-        
         var samplerDesc = SamplerDescriptor()
         samplerDesc.magFilter = .nearest
+        samplerDesc.mipFilter = .nearest
         let sampler = device.makeSampler(from: samplerDesc)
         
         // Circle
@@ -130,7 +112,7 @@ public class RenderEngine2D {
         
         var piplineDesc = RenderPipelineDescriptor(shader: circleShader)
         piplineDesc.debugName = "Circle Pipeline"
-//        piplineDesc.depthStencilDescriptor = depthStencilDesc
+        //        piplineDesc.depthStencilDescriptor = depthStencilDesc
         piplineDesc.sampler = sampler
         
         piplineDesc.vertexDescriptor.attributes.append([
@@ -159,7 +141,7 @@ public class RenderEngine2D {
             vertexBuffer: circleVertexBuffer,
             vertices: [],
             indeciesCount: 0,
-            indexArray: indexArray,
+            indexBuffer: quadIndexBuffer,
             renderPipeline: circlePipeline
         )
         
@@ -195,11 +177,11 @@ public class RenderEngine2D {
             binding: 0
         )
         
-        self.quadData =  Data<QuadVertexData>(
+        self.quadData = Data<QuadVertexData>(
             vertexBuffer: quadVertexBuffer,
             vertices: [],
             indeciesCount: 0,
-            indexArray: indexArray,
+            indexBuffer: quadIndexBuffer,
             renderPipeline: quadPipeline
         )
         
@@ -246,24 +228,20 @@ public class RenderEngine2D {
             length: Self.maxLineIndices
         )
         
-        let linesIndexArray = device.makeIndexArray(indexBuffer: indexBuffer, indexOffset: 0, indexCount: Self.maxLineIndices)
-        
         self.lineData =  Data<LineVertexData>(
             vertexBuffer: linesVertexBuffer,
             vertices: [],
             indeciesCount: 0,
-            indexArray: linesIndexArray,
+            indexBuffer: indexBuffer,
             renderPipeline: linesPipeline
         )
     }
     
-    public func beginContext(for viewport: Viewport, viewTransform: Transform3D) -> DrawContext {
+    public func beginContext(for window: Window, viewTransform: Transform3D) -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(Uniform(viewProjection: viewTransform))
-
-        let window = viewport.window!
         
         let currentDraw = RenderEngine.shared.beginDraw(for: window.id, clearColor: .black)
         let context = DrawContext(currentDraw: currentDraw, renderEngine: self, frameIndex: frameIndex)
@@ -271,29 +249,44 @@ public class RenderEngine2D {
         return context
     }
     
-    public func beginContext(for camera: Camera) -> DrawContext {
-        let data = camera.makeCameraData()
-        
+    public func beginContext(for camera: Camera, viewUniform: ViewUniform, transform: Transform) -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)
-        uniform.setData(Uniform(viewProjection: data.viewProjection))
+        uniform.setData(Uniform(viewProjection: viewUniform.viewProjectionMatrix))
         
-        let viewport = camera.viewport!
+        let currentDraw: DrawList
         
-        guard let framebuffer = ViewportStorage.getFramebuffer(for: viewport) else {
-            fatalError("Viewport doesn't has a framebuffer")
+        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .black
+        
+        switch camera.renderTarget {
+        case .window(let windowId):
+            currentDraw = RenderEngine.shared.beginDraw(for: windowId, clearColor: clearColor)
+        case .texture(let texture):
+            let desc = FramebufferDescriptor(
+                scale: texture.scaleFactor,
+                width: texture.width,
+                height: texture.height,
+                attachments: [
+                    FramebufferAttachmentDescriptor(
+                        format: texture.pixelFormat,
+                        texture: texture,
+                        clearColor: clearColor
+                    )
+                ]
+            )
+            let framebuffer = RenderEngine.shared.makeFramebuffer(from: desc)
+            currentDraw = RenderEngine.shared.beginDraw(to: framebuffer, clearColors: [])
         }
-        
-        let currentDraw = RenderEngine.shared.beginDraw(to: framebuffer)
         
         let context = DrawContext(currentDraw: currentDraw, renderEngine: self, frameIndex: frameIndex)
         context.startBatch()
+        
         return context
     }
 }
 
-extension RenderEngine2D {
+extension Renderer2D {
     public class DrawContext {
         
         let currentDraw: DrawList
@@ -302,10 +295,10 @@ extension RenderEngine2D {
         
         private var lineWidth: Float = 1
         
-        private let renderEngine: RenderEngine2D
+        private let renderEngine: Renderer2D
         private let frameIndex: Int
         
-        init(currentDraw: DrawList, renderEngine: RenderEngine2D, frameIndex: Int) {
+        init(currentDraw: DrawList, renderEngine: Renderer2D, frameIndex: Int) {
             self.currentDraw = currentDraw
             self.renderEngine = renderEngine
             self.frameIndex = frameIndex
@@ -318,7 +311,7 @@ extension RenderEngine2D {
         
         public func drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color) {
             
-            if self.renderEngine.quadData.indeciesCount >= RenderEngine2D.maxIndecies {
+            if self.renderEngine.quadData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()
             }
             
@@ -351,7 +344,7 @@ extension RenderEngine2D {
             
             for index in 0 ..< renderEngine.quadPosition.count {
                 let data = QuadVertexData(
-                    position: renderEngine.quadPosition[index] * transform,
+                    position: transform * renderEngine.quadPosition[index],
                     color: color,
                     textureCoordinate: texture!.textureCoordinates[index],
                     textureIndex: textureIndex
@@ -394,13 +387,13 @@ extension RenderEngine2D {
             fade: Float,
             color: Color
         ) {
-            if self.renderEngine.circleData.indeciesCount >= RenderEngine2D.maxIndecies {
+            if self.renderEngine.circleData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()
             }
             
             for quad in renderEngine.quadPosition {
                 let data = CircleVertexData(
-                    worldPosition: quad * transform,
+                    worldPosition: transform * quad,
                     localPosition: quad * 2,
                     thickness: thickness,
                     fade: fade,
@@ -414,7 +407,7 @@ extension RenderEngine2D {
         }
         
         public func drawLine(start: Vector3, end: Vector3, color: Color) {
-            if self.renderEngine.lineData.indeciesCount >= RenderEngine2D.maxLineIndices {
+            if self.renderEngine.lineData.indeciesCount >= Renderer2D.maxLineIndices {
                 self.nextBatch()
             }
             
@@ -440,13 +433,7 @@ extension RenderEngine2D {
         public func commitContext() {
             self.flush()
             
-            self.clearContext()
-            
             RenderEngine.shared.endDrawList(self.currentDraw)
-        }
-        
-        public func clearContext() {
-            self.renderEngine.uniform.viewProjection = .identity // FIXME: (Vlad) Should store in draw contexrt
         }
         
         public func setTriangleFillMode(_ mode: TriangleFillMode) {
@@ -501,7 +488,7 @@ extension RenderEngine2D {
             
             currentDraw.appendVertexBuffer(data.vertexBuffer)
             currentDraw.bindRenderPipeline(data.renderPipeline)
-            currentDraw.bindIndexArray(data.indexArray)
+            currentDraw.bindIndexBuffer(data.indexBuffer)
             currentDraw.bindIndexPrimitive(indexPrimitive)
             
             RenderEngine.shared.draw(currentDraw, indexCount: data.indeciesCount, instancesCount: 1)
@@ -512,7 +499,7 @@ extension RenderEngine2D {
 
 // MARK: - Utilities
 
-fileprivate extension RenderEngine2D {
+fileprivate extension Renderer2D {
     
     struct CircleVertexData {
         let worldPosition: Vector4

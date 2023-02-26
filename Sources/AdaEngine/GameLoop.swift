@@ -5,19 +5,19 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
-// FIXME: (Vlad) Make physics frames
-
 /// The main class responds to update all systems in engine.
 /// You can have only one GameLoop per app.
 public final class GameLoop {
     
     public private(set) static var current: GameLoop = GameLoop()
     
-    private var lastUpdate: TimeInterval = 0
+    private var lastUpdate: LongTimeInterval = 0
     
     private(set) var isIterating = false
     
     private var isFirstTick: Bool = true
+    
+    private var fixedTimestep: FixedTimestep = FixedTimestep(step: 0)
     
     // MARK: Internal Methods
     
@@ -31,7 +31,7 @@ public final class GameLoop {
         defer { self.isIterating = false }
         
         let now = Time.absolute
-        let deltaTime = max(0, now - self.lastUpdate)
+        let deltaTime = TimeInterval(max(0, now - self.lastUpdate))
         self.lastUpdate = now
         
         // that little hack to avoid big delta in the first tick, because delta is equals Time.absolute value.
@@ -40,23 +40,26 @@ public final class GameLoop {
             return
         }
         
+        let physicsTickPerSecond = Engine.shared.physicsTickPerSecond
+        self.fixedTimestep.step = 1 / TimeInterval(physicsTickPerSecond)
+        
+        let physicsTime = self.fixedTimestep.advance(with: deltaTime)
+        
         EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
         
-        Input.shared.processEvents()
+        if physicsTime.isFixedTick {
+            Input.shared.processEvents()
+        }
         
         try RenderEngine.shared.beginFrame()
         
         Application.shared.windowManager.update(deltaTime)
         
-        ViewportRenderer.shared.beginFrame()
-        
-        ViewportRenderer.shared.renderViewports()
-        
-        ViewportRenderer.shared.endFrame()
-        
         try RenderEngine.shared.endFrame()
         
-        Input.shared.removeEvents()
+        if physicsTime.isFixedTick {
+            Input.shared.removeEvents()
+        }
         
         FPSCounter.shared.tick()
     }

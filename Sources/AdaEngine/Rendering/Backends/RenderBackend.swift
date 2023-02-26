@@ -32,8 +32,6 @@ protocol RenderBackend: AnyObject {
     
     func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer
     
-    func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID
-    
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer
     
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer
@@ -67,7 +65,7 @@ protocol RenderBackend: AnyObject {
     
     func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList
     
-    func beginDraw(to framebuffer: Framebuffer) -> DrawList
+    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList
     
     func draw(_ list: DrawList, indexCount: Int, instancesCount: Int)
     

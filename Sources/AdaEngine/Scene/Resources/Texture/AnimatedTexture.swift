@@ -14,7 +14,7 @@ public final class AnimatedTexture: Texture2D {
     
     struct Frame {
         var texture: Texture2D?
-        var delay: Float
+        var delay: TimeInterval
     }
     
     /// Contains information about frames
@@ -66,12 +66,12 @@ public final class AnimatedTexture: Texture2D {
     }
     
     /// Return width of the current frame.
-    public override var width: Float {
+    public override var width: Int {
         return self.frames[currentFrame].texture!.width
     }
     
     /// Return height of the current frame.
-    public override var height: Float {
+    public override var height: Int {
         return self.frames[currentFrame].texture!.height
     }
     
@@ -92,7 +92,7 @@ public final class AnimatedTexture: Texture2D {
     struct AssetRepresentation: Codable {
         struct Frame: Codable {
             let texture: Texture2D // FIXME: (Vlad) resource id/path
-            let delay: Float
+            let delay: TimeInterval
         }
         
         let frames: [Frame]
@@ -189,11 +189,11 @@ public final class AnimatedTexture: Texture2D {
         return self.frames[frame].texture
     }
     
-    public func setDelay(_ delay: Float, for frame: Int) {
+    public func setDelay(_ delay: TimeInterval, for frame: Int) {
         self.frames[frame].delay = delay
     }
     
-    public func getDelay(for frame: Int) -> Float {
+    public func getDelay(for frame: Int) -> TimeInterval {
         return self.frames[frame].delay
     }
     
@@ -208,9 +208,14 @@ public final class AnimatedTexture: Texture2D {
             return
         }
         
+        // Avoid bug when we play animation very fast, because we need to fit to frames per second rate
+        if event.deltaTime > 1 {
+            return
+        }
+        
         self.time += event.deltaTime
         
-        let limit = self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0
+        let limit: TimeInterval = TimeInterval(self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0)
         let frameTime = limit + self.frames[self.currentFrame].delay
         
         if self.time > frameTime {

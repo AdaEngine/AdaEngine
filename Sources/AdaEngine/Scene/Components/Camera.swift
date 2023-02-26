@@ -4,6 +4,17 @@
 //
 //  Created by v.prusakov on 11/2/21.
 //
+//
+
+public struct Viewport: Codable, Equatable {
+    public var rect: Rect
+    public var depth: ClosedRange<Float>
+
+    public init(rect: Rect = Rect.zero, depth: ClosedRange<Float> = Float(0.0)...Float(1.0)) {
+        self.rect = rect
+        self.depth = depth
+    }
+}
 
 public struct CameraClearFlags: OptionSet, Codable {
     public var rawValue: UInt8
@@ -20,23 +31,27 @@ public struct CameraClearFlags: OptionSet, Codable {
 }
 
 // TODO: We should translate mouse coordinate space to scene coordinate space
-// FIXME: Change camera to component, instead of script component
-public final class Camera: ScriptComponent {
+public struct Camera: Component {
     
     public enum Projection: UInt8, Codable, CaseIterable {
         case perspective
         case orthographic
     }
     
+    public enum RenderTarget: Codable {
+        case window(Window.ID)
+        case texture(RenderTexture)
+    }
+    
     // MARK: Properties
     
     /// The closest point relative to camera that drawing will occur.
     @Export
-    public var near: Float = 0.001
+    public var near: Float = -1
     
     /// The closest point relative to camera that drawing will occur
     @Export
-    public var far: Float = 1000
+    public var far: Float = 1
     
     /// Angle of camera view
     @Export
@@ -46,8 +61,8 @@ public final class Camera: ScriptComponent {
     @Export
     public var projection: Projection = .perspective
     
-    /// A viewport where camera will render
-    internal var viewport: Viewport?
+    @Export
+    public var viewport: Viewport?
     
     /// Set camera is active
     @Export
@@ -61,59 +76,44 @@ public final class Camera: ScriptComponent {
     public var clearFlags: CameraClearFlags = .nothing
     
     @Export
+    @MinValue(0.1)
     public var orthographicScale: Float = 1
     
-    // MARK: Computed Properties
+    public internal(set) var renderTarget: RenderTarget
     
-    // TODO: Should we have this flag? Looks like isActive is enough for us
-    public var isCurrent: Bool {
-        return self.entity?.scene?.activeCamera === self
+    @NoExport
+    public internal(set) var computedData: CameraComputedData
+    
+    public var renderOrder: Int = 0
+    
+    // MARK: - Init
+    
+    public init(renderTarget: RenderTexture, viewport: Viewport? = nil) {
+        self.renderTarget = .texture(renderTarget)
+        self.viewport = viewport
+    }
+    
+    public init() {
+        self.renderTarget = .window(.empty)
     }
     
     public var viewMatrix: Transform3D = .identity
-    
-    // MARK: - Internal
-    
-    func makeCameraData() -> CameraData {
-        let viewportSize = self.viewport?.size ?? .zero
-        
-        let projection: Transform3D
-        let aspectRation = Float(viewportSize.width) / Float(viewportSize.height)
-        
-        switch self.projection {
-        case .orthographic:
-            // TODO: (Vlad) not works when use translate position
-            projection = Transform3D.orthogonal(
-                left: -aspectRation * self.orthographicScale,
-                right: aspectRation * self.orthographicScale,
-                top: self.orthographicScale,
-                bottom: -self.orthographicScale,
-                zNear: self.near,
-                zFar: self.far
-            )
-        case .perspective:
-            projection = Transform3D.perspective(
-                fieldOfView: self.fieldOfView,
-                aspectRatio: aspectRation,
-                zNear: self.near,
-                zFar: self.far
-            )
-        }
-        
-        let viewMatrix = self.entity.flatMap { entity in
-            entity.scene?.worldTransformMatrix(for: entity)
-        } ?? .identity
-        
-        return CameraData(
-            viewProjection: projection * viewMatrix,
-            position: self.transform.position
-        )
-    }
 }
 
 extension Camera {
-    struct CameraData {
-        var viewProjection: Transform3D = .identity
-        var position: Vector3 = .zero
+    
+    public struct CameraComputedData: DefaultValue {
+        
+        public static var defaultValue: Camera.CameraComputedData = .init()
+        
+        public internal(set) var projectionMatrix: Transform3D = .identity
+        public internal(set) var viewMatrix: Transform3D = .identity
+        public internal(set) var frustum: Frustum = Frustum()
     }
+}
+
+public struct ViewUniform: Component {
+    var projectionMatrix: Transform3D = .identity
+    var viewProjectionMatrix: Transform3D = .identity
+    var viewMatrix: Transform3D = .identity
 }

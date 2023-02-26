@@ -14,4 +14,5 @@ public enum IndexBufferFormat: UInt8 {
 
 public protocol IndexBuffer: Buffer {
     var indexFormat: IndexBufferFormat { get }
+    var offset: Int { get }
 }

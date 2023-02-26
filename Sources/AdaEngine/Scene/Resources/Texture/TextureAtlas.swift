@@ -202,7 +202,7 @@ public extension TextureAtlas {
             try container.encode(self.atlas.resourcePath, forKey: .textureAtlasResource)
             try container.encode(self.min, forKey: .min)
             try container.encode(self.max, forKey: .max)
-            try container.encode(Size(width: self.width, height: self.height), forKey: .size)
+            try container.encode(Size(width: Float(self.width), height: Float(self.height)), forKey: .size)
         }
     }
 }

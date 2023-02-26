@@ -20,11 +20,13 @@ class MetalFramebuffer: Framebuffer {
         self.descriptor = descriptor
         self.attachments = []
         
-        let size: Size
+        var size = Size(width: 1, height: 1)
         
         if descriptor.width == 0 && descriptor.height == 0 {
             let windowSize = Application.shared.windowManager.activeWindow?.frame.size ?? .zero
-            size = windowSize
+            if windowSize.height > 0 && windowSize.width > 0 {
+                size = windowSize
+            }
         } else {
             size = Size(
                 width: Float(descriptor.width),
@@ -49,15 +51,14 @@ class MetalFramebuffer: Framebuffer {
     }
     
     func invalidate() {
-        let needsCreateTextures = self.attachments.isEmpty
         
         let renderPassDescriptor = MTLRenderPassDescriptor()
         
         self.attachments.removeAll(keepingCapacity: true)
         
         let size = Size(
-            width: Float(self.descriptor.width) * self.descriptor.scale,
-            height: Float(self.descriptor.height) * self.descriptor.scale
+            width: Float(self.size.width) * self.descriptor.scale,
+            height: Float(self.size.height) * self.descriptor.scale
         )
         
         for (index, attachmentDesc) in self.descriptor.attachments.enumerated() {
@@ -66,6 +67,7 @@ class MetalFramebuffer: Framebuffer {
             
             let texture = RenderTexture(
                 size: size,
+                scaleFactor: self.descriptor.scale,
                 format: attachmentDesc.format
             )
             

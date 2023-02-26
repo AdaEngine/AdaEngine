@@ -23,11 +23,6 @@ public struct CompilerFlags {
 }
 
 public extension Settings {
-    static var adaEngine: Settings {
-        Settings.settings(base: [
-            "PRODUCT_BUNDLE_IDENTIFIER": "org.adaengine",
-        ])
-    }
     
     static func targetSettings(
         swiftFlags: [CompilerFlags]? = nil,
@@ -64,5 +59,28 @@ private extension Platform {
         case .watchOS: return "WATCHOS"
         default: return ""
         }
+    }
+}
+
+
+enum AppSettings {
+    
+    static func make(for configuration: AppConfiguration, isAppSettings: Bool) -> SettingsDictionary {
+        var settings: SettingsDictionary = [:]
+        
+        settings["PRODUCT_BUNDLE_IDENTIFIER"] = "org.adaengine"
+//            settings["ASSETCATALOG_COMPILER_APPICON_NAME"] = configuration.appIconAssetName.settingsValue
+            
+        settings["SWIFT_COMPILATION_MODE"] = configuration.compilationMode.settingsValue
+        settings["SWIFT_OPTIMIZATION_LEVEL"] = configuration.optimizationLevel.settingsValue
+        settings["DEBUG_INFORMATION_FORMAT"] = DebugInformationFormat.dwarfWithDsym.rawValue.settingsValue
+        
+        return settings
+    }
+}
+
+public extension String {
+    var settingsValue: SettingValue {
+        return SettingValue(stringLiteral: self)
     }
 }

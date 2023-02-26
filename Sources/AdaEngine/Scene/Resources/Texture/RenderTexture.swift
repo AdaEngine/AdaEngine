@@ -8,14 +8,15 @@
 // FIXME: (Vlad) should say that texture isn't use for rendering anymore
 // FIXME: (Vlad) I feel that we have a bug with deinitialization here
 
-// A texture using as render target.
+// A texture using as a render target.
 public class RenderTexture: Texture2D {
     
     public let pixelFormat: PixelFormat
+    public let scaleFactor: Float
     
     public private(set) var isActive: Bool = true
     
-    public init(size: Size, format: PixelFormat) {
+    public init(size: Size, scaleFactor: Float, format: PixelFormat) {
         let descriptor = TextureDescriptor(
             width: Int(size.width),
             height: Int(size.height),
@@ -25,6 +26,7 @@ public class RenderTexture: Texture2D {
         )
         
         self.pixelFormat = format
+        self.scaleFactor = scaleFactor
         
         let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
         

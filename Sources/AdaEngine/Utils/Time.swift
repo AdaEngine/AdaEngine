@@ -15,19 +15,22 @@ import Quartz
 import Glibc
 #endif
 
+// TODO: (Vlad) Time for Windows OS
+
 /// Represent time interval in system.
 public typealias TimeInterval = Float
+public typealias LongTimeInterval = Double
 
 public struct Time {
     /// Return current time in system.
-    public static var absolute: TimeInterval {
+    public static var absolute: LongTimeInterval {
         #if os(iOS) || os(tvOS) || os(OSX) || os(watchOS)
-        return TimeInterval(CACurrentMediaTime())
+        return LongTimeInterval(CACurrentMediaTime())
         #else
         var time = timespec()
         clock_gettime(CLOCK_MONOTONIC, &time)
 
-        return TimeInterval(time.tv_sec) + TimeInterval(time.tv_nsec) / TimeInterval(1.0e-9)
+        return LongTimeInterval(time.tv_sec) + LongTimeInterval(time.tv_nsec) / LongTimeInterval(1.0e-9)
         #endif
     }
 }

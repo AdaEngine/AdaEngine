@@ -9,16 +9,16 @@
 import box2d
 import Math
 
-// - TODO: (Vlad) Update system fixed times (Timer?)
 // - TODO: (Vlad) Draw polygons for debug
 // - TODO: (Vlad) Runtime update shape resource
 // - TODO: (Vlad) Debug render in other system?
 final class Physics2DSystem: System {
     
-    init(scene: Scene) { }
+    let fixedTimestep: FixedTimestep
     
-    private var physicsFrame: Int = 0
-    private var time: TimeInterval = 0
+    init(scene: Scene) {
+        self.fixedTimestep = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
+    }
     
     static let physicsBodyQuery = EntityQuery(
         where: .has(PhysicsBody2DComponent.self) && .has(Transform.self)
@@ -42,22 +42,23 @@ final class Physics2DSystem: System {
     )
     
     // I think it should be smth like scene renderer here.
-    private let render2D = RenderEngine2D()
+    private let render2D = Renderer2D.default
     
     func update(context: UpdateContext) {
-        let needDrawPolygons = context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.viewport != nil
+        let result = self.fixedTimestep.advance(with: context.deltaTime)
         
-        var drawContext: RenderEngine2D.DrawContext?
+        let needDrawPolygons = false//context.scene.debugOptions.contains(.showPhysicsShapes) && context.scene.window != nil
         
-        if needDrawPolygons {
-            drawContext = self.render2D.beginContext(for: context.scene.activeCamera)
-            drawContext?.setDebugName("Physics 2D Debug")
-        }
+        var drawContext: Renderer2D.DrawContext?
+        
+//        if needDrawPolygons {
+//            drawContext = self.render2D.beginContext(for: context.scene.defaultCamera)
+//            drawContext?.setDebugName("Physics 2D Debug")
+//        }
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
         let colissionBody = context.scene.performQuery(Self.collisionQuery)
         let joints = context.scene.performQuery(Self.jointsQuery)
-        
         let removedEntities = context.scene.performQuery(Self.removedEntities)
         
         // We should have only one physics world
@@ -67,7 +68,9 @@ final class Physics2DSystem: System {
             return
         }
         
-        world.updateSimulation(context.deltaTime)
+        if result.isFixedTick {
+            world.updateSimulation(result.fixedTime)
+        }
 
         self.updatePhysicsBodyEntities(
             physicsBody,
@@ -106,7 +109,7 @@ final class Physics2DSystem: System {
         world: PhysicsWorld2D,
         needDrawPolygons: Bool,
         context: UpdateContext,
-        drawContext: RenderEngine2D.DrawContext?
+        drawContext: Renderer2D.DrawContext?
     ) {
         for entity in entities {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
@@ -169,7 +172,7 @@ final class Physics2DSystem: System {
         world: PhysicsWorld2D,
         needDrawPolygons: Bool,
         context: UpdateContext,
-        drawContext: RenderEngine2D.DrawContext?
+        drawContext: Renderer2D.DrawContext?
     ) {
         for entity in entities {
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
@@ -321,7 +324,7 @@ final class Physics2DSystem: System {
     
     // FIXME: Use body transform instead
     private func drawDebug(
-        context: RenderEngine2D.DrawContext?,
+        context: Renderer2D.DrawContext?,
         body: b2Body,
         transform: Transform,
         color: Color
@@ -356,10 +359,10 @@ final class Physics2DSystem: System {
         }
     }
     
-    private func drawCircle(context: RenderEngine2D.DrawContext, position: Vector2, angle: Float, radius: Float, color: Color) {
+    private func drawCircle(context: Renderer2D.DrawContext, position: Vector2, angle: Float, radius: Float, color: Color) {
         context.drawCircle(
             position: Vector3(position, 0),
-            rotation: [0, 0, 0], // FIXME: (Vlad) We should set rotation angle
+            rotation: [0, 0, angle], // FIXME: (Vlad) We should set rotation angle
             radius: radius,
             thickness: 0.1,
             fade: 0,
@@ -367,34 +370,34 @@ final class Physics2DSystem: System {
         )
     }
     
-    private func drawQuad(context: RenderEngine2D.DrawContext, position: Vector2, angle: Float, size: Vector2, color: Color) {
+    private func drawQuad(context: Renderer2D.DrawContext, position: Vector2, angle: Float, size: Vector2, color: Color) {
         context.drawQuad(position: Vector3(position, 1), size: size, color: color.opacity(0.2))
         
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
 //            end: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
 //            color: color
 //        )
 //
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
 //            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
 //            color: color
 //        )
 //
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
 //            end: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
 //            color: color
 //        )
 //
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
 //            end: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
 //            color: color
 //        )
 //
-//        render2D.drawLine(
+//        context.drawLine(
 //            start: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
 //            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
 //            color: color

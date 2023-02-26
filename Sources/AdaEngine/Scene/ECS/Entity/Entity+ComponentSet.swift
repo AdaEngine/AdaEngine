@@ -15,40 +15,40 @@ public extension Entity {
         internal weak var entity: Entity?
         
         var world: World? {
-            return self.entity?.scene?.world
+            return self.entity?.world
         }
         
         private(set) var buffer: OrderedDictionary<ComponentId, Component>
+        private(set) var bitset: BitSet
         
         // MARK: - Codable
         
         init() {
+            self.bitset = BitSet()
             self.buffer = [:]
         }
         
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
-            var buffer: OrderedDictionary<ComponentId, Component> = [:]
+            self.buffer = OrderedDictionary<ComponentId, Component>.init(minimumCapacity: container.allKeys.count)
+            self.bitset = BitSet(reservingCapacity: container.allKeys.count)
             
             for key in container.allKeys {
                 guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue) else {
                     continue
                 }
 
-                let component = try type.init(from: container.superDecoder(forKey: key))
-
-                buffer[type.identifier] = component
+//                let component = try type.init(from: container.superDecoder(forKey: key))
+//                self.set(component)
             }
-            
-            self.buffer = buffer
         }
         
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingName.self)
             
             for value in self.buffer.values {
-                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
-                try value.encode(to: superEncoder)
+//                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
+//                try value.encode(to: superEncoder)
             }
         }
 
@@ -59,27 +59,21 @@ public extension Entity {
             }
             
             set {
-                self.buffer[T.identifier] = newValue
-                (newValue as? ScriptComponent)?.entity = entity
-                
-                guard let ent = self.entity else {
-                    return
-                }
-                
-                if let component = newValue {
-                    self.world?.entity(ent, didAddComponent: component, with: T.identifier)
+                if let newValue {
+                    self.set(newValue)
                 } else {
-                    self.world?.entity(ent, didRemoveComponent: T.self, with: T.identifier)
+                    self.remove(T.self)
                 }
             }
         }
 
         public mutating func set<T>(_ component: T) where T : Component {
-            self.buffer[T.identifier] = component
+            let identifier = T.identifier
+            self.buffer[identifier] = component
             (component as? ScriptComponent)?.entity = self.entity
-            
+            self.bitset.insert(T.self)
             if let ent = self.entity {
-                self.world?.entity(ent, didAddComponent: component, with: T.identifier)
+                self.world?.entity(ent, didAddComponent: component, with: identifier)
             }
         }
 
@@ -88,11 +82,13 @@ public extension Entity {
                 
                 let componentType = type(of: component)
                 
-                self.buffer[componentType.identifier] = component
+                let identifier = componentType.identifier
+                self.buffer[identifier] = component
                 (component as? ScriptComponent)?.entity = self.entity
+                self.bitset.insert(identifier)
                 
                 if let ent = self.entity {
-                    self.world?.entity(ent, didAddComponent: component , with: componentType.identifier)
+                    self.world?.entity(ent, didAddComponent: component , with: identifier)
                 }
             }
         }
@@ -104,12 +100,30 @@ public extension Entity {
 
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
-            (self.buffer[componentType.identifier] as? ScriptComponent)?.destroy()
-            self.buffer[componentType.identifier] = nil
+            let identifier = componentType.identifier
+            (self.buffer[identifier] as? ScriptComponent)?.destroy()
+            self.buffer[identifier] = nil
+            
+            self.bitset.remove(componentType)
             
             if let ent = self.entity {
-                self.world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
+                self.world?.entity(ent, didRemoveComponent: componentType, with: identifier)
             }
+        }
+        
+        public mutating func removeAll(keepingCapacity: Bool = false) {
+            for component in self.buffer.values.elements {
+                let componentType = type(of: component)
+                (component as? ScriptComponent)?.destroy()
+                
+                if let ent = self.entity {
+                    self.world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
+                }
+            }
+            
+            self.bitset = BitSet(reservingCapacity: self.buffer.count)
+            
+            self.buffer.removeAll(keepingCapacity: keepingCapacity)
         }
         
         /// The number of components in the set.
