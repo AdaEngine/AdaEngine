@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
-// TODO: (Vlad) add state for entity. Update once per tick
-
 /// This object describe query to ecs world.
 ///
 /// ```swift
@@ -84,9 +82,7 @@ extension EntityQuery {
         
         func updateArchetypes(in world: World) {
             self.world = world
-            self.archetypes = world.archetypes.filter {
-                self.predicate.evaluate($0)
-            }
+            self.archetypes = world.archetypes.filter { self.predicate.evaluate($0) }
         }
     }
 }

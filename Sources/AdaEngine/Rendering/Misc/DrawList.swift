@@ -24,7 +24,7 @@ public final class DrawList {
     static let maximumTexturesCount = 32
     
     public private(set) var renderPipeline: RenderPipeline?
-    private(set) var indexArray: RID?
+    private(set) var indexBuffer: IndexBuffer?
     private(set) var debugName: String?
     private(set) var lineWidth: Float?
     
@@ -52,8 +52,8 @@ public final class DrawList {
         self.renderPipeline = renderPipeline
     }
     
-    public func bindIndexArray(_ indexArray: RID) {
-        self.indexArray = indexArray
+    public func bindIndexBuffer(_ indexBuffer: IndexBuffer) {
+        self.indexBuffer = indexBuffer
     }
     
     public func appendVertexBuffer(_ vertexBuffer: VertexBuffer) {
@@ -99,7 +99,7 @@ public final class DrawList {
     
     public func clear() {
         self.renderPipeline = nil
-        self.indexArray = nil
+        self.indexBuffer = nil
         self.debugName = nil
         self.lineWidth = nil
         

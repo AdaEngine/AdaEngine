@@ -55,10 +55,6 @@ public final class GameLoop {
         
         Application.shared.windowManager.update(deltaTime)
         
-        ViewportRenderer.shared.beginFrame()
-        ViewportRenderer.shared.renderViewports()
-        ViewportRenderer.shared.endFrame()
-        
         try RenderEngine.shared.endFrame()
         
         if physicsTime.isFixedTick {

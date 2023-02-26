@@ -32,8 +32,6 @@ protocol RenderBackend: AnyObject {
     
     func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer
     
-    func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID
-    
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer
     
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer

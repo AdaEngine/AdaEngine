@@ -7,8 +7,7 @@
 
 import Math
 
-// TODO: (Vlad) Fix depth stencil
-// TODO: (Vlad) Store render pass 
+// TODO: Needs optimizations
 public class Renderer2D {
     
     enum Bindings {
@@ -31,7 +30,7 @@ public class Renderer2D {
         var vertexBuffer: VertexBuffer
         var vertices: [V] = []
         var indeciesCount: Int
-        var indexArray: RID
+        var indexBuffer: IndexBuffer
         let renderPipeline: RenderPipeline
     }
     
@@ -96,8 +95,6 @@ public class Renderer2D {
         self.textureSlots = [Texture2D?].init(repeating: nil, count: 32)
         self.textureSlots[0] = self.whiteTexture
         
-        let indexArray = device.makeIndexArray(indexBuffer: quadIndexBuffer, indexOffset: 0, indexCount: Self.maxIndecies)
-        
         var samplerDesc = SamplerDescriptor()
         samplerDesc.magFilter = .nearest
         samplerDesc.mipFilter = .nearest
@@ -144,7 +141,7 @@ public class Renderer2D {
             vertexBuffer: circleVertexBuffer,
             vertices: [],
             indeciesCount: 0,
-            indexArray: indexArray,
+            indexBuffer: quadIndexBuffer,
             renderPipeline: circlePipeline
         )
         
@@ -184,7 +181,7 @@ public class Renderer2D {
             vertexBuffer: quadVertexBuffer,
             vertices: [],
             indeciesCount: 0,
-            indexArray: indexArray,
+            indexBuffer: quadIndexBuffer,
             renderPipeline: quadPipeline
         )
         
@@ -231,13 +228,11 @@ public class Renderer2D {
             length: Self.maxLineIndices
         )
         
-        let linesIndexArray = device.makeIndexArray(indexBuffer: indexBuffer, indexOffset: 0, indexCount: Self.maxLineIndices)
-        
         self.lineData =  Data<LineVertexData>(
             vertexBuffer: linesVertexBuffer,
             vertices: [],
             indeciesCount: 0,
-            indexArray: linesIndexArray,
+            indexBuffer: indexBuffer,
             renderPipeline: linesPipeline
         )
     }
@@ -493,7 +488,7 @@ extension Renderer2D {
             
             currentDraw.appendVertexBuffer(data.vertexBuffer)
             currentDraw.bindRenderPipeline(data.renderPipeline)
-            currentDraw.bindIndexArray(data.indexArray)
+            currentDraw.bindIndexBuffer(data.indexBuffer)
             currentDraw.bindIndexPrimitive(indexPrimitive)
             
             RenderEngine.shared.draw(currentDraw, indexCount: data.indeciesCount, instancesCount: 1)

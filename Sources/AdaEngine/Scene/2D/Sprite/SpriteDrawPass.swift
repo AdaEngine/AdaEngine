@@ -45,7 +45,7 @@ public struct SpriteDrawPass: DrawPass {
         }
         context.drawList.appendUniformBuffer(uniform)
         context.drawList.appendVertexBuffer(spriteData.vertexBuffer)
-        context.drawList.bindIndexArray(spriteData.indexArray)
+        context.drawList.bindIndexBuffer(spriteData.indexBuffer)
         context.drawList.bindRenderPipeline(item.renderPipeline)
         
         context.drawList.drawIndexed(indexCount: count, instancesCount: 1)

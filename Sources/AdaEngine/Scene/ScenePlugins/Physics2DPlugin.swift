@@ -23,14 +23,3 @@ struct Physics2DPlugin: ScenePlugin {
         scene.addSystem(Physics2DSystem.self)
     }
 }
-
-struct DebugPhysics2DSystem: System {
-    
-    static var dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
-    
-    init(scene: Scene) { }
-    
-    func update(context: UpdateContext) {
-
-    }
-}

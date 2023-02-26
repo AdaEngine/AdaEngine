@@ -24,8 +24,6 @@ class MetalRenderBackend: RenderBackend {
     private(set) var currentFrameIndex: Int = 0
     private var maxFramesInFlight = 3
     
-    private var indexArrays: ResourceHashMap<IndexArray> = [:]
-    
     private var inFlightSemaphore: DispatchSemaphore
     private var commandQueue: MTLCommandQueue
     
@@ -224,21 +222,11 @@ class MetalRenderBackend: RenderBackend {
     
     // MARK: - Buffers
     
-    func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID {
-        let array = IndexArray(
-            buffer: indexBuffer,
-            offset: indexOffset,
-            indices: indexCount
-        )
-        
-        return self.indexArrays.setValue(array)
-    }
-    
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
         buffer.contents().copyMemory(from: bytes, byteCount: length)
         
-        return MetalIndexBuffer(buffer: buffer, indexFormat: format)
+        return MetalIndexBuffer(buffer: buffer, offset: index, indexFormat: format)
     }
     
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
@@ -480,8 +468,8 @@ extension MetalRenderBackend {
             )
         }
         
-        guard let iaRid = list.indexArray, let indexArray = self.indexArrays[iaRid] else {
-            fatalError("can't draw without index array")
+        guard let indexBuffer = list.indexBuffer else {
+            fatalError("can't draw without index buffer")
         }
         
         for buffer in list.vertexBuffers {
@@ -524,9 +512,9 @@ extension MetalRenderBackend {
         encoder.drawIndexedPrimitives(
             type: list.indexPrimitive == .line ? .line : .triangle,
             indexCount: indexCount,
-            indexType: indexArray.buffer.indexFormat == .uInt32 ? .uint32 : .uint16,
-            indexBuffer: (indexArray.buffer as! MetalIndexBuffer).buffer,
-            indexBufferOffset: indexArray.offset,
+            indexType: indexBuffer.indexFormat == .uInt32 ? .uint32 : .uint16,
+            indexBuffer: (indexBuffer as! MetalIndexBuffer).buffer,
+            indexBufferOffset: indexBuffer.offset,
             instanceCount: instancesCount
         )
     }
@@ -553,12 +541,6 @@ extension MetalRenderBackend {
         
         /// Only for index buffer
         var indexFormat: IndexBufferFormat?
-    }
-    
-    struct IndexArray {
-        var buffer: IndexBuffer
-        var offset: Int = 0
-        var indices: Int = 0
     }
     
     struct PipelineState {

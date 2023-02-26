@@ -98,10 +98,9 @@ struct TubeDestroyerSystem: System {
         entities.forEach { entity in
             let transform = entity.components[Transform.self]!
             
-            if transform.position.x < -4 {
-                print("remove entity", entity)
-                entity.removeFromScene()
-            }
+//            if transform.position.x < -4 {
+//                entity.removeFromScene()
+//            }
         }
     }
 }
@@ -117,7 +116,7 @@ class TubeSpawnerSystem: System {
         counter += context.deltaTime
         
         if lastSpawnTime < counter {
-            self.lastSpawnTime = counter + 0.5
+            self.lastSpawnTime = counter + 0.1
             
             var transform = Transform()
             transform.scale = [0.4, 1, 1]
@@ -137,12 +136,12 @@ class TubeSpawnerSystem: System {
         tube.components += TubeComponent()
         tube.components += SpriteComponent(tintColor: isUp ? Color.green : Color.blue)
         tube.components += transform
-        tube.components += Collision2DComponent(
-            shapes: [
-                .generateBox(width: 1, height: 1)
-            ],
-            mode: .trigger
-        )
+//        tube.components += Collision2DComponent(
+//            shapes: [
+//                .generateBox(width: 1, height: 1)
+//            ],
+//            mode: .trigger
+//        )
         
         scene.addEntity(tube)
     }

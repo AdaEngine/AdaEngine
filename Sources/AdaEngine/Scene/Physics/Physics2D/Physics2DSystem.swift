@@ -59,7 +59,6 @@ final class Physics2DSystem: System {
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
         let colissionBody = context.scene.performQuery(Self.collisionQuery)
         let joints = context.scene.performQuery(Self.jointsQuery)
-        
         let removedEntities = context.scene.performQuery(Self.removedEntities)
         
         // We should have only one physics world
@@ -70,7 +69,7 @@ final class Physics2DSystem: System {
         }
         
         if result.isFixedTick {
-            world.updateSimulation(Float(result.fixedTime))
+            world.updateSimulation(result.fixedTime)
         }
 
         self.updatePhysicsBodyEntities(
