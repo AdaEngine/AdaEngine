@@ -21,7 +21,10 @@ public final class Archetype: Hashable, Identifiable {
     
     public let id: Int
     public internal(set) var entities: SparseArray<Entity> = []
+    
+    @usableFromInline
     private(set) var friedEntities: [Int] = []
+    
     var edge: Edge = Edge()
     var componentsBitMask: BitSet = BitSet()
     
@@ -29,12 +32,15 @@ public final class Archetype: Hashable, Identifiable {
         self.id = id
         self.entities = SparseArray(entities)
         self.componentsBitMask = componentsBitMask
+        self.friedEntities.reserveCapacity(30)
     }
     
+    @inline(__always)
     static func new(index: Int) -> Archetype {
         return Archetype(id: index)
     }
     
+    @inline(__always)
     func append(_ entity: Entity) -> EntityRecord {
         let row: Int
         
@@ -53,11 +59,13 @@ public final class Archetype: Hashable, Identifiable {
         )
     }
     
+    @inline(__always)
     func remove(at index: Int) {
         self.entities.remove(at: index)
         self.friedEntities.append(index)
     }
     
+    @inline(__always)
     func clear() {
         self.componentsBitMask = BitSet()
         self.friedEntities.removeAll()

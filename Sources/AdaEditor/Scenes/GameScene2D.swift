@@ -78,7 +78,7 @@ struct TubeMovementSystem: System {
     func update(context: UpdateContext) {
         context.scene.performQuery(Self.tubeQuery).forEach { entity in
             var transform = entity.components[Transform.self]!
-            transform.position.x -= Float(2 * context.deltaTime)
+            transform.position.x -= 1 * context.deltaTime
             entity.components[Transform.self] = transform
         }
     }
@@ -98,26 +98,23 @@ struct TubeDestroyerSystem: System {
         entities.forEach { entity in
             let transform = entity.components[Transform.self]!
             
-//            if transform.position.x < -4 {
-//                entity.removeFromScene()
-//            }
+            if transform.position.x < -4 {
+                entity.removeFromScene()
+            }
         }
     }
 }
 
 class TubeSpawnerSystem: System {
     
-    var lastSpawnTime: TimeInterval = 0
-    var counter: TimeInterval = 0
+    let timer = FixedTimestep(step: 1.2)
     
     required init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        counter += context.deltaTime
+        let timerResult = timer.advance(with: context.deltaTime)
         
-        if lastSpawnTime < counter {
-            self.lastSpawnTime = counter + 0.1
-            
+        if timerResult.isFixedTick {
             var transform = Transform()
             transform.scale = [0.4, 1, 1]
             
@@ -136,12 +133,12 @@ class TubeSpawnerSystem: System {
         tube.components += TubeComponent()
         tube.components += SpriteComponent(tintColor: isUp ? Color.green : Color.blue)
         tube.components += transform
-//        tube.components += Collision2DComponent(
-//            shapes: [
-//                .generateBox(width: 1, height: 1)
-//            ],
-//            mode: .trigger
-//        )
+        tube.components += Collision2DComponent(
+            shapes: [
+                .generateBox(width: 1, height: 1)
+            ],
+            mode: .trigger
+        )
         
         scene.addEntity(tube)
     }
