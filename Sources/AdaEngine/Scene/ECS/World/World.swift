@@ -197,7 +197,6 @@ public final class World {
 }
 
 extension World {
-    // FIXME: (Vlad) We should avoid additional allocation
     public func performQuery(_ query: EntityQuery) -> QueryResult {
         let state = query.state
         state.updateArchetypes(in: self)

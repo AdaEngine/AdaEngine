@@ -92,8 +92,11 @@ public struct SpriteRenderSystem: System {
         }
     }
     
+    // MARK: - Private
+    
     private func draw(scene: Scene, visibleEntities: [Entity], renderItems: inout RenderItems<Transparent2DRenderItem>) {
         let spriteDraw = SpriteDrawPass.identifier
+        
         let spriteData = EmptyEntity(name: "sprite_data")
         
         let sprites = visibleEntities.filter {
@@ -247,18 +250,16 @@ public struct SpriteRenderSystem: System {
             length: indicies
         )
         
-        let indexArray = device.makeIndexArray(indexBuffer: quadIndexBuffer, indexOffset: 0, indexCount: indicies)
-        
         spriteData.components += SpriteDataComponent(
             vertexBuffer: vertexBuffer,
-            indexArray: indexArray
+            indexBuffer: quadIndexBuffer
         )
     }
 }
 
 struct SpriteDataComponent: Component {
     let vertexBuffer: VertexBuffer
-    let indexArray: RID
+    let indexBuffer: IndexBuffer
 }
 
 public struct BatchComponent: Component {

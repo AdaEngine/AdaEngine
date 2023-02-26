@@ -63,10 +63,6 @@ public class RenderEngine: RenderBackend {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
     }
     
-    func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID {
-        return self.renderBackend.makeIndexArray(indexBuffer: indexBuffer, indexOffset: indexOffset, indexCount: indexCount)
-    }
-    
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         return self.renderBackend.makeIndexBuffer(index: index, format: format, bytes: bytes, length: length)
     }
