@@ -5,15 +5,12 @@
 //  Created by v.prusakov on 6/28/22.
 //
 
-import Foundation
-import Yams
-
 /// The base class represents a 2D texture.
 /// If the texture isn't held by any object, then the GPU resource will freed immediately.
 open class Texture2D: Texture {
     
-    public private(set) var width: Float
-    public private(set) var height: Float
+    public private(set) var width: Int
+    public private(set) var height: Int
     
     public init(image: Image) {
         let descriptor = TextureDescriptor(
@@ -27,10 +24,19 @@ open class Texture2D: Texture {
         
         let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
         
-        self.width = Float(image.width)
-        self.height = Float(image.height)
+        self.width = image.width
+        self.height = image.height
         
         super.init(gpuTexture: gpuTexture, textureType: .texture2D)
+    }
+    
+    public init(descriptor: TextureDescriptor) {
+        let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
+        
+        self.width = descriptor.width
+        self.height = descriptor.height
+        
+        super.init(gpuTexture: gpuTexture, textureType: descriptor.textureType)
     }
     
     // FIXME: Should return image?
@@ -39,13 +45,14 @@ open class Texture2D: Texture {
         return nil
     }
     
+    // FIXME: (Vlad) Should remove it from Texture2D.
     open internal(set) var textureCoordinates: [Vector2] = [
         [0, 1], [1, 1], [1, 0], [0, 0]
     ]
     
     internal init(gpuTexture: GPUTexture, size: Size) {
-        self.width = size.width
-        self.height = size.height
+        self.width = Int(size.width)
+        self.height = Int(size.height)
         
         super.init(gpuTexture: gpuTexture, textureType: .texture2D)
     }
@@ -90,8 +97,8 @@ open class Texture2D: Texture {
         
         let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
         
-        self.width = Float(image.width)
-        self.height = Float(image.height)
+        self.width = image.width
+        self.height = image.height
         
         super.init(gpuTexture: gpuTexture, textureType: .texture2D)
     }

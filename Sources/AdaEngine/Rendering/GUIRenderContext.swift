@@ -11,7 +11,7 @@ import Math
 /// Context use orthogonal projection.
 final public class GUIRenderContext {
     
-    private let engine: RenderEngine2D
+    private let engine: Renderer2D
     
     private var fillColor: Color = .clear
     private var strokeColor: Color = .black
@@ -19,10 +19,10 @@ final public class GUIRenderContext {
     private var currentTransform = Transform3D.identity
     
     /// Window Identifier related presented window.
-    private unowned let viewport: Viewport
+    private unowned let window: Window
     
-    public init(viewport: Viewport, engine: RenderEngine2D) {
-        self.viewport = viewport
+    public init(window: Window, engine: Renderer2D) {
+        self.window = window
         self.engine = engine
     }
     
@@ -37,24 +37,24 @@ final public class GUIRenderContext {
     var view: Transform3D = .identity
     private var screenRect: Rect = .zero
     
-    private var currentDrawContext: RenderEngine2D.DrawContext?
+    private var currentDrawContext: Renderer2D.DrawContext?
     
     public func beginDraw(in screenRect: Rect) {
         let size = screenRect.size
         
-        let view = Transform3D.orthogonal(
-            left: 0,
-            right: size.width,
-            top: 0,
-            bottom: -size.height,
-            zNear: -1,
-            zFar: 1
-        )
+//        let view = Transform3D.orthographic(
+//            left: 0,
+//            right: size.width,
+//            top: 0,
+//            bottom: -size.height,
+//            zNear: -1,
+//            zFar: 1
+//        )
         
         self.screenRect = screenRect
-        self.view = view
+        self.view = .identity//view
         
-        self.currentDrawContext = self.engine.beginContext(for: self.viewport, viewTransform: view)
+        self.currentDrawContext = self.engine.beginContext(for: self.window, viewTransform: view)
     }
     
     public func setFillColor(_ color: Color) {

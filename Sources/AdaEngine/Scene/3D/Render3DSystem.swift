@@ -12,9 +12,6 @@ struct Render3DSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        let models = context.scene.performQuery(Self.meshComponents)
-        
-        let sceneRenderer = context.scene.sceneRenderer
         
     }   
 }

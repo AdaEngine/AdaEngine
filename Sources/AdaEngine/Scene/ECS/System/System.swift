@@ -25,7 +25,7 @@ public struct SceneUpdateContext {
 ///
 /// ```swift
 ///
-/// struct MovememntSystem: System {
+/// struct MovementSystem: System {
 ///
 ///     // Configure the query to scene.
 ///     // We want to recieve entities with `PlayerComponent` and `Transform`

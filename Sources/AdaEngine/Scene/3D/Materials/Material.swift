@@ -5,11 +5,29 @@
 //  Created by v.prusakov on 11/3/21.
 //
 
-public protocol Material: Resource {
+public class Material: Resource {
+    public required init(asset decoder: AssetDecoder) throws {
+        fatalError()
+    }
+    
+    public func encodeContents(with encoder: AssetEncoder) throws {
+        fatalError()
+    }
+    
+    public static var resourceType: ResourceType = .material
+    public var resourcePath: String = ""
+    public var resourceName: String = ""
+    
+    init(shader: Shader) {
+        
+    }
     
 }
 
-public struct BaseMaterial {
-    public var diffuseColor: Color
-    public var metalic: Float
+class ShaderMaterial {
+    
+    init() {
+        
+    }
+    
 }

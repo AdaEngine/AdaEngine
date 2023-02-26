@@ -26,10 +26,9 @@ public struct Transform2D: Hashable {
 public extension Transform2D {
     @inline(__always)
     init(translation: Vector2) {
-        var matrix = Transform2D.identity
-        matrix[2, 0] = translation.x
-        matrix[2, 1] = translation.y
-        self = matrix
+        self.x = Vector3(1, 0, 0)
+        self.y = Vector3(0, 1, 0)
+        self.z = Vector3(translation.x, translation.y, 1)
     }
     
     @inline(__always)

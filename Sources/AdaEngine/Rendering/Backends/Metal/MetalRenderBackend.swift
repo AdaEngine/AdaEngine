@@ -10,7 +10,7 @@ enum BufferIndex {
     static let material = 2
 }
 
-// TODO: (Vlad) We should support bgra8Unorm_srgb
+// TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
 #if METAL
 import Metal
@@ -23,8 +23,6 @@ class MetalRenderBackend: RenderBackend {
     private let context: Context
     private(set) var currentFrameIndex: Int = 0
     private var maxFramesInFlight = 3
-    
-    private var indexArrays: ResourceHashMap<IndexArray> = [:]
     
     private var inFlightSemaphore: DispatchSemaphore
     private var commandQueue: MTLCommandQueue
@@ -99,14 +97,12 @@ class MetalRenderBackend: RenderBackend {
             library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
             #endif
             
-            let vertexFunc = library.makeFunction(name: descriptor.vertexFunction)!
-            let fragmentFunc = library.makeFunction(name: descriptor.fragmentFunction)!
+            let functions = descriptor.functions.compactMap { library.makeFunction(name: $0.entry) }
             
             return MetalShader(
                 name: descriptor.shaderName,
                 library: library,
-                vertexFunction: vertexFunc,
-                fragmentFunction: fragmentFunc
+                functions: functions
             )
         } catch {
             fatalError(error.localizedDescription)
@@ -137,8 +133,16 @@ class MetalRenderBackend: RenderBackend {
             fatalError("Incorrect type of shader")
         }
         
-        pipelineDescriptor.vertexFunction = shader.vertexFunction
-        pipelineDescriptor.fragmentFunction = shader.fragmentFunction
+        shader.functions.forEach {
+            switch $0.functionType {
+            case .fragment:
+                pipelineDescriptor.fragmentFunction = $0
+            case .vertex:
+                pipelineDescriptor.vertexFunction = $0
+            default:
+                return
+            }
+         }
         
         pipelineDescriptor.vertexDescriptor = vertexDescriptor
         
@@ -218,21 +222,11 @@ class MetalRenderBackend: RenderBackend {
     
     // MARK: - Buffers
     
-    func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID {
-        let array = IndexArray(
-            buffer: indexBuffer,
-            offset: indexOffset,
-            indices: indexCount
-        )
-        
-        return self.indexArrays.setValue(array)
-    }
-    
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
         buffer.contents().copyMemory(from: bytes, byteCount: length)
         
-        return MetalIndexBuffer(buffer: buffer, indexFormat: format)
+        return MetalIndexBuffer(buffer: buffer, offset: index, indexFormat: format)
     }
     
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
@@ -316,7 +310,6 @@ extension MetalRenderBackend {
     
     // TODO: (Vlad) think about it later
     func getImage(for texture2D: RID) -> Image? {
-        
         return nil
         
 //        let mtlTexture = texture.resource
@@ -368,27 +361,20 @@ extension MetalRenderBackend {
         let mtlRenderPass = window.getRenderPass()
         mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
         
-        let renderPass = MetalRenderPass(renderPass: mtlRenderPass)
-        
-        guard let mtlCommandBuffer = window.commandBuffer else {
+        guard let mtlCommandBuffer = window.commandQueue.makeCommandBuffer() else {
             fatalError("Command Buffer not exists")
         }
         
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
         let commandBuffer = MetalRenderCommandBuffer(
             encoder: encoder,
-            commandBuffer: mtlCommandBuffer,
-            shouldCommit: false
+            commandBuffer: mtlCommandBuffer
         )
         
-        return DrawList(
-            renderPass: renderPass,
-            commandBuffer: commandBuffer
-        )
+        return DrawList(commandBuffer: commandBuffer)
     }
     
-    func beginDraw(to framebuffer: Framebuffer) -> DrawList {
-        
+    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList {
         guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
             fatalError("Cannot get a command buffer")
         }
@@ -397,18 +383,19 @@ extension MetalRenderBackend {
             fatalError("Cannot get a render pass descriptor for current draw")
         }
         
-        let renderPass = MetalRenderPass(renderPass: mtlRenderPassDesc)
+        if let clearColors {
+            for (index, color) in clearColors.enumerated() {
+                mtlRenderPassDesc.colorAttachments[index].clearColor = color.toMetalClearColor
+            }
+        }
+        
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPassDesc)!
         let commandBuffer = MetalRenderCommandBuffer(
             encoder: encoder,
-            commandBuffer: mtlCommandBuffer,
-            shouldCommit: true
+            commandBuffer: mtlCommandBuffer
         )
         
-        return DrawList(
-            renderPass: renderPass,
-            commandBuffer: commandBuffer
-        )
+        return DrawList(commandBuffer: commandBuffer)
     }
     
     // MARK: - Uniforms -
@@ -466,7 +453,8 @@ extension MetalRenderBackend {
         }
         
         if list.isViewportEnabled {
-            let rect = list.viewportRect
+            let viewport = list.viewport
+            let rect = viewport.rect
             
             encoder.setViewport(
                 MTLViewport(
@@ -474,14 +462,14 @@ extension MetalRenderBackend {
                     originY: Double(rect.origin.y),
                     width: Double(rect.size.width),
                     height: Double(rect.size.height),
-                    znear: Double(0),
-                    zfar: Double(1)
+                    znear: Double(viewport.depth.lowerBound),
+                    zfar: Double(viewport.depth.upperBound)
                 )
             )
         }
         
-        guard let iaRid = list.indexArray, let indexArray = self.indexArrays[iaRid] else {
-            fatalError("can't draw without index array")
+        guard let indexBuffer = list.indexBuffer else {
+            fatalError("can't draw without index buffer")
         }
         
         for buffer in list.vertexBuffers {
@@ -503,8 +491,15 @@ extension MetalRenderBackend {
         }
         
         for index in 0 ..< list.uniformBufferCount {
-            let buffer = list.uniformBuffers[index] as! MetalUniformBuffer
-            encoder.setVertexBuffer(buffer.buffer, offset: 0, index: buffer.binding)
+            let data = list.uniformBuffers[index]!
+            let buffer = data.buffer as! MetalUniformBuffer
+            
+            switch data.function {
+            case .vertex:
+                encoder.setVertexBuffer(buffer.buffer, offset: 0, index: buffer.binding)
+            case .fragment:
+                encoder.setFragmentBuffer(buffer.buffer, offset: 0, index: buffer.binding)
+            }
         }
         
         switch list.triangleFillMode {
@@ -517,9 +512,9 @@ extension MetalRenderBackend {
         encoder.drawIndexedPrimitives(
             type: list.indexPrimitive == .line ? .line : .triangle,
             indexCount: indexCount,
-            indexType: indexArray.buffer.indexFormat == .uInt32 ? .uint32 : .uint16,
-            indexBuffer: (indexArray.buffer as! MetalIndexBuffer).buffer,
-            indexBufferOffset: indexArray.offset,
+            indexType: indexBuffer.indexFormat == .uInt32 ? .uint32 : .uint16,
+            indexBuffer: (indexBuffer as! MetalIndexBuffer).buffer,
+            indexBufferOffset: indexBuffer.offset,
             instanceCount: instancesCount
         )
     }
@@ -531,11 +526,7 @@ extension MetalRenderBackend {
         
         commandBuffer.encoder.endEncoding()
         
-        
-        // TODO: Think about it later.
-        if commandBuffer.shouldCommit {
-            commandBuffer.commandBuffer.commit()
-        }
+        commandBuffer.commandBuffer.commit()
     }
 }
 
@@ -550,12 +541,6 @@ extension MetalRenderBackend {
         
         /// Only for index buffer
         var indexFormat: IndexBufferFormat?
-    }
-    
-    struct IndexArray {
-        var buffer: IndexBuffer
-        var offset: Int = 0
-        var indices: Int = 0
     }
     
     struct PipelineState {
@@ -745,12 +730,10 @@ public protocol DrawCommandBuffer {
 class MetalRenderCommandBuffer: DrawCommandBuffer {
     let encoder: MTLRenderCommandEncoder
     let commandBuffer: MTLCommandBuffer
-    let shouldCommit: Bool
     
-    init(encoder: MTLRenderCommandEncoder, commandBuffer: MTLCommandBuffer, shouldCommit: Bool) {
+    init(encoder: MTLRenderCommandEncoder, commandBuffer: MTLCommandBuffer) {
         self.encoder = encoder
         self.commandBuffer = commandBuffer
-        self.shouldCommit = shouldCommit
     }
 }
 

@@ -23,6 +23,7 @@
 public struct InRange<T: Comparable & Codable>: Codable {
     
     let range: Range<T>
+    
     public var wrappedValue: T {
         didSet {
             self.wrappedValue = Self.applyRange(self.range, for: self.wrappedValue)
@@ -39,6 +40,7 @@ public struct InRange<T: Comparable & Codable>: Codable {
         self.wrappedValue = Self.applyRange(range, for: wrappedValue)
     }
     
+    @inline(__always)
     static func applyRange(_ range: Range<T>, for value: T) -> T {
         if value < range.lowerBound {
             return range.lowerBound
@@ -49,3 +51,6 @@ public struct InRange<T: Comparable & Codable>: Codable {
         }
     }
 }
+
+extension InRange: Hashable where T: Hashable {}
+extension InRange: Equatable where T: Equatable {}

@@ -20,27 +20,33 @@ struct EntityRecord {
 public final class Archetype: Hashable, Identifiable {
     
     public let id: Int
-    public internal(set) var entities: [Entity?] = []
-    private(set) var friedEntities: [Int] = []
-    var edge: Edge = Edge()
-    var componentsBitMask: Bitset = Bitset()
+    public internal(set) var entities: SparseArray<Entity> = []
     
-    private init(id: Archetype.ID, entities: [Entity] = [], componentsBitMask: Bitset = Bitset()) {
+    @usableFromInline
+    private(set) var friedEntities: [Int] = []
+    
+    var edge: Edge = Edge()
+    var componentsBitMask: BitSet = BitSet()
+    
+    private init(id: Archetype.ID, entities: [Entity] = [], componentsBitMask: BitSet = BitSet()) {
         self.id = id
-        self.entities = entities
+        self.entities = SparseArray(entities)
         self.componentsBitMask = componentsBitMask
+        self.friedEntities.reserveCapacity(30)
     }
     
+    @inline(__always)
     static func new(index: Int) -> Archetype {
         return Archetype(id: index)
     }
     
+    @inline(__always)
     func append(_ entity: Entity) -> EntityRecord {
         let row: Int
         
         if !friedEntities.isEmpty {
-            let index = self.friedEntities.removeFirst()
-            self.entities[index] = entity
+            let index = self.friedEntities.removeLast()
+            self.entities.insert(entity, at: index)
             row = index
         } else {
             self.entities.append(entity)
@@ -53,14 +59,15 @@ public final class Archetype: Hashable, Identifiable {
         )
     }
     
+    @inline(__always)
     func remove(at index: Int) {
-        self.entities[index] = nil
-        
+        self.entities.remove(at: index)
         self.friedEntities.append(index)
     }
     
+    @inline(__always)
     func clear() {
-        self.componentsBitMask.clear()
+        self.componentsBitMask = BitSet()
         self.friedEntities.removeAll()
         self.entities.removeAll()
         self.edge = Edge()
@@ -85,7 +92,7 @@ extension Archetype: CustomStringConvertible {
         """
         Archetype(
             id: \(id)
-            entityIds: \(entities.compactMap { $0?.id })
+            entityIds: \(entities.compactMap { $0.id })
             componentsBitMask: \(componentsBitMask)
         )
         """
@@ -100,42 +107,32 @@ extension Archetype {
 }
 
 // FIXME: (Vlad) not a bit set!
-struct Bitset: Equatable, Hashable {
+struct BitSet: Equatable, Hashable {
     // TODO: (Vlad) Not efficient in memory layout.
     private var mask: Set<ComponentId>
-    
-    init(count: Int = 0) {
+
+    init(reservingCapacity: Int = 0) {
         self.mask = []
-        self.mask.reserveCapacity(count)
+        self.mask.reserveCapacity(reservingCapacity)
     }
     
     mutating func insert<T: Component>(_ component: T.Type) {
         self.mask.insert(T.identifier)
     }
-    
-    mutating func remove<T: Component>(_ component: T.Type) {
-        self.mask.remove(T.identifier)
-    }
-    
-    func contains<T: Component>(_ component: T.Type) -> Bool {
-        return self.mask.contains(T.identifier)
-    }
-    
-    func contains(_ identifier: ComponentId) -> Bool {
-        return self.mask.contains(identifier)
-    }
-    
-    mutating func clear() {
-        self.mask.removeAll()
-    }
-    
-    // MARK: Unsafe
-    
+
     mutating func insert(_ component: ComponentId) {
         self.mask.insert(component)
     }
-    
-    func contains(_ bitmask: Bitset) -> Bool {
-        return bitmask.mask == self.mask
+
+    mutating func remove<T: Component>(_ component: T.Type) {
+        self.mask.remove(T.identifier)
+    }
+
+    func contains(_ identifier: ComponentId) -> Bool {
+        self.mask.contains(identifier)
+    }
+
+    func contains<T: Component>(_ component: T.Type) -> Bool {
+        return self.mask.contains(T.identifier)
     }
 }

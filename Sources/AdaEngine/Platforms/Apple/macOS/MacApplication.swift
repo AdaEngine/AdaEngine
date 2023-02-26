@@ -17,25 +17,43 @@ final class MacApplication: Application {
         self.displayLink = DisplayLink(on: .main)!
         try super.init(argc: argc, argv: argv)
         self.windowManager = MacOSWindowManager()
-    }
-    
-    override func run() throws {
+        
+        // Create application
         let app = AdaApplication.shared
         app.setActivationPolicy(.regular)
+        
         app.finishLaunching()
         
         let delegate = MacAppDelegate()
         app.delegate = delegate
         
-        app.activate(ignoringOtherApps: true)
+        //process application:openFile: event
+        while true {
+            let event = app.nextEvent(
+                matching: .any,
+                until: .distantPast,
+                inMode: .default,
+                dequeue: true
+            )
+            
+            guard let event else {
+                break
+            }
+            
+            app.sendEvent(event)
+        }
         
+        app.activate(ignoringOtherApps: true)
+    }
+    
+    override func run() throws {
         self.displayLink.setHandler { [weak self] in
             self?.update()
         }
-        
+    
         self.displayLink.start()
-        
-        app.run()
+
+        AdaApplication.shared.run()
     }
     
     override func terminate() {

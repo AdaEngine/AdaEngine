@@ -7,7 +7,6 @@
 
 import OrderedCollections
 
-@_spi(rendering) /* If we need a use "low level" rendering */
 public class RenderEngine: RenderBackend {
     
     public static let shared: RenderEngine = {
@@ -64,10 +63,6 @@ public class RenderEngine: RenderBackend {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
     }
     
-    func makeIndexArray(indexBuffer: IndexBuffer, indexOffset: Int, indexCount: Int) -> RID {
-        return self.renderBackend.makeIndexArray(indexBuffer: indexBuffer, indexOffset: indexOffset, indexCount: indexCount)
-    }
-    
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         return self.renderBackend.makeIndexBuffer(index: index, format: format, bytes: bytes, length: length)
     }
@@ -120,8 +115,8 @@ public class RenderEngine: RenderBackend {
         self.renderBackend.beginDraw(for: window, clearColor: clearColor)
     }
     
-    func beginDraw(to framebuffer: Framebuffer) -> DrawList {
-        self.renderBackend.beginDraw(to: framebuffer)
+    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList {
+        self.renderBackend.beginDraw(to: framebuffer, clearColors: clearColors)
     }
     
     func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {

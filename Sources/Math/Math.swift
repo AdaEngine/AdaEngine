@@ -16,7 +16,7 @@
 // TODO: (Vlad) Replace to Foundation realization instead?
 
 @inline(__always)
-public func clamp(_ value: Float, _ min: Float, _ max: Float) -> Float {
+public func clamp<T: Comparable>(_ value: T, _ min: T, _ max: T) -> T {
     return value < min ? (min) : (value > max ? max : value)
 }
 

@@ -36,5 +36,5 @@ class UIKitScreenManager: ScreenManager {
     }
 }
 
-extension UIScreen: NativeScreen {}
+extension UIScreen: SystemScreen {}
 #endif

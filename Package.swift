@@ -144,9 +144,10 @@ var adaEngineSwiftSettings = swiftSettings
 var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
+    .product(name: "BitCollections", package: "swift-collections"),
     "Yams",
     "libpng",
-    "box2d",
+    "box2d"
 ]
 
 #if os(Linux)
@@ -259,7 +260,7 @@ let package = Package(
 
 // FIXME: If possible - move to local `vendors` folder
 package.dependencies += [
-    .package(url: "https://github.com/apple/swift-collections", from: "1.0.4"),
+    .package(url: "https://github.com/apple/swift-collections", branch: "main"),
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
     
     // Plugins

@@ -20,16 +20,16 @@ struct PlayerMovementSystem: System {
             let body = entity.components[PhysicsBody2DComponent.self]!
             
             if Input.isKeyPressed(.space) {
-                body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+                body.applyLinearImpulse([0, 0.1], point: .zero, wake: true)
             }
             
             for touch in Input.getTouches() where touch.phase == .began {
-                body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+                body.applyLinearImpulse([0, 0.1], point: .zero, wake: true)
             }
         }
         
         context.scene.performQuery(Self.cameraQuery).forEach { entity in
-            var transform = entity.components[Transform.self]!
+            var (camera, transform) = entity.components[Camera.self, Transform.self]
             
             let speed: Float = 2 * context.deltaTime
             
@@ -49,7 +49,16 @@ struct PlayerMovementSystem: System {
                 transform.position.x += speed
             }
             
+            if Input.isKeyPressed(.arrowUp) {
+                camera.orthographicScale -= speed
+            }
+            
+            if Input.isKeyPressed(.arrowDown) {
+                camera.orthographicScale += speed
+            }
+            
             entity.components += transform
+            entity.components += camera
         }
     }
 }
@@ -69,8 +78,8 @@ struct TubeMovementSystem: System {
     func update(context: UpdateContext) {
         context.scene.performQuery(Self.tubeQuery).forEach { entity in
             var transform = entity.components[Transform.self]!
-            transform.position.x -= 2 * context.deltaTime
-            entity.components += transform
+            transform.position.x -= 1 * context.deltaTime
+            entity.components[Transform.self] = transform
         }
     }
 }
@@ -84,7 +93,9 @@ struct TubeDestroyerSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.tubeQuery).forEach { entity in
+        let entities = context.scene.performQuery(Self.tubeQuery)
+        
+        entities.forEach { entity in
             let transform = entity.components[Transform.self]!
             
             if transform.position.x < -4 {
@@ -96,21 +107,18 @@ struct TubeDestroyerSystem: System {
 
 class TubeSpawnerSystem: System {
     
-    var lastSpawnTime: TimeInterval = 0
-    var counter: TimeInterval = 0
+    let timer = FixedTimestep(step: 1.2)
     
     required init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        counter += context.deltaTime
+        let timerResult = timer.advance(with: context.deltaTime)
         
-        if lastSpawnTime < counter {
-            self.lastSpawnTime = counter + 3
-            
+        if timerResult.isFixedTick {
             var transform = Transform()
             transform.scale = [0.4, 1, 1]
-            transform.position.z = -4
-            let position = Vector3(x: 4, y: Float.random(in: 0.4 ... 1.2), z: 0)
+            
+            let position = Vector3(x: 4, y: Float.random(in: 0.4 ... 1.2), z: -1)
             transform.position = position
             
             self.spawnTube(in: context.scene, transform: transform, isUp: true)
@@ -167,12 +175,17 @@ final class GameScene2D {
         let scene = Scene()
 //        let scene = try ResourceManager.load(scenePath) as Scene
         
-        scene.activeCamera.projection = .orthographic
-        scene.activeCamera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
-        scene.activeCamera.clearFlags = .solid
+        let cameraEntity = CameraEntity()
+        cameraEntity.camera.projection = .orthographic
+        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
+        cameraEntity.camera.clearFlags = .solid
+        cameraEntity.camera.orthographicScale = 1.5
+        
+        scene.addEntity(cameraEntity)
         
         // DEBUG
-        scene.debugOptions = [.showPhysicsShapes]
+//        scene.debugOptions = [.showPhysicsShapes]
+//        scene.debugOptions = [.showBoundingBoxes]
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
@@ -185,8 +198,21 @@ final class GameScene2D {
         scene.addSystem(PlayerMovementSystem.self)
         
         try ResourceManager.save(scene, at: scenePath)
+        
+        // Change gravitation
+        scene.subscribe(to: SceneEvents.OnReady.self, on: scene) { [weak self] event in
+            self?.sceneDidReady(event.scene)
+        }
+        .store(in: &disposeBag)
 
         return scene
+    }
+    
+    private func sceneDidReady(_ scene: Scene) {
+        let physicsQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
+        scene.performQuery(physicsQuery).forEach { entity in
+            entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -1.62)
+        }
     }
     
     private func collisionHandler(for scene: Scene) {
@@ -228,14 +254,14 @@ final class GameScene2D {
     private func makeGround(for scene: Scene) {
         var transform = Transform()
         transform.scale = [3, 0.19, 0.19]
-        transform.position.y = -4.9
+        transform.position.y = -1
         
         let untexturedEntity = Entity(name: "Ground")
         untexturedEntity.components += SpriteComponent(texture: self.textureAtlas[0, 0])
         untexturedEntity.components += transform
         untexturedEntity.components += PhysicsBody2DComponent(
             shapes: [
-                .generateBox(width: 1, height: 1).offsetBy(x: 0, y: 1)
+                .generateBox(width: 1, height: 1).offsetBy(x: 0, y: 0.065)
             ],
             mass: 0,
             mode: .static

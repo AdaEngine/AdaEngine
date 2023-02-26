@@ -32,34 +32,33 @@ class EditorCameraSystem: System {
         
         for entity in entities {
             
-            let (editorCamera, camera) = entity.components[EditorCameraComponent.self, Camera.self]
+            var (editorCamera, camera, transform) = entity.components[EditorCameraComponent.self, Camera.self, Transform.self]
             let speed = editorCamera.speed
             
             if Input.isKeyPressed(.w) {
-                
-                camera.transform.position += speed * cameraFront * deltaTime
+                transform.position += speed * cameraFront * deltaTime
                 self.isViewMatrixDirty = true
             }
             
             if Input.isKeyPressed(.a) {
-                camera.transform.position -= cross(cameraFront, cameraUp).normalized * speed * deltaTime
+                transform.position -= cross(cameraFront, cameraUp).normalized * speed * deltaTime
                 self.isViewMatrixDirty = true
             }
             
             if Input.isKeyPressed(.d) {
-                camera.transform.position += cross(cameraFront, cameraUp).normalized * speed * deltaTime
+                transform.position += cross(cameraFront, cameraUp).normalized * speed * deltaTime
                 self.isViewMatrixDirty = true
             }
             
             if Input.isKeyPressed(.s) {
-                camera.transform.position -= speed * cameraFront * deltaTime
+                transform.position -= speed * cameraFront * deltaTime
                 self.isViewMatrixDirty = true
             }
             
             if self.isViewMatrixDirty {
                 camera.viewMatrix = Transform3D.lookAt(
-                    eye: camera.transform.position,
-                    center: camera.transform.position + self.cameraFront,
+                    eye: transform.position,
+                    center: transform.position + self.cameraFront,
                     up: self.cameraUp
                 )
                 
@@ -68,6 +67,8 @@ class EditorCameraSystem: System {
             
             // Apply transform
             entity.components[EditorCameraComponent.self] = editorCamera
+            entity.components[Camera.self] = camera
+            entity.components[Transform.self] = transform
         }
     }
     

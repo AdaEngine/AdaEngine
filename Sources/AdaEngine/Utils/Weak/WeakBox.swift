@@ -5,26 +5,26 @@
 //  Created by v.prusakov on 7/3/22.
 //
 
-class WeakBox<T: AnyObject>: Identifiable, Hashable {
+public class WeakBox<T: AnyObject>: Identifiable, Hashable {
     
-    weak var value: T?
+    public private(set) weak var value: T?
     
-    var isEmpty: Bool {
+    public var isEmpty: Bool {
         return value == nil
     }
     
-    let id: ObjectIdentifier
+    public let id: ObjectIdentifier
     
-    init(value: T) {
+    public init(value: T) {
         self.value = value
         self.id = ObjectIdentifier(value)
     }
     
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(self.id)
     }
     
-    static func == (lhs: WeakBox<T>, rhs: WeakBox<T>) -> Bool {
+    public static func == (lhs: WeakBox<T>, rhs: WeakBox<T>) -> Bool {
         return lhs.id == rhs.id
     }
 }

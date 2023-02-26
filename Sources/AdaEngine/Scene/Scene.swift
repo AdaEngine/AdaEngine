@@ -13,27 +13,30 @@ enum SceneSerializationError: Error {
     case notRegistedObject(Any)
 }
 
+// FIXME: (Vlad) Systems should updated and stored in a DAG graph
+
 public final class Scene: Resource {
     
     static var currentVersion: Version = "1.0.0"
     
     public var name: String
     public private(set) var id: UUID
-
-    public internal(set) var activeCamera: Camera
     
-    public internal(set) weak var viewport: Viewport?
+    public internal(set) weak var window: Window?
+    public internal(set) var viewport: Viewport = Viewport()
     
     public var resourcePath: String = ""
     public var resourceName: String = ""
     
-    private var systems: [System] = []
     private var plugins: [ScenePlugin] = []
     private(set) var world: World
     
     private(set) var eventManager: EventManager = EventManager.default
     
-    public private(set) lazy var sceneRenderer = SceneRendering(scene: self)
+    public private(set) lazy var sceneRenderGraph = RenderGraph()
+    
+    private let systemGraph = SystemsGraph()
+    private let systemGraphExecutor = SystemsGraphExecutor()
     
     // Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
@@ -47,17 +50,6 @@ public final class Scene: Resource {
         self.id = UUID()
         self.name = name ?? "Scene"
         self.world = World()
-        
-        let cameraEntity = Entity()
-        let cameraComponent = Camera()
-        cameraComponent.isActive = true
-        cameraEntity.components += cameraComponent
-        
-        defer {
-            self.addEntity(cameraEntity)
-        }
-        
-        self.activeCamera = cameraComponent
     }
     
     // MARK: - Resource -
@@ -75,7 +67,7 @@ public final class Scene: Resource {
             plugins: self.plugins.map {
                 ScenePluginRepresentation(name: type(of: $0).swiftName)
             },
-            systems: self.systems.map {
+            systems: self.systemGraph.systems.map {
                 SystemRepresentation(name: type(of: $0).swiftName)
             },
             entities: self.world.getEntities()
@@ -122,9 +114,7 @@ public final class Scene: Resource {
     /// Add new system to the scene.
     public func addSystem<T: System>(_ systemType: T.Type) {
         let system = systemType.init(scene: self)
-        self.systems.append(system)
-
-        self.systems = self.sortSystems(self.systems)
+        self.systemGraph.addSystem(system)
     }
     
     /// Add new scene plugin to the scene.
@@ -142,8 +132,11 @@ public final class Scene: Resource {
     func ready() {
         // TODO: In the future we need minimal scene plugin for headless mode.
         self.addPlugin(DefaultScenePlugin())
+        
         self.isReady = true
         
+        self.systemGraph.linkSystems()
+        self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
     }
     
@@ -151,10 +144,7 @@ public final class Scene: Resource {
         self.world.tick()
         
         let context = SceneUpdateContext(scene: self, deltaTime: deltaTime)
-        
-        for system in self.systems {
-            system.update(context: context)
-        }
+        self.systemGraphExecutor.execute(self.systemGraph, context: context)
     }
 }
 
@@ -171,8 +161,7 @@ public extension Scene {
 
 public extension Scene {
     func addEntity(_ entity: Entity) {
-        precondition(entity.scene == nil, "Entity has scene reference, can't be added")
-        entity.scene = self
+        precondition(entity.world !== self.world, "Entity has different world reference, and can't be added")
         self.world.appendEntity(entity)
         
         self.eventManager.send(SceneEvents.DidAddEntity(entity: entity), source: self)
@@ -220,49 +209,6 @@ public extension Scene {
     }
 }
 
-// MARK: - Private
-
-extension Scene {
-    // TODO: (Vlad) Not sure that it's good solution
-    private func sortSystems(_ systems: [System]) -> [System] {
-        var sortedSystems = systems
-
-        for var systemIndex in 0 ..< systems.count {
-            let system = systems[systemIndex]
-            let dependencies = type(of: system).dependencies
-
-            for dependency in dependencies {
-                switch dependency {
-                case .before(let systemType):
-                    if let index = sortedSystems.firstIndex(where: { type(of: $0) == systemType }) {
-                        var indexBefore = sortedSystems.index(before: index)
-                        
-                        if !sortedSystems.indices.contains(indexBefore) {
-                            indexBefore = index
-                        }
-                        
-                        sortedSystems.swapAt(systemIndex, indexBefore)
-                        systemIndex = indexBefore
-                    }
-                case .after(let systemType):
-                    if let index = sortedSystems.firstIndex(where: { type(of: $0) == systemType }) {
-                        var indexAfter = sortedSystems.index(after: index)
-                        
-                        if !sortedSystems.indices.contains(indexAfter) {
-                            indexAfter = index
-                        }
-                        
-                        sortedSystems.swapAt(systemIndex, indexAfter)
-                        systemIndex = indexAfter
-                    }
-                }
-            }
-        }
-
-        return sortedSystems
-    }
-}
-
 // MARK: - EventSource
 
 extension Scene: EventSource {
@@ -286,6 +232,7 @@ public extension Scene {
         
         public static let showPhysicsShapes = DebugOptions(rawValue: 1 << 0)
         public static let showFPS = DebugOptions(rawValue: 1 << 1)
+        public static let showBoundingBoxes = DebugOptions(rawValue: 1 << 2)
     }
 }
 
