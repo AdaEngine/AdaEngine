@@ -9,7 +9,7 @@ class FPSCounter {
     
     static let shared = FPSCounter()
     
-    private var lastNotificationTime: TimeInterval = 0
+    private var lastNotificationTime: LongTimeInterval = 0
     private var notificationDelay: TimeInterval = 1.0
     private var numberOfFrames = 0
     
@@ -27,7 +27,7 @@ class FPSCounter {
         self.numberOfFrames += 1
         
         let currentTime = Time.absolute
-        let elapsedTime = currentTime - self.lastNotificationTime
+        let elapsedTime = TimeInterval(currentTime - self.lastNotificationTime)
         
         if elapsedTime >= self.notificationDelay {
             self.notifyUpdateForElapsedTime(elapsedTime)

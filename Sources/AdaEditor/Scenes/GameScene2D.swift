@@ -78,7 +78,7 @@ struct TubeMovementSystem: System {
     func update(context: UpdateContext) {
         context.scene.performQuery(Self.tubeQuery).forEach { entity in
             var transform = entity.components[Transform.self]!
-            transform.position.x -= 2 * context.deltaTime
+            transform.position.x -= Float(2 * context.deltaTime)
             entity.components[Transform.self] = transform
         }
     }
@@ -93,10 +93,13 @@ struct TubeDestroyerSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.tubeQuery).forEach { entity in
+        let entities = context.scene.performQuery(Self.tubeQuery)
+        
+        entities.forEach { entity in
             let transform = entity.components[Transform.self]!
             
             if transform.position.x < -4 {
+                print("remove entity", entity)
                 entity.removeFromScene()
             }
         }
@@ -114,7 +117,7 @@ class TubeSpawnerSystem: System {
         counter += context.deltaTime
         
         if lastSpawnTime < counter {
-            self.lastSpawnTime = counter + 3
+            self.lastSpawnTime = counter + 0.5
             
             var transform = Transform()
             transform.scale = [0.4, 1, 1]
@@ -122,7 +125,7 @@ class TubeSpawnerSystem: System {
             let position = Vector3(x: 4, y: Float.random(in: 0.4 ... 1.2), z: -1)
             transform.position = position
             
-//            self.spawnTube(in: context.scene, transform: transform, isUp: true)
+            self.spawnTube(in: context.scene, transform: transform, isUp: true)
             transform.position.y -= 1.5
             
             self.spawnTube(in: context.scene, transform: transform, isUp: false)

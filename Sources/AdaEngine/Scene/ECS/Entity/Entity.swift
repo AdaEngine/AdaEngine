@@ -8,8 +8,6 @@
 import Foundation.NSUUID // TODO: (Vlad) Replace to own realization
 import OrderedCollections
 
-// - TODO: (Vlad) Should fix
-// - [ ] Entity children
 /// Describe an entity and his characteristics.
 open class Entity: Identifiable {
     

@@ -18,8 +18,8 @@ public final class World {
     
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
     
-    private var removedEntities: Set<Entity.ID> = []
-    private var addedEntities: Set<Entity.ID> = []
+    internal private(set) var removedEntities: Set<Entity.ID> = []
+    internal private(set) var addedEntities: Set<Entity.ID> = []
     
     private(set) var archetypes: ContiguousArray<Archetype> = []
     private var freeArchetypeIndices: [Int] = []
@@ -199,30 +199,8 @@ public final class World {
 extension World {
     // FIXME: (Vlad) We should avoid additional allocation
     public func performQuery(_ query: EntityQuery) -> QueryResult {
-        let archetypes = self.archetypes.filter {
-            query.predicate.evaluate($0)
-        }
-        
-        let entities: [Entity] = archetypes.flatMap { $0.entities }.compactMap { entity in
-            guard let entity = entity else {
-                return nil
-            }
-            
-            if query.filter.contains(.removed) && self.removedEntities.contains(entity.id) {
-                return entity
-            }
-            
-            if query.filter.contains(.added) && self.addedEntities.contains(entity.id) {
-                return entity
-            }
-            
-            if query.filter.contains(.stored) {
-                return entity
-            }
-            
-            return nil
-        }
-        
-        return QueryResult(entities: entities)
+        let state = query.state
+        state.updateArchetypes(in: self)
+        return QueryResult(state: state)
     }
 }
