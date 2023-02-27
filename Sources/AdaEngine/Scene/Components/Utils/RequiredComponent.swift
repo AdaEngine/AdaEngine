@@ -8,7 +8,7 @@
 // swiftlint:disable unused_setter_value
 
 /// Get components from entity if exists.
-/// Only works inside `Component` class.
+/// Only works inside ``ScriptComponent`` class.
 @propertyWrapper
 public struct RequiredComponent<T: Component> {
     

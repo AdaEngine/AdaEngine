@@ -94,6 +94,7 @@ public struct SpriteRenderSystem: System {
     
     // MARK: - Private
     
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     private func draw(scene: Scene, visibleEntities: [Entity], renderItems: inout RenderItems<Transparent2DRenderItem>) {
         let spriteDraw = SpriteDrawPass.identifier
         

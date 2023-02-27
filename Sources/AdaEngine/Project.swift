@@ -37,7 +37,10 @@ let targets: [Target] = [
             ),
             .external(name: "stb_image"),
             .external(name: "Collections"),
-            .external(name: "Yams")
+            .external(name: "Yams"),
+            .external(name: "msdf-atlas-gen"),
+            .sdk(name: "freetype2", type: .library)
+            
         ],
         settings: .targetSettings(swiftFlags: [
             .define("MACOS"),

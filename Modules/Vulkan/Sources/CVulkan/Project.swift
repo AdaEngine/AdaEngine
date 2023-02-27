@@ -10,7 +10,7 @@ import ProjectDescriptionHelpers
 
 let project = Project(
     name: "CVulkan",
-    settings: .adaEngine,
+    settings: .common,
     targets: [
         Target(
             name: "CVulkan",

@@ -33,18 +33,18 @@ final class MacOSWindowManager: WindowManager {
         
         let systemWindow = NSWindow(
             contentRect: contentRect,
-            styleMask: [.titled, .closable, .resizable, .miniaturizable],
+            styleMask: NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskResizable | NSWindowStyleMaskMiniaturizable,
             backing: .buffered,
             defer: false
         )
         
         systemWindow.contentView = metalView
-        systemWindow.collectionBehavior = [.fullScreenPrimary]
+        systemWindow.collectionBehavior = NSWindowCollectionBehaviorFullScreenPrimary
         systemWindow.center()
         systemWindow.isRestorable = false
         systemWindow.acceptsMouseMovedEvents = true
         systemWindow.delegate = nsWindowDelegate
-        systemWindow.backgroundColor = .black
+        systemWindow.backgroundColor = NSColor.black
         
         window.systemWindow = systemWindow
         window.minSize = minSize
@@ -73,7 +73,7 @@ final class MacOSWindowManager: WindowManager {
             fatalError("System window not exist.")
         }
         
-        let isFullScreen = nsWindow.styleMask.contains(.fullScreen)
+        let isFullScreen = (nsWindow.styleMask & NSWindowStyleMaskFullScreen) != 0
         let shouldToggleFullScreen = isFullScreen != (mode == .fullscreen)
         
         if shouldToggleFullScreen {
