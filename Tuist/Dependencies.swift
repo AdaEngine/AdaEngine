@@ -20,8 +20,12 @@ let spm = SwiftPackageManagerDependencies([
     .remote(
         url: "https://github.com/jpsim/Yams.git",
         requirement: .upToNextMajor(from: "5.0.1")
+    ),
+    .remote(
+        url: "https://github.com/AdaEngine/msdf-atlas-gen",
+        requirement: .branch("master")
     )
-], baseSettings: .adaEngine)
+], baseSettings: .common)
 
 let dependencies = Dependencies(
     swiftPackageManager: spm,

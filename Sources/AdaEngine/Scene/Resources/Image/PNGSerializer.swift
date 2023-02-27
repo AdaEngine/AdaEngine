@@ -40,11 +40,11 @@ struct PNGImageSerializer: ImageLoaderStrategy {
         let format: Image.Format
         
         switch pngImage.format {
-        case PNG_FORMAT_RGB:
+        case PNG_FORMAT_FLAG_COLOR:
             format = .rgb8
-        case (PNG_FORMAT_RGB | PNG_FORMAT_FLAG_ALPHA): // rgba
+        case (PNG_FORMAT_FLAG_COLOR | PNG_FORMAT_FLAG_ALPHA): // rgba
             format = .rgba8
-        case PNG_FORMAT_BGRA:
+        case PNG_FORMAT_FLAG_BGR:
             format = .bgra8
         case UInt32(PNG_FORMAT_GRAY):
             format = .gray

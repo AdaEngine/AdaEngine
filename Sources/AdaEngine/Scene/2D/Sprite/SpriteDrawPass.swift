@@ -33,9 +33,7 @@ public struct SpriteDrawPass: DrawPass {
             return
         }
         
-        guard let count = item.batchRange?.count, count > 0 else {
-            return
-        }
+        let count = item.batchRange?.count ?? 0
         
         let uniform = uniformBufferSet.getBuffer(binding: 1, set: 0, frameIndex: context.device.currentFrameIndex)
         uniform.setData(SpriteViewUniform(viewMatrix: cameraViewUniform.viewProjectionMatrix))

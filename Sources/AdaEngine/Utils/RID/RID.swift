@@ -24,7 +24,7 @@ extension RID {
     }
     
     private static func readTime() -> Int {
-        var time = timespec()
+        var time = timespec(tv_sec: 0, tv_nsec: 0)
         clock_gettime(CLOCK_MONOTONIC, &time)
         
         return (time.tv_sec * 10000000) + (time.tv_nsec / 100) + 0x01B21DD213814000;

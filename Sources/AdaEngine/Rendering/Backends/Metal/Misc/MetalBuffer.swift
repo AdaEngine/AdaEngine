@@ -27,14 +27,14 @@ public class MetalBuffer: Buffer {
 extension ResourceOptions {
     var metal: MTLResourceOptions {
         
-        var options: MTLResourceOptions = []
+        var options: MTLResourceOptions = 0
         
         if self.contains(.storagePrivate) {
-            options.insert(.storageModePrivate)
+            options |= MTLResourceStorageModePrivate
         }
         
         if self.contains(.storageShared) {
-            options.insert(.storageModeShared)
+            options |= MTLResourceStorageModeShared
         }
         
         return options

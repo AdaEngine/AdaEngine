@@ -139,7 +139,11 @@ let editorTarget: Target = .executableTarget(
 
 // MARK: Ada Engine SDK
 
-var adaEngineSwiftSettings = swiftSettings
+var adaEngineSwiftSettings = swiftSettings + [
+    .unsafeFlags([
+        "-enable-experimental-cxx-interop"
+    ])
+]
 
 var adaEngineDependencies: [Target.Dependency] = [
     "Math",
@@ -147,7 +151,8 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "BitCollections", package: "swift-collections"),
     "Yams",
     "libpng",
-    "box2d"
+    "box2d",
+//    "msdf-atlas-gen"
 ]
 
 #if os(Linux)
@@ -262,6 +267,7 @@ let package = Package(
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", branch: "main"),
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
+//    .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
     
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),

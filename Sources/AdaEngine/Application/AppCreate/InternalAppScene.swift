@@ -23,7 +23,7 @@ protocol InternalAppScene {
     func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window
     
     /// Collect all modification of default scene configuration.
-    /// - NOTE: We use this method for `SceneModifier` interface.
+    /// - NOTE: We use this method for ``SceneModifier`` interface.
     func _buildConfiguration(_ configuration: inout _AppSceneConfiguration)
 }
 

@@ -14,6 +14,7 @@ DerivedData/
 
 *.xcodeproj/
 .swiftpm/
+Package.resolved
 
 # VS Code
 /.vs

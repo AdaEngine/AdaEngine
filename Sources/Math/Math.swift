@@ -32,6 +32,15 @@ public func cross(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
 }
 
 @inline(__always)
+public func round<T: FloatingPoint>(_ value: T) -> T {
+#if os(Linux)
+        return Glibc.round(value)
+#else
+        return Darwin.round(value)
+#endif
+}
+
+@inline(__always)
 public func sin<T: FloatingPoint>(_ angle: T) -> T {
     if let double = angle as? Double {
 #if os(Linux)

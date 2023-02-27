@@ -8,6 +8,7 @@
 #if MACOS
 
 import AppKit
+import IOKit
 
 class MacOSScreenManager: ScreenManager {
     
@@ -38,8 +39,9 @@ class MacOSScreenManager: ScreenManager {
         var service: io_object_t = 1
         var brighntess: Float = 1.0
         
-        if IOServiceGetMatchingServices(kIOMasterPortDefault, IOServiceMatching("IODisplayConnect"), &iterator) == kIOReturnSuccess {
-            
+        let dict: CFDictionary = IOServiceMatching("IODisplayConnect") as! CFDictionary
+        let result = IOServiceGetMatchingServices(kIOMasterPortDefault, dict, &iterator)
+        if result == KERN_SUCCESS {
             while service != 0 {
                 service = IOIteratorNext(iterator)
                 IODisplayGetFloatParameter(service, 0, kIODisplayBrightnessKey as CFString, &brighntess)

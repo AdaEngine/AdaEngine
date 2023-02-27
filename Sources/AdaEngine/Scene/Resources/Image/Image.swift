@@ -103,11 +103,14 @@ public extension Image {
     
     private enum LoadingError: LocalizedError {
         case formatNotSupported(String)
+        case readFileFailedAtPath(URL)
         
         var errorDescription: String? {
             switch self {
             case .formatNotSupported(let format):
                 return "Image with format \"\(format)\" not supported."
+            case .readFileFailedAtPath(let path):
+                return "Can't read file at path \(path.absoluteString)."
             }
         }
     }
@@ -121,7 +124,10 @@ public extension Image {
             throw LoadingError.formatNotSupported(file.pathExtension)
         }
         
-        let data = try Data(contentsOf: file, options: .uncached)
+        guard let data = FileSystem.current.readFile(at: file) else {
+            throw LoadingError.readFileFailedAtPath(file)
+        }
+        
         let image = try loader.decodeImage(from: data)
         
         self.init(
