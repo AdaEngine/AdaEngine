@@ -33,7 +33,7 @@ public final class PhysicsJoint2DDescriptor: Codable {
 public struct PhysicsJoint2DComponent: Component {
     let jointDescriptor: PhysicsJoint2DDescriptor
     
-    var runtimeJoint: b2Joint?
+    var runtimeJoint: OpaquePointer?
     
     public init(joint: PhysicsJoint2DDescriptor) {
         self.jointDescriptor = joint

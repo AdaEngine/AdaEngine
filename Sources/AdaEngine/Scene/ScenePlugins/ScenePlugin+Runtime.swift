@@ -22,7 +22,6 @@ extension ScenePlugin {
     }
 }
 
-
 enum ScenePluginStorage {
     
     private static var registeredPlugins: [String: ScenePlugin.Type] = [:]

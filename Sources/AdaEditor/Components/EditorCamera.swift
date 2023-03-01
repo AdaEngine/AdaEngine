@@ -92,9 +92,9 @@ class EditorCameraSystem: System {
         }
         
         var direction = Vector3()
-        direction.x = cos(editorComponent.yaw.radians) * cos(editorComponent.pitch.radians)
-        direction.y = sin(editorComponent.pitch.radians)
-        direction.z = sin(editorComponent.yaw.radians) * cos(editorComponent.pitch.radians)
+        direction.x = Math.cos(editorComponent.yaw.radians) * Math.cos(editorComponent.pitch.radians)
+        direction.y = Math.sin(editorComponent.pitch.radians)
+        direction.z = Math.sin(editorComponent.yaw.radians) * Math.cos(editorComponent.pitch.radians)
         
         self.cameraFront = direction.normalized
         self.isViewMatrixDirty = true
