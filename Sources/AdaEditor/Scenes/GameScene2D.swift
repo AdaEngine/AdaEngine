@@ -20,11 +20,11 @@ struct PlayerMovementSystem: System {
             let body = entity.components[PhysicsBody2DComponent.self]!
             
             if Input.isKeyPressed(.space) {
-                body.applyLinearImpulse([0, 0.1], point: .zero, wake: true)
+                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
             }
             
             for touch in Input.getTouches() where touch.phase == .began {
-                body.applyLinearImpulse([0, 0.1], point: .zero, wake: true)
+                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
             }
         }
         
@@ -211,7 +211,7 @@ final class GameScene2D {
     private func sceneDidReady(_ scene: Scene) {
         let physicsQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
         scene.performQuery(physicsQuery).forEach { entity in
-            entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -1.62)
+            entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -3.62)
         }
     }
     

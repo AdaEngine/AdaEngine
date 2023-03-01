@@ -76,7 +76,6 @@ final class Physics2DSystem: System {
             
             if let body = physicsBody.runtimeBody {
                 let position = body.getPosition()
-                print(position)
                 transform.position.x = position.x
                 transform.position.y = position.y
                 transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle())
@@ -90,29 +89,33 @@ final class Physics2DSystem: System {
                 
                 for shapeResource in physicsBody.shapes {
                     let shape = self.makeShape(for: shapeResource, transform: transform)
-                    
+
                     var fixtureDef = b2FixtureDef()
                     fixtureDef.shape = shape
-                    
+
                     fixtureDef.density = physicsBody.material.density
                     fixtureDef.restitution = physicsBody.material.restitution
                     fixtureDef.friction = physicsBody.material.friction
-                    
+
                     body.addFixture(for: &fixtureDef)
                 }
+                
+                var massData = body.ref.GetMassData()
+                massData.mass = physicsBody.massProperties.mass
+                body.ref.SetMassData(&massData)
             }
             
-            if var fixtureList = physicsBody.runtimeBody?.getFixtureList() {
+            if let fixtureList = physicsBody.runtimeBody?.getFixtureList() {
                 let collisionFilter = physicsBody.filter
-                let filterData = fixtureList.pointee.GetFilterData().pointee
-                
+                let filterData = fixtureList.GetFilterData().pointee
+
                 if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
                      filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
-                    
+
                     var filter = b2Filter()
                     filter.categoryBits = collisionFilter.categoryBitMask.rawValue
                     filter.maskBits = collisionFilter.collisionBitMask.rawValue
-                    fixtureList.pointee.SetFilterData(filter)
+                    fixtureList.SetFilterData(filter)
                 }
             }
             
@@ -126,7 +129,6 @@ final class Physics2DSystem: System {
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
             
             if let body = collisionBody.runtimeBody {
-                
                 body.setTransform(
                     position: transform.position.xy,
                     angle: transform.position.z
@@ -155,7 +157,7 @@ final class Physics2DSystem: System {
             
             if let fixtureList = collisionBody.runtimeBody?.getFixtureList() {
                 let collisionFilter = collisionBody.filter
-                let filterData = fixtureList.pointee.GetFilterData().pointee
+                let filterData = fixtureList.GetFilterData().pointee
                 
                 if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
                      filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
@@ -163,7 +165,7 @@ final class Physics2DSystem: System {
                     var filter = b2Filter()
                     filter.categoryBits = collisionFilter.categoryBitMask.rawValue
                     filter.maskBits = collisionFilter.collisionBitMask.rawValue
-                    fixtureList.pointee.SetFilterData(filter)
+                    fixtureList.SetFilterData(filter)
                 }
             }
             
@@ -191,7 +193,7 @@ final class Physics2DSystem: System {
                     joint.type = e_pulleyJoint
                     joint.bodyA = bodyA
                     joint.bodyB = bodyB
-                    
+
                     let ref = world.createJoint(&joint)
                     jointComponent.runtimeJoint = ref
                 case .revolute(let entityAId):
@@ -205,11 +207,8 @@ final class Physics2DSystem: System {
 
                     let anchor = transform.position.xy.b2Vec
                     var joint = b2RevoluteJointDef()
-//                    joint.bodyA = bodyA
-//                    joint.bodyB = current
-                    joint.localAnchorA = anchor
-                    joint.localAnchorB = anchor
-                    
+                    joint.Initialize(bodyA, current, anchor)
+
                     let jointRef = b2JointDef_unsafeCast(&joint)!
                     let ref = world.createJoint(jointRef)
                     jointComponent.runtimeJoint = ref
@@ -234,112 +233,45 @@ final class Physics2DSystem: System {
         entity.components[Collision2DComponent.self]?.runtimeBody
     }
     
-    private func makeShape(for shape: Shape2DResource, transform: Transform) -> UnsafePointer<b2Shape>? {
+    var allocator = b2BlockAllocator()
+    
+    private func makeShape(for shape: Shape2DResource, transform: Transform) -> b2Shape {
         switch shape.fixture {
         case .polygon(let shape):
             let polygon = b2PolygonShape_create()!
             var points = unsafeBitCast(shape.verticies, to: [b2Vec2].self)
-            polygon.pointee.Set(&points, int32(shape.verticies.count))
-            return b2Shape_unsafeCast(polygon)
+            polygon.Set(&points, int32(shape.verticies.count))
+            
+            defer {
+                b2Polygon_delete(polygon)
+            }
+            
+            return polygon.Clone(&allocator)
         case .circle(let shape):
-            let circle = b2CircleShape_create()
-//            circle?.pointee.m_radius = shape.radius * transform.scale.x
-//            circle?.pointee.m_p = shape.offset.b2Vec
-            return b2Shape_unsafeCast(circle)
+            var circle = b2CircleShape_create()!
+//            circle.m_radius = shape.radius * transform.scale.x
+            circle.m_p = shape.offset.b2Vec
+            
+            defer {
+                b2CircleShape_delete(circle)
+            }
+            
+            return circle.Clone(&allocator)
         case .box(let shape):
             let polygon = b2PolygonShape_create()!
-            polygon.pointee.SetAsBox(
+            
+            polygon.SetAsBox(
                 transform.scale.x * shape.halfWidth,
                 transform.scale.y * shape.halfHeight,
                 shape.offset.b2Vec,
                 0
             )
             
-            return b2Shape_unsafeCast(polygon)
+            defer {
+                b2Polygon_delete(polygon)
+            }
+            
+            return polygon.Clone(&allocator)
         }
-    }
-    
-    // MARK: - Debug draw
-    
-    // FIXME: Use body transform instead
-    private func drawDebug(
-        context: Renderer2D.DrawContext?,
-        body: OpaquePointer,
-        transform: Transform,
-        color: Color
-    ) {
-//        guard let fixtureList = body.getFixtureList(), let context = context else { return }
-//
-//        var nextFixture: b2Fixture? = fixtureList
-//
-//        while let fixture = nextFixture {
-//            switch fixture.shape.type {
-//            case .circle:
-//                self.drawCircle(
-//                    context: context,
-//                    position: body.position.asVector2,
-//                    angle: body.angle,
-//                    radius: fixture.shape.radius,
-//                    color: color
-//                )
-//            case .polygon:
-//                self.drawQuad(
-//                    context: context,
-//                    position: body.position.asVector2,
-//                    angle: body.angle,
-//                    size: transform.scale.xy,
-//                    color: color
-//                )
-//            default:
-//                continue
-//            }
-//
-//            nextFixture = fixture.getNext()
-//        }
-    }
-    
-    private func drawCircle(context: Renderer2D.DrawContext, position: Vector2, angle: Float, radius: Float, color: Color) {
-        context.drawCircle(
-            position: Vector3(position, 0),
-            rotation: [0, 0, angle], // FIXME: (Vlad) We should set rotation angle
-            radius: radius,
-            thickness: 0.1,
-            fade: 0,
-            color: color
-        )
-    }
-    
-    private func drawQuad(context: Renderer2D.DrawContext, position: Vector2, angle: Float, size: Vector2, color: Color) {
-        context.drawQuad(position: Vector3(position, 1), size: size, color: color.opacity(0.2))
-        
-//        context.drawLine(
-//            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
-//            end: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
-//            color: color
-//        )
-//
-//        context.drawLine(
-//            start: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
-//            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
-//            color: color
-//        )
-//
-//        context.drawLine(
-//            start: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
-//            end: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
-//            color: color
-//        )
-//
-//        context.drawLine(
-//            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
-//            end: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
-//            color: color
-//        )
-//
-//        context.drawLine(
-//            start: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
-//            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
-//            color: color
-//        )
     }
 }
