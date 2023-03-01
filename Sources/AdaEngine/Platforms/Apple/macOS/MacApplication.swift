@@ -27,7 +27,7 @@ final class MacApplication: Application {
         let delegate = MacAppDelegate()
         app.delegate = delegate
         
-        //process application:openFile: event
+        // process application:openFile: event
         while true {
             let event = app.nextEvent(
                 matchingMask: NSEventMaskAny,

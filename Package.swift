@@ -108,6 +108,8 @@ var swiftSettings: [SwiftSetting] = [
     .define("TVOS", .when(platforms: [.tvOS])),
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
+    
+    .unsafeFlags(["-enable-experimental-cxx-interop"])
 ]
 
 if isVulkanEnabled {
@@ -132,26 +134,22 @@ let editorTarget: Target = .executableTarget(
         .define("EDITOR_IOS", .when(platforms: [.iOS])),
         .define("EDITOR_TVOS", .when(platforms: [.tvOS])),
         .define("EDITOR_ANDROID", .when(platforms: [.android])),
-        .define("EDITOR_LINUX", .when(platforms: [.linux]))
+        .define("EDITOR_LINUX", .when(platforms: [.linux])),
     ],
     plugins: commonPlugins
 )
 
 // MARK: Ada Engine SDK
 
-var adaEngineSwiftSettings = swiftSettings + [
-    .unsafeFlags([
-        "-enable-experimental-cxx-interop"
-    ])
-]
+var adaEngineSwiftSettings = swiftSettings
 
 var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
+    .product(name: "box2d", package: "box2d-swift"),
     "Yams",
     "libpng",
-    "box2d",
 //    "msdf-atlas-gen"
 ]
 
@@ -238,15 +236,6 @@ targets += [
     )
 ]
 
-// box2d
-
-targets += [
-    .target(
-        name: "box2d",
-        exclude: ["Project.swift", "Derived"]
-    )
-]
-
 // MARK: - Package -
 
 let package = Package(
@@ -267,6 +256,8 @@ let package = Package(
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", branch: "main"),
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
+//    .package(url: "https://github.com/SpectralDragon/box2d-swift", branch: "main"),
+    .package(path: "../box2d-swift"),
 //    .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
     
     // Plugins

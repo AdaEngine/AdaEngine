@@ -17,7 +17,6 @@ public struct DrawPassId: Equatable, Hashable {
     let id: Int
 }
 
-
 public protocol DrawPass<Item> {
     
     associatedtype Item: RenderItem

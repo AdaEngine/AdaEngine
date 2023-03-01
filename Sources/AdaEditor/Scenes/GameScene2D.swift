@@ -275,7 +275,7 @@ final class GameScene2D {
     }
     
     private func fpsCounter(for scene: Scene) {
-        EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { event in
+        EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { _ in
 //            print("FPS", event.framesPerSecond)
         })
         .store(in: &disposeBag)
