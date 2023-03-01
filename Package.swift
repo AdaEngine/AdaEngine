@@ -256,8 +256,7 @@ let package = Package(
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", branch: "main"),
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
-//    .package(url: "https://github.com/SpectralDragon/box2d-swift", branch: "main"),
-    .package(path: "../box2d-swift"),
+    .package(url: "https://github.com/SpectralDragon/box2d-swift", branch: "main"),
 //    .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
     
     // Plugins
