@@ -1,6 +1,15 @@
 {
   "pins" : [
     {
+      "identity" : "box2d-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SpectralDragon/box2d-swift",
+      "state" : {
+        "branch" : "main",
+        "revision" : "84c00ced5a8c9ee023ec02b8b29f956e037002fc"
+      }
+    },
+    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections",
