@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 7/6/22.
 //
 
+import std
 import box2d
 import Math
 
@@ -13,9 +14,9 @@ public final class Body2D {
     unowned let entity: Entity
     
     @usableFromInline
-    private(set) var ref: OpaquePointer
+    private(set) var ref: b2Body
     
-    internal init(world: PhysicsWorld2D, ref: OpaquePointer, entity: Entity) {
+    internal init(world: PhysicsWorld2D, ref: b2Body, entity: Entity) {
         self.world = world
         self.ref = ref
         self.entity = entity
@@ -24,64 +25,64 @@ public final class Body2D {
     @inlinable
     @inline(__always)
     func addFixture(for fixtureDef: UnsafePointer<b2FixtureDef>) {
-        b2Body_CreateFixture(ref, fixtureDef)
+        self.ref.CreateFixture(fixtureDef)
     }
     
     @inlinable
     @inline(__always)
     func getPosition() -> Vector2 {
-        return b2Body_GetPosition(self.ref).pointee.asVector2
+        return ref.GetPosition().pointee.asVector2
     }
     
     @inlinable
     @inline(__always)
     func getAngle() -> Float {
-        return b2Body_GetAngle(self.ref)
+        return self.ref.GetAngle()
     }
     
     @inlinable
     @inline(__always)
     func getLinearVelocity() -> Vector2 {
-        return b2Body_GetLinearVelocity(self.ref).pointee.asVector2
+        return self.ref.GetLinearVelocity().pointee.asVector2
     }
     
     @inlinable
     @inline(__always)
     func getWorldCenter() -> Vector2 {
-        return b2Body_GetWorldCenter(self.ref).pointee.asVector2
+        return self.ref.GetWorldCenter().pointee.asVector2
     }
     
     @inlinable
     @inline(__always)
-    func getFixtureList() -> UnsafeMutablePointer<b2Fixture>? {
-        return b2Body_GetFixtureList(self.ref)
+    func getFixtureList() -> b2Fixture? {
+        return self.ref.GetFixtureListMutating()
     }
     
     @inlinable
     @inline(__always)
     func setTransform(position: Vector2, angle: Float) {
-        b2Body_SetTransform(self.ref, position.b2Vec, angle)
+        self.ref.SetTransform(position.b2Vec, angle)
     }
     
     /// Set the linear velocity of the center of mass.
     @inlinable
     @inline(__always)
     func setLinearVelocity(_ vector: Vector2) {
-        b2Body_SetLinearVelocity(self.ref, vector.b2Vec)
+        self.ref.SetLinearVelocity(vector.b2Vec)
     }
     
     /// Apply a force at a world point. If the force is not applied at the center of mass, it will generate a torque and affect the angular velocity. This wakes up the body.
     @inlinable
     @inline(__always)
     func applyForce(force: Vector2, point: Vector2, wake: Bool) {
-        b2Body_ApplyForce(self.ref, force.b2Vec, point.b2Vec, wake)
+        self.ref.ApplyForce(force.b2Vec, point.b2Vec, wake)
     }
     
     /// Apply a force to the center of mass. This wakes up the body.
     @inlinable
     @inline(__always)
     func applyForceToCenter(_ force: Vector2, wake: Bool) {
-        b2Body_ApplyForceToCenter(self.ref, force.b2Vec, wake)
+        self.ref.ApplyForceToCenter(force.b2Vec, wake)
     }
     
     /// Apply an impulse at a point. This immediately modifies the velocity.
@@ -89,14 +90,14 @@ public final class Body2D {
     @inlinable
     @inline(__always)
     func applyLinearImpulse(_ impulse: Vector2, point: Vector2, wake: Bool) {
-        b2Body_ApplyLinearImpulse(self.ref, impulse.b2Vec, point.b2Vec, wake)
+        self.ref.ApplyLinearImpulse(impulse.b2Vec, point.b2Vec, wake)
     }
     
     /// Apply a torque. This affects the angular velocity without affecting the linear velocity of the center of mass. This wakes up the body.
     @inlinable
     @inline(__always)
     func applyTorque(_ torque: Float, wake: Bool) {
-        b2Body_ApplyTorque(self.ref, torque, wake)
+        self.ref.ApplyTorque(torque, wake)
     }
     
     /// Get the world linear velocity of a world point attached to this body.
@@ -105,7 +106,7 @@ public final class Body2D {
     @inlinable
     @inline(__always)
     func getLinearVelocityFromWorldPoint(_ worldPoint: Vector2) -> Vector2 {
-        b2Body_GetLinearVelocityFromWorldPoint(self.ref, worldPoint.b2Vec).asVector2
+        self.ref.GetLinearVelocityFromWorldPoint(worldPoint.b2Vec).asVector2
     }
     
     /// Get the world velocity of a local point.
@@ -114,7 +115,7 @@ public final class Body2D {
     @inlinable
     @inline(__always)
     func getLinearVelocityFromLocalPoint(_ localPoint: Vector2) -> Vector2 {
-        b2Body_GetLinearVelocityFromLocalPoint(self.ref, localPoint.b2Vec).asVector2
+        self.ref.GetLinearVelocityFromLocalPoint(localPoint.b2Vec).asVector2
     }
 }
 
@@ -126,8 +127,8 @@ public struct Body2DDefinition {
     public var linearVelocity: Vector2 = .zero
     
     public var angularVelocity: Float = 0
-    public var linearDamping: Float = 0
-    public var angularDamping: Float = 0
+    public var linearDamping: Float = 0.01
+    public var angularDamping: Float = 0.05
     public var allowSleep: Bool = true
     public var awake: Bool = true
     public var fixedRotation: Bool = false
@@ -143,7 +144,7 @@ public final class PhysicsWorld2D: Codable {
         case gravity
     }
     
-    private var worldPtr: UnsafeMutablePointer<b2World>
+    private var world: b2World
     
     weak var scene: Scene?
     
@@ -152,11 +153,11 @@ public final class PhysicsWorld2D: Codable {
     
     public var gravity: Vector2 {
         get {
-            return b2World_GetGravity(UnsafePointer(self.worldPtr)).asVector2
+            return self.world.GetGravity().asVector2
         }
         
         set {
-            b2World_SetGravity(self.worldPtr, newValue.b2Vec)
+            self.world.SetGravity(newValue.b2Vec)
         }
     }
     
@@ -181,18 +182,16 @@ public final class PhysicsWorld2D: Codable {
     
     /// - Parameter gravity: default gravity is 9.8.
     init(gravity: Vector2 = [0, -9.81]) {
-        self.worldPtr = b2World_create(gravity.b2Vec)!
-        
-        b2World_SetContactListener(self.worldPtr, self.contactListner.contactListener)
+        self.world = b2World_create(gravity.b2Vec)
+        self.world.SetContactListener(self.contactListner.contactListener)
     }
     
     deinit {
-        worldPtr.deallocate()
+        b2World_delete(self.world)
     }
     
     internal func updateSimulation(_ delta: Float) {
-        b2World_Step(
-            self.worldPtr,
+        self.world.Step(
             delta, /* timeStep */
             int32(self.velocityIterations), /* velocityIterations */
             int32(self.positionIterations) /* positionIterations */
@@ -200,41 +199,40 @@ public final class PhysicsWorld2D: Codable {
     }
     
     public func createBody(definition: Body2DDefinition, for entity: Entity) -> Body2D {
-        let body = b2BodyDef_create()!
-        body.pointee.angle = definition.angle
-        body.pointee.position = definition.position.b2Vec
-        body.pointee.type = definition.bodyMode.b2Type
-        body.pointee.gravityScale = definition.gravityScale
-        body.pointee.allowSleep = definition.allowSleep
-        body.pointee.fixedRotation = definition.fixedRotation
-        body.pointee.bullet = definition.bullet
-        body.pointee.awake = definition.awake
+        var bodyDef = b2BodyDef()
+        bodyDef.angle = definition.angle
+        bodyDef.position = definition.position.b2Vec
+        bodyDef.type = definition.bodyMode.b2Type
+        bodyDef.gravityScale = definition.gravityScale
+        bodyDef.allowSleep = definition.allowSleep
+        bodyDef.fixedRotation = definition.fixedRotation
+        bodyDef.bullet = definition.bullet
+        bodyDef.awake = definition.awake
         
-        body.pointee.angularDamping = definition.angularDamping
-        body.pointee.angularVelocity = definition.angularVelocity
-        body.pointee.linearDamping = definition.linearDamping
-        body.pointee.linearVelocity = definition.linearVelocity.b2Vec
+        bodyDef.angularDamping = definition.angularDamping
+        bodyDef.angularVelocity = definition.angularVelocity
+        bodyDef.linearDamping = definition.linearDamping
+        bodyDef.linearVelocity = definition.linearVelocity.b2Vec
         
-        let ref = b2World_CreateBody(self.worldPtr, body)!
+        let ref = self.world.CreateBody(&bodyDef)!
         let body2d = Body2D(world: self, ref: ref, entity: entity)
         let pointer = Unmanaged.passRetained(body2d).toOpaque()
         
-        let userData = b2Body_GetUserData(ref)
-        userData.pointee.pointer = UInt(bitPattern: pointer)
+        ref.GetUserDataMutating().pointee.pointer = UInt(bitPattern: pointer)
         
         return body2d
     }
     
     public func createJoint(_ jointPtr: UnsafePointer<b2JointDef>) -> OpaquePointer {
-        b2World_CreateJoint(self.worldPtr, jointPtr)
+        self.world.CreateJoint(jointPtr)
     }
     
     public func destroyJoint(_ joint: OpaquePointer) {
-        b2World_DestroyJoint(self.worldPtr, joint)
+        self.world.DestroyJoint(joint)
     }
     
     public func destroyBody(_ body: Body2D) {
-        b2World_DestroyBody(self.worldPtr, body.ref)
+        self.world.DestroyBody(body.ref)
     }
     
 }
@@ -284,9 +282,11 @@ extension PhysicsBodyMode {
 
 // MARK: - b2ContactListener
 
+// swiftlint:disable:next type_name
+
 final class _Physics2DContactListner {
     
-    typealias B2Contact = @convention(c) (UnsafeRawPointer?, OpaquePointer?) -> Void
+    typealias B2Contact = @convention(c) (UnsafeRawPointer?, b2Contact?) -> Void
     
     lazy var contactListener: UnsafeMutablePointer<b2ContactListener> = {
         let ptr = Unmanaged.passUnretained(self).toOpaque()
@@ -300,59 +300,83 @@ final class _Physics2DContactListner {
         self.contactListener.deallocate()
     }
     
-    func beginContact(_ contact: OpaquePointer?) {
-//        let bodyA = contact.fixtureA.body.userData as! Body2D
-//        let bodyB = contact.fixtureB.body.userData as! Body2D
-//
-//        // FIXME: We should get correct impulse of contact
-//        let impulse = contact.manifold.points.first?.normalImpulse
-//
-//        let event = CollisionEvents.Began(
-//            entityA: bodyA.entity,
-//            entityB: bodyB.entity,
-//            impulse: impulse ?? 0
-//        )
-//
-//        bodyA.world.scene?.eventManager.send(event)
+    func beginContact(_ contact: b2Contact?) {
+        guard let contact else {
+            return
+        }
+        
+        let bodyAPtrInt = contact.GetFixtureA().GetBody().GetUserData().pointee.pointer
+        let bodyBPtrInt = contact.GetFixtureA().GetBody().GetUserData().pointee.pointer
+        
+        guard let bodyAPtr = UnsafeRawPointer(bitPattern: bodyAPtrInt),
+              let bodyBPtr = UnsafeRawPointer(bitPattern: bodyBPtrInt) else {
+            return
+        }
+        
+        let bodyA = Unmanaged<Body2D>.fromOpaque(bodyAPtr).takeUnretainedValue()
+        let bodyB = Unmanaged<Body2D>.fromOpaque(bodyBPtr).takeUnretainedValue()
+        
+        // FIXME: We should get correct impulse of contact
+        let impulse = contact.GetManifold().pointee.points.0.normalImpulse
+
+        let event = CollisionEvents.Began(
+            entityA: bodyA.entity,
+            entityB: bodyB.entity,
+            impulse: impulse
+        )
+
+        bodyA.world.scene?.eventManager.send(event)
     }
     
-    func endContact(_ contact: OpaquePointer?) {
-//        let bodyA = contact.fixtureA.body.userData as! Body2D
-//        let bodyB = contact.fixtureB.body.userData as! Body2D
-//
-//        let event = CollisionEvents.Ended(
-//            entityA: bodyA.entity,
-//            entityB: bodyB.entity
-//        )
-//
-//        bodyA.world.scene?.eventManager.send(event)
+    func endContact(_ contact: b2Contact?) {
+        guard let contact else {
+            return
+        }
+        
+        let bodyAPtrInt = contact.GetFixtureA().GetBody().GetUserData().pointee.pointer
+        let bodyBPtrInt = contact.GetFixtureA().GetBody().GetUserData().pointee.pointer
+        
+        guard let bodyAPtr = UnsafeRawPointer(bitPattern: bodyAPtrInt),
+              let bodyBPtr = UnsafeRawPointer(bitPattern: bodyBPtrInt) else {
+            return
+        }
+
+        let bodyA = Unmanaged<Body2D>.fromOpaque(bodyAPtr).takeUnretainedValue()
+        let bodyB = Unmanaged<Body2D>.fromOpaque(bodyBPtr).takeUnretainedValue()
+        
+        let event = CollisionEvents.Ended(
+            entityA: bodyA.entity,
+            entityB: bodyB.entity
+        )
+
+        bodyA.world.scene?.eventManager.send(event)
     }
     
-    func postSolve(_ contact: OpaquePointer?, impulse: UnsafePointer<b2ContactImpulse>?) {
+    func postSolve(_ contact: b2Contact?, impulse: UnsafePointer<b2ContactImpulse>?) {
         return
     }
     
-    func preSolve(_ contact: OpaquePointer?, oldManifold: UnsafePointer<b2Manifold>?) {
+    func preSolve(_ contact: b2Contact?, oldManifold: UnsafePointer<b2Manifold>?) {
         return
     }
 }
 
-private func _beginContact(_ userData: UnsafeRawPointer?, _ contact: OpaquePointer?) {
+private func _beginContact(_ userData: UnsafeRawPointer?, _ contact: b2Contact?) {
     let listner = Unmanaged<_Physics2DContactListner>.fromOpaque(userData!).takeUnretainedValue()
     listner.beginContact(contact)
 }
 
-private func _endContact(_ userData: UnsafeRawPointer?, _ contact: OpaquePointer?) {
+private func _endContact(_ userData: UnsafeRawPointer?, _ contact: b2Contact?) {
     let listner = Unmanaged<_Physics2DContactListner>.fromOpaque(userData!).takeUnretainedValue()
     listner.endContact(contact)
 }
 
-func _postSolve(_ userData: UnsafeRawPointer?, _ contact: OpaquePointer?, _ impulse: UnsafePointer<b2ContactImpulse>?) {
+func _postSolve(_ userData: UnsafeRawPointer?, _ contact: b2Contact?, _ impulse: UnsafePointer<b2ContactImpulse>?) {
     let listner = Unmanaged<_Physics2DContactListner>.fromOpaque(userData!).takeUnretainedValue()
     listner.postSolve(contact, impulse: impulse)
 }
 
-func _preSolve(_ userData: UnsafeRawPointer?, _ contact: OpaquePointer?, _ manifold: UnsafePointer<b2Manifold>?) {
+func _preSolve(_ userData: UnsafeRawPointer?, _ contact: b2Contact?, _ manifold: UnsafePointer<b2Manifold>?) {
     let listner = Unmanaged<_Physics2DContactListner>.fromOpaque(userData!).takeUnretainedValue()
     listner.preSolve(contact, oldManifold: manifold)
 }
