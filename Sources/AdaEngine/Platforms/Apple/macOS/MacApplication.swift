@@ -103,7 +103,7 @@ final class MacApplication: Application {
 
 class AdaApplication: NSApplication {
     override func sendEvent(_ event: NSEvent) {
-        if event.type == .keyUp && ((event.modifierFlags & NSEventModifierFlagCommand) != 0) {
+        if event.type == .keyUp && ((event.modifierFlags & NSEventModifierFlagCommand) == NSEventModifierFlagCommand) {
             self.keyWindow?.sendEvent(event)
         } else {
             super.sendEvent(event)

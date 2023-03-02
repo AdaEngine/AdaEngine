@@ -73,7 +73,7 @@ final class MacOSWindowManager: WindowManager {
             fatalError("System window not exist.")
         }
         
-        let isFullScreen = (nsWindow.styleMask & NSWindowStyleMaskFullScreen) != 0
+        let isFullScreen = (nsWindow.styleMask & NSWindowStyleMaskFullScreen) == NSWindowStyleMaskFullScreen
         let shouldToggleFullScreen = isFullScreen != (mode == .fullscreen)
         
         if shouldToggleFullScreen {

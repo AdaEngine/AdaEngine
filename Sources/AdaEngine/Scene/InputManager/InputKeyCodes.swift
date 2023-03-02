@@ -83,7 +83,7 @@ public enum KeyCode: String, Hashable {
     case underScore = "_"
     case backquote = "`"
     
-    // TODO: (Vlad) Currenty macos
+    // TODO: (Vlad) Make it more platform specific.
     case arrowDown = "125"
     case arrowUp = "126"
     case arrowLeft = "123"
@@ -118,25 +118,25 @@ extension KeyModifier {
     init(modifiers: NSEventModifierFlags) {
         var flags: KeyModifier = []
         
-//        if modifiers.contains(.capsLock) {
-//            flags.insert(.capsLock)
-//        }
-//        
-//        if modifiers.contains(.command) {
-//            flags.insert(.main)
-//        }
-//        
-//        if modifiers.contains(.control) {
-//            flags.insert(.control)
-//        }
-//        
-//        if modifiers.contains(.option) {
-//            flags.insert(.alt)
-//        }
-//        
-//        if modifiers.contains(.shift) {
-//            flags.insert(.shift)
-//        }
+        if (modifiers & NSEventModifierFlagCapsLock) == NSEventModifierFlagCapsLock {
+            flags.insert(.capsLock)
+        }
+        
+        if (modifiers & NSEventModifierFlagCommand) == NSEventModifierFlagCommand {
+            flags.insert(.main)
+        }
+        
+        if (modifiers & NSEventModifierFlagControl) == NSEventModifierFlagControl {
+            flags.insert(.control)
+        }
+        
+        if (modifiers & NSEventModifierFlagOption) == NSEventModifierFlagOption {
+            flags.insert(.alt)
+        }
+        
+        if (modifiers & NSEventModifierFlagShift) == NSEventModifierFlagShift {
+            flags.insert(.shift)
+        }
         
         self.init(rawValue: flags.rawValue)
     }
