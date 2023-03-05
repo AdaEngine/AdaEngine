@@ -148,9 +148,10 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "box2d", package: "box2d-swift"),
+    .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen"),
+    "AtlasFontGenerator",
     "Yams",
-    "libpng",
-//    "msdf-atlas-gen"
+    "libpng"
 ]
 
 #if os(Linux)
@@ -187,7 +188,7 @@ var targets: [Target] = [
     )
 ]
 
-// MARK: Documentations
+// MARK: Extra
 
 targets += [
     // Empty target with documentation docc files
@@ -204,6 +205,16 @@ targets += [
         ]),
 ]
 #endif
+
+targets += [
+    .target(
+        name: "AtlasFontGenerator",
+        dependencies: [
+            .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
+        ],
+        publicHeadersPath: "."
+    )
+]
 
 // MARK: - Tests
 
@@ -249,7 +260,8 @@ let package = Package(
     dependencies: [ ],
     targets: targets,
     swiftLanguageVersions: [.v5],
-    cxxLanguageStandard: .cxx14
+    cLanguageStandard: .c17,
+    cxxLanguageStandard: .cxx17
 )
 
 // FIXME: If possible - move to local `vendors` folder
@@ -258,6 +270,7 @@ package.dependencies += [
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
     .package(url: "https://github.com/SpectralDragon/box2d-swift", branch: "main"),
 //    .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
+    .package(path: "../msdf-atlas-gen"),
     
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),

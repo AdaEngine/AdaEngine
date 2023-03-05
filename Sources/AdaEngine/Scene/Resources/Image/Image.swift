@@ -15,6 +15,7 @@ public final class Image {
     public private(set) var height: Int
     public private(set) var width: Int
     
+    // TODO: Replace it to PixelFormat
     public private(set) var format: Format
     
     public var resourceName: String = ""

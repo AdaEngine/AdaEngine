@@ -291,7 +291,7 @@ extension MetalRenderBackend {
                 size: MTLSize(width: image.width, height: image.height, depth: 1)
             )
             
-            let bytesPerRow = 4 * image.width
+            let bytesPerRow = descriptor.pixelFormat.bytesPerComponent * image.width
             
             image.data.withUnsafeBytes { buffer in
                 precondition(buffer.baseAddress != nil, "Image should not contains empty address.")

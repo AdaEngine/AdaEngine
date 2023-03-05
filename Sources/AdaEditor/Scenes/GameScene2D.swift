@@ -191,6 +191,18 @@ final class GameScene2D {
         self.makeGround(for: scene)
         self.collisionHandler(for: scene)
         self.fpsCounter(for: scene)
+        
+        let fontPath = Bundle.module.url(forResource: "OpenSans-Regular", withExtension: "ttf", subdirectory: "Assets/opensans")!
+        
+        let tex = Font.custom(fontPath: fontPath, size: 1)
+        let entity = Entity()
+        entity.components += SpriteComponent(texture: tex)
+        var transform = Transform()
+        transform.scale = [3, 3, 3]
+//        transform.scale = [0.19, 0.19, 0.19]
+        
+        entity.components += transform
+        scene.addEntity(entity)
 
         scene.addSystem(TubeMovementSystem.self)
         scene.addSystem(TubeSpawnerSystem.self)
