@@ -141,6 +141,21 @@ public enum PixelFormat {
     case depth_32f
     case depth24_stencil8
     
+    var bytesPerComponent: Int {
+        switch self {
+        case .none:
+            return 0
+        case .bgra8, .bgra8_srgb, .rgba8:
+            return 4
+        case .rgba_16f:
+            return 8
+        case .rgba_32f, .depth_32f_stencil8, .depth_32f:
+            return 16
+        case .depth24_stencil8:
+            return 8
+        }
+    }
+    
     var isDepthFormat: Bool {
         self == .depth_32f_stencil8 || self == .depth_32f || self == .depth24_stencil8
     }
