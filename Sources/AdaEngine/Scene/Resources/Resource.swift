@@ -55,6 +55,7 @@ public enum ResourceType: String {
     case text = "res"
     case scene = "ascn"
     case audio = "audiores"
+    case font = "font"
     
     case none
     
@@ -77,11 +78,14 @@ public protocol AssetEncoder {
 
 public enum AssetDecodingError: LocalizedError {
     case invalidAssetExtension(String)
+    case decodingProblem(String)
     
     public var errorDescription: String? {
         switch self {
         case .invalidAssetExtension(let string):
             return "[Asset Decoding Error] Invalid asset file extension \(string)"
+        case .decodingProblem(let string):
+            return "[Asset Decoding Error] Decoding finished with failure: \(string)"
         }
     }
 }

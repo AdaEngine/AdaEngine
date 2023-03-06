@@ -10,11 +10,15 @@ import AtlasFontGenerator
 class FontHandle {
     
     let atlasTexture: Texture2D
-    let fontData: ada_font.FontData
+    let fontData: UnsafePointer<ada_font.FontData>
     
-    init(atlasTexture: Texture2D, fontData: ada_font.FontData) {
+    init(atlasTexture: Texture2D, fontData: UnsafePointer<ada_font.FontData>) {
         self.atlasTexture = atlasTexture
         self.fontData = fontData
+    }
+    
+    deinit {
+        fontData.deallocate()
     }
 }
 
@@ -44,9 +48,10 @@ final class FontAtlasGenerator {
         let fontName = fontPath.lastPathComponent
         
         var fontGenerator = ada_font.FontAtlasGenerator(fontPathString, fontName, atlasFontDescriptor)
+        let fontData = fontGenerator.__getFontDataUnsafe()
         let bitmap = fontGenerator.__getBitmapUnsafe()
         let data = Data(bytes: bitmap.pixels, count: Int(bitmap.pixelsCount))
-        
+
         let image = Image(
             width: Int(bitmap.bitmapWidth),
             height: Int(bitmap.bitmapHeight),
@@ -64,8 +69,7 @@ final class FontAtlasGenerator {
         )
         
         let texture = Texture2D(descriptor: descriptor)
-        
-        return FontHandle(atlasTexture: texture, fontData: fontGenerator.__getFontDataUnsafe())
+        return FontHandle(atlasTexture: texture, fontData: fontData!)
     }
     
     // MARK: - Private

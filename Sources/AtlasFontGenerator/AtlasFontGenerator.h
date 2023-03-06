@@ -1,12 +1,12 @@
 //
-//  FontAtlasGenerator.h
+//  AtlasFontGenerator.h
 //  
 //
 //  Created by v.prusakov on 3/4/23.
 //
 
-#ifndef FontAtlasGenerator_h
-#define FontAtlasGenerator_h
+#ifndef AtlasFontGenerator_h
+#define AtlasFontGenerator_h
 
 #include <msdfgen.h>
 #include <msdf_atlas_gen.h>
@@ -33,30 +33,39 @@ struct AtlasBitmap {
     int bitmapHeight;
     const void *pixels;
     int pixelsCount;
-    
-    std::vector<msdf_atlas::GlyphBox> layout;
 };
 
 struct FontData {
     msdf_atlas::FontGeometry fontGeometry;
-    std::vector<msdf_atlas::GlyphGeometry> glyps;
+    std::vector<msdf_atlas::GlyphGeometry> glyphs;
 };
 
+/// Generate font atlas from font path and specific font description.
 class FontAtlasGenerator {
 public:
-    FontAtlasGenerator(const char* fontPath, const char* fontName, const AtlasFontDescriptor& fontDescriptor);
+    FontAtlasGenerator(
+                       const char* fontPath,
+                       const char* fontName,
+                       const AtlasFontDescriptor& fontDescriptor
+                       );
     
+    
+    /// Returns bitmap representation.
     AtlasBitmap getBitmap();
-    FontData getFontData() {
+    
+    
+    /// For some reasons we should store font data on Swift side.
+    /// And you must delete memory when FontData isn't used anymore!
+    const FontData* getFontData() {
         return m_FontData;
     }
     
 private:    
-    FontData m_FontData;
+    FontData* m_FontData;
     
     AtlasBitmap m_Bitmap;
 };
 
 }
-#endif /* FontAtlasGenerator_h */
+#endif /* AtlasFontGenerator_h */
 
