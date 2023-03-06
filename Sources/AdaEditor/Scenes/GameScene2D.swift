@@ -298,8 +298,8 @@ extension GameScene2D {
         attributes.values.outlineColor = .black
         attributes.values.font = Font.system(weight: .italic)
         
-        let text = AttributedText("Hello World!", attributes: attributes)
-        
+        let repeatingText = [String].init(repeating: "Hello World, Ada Engine!\n", count: 2).joined()
+        let text = AttributedText(repeatingText, attributes: attributes)
         entity.components += Text2DComponent(text: text)
         
         scene.addEntity(entity)

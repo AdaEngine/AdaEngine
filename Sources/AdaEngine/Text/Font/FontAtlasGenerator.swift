@@ -6,8 +6,10 @@
 //
 
 import AtlasFontGenerator
+import Foundation
 
-class FontHandle {
+// Hold information about font data and atlas
+final class FontHandle {
     
     let atlasTexture: Texture2D
     let fontData: UnsafePointer<ada_font.FontData>
@@ -32,6 +34,7 @@ final class FontAtlasGenerator {
     
     private init() {}
     
+    /// Generate and save to the disk info about font atlas.
     func generateAtlas(fontPath: URL, fontDescriptor: FontDescriptor) -> FontHandle? {
         var atlasFontDescriptor = ada_font.AtlasFontDescriptor()
         atlasFontDescriptor.angleThreshold = 3.0
@@ -47,19 +50,39 @@ final class FontAtlasGenerator {
         let fontName = fontPath.lastPathComponent
         
         var fontGenerator = ada_font.FontAtlasGenerator(fontPathString, fontName, atlasFontDescriptor)
-        let fontData = fontGenerator.__getFontDataUnsafe()
-        let bitmap = fontGenerator.__getBitmapUnsafe()
-        let data = Data(bytes: bitmap.pixels, count: Int(bitmap.pixelsCount))
-
+        let fontData = fontGenerator.__getFontDataUnsafe()!
+        
+        let fileName = "\(fontName)-\(atlasFontDescriptor.fontScale.rounded()).fontbin"
+        
+        if let (atlasHeader, data) = self.getAtlas(by: fileName) {
+            let texture = makeTextureAtlas(from: data, width: atlasHeader.width, height: atlasHeader.height)
+            return FontHandle(atlasTexture: texture, fontData: fontData)
+        } else {
+            let bitmap = fontGenerator.__generateAtlasBitmapUnsafe()
+            let data = Data(bytes: bitmap.pixels, count: Int(bitmap.pixelsCount))
+            
+            let width = Int(bitmap.bitmapWidth)
+            let height = Int(bitmap.bitmapHeight)
+            
+            self.saveAtlas(data, width: width, height: height, fileName: fileName)
+            
+            let texture = makeTextureAtlas(from: data, width: width, height: height)
+            return FontHandle(atlasTexture: texture, fontData: fontData)
+        }
+    }
+    
+    // MARK: - Private
+    
+    private func makeTextureAtlas(from data: Data, width: Int, height: Int) -> Texture2D {
         let image = Image(
-            width: Int(bitmap.bitmapWidth),
-            height: Int(bitmap.bitmapHeight),
+            width: width,
+            height: height,
             data: data
         )
         
         let descriptor = TextureDescriptor(
-            width: Int(bitmap.bitmapWidth),
-            height: Int(bitmap.bitmapHeight),
+            width: width,
+            height: height,
             pixelFormat: .rgba_32f,
             textureUsage: [.read],
             textureType: .texture2D,
@@ -67,14 +90,11 @@ final class FontAtlasGenerator {
             image: image
         )
         
-        let texture = Texture2D(descriptor: descriptor)
-        return FontHandle(atlasTexture: texture, fontData: fontData!)
+        return Texture2D(descriptor: descriptor)
     }
     
-    // MARK: - Private
-    
     private func getCacheDirectory() throws -> URL {
-        return try FileSystem.current.url(for: .cachesDirectory).appendingPathComponent("FontGeneratedAtlases")
+        return try FileSystem.current.url(for: .cachesDirectory).appendingPathComponent("AdaEngine").appendingPathComponent("FontGeneratedAtlases")
     }
     
     private func createCacheDirectoryIfNeeded() {
@@ -91,7 +111,82 @@ final class FontAtlasGenerator {
         }
     }
     
-    private func saveAtlas(data: Data) {
+    private func saveAtlas(_ data: Data, width: Int, height: Int, fileName: String) {
+        self.createCacheDirectoryIfNeeded()
         
+        do {
+            let file = try self.getCacheDirectory().appendingPathComponent(fileName)
+            
+            guard !FileSystem.current.itemExists(at: file) else {
+                return
+            }
+            
+            guard let stream = OutputStream(url: file, append: false) else {
+                return
+            }
+            
+            stream.open()
+            
+            var header = AtlasHeader(width: width, height: height, dataSize: data.count)
+            withUnsafeBytes(of: &header) { ptr in
+                let bytes = ptr.baseAddress!.assumingMemoryBound(to: UInt8.self)
+                stream.write(bytes, maxLength: MemoryLayout<AtlasHeader>.stride)
+            }
+            
+            data.withUnsafeBytes { (bufferPtr: UnsafeRawBufferPointer) in
+                let bytes = bufferPtr.baseAddress!.assumingMemoryBound(to: UInt8.self)
+                stream.write(bytes, maxLength: data.count)
+            }
+            
+            stream.close()
+        } catch {
+            print(error.localizedDescription)
+        }
+    }
+    
+    private func getAtlas(by fileName: String) -> (AtlasHeader, Data)? {
+        
+        self.createCacheDirectoryIfNeeded()
+        
+        do {
+            let file = try self.getCacheDirectory().appendingPathComponent(fileName)
+            
+            guard FileSystem.current.itemExists(at: file) else {
+                return nil
+            }
+            
+            guard let stream = InputStream(url: file) else {
+                return nil
+            }
+            
+            stream.open()
+            
+            let headerData: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer<UInt8>.allocate(capacity: MemoryLayout<AtlasHeader>.stride)
+            stream.read(headerData, maxLength: MemoryLayout<AtlasHeader>.size)
+            let atlasHeader = UnsafeRawPointer(headerData).load(as: AtlasHeader.self)
+            
+            let atlasData: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer<UInt8>.allocate(capacity: atlasHeader.dataSize)
+            stream.read(atlasData, maxLength: atlasHeader.dataSize)
+            let data = Data(bytes: UnsafeRawPointer(atlasData), count: atlasHeader.dataSize)
+            
+            defer {
+                headerData.deallocate()
+                atlasData.deallocate()
+                
+                stream.close()
+            }
+            
+            return (atlasHeader, data)
+        } catch {
+            print(error.localizedDescription)
+            return nil
+        }
+    }
+    
+    /// Contains info for binary format
+    struct AtlasHeader {
+        let width: Int
+        let height: Int
+        let dataSize: Int
     }
 }

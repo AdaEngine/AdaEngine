@@ -43,15 +43,13 @@ struct FontData {
 /// Generate font atlas from font path and specific font description.
 class FontAtlasGenerator {
 public:
-    FontAtlasGenerator(
-                       const char* fontPath,
+    FontAtlasGenerator(const char* fontPath,
                        const char* fontName,
-                       const AtlasFontDescriptor& fontDescriptor
-                       );
+                       const AtlasFontDescriptor& fontDescriptor);
     
     
     /// Returns bitmap representation.
-    AtlasBitmap getBitmap();
+    AtlasBitmap generateAtlasBitmap();
     
     
     /// For some reasons we should store font data on Swift side.
@@ -63,6 +61,13 @@ public:
 private:    
     FontData* m_FontData;
     
+    const AtlasFontDescriptor& m_fontDescriptor;
+    
+    struct {
+        int width = -1;
+        int height = -1;
+    } m_AtlasInfo;
+
     AtlasBitmap m_Bitmap;
 };
 
