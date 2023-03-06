@@ -9,7 +9,7 @@ struct TextVertex {
     float4 position [[ attribute(0) ]];
     float4 color [[ attribute(1) ]];
     float2 textureCoordinate [[ attribute(2) ]];
-    float2 textureSize [[ attribute(3) ]]
+    float2 textureSize [[ attribute(3) ]];
     int textureIndex [[ attribute(4) ]];
 };
 
@@ -35,23 +35,6 @@ vertex TextVertexOut text_vertex(const TextVertex vertexIn [[ stage_in ]], const
     return out;
 }
 
-fragment float4 text_fragment(TextVertexOut in [[stage_in]],
-                              array<texture2d<half>, 32> textures [[ texture(0) ]],
-                              sampler textureSampler [[ sampler(0) ]]
-                              ) {
-    const float4 bgColor = float4(in.color, 0.0);
-    const float4 fgColor = in.color;
-    
-    const texture2d<half> texture = textures[in.textureIndex];
-    const half4 msd = texture.sample(textureSampler, in.textureCoordinate);
-    float sd = median(msd.rgb);
-    float px_Distance = screen_px_range(texture, in.textureSize, in.textureCoordinate) * (sd - 0.5f);
-    float opacity = clamp(px_Distance + 0.5, 0.0, 1.0)
-    const float4 resultColor = mix(bgColor, fgColor, float4(opacity));
-    
-    return resultColor;
-}
-
 float screen_px_range(texture2d<half> texture, float2 textureSize, float2 textureCoordinate) {
     const float pxRange = 2.0f;
     const float2 unitRange = float2(pxRange) / textureSize;
@@ -59,6 +42,23 @@ float screen_px_range(texture2d<half> texture, float2 textureSize, float2 textur
     return max(0.5 * dot(unitRange, screenTexSize), 1.0);
 }
 
-float median(const float3& rgb) {
-    return max(min(rgb.r, rgb.g), min(max(rgb.r, rgb.g), rgb.b);
+float median(const half3 rgb) {
+    return max(min(rgb.r, rgb.g), min(max(rgb.r, rgb.g), rgb.b));
+}
+
+
+fragment float4 text_fragment(TextVertexOut in [[stage_in]],
+                              array<texture2d<half>, 32> textures [[ texture(0) ]],
+                              sampler textureSampler [[ sampler(0) ]]
+                              ) {
+    const float4 bgColor = float4(in.color.rgb, 0.0);
+    const float4 fgColor = in.color;
+    
+    const texture2d<half> texture = textures[in.textureIndex];
+    const half4 msd = texture.sample(textureSampler, in.textureCoordinate);
+    float sd = median(msd.rgb);
+    float px_Distance = screen_px_range(texture, in.textureSize, in.textureCoordinate) * (sd - 0.5f);
+    float opacity = clamp(px_Distance + 0.5, 0.0, 1.0);
+    const float4 resultColor = mix(bgColor, fgColor, float4(opacity));
+    return resultColor;
 }

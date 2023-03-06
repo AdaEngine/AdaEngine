@@ -189,24 +189,14 @@ final class GameScene2D {
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
-        self.collisionHandler(for: scene)
-        self.fpsCounter(for: scene)
+//        self.collisionHandler(for: scene)
+//        self.fpsCounter(for: scene)
+        self.addText(to: scene)
         
-        let fontPath = Bundle.module.url(forResource: "OpenSans-Regular", withExtension: "ttf", subdirectory: "Assets/opensans")!
-        
-        let tex = Font.custom(fontPath: fontPath, size: 1)
-        let entity = Entity()
-        entity.components += SpriteComponent(texture: tex)
-        var transform = Transform()
-        transform.scale = [3, 3, 3]
-//        transform.scale = [0.19, 0.19, 0.19]
-        
-        entity.components += transform
-        scene.addEntity(entity)
 
-        scene.addSystem(TubeMovementSystem.self)
-        scene.addSystem(TubeSpawnerSystem.self)
-        scene.addSystem(TubeDestroyerSystem.self)
+//        scene.addSystem(TubeMovementSystem.self)
+//        scene.addSystem(TubeSpawnerSystem.self)
+//        scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
         
         try ResourceManager.save(scene, at: scenePath)
@@ -291,5 +281,26 @@ final class GameScene2D {
 //            print("FPS", event.framesPerSecond)
         })
         .store(in: &disposeBag)
+    }
+}
+
+extension GameScene2D {
+    func addText(to scene: Scene) {
+        let entity = Entity()
+        var transform = Transform()
+        transform.scale = Vector3(0.3)
+        transform.position.x = -0.5
+        entity.components += transform
+        entity.components += NoFrustumCulling()
+        
+        var attributes = TextAttributes()
+        attributes.values.foregroundColor = .red
+        attributes.values.font = Font.system(weight: .italic)
+        
+        let text = AttributedText("Hello!", attributes: attributes)
+        
+        entity.components += Text2DComponent(text: text)
+        
+        scene.addEntity(entity)
     }
 }

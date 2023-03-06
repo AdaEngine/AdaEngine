@@ -38,17 +38,15 @@ AtlasBitmap GenerateAtlas(
     msdfgen::BitmapConstRef<T, N> bitmap = (msdfgen::BitmapConstRef<T, N>)generator.atlasStorage();
     
     AtlasBitmap result;
-    result.layout = generator.getLayout();
-    
     result.bitmapWidth = bitmap.width;
     result.bitmapHeight = bitmap.height;
     result.pixels = bitmap.pixels;
-    result.pixelsCount = bitmap.width * bitmap.height * sizeof(T) * 4;
+    result.pixelsCount = bitmap.width * bitmap.height * sizeof(T) * N;
     
     return result;
 }
 
-FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontName, const AtlasFontDescriptor& fontDescriptor)
+FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontName, const AtlasFontDescriptor& fontDescriptor) : m_FontData(new FontData())
 {
     FontHolder fontHandler;
     bool success = fontHandler.loadFont(filePath);
@@ -68,21 +66,20 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
         0,
     };
     
-    std::vector<GlyphGeometry> glyphs;
-    FontGeometry fontGeometry(&glyphs);
+    m_FontData->fontGeometry = FontGeometry(&m_FontData->glyphs);
     
     for (int range = 0; range < 8; range += 2) {
         for (uint32_t c = charsetRanges[range]; c <= charsetRanges[range + 1]; c++)
             charset.add(c);
     }
     
-    int loadedGlyphs = fontGeometry.loadCharset(fontHandler.getFont(), 1, charset);
+    int loadedGlyphs = m_FontData->fontGeometry.loadCharset(fontHandler.getFont(), 1, charset);
     
-    if (loadedGlyphs < glyphs.size()) {
+    if (loadedGlyphs < m_FontData->glyphs.size()) {
         assert("Can't load all glyphs");
     }
     
-    fontGeometry.setName(fontName);
+    m_FontData->fontGeometry.setName(fontName);
     
     TightAtlasPacker atlasPacker;
     atlasPacker.setDimensionsConstraint(TightAtlasPacker::DimensionsConstraint::SQUARE);
@@ -92,7 +89,7 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     atlasPacker.setPixelRange(fontDescriptor.atlasPixelRange);
     atlasPacker.setMiterLimit(fontDescriptor.miterLimit);
     
-    int result = atlasPacker.pack(glyphs.data(), (int)glyphs.size());
+    int result = atlasPacker.pack(m_FontData->glyphs.data(), (int)m_FontData->glyphs.size());
     
     if (result != 0)
         return;
@@ -102,14 +99,14 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     
     if (fontDescriptor.atlasImageType == ImageType::MSDF || fontDescriptor.atlasImageType == ImageType::MTSDF) {
         if (fontDescriptor.expensiveColoring) {
-            Workload([&glyphs = glyphs, &fontDescriptor](int i, int threadNo) -> bool {
+            Workload([&glyphs = m_FontData->glyphs, &fontDescriptor](int i, int threadNo) -> bool {
                 unsigned long long glyphSeed = (LCG_MULTIPLIER * (fontDescriptor.coloringSeed ^ i) + LCG_INCREMENT) * !!fontDescriptor.coloringSeed;
                 glyphs[i].edgeColoring(msdfgen::edgeColoringInkTrap, fontDescriptor.angleThreshold, glyphSeed);
                 return true;
-            }, (int)glyphs.size());
+            }, (int)m_FontData->glyphs.size());
         } else {
             unsigned long glyphSeed = fontDescriptor.coloringSeed;
-            for (GlyphGeometry &glyph : glyphs) {
+            for (GlyphGeometry &glyph : m_FontData->glyphs) {
                 glyphSeed *= LCG_MULTIPLIER;
                 glyph.edgeColoring(msdfgen::edgeColoringInkTrap, fontDescriptor.angleThreshold, glyphSeed);
             }
@@ -135,20 +132,14 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
         case msdf_atlas::ImageType::PSDF:
             break;
         case ImageType::MSDF:
-            bitmap = GenerateAtlas<float, float, 3, msdfGenerator>(glyphs, fontGeometry, config);
+            bitmap = GenerateAtlas<float, float, 3, msdfGenerator>(m_FontData->glyphs, m_FontData->fontGeometry, config);
             break;
         case ImageType::MTSDF:
-            bitmap = GenerateAtlas<float, float, 4, mtsdfGenerator>(glyphs, fontGeometry, config);
+            bitmap = GenerateAtlas<float, float, 4, mtsdfGenerator>(m_FontData->glyphs, m_FontData->fontGeometry, config);
             break;
     }
     
     m_Bitmap = bitmap;
-    
-    FontData fontData;
-    fontData.fontGeometry = fontGeometry;
-    fontData.glyps = glyphs;
-    
-    m_FontData = fontData;
 }
 
 AtlasBitmap FontAtlasGenerator::getBitmap() {

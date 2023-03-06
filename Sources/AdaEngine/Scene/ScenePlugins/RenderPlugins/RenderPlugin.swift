@@ -8,6 +8,8 @@
 struct RenderPlugin: ScenePlugin {
     func setup(in scene: Scene) {
         scene.addPlugin(Scene2DPlugin())
+        scene.addPlugin(Text2DPlugin())
+        
         scene.addPlugin(CameraPlugin())
     }
 }
