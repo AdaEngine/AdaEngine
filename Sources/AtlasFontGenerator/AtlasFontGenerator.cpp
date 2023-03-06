@@ -46,7 +46,7 @@ AtlasBitmap GenerateAtlas(
     return result;
 }
 
-FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontName, const AtlasFontDescriptor& fontDescriptor) : m_FontData(new FontData())
+FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontName, const AtlasFontDescriptor& fontDescriptor) : m_FontData(new FontData()), m_fontDescriptor(fontDescriptor)
 {
     FontHolder fontHandler;
     bool success = fontHandler.loadFont(filePath);
@@ -94,8 +94,7 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     if (result != 0)
         return;
     
-    int width = -1; int height = -1;
-    atlasPacker.getDimensions(width, height);
+    atlasPacker.getDimensions(m_AtlasInfo.width, m_AtlasInfo.height);
     
     if (fontDescriptor.atlasImageType == ImageType::MSDF || fontDescriptor.atlasImageType == ImageType::MTSDF) {
         if (fontDescriptor.expensiveColoring) {
@@ -112,17 +111,20 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
             }
         }
     }
-    
+
+}
+
+AtlasBitmap FontAtlasGenerator::generateAtlasBitmap() {
     GenerationConfig config;
-    config.width = width;
-    config.height = height;
-    config.threads = fontDescriptor.threads;
+    config.width = m_AtlasInfo.width;
+    config.height = m_AtlasInfo.height;
+    config.threads = m_fontDescriptor.threads;
     config.attributes.config.overlapSupport = true;
     config.attributes.scanlinePass = true;
     
     AtlasBitmap bitmap;
     
-    switch (fontDescriptor.atlasImageType) {
+    switch (m_fontDescriptor.atlasImageType) {
         case msdf_atlas::ImageType::HARD_MASK:
             break;
         case msdf_atlas::ImageType::SOFT_MASK:
@@ -139,11 +141,7 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
             break;
     }
     
-    m_Bitmap = bitmap;
-}
-
-AtlasBitmap FontAtlasGenerator::getBitmap() {
-    return m_Bitmap;
+    return bitmap;
 }
 
 }

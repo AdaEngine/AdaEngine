@@ -7,17 +7,22 @@
 
 final class TextLayoutManager {
     
+    enum Constans {
+        static let questionMark = Character("?").unicodeScalars.first!
+        static let dots = Character("…").unicodeScalars.first!
+    }
+    
     typealias GlyphIndex = UInt32
     
     var attributedText: AttributedText = ""
     
     init() {}
     
-    private var glyphsToRender: GlyphRenderData = GlyphRenderData()
+    private var glyphsToRender: GlyphRenderData?
     
     func replaceText(_ text: AttributedText) {
         self.attributedText = text
-        self.glyphsToRender = GlyphRenderData()
+//        self.glyphsToRender = GlyphRenderData()
     }
     
 //    func getGlyph(at index: GlyphIndex, font: Font) -> Glyph {
@@ -49,6 +54,7 @@ final class TextLayoutManager {
 //
 //    }
     
+    
     // FIXME: SOOOOO SLOOOW!!!
     
     // swiftlint:disable:next function_body_length
@@ -57,6 +63,11 @@ final class TextLayoutManager {
         textAlignment: TextAlignment,
         transform: Transform3D
     ) -> GlyphRenderData {
+        
+        if let glyphsToRender = glyphsToRender {
+            return glyphsToRender
+        }
+        
         var x: Double = 0
         var y: Double = 0
         
@@ -67,12 +78,10 @@ final class TextLayoutManager {
         var verticies: [GlyphVertexData] = []
         var indeciesCount: Int = 0
         
-        let questionMark = Character("?").unicodeScalars.first!
+        
         
         var textureIndex: Int = -1
         var textures: [Texture2D?] = .init(repeating: nil, count: 32)
-        
-        let kerningOffset: Double = 0
         
         for index in self.attributedText.text.indices {
             let attributes = self.attributedText.attributes(at: index)
@@ -99,7 +108,7 @@ final class TextLayoutManager {
                 var glyph = fontGeometry.__getGlyphUnsafe(scalar.value)
                 
                 if glyph == nil {
-                    glyph = fontGeometry.__getGlyphUnsafe(questionMark.value)
+                    glyph = fontGeometry.__getGlyphUnsafe(Constans.questionMark.value)
                 }
                 
                 guard let glyph else {
@@ -194,7 +203,9 @@ final class TextLayoutManager {
             }
         }
         
-        return GlyphRenderData(verticies: verticies, indeciesCount: indeciesCount, textures: textures)
+        let render = GlyphRenderData(verticies: verticies, indeciesCount: indeciesCount, textures: textures)
+        glyphsToRender = render
+        return render
     }
     
 }
