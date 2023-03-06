@@ -82,10 +82,10 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     m_FontData->fontGeometry.setName(fontName);
     
     TightAtlasPacker atlasPacker;
-    atlasPacker.setDimensionsConstraint(TightAtlasPacker::DimensionsConstraint::SQUARE);
+    atlasPacker.setDimensionsConstraint(TightAtlasPacker::DimensionsConstraint::MULTIPLE_OF_FOUR_SQUARE);
     atlasPacker.setPadding(fontDescriptor.atlasImageType == ImageType::MSDF || fontDescriptor.atlasImageType == ImageType::MTSDF ? 0 : -1);
     
-    atlasPacker.setScale(40);
+    atlasPacker.setScale(fontDescriptor.fontScale);
     atlasPacker.setPixelRange(fontDescriptor.atlasPixelRange);
     atlasPacker.setMiterLimit(fontDescriptor.miterLimit);
     

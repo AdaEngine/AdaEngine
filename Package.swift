@@ -168,6 +168,9 @@ let adaEngineTarget: Target = .target(
         .copy("Assets/Fonts")
     ],
     swiftSettings: adaEngineSwiftSettings,
+    linkerSettings: [
+        .linkedLibrary("c++")
+    ],
     plugins: commonPlugins
 )
 

@@ -7,15 +7,17 @@ struct Uniforms {
 
 struct TextVertex {
     float4 position [[ attribute(0) ]];
-    float4 color [[ attribute(1) ]];
-    float2 textureCoordinate [[ attribute(2) ]];
-    float2 textureSize [[ attribute(3) ]];
-    int textureIndex [[ attribute(4) ]];
+    float4 foregroundColor [[ attribute(1) ]];
+    float4 outlineColor [[ attribute(2) ]];
+    float2 textureCoordinate [[ attribute(3) ]];
+    float2 textureSize [[ attribute(4) ]];
+    int textureIndex [[ attribute(5) ]];
 };
 
 struct TextVertexOut {
     float4 position [[ position ]];
-    float4 color;
+    float4 foregroundColor;
+    float4 outlineColor;
     float2 textureCoordinate;
     float2 textureSize;
     int textureIndex;
@@ -26,7 +28,8 @@ vertex TextVertexOut text_vertex(const TextVertex vertexIn [[ stage_in ]], const
     
     TextVertexOut out {
         .position = position,
-        .color = vertexIn.color,
+        .foregroundColor = vertexIn.foregroundColor,
+        .outlineColor = vertexIn.outlineColor,
         .textureCoordinate = vertexIn.textureCoordinate,
         .textureSize = vertexIn.textureSize,
         .textureIndex = vertexIn.textureIndex
@@ -46,19 +49,19 @@ float median(const half3 rgb) {
     return max(min(rgb.r, rgb.g), min(max(rgb.r, rgb.g), rgb.b));
 }
 
-
 fragment float4 text_fragment(TextVertexOut in [[stage_in]],
                               array<texture2d<half>, 32> textures [[ texture(0) ]],
                               sampler textureSampler [[ sampler(0) ]]
                               ) {
-    const float4 bgColor = float4(in.color.rgb, 0.0);
-    const float4 fgColor = in.color;
+    const float4 bgColor = float4(in.outlineColor.rgb, 0);
+    const float4 fgColor = in.foregroundColor;
     
     const texture2d<half> texture = textures[in.textureIndex];
     const half4 msd = texture.sample(textureSampler, in.textureCoordinate);
     float sd = median(msd.rgb);
     float px_Distance = screen_px_range(texture, in.textureSize, in.textureCoordinate) * (sd - 0.5f);
     float opacity = clamp(px_Distance + 0.5, 0.0, 1.0);
+    
     const float4 resultColor = mix(bgColor, fgColor, float4(opacity));
     return resultColor;
 }
