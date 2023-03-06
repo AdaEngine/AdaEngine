@@ -295,9 +295,10 @@ extension GameScene2D {
         
         var attributes = TextAttributes()
         attributes.values.foregroundColor = .red
+        attributes.values.outlineColor = .black
         attributes.values.font = Font.system(weight: .italic)
         
-        let text = AttributedText("Hello!", attributes: attributes)
+        let text = AttributedText("Hello World!", attributes: attributes)
         
         entity.components += Text2DComponent(text: text)
         

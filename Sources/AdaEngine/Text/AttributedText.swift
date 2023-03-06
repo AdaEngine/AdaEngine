@@ -21,6 +21,16 @@ public struct ForegroundColorTextAttribute: TextAttribute {
     public static var defaultValue: Color = .black
 }
 
+public struct OutlineColorTextAttribute: TextAttribute {
+    public typealias Value = Color
+    public static var defaultValue: Color = .clear
+}
+
+public struct KernColorTextAttribute: TextAttribute {
+    public typealias Value = Float
+    public static var defaultValue: Float = 0
+}
+
 public extension TextAttributeValues {
     var foregroundColor: Color {
         get {
@@ -41,6 +51,27 @@ public extension TextAttributeValues {
             self[FontTextAttribute.self] = newValue
         }
     }
+    
+    var outlineColor: Color {
+        get {
+            self[OutlineColorTextAttribute.self]
+        }
+        
+        set {
+            self[OutlineColorTextAttribute.self] = newValue
+        }
+    }
+    
+    var kern: Float {
+        get {
+            self[KernColorTextAttribute.self]
+        }
+        
+        set {
+            self[KernColorTextAttribute.self] = newValue
+        }
+    }
+    
 }
 
 public struct TextAttributes {

@@ -78,7 +78,9 @@ final class TextLayoutManager {
             let attributes = self.attributedText.attributes(at: index)
             let char = self.attributedText.text[index]
             
-            let color = attributes.values.foregroundColor
+            let foregroundColor = attributes.values.foregroundColor
+            let outlineColor = attributes.values.outlineColor
+            let kern = Double(attributes.values.kern)
             
             let fontHandle = attributes.values.font.handle
             let fontGeometry = fontHandle.fontData.pointee.fontGeometry
@@ -136,7 +138,8 @@ final class TextLayoutManager {
                 verticies.append(
                     GlyphVertexData(
                         position: transform * Vector4(x: Float(pr), y: Float(pb), z: 0, w: 1),
-                        color: color,
+                        foregroundColor: foregroundColor,
+                        outlineColor: outlineColor,
                         textureCoordinate: [ Float(r), Float(b) ],
                         textureSize: textureSize,
                         textureIndex: textureIndex
@@ -146,7 +149,8 @@ final class TextLayoutManager {
                 verticies.append(
                     GlyphVertexData(
                         position: transform * Vector4(x: Float(pr), y: Float(pt), z: 0, w: 1),
-                        color: color,
+                        foregroundColor: foregroundColor,
+                        outlineColor: outlineColor,
                         textureCoordinate: [ Float(r), Float(t) ],
                         textureSize: textureSize,
                         textureIndex: textureIndex
@@ -156,7 +160,8 @@ final class TextLayoutManager {
                 verticies.append(
                     GlyphVertexData(
                         position: transform * Vector4(x: Float(pl), y: Float(pt), z: 0, w: 1),
-                        color: color,
+                        foregroundColor: foregroundColor,
+                        outlineColor: outlineColor,
                         textureCoordinate: [ Float(l), Float(t) ],
                         textureSize: textureSize,
                         textureIndex: textureIndex
@@ -166,7 +171,8 @@ final class TextLayoutManager {
                 verticies.append(
                     GlyphVertexData(
                         position: transform * Vector4(x: Float(pl), y: Float(pb), z: 0, w: 1),
-                        color: color,
+                        foregroundColor: foregroundColor,
+                        outlineColor: outlineColor,
                         textureCoordinate: [ Float(l), Float(b) ],
                         textureSize: textureSize,
                         textureIndex: textureIndex
@@ -181,9 +187,9 @@ final class TextLayoutManager {
                 if char.unicodeScalars.indices.contains(nextScalarIndex) {
                     let nextScalar = char.unicodeScalars[nextScalarIndex]
                     fontGeometry.getAdvance(&advance, scalar.value, nextScalar.value)
-                    x += fontScale * advance + kerningOffset
+                    x += fontScale * advance + kern
                 } else {
-                    x += fontScale * advance + kerningOffset
+                    x += fontScale * advance + kern
                 }
             }
         }
@@ -201,7 +207,8 @@ struct GlyphRenderData {
 
 struct GlyphVertexData {
     let position: Vector4
-    let color: Color
+    let foregroundColor: Color
+    let outlineColor: Color
     let textureCoordinate: Vector2
     let textureSize: Vector2
     let textureIndex: Int

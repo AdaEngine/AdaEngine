@@ -33,14 +33,13 @@ final class FontAtlasGenerator {
     private init() {}
     
     func generateAtlas(fontPath: URL, fontDescriptor: FontDescriptor) -> FontHandle? {
-        
         var atlasFontDescriptor = ada_font.AtlasFontDescriptor()
         atlasFontDescriptor.angleThreshold = 3.0
         atlasFontDescriptor.atlasPixelRange = 2.0
         atlasFontDescriptor.coloringSeed = 3
         atlasFontDescriptor.threads = 8
         atlasFontDescriptor.expensiveColoring = true
-        atlasFontDescriptor.fontScale = 40
+        atlasFontDescriptor.fontScale = 52
         atlasFontDescriptor.atlasImageType = msdf_atlas.ImageType.MTSDF
         atlasFontDescriptor.miterLimit = 1.0
         

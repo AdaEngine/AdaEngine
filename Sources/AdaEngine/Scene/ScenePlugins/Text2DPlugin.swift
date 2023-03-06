@@ -63,8 +63,9 @@ public struct Text2DRenderSystem: System {
         let device = RenderEngine.shared
         
         var samplerDesc = SamplerDescriptor()
-        samplerDesc.magFilter = .nearest
-        samplerDesc.mipFilter = .nearest
+        samplerDesc.magFilter = .linear
+        samplerDesc.mipFilter = .linear
+        samplerDesc.minFilter = .linear
         let sampler = device.makeSampler(from: samplerDesc)
         
         let quadShaderDesc = ShaderDescriptor(
@@ -80,7 +81,8 @@ public struct Text2DRenderSystem: System {
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "position"),
-            .attribute(.vector4, name: "color"),
+            .attribute(.vector4, name: "foregroundColor"),
+            .attribute(.vector4, name: "outlineColor"),
             .attribute(.vector2, name: "textureCoordinate"),
             .attribute(.vector2, name: "textureSize"),
             .attribute(.int, name: "textureIndex")
