@@ -8,13 +8,15 @@
 import AtlasFontGenerator
 import Foundation
 
-// Hold information about font data and atlas
-final class FontHandle {
+/// Hold information about font data and atlas
+final class FontHandle: Hashable {
     
     let atlasTexture: Texture2D
     let fontData: UnsafePointer<ada_font.FontData>
     
-    init(atlasTexture: Texture2D, fontData: UnsafePointer<ada_font.FontData>) {
+    init(
+        atlasTexture: Texture2D,
+        fontData: UnsafePointer<ada_font.FontData>) {
         self.atlasTexture = atlasTexture
         self.fontData = fontData
     }
@@ -22,6 +24,25 @@ final class FontHandle {
     deinit {
         fontData.deallocate()
     }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(fontData.pointee.fontGeometry.__getNameUnsafe())
+        hasher.combine(fontData.pointee.fontGeometry.getGeometryScale())
+        hasher.combine(fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.emSize)
+        hasher.combine(fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.lineHeight)
+    }
+    
+    static func == (lhs: FontHandle, rhs: FontHandle) -> Bool {
+        let lhsFontGeometry = lhs.fontData.pointee.fontGeometry
+        let rhsFontGeometry = rhs.fontData.pointee.fontGeometry
+        
+        return lhsFontGeometry.__getNameUnsafe() == rhsFontGeometry.__getNameUnsafe()
+        && lhsFontGeometry.getGeometryScale() == rhsFontGeometry.getGeometryScale()
+        && lhsFontGeometry.__getMetricsUnsafe().pointee.emSize == rhsFontGeometry.__getMetricsUnsafe().pointee.emSize
+        && lhsFontGeometry.__getMetricsUnsafe().pointee.lineHeight == rhsFontGeometry.__getMetricsUnsafe().pointee.lineHeight
+        && lhs.fontData.pointee.glyphs.size() == rhs.fontData.pointee.glyphs.size()
+    }
+    
 }
 
 public struct FontDescriptor {

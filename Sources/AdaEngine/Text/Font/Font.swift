@@ -14,7 +14,7 @@ public enum FontWeight: String {
     case heavy
 }
 
-public class Font: Resource {
+public class Font: Resource, Hashable {
     
     let handle: FontHandle
     
@@ -40,6 +40,16 @@ public class Font: Resource {
         fatalError()
     }
     
+}
+
+extension Font {
+    public static func == (lhs: Font, rhs: Font) -> Bool {
+        return lhs.handle == rhs.handle
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(self.handle)
+    }
 }
 
 public extension Font {

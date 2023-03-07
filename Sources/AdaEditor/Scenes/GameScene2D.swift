@@ -290,17 +290,32 @@ extension GameScene2D {
         var transform = Transform()
         transform.scale = Vector3(0.3)
         transform.position.x = -0.5
+        transform.position.y = 0.5
         entity.components += transform
         entity.components += NoFrustumCulling()
         
-        var attributes = TextAttributes()
-        attributes.values.foregroundColor = .red
-        attributes.values.outlineColor = .black
-        attributes.values.font = Font.system(weight: .italic)
+        var attributes = TextAttributeContainer()
+        attributes.foregroundColor = .red
+        attributes.outlineColor = .black
+        attributes.font = Font.system(weight: .italic)
         
-        let repeatingText = [String].init(repeating: "Hello World, Ada Engine!\n", count: 2).joined()
-        let text = AttributedText(repeatingText, attributes: attributes)
-        entity.components += Text2DComponent(text: text)
+        var text = AttributedText("Hello World, Ada Engine!\n", attributes: attributes)
+        
+        attributes.font = Font.system(weight: .regular)
+        attributes.foregroundColor = .purple
+        attributes.kern = -0.03
+        
+        text += AttributedText("And my dear friends!", attributes: attributes)
+        
+        attributes.foregroundColor = .brown
+        attributes.font = .system(weight: .heavy)
+        
+        text.setAttributes(
+            attributes,
+            at: text.startIndex..<text.index(text.startIndex, offsetBy: 5)
+        )
+        
+        entity.components += Text2DComponent(text: text, bounds: Rect(x: 0, y: 0, width: 4.2, height: .infinity))
         
         scene.addEntity(entity)
     }
