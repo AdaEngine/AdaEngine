@@ -26,6 +26,14 @@ struct PlayerMovementSystem: System {
             for touch in Input.getTouches() where touch.phase == .began {
                 body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
             }
+            
+            if Input.isKeyPressed(.arrowLeft) {
+                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
+            }
+            
+            if Input.isKeyPressed(.arrowRight) {
+                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
+            }
         }
         
         context.scene.performQuery(Self.cameraQuery).forEach { entity in
@@ -299,7 +307,7 @@ extension GameScene2D {
         attributes.outlineColor = .black
         attributes.font = Font.system(weight: .italic)
         
-        var text = AttributedText("Hello World, Ada Engine!\n", attributes: attributes)
+        var text = AttributedText("Hello, Ada Engine!\n", attributes: attributes)
         
         attributes.font = Font.system(weight: .regular)
         attributes.foregroundColor = .purple
@@ -315,7 +323,11 @@ extension GameScene2D {
             at: text.startIndex..<text.index(text.startIndex, offsetBy: 5)
         )
         
-        entity.components += Text2DComponent(text: text, bounds: Rect(x: 0, y: 0, width: 4.2, height: .infinity))
+        entity.components += Text2DComponent(
+            text: text,
+            bounds: Rect(x: 0, y: 0, width: 4.2, height: .infinity),
+            lineBreakMode: .byWordWrapping
+        )
         
         scene.addEntity(entity)
     }

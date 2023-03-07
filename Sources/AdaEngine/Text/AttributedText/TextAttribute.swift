@@ -74,7 +74,7 @@ public extension TextAttributeContainer {
     
 }
 
-enum LineBreakMode {
+public enum LineBreakMode {
     case byCharWrapping
     case byWordWrapping
 }
