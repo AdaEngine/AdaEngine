@@ -3,10 +3,19 @@
     {
       "identity" : "box2d-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/SpectralDragon/box2d-swift",
+      "location" : "https://github.com/AdaEngine/box2d-swift",
       "state" : {
         "branch" : "main",
         "revision" : "84c00ced5a8c9ee023ec02b8b29f956e037002fc"
+      }
+    },
+    {
+      "identity" : "msdf-atlas-gen",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/msdf-atlas-gen",
+      "state" : {
+        "branch" : "master",
+        "revision" : "be243203aeb31a1799866c73de79ed6400a0bd51"
       }
     },
     {

@@ -1,47 +1,11 @@
 //
-//  Text2DPlugin.swift
+//  Text2DRenderSystem.swift
 //  
 //
-//  Created by v.prusakov on 3/5/23.
+//  Created by v.prusakov on 3/7/23.
 //
 
-public struct Text2DPlugin: ScenePlugin {
-    
-    public init() {}
-    
-    public func setup(in scene: Scene) {
-        scene.addSystem(Text2DLayoutSystem.self)
-        scene.addSystem(Text2DRenderSystem.self)
-    }
-}
-
-public struct Text2DLayoutSystem: System {
-    
-    public static var dependencies: [SystemDependency] = [.before(VisibilitySystem.self)]
-    
-    static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self))
-    
-    public init(scene: Scene) {}
-    
-    public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.textComponents).forEach { entity in
-            let (text, visibility) = entity.components[Text2DComponent.self, Visibility.self]
-            
-            if !visibility.isVisible {
-                return
-            }
-            
-            let textLayout = entity.components[TextLayoutComponent.self] ?? TextLayoutComponent(textLayout: TextLayoutManager())
-            
-            textLayout.textLayout.setText(text.text, bounds: text.bounds ?? Rect(x: 0, y: 0, width: .infinity, height: .infinity))
-            
-            entity.components += textLayout
-        }
-    }
-}
-
 // FIXME: WE SHOULD USE SAME SPRITE RENDERER!!!!!!
-
 public struct Text2DRenderSystem: System {
     
     public static var dependencies: [SystemDependency] = [
@@ -56,8 +20,7 @@ public struct Text2DRenderSystem: System {
         .has(RenderItems<Transparent2DRenderItem>.self)
     )
     
-    let quadRenderPipeline: RenderPipeline
-    let gpuWhiteTexture: Texture2D
+    let textRenderPipeline: RenderPipeline
     
     public init(scene: Scene) {
         let device = RenderEngine.shared
@@ -93,10 +56,7 @@ public struct Text2DRenderSystem: System {
         piplineDesc.colorAttachments = [ColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
         
         let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
-        self.quadRenderPipeline = quadPipeline
-        
-        let image = Image(width: 1, height: 1, color: .white)
-        self.gpuWhiteTexture = Texture2D(image: image)
+        self.textRenderPipeline = quadPipeline
     }
     
     static let quadPosition: [Vector4] = [
@@ -156,10 +116,8 @@ public struct Text2DRenderSystem: System {
             let transform = entity.components[Transform.self]!
             let worldTransform = scene.worldTransformMatrix(for: entity)
             
-            let bounds = text.bounds ?? Rect(origin: .zero, size: Size.init(width: .infinity, height: .infinity))
-            
             let glyphs = textLayout.textLayout.getGlyphVertexData(
-                in: bounds,
+                in: text.bounds,
                 textAlignment: text.textAlignment,
                 transform: worldTransform
             )
@@ -177,7 +135,7 @@ public struct Text2DRenderSystem: System {
                     entity: currentBatchEntity,
                     batchEntity: currentBatchEntity,
                     drawPassId: spriteDraw,
-                    renderPipeline: self.quadRenderPipeline,
+                    renderPipeline: self.textRenderPipeline,
                     sortKey: transform.position.z,
                     batchRange: 0..<Int32(glyphs.indeciesCount)
                 )
@@ -221,8 +179,4 @@ public struct Text2DRenderSystem: System {
             )
         }
     }
-}
-
-struct TextLayoutComponent: Component {
-    let textLayout: TextLayoutManager
 }

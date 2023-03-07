@@ -272,9 +272,8 @@ let package = Package(
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", branch: "main"),
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
-    .package(url: "https://github.com/SpectralDragon/box2d-swift", branch: "main"),
-//    .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
-    .package(path: "../msdf-atlas-gen"),
+    .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "main"),
+    .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
     
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
