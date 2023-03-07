@@ -12,27 +12,32 @@ final class TextLayoutManager {
         static let dots = Character("…").unicodeScalars.first!
     }
     
-    typealias GlyphIndex = UInt32
+    private var textContainer: TextContainer = TextContainer(
+        text: "",
+        bounds: .init(x: 0, y: 0, width: .infinity, height: .infinity),
+        textAlignment: .center,
+        lineBreakMode: .byCharWrapping,
+        lineSpacing: 0
+    )
     
-    var attributedText: AttributedText = ""
-    var lastBounds: Rect = .zero
+    /// All glyphs for render in text contaner bounds
+    private var glyphs: [Glyph] = []
     
     init() {}
     
     private var glyphsToRender: GlyphRenderData?
     
-    func setText(_ text: AttributedText, bounds: Rect) {
-        if self.attributedText != text {
-            self.attributedText = text
-            self.lastBounds = bounds
+    func setTextContainer(_ textContainer: TextContainer) {
+        if self.textContainer != textContainer {
+            self.textContainer = textContainer
             
-            self.invalidateDisplay(for: bounds)
+            self.invalidateDisplay(for: textContainer.bounds)
         }
     }
     
-    private var glyphs: [Glyph] = []
+    // swiftlint:disable function_body_length
     
-    // swiftlint:disable:next function_body_length
+    /// Fit text to bounds and update rendered glyphs.
     func invalidateDisplay(for bounds: Rect) {
         
         var x: Double = Double(bounds.origin.x)
@@ -40,17 +45,16 @@ final class TextLayoutManager {
         
         self.glyphs.removeAll(keepingCapacity: true)
         
-        var lineHeightOffset: Double = 0
+        let lineHeightOffset = Double(self.textContainer.lineSpacing)
         
         var textureIndex: Int = -1
         var textures: [Texture2D?] = .init(repeating: nil, count: 32)
+        let attributedText = self.textContainer.text
         
-        for index in self.attributedText.text.indices {
-            let attributes = self.attributedText.attributes(at: index)
-            let char = self.attributedText.text[index]
+        for index in attributedText.text.indices {
+            let attributes = attributedText.attributes(at: index)
+            let char = attributedText.text[index]
             
-            let foregroundColor = attributes.foregroundColor
-            let outlineColor = attributes.outlineColor
             let kern = Double(attributes.kern)
             
             let fontHandle = attributes.font.handle
@@ -114,8 +118,7 @@ final class TextLayoutManager {
                 self.glyphs.append(Glyph(
                     textureAtlas: fontHandle.atlasTexture,
                     textureCoordinates: [Float(l), Float(b), Float(r), Float(t)],
-                    foregroundColor: foregroundColor,
-                    outlineColor: outlineColor,
+                    attributes: attributes,
                     position: [Float(pl), Float(pb), Float(pr), Float(pt)])
                 )
                 
@@ -133,7 +136,7 @@ final class TextLayoutManager {
         }
     }
     
-    // swiftlint:disable:next function_body_length
+    /// Get or create glyphs vertex data relative to transform.
     func getGlyphVertexData(
         in bounds: Rect,
         textAlignment: TextAlignment,
@@ -154,8 +157,8 @@ final class TextLayoutManager {
             
             let texture = glyph.textureAtlas
             let textureSize = Vector2(Float(texture.width), Float(texture.height))
-            let foregroundColor = glyph.foregroundColor
-            let outlineColor = glyph.foregroundColor
+            let foregroundColor = glyph.attributes.foregroundColor
+            let outlineColor = glyph.attributes.outlineColor
             let textureCoordinate = glyph.textureCoordinates
             
             if let index = textures.firstIndex(where: { $0 === texture }) {
@@ -224,6 +227,23 @@ final class TextLayoutManager {
         return render
     }
     
+    // swiftlint:enable function_body_length
+}
+
+extension TextLayoutManager {
+    
+    struct Glyph {
+        let textureAtlas: Texture2D
+        
+        /// Coordinates of texturue [x: l, y: b, z: r, w: t]
+        let textureCoordinates: Vector4
+        let attributes: TextAttributeContainer
+        
+        /// position on plane [x: pl, y: pb, z: pr, w: pt]
+        let position: Vector4
+    }
+
+    
 }
 
 struct GlyphRenderData {
@@ -242,17 +262,10 @@ struct GlyphVertexData {
     let textureIndex: Int
 }
 
-struct Glyph {
-    let textureAtlas: Texture2D
-    let textureCoordinates: Vector4
-    let foregroundColor: Color
-    let outlineColor: Color
-    let position: Vector4
-}
-
-struct TextContainer {
-    let text: AttributedText
-    let bounds: Rect
-    let textAlignment: TextAlignment = .center
-    let lineBreakMode: LineBreakMode = .byCharWrapping
+struct TextContainer: Equatable {
+    var text: AttributedText
+    var bounds: Rect
+    var textAlignment: TextAlignment
+    var lineBreakMode: LineBreakMode
+    var lineSpacing: Float
 }

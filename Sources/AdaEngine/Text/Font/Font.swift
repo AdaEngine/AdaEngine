@@ -14,7 +14,8 @@ public enum FontWeight: String {
     case heavy
 }
 
-public class Font: Resource, Hashable {
+/// An object that provides access to the font's characteristics.
+public final class Font: Resource, Hashable {
     
     let handle: FontHandle
     
@@ -40,6 +41,23 @@ public class Font: Resource, Hashable {
         fatalError()
     }
     
+}
+
+public extension Font {
+    /// The top y-coordinate, offset from the baseline, of the font’s longest ascender.
+    var ascender: Float {
+        Float(self.handle.fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.ascenderY)
+    }
+    
+    /// The bottom y-coordinate, offset from the baseline, of the font’s longest descender.
+    var descender: Float {
+        Float(self.handle.fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.descenderY)
+    }
+    
+    /// The height, in points, of text lines.
+    var lineHeight: Float {
+        Float(self.handle.fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.lineHeight)
+    }
 }
 
 extension Font {

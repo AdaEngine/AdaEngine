@@ -27,7 +27,14 @@ public struct Text2DLayoutSystem: System {
             
             let textLayout = entity.components[TextLayoutComponent.self] ?? TextLayoutComponent(textLayout: TextLayoutManager())
             
-            textLayout.textLayout.setText(text.text, bounds: text.bounds)
+            let textContainer = TextContainer(
+                text: text.text,
+                bounds: text.bounds,
+                textAlignment: text.textAlignment,
+                lineBreakMode: text.lineBreakMode,
+                lineSpacing: text.lineSpacing
+            )
+            textLayout.textLayout.setTextContainer(textContainer)
             
             entity.components += textLayout
         }
