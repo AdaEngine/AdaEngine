@@ -8,12 +8,12 @@
 public struct Text2DComponent: Component {
     public var text: AttributedText
     public var textAlignment: TextAlignment
-    public var bounds: Rect?
+    public var bounds: Rect
     
     public init(
         text: AttributedText,
         textAlignment: TextAlignment = .center,
-        bounds: Rect? = nil
+        bounds: Rect = Rect(x: 0, y: 0, width: .infinity, height: .infinity)
     ) {
         self.text = text
         self.textAlignment = textAlignment
