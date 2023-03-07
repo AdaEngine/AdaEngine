@@ -33,7 +33,7 @@ public struct Text2DLayoutSystem: System {
             
             let textLayout = entity.components[TextLayoutComponent.self] ?? TextLayoutComponent(textLayout: TextLayoutManager())
             
-            textLayout.textLayout.replaceText(text.text)
+            textLayout.textLayout.setText(text.text, bounds: text.bounds ?? Rect(x: 0, y: 0, width: .infinity, height: .infinity))
             
             entity.components += textLayout
         }
@@ -165,6 +165,10 @@ public struct Text2DRenderSystem: System {
             )
             
             var spriteVerticies = glyphs.verticies
+            
+            if spriteVerticies.isEmpty {
+                continue
+            }
             
             currentBatchEntity.components += BatchComponent(textures: glyphs.textures.compactMap { $0 })
             
