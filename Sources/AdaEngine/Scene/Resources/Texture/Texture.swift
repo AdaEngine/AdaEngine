@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 6/28/22.
 //
 
-import Foundation
-
 open class Texture: Resource, Codable {
     
     private(set) var gpuTexture: GPUTexture

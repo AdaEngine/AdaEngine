@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 8/12/21.
 //
 
-import Foundation
-
 // TODO: (Vlad) Create object aka CGFloat for float or doubles
 // TODO: (Vlad) when move to new vector object, we should use same object size
 

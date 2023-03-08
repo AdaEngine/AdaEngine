@@ -15,11 +15,49 @@
 
 // TODO: (Vlad) Replace to Foundation realization instead?
 
+@inlinable
+@inline(__always)
+public func tanf(_ float: Float) -> Float {
+#if os(Linux)
+        return Glibc.tanf(float)
+#else
+        return Darwin.tanf(float)
+#endif
+}
+
+@inlinable
+@inline(__always)
+public func atan2(_ lhs: Double, _ rhs: Double) -> Double {
+#if os(Linux)
+        return Glibc.atan2(lhs, rhs)
+#else
+        return Darwin.atan2(lhs, rhs)
+#endif
+}
+
+@inlinable
+@inline(__always)
+public func atan2(_ lhs: Float, _ rhs: Float) -> Float {
+#if os(Linux)
+        return Glibc.atan2(lhs, rhs)
+#else
+        return Darwin.atan2(lhs, rhs)
+#endif
+}
+
+@inlinable
+@inline(__always)
+public func sqrt<T: FloatingPoint>(_ value: T) -> T {
+    return value * value
+}
+
+@inlinable
 @inline(__always)
 public func clamp<T: Comparable>(_ value: T, _ min: T, _ max: T) -> T {
     return value < min ? (min) : (value > max ? max : value)
 }
 
+@inlinable
 @inline(__always)
 public func cross(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
     var x1 = lhs.y * rhs.z
@@ -31,6 +69,7 @@ public func cross(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
     return Vector3(x1, y1, z1)
 }
 
+@inlinable
 @inline(__always)
 public func round<T: FloatingPoint>(_ value: T) -> T {
 #if os(Linux)
@@ -40,36 +79,66 @@ public func round<T: FloatingPoint>(_ value: T) -> T {
 #endif
 }
 
+@inlinable
 @inline(__always)
-public func sin<T: FloatingPoint>(_ angle: T) -> T {
-    if let double = angle as? Double {
+public func sin(_ value: Double) -> Double {
 #if os(Linux)
-        return Glibc.sin(double) as! T
+        return Glibc.sin(value)
 #else
-        return Darwin.sin(double) as! T
+        return Darwin.sin(value)
 #endif
-        
-    } else if let float = angle as? Float {
-        return sinf(float) as! T
-    }
-    
-    fatalError("Supports only float and double")
 }
 
+
+@inlinable
 @inline(__always)
-public func cos<T: FloatingPoint>(_ angle: T) -> T {
-    if let double = angle as? Double {
+public func sin(_ value: Float) -> Float {
 #if os(Linux)
-        return Glibc.cos(double) as! T
+        return Glibc.sinf(value)
 #else
-        return Darwin.cos(double) as! T
+        return Darwin.sinf(value)
 #endif
-        
-    } else if let float = angle as? Float {
-        return cosf(float) as! T
-    }
-    
-    fatalError("Supports only float and double")
+}
+
+@inlinable
+@inline(__always)
+public func cos(_ value: Double) -> Double {
+#if os(Linux)
+        return Glibc.cos(value)
+#else
+        return Darwin.cos(value)
+#endif
+}
+
+
+@inlinable
+@inline(__always)
+public func cos(_ value: Float) -> Float {
+#if os(Linux)
+        return Glibc.cosf(value)
+#else
+        return Darwin.cosf(value)
+#endif
+}
+
+@inlinable
+@inline(__always)
+public func acos(_ value: Float) -> Float {
+#if os(Linux)
+        return Glibc.acos(value)
+#else
+        return Darwin.acos(value)
+#endif
+}
+
+@inlinable
+@inline(__always)
+public func acos(_ value: Double) -> Double {
+#if os(Linux)
+        return Glibc.acos(value)
+#else
+        return Darwin.acos(value)
+#endif
 }
 
 // swiftlint:enable identifier_name
