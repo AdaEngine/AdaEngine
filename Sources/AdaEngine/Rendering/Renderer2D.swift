@@ -7,6 +7,7 @@
 
 import Math
 
+// TODO: Should we use separete renderer? Maybe switch to render graph???
 // TODO: Needs optimizations
 public class Renderer2D {
     
@@ -32,15 +33,17 @@ public class Renderer2D {
         var indeciesCount: Int
         var indexBuffer: IndexBuffer
         let renderPipeline: RenderPipeline
+        var textureSlots: [Texture2D]
+        var textureSlotIndex = 0
     }
     
     private var circleData: Data<CircleVertexData>
     private var quadData: Data<QuadVertexData>
     private var lineData: Data<LineVertexData>
+    private var textData: Data<GlyphVertexData>
+    
     private var quadPosition: [Vector4] = []
     
-    private var textureSlots: [Texture2D?]
-    private var textureSlotIndex = 1
     private let whiteTexture: Texture2D
     
     private static var maxQuads = 20_000
@@ -92,8 +95,6 @@ public class Renderer2D {
         // because if user don't pass texture to render, we will use this white texture
         let image = Image(width: 1, height: 1, color: .white)
         self.whiteTexture = Texture2D(image: image)
-        self.textureSlots = [Texture2D?].init(repeating: nil, count: 32)
-        self.textureSlots[0] = self.whiteTexture
         
         var samplerDesc = SamplerDescriptor()
         samplerDesc.magFilter = .nearest
@@ -142,7 +143,8 @@ public class Renderer2D {
             vertices: [],
             indeciesCount: 0,
             indexBuffer: quadIndexBuffer,
-            renderPipeline: circlePipeline
+            renderPipeline: circlePipeline,
+            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 32)
         )
         
         // Quads
@@ -182,7 +184,8 @@ public class Renderer2D {
             vertices: [],
             indeciesCount: 0,
             indexBuffer: quadIndexBuffer,
-            renderPipeline: quadPipeline
+            renderPipeline: quadPipeline,
+            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 32)
         )
         
         // Lines
@@ -233,7 +236,52 @@ public class Renderer2D {
             vertices: [],
             indeciesCount: 0,
             indexBuffer: indexBuffer,
-            renderPipeline: linesPipeline
+            renderPipeline: linesPipeline,
+            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 32)
+        )
+        
+        // Text
+        
+        piplineDesc.vertexDescriptor.reset()
+        
+        piplineDesc.debugName = "Text Pipeline"
+        
+        var textSamplerDesc = SamplerDescriptor()
+        textSamplerDesc.magFilter = .linear
+        textSamplerDesc.mipFilter = .linear
+        textSamplerDesc.minFilter = .linear
+        let textSampler = device.makeSampler(from: textSamplerDesc)
+        
+        let textShaderDesc = ShaderDescriptor(
+            shaderName: "text",
+            vertexFunction: "text_vertex",
+            fragmentFunction: "text_fragment"
+        )
+        
+        let textShader: Shader = device.makeShader(from: textShaderDesc)
+        piplineDesc.shader = textShader
+        piplineDesc.sampler = textSampler
+        
+        piplineDesc.vertexDescriptor.attributes.append([
+            .attribute(.vector4, name: "position"),
+            .attribute(.vector4, name: "foregroundColor"),
+            .attribute(.vector4, name: "outlineColor"),
+            .attribute(.vector2, name: "textureCoordinate"),
+            .attribute(.vector2, name: "textureSize"),
+            .attribute(.int, name: "textureIndex")
+        ])
+        
+        piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<GlyphVertexData>.stride
+        
+        let textPipeline = device.makeRenderPipeline(from: piplineDesc)
+        
+        self.textData =  Data<GlyphVertexData>(
+            vertexBuffer: quadVertexBuffer,
+            vertices: [],
+            indeciesCount: 0,
+            indexBuffer: indexBuffer,
+            renderPipeline: textPipeline,
+            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 32)
         )
     }
     
@@ -316,11 +364,10 @@ extension Renderer2D {
             }
             
             // Flush all data if textures count more than 32
-            if self.renderEngine.textureSlotIndex >= 31 {
+            if self.renderEngine.quadData.textureSlotIndex >= 31 {
                 self.nextBatch()
-                self.renderEngine.textureSlots = [Texture2D?].init(repeating: nil, count: 32)
-                self.renderEngine.textureSlots[0] = self.renderEngine.whiteTexture
-                self.renderEngine.textureSlotIndex = 1
+                self.renderEngine.quadData.textureSlots = [Texture2D].init(repeating: self.renderEngine.whiteTexture, count: 32)
+                self.renderEngine.quadData.textureSlotIndex = 0
             }
             
             // Select a texture index for draw
@@ -328,25 +375,25 @@ extension Renderer2D {
             let textureIndex: Int
             
             if let texture = texture {
-                if let index = self.renderEngine.textureSlots.firstIndex(where: { $0 === texture }) {
+                if let index = self.renderEngine.quadData.textureSlots.firstIndex(where: { $0 === texture }) {
                     textureIndex = index
                 } else {
-                    self.renderEngine.textureSlots[self.renderEngine.textureSlotIndex] = texture
-                    textureIndex = self.renderEngine.textureSlotIndex
-                    self.renderEngine.textureSlotIndex += 1
+                    self.renderEngine.quadData.textureSlotIndex += 1
+                    self.renderEngine.quadData.textureSlots[self.renderEngine.quadData.textureSlotIndex] = texture
+                    textureIndex = self.renderEngine.quadData.textureSlotIndex
                 }
             } else {
                 // for white texture
                 textureIndex = 0
             }
             
-            let texture = self.renderEngine.textureSlots[textureIndex]
+            let texture = self.renderEngine.quadData.textureSlots[textureIndex]
             
             for index in 0 ..< renderEngine.quadPosition.count {
                 let data = QuadVertexData(
                     position: transform * renderEngine.quadPosition[index],
                     color: color,
-                    textureCoordinate: texture!.textureCoordinates[index],
+                    textureCoordinate: texture.textureCoordinates[index],
                     textureIndex: textureIndex
                 )
                 
@@ -404,6 +451,34 @@ extension Renderer2D {
             }
             
             self.renderEngine.circleData.indeciesCount += 6
+        }
+        
+        public func drawText(_ textLayout: TextLayoutManager, transform: Transform3D) {
+            if self.renderEngine.textData.indeciesCount >= Renderer2D.maxIndecies {
+                self.nextBatch()
+            }
+            
+            let glyphs = textLayout.getGlyphVertexData(transform: transform)
+            self.renderEngine.textData.vertices.append(contentsOf: glyphs.verticies)
+            self.renderEngine.textData.indeciesCount += glyphs.indeciesCount
+            
+            // Flush all data if textures count more than 32
+            if self.renderEngine.textData.textureSlotIndex >= 31 {
+                self.nextBatch()
+                self.renderEngine.textData.textureSlots = [Texture2D].init(repeating: self.renderEngine.whiteTexture, count: 32)
+                self.renderEngine.textData.textureSlotIndex = 0
+            }
+            
+            // Fill textures to render
+            for texture in glyphs.textures {
+                if let texture = texture {
+                    if !self.renderEngine.textData.textureSlots.contains(where: { $0 === texture }) {
+                        self.renderEngine.textData.textureSlotIndex += 1
+                        self.renderEngine.textData.textureSlots[self.renderEngine.textData.textureSlotIndex] = texture
+                        
+                    }
+                }
+            }
         }
         
         public func drawLine(start: Vector3, end: Vector3, color: Color) {
@@ -469,6 +544,7 @@ extension Renderer2D {
             self.flush(for: self.renderEngine.quadData, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.lineData, indexPrimitive: .line, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.circleData, currentDraw: currentDraw)
+            self.flush(for: self.renderEngine.textData, currentDraw: currentDraw)
         }
         
         private func flush<D>(for data: Data<D>, indexPrimitive: IndexPrimitive = .triangle, currentDraw: DrawList) {
@@ -478,9 +554,7 @@ extension Renderer2D {
             
             var verticies = data.vertices
             
-            let textures = self.renderEngine.textureSlots[0..<self.renderEngine.textureSlotIndex].compactMap { $0 }
-            
-            for (index, texture) in textures.enumerated() {
+            for (index, texture) in data.textureSlots.enumerated() {
                 currentDraw.bindTexture(texture, at: index)
             }
             
