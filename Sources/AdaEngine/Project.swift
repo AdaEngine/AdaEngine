@@ -32,12 +32,13 @@ let targets: [Target] = [
                 path: .relativeToRoot("Sources/libpng")
             ),
             .project(
-                target: "box2d",
-                path: .relativeToRoot("Sources/box2d")
+                target: "AtlasFontGenerator",
+                path: .relativeToRoot("Sources/AtlasFontGenerator")
             ),
-            .external(name: "stb_image"),
             .external(name: "Collections"),
-            .external(name: "Yams")
+            .external(name: "Yams"),
+            .external(name: "box2d"),
+            .sdk(name: "c++", type: .library)
         ],
         settings: .targetSettings(swiftFlags: [
             .define("MACOS"),

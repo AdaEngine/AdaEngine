@@ -1,0 +1,5 @@
+module AtlasFontGenerator {
+    header "atlas_font_gen.h"
+    
+    export *
+}

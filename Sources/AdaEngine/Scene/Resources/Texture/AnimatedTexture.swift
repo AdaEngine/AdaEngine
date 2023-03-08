@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 7/3/22.
 //
 
-
 // TODO: Make encoding/decoding for scene serialization
 
 /// Animated texture is represents a frame-based animations, where multiple textures can be chained with a predifined delay for each frame.

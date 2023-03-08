@@ -9,10 +9,10 @@ import Foundation
 
 /// The interface describe resource in a system.
 /// Resource describe information needed to your game, like Audio, Mesh, Texture and etc.
-/// You can create your own resource and use loaded it using `ResourceManager`.
+/// You can create your own resource and use loaded it using ``ResourceManager``.
 ///
 /// Each resource should support saving and loading behaviour. In example we have simple scenario how to implement it,
-/// but you can create custom `Codable` structure or use different path to do that.
+/// but you can create custom ``Codable`` structure or use different path to do that.
 ///
 /// ```swift
 /// final class MyResource: Resource {
@@ -55,6 +55,7 @@ public enum ResourceType: String {
     case text = "res"
     case scene = "ascn"
     case audio = "audiores"
+    case font = "font"
     
     case none
     
@@ -77,11 +78,14 @@ public protocol AssetEncoder {
 
 public enum AssetDecodingError: LocalizedError {
     case invalidAssetExtension(String)
+    case decodingProblem(String)
     
     public var errorDescription: String? {
         switch self {
         case .invalidAssetExtension(let string):
             return "[Asset Decoding Error] Invalid asset file extension \(string)"
+        case .decodingProblem(let string):
+            return "[Asset Decoding Error] Decoding finished with failure: \(string)"
         }
     }
 }

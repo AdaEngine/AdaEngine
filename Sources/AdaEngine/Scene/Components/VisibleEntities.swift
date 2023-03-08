@@ -16,6 +16,11 @@ struct VisibilitySystem: System {
     static let entities = EntityQuery(
         where: .has(Transform.self) && .has(Visibility.self) && .has(BoundingComponent.self) && .without(NoFrustumCulling.self)
     )
+    
+    static let entitiesWithNoFrustum = EntityQuery(
+        where: .has(Transform.self) && .has(Visibility.self) && .has(NoFrustumCulling.self)
+    )
+    
     static let entitiesWithTransform = EntityQuery(
         where: .has(Transform.self) && .without(NoFrustumCulling.self)
     )
@@ -66,7 +71,7 @@ struct VisibilitySystem: System {
     
     private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> [Entity] {
         let frustum = camera.computedData.frustum
-        return context.scene.performQuery(Self.entities).filter { entity in
+        var filtredEntities = context.scene.performQuery(Self.entities).filter { entity in
             let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
             
             if !visibility.isVisible {
@@ -78,5 +83,13 @@ struct VisibilitySystem: System {
                 return frustum.intersectsAABB(aabb)
             }
         }
+        
+        var withNoFrustumEntities = context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
+            let visibility = entity.components[Visibility.self]!
+            
+            return visibility.isVisible
+        }
+        
+        return filtredEntities + withNoFrustumEntities
     }
 }

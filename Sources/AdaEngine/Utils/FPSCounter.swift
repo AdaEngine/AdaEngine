@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 1/28/23.
 //
 
+import Math
+
 class FPSCounter {
     
     static let shared = FPSCounter()
@@ -37,7 +39,8 @@ class FPSCounter {
     }
     
     private func notifyUpdateForElapsedTime(_ elapsedTime: TimeInterval) {
-        let fps = Int(round(Double(self.numberOfFrames) / Double(elapsedTime)))
+        let rounded = Math.round(Double(self.numberOfFrames) / Double(elapsedTime))
+        let fps = Int(rounded)
         EventManager.default.send(EngineEvents.FramesPerSecondEvent(framesPerSecond: fps))
     }
 }
