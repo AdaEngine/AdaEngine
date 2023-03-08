@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 3/7/23.
 //
 
+// FIXME: Should works with frustum culling
+
 // FIXME: WE SHOULD USE SAME SPRITE RENDERER!!!!!!
 public struct Text2DRenderSystem: System {
     
@@ -13,6 +15,15 @@ public struct Text2DRenderSystem: System {
         .after(VisibilitySystem.self),
         .before(BatchTransparent2DItemsSystem.self)
     ]
+    
+    static let quadPosition: [Vector4] = [
+        [-0.5, -0.5,  0.0, 1.0],
+        [ 0.5, -0.5,  0.0, 1.0],
+        [ 0.5,  0.5,  0.0, 1.0],
+        [-0.5,  0.5,  0.0, 1.0]
+    ]
+    
+    static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self) && .has(TextLayoutComponent.self))
     
     static let cameras = EntityQuery(where:
             .has(Camera.self) &&
@@ -59,15 +70,6 @@ public struct Text2DRenderSystem: System {
         self.textRenderPipeline = quadPipeline
     }
     
-    static let quadPosition: [Vector4] = [
-        [-0.5, -0.5,  0.0, 1.0],
-        [ 0.5, -0.5,  0.0, 1.0],
-        [ 0.5,  0.5,  0.0, 1.0],
-        [-0.5,  0.5,  0.0, 1.0]
-    ]
-    
-    static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self) && .has(TextLayoutComponent.self))
-    
     public func update(context: UpdateContext) {
         context.scene.performQuery(Self.cameras).forEach { entity in
             var (camera, visibleEntities, renderItems) = entity.components[Camera.self, VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
@@ -86,6 +88,7 @@ public struct Text2DRenderSystem: System {
         }
     }
     
+    // swiftlint:disable:next function_body_length
     private func draw(
         scene: Scene,
         visibleEntities: [Entity],
@@ -104,10 +107,7 @@ public struct Text2DRenderSystem: System {
             }
         
         for entity in texts {
-            guard
-                let textLayout = entity.components[TextLayoutComponent.self],
-                let text = entity.components[Text2DComponent.self]
-            else {
+            guard let textLayout = entity.components[TextLayoutComponent.self] else {
                 continue
             }
             
@@ -116,11 +116,7 @@ public struct Text2DRenderSystem: System {
             let transform = entity.components[Transform.self]!
             let worldTransform = scene.worldTransformMatrix(for: entity)
             
-            let glyphs = textLayout.textLayout.getGlyphVertexData(
-                in: text.bounds,
-                textAlignment: text.textAlignment,
-                transform: worldTransform
-            )
+            let glyphs = textLayout.textLayout.getGlyphVertexData(transform: worldTransform)
             
             var spriteVerticies = glyphs.verticies
             

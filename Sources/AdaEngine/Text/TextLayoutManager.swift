@@ -5,7 +5,42 @@
 //  Created by v.prusakov on 3/6/23.
 //
 
-final class TextLayoutManager {
+// FIXME: When text container updates each frame, than we have troubles with performance
+// TODO: Add line break mode by word
+
+/// A region where text layout occurs.
+public struct TextContainer: Hashable {
+    /// The text for rendering.
+    public var text: AttributedText
+    
+    /// The size of the text container’s bounding rectangle.
+    public var bounds: Rect
+    
+    public var textAlignment: TextAlignment
+    
+    /// The behavior of the last line inside the text container.
+    public var lineBreakMode: LineBreakMode
+    public var lineSpacing: Float
+    
+    public init(
+        text: AttributedText,
+        bounds: Rect,
+        textAlignment: TextAlignment,
+        lineBreakMode: LineBreakMode,
+        lineSpacing: Float
+    ) {
+        self.text = text
+        self.bounds = bounds
+        self.textAlignment = textAlignment
+        self.lineBreakMode = lineBreakMode
+        self.lineSpacing = lineSpacing
+    }
+    
+}
+
+/// An object that coordinates the layout and display of text characters.
+/// TextLayoutManager maps unicods characters codes to glyphs.
+public final class TextLayoutManager {
     
     enum Constans {
         static let questionMark = Character("?").unicodeScalars.first!
@@ -27,9 +62,10 @@ final class TextLayoutManager {
     
     private var glyphsToRender: GlyphRenderData?
     
-    func setTextContainer(_ textContainer: TextContainer) {
+    public func setTextContainer(_ textContainer: TextContainer) {
         if self.textContainer != textContainer {
             self.textContainer = textContainer
+            self.glyphsToRender = nil
             
             self.invalidateDisplay(for: textContainer.bounds)
         }
@@ -38,8 +74,7 @@ final class TextLayoutManager {
     // swiftlint:disable function_body_length
     
     /// Fit text to bounds and update rendered glyphs.
-    func invalidateDisplay(for bounds: Rect) {
-        
+    public func invalidateDisplay(for bounds: Rect) {
         var x: Double = Double(bounds.origin.x)
         var y: Double = Double(bounds.origin.y)
         
@@ -137,16 +172,11 @@ final class TextLayoutManager {
     }
     
     /// Get or create glyphs vertex data relative to transform.
-    func getGlyphVertexData(
-        in bounds: Rect,
-        textAlignment: TextAlignment,
-        transform: Transform3D
-    ) -> GlyphRenderData {
-        
-        if let glyphsToRender = glyphsToRender, glyphsToRender.transform != transform {
+    func getGlyphVertexData(transform: Transform3D) -> GlyphRenderData {
+        if let glyphsToRender = glyphsToRender, glyphsToRender.transform == transform {
             return glyphsToRender
         }
-
+        
         var verticies: [GlyphVertexData] = []
         var indeciesCount: Int = 0
         
@@ -231,7 +261,6 @@ final class TextLayoutManager {
 }
 
 extension TextLayoutManager {
-    
     struct Glyph {
         let textureAtlas: Texture2D
         
@@ -242,8 +271,6 @@ extension TextLayoutManager {
         /// position on plane [x: pl, y: pb, z: pr, w: pt]
         let position: Vector4
     }
-
-    
 }
 
 struct GlyphRenderData {
@@ -260,12 +287,4 @@ struct GlyphVertexData {
     let textureCoordinate: Vector2
     let textureSize: Vector2
     let textureIndex: Int
-}
-
-struct TextContainer: Equatable {
-    var text: AttributedText
-    var bounds: Rect
-    var textAlignment: TextAlignment
-    var lineBreakMode: LineBreakMode
-    var lineSpacing: Float
 }
