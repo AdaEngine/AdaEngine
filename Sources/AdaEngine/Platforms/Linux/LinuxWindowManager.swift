@@ -6,7 +6,6 @@
 //
 
 #if LINUX
-import Foundation
 import X11
 
 final class LinuxWindowManager: WindowManager {

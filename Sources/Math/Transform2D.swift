@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 10/20/21.
 //
 
-import Foundation
-
 // swiftlint:disable identifier_name
 
 @frozen

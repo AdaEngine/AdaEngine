@@ -7,8 +7,6 @@
 
 // swiftlint:disable identifier_name
 
-import Foundation
-
 /// The struct describe Quaternion
 public struct Quat {
     public var x: Float

@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 6/22/22.
 //
 
-import Foundation
-
 public struct Vector3: Hashable, Equatable, Codable {
     public var x: Float
     public var y: Float

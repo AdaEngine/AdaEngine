@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 6/30/22.
 //
 
-import Foundation
 import Math
 
 /// The atlas, also know as Sprite Sheet is an object contains an image and can provide

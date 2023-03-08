@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 2/26/23.
 //
 
-import Foundation
-
 struct DebugPhysics2DSystem: System {
     
     static var dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]

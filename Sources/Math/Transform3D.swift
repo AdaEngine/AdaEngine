@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 10/19/21.
 //
 
-import Foundation
-
 // swiftlint:disable identifier_name
 
 // TODO: (Vlad) Check all math using https://github.com/nicklockwood/VectorMath/blob/master/VectorMath/VectorMath.swift
