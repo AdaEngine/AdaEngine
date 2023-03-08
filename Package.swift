@@ -216,6 +216,7 @@ targets += [
         dependencies: [
             .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
         ],
+        exclude: ["Project.swift", "Derived"],
         publicHeadersPath: "."
     )
 ]
