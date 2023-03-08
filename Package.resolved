@@ -1,6 +1,24 @@
 {
   "pins" : [
     {
+      "identity" : "box2d-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/box2d-swift",
+      "state" : {
+        "branch" : "main",
+        "revision" : "84c00ced5a8c9ee023ec02b8b29f956e037002fc"
+      }
+    },
+    {
+      "identity" : "msdf-atlas-gen",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/msdf-atlas-gen",
+      "state" : {
+        "branch" : "master",
+        "revision" : "be243203aeb31a1799866c73de79ed6400a0bd51"
+      }
+    },
+    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections",
@@ -14,7 +32,16 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-docc-plugin",
       "state" : {
-        "revision" : "3303b164430d9a7055ba484c8ead67a52f7b74f6",
+        "revision" : "10bc670db657d11bdd561e07de30a9041311b2b1",
+        "version" : "1.1.0"
+      }
+    },
+    {
+      "identity" : "swift-docc-symbolkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-docc-symbolkit",
+      "state" : {
+        "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
         "version" : "1.0.0"
       }
     },
@@ -23,8 +50,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpsim/Yams",
       "state" : {
-        "revision" : "01835dc202670b5bb90d07f3eae41867e9ed29f6",
-        "version" : "5.0.1"
+        "revision" : "f47ba4838c30dbd59998a4e4c87ab620ff959e8a",
+        "version" : "5.0.5"
       }
     }
   ],

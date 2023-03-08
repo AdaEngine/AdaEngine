@@ -33,7 +33,7 @@ public struct SpriteDrawPass: DrawPass {
             return
         }
         
-        guard let count = item.batchRange?.count, count > 0 else {
+        guard let count = item.batchRange?.count else {
             return
         }
         

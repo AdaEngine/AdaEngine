@@ -108,6 +108,8 @@ var swiftSettings: [SwiftSetting] = [
     .define("TVOS", .when(platforms: [.tvOS])),
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
+    
+    .unsafeFlags(["-enable-experimental-cxx-interop"])
 ]
 
 if isVulkanEnabled {
@@ -132,7 +134,7 @@ let editorTarget: Target = .executableTarget(
         .define("EDITOR_IOS", .when(platforms: [.iOS])),
         .define("EDITOR_TVOS", .when(platforms: [.tvOS])),
         .define("EDITOR_ANDROID", .when(platforms: [.android])),
-        .define("EDITOR_LINUX", .when(platforms: [.linux]))
+        .define("EDITOR_LINUX", .when(platforms: [.linux])),
     ],
     plugins: commonPlugins
 )
@@ -145,9 +147,11 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
+    .product(name: "box2d", package: "box2d-swift"),
+    .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen"),
+    "AtlasFontGenerator",
     "Yams",
-    "libpng",
-    "box2d"
+    "libpng"
 ]
 
 #if os(Linux)
@@ -160,9 +164,13 @@ let adaEngineTarget: Target = .target(
     exclude: ["Project.swift", "Derived"],
     resources: [
         .copy("Assets/Shaders/Metal"),
-        .copy("Assets/Models")
+        .copy("Assets/Models"),
+        .copy("Assets/Fonts")
     ],
     swiftSettings: adaEngineSwiftSettings,
+    linkerSettings: [
+        .linkedLibrary("c++")
+    ],
     plugins: commonPlugins
 )
 
@@ -184,7 +192,7 @@ var targets: [Target] = [
     )
 ]
 
-// MARK: Documentations
+// MARK: Extra
 
 targets += [
     // Empty target with documentation docc files
@@ -201,6 +209,17 @@ targets += [
         ]),
 ]
 #endif
+
+targets += [
+    .target(
+        name: "AtlasFontGenerator",
+        dependencies: [
+            .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
+        ],
+        exclude: ["Project.swift", "Derived"],
+        publicHeadersPath: "."
+    )
+]
 
 // MARK: - Tests
 
@@ -233,15 +252,6 @@ targets += [
     )
 ]
 
-// box2d
-
-targets += [
-    .target(
-        name: "box2d",
-        exclude: ["Project.swift", "Derived"]
-    )
-]
-
 // MARK: - Package -
 
 let package = Package(
@@ -255,13 +265,16 @@ let package = Package(
     dependencies: [ ],
     targets: targets,
     swiftLanguageVersions: [.v5],
-    cxxLanguageStandard: .cxx14
+    cLanguageStandard: .c17,
+    cxxLanguageStandard: .cxx17
 )
 
 // FIXME: If possible - move to local `vendors` folder
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", branch: "main"),
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
+    .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "main"),
+    .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
     
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),

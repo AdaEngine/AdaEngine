@@ -20,11 +20,19 @@ struct PlayerMovementSystem: System {
             let body = entity.components[PhysicsBody2DComponent.self]!
             
             if Input.isKeyPressed(.space) {
-                body.applyLinearImpulse([0, 0.1], point: .zero, wake: true)
+                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
             }
             
             for touch in Input.getTouches() where touch.phase == .began {
-                body.applyLinearImpulse([0, 0.1], point: .zero, wake: true)
+                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
+            }
+            
+            if Input.isKeyPressed(.arrowLeft) {
+                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
+            }
+            
+            if Input.isKeyPressed(.arrowRight) {
+                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
             }
         }
         
@@ -189,12 +197,14 @@ final class GameScene2D {
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
-        self.collisionHandler(for: scene)
-        self.fpsCounter(for: scene)
+//        self.collisionHandler(for: scene)
+//        self.fpsCounter(for: scene)
+        self.addText(to: scene)
+        
 
-        scene.addSystem(TubeMovementSystem.self)
-        scene.addSystem(TubeSpawnerSystem.self)
-        scene.addSystem(TubeDestroyerSystem.self)
+//        scene.addSystem(TubeMovementSystem.self)
+//        scene.addSystem(TubeSpawnerSystem.self)
+//        scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
         
         try ResourceManager.save(scene, at: scenePath)
@@ -211,7 +221,7 @@ final class GameScene2D {
     private func sceneDidReady(_ scene: Scene) {
         let physicsQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
         scene.performQuery(physicsQuery).forEach { entity in
-            entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -1.62)
+            entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -3.62)
         }
     }
     
@@ -275,9 +285,50 @@ final class GameScene2D {
     }
     
     private func fpsCounter(for scene: Scene) {
-        EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { event in
+        EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { _ in
 //            print("FPS", event.framesPerSecond)
         })
         .store(in: &disposeBag)
+    }
+}
+
+extension GameScene2D {
+    func addText(to scene: Scene) {
+        let entity = Entity()
+        var transform = Transform()
+        transform.scale = Vector3(0.3)
+        transform.position.x = -0.5
+        transform.position.y = 0.5
+        entity.components += transform
+        entity.components += NoFrustumCulling()
+        
+        var attributes = TextAttributeContainer()
+        attributes.foregroundColor = .red
+        attributes.outlineColor = .black
+        attributes.font = Font.system(weight: .italic)
+        
+        var text = AttributedText("Hello, Ada Engine!\n", attributes: attributes)
+        
+        attributes.font = Font.system(weight: .regular)
+        attributes.foregroundColor = .purple
+        attributes.kern = -0.03
+        
+        text += AttributedText("And my dear friends!", attributes: attributes)
+        
+        attributes.foregroundColor = .brown
+        attributes.font = .system(weight: .heavy)
+        
+        text.setAttributes(
+            attributes,
+            at: text.startIndex..<text.index(text.startIndex, offsetBy: 5)
+        )
+        
+        entity.components += Text2DComponent(
+            text: text,
+            bounds: Rect(x: 0, y: 0, width: 4.2, height: .infinity),
+            lineBreakMode: .byWordWrapping
+        )
+        
+        scene.addEntity(entity)
     }
 }

@@ -188,7 +188,9 @@ public final class ResourceManager {
                 throw ResourceError.message("Can't get encoded data from resource.")
             }
             
-            try encodedData.write(to: newFileURI)
+            if !FileSystem.current.createFile(at: newFileURI, contents: encodedData) {
+                throw ResourceError.message("Can't create file at path \(newFileURI.absoluteString)")
+            }
         }
     }
     
