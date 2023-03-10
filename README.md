@@ -32,7 +32,7 @@ In first release we have a next milestones:
 
 ## Contributing to AdaEngine
 
-You are welcome to contibute to AdaEngine. Currently it's under development and we target to our roadmap goals, but I you find a bug or some improvements we will glad to see your Pull Request!
+You are welcome to contibute to AdaEngine. Currently it's under development and we target to our roadmap goals, but if you find a bug or some improvements we will glad to see your Pull Request!
 
 ## How to build
 
