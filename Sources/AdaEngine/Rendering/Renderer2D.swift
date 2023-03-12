@@ -275,7 +275,7 @@ public class Renderer2D {
         
         let textPipeline = device.makeRenderPipeline(from: piplineDesc)
         
-        self.textData =  Data<GlyphVertexData>(
+        self.textData = Data<GlyphVertexData>(
             vertexBuffer: quadVertexBuffer,
             vertices: [],
             indeciesCount: 0,

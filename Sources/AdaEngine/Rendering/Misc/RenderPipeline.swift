@@ -53,6 +53,10 @@ public struct ColorAttachmentDescriptor {
     public var destinationRGBBlendFactor: BlendFactor = .oneMinusSourceAlpha
 }
 
+public protocol ShaderFunction {
+    
+}
+
 public struct RenderPipelineDescriptor {
     public var shader: Shader
     public var debugName: String = ""

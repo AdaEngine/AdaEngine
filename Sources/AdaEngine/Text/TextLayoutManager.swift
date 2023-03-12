@@ -10,16 +10,20 @@
 
 /// A region where text layout occurs.
 public struct TextContainer: Hashable {
+    
     /// The text for rendering.
     public var text: AttributedText
     
     /// The size of the text container’s bounding rectangle.
     public var bounds: Rect
     
+    /// The alignment of text in the box.
     public var textAlignment: TextAlignment
     
     /// The behavior of the last line inside the text container.
     public var lineBreakMode: LineBreakMode
+    
+    /// The spacing between lines.
     public var lineSpacing: Float
     
     public init(
