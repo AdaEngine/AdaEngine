@@ -6,22 +6,23 @@
 //
 
 #if os(Linux)
-    import Glibc
+import Glibc
 #else
-    import Darwin.C
+import Darwin.C
 #endif
 
 // swiftlint:disable identifier_name
 
 // TODO: (Vlad) Replace to Foundation realization instead?
+// TODO: Suppors Windows/Android/Web?
 
 @inlinable
 @inline(__always)
 public func tanf(_ float: Float) -> Float {
 #if os(Linux)
-        return Glibc.tanf(float)
+    return Glibc.tanf(float)
 #else
-        return Darwin.tanf(float)
+    return Darwin.tanf(float)
 #endif
 }
 
@@ -29,9 +30,9 @@ public func tanf(_ float: Float) -> Float {
 @inline(__always)
 public func atan2(_ lhs: Double, _ rhs: Double) -> Double {
 #if os(Linux)
-        return Glibc.atan2(lhs, rhs)
+    return Glibc.atan2(lhs, rhs)
 #else
-        return Darwin.atan2(lhs, rhs)
+    return Darwin.atan2(lhs, rhs)
 #endif
 }
 
@@ -39,9 +40,9 @@ public func atan2(_ lhs: Double, _ rhs: Double) -> Double {
 @inline(__always)
 public func atan2(_ lhs: Float, _ rhs: Float) -> Float {
 #if os(Linux)
-        return Glibc.atan2(lhs, rhs)
+    return Glibc.atan2(lhs, rhs)
 #else
-        return Darwin.atan2(lhs, rhs)
+    return Darwin.atan2(lhs, rhs)
 #endif
 }
 
@@ -61,11 +62,11 @@ public func clamp<T: Comparable>(_ value: T, _ min: T, _ max: T) -> T {
 @inline(__always)
 public func cross(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
     var x1 = lhs.y * rhs.z
-        x1 = x1 - rhs.y * lhs.z
+    x1 = x1 - rhs.y * lhs.z
     var y1 = lhs.z * rhs.x
-        y1 = y1 - rhs.z * lhs.x
+    y1 = y1 - rhs.z * lhs.x
     var z1 = lhs.x * rhs.y
-        z1 = z1 - rhs.x * lhs.y
+    z1 = z1 - rhs.x * lhs.y
     return Vector3(x1, y1, z1)
 }
 
@@ -73,9 +74,9 @@ public func cross(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
 @inline(__always)
 public func round<T: FloatingPoint>(_ value: T) -> T {
 #if os(Linux)
-        return Glibc.round(value)
+    return Glibc.round(value)
 #else
-        return Darwin.round(value)
+    return Darwin.round(value)
 #endif
 }
 
@@ -83,20 +84,19 @@ public func round<T: FloatingPoint>(_ value: T) -> T {
 @inline(__always)
 public func sin(_ value: Double) -> Double {
 #if os(Linux)
-        return Glibc.sin(value)
+    return Glibc.sin(value)
 #else
-        return Darwin.sin(value)
+    return Darwin.sin(value)
 #endif
 }
-
 
 @inlinable
 @inline(__always)
 public func sin(_ value: Float) -> Float {
 #if os(Linux)
-        return Glibc.sinf(value)
+    return Glibc.sinf(value)
 #else
-        return Darwin.sinf(value)
+    return Darwin.sinf(value)
 #endif
 }
 
@@ -104,20 +104,19 @@ public func sin(_ value: Float) -> Float {
 @inline(__always)
 public func cos(_ value: Double) -> Double {
 #if os(Linux)
-        return Glibc.cos(value)
+    return Glibc.cos(value)
 #else
-        return Darwin.cos(value)
+    return Darwin.cos(value)
 #endif
 }
-
 
 @inlinable
 @inline(__always)
 public func cos(_ value: Float) -> Float {
 #if os(Linux)
-        return Glibc.cosf(value)
+    return Glibc.cosf(value)
 #else
-        return Darwin.cosf(value)
+    return Darwin.cosf(value)
 #endif
 }
 
@@ -125,9 +124,9 @@ public func cos(_ value: Float) -> Float {
 @inline(__always)
 public func acos(_ value: Float) -> Float {
 #if os(Linux)
-        return Glibc.acos(value)
+    return Glibc.acos(value)
 #else
-        return Darwin.acos(value)
+    return Darwin.acos(value)
 #endif
 }
 
@@ -135,10 +134,16 @@ public func acos(_ value: Float) -> Float {
 @inline(__always)
 public func acos(_ value: Double) -> Double {
 #if os(Linux)
-        return Glibc.acos(value)
+    return Glibc.acos(value)
 #else
-        return Darwin.acos(value)
+    return Darwin.acos(value)
 #endif
+}
+
+@inlinable
+@inline(__always)
+public func sign(_ x: Float) -> Float {
+    return x == 0 ? 0 : x < 0 ? -1 : 1
 }
 
 // swiftlint:enable identifier_name

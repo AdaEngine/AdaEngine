@@ -105,8 +105,3 @@ public extension Quat {
 }
 
 // swiftlint:enable identifier_name
-
-
-public func sign(_ x: Float) -> Float {
-    return x == 0 ? 0 : x < 0 ? -1 : 1
-}

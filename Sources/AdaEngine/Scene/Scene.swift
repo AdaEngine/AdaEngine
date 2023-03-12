@@ -13,8 +13,6 @@ enum SceneSerializationError: Error {
     case notRegistedObject(Any)
 }
 
-// FIXME: (Vlad) Systems should updated and stored in a DAG graph
-
 public final class Scene: Resource {
     
     static var currentVersion: Version = "1.0.0"

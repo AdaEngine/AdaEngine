@@ -151,7 +151,9 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen"),
     "AtlasFontGenerator",
     "Yams",
-    "libpng"
+    "libpng",
+    "SPIRV-Cross",
+    "SPIRVCompiler"
 ]
 
 #if os(Linux)
@@ -166,6 +168,13 @@ let adaEngineTarget: Target = .target(
         .copy("Assets/Shaders/Metal"),
         .copy("Assets/Models"),
         .copy("Assets/Fonts")
+    ],
+    cxxSettings: [
+        .define("SPIRV_CROSS_C_API_CPP", to: "1"),
+        .define("SPIRV_CROSS_C_API_GLSL", to: "1"),
+        .define("SPIRV_CROSS_C_API_HLSL", to: "1"),
+        .define("SPIRV_CROSS_C_API_MSL", to: "1"),
+        .define("SPIRV_CROSS_C_API_REFLECT", to: "1")
     ],
     swiftSettings: adaEngineSwiftSettings,
     linkerSettings: [
@@ -210,11 +219,21 @@ targets += [
 ]
 #endif
 
+// MARK: - CXX Internal Targets
+
 targets += [
     .target(
         name: "AtlasFontGenerator",
         dependencies: [
             .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
+        ],
+        exclude: ["Project.swift", "Derived"],
+        publicHeadersPath: "."
+    ),
+    .target(
+        name: "SPIRVCompiler",
+        dependencies: [
+            "glslang"
         ],
         exclude: ["Project.swift", "Derived"],
         publicHeadersPath: "."
@@ -275,7 +294,8 @@ package.dependencies += [
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
     .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "main"),
     .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
-    
+    .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
+    .package(path: "../glslang"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
 ]

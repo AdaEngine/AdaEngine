@@ -173,7 +173,7 @@ final class GameScene2D {
     
     func makeScene() throws -> Scene {
         
-        let scenePath = "@res:Scene/MyFirstScene"
+//        let scenePath = "@res:Scene/MyFirstScene"
         
         TubeMovementSystem.registerSystem()
         TubeSpawnerSystem.registerSystem()
@@ -201,13 +201,16 @@ final class GameScene2D {
 //        self.fpsCounter(for: scene)
         self.addText(to: scene)
         
-
-//        scene.addSystem(TubeMovementSystem.self)
-//        scene.addSystem(TubeSpawnerSystem.self)
-//        scene.addSystem(TubeDestroyerSystem.self)
+        let circleGlSLURL = Bundle.module.resourceURL!.appendingPathComponent("Assets/circle.glsl")
+        let compiler = SpirvCompiler(includeSearchPaths: [])
+        try compiler.compileShader(at: circleGlSLURL)
+        
+        scene.addSystem(TubeMovementSystem.self)
+        scene.addSystem(TubeSpawnerSystem.self)
+        scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
         
-        try ResourceManager.save(scene, at: scenePath)
+//        try ResourceManager.save(scene, at: scenePath)
         
         // Change gravitation
         scene.subscribe(to: SceneEvents.OnReady.self, on: scene) { [weak self] event in

@@ -80,46 +80,46 @@ public struct VertexDescriptorLayoutsArray: Sequence, Codable {
     }
 }
 
+public enum VertexFormat: UInt, Codable {
+    case invalid
+    
+    case uint
+    case char
+    case short
+    case int
+    
+    case float
+    
+    case vector4
+    case vector3
+    case vector2
+    
+//    case matrix4x4
+//    case matrix3x3
+//    case matrix2x2
+    
+    var offset: Int {
+        switch self {
+        case .invalid: return 0
+        case .uint: return MemoryLayout<UInt>.size
+        case .char: return MemoryLayout<UInt8>.size
+        case .short: return MemoryLayout<UInt16>.size
+        case .int: return MemoryLayout<Int>.size
+        case .float: return MemoryLayout<Float>.size
+        case .vector4: return MemoryLayout<Vector4>.size
+        case .vector3: return MemoryLayout<Vector3>.size
+        case .vector2: return MemoryLayout<Vector2>.size
+//        case .matrix4x4: return MemoryLayout<Transform3D>.size
+//        case .matrix3x3: return MemoryLayout<Transform2D>.size
+//        case .matrix2x2: return MemoryLayout<Vector2>.size * 2
+        }
+    }
+}
+
 public struct MeshVertexDescriptor: Codable {
     
     public var attributes: VertexDescriptorAttributesArray
     public var layouts: VertexDescriptorLayoutsArray
-    
-    public enum VertexFormat: UInt, Codable {
-        case invalid
-        
-        case uint
-        case char
-        case short
-        case int
-        
-        case float
-        
-        case vector4
-        case vector3
-        case vector2
-        
-        case matrix4x4
-        case matrix3x3
-        case matrix2x2
-        
-        var offset: Int {
-            switch self {
-            case .invalid: return 0
-            case .uint: return MemoryLayout<UInt>.size
-            case .char: return MemoryLayout<UInt8>.size
-            case .short: return MemoryLayout<UInt16>.size
-            case .int: return MemoryLayout<Int>.size
-            case .float: return MemoryLayout<Float>.size
-            case .vector4: return MemoryLayout<Vector4>.size
-            case .vector3: return MemoryLayout<Vector3>.size
-            case .vector2: return MemoryLayout<Vector2>.size
-            case .matrix4x4: return MemoryLayout<Transform3D>.size
-            case .matrix3x3: return MemoryLayout<Transform2D>.size
-            case .matrix2x2: return MemoryLayout<Vector2>.size * 2
-            }
-        }
-    }
     
     public struct Attribute: CustomStringConvertible, Codable {
         public var name: String
@@ -268,7 +268,7 @@ public extension MeshVertexDescriptor {
     }
 }
 
-extension MeshVertexDescriptor.VertexFormat {
+extension VertexFormat {
     var mdlVertexFormat: MDLVertexFormat {
         switch self {
         case .uint: return .uInt
@@ -276,13 +276,11 @@ extension MeshVertexDescriptor.VertexFormat {
         case .vector4: return .float4
         case .vector3: return .float3
         case .vector2: return .float2
-        case .matrix4x4: return .half4
-        case .matrix3x3: return .half3
-        case .matrix2x2: return .half2
         case .char: return .char
         case .short: return .short
         case .int: return .int
-        case .invalid: return .invalid
+        default:
+            return .invalid
         }
     }
     
@@ -293,9 +291,6 @@ extension MeshVertexDescriptor.VertexFormat {
         case .float4: self = .vector4
         case .float3: self = .vector3
         case .float2: self = .vector2
-        case .half4: self = .matrix4x4
-        case .half3: self = .matrix3x3
-        case .half2: self = .matrix2x2
         case .char: self = .char
         case .int: self = .int
         case .short: self = .short
@@ -305,7 +300,7 @@ extension MeshVertexDescriptor.VertexFormat {
     }
 }
 
-extension MeshVertexDescriptor.VertexFormat {
+extension VertexFormat {
     var metalFormat: MTLVertexFormat {
         switch self {
         case .uint: return MTLVertexFormat.uint
@@ -313,19 +308,16 @@ extension MeshVertexDescriptor.VertexFormat {
         case .float: return .float
         case .vector3: return .float3
         case .vector2: return .float2
-        case .matrix4x4: return .half4
-        case .matrix3x3: return .half3
-        case .matrix2x2: return .half2
+//        case .matrix4x4: return .half4
+//        case .matrix3x3: return .half3
+//        case .matrix2x2: return .half2
         case .short: return .short
         case .int: return .int
         case .char: return .char
-        case .invalid: return .invalid
+        default:
+            return .invalid
         }
     }
 }
 
 #endif
-
-func memoryAddress<T: AnyObject>(_ object: T) -> UnsafeMutableRawPointer {
-    return Unmanaged.passUnretained(object).toOpaque()
-}
