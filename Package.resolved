@@ -19,15 +19,6 @@
       }
     },
     {
-      "identity" : "spirv-cross",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AdaEngine/SPIRV-Cross",
-      "state" : {
-        "branch" : "main",
-        "revision" : "250ea051b530d4d284e13cd28005fc38253fcdc2"
-      }
-    },
-    {
       "identity" : "swift-collections",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-collections",

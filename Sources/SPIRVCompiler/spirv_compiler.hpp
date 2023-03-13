@@ -9,8 +9,9 @@
 #define spriv_compiler_hpp
 
 #include <stdint.h>
+#include <vector>
 
-enum ShaderStage {
+enum shaderc_stage {
     SHADER_STAGE_VERTEX,
     SHADER_STAGE_FRAGMENT,
     SHADER_STAGE_TESSELATION_CONTROL,
@@ -25,8 +26,7 @@ enum shaderc_result {
 };
 
 typedef struct spirv_bin {
-    const void *bytes;
-    int length;
+    std::vector<uint32_t> bin;
 } spirv_bin;
 
 bool glslang_init_process();
@@ -34,7 +34,7 @@ void glslang_deinit_process();
 
 shaderc_result compile_shader_glsl(
                                    const char *source,
-                                   ShaderStage stage,
+                                   shaderc_stage stage,
                                    spirv_bin *result_spriv_bin,
                                    const char **error
                                    );
