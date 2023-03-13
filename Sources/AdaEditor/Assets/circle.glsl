@@ -32,7 +32,7 @@ void main()
     Output.Color = a_Color;
     gl_Position = u_ViewProjection * u_Renderer.Transform * vec4(a_WorldPosition, 1.0);
 }
-//
+
 //#version 430 core
 //#pragma stage : frag
 //

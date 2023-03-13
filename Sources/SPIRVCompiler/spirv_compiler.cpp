@@ -20,9 +20,14 @@ void glslang_deinit_process() {
     glslang::FinalizeProcess();
 }
 
-shaderc_result compile_shader_glsl(const char *source, ShaderStage stage, spirv_bin *result_spriv_bin, const char **error) {
+shaderc_result compile_shader_glsl(
+                                   const char *source,
+                                   shaderc_stage stage,
+                                   spirv_bin *result_spriv_bin,
+                                   const char **error
+                                   ) {
         
-    EShLanguage stages[ShaderStage::SHADER_STAGE_MAX] = {
+    EShLanguage stages[shaderc_stage::SHADER_STAGE_MAX] = {
         EShLangVertex,
         EShLangFragment,
         EShLangTessControl,
@@ -46,7 +51,7 @@ shaderc_result compile_shader_glsl(const char *source, ShaderStage stage, spirv_
     shader.setEnvTarget(glslang::EShTargetSpv, TargetVersion);
     
     std::string pre_processed_code;
-    EShMessages message = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
+    EShMessages message = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules | EShMsgDebugInfo);
     
     if (!shader.preprocess(&DefaultTBuiltInResource, DefaultVersion, ENoProfile, false, false, message, &pre_processed_code, includer)) {
         printf("%s", shader.getInfoLog());
@@ -78,13 +83,9 @@ shaderc_result compile_shader_glsl(const char *source, ShaderStage stage, spirv_
         return shaderc_result::SHADERC_FAILURE;
     }
     
-    std::vector<uint32_t> SpirV;
     spv::SpvBuildLogger logger;
     glslang::SpvOptions spvOptions;
-    glslang::GlslangToSpv(*program.getIntermediate(stages[stage]), SpirV, &logger, &spvOptions);
-    
-    result_spriv_bin->bytes = (const void *)SpirV.data();
-    result_spriv_bin->length = (int)(SpirV.size() * sizeof(uint32_t));
+    glslang::GlslangToSpv(*program.getIntermediate(stages[stage]), result_spriv_bin->bin, &logger, &spvOptions);
     
     return shaderc_result::SHADERC_SUCCESS;
 }

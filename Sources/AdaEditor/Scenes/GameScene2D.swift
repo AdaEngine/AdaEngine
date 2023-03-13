@@ -202,9 +202,15 @@ final class GameScene2D {
         self.addText(to: scene)
         
         let circleGlSLURL = Bundle.module.resourceURL!.appendingPathComponent("Assets/circle.glsl")
-        let compiler = SpirvCompiler(includeSearchPaths: [])
-        try compiler.compileShader(at: circleGlSLURL)
+        let compiler = try ShaderCompiler(from: circleGlSLURL)
+        let metal = compiler.shader(stage: .vertex, to: .msl)
         
+//        let circleGlSLURL = Bundle.module.resourceURL!.appendingPathComponent("Assets/circle.glsl.spv")
+//        let data = FileSystem.current.readFile(at: circleGlSLURL)!
+//        let compiler = ShaderCompiler(shaderSource: ShaderSource())
+//        let metal = compiler.shader(data, to: .glsl)
+        
+        print(metal)
         scene.addSystem(TubeMovementSystem.self)
         scene.addSystem(TubeSpawnerSystem.self)
         scene.addSystem(TubeDestroyerSystem.self)
