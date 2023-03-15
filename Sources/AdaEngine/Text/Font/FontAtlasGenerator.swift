@@ -101,6 +101,11 @@ final class FontAtlasGenerator {
             data: data
         )
         
+        var textSamplerDesc = SamplerDescriptor()
+        textSamplerDesc.magFilter = .linear
+        textSamplerDesc.mipFilter = .linear
+        textSamplerDesc.minFilter = .linear
+        
         let descriptor = TextureDescriptor(
             width: width,
             height: height,
@@ -108,7 +113,8 @@ final class FontAtlasGenerator {
             textureUsage: [.read],
             textureType: .texture2D,
             mipmapLevel: 0,
-            image: image
+            image: image,
+            samplerDescription: textSamplerDesc
         )
         
         return Texture2D(descriptor: descriptor)

@@ -1,6 +1,6 @@
 //
 //  TextureAtlas.swift
-//  
+//
 //
 //  Created by v.prusakov on 6/30/22.
 //
@@ -142,7 +142,7 @@ public extension TextureAtlas {
             self.max = max
             self.min = min
             
-            super.init(gpuTexture: atlas.gpuTexture, size: size)
+            super.init(gpuTexture: atlas.gpuTexture, sampler: atlas.sampler, size: size)
             
             self.textureCoordinates = [
                 [min.x, max.y],

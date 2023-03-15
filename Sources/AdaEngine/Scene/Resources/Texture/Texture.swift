@@ -8,14 +8,16 @@
 open class Texture: Resource, Codable {
     
     private(set) var gpuTexture: GPUTexture
+    public private(set) var sampler: Sampler
     private(set) var textureType: TextureType
     
     public var resourcePath: String = ""
     public var resourceName: String = ""
     
-    init(gpuTexture: GPUTexture, textureType: TextureType) {
+    init(gpuTexture: GPUTexture, sampler: Sampler, textureType: TextureType) {
         self.gpuTexture = gpuTexture
         self.textureType = textureType
+        self.sampler = sampler
     }
     
     public required init(from decoder: Decoder) throws {

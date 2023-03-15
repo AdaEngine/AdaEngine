@@ -69,8 +69,8 @@ final public class GUIRenderContext {
         self.currentTransform = self.makeCanvasTransform3D(from: transform)
     }
     
-    public func setDebugName(_ name: String) {
-        self.currentDrawContext?.setDebugName(name)
+    public func pushDebugName(_ name: String) {
+        self.currentDrawContext?.pushDebugName(name)
     }
     
     /// Paints the area contained within the provided rectangle, using the fill color in the current graphics state.

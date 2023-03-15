@@ -58,20 +58,16 @@ public protocol ShaderFunction {
 }
 
 public struct RenderPipelineDescriptor {
-    public var shader: Shader
+    public var shaderModule: ShaderModule?
     public var debugName: String = ""
     public var backfaceCulling: Bool = true
     public var primitive: IndexPrimitive = .triangle
     public var vertexDescriptor: VertexBufferDescriptor = VertexBufferDescriptor()
-    
-    public var sampler: Sampler?
     
     public var depthStencilDescriptor: DepthStencilDescriptor?
     public var depthPixelFormat: PixelFormat = .depth_32f_stencil8
     
     public var colorAttachments: [ColorAttachmentDescriptor] = []
     
-    public init(shader: Shader) {
-        self.shader = shader
-    }
+    public init() { }
 }

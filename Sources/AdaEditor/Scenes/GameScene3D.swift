@@ -56,12 +56,12 @@ struct EntitiesCounterSystem: System {
 struct SpawnEntitySystem: System {
     
     let transform: Transform
-    let characterAtlas: TextureAtlas
+//    let characterAtlas: TextureAtlas
     
     init(scene: Scene) {
         self.transform = Transform(scale: Vector3(0.2))
         let charactersTiles = try! Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/characters_packed.png"))
-        self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
+//        self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
     }
     
     func update(context: UpdateContext) {
@@ -75,7 +75,7 @@ struct SpawnEntitySystem: System {
     private func spawnEntity(in scene: Scene) {
         let entity = Entity()
         entity.components += transform
-        entity.components += SpriteComponent(texture: self.characterAtlas[0, 0])
+//        entity.components += SpriteComponent(texture: self.characterAtlas[0, 0])
         entity.components += PhysicsBody2DComponent(
             shapes: [
                 .generateBox(width: transform.scale.x, height: transform.scale.y)
@@ -89,13 +89,13 @@ struct SpawnEntitySystem: System {
 
 class StressTestGameScene {
     
-    let textureAtlas: TextureAtlas
+//    let textureAtlas: TextureAtlas
     
     init() {
         do {
             let tiles = try Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
 
-            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
+//            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
             
         } catch {
             fatalError(error.localizedDescription)

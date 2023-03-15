@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/8/22.
 //
 
-import box2d
+import AdaBox2d
 import Math
 
 // - TODO: (Vlad) Draw polygons for debug
@@ -209,7 +209,7 @@ final class Physics2DSystem: System {
                     var joint = b2RevoluteJointDef()
                     joint.Initialize(bodyA, current, anchor)
 
-                    let jointRef = b2JointDef_unsafeCast(&joint)!
+                    let jointRef = ada.b2JointDef_unsafeCast(&joint)!
                     let ref = world.createJoint(jointRef)
                     jointComponent.runtimeJoint = ref
                 }
@@ -238,39 +238,39 @@ final class Physics2DSystem: System {
     private func makeShape(for shape: Shape2DResource, transform: Transform) -> b2Shape {
         switch shape.fixture {
         case .polygon(let shape):
-            let polygon = b2PolygonShape_create()!
+            let polygon = ada.b2PolygonShape_create()!
             var points = unsafeBitCast(shape.verticies, to: [b2Vec2].self)
             polygon.Set(&points, int32(shape.verticies.count))
-            
+
             defer {
-                b2Polygon_delete(polygon)
+                ada.b2Polygon_delete(polygon)
             }
-            
+
             return polygon.Clone(&allocator)
         case .circle(let shape):
-            var circle = b2CircleShape_create()!
+            var circle = ada.b2CircleShape_create()!
 //            circle.m_radius = shape.radius * transform.scale.x
             circle.m_p = shape.offset.b2Vec
-            
+
             defer {
-                b2CircleShape_delete(circle)
+                ada.b2CircleShape_delete(circle)
             }
-            
+
             return circle.Clone(&allocator)
         case .box(let shape):
-            let polygon = b2PolygonShape_create()!
-            
+            let polygon = ada.b2PolygonShape_create()!
+
             polygon.SetAsBox(
                 transform.scale.x * shape.halfWidth,
                 transform.scale.y * shape.halfHeight,
                 shape.offset.b2Vec,
                 0
             )
-            
+
             defer {
-                b2Polygon_delete(polygon)
+                ada.b2Polygon_delete(polygon)
             }
-            
+
             return polygon.Clone(&allocator)
         }
     }

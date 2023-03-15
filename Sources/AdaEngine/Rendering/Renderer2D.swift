@@ -60,6 +60,7 @@ public class Renderer2D {
         let device = RenderEngine.shared
         
         self.uniformSet = device.makeUniformBufferSet()
+        self.uniformSet.label = "Renderer2D_ViewUniform"
         self.uniformSet.initBuffers(for: Uniform.self, binding: Bindings.cameraUniform, set: 0)
         
         self.quadPosition = [
@@ -90,31 +91,20 @@ public class Renderer2D {
             bytes: &quadIndices,
             length: Self.maxIndecies
         )
+        quadIndexBuffer.label = "Renderer2D_QuadIndexBuffer"
         
         // Create an empty white texture
         // because if user don't pass texture to render, we will use this white texture
         let image = Image(width: 1, height: 1, color: .white)
         self.whiteTexture = Texture2D(image: image)
         
-        var samplerDesc = SamplerDescriptor()
-        samplerDesc.magFilter = .nearest
-        samplerDesc.mipFilter = .nearest
-        let sampler = device.makeSampler(from: samplerDesc)
-        
         // Circle
         
-        let circleShaderDesc = ShaderDescriptor(
-            shaderName: "circle",
-            vertexFunction: "circle_vertex",
-            fragmentFunction: "circle_fragment"
-        )
+        let circleShader = try! ResourceManager.load("Shaders/Vulkan/circle.glsl", from: .current) as ShaderModule
         
-        let circleShader: Shader = device.makeShader(from: circleShaderDesc)
-        
-        var piplineDesc = RenderPipelineDescriptor(shader: circleShader)
+        var piplineDesc = RenderPipelineDescriptor()
+        piplineDesc.shaderModule = circleShader
         piplineDesc.debugName = "Circle Pipeline"
-        //        piplineDesc.depthStencilDescriptor = depthStencilDesc
-        piplineDesc.sampler = sampler
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "worldPosition"),
@@ -137,6 +127,7 @@ public class Renderer2D {
             length: MemoryLayout<CircleVertexData>.stride * Self.maxVerticies,
             binding: 0
         )
+        circleVertexBuffer.label = "Renderer2D_CircleVertexBuffer"
         
         self.circleData = Data<CircleVertexData>(
             vertexBuffer: circleVertexBuffer,
@@ -144,7 +135,7 @@ public class Renderer2D {
             indeciesCount: 0,
             indexBuffer: quadIndexBuffer,
             renderPipeline: circlePipeline,
-            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 32)
+            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 16)
         )
         
         // Quads
@@ -153,15 +144,8 @@ public class Renderer2D {
         
         piplineDesc.debugName = "Quad Pipline"
         
-        let quadShaderDesc = ShaderDescriptor(
-            shaderName: "quad",
-            vertexFunction: "quad_vertex",
-            fragmentFunction: "quad_fragment"
-        )
-        
-        let quadShader: Shader = device.makeShader(from: quadShaderDesc)
-        
-        piplineDesc.shader = quadShader
+        let quadShader = try! ResourceManager.load("Shaders/Vulkan/quad.glsl", from: .current) as ShaderModule
+        piplineDesc.shaderModule = quadShader
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "position"),
@@ -178,6 +162,7 @@ public class Renderer2D {
             length: MemoryLayout<QuadVertexData>.stride * Self.maxVerticies,
             binding: 0
         )
+        quadVertexBuffer.label = "Renderer2D_QuadVertexBuffer"
         
         self.quadData = Data<QuadVertexData>(
             vertexBuffer: quadVertexBuffer,
@@ -185,7 +170,7 @@ public class Renderer2D {
             indeciesCount: 0,
             indexBuffer: quadIndexBuffer,
             renderPipeline: quadPipeline,
-            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 32)
+            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 16)
         )
         
         // Lines
@@ -194,14 +179,8 @@ public class Renderer2D {
         
         piplineDesc.debugName = "Lines Pipeline"
         
-        let lineShaderDesc = ShaderDescriptor(
-            shaderName: "line",
-            vertexFunction: "line_vertex",
-            fragmentFunction: "line_fragment"
-        )
-        
-        let lineShader: Shader = device.makeShader(from: lineShaderDesc)
-        piplineDesc.shader = lineShader
+        let linesShader = try! ResourceManager.load("Shaders/Vulkan/line.glsl", from: .current) as ShaderModule
+        piplineDesc.shaderModule = linesShader
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector3, name: "position"),
@@ -217,6 +196,7 @@ public class Renderer2D {
             length: MemoryLayout<LineVertexData>.stride * Self.maxLineVertices,
             binding: 0
         )
+        linesVertexBuffer.label = "Renderer2D_LinesVertexBuffer"
         
         var buffer: [Int32] = [Int32].init(repeating: 0, count: Self.maxLineIndices)
         
@@ -230,6 +210,7 @@ public class Renderer2D {
             bytes: &buffer,
             length: Self.maxLineIndices
         )
+        indexBuffer.label = "Renderer2D_LinesIndexBuffer"
         
         self.lineData =  Data<LineVertexData>(
             vertexBuffer: linesVertexBuffer,
@@ -237,7 +218,7 @@ public class Renderer2D {
             indeciesCount: 0,
             indexBuffer: indexBuffer,
             renderPipeline: linesPipeline,
-            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 32)
+            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 16)
         )
         
         // Text
@@ -246,21 +227,8 @@ public class Renderer2D {
         
         piplineDesc.debugName = "Text Pipeline"
         
-        var textSamplerDesc = SamplerDescriptor()
-        textSamplerDesc.magFilter = .linear
-        textSamplerDesc.mipFilter = .linear
-        textSamplerDesc.minFilter = .linear
-        let textSampler = device.makeSampler(from: textSamplerDesc)
-        
-        let textShaderDesc = ShaderDescriptor(
-            shaderName: "text",
-            vertexFunction: "text_vertex",
-            fragmentFunction: "text_fragment"
-        )
-        
-        let textShader: Shader = device.makeShader(from: textShaderDesc)
-        piplineDesc.shader = textShader
-        piplineDesc.sampler = textSampler
+        let textShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .current) as ShaderModule
+        piplineDesc.shaderModule = textShader
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "position"),
@@ -281,7 +249,7 @@ public class Renderer2D {
             indeciesCount: 0,
             indexBuffer: indexBuffer,
             renderPipeline: textPipeline,
-            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 32)
+            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 16)
         )
     }
     
@@ -366,7 +334,7 @@ extension Renderer2D {
             // Flush all data if textures count more than 32
             if self.renderEngine.quadData.textureSlotIndex >= 31 {
                 self.nextBatch()
-                self.renderEngine.quadData.textureSlots = [Texture2D].init(repeating: self.renderEngine.whiteTexture, count: 32)
+                self.renderEngine.quadData.textureSlots = [Texture2D].init(repeating: self.renderEngine.whiteTexture, count: 16)
                 self.renderEngine.quadData.textureSlotIndex = 0
             }
             
@@ -403,8 +371,8 @@ extension Renderer2D {
             self.renderEngine.quadData.indeciesCount += 6
         }
         
-        public func setDebugName(_ name: String) {
-            self.currentDraw.setDebugName(name)
+        public func pushDebugName(_ name: String) {
+            self.currentDraw.pushDebugName(name)
         }
         
         public func setLineWidth(_ width: Float) {
@@ -462,10 +430,10 @@ extension Renderer2D {
             self.renderEngine.textData.vertices.append(contentsOf: glyphs.verticies)
             self.renderEngine.textData.indeciesCount += glyphs.indeciesCount
             
-            // Flush all data if textures count more than 32
-            if self.renderEngine.textData.textureSlotIndex >= 31 {
+            // Flush all data if textures count more than 16
+            if self.renderEngine.textData.textureSlotIndex >= 15 {
                 self.nextBatch()
-                self.renderEngine.textData.textureSlots = [Texture2D].init(repeating: self.renderEngine.whiteTexture, count: 32)
+                self.renderEngine.textData.textureSlots = [Texture2D].init(repeating: self.renderEngine.whiteTexture, count: 16)
                 self.renderEngine.textData.textureSlotIndex = 0
             }
             

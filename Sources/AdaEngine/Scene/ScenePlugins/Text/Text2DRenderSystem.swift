@@ -23,6 +23,8 @@ public struct Text2DRenderSystem: System {
         [-0.5,  0.5,  0.0, 1.0]
     ]
     
+    static let maxTexturesPerBatch = 16
+    
     static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self) && .has(TextLayoutComponent.self))
     
     static let cameras = EntityQuery(where:
@@ -32,26 +34,15 @@ public struct Text2DRenderSystem: System {
     )
     
     let textRenderPipeline: RenderPipeline
+    let gpuWhiteTexture: Texture2D
     
     public init(scene: Scene) {
         let device = RenderEngine.shared
         
-        var samplerDesc = SamplerDescriptor()
-        samplerDesc.magFilter = .linear
-        samplerDesc.mipFilter = .linear
-        samplerDesc.minFilter = .linear
-        let sampler = device.makeSampler(from: samplerDesc)
-        
-        let quadShaderDesc = ShaderDescriptor(
-            shaderName: "text",
-            vertexFunction: "text_vertex",
-            fragmentFunction: "text_fragment"
-        )
-        
-        let shader = device.makeShader(from: quadShaderDesc)
-        var piplineDesc = RenderPipelineDescriptor(shader: shader)
+        let quadShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .current) as ShaderModule
+        var piplineDesc = RenderPipelineDescriptor()
+        piplineDesc.shaderModule = quadShader
         piplineDesc.debugName = "Text Pipeline"
-        piplineDesc.sampler = sampler
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "position"),
@@ -68,6 +59,9 @@ public struct Text2DRenderSystem: System {
         
         let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
         self.textRenderPipeline = quadPipeline
+        
+        let image = Image(width: 1, height: 1, color: .white)
+        self.gpuWhiteTexture = Texture2D(image: image)
     }
     
     public func update(context: UpdateContext) {
@@ -124,7 +118,13 @@ public struct Text2DRenderSystem: System {
                 continue
             }
             
-            currentBatchEntity.components += BatchComponent(textures: glyphs.textures.compactMap { $0 })
+            // TODO: Redesign it latter
+            var textures: [Texture2D] = [Texture2D].init(repeating: self.gpuWhiteTexture, count: Self.maxTexturesPerBatch)
+            glyphs.textures.compactMap { $0 }.enumerated().forEach { index, texture in
+                textures[index] = texture
+            }
+            
+            currentBatchEntity.components += BatchComponent(textures: textures)
             
             renderItems.items.append(
                 Transparent2DRenderItem(
@@ -142,6 +142,7 @@ public struct Text2DRenderSystem: System {
                 length: spriteVerticies.count * MemoryLayout<GlyphVertexData>.stride,
                 binding: 0
             )
+            vertexBuffer.label = "Text2DRenderSystem_VertexBuffer"
             
             let indicies = Int(glyphs.indeciesCount * 4)
             
@@ -168,6 +169,7 @@ public struct Text2DRenderSystem: System {
                 bytes: &quadIndices,
                 length: indicies
             )
+            quadIndexBuffer.label = "Text2DRenderSystem_IndexBuffer"
             
             currentBatchEntity.components += SpriteDataComponent(
                 vertexBuffer: vertexBuffer,

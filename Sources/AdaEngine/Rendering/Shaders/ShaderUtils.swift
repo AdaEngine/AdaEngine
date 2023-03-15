@@ -34,7 +34,8 @@ enum ShaderUtils {
         }
     }
     
-    static func preprocessShader(source: String) throws -> [ShaderStage: String] {
+    // swiftlint:disable:next function_body_length
+    static func processGLSLShader(source: String) throws -> [ShaderStage: String] {
         let finalSource = ShaderUtils.removeComments(from: source)
         
         var shaderSources: [ShaderStage : String] = [:]
@@ -69,7 +70,7 @@ enum ShaderUtils {
                 if finalSource.getSubstring(from: matches[2].range) == "stage" {
                     if finalSource.getSubstring(from: matches[3].range) == ":" {
                         let stageString = finalSource.getSubstring(from: matches[4].range)
-                        let stage = self.shaderStage(from: String(stageString))
+                        let stage = self.shaderStage(from: String(stageString)) ?? .max
                         stagePositions.append((stage, startStagePosition))
                     } else {
                         throw ProcessingError.invalidDeclaration("Invalid stage declaration. Use `pragma stage : YOUR_STAGE`")
@@ -111,7 +112,10 @@ enum ShaderUtils {
     static func removeComments(from string: String) -> String {
         var state: CommentState = .notAComment
         
-        let newString = string.filter { char in
+        var newString = ""
+        newString.reserveCapacity(string.count)
+        
+        for char in string {
             switch state {
             case .star:
                 if char == "/" {
@@ -123,18 +127,18 @@ enum ShaderUtils {
                 if char == "/" {
                     state = .slash
                 } else {
-                    return true
+                    newString += String(char)
                 }
             case .singleLineComment:
                 if char.isNewline {
                     state = .notAComment
-                    return true
+                    newString += String(char)
                 }
             case .multiLineComment:
                 if char == "*" {
                     state = .star
                 } else if char.isNewline {
-                    return true
+                    newString += String(char)
                 }
             case .slash:
                 if char == "/" {
@@ -143,37 +147,38 @@ enum ShaderUtils {
                     state = .multiLineComment
                 } else {
                     state = .notAComment
-                    return true
+                    newString += "/"
+                    newString += String(char)
                 }
             }
-            
-            return false
         }
         
         return newString
     }
     
-    static func shaderStage(from string: String) -> ShaderStage {
-        switch string {
-        case "vert":
-            return .vertex
-        case "frag":
-            return .fragment
-        case "comp":
-            return .compute
-        default:
-            return .max
-        }
-    }
-    
     static func shaderLang(from fileExt: String) -> ShaderLanguage {
         switch fileExt {
-        case "vert", "frag", "glsl":
+        case "vert", "frag", "glsl", "comp":
             return .glsl
         case "hlsl":
             return .hlsl
+        case "wgsl":
+            return .wgsl
         default:
             return .glsl
+        }
+    }
+    
+    static func shaderStage(from string: String) -> ShaderStage? {
+        switch string {
+        case "vert", "vertex":
+            return .vertex
+        case "frag", "fragment":
+            return .fragment
+        case "comp", "compute":
+            return .compute
+        default:
+            return nil
         }
     }
 }

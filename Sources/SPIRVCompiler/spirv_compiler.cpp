@@ -20,13 +20,12 @@ void glslang_deinit_process() {
     glslang::FinalizeProcess();
 }
 
-shaderc_result compile_shader_glsl(
-                                   const char *source,
-                                   shaderc_stage stage,
-                                   spirv_bin *result_spriv_bin,
-                                   const char **error
-                                   ) {
-        
+spirv_bin compile_shader_glsl(
+                              const char *source,
+                              shaderc_stage stage,
+                              const char **error
+                              ) {
+    
     EShLanguage stages[shaderc_stage::SHADER_STAGE_MAX] = {
         EShLangVertex,
         EShLangFragment,
@@ -56,7 +55,7 @@ shaderc_result compile_shader_glsl(
     if (!shader.preprocess(&DefaultTBuiltInResource, DefaultVersion, ENoProfile, false, false, message, &pre_processed_code, includer)) {
         printf("%s", shader.getInfoLog());
         *error = "failed to preprocess a shader";
-        return shaderc_result::SHADERC_FAILURE;
+        return {};
     }
     
     cs_strings = pre_processed_code.c_str();
@@ -66,12 +65,12 @@ shaderc_result compile_shader_glsl(
     if (!shader.parse(&DefaultTBuiltInResource, DefaultVersion, false, message)) {
         printf("%s", shader.getInfoLog());
         *error = "failed to parse shader";
-//        errorMsg += shader.getInfoLog();
-//        errorMsg += "\n";
-//        errorMsg += shader.getInfoDebugLog();
-//        *error = errorMsg.c_str();
-    
-        return shaderc_result::SHADERC_FAILURE;
+        //        errorMsg += shader.getInfoLog();
+        //        errorMsg += "\n";
+        //        errorMsg += shader.getInfoDebugLog();
+        //        *error = errorMsg.c_str();
+        
+        return {};
     }
     
     glslang::TProgram program;
@@ -80,12 +79,22 @@ shaderc_result compile_shader_glsl(
     if (!program.link(message)) {
         printf("%s", shader.getInfoLog());
         *error = "failed to link a programm";
-        return shaderc_result::SHADERC_FAILURE;
+        return {};
     }
     
+    std::vector<uint32_t> SpirV;
     spv::SpvBuildLogger logger;
     glslang::SpvOptions spvOptions;
-    glslang::GlslangToSpv(*program.getIntermediate(stages[stage]), result_spriv_bin->bin, &logger, &spvOptions);
+    glslang::GlslangToSpv(*program.getIntermediate(stages[stage]), SpirV, &logger, &spvOptions);
     
-    return shaderc_result::SHADERC_SUCCESS;
+    spirv_bin result;
+    uint32_t *buffer = new uint32_t[SpirV.size()];
+    result.bytes = buffer;
+    result.length = (SpirV.size() * sizeof(uint32_t));
+    
+    {
+        memcpy(buffer, SpirV.data(), SpirV.size() * sizeof(uint32_t));
+    }
+    
+    return result;
 }

@@ -83,36 +83,22 @@ class MetalRenderBackend: RenderBackend {
         currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
     }
     
-    func makeShader(from descriptor: ShaderDescriptor) -> Shader {
-        do {
-            let library: MTLLibrary
-            
-            #if (os(macOS) || os(iOS)) && TUIST
-            library = try self.context.physicalDevice.makeDefaultLibrary(bundle: .current)
-            #else
-            
-            let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "metal", subdirectory: "Metal")!
-            let source = try String(contentsOf: url)
-
-            library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
-            #endif
-            
-            let functions = descriptor.functions.compactMap { library.makeFunction(name: $0.entry) }
-            
-            return MetalShader(
-                name: descriptor.shaderName,
-                library: library,
-                functions: functions
-            )
-        } catch {
-            fatalError(error.localizedDescription)
-        }
+    func compileShader(from shader: Shader) throws -> CompiledShader {
+        let spirvShader = try shader.spirvCompiler.compile(to: .msl)
+        let library = try self.context.physicalDevice.makeLibrary(source: spirvShader.source, options: nil)
+        
+        let descriptor = MTLFunctionDescriptor()
+        descriptor.name = spirvShader.entryPoints[0].name
+        let function = try library.makeFunction(descriptor: descriptor)
+        
+        return MetalShader(name: spirvShader.entryPoints[0].name, library: library, function: function)
     }
     
     func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
         return MetalFramebuffer(descriptor: descriptor)
     }
     
+    // swiftlint:disable:next function_body_length
     func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.label = descriptor.debugName
@@ -129,20 +115,17 @@ class MetalRenderBackend: RenderBackend {
             vertexDescriptor.layouts[index].stride = layout.stride
         }
         
-        guard let shader = descriptor.shader as? MetalShader else {
+        guard let shaderModule = descriptor.shaderModule else {
             fatalError("Incorrect type of shader")
         }
         
-        shader.functions.forEach {
-            switch $0.functionType {
-            case .fragment:
-                pipelineDescriptor.fragmentFunction = $0
-            case .vertex:
-                pipelineDescriptor.vertexFunction = $0
-            default:
-                return
-            }
-         }
+        if let shader = shaderModule.getShader(for: .vertex)?.compiledShader as? MetalShader {
+            pipelineDescriptor.vertexFunction = shader.function
+        }
+        
+        if let shader = shaderModule.getShader(for: .fragment)?.compiledShader as? MetalShader {
+            pipelineDescriptor.fragmentFunction = shader.function
+        }
         
         pipelineDescriptor.vertexDescriptor = vertexDescriptor
         
@@ -477,17 +460,13 @@ extension MetalRenderBackend {
             encoder.setVertexBuffer(vertexBuffer.buffer, offset: 0, index: vertexBuffer.binding)
         }
         
-        let textures: [MTLTexture] = list.textures.compactMap {
-            return ($0?.gpuTexture as? MetalGPUTexture)?.texture
-        }
-        
-        if !textures.isEmpty {
-            encoder.setFragmentTextures(textures, range: 0..<textures.count)
-        }
-        
-        // I think it should be passed to draw list
-        if let mtlSampler = (renderPipeline.descriptor.sampler as? MetalSampler)?.mtlSampler {
-            encoder.setFragmentSamplerState(mtlSampler, index: 0)
+        let textures = list.textures.compactMap { $0 }
+        for (index, texture) in textures.enumerated() {
+            let mtlTexture = (texture.gpuTexture as! MetalGPUTexture).texture
+            let mtlSampler = (texture.sampler as! MetalSampler).mtlSampler
+            
+            encoder.setFragmentTexture(mtlTexture, index: index)
+            encoder.setFragmentSamplerState(mtlSampler, index: index)
         }
         
         for index in 0 ..< list.uniformBufferCount {

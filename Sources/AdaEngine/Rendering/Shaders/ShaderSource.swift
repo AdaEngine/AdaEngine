@@ -8,12 +8,18 @@
 import SPIRVCompiler
 
 public enum ShaderLanguage {
+    
+    /// Vulkan, OpenGL, WebGL
     case glsl
     
+    /// High Level Shading Language (DirectX)
     case hlsl
     
     /// Metal Shading Language
     case msl
+    
+    /// WebGPU Shading Language
+    case wgsl
 }
 
 public enum ShaderStage: String, Hashable {
@@ -41,6 +47,7 @@ public final class ShaderSource {
     public private(set) var language: ShaderLanguage = .glsl
     private var sources: [ShaderStage: String] = [:]
     
+    // TODO: Add support for wgsl
     public init(from fileURL: URL) throws {
         guard let data = FileSystem.current.readFile(at: fileURL) else {
             throw Error.failedToRead(fileURL.path)
@@ -48,11 +55,17 @@ public final class ShaderSource {
         
         let sourceCode = String(data: data, encoding: .utf8) ?? ""
         self.language = ShaderUtils.shaderLang(from: fileURL.pathExtension)
-        self.sources = try ShaderUtils.preprocessShader(source: sourceCode)
+        
+        switch language {
+        case .glsl:
+            self.sources = try ShaderUtils.processGLSLShader(source: sourceCode)
+        default:
+            self.sources = [.max: sourceCode]
+        }
     }
     
     public init(source: String, lang: ShaderLanguage = .glsl) throws {
-        self.sources = try ShaderUtils.preprocessShader(source: source)
+        self.sources = try ShaderUtils.processGLSLShader(source: source)
         self.language = lang
     }
     
@@ -64,5 +77,9 @@ public final class ShaderSource {
     
     public func getSource(for stage: ShaderStage) -> String? {
         return self.sources[stage]
+    }
+    
+    public var stages: [ShaderStage] {
+        return Array(self.sources.keys)
     }
 }

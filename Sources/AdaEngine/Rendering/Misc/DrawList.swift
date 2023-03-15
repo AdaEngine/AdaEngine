@@ -21,11 +21,10 @@ public final class DrawList {
     let commandBuffer: DrawCommandBuffer
     
     static let maximumUniformsCount = 16
-    static let maximumTexturesCount = 32
+    static let maximumTexturesCount = 16
     
     public private(set) var renderPipeline: RenderPipeline?
     private(set) var indexBuffer: IndexBuffer?
-    private(set) var debugName: String?
     private(set) var lineWidth: Float?
     
     private(set) var vertexBuffers: [VertexBuffer] = []
@@ -40,12 +39,22 @@ public final class DrawList {
     private(set) var viewport: Viewport = Viewport()
     private(set) var isViewportEnabled: Bool = false
     
+    var debugName: String? {
+        return debugNames.last
+    }
+    
+    private var debugNames: [String] = []
+    
     init(commandBuffer: DrawCommandBuffer) {
         self.commandBuffer = commandBuffer
     }
     
-    public func setDebugName(_ name: String) {
-        self.debugName = name
+    public func pushDebugName(_ name: String) {
+        self.debugNames.append(name)
+    }
+    
+    public func popDebugName() {
+        self.debugNames.removeLast()
     }
     
     public func bindRenderPipeline(_ renderPipeline: RenderPipeline) {
@@ -100,7 +109,6 @@ public final class DrawList {
     public func clear() {
         self.renderPipeline = nil
         self.indexBuffer = nil
-        self.debugName = nil
         self.lineWidth = nil
         
         self.vertexBuffers = []
@@ -111,6 +119,7 @@ public final class DrawList {
         self.indexPrimitive = .triangle
         self.scissorRect = .zero
         self.viewport = Viewport()
+        self.debugNames.removeAll()
         self.isScissorEnabled = false
         self.isViewportEnabled = false
     }
