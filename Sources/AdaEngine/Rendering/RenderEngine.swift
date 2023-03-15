@@ -85,8 +85,8 @@ public class RenderEngine: RenderBackend {
         return self.renderBackend.makeRenderPipeline(from: descriptor)
     }
     
-    func makeShader(from descriptor: ShaderDescriptor) -> Shader {
-        return self.renderBackend.makeShader(from: descriptor)
+    func compileShader(from shader: Shader) throws -> CompiledShader {
+        return try self.renderBackend.compileShader(from: shader)
     }
     
     // MARK: - Uniforms -

@@ -46,9 +46,10 @@ public struct TextContainer: Hashable {
 /// TextLayoutManager maps unicods characters codes to glyphs.
 public final class TextLayoutManager {
     
-    enum Constans {
+    enum Constants {
         static let questionMark = Character("?").unicodeScalars.first!
         static let dots = Character("…").unicodeScalars.first!
+        static let maxTexturesPerBatch = 16
     }
     
     private var textContainer: TextContainer = TextContainer(
@@ -87,7 +88,7 @@ public final class TextLayoutManager {
         let lineHeightOffset = Double(self.textContainer.lineSpacing)
         
         var textureIndex: Int = -1
-        var textures: [Texture2D?] = .init(repeating: nil, count: 32)
+        var textures: [Texture2D?] = .init(repeating: nil, count: Constants.maxTexturesPerBatch)
         let attributedText = self.textContainer.text
         
         for index in attributedText.text.indices {
@@ -113,7 +114,7 @@ public final class TextLayoutManager {
                 var glyph = fontGeometry.__getGlyphUnsafe(scalar.value)
                 
                 if glyph == nil {
-                    glyph = fontGeometry.__getGlyphUnsafe(Constans.questionMark.value)
+                    glyph = fontGeometry.__getGlyphUnsafe(Constants.questionMark.value)
                 }
                 
                 guard let glyph else {
@@ -185,7 +186,7 @@ public final class TextLayoutManager {
         var indeciesCount: Int = 0
         
         var textureIndex: Int = -1
-        var textures: [Texture2D?] = .init(repeating: nil, count: 32)
+        var textures: [Texture2D?] = .init(repeating: nil, count: Constants.maxTexturesPerBatch)
         
         for glyph in self.glyphs {
             

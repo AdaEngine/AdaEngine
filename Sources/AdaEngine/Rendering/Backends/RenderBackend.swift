@@ -38,8 +38,8 @@ protocol RenderBackend: AnyObject {
     
     // MARK: - Shaders
     
-    /// Create shader from descriptor.
-    func makeShader(from descriptor: ShaderDescriptor) -> Shader
+    /// Compile device shader from shader data.
+    func compileShader(from shader: Shader) throws -> CompiledShader
     
     /// Create a framebuffer from descriptor.
     func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer

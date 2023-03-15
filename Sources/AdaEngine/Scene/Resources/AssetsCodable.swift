@@ -9,8 +9,14 @@ import Yams
 
 // TODO: Mode for decoding/encoding files from/into binary format.
 
+public struct AssetQuery {
+    public let name: String
+    public let value: String?
+}
+
 public struct AssetMeta {
     public let filePath: URL
+    public let queryParams: [AssetQuery]
     
     public var fileName: String { self.filePath.lastPathComponent }
 }

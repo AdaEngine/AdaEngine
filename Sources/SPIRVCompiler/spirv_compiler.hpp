@@ -20,23 +20,18 @@ enum shaderc_stage {
     SHADER_STAGE_MAX,
 };
 
-enum shaderc_result {
-    SHADERC_SUCCESS = 0,
-    SHADERC_FAILURE = 1
+struct spirv_bin {
+    const void *bytes;
+    size_t length;
 };
-
-typedef struct spirv_bin {
-    std::vector<uint32_t> bin;
-} spirv_bin;
 
 bool glslang_init_process();
 void glslang_deinit_process();
 
-shaderc_result compile_shader_glsl(
-                                   const char *source,
-                                   shaderc_stage stage,
-                                   spirv_bin *result_spriv_bin,
-                                   const char **error
-                                   );
+spirv_bin compile_shader_glsl(
+                              const char *source,
+                              shaderc_stage stage,
+                              const char **error
+                              );
 
 #endif /* spriv_compiler_hpp */

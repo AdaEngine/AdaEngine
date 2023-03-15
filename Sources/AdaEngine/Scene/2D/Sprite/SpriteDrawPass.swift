@@ -17,7 +17,8 @@ public struct SpriteDrawPass: DrawPass {
     
     public init() {
         uniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
-        uniformBufferSet.initBuffers(for: SpriteViewUniform.self, count: 3, binding: 1, set: 0)
+        uniformBufferSet.label = "SpriteDrawPass_ViewUniform"
+        uniformBufferSet.initBuffers(for: SpriteViewUniform.self, count: 3, binding: BufferIndex.baseUniform, set: 0)
     }
     
     public func render(in context: Context, item: Transparent2DRenderItem) throws {
@@ -37,7 +38,9 @@ public struct SpriteDrawPass: DrawPass {
             return
         }
         
-        let uniform = uniformBufferSet.getBuffer(binding: 1, set: 0, frameIndex: context.device.currentFrameIndex)
+        context.drawList.pushDebugName("SpriteDrawPass")
+        
+        let uniform = uniformBufferSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: context.device.currentFrameIndex)
         uniform.setData(SpriteViewUniform(viewMatrix: cameraViewUniform.viewProjectionMatrix))
         
         batchSprite.textures.enumerated().forEach { (index, texture) in
@@ -49,5 +52,7 @@ public struct SpriteDrawPass: DrawPass {
         context.drawList.bindRenderPipeline(item.renderPipeline)
         
         context.drawList.drawIndexed(indexCount: count, instancesCount: 1)
+        
+        context.drawList.popDebugName()
     }
 }

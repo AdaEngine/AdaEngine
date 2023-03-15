@@ -19,30 +19,27 @@ open class Texture2D: Texture {
             pixelFormat: image.format.toPixelFormat,
             textureUsage: [.read],
             textureType: .texture2D,
-            image: image
+            image: image,
+            samplerDescription: image.samplerDescription
         )
         
         let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
-        
-        self.width = image.width
-        self.height = image.height
-        
-        super.init(gpuTexture: gpuTexture, textureType: .texture2D)
-    }
-    
-    public init(descriptor: TextureDescriptor) {
-        let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
+        let sampler = RenderEngine.shared.makeSampler(from: descriptor.samplerDescription)
         
         self.width = descriptor.width
         self.height = descriptor.height
         
-        super.init(gpuTexture: gpuTexture, textureType: descriptor.textureType)
+        super.init(gpuTexture: gpuTexture, sampler: sampler, textureType: descriptor.textureType)
     }
     
-    // FIXME: Should return image?
-    public var image: Image? {
-//        RenderEngine.shared.getImage(for: self.rid)
-        return nil
+    public init(descriptor: TextureDescriptor) {
+        let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
+        let sampler = RenderEngine.shared.makeSampler(from: descriptor.samplerDescription)
+        
+        self.width = descriptor.width
+        self.height = descriptor.height
+        
+        super.init(gpuTexture: gpuTexture, sampler: sampler, textureType: descriptor.textureType)
     }
     
     // FIXME: (Vlad) Should remove it from Texture2D.
@@ -50,14 +47,16 @@ open class Texture2D: Texture {
         [0, 1], [1, 1], [1, 0], [0, 0]
     ]
     
-    internal init(gpuTexture: GPUTexture, size: Size) {
+    internal init(gpuTexture: GPUTexture, sampler: Sampler, size: Size) {
         self.width = Int(size.width)
         self.height = Int(size.height)
         
-        super.init(gpuTexture: gpuTexture, textureType: .texture2D)
+        super.init(gpuTexture: gpuTexture, sampler: sampler, textureType: .texture2D)
     }
     
     // MARK: - Codable
+    
+    // TODO: Add Sampler support
     
     public convenience required init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -96,14 +95,15 @@ open class Texture2D: Texture {
         )
         
         let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
+        let sampler = RenderEngine.shared.makeSampler(from: SamplerDescriptor())
         
         self.width = image.width
         self.height = image.height
         
-        super.init(gpuTexture: gpuTexture, textureType: .texture2D)
+        super.init(gpuTexture: gpuTexture, sampler: sampler, textureType: .texture2D)
     }
     
     public override func encodeContents(with encoder: AssetEncoder) throws {
-        try self.image?.encodeContents(with: encoder)
+        
     }
 }

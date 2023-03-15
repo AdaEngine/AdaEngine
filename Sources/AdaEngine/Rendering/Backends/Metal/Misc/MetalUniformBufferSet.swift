@@ -14,6 +14,8 @@ class MetalUniformBufferSet: UniformBufferSet {
     let frames: Int
     let backend: RenderBackend
     
+    public var label: String?
+    
     typealias FrameIndex = Int
     typealias Set = Int
     typealias Binding = Int
@@ -28,6 +30,7 @@ class MetalUniformBufferSet: UniformBufferSet {
     func initBuffers(length: Int, binding: Int, set: Int) {
         for frame in 0 ..< frames {
             let buffer = self.backend.makeUniformBuffer(length: length, binding: binding)
+            buffer.label = self.label
             self.setBuffer(buffer, set: set, frameIndex: frame)
         }
     }

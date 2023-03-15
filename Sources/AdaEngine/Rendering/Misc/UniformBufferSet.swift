@@ -6,6 +6,9 @@
 //
 
 public protocol UniformBufferSet: AnyObject {
+    
+    var label: String? { get set }
+    
     func setBuffer(_ buffer: UniformBuffer, set: Int, frameIndex: Int)
     func getBuffer(binding: Int, set: Int, frameIndex: Int) -> UniformBuffer
     

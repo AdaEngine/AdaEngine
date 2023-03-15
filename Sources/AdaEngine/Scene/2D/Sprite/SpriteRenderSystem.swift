@@ -33,33 +33,25 @@ public struct SpriteRenderSystem: System {
         [-0.5,  0.5,  0.0, 1.0]
     ]
     
+    static let maxTexturesPerBatch = 16
+    
     let quadRenderPipeline: RenderPipeline
     let gpuWhiteTexture: Texture2D
     
     public init(scene: Scene) {
         let device = RenderEngine.shared
         
-        var samplerDesc = SamplerDescriptor()
-        samplerDesc.magFilter = .nearest
-        samplerDesc.mipFilter = .nearest
-        let sampler = device.makeSampler(from: samplerDesc)
+        let quadShader = try! ResourceManager.load("Shaders/Vulkan/quad.glsl", from: .current) as ShaderModule
         
-        let quadShaderDesc = ShaderDescriptor(
-            shaderName: "quad",
-            vertexFunction: "quad_vertex",
-            fragmentFunction: "quad_fragment"
-        )
-        
-        let shader = device.makeShader(from: quadShaderDesc)
-        var piplineDesc = RenderPipelineDescriptor(shader: shader)
+        var piplineDesc = RenderPipelineDescriptor()
+        piplineDesc.shaderModule = quadShader
         piplineDesc.debugName = "Sprite Pipeline"
-        piplineDesc.sampler = sampler
         
         piplineDesc.vertexDescriptor.attributes.append([
-            .attribute(.vector4, name: "position"),
-            .attribute(.vector4, name: "color"),
-            .attribute(.vector2, name: "textureCoordinate"),
-            .attribute(.int, name: "textureIndex")
+            .attribute(.vector4, name: "a_Position"),
+            .attribute(.vector4, name: "a_Color"),
+            .attribute(.vector2, name: "a_TexCoordinate"),
+            .attribute(.int, name: "a_TexIndex")
         ])
         
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<SpriteVertexData>.stride
@@ -115,18 +107,18 @@ public struct SpriteRenderSystem: System {
         var textureSlotIndex = 1
         
         var currentBatchEntity = EmptyEntity()
-        var currentBatch = BatchComponent(textures: [Texture2D].init(repeating: gpuWhiteTexture, count: 32))
+        var currentBatch = BatchComponent(textures: [Texture2D].init(repeating: gpuWhiteTexture, count: Self.maxTexturesPerBatch))
         
         for entity in sprites {
             
             let transform = entity.components[Transform.self]!
             let worldTransform = scene.worldTransformMatrix(for: entity)
             
-            if textureSlotIndex >= 32 {
+            if textureSlotIndex >= Self.maxTexturesPerBatch {
                 currentBatchEntity.components += currentBatch
                 textureSlotIndex = 1
                 currentBatchEntity = EmptyEntity()
-                currentBatch = BatchComponent(textures: [Texture2D].init(repeating: gpuWhiteTexture, count: 32))
+                currentBatch = BatchComponent(textures: [Texture2D].init(repeating: gpuWhiteTexture, count: Self.maxTexturesPerBatch))
             }
             
             if let sprite = entity.components[SpriteComponent.self] {
@@ -224,6 +216,7 @@ public struct SpriteRenderSystem: System {
             length: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride,
             binding: 0
         )
+        vertexBuffer.label = "SpriteRenderSystem_VertexBuffer"
         
         let indicies = Int(indeciesCount * 4)
         
@@ -250,6 +243,7 @@ public struct SpriteRenderSystem: System {
             bytes: &quadIndices,
             length: indicies
         )
+        quadIndexBuffer.label = "SpriteRenderSystem_IndexBuffer"
         
         spriteData.components += SpriteDataComponent(
             vertexBuffer: vertexBuffer,

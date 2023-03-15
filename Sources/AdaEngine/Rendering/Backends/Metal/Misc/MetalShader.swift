@@ -9,16 +9,20 @@
 
 import MetalKit
 
-final class MetalShader: Shader {
+final class MetalShader: CompiledShader {
     let name: String
     
     let library: MTLLibrary
-    let functions: [MTLFunction]
+    let function: MTLFunction
     
-    init(name: String, library: MTLLibrary, functions: [MTLFunction]) {
+    init(
+        name: String,
+        library: MTLLibrary,
+        function: MTLFunction
+    ) {
         self.name = name
         self.library = library
-        self.functions = functions
+        self.function = function
     }
 }
 

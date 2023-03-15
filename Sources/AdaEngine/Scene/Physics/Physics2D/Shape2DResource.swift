@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
-import box2d
+import AdaBox2d
 
 // TODO: (Vlad) Add hashable and equatable and resource
 // TODO: (Vlad) Looks like we should share resources in ECS world

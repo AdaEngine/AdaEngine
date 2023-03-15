@@ -11,6 +11,16 @@ import Metal
 public class MetalBuffer: Buffer {
     let buffer: MTLBuffer
     
+    public var label: String? {
+        get {
+            self.buffer.label
+        }
+        
+        set {
+            self.buffer.label = newValue
+        }
+    }
+    
     init(buffer: MTLBuffer) {
         self.buffer = buffer
     }

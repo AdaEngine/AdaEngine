@@ -11,6 +11,8 @@ public protocol Buffer: AnyObject {
     
     func contents() -> UnsafeMutableRawPointer
     
+    var label: String? { get set }
+    
     var length: Int { get }
     
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int)

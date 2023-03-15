@@ -29,8 +29,9 @@ public class RenderTexture: Texture2D {
         self.scaleFactor = scaleFactor
         
         let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
+        let sampler = RenderEngine.shared.makeSampler(from: descriptor.samplerDescription)
         
-        super.init(gpuTexture: gpuTexture, size: size)
+        super.init(gpuTexture: gpuTexture, sampler: sampler, size: size)
     }
     
     public required init(asset decoder: AssetDecoder) throws {

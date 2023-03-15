@@ -6,7 +6,7 @@
 //
 
 import std
-import box2d
+import AdaBox2d
 import Math
 
 public final class Body2D {
@@ -182,12 +182,12 @@ public final class PhysicsWorld2D: Codable {
     
     /// - Parameter gravity: default gravity is 9.8.
     init(gravity: Vector2 = [0, -9.81]) {
-        self.world = b2World_create(gravity.b2Vec)
+        self.world = ada.b2World_create(gravity.b2Vec)
         self.world.SetContactListener(self.contactListner.contactListener)
     }
     
     deinit {
-        b2World_delete(self.world)
+        ada.b2World_delete(self.world)
     }
     
     internal func updateSimulation(_ delta: Float) {
@@ -290,10 +290,10 @@ final class _Physics2DContactListner {
     
     lazy var contactListener: UnsafeMutablePointer<b2ContactListener> = {
         let ptr = Unmanaged.passUnretained(self).toOpaque()
-        let contactListner = ContactListener2D_create(UnsafeRawPointer(ptr))!
+        let contactListner = ada.ContactListener2D_create(UnsafeRawPointer(ptr))!
         contactListner.pointee.m_BeginContact = _beginContact(_:_:) as B2Contact
         contactListner.pointee.m_EndContact = _endContact(_:_:) as B2Contact
-        return b2ContactListener_unsafeCast(contactListner)!
+        return ada.b2ContactListener_unsafeCast(contactListner)!
     }()
     
     deinit {
