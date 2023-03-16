@@ -1,5 +1,7 @@
-#version 430 core
+#version 450 core
 #pragma stage : vert
+
+#include "Common.glsl"
 
 layout (location = 0) in vec4 a_Position;
 layout (location = 1) in vec4 a_ForegroundColor;
@@ -7,11 +9,6 @@ layout (location = 2) in vec4 a_OutlineColor;
 layout (location = 3) in vec2 a_TexCoordinate;
 layout (location = 4) in vec2 a_TexSize;
 layout (location = 5) in int a_TexIndex;
-
-layout (std140, binding = 1) uniform Camera
-{
-    mat4 u_ViewTransform;
-};
 
 struct VertexOut
 {

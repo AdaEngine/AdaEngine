@@ -1,15 +1,13 @@
 #version 450 core
 #pragma stage : vert
 
+#include "Common.glsl"
+
 layout (location = 0) in vec3 a_WorldPosition;
 layout (location = 1) in vec2 a_LocalPosition;
 layout (location = 2) in float a_Thickness;
 layout (location = 3) in float a_Fade;
 layout (location = 4) in vec4 a_Color;
-
-layout (std140, binding = 1) uniform Camera {
-    mat4 u_ViewProjection;
-};
 
 struct VertexOutput {
     vec2 LocalPosition;
@@ -25,7 +23,7 @@ void main() {
     Output.Thickness = a_Thickness;
     Output.Color = a_Color;
     Output.Fade = a_Fade;
-    gl_Position = u_ViewProjection * vec4(a_WorldPosition, 1.0);
+    gl_Position = u_ViewTransform * vec4(a_WorldPosition, 1.0);
 }
 
 #version 450 core

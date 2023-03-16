@@ -296,8 +296,8 @@ extension GameScene2D {
         let entity = Entity()
         var transform = Transform()
         transform.scale = Vector3(0.3)
-        transform.position.x = -0.5
-        transform.position.y = 0.5
+        transform.position.x = -1
+        transform.position.y = 0
         entity.components += transform
         entity.components += NoFrustumCulling()
         
@@ -324,7 +324,7 @@ extension GameScene2D {
         
         entity.components += Text2DComponent(
             text: text,
-            bounds: Rect(x: 0, y: 0, width: 4.2, height: .infinity),
+            bounds: Rect(x: 0, y: 0, width: .infinity, height: .infinity),
             lineBreakMode: .byWordWrapping
         )
         

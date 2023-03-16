@@ -30,7 +30,7 @@ public final class Shader: Resource {
     }
     
     public func reload() throws {
-        let spirv = try shaderCompiler.compileCode(for: self.stage)
+        let spirv = try shaderCompiler.compileSpirvBin(for: self.stage)
         self.spirvData = spirv.data
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data)
         self.compiledShader = try RenderEngine.shared.compileShader(from: self)
@@ -53,7 +53,7 @@ public final class Shader: Resource {
         }
         
         self.shaderCompiler = ShaderCompiler(shaderSource: shaderSource)
-        let spirv = try self.shaderCompiler.compileCode(for: stage)
+        let spirv = try self.shaderCompiler.compileSpirvBin(for: stage)
         let shader = try Self.make(from: spirv, compiler: self.shaderCompiler)
         self.spirvData = shader.spirvData
         self.spirvCompiler = shader.spirvCompiler

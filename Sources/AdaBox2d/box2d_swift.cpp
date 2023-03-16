@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include "box2d_swift.hpp"
 
+// FIXME: fix PreSolve and PostSolve methods.
+
 namespace ada {
 
 b2PolygonShape* b2PolygonShape_create() {
@@ -81,8 +83,8 @@ void ContactListener2D::EndContact(b2Contact* contact) {
 /// get an EndContact callback. However, you may get a BeginContact callback
 /// the next step.
 void ContactListener2D::PreSolve(b2Contact* contact, const b2Manifold* oldManifold) {
-    if (m_PreSolve)
-        m_PreSolve(m_UserData, contact, oldManifold);
+//    if (m_PreSolve != nullptr)
+//        m_PreSolve(m_UserData, contact, oldManifold);
 }
 
 /// This lets you inspect a contact after the solver is finished. This is useful
@@ -92,8 +94,8 @@ void ContactListener2D::PreSolve(b2Contact* contact, const b2Manifold* oldManifo
 /// in a separate data structure.
 /// Note: this is only called for contacts that are touching, solid, and awake.
 void ContactListener2D::PostSolve(b2Contact* contact, const b2ContactImpulse* impulse) {
-    if (m_PostSolve)
-        m_PostSolve(m_UserData, contact, impulse);
+//    if (m_PostSolve != nullptr)
+//        m_PostSolve(m_UserData, contact, impulse);
 }
 
 ContactListener2D* ContactListener2D_create(const void *userData) {

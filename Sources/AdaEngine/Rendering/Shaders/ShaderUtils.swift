@@ -184,6 +184,8 @@ enum ShaderUtils {
 }
 
 extension String {
+    @inlinable
+    @inline(__always)
     func getSubstring(from nsRange: NSRange) -> Substring {
         let start = self.index(self.startIndex, offsetBy: nsRange.lowerBound)
         let end = self.index(self.startIndex, offsetBy: nsRange.upperBound)
