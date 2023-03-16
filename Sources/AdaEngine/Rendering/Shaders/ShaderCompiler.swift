@@ -15,7 +15,7 @@ struct SpirvBinary {
     let language: ShaderLanguage
 }
 
-// Compile GLSL to SPIR-V binaries
+/// ShaderCompiler is an entity to compile GLSL code to Shader objects (with SPIR-V binary).
 public final class ShaderCompiler {
     
     enum CompileError: LocalizedError {
@@ -35,18 +35,27 @@ public final class ShaderCompiler {
         }
     }
     
-    public private(set) var includeSearchPaths: [String] = []
+    // Collection of include search paths available for your shader source.
+    public private(set) var includeSearchPaths: [ShaderSource.IncludeSearchPath] = [
+        .module(
+            name: "AdaEngine",
+            modulePath: Bundle.current.resourceURL!.appendingPathComponent("Shaders/Vulkan/Public")
+        )
+    ]
+    
     private var shaderSource: ShaderSource
     
     public init(from fileUrl: URL) throws {
         self.shaderSource = try ShaderSource(from: fileUrl)
+        self.includeSearchPaths.append(contentsOf: self.shaderSource.includeSearchPaths)
     }
     
     public init(shaderSource: ShaderSource) {
         self.shaderSource = shaderSource
+        self.includeSearchPaths.append(contentsOf: shaderSource.includeSearchPaths)
     }
     
-    public func addHeaderSearchPaths(_ paths: [String]) {
+    public func addHeaderSearchPaths(_ paths: [ShaderSource.IncludeSearchPath]) {
         self.includeSearchPaths.append(contentsOf: paths)
     }
     
@@ -54,8 +63,8 @@ public final class ShaderCompiler {
         self.shaderSource.setSource(source.getSource(for: stage)!, for: stage)
     }
     
+    /// Compile all shader sources to shader module.
     public func compileShaderModule() throws -> ShaderModule {
-        
         var shaders: [ShaderStage: Shader] = [:]
         
         for stage in self.shaderSource.stages {
@@ -66,23 +75,23 @@ public final class ShaderCompiler {
         return ShaderModule(shaders: shaders)
     }
     
+    /// Compile shader by specific shader stage.
+    /// - Returns: Compiled Shader object.
+    /// - Throws: Error if something went wrong on compilation to SPIR-V.
     public func compileShader(for stage: ShaderStage) throws -> Shader {
-        guard let code = self.shaderSource.getSource(for: stage) else {
-            throw CompileError.failed("Sources for stage `\(stage.rawValue)` not found")
-        }
-        
-        let binary = try self.compileCode(code, stage: stage)
+        let binary = try self.compileSpirvBin(for: stage)
         return try Shader.make(from: binary, compiler: self)
     }
     
     // MARK: - Private
     
-    internal func compileCode(for stage: ShaderStage) throws -> SpirvBinary {
+    internal func compileSpirvBin(for stage: ShaderStage) throws -> SpirvBinary {
         guard let code = self.shaderSource.getSource(for: stage) else {
             throw CompileError.failed("Sources for stage `\(stage.rawValue)` not found")
         }
         
-        return try self.compileCode(code, stage: stage)
+        let processedCode = try ShaderIncluder.processIncludes(in: code, includeSearchPath: self.includeSearchPaths)
+        return try self.compileCode(processedCode, stage: stage)
     }
     
     internal func compileCode(_ code: String, stage: ShaderStage) throws -> SpirvBinary {
@@ -95,7 +104,6 @@ public final class ShaderCompiler {
         }
         
         var error: UnsafePointer<CChar>?
-        
         let binary = code.withCString { ptr in
             compile_shader_glsl(
                 ptr, /* source */

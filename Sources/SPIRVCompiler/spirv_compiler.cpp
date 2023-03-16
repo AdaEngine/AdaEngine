@@ -6,7 +6,7 @@
 //
 
 #include "spirv_compiler.hpp"
-#include "glslang_resource_limits.h"
+#include "glslang_resource_limits.hpp"
 
 #include <glslang/Include/Types.h>
 #include <glslang/Public/ShaderLang.h>
@@ -42,7 +42,6 @@ spirv_bin compile_shader_glsl(
     glslang::EShTargetLanguageVersion TargetVersion = glslang::EShTargetSpv_1_5;
     
     glslang::TShader::ForbidIncluder includer;
-    
     glslang::TShader shader(stages[stage]);
     shader.setStrings(&cs_strings, 1);
     shader.setEnvInput(glslang::EShSourceGlsl, stages[stage], glslang::EShClientVulkan, ClientInputSemanticsVersion);
