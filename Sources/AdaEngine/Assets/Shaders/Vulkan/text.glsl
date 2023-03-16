@@ -7,25 +7,22 @@ layout (location = 0) in vec4 a_Position;
 layout (location = 1) in vec4 a_ForegroundColor;
 layout (location = 2) in vec4 a_OutlineColor;
 layout (location = 3) in vec2 a_TexCoordinate;
-layout (location = 4) in vec2 a_TexSize;
-layout (location = 5) in int a_TexIndex;
+layout (location = 4) in int a_TexIndex;
 
 struct VertexOut
 {
     vec4 ForegroundColor;
     vec4 OutlineColor;
     vec2 TexCoordinate;
-    vec2 TexSize;
 };
 
-layout (location = 5) out int TexIndex;
+layout (location = 4) out int TexIndex;
 layout (location = 0) out VertexOut Output;
 
 void main() {
     Output.ForegroundColor = a_ForegroundColor;
     Output.OutlineColor = a_OutlineColor;
     Output.TexCoordinate = a_TexCoordinate;
-    Output.TexSize = a_TexSize;
     TexIndex = a_TexIndex;
 
     gl_Position = u_ViewTransform * a_Position;
@@ -41,11 +38,10 @@ struct VertexOut
     vec4 ForegroundColor;
     vec4 OutlineColor;
     vec2 TexCoordinate;
-    vec2 TexSize;
 };
 
 layout (location = 0) in VertexOut Input;
-layout (location = 5) in flat int TexIndex;
+layout (location = 4) in flat int TexIndex;
 layout (binding = 0) uniform sampler2D u_FontAtlases[16];
 
 float ScreenPxRange() {
