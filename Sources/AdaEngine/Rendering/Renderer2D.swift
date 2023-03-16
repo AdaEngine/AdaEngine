@@ -235,7 +235,6 @@ public class Renderer2D {
             .attribute(.vector4, name: "foregroundColor"),
             .attribute(.vector4, name: "outlineColor"),
             .attribute(.vector2, name: "textureCoordinate"),
-            .attribute(.vector2, name: "textureSize"),
             .attribute(.int, name: "textureIndex")
         ])
         

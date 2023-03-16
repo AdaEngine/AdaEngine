@@ -189,9 +189,7 @@ public final class TextLayoutManager {
         var textures: [Texture2D?] = .init(repeating: nil, count: Constants.maxTexturesPerBatch)
         
         for glyph in self.glyphs {
-            
             let texture = glyph.textureAtlas
-            let textureSize = Vector2(Float(texture.width), Float(texture.height))
             let foregroundColor = glyph.attributes.foregroundColor
             let outlineColor = glyph.attributes.outlineColor
             let textureCoordinate = glyph.textureCoordinates
@@ -209,7 +207,6 @@ public final class TextLayoutManager {
                     foregroundColor: foregroundColor,
                     outlineColor: outlineColor,
                     textureCoordinate: [ textureCoordinate.z, textureCoordinate.y ],
-                    textureSize: textureSize,
                     textureIndex: textureIndex
                 )
             )
@@ -220,7 +217,6 @@ public final class TextLayoutManager {
                     foregroundColor: foregroundColor,
                     outlineColor: outlineColor,
                     textureCoordinate: [ textureCoordinate.z, textureCoordinate.w ],
-                    textureSize: textureSize,
                     textureIndex: textureIndex
                 )
             )
@@ -231,7 +227,6 @@ public final class TextLayoutManager {
                     foregroundColor: foregroundColor,
                     outlineColor: outlineColor,
                     textureCoordinate: [ textureCoordinate.x, textureCoordinate.w ],
-                    textureSize: textureSize,
                     textureIndex: textureIndex
                 )
             )
@@ -242,7 +237,6 @@ public final class TextLayoutManager {
                     foregroundColor: foregroundColor,
                     outlineColor: outlineColor,
                     textureCoordinate: [ textureCoordinate.x, textureCoordinate.y ],
-                    textureSize: textureSize,
                     textureIndex: textureIndex
                 )
             )
@@ -290,6 +284,5 @@ struct GlyphVertexData {
     let foregroundColor: Color
     let outlineColor: Color
     let textureCoordinate: Vector2
-    let textureSize: Vector2
     let textureIndex: Int
 }

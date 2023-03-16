@@ -39,9 +39,9 @@ public struct Text2DRenderSystem: System {
     public init(scene: Scene) {
         let device = RenderEngine.shared
         
-        let quadShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .current) as ShaderModule
+        let textShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .current) as ShaderModule
         var piplineDesc = RenderPipelineDescriptor()
-        piplineDesc.shaderModule = quadShader
+        piplineDesc.shaderModule = textShader
         piplineDesc.debugName = "Text Pipeline"
         
         piplineDesc.vertexDescriptor.attributes.append([
@@ -49,7 +49,6 @@ public struct Text2DRenderSystem: System {
             .attribute(.vector4, name: "foregroundColor"),
             .attribute(.vector4, name: "outlineColor"),
             .attribute(.vector2, name: "textureCoordinate"),
-            .attribute(.vector2, name: "textureSize"),
             .attribute(.int, name: "textureIndex")
         ])
         
