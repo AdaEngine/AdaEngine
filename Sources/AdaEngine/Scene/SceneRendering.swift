@@ -60,10 +60,6 @@ public final class SceneRendering {
 //        RenderEngine.shared.drawEnd(self.currentDraw)
     }
     
-    func renderMesh(_ mesh: Mesh, material: Material) {
-        
-    }
-    
     func addSpotLight(transform: Transform3D) {
 //        RenderEngine.shared.updateUniform(self.spotlightUniformRID, value: <#T##T#>, count: 1)
     }
