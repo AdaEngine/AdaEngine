@@ -7,7 +7,8 @@
 
 import Foundation
 
-/// TODO: Make include depth
+// TODO: Make include depth
+// TODO: Optimizations, decrease loops
 
 /// An object replace includes in GLSL with their contents.
 /// Supports module include with <>-style where first element is a name of module, and supports local include with ""-style.

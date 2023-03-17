@@ -19,10 +19,16 @@ struct SpirvShader {
     let entryPoints: [EntryPoint]
 }
 
-// TODO: Init with language?
-
 /// Create High Level Shading Language from SPIR-V for specific shader language.
 final class SpirvCompiler {
+    
+    static var deviceLang: ShaderLanguage {
+#if METAL
+        return .msl
+#else
+        return .glsl
+#endif
+    }
     
     var context: spvc_context
     var spvcCompiler: spvc_compiler
@@ -65,7 +71,7 @@ final class SpirvCompiler {
         var spvcCompiler: spvc_compiler?
         spvc_context_create_compiler(
             context,
-            ShaderLanguage.msl.spvcBackend,
+            Self.deviceLang.spvcBackend,
             ir,
             SPVC_CAPTURE_MODE_TAKE_OWNERSHIP,
             &spvcCompiler
@@ -82,21 +88,14 @@ final class SpirvCompiler {
         spvc_context_destroy(context)
     }
     
-    func compile(to shaderLanguage: ShaderLanguage) throws -> SpirvShader {
+    /// Compile shader to device specific language
+    func compile() throws -> SpirvShader {
         var spvcCompilerOptions: spvc_compiler_options?
         if spvc_compiler_create_compiler_options(spvcCompiler, &spvcCompilerOptions) != SPVC_SUCCESS {
             throw Error(String(cString: spvc_context_get_last_error_string(context)))
         }
         
-        let version = { (major: UInt32, minor: UInt32, patch: UInt32) in
-            return (major * 10000) + (minor * 100) + patch
-        }
-        spvc_compiler_options_set_uint(spvcCompilerOptions, SPVC_COMPILER_OPTION_MSL_VERSION, version(2, 1, 0))
-        spvc_compiler_options_set_bool(spvcCompilerOptions, SPVC_COMPILER_OPTION_MSL_ENABLE_POINT_SIZE_BUILTIN, 1)
-        
-        let platform = Application.shared.platform == .macOS ? SPVC_MSL_PLATFORM_MACOS : SPVC_MSL_PLATFORM_IOS
-        spvc_compiler_options_set_uint(spvcCompilerOptions, SPVC_COMPILER_OPTION_MSL_PLATFORM, platform.rawValue)
-        spvc_compiler_options_set_bool(spvcCompilerOptions, SPVC_COMPILER_OPTION_MSL_ENABLE_DECORATION_BINDING, 1)
+        Self.makeCompileOptions(spvcCompilerOptions)
         
         spvc_compiler_install_compiler_options(spvcCompiler, spvcCompilerOptions)
         
@@ -116,7 +115,7 @@ final class SpirvCompiler {
             
             entryPoints.append(
                 SpirvShader.EntryPoint(
-                    name: String(cString: name) + "0",
+                    name: String(cString: name) + "0", // FIXME: Looks like a bug
                     stage: ShaderStage(from: entryPoint.execution_model)
                 )
             )
@@ -131,9 +130,25 @@ final class SpirvCompiler {
         
         return SpirvShader(
             source: source,
-            language: shaderLanguage,
+            language: Self.deviceLang,
             entryPoints: entryPoints
         )
+    }
+}
+
+extension SpirvCompiler {
+    static func makeCompileOptions(_ options: spvc_compiler_options?) {
+        #if METAL
+        let version = { (major: UInt32, minor: UInt32, patch: UInt32) in
+            return (major * 10000) + (minor * 100) + patch
+        }
+        spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_VERSION, version(2, 1, 0))
+        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_POINT_SIZE_BUILTIN, 1)
+        
+        let platform = Application.shared.platform == .macOS ? SPVC_MSL_PLATFORM_MACOS : SPVC_MSL_PLATFORM_IOS
+        spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_PLATFORM, platform.rawValue)
+        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_DECORATION_BINDING, 1)
+        #endif
     }
 }
 

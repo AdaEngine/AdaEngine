@@ -5,9 +5,8 @@
 //  Created by v.prusakov on 11/4/21.
 //
 
-public protocol CompiledShader: AnyObject {
-    
-}
+/// Contains native compiled GPU device shader.
+public protocol CompiledShader: AnyObject {}
 
 // TODO: Add hash
 // TODO: Add reflection data
@@ -72,4 +71,18 @@ public final class Shader: Resource {
         return shader
     }
 
+}
+
+// MARK: UniqueHashable
+
+extension Shader: UniqueHashable {
+    public static func == (lhs: Shader, rhs: Shader) -> Bool {
+        lhs.spirvData == rhs.spirvData &&
+        lhs.stage == rhs.stage &&
+        lhs.resourcePath == rhs.resourcePath
+    }
+    
+    public func hash(into hasher: inout FNVHasher) {
+        hasher.combine(self.resourcePath)
+    }
 }

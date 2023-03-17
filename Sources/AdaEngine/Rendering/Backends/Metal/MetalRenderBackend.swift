@@ -84,7 +84,7 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func compileShader(from shader: Shader) throws -> CompiledShader {
-        let spirvShader = try shader.spirvCompiler.compile(to: .msl)
+        let spirvShader = try shader.spirvCompiler.compile()
         let library = try self.context.physicalDevice.makeLibrary(source: spirvShader.source, options: nil)
         
         let descriptor = MTLFunctionDescriptor()
