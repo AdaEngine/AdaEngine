@@ -7,7 +7,7 @@
 
 import SPIRVCompiler
 
-public enum ShaderLanguage {
+public enum ShaderLanguage: String {
     
     /// Vulkan, OpenGL, WebGL
     case glsl
@@ -24,7 +24,7 @@ public enum ShaderLanguage {
 
 // TODO: Add support for wgsl
 
-public enum ShaderStage: String, Hashable {
+public enum ShaderStage: String, Hashable, Codable {
     case vertex
     case fragment
     case compute
@@ -34,7 +34,6 @@ public enum ShaderStage: String, Hashable {
 }
 
 /// Contains collection of shader sources splitted by stages.
-///
 public final class ShaderSource {
     
     enum Error: LocalizedError {
@@ -49,7 +48,7 @@ public final class ShaderSource {
     }
     
     /// Provide search path for includes in your shader.
-    public enum IncludeSearchPath {
+    public enum IncludeSearchPath: Equatable, Codable {
         case _local(URL)
         // ModuleName, Path to Module Search Path
         case _module(String, URL)
@@ -61,11 +60,16 @@ public final class ShaderSource {
     private var sources: [ShaderStage: String] = [:]
     private(set) var includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
     
+    /// Contains url to shader sources if ShaderSource was created from file.
+    private(set) var fileURL: URL?
+    
     /// Create a shader source from a file. Automatic detect language and split to stages (for GLSL only).
     public init(from fileURL: URL) throws {
         guard let data = FileSystem.current.readFile(at: fileURL) else {
             throw Error.failedToRead(fileURL.path)
         }
+        
+        self.fileURL = fileURL
         
         let sourceCode = String(data: data, encoding: .utf8) ?? ""
         self.language = ShaderUtils.shaderLang(from: fileURL.pathExtension)
@@ -128,5 +132,32 @@ public extension ShaderSource.IncludeSearchPath {
     /// ```
     static func module(name: String, modulePath: URL) -> Self {
         return ._module(name, modulePath)
+    }
+}
+
+// MARK: - UniqueHashable
+
+extension ShaderSource: UniqueHashable {
+    public static func == (lhs: ShaderSource, rhs: ShaderSource) -> Bool {
+        lhs.includeSearchPaths == rhs.includeSearchPaths &&
+        lhs.language == rhs.language &&
+        lhs.sources == rhs.sources
+    }
+    
+    public func hash(into hasher: inout FNVHasher) {
+        for (stage, source) in self.sources {
+            hasher.combine(stage.rawValue)
+            hasher.combine(source)
+        }
+        
+        for include in includeSearchPaths {
+            switch include {
+            case ._local(let url):
+                hasher.combine(url.path)
+            case ._module(let moduleName, let url):
+                hasher.combine(moduleName)
+                hasher.combine(url.path)
+            }
+        }
     }
 }

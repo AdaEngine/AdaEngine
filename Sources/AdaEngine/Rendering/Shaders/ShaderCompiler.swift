@@ -9,6 +9,8 @@ import Foundation
 import SPIRVCompiler
 import SPIRV_Cross
 
+// TODO: Should we invert y-axis for vertex shader?
+
 struct SpirvBinary {
     let stage: ShaderStage
     let data: Data
@@ -79,19 +81,30 @@ public final class ShaderCompiler {
     /// - Returns: Compiled Shader object.
     /// - Throws: Error if something went wrong on compilation to SPIR-V.
     public func compileShader(for stage: ShaderStage) throws -> Shader {
-        let binary = try self.compileSpirvBin(for: stage)
+        let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
         return try Shader.make(from: binary, compiler: self)
     }
     
     // MARK: - Private
     
-    internal func compileSpirvBin(for stage: ShaderStage) throws -> SpirvBinary {
+    // Get SPIRV from cache or compile new if something change in file.
+    internal func compileSpirvBin(for stage: ShaderStage, ignoreCache: Bool = false) throws -> SpirvBinary {
+        if !ShaderCache.hasChanges(for: self.shaderSource).contains(stage) {
+            if let binary = ShaderCache.getCachedShader(for: self.shaderSource, stage: stage) {
+                return binary
+            }
+        }
+        
         guard let code = self.shaderSource.getSource(for: stage) else {
             throw CompileError.failed("Sources for stage `\(stage.rawValue)` not found")
         }
         
         let processedCode = try ShaderIncluder.processIncludes(in: code, includeSearchPath: self.includeSearchPaths)
-        return try self.compileCode(processedCode, stage: stage)
+        let spirv = try self.compileCode(processedCode, stage: stage)
+        
+        try? ShaderCache.save(spirv, source: self.shaderSource, stage: stage)
+        
+        return spirv
     }
     
     internal func compileCode(_ code: String, stage: ShaderStage) throws -> SpirvBinary {
