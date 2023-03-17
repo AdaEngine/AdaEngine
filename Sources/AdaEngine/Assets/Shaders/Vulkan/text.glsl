@@ -19,7 +19,8 @@ struct VertexOut
 layout (location = 4) out int TexIndex;
 layout (location = 0) out VertexOut Output;
 
-void main() {
+[[main]]
+void text_vertex() {
     Output.ForegroundColor = a_ForegroundColor;
     Output.OutlineColor = a_OutlineColor;
     Output.TexCoordinate = a_TexCoordinate;
@@ -55,7 +56,8 @@ float Median(vec3 msd) {
     return max(min(msd.r, msd.g), min(max(msd.r, msd.g), msd.b));
 }
 
-void main() {
+[[main]]
+void text_fragment() {
     vec4 bgColor = vec4(Input.OutlineColor.rgb, 0.0);
     vec4 fgColor = Input.ForegroundColor;
 

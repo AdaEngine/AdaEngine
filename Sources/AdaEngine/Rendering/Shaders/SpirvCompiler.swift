@@ -99,6 +99,13 @@ final class SpirvCompiler {
         
         spvc_compiler_install_compiler_options(spvcCompiler, spvcCompilerOptions)
         
+        var compilerOutputSourcePtr: UnsafePointer<CChar>?
+        if spvc_compiler_compile(spvcCompiler, &compilerOutputSourcePtr) != SPVC_SUCCESS {
+            throw Error(String(cString: spvc_context_get_last_error_string(context)))
+        }
+        
+        let source = String(cString: compilerOutputSourcePtr!)
+        
         var numberOfEntryPoints: Int = 0
         var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
         spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
@@ -107,6 +114,7 @@ final class SpirvCompiler {
         
         for index in 0..<numberOfEntryPoints {
             let entryPoint = spvcEntryPoints![index]
+            
             let name = spvc_compiler_get_cleansed_entry_point_name(
                 spvcCompiler, /* compiler */
                 entryPoint.name, /* entry point name */
@@ -115,24 +123,44 @@ final class SpirvCompiler {
             
             entryPoints.append(
                 SpirvShader.EntryPoint(
-                    name: String(cString: name) + "0", // FIXME: Looks like a bug
+                    name: String(cString: name), // FIXME: Looks like a bug
                     stage: ShaderStage(from: entryPoint.execution_model)
                 )
             )
         }
-        
-        var compilerOutputSourcePtr: UnsafePointer<CChar>?
-        if spvc_compiler_compile(spvcCompiler, &compilerOutputSourcePtr) != SPVC_SUCCESS {
-            throw Error(String(cString: spvc_context_get_last_error_string(context)))
-        }
-        
-        let source = String(cString: compilerOutputSourcePtr!)
         
         return SpirvShader(
             source: source,
             language: Self.deviceLang,
             entryPoints: entryPoints
         )
+    }
+    
+    func setEntryPoint(_ entryPointName: String) {
+        var numberOfEntryPoints: Int = 0
+        var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
+        spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
+
+        for index in 0..<numberOfEntryPoints {
+            let entryPoint = spvcEntryPoints![index]
+
+            let result = entryPointName.withCString { entryPtr in
+                spvc_compiler_rename_entry_point(
+                    spvcCompiler, /* compiler */
+                    entryPoint.name, /* old_name */
+                    entryPtr, /* new_name */
+                    entryPoint.execution_model /* excution_model */
+                )
+            }
+
+            if result != SPVC_SUCCESS {
+                assertionFailure("Can't set entry point \(entryPointName) for \(ShaderStage(from: entryPoint.execution_model))")
+            }
+        }
+    }
+    
+    func reflect() {
+        
     }
 }
 

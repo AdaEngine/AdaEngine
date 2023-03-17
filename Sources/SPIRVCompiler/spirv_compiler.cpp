@@ -23,6 +23,7 @@ void glslang_deinit_process() {
 spirv_bin compile_shader_glsl(
                               const char *source,
                               shaderc_stage stage,
+                              spirv_options options,
                               const char **error
                               ) {
     
@@ -47,6 +48,11 @@ spirv_bin compile_shader_glsl(
     shader.setEnvInput(glslang::EShSourceGlsl, stages[stage], glslang::EShClientVulkan, ClientInputSemanticsVersion);
     shader.setEnvClient(glslang::EShClientVulkan, ClientVersion);
     shader.setEnvTarget(glslang::EShTargetSpv, TargetVersion);
+    
+    if (options.entryPointName) {
+        shader.setEntryPoint("main");
+        shader.setSourceEntryPoint(options.entryPointName);
+    }
     
     std::string pre_processed_code;
     EShMessages message = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules | EShMsgDebugInfo);
@@ -76,7 +82,7 @@ spirv_bin compile_shader_glsl(
     program.addShader(&shader);
     
     if (!program.link(message)) {
-        printf("%s", shader.getInfoLog());
+        printf("%s", program.getInfoLog());
         *error = "failed to link a programm";
         return {};
     }

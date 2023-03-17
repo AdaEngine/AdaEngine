@@ -27,9 +27,9 @@
 
 public protocol Material: ShaderBindable {
     
-    func fragmentShader() -> String
+    func fragmentShader() -> ShaderSource
     
-    func vertexShader() -> String
+    func vertexShader() -> ShaderSource
     
 }
 
@@ -37,7 +37,7 @@ public protocol ShaderBindable {
     func layout() -> Int
 }
 
-extension ShaderBindable {
+public extension ShaderBindable {
     func layout() -> Int {
         return MemoryLayout<Self>.stride
     }
@@ -74,7 +74,7 @@ public protocol ShaderPrimitive {
 }
 
 @propertyWrapper
-public struct TextureArgument<T: Texture> {
+public struct TextureBuffer<T: Texture> {
     public var wrappedValue: T
     public let slot: Int
 
@@ -89,34 +89,57 @@ struct MyMaterial {
     @Attribute(slot: 1) var value: Float = 0
 }
 
-extension Vector2: ShaderPrimitive {
-    public var vertexFormat: VertexFormat { .vector2 }
-}
-
-extension Vector3: ShaderPrimitive {
-    public var vertexFormat: VertexFormat { .vector3 }
-}
-
-extension Vector4: ShaderPrimitive {
+extension Color: ShaderPrimitive, ShaderBindable {
     public var vertexFormat: VertexFormat { .vector4 }
 }
 
-extension Float: ShaderPrimitive {
+extension Vector2: ShaderPrimitive, ShaderBindable {
+    public var vertexFormat: VertexFormat { .vector2 }
+}
+
+extension Vector3: ShaderPrimitive, ShaderBindable {
+    public var vertexFormat: VertexFormat { .vector3 }
+}
+
+extension Vector4: ShaderPrimitive, ShaderBindable {
+    public var vertexFormat: VertexFormat { .vector4 }
+}
+
+extension Float: ShaderPrimitive, ShaderBindable {
     public var vertexFormat: VertexFormat { .float }
 }
 
-extension Int: ShaderPrimitive {
+extension Int: ShaderPrimitive, ShaderBindable {
     public var vertexFormat: VertexFormat { .int }
 }
 
-extension UInt: ShaderPrimitive {
+extension UInt: ShaderPrimitive, ShaderBindable {
     public var vertexFormat: VertexFormat { .uint }
 }
 
-extension UInt8: ShaderPrimitive {
+extension UInt8: ShaderPrimitive, ShaderBindable {
     public var vertexFormat: VertexFormat { .char }
 }
 
-extension UInt16: ShaderPrimitive {
+extension UInt16: ShaderPrimitive, ShaderBindable {
     public var vertexFormat: VertexFormat { .short }
+}
+
+enum ShaderMaterialProcessor {
+    
+//    static let entryPointCallerRegex: String = "\[\[(\w+)\]\]\s*(?:\[[^\]]+\])*\s*\w+\s([^\\(]+)"
+    
+    static func process(_ source: String) throws -> String {
+//        let entryPointRegex = try NSRegularExpression(pattern: self.entryPointRegex, options: 0)
+//        let entryPointRegexCaller = try NSRegularExpression(pattern: self.entryPointCallerRegex, options: 0)
+        
+        var newString = source
+        
+        
+        return source
+    }
+}
+
+class MaterialHandle {
+         
 }

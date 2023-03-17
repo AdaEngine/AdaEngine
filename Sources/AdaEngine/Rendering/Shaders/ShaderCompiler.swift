@@ -15,6 +15,7 @@ struct SpirvBinary {
     let stage: ShaderStage
     let data: Data
     let language: ShaderLanguage
+    let entryPoint: String
 }
 
 /// ShaderCompiler is an entity to compile GLSL code to Shader objects (with SPIR-V binary).
@@ -90,7 +91,8 @@ public final class ShaderCompiler {
     // Get SPIRV from cache or compile new if something change in file.
     internal func compileSpirvBin(for stage: ShaderStage, ignoreCache: Bool = false) throws -> SpirvBinary {
         if !ShaderCache.hasChanges(for: self.shaderSource).contains(stage) {
-            if let binary = ShaderCache.getCachedShader(for: self.shaderSource, stage: stage) {
+            let entryPoint = self.shaderSource.getEntryPoint(for: stage)
+            if let binary = ShaderCache.getCachedShader(for: self.shaderSource, stage: stage, entryPoint: entryPoint) {
                 return binary
             }
         }
@@ -100,14 +102,14 @@ public final class ShaderCompiler {
         }
         
         let processedCode = try ShaderIncluder.processIncludes(in: code, includeSearchPath: self.includeSearchPaths)
-        let spirv = try self.compileCode(processedCode, stage: stage)
-        
+        let (entryPoint, ppCode) = try ShaderUtils.dropEntryPoint(from: processedCode)
+        let spirv = try self.compileCode(ppCode, entryPoint: entryPoint, stage: stage)
         try? ShaderCache.save(spirv, source: self.shaderSource, stage: stage)
         
         return spirv
     }
     
-    internal func compileCode(_ code: String, stage: ShaderStage) throws -> SpirvBinary {
+    internal func compileCode(_ code: String, entryPoint: String, stage: ShaderStage) throws -> SpirvBinary {
         guard glslang_init_process() else {
             throw CompileError.glslError("Can't create glslang process.")
         }
@@ -117,14 +119,20 @@ public final class ShaderCompiler {
         }
         
         var error: UnsafePointer<CChar>?
-        let binary = code.withCString { ptr in
-            compile_shader_glsl(
-                ptr, /* source */
-                stage.toShaderCompiler, /* stage */
-                &error /* output error */
-            )
+        
+        let binary = entryPoint.withCString { entryNamePtr in
+            let options = spirv_options(entryPointName: entryNamePtr)
+            
+            return code.withCString { sourcePtr in
+                compile_shader_glsl(
+                    sourcePtr, /* source */
+                    stage.toShaderCompiler, /* stage */
+                    options, /* options */
+                    &error /* output error */
+                )
+            }
         }
-
+        
         if let error {
             let message = String(cString: error, encoding: .utf8)!
             throw CompileError.glslError(message)
@@ -133,7 +141,12 @@ public final class ShaderCompiler {
         let data = Data(bytes: binary.bytes, count: binary.length)
         binary.bytes.deallocate()
         
-        return SpirvBinary(stage: stage, data: data, language: self.shaderSource.language)
+        return SpirvBinary(
+            stage: stage,
+            data: data,
+            language: self.shaderSource.language,
+            entryPoint: entryPoint
+        )
     }
 }
 

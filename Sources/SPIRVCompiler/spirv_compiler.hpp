@@ -20,6 +20,10 @@ enum shaderc_stage {
     SHADER_STAGE_MAX,
 };
 
+struct spirv_options {
+    const char* entryPointName;
+};
+
 struct spirv_bin {
     const void *bytes;
     size_t length;
@@ -31,6 +35,7 @@ void glslang_deinit_process();
 spirv_bin compile_shader_glsl(
                               const char *source,
                               shaderc_stage stage,
+                              spirv_options options,
                               const char **error
                               );
 

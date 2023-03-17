@@ -34,7 +34,7 @@ enum ShaderUtils {
         }
     }
     
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     static func processGLSLShader(source: String) throws -> [ShaderStage: String] {
         let finalSource = ShaderUtils.removeComments(from: source)
         
@@ -180,6 +180,51 @@ enum ShaderUtils {
         default:
             return nil
         }
+    }
+    
+    /// Find entry point in double braces.
+    /// Example:
+    /// ```
+    /// [[vertex]]
+    /// void myShaderFunc() { ... }
+    /// ```
+    private static let entryPointRegex: String = #"\[\[(\w+)\]\]\s*(?:\[[^\]]+\])*\s*\w+\s([^\\(]+)"#
+    
+    static func dropEntryPoint(from string: String) throws -> (String, String) {
+        var newString = string
+        if let (attributeName, functionName) = self.getFunctionAttribute(from: newString), attributeName == "main" {
+            
+            // Remove it from source
+            newString.removeSubrange(string.index(attributeName.startIndex, offsetBy: -2)..<string.index(attributeName.endIndex, offsetBy: 2))
+            
+            return (String(functionName), newString)
+        }
+        
+        // We don't find any attributes
+        return ("main", string)
+    }
+    
+    /// - Returns: Attribute name and function name
+    static func getFunctionAttribute(from string: String) -> (Substring, Substring)? {
+        guard let regex = try? NSRegularExpression(pattern: Self.entryPointRegex, options: 0) else {
+            return nil
+        }
+        
+        guard let firstMatch = regex.firstMatch(
+            in: string,
+            options: 0,
+            range: NSRange(string.startIndex..<string.endIndex, in: string)
+        ) else {
+            // We don't find any attributes
+            return nil
+        }
+        
+        let attributeNameMatch = firstMatch.range(at: 1) // attribute name
+        let functionNameMatch = firstMatch.range(at: 2) // function name
+        let attribute = string.getSubstring(from: attributeNameMatch)
+        let functionName = string.getSubstring(from: functionNameMatch)
+        
+        return (attribute, functionName)
     }
 }
 

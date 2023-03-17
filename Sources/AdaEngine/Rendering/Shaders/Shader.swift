@@ -23,6 +23,8 @@ public final class Shader: Resource {
     fileprivate init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
         self.spirvData = spirv.data
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data)
+        self.spirvCompiler.setEntryPoint(spirv.entryPoint)
+        
         self.stage = spirv.stage
         self.shaderCompiler = compiler
         self.compiledShader = nil
@@ -32,6 +34,8 @@ public final class Shader: Resource {
         let spirv = try shaderCompiler.compileSpirvBin(for: self.stage)
         self.spirvData = spirv.data
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data)
+        self.spirvCompiler.setEntryPoint(spirv.entryPoint)
+        
         self.compiledShader = try RenderEngine.shared.compileShader(from: self)
     }
     

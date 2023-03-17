@@ -34,15 +34,18 @@ public enum ShaderStage: String, Hashable, Codable {
 }
 
 /// Contains collection of shader sources splitted by stages.
-public final class ShaderSource {
+public final class ShaderSource: Resource {
     
     enum Error: LocalizedError {
         case failedToRead(String)
+        case message(String)
         
         var errorDescription: String? {
             switch self {
             case .failedToRead(let path):
                 return "[ShaderSource] Failed to read file at path \(path)."
+            case .message(let message):
+                return "[ShaderSource] \(message)"
             }
         }
     }
@@ -58,6 +61,7 @@ public final class ShaderSource {
     public private(set) var language: ShaderLanguage = .glsl
     
     private var sources: [ShaderStage: String] = [:]
+    private var entryPoints: [ShaderStage: String] = [:]
     private(set) var includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
     
     /// Contains url to shader sources if ShaderSource was created from file.
@@ -78,6 +82,7 @@ public final class ShaderSource {
         switch language {
         case .glsl:
             self.sources = try ShaderUtils.processGLSLShader(source: sourceCode)
+            self.entryPoints = Self.getEntryPoints(from: self.sources)
         default:
             self.sources = [.max: sourceCode]
         }
@@ -93,6 +98,7 @@ public final class ShaderSource {
         includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
     ) throws {
         self.sources = try ShaderUtils.processGLSLShader(source: source)
+        self.entryPoints = Self.getEntryPoints(from: self.sources)
         self.includeSearchPaths = includeSearchPaths
         self.language = lang
     }
@@ -101,15 +107,74 @@ public final class ShaderSource {
     
     public func setSource(_ source: String, for stage: ShaderStage) {
         self.sources[stage] = source
+        self.entryPoints[stage] = (try? ShaderUtils.dropEntryPoint(from: source).0)
     }
     
     public func getSource(for stage: ShaderStage) -> String? {
         return self.sources[stage]
     }
     
+    public func getEntryPoint(for stage: ShaderStage) -> String {
+        return self.entryPoints[stage] ?? "main"
+    }
+    
     /// Return collection of stages available in this shader source.
     public var stages: [ShaderStage] {
         return Array(self.sources.keys)
+    }
+    
+    // MARK: - Resource
+    
+    public var resourceName: String = ""
+    public var resourcePath: String = ""
+    
+    public static var resourceType: ResourceType = .material
+    
+    public init(asset decoder: AssetDecoder) throws {
+        let fileURL = decoder.assetMeta.filePath
+        self.fileURL = fileURL
+        
+        guard let data = FileSystem.current.readFile(at: fileURL) else {
+            throw Error.failedToRead(fileURL.path)
+        }
+        
+        let sourceCode = String(data: data, encoding: .utf8) ?? ""
+        self.language = ShaderUtils.shaderLang(from: fileURL.pathExtension)
+        self.includeSearchPaths = [.local(fileURL.deletingLastPathComponent())]
+        
+        switch language {
+        case .glsl:
+            let sources = try ShaderUtils.processGLSLShader(source: sourceCode)
+            
+            if
+                let stageName = decoder.assetMeta.queryParams.first?.name,
+                let stage = ShaderUtils.shaderStage(from: stageName)
+            {
+                guard let sourceForStage = sources[stage] else {
+                    throw Error.message("Cannot find a source for stage \(stageName)")
+                }
+                
+                self.sources = [stage : sourceForStage]
+            } else {
+                self.sources = sources
+            }
+        default:
+            self.sources = [.max: sourceCode]
+        }
+    }
+    
+    public func encodeContents(with encoder: AssetEncoder) throws {
+        fatalError()
+    }
+    
+    private static func getEntryPoints(from sources: [ShaderStage : String]) -> [ShaderStage : String] {
+        var entryPoints = [ShaderStage : String]()
+        
+        for (stage, source) in sources {
+            entryPoints[stage] = try? ShaderUtils.dropEntryPoint(from: source).0
+        }
+        
+        return entryPoints
     }
 }
 

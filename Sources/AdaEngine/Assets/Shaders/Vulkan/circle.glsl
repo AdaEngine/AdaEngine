@@ -18,7 +18,8 @@ struct VertexOutput {
 
 layout (location = 0) out VertexOutput Output;
 
-void main() {
+[[main]]
+void circle_vertex() {
     Output.LocalPosition = a_LocalPosition;
     Output.Thickness = a_Thickness;
     Output.Color = a_Color;
@@ -40,7 +41,8 @@ struct VertexOutput {
 
 layout (location = 0) in VertexOutput Input;
 
-void main() {
+[[main]]
+void circle_fragment() {
     float fade = Input.Fade;
     float dist = sqrt(dot(Input.LocalPosition, Input.LocalPosition));
     if (dist > 1.0 || dist < 1.0 - Input.Thickness - fade)

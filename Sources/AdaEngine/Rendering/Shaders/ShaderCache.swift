@@ -55,7 +55,11 @@ enum ShaderCache {
         return changedValues
     }
     
-    static func getCachedShader(for source: ShaderSource, stage: ShaderStage) -> SpirvBinary? {
+    static func getCachedShader(
+        for source: ShaderSource,
+        stage: ShaderStage,
+        entryPoint: String
+    ) -> SpirvBinary? {
         guard let fileURL = source.fileURL else {
             return nil
         }
@@ -73,7 +77,12 @@ enum ShaderCache {
             return nil
         }
         
-        return SpirvBinary(stage: stage, data: data, language: source.language)
+        return SpirvBinary(
+            stage: stage,
+            data: data,
+            language: source.language,
+            entryPoint: entryPoint
+        )
     }
     
     static func save(_ spirvBin: SpirvBinary, source: ShaderSource, stage: ShaderStage) throws {
