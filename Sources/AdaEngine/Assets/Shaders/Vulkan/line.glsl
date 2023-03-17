@@ -13,7 +13,8 @@ struct VertexOut {
 
 layout (location = 0) out VertexOutput Output;
 
-void main() {
+[[main]]
+void line_vertex() {
     Output.Color = a_Color;
     gl_Position = u_ViewTransform * vec4(a_Position, 1.0);
 }
@@ -29,6 +30,7 @@ struct VertexOut {
 
 layout (location = 0) out VertexOutput Input;
 
-void main() {
+[[main]]
+void line_fragment() {
     color = Input.Color;
 }

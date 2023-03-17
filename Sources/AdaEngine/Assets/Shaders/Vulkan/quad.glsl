@@ -17,7 +17,8 @@ struct VertexOut
 layout (location = 3) out int TexIndex;
 layout (location = 0) out VertexOut Output;
 
-void main()
+[[main]]
+void quad_vertex()
 {
     Output.Color = a_Color;
     Output.TexCoordinate = a_TexCoordinate;
@@ -41,7 +42,8 @@ layout (location = 0) in VertexOut Input;
 layout (location = 3) in flat int TexIndex;
 layout (binding = 0) uniform sampler2D u_Textures[16];
 
-void main()
+[[main]]
+void quad_fragment()
 {
     color = texture(u_Textures[TexIndex], Input.TexCoordinate) * Input.Color;
     
