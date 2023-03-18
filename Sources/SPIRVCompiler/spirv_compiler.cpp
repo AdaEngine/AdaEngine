@@ -49,6 +49,7 @@ spirv_bin compile_shader_glsl(
     shader.setEnvClient(glslang::EShClientVulkan, ClientVersion);
     shader.setEnvTarget(glslang::EShTargetSpv, TargetVersion);
     
+    // Rename user entry point to `main`
     if (options.entryPointName) {
         shader.setEntryPoint("main");
         shader.setSourceEntryPoint(options.entryPointName);
