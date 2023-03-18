@@ -72,7 +72,7 @@ public final class TextLayoutManager {
             self.textContainer = textContainer
             self.glyphsToRender = nil
             
-            self.invalidateDisplay(for: textContainer.bounds)
+//            self.invalidateDisplay(for: textContainer.bounds)
         }
     }
     
@@ -99,7 +99,7 @@ public final class TextLayoutManager {
             
             let fontHandle = attributes.font.handle
             let fontGeometry = fontHandle.fontData.pointee.fontGeometry
-            let metrics = fontGeometry.__getMetricsUnsafe().pointee
+            let metrics = fontGeometry.getMetrics().pointee
             let fontScale = 1 / (metrics.ascenderY - metrics.descenderY)
             
             if let index = textures.firstIndex(where: { fontHandle.atlasTexture === $0 }) {
@@ -111,10 +111,10 @@ public final class TextLayoutManager {
             
             for scalarIndex in char.unicodeScalars.indices {
                 let scalar = char.unicodeScalars[scalarIndex]
-                var glyph = fontGeometry.__getGlyphUnsafe(scalar.value)
+                var glyph = fontGeometry.getGlyph(scalar.value)
                 
                 if glyph == nil {
-                    glyph = fontGeometry.__getGlyphUnsafe(Constants.questionMark.value)
+                    glyph = fontGeometry.getGlyph(Constants.questionMark.value)
                 }
                 
                 guard let glyph else {

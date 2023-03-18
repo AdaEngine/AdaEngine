@@ -20,15 +20,15 @@ public struct PhysicsBody2DComponent: Component {
     
     /// Get the world position of the center of mass.
     /// - Returns: World position of the center of mass or zero if entity not connected to physics world.
-    public var worldCenter: Vector2 {
-        self.runtimeBody?.getWorldCenter() ?? .zero
-    }
+//    public var worldCenter: Vector2 {
+//        self.runtimeBody?.getWorldCenter() ?? .zero
+//    }
     
     /// Linear velocity of the center of mass.
     /// - Returns: The linear velocity of the center of mass or zero if entity not connected to physics world.
-    public var linearVelocity: Vector2 {
-        self.runtimeBody?.getLinearVelocity() ?? .zero
-    }
+//    public var linearVelocity: Vector2 {
+//        self.runtimeBody?.getLinearVelocity() ?? .zero
+//    }
     
     public init(
         shapes: [Shape2DResource],
@@ -87,47 +87,47 @@ public struct PhysicsBody2DComponent: Component {
     /// Set the position of the body’s origin and rotation. Manipulating a body’s transform may cause non-physical behavior.
     /// - Note: Contacts are updated on the next call to of Physics2DWorld.
     public func setPosition(_ position: Vector2, angle: Angle? = nil) {
-        let bodyAngle = self.runtimeBody?.getAngle() ?? 0
-        self.runtimeBody?.setTransform(position: position, angle: angle?.radians ?? bodyAngle)
+//        let bodyAngle = self.runtimeBody?.getAngle() ?? 0
+//        self.runtimeBody?.setTransform(position: position, angle: angle?.radians ?? bodyAngle)
     }
     
     /// Set the linear velocity of the center of mass.
     public func setLinearVelocity(_ vector: Vector2) {
-        self.runtimeBody?.setLinearVelocity(vector)
+//        self.runtimeBody?.setLinearVelocity(vector)
     }
     
     /// Apply a force at a world point. If the force is not applied at the center of mass, it will generate a torque and affect the angular velocity. This wakes up the body.
     public func applyForce(force: Vector2, point: Vector2, wake: Bool) {
-        self.runtimeBody?.applyForce(force: force, point: point, wake: wake)
+//        self.runtimeBody?.applyForce(force: force, point: point, wake: wake)
     }
     
     /// Apply a force to the center of mass. This wakes up the body.
     public func applyForceToCenter(_ force: Vector2, wake: Bool) {
-        self.runtimeBody?.applyForceToCenter(force, wake: wake)
+//        self.runtimeBody?.applyForceToCenter(force, wake: wake)
     }
     
     /// Apply an impulse at a point. This immediately modifies the velocity.
     /// It also modifies the angular velocity if the point of application is not at the center of mass. This wakes up the body.
     public func applyLinearImpulse(_ impulse: Vector2, point: Vector2, wake: Bool) {
-        self.runtimeBody?.applyLinearImpulse(impulse, point: point, wake: wake)
+//        self.runtimeBody?.applyLinearImpulse(impulse, point: point, wake: wake)
     }
     
     /// Apply a torque. This affects the angular velocity without affecting the linear velocity of the center of mass. This wakes up the body.
     public func applyTorque(_ torque: Float, wake: Bool) {
-        self.runtimeBody?.applyTorque(torque, wake: wake)
+//        self.runtimeBody?.applyTorque(torque, wake: wake)
     }
     
     /// Get the world linear velocity of a world point attached to this body.
     /// - Parameter worldPoint: point in world coordinates.
     /// - Returns: The world velocity of a point or zero if entity not attached to Physics2DWorld.
-    public func getLinearVelocityFromWorldPoint(_ worldPoint: Vector2) -> Vector2 {
-        self.runtimeBody?.getLinearVelocityFromWorldPoint(worldPoint) ?? .zero
-    }
+//    public func getLinearVelocityFromWorldPoint(_ worldPoint: Vector2) -> Vector2 {
+//        self.runtimeBody?.getLinearVelocityFromWorldPoint(worldPoint) ?? .zero
+//    }
     
     /// Get the world velocity of a local point.
     /// - Parameter localPoint: point in local coordinates.
     /// - Returns: The world velocity of a point or zero if entity not attached to Physics2DWorld.
-    public func getLinearVelocityFromLocalPoint(_ localPoint: Vector2) -> Vector2 {
-        self.runtimeBody?.getLinearVelocityFromLocalPoint(localPoint) ?? .zero
-    }
+//    public func getLinearVelocityFromLocalPoint(_ localPoint: Vector2) -> Vector2 {
+//        self.runtimeBody?.getLinearVelocityFromLocalPoint(localPoint) ?? .zero
+//    }
 }

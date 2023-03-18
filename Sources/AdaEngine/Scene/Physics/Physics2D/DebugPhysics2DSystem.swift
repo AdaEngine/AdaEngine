@@ -7,7 +7,7 @@
 
 struct DebugPhysics2DSystem: System {
     
-    static var dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
+//    static var dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
 //
 //    static let entities = EntityQuery(
 //        where: .has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self),
