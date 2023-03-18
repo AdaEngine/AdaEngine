@@ -55,6 +55,8 @@ enum ShaderCache {
         return changedValues
     }
     
+    // MARK: Save/Load SPIRV
+    
     static func getCachedShader(
         for source: ShaderSource,
         stage: ShaderStage,
@@ -100,6 +102,39 @@ enum ShaderCache {
             .appendingPathExtension("cache-\(stage.rawValue).spv")
         
         _ = fileSystem.createFile(at: cacheURL, contents: spirvBin.data)
+    }
+    
+    // MARK: - Save/Load Reflection
+    
+    static func saveReflection(_ reflectionData: ShaderReflectionData, fileURL: URL, stage: ShaderStage) throws {
+        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        
+        let cacheDir = try self.getCacheDirectory()
+        
+        let cacheURL = cacheDir
+            .appendingPathComponent(path)
+            .deletingPathExtension()
+            .appendingPathExtension("cache-\(stage.rawValue).ref")
+        
+        let stringData = try encoder.encode(reflectionData)
+        _ = fileSystem.createFile(at: cacheURL, contents: stringData.data(using: .utf8)!)
+    }
+    
+    static func getReflection(for fileURL: URL, stage: ShaderStage) -> ShaderReflectionData? {
+        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        
+        guard let cacheFile = try? self.getCacheDirectory()
+            .appendingPathComponent(path)
+            .deletingPathExtension()
+            .appendingPathExtension("cache-\(stage.rawValue).ref") else {
+            return nil
+        }
+        
+        guard let data = fileSystem.readFile(at: cacheFile) else {
+            return nil
+        }
+        
+        return try? decoder.decode(ShaderReflectionData.self, from: data)
     }
     
     // MARK: - Private

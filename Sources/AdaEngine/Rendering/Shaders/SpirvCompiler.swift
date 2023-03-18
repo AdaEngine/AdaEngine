@@ -30,6 +30,8 @@ final class SpirvCompiler {
 #endif
     }
     
+    private let stage: ShaderStage
+    
     var context: spvc_context
     var spvcCompiler: spvc_compiler
     var ir: spvc_parsed_ir
@@ -50,7 +52,9 @@ final class SpirvCompiler {
         }
     }
     
-    init(spriv: Data) throws {
+    init(spriv: Data, stage: ShaderStage) throws {
+        self.stage = stage
+        
         var context: spvc_context!
         spvc_context_create(&context)
         
@@ -136,7 +140,8 @@ final class SpirvCompiler {
         )
     }
     
-    func setEntryPoint(_ entryPointName: String) {
+    // Rename default entry point.
+    func renameEntryPoint(_ entryPointName: String) {
         var numberOfEntryPoints: Int = 0
         var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
         spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
@@ -159,8 +164,60 @@ final class SpirvCompiler {
         }
     }
     
-    func reflect() {
+    func reflection() -> ShaderReflectionData {
+        var shaderResources : spvc_resources?
         
+        var activeSet: spvc_set!
+        spvc_compiler_get_active_interface_variables(self.spvcCompiler, &activeSet)
+        
+        var activeResources: spvc_resources!
+        spvc_compiler_create_shader_resources_for_active_variables(self.spvcCompiler, &activeResources, activeSet)
+        spvc_compiler_create_shader_resources(self.spvcCompiler, &shaderResources)
+        
+        var reflectionData = ShaderReflectionData()
+        
+        for resourceType in ShaderResource.ResourceType.allCases {
+            var reflectedResources : UnsafePointer<spvc_reflected_resource>!
+            var reflectedResourceCount = 0
+            
+            spvc_resources_get_resource_list_for_type(activeResources, resourceType.spvcResourceType, &reflectedResources, &reflectedResourceCount)
+            
+            for index in 0..<reflectedResourceCount {
+                let resource = reflectedResources[index]
+                
+                let type = spvc_compiler_get_type_handle(self.spvcCompiler, resource.base_type_id)
+                var size: Int = 0
+                spvc_compiler_get_declared_struct_size(self.spvcCompiler, type, &size)
+                
+                let binding = spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationBinding)
+                let descriptorSetIndex = spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationDescriptorSet)
+                var descriptorSet = reflectionData.descriptorSets[Int(descriptorSetIndex)] ?? ShaderResource.DescriptorSet()
+                
+                switch resourceType {
+                case .uniformBuffer, .pushConstantBuffer:
+                    descriptorSet.uniformsBuffers[Int(binding)] = ShaderResource.UniformBuffer(
+                        name: String(cString: resource.name),
+                        binding: Int(binding),
+                        size: size
+                    )
+                case .pushConstantBuffer:
+//                    descriptorSet.constantBuffers[Int(binding), default: []].append(
+//                        ShaderResource.UniformBuffer(
+//                            name: String(cString: resource.name),
+//                            binding: Int(binding),
+//                            size: size
+//                        )
+//                    )
+                    break
+                default:
+                    continue
+                }
+                
+                reflectionData.descriptorSets[Int(descriptorSetIndex)] = descriptorSet
+            }
+        }
+        
+        return reflectionData
     }
 }
 
@@ -210,6 +267,116 @@ extension ShaderStage {
             self = .tesselationEvaluation
         default:
             self = .max
+        }
+    }
+}
+
+struct ShaderReflectionData: Codable {
+    var descriptorSets: [Int: ShaderResource.DescriptorSet] = [:]
+}
+
+public enum ShaderResource {
+    
+    struct DescriptorSet: Codable {
+        var uniformsBuffers: [Int: UniformBuffer] = [:]
+        var constantBuffers: [String: ShaderBuffer] = [:]
+    }
+    
+    enum ResourceType: CaseIterable, Codable {
+        case uniformBuffer
+        case storageBuffer
+        case pushConstantBuffer
+        case image
+        case storageImage
+        case inputAttachment
+        case sampler
+    }
+    
+    public struct UniformBuffer: Codable {
+        public let name: String
+        public let binding: Int
+        public let size: Int
+    }
+    
+    public struct Sampler: Codable {
+        public let name: String
+        public let binding: Int
+    }
+    
+    public struct ShaderBuffer: Codable {
+        public let name: String
+        public let size: String
+    }
+}
+
+extension ShaderResource.ResourceType {
+    
+    var spvcResourceType: spvc_resource_type {
+        switch self {
+        case .uniformBuffer:
+            return SPVC_RESOURCE_TYPE_UNIFORM_BUFFER
+        case .storageBuffer:
+            return SPVC_RESOURCE_TYPE_STORAGE_BUFFER
+        case .sampler:
+            return SPVC_RESOURCE_TYPE_SEPARATE_SAMPLERS
+        case .storageImage:
+            return SPVC_RESOURCE_TYPE_STORAGE_IMAGE
+        case .image:
+            return SPVC_RESOURCE_TYPE_SEPARATE_IMAGE
+        case .pushConstantBuffer:
+            return SPVC_RESOURCE_TYPE_PUSH_CONSTANT
+        case .inputAttachment:
+            return SPVC_RESOURCE_TYPE_SUBPASS_INPUT
+        }
+    }
+}
+
+extension ShaderValueType {
+    // swiftlint:disable:next cyclomatic_complexity
+    init?(typeId: spvc_type_id, compiler: spvc_compiler) {
+        let type = spvc_compiler_get_type_handle(compiler, typeId)
+        let baseType = spvc_type_get_basetype(type)
+        switch baseType {
+        case SPVC_BASETYPE_BOOLEAN:
+            self = .bool
+        case SPVC_BASETYPE_FP16:
+            self = .half
+        case SPVC_BASETYPE_UINT8:
+            self = .char
+        case SPVC_BASETYPE_FP32:
+            let vectorCount = spvc_type_get_vector_size(type)
+            let columnCount = spvc_type_get_columns(type)
+            
+            if columnCount == 3 {
+                self = .mat3
+                return
+            }
+            
+            if columnCount == 4 {
+                self = .mat4
+                return
+            }
+            
+            switch vectorCount {
+            case 1:
+                self = .float
+            case 2:
+                self = .vec2
+            case 3:
+                self = .vec3
+            case 4:
+                self = .vec4
+            default:
+                return nil
+            }
+        case SPVC_BASETYPE_INT16:
+            self = .short
+        case SPVC_BASETYPE_UINT64:
+            self = .uint
+        case SPVC_BASETYPE_INT64:
+            self = .int
+        default:
+            return nil
         }
     }
 }
