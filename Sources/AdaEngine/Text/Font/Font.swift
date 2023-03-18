@@ -46,17 +46,17 @@ public final class Font: Resource, Hashable {
 public extension Font {
     /// The top y-coordinate, offset from the baseline, of the font’s longest ascender.
     var ascender: Float {
-        Float(self.handle.fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.ascenderY)
+        Float(self.handle.fontData.pointee.fontGeometry.getMetrics().pointee.ascenderY)
     }
     
     /// The bottom y-coordinate, offset from the baseline, of the font’s longest descender.
     var descender: Float {
-        Float(self.handle.fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.descenderY)
+        Float(self.handle.fontData.pointee.fontGeometry.getMetrics().pointee.descenderY)
     }
     
     /// The height, in points, of text lines.
     var lineHeight: Float {
-        Float(self.handle.fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.lineHeight)
+        Float(self.handle.fontData.pointee.fontGeometry.getMetrics().pointee.lineHeight)
     }
 }
 

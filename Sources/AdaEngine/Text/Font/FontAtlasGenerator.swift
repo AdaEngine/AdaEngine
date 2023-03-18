@@ -26,20 +26,20 @@ final class FontHandle: Hashable {
     }
     
     func hash(into hasher: inout Hasher) {
-        hasher.combine(fontData.pointee.fontGeometry.__getNameUnsafe())
+        hasher.combine(fontData.pointee.fontGeometry.getName())
         hasher.combine(fontData.pointee.fontGeometry.getGeometryScale())
-        hasher.combine(fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.emSize)
-        hasher.combine(fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.lineHeight)
+        hasher.combine(fontData.pointee.fontGeometry.getMetrics().pointee.emSize)
+        hasher.combine(fontData.pointee.fontGeometry.getMetrics().pointee.lineHeight)
     }
     
     static func == (lhs: FontHandle, rhs: FontHandle) -> Bool {
         let lhsFontGeometry = lhs.fontData.pointee.fontGeometry
         let rhsFontGeometry = rhs.fontData.pointee.fontGeometry
         
-        return lhsFontGeometry.__getNameUnsafe() == rhsFontGeometry.__getNameUnsafe()
+        return lhsFontGeometry.getName() == rhsFontGeometry.getName()
         && lhsFontGeometry.getGeometryScale() == rhsFontGeometry.getGeometryScale()
-        && lhsFontGeometry.__getMetricsUnsafe().pointee.emSize == rhsFontGeometry.__getMetricsUnsafe().pointee.emSize
-        && lhsFontGeometry.__getMetricsUnsafe().pointee.lineHeight == rhsFontGeometry.__getMetricsUnsafe().pointee.lineHeight
+        && lhsFontGeometry.getMetrics().pointee.emSize == rhsFontGeometry.getMetrics().pointee.emSize
+        && lhsFontGeometry.getMetrics().pointee.lineHeight == rhsFontGeometry.getMetrics().pointee.lineHeight
         && lhs.fontData.pointee.glyphs.size() == rhs.fontData.pointee.glyphs.size()
     }
     
@@ -71,7 +71,7 @@ final class FontAtlasGenerator {
         let fontName = fontPath.lastPathComponent
         
         var fontGenerator = ada_font.FontAtlasGenerator(fontPathString, fontName, atlasFontDescriptor)
-        let fontData = fontGenerator.__getFontDataUnsafe()!
+        let fontData = fontGenerator.getFontData()!
         
         let fileName = "\(fontName)-\(atlasFontDescriptor.fontScale.rounded()).fontbin"
         
@@ -79,7 +79,7 @@ final class FontAtlasGenerator {
             let texture = makeTextureAtlas(from: data, width: atlasHeader.width, height: atlasHeader.height)
             return FontHandle(atlasTexture: texture, fontData: fontData)
         } else {
-            let bitmap = fontGenerator.__generateAtlasBitmapUnsafe()
+            let bitmap = fontGenerator.generateAtlasBitmap()
             let data = Data(bytes: bitmap.pixels, count: Int(bitmap.pixelsCount))
             
             let width = Int(bitmap.bitmapWidth)
