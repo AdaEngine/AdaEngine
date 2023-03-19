@@ -8,6 +8,8 @@
 #ifndef BOX2D_SWIFT_h
 #define BOX2D_SWIFT_h
 
+#include <stdint.h>
+
 struct b2_vec2 {
     float x;
     float y;
@@ -70,23 +72,31 @@ typedef struct b2_contact_impulse_s b2_contact_impulse_t;
 typedef struct b2_fixture_s b2_fixture_t;
 typedef struct b2_fixture_def_s b2_fixture_def_t;
 
+typedef struct b2_filter {
+    uint16_t categoryBits;
+
+    uint16_t maskBits;
+
+    int16_t groupIndex;
+} b2_filter;
+
 // MARK: B2_WORLD
 
 typedef struct b2_world_s b2_world_t;
 
 // MARK: B2_CONTACT_LISTENER
 
-typedef void (*contact_listener_begin_contact_func)(const void* userData, b2_contact_s contact);
-typedef void (*contact_listener_end_contact_func)(const void* userData, b2_contact_s contact);
-typedef void (*contact_listener_presolve_func)(const void* userData, b2_contact_s contact, b2_manifold_s oldManifold);
-typedef void (*contact_listener_postsolve_func)(const void* userData, b2_contact_s contact, b2_contact_impulse_s impulse);
+typedef void (*contact_listener_begin_contact_func)(const void* userData, b2_contact_s* contact);
+typedef void (*contact_listener_end_contact_func)(const void* userData, b2_contact_s* contact);
+typedef void (*contact_listener_presolve_func)(const void* userData, b2_contact_s* contact, b2_manifold_s* oldManifold);
+typedef void (*contact_listener_postsolve_func)(const void* userData, b2_contact_s* contact, b2_contact_impulse_s* impulse);
 
-typedef struct contact_listener_callbacks_s {
+typedef struct contact_listener_callbacks {
     contact_listener_begin_contact_func begin_contact;
     contact_listener_end_contact_func end_contact;
     contact_listener_presolve_func pre_solve;
     contact_listener_postsolve_func post_solve;
-} contact_listener_callbacks_t;
+} contact_listener_callbacks;
 
 #ifdef __cplusplus
 extern "C" {
@@ -131,15 +141,27 @@ b2_vec2 b2_body_get_linear_velocity_from_local_point(b2_body_s* body, b2_vec2 lo
 void b2_body_create_fixture(b2_body_s* body, b2_fixture_def def);
 
 void b2_body_set_user_data(b2_body_s* body, const void* userData);
-void* b2_body_get_user_data(b2_body_s* body);
+const void* b2_body_get_user_data(b2_body_s* body);
+
+b2_fixture_s* b2_body_get_fixture_list(b2_body_s* body);
 
 b2_mass_data b2_body_get_mass_data(b2_body_s* body);
 void b2_body_set_mass_data(b2_body_s* body, b2_mass_data massData);
+
+// MARK: B2_FIXTURE
+
+b2_filter b2_fixture_get_filter_data(b2_fixture_s* fixture);
+void b2_fixture_set_filter_data(b2_fixture_s* fixture, b2_filter filterData);
+
+b2_body_s* b2_fixture_get_body(b2_fixture_s* fixture);
 
 // MARK: B2_SHAPE
 
 b2_shape_s* b2_create_polygon_shape();
 b2_shape_s* b2_create_circle_shape();
+void b2_shape_set_radius(b2_shape_s* shape, float radius);
+
+void b2_circle_shape_set_position(b2_shape_s* shape, b2_vec2 position);
 
 void b2_polygon_shape_set(b2_shape_s* polygonShape, const b2_vec2* points, signed int count);
 void b2_polygon_shape_set_as_box(b2_shape_s* polygonShape, float halfWidth, float halfHeight);
@@ -159,44 +181,16 @@ void b2_polygon_shape_set_as_box_with_center(b2_shape_s* polygonShape,
 
 // MARK: B2_CONTACT_LISTENER
 
-contact_listener_s* b2_create_contactListener(const void *userData, contact_listener_callbacks_s callbacks);
+contact_listener_s* b2_create_contactListener(const void *userData, contact_listener_callbacks callbacks);
+
+b2_fixture_s* b2_contact_get_fixture_a(b2_contact_s *contact);
+b2_fixture_s* b2_contact_get_fixture_b(b2_contact_s *contact);
+b2_manifold_s* b2_contact_get_manifold(b2_contact_s *contact);
 
 // b2ContactListner end
 
 #ifdef __cplusplus
 }
 #endif
-
-// That's is a swift compiler restriction. If we will write code in header file, than we will get duplicate symbols error in swift.
-
-// b2Shape
-
-//b2PolygonShape* b2PolygonShape_create();
-//
-//void b2Polygon_delete(b2PolygonShape *shape);
-//
-//b2CircleShape* b2CircleShape_create();
-//
-//void b2CircleShape_delete(b2CircleShape *shape);
-//
-//const b2Shape* b2Shape_unsafeCast(void *shape);
-//
-//float& b2Shape_GetRadius(b2Shape *shape);
-
-// b2Shape end
-
-// b2Joint
-
-//const b2JointDef* b2JointDef_unsafeCast(void *joint);
-
-// b2Joint end
-
-// b2World
-
-//b2World* b2World_create(const b2Vec2& gravity);
-//
-//void b2World_delete(b2World *world);
-
-// b2World end
 
 #endif /* BOX2D_SWIFT_h */

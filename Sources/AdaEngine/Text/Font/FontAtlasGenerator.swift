@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 3/5/23.
 //
 
-import AtlasFontGenerator
+@_implementationOnly import AtlasFontGenerator
 import Foundation
 
 /// Hold information about font data and atlas
