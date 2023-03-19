@@ -220,7 +220,7 @@ final class GameScene2D {
     private func sceneDidReady(_ scene: Scene) {
         let physicsQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
         scene.performQuery(physicsQuery).forEach { entity in
-//            entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -3.62)
+            entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -3.62)
         }
     }
     

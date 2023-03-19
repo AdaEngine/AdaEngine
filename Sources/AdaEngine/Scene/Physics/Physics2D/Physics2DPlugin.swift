@@ -14,12 +14,12 @@ struct Physics2DPlugin: ScenePlugin {
         /// We have physics world as an entity, because it's more flexible solution then store
         /// physics world in the scene object.
         let physicsWorldEntity = Entity(name: "PhysicsWorld2D")
-//        let world = PhysicsWorld2D()
-//        world.scene = scene
-//        physicsWorldEntity.components += Physics2DWorldComponent(world: world)
+        let world = PhysicsWorld2D()
+        world.scene = scene
+        physicsWorldEntity.components += Physics2DWorldComponent(world: world)
         
         scene.addEntity(physicsWorldEntity)
         scene.addSystem(DebugPhysics2DSystem.self)
-//        scene.addSystem(Physics2DSystem.self)
+        scene.addSystem(Physics2DSystem.self)
     }
 }
