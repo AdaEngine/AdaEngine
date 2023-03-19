@@ -11,29 +11,9 @@
 #include <msdfgen.h>
 #include <msdf_atlas_gen.h>
 #include <string>
+#include "atlas_font_gen.h"
 
-namespace ada_font {
-
-struct AtlasFontDescriptor {
-    double fontScale;
-    double minimumScale;
-    bool expensiveColoring;
-    double angleThreshold;
-    unsigned long coloringSeed;
-    
-    int threads;
-    
-    msdf_atlas::ImageType atlasImageType;
-    double atlasPixelRange;
-    double miterLimit;
-};
-
-struct AtlasBitmap {
-    int bitmapWidth;
-    int bitmapHeight;
-    const void *pixels;
-    int pixelsCount;
-};
+namespace ada {
 
 struct FontData {
     msdf_atlas::FontGeometry fontGeometry;
@@ -45,30 +25,28 @@ class FontAtlasGenerator {
 public:
     FontAtlasGenerator(const char* fontPath,
                        const char* fontName,
-                       const AtlasFontDescriptor& fontDescriptor);
+                       const font_atlas_descriptor& fontDescriptor);
     
     
     /// Returns bitmap representation.
-    AtlasBitmap generateAtlasBitmap();
+    AtlasBitmap* generateAtlasBitmap();
     
     
     /// For some reasons we should store font data on Swift side.
     /// And you must delete memory when FontData isn't used anymore!
-    const FontData* getFontData() {
+    FontData* getFontData() {
         return m_FontData;
     }
     
 private:    
     FontData* m_FontData;
     
-    const AtlasFontDescriptor& m_fontDescriptor;
+    font_atlas_descriptor m_fontDescriptor;
     
     struct {
         int width = -1;
         int height = -1;
     } m_AtlasInfo;
-
-    AtlasBitmap m_Bitmap;
 };
 
 }

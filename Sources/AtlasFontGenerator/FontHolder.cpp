@@ -7,7 +7,7 @@
 
 #include "FontHolder.h"
 
-namespace ada_font {
+namespace ada {
 
 bool FontHolder::loadFont(const char* fontPath) {
     if (ft && fontPath) {
