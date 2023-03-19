@@ -8,7 +8,7 @@
 public struct SpriteRenderSystem: System {
     
     public static var dependencies: [SystemDependency] = [
-//        .before(Physics2DSystem.self),
+        .before(Physics2DSystem.self),
         .before(BatchTransparent2DItemsSystem.self),
         .after(VisibilitySystem.self)
     ]

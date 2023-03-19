@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
-import AdaBox2d
-
 // TODO: (Vlad) Add hashable and equatable and resource
 // TODO: (Vlad) Looks like we should share resources in ECS world
 public final class Shape2DResource: Codable {
