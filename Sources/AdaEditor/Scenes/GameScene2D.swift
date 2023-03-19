@@ -197,6 +197,7 @@ final class GameScene2D {
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
+        try self.makeCanvasItem(for: scene)
 //        self.collisionHandler(for: scene)
 //        self.fpsCounter(for: scene)
         self.addText(to: scene)
@@ -258,6 +259,14 @@ final class GameScene2D {
         )
         playerEntity.components += PlayerComponent()
         scene.addEntity(playerEntity)
+    }
+    
+    func makeCanvasItem(for scene: Scene) throws {
+        let material = try ResourceManager.load("Assets/custom_material.glsl", from: .module) as Material
+        
+        let entity = Entity(name: "custom_material")
+        entity.components += CanvasComponent(material: material)
+        scene.addEntity(entity)
     }
     
     private func makeGround(for scene: Scene) {
@@ -330,4 +339,10 @@ extension GameScene2D {
         
         scene.addEntity(entity)
     }
+}
+
+
+struct MyMaterial: CanvasMaterial {
+    @Uniform(binding: 0) var color: Color = .red
+    @Attribute(binding: 1) var value: Float = 0
 }

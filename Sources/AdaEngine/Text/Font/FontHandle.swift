@@ -66,6 +66,10 @@ final class FontHandle: Hashable {
         && lhs.geometryScale == rhs.geometryScale
         && lhs.metrics.emSize == rhs.metrics.emSize
         && lhs.metrics.lineHeight == rhs.metrics.lineHeight
+        && lhs.metrics.ascenderY == rhs.metrics.ascenderY
+        && lhs.metrics.descenderY == rhs.metrics.descenderY
+        && lhs.metrics.underlineY == rhs.metrics.underlineY
+        && lhs.metrics.underlineThickness == rhs.metrics.underlineThickness
         && lhs.glyphsCount == rhs.glyphsCount
     }
 }

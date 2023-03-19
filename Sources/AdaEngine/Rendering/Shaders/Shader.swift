@@ -20,18 +20,20 @@ public final class Shader: Resource {
     
     private var shaderCompiler: ShaderCompiler
     
-    let reflectionData: ShaderReflectionData
+    var reflectionData: ShaderReflectionData = ShaderReflectionData()
     
     fileprivate init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
         self.spirvData = spirv.data
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: spirv.stage)
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
-        reflectionData = self.spirvCompiler.reflection()
-        
         self.stage = spirv.stage
         self.shaderCompiler = compiler
         self.compiledShader = nil
+    }
+    
+    func reflect() -> ShaderReflectionData {
+        return self.spirvCompiler.reflection()
     }
     
     public func reload() throws {
@@ -77,6 +79,10 @@ public final class Shader: Resource {
         let shader = try Shader(spirv: spirv, compiler: compiler)
         let compiledShader = try RenderEngine.shared.compileShader(from: shader)
         shader.compiledShader = compiledShader
+        
+        shader.reflect()
+        
+        
         return shader
     }
 

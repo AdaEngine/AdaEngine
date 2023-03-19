@@ -70,12 +70,16 @@ public final class ShaderCompiler {
     public func compileShaderModule() throws -> ShaderModule {
         var shaders: [ShaderStage: Shader] = [:]
         
+        var reflectionData = ShaderReflectionData()
+        
         for stage in self.shaderSource.stages {
             let shader = try self.compileShader(for: stage)
             shaders[stage] = shader
+            // Merge
+            reflectionData.shaderBuffers.merge(shader.reflectionData.shaderBuffers) { _, new in return new }
         }
         
-        return ShaderModule(shaders: shaders)
+        return ShaderModule(shaders: shaders, reflectionData: reflectionData)
     }
     
     /// Compile shader by specific shader stage.
@@ -83,14 +87,24 @@ public final class ShaderCompiler {
     /// - Throws: Error if something went wrong on compilation to SPIR-V.
     public func compileShader(for stage: ShaderStage) throws -> Shader {
         let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
-        return try Shader.make(from: binary, compiler: self)
+        let shader = try Shader.make(from: binary, compiler: self)
+        
+        if let reflection = ShaderCache.getReflection(for: self.shaderSource, stage: stage) {
+            shader.reflectionData = reflection
+        } else {
+            let data = shader.reflect()
+            shader.reflectionData = data
+            try ShaderCache.saveReflection(data, for: self.shaderSource, stage: stage)
+        }
+        
+        return shader
     }
     
     // MARK: - Private
     
     // Get SPIRV from cache or compile new if something change in file.
     internal func compileSpirvBin(for stage: ShaderStage, ignoreCache: Bool = false) throws -> SpirvBinary {
-        if !ShaderCache.hasChanges(for: self.shaderSource).contains(stage) {
+        if !ShaderCache.hasChanges(for: self.shaderSource).contains(stage), !ignoreCache {
             let entryPoint = self.shaderSource.getEntryPoint(for: stage)
             if let binary = ShaderCache.getCachedShader(for: self.shaderSource, stage: stage, entryPoint: entryPoint) {
                 return binary

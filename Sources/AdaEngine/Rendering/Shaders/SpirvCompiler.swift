@@ -127,7 +127,7 @@ final class SpirvCompiler {
             
             entryPoints.append(
                 SpirvShader.EntryPoint(
-                    name: String(cString: name), // FIXME: Looks like a bug
+                    name: String(cString: name),
                     stage: ShaderStage(from: entryPoint.execution_model)
                 )
             )
@@ -164,15 +164,13 @@ final class SpirvCompiler {
         }
     }
     
+    // swiftlint:disable:next function_body_length
     func reflection() -> ShaderReflectionData {
-        var shaderResources : spvc_resources?
-        
         var activeSet: spvc_set!
         spvc_compiler_get_active_interface_variables(self.spvcCompiler, &activeSet)
         
         var activeResources: spvc_resources!
         spvc_compiler_create_shader_resources_for_active_variables(self.spvcCompiler, &activeResources, activeSet)
-        spvc_compiler_create_shader_resources(self.spvcCompiler, &shaderResources)
         
         var reflectionData = ShaderReflectionData()
         
@@ -184,6 +182,7 @@ final class SpirvCompiler {
             
             for index in 0..<reflectedResourceCount {
                 let resource = reflectedResources[index]
+                let resourceName = String(cString: resource.name)
                 
                 let type = spvc_compiler_get_type_handle(self.spvcCompiler, resource.base_type_id)
                 var size: Int = 0
@@ -191,24 +190,62 @@ final class SpirvCompiler {
                 
                 let binding = spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationBinding)
                 let descriptorSetIndex = spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationDescriptorSet)
-                var descriptorSet = reflectionData.descriptorSets[Int(descriptorSetIndex)] ?? ShaderResource.DescriptorSet()
+                
+                if descriptorSetIndex >= reflectionData.descriptorSets.count {
+                    reflectionData.descriptorSets.append(ShaderResource.DescriptorSet())
+                }
+                
+                var descriptorSet = reflectionData.descriptorSets[Int(descriptorSetIndex)]
                 
                 switch resourceType {
-                case .uniformBuffer, .pushConstantBuffer:
-                    descriptorSet.uniformsBuffers[Int(binding)] = ShaderResource.UniformBuffer(
-                        name: String(cString: resource.name),
-                        binding: Int(binding),
-                        size: size
-                    )
-                case .pushConstantBuffer:
-//                    descriptorSet.constantBuffers[Int(binding), default: []].append(
-//                        ShaderResource.UniformBuffer(
-//                            name: String(cString: resource.name),
-//                            binding: Int(binding),
-//                            size: size
-//                        )
+//                case .uniformBuffer:
+//                    descriptorSet.uniformsBuffers[Int(binding)] = ShaderResource.UniformBuffer(
+//                        name: resourceName,
+//                        binding: Int(binding),
+//                        size: size
 //                    )
-                    break
+                case .uniformBuffer:
+                    var members = [String: ShaderResource.ShaderBufferMember]()
+                    
+                    let memberTypesCount = spvc_type_get_num_member_types(type)
+                    
+                    for index in 0..<memberTypesCount {
+                        let memberType = spvc_type_get_member_type(type, index)
+                        let memberName = String(cString: spvc_compiler_get_member_name(self.spvcCompiler, resource.base_type_id, index))
+                        var memberSize: Int = 0
+                        spvc_compiler_get_declared_struct_member_size(self.spvcCompiler, type, index, &memberSize)
+                        
+                        var memberOffset: UInt32 = 0
+                        spvc_compiler_type_struct_member_offset(self.spvcCompiler, type, index, &memberOffset)
+                        
+                        members[memberName] = ShaderResource.ShaderBufferMember(
+                            name: memberName,
+                            size: memberSize,
+                            binding: Int(binding),
+                            type: ShaderValueType(typeId: memberType, compiler: self.spvcCompiler) ?? .none,
+                            offset: Int(memberOffset)
+                        )
+                    }
+                    
+                    let buffer = ShaderResource.ShaderBuffer(
+                        name: resourceName,
+                        size: size,
+                        shaderStage: ShaderStageFlags(shaderStage: self.stage),
+                        binding: Int(binding),
+                        members: members
+                    )
+                    
+                    descriptorSet.uniformsBuffers[Int(binding)] = buffer
+                    reflectionData.shaderBuffers[resourceName] = buffer    
+                case .image, .sampler, .inputAttachment, .storageImage:
+                    // FIXME: Don't have information about array size.
+                    descriptorSet.sampledImages[resourceName] = ShaderResource.ImageSampler(
+                        name: resourceName,
+                        binding: Int(binding),
+                        descriptorSet: Int(descriptorSetIndex),
+                        arraySize: 0,
+                        shaderStage: ShaderStageFlags(shaderStage: self.stage)
+                    )
                 default:
                     continue
                 }
@@ -248,135 +285,6 @@ extension ShaderLanguage {
             return SPVC_BACKEND_GLSL
         default:
             return SPVC_BACKEND_NONE
-        }
-    }
-}
-
-extension ShaderStage {
-    init(from executionModel: SpvExecutionModel) {
-        switch executionModel {
-        case SpvExecutionModelFragment:
-            self = .fragment
-        case SpvExecutionModelVertex:
-            self = .vertex
-        case SpvExecutionModelGLCompute:
-            self = .compute
-        case SpvExecutionModelTessellationControl:
-            self = .tesselationControl
-        case SpvExecutionModelTessellationEvaluation:
-            self = .tesselationEvaluation
-        default:
-            self = .max
-        }
-    }
-}
-
-struct ShaderReflectionData: Codable {
-    var descriptorSets: [Int: ShaderResource.DescriptorSet] = [:]
-}
-
-public enum ShaderResource {
-    
-    struct DescriptorSet: Codable {
-        var uniformsBuffers: [Int: UniformBuffer] = [:]
-        var constantBuffers: [String: ShaderBuffer] = [:]
-    }
-    
-    enum ResourceType: CaseIterable, Codable {
-        case uniformBuffer
-        case storageBuffer
-        case pushConstantBuffer
-        case image
-        case storageImage
-        case inputAttachment
-        case sampler
-    }
-    
-    public struct UniformBuffer: Codable {
-        public let name: String
-        public let binding: Int
-        public let size: Int
-    }
-    
-    public struct Sampler: Codable {
-        public let name: String
-        public let binding: Int
-    }
-    
-    public struct ShaderBuffer: Codable {
-        public let name: String
-        public let size: String
-    }
-}
-
-extension ShaderResource.ResourceType {
-    
-    var spvcResourceType: spvc_resource_type {
-        switch self {
-        case .uniformBuffer:
-            return SPVC_RESOURCE_TYPE_UNIFORM_BUFFER
-        case .storageBuffer:
-            return SPVC_RESOURCE_TYPE_STORAGE_BUFFER
-        case .sampler:
-            return SPVC_RESOURCE_TYPE_SEPARATE_SAMPLERS
-        case .storageImage:
-            return SPVC_RESOURCE_TYPE_STORAGE_IMAGE
-        case .image:
-            return SPVC_RESOURCE_TYPE_SEPARATE_IMAGE
-        case .pushConstantBuffer:
-            return SPVC_RESOURCE_TYPE_PUSH_CONSTANT
-        case .inputAttachment:
-            return SPVC_RESOURCE_TYPE_SUBPASS_INPUT
-        }
-    }
-}
-
-extension ShaderValueType {
-    // swiftlint:disable:next cyclomatic_complexity
-    init?(typeId: spvc_type_id, compiler: spvc_compiler) {
-        let type = spvc_compiler_get_type_handle(compiler, typeId)
-        let baseType = spvc_type_get_basetype(type)
-        switch baseType {
-        case SPVC_BASETYPE_BOOLEAN:
-            self = .bool
-        case SPVC_BASETYPE_FP16:
-            self = .half
-        case SPVC_BASETYPE_UINT8:
-            self = .char
-        case SPVC_BASETYPE_FP32:
-            let vectorCount = spvc_type_get_vector_size(type)
-            let columnCount = spvc_type_get_columns(type)
-            
-            if columnCount == 3 {
-                self = .mat3
-                return
-            }
-            
-            if columnCount == 4 {
-                self = .mat4
-                return
-            }
-            
-            switch vectorCount {
-            case 1:
-                self = .float
-            case 2:
-                self = .vec2
-            case 3:
-                self = .vec3
-            case 4:
-                self = .vec4
-            default:
-                return nil
-            }
-        case SPVC_BASETYPE_INT16:
-            self = .short
-        case SPVC_BASETYPE_UINT64:
-            self = .uint
-        case SPVC_BASETYPE_INT64:
-            self = .int
-        default:
-            return nil
         }
     }
 }
