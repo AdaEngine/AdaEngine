@@ -98,8 +98,7 @@ public final class TextLayoutManager {
             let kern = Double(attributes.kern)
             
             let fontHandle = attributes.font.handle
-            let fontGeometry = fontHandle.fontData.pointee.fontGeometry
-            let metrics = fontGeometry.__getMetricsUnsafe().pointee
+            let metrics = fontHandle.metrics
             let fontScale = 1 / (metrics.ascenderY - metrics.descenderY)
             
             if let index = textures.firstIndex(where: { fontHandle.atlasTexture === $0 }) {
@@ -111,10 +110,10 @@ public final class TextLayoutManager {
             
             for scalarIndex in char.unicodeScalars.indices {
                 let scalar = char.unicodeScalars[scalarIndex]
-                var glyph = fontGeometry.__getGlyphUnsafe(scalar.value)
+                var glyph = fontHandle.getGlyph(for: scalar.value)
                 
                 if glyph == nil {
-                    glyph = fontGeometry.__getGlyphUnsafe(Constants.questionMark.value)
+                    glyph = fontHandle.getGlyph(for: Constants.questionMark.value)
                 }
                 
                 guard let glyph else {
@@ -162,12 +161,12 @@ public final class TextLayoutManager {
                     position: [Float(pl), Float(pb), Float(pr), Float(pt)])
                 )
                 
-                var advance = glyph.getAdvance()
+                var advance = glyph.advance
                 let nextScalarIndex = char.unicodeScalars.index(after: scalarIndex)
                 
                 if char.unicodeScalars.indices.contains(nextScalarIndex) {
                     let nextScalar = char.unicodeScalars[nextScalarIndex]
-                    fontGeometry.getAdvance(&advance, scalar.value, nextScalar.value)
+                    fontHandle.getAdvance(&advance, scalar.value, nextScalar.value)
                     x += fontScale * advance + kern
                 } else {
                     x += fontScale * advance + kern
