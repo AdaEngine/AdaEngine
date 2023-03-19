@@ -254,6 +254,8 @@ final class _Physics2DContactListener {
 }
 
 extension OpaquePointer {
+    
+    // TODO: Should we deallocate it in this place?
     func deallocate() {
         UnsafeRawPointer(self).deallocate()
     }

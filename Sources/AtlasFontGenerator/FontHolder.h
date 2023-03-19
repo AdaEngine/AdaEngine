@@ -11,7 +11,7 @@
 #include <msdfgen.h>
 #include <msdf_atlas_gen.h>
 
-namespace ada_font {
+namespace ada {
 
 class FontHolder {
     
