@@ -7,7 +7,7 @@
 
 import Foundation
 
-// TODO: Make include depth
+// TODO: Make include depth (with cycle detection)
 // TODO: Optimizations, decrease loops
 
 /// An object replace includes in GLSL with their contents.
@@ -90,8 +90,8 @@ enum ShaderIncluder {
                     }
                     
                     let fileURL = pathToModule.appendingPathComponent(String(pathToFile))
-                    guard let includeContent = self.getIncludeContents(at: fileURL) else {
-                        continue
+                    guard let includeContent = self.getIncludeContents(at: fileURL, includeSearchPath: includeSearchPath) else {
+                        continue searchPathLoop
                     }
                     
                     modifiedString.removeSubrange(moduleInclude.startIndex..<moduleInclude.endIndex)
@@ -143,8 +143,8 @@ enum ShaderIncluder {
                 case ._local(let path):
                     let fileUrl = path.appendingPathComponent(String(localIncludePath))
                     
-                    guard let includeContent = self.getIncludeContents(at: fileUrl) else {
-                        continue
+                    guard let includeContent = self.getIncludeContents(at: fileUrl, includeSearchPath: includeSearchPath) else {
+                        continue searchPathLoop
                     }
                     
                     modifiedString.removeSubrange(localInclude.startIndex..<localInclude.endIndex)
@@ -171,11 +171,20 @@ enum ShaderIncluder {
         return modifiedString
     }
     
-    private static func getIncludeContents(at fileURL: URL) -> String? {
+    private static func getIncludeContents(at fileURL: URL, includeSearchPath: [ShaderSource.IncludeSearchPath]) -> String? {
         guard let data = self.fileSystem.readFile(at: fileURL), let content = String(data: data, encoding: .utf8) else {
             return nil
         }
         
-        return ShaderUtils.removeComments(from: content)
+        let source = ShaderUtils.removeComments(from: content)
+        
+        var includeSearchPath = includeSearchPath
+        includeSearchPath.append(.local(fileURL.deletingLastPathComponent()))
+        
+        guard let includedSource = try? Self.processIncludes(in: source, includeSearchPath: includeSearchPath) else {
+            return nil
+        }
+        
+        return includedSource
     }
 }

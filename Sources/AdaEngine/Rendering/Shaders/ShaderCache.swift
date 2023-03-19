@@ -45,6 +45,8 @@ enum ShaderCache {
             if cache == nil || (cache?[stage] != shaderCache) {
                 changedValues.insert(stage)
                 cacheData[cacheKey, default: [:]][stage] = shaderCache
+                
+                Self.removeReflection(for: source.fileURL!, stage: stage)
             }
         }
         
@@ -106,7 +108,11 @@ enum ShaderCache {
     
     // MARK: - Save/Load Reflection
     
-    static func saveReflection(_ reflectionData: ShaderReflectionData, fileURL: URL, stage: ShaderStage) throws {
+    static func saveReflection(_ reflectionData: ShaderReflectionData, for source: ShaderSource, stage: ShaderStage) throws {
+        guard let fileURL = source.fileURL else {
+            return
+        }
+        
         let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
         
         let cacheDir = try self.getCacheDirectory()
@@ -120,7 +126,11 @@ enum ShaderCache {
         _ = fileSystem.createFile(at: cacheURL, contents: stringData.data(using: .utf8)!)
     }
     
-    static func getReflection(for fileURL: URL, stage: ShaderStage) -> ShaderReflectionData? {
+    static func getReflection(for source: ShaderSource, stage: ShaderStage) -> ShaderReflectionData? {
+        guard let fileURL = source.fileURL else {
+            return nil
+        }
+        
         let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
         
         guard let cacheFile = try? self.getCacheDirectory()
@@ -135,6 +145,19 @@ enum ShaderCache {
         }
         
         return try? decoder.decode(ShaderReflectionData.self, from: data)
+    }
+    
+    static func removeReflection(for fileURL: URL, stage: ShaderStage) {
+        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        
+        guard let cacheFile = try? self.getCacheDirectory()
+            .appendingPathComponent(path)
+            .deletingPathExtension()
+            .appendingPathExtension("cache-\(stage.rawValue).ref") else {
+            return
+        }
+        
+        try? fileSystem.removeItem(at: fileURL)
     }
     
     // MARK: - Private

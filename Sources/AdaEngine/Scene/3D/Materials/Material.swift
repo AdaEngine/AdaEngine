@@ -5,127 +5,151 @@
 //  Created by v.prusakov on 11/3/21.
 //
 
-//
-//public class Material: Resource {
-//    public required init(asset decoder: AssetDecoder) throws {
-//        fatalError()
-//    }
-//
-//    public func encodeContents(with encoder: AssetEncoder) throws {
-//        fatalError()
-//    }
-//
-//    public static var resourceType: ResourceType = .material
-//    public var resourcePath: String = ""
-//    public var resourceName: String = ""
-//
-//    init(shader: Shader) {
-//
-//    }
-//
-//}
+public protocol CustomMaterial: ShaderBindable {
+    
+    func fragmentShader() throws -> ShaderSource
+    
+    func vertexShader() throws -> ShaderSource
+    
+}
 
-public protocol Material: ShaderBindable {
+public protocol CanvasMaterial: CustomMaterial { }
+
+public extension CanvasMaterial {
+    func fragmentShader() throws -> ShaderSource {
+        return try ResourceManager.load("Shaders/Vulkan/canvas_mat.glsl#vert", from: .current)
+    }
     
-    func fragmentShader() -> ShaderSource
-    
-    func vertexShader() -> ShaderSource
-    
+    func vertexShader() throws -> ShaderSource {
+        return try ResourceManager.load("Shaders/Vulkan/canvas_mat.glsl#frag", from: .current)
+    }
 }
 
 public protocol ShaderBindable {
-    func layout() -> Int
+    static func layout() -> Int
 }
 
 public extension ShaderBindable {
-    func layout() -> Int {
+    static func layout() -> Int {
         return MemoryLayout<Self>.stride
     }
 }
 
+protocol _ShaderBindProperty: AnyObject {
+    var propertyName: String { get set }
+    var binding: Int { get }
+    
+    var delegate: MaterialValueDelegate? { get set }
+}
+
+protocol _ShaderUniformProperty {
+    var valueLayout: Int { get }
+}
+
 @propertyWrapper
-public struct Uniform<T: ShaderBindable> {
+public final class Uniform<T: ShaderBindable & ShaderUniformValue>: _ShaderBindProperty, _ShaderUniformProperty {
     
-    public var wrappedValue: T
-    public let slot: Int
+    public var wrappedValue: T {
+        didSet {
+            self.delegate?.updateValue(self.wrappedValue, for: self.propertyName, binding: self.binding)
+        }
+    }
     
-    public init(wrappedValue: T, slot: Int) {
+    weak var delegate: MaterialValueDelegate?
+    
+    var valueLayout: Int { T.layout() }
+    public let binding: Int
+    internal var propertyName: String = ""
+    
+    public init(wrappedValue: T, binding: Int) {
         self.wrappedValue = wrappedValue
-        self.slot = slot
+        self.binding = binding
     }
 }
 
 @propertyWrapper
-public struct Attribute<T: ShaderPrimitive> {
+public final class Attribute<T: ShaderUniformValue>: _ShaderBindProperty {
     
-    public var wrappedValue: T
-    public let slot: Int
+    public var wrappedValue: T {
+        didSet {
+            self.delegate?.updateValue(self.wrappedValue, for: self.propertyName, binding: self.binding)
+        }
+    }
+    
+    public let binding: Int
     public let customName: String?
     
-    public init(wrappedValue: T, slot: Int, customName: String? = nil) {
+    internal var propertyName: String = ""
+    
+    weak var delegate: MaterialValueDelegate?
+    
+    public init(wrappedValue: T, binding: Int, customName: String? = nil) {
         self.wrappedValue = wrappedValue
-        self.slot = slot
+        self.binding = binding
         self.customName = customName
     }
 }
 
-public protocol ShaderPrimitive {
+public protocol ShaderUniformValue {
     static var shaderValueType: ShaderValueType { get }
 }
 
 @propertyWrapper
 public struct TextureBuffer<T: Texture> {
     public var wrappedValue: T
-    public let slot: Int
+    public let binding: Int
     
-    public init(wrappedValue: T, slot: Int) {
+    public init(wrappedValue: T, binding: Int) {
         self.wrappedValue = wrappedValue
-        self.slot = slot
+        self.binding = binding
     }
 }
 
-struct MyMaterial {
-    //    @Uniform(slot: 0) var color: Color = .red
-    @Attribute(slot: 1) var value: Float = 0
-}
-
-extension Color: ShaderPrimitive, ShaderBindable {
+extension Color: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .vec4
 }
 
-extension Vector2: ShaderPrimitive, ShaderBindable {
+extension Vector2: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .vec2
 }
 
-extension Vector3: ShaderPrimitive, ShaderBindable {
+extension Vector3: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .vec3
 }
 
-extension Vector4: ShaderPrimitive, ShaderBindable {
+extension Vector4: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .vec4
 }
 
-extension Float: ShaderPrimitive, ShaderBindable {
+extension Float: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .float
 }
 
-extension Int: ShaderPrimitive, ShaderBindable {
+extension Int: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .int
 }
 
-extension UInt: ShaderPrimitive, ShaderBindable {
+extension UInt: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .uint
 }
 
-extension UInt8: ShaderPrimitive, ShaderBindable {
+extension UInt8: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .char
 }
 
-extension UInt16: ShaderPrimitive, ShaderBindable {
+extension UInt16: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .short
 }
 
-public enum ShaderValueType {
+extension Transform3D: ShaderUniformValue, ShaderBindable {
+    public static let shaderValueType: ShaderValueType = .mat4
+}
+
+extension Transform2D: ShaderUniformValue, ShaderBindable {
+    public static let shaderValueType: ShaderValueType = .mat3
+}
+
+public enum ShaderValueType: String, Codable {
     case vec2
     case vec3
     case vec4
@@ -140,18 +164,189 @@ public enum ShaderValueType {
     case short
     case char
     case bool
+    
+    case structure
+    
+    case none
 }
 
-enum ShaderMaterialProcessor {
+protocol MaterialValueDelegate: AnyObject {
+    func updateValue(_ value: ShaderUniformValue, for name: String, binding: Int)
+}
+
+@propertyWrapper
+public final class MaterialHandle<T: CustomMaterial>: MaterialValueDelegate {
     
-    static func process(_ source: String) throws -> String {
+    let uniformBufferSet: UniformBufferSet
+    
+    public var wrappedValue: T
+    public var shaderModule: ShaderModule
+    
+    public init(wrappedValue material: T) {
+        self.wrappedValue = material
+        self.shaderModule = Self.makeShaderModule(from: material)
+        self.uniformBufferSet = Self.reflectMaterial(from: material)
+    }
+    
+    static func makeShaderModule(from material: T) -> ShaderModule {
+        do {            
+            let fragmentCompiler = try ShaderCompiler(shaderSource: material.fragmentShader())
+            let vertexCompiler = try ShaderCompiler(shaderSource: material.vertexShader())
+            
+            var reflectionData = ShaderReflectionData()
+            
+            let fragmentShader = try fragmentCompiler.compileShader(for: .fragment)
+            let vertexShader = try vertexCompiler.compileShader(for: .vertex)
+            
+            let module = ShaderModule(
+                shaders: [
+                    .vertex: vertexShader,
+                    .fragment: fragmentShader
+                ],
+                reflectionData: reflectionData
+            )
+                                      
+            return module
+        } catch {
+            fatalError("[MaterialHandle] Shader error: \(error.localizedDescription)")
+        }
+    }
+    
+    static func reflectMaterial(from material: T) -> UniformBufferSet {
+        let uniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
         
-        var newString = source
+        let reflection = Mirror(reflecting: material)
         
-        return source
+        var uniformBuffers = [Int: Int]()
+        
+        for child in reflection.children {
+            guard let bindProperty = child.value as? _ShaderBindProperty else {
+                continue
+            }
+            
+            // Get the propertyName of the property. By syntax, the property name is
+            // in the form: "_name". Dropping the "_" -> "name"
+            let propertyName = String((child.label ?? "").dropFirst())
+            bindProperty.propertyName = propertyName
+            
+            // For update buffers
+//            bindProperty.delegate = self
+            
+            if let uniformProperty = bindProperty as? _ShaderUniformProperty {
+                uniformBuffers[bindProperty.binding, default: 0] += uniformProperty.valueLayout
+            }
+        }
+        
+        for buffer in uniformBuffers {
+            uniformBufferSet.initBuffers(length: buffer.value, binding: buffer.key, set: 0)
+        }
+        
+        return uniformBufferSet
+    }
+    
+    // MARK: Delegate
+    
+    func updateValue(_ value: ShaderUniformValue, for name: String, binding: Int) {
+//        for stage in self.shaderModule.stages {
+//            let shader = self.shaderModule.getShader(for: stage)!
+//            
+//            guard let descriptorSet = shader.reflectionData.descriptorSets[binding] else {
+//                continue
+//            }
+//            
+//            guard let uniformBuffer = descriptorSet.uniformsBuffers[binding] else {
+//                continue
+//            }
+//            
+//            guard let member = uniformBuffer.members[name] else {
+//                continue
+//            }
+//            
+//            if type(of: value).shaderValueType != member.type {
+//                assertionFailure("[MaterialHandle] You can't set value for type \(type(of: value).shaderValueType) to uniform member type \(member.type)")
+//            }
+//            
+//            let buffer = self.uniformBufferSet.getBuffer(binding: binding, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex)
+//            
+//            var value = value
+//            buffer.setData(&value, byteCount: member.size, offset: member.offset)
+//        }
+    }
+    
+}
+
+public class Material: Resource {
+    
+    public var resourceName: String = ""
+    public var resourcePath: String = ""
+    public static var resourceType: ResourceType = .material
+    
+    let shaderModule: ShaderModule
+    let uniformBufferSet: UniformBufferSet
+    
+    public init(shaderModule: ShaderModule) {
+        self.shaderModule = shaderModule
+        self.uniformBufferSet = Self.makeUniformBufferSet(from: self.shaderModule)
+    }
+    
+    public required init(asset decoder: AssetDecoder) throws {
+        self.shaderModule = try ShaderModule(asset: decoder)
+        self.uniformBufferSet = Self.makeUniformBufferSet(from: self.shaderModule)
+    }
+    
+    public func encodeContents(with encoder: AssetEncoder) throws {
+        try self.shaderModule.encodeContents(with: encoder)
+    }
+    
+    public func setValue<T: ShaderUniformValue>(_ value: T, for name: String) {
+        guard let bufferDesc = self.getUniformDescription(for: name) else {
+            return
+        }
+        
+        assert(T.shaderValueType == bufferDesc.type, "Failed to set value with type \(T.shaderValueType) to property with type \(bufferDesc.type)")
+        
+        let buffer = uniformBufferSet.getBuffer(binding: bufferDesc.binding, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex)
+        
+        var value = value
+        buffer.setData(&value, byteCount: bufferDesc.size, offset: bufferDesc.offset)
+    }
+    
+    public func getValue<T: ShaderUniformValue>(for name: String) -> T? {
+        guard let bufferDesc = self.getUniformDescription(for: name) else {
+            return nil
+        }
+        
+        assert(T.shaderValueType == bufferDesc.type, "Failed to get value with type \(T.shaderValueType) from property with type \(bufferDesc.type)")
+        
+        let buffer = uniformBufferSet.getBuffer(binding: bufferDesc.binding, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex)
+        return buffer.contents().load(fromByteOffset: bufferDesc.offset, as: T.self)
+    }
+    
+    func getUniformDescription(for name: String) -> ShaderResource.ShaderBufferMember? {
+        for buffer in self.shaderModule.reflectionData.shaderBuffers.values {
+            if let member = buffer.members[name] {
+                return member
+            }
+        }
+        
+        return nil
     }
 }
 
-class MaterialHandle {
-    
+extension Material {
+    static func makeUniformBufferSet(from module: ShaderModule) -> UniformBufferSet {
+        let uniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
+        
+        uniformBufferSet.label = "Material_\(module.resourceName)"
+        
+        for uniformBuffer in module.reflectionData.shaderBuffers.values {
+            uniformBufferSet.initBuffers(
+                length: uniformBuffer.size,
+                binding: uniformBuffer.binding,
+                set: 0
+            )
+        }
+        
+        return uniformBufferSet
+    }
 }

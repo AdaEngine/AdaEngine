@@ -11,8 +11,9 @@ public final class ShaderModule: Resource {
     
     private var shaders: [ShaderStage: Shader] = [:]
     
-    public init(shaders: [ShaderStage : Shader] = [:]) {
+    init(shaders: [ShaderStage : Shader] = [:], reflectionData: ShaderReflectionData) {
         self.shaders = shaders
+        self.reflectionData = reflectionData
     }
     
     public func addShader(_ shader: Shader, for stage: ShaderStage) {
@@ -29,6 +30,8 @@ public final class ShaderModule: Resource {
     
     // Resource
     
+    var reflectionData: ShaderReflectionData
+    
     public var resourceName: String = ""
     public var resourcePath: String = ""
     public static var resourceType: ResourceType = .material
@@ -38,6 +41,7 @@ public final class ShaderModule: Resource {
         let filePath = decoder.assetMeta.filePath
         let module = try ShaderCompiler(from: filePath).compileShaderModule()
         self.shaders = module.shaders
+        self.reflectionData = module.reflectionData
         self.resourceName = filePath.lastPathComponent
         self.resourcePath = filePath.path
     }

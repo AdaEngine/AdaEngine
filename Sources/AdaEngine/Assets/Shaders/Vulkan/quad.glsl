@@ -52,4 +52,3 @@ void quad_fragment()
         discard;
     }
 }
-

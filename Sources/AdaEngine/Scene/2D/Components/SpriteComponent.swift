@@ -14,3 +14,11 @@ public struct SpriteComponent: Component {
         self.tintColor = tintColor
     }
 }
+
+public struct CanvasComponent: Component {
+    public var material: Material
+    
+    public init(material: Material) {
+        self.material = material
+    }
+}
