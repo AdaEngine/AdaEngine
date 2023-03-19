@@ -98,24 +98,26 @@ final class Physics2DSystem: System {
                     fixtureDef.friction = physicsBody.material.friction
 
                     body.addFixture(for: fixtureDef)
+                    
+                    shape.deallocate()
                 }
 
                 body.massData.mass = physicsBody.massProperties.mass
             }
 
-//            if let fixtureList = physicsBody.runtimeBody?.getFixtureList() {
-//                let collisionFilter = physicsBody.filter
-//                let filterData = fixtureList.GetFilterData().pointee
-//
-//                if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
-//                     filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
-//
-//                    var filter = b2Filter()
-//                    filter.categoryBits = collisionFilter.categoryBitMask.rawValue
-//                    filter.maskBits = collisionFilter.collisionBitMask.rawValue
-//                    fixtureList.SetFilterData(filter)
-//                }
-//            }
+            if let fixtureList = physicsBody.runtimeBody?.getFixtureList() {
+                let collisionFilter = physicsBody.filter
+                let filterData = fixtureList.filterData
+
+                if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
+                     filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
+
+                    var filter = b2_filter()
+                    filter.categoryBits = collisionFilter.categoryBitMask.rawValue
+                    filter.maskBits = collisionFilter.collisionBitMask.rawValue
+                    fixtureList.filterData = filter
+                }
+            }
 
             entity.components += transform
             entity.components += physicsBody
@@ -123,53 +125,55 @@ final class Physics2DSystem: System {
     }
     
     private func updateCollisionEntities(_ entities: QueryResult, in world: PhysicsWorld2D) {
-//        for entity in entities {
-//            var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
-//
-//            if let body = collisionBody.runtimeBody {
-//                body.setTransform(
-//                    position: transform.position.xy,
-//                    angle: transform.position.z
-//                )
-//            } else {
-//                var def = Body2DDefinition()
-//                def.position = transform.position.xy
-//                def.angle = transform.rotation.z
-//                def.bodyMode = .static
-//
-//                let body = world.createBody(definition: def, for: entity)
-//                collisionBody.runtimeBody = body
-//
-//                for shapeResource in collisionBody.shapes {
-//                    let shape = self.makeShape(for: shapeResource, transform: transform)
-//                    var fixtureDef = b2FixtureDef()
-//                    fixtureDef.shape = shape
-//
-//                    if case .trigger = collisionBody.mode {
-//                        fixtureDef.isSensor = true
-//                    }
-//
-//                    body.addFixture(for: &fixtureDef)
-//                }
-//            }
-//
-//            if let fixtureList = collisionBody.runtimeBody?.getFixtureList() {
-//                let collisionFilter = collisionBody.filter
-//                let filterData = fixtureList.GetFilterData().pointee
-//
-//                if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
-//                     filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
-//
-//                    var filter = b2Filter()
-//                    filter.categoryBits = collisionFilter.categoryBitMask.rawValue
-//                    filter.maskBits = collisionFilter.collisionBitMask.rawValue
-//                    fixtureList.SetFilterData(filter)
-//                }
-//            }
-//
-//            entity.components += transform
-//            entity.components += collisionBody
-//        }
+        for entity in entities {
+            var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
+
+            if let body = collisionBody.runtimeBody {
+                body.setTransform(
+                    position: transform.position.xy,
+                    angle: transform.position.z
+                )
+            } else {
+                var def = Body2DDefinition()
+                def.position = transform.position.xy
+                def.angle = transform.rotation.z
+                def.bodyMode = .static
+
+                let body = world.createBody(definition: def, for: entity)
+                collisionBody.runtimeBody = body
+
+                for shapeResource in collisionBody.shapes {
+                    let shape = self.makeShape(for: shapeResource, transform: transform)
+                    var fixtureDef = b2_fixture_def()
+                    fixtureDef.shape = UnsafeRawPointer(shape)
+
+                    if case .trigger = collisionBody.mode {
+                        fixtureDef.isSensor = true
+                    }
+
+                    body.addFixture(for: fixtureDef)
+                    
+                    shape.deallocate()
+                }
+            }
+
+            if let fixtureList = collisionBody.runtimeBody?.getFixtureList() {
+                let collisionFilter = collisionBody.filter
+                let filterData = fixtureList.filterData
+
+                if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
+                     filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
+
+                    var filter = b2_filter()
+                    filter.categoryBits = collisionFilter.categoryBitMask.rawValue
+                    filter.maskBits = collisionFilter.collisionBitMask.rawValue
+                    fixtureList.filterData = filter
+                }
+            }
+
+            entity.components += transform
+            entity.components += collisionBody
+        }
     }
     
     private func updateJointsEntities(_ entities: QueryResult, scene: Scene, in world: PhysicsWorld2D) {
@@ -240,8 +244,8 @@ final class Physics2DSystem: System {
             return shapeRef
         case .circle(let shape):
             let shapeRef = b2_create_circle_shape()!
-            //            //            circle.m_radius = shape.radius * transform.scale.x
-            //            circle.m_p = shape.offset.b2Vec
+            b2_shape_set_radius(shapeRef, shape.radius * transform.scale.x)
+            b2_circle_shape_set_position(shapeRef, shape.offset.b2Vec)
             return shapeRef
         case .box(let shape):
             let shapeRef = b2_create_polygon_shape()!

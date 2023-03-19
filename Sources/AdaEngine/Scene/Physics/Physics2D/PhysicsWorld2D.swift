@@ -50,12 +50,12 @@ public final class PhysicsWorld2D: Codable {
         try container.encode(self.positionIterations, forKey: .positionIterations)
     }
     
-//    let contactListner = _Physics2DContactListner()
+    let contactListner = _Physics2DContactListener()
     
     /// - Parameter gravity: default gravity is 9.8.
     init(gravity: Vector2 = [0, -9.81]) {
         self.world = b2_world_create(gravity.b2Vec)
-//        self.world.SetContactListener(self.contactListner.contactListener)
+        b2_world_set_contact_listener(self.world, self.contactListner.contactListener)
     }
     
     deinit {
@@ -91,7 +91,7 @@ public final class PhysicsWorld2D: Codable {
         
         let body2d = Body2D(world: self, ref: ref, entity: entity)
         let pointer = Unmanaged.passRetained(body2d).toOpaque()
-        b2_body_set_user_data(ref, UnsafeRawPointer(pointer))
+        b2_body_set_user_data(ref, pointer)
         
         return body2d
     }
@@ -153,100 +153,108 @@ extension PhysicsBodyMode {
 // MARK: - b2ContactListener
 
 // swiftlint:disable:next type_name
+final class _Physics2DContactListener {
 
-//final class _Physics2DContactListner {
-//
-//    typealias B2Contact = @convention(c) (UnsafeRawPointer?, b2Contact?) -> Void
-//
-//    lazy var contactListener: UnsafeMutablePointer<b2ContactListener> = {
-//        let ptr = Unmanaged.passUnretained(self).toOpaque()
-//        let contactListner = ada.ContactListener2D_create(UnsafeRawPointer(ptr))!
-//        contactListner.pointee.m_BeginContact = _beginContact(_:_:) as B2Contact
-//        contactListner.pointee.m_EndContact = _endContact(_:_:) as B2Contact
-//        return ada.b2ContactListener_unsafeCast(contactListner)!
-//    }()
-//
-//    deinit {
-//        self.contactListener.deallocate()
-//    }
-//
-//    func beginContact(_ contact: b2Contact?) {
-//        guard let contact else {
-//            return
-//        }
-//
-//        let bodyAPtrInt = contact.GetFixtureA().GetBody().GetUserData().pointee.pointer
-//        let bodyBPtrInt = contact.GetFixtureA().GetBody().GetUserData().pointee.pointer
-//
-//        guard let bodyAPtr = UnsafeRawPointer(bitPattern: bodyAPtrInt),
-//              let bodyBPtr = UnsafeRawPointer(bitPattern: bodyBPtrInt) else {
-//            return
-//        }
-//
-//        let bodyA = Unmanaged<Body2D>.fromOpaque(bodyAPtr).takeUnretainedValue()
-//        let bodyB = Unmanaged<Body2D>.fromOpaque(bodyBPtr).takeUnretainedValue()
-//
-//        // FIXME: We should get correct impulse of contact
+    lazy var contactListener: OpaquePointer = {
+        let ptr = Unmanaged.passUnretained(self).toOpaque()
+        let callbacks = contact_listener_callbacks { userData, contact in
+            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+            listener.beginContact(contact!)
+        } end_contact: { userData, contact in
+            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+            listener.endContact(contact!)
+        } pre_solve: { userData, contact, manifold in
+            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+            listener.preSolve(contact!, oldManifold: manifold!)
+        } post_solve: { userData, contact, impulse in
+            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+            listener.postSolve(contact!, impulse: impulse!)
+        }
+
+        return b2_create_contactListener(ptr, callbacks)
+    }()
+
+    deinit {
+        self.contactListener.deallocate()
+    }
+
+    func beginContact(_ contact: OpaquePointer) {
+        let fixtureA = b2_contact_get_fixture_a(contact)!
+        let fixtureB = b2_contact_get_fixture_b(contact)!
+        
+        let bodyFixtureA = b2_fixture_get_body(fixtureA)!
+        let bodyFixtureB = b2_fixture_get_body(fixtureB)!
+        
+        let userDataA = b2_body_get_user_data(bodyFixtureA)!
+        let userDataB = b2_body_get_user_data(bodyFixtureB)!
+        
+        // FIXME: We should get correct impulse of contact
+        let manifold = b2_contact_get_manifold(contact)!
+        
+        defer {
+            fixtureA.deallocate()
+            fixtureB.deallocate()
+            
+            bodyFixtureA.deallocate()
+            bodyFixtureB.deallocate()
+            
+            manifold.deallocate()
+        }
+
+        let bodyA = Unmanaged<Body2D>.fromOpaque(userDataA).takeUnretainedValue()
+        let bodyB = Unmanaged<Body2D>.fromOpaque(userDataB).takeUnretainedValue()
+
 //        let impulse = contact.GetManifold().pointee.points.0.normalImpulse
-//
-//        let event = CollisionEvents.Began(
-//            entityA: bodyA.entity,
-//            entityB: bodyB.entity,
-//            impulse: impulse
-//        )
-//
-//        bodyA.world.scene?.eventManager.send(event)
-//    }
-//
-//    func endContact(_ contact: b2Contact?) {
-//        guard let contact else {
-//            return
-//        }
-//
-//        let bodyAPtrInt = contact.GetFixtureA().GetBody().GetUserData().pointee.pointer
-//        let bodyBPtrInt = contact.GetFixtureA().GetBody().GetUserData().pointee.pointer
-//
-//        guard let bodyAPtr = UnsafeRawPointer(bitPattern: bodyAPtrInt),
-//              let bodyBPtr = UnsafeRawPointer(bitPattern: bodyBPtrInt) else {
-//            return
-//        }
-//
-//        let bodyA = Unmanaged<Body2D>.fromOpaque(bodyAPtr).takeUnretainedValue()
-//        let bodyB = Unmanaged<Body2D>.fromOpaque(bodyBPtr).takeUnretainedValue()
-//
-//        let event = CollisionEvents.Ended(
-//            entityA: bodyA.entity,
-//            entityB: bodyB.entity
-//        )
-//
-//        bodyA.world.scene?.eventManager.send(event)
-//    }
-//
-//    func postSolve(_ contact: b2Contact?, impulse: UnsafePointer<b2ContactImpulse>?) {
-//        return
-//    }
-//
-//    func preSolve(_ contact: b2Contact?, oldManifold: UnsafePointer<b2Manifold>?) {
-//        return
-//    }
-//}
-//
-//private func _beginContact(_ userData: UnsafeRawPointer?, _ contact: b2Contact?) {
-//    let listner = Unmanaged<_Physics2DContactListner>.fromOpaque(userData!).takeUnretainedValue()
-//    listner.beginContact(contact)
-//}
-//
-//private func _endContact(_ userData: UnsafeRawPointer?, _ contact: b2Contact?) {
-//    let listner = Unmanaged<_Physics2DContactListner>.fromOpaque(userData!).takeUnretainedValue()
-//    listner.endContact(contact)
-//}
-//
-//func _postSolve(_ userData: UnsafeRawPointer?, _ contact: b2Contact?, _ impulse: UnsafePointer<b2ContactImpulse>?) {
-//    let listner = Unmanaged<_Physics2DContactListner>.fromOpaque(userData!).takeUnretainedValue()
-//    listner.postSolve(contact, impulse: impulse)
-//}
-//
-//func _preSolve(_ userData: UnsafeRawPointer?, _ contact: b2Contact?, _ manifold: UnsafePointer<b2Manifold>?) {
-//    let listner = Unmanaged<_Physics2DContactListner>.fromOpaque(userData!).takeUnretainedValue()
-//    listner.preSolve(contact, oldManifold: manifold)
-//}
+
+        let event = CollisionEvents.Began(
+            entityA: bodyA.entity,
+            entityB: bodyB.entity,
+            impulse: 0
+        )
+
+        bodyA.world.scene?.eventManager.send(event)
+    }
+
+    func endContact(_ contact: OpaquePointer) {
+        let fixtureA = b2_contact_get_fixture_a(contact)!
+        let fixtureB = b2_contact_get_fixture_b(contact)!
+        
+        let bodyFixtureA = b2_fixture_get_body(fixtureA)!
+        let bodyFixtureB = b2_fixture_get_body(fixtureB)!
+        
+        let userDataA = b2_body_get_user_data(bodyFixtureA)!
+        let userDataB = b2_body_get_user_data(bodyFixtureB)!
+        
+        defer {
+            fixtureA.deallocate()
+            fixtureB.deallocate()
+            
+            bodyFixtureA.deallocate()
+            bodyFixtureB.deallocate()
+        }
+
+        let bodyA = Unmanaged<Body2D>.fromOpaque(userDataA).takeUnretainedValue()
+        let bodyB = Unmanaged<Body2D>.fromOpaque(userDataB).takeUnretainedValue()
+        
+        let event = CollisionEvents.Ended(
+            entityA: bodyA.entity,
+            entityB: bodyB.entity
+        )
+
+        bodyA.world.scene?.eventManager.send(event)
+    }
+
+    func postSolve(_ contact: OpaquePointer, impulse: OpaquePointer) {
+        return
+    }
+
+    func preSolve(_ contact: OpaquePointer, oldManifold: OpaquePointer) {
+        return
+    }
+}
+
+extension OpaquePointer {
+    func deallocate() {
+        UnsafeRawPointer(self).deallocate()
+    }
+}

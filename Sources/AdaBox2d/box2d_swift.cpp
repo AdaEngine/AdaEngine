@@ -7,6 +7,7 @@
 
 #include "box2d_swift.h"
 #include <box2d/box2d.h>
+#include <memory>
 
 // MARK: B2_SHAPE
 
@@ -191,6 +192,13 @@ void b2_body_set_mass_data(b2_body_s* body, b2_mass_data massData) {
     body->body->SetMassData(&data);
 }
 
+b2_fixture_s* b2_body_get_fixture_list(b2_body_s* body) {
+    auto b2Fixture = body->body->GetFixtureList();
+    b2_fixture_s *fixture = new b2_fixture_s();
+    fixture->fixture = b2Fixture;
+    return fixture;
+}
+
 void b2_body_create_fixture(b2_body_s* body, b2_fixture_def def) {
     b2FixtureDef fixtureDef;
     fixtureDef.restitutionThreshold = def.restitutionThreshold;
@@ -203,13 +211,40 @@ void b2_body_create_fixture(b2_body_s* body, b2_fixture_def def) {
 }
 
 void b2_body_set_user_data(b2_body_s* body, const void* userData) {
-    auto b2UserData = body->body->GetUserData();
-    b2UserData.pointer = (uintptr_t)userData;
+    body->body->GetUserData().pointer = (uintptr_t)userData;
 }
 
-void* b2_body_get_user_data(b2_body_s* body) {
-    auto b2UserData = body->body->GetUserData();
-    return (void *)b2UserData.pointer;
+const void* b2_body_get_user_data(b2_body_s* body) {
+    const b2BodyUserData& b2UserData = body->body->GetUserData();
+    return (const void *)b2UserData.pointer;
+}
+
+// MARK: B2_FIXTURE
+
+b2_filter b2_fixture_get_filter_data(b2_fixture_s* fixture) {
+    auto b2Filter = fixture->fixture->GetFilterData();
+    
+    b2_filter filter;
+    filter.categoryBits = b2Filter.categoryBits;
+    filter.groupIndex = b2Filter.groupIndex;
+    filter.maskBits = b2Filter.maskBits;
+    return filter;
+}
+
+void b2_fixture_set_filter_data(b2_fixture_s* fixture, b2_filter filterData) {
+    auto b2Filter = fixture->fixture->GetFilterData();
+    b2Filter.categoryBits = filterData.categoryBits;
+    b2Filter.groupIndex = filterData.groupIndex;
+    b2Filter.maskBits = filterData.maskBits;
+    
+    fixture->fixture->SetFilterData(b2Filter);
+}
+
+b2_body_s* b2_fixture_get_body(b2_fixture_s* fixture) {
+    auto b2Fixture = fixture->fixture->GetBody();
+    b2_body_s* result = new b2_body_s();
+    result->body = b2Fixture;
+    return result;
 }
 
 // MARK: B2_SHAPE
@@ -226,6 +261,14 @@ b2_shape_s* b2_create_circle_shape() {
     b2_shape_s* shape = new b2_shape_s();
     shape->shape = circleShape;
     return shape;
+}
+
+void b2_circle_shape_set_position(b2_shape_s* shape, b2_vec2 position) {
+    ((b2CircleShape *)shape->shape)->m_p = { position.x, position.y };
+}
+
+void b2_shape_set_radius(b2_shape_s* shape, float radius) {
+    shape->shape->m_radius = radius;
 }
 
 void b2_polygon_shape_set(b2_shape_s* polygonShape, const b2_vec2* points, signed int count) {
@@ -252,17 +295,21 @@ public:
     
     virtual void BeginContact(b2Contact* contact) override {
         if (m_BeginContact) {
-            b2_contact_s c_contact;
-            c_contact.contact = contact;
+            auto c_contact = new b2_contact_s();
+            c_contact->contact = contact;
             m_BeginContact(m_UserData, c_contact);
+            
+            delete c_contact;
         }
     }
     
     virtual void EndContact(b2Contact* contact) override {
         if (m_EndContact) {
-            b2_contact_s c_contact;
-            c_contact.contact = contact;
+            auto c_contact = new b2_contact_s();
+            c_contact->contact = contact;
             m_EndContact(m_UserData, c_contact);
+            
+            delete c_contact;
         }
     }
     
@@ -299,7 +346,7 @@ private:
     const void* m_UserData;
 };
 
-contact_listener_s* b2_create_contactListener(const void *userData, contact_listener_callbacks_s callbacks) {
+contact_listener_s* b2_create_contactListener(const void *userData, contact_listener_callbacks callbacks) {
     ContactListener2D *b2_listener = new ContactListener2D(userData);
     b2_listener->m_BeginContact = callbacks.begin_contact;
     b2_listener->m_EndContact = callbacks.end_contact;
@@ -310,65 +357,23 @@ contact_listener_s* b2_create_contactListener(const void *userData, contact_list
     return listener;
 }
 
+b2_fixture_s* b2_contact_get_fixture_a(b2_contact_s *contact) {
+    auto fixture = contact->contact->GetFixtureA();
+    b2_fixture_s *result = new b2_fixture_s();
+    result->fixture = fixture;
+    return result;
+}
 
-//
-//// FIXME: fix PreSolve and PostSolve methods.
-//
-//namespace ada {
-//
-//b2PolygonShape* b2PolygonShape_create() {
-//    return new b2PolygonShape();
-//}
-//
-//void b2Polygon_delete(b2PolygonShape *shape) {
-//    delete shape;
-//}
-//
-//b2CircleShape* b2CircleShape_create() {
-//    return new b2CircleShape();
-//}
-//
-//void b2CircleShape_delete(b2CircleShape *shape) {
-//    delete shape;
-//}
-//
-//const b2Shape* b2Shape_unsafeCast(void *shape) {
-//    return (const b2Shape *)shape;
-//}
-//
-//float& b2Shape_GetRadius(b2Shape *shape) {
-//    return shape->m_radius;
-//}
-//
-//// b2Shape end
-//
-//// b2Joint
-//
-//const b2JointDef* b2JointDef_unsafeCast(void *joint) {
-//    return (const b2JointDef *)joint;
-//}
-//
-//// b2Joint end
-//
-//// b2World
-//
-//b2World* b2World_create(const b2Vec2& gravity) {
-//    return new b2World(gravity);
-//}
-//
-//void b2World_delete(b2World *world) {
-//    delete world;
-//}
-//
-//// b2World end
-//
-//
-////ContactListener2D* ContactListener2D_create(const void *userData) {
-////    return new ContactListener2D(userData);
-////}
-////
-////b2ContactListener* b2ContactListener_unsafeCast(void *ptr) {
-////    return (b2ContactListener*)ptr;
-////}
-//
-//}
+b2_fixture_s* b2_contact_get_fixture_b(b2_contact_s *contact) {
+    auto fixture = contact->contact->GetFixtureB();
+    b2_fixture_s *result = new b2_fixture_s();
+    result->fixture = fixture;
+    return result;
+}
+
+b2_manifold_s* b2_contact_get_manifold(b2_contact_s *contact) {
+    auto manifold = contact->contact->GetManifold();
+    b2_manifold_s* result = new b2_manifold_s();
+    result->manifold = manifold;
+    return result;
+}
