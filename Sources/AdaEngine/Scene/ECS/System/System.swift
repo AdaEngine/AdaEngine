@@ -12,6 +12,9 @@ public struct SceneUpdateContext {
     
     /// The number of seconds elapsed since the last update.
     public let deltaTime: TimeInterval
+    
+    /// The instance of render world
+    public let renderWorld: RenderWorld
 }
 
 /// An object that affects multiple entities in every frame.

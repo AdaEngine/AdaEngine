@@ -10,6 +10,7 @@ import Foundation
 public final class ShaderModule: Resource {
     
     private var shaders: [ShaderStage: Shader] = [:]
+    var reflectionData: ShaderReflectionData
     
     init(shaders: [ShaderStage : Shader] = [:], reflectionData: ShaderReflectionData) {
         self.shaders = shaders
@@ -28,9 +29,11 @@ public final class ShaderModule: Resource {
         return Array(self.shaders.keys)
     }
     
-    // Resource
+    public func setMacro(_ name: String, value: String, for shaderStage: ShaderStage) {
+        self.shaders[shaderStage]?.setMacro(name, value: value)
+    }
     
-    var reflectionData: ShaderReflectionData
+    // Resource
     
     public var resourceName: String = ""
     public var resourcePath: String = ""

@@ -49,14 +49,12 @@ spirv_bin compile_shader_glsl(
     shader.setEnvClient(glslang::EShClientVulkan, ClientVersion);
     shader.setEnvTarget(glslang::EShTargetSpv, TargetVersion);
     
-    // Rename user entry point to `main`
-    if (options.entryPointName) {
-        shader.setEntryPoint("main");
-        shader.setSourceEntryPoint(options.entryPointName);
+    if (options.preamble) {
+        shader.setPreamble(options.preamble);
     }
-    
+
     std::string pre_processed_code;
-    EShMessages message = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules | EShMsgDebugInfo);
+    EShMessages message = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
     
     if (!shader.preprocess(&DefaultTBuiltInResource, DefaultVersion, ENoProfile, false, false, message, &pre_processed_code, includer)) {
         printf("%s", shader.getInfoLog());

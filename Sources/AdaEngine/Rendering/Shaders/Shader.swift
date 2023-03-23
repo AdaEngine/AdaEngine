@@ -32,6 +32,10 @@ public final class Shader: Resource {
         self.compiledShader = nil
     }
     
+    public func setMacro(_ name: String, value: String) {
+        self.shaderCompiler.setMacro(name, value: value, for: self.stage)
+    }
+    
     func reflect() -> ShaderReflectionData {
         return self.spirvCompiler.reflection()
     }

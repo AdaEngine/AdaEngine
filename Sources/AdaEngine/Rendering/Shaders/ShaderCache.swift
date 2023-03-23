@@ -16,13 +16,14 @@ enum ShaderCache {
     struct ShaderCache: Equatable, Codable {
         let sourceHashValue: Int
         let headers: [ShaderSource.IncludeSearchPath]
+        let version: Int
     }
     
     private static let decoder = YAMLDecoder()
     private static let encoder = YAMLEncoder()
     private static let fileSystem = FileSystem.current
     
-    static func hasChanges(for source: ShaderSource) -> Set<ShaderStage> {
+    static func hasChanges(for source: ShaderSource, version: Int) -> Set<ShaderStage> {
         guard let cacheKey = source.fileURL?.relativeString else {
             return []
         }
@@ -39,7 +40,8 @@ enum ShaderCache {
             
             let shaderCache = ShaderCache(
                 sourceHashValue: shaderSource.uniqueHashValue,
-                headers: source.includeSearchPaths
+                headers: source.includeSearchPaths,
+                version: version
             )
             
             if cache == nil || (cache?[stage] != shaderCache) {
@@ -62,6 +64,7 @@ enum ShaderCache {
     static func getCachedShader(
         for source: ShaderSource,
         stage: ShaderStage,
+        version: Int,
         entryPoint: String
     ) -> SpirvBinary? {
         guard let fileURL = source.fileURL else {
@@ -73,7 +76,7 @@ enum ShaderCache {
         guard let cacheFile = try? self.getCacheDirectory()
             .appendingPathComponent(path)
             .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue).spv") else {
+            .appendingPathExtension("cache-\(stage.rawValue)-\(version).spv") else {
             return nil
         }
         
@@ -85,11 +88,12 @@ enum ShaderCache {
             stage: stage,
             data: data,
             language: source.language,
-            entryPoint: entryPoint
+            entryPoint: entryPoint,
+            version: version
         )
     }
     
-    static func save(_ spirvBin: SpirvBinary, source: ShaderSource, stage: ShaderStage) throws {
+    static func save(_ spirvBin: SpirvBinary, source: ShaderSource, stage: ShaderStage, version: Int) throws {
         guard let fileURL = source.fileURL else {
             return
         }
@@ -101,7 +105,7 @@ enum ShaderCache {
         let cacheURL = cacheDir
             .appendingPathComponent(path)
             .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue).spv")
+            .appendingPathExtension("cache-\(stage.rawValue)-\(version).spv")
         
         _ = fileSystem.createFile(at: cacheURL, contents: spirvBin.data)
     }

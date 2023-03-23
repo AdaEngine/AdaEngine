@@ -190,9 +190,13 @@ enum ShaderUtils {
     /// ```
     private static let entryPointRegex: String = #"\[\[(\w+)\]\]\s*(?:\[[^\]]+\])*\s*\w+\s([^\\(]+)"#
     
+    // Drop user entry point and replace it to `main`
     static func dropEntryPoint(from string: String) throws -> (String, String) {
         var newString = string
         if let (attributeName, functionName) = self.getFunctionAttribute(from: newString), attributeName == "main" {
+            let entryPoint = String(functionName)
+            
+            newString.replaceSubrange(functionName.startIndex..<functionName.endIndex, with: attributeName)
             
             // Remove it from source
             newString.removeSubrange(string.index(attributeName.startIndex, offsetBy: -2)..<string.index(attributeName.endIndex, offsetBy: 2))

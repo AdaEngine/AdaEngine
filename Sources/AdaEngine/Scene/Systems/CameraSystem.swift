@@ -35,6 +35,7 @@ struct CameraSystem: System {
                 viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
                 viewMatrix: camera.viewMatrix
             )
+            
             entity.components[Camera.self] = camera
         }
     }
@@ -99,3 +100,23 @@ struct CameraSystem: System {
         camera.computedData.projectionMatrix = projection
     }
 }
+
+struct ExtractCameraSystem: System {
+    
+    static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    
+    static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self) && .has(VisibleEntities.self))
+    
+    init(scene: Scene) { }
+    
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.query).forEach { entity in
+            let cameraEntity = EmptyEntity()
+            
+            cameraEntity.components = entity.components
+            cameraEntity.components.entity = cameraEntity
+            context.renderWorld.addEntity(cameraEntity)
+        }
+    }
+}
+

@@ -16,6 +16,17 @@ struct SpirvBinary {
     let data: Data
     let language: ShaderLanguage
     let entryPoint: String
+    let version: Int
+}
+
+public struct ShaderMacro {
+    public let name: String
+    public let value: String
+    
+    public init(name: String, value: String) {
+        self.name = name
+        self.value = value
+    }
 }
 
 /// ShaderCompiler is an entity to compile GLSL code to Shader objects (with SPIR-V binary).
@@ -42,9 +53,11 @@ public final class ShaderCompiler {
     public private(set) var includeSearchPaths: [ShaderSource.IncludeSearchPath] = [
         .module(
             name: "AdaEngine",
-            modulePath: Bundle.current.resourceURL!.appendingPathComponent("Shaders/Vulkan/Public")
+            modulePath: Bundle.engineBundle.resourceURL!.appendingPathComponent("Shaders/Vulkan/Public")
         )
     ]
+    
+    private var macros: [ShaderStage: [String : ShaderMacro]] = [:]
     
     private var shaderSource: ShaderSource
     
@@ -60,6 +73,10 @@ public final class ShaderCompiler {
     
     public func addHeaderSearchPaths(_ paths: [ShaderSource.IncludeSearchPath]) {
         self.includeSearchPaths.append(contentsOf: paths)
+    }
+    
+    public func setMacro(_ name: String, value: String, for shaderStage: ShaderStage) {
+        self.macros[shaderStage, default: [:]][name] = ShaderMacro(name: name, value: value)
     }
     
     public func setShader(_ source: ShaderSource, for stage: ShaderStage) {
@@ -104,9 +121,16 @@ public final class ShaderCompiler {
     
     // Get SPIRV from cache or compile new if something change in file.
     internal func compileSpirvBin(for stage: ShaderStage, ignoreCache: Bool = false) throws -> SpirvBinary {
-        if !ShaderCache.hasChanges(for: self.shaderSource).contains(stage), !ignoreCache {
+        let version = self.getShaderVersion(for: stage)
+        
+        if !ShaderCache.hasChanges(for: self.shaderSource, version: version).contains(stage), !ignoreCache {
             let entryPoint = self.shaderSource.getEntryPoint(for: stage)
-            if let binary = ShaderCache.getCachedShader(for: self.shaderSource, stage: stage, entryPoint: entryPoint) {
+            if let binary = ShaderCache.getCachedShader(
+                for: self.shaderSource,
+                stage: stage,
+                version: version,
+                entryPoint: entryPoint
+            ) {
                 return binary
             }
         }
@@ -118,7 +142,7 @@ public final class ShaderCompiler {
         let processedCode = try ShaderIncluder.processIncludes(in: code, includeSearchPath: self.includeSearchPaths)
         let (entryPoint, ppCode) = try ShaderUtils.dropEntryPoint(from: processedCode)
         let spirv = try self.compileCode(ppCode, entryPoint: entryPoint, stage: stage)
-        try? ShaderCache.save(spirv, source: self.shaderSource, stage: stage)
+        try? ShaderCache.save(spirv, source: self.shaderSource, stage: stage, version: version)
         
         return spirv
     }
@@ -133,9 +157,9 @@ public final class ShaderCompiler {
         }
         
         var error: UnsafePointer<CChar>?
-        
-        let binary = entryPoint.withCString { entryNamePtr in
-            let options = spirv_options(entryPointName: entryNamePtr)
+        let defines = self.getDefines(for: stage)
+        let binary = defines.withCString { definesPtr in
+            let options = spirv_options(preamble: definesPtr)
             
             return code.withCString { sourcePtr in
                 compile_shader_glsl(
@@ -159,8 +183,27 @@ public final class ShaderCompiler {
             stage: stage,
             data: data,
             language: self.shaderSource.language,
-            entryPoint: entryPoint
+            entryPoint: entryPoint,
+            version: self.getShaderVersion(for: stage)
         )
+    }
+    
+    private func getShaderVersion(for stage: ShaderStage) -> Int {
+        return self.getDefines(for: stage).uniqueHashValue
+    }
+    
+    private func getDefines(for stage: ShaderStage) -> String {
+        guard let macros = self.macros[stage] else {
+            return ""
+        }
+        
+        var defines = ""
+        
+        for macro in macros.values {
+            defines.append("#define \(macro.name.uppercased()) \(macro.value)\n")
+        }
+        
+        return defines
     }
 }
 

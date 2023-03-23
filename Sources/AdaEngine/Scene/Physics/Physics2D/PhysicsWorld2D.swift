@@ -206,9 +206,13 @@ final class _Physics2DContactListener {
 
 //        let impulse = contact.GetManifold().pointee.points.0.normalImpulse
 
+        guard let entityA = bodyA.entity, let entityB = bodyB.entity else {
+            return
+        }
+        
         let event = CollisionEvents.Began(
-            entityA: bodyA.entity,
-            entityB: bodyB.entity,
+            entityA: entityA,
+            entityB: entityB,
             impulse: 0
         )
 
@@ -236,9 +240,13 @@ final class _Physics2DContactListener {
         let bodyA = Unmanaged<Body2D>.fromOpaque(userDataA).takeUnretainedValue()
         let bodyB = Unmanaged<Body2D>.fromOpaque(userDataB).takeUnretainedValue()
         
+        guard let entityA = bodyA.entity, let entityB = bodyB.entity else {
+            return
+        }
+        
         let event = CollisionEvents.Ended(
-            entityA: bodyA.entity,
-            entityB: bodyB.entity
+            entityA: entityA,
+            entityB: entityB
         )
 
         bodyA.world.scene?.eventManager.send(event)

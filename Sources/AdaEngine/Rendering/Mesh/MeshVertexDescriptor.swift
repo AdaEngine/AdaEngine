@@ -38,7 +38,7 @@ public struct VertexDescriptorAttributesArray: Sequence, Codable {
         var lastOffset: Int = 0
         
         for var attribute in attributes {
-            if attribute.offset != -1 {
+            if attribute.offset != MeshVertexDescriptor.autocalculationOffset {
                 lastOffset = attribute.offset
             }
             
@@ -94,10 +94,6 @@ public enum VertexFormat: UInt, Codable {
     case vector3
     case vector2
     
-//    case matrix4x4
-//    case matrix3x3
-//    case matrix2x2
-    
     var offset: Int {
         switch self {
         case .invalid: return 0
@@ -109,9 +105,6 @@ public enum VertexFormat: UInt, Codable {
         case .vector4: return MemoryLayout<Vector4>.size
         case .vector3: return MemoryLayout<Vector3>.size
         case .vector2: return MemoryLayout<Vector2>.size
-//        case .matrix4x4: return MemoryLayout<Transform3D>.size
-//        case .matrix3x3: return MemoryLayout<Transform2D>.size
-//        case .matrix2x2: return MemoryLayout<Vector2>.size * 2
         }
     }
 }
@@ -120,6 +113,8 @@ public struct MeshVertexDescriptor: Codable {
     
     public var attributes: VertexDescriptorAttributesArray
     public var layouts: VertexDescriptorLayoutsArray
+    
+    public static let autocalculationOffset: Int = -2018
     
     public struct Attribute: CustomStringConvertible, Codable {
         public var name: String
@@ -131,8 +126,8 @@ public struct MeshVertexDescriptor: Codable {
             return "Attribute: name=\(name) offset=\(offset) bufferIndex=\(bufferIndex) format=\(format)"
         }
         
-        public static func attribute(_ format: VertexFormat, name: String, bufferIndex: Int = 0) -> Self {
-            Attribute(name: name, offset: -1, bufferIndex: bufferIndex, format: format)
+        public static func attribute(_ format: VertexFormat, name: String, bufferIndex: Int = 0, offset: Int = autocalculationOffset) -> Self {
+            Attribute(name: name, offset: offset, bufferIndex: bufferIndex, format: format)
         }
     }
     
@@ -158,7 +153,6 @@ public struct MeshVertexDescriptor: Codable {
 
 extension MeshVertexDescriptor: CustomStringConvertible {
     public var description: String {
-        
         let attributesDesc = self.attributes.enumerated().reduce("", { result, value in
             let shouldInsertColumn = value.offset < self.attributes.count - 1
             let newDesc = value.element.description + (shouldInsertColumn ? "," : "")
@@ -171,42 +165,6 @@ extension MeshVertexDescriptor: CustomStringConvertible {
         })
         return String(format: "MeshVertexDescriptor: attributes(\n%@) layots: {\n%@}", attributesDesc, layoutsDesc)
     }
-}
-
-public extension MeshVertexDescriptor {
-    static let defaultVertexDescriptor: MeshVertexDescriptor = {
-        var descriptor = MeshVertexDescriptor()
-        
-        var offset = 0
-        
-        descriptor.attributes[0].bufferIndex = 0
-        descriptor.attributes[0].format = .vector4
-        descriptor.attributes[0].offset = offset
-        
-//        offset += MemoryLayout.offset(of: \Vertex.position)!
-        
-        descriptor.attributes[1].bufferIndex = 0
-        descriptor.attributes[1].format = .vector4
-        descriptor.attributes[1].offset = offset
-        
-//        offset += MemoryLayout.offset(of: \Vertex.normal)!
-        
-        descriptor.attributes[2].bufferIndex = 0
-        descriptor.attributes[2].format = .vector2
-        descriptor.attributes[2].offset = offset
-        
-//        offset += MemoryLayout.offset(of: \Vertex.uv)!
-        
-        descriptor.attributes[3].bufferIndex = 0
-        descriptor.attributes[3].format = .vector4
-        descriptor.attributes[3].offset = offset
-        
-//        offset += MemoryLayout.offset(of: \Vertex.color)!
-        
-        descriptor.layouts[0].stride = offset
-        
-        return descriptor
-    }()
 }
 
 #if METAL
@@ -308,9 +266,6 @@ extension VertexFormat {
         case .float: return .float
         case .vector3: return .float3
         case .vector2: return .float2
-//        case .matrix4x4: return .half4
-//        case .matrix3x3: return .half3
-//        case .matrix2x2: return .half2
         case .short: return .short
         case .int: return .int
         case .char: return .char

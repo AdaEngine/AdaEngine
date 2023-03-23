@@ -473,11 +473,13 @@ extension MetalRenderBackend {
             let data = list.uniformBuffers[index]!
             let buffer = data.buffer as! MetalUniformBuffer
             
-            switch data.function {
+            switch data.shaderStage {
             case .vertex:
                 encoder.setVertexBuffer(buffer.buffer, offset: 0, index: buffer.binding)
             case .fragment:
                 encoder.setFragmentBuffer(buffer.buffer, offset: 0, index: buffer.binding)
+            default:
+                continue
             }
         }
         
@@ -723,8 +725,8 @@ let MTLResourceStorageModeShared = Int(MTLStorageMode(rawValue: 0)!.rawValue << 
 
 // FIXME: (Vlad) Think about it
 
-extension Bundle {
-    static var current: Bundle {
+public extension Bundle {
+    static var engineBundle: Bundle {
 #if SWIFT_PACKAGE
         return Bundle.module
 #else

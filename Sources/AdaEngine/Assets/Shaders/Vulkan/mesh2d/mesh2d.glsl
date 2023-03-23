@@ -1,0 +1,76 @@
+#version 450 core
+#pragma stage : vert
+
+#include <AdaEngine/View.glsl>
+#include "mesh2d_uniform.glsl"
+#include "mesh2d_functions.glsl"
+
+#ifdef VERTEX_POSITIONS
+layout (location = 0) in vec3 a_Position;
+#endif
+
+#ifdef VERTEX_NORMALS
+layout (location = 1) in vec3 a_Normal;
+#endif
+
+#ifdef VERTEX_UVS
+layout (location = 2) in vec2 a_UV;
+#endif
+
+#ifdef VERTEX_COLORS
+layout (location = 3) in vec2 a_VertexColor;
+#endif
+
+struct VertexOut
+{
+    vec4 WorldPosition;
+    vec3 WorldNormal;
+    vec2 UV;
+    vec4 VertexColor;
+};
+
+layout (location = 0) out VertexOut Output;
+
+[[main]]
+void mesh_vertex()
+{
+#ifdef VERTEX_POSITIONS
+    Output.WorldPosition = Mesh2dPositionLocalToWorld(u_MeshModel, a_Position);
+#endif
+    
+#ifdef VERTEX_NORMALS
+    Output.WorldNormal = Mesh2dNormalLocalToWorld(a_Normal);
+#endif
+    
+#ifdef VERTEX_UVS
+    Output.UV = a_UV;
+#endif
+    
+#ifdef VERTEX_COLORS
+    Output.VertexColor = a_VertexColor;
+#endif
+    
+    gl_Position = u_ViewProjection * Output.WorldPosition;
+}
+
+#version 450 core
+#pragma stage : frag
+
+#include "mesh2d_vertex_output.glsl"
+
+layout (location = 0) out vec4 color;
+
+[[main]]
+void mesh_fragment()
+{
+#ifdef VERTEX_COLORS
+    color = Input.VertexColor;
+    
+    // to avoid depth write
+    if (color.a == 0.0) {
+        discard;
+    }
+#else
+    color = vec4(1.0, 0.0, 1.0, 1.0);
+#endif
+}

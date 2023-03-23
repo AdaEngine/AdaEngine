@@ -15,7 +15,7 @@ final class FoundationFileSystem: FileSystem {
     
     override var applicationFolderURL: URL {
         #if os(macOS)
-        return Bundle.current.bundleURL.deletingLastPathComponent()
+        return Bundle.engineBundle.bundleURL.deletingLastPathComponent()
         #else
         return URL(fileURLWithPath: fileManager.currentDirectoryPath)
         #endif

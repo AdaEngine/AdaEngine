@@ -10,7 +10,7 @@ import MetalKit
 
 class MetalVertexBuffer: MetalBuffer, VertexBuffer {
     
-    let binding: Int
+    var binding: Int
     let offset: Int
     
     init(buffer: MTLBuffer, binding: Int, offset: Int) {

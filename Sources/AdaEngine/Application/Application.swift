@@ -37,6 +37,8 @@ open class Application {
     
     public var windowManager: WindowManager = WindowManager()
     
+    public let renderWorld = RenderWorld()
+    
     // MARK: - Internal
     
     public init(

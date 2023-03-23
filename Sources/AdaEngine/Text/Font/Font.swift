@@ -90,7 +90,7 @@ public extension Font {
 public extension Font {
     static func system(weight: FontWeight = .regular) -> Font {
         do {
-            return try ResourceManager.load("Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf", from: .current) as Font
+            return try ResourceManager.load("Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf", from: .engineBundle) as Font
         } catch {
             fatalError("[Font]: Something went wrong \(error.localizedDescription)")
         }
