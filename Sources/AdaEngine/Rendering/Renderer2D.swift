@@ -100,7 +100,7 @@ public class Renderer2D {
         
         // Circle
         
-        let circleShader = try! ResourceManager.load("Shaders/Vulkan/circle.glsl", from: .current) as ShaderModule
+        let circleShader = try! ResourceManager.load("Shaders/Vulkan/circle.glsl", from: .engineBundle) as ShaderModule
         
         var piplineDesc = RenderPipelineDescriptor()
         piplineDesc.shaderModule = circleShader
@@ -144,7 +144,7 @@ public class Renderer2D {
         
         piplineDesc.debugName = "Quad Pipline"
         
-        let quadShader = try! ResourceManager.load("Shaders/Vulkan/quad.glsl", from: .current) as ShaderModule
+        let quadShader = try! ResourceManager.load("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
         piplineDesc.shaderModule = quadShader
         
         piplineDesc.vertexDescriptor.attributes.append([
@@ -179,7 +179,7 @@ public class Renderer2D {
         
         piplineDesc.debugName = "Lines Pipeline"
         
-        let linesShader = try! ResourceManager.load("Shaders/Vulkan/line.glsl", from: .current) as ShaderModule
+        let linesShader = try! ResourceManager.load("Shaders/Vulkan/line.glsl", from: .engineBundle) as ShaderModule
         piplineDesc.shaderModule = linesShader
         
         piplineDesc.vertexDescriptor.attributes.append([
@@ -227,7 +227,7 @@ public class Renderer2D {
         
         piplineDesc.debugName = "Text Pipeline"
         
-        let textShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .current) as ShaderModule
+        let textShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
         piplineDesc.shaderModule = textShader
         
         piplineDesc.vertexDescriptor.attributes.append([

@@ -38,8 +38,9 @@ struct VisibilitySystem: System {
                 return
             }
             
-            let filtredEntities = self.filterVisibileEntities(context: context, for: camera)
+            let (filtredEntities, entityIds) = self.filterVisibileEntities(context: context, for: camera)
             visibleEntities.entities = filtredEntities
+            visibleEntities.entityIds = entityIds
             entity.components[VisibleEntities.self] = visibleEntities
         }
     }
@@ -69,8 +70,11 @@ struct VisibilitySystem: System {
         }
     }
     
-    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> [Entity] {
+    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
+        
+        var entityIds = Set<Entity.ID>()
+        
         var filtredEntities = context.scene.performQuery(Self.entities).filter { entity in
             let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
             
@@ -80,16 +84,29 @@ struct VisibilitySystem: System {
             
             switch bounding.bounds {
             case .aabb(let aabb):
-                return frustum.intersectsAABB(aabb)
+                let isIntersect = frustum.intersectsAABB(aabb)
+                
+                if isIntersect {
+                    entityIds.insert(entity.id)
+                }
+                
+                return isIntersect
             }
         }
         
         var withNoFrustumEntities = context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
             let visibility = entity.components[Visibility.self]!
             
-            return visibility.isVisible
+            if visibility.isVisible {
+                entityIds.insert(entity.id)
+                return true
+            }
+            
+            return false
         }
         
-        return filtredEntities + withNoFrustumEntities
+        let entities = filtredEntities + withNoFrustumEntities
+        
+        return (entities, entityIds)
     }
 }

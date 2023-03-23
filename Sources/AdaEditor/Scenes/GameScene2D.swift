@@ -198,7 +198,7 @@ final class GameScene2D {
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
         try self.makeCanvasItem(for: scene)
-//        self.collisionHandler(for: scene)
+        self.collisionHandler(for: scene)
 //        self.fpsCounter(for: scene)
         self.addText(to: scene)
         
@@ -229,7 +229,7 @@ final class GameScene2D {
         scene.subscribe(to: CollisionEvents.Began.self) { event in
             if event.entityA.name == "Player" && (event.entityB.name == "Tube") {
                 //                event.entityA.scene?.removeEntity(event.entityA)
-                print("collide with tube")
+//                print("collide with tube")
                 //                self.gameOver()
             }
         }
@@ -262,11 +262,17 @@ final class GameScene2D {
     }
     
     func makeCanvasItem(for scene: Scene) throws {
-        let material = try ResourceManager.load("Assets/custom_material.glsl", from: .module) as Material
+        let material = try ResourceManager.load("Assets/custom_material.glsl", from: Bundle.module) as ShaderModule
         
-        let entity = Entity(name: "custom_material")
-        entity.components += CanvasComponent(material: material)
-        scene.addEntity(entity)
+        material.setMacro("VERTEX_UVS", value: "1", for: .vertex)
+        material.setMacro("VERTEX_POSITIONS", value: "1", for: .vertex)
+        material.setMacro("VERTEX_COLORS", value: "1", for: .vertex)
+        
+        try material.getShader(for: .vertex)?.reload()
+        
+//        let entity = Entity(name: "custom_material")
+//        entity.components += CanvasComponent(material: material)
+//        scene.addEntity(entity)
     }
     
     private func makeGround(for scene: Scene) {
@@ -306,6 +312,7 @@ extension GameScene2D {
         var transform = Transform()
         transform.scale = Vector3(0.3)
         transform.position.x = -1
+        transform.position.z = -1
         transform.position.y = 0
         entity.components += transform
         entity.components += NoFrustumCulling()
@@ -340,7 +347,6 @@ extension GameScene2D {
         scene.addEntity(entity)
     }
 }
-
 
 struct MyMaterial: CanvasMaterial {
     @Uniform(binding: 0) var color: Color = .red

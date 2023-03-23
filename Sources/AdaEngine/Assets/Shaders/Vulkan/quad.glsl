@@ -1,7 +1,7 @@
 #version 450 core
 #pragma stage : vert
 
-#include "Common.glsl"
+#include <AdaEngine/View.glsl>
 
 layout (location = 0) in vec4 a_Position;
 layout (location = 1) in vec4 a_Color;
@@ -24,7 +24,7 @@ void quad_vertex()
     Output.TexCoordinate = a_TexCoordinate;
     TexIndex = a_TexIndex;
     
-    gl_Position = u_ViewTransform * a_Position;
+    gl_Position = u_ViewProjection * a_Position;
 }
 
 #version 450 core

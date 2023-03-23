@@ -11,7 +11,7 @@ import Math
 public final class Body2D {
     
     unowned let world: PhysicsWorld2D
-    unowned let entity: Entity
+    weak var entity: Entity?
     
     private(set) var ref: OpaquePointer
     

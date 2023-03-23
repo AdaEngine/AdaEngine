@@ -15,7 +15,7 @@ public final class DrawList {
     
     struct BufferData<T> {
         let buffer: T
-        let function: ShaderFunction
+        let shaderStage: ShaderStage
     }
     
     let commandBuffer: DrawCommandBuffer
@@ -77,8 +77,8 @@ public final class DrawList {
         self.textures[index] = texture
     }
     
-    public func appendUniformBuffer(_ uniformBuffer: UniformBuffer, for shaderFunction: ShaderFunction = .vertex) {
-        self.uniformBuffers[self.uniformBufferCount] = BufferData(buffer: uniformBuffer, function: shaderFunction)
+    public func appendUniformBuffer(_ uniformBuffer: UniformBuffer, for shaderStage: ShaderStage = .vertex) {
+        self.uniformBuffers[self.uniformBufferCount] = BufferData(buffer: uniformBuffer, shaderStage: shaderStage)
         self.uniformBufferCount += 1
     }
     

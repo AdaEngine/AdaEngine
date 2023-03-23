@@ -31,10 +31,8 @@ public final class Scene: Resource {
     
     private(set) var eventManager: EventManager = EventManager.default
     
-    public private(set) lazy var sceneRenderGraph = RenderGraph()
-    
-    private let systemGraph = SystemsGraph()
-    private let systemGraphExecutor = SystemsGraphExecutor()
+    internal let systemGraph = SystemsGraph()
+    internal let systemGraphExecutor = SystemsGraphExecutor()
     
     // Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
@@ -141,7 +139,12 @@ public final class Scene: Resource {
     func update(_ deltaTime: TimeInterval) {
         self.world.tick()
         
-        let context = SceneUpdateContext(scene: self, deltaTime: deltaTime)
+        let context = SceneUpdateContext(
+            scene: self,
+            deltaTime: deltaTime,
+            renderWorld: Application.shared.renderWorld
+        )
+        
         self.systemGraphExecutor.execute(self.systemGraph, context: context)
     }
 }

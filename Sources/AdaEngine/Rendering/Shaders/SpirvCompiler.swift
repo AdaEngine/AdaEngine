@@ -198,13 +198,7 @@ final class SpirvCompiler {
                 var descriptorSet = reflectionData.descriptorSets[Int(descriptorSetIndex)]
                 
                 switch resourceType {
-//                case .uniformBuffer:
-//                    descriptorSet.uniformsBuffers[Int(binding)] = ShaderResource.UniformBuffer(
-//                        name: resourceName,
-//                        binding: Int(binding),
-//                        size: size
-//                    )
-                case .uniformBuffer:
+                case .uniformBuffer, .pushConstantBuffer:
                     var members = [String: ShaderResource.ShaderBufferMember]()
                     
                     let memberTypesCount = spvc_type_get_num_member_types(type)

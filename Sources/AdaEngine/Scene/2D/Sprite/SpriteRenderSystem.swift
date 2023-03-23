@@ -8,16 +8,12 @@
 public struct SpriteRenderSystem: System {
     
     public static var dependencies: [SystemDependency] = [
-        .before(Physics2DSystem.self),
-        .before(BatchTransparent2DItemsSystem.self),
-        .after(VisibilitySystem.self)
+        .before(BatchTransparent2DItemsSystem.self)
     ]
     
-    static let cameras = EntityQuery(where:
-            .has(Camera.self) &&
-            .has(VisibleEntities.self) &&
-            .has(RenderItems<Transparent2DRenderItem>.self)
-    )
+    static let cameras = EntityQuery(where: .has(Camera.self) && .has(RenderItems<Transparent2DRenderItem>.self))
+    
+    static let extractedSprites = EntityQuery(where: .has(ExtractedSprites.self))
     
     struct SpriteVertexData {
         let position: Vector4
@@ -41,7 +37,7 @@ public struct SpriteRenderSystem: System {
     public init(scene: Scene) {
         let device = RenderEngine.shared
         
-        let quadShader = try! ResourceManager.load("Shaders/Vulkan/quad.glsl", from: .current) as ShaderModule
+        let quadShader = try! ResourceManager.load("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
         
         var piplineDesc = RenderPipelineDescriptor()
         piplineDesc.shaderModule = quadShader
@@ -67,19 +63,22 @@ public struct SpriteRenderSystem: System {
     }
     
     public func update(context: UpdateContext) {
+        let extractedSprites = context.scene.performQuery(Self.extractedSprites)
+        
         context.scene.performQuery(Self.cameras).forEach { entity in
-            var (camera, visibleEntities, renderItems) = entity.components[Camera.self, VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
+            let visibleEntities = entity.components[VisibleEntities.self]!
+            var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
             
-            if !camera.isActive {
-                return
+            for entity in extractedSprites {
+                let extractedSprites = entity.components[ExtractedSprites.self]!
+                
+                self.draw(
+                    extractedSprites: extractedSprites.sprites,
+                    visibleEntities: visibleEntities,
+                    renderItems: &renderItems
+                )
             }
-            
-            self.draw(
-                scene: context.scene,
-                visibleEntities: visibleEntities.entities,
-                renderItems: &renderItems
-            )
-            
+          
             entity.components += renderItems
         }
     }
@@ -87,16 +86,18 @@ public struct SpriteRenderSystem: System {
     // MARK: - Private
     
     // swiftlint:disable:next function_body_length cyclomatic_complexity
-    private func draw(scene: Scene, visibleEntities: [Entity], renderItems: inout RenderItems<Transparent2DRenderItem>) {
+    private func draw(
+        extractedSprites: [ExtractedSprite],
+        visibleEntities: VisibleEntities,
+        renderItems: inout RenderItems<Transparent2DRenderItem>
+    ) {
         let spriteDraw = SpriteDrawPass.identifier
         
         let spriteData = EmptyEntity(name: "sprite_data")
         
-        let sprites = visibleEntities.filter {
-            $0.components.has(SpriteComponent.self)
-        }
+        let sprites = extractedSprites
             .sorted { lhs, rhs in
-                lhs.components[Transform.self]!.position.z < rhs.components[Transform.self]!.position.z
+                lhs.transform.position.z < rhs.transform.position.z
             }
         
         var spriteVerticies = [SpriteVertexData]()
@@ -109,10 +110,12 @@ public struct SpriteRenderSystem: System {
         var currentBatchEntity = EmptyEntity()
         var currentBatch = BatchComponent(textures: [Texture2D].init(repeating: gpuWhiteTexture, count: Self.maxTexturesPerBatch))
         
-        for entity in sprites {
+        for sprite in sprites {
+            guard visibleEntities.entityIds.contains(sprite.entityId) else {
+                continue
+            }
             
-            let transform = entity.components[Transform.self]!
-            let worldTransform = scene.worldTransformMatrix(for: entity)
+            let worldTransform = sprite.worldTransform
             
             if textureSlotIndex >= Self.maxTexturesPerBatch {
                 currentBatchEntity.components += currentBatch
@@ -120,89 +123,48 @@ public struct SpriteRenderSystem: System {
                 currentBatchEntity = EmptyEntity()
                 currentBatch = BatchComponent(textures: [Texture2D].init(repeating: gpuWhiteTexture, count: Self.maxTexturesPerBatch))
             }
+            // Select a texture index for draw
+            let textureIndex: Int
             
-            if let sprite = entity.components[SpriteComponent.self] {
-                // Select a texture index for draw
-                let textureIndex: Int
-                
-                if let texture = sprite.texture {
-                    if let index = currentBatch.textures.firstIndex(where: { $0 === texture }) {
-                        textureIndex = index
-                    } else {
-                        currentBatch.textures[textureSlotIndex] = texture
-                        textureIndex = textureSlotIndex
-                        textureSlotIndex += 1
-                    }
+            if let texture = sprite.texture {
+                if let index = currentBatch.textures.firstIndex(where: { $0 === texture }) {
+                    textureIndex = index
                 } else {
-                    // for white texture
-                    textureIndex = 0
+                    currentBatch.textures[textureSlotIndex] = texture
+                    textureIndex = textureSlotIndex
+                    textureSlotIndex += 1
                 }
-                
-                let texture = currentBatch.textures[textureIndex]
-                
-                for index in 0 ..< Self.quadPosition.count {
-                    let data = SpriteVertexData(
-                        position: worldTransform * Self.quadPosition[index],
-                        color: sprite.tintColor,
-                        textureCoordinate: texture.textureCoordinates[index],
-                        textureIndex: textureIndex
-                    )
-                    spriteVerticies.append(data)
-                }
-                
-                let itemStart = indeciesCount
-                indeciesCount += 6
-                let itemEnd = indeciesCount
-                
-                renderItems.items.append(
-                    Transparent2DRenderItem(
-                        entity: spriteData,
-                        batchEntity: currentBatchEntity,
-                        drawPassId: spriteDraw,
-                        renderPipeline: self.quadRenderPipeline,
-                        sortKey: transform.position.z,
-                        batchRange: itemStart..<itemEnd
-                    )
-                )
+            } else {
+                // for white texture
+                textureIndex = 0
             }
             
-            // TODO: Should be in debug render system
-            if scene.debugOptions.contains(.showBoundingBoxes) {
-                if let bounding = entity.components[BoundingComponent.self] {
-                    guard case .aabb(let aabb) = bounding.bounds else {
-                        continue
-                    }
-                    
-                    let size: Vector2 = [aabb.halfExtents.x * 2, aabb.halfExtents.y * 2]
-                    let transform = Transform3D(translation: aabb.center) * Transform3D(scale: Vector3(size, 1))
-                    
-                    for index in 0 ..< Self.quadPosition.count {
-                        let data = SpriteVertexData(
-                            position: transform * Self.quadPosition[index],
-                            color: scene.debugPhysicsColor,
-                            textureCoordinate: gpuWhiteTexture.textureCoordinates[index],
-                            textureIndex: 0 // white texture
-                        )
-                        
-                        spriteVerticies.append(data)
-                    }
-                    
-                    let itemStart = indeciesCount
-                    indeciesCount += 6
-                    let itemEnd = indeciesCount
-                    
-                    renderItems.items.append(
-                        Transparent2DRenderItem(
-                            entity: spriteData,
-                            batchEntity: currentBatchEntity,
-                            drawPassId: spriteDraw,
-                            renderPipeline: self.quadRenderPipeline,
-                            sortKey: Float.greatestFiniteMagnitude,
-                            batchRange: itemStart..<itemEnd
-                        )
-                    )
-                }
+            let texture = currentBatch.textures[textureIndex]
+            
+            for index in 0 ..< Self.quadPosition.count {
+                let data = SpriteVertexData(
+                    position: worldTransform * Self.quadPosition[index],
+                    color: sprite.tintColor,
+                    textureCoordinate: texture.textureCoordinates[index],
+                    textureIndex: textureIndex
+                )
+                spriteVerticies.append(data)
             }
+            
+            let itemStart = indeciesCount
+            indeciesCount += 6
+            let itemEnd = indeciesCount
+            
+            renderItems.items.append(
+                Transparent2DRenderItem(
+                    entity: spriteData,
+                    batchEntity: currentBatchEntity,
+                    drawPassId: spriteDraw,
+                    renderPipeline: self.quadRenderPipeline,
+                    sortKey: sprite.transform.position.z,
+                    batchRange: itemStart..<itemEnd
+                )
+            )
         }
         
         currentBatchEntity.components += currentBatch
@@ -259,4 +221,60 @@ struct SpriteDataComponent: Component {
 
 public struct BatchComponent: Component {
     public var textures: [Texture2D]
+}
+
+// MARK: Extraction to Render World
+
+public struct ExtractedSprites: Component {
+    public var sprites: [ExtractedSprite]
+    
+    public init(sprites: [ExtractedSprite]) {
+        self.sprites = sprites
+    }
+}
+
+public struct ExtractedSprite: Component {
+    public var entityId: Entity.ID
+    public var texture: Texture2D?
+    public var tintColor: Color
+    public var transform: Transform
+    public var worldTransform: Transform3D
+}
+
+public struct ExtractSpriteSystem: System {
+    
+    public static var dependencies: [SystemDependency] = [.after(VisibilitySystem.self)]
+    
+    static let sprites = EntityQuery(where: .has(SpriteComponent.self) && .has(Transform.self) && .has(Visibility.self))
+    
+    public init(scene: Scene) { }
+    
+    public func update(context: UpdateContext) {
+        
+        let extractedEntity = EmptyEntity()
+        var extractedSprites = ExtractedSprites(sprites: [])
+        
+        context.scene.performQuery(Self.sprites).forEach { entity in
+            let (sprite, transform, visible) = entity.components[SpriteComponent.self, Transform.self, Visibility.self]
+            
+            if !visible.isVisible {
+                return
+            }
+            
+            let worldTransform = context.scene.worldTransformMatrix(for: entity)
+            
+            extractedSprites.sprites.append(
+                ExtractedSprite(
+                    entityId: entity.id,
+                    texture: sprite.texture,
+                    tintColor: sprite.tintColor,
+                    transform: transform,
+                    worldTransform: worldTransform
+                )
+            )
+        }
+        
+        extractedEntity.components += extractedSprites
+        context.renderWorld.addEntity(extractedEntity)
+    }
 }

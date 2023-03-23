@@ -11,7 +11,6 @@
 public struct Text2DRenderSystem: System {
     
     public static var dependencies: [SystemDependency] = [
-        .after(Text2DLayoutSystem.self),
         .after(VisibilitySystem.self),
         .before(BatchTransparent2DItemsSystem.self)
     ]
@@ -28,7 +27,6 @@ public struct Text2DRenderSystem: System {
     static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self) && .has(TextLayoutComponent.self))
     
     static let cameras = EntityQuery(where:
-            .has(Camera.self) &&
         .has(VisibleEntities.self) &&
         .has(RenderItems<Transparent2DRenderItem>.self)
     )
@@ -39,7 +37,7 @@ public struct Text2DRenderSystem: System {
     public init(scene: Scene) {
         let device = RenderEngine.shared
         
-        let textShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .current) as ShaderModule
+        let textShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
         var piplineDesc = RenderPipelineDescriptor()
         piplineDesc.shaderModule = textShader
         piplineDesc.debugName = "Text Pipeline"
@@ -65,11 +63,7 @@ public struct Text2DRenderSystem: System {
     
     public func update(context: UpdateContext) {
         context.scene.performQuery(Self.cameras).forEach { entity in
-            var (camera, visibleEntities, renderItems) = entity.components[Camera.self, VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
-            
-            if !camera.isActive {
-                return
-            }
+            var (visibleEntities, renderItems) = entity.components[VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
             
             self.draw(
                 scene: context.scene,
@@ -174,6 +168,32 @@ public struct Text2DRenderSystem: System {
                 vertexBuffer: vertexBuffer,
                 indexBuffer: quadIndexBuffer
             )
+        }
+    }
+}
+
+struct ExctractTextSystem: System {
+    
+    static var dependencies: [SystemDependency] = [
+        .after(VisibilitySystem.self),
+        .after(Text2DLayoutSystem.self)
+    ]
+    
+    static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self) && .has(TextLayoutComponent.self))
+    
+    init(scene: Scene) { }
+    
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.textComponents).forEach { entity in
+            
+            if entity.components[Visibility.self]?.isVisible == false {
+                return
+            }
+            
+            let exctractedEntity = EmptyEntity()
+            exctractedEntity.components += entity.components[Transform.self]!
+            exctractedEntity.components += entity.components[Text2DComponent.self]!
+            context.renderWorld.addEntity(exctractedEntity)
         }
     }
 }

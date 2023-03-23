@@ -21,7 +21,7 @@ enum shaderc_stage {
 };
 
 struct spirv_options {
-    const char* entryPointName;
+    const char* preamble;
 };
 
 struct spirv_bin {
