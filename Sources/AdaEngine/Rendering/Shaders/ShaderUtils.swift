@@ -194,7 +194,6 @@ enum ShaderUtils {
     static func dropEntryPoint(from string: String) throws -> (String, String) {
         var newString = string
         if let (attributeName, functionName) = self.getFunctionAttribute(from: newString), attributeName == "main" {
-            let entryPoint = String(functionName)
             
             newString.replaceSubrange(functionName.startIndex..<functionName.endIndex, with: attributeName)
             

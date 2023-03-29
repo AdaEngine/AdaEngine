@@ -103,7 +103,8 @@ public class Renderer2D {
         let circleShader = try! ResourceManager.load("Shaders/Vulkan/circle.glsl", from: .engineBundle) as ShaderModule
         
         var piplineDesc = RenderPipelineDescriptor()
-        piplineDesc.shaderModule = circleShader
+        piplineDesc.vertex = circleShader.getShader(for: .vertex)
+        piplineDesc.fragment = circleShader.getShader(for: .fragment)
         piplineDesc.debugName = "Circle Pipeline"
         
         piplineDesc.vertexDescriptor.attributes.append([
@@ -140,12 +141,13 @@ public class Renderer2D {
         
         // Quads
         
-        piplineDesc.vertexDescriptor.reset()
+        piplineDesc.vertexDescriptor = VertexDescriptor()
         
         piplineDesc.debugName = "Quad Pipline"
         
         let quadShader = try! ResourceManager.load("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
-        piplineDesc.shaderModule = quadShader
+        piplineDesc.vertex = quadShader.getShader(for: .vertex)
+        piplineDesc.fragment = quadShader.getShader(for: .fragment)
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "position"),
@@ -175,12 +177,13 @@ public class Renderer2D {
         
         // Lines
         
-        piplineDesc.vertexDescriptor.reset()
+        piplineDesc.vertexDescriptor = VertexDescriptor()
         
         piplineDesc.debugName = "Lines Pipeline"
         
         let linesShader = try! ResourceManager.load("Shaders/Vulkan/line.glsl", from: .engineBundle) as ShaderModule
-        piplineDesc.shaderModule = linesShader
+        piplineDesc.vertex = linesShader.getShader(for: .vertex)
+        piplineDesc.fragment = linesShader.getShader(for: .fragment)
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector3, name: "position"),
@@ -223,12 +226,13 @@ public class Renderer2D {
         
         // Text
         
-        piplineDesc.vertexDescriptor.reset()
+        piplineDesc.vertexDescriptor = VertexDescriptor()
         
         piplineDesc.debugName = "Text Pipeline"
         
         let textShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
-        piplineDesc.shaderModule = textShader
+        piplineDesc.vertex = textShader.getShader(for: .vertex)
+        piplineDesc.fragment = textShader.getShader(for: .fragment)
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "position"),
@@ -264,7 +268,7 @@ public class Renderer2D {
         return context
     }
     
-    public func beginContext(for camera: Camera, viewUniform: ViewUniform, transform: Transform) -> DrawContext {
+    public func beginContext(for camera: Camera, viewUniform: GlobalViewUniform, transform: Transform) -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = self.uniformSet.getBuffer(binding: Bindings.cameraUniform, set: 0, frameIndex: frameIndex)

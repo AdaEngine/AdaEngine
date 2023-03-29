@@ -18,7 +18,6 @@ public struct Scene2DPlugin: ScenePlugin {
     public func setup(in scene: Scene) {
         
         // Add Systems
-//        scene.addSystem(ClearTransparent2DRenderItemsSystem.self)
         scene.addSystem(BatchTransparent2DItemsSystem.self)
         
         // Add Render graph

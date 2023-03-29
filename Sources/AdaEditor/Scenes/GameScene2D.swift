@@ -12,10 +12,22 @@ struct PlayerMovementSystem: System {
     static let playerQuery = EntityQuery(where: .has(PlayerComponent.self) && .has(PhysicsBody2DComponent.self))
     
     static let cameraQuery = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
+    static let matQuery = EntityQuery(where: .has(Mesh2dComponent.self) && .has(Transform.self))
     
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
+        
+        context.scene.performQuery(Self.matQuery).forEach { entity in
+            let meshComponent = entity.components[Mesh2dComponent.self]!
+            if Input.isMouseButtonPressed(.left) {
+                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .blue
+            } else {
+                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .red
+            }
+            
+        }
+        
         context.scene.performQuery(Self.playerQuery).forEach { entity in
             let body = entity.components[PhysicsBody2DComponent.self]!
             
@@ -262,17 +274,24 @@ final class GameScene2D {
     }
     
     func makeCanvasItem(for scene: Scene) throws {
-        let material = try ResourceManager.load("Assets/custom_material.glsl", from: Bundle.module) as ShaderModule
+        let material = MyMaterial(color: .red)
         
-        material.setMacro("VERTEX_UVS", value: "1", for: .vertex)
-        material.setMacro("VERTEX_POSITIONS", value: "1", for: .vertex)
-        material.setMacro("VERTEX_COLORS", value: "1", for: .vertex)
+        let handle = CustomMaterial(material)
         
-        try material.getShader(for: .vertex)?.reload()
+        let mesh = Mesh2dComponent(
+            mesh: Mesh.generate(from: Quad()),
+            materials: [handle]
+        )
         
-//        let entity = Entity(name: "custom_material")
-//        entity.components += CanvasComponent(material: material)
-//        scene.addEntity(entity)
+        var transform = Transform()
+        transform.scale = Vector3(1.4)
+        transform.position.z = 1
+        
+        let entity = Entity(name: "custom_material")
+        entity.components += mesh
+        entity.components += NoFrustumCulling()
+        entity.components += transform
+        scene.addEntity(entity)
     }
     
     private func makeGround(for scene: Scene) {
@@ -349,6 +368,10 @@ extension GameScene2D {
 }
 
 struct MyMaterial: CanvasMaterial {
-    @Uniform(binding: 0) var color: Color = .red
+    @Uniform(binding: 3) var color: Color = .red
     @Attribute(binding: 1) var value: Float = 0
+    
+    static func fragmentShader() throws -> ShaderSource {
+        try ResourceManager.load("Assets/custom_material.glsl", from: .module)
+    }
 }

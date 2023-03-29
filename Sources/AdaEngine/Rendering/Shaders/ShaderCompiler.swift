@@ -19,13 +19,17 @@ struct SpirvBinary {
     let version: Int
 }
 
-public struct ShaderMacro {
+public struct ShaderDefine: Hashable {
     public let name: String
     public let value: String
     
-    public init(name: String, value: String) {
+    init(name: String, value: String) {
         self.name = name
         self.value = value
+    }
+    
+    public static func define(_ name: String, value: String = "1") -> ShaderDefine {
+        return ShaderDefine(name: name, value: value)
     }
 }
 
@@ -57,9 +61,9 @@ public final class ShaderCompiler {
         )
     ]
     
-    private var macros: [ShaderStage: [String : ShaderMacro]] = [:]
+    private var macros: [ShaderStage: [String : ShaderDefine]] = [:]
     
-    private var shaderSource: ShaderSource
+    private(set) var shaderSource: ShaderSource
     
     public init(from fileUrl: URL) throws {
         self.shaderSource = try ShaderSource(from: fileUrl)
@@ -76,7 +80,7 @@ public final class ShaderCompiler {
     }
     
     public func setMacro(_ name: String, value: String, for shaderStage: ShaderStage) {
-        self.macros[shaderStage, default: [:]][name] = ShaderMacro(name: name, value: value)
+        self.macros[shaderStage, default: [:]][name] = ShaderDefine(name: name, value: value)
     }
     
     public func setShader(_ source: ShaderSource, for stage: ShaderStage) {

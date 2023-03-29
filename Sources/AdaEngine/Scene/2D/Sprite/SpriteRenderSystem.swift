@@ -40,7 +40,8 @@ public struct SpriteRenderSystem: System {
         let quadShader = try! ResourceManager.load("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
         
         var piplineDesc = RenderPipelineDescriptor()
-        piplineDesc.shaderModule = quadShader
+        piplineDesc.vertex = quadShader.getShader(for: .vertex)
+        piplineDesc.fragment = quadShader.getShader(for: .fragment)
         piplineDesc.debugName = "Sprite Pipeline"
         
         piplineDesc.vertexDescriptor.attributes.append([

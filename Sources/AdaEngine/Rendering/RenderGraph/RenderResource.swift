@@ -12,7 +12,6 @@ public enum RenderResource {
     case entity(Entity)
 }
 
-
 public enum RenderResourceKind {
     case texture
     case buffer

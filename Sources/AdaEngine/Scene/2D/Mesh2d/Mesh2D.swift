@@ -88,7 +88,8 @@ struct Mesh2DRenderSystem: System {
                 self.draw(
                     meshes: meshes,
                     visibleEntities: visibleEntities,
-                    items: &renderItems.items
+                    items: &renderItems.items,
+                    keys: []
                 )
             }
             
@@ -96,26 +97,117 @@ struct Mesh2DRenderSystem: System {
         }
     }
     
-    func draw(meshes: [ExctractedMesh2D], visibleEntities: VisibleEntities, items: inout [Transparent2DRenderItem]) {
+    func draw(meshes: [ExctractedMesh2D], visibleEntities: VisibleEntities, items: inout [Transparent2DRenderItem], keys: Set<String>) {
         for mesh in meshes {
             guard visibleEntities.entityIds.contains(mesh.entityId) else {
                 continue
             }
             
-            let emptyEntity = EmptyEntity()
-            emptyEntity.components += mesh.mesh
-//
-//            items.append(
-//                Transparent2DRenderItem(
-//                    entity: emptyEntity,
-//                    batchEntity: emptyEntity,
-//                    drawPassId: DrawMesh2dRenderPass.identifier,
-//                    renderPipeline: <#T##RenderPipeline#>,
-//                    sortKey: mesh.transform.position.z
-//                )
-//            )
+            let modelUnfirom = Mesh2dUniform(
+                model: .identity,//mesh.worldTransform,
+                modelTranspose: mesh.worldTransform.inverse
+            )
+            
+            for model in mesh.mesh.mesh.models {
+                for part in model.parts {
+                    let material = mesh.mesh.materials[part.materialIndex]
+                    
+                    guard let pipeline = getOrCreatePipeline(for: part.vertexDescriptor, keys: keys, material: material) else {
+                        print("No render pipeline for mesh")
+                        continue
+                    }
+                    
+                    let emptyEntity = EmptyEntity()
+                    emptyEntity.components += ExctractedMeshPart2d(
+                        part: part,
+                        material: material,
+                        modelUniform: modelUnfirom
+                    )
+                    
+                    items.append(
+                        Transparent2DRenderItem(
+                            entity: emptyEntity,
+                            batchEntity: emptyEntity,
+                            drawPassId: DrawMesh2dRenderPass.identifier,
+                            renderPipeline: pipeline,
+                            sortKey: mesh.transform.position.z
+                        )
+                    )
+                    
+                }
+            }
         }
     }
+    
+    func getOrCreatePipeline(for vertexDescriptor: VertexDescriptor, keys: Set<String>, material: Material) -> RenderPipeline? {
+        let materialKey = material.getMesh2dMaterialKey(for: vertexDescriptor, keys: keys)
+        
+        if let data = MaterialStorage.shared.getMaterialData(for: material) as? Mesh2dMaterialStorageData {
+            if let pipeline = data.pipelines[materialKey] {
+                return pipeline
+            }
+            
+            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey, material: material) else {
+                return nil
+            }
+            
+            data.shaderModule = shaderModule
+            data.uniformBufferSet = data.makeUniformBufferSet(from: shaderModule)
+            data.pipelines[materialKey] = pipeline
+            
+            return pipeline
+        } else {
+            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey, material: material) else {
+                return nil
+            }
+            
+            let data = Mesh2dMaterialStorageData()
+            data.shaderModule = shaderModule
+            data.uniformBufferSet = data.makeUniformBufferSet(from: shaderModule)
+            data.pipelines[materialKey] = pipeline
+            MaterialStorage.shared.setMaterialData(data, for: material)
+            
+            return pipeline
+        }
+    }
+    
+    private func createPipeline(for materialKey: MaterialMesh2dKey, material: Material) -> (RenderPipeline, ShaderModule)? {
+        let compiler = ShaderCompiler(shaderSource: material.shaderSource)
+        
+        for define in materialKey.defines {
+            compiler.setMacro(define.name, value: define.value, for: .vertex)
+            compiler.setMacro(define.name, value: define.value, for: .fragment)
+        }
+        
+        do {
+            let shaderModule = try compiler.compileShaderModule()
+            
+            guard let pipelineDesc = material.configureRenderPipeline(for: materialKey.vertexDescritor, keys: materialKey.keys, shaderModule: shaderModule) else {
+                return nil
+            }
+            
+            return (RenderEngine.shared.makeRenderPipeline(from: pipelineDesc), shaderModule)
+        } catch {
+            print("[Mesh2DRenderSystem]", error.localizedDescription)
+            return nil
+        }
+    }
+}
+
+struct ExctractedMeshPart2d: Component {
+    let part: Mesh.Part
+    let material: Material
+    let modelUniform: Mesh2dUniform
+}
+
+struct MaterialMesh2dKey: Hashable {
+    let defines: [ShaderDefine]
+    let keys: Set<String>
+    let vertexDescritor: VertexDescriptor
+}
+
+class Mesh2dMaterialStorageData: MaterialStorageData {
+    var pipelines: [MaterialMesh2dKey : RenderPipeline] = [:]
 }
 
 public struct Mesh2dComponent: Component {
@@ -129,41 +221,67 @@ public struct Mesh2dComponent: Component {
 }
 
 struct Mesh2dUniform {
-    let viewTransform: Transform3D
+    let model: Transform3D
+    let modelTranspose: Transform3D
 }
 
 struct DrawMesh2dRenderPass: DrawPass {
+    
+    let meshUniformBufferSet: UniformBufferSet
+    
+    init() {
+        self.meshUniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
+        self.meshUniformBufferSet.initBuffers(for: Mesh2dUniform.self, binding: 2, set: 0)
+    }
+    
     func render(in context: Context, item: Transparent2DRenderItem) throws {
-        
-        let meshComponent = item.entity.components[Mesh2dComponent.self]!
-        let mesh = meshComponent.mesh
-        
+        let meshComponent = item.entity.components[ExctractedMeshPart2d.self]!
+
+        let part = meshComponent.part
         let drawList = context.drawList
         
-        for model in mesh.models {
-            for part in model.parts {
-                let material = meshComponent.materials[part.materialIndex]
-                
-                for buffer in material.shaderModule.reflectionData.shaderBuffers.values {
-                    let uniformBuffer = material.uniformBufferSet.getBuffer(binding: buffer.binding, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex)
-                    
-                    if buffer.shaderStage.contains(.vertex) {
-                        drawList.appendUniformBuffer(uniformBuffer, for: .vertex)
-                    }
-                    
-                    if buffer.shaderStage.contains(.fragment) {
-                        drawList.appendUniformBuffer(uniformBuffer, for: .fragment)
-                    }
-                }
+        guard let materialData = MaterialStorage.shared.getMaterialData(for: meshComponent.material) else {
+            return
+        }
+        
+        guard let reflectionData = materialData.shaderModule?.reflectionData else {
+            return
+        }
+        
+        guard let cameraViewUniform = context.view.components[GlobalViewUniformBufferSet.self] else {
+            return
+        }
+        
+        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: context.device.currentFrameIndex)
+        context.drawList.appendUniformBuffer(uniformBuffer)
+        
+        drawList.pushDebugName("Mesh 2d Render")
+        
+        for buffer in reflectionData.shaderBuffers.values {
+            guard let uniformBuffer = materialData.uniformBufferSet?.getBuffer(binding: buffer.binding, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex) else {
+                continue
+            }
 
-                drawList.appendVertexBuffer(part.vertexBuffer)
-                drawList.bindIndexBuffer(part.indexBuffer)
-                drawList.bindIndexPrimitive(part.primitiveTopology.indexPrimitive)
-                drawList.bindRenderPipeline(item.renderPipeline)
-                
-                drawList.drawIndexed(indexCount: part.indexCount, instancesCount: 1)
+            if buffer.shaderStage.contains(.vertex) {
+                drawList.appendUniformBuffer(uniformBuffer, for: .vertex)
+            }
+
+            if buffer.shaderStage.contains(.fragment) {
+                drawList.appendUniformBuffer(uniformBuffer, for: .fragment)
             }
         }
+        
+        let meshUniformBuffer = self.meshUniformBufferSet.getBuffer(binding: 2, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex)
+        meshUniformBuffer.setData(meshComponent.modelUniform)
+        drawList.appendUniformBuffer(meshUniformBuffer)
+        
+        drawList.appendVertexBuffer(part.vertexBuffer)
+        drawList.bindIndexBuffer(part.indexBuffer)
+        drawList.bindIndexPrimitive(part.primitiveTopology.indexPrimitive)
+        drawList.bindRenderPipeline(item.renderPipeline)
+        
+        drawList.drawIndexed(indexCount: part.indexCount, instancesCount: 1)
+        drawList.popDebugName()
     }
 }
 
@@ -181,5 +299,12 @@ extension Mesh.PrimitiveTopology {
         case .lineStrip:
             return .lineStrip
         }
+    }
+}
+
+extension Material {
+    func getMesh2dMaterialKey(for vertexDescritor: VertexDescriptor, keys: Set<String>) -> MaterialMesh2dKey {
+        let defines = self.collectDefines(for: vertexDescritor, keys: keys)
+        return MaterialMesh2dKey(defines: defines, keys: keys, vertexDescritor: vertexDescritor)
     }
 }

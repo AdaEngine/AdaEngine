@@ -36,11 +36,7 @@ public final class Shader: Resource {
         self.shaderCompiler.setMacro(name, value: value, for: self.stage)
     }
     
-    func reflect() -> ShaderReflectionData {
-        return self.spirvCompiler.reflection()
-    }
-    
-    public func reload() throws {
+    public func recompile() throws {
         let spirv = try shaderCompiler.compileSpirvBin(for: self.stage)
         self.spirvData = spirv.data
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: self.stage)
@@ -84,10 +80,13 @@ public final class Shader: Resource {
         let compiledShader = try RenderEngine.shared.compileShader(from: shader)
         shader.compiledShader = compiledShader
         
-        shader.reflect()
-        
-        
         return shader
+    }
+    
+    // MARK: - Private
+    
+    func reflect() -> ShaderReflectionData {
+        return self.spirvCompiler.reflection()
     }
 
 }

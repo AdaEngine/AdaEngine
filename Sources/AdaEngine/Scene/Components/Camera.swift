@@ -6,6 +6,8 @@
 //
 //
 
+import Math
+
 public struct Viewport: Codable, Equatable {
     public var rect: Rect
     public var depth: ClosedRange<Float>
@@ -112,8 +114,18 @@ extension Camera {
     }
 }
 
-public struct ViewUniform: Component {
-    var projectionMatrix: Transform3D = .identity
-    var viewProjectionMatrix: Transform3D = .identity
-    var viewMatrix: Transform3D = .identity
+public struct GlobalViewUniform: Component {
+    public internal(set) var projectionMatrix: Transform3D = .identity
+    public internal(set) var viewProjectionMatrix: Transform3D = .identity
+    public internal(set) var viewMatrix: Transform3D = .identity
+}
+
+struct GlobalViewUniformBufferSet: Component {
+    let uniformBufferSet: UniformBufferSet
+    
+    init() {
+        self.uniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
+        self.uniformBufferSet.label = "Global View Uniform"
+        self.uniformBufferSet.initBuffers(for: GlobalViewUniform.self, binding: BufferIndex.baseUniform, set: 0)
+    }
 }

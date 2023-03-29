@@ -62,7 +62,7 @@ public final class ShaderSource: Resource {
     
     private var sources: [ShaderStage: String] = [:]
     private var entryPoints: [ShaderStage: String] = [:]
-    private(set) var includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
+    public var includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
     
     /// Contains url to shader sources if ShaderSource was created from file.
     private(set) var fileURL: URL?
@@ -210,6 +210,25 @@ extension ShaderSource: UniqueHashable {
     }
     
     public func hash(into hasher: inout FNVHasher) {
+        for (stage, source) in self.sources {
+            hasher.combine(stage.rawValue)
+            hasher.combine(source)
+        }
+        
+        for include in includeSearchPaths {
+            switch include {
+            case ._local(let url):
+                hasher.combine(url.path)
+            case ._module(let moduleName, let url):
+                hasher.combine(moduleName)
+                hasher.combine(url.path)
+            }
+        }
+    }
+}
+
+extension ShaderSource: Hashable {
+    public func hash(into hasher: inout Hasher) {
         for (stage, source) in self.sources {
             hasher.combine(stage.rawValue)
             hasher.combine(source)

@@ -124,7 +124,7 @@ extension MeshBuffer: ExpressibleByArrayLiteral {
             fatalError("[MeshBuffer] Unrelated type.")
         }
         
-        self.init(buffer: _MeshBuffer(elements: elements, indices: [], elementType: .uint8))
+        self.init(buffer: _MeshBuffer(elements: elements, indices: [], elementType: type))
     }
 }
 

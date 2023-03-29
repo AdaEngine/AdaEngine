@@ -114,16 +114,11 @@ class MetalRenderBackend: RenderBackend {
         for (index, layout) in descriptor.vertexDescriptor.layouts.enumerated() {
             vertexDescriptor.layouts[index].stride = layout.stride
         }
-        
-        guard let shaderModule = descriptor.shaderModule else {
-            fatalError("Incorrect type of shader")
-        }
-        
-        if let shader = shaderModule.getShader(for: .vertex)?.compiledShader as? MetalShader {
+        if let shader = descriptor.vertex?.compiledShader as? MetalShader {
             pipelineDescriptor.vertexFunction = shader.function
         }
         
-        if let shader = shaderModule.getShader(for: .fragment)?.compiledShader as? MetalShader {
+        if let shader = descriptor.fragment?.compiledShader as? MetalShader {
             pipelineDescriptor.fragmentFunction = shader.function
         }
         
@@ -179,7 +174,7 @@ class MetalRenderBackend: RenderBackend {
                 depthState: depthStencilState
             )
         } catch {
-            fatalError(error.localizedDescription)
+            fatalError("[Metal Render Backend] \(error.localizedDescription)")
         }
     }
     
