@@ -1,26 +1,30 @@
 //
-//  MeshVertexDescriptor.swift
+//  VertexDescriptor.swift
 //  
 //
 //  Created by v.prusakov on 11/3/21.
 //
 
-public struct VertexDescriptorAttributesArray: Sequence, Codable {
+public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable {
     
-    public typealias Element = MeshVertexDescriptor.Attribute
-    public typealias Iterator = Array<MeshVertexDescriptor.Attribute>.Iterator
+    public typealias Element = VertexDescriptor.Attribute
+    public typealias Iterator = Array<VertexDescriptor.Attribute>.Iterator
+    
+    public init(buffer: [VertexDescriptor.Attribute] = []) {
+        self.buffer = buffer
+    }
     
     var count: Int { self.buffer.count }
     
-    internal var buffer: [MeshVertexDescriptor.Attribute] = []
+    internal var buffer: [VertexDescriptor.Attribute] = []
     
-    subscript(index: Int) -> MeshVertexDescriptor.Attribute {
+    subscript(index: Int) -> VertexDescriptor.Attribute {
         mutating get {
             if self.buffer.indices.contains(index) {
                 return self.buffer[index]
             }
             
-            let attribute = MeshVertexDescriptor.Attribute(name: "", offset: 0, bufferIndex: 0, format: .invalid)
+            let attribute = VertexDescriptor.Attribute(name: "", offset: 0, bufferIndex: 0, format: .invalid)
             self.buffer.insert(attribute, at: index)
             return attribute
         }
@@ -30,15 +34,21 @@ public struct VertexDescriptorAttributesArray: Sequence, Codable {
         }
     }
     
+    public func containsAttribute(by name: String) -> Bool {
+        self.buffer.contains {
+            $0.name == name
+        }
+    }
+    
     public func makeIterator() -> Iterator {
         return buffer.makeIterator()
     }
     
-    public mutating func append(_ attributes: [MeshVertexDescriptor.Attribute]) {
+    public mutating func append(_ attributes: [VertexDescriptor.Attribute]) {
         var lastOffset: Int = 0
         
         for var attribute in attributes {
-            if attribute.offset != MeshVertexDescriptor.autocalculationOffset {
+            if attribute.offset != VertexDescriptor.autocalculationOffset {
                 lastOffset = attribute.offset
             }
             
@@ -50,22 +60,26 @@ public struct VertexDescriptorAttributesArray: Sequence, Codable {
     }
 }
 
-public struct VertexDescriptorLayoutsArray: Sequence, Codable {
+public struct VertexDescriptorLayoutsArray: Sequence, Codable, Hashable {
     
-    public typealias Element = MeshVertexDescriptor.Layout
-    public typealias Iterator = Array<MeshVertexDescriptor.Layout>.Iterator
+    public typealias Element = VertexDescriptor.Layout
+    public typealias Iterator = Array<VertexDescriptor.Layout>.Iterator
     
-    internal private(set) var buffer: [MeshVertexDescriptor.Layout] = []
+    internal private(set) var buffer: [VertexDescriptor.Layout] = []
     
     var count: Int { self.buffer.count }
     
-    subscript(index: Int) -> MeshVertexDescriptor.Layout {
+    public init(buffer: [VertexDescriptor.Layout] = []) {
+        self.buffer = buffer
+    }
+    
+    subscript(index: Int) -> VertexDescriptor.Layout {
         mutating get {
             if self.buffer.indices.contains(index) {
                 return self.buffer[index]
             }
             
-            let attribute = MeshVertexDescriptor.Layout(stride: 0)
+            let attribute = VertexDescriptor.Layout(stride: 0)
             self.buffer.insert(attribute, at: index)
             return attribute
         }
@@ -109,14 +123,14 @@ public enum VertexFormat: UInt, Codable {
     }
 }
 
-public struct MeshVertexDescriptor: Codable {
+public struct VertexDescriptor: Codable, Hashable {
     
     public var attributes: VertexDescriptorAttributesArray
     public var layouts: VertexDescriptorLayoutsArray
     
     public static let autocalculationOffset: Int = -2018
     
-    public struct Attribute: CustomStringConvertible, Codable {
+    public struct Attribute: CustomStringConvertible, Codable, Hashable {
         public var name: String
         public var offset: Int
         public var bufferIndex: Int
@@ -131,7 +145,7 @@ public struct MeshVertexDescriptor: Codable {
         }
     }
     
-    public struct Layout: CustomStringConvertible, Codable {
+    public struct Layout: CustomStringConvertible, Codable, Hashable {
         public var stride: Int
         
         public var description: String {
@@ -151,7 +165,7 @@ public struct MeshVertexDescriptor: Codable {
     
 }
 
-extension MeshVertexDescriptor: CustomStringConvertible {
+extension VertexDescriptor: CustomStringConvertible {
     public var description: String {
         let attributesDesc = self.attributes.enumerated().reduce("", { result, value in
             let shouldInsertColumn = value.offset < self.attributes.count - 1
@@ -163,7 +177,7 @@ extension MeshVertexDescriptor: CustomStringConvertible {
             let newDesc = value.element.description + (shouldInsertColumn ? "," : "")
             return result + " " + newDesc + "\n"
         })
-        return String(format: "MeshVertexDescriptor: attributes(\n%@) layots: {\n%@}", attributesDesc, layoutsDesc)
+        return String(format: "VertexDescriptor: attributes(\n%@) layots: {\n%@}", attributesDesc, layoutsDesc)
     }
 }
 
@@ -172,7 +186,7 @@ extension MeshVertexDescriptor: CustomStringConvertible {
 import MetalKit
 import ModelIO
 
-public extension MeshVertexDescriptor {
+public extension VertexDescriptor {
     init(mdlVertexDescriptor: MDLVertexDescriptor) {
         
         let attributes: [Attribute] = mdlVertexDescriptor.attributes.compactMap {

@@ -9,18 +9,6 @@ import Math
 
 public struct SpriteDrawPass: DrawPass {
     
-    struct SpriteViewUniform {
-        let viewMatrix: Transform3D
-    }
-    
-    let uniformBufferSet: UniformBufferSet
-    
-    public init() {
-        uniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
-        uniformBufferSet.label = "SpriteDrawPass_ViewUniform"
-        uniformBufferSet.initBuffers(for: SpriteViewUniform.self, count: 3, binding: BufferIndex.baseUniform, set: 0)
-    }
-    
     public func render(in context: Context, item: Transparent2DRenderItem) throws {
         guard let spriteData = context.entity.components[SpriteDataComponent.self] else {
             return
@@ -30,7 +18,7 @@ public struct SpriteDrawPass: DrawPass {
             return
         }
         
-        guard let cameraViewUniform = context.view.components[ViewUniform.self] else {
+        guard let cameraViewUniform = context.view.components[GlobalViewUniformBufferSet.self] else {
             return
         }
         
@@ -40,13 +28,12 @@ public struct SpriteDrawPass: DrawPass {
         
         context.drawList.pushDebugName("SpriteDrawPass")
         
-        let uniform = uniformBufferSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: context.device.currentFrameIndex)
-        uniform.setData(SpriteViewUniform(viewMatrix: cameraViewUniform.viewProjectionMatrix))
+        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: context.device.currentFrameIndex)
+        context.drawList.appendUniformBuffer(uniformBuffer)
         
         batchSprite.textures.enumerated().forEach { (index, texture) in
             context.drawList.bindTexture(texture, at: index)
         }
-        context.drawList.appendUniformBuffer(uniform)
         context.drawList.appendVertexBuffer(spriteData.vertexBuffer)
         context.drawList.bindIndexBuffer(spriteData.indexBuffer)
         context.drawList.bindRenderPipeline(item.renderPipeline)

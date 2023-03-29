@@ -209,21 +209,25 @@ extension MeshDescriptor {
 }
 
 public extension MeshDescriptor {
-    func getMeshVertexBufferDescriptor() -> MeshVertexDescriptor {
-        var vertexDescriptor = MeshVertexDescriptor()
+    func getMeshVertexBufferDescriptor() -> VertexDescriptor {
+        var vertexDescriptor = VertexDescriptor()
         
         var offset: Int = 0
-        for (index, value) in buffers.elements.enumerated() {
+        var index: Int = 0
+        for value in buffers.elements {
             let buffer = value.value.buffer
             let attribute = value.key
             
-            vertexDescriptor.attributes[index] = .attribute(
-                buffer.elementType.vertexFormat,
-                name: attribute.name,
-                bufferIndex: index,
-                offset: offset
-            )
+            if value.key == MeshDescriptor.Identifier.indices {
+                continue
+            }
+            
+            vertexDescriptor.attributes[index].name = attribute.name
+            vertexDescriptor.attributes[index].format = buffer.elementType.vertexFormat
+            vertexDescriptor.attributes[index].offset = offset
+            
             offset += buffer.elementSize
+            index += 1
         }
         
         vertexDescriptor.layouts[0].stride = offset
@@ -233,7 +237,12 @@ public extension MeshDescriptor {
     
     func getVertexBufferSize() -> Int {
         var size: Int = 0
-        for buffer in buffers.elements.values {
+        for (key, buffer) in buffers.elements {
+            // Avoid indecies
+            if key == MeshDescriptor.Identifier.indices {
+                continue
+            }
+            
             size += buffer.count
         }
         

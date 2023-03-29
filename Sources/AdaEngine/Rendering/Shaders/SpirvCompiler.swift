@@ -184,6 +184,10 @@ final class SpirvCompiler {
                 let resource = reflectedResources[index]
                 let resourceName = String(cString: resource.name)
                 
+                if resourceName.hasPrefix("AE_") {
+                    continue
+                }
+                
                 let type = spvc_compiler_get_type_handle(self.spvcCompiler, resource.base_type_id)
                 var size: Int = 0
                 spvc_compiler_get_declared_struct_size(self.spvcCompiler, type, &size)

@@ -21,7 +21,7 @@ public class Mesh {
         
         let meshDescriptor: MeshDescriptor
         
-        internal var vertexDescriptor: MeshVertexDescriptor
+        internal var vertexDescriptor: VertexDescriptor
         
         var indexBuffer: IndexBuffer
         var indexCount: Int
@@ -51,8 +51,6 @@ public extension Mesh {
         var parts = [Part]()
         
         for (index, meshDescriptor) in meshDescriptors.enumerated() {
-            let vertexBuffer = RenderEngine.shared.makeVertexBuffer(length: meshDescriptor.getVertexBufferSize(), binding: 0)
-            
             let part = Part(
                 id: index,
                 materialIndex: 0,
@@ -64,6 +62,8 @@ public extension Mesh {
                 indexCount: meshDescriptor.indicies.count,
                 vertexBuffer: meshDescriptor.getVertexBuffer()
             )
+            
+            parts.append(part)
         }
   
         let model = Model(name: "", parts: parts)
@@ -210,4 +210,3 @@ public struct Quad: Shape {
         return mesh
     }
 }
-

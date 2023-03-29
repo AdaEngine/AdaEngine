@@ -35,7 +35,7 @@ layout (location = 0) out VertexOut Output;
 void mesh_vertex()
 {
 #ifdef VERTEX_POSITIONS
-    Output.WorldPosition = Mesh2dPositionLocalToWorld(u_MeshModel, a_Position);
+    Output.WorldPosition = Mesh2dPositionLocalToWorld(u_MeshModel, vec4(a_Position, 1.0));
 #endif
     
 #ifdef VERTEX_NORMALS
@@ -58,19 +58,17 @@ void mesh_vertex()
 
 #include "mesh2d_vertex_output.glsl"
 
-layout (location = 0) out vec4 color;
-
 [[main]]
 void mesh_fragment()
 {
 #ifdef VERTEX_COLORS
-    color = Input.VertexColor;
+    COLOR = Input.VertexColor;
     
     // to avoid depth write
-    if (color.a == 0.0) {
+    if (COLOR.a == 0.0) {
         discard;
     }
 #else
-    color = vec4(1.0, 0.0, 1.0, 1.0);
+    COLOR = vec4(1.0, 0.0, 1.0, 1.0);
 #endif
 }

@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 1/29/23.
 //
 
+// TODO: Looks like we should use buffer binding instead of `append` methods
+
 /// Contains information about draw. You can configure your draw whatever you want.
 public final class DrawList {
     

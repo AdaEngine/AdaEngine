@@ -15,4 +15,3 @@ struct Render3DSystem: System {
         
     }   
 }
-
