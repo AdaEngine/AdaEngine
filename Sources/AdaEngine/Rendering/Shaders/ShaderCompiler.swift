@@ -98,7 +98,7 @@ public final class ShaderCompiler {
             let shader = try self.compileShader(for: stage)
             shaders[stage] = shader
             // Merge
-            reflectionData.shaderBuffers.merge(shader.reflectionData.shaderBuffers) { _, new in return new }
+            reflectionData.merge(shader.reflectionData)
         }
         
         return ShaderModule(shaders: shaders, reflectionData: reflectionData)

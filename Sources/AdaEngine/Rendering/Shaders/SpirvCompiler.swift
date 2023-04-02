@@ -145,10 +145,10 @@ final class SpirvCompiler {
         var numberOfEntryPoints: Int = 0
         var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
         spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
-
+        
         for index in 0..<numberOfEntryPoints {
             let entryPoint = spvcEntryPoints![index]
-
+            
             let result = entryPointName.withCString { entryPtr in
                 spvc_compiler_rename_entry_point(
                     spvcCompiler, /* compiler */
@@ -157,7 +157,7 @@ final class SpirvCompiler {
                     entryPoint.execution_model /* excution_model */
                 )
             }
-
+            
             if result != SPVC_SUCCESS {
                 assertionFailure("Can't set entry point \(entryPointName) for \(ShaderStage(from: entryPoint.execution_model))")
             }
@@ -166,11 +166,8 @@ final class SpirvCompiler {
     
     // swiftlint:disable:next function_body_length
     func reflection() -> ShaderReflectionData {
-        var activeSet: spvc_set!
-        spvc_compiler_get_active_interface_variables(self.spvcCompiler, &activeSet)
-        
-        var activeResources: spvc_resources!
-        spvc_compiler_create_shader_resources_for_active_variables(self.spvcCompiler, &activeResources, activeSet)
+        var shaderResources: spvc_resources!
+        spvc_compiler_create_shader_resources(self.spvcCompiler, &shaderResources)
         
         var reflectionData = ShaderReflectionData()
         
@@ -178,7 +175,7 @@ final class SpirvCompiler {
             var reflectedResources : UnsafePointer<spvc_reflected_resource>!
             var reflectedResourceCount = 0
             
-            spvc_resources_get_resource_list_for_type(activeResources, resourceType.spvcResourceType, &reflectedResources, &reflectedResourceCount)
+            spvc_resources_get_resource_list_for_type(shaderResources, resourceType.spvcResourceType, &reflectedResources, &reflectedResourceCount)
             
             for index in 0..<reflectedResourceCount {
                 let resource = reflectedResources[index]
@@ -208,7 +205,7 @@ final class SpirvCompiler {
                     
                     let memberTypesCount = spvc_type_get_num_member_types(type)
                     
-                    for index in 0..<memberTypesCount {
+                    for index in 0 ..< memberTypesCount {
                         let memberType = spvc_type_get_member_type(type, index)
                         let memberName = String(cString: spvc_compiler_get_member_name(self.spvcCompiler, resource.base_type_id, index))
                         var memberSize: Int = 0
@@ -231,20 +228,62 @@ final class SpirvCompiler {
                         size: size,
                         shaderStage: ShaderStageFlags(shaderStage: self.stage),
                         binding: Int(binding),
+                        resourceAccess: .readWrite,
                         members: members
                     )
                     
                     descriptorSet.uniformsBuffers[Int(binding)] = buffer
-                    reflectionData.shaderBuffers[resourceName] = buffer    
-                case .image, .sampler, .inputAttachment, .storageImage:
-                    // FIXME: Don't have information about array size.
-                    descriptorSet.sampledImages[resourceName] = ShaderResource.ImageSampler(
+                    reflectionData.shaderBuffers[resourceName] = buffer
+                case .image, .sampler, .inputAttachment, .storageImage, .sampledImage:
+                    let access = spvc_type_get_image_access_qualifier(type)
+                    let isArray = spvc_type_get_image_arrayed(type) == 1
+                    let isMultisampled = spvc_type_get_image_multisampled(type) == 1
+                    let dimension = spvc_type_get_image_dimension(type)
+                    let arraySize = spvc_type_get_array_dimension(type, 0)
+                    
+                    let resourceAccess: ShaderResource.ResourceAccess
+                    
+                    if resourceType == .storageImage || access == SpvAccessQualifierReadOnly {
+                        resourceAccess = .read
+                    } else if access == SpvAccessQualifierWriteOnly {
+                        resourceAccess = .write
+                    } else {
+                        resourceAccess = .readWrite
+                    }
+                    
+                    var textureType: Texture.TextureType = .texture2D
+                    
+                    switch dimension {
+                    case SpvDim1D:
+                        textureType = isArray ? .texture1DArray : .texture1D
+                    case SpvDim2D:
+                        if isMultisampled {
+                            textureType = isArray ? .texture2DMultisampleArray : .texture2DMultisample
+                        } else {
+                            textureType = isArray ? .texture2DArray : .texture2D
+                        }
+                    case SpvDim3D:
+                        textureType = .texture3D
+                    case SpvDimCube:
+                        textureType = .textureCube
+                    case SpvDimBuffer:
+                        textureType = .textureBuffer
+                    default:
+                        break
+                    }
+                    
+                    let image = ShaderResource.ImageSampler(
                         name: resourceName,
                         binding: Int(binding),
+                        textureType: textureType,
                         descriptorSet: Int(descriptorSetIndex),
-                        arraySize: 0,
-                        shaderStage: ShaderStageFlags(shaderStage: self.stage)
+                        arraySize: Int(arraySize),
+                        shaderStage: ShaderStageFlags(shaderStage: self.stage),
+                        resourceAccess: resourceAccess
                     )
+                    
+                    reflectionData.resources[resourceName] = image
+                    descriptorSet.sampledImages[resourceName] = image
                 default:
                     continue
                 }
@@ -259,7 +298,7 @@ final class SpirvCompiler {
 
 extension SpirvCompiler {
     static func makeCompileOptions(_ options: spvc_compiler_options?) {
-        #if METAL
+#if METAL
         let version = { (major: UInt32, minor: UInt32, patch: UInt32) in
             return (major * 10000) + (minor * 100) + patch
         }
@@ -269,7 +308,7 @@ extension SpirvCompiler {
         let platform = Application.shared.platform == .macOS ? SPVC_MSL_PLATFORM_MACOS : SPVC_MSL_PLATFORM_IOS
         spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_PLATFORM, platform.rawValue)
         spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_DECORATION_BINDING, 1)
-        #endif
+#endif
     }
 }
 

@@ -230,14 +230,24 @@ extension MetalRenderBackend {
         let textureDesc = MTLTextureDescriptor()
         
         switch descriptor.textureType {
-        case .cube:
+        case .textureCube:
             textureDesc.textureType = .typeCube
+        case .texture1D:
+            textureDesc.textureType = .type1D
+        case .texture1DArray:
+            textureDesc.textureType = .type1DArray
         case .texture2D:
             textureDesc.textureType = .type2D
         case .texture2DArray:
             textureDesc.textureType = .type2DArray
+        case .texture2DMultisample:
+            textureDesc.textureType = .type2DMultisample
+        case .texture2DMultisampleArray:
+            textureDesc.textureType = .type2DMultisampleArray
         case .texture3D:
             textureDesc.textureType = .type3D
+        case .textureBuffer:
+            textureDesc.textureType = .typeTextureBuffer
         }
         
         var mtlUsage: MTLTextureUsage = 0

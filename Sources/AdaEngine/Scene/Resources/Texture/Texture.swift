@@ -43,10 +43,16 @@ open class Texture: Resource, Codable {
 
 public extension Texture {
     enum TextureType: UInt16, Codable {
-        case cube
+        case texture1D
+        case texture1DArray
         case texture2D
         case texture2DArray
+        case texture2DMultisample
+        case texture2DMultisampleArray
+        
+        case textureCube
         case texture3D
+        case textureBuffer
     }
     
     struct Usage: OptionSet, Codable {
