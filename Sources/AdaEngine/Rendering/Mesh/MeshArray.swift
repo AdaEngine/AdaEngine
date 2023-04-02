@@ -141,7 +141,7 @@ class _MeshBuffer: Equatable {
 
         self.bytes = UnsafeMutableRawBufferPointer.allocate(
             byteCount: self.elementSize * elements.count,
-            alignment: 0 // TODO: (Vlad) needs tests
+            alignment: MemoryLayout<Element>.alignment
         )
 
         self.bytes.baseAddress?.copyMemory(

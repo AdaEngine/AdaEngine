@@ -77,7 +77,6 @@ struct Mesh2DRenderSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        
         let exctractedMeshes = context.scene.performQuery(Self.extractedMeshes)
         
         context.scene.performQuery(Self.query).forEach { entity in
@@ -103,9 +102,9 @@ struct Mesh2DRenderSystem: System {
                 continue
             }
             
-            let modelUnfirom = Mesh2dUniform(
-                model: .identity,//mesh.worldTransform,
-                modelTranspose: mesh.worldTransform.inverse
+            let modelUniform = Mesh2dUniform(
+                model: mesh.worldTransform,
+                modelInverseTranspose: mesh.worldTransform.inverse.transpose
             )
             
             for model in mesh.mesh.mesh.models {
@@ -121,7 +120,7 @@ struct Mesh2DRenderSystem: System {
                     emptyEntity.components += ExctractedMeshPart2d(
                         part: part,
                         material: material,
-                        modelUniform: modelUnfirom
+                        modelUniform: modelUniform
                     )
                     
                     items.append(
@@ -133,7 +132,6 @@ struct Mesh2DRenderSystem: System {
                             sortKey: mesh.transform.position.z
                         )
                     )
-                    
                 }
             }
         }
@@ -222,21 +220,23 @@ public struct Mesh2dComponent: Component {
 
 struct Mesh2dUniform {
     let model: Transform3D
-    let modelTranspose: Transform3D
+    let modelInverseTranspose: Transform3D
 }
 
 struct DrawMesh2dRenderPass: DrawPass {
     
     let meshUniformBufferSet: UniformBufferSet
     
+    static let meshUniformBinding: Int = 2
+    
     init() {
         self.meshUniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
-        self.meshUniformBufferSet.initBuffers(for: Mesh2dUniform.self, binding: 2, set: 0)
+        self.meshUniformBufferSet.initBuffers(for: Mesh2dUniform.self, binding: Self.meshUniformBinding, set: 0)
     }
     
     func render(in context: Context, item: Transparent2DRenderItem) throws {
         let meshComponent = item.entity.components[ExctractedMeshPart2d.self]!
-
+        
         let part = meshComponent.part
         let drawList = context.drawList
         
@@ -261,18 +261,24 @@ struct DrawMesh2dRenderPass: DrawPass {
             guard let uniformBuffer = materialData.uniformBufferSet?.getBuffer(binding: buffer.binding, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex) else {
                 continue
             }
-
+            
             if buffer.shaderStage.contains(.vertex) {
                 drawList.appendUniformBuffer(uniformBuffer, for: .vertex)
             }
-
+            
             if buffer.shaderStage.contains(.fragment) {
                 drawList.appendUniformBuffer(uniformBuffer, for: .fragment)
             }
         }
         
-        let meshUniformBuffer = self.meshUniformBufferSet.getBuffer(binding: 2, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex)
+        let meshUniformBuffer = self.meshUniformBufferSet.getBuffer(
+            binding: Self.meshUniformBinding,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
+        
         meshUniformBuffer.setData(meshComponent.modelUniform)
+        
         drawList.appendUniformBuffer(meshUniformBuffer)
         
         drawList.appendVertexBuffer(part.vertexBuffer)

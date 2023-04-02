@@ -111,14 +111,14 @@ public enum VertexFormat: UInt, Codable {
     var offset: Int {
         switch self {
         case .invalid: return 0
-        case .uint: return MemoryLayout<UInt>.size
-        case .char: return MemoryLayout<UInt8>.size
-        case .short: return MemoryLayout<UInt16>.size
-        case .int: return MemoryLayout<Int>.size
-        case .float: return MemoryLayout<Float>.size
-        case .vector4: return MemoryLayout<Vector4>.size
-        case .vector3: return MemoryLayout<Vector3>.size
-        case .vector2: return MemoryLayout<Vector2>.size
+        case .uint: return MemoryLayout<UInt>.stride
+        case .char: return MemoryLayout<UInt8>.stride
+        case .short: return MemoryLayout<UInt16>.stride
+        case .int: return MemoryLayout<Int>.stride
+        case .float: return MemoryLayout<Float>.stride
+        case .vector4: return MemoryLayout<Vector4>.stride
+        case .vector3: return MemoryLayout<Vector3>.stride
+        case .vector2: return MemoryLayout<Vector2>.stride
         }
     }
 }

@@ -184,6 +184,7 @@ final class SpirvCompiler {
                 let resource = reflectedResources[index]
                 let resourceName = String(cString: resource.name)
                 
+                // Skip internal uniforms
                 if resourceName.hasPrefix("AE_") {
                     continue
                 }

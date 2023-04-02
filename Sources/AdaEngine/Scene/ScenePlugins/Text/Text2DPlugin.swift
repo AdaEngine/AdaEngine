@@ -11,8 +11,8 @@ public struct Text2DPlugin: ScenePlugin {
     public init() {}
     
     public func setup(in scene: Scene) {
-//        scene.addSystem(ExctractTextSystem.self)
-//        scene.addSystem(Text2DLayoutSystem.self)
+        scene.addSystem(ExctractTextSystem.self)
+        scene.addSystem(Text2DLayoutSystem.self)
     }
 }
 
