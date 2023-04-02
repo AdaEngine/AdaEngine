@@ -107,3 +107,7 @@ open class Texture2D: Texture {
         
     }
 }
+
+public extension Texture2D {
+    static let whiteTexture = Texture2D(image: Image(width: 1, height: 1, color: .white))
+}

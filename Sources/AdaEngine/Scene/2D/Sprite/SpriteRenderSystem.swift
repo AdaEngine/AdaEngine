@@ -32,7 +32,6 @@ public struct SpriteRenderSystem: System {
     static let maxTexturesPerBatch = 16
     
     let quadRenderPipeline: RenderPipeline
-    let gpuWhiteTexture: Texture2D
     
     public init(scene: Scene) {
         let device = RenderEngine.shared
@@ -58,9 +57,6 @@ public struct SpriteRenderSystem: System {
         let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
         
         self.quadRenderPipeline = quadPipeline
-        
-        let image = Image(width: 1, height: 1, color: .white)
-        self.gpuWhiteTexture = Texture2D(image: image)
     }
     
     public func update(context: UpdateContext) {
@@ -109,7 +105,7 @@ public struct SpriteRenderSystem: System {
         var textureSlotIndex = 1
         
         var currentBatchEntity = EmptyEntity()
-        var currentBatch = BatchComponent(textures: [Texture2D].init(repeating: gpuWhiteTexture, count: Self.maxTexturesPerBatch))
+        var currentBatch = BatchComponent(textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch))
         
         for sprite in sprites {
             guard visibleEntities.entityIds.contains(sprite.entityId) else {
@@ -122,7 +118,7 @@ public struct SpriteRenderSystem: System {
                 currentBatchEntity.components += currentBatch
                 textureSlotIndex = 1
                 currentBatchEntity = EmptyEntity()
-                currentBatch = BatchComponent(textures: [Texture2D].init(repeating: gpuWhiteTexture, count: Self.maxTexturesPerBatch))
+                currentBatch = BatchComponent(textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch))
             }
             // Select a texture index for draw
             let textureIndex: Int

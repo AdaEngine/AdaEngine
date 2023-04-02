@@ -12,13 +12,13 @@ struct PlayerMovementSystem: System {
     static let playerQuery = EntityQuery(where: .has(PlayerComponent.self) && .has(PhysicsBody2DComponent.self))
     
     static let cameraQuery = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
-    static let matQuery = EntityQuery(where: .has(Mesh2dComponent.self) && .has(Transform.self))
+    static let matQuery = EntityQuery(where: .has(Mesh2DComponent.self) && .has(Transform.self))
     
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
         context.scene.performQuery(Self.matQuery).forEach { entity in
-            let meshComponent = entity.components[Mesh2dComponent.self]!
+            let meshComponent = entity.components[Mesh2DComponent.self]!
             if Input.isMouseButtonPressed(.left) {
                 (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .mint
             } else {
@@ -27,12 +27,22 @@ struct PlayerMovementSystem: System {
             
             var transform = entity.components[Transform.self]!
             
-            if Input.isKeyPressed(.arrowLeft) {
-                transform.position.x -= 4 * context.deltaTime
+            let speed: Float = 3
+            
+            if Input.isKeyPressed(.semicolon) {
+                transform.position.x += speed * context.deltaTime
             }
             
-            if Input.isKeyPressed(.arrowRight) {
-                transform.position.x += 4 * context.deltaTime
+            if Input.isKeyPressed(.k) {
+                transform.position.x -= speed * context.deltaTime
+            }
+            
+            if Input.isKeyPressed(.l) {
+                transform.position.y -= speed * context.deltaTime
+            }
+            
+            if Input.isKeyPressed(.o) {
+                transform.position.y += speed * context.deltaTime
             }
             
             entity.components += transform
@@ -284,11 +294,16 @@ final class GameScene2D {
     }
     
     func makeCanvasItem(for scene: Scene) throws {
-        let material = MyMaterial(color: .red)
+        let dogTexture = try ResourceManager.load("Assets/dog.png", from: Bundle.module) as Texture2D
+        
+        let material = MyMaterial(
+            color: .red,
+            customTexture: dogTexture
+        )
         
         let handle = CustomMaterial(material)
         
-        let mesh = Mesh2dComponent(
+        let mesh = Mesh2DComponent(
             mesh: Mesh.generate(from: Quad()),
             materials: [handle]
         )
@@ -379,7 +394,15 @@ extension GameScene2D {
 
 struct MyMaterial: CanvasMaterial {
     @Uniform(binding: 2, propertyName: "u_Color")
-    var color: Color = .red
+    var color: Color
+    
+    @FragmentTexture(binding: 0)
+    var customTexture: Texture2D
+    
+    init(color: Color, customTexture: Texture2D) {
+        self.color = color
+        self.customTexture = customTexture
+    }
     
     static func fragmentShader() throws -> ShaderSource {
         try ResourceManager.load("Assets/custom_material.glsl", from: .module)

@@ -88,7 +88,6 @@ public final class Shader: Resource {
     func reflect() -> ShaderReflectionData {
         return self.spirvCompiler.reflection()
     }
-
 }
 
 // MARK: UniqueHashable

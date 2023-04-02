@@ -26,18 +26,18 @@ extension ShaderStage {
     }
 }
 
-struct ShaderReflectionData: Codable {
-    var descriptorSets: [ShaderResource.DescriptorSet] = []
-    var shaderBuffers: [String: ShaderResource.ShaderBuffer] = [:]
-    var resources: [String: ShaderResource.ImageSampler] = [:]
-}
-
 public enum ShaderResource {
     
-    struct DescriptorSet: Codable {
-        var uniformsBuffers: [Int: ShaderBuffer] = [:]
-        var constantBuffers: [String: ShaderBuffer] = [:]
-        var sampledImages: [String: ImageSampler] = [:]
+    public struct DescriptorSet: Codable {
+        public var uniformsBuffers: [Int: ShaderBuffer] = [:]
+        public var constantBuffers: [String: ShaderBuffer] = [:]
+        public var sampledImages: [String: ImageSampler] = [:]
+    }
+    
+    public enum ResourceAccess: Codable {
+        case read
+        case write
+        case readWrite
     }
     
     enum ResourceType: CaseIterable, Codable {
@@ -45,6 +45,7 @@ public enum ShaderResource {
         case storageBuffer
         case pushConstantBuffer
         case image
+        case sampledImage
         case storageImage
         case inputAttachment
         case sampler
@@ -54,6 +55,7 @@ public enum ShaderResource {
         public let name: String
         public let binding: Int
         public let size: Int
+        public let resourceAccess: ResourceAccess
     }
     
     public struct Sampler: Codable {
@@ -64,9 +66,11 @@ public enum ShaderResource {
     public struct ImageSampler: Codable {
         let name: String
         let binding: Int
+        let textureType: Texture.TextureType
         let descriptorSet: Int
         let arraySize: Int
         let shaderStage: ShaderStageFlags
+        public let resourceAccess: ResourceAccess
     }
     
     public struct ShaderBuffer: Codable {
@@ -74,6 +78,7 @@ public enum ShaderResource {
         public let size: Int
         public let shaderStage: ShaderStageFlags
         public let binding: Int
+        public let resourceAccess: ResourceAccess
         
         public let members: [String : ShaderBufferMember]
     }
@@ -100,6 +105,8 @@ extension ShaderResource.ResourceType {
             return SPVC_RESOURCE_TYPE_STORAGE_IMAGE
         case .image:
             return SPVC_RESOURCE_TYPE_SEPARATE_IMAGE
+        case .sampledImage:
+            return SPVC_RESOURCE_TYPE_SAMPLED_IMAGE
         case .pushConstantBuffer:
             return SPVC_RESOURCE_TYPE_PUSH_CONSTANT
         case .inputAttachment:
@@ -194,4 +201,18 @@ public extension ShaderStageFlags {
     static let tesselationEvaluation = ShaderStageFlags(rawValue: 1 << 4)
     
     static let max: ShaderStageFlags = [.vertex, .fragment, .compute, .tesselationControl, .tesselationEvaluation]
+}
+
+public struct ShaderReflectionData: Codable {
+    public var descriptorSets: [ShaderResource.DescriptorSet] = []
+    public var shaderBuffers: [String: ShaderResource.ShaderBuffer] = [:]
+    public var resources: [String: ShaderResource.ImageSampler] = [:]
+}
+
+public extension ShaderReflectionData {
+    // TODO: Descriptor sets?
+    mutating func merge(_ data: ShaderReflectionData) {
+        self.shaderBuffers.merge(data.shaderBuffers) { _, new in return new }
+        self.resources.merge(data.resources) { _, new in return new }
+    }
 }

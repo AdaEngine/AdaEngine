@@ -44,8 +44,6 @@ public class Renderer2D {
     
     private var quadPosition: [Vector4] = []
     
-    private let whiteTexture: Texture2D
-    
     private static var maxQuads = 20_000
     private static var maxVerticies = maxQuads * 4
     private static var maxIndecies = maxQuads * 6
@@ -93,11 +91,6 @@ public class Renderer2D {
         )
         quadIndexBuffer.label = "Renderer2D_QuadIndexBuffer"
         
-        // Create an empty white texture
-        // because if user don't pass texture to render, we will use this white texture
-        let image = Image(width: 1, height: 1, color: .white)
-        self.whiteTexture = Texture2D(image: image)
-        
         // Circle
         
         let circleShader = try! ResourceManager.load("Shaders/Vulkan/circle.glsl", from: .engineBundle) as ShaderModule
@@ -136,7 +129,7 @@ public class Renderer2D {
             indeciesCount: 0,
             indexBuffer: quadIndexBuffer,
             renderPipeline: circlePipeline,
-            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 16)
+            textureSlots: [Texture2D].init(repeating: .whiteTexture, count: 16)
         )
         
         // Quads
@@ -172,7 +165,7 @@ public class Renderer2D {
             indeciesCount: 0,
             indexBuffer: quadIndexBuffer,
             renderPipeline: quadPipeline,
-            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 16)
+            textureSlots: [Texture2D].init(repeating: .whiteTexture, count: 16)
         )
         
         // Lines
@@ -221,7 +214,7 @@ public class Renderer2D {
             indeciesCount: 0,
             indexBuffer: indexBuffer,
             renderPipeline: linesPipeline,
-            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 16)
+            textureSlots: [Texture2D].init(repeating: .whiteTexture, count: 16)
         )
         
         // Text
@@ -252,7 +245,7 @@ public class Renderer2D {
             indeciesCount: 0,
             indexBuffer: indexBuffer,
             renderPipeline: textPipeline,
-            textureSlots: [Texture2D].init(repeating: whiteTexture, count: 16)
+            textureSlots: [Texture2D].init(repeating: .whiteTexture, count: 16)
         )
     }
     
@@ -337,7 +330,7 @@ extension Renderer2D {
             // Flush all data if textures count more than 32
             if self.renderEngine.quadData.textureSlotIndex >= 31 {
                 self.nextBatch()
-                self.renderEngine.quadData.textureSlots = [Texture2D].init(repeating: self.renderEngine.whiteTexture, count: 16)
+                self.renderEngine.quadData.textureSlots = [Texture2D].init(repeating: .whiteTexture, count: 16)
                 self.renderEngine.quadData.textureSlotIndex = 0
             }
             
@@ -436,7 +429,7 @@ extension Renderer2D {
             // Flush all data if textures count more than 16
             if self.renderEngine.textData.textureSlotIndex >= 15 {
                 self.nextBatch()
-                self.renderEngine.textData.textureSlots = [Texture2D].init(repeating: self.renderEngine.whiteTexture, count: 16)
+                self.renderEngine.textData.textureSlots = [Texture2D].init(repeating: .whiteTexture, count: 16)
                 self.renderEngine.textData.textureSlotIndex = 0
             }
             

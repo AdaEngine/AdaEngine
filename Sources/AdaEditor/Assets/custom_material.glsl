@@ -7,8 +7,10 @@ layout (std140, binding = 2) uniform CustomMaterial {
     vec4 u_Color;
 };
 
+layout (binding = 0) uniform sampler2D customTexture;
+
 [[main]]
 void my_material_fragment()
 {
-    COLOR = u_Color;
+    COLOR = texture(customTexture, Input.UV) * u_Color;
 }

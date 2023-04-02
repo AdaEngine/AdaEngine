@@ -32,7 +32,6 @@ public struct Text2DRenderSystem: System {
     )
     
     let textRenderPipeline: RenderPipeline
-    let gpuWhiteTexture: Texture2D
     
     public init(scene: Scene) {
         let device = RenderEngine.shared
@@ -57,9 +56,6 @@ public struct Text2DRenderSystem: System {
         
         let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
         self.textRenderPipeline = quadPipeline
-        
-        let image = Image(width: 1, height: 1, color: .white)
-        self.gpuWhiteTexture = Texture2D(image: image)
     }
     
     public func update(context: UpdateContext) {
@@ -113,7 +109,7 @@ public struct Text2DRenderSystem: System {
             }
             
             // TODO: Redesign it latter
-            var textures: [Texture2D] = [Texture2D].init(repeating: self.gpuWhiteTexture, count: Self.maxTexturesPerBatch)
+            var textures: [Texture2D] = [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
             glyphs.textures.compactMap { $0 }.enumerated().forEach { index, texture in
                 textures[index] = texture
             }
