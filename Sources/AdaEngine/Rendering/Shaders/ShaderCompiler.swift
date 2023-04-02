@@ -10,6 +10,7 @@ import SPIRVCompiler
 import SPIRV_Cross
 
 // TODO: Should we invert y-axis for vertex shader?
+// TODO: We should remove cached shaders if their included content will change.
 
 struct SpirvBinary {
     let stage: ShaderStage

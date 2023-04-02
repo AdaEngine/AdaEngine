@@ -22,10 +22,11 @@ public struct MeshDescriptor {
     public var materials: Materials = .allFaces(0)
     public var primitiveTopology: Mesh.PrimitiveTopology = .triangleList
     
+    public var indicies: [UInt32] = []
+    
     init(name: String) {
         self.name = name
         self.buffers[.positions] = AnyMeshBuffer(MeshBuffer<Vector3>([]))
-        self.buffers[.indices] = AnyMeshBuffer(MeshBuffer<Vector3>([]))
     }
     
     public subscript<S>(semantic: S) -> MeshBuffer<S.Element>? where S : MeshArraySemantic {
@@ -113,8 +114,6 @@ extension MeshDescriptor {
 
         public static let textureCoordinates: MeshDescriptor.Identifier = MeshDescriptor.Identifier(name: "textureCoordinates", isCustom: false)
 
-        public static let indices: MeshDescriptor.Identifier = MeshDescriptor.Identifier(name: "indices", isCustom: false)
-
         public static let colors: MeshDescriptor.Identifier = MeshDescriptor.Identifier(name: "colors", isCustom: false)
     }
 
@@ -136,8 +135,6 @@ extension MeshDescriptor {
 
     public static let textureCoordinates: MeshDescriptor.Semantic<Vector2> = MeshDescriptor.Semantic<Vector2>(id: .textureCoordinates)
 
-    public static let indices: MeshDescriptor.Semantic<UInt32> = MeshDescriptor.Semantic<UInt32>(id: .indices)
-
     public static let colors: MeshDescriptor.Semantic<Color> = MeshDescriptor.Semantic<Color>(id: .colors)
 
     public static func custom<Value>(_ name: String, type: Value.Type) -> MeshDescriptor.Semantic<Value> {
@@ -152,8 +149,6 @@ extension MeshDescriptor {
     public typealias Normals = MeshBuffer<Vector3>
 
     public typealias TextureCoordinates = MeshBuffer<Vector2>
-
-    public typealias Indices = MeshBuffer<UInt32>
 
     public typealias Colors = MeshBuffer<Color>
 
@@ -196,16 +191,6 @@ extension MeshDescriptor {
             self[MeshDescriptor.colors] = newValue
         }
     }
-    
-    public var indicies: MeshDescriptor.Indices {
-        get {
-            return self[MeshDescriptor.indices]!
-        }
-
-        set {
-            self[MeshDescriptor.indices] = newValue
-        }
-    }
 }
 
 public extension MeshDescriptor {
@@ -217,10 +202,6 @@ public extension MeshDescriptor {
         for value in buffers.elements {
             let buffer = value.value.buffer
             let attribute = value.key
-            
-            if value.key == MeshDescriptor.Identifier.indices {
-                continue
-            }
             
             vertexDescriptor.attributes[index].name = attribute.name
             vertexDescriptor.attributes[index].format = buffer.elementType.vertexFormat
@@ -237,12 +218,7 @@ public extension MeshDescriptor {
     
     func getVertexBufferSize() -> Int {
         var size: Int = 0
-        for (key, buffer) in buffers.elements {
-            // Avoid indecies
-            if key == MeshDescriptor.Identifier.indices {
-                continue
-            }
-            
+        for buffer in buffers.elements.values {
             size += buffer.count
         }
         
@@ -250,12 +226,15 @@ public extension MeshDescriptor {
     }
     
     func getIndexBuffer() -> IndexBuffer {
-        return RenderEngine.shared.makeIndexBuffer(
+        var indicies = self.indicies
+        let indexBuffer = RenderEngine.shared.makeIndexBuffer(
             index: 0,
             format: .uInt32,
-            bytes: self.indicies.buffer.bytes.baseAddress!,
-            length: self.indicies.count * MemoryLayout<UInt32>.size
+            bytes: &indicies,
+            length: indicies.count * MemoryLayout<UInt32>.size
         )
+        
+        return indexBuffer
     }
     
     func getVertexBuffer() -> VertexBuffer {

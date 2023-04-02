@@ -120,8 +120,9 @@ public final class Uniform<T: ShaderBindable & ShaderUniformValue>: _ShaderBindP
     public let binding: Int
     internal var propertyName: String = ""
     
-    public init(wrappedValue: T, binding: Int) {
+    public init(wrappedValue: T, binding: Int, propertyName: String = "") {
         self.wrappedValue = wrappedValue
+        self.propertyName = propertyName
         self.binding = binding
     }
 }
@@ -243,10 +244,12 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
                 continue
             }
             
-            // Get the propertyName of the property. By syntax, the property name is
-            // in the form: "_name". Dropping the "_" -> "name"
-            let propertyName = String((child.label ?? "").dropFirst())
-            bindProperty.propertyName = propertyName
+            if bindProperty.propertyName.isEmpty {
+                // Get the propertyName of the property. By syntax, the property name is
+                // in the form: "_name". Dropping the "_" -> "name"
+                let propertyName = String((child.label ?? "").dropFirst())
+                bindProperty.propertyName = propertyName
+            }
             
             // For update buffers
             bindProperty.delegate = self

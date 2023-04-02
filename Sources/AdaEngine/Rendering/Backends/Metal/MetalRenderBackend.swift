@@ -478,15 +478,10 @@ extension MetalRenderBackend {
             }
         }
         
-        switch list.triangleFillMode {
-        case .fill:
-            encoder.setTriangleFillMode(.fill)
-        case .lines:
-            encoder.setTriangleFillMode(.lines)
-        }
+        encoder.setTriangleFillMode(list.triangleFillMode == .fill ? .fill : .lines)
         
         encoder.drawIndexedPrimitives(
-            type: list.indexPrimitive == .line ? .line : .triangle,
+            type: list.indexPrimitive.toMetal,
             indexCount: indexCount,
             indexType: indexBuffer.indexFormat == .uInt32 ? .uint32 : .uint16,
             indexBuffer: (indexBuffer as! MetalIndexBuffer).buffer,
@@ -507,6 +502,25 @@ extension MetalRenderBackend {
 }
 
 // MARK: - Data
+
+extension IndexPrimitive {
+    @inlinable
+    @inline(__always)
+    var toMetal: MTLPrimitiveType {
+        switch self {
+        case .line:
+            return MTLPrimitiveType.line
+        case .lineStrip:
+            return MTLPrimitiveType.lineStrip
+        case .points:
+            return MTLPrimitiveType.point
+        case .triangle:
+            return MTLPrimitiveType.triangle
+        case .triangleStrip:
+            return MTLPrimitiveType.triangleStrip
+        }
+    }
+}
 
 extension MetalRenderBackend {
     

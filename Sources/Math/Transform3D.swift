@@ -450,6 +450,15 @@ public extension Transform3D {
         ])
     }
     
+    var transpose: Transform3D {
+        return Transform3D(rows: [
+            [self.x.x, self.y.x, self.z.x, self.w.x],
+            [self.x.y, self.y.y, self.z.y, self.w.y],
+            [self.x.z, self.y.z, self.z.z, self.w.z],
+            [self.x.w, self.y.w, self.z.w, self.w.w]
+        ])
+    }
+    
     var inverse: Transform3D {
         var d00 = self.x.x * self.y.y
         d00 = d00 - self.y.x * self.x.y

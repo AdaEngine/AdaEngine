@@ -25,7 +25,7 @@ public extension Buffer {
     
     // TODO: (Vlad) Looks how it works with arrays
     func setData<T>(_ value: T) {
-        let size = MemoryLayout<T>.size
+        let size = MemoryLayout<T>.stride
         
         var value = value
         self.setData(&value, byteCount: size)

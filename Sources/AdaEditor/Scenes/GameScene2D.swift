@@ -17,15 +17,25 @@ struct PlayerMovementSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        
         context.scene.performQuery(Self.matQuery).forEach { entity in
             let meshComponent = entity.components[Mesh2dComponent.self]!
             if Input.isMouseButtonPressed(.left) {
-                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .blue
+                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .mint
             } else {
-                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .red
+                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .pink
             }
             
+            var transform = entity.components[Transform.self]!
+            
+            if Input.isKeyPressed(.arrowLeft) {
+                transform.position.x -= 4 * context.deltaTime
+            }
+            
+            if Input.isKeyPressed(.arrowRight) {
+                transform.position.x += 4 * context.deltaTime
+            }
+            
+            entity.components += transform
         }
         
         context.scene.performQuery(Self.playerQuery).forEach { entity in
@@ -39,13 +49,13 @@ struct PlayerMovementSystem: System {
                 body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
             }
             
-            if Input.isKeyPressed(.arrowLeft) {
-                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
-            }
-            
-            if Input.isKeyPressed(.arrowRight) {
-                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
-            }
+//            if Input.isKeyPressed(.arrowLeft) {
+//                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
+//            }
+//
+//            if Input.isKeyPressed(.arrowRight) {
+//                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
+//            }
         }
         
         context.scene.performQuery(Self.cameraQuery).forEach { entity in
@@ -215,7 +225,7 @@ final class GameScene2D {
         self.addText(to: scene)
         
         scene.addSystem(TubeMovementSystem.self)
-        scene.addSystem(TubeSpawnerSystem.self)
+//        scene.addSystem(TubeSpawnerSystem.self)
         scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
         
@@ -368,8 +378,8 @@ extension GameScene2D {
 }
 
 struct MyMaterial: CanvasMaterial {
-    @Uniform(binding: 3) var color: Color = .red
-    @Attribute(binding: 1) var value: Float = 0
+    @Uniform(binding: 2, propertyName: "u_Color")
+    var color: Color = .red
     
     static func fragmentShader() throws -> ShaderSource {
         try ResourceManager.load("Assets/custom_material.glsl", from: .module)
