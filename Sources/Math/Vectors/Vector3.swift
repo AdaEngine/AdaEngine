@@ -278,3 +278,29 @@ public extension Vector3 {
     @inline(__always)
     static let right: Vector3 = Vector3(1, 0, 0)
 }
+
+/// Returns a vector containing the minimum values for each element of `lhs` and `rhs`.
+///
+/// In other words this computes `[min(lhs.x, rhs.x), min(lhs.y, rhs.y), ..]`.
+@inlinable
+@inline(__always)
+public func min(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
+    [
+        min(lhs.x, rhs.x),
+        min(lhs.y, rhs.y),
+        min(lhs.z, rhs.z)
+    ]
+}
+
+/// Returns a vector containing the maximum values for each element of `lhs` and `rhs`.
+///
+/// In other words this computes `[max(lhs.x, rhs.x), max(lhs.y, rhs.y), ..]`.
+@inlinable
+@inline(__always)
+public func max(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
+    [
+        max(lhs.x, rhs.x),
+        max(lhs.y, rhs.y),
+        max(lhs.z, rhs.z)
+    ]
+}

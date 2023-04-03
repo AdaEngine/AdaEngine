@@ -7,9 +7,8 @@
 
 import Math
 
-// TODO: We should generate AABB for mesh
-
-public class Mesh {
+// TODO: Add Resource implementation
+public class Mesh: Resource {
     
     public struct Part: Identifiable {
         public let id: Int
@@ -46,6 +45,19 @@ public class Mesh {
         case vertexDescriptor
     }
     
+    // MARK: - Resource
+    
+    public var resourcePath: String = ""
+    public var resourceName: String = ""
+    public static var resourceType: ResourceType = .mesh
+    
+    public required init(asset decoder: AssetDecoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encodeContents(with encoder: AssetEncoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
 }
 
 public extension Mesh {
@@ -74,5 +86,33 @@ public extension Mesh {
     
     static func generate(from shape: Shape) -> Mesh {
         return self.generate(from: [shape.meshDescriptor()])
+    }
+}
+
+public extension Mesh {
+    /// Compute the Axis-Aligned Bounding Box of the mesh vertices in model space
+    func computeAABB() -> AABB? {
+        
+        let floatMin = -Float.greatestFiniteMagnitude
+        
+        var minimum: Vector3 = Vector3(.greatestFiniteMagnitude)
+        var maximum: Vector3 = Vector3(floatMin)
+        
+        for model in self.models {
+            for part in model.parts {
+                for position in part.meshDescriptor.positions {
+                    minimum = min(minimum, position)
+                    maximum = max(maximum, position)
+                }
+            }
+        }
+        
+        if minimum.x != .greatestFiniteMagnitude && minimum.y != .greatestFiniteMagnitude
+            && minimum.z != .greatestFiniteMagnitude && maximum.x != floatMin
+            && maximum.y != floatMin && maximum.z != floatMin {
+            return AABB(min: minimum, max: maximum)
+        }
+        
+        return nil
     }
 }

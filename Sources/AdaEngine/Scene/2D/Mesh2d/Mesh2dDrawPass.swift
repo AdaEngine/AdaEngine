@@ -12,18 +12,18 @@ struct Mesh2DUniform {
     let modelInverseTranspose: Transform3D
 }
 
-struct Mesh2DDrawPass: DrawPass {
+public struct Mesh2DDrawPass: DrawPass {
     
     let meshUniformBufferSet: UniformBufferSet
     
     static let meshUniformBinding: Int = 2
     
-    init() {
+    public init() {
         self.meshUniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
         self.meshUniformBufferSet.initBuffers(for: Mesh2DUniform.self, binding: Self.meshUniformBinding, set: 0)
     }
     
-    func render(in context: Context, item: Transparent2DRenderItem) throws {
+    public func render(in context: Context, item: Transparent2DRenderItem) throws {
         let meshComponent = item.entity.components[ExctractedMeshPart2d.self]!
         
         let part = meshComponent.part

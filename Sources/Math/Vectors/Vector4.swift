@@ -283,3 +283,31 @@ public extension Vector4 {
         }
     }
 }
+
+/// Returns a vector containing the minimum values for each element of `lhs` and `rhs`.
+///
+/// In other words this computes `[min(lhs.x, rhs.x), min(lhs.y, rhs.y), ..]`.
+@inlinable
+@inline(__always)
+public func min(_ lhs: Vector4, _ rhs: Vector4) -> Vector4 {
+    [
+        min(lhs.x, rhs.x),
+        min(lhs.y, rhs.y),
+        min(lhs.z, rhs.z),
+        min(lhs.w, rhs.w)
+    ]
+}
+
+/// Returns a vector containing the maximum values for each element of `lhs` and `rhs`.
+///
+/// In other words this computes `[max(lhs.x, rhs.x), max(lhs.y, rhs.y), ..]`.
+@inlinable
+@inline(__always)
+public func max(_ lhs: Vector4, _ rhs: Vector4) -> Vector4 {
+    [
+        max(lhs.x, rhs.x),
+        max(lhs.y, rhs.y),
+        max(lhs.z, rhs.z),
+        max(lhs.w, rhs.w)
+    ]
+}
