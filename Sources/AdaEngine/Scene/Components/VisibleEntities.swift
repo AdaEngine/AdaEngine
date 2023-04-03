@@ -45,6 +45,7 @@ struct VisibilitySystem: System {
         }
     }
     
+    // TODO: Should we calculate it here?
     // Update or create bounding boxes.
     private func updateBoundings(context: UpdateContext) {
         context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
@@ -61,6 +62,8 @@ struct VisibilitySystem: System {
                 let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
                 
                 bounds = .aabb(AABB(min: min, max: max))
+            } else if let mesh2d = entity.components[Mesh2DComponent.self], let aabb = mesh2d.mesh.computeAABB() {
+                bounds = .aabb(aabb)
             }
             
             if let bounds {
@@ -71,10 +74,8 @@ struct VisibilitySystem: System {
     
     private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
-        
         var entityIds = Set<Entity.ID>()
-        
-        var filtredEntities = context.scene.performQuery(Self.entities).filter { entity in
+        let filtredEntities = context.scene.performQuery(Self.entities).filter { entity in
             let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
             
             if !visibility.isVisible {
@@ -93,7 +94,7 @@ struct VisibilitySystem: System {
             }
         }
         
-        var withNoFrustumEntities = context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
+        let withNoFrustumEntities = context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
             let visibility = entity.components[Visibility.self]!
             
             if visibility.isVisible {

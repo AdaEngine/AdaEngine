@@ -238,7 +238,7 @@ final class GameScene2D {
         self.addText(to: scene)
         
         scene.addSystem(TubeMovementSystem.self)
-//        scene.addSystem(TubeSpawnerSystem.self)
+        scene.addSystem(TubeSpawnerSystem.self)
         scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
         

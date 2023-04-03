@@ -37,6 +37,8 @@ public struct RenderItems<T: RenderItem>: Component {
             )
             
             try drawPass.render(in: context, item: item)
+            
+            drawList.clear()
         }
     }
 }

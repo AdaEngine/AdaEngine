@@ -216,4 +216,28 @@ public extension Point {
     }
 }
 
+/// Returns a vector containing the minimum values for each element of `lhs` and `rhs`.
+///
+/// In other words this computes `[min(lhs.x, rhs.x), min(lhs.y, rhs.y), ..]`.
+@inlinable
+@inline(__always)
+public func min(_ lhs: Vector2, _ rhs: Vector2) -> Vector2 {
+    [
+        min(lhs.x, rhs.x),
+        min(lhs.y, rhs.y)
+    ]
+}
+
+/// Returns a vector containing the maximum values for each element of `lhs` and `rhs`.
+///
+/// In other words this computes `[max(lhs.x, rhs.x), max(lhs.y, rhs.y), ..]`.
+@inlinable
+@inline(__always)
+public func max(_ lhs: Vector2, _ rhs: Vector2) -> Vector2 {
+    [
+        max(lhs.x, rhs.x),
+        max(lhs.y, rhs.y)
+    ]
+}
+
 // swiftlint:enable identifier_name
