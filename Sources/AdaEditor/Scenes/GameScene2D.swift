@@ -25,6 +25,8 @@ struct PlayerMovementSystem: System {
                 (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .pink
             }
             
+            (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.time += context.deltaTime
+            
             var transform = entity.components[Transform.self]!
             
             let speed: Float = 3
@@ -229,7 +231,8 @@ final class GameScene2D {
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
-        try self.makeCanvasItem(for: scene)
+        try self.makeCanvasItem(for: scene, position: [-0.3, -0.4])
+        try self.makeCanvasItem(for: scene, position: [0.5, 0.4])
         self.collisionHandler(for: scene)
 //        self.fpsCounter(for: scene)
         self.addText(to: scene)
@@ -293,7 +296,7 @@ final class GameScene2D {
         scene.addEntity(playerEntity)
     }
     
-    func makeCanvasItem(for scene: Scene) throws {
+    func makeCanvasItem(for scene: Scene, position: Vector2) throws {
         let dogTexture = try ResourceManager.load("Assets/dog.png", from: Bundle.module) as Texture2D
         
         let material = MyMaterial(
@@ -309,8 +312,10 @@ final class GameScene2D {
         )
         
         var transform = Transform()
-        transform.scale = Vector3(1.4)
+        transform.scale = Vector3(0.4)
         transform.position.z = 1
+        transform.position.x = position.x
+        transform.position.y = position.y
         
         let entity = Entity(name: "custom_material")
         entity.components += mesh
@@ -393,6 +398,10 @@ extension GameScene2D {
 }
 
 struct MyMaterial: CanvasMaterial {
+    
+    @Uniform(binding: 2, propertyName: "u_Time")
+    var time: Float
+    
     @Uniform(binding: 2, propertyName: "u_Color")
     var color: Color
     
@@ -400,6 +409,7 @@ struct MyMaterial: CanvasMaterial {
     var customTexture: Texture2D
     
     init(color: Color, customTexture: Texture2D) {
+        self.time = 0
         self.color = color
         self.customTexture = customTexture
     }

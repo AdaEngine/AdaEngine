@@ -7,6 +7,8 @@
 
 import Math
 
+// TODO: We should generate AABB for mesh
+
 public class Mesh {
     
     public struct Part: Identifiable {
@@ -74,100 +76,3 @@ public extension Mesh {
         return self.generate(from: [shape.meshDescriptor()])
     }
 }
-
-#if METAL
-
-//public extension Mesh {
-//    static func loadMesh(from url: URL, vertexDescriptor: MeshVertexDescriptor? = nil) -> Mesh {
-//        #if METAL
-//        let asset = MDLAsset(
-//            url: url,
-//            vertexDescriptor: nil,
-//            bufferAllocator: nil
-//        )
-//
-//        let mdlMesh = asset.childObjects(of: MDLMesh.self).first as! MDLMesh
-//
-//        return Mesh(mdlMesh: mdlMesh)
-//        #else
-//        fatalError()
-//        #endif
-//    }
-//}
-
-//extension Mesh {
-//    convenience init(mdlMesh: MDLMesh) {
-//        let buffer = RenderEngine.shared.makeBuffer(
-//            bytes: mdlMesh.vertexBuffers[0].map().bytes,
-//            length: mdlMesh.vertexBuffers[0].length,
-//            options: []
-//        )
-//
-//        var model = Mesh.Model(
-//            name: mdlMesh.name,
-//            vertexBuffer: buffer,
-//            vertexCount: mdlMesh.vertexCount,
-//            parts: []
-//        )
-//
-//        for (index, submesh) in (mdlMesh.submeshes as! [MDLSubmesh]).enumerated() {
-//
-//            let buffer = RenderEngine.shared.makeBuffer(
-//                bytes: submesh.indexBuffer.map().bytes,
-//                length: submesh.indexBuffer.length,
-//                options: [.storageShared]
-//            )
-//
-//            let surface = Mesh.Part(
-//                id: index,
-//                name: submesh.name,
-//                primitiveTopology: .triangleList,
-//                meshDescriptor: <#MeshDescriptor#>,
-//                isUInt32: submesh.indexType == .uInt32,
-//                indexBuffer: buffer,
-//                indexCount: submesh.indexCount,
-//                materialIndex: 0
-//            )
-//
-//            model.surfaces.append(surface)
-//        }
-//
-//        self.init(
-//            models: [model],
-//            vertexDescriptor: MeshVertexDescriptor(mdlVertexDescriptor: mdlMesh.vertexDescriptor)
-//        )
-//    }
-//}
-
-//public extension Mesh {
-//    static func generateBox(extent: Vector3, segments: Vector3) -> Mesh {
-//        let mdlMesh = MDLMesh(
-//            boxWithExtent: [extent.x, extent.y, extent.z],
-//            segments: [UInt32(segments.x), UInt32(segments.y), UInt32(segments.z)],
-//            inwardNormals: false,
-//            geometryType: .triangles,
-//            allocator: nil)
-//
-//        return Mesh(
-//            mdlMesh: mdlMesh,
-//            source: .box(extent: extent, segments: segments)
-//        )
-//    }
-//
-//    static func generateSphere(extent: Vector3, segments: Vector2) -> Mesh {
-//        let mdlMesh = MDLMesh(
-//            sphereWithExtent: [extent.x, extent.y, extent.z],
-//            segments: [UInt32(segments.x), UInt32(segments.y)],
-//            inwardNormals: false,
-//            geometryType: .triangles,
-//            allocator: nil
-//        )
-//
-//        return Mesh(
-//            mdlMesh: mdlMesh,
-//            source: .sphere(extent: extent, segments: segments)
-//        )
-//    }
-//}
-
-#endif

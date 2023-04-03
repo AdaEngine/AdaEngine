@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 3/20/23.
 //
 
+import Math
+
 public struct Quad: Shape {
     
     public let size: Vector2

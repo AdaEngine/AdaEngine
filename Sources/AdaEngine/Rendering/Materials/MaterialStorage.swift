@@ -38,14 +38,14 @@ final class MaterialStorage {
     
     static let shared: MaterialStorage = MaterialStorage()
     
-    private var materialData: [Material: MaterialStorageData] = [:]
+    private var materialData: [RID: MaterialStorageData] = [:]
     
     private init() {}
     
     // MARK: - Material
     
     func setValue<T: ShaderUniformValue>(_ value: T, for name: String, in material: Material) {
-        guard let data = self.materialData[material] else {
+        guard let data = self.materialData[material.rid] else {
             return
         }
         
@@ -66,7 +66,7 @@ final class MaterialStorage {
     }
     
     func getValue<T: ShaderUniformValue>(for name: String, in material: Material) -> T? {
-        guard let data = self.materialData[material] else {
+        guard let data = self.materialData[material.rid] else {
             return nil
         }
         
@@ -99,7 +99,7 @@ final class MaterialStorage {
     }
     
     func setResources(_ textures: [Texture], for name: String, in material: Material) {
-        guard let data = self.materialData[material] else {
+        guard let data = self.materialData[material.rid] else {
             return
         }
         
@@ -113,7 +113,7 @@ final class MaterialStorage {
     }
     
     func getResources(for name: String, in material: Material) -> [Texture] {
-        guard let data = self.materialData[material] else {
+        guard let data = self.materialData[material.rid] else {
             return []
         }
         
@@ -131,10 +131,10 @@ final class MaterialStorage {
     }
     
     func setMaterialData(_ materialData: MaterialStorageData, for material: Material) {
-        self.materialData[material] = materialData
+        self.materialData[material.rid] = materialData
     }
     
     func getMaterialData(for material: Material) -> MaterialStorageData? {
-        return self.materialData[material]
+        return self.materialData[material.rid]
     }
 }

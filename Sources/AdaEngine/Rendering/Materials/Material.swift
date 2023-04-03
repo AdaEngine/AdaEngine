@@ -11,6 +11,8 @@ public class Material: Resource, Hashable {
     public var resourcePath: String = ""
     public static var resourceType: ResourceType = .material
     
+    let rid = RID()
+    
     let shaderSource: ShaderSource
     
     init(shaderSource: ShaderSource) {
