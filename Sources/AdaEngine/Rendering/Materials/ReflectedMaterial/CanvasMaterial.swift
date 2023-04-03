@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 4/2/23.
 //
 
+/// This material can be render Meshes in 2D world.
 public protocol CanvasMaterial: ReflectedMaterial { }
 
 public extension CanvasMaterial {

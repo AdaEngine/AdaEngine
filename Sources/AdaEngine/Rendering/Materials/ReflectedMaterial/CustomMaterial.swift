@@ -10,6 +10,66 @@ protocol MaterialValueDelegate: AnyObject {
     func updateTextures(_ textures: [Texture], for name: String, binding: Int)
 }
 
+/// This material supports user declared materials.
+///
+/// It's very powerful tool for creating your own materials using power of Swift.
+/// You can declare any materials and describe what kind of values can be used in your shader.
+/// Like example, we can define our custom canvas material.
+///
+/// ```
+/// struct MyCanvasMaterial: CanvasMaterial {
+///
+///     @Uniform(binding: 0, propertyName: "u_Color")
+///     var color: Color = .blue
+///
+///     static func fragment() throws -> ShaderSource {
+///         try ResourceLoader.load("PATH_TO_FRAGMENT_SHADER.glsl")
+///     }
+/// }
+/// ```
+///
+/// After that, we should write our own fragment shader code:
+///
+/// ```
+///
+/// #version 450 core
+/// #pragma stage : frag // Declare that this code can be used for fragment shading
+///
+/// #include <AdaEngine/CanvasMaterial.frag> // Include basic canvas header code for you shader
+///
+/// // Declare you material uniform
+/// layout (std140, binding = 2) uniform CustomMaterial {
+///     vec4 u_Color; // This property will be changed from MyCanvasMaterial
+/// };
+///
+/// [[main]]
+/// void my_material_fragment()
+/// {
+///     COLOR = u_Color; // Set material color to output color value.
+/// }
+/// ```
+///
+/// And than, you can pass our new material to anywhere you want.
+///
+/// ```
+/// let mesh = Mesh()
+/// let customMaterial = CustomMaterial(MyCanvasMaterial())
+/// let meshComponent = Mesh2DComponent(mesh: mesh, materials: [customMaterial])
+///
+/// entity.components += meshComponent
+/// ```
+///
+/// You can update material values with two different ways with reflection or string literals.
+/// ```
+/// let customMaterial = CustomMaterial(MyCanvasMaterial())
+///
+/// // Pass new value into material using reflection.
+/// customMaterial.color = .blue
+///
+/// // Pass new value into material using string literals
+/// // In this case we should think about correct name of uniform member.
+/// customMaterial.setValue(Color.blue, for: "u_Color")
+/// ```
 @dynamicMemberLookup
 public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValueDelegate {
     
