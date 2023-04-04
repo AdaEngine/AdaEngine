@@ -22,9 +22,9 @@ class MetalUniformBufferSet: UniformBufferSet {
     
     private var uniformBuffers: [FrameIndex : [Set : [ Binding : UniformBuffer] ] ] = [:]
     
-    init(frames: Int, backend: RenderBackend) {
+    init(frames: Int, device: RenderBackend) {
         self.frames = frames
-        self.device = backend
+        self.device = device
     }
     
     func initBuffers(length: Int, binding: Int, set: Int) {

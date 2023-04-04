@@ -5,11 +5,6 @@
 //  Created by v.prusakov on 10/20/21.
 //
 
-enum BufferIndex {
-    static let baseUniform = 1
-    static let material = 2
-}
-
 // TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
 #if METAL
@@ -22,7 +17,6 @@ class MetalRenderBackend: RenderBackend {
     
     private let context: Context
     private(set) var currentFrameIndex: Int = 0
-    private var maxFramesInFlight = 3
     
     private var inFlightSemaphore: DispatchSemaphore
     private var commandQueue: MTLCommandQueue
@@ -30,7 +24,7 @@ class MetalRenderBackend: RenderBackend {
     init(appName: String) {
         self.context = Context()
         
-        self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
+        self.inFlightSemaphore = DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
     }
     
@@ -80,7 +74,7 @@ class MetalRenderBackend: RenderBackend {
             commandBuffer.commit()
         }
         
-        currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
+        currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
     }
     
     func compileShader(from shader: Shader) throws -> CompiledShader {
@@ -389,7 +383,7 @@ extension MetalRenderBackend {
     // MARK: - Uniforms -
     
     func makeUniformBufferSet() -> UniformBufferSet {
-        return MetalUniformBufferSet(frames: self.maxFramesInFlight, backend: self)
+        return MetalUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, device: self)
     }
     
     func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {

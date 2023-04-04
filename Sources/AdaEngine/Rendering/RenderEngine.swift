@@ -7,7 +7,21 @@
 
 import OrderedCollections
 
-public class RenderEngine: RenderBackend {
+public enum GlobalBufferIndex {
+    public static let viewUniform: Int = 1
+}
+
+public final class RenderEngine: RenderBackend {
+    
+    public struct Configuration {
+        
+        public var maxFramesInFlight: Int = 3
+        
+        public init() {}
+    }
+    
+    /// Setup configuration for render engine
+    public static var configurations: Configuration = Configuration()
     
     public static let shared: RenderEngine = {
         let renderBackend: RenderBackend
@@ -29,6 +43,7 @@ public class RenderEngine: RenderBackend {
     
     // MARK: - RenderBackend
     
+    /// Returns current frame index. Min value 0, Max value is equal `Configuration.maxFramesInFlight` value.
     public var currentFrameIndex: Int {
         return self.renderBackend.currentFrameIndex
     }
@@ -37,6 +52,7 @@ public class RenderEngine: RenderBackend {
         try self.renderBackend.createWindow(windowId, for: view, size: size)
     }
     
+    /// Resize window by window id.
     public func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
         try self.renderBackend.resizeWindow(windowId, newSize: newSize)
     }
@@ -55,24 +71,29 @@ public class RenderEngine: RenderBackend {
     
     // MARK: - Buffers -
     
+    /// Create a new empty buffer with fgiven length and options.
     func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
         return self.renderBackend.makeBuffer(length: length, options: options)
     }
     
+    /// Create a new buffer with given data, and options.
     func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
     }
     
+    /// Create a new instance of index buffer with given index, format and data.
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         return self.renderBackend.makeIndexBuffer(index: index, format: format, bytes: bytes, length: length)
     }
     
+    /// Create a new instance of vertex buffer with given length and binding.
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
         self.renderBackend.makeVertexBuffer(length: length, binding: binding)
     }
     
     // MARK: - Shaders
     
+    /// Create a new instance of sampler from sampler descriptor.
     func makeSampler(from descriptor: SamplerDescriptor) -> Sampler {
         return self.renderBackend.makeSampler(from: descriptor)
     }

@@ -126,6 +126,6 @@ struct GlobalViewUniformBufferSet: Component {
     init() {
         self.uniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
         self.uniformBufferSet.label = "Global View Uniform"
-        self.uniformBufferSet.initBuffers(for: GlobalViewUniform.self, binding: BufferIndex.baseUniform, set: 0)
+        self.uniformBufferSet.initBuffers(for: GlobalViewUniform.self, binding: GlobalBufferIndex.viewUniform, set: 0)
     }
 }

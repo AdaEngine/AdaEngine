@@ -28,7 +28,12 @@ public struct SpriteDrawPass: DrawPass {
         
         context.drawList.pushDebugName("SpriteDrawPass")
         
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: context.device.currentFrameIndex)
+        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: context.device.currentFrameIndex
+        )
+        
         context.drawList.appendUniformBuffer(uniformBuffer)
         
         batchSprite.textures.enumerated().forEach { (index, texture) in

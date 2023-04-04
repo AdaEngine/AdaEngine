@@ -7,6 +7,8 @@
 
 import Math
 
+// FIXME: Currently, I've no idea why we render only one mesh on the screen
+
 struct Mesh2DUniform {
     let model: Transform3D
     let modelInverseTranspose: Transform3D
@@ -20,6 +22,7 @@ public struct Mesh2DDrawPass: DrawPass {
     
     public init() {
         self.meshUniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
+        self.meshUniformBufferSet.label = "Mesh2D Uniform"
         self.meshUniformBufferSet.initBuffers(for: Mesh2DUniform.self, binding: Self.meshUniformBinding, set: 0)
     }
     
@@ -37,8 +40,12 @@ public struct Mesh2DDrawPass: DrawPass {
             return
         }
         
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(binding: BufferIndex.baseUniform, set: 0, frameIndex: context.device.currentFrameIndex)
-        context.drawList.appendUniformBuffer(uniformBuffer)
+        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: context.device.currentFrameIndex
+        )
+        drawList.appendUniformBuffer(uniformBuffer, for: .vertex)
         
         drawList.pushDebugName("Mesh 2D Render")
         
@@ -74,7 +81,7 @@ public struct Mesh2DDrawPass: DrawPass {
         
         meshUniformBuffer.setData(meshComponent.modelUniform)
         
-        drawList.appendUniformBuffer(meshUniformBuffer)
+        drawList.appendUniformBuffer(meshUniformBuffer, for: .vertex)
         
         drawList.appendVertexBuffer(part.vertexBuffer)
         drawList.bindIndexBuffer(part.indexBuffer)
@@ -82,7 +89,6 @@ public struct Mesh2DDrawPass: DrawPass {
         drawList.bindRenderPipeline(item.renderPipeline)
         
         drawList.drawIndexed(indexCount: part.indexCount, instancesCount: 1)
-        drawList.popDebugName()
     }
 }
 
