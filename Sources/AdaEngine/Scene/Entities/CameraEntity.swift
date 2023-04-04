@@ -23,8 +23,9 @@ public final class CameraEntity: Entity {
         let camera = Camera()
         camera.isActive = true
         self.components += camera
-        self.components += VisibleEntities(entities: [])
-        self.components += ViewUniform()
+        self.components += VisibleEntities()
+        self.components += GlobalViewUniform()
+        self.components += GlobalViewUniformBufferSet()
         self.components += RenderItems<Transparent2DRenderItem>()
     }
     
@@ -34,8 +35,9 @@ public final class CameraEntity: Entity {
         let camera = camera
         camera.isActive = true
         self.components += camera
-        self.components += ViewUniform()
-        self.components += VisibleEntities(entities: [])
+        self.components += GlobalViewUniform()
+        self.components += GlobalViewUniformBufferSet()
+        self.components += VisibleEntities()
         self.components += RenderItems<Transparent2DRenderItem>()
     }
 }

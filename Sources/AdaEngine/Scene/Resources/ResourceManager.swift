@@ -22,6 +22,7 @@ public enum ResourceError: LocalizedError {
 }
 
 // TODO: In the future, we should compile assets into binary
+// TODO: Add documentation about query
 
 /// Manager using for loading and saving resources in file system.
 /// Each resource loaded from manager stored in memory cache.
@@ -62,22 +63,19 @@ public final class ResourceManager {
                 return cachedResource as! R
             }
             
-            var uri = self.processPath(path)
+            var processedPath = self.processPath(path)
             
-            let hasFileExt = !uri.pathExtension.isEmpty
+            let hasFileExt = !processedPath.url.pathExtension.isEmpty
             
             if !hasFileExt {
-                uri.appendPathExtension(R.resourceType.fileExtenstion)
+                processedPath.url.appendPathExtension(R.resourceType.fileExtenstion)
             }
             
-            guard FileSystem.current.itemExists(at: uri) else {
-                throw ResourceError.notExistAtPath(uri.path)
+            guard FileSystem.current.itemExists(at: processedPath.url) else {
+                throw ResourceError.notExistAtPath(processedPath.url.path)
             }
             
-            let resource: R = try self.load(from: uri)
-            
-            resource.resourcePath = hasFileExt ? path : path.appending(".\(R.resourceType.fileExtenstion)")
-            
+            let resource: R = try self.load(from: processedPath)
             self.loadedResources[key] = resource
             
             return resource
@@ -109,12 +107,12 @@ public final class ResourceManager {
                 return cachedResource as! R
             }
             
-            guard let uri = bundle.url(forResource: path, withExtension: nil), FileSystem.current.itemExists(at: uri) else {
-                throw ResourceError.notExistAtPath(path)
+            let processedPath = self.processPath(path)
+            guard let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil), FileSystem.current.itemExists(at: uri) else {
+                throw ResourceError.notExistAtPath(processedPath.url.relativeString)
             }
             
-            let resource: R = try self.load(from: uri)
-            
+            let resource: R = try self.load(from: Path(url: uri, query: processedPath.query))
             self.loadedResources[key] = resource
             
             return resource
@@ -162,34 +160,32 @@ public final class ResourceManager {
     ) throws {
         try self.syncQueue.sync {
             let fileSystem = FileSystem.current
+            var processedPath = self.processPath(path)
             
-            var newFileURI = self.processPath(path)
-            
-            if newFileURI.pathExtension.isEmpty {
-                newFileURI.appendPathExtension(R.resourceType.fileExtenstion)
+            if processedPath.url.pathExtension.isEmpty {
+                processedPath.url.appendPathExtension(R.resourceType.fileExtenstion)
             }
             
-            let meta = AssetMeta(filePath: newFileURI)
-            
+            let meta = AssetMeta(filePath: processedPath.url, queryParams: processedPath.query)
             let defaultEncoder = DefaultAssetEncoder(meta: meta)
             try resource.encodeContents(with: defaultEncoder)
             
-            let intermediateDirs = newFileURI.deletingLastPathComponent()
+            let intermediateDirs = processedPath.url.deletingLastPathComponent()
             
             if !fileSystem.itemExists(at: intermediateDirs) {
                 try fileSystem.createDirectory(at: intermediateDirs, withIntermediateDirectories: true)
             }
             
-            if fileSystem.itemExists(at: newFileURI) {
-                try fileSystem.removeItem(at: newFileURI)
+            if fileSystem.itemExists(at: processedPath.url) {
+                try fileSystem.removeItem(at: processedPath.url)
             }
             
             guard let encodedData = defaultEncoder.encodedData else {
                 throw ResourceError.message("Can't get encoded data from resource.")
             }
             
-            if !FileSystem.current.createFile(at: newFileURI, contents: encodedData) {
-                throw ResourceError.message("Can't create file at path \(newFileURI.absoluteString)")
+            if !FileSystem.current.createFile(at: processedPath.url, contents: encodedData) {
+                throw ResourceError.message("Can't create file at path \(processedPath.url.absoluteString)")
             }
         }
     }
@@ -238,16 +234,16 @@ public final class ResourceManager {
     
     // MARK: - Private
     
-    private static func load<R: Resource>(from uri: URL) throws -> R {
-        guard let data = FileSystem.current.readFile(at: uri) else {
-            throw ResourceError.notExistAtPath(uri.path)
+    private static func load<R: Resource>(from path: Path) throws -> R {
+        guard let data = FileSystem.current.readFile(at: path.url) else {
+            throw ResourceError.notExistAtPath(path.url.path)
         }
         
-        let meta = AssetMeta(filePath: uri)
+        let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = DefaultAssetDecoder(meta: meta, data: data)
         let resource = try R.init(asset: decoder)
-        resource.resourceName = uri.lastPathComponent
-        resource.resourcePath = uri.path
+        resource.resourceName = path.url.lastPathComponent
+        resource.resourcePath = path.url.path
         
         return resource
     }
@@ -259,7 +255,7 @@ public final class ResourceManager {
     }
     
     /// Replace tag `@res:` to relative path or create url from given path.
-    private static func processPath(_ path: String) -> URL {
+    private static func processPath(_ path: String) -> Path {
         var path = path
         var url: URL
         
@@ -270,6 +266,34 @@ public final class ResourceManager {
             url = URL(fileURLWithPath: path)
         }
         
-        return url
+        let splitComponents = url.lastPathComponent.split(separator: "#")
+        
+        var query = [AssetQuery]()
+        
+        if !splitComponents.isEmpty {
+            query = Self.fetchQuery(from: String(splitComponents.last!))
+            
+            url.deleteLastPathComponent()
+            url.appendPathComponent(String(splitComponents.first!))
+        }
+        
+        return Path(url: url, query: query)
+    }
+    
+    private static func fetchQuery(from string: String) -> [AssetQuery] {
+        let quieries = string.split(separator: "&")
+        return quieries.map { query in
+            let pairs = query.split(separator: "=")
+            if (pairs.count == 2) {
+                return AssetQuery(name: String(pairs[0]), value: String(pairs[1]))
+            } else {
+                return AssetQuery(name: String(pairs[0]), value: nil)
+            }
+        }
+    }
+    
+    struct Path {
+        var url: URL
+        let query: [AssetQuery]
     }
 }

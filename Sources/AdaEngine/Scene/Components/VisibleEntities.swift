@@ -38,12 +38,14 @@ struct VisibilitySystem: System {
                 return
             }
             
-            let filtredEntities = self.filterVisibileEntities(context: context, for: camera)
+            let (filtredEntities, entityIds) = self.filterVisibileEntities(context: context, for: camera)
             visibleEntities.entities = filtredEntities
+            visibleEntities.entityIds = entityIds
             entity.components[VisibleEntities.self] = visibleEntities
         }
     }
     
+    // TODO: Should we calculate it here?
     // Update or create bounding boxes.
     private func updateBoundings(context: UpdateContext) {
         context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
@@ -51,7 +53,6 @@ struct VisibilitySystem: System {
             var bounds: BoundingComponent.Bounds?
             
             if entity.components.has(SpriteComponent.self) || entity.components.has(Circle2DComponent.self) {
-                
                 let transform = entity.components[Transform.self]!
                 
                 let position = transform.position
@@ -61,6 +62,8 @@ struct VisibilitySystem: System {
                 let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
                 
                 bounds = .aabb(AABB(min: min, max: max))
+            } else if let mesh2d = entity.components[Mesh2DComponent.self], let aabb = mesh2d.mesh.computeAABB() {
+                bounds = .aabb(aabb)
             }
             
             if let bounds {
@@ -69,9 +72,10 @@ struct VisibilitySystem: System {
         }
     }
     
-    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> [Entity] {
+    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
-        var filtredEntities = context.scene.performQuery(Self.entities).filter { entity in
+        var entityIds = Set<Entity.ID>()
+        let filtredEntities = context.scene.performQuery(Self.entities).filter { entity in
             let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
             
             if !visibility.isVisible {
@@ -80,16 +84,29 @@ struct VisibilitySystem: System {
             
             switch bounding.bounds {
             case .aabb(let aabb):
-                return frustum.intersectsAABB(aabb)
+                let isIntersect = frustum.intersectsAABB(aabb)
+                
+                if isIntersect {
+                    entityIds.insert(entity.id)
+                }
+                
+                return isIntersect
             }
         }
         
-        var withNoFrustumEntities = context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
+        let withNoFrustumEntities = context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
             let visibility = entity.components[Visibility.self]!
             
-            return visibility.isVisible
+            if visibility.isVisible {
+                entityIds.insert(entity.id)
+                return true
+            }
+            
+            return false
         }
         
-        return filtredEntities + withNoFrustumEntities
+        let entities = filtredEntities + withNoFrustumEntities
+        
+        return (entities, entityIds)
     }
 }

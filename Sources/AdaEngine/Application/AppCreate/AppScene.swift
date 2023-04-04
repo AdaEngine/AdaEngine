@@ -34,6 +34,14 @@ public extension AppScene {
         self.modifier(WindowTitleSceneModifier(title: title))
     }
     
+    func renderPlugin<T: ScenePlugin>(_ plugin: T) -> some AppScene {
+        self.modifier(RenderWorldPlugin(plugin: plugin))
+    }
+    
+    func disableDefaultRenderPlugins(_ isDisable: Bool) -> some AppScene {
+        self.modifier(UseDefaultRenderPlugins(isEnabled: !isDisable))
+    }
+    
     private func modifier<M: SceneModifier>(_ modifier: M) -> some AppScene {
         return ModifiedScene(storedScene: self, modifier: modifier)
     }

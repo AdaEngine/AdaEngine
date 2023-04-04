@@ -30,7 +30,7 @@ struct CameraSystem: System {
             self.updateProjectionMatrix(for: &camera)
             self.updateFrustum(for: &camera)
             
-            entity.components[ViewUniform.self] = ViewUniform(
+            entity.components += GlobalViewUniform(
                 projectionMatrix: camera.computedData.projectionMatrix,
                 viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
                 viewMatrix: camera.viewMatrix
@@ -97,5 +97,37 @@ struct CameraSystem: System {
         }
         
         camera.computedData.projectionMatrix = projection
+    }
+}
+
+struct ExtractCameraSystem: System {
+    
+    static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    
+    static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self) && .has(VisibleEntities.self))
+    
+    init(scene: Scene) { }
+    
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.query).forEach { entity in
+            let cameraEntity = EmptyEntity()
+            
+            if
+                let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
+                let uniform = entity.components[GlobalViewUniform.self] {
+                
+                let buffer = bufferSet.uniformBufferSet.getBuffer(
+                    binding: GlobalBufferIndex.viewUniform,
+                    set: 0,
+                    frameIndex: RenderEngine.shared.currentFrameIndex
+                )
+                
+                buffer.setData(uniform)
+            }
+            
+            cameraEntity.components = entity.components
+            cameraEntity.components.entity = cameraEntity
+            context.renderWorld.addEntity(cameraEntity)
+        }
     }
 }

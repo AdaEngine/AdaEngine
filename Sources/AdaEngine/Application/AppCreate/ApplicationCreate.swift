@@ -64,6 +64,14 @@ public extension App {
         appScene._buildConfiguration(&configuration)
         let window = try appScene._makeWindow(with: configuration)
         
+        if configuration.useDefaultRenderPlugins {
+            application.renderWorld.addPlugin(DefaultRenderPlugin())
+        }
+        
+        for plugin in configuration.plugins {
+            application.renderWorld.addPlugin(plugin)
+        }
+        
         window.showWindow(makeFocused: true)
         
         try application.run()

@@ -130,6 +130,20 @@ public final class World {
         self.addedEntities.removeAll(keepingCapacity: true)
     }
     
+    func clear() {
+        self.records.removeAll(keepingCapacity: true)
+        self.removedEntities.removeAll(keepingCapacity: true)
+        self.addedEntities.removeAll(keepingCapacity: true)
+        self.archetypes.removeAll(keepingCapacity: true)
+        self.freeArchetypeIndices.removeAll(keepingCapacity: true)
+        self.updatedEntities.removeAll(keepingCapacity: true)
+        self.scripts.removeAll(keepingCapacity: true)
+        self.scriptRecords.removeAll(keepingCapacity: true)
+        self.friedScriptsIndecies.removeAll(keepingCapacity: true)
+    }
+    
+    // MARK: - Private
+    
     /// Find or create matched arhcetypes for all entities that wait update
     private func moveEntitiesToMatchedArchetypesIfNeeded() {
         if self.updatedEntities.isEmpty {

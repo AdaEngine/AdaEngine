@@ -109,6 +109,8 @@ var swiftSettings: [SwiftSetting] = [
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
     
+    // To avoid problems with debugging add `settings set target.experimental.swift-enable-cxx-interop true` to your `~/.lldbinit` file
+    // See Also: https://forums.swift.org/t/lldb-failed-when-i-connected-my-c-lib/63712/2
     .unsafeFlags(["-enable-experimental-cxx-interop"])
 ]
 
@@ -147,11 +149,12 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
-    .product(name: "box2d", package: "box2d-swift"),
-    .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen"),
     "AtlasFontGenerator",
     "Yams",
-    "libpng"
+    "libpng",
+    "SPIRV-Cross",
+    "SPIRVCompiler",
+    "AdaBox2d"
 ]
 
 #if os(Linux)
@@ -163,7 +166,7 @@ let adaEngineTarget: Target = .target(
     dependencies: adaEngineDependencies,
     exclude: ["Project.swift", "Derived"],
     resources: [
-        .copy("Assets/Shaders/Metal"),
+        .copy("Assets/Shaders"),
         .copy("Assets/Models"),
         .copy("Assets/Fonts")
     ],
@@ -210,11 +213,29 @@ targets += [
 ]
 #endif
 
+// MARK: - CXX Internal Targets
+
 targets += [
     .target(
         name: "AtlasFontGenerator",
         dependencies: [
             .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
+        ],
+        exclude: ["Project.swift", "Derived"],
+        publicHeadersPath: "."
+    ),
+    .target(
+        name: "SPIRVCompiler",
+        dependencies: [
+            "glslang"
+        ],
+        exclude: ["Project.swift", "Derived"],
+        publicHeadersPath: "."
+    ),
+    .target(
+        name: "AdaBox2d",
+        dependencies: [
+            .product(name: "box2d", package: "box2d-swift")
         ],
         exclude: ["Project.swift", "Derived"],
         publicHeadersPath: "."
@@ -262,11 +283,11 @@ let package = Package(
         .macOS(.v11),
     ],
     products: products,
-    dependencies: [ ],
+    dependencies: [],
     targets: targets,
     swiftLanguageVersions: [.v5],
     cLanguageStandard: .c17,
-    cxxLanguageStandard: .cxx17
+    cxxLanguageStandard: .cxx20
 )
 
 // FIXME: If possible - move to local `vendors` folder
@@ -275,7 +296,8 @@ package.dependencies += [
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
     .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "main"),
     .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
-    
+    .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
+    .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
 ]

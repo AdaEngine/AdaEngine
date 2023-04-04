@@ -11,7 +11,6 @@ public class SceneManager {
     
     /// View where all renders happend
     public internal(set) weak var sceneView: SceneView?
-    let renderGraphExecutor = RenderGraphExecutor()
     
     // MARK: - Private
     
@@ -28,12 +27,6 @@ public class SceneManager {
         }
         
         currentScene.update(deltaTime)
-        
-        do {
-            try self.renderGraphExecutor.execute(currentScene.sceneRenderGraph, in: currentScene.world)
-        } catch {
-            fatalError(error.localizedDescription)
-        }
     }
     
     func setViewport(_ viewport: Viewport) {

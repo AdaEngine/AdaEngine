@@ -18,7 +18,6 @@ public struct Scene2DPlugin: ScenePlugin {
     public func setup(in scene: Scene) {
         
         // Add Systems
-        scene.addSystem(ClearTransparent2DRenderItemsSystem.self)
         scene.addSystem(BatchTransparent2DItemsSystem.self)
         
         // Add Render graph
@@ -36,7 +35,7 @@ public struct Scene2DPlugin: ScenePlugin {
             inputSlot: Main2DRenderNode.InputNode.view
         )
         
-        scene.sceneRenderGraph.addSubgraph(graph, name: Self.renderGraph)
+        Application.shared.renderWorld.renderGraph.addSubgraph(graph, name: Self.renderGraph)
     }
 }
 

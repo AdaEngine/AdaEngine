@@ -11,33 +11,57 @@ public protocol RenderPipeline: AnyObject {
     var descriptor: RenderPipelineDescriptor { get }
 }
 
-public struct VertexBufferDescriptor {
-    public var attributes = VertexDescriptorAttributesArray()
-    public var layouts = VertexDescriptorLayoutsArray()
+public struct StencilOperationDescriptor {
+    public var fail: StencilOperation
+    public var pass: StencilOperation
+    public var depthFail: StencilOperation
+    public var compare: CompareOperation
+    public var writeMask: UInt32
     
-    mutating func reset() {
-        self.attributes = VertexDescriptorAttributesArray()
-        self.layouts = VertexDescriptorLayoutsArray()
+    public init(
+        fail: StencilOperation = .zero,
+        pass: StencilOperation = .zero,
+        depthFail: StencilOperation = .zero,
+        compare: CompareOperation = .always,
+        writeMask: UInt32 = 0
+    ) {
+        self.fail = fail
+        self.pass = pass
+        self.depthFail = depthFail
+        self.compare = compare
+        self.writeMask = writeMask
     }
 }
 
-public struct StencilOperationDescriptor {
-    public var fail: StencilOperation = .zero
-    public var pass: StencilOperation = .zero
-    public var depthFail: StencilOperation = .zero
-    public var compare: CompareOperation = .always
-    public var writeMask: UInt32 = 0
-}
-
 public struct DepthStencilDescriptor {
-    public var isDepthTestEnabled: Bool = true
-    public var isDepthWriteEnabled: Bool = true
-    public var depthCompareOperator: CompareOperation = .greaterOrEqual
-    public var isDepthRangeEnabled: Bool = false
-    public var depthRangeMin: Float = 0
-    public var depthRangeMax: Float = 0
-    public var isEnableStencil = false
+    public var isDepthTestEnabled: Bool
+    public var isDepthWriteEnabled: Bool
+    public var depthCompareOperator: CompareOperation
+    public var isDepthRangeEnabled: Bool
+    public var depthRangeMin: Float
+    public var depthRangeMax: Float
+    public var isEnableStencil: Bool
     public var stencilOperationDescriptor: StencilOperationDescriptor?
+    
+    public init(
+        isDepthTestEnabled: Bool = true,
+        isDepthWriteEnabled: Bool = true,
+        depthCompareOperator: CompareOperation = .greaterOrEqual,
+        isDepthRangeEnabled: Bool = false,
+        depthRangeMin: Float = 0,
+        depthRangeMax: Float = 0,
+        isEnableStencil: Bool = false,
+        stencilOperationDescriptor: StencilOperationDescriptor? = nil
+    ) {
+        self.isDepthTestEnabled = isDepthTestEnabled
+        self.isDepthWriteEnabled = isDepthWriteEnabled
+        self.depthCompareOperator = depthCompareOperator
+        self.isDepthRangeEnabled = isDepthRangeEnabled
+        self.depthRangeMin = depthRangeMin
+        self.depthRangeMax = depthRangeMax
+        self.isEnableStencil = isEnableStencil
+        self.stencilOperationDescriptor = stencilOperationDescriptor
+    }
 }
 
 public struct ColorAttachmentDescriptor {
@@ -45,29 +69,70 @@ public struct ColorAttachmentDescriptor {
     
     public var isBlendingEnabled: Bool = false
     
-    public var sourceRGBBlendFactor: BlendFactor = .sourceAlpha
-    public var sourceAlphaBlendFactor: BlendFactor = .sourceAlpha
-    public var rgbBlendOperation: BlendOperation = .add
-    public var alphaBlendOperation: BlendOperation = .add
-    public var destinationAlphaBlendFactor: BlendFactor = .oneMinusSourceAlpha
-    public var destinationRGBBlendFactor: BlendFactor = .oneMinusSourceAlpha
+    public var sourceRGBBlendFactor: BlendFactor
+    public var sourceAlphaBlendFactor: BlendFactor
+    public var rgbBlendOperation: BlendOperation
+    public var alphaBlendOperation: BlendOperation
+    public var destinationAlphaBlendFactor: BlendFactor
+    public var destinationRGBBlendFactor: BlendFactor
+    
+    public init(
+        format: PixelFormat,
+        isBlendingEnabled: Bool = false,
+        sourceRGBBlendFactor: BlendFactor = .sourceAlpha,
+        sourceAlphaBlendFactor: BlendFactor = .sourceAlpha,
+        rgbBlendOperation: BlendOperation = .add,
+        alphaBlendOperation: BlendOperation = .add,
+        destinationAlphaBlendFactor: BlendFactor = .oneMinusSourceAlpha,
+        destinationRGBBlendFactor: BlendFactor = .oneMinusSourceAlpha
+    ) {
+        self.format = format
+        self.isBlendingEnabled = isBlendingEnabled
+        self.sourceRGBBlendFactor = sourceRGBBlendFactor
+        self.sourceAlphaBlendFactor = sourceAlphaBlendFactor
+        self.rgbBlendOperation = rgbBlendOperation
+        self.alphaBlendOperation = alphaBlendOperation
+        self.destinationAlphaBlendFactor = destinationAlphaBlendFactor
+        self.destinationRGBBlendFactor = destinationRGBBlendFactor
+    }
+}
+
+public protocol ShaderFunction {
+    
 }
 
 public struct RenderPipelineDescriptor {
-    public var shader: Shader
+    public var vertex: Shader?
+    public var fragment: Shader?
     public var debugName: String = ""
     public var backfaceCulling: Bool = true
     public var primitive: IndexPrimitive = .triangle
-    public var vertexDescriptor: VertexBufferDescriptor = VertexBufferDescriptor()
-    
-    public var sampler: Sampler?
+    public var vertexDescriptor: VertexDescriptor = VertexDescriptor()
     
     public var depthStencilDescriptor: DepthStencilDescriptor?
     public var depthPixelFormat: PixelFormat = .depth_32f_stencil8
     
     public var colorAttachments: [ColorAttachmentDescriptor] = []
     
-    public init(shader: Shader) {
-        self.shader = shader
+    public init(
+        vertex: Shader? = nil,
+        fragment: Shader? = nil,
+        debugName: String = "",
+        backfaceCulling: Bool = true,
+        primitive: IndexPrimitive = .triangle,
+        vertexDescriptor: VertexDescriptor = VertexDescriptor(),
+        depthStencilDescriptor: DepthStencilDescriptor? = nil,
+        depthPixelFormat: PixelFormat = .depth_32f_stencil8,
+        colorAttachments: [ColorAttachmentDescriptor] = []
+    ) {
+        self.vertex = vertex
+        self.fragment = fragment
+        self.debugName = debugName
+        self.backfaceCulling = backfaceCulling
+        self.primitive = primitive
+        self.vertexDescriptor = vertexDescriptor
+        self.depthStencilDescriptor = depthStencilDescriptor
+        self.depthPixelFormat = depthPixelFormat
+        self.colorAttachments = colorAttachments
     }
 }

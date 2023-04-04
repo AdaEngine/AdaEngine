@@ -93,6 +93,12 @@ public struct QueryPredicate {
     let evaluate: (Archetype) -> Bool
 }
 
+prefix public func ! (operand: QueryPredicate) -> QueryPredicate {
+    QueryPredicate { archetype in
+        !operand.evaluate(archetype)
+    }
+}
+
 public extension QueryPredicate {
     /// Set the rule that entity should contains given type.
     static func has<T: Component>(_ type: T.Type) -> QueryPredicate {

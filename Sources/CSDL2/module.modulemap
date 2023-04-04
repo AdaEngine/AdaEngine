@@ -1,6 +1,0 @@
-module CSDL2 {
-    umbrella header "shim.h"
-    export *
-    link "SDL2"
-}
-// swift run -Xlinker -L/usr/local/lib

@@ -5,19 +5,19 @@
 //  Created by v.prusakov on 6/28/22.
 //
 
-import Foundation
-
 open class Texture: Resource, Codable {
     
     private(set) var gpuTexture: GPUTexture
+    public private(set) var sampler: Sampler
     private(set) var textureType: TextureType
     
     public var resourcePath: String = ""
     public var resourceName: String = ""
     
-    init(gpuTexture: GPUTexture, textureType: TextureType) {
+    init(gpuTexture: GPUTexture, sampler: Sampler, textureType: TextureType) {
         self.gpuTexture = gpuTexture
         self.textureType = textureType
+        self.sampler = sampler
     }
     
     public required init(from decoder: Decoder) throws {
@@ -43,10 +43,16 @@ open class Texture: Resource, Codable {
 
 public extension Texture {
     enum TextureType: UInt16, Codable {
-        case cube
+        case texture1D
+        case texture1DArray
         case texture2D
         case texture2DArray
+        case texture2DMultisample
+        case texture2DMultisampleArray
+        
+        case textureCube
         case texture3D
+        case textureBuffer
     }
     
     struct Usage: OptionSet, Codable {

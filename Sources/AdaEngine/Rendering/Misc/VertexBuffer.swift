@@ -6,5 +6,5 @@
 //
 
 public protocol VertexBuffer: Buffer {
-    var binding: Int { get }
+    var binding: Int { get set }
 }

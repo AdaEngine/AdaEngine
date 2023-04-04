@@ -7,12 +7,13 @@
 
 #include "atlas_font_gen.h"
 #include "FontHolder.h"
+#include "AtlasFontGenerator.h"
 
 // Get from Hazel
 #define LCG_MULTIPLIER 6364136223846793005ull
 #define LCG_INCREMENT 1442695040888963407ull
 
-namespace ada_font {
+namespace ada {
 
 struct GenerationConfig {
     int width;
@@ -24,7 +25,7 @@ struct GenerationConfig {
 using namespace msdf_atlas;
 
 template <typename T, typename S, int N, GeneratorFunction<S, N> GEN_FN>
-AtlasBitmap GenerateAtlas(
+AtlasBitmap* GenerateAtlas(
                                  const std::vector<GlyphGeometry>& glyphs,
                                  const FontGeometry& fontGeometry,
                                  const GenerationConfig& config
@@ -37,16 +38,19 @@ AtlasBitmap GenerateAtlas(
     
     msdfgen::BitmapConstRef<T, N> bitmap = (msdfgen::BitmapConstRef<T, N>)generator.atlasStorage();
     
-    AtlasBitmap result;
-    result.bitmapWidth = bitmap.width;
-    result.bitmapHeight = bitmap.height;
-    result.pixels = bitmap.pixels;
-    result.pixelsCount = bitmap.width * bitmap.height * sizeof(T) * N;
+    AtlasBitmap* result = new AtlasBitmap();
+    result->bitmapWidth = bitmap.width;
+    result->bitmapHeight = bitmap.height;
+    
+    void *pixels = malloc(bitmap.width * bitmap.height * sizeof(T) * N);
+    memcpy(pixels, bitmap.pixels, bitmap.width * bitmap.height * sizeof(T) * N);    
+    result->pixels = pixels;
+    result->pixelsCount = bitmap.width * bitmap.height * sizeof(T) * N;
     
     return result;
 }
 
-FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontName, const AtlasFontDescriptor& fontDescriptor) : m_FontData(new FontData()), m_fontDescriptor(fontDescriptor)
+FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontName, const font_atlas_descriptor& fontDescriptor) : m_FontData(new FontData()), m_fontDescriptor(fontDescriptor)
 {
     FontHolder fontHandler;
     bool success = fontHandler.loadFont(filePath);
@@ -83,7 +87,7 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     
     TightAtlasPacker atlasPacker;
     atlasPacker.setDimensionsConstraint(TightAtlasPacker::DimensionsConstraint::MULTIPLE_OF_FOUR_SQUARE);
-    atlasPacker.setPadding(fontDescriptor.atlasImageType == ImageType::MSDF || fontDescriptor.atlasImageType == ImageType::MTSDF ? 0 : -1);
+    atlasPacker.setPadding(fontDescriptor.atlasImageType == AFG_ImageType::AFG_IMAGE_TYPE_MSDF || fontDescriptor.atlasImageType == AFG_ImageType::AFG_IMAGE_TYPE_MTSDF ? 0 : -1);
     
     atlasPacker.setScale(fontDescriptor.fontScale);
     atlasPacker.setPixelRange(fontDescriptor.atlasPixelRange);
@@ -96,7 +100,7 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     
     atlasPacker.getDimensions(m_AtlasInfo.width, m_AtlasInfo.height);
     
-    if (fontDescriptor.atlasImageType == ImageType::MSDF || fontDescriptor.atlasImageType == ImageType::MTSDF) {
+    if (fontDescriptor.atlasImageType == AFG_ImageType::AFG_IMAGE_TYPE_MSDF || fontDescriptor.atlasImageType == AFG_ImageType::AFG_IMAGE_TYPE_MTSDF) {
         if (fontDescriptor.expensiveColoring) {
             Workload([&glyphs = m_FontData->glyphs, &fontDescriptor](int i, int threadNo) -> bool {
                 unsigned long long glyphSeed = (LCG_MULTIPLIER * (fontDescriptor.coloringSeed ^ i) + LCG_INCREMENT) * !!fontDescriptor.coloringSeed;
@@ -114,7 +118,7 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
 
 }
 
-AtlasBitmap FontAtlasGenerator::generateAtlasBitmap() {
+AtlasBitmap* FontAtlasGenerator::generateAtlasBitmap() {
     GenerationConfig config;
     config.width = m_AtlasInfo.width;
     config.height = m_AtlasInfo.height;
@@ -122,26 +126,22 @@ AtlasBitmap FontAtlasGenerator::generateAtlasBitmap() {
     config.attributes.config.overlapSupport = true;
     config.attributes.scanlinePass = true;
     
-    AtlasBitmap bitmap;
-    
     switch (m_fontDescriptor.atlasImageType) {
-        case msdf_atlas::ImageType::HARD_MASK:
+        case AFG_ImageType::AFG_IMAGE_TYPE_HARD_MASK:
             break;
-        case msdf_atlas::ImageType::SOFT_MASK:
+        case AFG_ImageType::AFG_IMAGE_TYPE_SOFT_MASK:
             break;
-        case msdf_atlas::ImageType::SDF:
+        case AFG_ImageType::AFG_IMAGE_TYPE_SDF:
             break;
-        case msdf_atlas::ImageType::PSDF:
+        case AFG_ImageType::AFG_IMAGE_TYPE_PSDF:
             break;
-        case ImageType::MSDF:
-            bitmap = GenerateAtlas<float, float, 3, msdfGenerator>(m_FontData->glyphs, m_FontData->fontGeometry, config);
-            break;
-        case ImageType::MTSDF:
-            bitmap = GenerateAtlas<float, float, 4, mtsdfGenerator>(m_FontData->glyphs, m_FontData->fontGeometry, config);
-            break;
+        case AFG_ImageType::AFG_IMAGE_TYPE_MSDF:
+            return GenerateAtlas<float, float, 3, msdfGenerator>(m_FontData->glyphs, m_FontData->fontGeometry, config);
+        case AFG_ImageType::AFG_IMAGE_TYPE_MTSDF:
+            return GenerateAtlas<float, float, 4, mtsdfGenerator>(m_FontData->glyphs, m_FontData->fontGeometry, config);
     }
     
-    return bitmap;
+    return nullptr;
 }
 
 }

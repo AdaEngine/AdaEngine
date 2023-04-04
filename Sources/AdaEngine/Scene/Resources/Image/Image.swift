@@ -20,6 +20,7 @@ public final class Image {
     
     public var resourceName: String = ""
     public var resourcePath: String = ""
+    public var samplerDescription: SamplerDescriptor = SamplerDescriptor()
     
     /// Create an empty image.
     public init() {
@@ -147,6 +148,7 @@ extension Image: Resource {
         let imageSize: Size
         let data: Data
         let colorFormat: Format
+        let sampler: SamplerDescriptor
     }
     
     public convenience init(asset decoder: AssetDecoder) throws {
@@ -160,22 +162,24 @@ extension Image: Resource {
                 width: Int(rep.imageSize.width),
                 height: Int(rep.imageSize.height),
                 data: rep.data,
-                format: rep.colorFormat        
+                format: rep.colorFormat
             )
+            
+            self.samplerDescription = rep.sampler
         } else {
             try self.init(contentsOf: decoder.assetMeta.filePath)
         }
     }
     
     public func encodeContents(with encoder: AssetEncoder) throws {
-        
         let pathExt = encoder.assetMeta.filePath.pathExtension
         
         if pathExt.isEmpty || pathExt == "res" {
             let rep = ImageRepresentation(
                 imageSize: Size(width: Float(width), height: Float(height)),
                 data: self.data,
-                colorFormat: self.format
+                colorFormat: self.format,
+                sampler: self.samplerDescription
             )
             
             try encoder.encode(rep)
