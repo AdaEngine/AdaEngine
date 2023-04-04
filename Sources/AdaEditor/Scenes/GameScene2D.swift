@@ -231,8 +231,7 @@ final class GameScene2D {
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
-        try self.makeCanvasItem(for: scene, position: [-0.3, -0.4])
-        try self.makeCanvasItem(for: scene, position: [0.5, 0.4])
+        try self.makeCanvasItem(for: scene, position: [-0.3, 0.4, -1])
         self.collisionHandler(for: scene)
 //        self.fpsCounter(for: scene)
         self.addText(to: scene)
@@ -296,7 +295,8 @@ final class GameScene2D {
         scene.addEntity(playerEntity)
     }
     
-    func makeCanvasItem(for scene: Scene, position: Vector2) throws {
+    func makeCanvasItem(for scene: Scene, position: Vector3) throws {
+        
         let dogTexture = try ResourceManager.load("Assets/dog.png", from: Bundle.module) as Texture2D
         
         let material = MyMaterial(
@@ -313,7 +313,7 @@ final class GameScene2D {
         
         var transform = Transform()
         transform.scale = Vector3(0.4)
-        transform.position.z = 1
+        transform.position.z = position.z
         transform.position.x = position.x
         transform.position.y = position.y
         

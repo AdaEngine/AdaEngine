@@ -112,12 +112,16 @@ struct ExtractCameraSystem: System {
         context.scene.performQuery(Self.query).forEach { entity in
             let cameraEntity = EmptyEntity()
             
-            if let bufferSet = entity.components[GlobalViewUniformBufferSet.self], let uniform = entity.components[GlobalViewUniform.self] {
+            if
+                let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
+                let uniform = entity.components[GlobalViewUniform.self] {
+                
                 let buffer = bufferSet.uniformBufferSet.getBuffer(
-                    binding: BufferIndex.baseUniform,
+                    binding: GlobalBufferIndex.viewUniform,
                     set: 0,
                     frameIndex: RenderEngine.shared.currentFrameIndex
                 )
+                
                 buffer.setData(uniform)
             }
             
