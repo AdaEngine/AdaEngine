@@ -11,6 +11,8 @@ struct _AppSceneConfiguration {
     var windowMode: Window.Mode = .fullscreen
     var isSingleWindow: Bool = false
     var title: String?
+    var useDefaultRenderPlugins: Bool = true
+    var plugins: [ScenePlugin] = []
 }
 
 /// Helper interface for creating window from scene.

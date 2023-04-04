@@ -12,12 +12,25 @@ struct DefaultScenePlugin: ScenePlugin {
         scene.addSystem(ScriptComponentUpdateSystem.self)
         
         // Setup render
-        scene.addPlugin(RenderPlugin())
         scene.addPlugin(VisibilityPlugin())
+        scene.addPlugin(CameraPlugin())
         
         scene.addPlugin(SpritePlugin())
+        scene.addPlugin(Mesh2DPlugin())
+        scene.addPlugin(Text2DPlugin())
         
         // Setup Physics
         scene.addPlugin(Physics2DPlugin())
+    }
+}
+
+struct DefaultRenderPlugin: ScenePlugin {
+    func setup(in scene: Scene) {
+        scene.addPlugin(CameraRenderPlugin())
+        
+        scene.addPlugin(Scene2DPlugin())
+        scene.addPlugin(Mesh2DRenderPlugin())
+        scene.addPlugin(SpriteRenderPlugin())
+        scene.addPlugin(Text2DRenderPlugin())
     }
 }

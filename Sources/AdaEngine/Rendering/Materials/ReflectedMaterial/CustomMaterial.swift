@@ -1,0 +1,183 @@
+//
+//  CustomMaterial.swift
+//  
+//
+//  Created by v.prusakov on 4/2/23.
+//
+
+protocol MaterialValueDelegate: AnyObject {
+    func updateValue(_ value: ShaderUniformValue, for name: String)
+    func updateTextures(_ textures: [Texture], for name: String, binding: Int)
+}
+
+/// This material supports user declared materials.
+///
+/// It's very powerful tool for creating your own materials using power of Swift.
+/// You can declare any materials and describe what kind of values can be used in your shader.
+/// Like example, we can define our custom canvas material.
+///
+/// ```
+/// struct MyCanvasMaterial: CanvasMaterial {
+///
+///     @Uniform(binding: 0, propertyName: "u_Color")
+///     var color: Color = .blue
+///
+///     static func fragment() throws -> ShaderSource {
+///         try ResourceLoader.load("PATH_TO_FRAGMENT_SHADER.glsl")
+///     }
+/// }
+/// ```
+///
+/// After that, we should write our own fragment shader code:
+///
+/// ```
+///
+/// #version 450 core
+/// #pragma stage : frag // Declare that this code can be used for fragment shading
+///
+/// #include <AdaEngine/CanvasMaterial.frag> // Include basic canvas header code for you shader
+///
+/// // Declare you material uniform
+/// layout (std140, binding = 2) uniform CustomMaterial {
+///     vec4 u_Color; // This property will be changed from MyCanvasMaterial
+/// };
+///
+/// [[main]]
+/// void my_material_fragment()
+/// {
+///     COLOR = u_Color; // Set material color to output color value.
+/// }
+/// ```
+///
+/// And than, you can pass our new material to anywhere you want.
+///
+/// ```
+/// let mesh = Mesh()
+/// let customMaterial = CustomMaterial(MyCanvasMaterial())
+/// let meshComponent = Mesh2DComponent(mesh: mesh, materials: [customMaterial])
+///
+/// entity.components += meshComponent
+/// ```
+///
+/// You can update material values with two different ways with reflection or string literals.
+/// ```
+/// let customMaterial = CustomMaterial(MyCanvasMaterial())
+///
+/// // Pass new value into material using reflection.
+/// customMaterial.color = .blue
+///
+/// // Pass new value into material using string literals
+/// // In this case we should think about correct name of uniform member.
+/// customMaterial.setValue(Color.blue, for: "u_Color")
+/// ```
+@dynamicMemberLookup
+public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValueDelegate {
+    
+    public var material: T
+    
+    private var bindableValues: [_ShaderBindProperty] = []
+    
+    public init(_ material: T) {
+        self.material = material
+        
+        let shaderSource = ShaderSource()
+        
+        do {
+            let vertexShaderSource = try T.vertexShader()
+            let fragmentShaderSource = try T.fragmentShader()
+            
+            assert(vertexShaderSource.getSource(for: .vertex) != nil, "Failed to load vertex data")
+            assert(fragmentShaderSource.getSource(for: .fragment) != nil, "Failed to load fragment data")
+            
+            shaderSource.setSource(vertexShaderSource.getSource(for: .vertex)!, for: .vertex)
+            shaderSource.setSource(fragmentShaderSource.getSource(for: .fragment)!, for: .fragment)
+            
+            shaderSource.includeSearchPaths.append(contentsOf: vertexShaderSource.includeSearchPaths)
+            shaderSource.includeSearchPaths.append(contentsOf: fragmentShaderSource.includeSearchPaths)
+            
+        } catch {
+            assertionFailure("[CustomMaterial] \(error.localizedDescription)")
+        }
+        
+        super.init(shaderSource: shaderSource)
+        self.reflectMaterial(from: material)
+    }
+    
+    public required init(asset decoder: AssetDecoder) throws {
+        fatalError("init(asset:) has not been implemented")
+    }
+    
+    public subscript<Value>(dynamicMember keyPath: WritableKeyPath<T, Value>) -> Value {
+        get {
+            return self.material[keyPath: keyPath]
+        }
+        
+        set {
+            self.material[keyPath: keyPath] = newValue
+        }
+    }
+    
+    // MARK: - Mesh
+    
+    override func collectDefines(for vertexDescriptor: VertexDescriptor, keys: Set<String>) -> [ShaderDefine] {
+        return T.configureShaderDefines(keys: keys, vertexDescriptor: vertexDescriptor)
+    }
+    
+    override func configureRenderPipeline(
+        for vertexDescriptor: VertexDescriptor,
+        keys: Set<String>,
+        shaderModule: ShaderModule
+    ) -> RenderPipelineDescriptor? {
+        do {
+            let pipeline = try T.configurePipeline(
+                keys: keys,
+                vertex: shaderModule.getShader(for: .vertex)!,
+                fragment: shaderModule.getShader(for: .fragment)!,
+                vertexDescriptor: vertexDescriptor
+            )
+            
+            return pipeline
+        } catch {
+            assertionFailure("[CustomMaterial] \(error.localizedDescription)")
+            return nil
+        }
+    }
+    
+    func reflectMaterial(from material: T) {
+        let reflection = Mirror(reflecting: material)
+        
+        for child in reflection.children {
+            guard let bindProperty = child.value as? _ShaderBindProperty else {
+                continue
+            }
+            
+            if bindProperty.propertyName.isEmpty {
+                // Get the propertyName of the property. By syntax, the property name is
+                // in the form: "_name". Dropping the "_" -> "name"
+                let propertyName = String((child.label ?? "").dropFirst())
+                bindProperty.propertyName = propertyName
+            }
+            
+            // For update buffers
+            bindProperty.delegate = self
+            
+            self.bindableValues.append(bindProperty)
+        }
+    }
+    
+    override func update() {
+        self.bindableValues.forEach {
+            $0.update()
+        }
+    }
+    
+    // MARK: Delegate
+    
+    func updateValue(_ value: ShaderUniformValue, for name: String) {
+        self.setValue(value, for: name)
+    }
+    
+    func updateTextures(_ textures: [Texture], for name: String, binding: Int) {
+        self.setResources(textures, for: name)
+    }
+}

@@ -10,16 +10,20 @@
 
 /// A region where text layout occurs.
 public struct TextContainer: Hashable {
+    
     /// The text for rendering.
     public var text: AttributedText
     
     /// The size of the text container’s bounding rectangle.
     public var bounds: Rect
     
+    /// The alignment of text in the box.
     public var textAlignment: TextAlignment
     
     /// The behavior of the last line inside the text container.
     public var lineBreakMode: LineBreakMode
+    
+    /// The spacing between lines.
     public var lineSpacing: Float
     
     public init(
@@ -42,9 +46,10 @@ public struct TextContainer: Hashable {
 /// TextLayoutManager maps unicods characters codes to glyphs.
 public final class TextLayoutManager {
     
-    enum Constans {
+    enum Constants {
         static let questionMark = Character("?").unicodeScalars.first!
         static let dots = Character("…").unicodeScalars.first!
+        static let maxTexturesPerBatch = 16
     }
     
     private var textContainer: TextContainer = TextContainer(
@@ -83,7 +88,7 @@ public final class TextLayoutManager {
         let lineHeightOffset = Double(self.textContainer.lineSpacing)
         
         var textureIndex: Int = -1
-        var textures: [Texture2D?] = .init(repeating: nil, count: 32)
+        var textures: [Texture2D?] = .init(repeating: nil, count: Constants.maxTexturesPerBatch)
         let attributedText = self.textContainer.text
         
         for index in attributedText.text.indices {
@@ -93,8 +98,7 @@ public final class TextLayoutManager {
             let kern = Double(attributes.kern)
             
             let fontHandle = attributes.font.handle
-            let fontGeometry = fontHandle.fontData.pointee.fontGeometry
-            let metrics = fontGeometry.__getMetricsUnsafe().pointee
+            let metrics = fontHandle.metrics
             let fontScale = 1 / (metrics.ascenderY - metrics.descenderY)
             
             if let index = textures.firstIndex(where: { fontHandle.atlasTexture === $0 }) {
@@ -106,10 +110,10 @@ public final class TextLayoutManager {
             
             for scalarIndex in char.unicodeScalars.indices {
                 let scalar = char.unicodeScalars[scalarIndex]
-                var glyph = fontGeometry.__getGlyphUnsafe(scalar.value)
+                var glyph = fontHandle.getGlyph(for: scalar.value)
                 
                 if glyph == nil {
-                    glyph = fontGeometry.__getGlyphUnsafe(Constans.questionMark.value)
+                    glyph = fontHandle.getGlyph(for: Constants.questionMark.value)
                 }
                 
                 guard let glyph else {
@@ -157,12 +161,12 @@ public final class TextLayoutManager {
                     position: [Float(pl), Float(pb), Float(pr), Float(pt)])
                 )
                 
-                var advance = glyph.getAdvance()
+                var advance = glyph.advance
                 let nextScalarIndex = char.unicodeScalars.index(after: scalarIndex)
                 
                 if char.unicodeScalars.indices.contains(nextScalarIndex) {
                     let nextScalar = char.unicodeScalars[nextScalarIndex]
-                    fontGeometry.getAdvance(&advance, scalar.value, nextScalar.value)
+                    fontHandle.getAdvance(&advance, scalar.value, nextScalar.value)
                     x += fontScale * advance + kern
                 } else {
                     x += fontScale * advance + kern
@@ -181,12 +185,10 @@ public final class TextLayoutManager {
         var indeciesCount: Int = 0
         
         var textureIndex: Int = -1
-        var textures: [Texture2D?] = .init(repeating: nil, count: 32)
+        var textures: [Texture2D?] = .init(repeating: nil, count: Constants.maxTexturesPerBatch)
         
         for glyph in self.glyphs {
-            
             let texture = glyph.textureAtlas
-            let textureSize = Vector2(Float(texture.width), Float(texture.height))
             let foregroundColor = glyph.attributes.foregroundColor
             let outlineColor = glyph.attributes.outlineColor
             let textureCoordinate = glyph.textureCoordinates
@@ -204,7 +206,6 @@ public final class TextLayoutManager {
                     foregroundColor: foregroundColor,
                     outlineColor: outlineColor,
                     textureCoordinate: [ textureCoordinate.z, textureCoordinate.y ],
-                    textureSize: textureSize,
                     textureIndex: textureIndex
                 )
             )
@@ -215,7 +216,6 @@ public final class TextLayoutManager {
                     foregroundColor: foregroundColor,
                     outlineColor: outlineColor,
                     textureCoordinate: [ textureCoordinate.z, textureCoordinate.w ],
-                    textureSize: textureSize,
                     textureIndex: textureIndex
                 )
             )
@@ -226,7 +226,6 @@ public final class TextLayoutManager {
                     foregroundColor: foregroundColor,
                     outlineColor: outlineColor,
                     textureCoordinate: [ textureCoordinate.x, textureCoordinate.w ],
-                    textureSize: textureSize,
                     textureIndex: textureIndex
                 )
             )
@@ -237,7 +236,6 @@ public final class TextLayoutManager {
                     foregroundColor: foregroundColor,
                     outlineColor: outlineColor,
                     textureCoordinate: [ textureCoordinate.x, textureCoordinate.y ],
-                    textureSize: textureSize,
                     textureIndex: textureIndex
                 )
             )
@@ -285,6 +283,5 @@ struct GlyphVertexData {
     let foregroundColor: Color
     let outlineColor: Color
     let textureCoordinate: Vector2
-    let textureSize: Vector2
     let textureIndex: Int
 }

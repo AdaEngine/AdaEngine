@@ -27,7 +27,7 @@ public struct FixedArray<T>: Sequence, RandomAccessCollection {
         // swiftlint:disable:next empty_count
         precondition(count > 0, "Can't allocate array with 0 elements.")
         self.buffer = Buffer(count: count)
-        self.buffer.pointer.assign(repeating: repeating)
+        self.buffer.pointer.update(repeating: repeating)
     }
     
     @inline(__always)

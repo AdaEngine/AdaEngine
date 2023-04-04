@@ -15,7 +15,7 @@ final class FoundationFileSystem: FileSystem {
     
     override var applicationFolderURL: URL {
         #if os(macOS)
-        return Bundle.current.bundleURL.deletingLastPathComponent()
+        return Bundle.engineBundle.bundleURL.deletingLastPathComponent()
         #else
         return URL(fileURLWithPath: fileManager.currentDirectoryPath)
         #endif
@@ -54,7 +54,7 @@ final class FoundationFileSystem: FileSystem {
     }
     
     override func createFile(at url: URL, contents: Data?) -> Bool {
-        return self.fileManager.createFile(atPath: url.pathExtension, contents: contents)
+        return self.fileManager.createFile(atPath: url.path, contents: contents)
     }
     
     override func createDirectory(at url: URL, withIntermediateDirectories flag: Bool) throws {

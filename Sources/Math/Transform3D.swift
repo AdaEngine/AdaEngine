@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 10/19/21.
 //
 
-import Foundation
-
 // swiftlint:disable identifier_name
 
 // TODO: (Vlad) Check all math using https://github.com/nicklockwood/VectorMath/blob/master/VectorMath/VectorMath.swift
@@ -449,6 +447,15 @@ public extension Transform3D {
             [r10, r11, r12, 0],
             [r20, r21, r22, 0],
             [0,   0,   0,   1]
+        ])
+    }
+    
+    var transpose: Transform3D {
+        return Transform3D(rows: [
+            [self.x.x, self.y.x, self.z.x, self.w.x],
+            [self.x.y, self.y.y, self.z.y, self.w.y],
+            [self.x.z, self.y.z, self.z.z, self.w.z],
+            [self.x.w, self.y.w, self.z.w, self.w.w]
         ])
     }
     

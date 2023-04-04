@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 8/12/21.
 //
 
-import Foundation
-
 // TODO: (Vlad) Create object aka CGFloat for float or doubles
 // TODO: (Vlad) when move to new vector object, we should use same object size
 
@@ -216,6 +214,30 @@ public extension Point {
         let point = (affineTransform * Vector3(self.x, self.y, 1))
         return [point.x, point.y]
     }
+}
+
+/// Returns a vector containing the minimum values for each element of `lhs` and `rhs`.
+///
+/// In other words this computes `[min(lhs.x, rhs.x), min(lhs.y, rhs.y), ..]`.
+@inlinable
+@inline(__always)
+public func min(_ lhs: Vector2, _ rhs: Vector2) -> Vector2 {
+    [
+        min(lhs.x, rhs.x),
+        min(lhs.y, rhs.y)
+    ]
+}
+
+/// Returns a vector containing the maximum values for each element of `lhs` and `rhs`.
+///
+/// In other words this computes `[max(lhs.x, rhs.x), max(lhs.y, rhs.y), ..]`.
+@inlinable
+@inline(__always)
+public func max(_ lhs: Vector2, _ rhs: Vector2) -> Vector2 {
+    [
+        max(lhs.x, rhs.x),
+        max(lhs.y, rhs.y)
+    ]
 }
 
 // swiftlint:enable identifier_name

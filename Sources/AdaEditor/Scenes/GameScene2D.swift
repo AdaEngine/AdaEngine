@@ -12,10 +12,44 @@ struct PlayerMovementSystem: System {
     static let playerQuery = EntityQuery(where: .has(PlayerComponent.self) && .has(PhysicsBody2DComponent.self))
     
     static let cameraQuery = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
+    static let matQuery = EntityQuery(where: .has(Mesh2DComponent.self) && .has(Transform.self))
     
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
+        context.scene.performQuery(Self.matQuery).forEach { entity in
+            let meshComponent = entity.components[Mesh2DComponent.self]!
+            if Input.isMouseButtonPressed(.left) {
+                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .mint
+            } else {
+                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .pink
+            }
+            
+            (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.time += context.deltaTime
+            
+            var transform = entity.components[Transform.self]!
+            
+            let speed: Float = 3
+            
+            if Input.isKeyPressed(.semicolon) {
+                transform.position.x += speed * context.deltaTime
+            }
+            
+            if Input.isKeyPressed(.k) {
+                transform.position.x -= speed * context.deltaTime
+            }
+            
+            if Input.isKeyPressed(.l) {
+                transform.position.y -= speed * context.deltaTime
+            }
+            
+            if Input.isKeyPressed(.o) {
+                transform.position.y += speed * context.deltaTime
+            }
+            
+            entity.components += transform
+        }
+        
         context.scene.performQuery(Self.playerQuery).forEach { entity in
             let body = entity.components[PhysicsBody2DComponent.self]!
             
@@ -27,13 +61,13 @@ struct PlayerMovementSystem: System {
                 body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
             }
             
-            if Input.isKeyPressed(.arrowLeft) {
-                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
-            }
-            
-            if Input.isKeyPressed(.arrowRight) {
-                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
-            }
+//            if Input.isKeyPressed(.arrowLeft) {
+//                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
+//            }
+//
+//            if Input.isKeyPressed(.arrowRight) {
+//                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
+//            }
         }
         
         context.scene.performQuery(Self.cameraQuery).forEach { entity in
@@ -173,7 +207,7 @@ final class GameScene2D {
     
     func makeScene() throws -> Scene {
         
-        let scenePath = "@res:Scene/MyFirstScene"
+//        let scenePath = "@res:Scene/MyFirstScene"
         
         TubeMovementSystem.registerSystem()
         TubeSpawnerSystem.registerSystem()
@@ -197,17 +231,17 @@ final class GameScene2D {
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
-//        self.collisionHandler(for: scene)
+        try self.makeCanvasItem(for: scene, position: [-0.3, 0.4, -1])
+        self.collisionHandler(for: scene)
 //        self.fpsCounter(for: scene)
         self.addText(to: scene)
         
-
-//        scene.addSystem(TubeMovementSystem.self)
-//        scene.addSystem(TubeSpawnerSystem.self)
-//        scene.addSystem(TubeDestroyerSystem.self)
+        scene.addSystem(TubeMovementSystem.self)
+        scene.addSystem(TubeSpawnerSystem.self)
+        scene.addSystem(TubeDestroyerSystem.self)
         scene.addSystem(PlayerMovementSystem.self)
         
-        try ResourceManager.save(scene, at: scenePath)
+//        try ResourceManager.save(scene, at: scenePath)
         
         // Change gravitation
         scene.subscribe(to: SceneEvents.OnReady.self, on: scene) { [weak self] event in
@@ -229,7 +263,7 @@ final class GameScene2D {
         scene.subscribe(to: CollisionEvents.Began.self) { event in
             if event.entityA.name == "Player" && (event.entityB.name == "Tube") {
                 //                event.entityA.scene?.removeEntity(event.entityA)
-                print("collide with tube")
+//                print("collide with tube")
                 //                self.gameOver()
             }
         }
@@ -259,6 +293,35 @@ final class GameScene2D {
         )
         playerEntity.components += PlayerComponent()
         scene.addEntity(playerEntity)
+    }
+    
+    func makeCanvasItem(for scene: Scene, position: Vector3) throws {
+        
+        let dogTexture = try ResourceManager.load("Assets/dog.png", from: Bundle.module) as Texture2D
+        
+        let material = MyMaterial(
+            color: .red,
+            customTexture: dogTexture
+        )
+        
+        let handle = CustomMaterial(material)
+        
+        let mesh = Mesh2DComponent(
+            mesh: Mesh.generate(from: Quad()),
+            materials: [handle]
+        )
+        
+        var transform = Transform()
+        transform.scale = Vector3(0.4)
+        transform.position.z = position.z
+        transform.position.x = position.x
+        transform.position.y = position.y
+        
+        let entity = Entity(name: "custom_material")
+        entity.components += mesh
+        entity.components += NoFrustumCulling()
+        entity.components += transform
+        scene.addEntity(entity)
     }
     
     private func makeGround(for scene: Scene) {
@@ -297,8 +360,9 @@ extension GameScene2D {
         let entity = Entity()
         var transform = Transform()
         transform.scale = Vector3(0.3)
-        transform.position.x = -0.5
-        transform.position.y = 0.5
+        transform.position.x = -1
+        transform.position.z = -1
+        transform.position.y = 0
         entity.components += transform
         entity.components += NoFrustumCulling()
         
@@ -325,10 +389,32 @@ extension GameScene2D {
         
         entity.components += Text2DComponent(
             text: text,
-            bounds: Rect(x: 0, y: 0, width: 4.2, height: .infinity),
+            bounds: Rect(x: 0, y: 0, width: .infinity, height: .infinity),
             lineBreakMode: .byWordWrapping
         )
         
         scene.addEntity(entity)
+    }
+}
+
+struct MyMaterial: CanvasMaterial {
+    
+    @Uniform(binding: 2, propertyName: "u_Time")
+    var time: Float
+    
+    @Uniform(binding: 2, propertyName: "u_Color")
+    var color: Color
+    
+    @FragmentTexture(binding: 0)
+    var customTexture: Texture2D
+    
+    init(color: Color, customTexture: Texture2D) {
+        self.time = 0
+        self.color = color
+        self.customTexture = customTexture
+    }
+    
+    static func fragmentShader() throws -> ShaderSource {
+        try ResourceManager.load("Assets/custom_material.glsl", from: .module)
     }
 }

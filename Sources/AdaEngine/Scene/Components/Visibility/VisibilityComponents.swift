@@ -7,7 +7,8 @@
 
 /// Contains information about all visible entities on the camera.
 public struct VisibleEntities: Component {
-    public var entities: [Entity]
+    public var entities: [Entity] = []
+    public var entityIds: Set<Entity.ID> = []
 }
 
 /// Contains information about visibility of entity.

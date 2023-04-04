@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 1/20/23.
 //
 
-import Foundation
-
 public struct Version: Codable {
     
     public let components: [Int]

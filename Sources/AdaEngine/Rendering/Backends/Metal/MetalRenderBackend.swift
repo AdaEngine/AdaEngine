@@ -5,11 +5,6 @@
 //  Created by v.prusakov on 10/20/21.
 //
 
-enum BufferIndex {
-    static let baseUniform = 1
-    static let material = 2
-}
-
 // TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
 #if METAL
@@ -22,7 +17,6 @@ class MetalRenderBackend: RenderBackend {
     
     private let context: Context
     private(set) var currentFrameIndex: Int = 0
-    private var maxFramesInFlight = 3
     
     private var inFlightSemaphore: DispatchSemaphore
     private var commandQueue: MTLCommandQueue
@@ -30,7 +24,7 @@ class MetalRenderBackend: RenderBackend {
     init(appName: String) {
         self.context = Context()
         
-        self.inFlightSemaphore = DispatchSemaphore(value: self.maxFramesInFlight)
+        self.inFlightSemaphore = DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
     }
     
@@ -80,39 +74,25 @@ class MetalRenderBackend: RenderBackend {
             commandBuffer.commit()
         }
         
-        currentFrameIndex = (currentFrameIndex + 1) % maxFramesInFlight
+        currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
     }
     
-    func makeShader(from descriptor: ShaderDescriptor) -> Shader {
-        do {
-            let library: MTLLibrary
-            
-            #if (os(macOS) || os(iOS)) && TUIST
-            library = try self.context.physicalDevice.makeDefaultLibrary(bundle: .current)
-            #else
-            
-            let url = Bundle.current.url(forResource: descriptor.shaderName, withExtension: "metal", subdirectory: "Metal")!
-            let source = try String(contentsOf: url)
-
-            library = try self.context.physicalDevice.makeLibrary(source: source, options: nil)
-            #endif
-            
-            let functions = descriptor.functions.compactMap { library.makeFunction(name: $0.entry) }
-            
-            return MetalShader(
-                name: descriptor.shaderName,
-                library: library,
-                functions: functions
-            )
-        } catch {
-            fatalError(error.localizedDescription)
-        }
+    func compileShader(from shader: Shader) throws -> CompiledShader {
+        let spirvShader = try shader.spirvCompiler.compile()
+        let library = try self.context.physicalDevice.makeLibrary(source: spirvShader.source, options: nil)
+        
+        let descriptor = MTLFunctionDescriptor()
+        descriptor.name = spirvShader.entryPoints[0].name
+        let function = try library.makeFunction(descriptor: descriptor)
+        
+        return MetalShader(name: spirvShader.entryPoints[0].name, library: library, function: function)
     }
     
     func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
         return MetalFramebuffer(descriptor: descriptor)
     }
     
+    // swiftlint:disable:next function_body_length
     func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.label = descriptor.debugName
@@ -128,21 +108,13 @@ class MetalRenderBackend: RenderBackend {
         for (index, layout) in descriptor.vertexDescriptor.layouts.enumerated() {
             vertexDescriptor.layouts[index].stride = layout.stride
         }
-        
-        guard let shader = descriptor.shader as? MetalShader else {
-            fatalError("Incorrect type of shader")
+        if let shader = descriptor.vertex?.compiledShader as? MetalShader {
+            pipelineDescriptor.vertexFunction = shader.function
         }
         
-        shader.functions.forEach {
-            switch $0.functionType {
-            case .fragment:
-                pipelineDescriptor.fragmentFunction = $0
-            case .vertex:
-                pipelineDescriptor.vertexFunction = $0
-            default:
-                return
-            }
-         }
+        if let shader = descriptor.fragment?.compiledShader as? MetalShader {
+            pipelineDescriptor.fragmentFunction = shader.function
+        }
         
         pipelineDescriptor.vertexDescriptor = vertexDescriptor
         
@@ -196,7 +168,7 @@ class MetalRenderBackend: RenderBackend {
                 depthState: depthStencilState
             )
         } catch {
-            fatalError(error.localizedDescription)
+            fatalError("[Metal Render Backend] \(error.localizedDescription)")
         }
     }
     
@@ -252,14 +224,24 @@ extension MetalRenderBackend {
         let textureDesc = MTLTextureDescriptor()
         
         switch descriptor.textureType {
-        case .cube:
+        case .textureCube:
             textureDesc.textureType = .typeCube
+        case .texture1D:
+            textureDesc.textureType = .type1D
+        case .texture1DArray:
+            textureDesc.textureType = .type1DArray
         case .texture2D:
             textureDesc.textureType = .type2D
         case .texture2DArray:
             textureDesc.textureType = .type2DArray
+        case .texture2DMultisample:
+            textureDesc.textureType = .type2DMultisample
+        case .texture2DMultisampleArray:
+            textureDesc.textureType = .type2DMultisampleArray
         case .texture3D:
             textureDesc.textureType = .type3D
+        case .textureBuffer:
+            textureDesc.textureType = .typeTextureBuffer
         }
         
         var mtlUsage: MTLTextureUsage = 0
@@ -401,7 +383,7 @@ extension MetalRenderBackend {
     // MARK: - Uniforms -
     
     func makeUniformBufferSet() -> UniformBufferSet {
-        return MetalUniformBufferSet(frames: self.maxFramesInFlight, backend: self)
+        return MetalUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, device: self)
     }
     
     func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {
@@ -477,40 +459,33 @@ extension MetalRenderBackend {
             encoder.setVertexBuffer(vertexBuffer.buffer, offset: 0, index: vertexBuffer.binding)
         }
         
-        let textures: [MTLTexture] = list.textures.compactMap {
-            return ($0?.gpuTexture as? MetalGPUTexture)?.texture
-        }
-        
-        if !textures.isEmpty {
-            encoder.setFragmentTextures(textures, range: 0..<textures.count)
-        }
-        
-        // I think it should be passed to draw list
-        if let mtlSampler = (renderPipeline.descriptor.sampler as? MetalSampler)?.mtlSampler {
-            encoder.setFragmentSamplerState(mtlSampler, index: 0)
+        let textures = list.textures.compactMap { $0 }
+        for (index, texture) in textures.enumerated() {
+            let mtlTexture = (texture.gpuTexture as! MetalGPUTexture).texture
+            let mtlSampler = (texture.sampler as! MetalSampler).mtlSampler
+            
+            encoder.setFragmentTexture(mtlTexture, index: index)
+            encoder.setFragmentSamplerState(mtlSampler, index: index)
         }
         
         for index in 0 ..< list.uniformBufferCount {
             let data = list.uniformBuffers[index]!
             let buffer = data.buffer as! MetalUniformBuffer
             
-            switch data.function {
+            switch data.shaderStage {
             case .vertex:
                 encoder.setVertexBuffer(buffer.buffer, offset: 0, index: buffer.binding)
             case .fragment:
                 encoder.setFragmentBuffer(buffer.buffer, offset: 0, index: buffer.binding)
+            default:
+                continue
             }
         }
         
-        switch list.triangleFillMode {
-        case .fill:
-            encoder.setTriangleFillMode(.fill)
-        case .lines:
-            encoder.setTriangleFillMode(.lines)
-        }
+        encoder.setTriangleFillMode(list.triangleFillMode == .fill ? .fill : .lines)
         
         encoder.drawIndexedPrimitives(
-            type: list.indexPrimitive == .line ? .line : .triangle,
+            type: list.indexPrimitive.toMetal,
             indexCount: indexCount,
             indexType: indexBuffer.indexFormat == .uInt32 ? .uint32 : .uint16,
             indexBuffer: (indexBuffer as! MetalIndexBuffer).buffer,
@@ -531,6 +506,25 @@ extension MetalRenderBackend {
 }
 
 // MARK: - Data
+
+extension IndexPrimitive {
+    @inlinable
+    @inline(__always)
+    var toMetal: MTLPrimitiveType {
+        switch self {
+        case .line:
+            return MTLPrimitiveType.line
+        case .lineStrip:
+            return MTLPrimitiveType.lineStrip
+        case .points:
+            return MTLPrimitiveType.point
+        case .triangle:
+            return MTLPrimitiveType.triangle
+        case .triangleStrip:
+            return MTLPrimitiveType.triangleStrip
+        }
+    }
+}
 
 extension MetalRenderBackend {
     
@@ -744,8 +738,8 @@ let MTLResourceStorageModeShared = Int(MTLStorageMode(rawValue: 0)!.rawValue << 
 
 // FIXME: (Vlad) Think about it
 
-extension Bundle {
-    static var current: Bundle {
+public extension Bundle {
+    static var engineBundle: Bundle {
 #if SWIFT_PACKAGE
         return Bundle.module
 #else

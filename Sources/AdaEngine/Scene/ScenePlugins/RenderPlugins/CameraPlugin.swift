@@ -8,7 +8,13 @@
 struct CameraPlugin: ScenePlugin {
     func setup(in scene: Scene) {
         scene.addSystem(CameraSystem.self)
-        scene.sceneRenderGraph.addNode(with: "CameraRenderNode", node: CameraRenderNode())
+        scene.addSystem(ExtractCameraSystem.self)
+    }
+}
+
+struct CameraRenderPlugin: ScenePlugin {
+    func setup(in scene: Scene) {
+        Application.shared.renderWorld.renderGraph.addNode(with: "CameraRenderNode", node: CameraRenderNode())
     }
 }
 

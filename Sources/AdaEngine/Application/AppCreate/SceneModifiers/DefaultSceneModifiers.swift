@@ -42,3 +42,19 @@ struct WindowTitleSceneModifier: SceneModifier {
         configuration.title = self.title
     }
 }
+
+struct RenderWorldPlugin<T: ScenePlugin>: SceneModifier {
+    let plugin: T
+    
+    func modify(_ configuration: inout _AppSceneConfiguration) {
+        configuration.plugins.append(plugin)
+    }
+}
+
+struct UseDefaultRenderPlugins: SceneModifier {
+    let isEnabled: Bool
+    
+    func modify(_ configuration: inout _AppSceneConfiguration) {
+        configuration.useDefaultRenderPlugins = isEnabled
+    }
+}

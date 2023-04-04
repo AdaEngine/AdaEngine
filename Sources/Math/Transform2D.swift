@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 10/20/21.
 //
 
-import Foundation
-
 // swiftlint:disable identifier_name
 
 @frozen
@@ -243,7 +241,15 @@ public extension Transform2D {
         mm.z.z = mm.z.z - self.x.y * self.y.x
         return mm * (1 / self.determinant)
     }
-
+    
+    var transpose: Transform3D {
+        return Transform3D(rows: [
+            [self.x.x, self.y.x, self.z.x],
+            [self.x.y, self.y.y, self.z.y],
+            [self.x.z, self.y.z, self.z.z]
+        ])
+    }
+    
     var determinant: Float {
         var d1 = self.y.y * self.z.z
         d1 = d1 - self.z.y * self.y.z
@@ -256,7 +262,7 @@ public extension Transform2D {
         det = det + self.z.x * d3
         return det
     }
-
+    
 }
 
 public extension Transform2D {

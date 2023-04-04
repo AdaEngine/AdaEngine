@@ -5,45 +5,8 @@
 //  Created by v.prusakov on 3/5/23.
 //
 
-import AtlasFontGenerator
+@_implementationOnly import AtlasFontGenerator
 import Foundation
-
-/// Hold information about font data and atlas
-final class FontHandle: Hashable {
-    
-    let atlasTexture: Texture2D
-    let fontData: UnsafePointer<ada_font.FontData>
-    
-    init(
-        atlasTexture: Texture2D,
-        fontData: UnsafePointer<ada_font.FontData>) {
-        self.atlasTexture = atlasTexture
-        self.fontData = fontData
-    }
-    
-    deinit {
-        fontData.deallocate()
-    }
-    
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(fontData.pointee.fontGeometry.__getNameUnsafe())
-        hasher.combine(fontData.pointee.fontGeometry.getGeometryScale())
-        hasher.combine(fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.emSize)
-        hasher.combine(fontData.pointee.fontGeometry.__getMetricsUnsafe().pointee.lineHeight)
-    }
-    
-    static func == (lhs: FontHandle, rhs: FontHandle) -> Bool {
-        let lhsFontGeometry = lhs.fontData.pointee.fontGeometry
-        let rhsFontGeometry = rhs.fontData.pointee.fontGeometry
-        
-        return lhsFontGeometry.__getNameUnsafe() == rhsFontGeometry.__getNameUnsafe()
-        && lhsFontGeometry.getGeometryScale() == rhsFontGeometry.getGeometryScale()
-        && lhsFontGeometry.__getMetricsUnsafe().pointee.emSize == rhsFontGeometry.__getMetricsUnsafe().pointee.emSize
-        && lhsFontGeometry.__getMetricsUnsafe().pointee.lineHeight == rhsFontGeometry.__getMetricsUnsafe().pointee.lineHeight
-        && lhs.fontData.pointee.glyphs.size() == rhs.fontData.pointee.glyphs.size()
-    }
-    
-}
 
 public struct FontDescriptor {
     public var fontSize: Float = 1.0
@@ -57,37 +20,54 @@ final class FontAtlasGenerator {
     
     /// Generate and save to the disk info about font atlas.
     func generateAtlas(fontPath: URL, fontDescriptor: FontDescriptor) -> FontHandle? {
-        var atlasFontDescriptor = ada_font.AtlasFontDescriptor()
+        var atlasFontDescriptor = font_atlas_descriptor()
         atlasFontDescriptor.angleThreshold = 3.0
         atlasFontDescriptor.atlasPixelRange = 2.0
         atlasFontDescriptor.coloringSeed = 3
         atlasFontDescriptor.threads = 8
         atlasFontDescriptor.expensiveColoring = true
         atlasFontDescriptor.fontScale = 52
-        atlasFontDescriptor.atlasImageType = msdf_atlas.ImageType.MTSDF
+        atlasFontDescriptor.atlasImageType = AFG_IMAGE_TYPE_MTSDF
         atlasFontDescriptor.miterLimit = 1.0
         
         let fontPathString = fontPath.path
         let fontName = fontPath.lastPathComponent
         
-        var fontGenerator = ada_font.FontAtlasGenerator(fontPathString, fontName, atlasFontDescriptor)
-        let fontData = fontGenerator.__getFontDataUnsafe()!
+        let generator = fontPathString.withCString { fontPathPtr in
+            fontName.withCString { fontNamePtr in
+                font_atlas_generator_create(fontPathPtr, fontNamePtr, atlasFontDescriptor)!
+            }
+        }
         
+        defer {
+            generator.deallocate()
+        }
+        
+        let fontData = font_atlas_generator_get_font_data(generator)!
         let fileName = "\(fontName)-\(atlasFontDescriptor.fontScale.rounded()).fontbin"
         
         if let (atlasHeader, data) = self.getAtlas(by: fileName) {
-            let texture = makeTextureAtlas(from: data, width: atlasHeader.width, height: atlasHeader.height)
+            let texture = self.makeTextureAtlas(from: data, width: atlasHeader.width, height: atlasHeader.height)
             return FontHandle(atlasTexture: texture, fontData: fontData)
         } else {
-            let bitmap = fontGenerator.__generateAtlasBitmapUnsafe()
-            let data = Data(bytes: bitmap.pixels, count: Int(bitmap.pixelsCount))
+            let bitmap = font_atlas_generator_generate_bitmap(generator)!
             
-            let width = Int(bitmap.bitmapWidth)
-            let height = Int(bitmap.bitmapHeight)
+            defer {
+                bitmap.deallocate()
+            }
             
+            let bitmapValue = bitmap.pointee
+            let data = Data(bytesNoCopy: bitmapValue.pixels, count: Int(bitmapValue.pixelsCount), deallocator: .free)
+
+            let width = Int(bitmapValue.bitmapWidth)
+            let height = Int(bitmapValue.bitmapHeight)
+            
+            assert(width > 0, "Invalid width of atlas")
+            assert(height > 0, "Invalid width of atlas")
+
             self.saveAtlas(data, width: width, height: height, fileName: fileName)
-            
-            let texture = makeTextureAtlas(from: data, width: width, height: height)
+
+            let texture = self.makeTextureAtlas(from: data, width: width, height: height)
             return FontHandle(atlasTexture: texture, fontData: fontData)
         }
     }
@@ -101,6 +81,11 @@ final class FontAtlasGenerator {
             data: data
         )
         
+        var textSamplerDesc = SamplerDescriptor()
+        textSamplerDesc.magFilter = .linear
+        textSamplerDesc.mipFilter = .linear
+        textSamplerDesc.minFilter = .linear
+        
         let descriptor = TextureDescriptor(
             width: width,
             height: height,
@@ -108,14 +93,17 @@ final class FontAtlasGenerator {
             textureUsage: [.read],
             textureType: .texture2D,
             mipmapLevel: 0,
-            image: image
+            image: image,
+            samplerDescription: textSamplerDesc
         )
         
         return Texture2D(descriptor: descriptor)
     }
     
     private func getCacheDirectory() throws -> URL {
-        return try FileSystem.current.url(for: .cachesDirectory).appendingPathComponent("AdaEngine").appendingPathComponent("FontGeneratedAtlases")
+        return try FileSystem.current.url(for: .cachesDirectory)
+            .appendingPathComponent("AdaEngine")
+            .appendingPathComponent("FontGeneratedAtlases")
     }
     
     private func createCacheDirectoryIfNeeded() {
@@ -166,7 +154,6 @@ final class FontAtlasGenerator {
     }
     
     private func getAtlas(by fileName: String) -> (AtlasHeader, Data)? {
-        
         self.createCacheDirectoryIfNeeded()
         
         do {
