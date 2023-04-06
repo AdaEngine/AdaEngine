@@ -67,8 +67,11 @@ extension SpaceInvaders {
         player.components += Transform(scale: Vector3(0.2), position: [0, -0.85, 0])
         player.components += PlayerComponent()
         player.components += SpriteComponent(texture: characterAtlas[7, 1])
-        player.components += Collision2DComponent(shapes: [.generateBox(width: 0.2, height: 0.2)], mode: .trigger)
-        
+        player.components += Collision2DComponent(
+            shapes: [.generateBox(width: 0.2, height: 0.2)],
+            mode: .default,
+            filter: CollisionFilter(categoryBitMask: .all, collisionBitMask: .all)
+        )
         scene.addEntity(player)
     }
 }
@@ -124,12 +127,12 @@ struct FireSystem: System {
     func fireBullet(context: UpdateContext, shipTransform: Transform) {
         let bullet = Entity()
         
-        let bulletScale = Vector3(0.02, 0.04, 1)
+        let bulletScale = Vector3(0.02, 0.04, 0.04)
         
         bullet.components += Transform(scale: bulletScale, position: shipTransform.position)
         bullet.components += SpriteComponent(tintColor: .red)
         bullet.components += Bullet(lifetime: 4)
-        bullet.components += Collision2DComponent(shapes: [.generateBox(width: bulletScale.x, height: bulletScale.y)], mode: .trigger)
+        bullet.components += Collision2DComponent(shapes: [.generateBox(width: bulletScale.x, height: bulletScale.y)])
         
         context.scene.addEntity(bullet)
     }
@@ -204,7 +207,7 @@ struct EnemySpawnerSystem: System {
         transform.position = [Float.random(in: -1.8...1.8), 1, -1]
         entity.components += transform
         entity.components += SpriteComponent(texture: textureAtlas[5, 7])
-        entity.components += Collision2DComponent(shapes: [.generateBox(width: 0.25, height: 0.25)], mode: .trigger)
+        entity.components += Collision2DComponent(shapes: [.generateBox(width: 0.25, height: 0.25)])
         entity.components += EnemyComponent(health: 100, lifetime: 5)
         context.scene.addEntity(entity)
     }

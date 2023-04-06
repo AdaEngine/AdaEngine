@@ -19,8 +19,10 @@ public struct Physics2DPlugin: ScenePlugin {
         physicsWorldEntity.components += Physics2DWorldComponent(world: world)
         
         scene.addEntity(physicsWorldEntity)
-        scene.addSystem(DebugPhysics2DSystem.self)
+        scene.addSystem(DebugPhysicsExctract2DSystem.self)
         scene.addSystem(Physics2DSystem.self)
+        
+        Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)
     }
 }
 

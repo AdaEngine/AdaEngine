@@ -7,8 +7,11 @@
 
 @frozen
 public enum PhysicsBodyMode: Codable {
+    /// Zero mass, zero velocity, may be manually moved
     case `static`
+    /// Positive mass, non-zero velocity determined by forces, moved by solver
     case `dynamic`
+    /// Zero mass, non-zero velocity set by user, moved by solver
     case kinematic
 }
 

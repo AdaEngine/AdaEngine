@@ -14,15 +14,7 @@ public struct SpriteDrawPass: DrawPass {
             return
         }
         
-        guard let batchSprite = item.batchEntity.components[BatchComponent.self] else {
-            return
-        }
-        
         guard let cameraViewUniform = context.view.components[GlobalViewUniformBufferSet.self] else {
-            return
-        }
-        
-        guard let count = item.batchRange?.count else {
             return
         }
         
@@ -34,16 +26,19 @@ public struct SpriteDrawPass: DrawPass {
             frameIndex: context.device.currentFrameIndex
         )
         
-        context.drawList.appendUniformBuffer(uniformBuffer)
-        
-        batchSprite.textures.enumerated().forEach { (index, texture) in
-            context.drawList.bindTexture(texture, at: index)
+        if let batchSprite = item.batchEntity.components[BatchComponent.self] {
+            batchSprite.textures.enumerated().forEach { (index, texture) in
+                context.drawList.bindTexture(texture, at: index)
+            }
         }
+        
+        context.drawList.appendUniformBuffer(uniformBuffer)
+
         context.drawList.appendVertexBuffer(spriteData.vertexBuffer)
         context.drawList.bindIndexBuffer(spriteData.indexBuffer)
         context.drawList.bindRenderPipeline(item.renderPipeline)
         
-        context.drawList.drawIndexed(indexCount: count, instancesCount: 1)
+        context.drawList.drawIndexed(indexCount: item.batchRange?.count ?? 6, instancesCount: 1)
         
         context.drawList.popDebugName()
     }
