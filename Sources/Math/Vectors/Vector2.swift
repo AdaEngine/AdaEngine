@@ -8,10 +8,14 @@
 // TODO: (Vlad) Create object aka CGFloat for float or doubles
 // TODO: (Vlad) when move to new vector object, we should use same object size
 
+
+/// A 2-dimensional vector used for 2D math using floating point coordinates.
+@frozen
 public struct Vector2: Hashable, Equatable, Codable {
     public var x: Float
     public var y: Float
     
+    @inlinable
     @inline(__always)
     public init(x: Float, y: Float) {
         self.x = x
@@ -20,12 +24,14 @@ public struct Vector2: Hashable, Equatable, Codable {
 }
 
 public extension Vector2 {
+    @inlinable
     @inline(__always)
     init(_ scalar: Float) {
         self.x = scalar
         self.y = scalar
     }
     
+    @inlinable
     @inline(__always)
     init(_ x: Float, _ y: Float) {
         self.x = x
@@ -67,17 +73,26 @@ public extension Vector2 {
 }
 
 public extension Vector2 {
+    @inlinable
     @inline(__always)
     var squaredLength: Float {
         return x * x + y * y
     }
     
+    @inlinable
     @inline(__always)
     var normalized: Vector2 {
         let length = self.squaredLength
         return self / sqrt(length)
     }
     
+    @inlinable
+    @inline(__always)
+    var isNaN: Bool {
+        return self.x.isNaN || self.y.isNaN
+    }
+    
+    @inlinable
     @inline(__always)
     func dot(_ vector: Vector2) -> Float {
         return x * vector.x + y * vector.y
@@ -90,61 +105,73 @@ public extension Vector2 {
     
     // MARK: Scalar
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Vector2, rhs: Float) -> Vector2 {
         return [lhs.x * rhs, lhs.y * rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func + (lhs: Vector2, rhs: Float) -> Vector2 {
         return [lhs.x + rhs, lhs.y + rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func - (lhs: Vector2, rhs: Float) -> Vector2 {
         return [lhs.x - rhs, lhs.y - rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func / (lhs: Vector2, rhs: Float) -> Vector2 {
         return [lhs.x / rhs, lhs.y / rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Float, rhs: Vector2) -> Vector2 {
         return [lhs * rhs.x, lhs * rhs.y]
     }
     
+    @inlinable
     @inline(__always)
     static func + (lhs: Float, rhs: Vector2) -> Vector2 {
         return [lhs + rhs.x, lhs + rhs.y]
     }
     
+    @inlinable
     @inline(__always)
     static func - (lhs: Float, rhs: Vector2) -> Vector2 {
         return [lhs - rhs.x, lhs - rhs.y]
     }
 
+    @inlinable
     @inline(__always)
     static func / (lhs: Float, rhs: Vector2) -> Vector2 {
         return [lhs / rhs.x, lhs / rhs.y]
     }
     
+    @inlinable
     @inline(__always)
     static func *= (lhs: inout Vector2, rhs: Float) {
         lhs = lhs * rhs
     }
     
+    @inlinable
     @inline(__always)
     static func -= (lhs: inout Vector2, rhs: Float) {
         lhs = lhs - rhs
     }
     
+    @inlinable
     @inline(__always)
     static func /= (lhs: inout Vector2, rhs: Float) {
         lhs = lhs / rhs
     }
     
+    @inlinable
     @inline(__always)
     static func += (lhs: inout Vector2, rhs: Float) {
         lhs = lhs + rhs
@@ -152,41 +179,49 @@ public extension Vector2 {
     
     // MARK: Vector
     
+    @inlinable
     @inline(__always)
     static func + (lhs: Vector2, rhs: Vector2) -> Vector2 {
         return [lhs.x + rhs.x, lhs.y + rhs.y]
     }
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Vector2, rhs: Vector2) -> Vector2 {
         return [lhs.x * rhs.x, lhs.y * rhs.y]
     }
     
+    @inlinable
     @inline(__always)
     static func - (lhs: Vector2, rhs: Vector2) -> Vector2 {
         return [lhs.x - rhs.x, lhs.y - rhs.y]
     }
     
+    @inlinable
     @inline(__always)
     static func / (lhs: Vector2, rhs: Vector2) -> Vector2 {
         return [lhs.x / rhs.x, lhs.y / rhs.y]
     }
     
+    @inlinable
     @inline(__always)
     static func *= (lhs: inout Vector2, rhs: Vector2) {
         lhs = lhs * rhs
     }
     
+    @inlinable
     @inline(__always)
     static func += (lhs: inout Vector2, rhs: Vector2) {
         lhs = lhs + rhs
     }
     
+    @inlinable
     @inline(__always)
     static func -= (lhs: inout Vector2, rhs: Vector2) {
         lhs = lhs - rhs
     }
     
+    @inlinable
     @inline(__always)
     static func /= (lhs: inout Vector2, rhs: Vector2) {
         lhs = lhs / rhs

@@ -5,11 +5,14 @@
 //  Created by v.prusakov on 6/22/22.
 //
 
+/// A 3-dimensional vector used for 3D math using floating point coordinates.
+@frozen
 public struct Vector3: Hashable, Equatable, Codable {
     public var x: Float
     public var y: Float
     public var z: Float
     
+    @inlinable
     @inline(__always)
     public init(x: Float, y: Float, z: Float) {
         self.x = x
@@ -19,6 +22,7 @@ public struct Vector3: Hashable, Equatable, Codable {
 }
 
 public extension Vector3 {
+    @inlinable
     @inline(__always)
     init(_ scalar: Float) {
         self.x = scalar
@@ -26,6 +30,7 @@ public extension Vector3 {
         self.z = scalar
     }
     
+    @inlinable
     @inline(__always)
     init(_ x: Float, _ y: Float, _ z: Float) {
         self.x = x
@@ -33,6 +38,7 @@ public extension Vector3 {
         self.z = z
     }
     
+    @inlinable
     @inline(__always)
     init(_ xy: Float, _ z: Float) {
         self.x = xy
@@ -40,6 +46,7 @@ public extension Vector3 {
         self.z = z
     }
     
+    @inlinable
     @inline(__always)
     init(_ vector2: Vector2, _ z: Float) {
         self.x = vector2.x
@@ -93,6 +100,7 @@ extension Vector3 {
 }
 
 public extension Vector3 {
+    @inlinable
     @inline(__always)
     static func * (lhs: Transform2D, rhs: Vector3) -> Vector3 {
         [
@@ -109,56 +117,67 @@ public extension Vector3 {
     
     // MARK: Scalar
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Vector3, rhs: Float) -> Vector3 {
         return [lhs.x * rhs, lhs.y * rhs, lhs.z * rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func + (lhs: Vector3, rhs: Float) -> Vector3 {
         return [lhs.x + rhs, lhs.y + rhs, lhs.z + rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func - (lhs: Vector3, rhs: Float) -> Vector3 {
         return [lhs.x - rhs, lhs.y - rhs, lhs.z - rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Float, rhs: Vector3) -> Vector3 {
         return [lhs * rhs.x, lhs * rhs.y, lhs * rhs.z]
     }
     
+    @inlinable
     @inline(__always)
     static func + (lhs: Float, rhs: Vector3) -> Vector3 {
         return [lhs + rhs.x, lhs + rhs.y, lhs + rhs.z]
     }
     
+    @inlinable
     @inline(__always)
     static func - (lhs: Float, rhs: Vector3) -> Vector3 {
         return [lhs - rhs.x, lhs - rhs.y, lhs - rhs.z]
     }
     
+    @inlinable
     @inline(__always)
     static func / (lhs: Float, rhs: Vector3) -> Vector3 {
         return [lhs / rhs.x, lhs / rhs.y, lhs / rhs.z]
     }
     
+    @inlinable
     @inline(__always)
     static func *= (lhs: inout Vector3, rhs: Float) {
         lhs = lhs * rhs
     }
     
+    @inlinable
     @inline(__always)
     static func += (lhs: inout Vector3, rhs: Float) {
         lhs = lhs + rhs
     }
     
+    @inlinable
     @inline(__always)
     static func -= (lhs: inout Vector3, rhs: Float) {
         lhs = lhs - rhs
     }
     
+    @inlinable
     @inline(__always)
     static func /= (lhs: inout Vector3, rhs: Float) {
         lhs = lhs / rhs
@@ -166,46 +185,55 @@ public extension Vector3 {
     
     // MARK: Vector
     
+    @inlinable
     @inline(__always)
     static func + (lhs: Vector3, rhs: Vector3) -> Vector3 {
         return [lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z]
     }
     
+    @inlinable
     @inline(__always)
     static func - (lhs: Vector3, rhs: Vector3) -> Vector3 {
         return [lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z]
     }
 
+    @inlinable
     @inline(__always)
     static func * (lhs: Vector3, rhs: Vector3) -> Vector3 {
         return [lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z]
     }
     
+    @inlinable
     @inline(__always)
     static func / (lhs: Vector3, rhs: Float) -> Vector3 {
         return [lhs.x / rhs, lhs.y / rhs, lhs.z / rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func / (lhs: Vector3, rhs: Vector3) -> Vector3 {
         return [lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z]
     }
     
+    @inlinable
     @inline(__always)
     static func *= (lhs: inout Vector3, rhs: Vector3) {
         lhs = lhs * rhs
     }
     
+    @inlinable
     @inline(__always)
     static func += (lhs: inout Vector3, rhs: Vector3) {
         lhs = lhs + rhs
     }
     
+    @inlinable
     @inline(__always)
     static func -= (lhs: inout Vector3, rhs: Vector3) {
         lhs = lhs - rhs
     }
     
+    @inlinable
     @inline(__always)
     static func /= (lhs: inout Vector3, rhs: Vector3) {
         lhs = lhs / rhs
@@ -234,6 +262,7 @@ public extension Vector3 {
 }
 
 public extension Vector3 {
+    @inlinable
     @inline(__always)
     func cross(_ vec: Vector3) -> Vector3 {
         var x1 = self.y * vec.z
@@ -246,24 +275,34 @@ public extension Vector3 {
         return Vector3(x1, y1, z1)
     }
     
+    @inlinable
     @inline(__always)
     var squaredLength: Float {
         return x * x + y * y + z * z
     }
     
+    @inlinable
     @inline(__always)
     var length: Float {
         return sqrt(squaredLength)
     }
     
+    @inlinable
     @inline(__always)
     var normalized: Vector3 {
         return self / self.length
     }
     
+    @inlinable
     @inline(__always)
     func dot(_ vector: Vector3) -> Float {
         return x * vector.x + y * vector.y + z * vector.z
+    }
+    
+    @inlinable
+    @inline(__always)
+    var isNaN: Bool {
+        return self.x.isNaN || self.y.isNaN || self.z.isNaN
     }
     
     @inline(__always)

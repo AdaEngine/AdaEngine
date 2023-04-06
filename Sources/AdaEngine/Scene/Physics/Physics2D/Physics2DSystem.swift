@@ -31,10 +31,6 @@ final class Physics2DSystem: System {
         where: .has(PhysicsJoint2DComponent.self) && .has(Transform.self)
     )
     
-    static let physicsWorld = EntityQuery(
-        where: .has(Physics2DWorldComponent.self)
-    )
-    
     static let removedEntities = EntityQuery(
         where: .has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self),
         filter: .removed
@@ -48,10 +44,7 @@ final class Physics2DSystem: System {
         let joints = context.scene.performQuery(Self.jointsQuery)
         let removedEntities = context.scene.performQuery(Self.removedEntities)
         
-        // We should have only one physics world
-        let worlds = context.scene.performQuery(Self.physicsWorld)
-        
-        guard let world = worlds.first?.components[Physics2DWorldComponent.self]?.world else {
+        guard let world = context.scene.physicsWorld2D else {
             return
         }
         

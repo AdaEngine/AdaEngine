@@ -33,6 +33,14 @@ typedef enum b2_body_type {
     B2_BODY_TYPE_KINEMATIC = 2,
 } b2_body_type;
 
+typedef enum b2_shape_type {
+    B2_SHAPE_TYPE_CIRCLE = 0,
+    B2_SHAPE_TYPE_EDGE = 1,
+    B2_SHAPE_TYPE_POLYGON = 2,
+    B2_SHAPE_TYPE_CHAIN = 3,
+    B2_SHAPE_TYPE_COUNT = 4
+} b2_shape_type;
+
 typedef struct b2_fixture_def {
     const void *shape;
     float friction;
@@ -98,6 +106,12 @@ typedef struct contact_listener_callbacks {
     contact_listener_postsolve_func post_solve;
 } contact_listener_callbacks;
 
+typedef float (*raycast_listener_reportfixture_func)(const void* userData, b2_fixture_s* fixture, b2_vec2 point, b2_vec2 normal, float fraction);
+
+typedef struct raycast_listener_callback {
+    raycast_listener_reportfixture_func report_fixture;
+} raycast_listener_callback;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -115,6 +129,9 @@ void b2_world_step(b2_world_s* world,
 b2_vec2 b2_world_get_gravity(b2_world_s* world);
 void b2_world_set_gravity(b2_world_s* world, b2_vec2 gravity);
 void b2_world_set_contact_listener(b2_world_s* world, contact_listener_s* listener);
+
+void b2_world_clear_forces(b2_world_s* world);
+void b2_world_raycast(b2_world_s* world, b2_vec2 origin, b2_vec2 dist, const void *userData, raycast_listener_callback callbacks);
 
 b2_body_s* b2_world_create_body(b2_world_s* world, b2_body_def bodyDef);
 void b2_world_destroy_body(b2_world_s* world, b2_body_s* body);
@@ -155,6 +172,9 @@ void b2_fixture_set_filter_data(b2_fixture_s* fixture, b2_filter filterData);
 
 b2_body_s* b2_fixture_get_body(b2_fixture_s* fixture);
 
+b2_shape_type b2_fixture_get_type(b2_fixture_s* fixture);
+b2_shape_s* b2_fixture_get_shape(b2_fixture_s* fixture);
+
 // MARK: B2_SHAPE
 
 b2_shape_s* b2_create_polygon_shape();
@@ -171,13 +191,16 @@ void b2_polygon_shape_set_as_box_with_center(b2_shape_s* polygonShape,
                                              b2_vec2 center,
                                              float angle);
 
-//
-//    @inlinable
-//    @inline(__always)
-//    func getFixtureList() -> b2Fixture? {
-//        return self.ref.GetFixtureListMutating()
-//    }
+b2_shape_type b2_shape_get_type(b2_shape_s* shape);
 
+void b2_polygon_shape_get_vertices(b2_shape_s* polyginShape, b2_vec2** vertices, uint32_t* count);
+//void b2_polygon_shape_get_normals(b2_shape_s* polyginShape, );
+
+
+//b2Vec2 m_centroid;
+//b2Vec2 m_vertices[b2_maxPolygonVertices];
+//b2Vec2 m_normals[b2_maxPolygonVertices];
+//int32 m_count;
 
 // MARK: B2_CONTACT_LISTENER
 

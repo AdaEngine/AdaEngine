@@ -139,7 +139,7 @@ public struct QueryResult: Sequence {
     public typealias Element = Entity
     public typealias Iterator = EntityIterator
     
-    var first: Element? {
+    public var first: Element? {
         return self.first { _ in return true }
     }
     

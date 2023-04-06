@@ -5,12 +5,12 @@
 //  Created by v.prusakov on 8/11/22.
 //
 
-/// Setup physics in the scene.
-struct Physics2DPlugin: ScenePlugin {
+/// Setup 2D physics to the scene.
+public struct Physics2DPlugin: ScenePlugin {
     
-    init() {}
+    public init() {}
     
-    func setup(in scene: Scene) {
+    public func setup(in scene: Scene) {
         /// We have physics world as an entity, because it's more flexible solution then store
         /// physics world in the scene object.
         let physicsWorldEntity = Entity(name: "PhysicsWorld2D")
@@ -21,5 +21,20 @@ struct Physics2DPlugin: ScenePlugin {
         scene.addEntity(physicsWorldEntity)
         scene.addSystem(DebugPhysics2DSystem.self)
         scene.addSystem(Physics2DSystem.self)
+    }
+}
+
+public extension Scene {
+    
+    private static let physicsWorldQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
+    
+    /// Returns ``PhysicsWorld2D`` instance is ``Physics2DPlugin`` is connected to the scene.
+    /// - Note: ``Physics2DPlugin`` connected by default on first update tick in current scene.
+    var physicsWorld2D: PhysicsWorld2D? {
+        guard let entity = self.world.performQuery(Self.physicsWorldQuery).first else {
+            return nil
+        }
+        
+        return entity.components[Physics2DWorldComponent.self]?.world
     }
 }

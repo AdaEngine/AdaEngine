@@ -45,6 +45,7 @@ struct CameraSystem: System {
             
             if id != window?.id {
                 camera.renderTarget = .window(window?.id ?? .empty)
+                camera.computedData.targetScaleFactor = window?.screen?.scale ?? 1
             }
             
             let windowSize = window?.frame.size ?? .zero
@@ -57,8 +58,19 @@ struct CameraSystem: System {
             if camera.viewport?.rect.size != windowSize {
                 camera.viewport?.rect.size = windowSize
             }
-        case .texture:
-            return
+        case .texture(let texture):
+            let size = Size(width: Float(texture.width), height: Float(texture.height))
+            
+            if camera.viewport == nil {
+                camera.viewport = Viewport(rect: Rect(origin: .zero, size: size))
+                return
+            }
+            
+            if camera.viewport?.rect.size != size {
+                camera.viewport?.rect.size = size
+            }
+            
+            camera.computedData.targetScaleFactor = texture.scaleFactor
         }
     }
     

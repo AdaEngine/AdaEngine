@@ -13,6 +13,7 @@ enum SceneSerializationError: Error {
     case notRegistedObject(Any)
 }
 
+/// A container that holds the collection of entities for render.
 public final class Scene: Resource {
     
     static var currentVersion: Version = "1.0.0"
@@ -188,6 +189,8 @@ public extension Scene {
 }
 
 // MARK: - World Transform
+
+// TODO: Replace it to GlobalTransform
 
 public extension Scene {
     func worldTransform(for entity: Entity) -> Transform {

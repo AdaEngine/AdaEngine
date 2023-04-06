@@ -140,4 +140,64 @@ class FixtureList {
             b2_fixture_set_filter_data(self.ref, newValue)
         }
     }
+    
+    var body: OpaquePointer {
+        return b2_fixture_get_body(self.ref)
+    }
+    
+    var shape: BoxShape2D {
+        return BoxShape2D(ref: b2_fixture_get_shape(self.ref))
+    }
+    
+    var type: Box2DShapeType {
+        return Box2DShapeType(rawValue: b2_fixture_get_type(self.ref).rawValue)!
+    }
+}
+
+enum Box2DShapeType: UInt32 {
+    case circle = 0
+    case edge = 1
+    case polygon = 2
+    case chain = 3
+    case count = 4
+}
+
+class BoxShape2D {
+    
+    private(set) var ref: OpaquePointer
+    
+    init(ref: OpaquePointer) {
+        self.ref = ref
+    }
+    
+    var type: Box2DShapeType {
+        return Box2DShapeType(rawValue: b2_shape_get_type(self.ref).rawValue)!
+    }
+    
+    deinit {
+        self.ref.deallocate()
+    }
+    
+    func getPolygonVertices() -> [Vector2] {
+        guard self.type == .polygon else {
+            return []
+        }
+        
+        var count: UInt32 = 0
+        var b2Vertices: UnsafeMutablePointer<b2_vec2>?
+        b2_polygon_shape_get_vertices(self.ref, &b2Vertices, &count)
+        
+        // swiftlint:disable:next empty_count
+        guard let b2Vertices, count > 0 else {
+            return []
+        }
+        
+        let vertices = UnsafeMutableRawPointer(b2Vertices).bindMemory(to: Vector2.self, capacity: Int(count))
+        
+        defer {
+            b2Vertices.deallocate()
+        }
+        
+        return Array(UnsafeBufferPointer(start: vertices, count: Int(count)))
+    }
 }

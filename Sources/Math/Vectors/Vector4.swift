@@ -5,12 +5,15 @@
 //  Created by v.prusakov on 6/22/22.
 //
 
+/// A 4-dimensional vector used for 4D math using floating point coordinates.
+@frozen
 public struct Vector4: Hashable, Equatable, Codable {
     public var x: Float
     public var y: Float
     public var z: Float
     public var w: Float
 
+    @inlinable
     @inline(__always)
     public init(x: Float, y: Float, z: Float, w: Float) {
         self.x = x
@@ -21,6 +24,7 @@ public struct Vector4: Hashable, Equatable, Codable {
 }
 
 public extension Vector4 {
+    @inlinable
     @inline(__always)
     init(_ scalar: Float) {
         self.x = scalar
@@ -29,6 +33,7 @@ public extension Vector4 {
         self.w = scalar
     }
     
+    @inlinable
     @inline(__always)
     init(_ x: Float, _ y: Float, _ z: Float, _ w: Float) {
         self.x = x
@@ -37,6 +42,7 @@ public extension Vector4 {
         self.w = w
     }
     
+    @inlinable
     @inline(__always)
     init(_ xyz: Float, _ w: Float) {
         self.x = xyz
@@ -45,6 +51,7 @@ public extension Vector4 {
         self.w = w
     }
     
+    @inlinable
     @inline(__always)
     init(_ vector3: Vector3, _ w: Float) {
         self.x = vector3.x
@@ -109,76 +116,91 @@ public extension Vector4 {
     
     // MARK: Scalar
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Vector4, rhs: Float) -> Vector4 {
         return [lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func + (lhs: Vector4, rhs: Float) -> Vector4 {
         return [lhs.x + rhs, lhs.y + rhs, lhs.z + rhs, lhs.w + rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func - (lhs: Vector4, rhs: Float) -> Vector4 {
         return [lhs.x - rhs, lhs.y - rhs, lhs.z - rhs, lhs.w - rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Float, rhs: Vector4) -> Vector4 {
         return [lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w]
     }
     
+    @inlinable
     @inline(__always)
     static func + (lhs: Float, rhs: Vector4) -> Vector4 {
         return [lhs + rhs.x, lhs + rhs.y, lhs + rhs.z, lhs + rhs.w]
     }
     
+    @inlinable
     @inline(__always)
     static func - (lhs: Float, rhs: Vector4) -> Vector4 {
         return [lhs - rhs.x, lhs - rhs.y, lhs - rhs.z, lhs - rhs.w]
     }
     
+    @inlinable
     @inline(__always)
     static func / (lhs: Float, rhs: Vector4) -> Vector4 {
         return [lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w]
     }
     
+    @inlinable
     @inline(__always)
     static func *= (lhs: inout Vector4, rhs: Float) {
         lhs = lhs * rhs
     }
     
+    @inlinable
     @inline(__always)
     static func -= (lhs: inout Vector4, rhs: Float) {
         lhs = lhs - rhs
     }
     
+    @inlinable
     @inline(__always)
     static func /= (lhs: inout Vector4, rhs: Float) {
         lhs = lhs / rhs
     }
     
+    @inlinable
     @inline(__always)
     static func += (lhs: inout Vector4, rhs: Float) {
         lhs = lhs + rhs
     }
     
+    @inlinable
     @inline(__always)
     static func / (lhs: Vector4, rhs: Float) -> Vector4 {
         return [lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs]
     }
     
+    @inlinable
     @inline(__always)
     static func - (lhs: Vector4, rhs: Vector4) -> Vector4 {
         return [lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w]
     }
     
+    @inlinable
     @inline(__always)
     static func + (lhs: Vector4, rhs: Vector4) -> Vector4 {
         return [lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w]
     }
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Vector4, rhs: Vector4) -> Vector4 {
         return [lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w]
@@ -186,26 +208,31 @@ public extension Vector4 {
     
     // MARK: Vector
     
+    @inlinable
     @inline(__always)
     static func / (lhs: Vector4, rhs: Vector4) -> Vector4 {
         return [lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w]
     }
     
+    @inlinable
     @inline(__always)
     static func *= (lhs: inout Vector4, rhs: Vector4) {
         lhs = lhs * rhs
     }
     
+    @inlinable
     @inline(__always)
     static func += (lhs: inout Vector4, rhs: Vector4) {
         lhs = lhs + rhs
     }
     
+    @inlinable
     @inline(__always)
     static func -= (lhs: inout Vector4, rhs: Vector4) {
         lhs = lhs - rhs
     }
     
+    @inlinable
     @inline(__always)
     static func /= (lhs: inout Vector4, rhs: Vector4) {
         lhs = lhs / rhs
@@ -213,6 +240,7 @@ public extension Vector4 {
     
     // MARK: Matrix
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Transform3D, rhs: Vector4) -> Vector4 {
         var rv = lhs.x * rhs.x
@@ -222,6 +250,7 @@ public extension Vector4 {
         return rv
     }
     
+    @inlinable
     @inline(__always)
     static func * (lhs: Vector4, rhs: Transform3D) -> Vector4 {
         var x = lhs.x * rhs.x.x
@@ -253,17 +282,26 @@ public extension Vector4 {
 }
 
 public extension Vector4 {
+    @inlinable
     @inline(__always)
     var squaredLength: Float {
         return x * x + y * y + z * z + w * w
     }
     
+    @inlinable
     @inline(__always)
     var normalized: Vector4 {
         let length = self.squaredLength
         return self / sqrt(length)
     }
     
+    @inlinable
+    @inline(__always)
+    var isNaN: Bool {
+        return self.x.isNaN || self.y.isNaN || self.z.isNaN || self.w.isNaN
+    }
+    
+    @inlinable
     @inline(__always)
     func dot(_ vector: Vector4) -> Float {
         return x * vector.x + y * vector.y + z * vector.z + w * vector.w

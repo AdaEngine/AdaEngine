@@ -32,5 +32,6 @@ public struct CollisionGroup: OptionSet, Codable {
         self.rawValue = rawValue
     }
     
-    public static var `default` = CollisionGroup(rawValue: .max)
+    public static let `default` = CollisionGroup(rawValue: 1)
+    public static let all = CollisionGroup(rawValue: .max)
 }

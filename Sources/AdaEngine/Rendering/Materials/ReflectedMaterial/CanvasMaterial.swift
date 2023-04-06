@@ -65,3 +65,17 @@ public extension CanvasMaterial {
         return descriptor
     }
 }
+
+public struct ColorCanvasMaterial: CanvasMaterial {
+    
+    @Uniform(binding: 0, propertyName: "u_Color")
+    public var color: Color
+    
+    public init(color: Color) {
+        self.color = color
+    }
+    
+    public static func fragmentShader() throws -> ShaderSource {
+        return try ResourceManager.load("Shaders/Vulkan/mesh2d/color_canvas_material.glsl", from: .engineBundle)
+    }
+}

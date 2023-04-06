@@ -72,7 +72,7 @@ public struct Camera: Component {
     
     /// Fill color for unused pixel.
     @Export
-    public var backgroundColor: Color = .black
+    public var backgroundColor: Color = .gray
     
     @Export
     public var clearFlags: CameraClearFlags = .nothing
@@ -102,8 +102,69 @@ public struct Camera: Component {
     public var viewMatrix: Transform3D = .identity
 }
 
-extension Camera {
+public extension Camera {
     
+    /// Normalized Device Coordinate to world point
+    func ndcToWorld(cameraGlobalTransform: Transform3D, ndc: Vector3) -> Vector3 {
+        let matrix = cameraGlobalTransform * self.computedData.projectionMatrix.inverse
+        return (matrix * Vector4(ndc, 1)).xyz
+    }
+    
+    func worldToNdc(cameraGlobalTransform: Transform3D, worldPosition: Vector3) -> Vector3 {
+        let matrix = self.computedData.projectionMatrix * cameraGlobalTransform.inverse
+        return (matrix * Vector4(worldPosition, 1)).xyz
+    }
+    
+    func viewportToWorld2D(cameraGlobalTransform: Transform3D, viewportPosition: Vector2) -> Vector2? {
+        guard let viewport = self.viewport else {
+            return nil
+        }
+        
+        let ndc = viewportPosition * 2 / viewport.rect.size.asVector2 - Vector2.one
+        let worldPlane = self.ndcToWorld(cameraGlobalTransform: cameraGlobalTransform, ndc: Vector3(ndc, 1))
+        
+        return worldPlane.xy
+    }
+    
+    func viewportToWorld(cameraGlobalTransform: Transform3D, point: Vector2) -> Ray? {
+        guard let viewport = self.viewport else {
+            return nil
+        }
+        
+        let ndc = point * 2 / viewport.rect.size.asVector2 - Vector2.one
+        let ndcToWorld = cameraGlobalTransform * self.computedData.projectionMatrix.inverse
+        
+        let worldPlaneNear = ndcToWorld * Vector4(Vector3(ndc, 1), 1)
+        let worldPlaneFar = ndcToWorld * Vector4(Vector3(ndc, Float.greatestFiniteMagnitude), 1)
+        
+        if worldPlaneNear.isNaN && worldPlaneFar.isNaN {
+            return nil
+        }
+        
+        return Ray(
+            origin: worldPlaneNear.xyz,
+            direction: (worldPlaneFar - worldPlaneNear).xyz.normalized
+        )
+    }
+    
+    func worldToViewport(cameraGlobalTransform: Transform3D, worldPosition: Vector3) -> Vector2? {
+        guard let viewport = self.viewport else {
+            return nil
+        }
+        
+        let size = viewport.rect.size.asVector2
+        let ndcSpace = self.worldToNdc(cameraGlobalTransform: cameraGlobalTransform, worldPosition: worldPosition)
+         
+        if ndcSpace.z < 0 || ndcSpace.z > 1.0 {
+            return nil
+        }
+        
+        return ndcSpace.xy + Vector2.one / 2.0 * size
+    }
+    
+}
+
+extension Camera {
     public struct CameraComputedData: DefaultValue {
         
         public static var defaultValue: Camera.CameraComputedData = .init()
@@ -111,6 +172,7 @@ extension Camera {
         public internal(set) var projectionMatrix: Transform3D = .identity
         public internal(set) var viewMatrix: Transform3D = .identity
         public internal(set) var frustum: Frustum = Frustum()
+        public internal(set) var targetScaleFactor: Float = 1
     }
 }
 
