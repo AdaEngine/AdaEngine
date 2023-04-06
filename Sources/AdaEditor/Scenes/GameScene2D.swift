@@ -17,6 +17,40 @@ struct PlayerMovementSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
+        
+        let cameraEntity: Entity = context.scene.performQuery(Self.cameraQuery).first!
+        
+        var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]
+        
+        let speed: Float = 2 * context.deltaTime
+        
+        if Input.isKeyPressed(.w) {
+            cameraTransform.position.y += speed
+        }
+        
+        if Input.isKeyPressed(.s) {
+            cameraTransform.position.y -= speed
+        }
+        
+        if Input.isKeyPressed(.a) {
+            cameraTransform.position.x -= speed
+        }
+        
+        if Input.isKeyPressed(.d) {
+            cameraTransform.position.x += speed
+        }
+        
+        if Input.isKeyPressed(.arrowUp) {
+            camera.orthographicScale -= speed
+        }
+        
+        if Input.isKeyPressed(.arrowDown) {
+            camera.orthographicScale += speed
+        }
+        
+        cameraEntity.components += cameraTransform
+        cameraEntity.components += camera
+        
         context.scene.performQuery(Self.matQuery).forEach { entity in
             let meshComponent = entity.components[Mesh2DComponent.self]!
             if Input.isMouseButtonPressed(.left) {
@@ -27,7 +61,22 @@ struct PlayerMovementSystem: System {
             
             (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.time += context.deltaTime
             
+            
             var transform = entity.components[Transform.self]!
+            
+            if Input.isMouseButtonPressed(.left) {
+                let globalTransform = context.scene.worldTransformMatrix(for: cameraEntity)
+                let mousePosition = Input.getMousePosition()
+                if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform, viewportPosition: mousePosition) {
+                    print("Position", position)
+//                    let values = context.scene.physicsWorld2D?.raycast(from: .zero, to: position)
+                    
+                    transform.position.x = position.x
+                    transform.position.y = -position.y
+                }
+            }
+            
+            
             
             let speed: Float = 3
             
@@ -50,17 +99,17 @@ struct PlayerMovementSystem: System {
             entity.components += transform
         }
         
-        context.scene.performQuery(Self.playerQuery).forEach { entity in
-            let body = entity.components[PhysicsBody2DComponent.self]!
-            
-            if Input.isKeyPressed(.space) {
-                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
-            }
-            
-            for touch in Input.getTouches() where touch.phase == .began {
-                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
-            }
-            
+//        context.scene.performQuery(Self.playerQuery).forEach { entity in
+//            let body = entity.components[PhysicsBody2DComponent.self]!
+//
+//            if Input.isKeyPressed(.space) {
+//                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
+//            }
+//
+//            for touch in Input.getTouches() where touch.phase == .began {
+//                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
+//            }
+//
 //            if Input.isKeyPressed(.arrowLeft) {
 //                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
 //            }
@@ -68,40 +117,7 @@ struct PlayerMovementSystem: System {
 //            if Input.isKeyPressed(.arrowRight) {
 //                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
 //            }
-        }
-        
-        context.scene.performQuery(Self.cameraQuery).forEach { entity in
-            var (camera, transform) = entity.components[Camera.self, Transform.self]
-            
-            let speed: Float = 2 * context.deltaTime
-            
-            if Input.isKeyPressed(.w) {
-                transform.position.y += speed
-            }
-            
-            if Input.isKeyPressed(.s) {
-                transform.position.y -= speed
-            }
-            
-            if Input.isKeyPressed(.a) {
-                transform.position.x -= speed
-            }
-            
-            if Input.isKeyPressed(.d) {
-                transform.position.x += speed
-            }
-            
-            if Input.isKeyPressed(.arrowUp) {
-                camera.orthographicScale -= speed
-            }
-            
-            if Input.isKeyPressed(.arrowDown) {
-                camera.orthographicScale += speed
-            }
-            
-            entity.components += transform
-            entity.components += camera
-        }
+//        }
     }
 }
 
@@ -217,8 +233,7 @@ final class GameScene2D {
         let scene = Scene()
 //        let scene = try ResourceManager.load(scenePath) as Scene
         
-        let cameraEntity = CameraEntity()
-        cameraEntity.camera.projection = .orthographic
+        let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 1.5
@@ -253,10 +268,7 @@ final class GameScene2D {
     }
     
     private func sceneDidReady(_ scene: Scene) {
-        let physicsQuery = EntityQuery(where: .has(Physics2DWorldComponent.self))
-        scene.performQuery(physicsQuery).forEach { entity in
-            entity.components[Physics2DWorldComponent.self]?.world.gravity = Vector2(0, -3.62)
-        }
+        scene.physicsWorld2D?.gravity = Vector2(0, -3.62)
     }
     
     private func collisionHandler(for scene: Scene) {

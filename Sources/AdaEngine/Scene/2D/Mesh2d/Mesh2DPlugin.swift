@@ -118,7 +118,7 @@ struct Mesh2DRenderSystem: System {
                 for part in model.parts {
                     let material = mesh.mesh.materials[part.materialIndex]
                     
-                    guard let pipeline = getOrCreatePipeline(for: part.vertexDescriptor, keys: keys, material: material) else {
+                    guard let pipeline = material.getOrCreatePipeline(for: part.vertexDescriptor, keys: keys) else {
                         assertionFailure("No render pipeline for mesh")
                         continue
                     }
@@ -143,62 +143,6 @@ struct Mesh2DRenderSystem: System {
             }
         }
     }
-    
-    func getOrCreatePipeline(for vertexDescriptor: VertexDescriptor, keys: Set<String>, material: Material) -> RenderPipeline? {
-        let materialKey = material.getMesh2dMaterialKey(for: vertexDescriptor, keys: keys)
-        
-        if let data = MaterialStorage.shared.getMaterialData(for: material) as? Mesh2dMaterialStorageData {
-            if let pipeline = data.pipelines[materialKey] {
-                return pipeline
-            }
-            
-            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey, material: material) else {
-                return nil
-            }
-            
-            data.updateUniformBuffers(from: shaderModule)
-            data.pipelines[materialKey] = pipeline
-            
-            material.update()
-            
-            return pipeline
-        } else {
-            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey, material: material) else {
-                return nil
-            }
-            
-            let data = Mesh2dMaterialStorageData()
-            data.updateUniformBuffers(from: shaderModule)
-            data.pipelines[materialKey] = pipeline
-            MaterialStorage.shared.setMaterialData(data, for: material)
-            
-            material.update()
-            
-            return pipeline
-        }
-    }
-    
-    private func createPipeline(for materialKey: MaterialMesh2dKey, material: Material) -> (RenderPipeline, ShaderModule)? {
-        let compiler = ShaderCompiler(shaderSource: material.shaderSource)
-        
-        for define in materialKey.defines {
-            compiler.setMacro(define.name, value: define.value, for: .vertex)
-            compiler.setMacro(define.name, value: define.value, for: .fragment)
-        }
-        
-        do {
-            let shaderModule = try compiler.compileShaderModule()
-            
-            guard let pipelineDesc = material.configureRenderPipeline(for: materialKey.vertexDescritor, keys: materialKey.keys, shaderModule: shaderModule) else {
-                return nil
-            }
-            
-            return (RenderEngine.shared.makeRenderPipeline(from: pipelineDesc), shaderModule)
-        } catch {
-            assertionFailure("[Mesh2DRenderSystem] \(error.localizedDescription)")
-            return nil
-        }
-    }
 }
 
 struct ExctractedMeshPart2d: Component {
@@ -221,5 +165,61 @@ extension Material {
     func getMesh2dMaterialKey(for vertexDescritor: VertexDescriptor, keys: Set<String>) -> MaterialMesh2dKey {
         let defines = self.collectDefines(for: vertexDescritor, keys: keys)
         return MaterialMesh2dKey(defines: defines, keys: keys, vertexDescritor: vertexDescritor)
+    }
+    
+    func getOrCreatePipeline(for vertexDescriptor: VertexDescriptor, keys: Set<String>) -> RenderPipeline? {
+        let materialKey = self.getMesh2dMaterialKey(for: vertexDescriptor, keys: keys)
+        
+        if let data = MaterialStorage.shared.getMaterialData(for: self) as? Mesh2dMaterialStorageData {
+            if let pipeline = data.pipelines[materialKey] {
+                return pipeline
+            }
+            
+            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey) else {
+                return nil
+            }
+            
+            data.updateUniformBuffers(from: shaderModule)
+            data.pipelines[materialKey] = pipeline
+            
+            self.update()
+            
+            return pipeline
+        } else {
+            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey) else {
+                return nil
+            }
+            
+            let data = Mesh2dMaterialStorageData()
+            data.updateUniformBuffers(from: shaderModule)
+            data.pipelines[materialKey] = pipeline
+            MaterialStorage.shared.setMaterialData(data, for: self)
+            
+            self.update()
+            
+            return pipeline
+        }
+    }
+    
+    private func createPipeline(for materialKey: MaterialMesh2dKey) -> (RenderPipeline, ShaderModule)? {
+        let compiler = ShaderCompiler(shaderSource: self.shaderSource)
+        
+        for define in materialKey.defines {
+            compiler.setMacro(define.name, value: define.value, for: .vertex)
+            compiler.setMacro(define.name, value: define.value, for: .fragment)
+        }
+        
+        do {
+            let shaderModule = try compiler.compileShaderModule()
+            
+            guard let pipelineDesc = self.configureRenderPipeline(for: materialKey.vertexDescritor, keys: materialKey.keys, shaderModule: shaderModule) else {
+                return nil
+            }
+            
+            return (RenderEngine.shared.makeRenderPipeline(from: pipelineDesc), shaderModule)
+        } catch {
+            assertionFailure("[Mesh2DRenderSystem] \(error.localizedDescription)")
+            return nil
+        }
     }
 }

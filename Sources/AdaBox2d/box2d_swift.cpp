@@ -119,6 +119,44 @@ void b2_world_destroy_body(b2_world_s* world, b2_body_s* body) {
     delete body;
 }
 
+void b2_world_clear_forces(b2_world_s* world) {
+    world->world->ClearForces();
+}
+
+// MARK: B2_RAYCASTLISTENER
+
+class RayCastCallback: public b2RayCastCallback {
+public:
+    RayCastCallback(const void *userData, raycast_listener_callback callbacks): m_UserData(userData), m_ReportFixture(callbacks.report_fixture) {}
+    
+    virtual float ReportFixture(b2Fixture* fixture, const b2Vec2& point, const b2Vec2& normal, float fraction) override {
+        if (m_ReportFixture) {
+            b2_fixture_s* fixture_s = new b2_fixture_s();
+            fixture_s->fixture = fixture;
+            
+            float result = m_ReportFixture(m_UserData, fixture_s, { point.x, point.y }, { normal.x, normal.y }, fraction);
+            
+            // delete fixture after usage
+            delete fixture_s;
+            
+            return result;
+        }
+        
+        // terminate raycast if m_ReportFixture is null
+        return 0.0f;
+    }
+    
+private:
+    const void* m_UserData;
+    raycast_listener_reportfixture_func m_ReportFixture;
+};
+
+void b2_world_raycast(b2_world_s* world, b2_vec2 origin, b2_vec2 dist, const void *userData, raycast_listener_callback callbacks) {
+    b2RayCastCallback *callback = new RayCastCallback(userData, callbacks);
+    world->world->RayCast(callback, { origin.x, origin.y }, { dist.x, dist.y });
+    delete callback;
+}
+
 // MARK: B2_BODY
 
 b2_vec2 b2_body_get_position(b2_body_s* body) {
@@ -247,6 +285,18 @@ b2_body_s* b2_fixture_get_body(b2_fixture_s* fixture) {
     return result;
 }
 
+b2_shape_type b2_fixture_get_type(b2_fixture_s* fixture) {
+    auto fixtureType = fixture->fixture->GetType();
+    return (b2_shape_type)fixtureType;
+}
+
+b2_shape_s* b2_fixture_get_shape(b2_fixture_s* fixture) {
+    auto shape = fixture->fixture->GetShape();
+    auto shape_s = new b2_shape_s();
+    shape_s->shape = shape;
+    return shape_s;
+}
+
 // MARK: B2_SHAPE
 
 b2_shape_s* b2_create_polygon_shape() {
@@ -284,6 +334,18 @@ void b2_polygon_shape_set_as_box(b2_shape_s* polygonShape, float halfWidth, floa
 void b2_polygon_shape_set_as_box_with_center(b2_shape_s* polygonShape, float halfWidth, float halfHeight, b2_vec2 center, float angle) {
     b2PolygonShape* shape = (b2PolygonShape *)polygonShape->shape;
     shape->SetAsBox(halfWidth, halfHeight, { center.x, center.y }, angle);
+}
+
+b2_shape_type b2_shape_get_type(b2_shape_s* shape) {
+    return (b2_shape_type)shape->shape->GetType();
+}
+
+void b2_polygon_shape_get_vertices(b2_shape_s* polyginShape, b2_vec2** vertices, uint32_t* count) {
+    b2PolygonShape* shape = (b2PolygonShape*)polyginShape->shape;
+    auto m_vertices = new b2_vec2[shape->m_count];
+    memcpy(m_vertices, &shape->m_vertices, sizeof(b2_vec2) * shape->m_count);
+    *vertices = m_vertices;
+    *count = shape->m_count;
 }
 
 // MARK: B2_CONTACT_LISTENER
