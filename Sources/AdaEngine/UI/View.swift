@@ -192,7 +192,6 @@ open class View {
     private func handleClick(_ position: Point, with event: InputEvent) {
         guard self.isInteractionEnabled else { return }
 //        let position = Point(x: 80, y: 26)
-        print("Mouse", position.x, position.y)
         
         let view = self.hitTest(position, with: event)
         view?.backgroundColor = .mint

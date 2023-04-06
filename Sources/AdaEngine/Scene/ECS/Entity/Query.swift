@@ -143,6 +143,10 @@ public struct QueryResult: Sequence {
         return self.first { _ in return true }
     }
     
+    public var concurrentCollection: ConcurrentCollection {
+        ConcurrentCollection(state: self.state)
+    }
+    
     public func makeIterator() -> Iterator {
         return EntityIterator(state: self.state)
     }
@@ -216,6 +220,45 @@ public extension QueryResult {
                 }
                 
                 continue
+            }
+        }
+    }
+}
+
+extension QueryResult {
+    public struct ConcurrentCollection: RandomAccessCollection {
+        public typealias Element = QueryResult.Element
+        
+        public typealias Index = Int
+        
+        let state: EntityQuery.State
+        var entities: [Entity]
+        
+        init(state: EntityQuery.State) {
+            self.state = state
+            self.entities = self.state.archetypes.flatMap { $0.entities }.compactMap { $0 }
+        }
+        
+        public func makeIterator() -> IndexingIterator<[Element]> {
+            return entities.makeIterator()
+        }
+        
+        public var startIndex: Int {
+            return self.entities.startIndex
+        }
+        
+        public var endIndex: Int {
+            return self.entities.endIndex
+        }
+        
+        public subscript(_ index: Index) -> Element {
+            return self.entities[index]
+        }
+        
+        @inlinable public func forEach(_ body: (Self.Element) throws -> Void) rethrows {
+            DispatchQueue.concurrentPerform(iterations: 0) { index in
+                let element = self[index]
+                try? body(element)
             }
         }
     }

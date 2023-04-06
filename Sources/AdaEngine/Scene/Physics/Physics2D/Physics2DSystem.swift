@@ -68,10 +68,17 @@ final class Physics2DSystem: System {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
 
             if let body = physicsBody.runtimeBody {
-                let position = body.getPosition()
-                transform.position.x = position.x
-                transform.position.y = position.y
-                transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle())
+                if physicsBody.mode != .static {
+                    let position = body.getPosition()
+                    transform.position.x = position.x
+                    transform.position.y = position.y
+                    transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle())
+                } else {
+                    body.setTransform(
+                        position: transform.position.xy,
+                        angle: transform.position.z
+                    )
+                }
             } else {
                 var def = Body2DDefinition()
                 def.position = transform.position.xy
@@ -244,8 +251,8 @@ final class Physics2DSystem: System {
             let shapeRef = b2_create_polygon_shape()!
             b2_polygon_shape_set_as_box_with_center(
                 shapeRef,
-                transform.scale.x * shape.halfWidth, /* half width */
-                transform.scale.y * shape.halfHeight, /* half height */
+                shape.halfWidth, /* half width */
+                shape.halfHeight, /* half height */
                 shape.offset.b2Vec, /* center */
                 0 /* angle */
             )

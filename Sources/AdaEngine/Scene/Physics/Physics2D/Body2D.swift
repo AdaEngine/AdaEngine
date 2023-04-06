@@ -13,6 +13,8 @@ public final class Body2D {
     unowned let world: PhysicsWorld2D
     weak var entity: Entity?
     
+    internal private(set) var debugMesh: Mesh?
+    
     private(set) var ref: OpaquePointer
     
     internal init(world: PhysicsWorld2D, ref: OpaquePointer, entity: Entity) {
@@ -21,8 +23,10 @@ public final class Body2D {
         self.entity = entity
     }
     
+    // FIXME: Should support multiple meshes inside
     func addFixture(for fixtureDef: b2_fixture_def) {
         b2_body_create_fixture(self.ref, fixtureDef)
+        self.debugMesh = self.getFixtureList().getMesh()
     }
     
     func getFixtureList() -> FixtureList {
@@ -151,6 +155,21 @@ class FixtureList {
     
     var type: Box2DShapeType {
         return Box2DShapeType(rawValue: b2_fixture_get_type(self.ref).rawValue)!
+    }
+    
+    func getMesh() -> Mesh? {
+        guard self.type == .polygon else {
+            return nil
+        }
+        
+        let vertices = self.shape.getPolygonVertices().map { Vector3($0, 0) }
+        var meshDesc = MeshDescriptor(name: "FixtureMesh")
+        
+        meshDesc.positions = MeshBuffer(vertices)
+        meshDesc.indicies = [0, 1, 2, 2, 3, 0]
+        meshDesc.primitiveTopology = .lineStrip
+        
+        return Mesh.generate(from: [meshDesc])
     }
 }
 

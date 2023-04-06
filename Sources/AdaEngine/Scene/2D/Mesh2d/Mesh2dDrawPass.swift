@@ -16,15 +16,9 @@ struct Mesh2DUniform {
 
 public struct Mesh2DDrawPass: DrawPass {
     
-    let meshUniformBufferSet: UniformBufferSet
-    
     static let meshUniformBinding: Int = 2
     
-    public init() {
-        self.meshUniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
-        self.meshUniformBufferSet.label = "Mesh2D Uniform"
-        self.meshUniformBufferSet.initBuffers(for: Mesh2DUniform.self, binding: Self.meshUniformBinding, set: 0)
-    }
+    public init() { }
     
     public func render(in context: Context, item: Transparent2DRenderItem) throws {
         let meshComponent = item.entity.components[ExctractedMeshPart2d.self]!
@@ -73,11 +67,8 @@ public struct Mesh2DDrawPass: DrawPass {
             }
         }
         
-        let meshUniformBuffer = self.meshUniformBufferSet.getBuffer(
-            binding: Self.meshUniformBinding,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
+        let meshUniformBuffer = context.device.makeUniformBuffer(Mesh2DUniform.self, binding: Self.meshUniformBinding)
+        meshUniformBuffer.setData(meshComponent.modelUniform)
         
         meshUniformBuffer.setData(meshComponent.modelUniform)
         
