@@ -5,8 +5,8 @@
 //  Created by v.prusakov on 2/26/23.
 //
 
-struct ExctractedPhysics2DDebug: Component {
-    let entity: Entity
+struct ExctractedPhysicsMesh2DDebug: Component {
+    let entityId: Entity.ID
     let mesh: Mesh
     let material: Material
     let transform: Transform3D
@@ -26,7 +26,16 @@ struct DebugPhysicsExctract2DSystem: System {
         .has(RenderItems<Transparent2DRenderItem>.self)
     )
     
-    private let material = CustomMaterial(ColorCanvasMaterial(color: .red))
+    private let colorMaterial = CustomMaterial(ColorCanvasMaterial(color: .red))
+    private let circleMaterial = CustomMaterial(
+        CircleCanvasMaterial(
+            thickness: 0.03,
+            fade: 0,
+            color: .red
+        )
+    )
+    
+    private let quadMesh = Mesh.generate(from: Quad())
     
     init(scene: Scene) { }
     
@@ -35,7 +44,8 @@ struct DebugPhysicsExctract2DSystem: System {
             return
         }
         
-        self.material.color = context.scene.debugPhysicsColor
+        self.colorMaterial.color = context.scene.debugPhysicsColor
+        self.circleMaterial.color = context.scene.debugPhysicsColor
         
         context.scene.performQuery(Self.entities).forEach { entity in
             
@@ -43,18 +53,37 @@ struct DebugPhysicsExctract2DSystem: System {
                 return
             }
             
-            guard let body = self.getRuntimeBody(from: entity), let mesh = body.debugMesh else {
+            guard let body = self.getRuntimeBody(from: entity) else {
                 return
             }
             
+            let fixtureList = body.getFixtureList()
+            
             let emptyEntity = EmptyEntity()
             
-            emptyEntity.components += ExctractedPhysics2DDebug(
-                entity: entity,
-                mesh: mesh,
-                material: material,
-                transform: Transform3D(translation: Vector3(body.getPosition(), 0), rotation: .identity, scale: Vector3(1))
-            )
+            switch fixtureList.type {
+            case .circle:
+                let radius = fixtureList.shape.getRadius()
+                emptyEntity.components += ExctractedPhysicsMesh2DDebug(
+                    entityId: entity.id,
+                    mesh: self.quadMesh,
+                    material: self.circleMaterial,
+                    transform: Transform3D(translation: Vector3(body.getPosition(), 0), rotation: .identity, scale: Vector3(radius))
+                )
+            case .polygon:
+                guard let mesh = body.debugMesh else {
+                    return
+                }
+                
+                emptyEntity.components += ExctractedPhysicsMesh2DDebug(
+                    entityId: entity.id,
+                    mesh: mesh,
+                    material: self.colorMaterial,
+                    transform: Transform3D(translation: Vector3(body.getPosition(), 0), rotation: .identity, scale: Vector3(1))
+                )
+            default:
+                return
+            }
             
             context.renderWorld.addEntity(emptyEntity)
         }
@@ -71,9 +100,9 @@ struct Physics2DDebugDrawSystem: System {
     static var dependencies: [SystemDependency] = [.after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)]
     
     static let cameras = EntityQuery(where: .has(Camera.self) && .has(RenderItems<Transparent2DRenderItem>.self))
-    static let entities = EntityQuery(where: .has(ExctractedPhysics2DDebug.self))
+    static let entities = EntityQuery(where: .has(ExctractedPhysicsMesh2DDebug.self))
     
-    static let drawPassIdentifier = Mesh2DDrawPass.identifier
+    static let mesh2dDrawPassIdentifier = Mesh2DDrawPass.identifier
     
     init(scene: Scene) {}
     
@@ -102,11 +131,13 @@ struct Physics2DDebugDrawSystem: System {
         
     itemIterator:
         for entity in extractedItems {
-            guard let item = entity.components[ExctractedPhysics2DDebug.self] else {
+            
+            // Draw meshes
+            guard let item = entity.components[ExctractedPhysicsMesh2DDebug.self] else {
                 continue
             }
             
-            if !visibleEntities.entityIds.contains(item.entity.id) {
+            if !visibleEntities.entityIds.contains(item.entityId) {
                 continue
             }
             
@@ -121,15 +152,15 @@ struct Physics2DDebugDrawSystem: System {
                         assertionFailure("Failed to create pipeline")
                         continue itemIterator
                     }
-
+                    
                     let emptyEntity = EmptyEntity()
                     emptyEntity.components += ExctractedMeshPart2d(part: part, material: item.material, modelUniform: uniform)
-
+                    
                     items.append(
                         Transparent2DRenderItem(
                             entity: emptyEntity,
                             batchEntity: emptyEntity,
-                            drawPassId: Self.drawPassIdentifier,
+                            drawPassId: Self.mesh2dDrawPassIdentifier,
                             renderPipeline: pipeline,
                             sortKey: .greatestFiniteMagnitude
                         )

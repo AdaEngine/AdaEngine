@@ -180,6 +180,7 @@ b2_shape_s* b2_fixture_get_shape(b2_fixture_s* fixture);
 b2_shape_s* b2_create_polygon_shape();
 b2_shape_s* b2_create_circle_shape();
 void b2_shape_set_radius(b2_shape_s* shape, float radius);
+float b2_shape_get_radius(b2_shape_s* shape);
 
 void b2_circle_shape_set_position(b2_shape_s* shape, b2_vec2 position);
 

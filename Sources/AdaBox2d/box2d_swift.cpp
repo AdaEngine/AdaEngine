@@ -321,6 +321,10 @@ void b2_shape_set_radius(b2_shape_s* shape, float radius) {
     shape->shape->m_radius = radius;
 }
 
+float b2_shape_get_radius(b2_shape_s* shape) {
+    return shape->shape->m_radius;
+}
+
 void b2_polygon_shape_set(b2_shape_s* polygonShape, const b2_vec2* points, signed int count) {
     b2PolygonShape* shape = (b2PolygonShape *)polygonShape->shape;
     shape->Set((b2Vec2 *)points, count);
