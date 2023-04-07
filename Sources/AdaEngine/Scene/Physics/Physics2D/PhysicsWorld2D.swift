@@ -82,14 +82,10 @@ public final class PhysicsWorld2D: Codable {
         let ref = b2_world_create_body(self.world, bodyDef)!
         
         let body2d = Body2D(world: self, ref: ref, entity: entity)
-        let pointer = Unmanaged.passRetained(body2d).toOpaque()
+        let pointer = Unmanaged.passUnretained(body2d).toOpaque()
         b2_body_set_user_data(ref, pointer)
         
         return body2d
-    }
-    
-    public func destroyBody(_ body: Body2D) {
-        b2_world_destroy_body(self.world, body.ref)
     }
     
     public func clearForces() {
@@ -137,6 +133,10 @@ public final class PhysicsWorld2D: Codable {
             Int32(self.velocityIterations), /* velocityIterations */
             Int32(self.positionIterations) /* positionIterations */
         )
+    }
+    
+    internal func destroyBody(_ body: Body2D) {
+        b2_world_destroy_body(self.world, body.ref)
     }
 }
 

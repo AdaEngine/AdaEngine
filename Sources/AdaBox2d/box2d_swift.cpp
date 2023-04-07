@@ -116,7 +116,6 @@ b2_body_s* b2_world_create_body(b2_world_s* world, b2_body_def bodyDef) {
 
 void b2_world_destroy_body(b2_world_s* world, b2_body_s* body) {
     world->world->DestroyBody(body->body);
-    delete body;
 }
 
 void b2_world_clear_forces(b2_world_s* world) {

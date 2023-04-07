@@ -8,9 +8,7 @@
 @_implementationOnly import AdaBox2d
 import Math
 
-// - TODO: (Vlad) Draw polygons for debug
 // - TODO: (Vlad) Runtime update shape resource
-// - TODO: (Vlad) Debug render in other system?
 final class Physics2DSystem: System {
     
     let fixedTimestep: FixedTimestep
@@ -20,20 +18,17 @@ final class Physics2DSystem: System {
     }
     
     static let physicsBodyQuery = EntityQuery(
-        where: .has(PhysicsBody2DComponent.self) && .has(Transform.self)
+        where: .has(PhysicsBody2DComponent.self) && .has(Transform.self),
+        filter: [.stored, .added]
     )
     
     static let collisionQuery = EntityQuery(
-        where: .has(Collision2DComponent.self) && .has(Transform.self)
+        where: .has(Collision2DComponent.self) && .has(Transform.self),
+        filter: [.stored, .added]
     )
     
     static let jointsQuery = EntityQuery(
         where: .has(PhysicsJoint2DComponent.self) && .has(Transform.self)
-    )
-    
-    static let removedEntities = EntityQuery(
-        where: .has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self),
-        filter: .removed
     )
     
     func update(context: UpdateContext) {
@@ -41,8 +36,6 @@ final class Physics2DSystem: System {
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
         let colissionBody = context.scene.performQuery(Self.collisionQuery)
-        let joints = context.scene.performQuery(Self.jointsQuery)
-        let removedEntities = context.scene.performQuery(Self.removedEntities)
         
         guard let world = context.scene.physicsWorld2D else {
             return
@@ -53,12 +46,7 @@ final class Physics2DSystem: System {
         }
         
         self.updatePhysicsBodyEntities(physicsBody, in: world)
-        
         self.updateCollisionEntities(colissionBody, in: world)
-        
-        self.updateJointsEntities(joints, scene: context.scene, in: world)
-        
-        self.removePhysicsBodiesInRemovedEntities(removedEntities, world: world)
     }
     
     // MARK: - Private
@@ -68,17 +56,19 @@ final class Physics2DSystem: System {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
 
             if let body = physicsBody.runtimeBody {
-                if physicsBody.mode != .static {
-                    let position = body.getPosition()
-                    transform.position.x = position.x
-                    transform.position.y = position.y
-                    transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle())
-                } else {
+                if physicsBody.mode == .static {
                     body.setTransform(
                         position: transform.position.xy,
                         angle: transform.position.z
                     )
+                } else {
+                    let position = body.getPosition()
+                    transform.position.x = position.x
+                    transform.position.y = position.y
+                    transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle())
                 }
+                
+                body.massData.mass = physicsBody.massProperties.mass
             } else {
                 var def = Body2DDefinition()
                 def.position = transform.position.xy
@@ -118,7 +108,7 @@ final class Physics2DSystem: System {
                     fixtureList.filterData = filter
                 }
             }
-
+            
             entity.components += transform
             entity.components += physicsBody
         }
@@ -176,58 +166,6 @@ final class Physics2DSystem: System {
         }
     }
     
-    private func updateJointsEntities(_ entities: QueryResult, scene: Scene, in world: PhysicsWorld2D) {
-//        for entity in entities {
-//            var (jointComponent, transform) = entity.components[PhysicsJoint2DComponent.self, Transform.self]
-//
-//            if jointComponent.runtimeJoint == nil {
-//                switch jointComponent.jointDescriptor.joint {
-//                case .rope(let entityAId, let entityBId, _, _):
-//                    var joint = b2JointDef()
-//                    guard
-//                        let entityA = scene.world.getEntityByID(entityAId),
-//                        let entityB = scene.world.getEntityByID(entityBId),
-//                        let bodyA = self.getBody(from: entityA)?.ref,
-//                        let bodyB = self.getBody(from: entityB)?.ref
-//                    else {
-//                        continue
-//                    }
-//                    joint.type = e_pulleyJoint
-//                    joint.bodyA = bodyA
-//                    joint.bodyB = bodyB
-//
-//                    let ref = world.createJoint(&joint)
-//                    jointComponent.runtimeJoint = ref
-//                case .revolute(let entityAId):
-//                    guard
-//                        let entityA = scene.world.getEntityByID(entityAId),
-//                        let bodyA = self.getBody(from: entityA)?.ref,
-//                        let current = self.getBody(from: entity)?.ref
-//                    else {
-//                        continue
-//                    }
-//
-//                    let anchor = transform.position.xy.b2Vec
-//                    var joint = b2RevoluteJointDef()
-//                    joint.Initialize(bodyA, current, anchor)
-//
-//                    let jointRef = ada.b2JointDef_unsafeCast(&joint)!
-//                    let ref = world.createJoint(jointRef)
-//                    jointComponent.runtimeJoint = ref
-//                }
-//            }
-//
-//            entity.components += jointComponent
-//        }
-    }
-    
-    private func removePhysicsBodiesInRemovedEntities(_ entities: QueryResult, world: PhysicsWorld2D) {
-        entities.forEach { entity in
-            guard let body = self.getBody(from: entity) else { return }
-            world.destroyBody(body)
-        }
-    }
-    
     // MARK: - Helpers
     
     private func getBody(from entity: Entity) -> Body2D? {
@@ -251,8 +189,8 @@ final class Physics2DSystem: System {
             let shapeRef = b2_create_polygon_shape()!
             b2_polygon_shape_set_as_box_with_center(
                 shapeRef,
-                shape.halfWidth, /* half width */
-                shape.halfHeight, /* half height */
+                transform.scale.x * shape.halfWidth, /* half width */
+                transform.scale.y * shape.halfHeight, /* half height */
                 shape.offset.b2Vec, /* center */
                 0 /* angle */
             )

@@ -85,7 +85,9 @@ public final class World {
     }
     
     private func removeEntityRecord(_ entity: Entity.ID) {
-        guard let record = self.records[entity] else { return }
+        guard let record = self.records[entity] else {
+            return
+        }
         self.records[entity] = nil
         
         guard let currentArchetype = self.archetypes[record.archetypeId] else {

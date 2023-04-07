@@ -61,6 +61,8 @@ struct DebugPhysicsExctract2DSystem: System {
             
             let emptyEntity = EmptyEntity()
             
+            let bodyPosition = Vector3(body.getPosition(), 0)
+            
             switch fixtureList.type {
             case .circle:
                 let radius = fixtureList.shape.getRadius()
@@ -68,7 +70,7 @@ struct DebugPhysicsExctract2DSystem: System {
                     entityId: entity.id,
                     mesh: self.quadMesh,
                     material: self.circleMaterial,
-                    transform: Transform3D(translation: Vector3(body.getPosition(), 0), rotation: .identity, scale: Vector3(radius))
+                    transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(radius))
                 )
             case .polygon:
                 guard let mesh = body.debugMesh else {
@@ -79,7 +81,7 @@ struct DebugPhysicsExctract2DSystem: System {
                     entityId: entity.id,
                     mesh: mesh,
                     material: self.colorMaterial,
-                    transform: Transform3D(translation: Vector3(body.getPosition(), 0), rotation: .identity, scale: Vector3(1))
+                    transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(1))
                 )
             default:
                 return

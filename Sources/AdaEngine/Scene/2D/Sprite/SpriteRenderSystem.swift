@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
+// FIXME: Skipped items when batched a lot of sprites entities
+
 public struct SpriteRenderSystem: System {
     
     public static var dependencies: [SystemDependency] = [
@@ -102,7 +104,7 @@ public struct SpriteRenderSystem: System {
         
         var indeciesCount: Int32 = 0
         
-        var textureSlotIndex = 1
+        var textureSlotIndex = 0
         
         var currentBatchEntity = EmptyEntity()
         var currentBatch = BatchComponent(textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch))
@@ -116,7 +118,7 @@ public struct SpriteRenderSystem: System {
             
             if textureSlotIndex >= Self.maxTexturesPerBatch {
                 currentBatchEntity.components += currentBatch
-                textureSlotIndex = 1
+                textureSlotIndex = 0
                 currentBatchEntity = EmptyEntity()
                 currentBatch = BatchComponent(textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch))
             }

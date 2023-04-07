@@ -41,11 +41,13 @@ public final class Shape2DResource: Codable {
         return Shape2DResource(fixture: .circle(CircleShape(radius: radius)))
     }
     
-    public static func generateBox(width: Float, height: Float) -> Shape2DResource {
+    /// Multiply this params to object scale
+    public static func generateBox(width: Float = 1, height: Float = 1) -> Shape2DResource {
         return Shape2DResource(fixture: .box(BoxShape(halfWidth: width / 2, halfHeight: height / 2)))
     }
     
-    public static func generateBox(width: Float, height: Float, center: Vector2, angle: Float) -> Shape2DResource {
+    /// Multiply this params to object scale
+    public static func generateBox(width: Float = 1, height: Float = 1, center: Vector2, angle: Float) -> Shape2DResource {
         return Shape2DResource(fixture: .box(BoxShape(halfWidth: width / 2, halfHeight: height / 2, offset: center)))
     }
     

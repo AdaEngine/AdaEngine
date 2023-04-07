@@ -61,7 +61,6 @@ struct PlayerMovementSystem: System {
             
             (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.time += context.deltaTime
             
-            
             var transform = entity.components[Transform.self]!
             
             if Input.isMouseButtonPressed(.left) {
@@ -75,8 +74,6 @@ struct PlayerMovementSystem: System {
                     transform.position.y = -position.y
                 }
             }
-            
-            
             
             let speed: Float = 3
             
@@ -99,25 +96,25 @@ struct PlayerMovementSystem: System {
             entity.components += transform
         }
         
-//        context.scene.performQuery(Self.playerQuery).forEach { entity in
-//            let body = entity.components[PhysicsBody2DComponent.self]!
-//
-//            if Input.isKeyPressed(.space) {
-//                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
-//            }
-//
-//            for touch in Input.getTouches() where touch.phase == .began {
-//                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
-//            }
-//
-//            if Input.isKeyPressed(.arrowLeft) {
-//                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
-//            }
-//
-//            if Input.isKeyPressed(.arrowRight) {
-//                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
-//            }
-//        }
+        context.scene.performQuery(Self.playerQuery).forEach { entity in
+            let body = entity.components[PhysicsBody2DComponent.self]!
+
+            if Input.isKeyPressed(.space) {
+                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
+            }
+
+            for touch in Input.getTouches() where touch.phase == .began {
+                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
+            }
+
+            if Input.isKeyPressed(.arrowLeft) {
+                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
+            }
+
+            if Input.isKeyPressed(.arrowRight) {
+                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
+            }
+        }
     }
 }
 
@@ -193,9 +190,8 @@ class TubeSpawnerSystem: System {
         tube.components += transform
         tube.components += Collision2DComponent(
             shapes: [
-                .generateBox(width: 1, height: 1)
-            ],
-            mode: .trigger
+                .generateBox()
+            ]
         )
         
         scene.addEntity(tube)
@@ -241,7 +237,7 @@ final class GameScene2D {
         scene.addEntity(cameraEntity)
         
         // DEBUG
-//        scene.debugOptions = [.showPhysicsShapes]
+        scene.debugOptions = [.showPhysicsShapes]
 //        scene.debugOptions = [.showBoundingBoxes]
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
@@ -298,7 +294,7 @@ final class GameScene2D {
         playerEntity.components += transform
         playerEntity.components += PhysicsBody2DComponent(
             shapes: [
-                .generateBox(width: transform.scale.x, height: transform.scale.y)
+                .generateBox()
             ],
             mass: 1,
             mode: .dynamic
@@ -344,12 +340,10 @@ final class GameScene2D {
         let untexturedEntity = Entity(name: "Ground")
         untexturedEntity.components += SpriteComponent(texture: self.textureAtlas[0, 0])
         untexturedEntity.components += transform
-        untexturedEntity.components += PhysicsBody2DComponent(
+        untexturedEntity.components += Collision2DComponent(
             shapes: [
-                .generateBox(width: 1, height: 1).offsetBy(x: 0, y: 0.065)
-            ],
-            mass: 0,
-            mode: .static
+                .generateBox()
+            ]
         )
         
         scene.addEntity(untexturedEntity)
