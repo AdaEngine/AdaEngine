@@ -166,7 +166,10 @@ class FixtureList {
         var meshDesc = MeshDescriptor(name: "FixtureMesh")
         
         meshDesc.positions = MeshBuffer(vertices)
-        meshDesc.indicies = [0, 1, 2, 2, 3, 0]
+        // FIXME: We should support 8 vertices
+        meshDesc.indicies = [
+            0, 1, 2, 2, 3, 0
+        ]
         meshDesc.primitiveTopology = .lineStrip
         
         return Mesh.generate(from: [meshDesc])
@@ -218,5 +221,9 @@ class BoxShape2D {
         }
         
         return Array(UnsafeBufferPointer(start: vertices, count: Int(count)))
+    }
+    
+    func getRadius() -> Float {
+        return b2_shape_get_radius(self.ref)
     }
 }

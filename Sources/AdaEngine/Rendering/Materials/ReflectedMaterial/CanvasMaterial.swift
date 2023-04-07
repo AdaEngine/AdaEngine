@@ -66,6 +66,8 @@ public extension CanvasMaterial {
     }
 }
 
+
+/// Lid color material
 public struct ColorCanvasMaterial: CanvasMaterial {
     
     @Uniform(binding: 0, propertyName: "u_Color")
@@ -76,6 +78,30 @@ public struct ColorCanvasMaterial: CanvasMaterial {
     }
     
     public static func fragmentShader() throws -> ShaderSource {
-        return try ResourceManager.load("Shaders/Vulkan/mesh2d/color_canvas_material.glsl", from: .engineBundle)
+        return try ResourceManager.load("Shaders/Vulkan/Materials/color_canvas_material.glsl", from: .engineBundle)
     }
 }
+
+/// Draw circle on mesh.
+struct CircleCanvasMaterial: CanvasMaterial {
+    
+    @Uniform(binding: 0, propertyName: "u_Thickness")
+    var thickness: Float
+    
+    @Uniform(binding: 0, propertyName: "u_Fade")
+    var fade: Float
+    
+    @Uniform(binding: 0, propertyName: "u_Color")
+    var color: Color
+    
+    init(thickness: Float, fade: Float, color: Color) {
+        self.thickness = thickness
+        self.fade = fade
+        self.color = color
+    }
+    
+    public static func fragmentShader() throws -> ShaderSource {
+        return try ResourceManager.load("Shaders/Vulkan/Materials/circle_canvas_material.glsl", from: .engineBundle)
+    }
+}
+

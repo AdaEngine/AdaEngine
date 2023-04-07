@@ -9,6 +9,8 @@ import Math
 
 // TODO: Should we use separete renderer? Maybe switch to render graph???
 // TODO: Needs optimizations
+
+@available(*, deprecated, message: "Currently we don't use it in code base")
 public class Renderer2D {
     
     enum Bindings {

@@ -25,7 +25,7 @@ class SpaceInvaders {
     func makeScene() throws -> Scene {
         let scene = Scene()
         
-        scene.debugOptions = [.showPhysicsShapes]
+//        scene.debugOptions = [.showPhysicsShapes]
         
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
@@ -42,8 +42,9 @@ class SpaceInvaders {
         
         scene.addSystem(EnemySpawnerSystem.self)
         scene.addSystem(EnemyMovementSystem.self)
+        scene.addSystem(EnemyLifetimeSystem.self)
         
-        scene.subscribe(to: CollisionEvents.Began.self, on: nil) { event in
+        scene.subscribe(to: CollisionEvents.Began.self) { event in
             print(event.entityA.name, event.entityB.name)
 //            event.entityA.components[Bullet.self]
         }
@@ -69,7 +70,7 @@ extension SpaceInvaders {
         player.components += SpriteComponent(texture: characterAtlas[7, 1])
         player.components += Collision2DComponent(
             shapes: [.generateBox(width: 0.2, height: 0.2)],
-            mode: .default,
+            mode: .trigger,
             filter: CollisionFilter(categoryBitMask: .all, collisionBitMask: .all)
         )
         scene.addEntity(player)
@@ -207,8 +208,12 @@ struct EnemySpawnerSystem: System {
         transform.position = [Float.random(in: -1.8...1.8), 1, -1]
         entity.components += transform
         entity.components += SpriteComponent(texture: textureAtlas[5, 7])
-        entity.components += Collision2DComponent(shapes: [.generateBox(width: 0.25, height: 0.25)])
-        entity.components += EnemyComponent(health: 100, lifetime: 5)
+        entity.components += Collision2DComponent(
+            shapes: [
+                .generateBox(width: 0.25, height: 0.25)
+            ]
+        )
+        entity.components += EnemyComponent(health: 100, lifetime: 8)
         context.scene.addEntity(entity)
     }
 }
