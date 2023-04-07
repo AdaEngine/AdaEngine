@@ -21,7 +21,7 @@ import Foundation
 /// ```
 enum ShaderIncluder {
     
-    private static let localIncludePattern = "#include(?:\\s+)\"([^\"]+)\""
+    private static let localIncludePattern = "#include(?:\\s+)\"([^\"]+)\"\n"
     
     // FIXME: That's wierd to use `\n` in regex. `$` doesn't works
     private static let moduleIncludePattern = "#include(?:\\s+)<([^\"]+)>\n"

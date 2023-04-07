@@ -23,6 +23,11 @@ public final class Body2D {
         self.entity = entity
     }
     
+    deinit {
+        self.world.destroyBody(self)
+        self.ref.deallocate()
+    }
+    
     // FIXME: Should support multiple meshes inside
     func addFixture(for fixtureDef: b2_fixture_def) {
         b2_body_create_fixture(self.ref, fixtureDef)

@@ -186,7 +186,7 @@ extension Entity.ComponentSet: CustomStringConvertible {
             return partialResult + "\n   ⟐ \(name)"
         }
         
-        return "ComponentSet(entity: \(self.entity?.name ?? "\'\'"),\(result)\n)"
+        return "ComponentSet(\(result)\n)"
     }
 }
 
