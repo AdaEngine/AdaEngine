@@ -18,7 +18,7 @@ public struct Text2DLayoutSystem: System {
     public init(scene: Scene) {}
     
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.textComponents).forEach { entity in
+        context.scene.performQuery(Self.textComponents).concurrentIterator.forEach { entity in
             let (text, visibility) = entity.components[Text2DComponent.self, Visibility.self]
             
             if !visibility.isVisible {
@@ -34,6 +34,7 @@ public struct Text2DLayoutSystem: System {
                 lineBreakMode: text.lineBreakMode,
                 lineSpacing: text.lineSpacing
             )
+            
             textLayout.textLayout.setTextContainer(textContainer)
             
             entity.components += textLayout
