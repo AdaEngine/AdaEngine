@@ -18,6 +18,8 @@ public final class World {
     
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
     
+    let lock = NSLock()
+    
     internal private(set) var removedEntities: Set<Entity.ID> = []
     internal private(set) var addedEntities: Set<Entity.ID> = []
     
@@ -34,6 +36,9 @@ public final class World {
     // MARK: - Methods
     
     public func getEntities() -> [Entity] {
+        lock.lock()
+        defer { lock.unlock() }
+        
         return self.records.values.elements
             .map { record in
                 let archetype = self.archetypes[record.archetypeId]!
@@ -43,6 +48,9 @@ public final class World {
     }
     
     public func getEntityByID(_ entityID: Entity.ID) -> Entity? {
+        lock.lock()
+        defer { lock.unlock() }
+        
         guard let record = self.records[entityID] else {
             return nil
         }
@@ -52,6 +60,9 @@ public final class World {
     }
     
     func getEntityByName(_ name: String) -> Entity? {
+        lock.lock()
+        defer { lock.unlock() }
+        
         for arch in archetypes {
             if let ent = arch.entities.first(where: { $0.name == name }) {
                 return ent
@@ -76,15 +87,24 @@ public final class World {
     }
     
     func removeEntity(_ entity: Entity) {
+        lock.lock()
+        defer { lock.unlock() }
+        
         self.removeEntityRecord(entity.id)
     }
     
     func removeEntityOnNextTick(_ entity: Entity) {
+        lock.lock()
+        defer { lock.unlock() }
+        
         guard self.records[entity.id] != nil else { return }
         self.removedEntities.insert(entity.id)
     }
     
     private func removeEntityRecord(_ entity: Entity.ID) {
+        lock.lock()
+        defer { lock.unlock() }
+        
         guard let record = self.records[entity] else {
             return
         }
@@ -105,6 +125,9 @@ public final class World {
     // MARK: - Components Delegate
     
     func entity(_ entity: Entity, didAddComponent component: Component, with identifier: ComponentId) {
+        lock.lock()
+        defer { lock.unlock() }
+        
         if let script = component as? ScriptComponent {
             self.addScript(script, entity: entity.id, identifier: identifier)
         }
@@ -113,6 +136,9 @@ public final class World {
     }
     
     func entity(_ entity: Entity, didRemoveComponent component: Component.Type, with identifier: ComponentId) {
+        lock.lock()
+        defer { lock.unlock() }
+        
         if component is ScriptComponent.Type {
             self.removeScript(entity: entity.id, identifier: identifier)
         }

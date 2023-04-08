@@ -68,9 +68,15 @@
 }
 
 extension EntityQuery {
-    @usableFromInline final class State {
+    @usableFromInline
+    final class State {
+        @usableFromInline
         private(set) var archetypes: [Archetype] = []
+        
+        @usableFromInline
         let predicate: QueryPredicate
+        
+        @usableFromInline
         let filter: Filter
         
         private(set) weak var world: World?
@@ -143,10 +149,12 @@ public struct QueryResult: Sequence {
         return self.first { _ in return true }
     }
     
-    public var concurrentCollection: ConcurrentCollection {
-        ConcurrentCollection(state: self.state)
+    /// Return concurrent iterator over the query results.
+    public var concurrentIterator: ConcurrentIterator {
+        ConcurrentIterator(state: self.state)
     }
     
+    /// Return iterator over the query results.
     public func makeIterator() -> Iterator {
         return EntityIterator(state: self.state)
     }
@@ -226,39 +234,39 @@ public extension QueryResult {
 }
 
 extension QueryResult {
-    public struct ConcurrentCollection: RandomAccessCollection {
+    
+    /// A parallel iterator over query results.
+    public struct ConcurrentIterator {
+        
         public typealias Element = QueryResult.Element
         
-        public typealias Index = Int
-        
+        @usableFromInline
         let state: EntityQuery.State
-        var entities: [Entity]
         
         init(state: EntityQuery.State) {
             self.state = state
-            self.entities = self.state.archetypes.flatMap { $0.entities }.compactMap { $0 }
         }
         
-        public func makeIterator() -> IndexingIterator<[Element]> {
-            return entities.makeIterator()
-        }
-        
-        public var startIndex: Int {
-            return self.entities.startIndex
-        }
-        
-        public var endIndex: Int {
-            return self.entities.endIndex
-        }
-        
-        public subscript(_ index: Index) -> Element {
-            return self.entities[index]
-        }
-        
-        @inlinable public func forEach(_ body: (Self.Element) throws -> Void) rethrows {
-            DispatchQueue.concurrentPerform(iterations: 0) { index in
-                let element = self[index]
-                try? body(element)
+        /// Calls the given closure on each element in the query in parallel.
+        ///
+        /// - Parameter body: A closure that takes an element of the sequence as a
+        ///   parameter.
+        @inlinable
+        @inline(__always)
+        public func forEach(_ body: (Self.Element) -> Void) {
+            let arhetypes = self.state.archetypes
+            
+            for arhetype in arhetypes {
+                let entities = arhetype.entities
+                DispatchQueue.concurrentPerform(iterations: entities.count) { index in
+                    
+                    // skip nil values in space array
+                    guard let entity = entities[index] else {
+                        return
+                    }
+                    
+                    body(entity)
+                }
             }
         }
     }

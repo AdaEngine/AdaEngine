@@ -195,13 +195,6 @@ void b2_polygon_shape_set_as_box_with_center(b2_shape_s* polygonShape,
 b2_shape_type b2_shape_get_type(b2_shape_s* shape);
 
 void b2_polygon_shape_get_vertices(b2_shape_s* polyginShape, b2_vec2** vertices, uint32_t* count);
-//void b2_polygon_shape_get_normals(b2_shape_s* polyginShape, );
-
-
-//b2Vec2 m_centroid;
-//b2Vec2 m_vertices[b2_maxPolygonVertices];
-//b2Vec2 m_normals[b2_maxPolygonVertices];
-//int32 m_count;
 
 // MARK: B2_CONTACT_LISTENER
 

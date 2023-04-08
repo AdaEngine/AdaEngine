@@ -31,7 +31,7 @@ struct VisibilitySystem: System {
         
         self.updateBoundings(context: context)
         
-        context.scene.performQuery(Self.cameras).forEach { entity in
+        context.scene.performQuery(Self.cameras).concurrentIterator.forEach { entity in
             var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
             
             if !camera.isActive {
@@ -48,7 +48,7 @@ struct VisibilitySystem: System {
     // TODO: Should we calculate it here?
     // Update or create bounding boxes.
     private func updateBoundings(context: UpdateContext) {
-        context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
+        context.scene.performQuery(Self.entitiesWithTransform).concurrentIterator.forEach { entity in
             
             var bounds: BoundingComponent.Bounds?
             
