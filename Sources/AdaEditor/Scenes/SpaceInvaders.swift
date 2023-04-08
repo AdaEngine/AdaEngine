@@ -25,7 +25,7 @@ class SpaceInvaders {
     func makeScene() throws -> Scene {
         let scene = Scene()
         
-//        scene.debugOptions = [.showPhysicsShapes]
+        scene.debugOptions = [.showPhysicsShapes]
         
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
@@ -187,7 +187,7 @@ struct BulletSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.bullet).forEach { entity in
+        context.scene.performQuery(Self.bullet).concurrentIterator.forEach { entity in
             var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
             
             body.applyLinearImpulse([0, Self.bulletSpeed * context.deltaTime], point: .zero, wake: true)
@@ -210,7 +210,7 @@ struct EnemyComponent: Component {
 
 struct EnemySpawnerSystem: System {
     
-    let fixedTime = FixedTimestep(stepsPerSecond: 1)
+    let fixedTime = FixedTimestep(stepsPerSecond: 2)
     
     let textureAtlas: TextureAtlas
     
@@ -285,7 +285,7 @@ struct EnemyMovementSystem: System {
     init(scene: Scene) { }
     
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.enemy).forEach { entity in
+        context.scene.performQuery(Self.enemy).concurrentIterator.forEach { entity in
             var transform = entity.components[Transform.self]!
             transform.position.y -= Self.speed * context.deltaTime
             entity.components += transform
@@ -363,6 +363,7 @@ struct GameState: Component {
 }
 
 struct ScoreSystem: System {
+    
     static let scores = EntityQuery(where: .has(Text2DComponent.self) && .has(GameState.self))
     
     var container: TextAttributeContainer

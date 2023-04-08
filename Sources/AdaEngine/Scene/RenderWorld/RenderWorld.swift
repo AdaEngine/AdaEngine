@@ -5,19 +5,15 @@
 //  Created by v.prusakov on 3/21/23.
 //
 
-import Foundation
+// FIXME: Should run on render thread.
 
+/// RenderWorld store entities for rendering. Each new tick world entities removed.
 public final class RenderWorld {
     
     let renderGraphExecutor = RenderGraphExecutor()
     public let renderGraph = RenderGraph()
     
     private let scene: Scene = Scene(name: "RenderWorld")
-    
-    let renderQueue: DispatchQueue = DispatchQueue(
-        label: "adaengine.renderworld",
-        qos: .userInitiated
-    )
     
     public var world: World {
         self.scene.world
