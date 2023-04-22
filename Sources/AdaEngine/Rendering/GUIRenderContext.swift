@@ -7,6 +7,8 @@
 
 import Math
 
+// TODO: We should remove it, I think.
+
 /// Special object to render user interface on the screen.
 /// Context use orthogonal projection.
 final public class GUIRenderContext {

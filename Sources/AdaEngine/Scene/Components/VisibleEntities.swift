@@ -7,10 +7,13 @@
 
 // TODO: (Vlad) add sphere supports
 
-// This system add frustum culling for cameras.
-struct VisibilitySystem: System {
+/// System for detect wich entities is visible on camera.
+/// All cameras has frustum and each entity should has ``BoundingComponent`` to be detected.
+/// If entity doesn't has ``BoundingComponent`` than system tries to add it.
+/// If entity has ``NoFrustumCulling`` than it will ignore frustum culling.
+public struct VisibilitySystem: System {
     
-    static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    public static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
     
     static let cameras = EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
     static let entities = EntityQuery(
@@ -25,9 +28,9 @@ struct VisibilitySystem: System {
         where: .has(Transform.self) && .without(NoFrustumCulling.self)
     )
     
-    init(scene: Scene) { }
+    public init(scene: Scene) { }
     
-    func update(context: UpdateContext) {
+    public func update(context: UpdateContext) {
         
         self.updateBoundings(context: context)
         
@@ -45,8 +48,8 @@ struct VisibilitySystem: System {
         }
     }
     
-    // TODO: Should we calculate it here?
-    // Update or create bounding boxes.
+    // FIXME: Should we calculate it here?
+    // Update or create bounding boxes for SpriteComponent and Mesh2D.
     private func updateBoundings(context: UpdateContext) {
         context.scene.performQuery(Self.entitiesWithTransform).concurrentIterator.forEach { entity in
             
@@ -72,6 +75,7 @@ struct VisibilitySystem: System {
         }
     }
     
+    /// Filter entities for passed camera.
     private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()

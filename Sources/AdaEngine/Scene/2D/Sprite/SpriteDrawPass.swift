@@ -7,6 +7,7 @@
 
 import Math
 
+/// Render draw pass for rendering sprites. Support batching.
 public struct SpriteDrawPass: DrawPass {
     
     public func render(in context: Context, item: Transparent2DRenderItem) throws {

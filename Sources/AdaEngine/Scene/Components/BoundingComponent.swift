@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 2/10/23.
 //
 
-/// Contains information about bounds of enitity.
+/// Contains information about bounds of entity.
 public struct BoundingComponent: Component {
     
     public enum Bounds: Codable {

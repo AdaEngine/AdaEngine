@@ -16,8 +16,10 @@ enum SceneSerializationError: Error {
 /// A container that holds the collection of entities for render.
 public final class Scene: Resource {
     
+    /// Current supported version for mapping scene from file.
     static var currentVersion: Version = "1.0.0"
     
+    /// Current scene name.
     public var name: String
     public private(set) var id: UUID
     
@@ -35,14 +37,17 @@ public final class Scene: Resource {
     internal let systemGraph = SystemsGraph()
     internal let systemGraphExecutor = SystemsGraphExecutor()
     
-    // Options for content in a scene that can aid debugging.
+    /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     public var debugPhysicsColor: Color = .green
     
+    /// Instance of scene manager which holds this scene.
     public weak var sceneManager: SceneManager?
     
     // MARK: - Initialization -
     
+    /// Create new scene instance.
+    /// - Parameter name: Name of this scene. By default name is `Scene`.
     public init(name: String? = nil) {
         self.id = UUID()
         self.name = name ?? "Scene"
@@ -51,7 +56,7 @@ public final class Scene: Resource {
     
     // MARK: - Resource -
     
-    public static var resourceType: ResourceType = .scene
+    public static let resourceType: ResourceType = .scene
     
     public func encodeContents(with encoder: AssetEncoder) throws {
         guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
@@ -109,12 +114,14 @@ public final class Scene: Resource {
     // MARK: - Public methods -
     
     /// Add new system to the scene.
+    /// - Warning: Systems should be added before presenting.
     public func addSystem<T: System>(_ systemType: T.Type) {
         let system = systemType.init(scene: self)
         self.systemGraph.addSystem(system)
     }
     
     /// Add new scene plugin to the scene.
+    /// - Warning: Plugin should be added before presenting.
     public func addPlugin<T: ScenePlugin>(_ plugin: T) {
         plugin.setup(in: self)
         self.plugins.append(plugin)
@@ -123,7 +130,7 @@ public final class Scene: Resource {
     // MARK: - Internal methods
     
     // TODO: Looks like not a good solution here
-    /// Check the scene will not run earlier
+    /// Check the scene will not run earlier.
     private(set) var isReady = false
     
     func ready() {
@@ -137,6 +144,7 @@ public final class Scene: Resource {
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
     }
     
+    /// Update scene world and systems by delta time.
     func update(_ deltaTime: TimeInterval) {
         self.world.tick()
         
@@ -162,6 +170,9 @@ public extension Scene {
 // MARK: - Entity
 
 public extension Scene {
+    
+    /// Add a new entity to the scene. This entity will be available on the next update tick.
+    /// - Warning: If entity has different world, than we return assertation error.
     func addEntity(_ entity: Entity) {
         precondition(entity.world !== self.world, "Entity has different world reference, and can't be added")
         self.world.appendEntity(entity)
@@ -169,6 +180,10 @@ public extension Scene {
         self.eventManager.send(SceneEvents.DidAddEntity(entity: entity), source: self)
     }
     
+    /// Find an entity by their id.
+    /// - Parameter id: Entity identifier.
+    /// - Complexity: O(1)
+    /// - Returns: Returns nil if entity not registed in scene world.
     func findEntityByID(_ id: Entity.ID) -> Entity? {
         return self.world.getEntityByID(id)
     }

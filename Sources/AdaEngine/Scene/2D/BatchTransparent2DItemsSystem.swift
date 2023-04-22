@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 2/23/23.
 //
 
+/// Batch transparent items which contains batchEntity.
+/// Run each frame before drawing.
 public struct BatchTransparent2DItemsSystem: System {
     
     public static var dependencies: [SystemDependency] = [.after(CameraSystem.self), .after(VisibilitySystem.self)]
@@ -45,7 +47,7 @@ public struct BatchTransparent2DItemsSystem: System {
             return false
         }
         
-        if otherItem.batchEntity !== currentItem.batchEntity {
+        if otherItem.batchEntity.id != currentItem.batchEntity.id {
             return false
         }
         

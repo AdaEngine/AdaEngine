@@ -1,6 +1,6 @@
 //
 //  CanvasMaterial.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 4/2/23.
 //
@@ -66,8 +66,7 @@ public extension CanvasMaterial {
     }
 }
 
-
-/// Lid color material
+/// Unlit color material. Material will fill all mesh with color.
 public struct ColorCanvasMaterial: CanvasMaterial {
     
     @Uniform(binding: 0, propertyName: "u_Color")
@@ -82,7 +81,7 @@ public struct ColorCanvasMaterial: CanvasMaterial {
     }
 }
 
-/// Draw circle on mesh.
+/// Circle material will render circle on mesh.
 struct CircleCanvasMaterial: CanvasMaterial {
     
     @Uniform(binding: 0, propertyName: "u_Thickness")
@@ -104,4 +103,3 @@ struct CircleCanvasMaterial: CanvasMaterial {
         return try ResourceManager.load("Shaders/Vulkan/Materials/circle_canvas_material.glsl", from: .engineBundle)
     }
 }
-

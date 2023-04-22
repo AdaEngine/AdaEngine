@@ -32,6 +32,8 @@ public struct KernColorTextAttribute: TextAttributeKey {
 }
 
 public extension TextAttributeContainer {
+    
+    /// Set foreground color for text.
     var foregroundColor: Color {
         get {
             self[ForegroundColorTextAttribute.self] ?? ForegroundColorTextAttribute.defaultValue
@@ -42,6 +44,7 @@ public extension TextAttributeContainer {
         }
     }
     
+    /// Set font for text.
     var font: Font {
         get {
             self[FontTextAttribute.self] ?? FontTextAttribute.defaultValue
@@ -52,6 +55,7 @@ public extension TextAttributeContainer {
         }
     }
     
+    /// Set outline color for text.
     var outlineColor: Color {
         get {
             self[OutlineColorTextAttribute.self] ?? OutlineColorTextAttribute.defaultValue
@@ -62,6 +66,7 @@ public extension TextAttributeContainer {
         }
     }
     
+    /// Set kerning for text.
     var kern: Float {
         get {
             self[KernColorTextAttribute.self] ?? KernColorTextAttribute.defaultValue

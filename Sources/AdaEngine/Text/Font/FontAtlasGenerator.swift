@@ -12,6 +12,7 @@ public struct FontDescriptor {
     public var fontSize: Float = 1.0
 }
 
+/// Generate MTSDF atlas texture from font.
 final class FontAtlasGenerator {
     
     static let shared = FontAtlasGenerator()

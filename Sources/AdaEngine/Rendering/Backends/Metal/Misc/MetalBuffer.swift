@@ -47,6 +47,10 @@ extension ResourceOptions {
             options |= MTLResourceStorageModeShared
         }
         
+        if self.contains(.storageManaged) {
+            options |= MTLResourceStorageModeManaged
+        }
+        
         return options
     }
 }

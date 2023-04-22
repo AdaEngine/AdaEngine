@@ -299,7 +299,7 @@ package.dependencies += [
     .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
     .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
     // Plugins
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0"),
 ]
 
 // MARK: - Vulkan -

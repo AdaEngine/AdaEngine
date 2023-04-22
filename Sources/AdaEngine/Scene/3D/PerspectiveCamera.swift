@@ -19,6 +19,7 @@ public final class PerspectiveCamera: Entity {
         }
     }
     
+    /// Create a new perspective camera for rendering 2D and 3D items on screen.
     public override init(name: String = "PerspectiveCamera") {
         super.init(name: name)
         
@@ -32,6 +33,7 @@ public final class PerspectiveCamera: Entity {
         self.components += RenderItems<Transparent2DRenderItem>()
     }
     
+    /// Create a new perspective camera for rendering 2D and 3D items on screen.
     public init(name: String = "PerspectiveCamera", camera: Camera) {
         super.init(name: name)
         
