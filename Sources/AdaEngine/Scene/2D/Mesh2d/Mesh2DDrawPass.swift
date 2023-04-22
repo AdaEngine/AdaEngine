@@ -7,16 +7,15 @@
 
 import Math
 
-// FIXME: Currently, I've no idea why we render only one mesh on the screen
-
 struct Mesh2DUniform {
     let model: Transform3D
     let modelInverseTranspose: Transform3D
 }
 
+/// Contians logic for drawing 2D Meshes.
 public struct Mesh2DDrawPass: DrawPass {
     
-    static let meshUniformBinding: Int = 2
+    public static let meshUniformBinding: Int = 2
     
     public init() { }
     

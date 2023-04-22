@@ -37,6 +37,7 @@
 /// ```
 @frozen public struct EntityQuery {
     
+    /// Filter for entity query.
     public struct Filter: OptionSet {
         public typealias RawValue = UInt8
         
@@ -46,12 +47,16 @@
             self.rawValue = rawValue
         }
         
+        /// Returns entities which added to world.
         public static let added = Filter(rawValue: 1 << 0)
         
+        /// Returns entities which stored in world.
         public static let stored = Filter(rawValue: 1 << 1)
         
+        /// Returns entities which wait removing from world.
         public static let removed = Filter(rawValue: 1 << 2)
         
+        /// Filter that include all values
         public static let all: Filter = [.added, .stored, .removed]
     }
     
@@ -59,7 +64,9 @@
     let predicate: QueryPredicate
     let filter: Filter
     
+    /// Create a new entity query for specific predicate.
     /// - Parameter predicate: Describe what entity should contains to satisfy query.
+    /// - Parameter filter: Describe filter of this query. By default is ``Filter/all``
     public init(where predicate: QueryPredicate, filter: Filter = .all) {
         self.predicate = predicate
         self.filter = filter
@@ -120,12 +127,14 @@ public extension QueryPredicate {
         }
     }
     
+    /// Set AND condition for predicate.
     static func && (lhs: QueryPredicate, rhs: QueryPredicate) -> QueryPredicate {
         QueryPredicate { value in
             lhs.evaluate(value) && rhs.evaluate(value)
         }
     }
     
+    /// Set OR condition for predicate.
     static func || (lhs: QueryPredicate, rhs: QueryPredicate) -> QueryPredicate {
         QueryPredicate { value in
             lhs.evaluate(value) || rhs.evaluate(value)
@@ -145,6 +154,7 @@ public struct QueryResult: Sequence {
     public typealias Element = Entity
     public typealias Iterator = EntityIterator
     
+    /// Returns first element of collection.
     public var first: Element? {
         return self.first { _ in return true }
     }

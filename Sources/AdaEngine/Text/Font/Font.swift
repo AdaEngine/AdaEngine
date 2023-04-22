@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 7/4/22.
 //
 
+/// Contains font styles.
 public enum FontWeight: String {
     case regular
     case bold
@@ -48,12 +49,12 @@ public extension Font {
     var ascender: Float {
         Float(self.handle.metrics.ascenderY)
     }
-
+    
     /// The bottom y-coordinate, offset from the baseline, of the font’s longest descender.
     var descender: Float {
         Float(self.handle.metrics.descenderY)
     }
-
+    
     /// The height, in points, of text lines.
     var lineHeight: Float {
         Float(self.handle.metrics.lineHeight)
@@ -71,12 +72,9 @@ extension Font {
 }
 
 public extension Font {
-
-    static func custom(fontPath: URL, size: Float = 0) -> Texture2D? {
-        let descriptor = FontDescriptor(fontSize: size)
-        return FontAtlasGenerator.shared.generateAtlas(fontPath: fontPath, fontDescriptor: descriptor)?.atlasTexture
-    }
     
+    /// Create custom font from file path.
+    /// - Returns: Returns font if font available or null if something went wrong.
     static func custom(fontPath: URL) -> Font? {
         let descriptor = FontDescriptor(fontSize: .zero)
         guard let fontHandle = FontAtlasGenerator.shared.generateAtlas(fontPath: fontPath, fontDescriptor: descriptor) else {
@@ -88,6 +86,7 @@ public extension Font {
 }
 
 public extension Font {
+    /// Returns default font from AdaEngine bundle.
     static func system(weight: FontWeight = .regular) -> Font {
         do {
             return try ResourceManager.load("Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf", from: .engineBundle) as Font

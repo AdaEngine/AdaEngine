@@ -33,15 +33,26 @@ public struct CameraClearFlags: OptionSet, Codable {
 }
 
 // TODO: We should translate mouse coordinate space to scene coordinate space
+/// This component represent camera on scene. You can create more than one camera for rendering.
+/// Each camera has frustum, projection data.
 public struct Camera: Component {
     
+    /// View projection for camera
     public enum Projection: UInt8, Codable, CaseIterable {
+        /// Perspective projection used for 3D space.
         case perspective
+        
+        /// Orthographic projection commonly used for 2D space.
         case orthographic
     }
     
+    /// Render target where camera will render.
     public enum RenderTarget: Codable {
+        
+        /// Render camera to window.
         case window(Window.ID)
+        
+        /// Render camera to texture.
         case texture(RenderTexture)
     }
     
@@ -74,13 +85,17 @@ public struct Camera: Component {
     @Export
     public var backgroundColor: Color = .gray
     
+    /// Contains information about clear flags.
+    /// By default contains ``CameraClearFlags/solid`` flag which fill clear color by ``Camera/backgroundColor``.
     @Export
-    public var clearFlags: CameraClearFlags = .nothing
+    public var clearFlags: CameraClearFlags = .solid
     
     @Export
     @MinValue(0.1)
     public var orthographicScale: Float = 1
     
+    /// Render target for camera.
+    /// - Note: You should check that render target will not change while rendering.
     public internal(set) var renderTarget: RenderTarget
     
     @NoExport
@@ -90,11 +105,13 @@ public struct Camera: Component {
     
     // MARK: - Init
     
+    /// Create a new camera component with specific render target and viewport.
     public init(renderTarget: RenderTexture, viewport: Viewport? = nil) {
         self.renderTarget = .texture(renderTarget)
         self.viewport = viewport
     }
     
+    /// Create a new camera component. By default render target is window.
     public init() {
         self.renderTarget = .window(.empty)
     }
@@ -110,11 +127,13 @@ public extension Camera {
         return (matrix * Vector4(ndc, 1)).xyz
     }
     
+    /// Return point from world to Normalized Device Coordinate.
     func worldToNdc(cameraGlobalTransform: Transform3D, worldPosition: Vector3) -> Vector3 {
         let matrix = self.computedData.projectionMatrix * cameraGlobalTransform.inverse
         return (matrix * Vector4(worldPosition, 1)).xyz
     }
     
+    /// Return point from viewport to 2D world.
     func viewportToWorld2D(cameraGlobalTransform: Transform3D, viewportPosition: Vector2) -> Vector2? {
         guard let viewport = self.viewport else {
             return nil
@@ -126,6 +145,7 @@ public extension Camera {
         return worldPlane.xy
     }
     
+    /// Return ray from viewport to world. More prefer for 3D space.
     func viewportToWorld(cameraGlobalTransform: Transform3D, point: Vector2) -> Ray? {
         guard let viewport = self.viewport else {
             return nil
@@ -147,6 +167,7 @@ public extension Camera {
         )
     }
     
+    /// Return point from world to viewport.
     func worldToViewport(cameraGlobalTransform: Transform3D, worldPosition: Vector3) -> Vector2? {
         guard let viewport = self.viewport else {
             return nil

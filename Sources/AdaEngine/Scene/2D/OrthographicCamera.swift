@@ -19,6 +19,7 @@ public final class OrthographicCamera: Entity {
         }
     }
     
+    /// Create a new orthograpich camera for rendering 2D and 3D items on screen.
     public override init(name: String = "OrthographicCamera") {
         super.init(name: name)
         
@@ -32,6 +33,7 @@ public final class OrthographicCamera: Entity {
         self.components += RenderItems<Transparent2DRenderItem>()
     }
     
+    /// Create a new orthograpich camera for rendering 2D and 3D items on screen.
     public init(name: String = "OrthographicCamera", camera: Camera) {
         super.init(name: name)
         

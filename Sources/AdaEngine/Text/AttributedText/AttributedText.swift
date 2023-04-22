@@ -15,8 +15,7 @@ public struct AttributedText: Hashable {
         case keepOld
     }
     
-    @usableFromInline
-    var text: String
+    public internal(set) var text: String
     
     @usableFromInline
     var attributes: OrderedDictionary<String.Index, TextAttributeContainer> = [:]
@@ -31,7 +30,6 @@ public struct AttributedText: Hashable {
 }
 
 public extension AttributedText {
-    @inlinable
     mutating func append(_ string: AttributedText) {
         let endIndex = self.text.endIndex
         let newText = self.text + string.text

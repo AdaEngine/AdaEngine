@@ -26,6 +26,7 @@
 /// }
 ///
 /// ```
+/// 
 /// When you declared material struct, you can pass it to the ``CustomMaterial`` object where main magic happens.
 ///
 public protocol ReflectedMaterial: ShaderBindable {

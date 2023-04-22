@@ -62,6 +62,8 @@ public final class ShaderSource: Resource {
     
     private var sources: [ShaderStage: String] = [:]
     private var entryPoints: [ShaderStage: String] = [:]
+    
+    /// Contains include search paths for shaders.
     public var includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
     
     /// Contains url to shader sources if ShaderSource was created from file.
@@ -103,17 +105,22 @@ public final class ShaderSource: Resource {
         self.language = lang
     }
     
+    /// Create an empty shader sources
     public init() { }
     
+    /// Set new shader source code for specific stage.
     public func setSource(_ source: String, for stage: ShaderStage) {
         self.sources[stage] = source
         self.entryPoints[stage] = (try? ShaderUtils.dropEntryPoint(from: source).0)
     }
     
+    /// Get source code for specific stage.
+    /// - Returns: Raw string code or nil if source code not saved for specific stage.
     public func getSource(for stage: ShaderStage) -> String? {
         return self.sources[stage]
     }
     
+    /// Get entry point for specific code.
     public func getEntryPoint(for stage: ShaderStage) -> String {
         return self.entryPoints[stage] ?? "main"
     }

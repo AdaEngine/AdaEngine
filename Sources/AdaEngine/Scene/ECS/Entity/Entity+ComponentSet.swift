@@ -9,7 +9,7 @@ import Collections
 
 public extension Entity {
     
-    /// Hold entity components
+    /// Hold entity components specific for entity.
     struct ComponentSet: Codable {
         
         internal weak var entity: Entity?
@@ -25,11 +25,13 @@ public extension Entity {
         
         // MARK: - Codable
         
+        /// Create an empty component set.
         init() {
             self.bitset = BitSet()
             self.buffer = [:]
         }
         
+        /// Create component set from decoder.
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
             self.buffer = OrderedDictionary<ComponentId, Component>.init(minimumCapacity: container.allKeys.count)
@@ -72,6 +74,7 @@ public extension Entity {
             }
         }
 
+        /// Set the component of the specified type.
         public mutating func set<T>(_ component: T) where T : Component {
             lock.lock()
             defer { lock.unlock() }
@@ -85,6 +88,7 @@ public extension Entity {
             }
         }
 
+        /// Set the components of the specified type.
         public mutating func set(_ components: [Component]) {
             lock.lock()
             defer { lock.unlock() }
@@ -127,6 +131,7 @@ public extension Entity {
             }
         }
         
+        /// Remove all components from set.
         public mutating func removeAll(keepingCapacity: Bool = false) {
             lock.lock()
             defer { lock.unlock() }
@@ -201,6 +206,7 @@ public extension Entity.ComponentSet {
 }
 
 public extension Entity.ComponentSet {
+    /// Add new component to component set.
     @inline(__always)
     static func += <T: Component>(lhs: inout Self, rhs: T) {
         lhs[T.self] = rhs

@@ -7,6 +7,7 @@
 
 import Math
 
+/// Axis Aligned Bounding Box
 public struct AABB: Equatable, Hashable, Codable {
     public var center: Vector3
     public var halfExtents: Vector3

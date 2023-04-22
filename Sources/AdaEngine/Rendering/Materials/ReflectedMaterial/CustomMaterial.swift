@@ -73,10 +73,13 @@ protocol MaterialValueDelegate: AnyObject {
 @dynamicMemberLookup
 public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValueDelegate {
     
+    /// User material that can be updated.
     public var material: T
     
+    /// Contains all bindable properties founded in passed ``ReflectedMaterial``.
     private var bindableValues: [_ShaderBindProperty] = []
     
+    /// Create a new CustomMaterial instance from user ``ReflectedMaterial``.
     public init(_ material: T) {
         self.material = material
         
@@ -143,6 +146,7 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
         }
     }
     
+    /// Find and link shader bind properties.
     func reflectMaterial(from material: T) {
         let reflection = Mirror(reflecting: material)
         
