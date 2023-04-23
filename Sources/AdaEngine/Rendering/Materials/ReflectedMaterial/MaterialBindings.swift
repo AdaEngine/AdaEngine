@@ -1,12 +1,17 @@
 //
 //  MaterialBindings.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 4/2/23.
 //
 
 // TODO: Should we use struct here?
 
+/// Property wrapper that specify uniform for using in ``ReflectedMaterial``.
+///
+/// When you want to update value in shader define `Uniform` property wrapper. That property wrapper will capture your property name and will try to change the same uniform shader value in your material.
+///
+/// For example, if your shader uniform has property with name `color` and you specify the same name in your ``ReflectedMaterial``, than Uniform will connected to it by default.
 @propertyWrapper
 public final class Uniform<T: ShaderBindable & ShaderUniformValue>: _ShaderBindProperty, _ShaderUniformProperty {
     
@@ -31,12 +36,18 @@ public final class Uniform<T: ShaderBindable & ShaderUniformValue>: _ShaderBindP
     public let binding: Int
     internal var propertyName: String = ""
     
+    /// Create a new Uniform property wrapper.
+    /// - Parameter binding: The index of uniform bind group.
+    /// - Parameter propertyName: Custom shader uniform property name, by default it's empty and will capture real property name.
     public init(wrappedValue: T, binding: Int, propertyName: String = "") {
         self._value = wrappedValue
         self.propertyName = propertyName
         self.binding = binding
     }
     
+    /// Create a new Uniform property wrapper.
+    /// - Parameter binding: The index of uniform bind group.
+    /// - Parameter propertyName: Custom shader uniform property name, by default it's empty and will capture real property name.
     public init(binding: Int, propertyName: String = "") {
         self._value = nil
         self.propertyName = propertyName
@@ -48,6 +59,9 @@ public final class Uniform<T: ShaderBindable & ShaderUniformValue>: _ShaderBindP
     }
 }
 
+/// Property wrapper that pass fragment texture to the ``ReflectedMaterial``.
+///
+/// You can specify texture for your custom material.
 @propertyWrapper
 public final class FragmentTexture<T: Texture>: _ShaderBindProperty {
     
@@ -72,12 +86,18 @@ public final class FragmentTexture<T: Texture>: _ShaderBindProperty {
     
     weak var delegate: MaterialValueDelegate?
     
+    /// Create a new texture property wrapper.
+    /// - Parameter binding: The index of texture bind group.
+    /// - Parameter propertyName: Custom shader texture property name, by default it's empty and will capture real property name.
     public init(wrappedValue: T, binding: Int, propertyName: String = "") {
         self._value = wrappedValue
         self.binding = binding
         self.propertyName = propertyName
     }
     
+    /// Create a new texture property wrapper.
+    /// - Parameter binding: The index of texture bind group.
+    /// - Parameter propertyName: Custom shader texture property name, by default it's empty and will capture real property name.
     public init(binding: Int, propertyName: String = "") {
         self._value = nil
         self.binding = binding
@@ -89,22 +109,20 @@ public final class FragmentTexture<T: Texture>: _ShaderBindProperty {
     }
 }
 
-public protocol ShaderBindable {
-    static func layout() -> Int
-}
-
-public extension ShaderBindable {
-    static func layout() -> Int {
-        return MemoryLayout<Self>.stride
-    }
-}
-
+/// Internal shader bind property that will used for reflection.
 protocol _ShaderBindProperty: AnyObject {
+    
+    /// Contains shader property name.
     var propertyName: String { get set }
+    
+    /// Contains bind group for current property wrapper.
+    /// Used for matching property wrapper and shader bind.
     var binding: Int { get }
     
+    /// Contains delegate which will recieve updates of current property wrapper.
     var delegate: MaterialValueDelegate? { get set }
     
+    /// Update property wrapper. Should be called once when delegate connected to pass stored value to delegate.
     func update()
 }
 

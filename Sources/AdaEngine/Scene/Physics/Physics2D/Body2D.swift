@@ -1,6 +1,6 @@
 //
 //  Body2D.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/19/23.
 //
@@ -8,10 +8,13 @@
 @_implementationOnly import AdaBox2d
 import Math
 
+// An object that represents physics 2D body.
 public final class Body2D {
     
     unowned let world: PhysicsWorld2D
     weak var entity: Entity?
+    
+    internal private(set) var debugMesh: Mesh?
     
     private(set) var ref: OpaquePointer
     
@@ -21,8 +24,15 @@ public final class Body2D {
         self.entity = entity
     }
     
+    deinit {
+        self.world.destroyBody(self)
+        self.ref.deallocate()
+    }
+    
+    // FIXME: Should support multiple meshes inside
     func addFixture(for fixtureDef: b2_fixture_def) {
         b2_body_create_fixture(self.ref, fixtureDef)
+        self.debugMesh = self.getFixtureList().getMesh()
     }
     
     func getFixtureList() -> FixtureList {
@@ -139,5 +149,87 @@ class FixtureList {
         set {
             b2_fixture_set_filter_data(self.ref, newValue)
         }
+    }
+    
+    var body: OpaquePointer {
+        return b2_fixture_get_body(self.ref)
+    }
+    
+    var shape: BoxShape2D {
+        return BoxShape2D(ref: b2_fixture_get_shape(self.ref))
+    }
+    
+    var type: Box2DShapeType {
+        return Box2DShapeType(rawValue: b2_fixture_get_type(self.ref).rawValue)!
+    }
+    
+    func getMesh() -> Mesh? {
+        guard self.type == .polygon else {
+            return nil
+        }
+        
+        let vertices = self.shape.getPolygonVertices().map { Vector3($0, 0) }
+        var meshDesc = MeshDescriptor(name: "FixtureMesh")
+        
+        meshDesc.positions = MeshBuffer(vertices)
+        // FIXME: We should support 8 vertices
+        meshDesc.indicies = [
+            0, 1, 2, 2, 3, 0
+        ]
+        meshDesc.primitiveTopology = .lineStrip
+        
+        return Mesh.generate(from: [meshDesc])
+    }
+}
+
+enum Box2DShapeType: UInt32 {
+    case circle = 0
+    case edge = 1
+    case polygon = 2
+    case chain = 3
+    case count = 4
+}
+
+class BoxShape2D {
+    
+    private(set) var ref: OpaquePointer
+    
+    init(ref: OpaquePointer) {
+        self.ref = ref
+    }
+    
+    var type: Box2DShapeType {
+        return Box2DShapeType(rawValue: b2_shape_get_type(self.ref).rawValue)!
+    }
+    
+    deinit {
+        self.ref.deallocate()
+    }
+    
+    func getPolygonVertices() -> [Vector2] {
+        guard self.type == .polygon else {
+            return []
+        }
+        
+        var count: UInt32 = 0
+        var b2Vertices: UnsafeMutablePointer<b2_vec2>?
+        b2_polygon_shape_get_vertices(self.ref, &b2Vertices, &count)
+        
+        // swiftlint:disable:next empty_count
+        guard let b2Vertices, count > 0 else {
+            return []
+        }
+        
+        let vertices = UnsafeMutableRawPointer(b2Vertices).bindMemory(to: Vector2.self, capacity: Int(count))
+        
+        defer {
+            b2Vertices.deallocate()
+        }
+        
+        return Array(UnsafeBufferPointer(start: vertices, count: Int(count)))
+    }
+    
+    func getRadius() -> Float {
+        return b2_shape_get_radius(self.ref)
     }
 }

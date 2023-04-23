@@ -1,10 +1,13 @@
 //
 //  Render2DSystem.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/10/22.
 //
 
+// FIXME: Skipped items when batched a lot of sprites entities
+
+/// System in RenderWorld for render sprites from exctracted sprites.
 public struct SpriteRenderSystem: System {
     
     public static var dependencies: [SystemDependency] = [
@@ -105,7 +108,9 @@ public struct SpriteRenderSystem: System {
         var textureSlotIndex = 1
         
         var currentBatchEntity = EmptyEntity()
-        var currentBatch = BatchComponent(textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch))
+        var currentBatch = BatchComponent(
+            textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
+        )
         
         for sprite in sprites {
             guard visibleEntities.entityIds.contains(sprite.entityId) else {
@@ -118,8 +123,11 @@ public struct SpriteRenderSystem: System {
                 currentBatchEntity.components += currentBatch
                 textureSlotIndex = 1
                 currentBatchEntity = EmptyEntity()
-                currentBatch = BatchComponent(textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch))
+                currentBatch = BatchComponent(
+                    textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
+                )
             }
+            
             // Select a texture index for draw
             let textureIndex: Int
             
@@ -238,6 +246,7 @@ public struct ExtractedSprite: Component {
     public var worldTransform: Transform3D
 }
 
+/// Exctract sprites to RenderWorld for future rendering.
 public struct ExtractSpriteSystem: System {
     
     public static var dependencies: [SystemDependency] = [.after(VisibilitySystem.self)]

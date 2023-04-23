@@ -1,12 +1,14 @@
 //
 //  EventManager.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/3/22.
 //
 
+/// A type that can be sent as an event.
 public protocol Event { }
 
+/// An object on which events can be published and subscribed.
 public final class EventManager {
     
     public static let `default`: EventManager = EventManager()
@@ -45,6 +47,7 @@ public final class EventManager {
     }
 }
 
+/// An object that hold event subscriber.
 private class EventSubscriber: Cancellable {
     let source: EventSource?
     private(set) var completion: ((Any) -> Void)?
@@ -61,6 +64,7 @@ private class EventSubscriber: Cancellable {
     }
 }
 
+/// A type on which events can be published and subscribed.
 public protocol EventSource: AnyObject {
     func subscribe<E: Event>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> AnyCancellable
 }

@@ -1,12 +1,14 @@
 //
 //  Shape2DResource.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/11/22.
 //
 
 // TODO: (Vlad) Add hashable and equatable and resource
 // TODO: (Vlad) Looks like we should share resources in ECS world
+
+/// A representation of a shape.
 public final class Shape2DResource: Codable {
     
     struct CircleShape: Codable {
@@ -37,22 +39,28 @@ public final class Shape2DResource: Codable {
         self.fixture = fixture
     }
     
+    /// Creates a circle shape with the specified radius.
     public static func generateCircle(radius: Float) -> Shape2DResource {
         return Shape2DResource(fixture: .circle(CircleShape(radius: radius)))
     }
     
-    public static func generateBox(width: Float, height: Float) -> Shape2DResource {
+    /// Creates a box shape with the specified size. By default size is equal entity transformation scale value.
+    public static func generateBox(width: Float = 1, height: Float = 1) -> Shape2DResource {
         return Shape2DResource(fixture: .box(BoxShape(halfWidth: width / 2, halfHeight: height / 2)))
     }
     
-    public static func generateBox(width: Float, height: Float, center: Vector2, angle: Float) -> Shape2DResource {
+    /// Creates a box shape with the specified size and rotation.
+    /// By default size is equal entity transformation scale value.
+    public static func generateBox(width: Float = 1, height: Float = 1, center: Vector2, angle: Float) -> Shape2DResource {
         return Shape2DResource(fixture: .box(BoxShape(halfWidth: width / 2, halfHeight: height / 2, offset: center)))
     }
     
+    /// Create a custom polygon shape.
     public static func generatePolygon(vertices: [Vector2]) -> Shape2DResource {
         return Shape2DResource(fixture: .polygon(PolygonShape(verticies: vertices)))
     }
     
+    /// Creates a new shape resource by applying a rotation.
     public func offsetBy(x: Float, y: Float) -> Shape2DResource {
         switch self.fixture {
         case .box(var shape):

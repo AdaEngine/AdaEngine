@@ -1,12 +1,15 @@
 //
 //  Frustum.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/7/23.
 //
 
 import Math
 
+/// A frustum defined by the 6 containing planes
+/// Planes are ordered left, right, top, bottom, near, far
+/// Normals point into the contained volume
 public struct Frustum: Hashable, Codable {
     var planes: FixedArray<Plane> = FixedArray(repeating: Plane(normal: .zero, d: 0), count: 6)
 }
@@ -16,6 +19,8 @@ extension Frustum: DefaultValue {
 }
 
 public extension Frustum {
+    
+    /// Check that AABB intersect the frustum.
     func intersectsAABB(_ aabb: AABB) -> Bool {
         let aabbMin = aabb.min
         let aabbMax = aabb.max

@@ -1,10 +1,11 @@
 //
 //  RuntimePlatform.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 10/9/21.
 //
 
+/// The collection of available runtime platfoms.
 public enum RuntimePlatform: String, Codable {
     case macOS
     case tvOS

@@ -1,22 +1,22 @@
 //
 //  CameraSystem.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/7/22.
 //
 
 // TODO: Currently we render on window directly
 
-/// System for updating a ``Camera`` data like projection matrix or frustum.
-struct CameraSystem: System {
+/// System for updating cameras data on scene.
+public struct CameraSystem: System {
     
-    static var dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
+    public static var dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
     
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
     
-    init(scene: Scene) { }
+    public init(scene: Scene) { }
     
-    func update(context: UpdateContext) {
+    public func update(context: UpdateContext) {
         context.scene.performQuery(Self.query).forEach { entity in
             guard var camera = entity.components[Camera.self] else {
                 return
@@ -45,6 +45,7 @@ struct CameraSystem: System {
             
             if id != window?.id {
                 camera.renderTarget = .window(window?.id ?? .empty)
+                camera.computedData.targetScaleFactor = window?.screen?.scale ?? 1
             }
             
             let windowSize = window?.frame.size ?? .zero
@@ -57,8 +58,19 @@ struct CameraSystem: System {
             if camera.viewport?.rect.size != windowSize {
                 camera.viewport?.rect.size = windowSize
             }
-        case .texture:
-            return
+        case .texture(let texture):
+            let size = Size(width: Float(texture.width), height: Float(texture.height))
+            
+            if camera.viewport == nil {
+                camera.viewport = Viewport(rect: Rect(origin: .zero, size: size))
+                return
+            }
+            
+            if camera.viewport?.rect.size != size {
+                camera.viewport?.rect.size = size
+            }
+            
+            camera.computedData.targetScaleFactor = texture.scaleFactor
         }
     }
     
@@ -100,15 +112,16 @@ struct CameraSystem: System {
     }
 }
 
-struct ExtractCameraSystem: System {
+/// Exctract cameras to RenderWorld for future rendering.
+public struct ExtractCameraSystem: System {
     
-    static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    public static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
     
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self) && .has(VisibleEntities.self))
     
-    init(scene: Scene) { }
+    public init(scene: Scene) { }
     
-    func update(context: UpdateContext) {
+    public func update(context: UpdateContext) {
         context.scene.performQuery(Self.query).forEach { entity in
             let cameraEntity = EmptyEntity()
             

@@ -1,17 +1,20 @@
 //
 //  ScriptComponent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/24/22.
 //
 
-/// Base class describe some unit of game logic
+// TODO: Think about it. I don't like that solution.
+
+/// Base class describe some unit of game logic.
 open class ScriptComponent: Component {
     
     internal var isAwaked: Bool = false
     
     public internal(set) weak var entity: Entity?
     
+    /// Create a new script component.
     public required init() {}
     
     /// Called once when component is on scene and ready to use.

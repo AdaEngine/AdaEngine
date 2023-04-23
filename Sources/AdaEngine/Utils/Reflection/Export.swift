@@ -1,6 +1,6 @@
 //
 //  Export.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/6/22.
 //
@@ -9,10 +9,11 @@
 // TODO: Add more options for export
 // TODO: Should me mutating
 
-/// Fields marked as `@Export` can be serializable and deserializable.
+/// Fields marked as `@Export` can be serialized and deserialized by AdaEngine.
+/// If you want serialize your ``Component`` object, annotate properties inside them as `@Export`.
 /// - Note: You can use `private`, `fileprivate` modifiers, because `@Export` use reflection
 @propertyWrapper
-public class Export<T: Codable>: Codable {
+public final class Export<T: Codable>: Codable {
     
     public var wrappedValue: T {
         didSet {
@@ -119,6 +120,7 @@ extension Export {
 }
 
 extension CodingUserInfoKey {
+    /// It will be used for editor feature. If type will be reflected with this key, we want to collect and show their properties on the editor screen.
     static var editorIntrospection = CodingUserInfoKey(rawValue: "export.editor.introspection")!
 }
 
@@ -126,6 +128,8 @@ public protocol DefaultValue {
     static var defaultValue: Self { get }
 }
 
+/// Annotate property as `@NoExport` if you don't need that a property will be serialized.
+/// ``Encodable`` protocol will ignore that property.
 @propertyWrapper
 public struct NoExport<T: DefaultValue>: Codable {
     

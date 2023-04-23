@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 2/23/23.
 //
 
+/// Plugin for exctracting sprites from scene to RenderWorld.
 public struct SpritePlugin: ScenePlugin {
     
     public init() {}
@@ -14,6 +15,8 @@ public struct SpritePlugin: ScenePlugin {
     }
 }
 
+
+/// Plugin for RenderWorld to render sprites.
 public struct SpriteRenderPlugin: ScenePlugin {
     
     public init() {}

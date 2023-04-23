@@ -1,9 +1,11 @@
 //
 //  InternalAppScene.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 1/9/23.
 //
+
+// FIXME: We should avoid using fixed struct, instead we should pass some configuration context or hash map. Looks like it's a more extendable solution.
 
 /// Describe default scene configuration settings for the app
 struct _AppSceneConfiguration {

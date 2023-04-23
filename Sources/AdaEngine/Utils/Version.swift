@@ -1,15 +1,17 @@
 //
 //  Version.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 1/20/23.
 //
 
+/// An object that represent Semantic Versioning Specification (SemVer)
 public struct Version: Codable {
     
     public let components: [Int]
     public let string: String
     
+    /// Create a version object from string semver `1.0.0`
     public init(string: String) {
         self.string = string
         self.components = string.split(separator: ".").compactMap { Int($0) }

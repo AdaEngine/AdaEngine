@@ -1,6 +1,6 @@
 //
 //  TextureDescriptor.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 1/25/23.
 //

@@ -1,11 +1,11 @@
 //
 //  FixedArray.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/6/23.
 //
 
-/// Create a fixed sized array.
+/// Create a fixed sized array on a heap.
 @frozen
 public struct FixedArray<T>: Sequence, RandomAccessCollection {
     

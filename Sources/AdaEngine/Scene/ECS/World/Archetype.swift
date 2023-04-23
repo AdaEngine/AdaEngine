@@ -1,6 +1,6 @@
 //
 //  Archetype.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 6/21/22.
 //
@@ -17,6 +17,8 @@ struct EntityRecord {
     var row: Int
 }
 
+/// Types for defining [`Archetype`]s, collections of entities that have the same set of
+/// components.
 public final class Archetype: Hashable, Identifiable {
     
     public let id: Int

@@ -1,11 +1,12 @@
 //
 //  FNVHasher.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/17/23.
 //
 
 /// Calculate unique FNV Hash function
+/// - SeeAlso: Article about FNV - https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function
 @frozen public struct FNVHasher: UniqueHasher {
     
 #if arch(arm64) || arch(x86_64) // 64-bit

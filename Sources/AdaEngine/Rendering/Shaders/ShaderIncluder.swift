@@ -1,6 +1,6 @@
 //
 //  ShaderIncluder.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/16/23.
 //
@@ -21,8 +21,10 @@ import Foundation
 /// ```
 enum ShaderIncluder {
     
-    private static let localIncludePattern = "#include(?:\\s+)\"([^\"]+)\""
-    private static let moduleIncludePattern = "#include(?:\\s+)<([^\"]+)>"
+    private static let localIncludePattern = "#include(?:\\s+)\"([^\"]+)\"\n"
+    
+    // FIXME: That's wierd to use `\n` in regex. `$` doesn't works
+    private static let moduleIncludePattern = "#include(?:\\s+)<([^\"]+)>\n"
     private static let fileSystem = FileSystem.current
     
     enum IncluderError: LocalizedError {

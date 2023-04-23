@@ -1,38 +1,36 @@
 //
 //  RenderScene.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/21/23.
 //
 
-import Foundation
+// FIXME: Should run on render thread.
 
+/// RenderWorld store entities for rendering. Each update tick entities removed from RenderWorld.
 public final class RenderWorld {
     
     let renderGraphExecutor = RenderGraphExecutor()
+    
     public let renderGraph = RenderGraph()
     
     private let scene: Scene = Scene(name: "RenderWorld")
-    
-    let renderQueue: DispatchQueue = DispatchQueue(
-        label: "adaengine.renderworld",
-        qos: .userInitiated
-    )
     
     public var world: World {
         self.scene.world
     }
     
-    /// Add new system to the scene.
+    /// Add a new system to the scene.
     public func addSystem<T: System>(_ systemType: T.Type) {
         scene.addSystem(systemType)
     }
     
-    /// Add new scene plugin to the scene.
+    /// Add a new scene plugin to the scene.
     public func addPlugin<T: ScenePlugin>(_ plugin: T) {
         self.scene.addPlugin(plugin)
     }
     
+    /// Add a new entity to render world.
     public func addEntity(_ entity: Entity) {
         self.scene.addEntity(entity)
     }

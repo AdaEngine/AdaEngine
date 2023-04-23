@@ -1,6 +1,6 @@
 //
 //  WindowManager.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/29/22.
 //
@@ -21,8 +21,10 @@ public protocol SystemWindow {
 /// Application has only one window manager per instance.
 open class WindowManager {
     
+    /// Returns all windows registred in current process.
     public internal(set) var windows: [Window] = []
     
+    /// Contains active window if available.
     public private(set) var activeWindow: Window?
     
     public init() { }
@@ -56,26 +58,32 @@ open class WindowManager {
         window.windowDidReady()
     }
     
+    /// Show window and make it focused.
     open func showWindow(_ window: Window, isFocused: Bool) {
         fatalErrorMethodNotImplemented()
     }
     
+    /// Close window.
     open func closeWindow(_ window: Window) {
         fatalErrorMethodNotImplemented()
     }
     
+    /// Set window mode for window.
     open func setWindowMode(_ window: Window, mode: Window.Mode) {
         fatalErrorMethodNotImplemented()
     }
     
+    /// Set minimum size for window.
     open func setMinimumSize(_ size: Size, for window: Window) {
         fatalErrorMethodNotImplemented()
     }
     
+    /// Resize window.
     open func resizeWindow(_ window: Window, size: Size) {
         fatalErrorMethodNotImplemented()
     }
     
+    /// Get screen instance for window.
     open func getScreen(for window: Window) -> Screen? {
         fatalErrorMethodNotImplemented()
     }

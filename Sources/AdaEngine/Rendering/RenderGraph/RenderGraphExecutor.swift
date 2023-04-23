@@ -1,6 +1,6 @@
 //
 //  RenderGraphExecutor.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/18/23.
 //
@@ -9,8 +9,10 @@
 
 import Collections
 
+/// Execute ``RenderGraph`` objects.
 public class RenderGraphExecutor {
     
+    /// Execute ``RenderGraph`` for specific ``World``.
     public func execute(_ graph: RenderGraph, in world: World) throws {
         try self.executeGraph(graph, world: world, inputResources: [])
     }

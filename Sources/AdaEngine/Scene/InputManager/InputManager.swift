@@ -1,6 +1,6 @@
 //
 //  InputManager.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/2/21.
 //
@@ -12,8 +12,8 @@ import Darwin.C
 #endif
 
 // - TODO: (Vlad) Input manager doesn't work if keyboard set to cirillic mode.
-// - TODO: (Vlad) Add touches handling
-// - TODO: (Vlad) Use physics processes for proccessing events
+
+/// An object that contains inputs from keyboards, mouse, touch screens and etc.
 public final class Input {
     
     internal static let shared = Input()
@@ -29,14 +29,17 @@ public final class Input {
     
     // MARK: - Public Methods
     
+    /// Returns set of touches on screens.
     public static func getTouches() -> Set<TouchEvent> {
         return self.shared.touches
     }
     
+    /// Returns `true` if you are pressing the Latin key in the current keyboard layout.
     public static func isKeyPressed(_ keyCode: KeyCode) -> Bool {
         return self.shared.keyEvents[keyCode]?.status == .down
     }
     
+    /// Returns `true` if you are pressing the Latin key in the current keyboard layout.
     public static func isKeyPressed(_ keyCode: String) -> Bool {
         guard let code = KeyCode(rawValue: keyCode) else {
             return false
@@ -45,10 +48,12 @@ public final class Input {
         return self.shared.keyEvents[code]?.status == .down
     }
     
+    /// Returns `true` when the user stops pressing the key button, meaning it's true only on the frame that the user released the button.
     public static func isKeyRelease(_ keyCode: KeyCode) -> Bool {
         return self.shared.keyEvents[keyCode]?.status == .up
     }
     
+    /// Returns `true` when the user stops pressing the key button, meaning it's true only on the frame that the user released the button.
     public static func isKeyRelease(_ keyCode: String) -> Bool {
         guard let code = KeyCode(rawValue: keyCode) else {
             return false
@@ -57,14 +62,15 @@ public final class Input {
     }
     
     // TODO: (Vlad) Make action list
-    public static func isActionPressed(_ action: String) -> Bool {
+    static func isActionPressed(_ action: String) -> Bool {
+        fatalError()
+    }
+
+    static func isActionRelease(_ action: String) -> Bool {
         fatalError()
     }
     
-    public static func isActionRelease(_ action: String) -> Bool {
-        fatalError()
-    }
-    
+    /// Returns true if you are pressing the mouse button specified with MouseButton.
     public static func isMouseButtonPressed(_ button: MouseButton) -> Bool {
         guard let phase = self.shared.mouseEvents[button]?.phase else {
             return false
@@ -77,6 +83,7 @@ public final class Input {
         return self.shared.mouseEvents[button]?.phase == .ended
     }
     
+    /// Get mouse position on window.
     public static func getMousePosition() -> Vector2 {
         return self.shared.mousePosition
     }

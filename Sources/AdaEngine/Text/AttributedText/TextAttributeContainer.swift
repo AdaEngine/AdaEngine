@@ -1,6 +1,6 @@
 //
 //  TextAttributeContainer.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/7/23.
 //
@@ -44,6 +44,7 @@ public struct TextAttributeContainer: Hashable {
 // MARK: - Subscripts
 
 public extension TextAttributeContainer {
+    /// Returns style for specific type.
     subscript<T: TextAttributeKey>(_ type: T.Type) -> T.Value? {
         get {
             return self.container[ObjectIdentifier(type)] as? T.Value

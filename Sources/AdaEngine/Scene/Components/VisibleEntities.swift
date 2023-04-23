@@ -1,16 +1,19 @@
 //
 //  VisibleEntities.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/6/23.
 //
 
 // TODO: (Vlad) add sphere supports
 
-// This system add frustum culling for cameras.
-struct VisibilitySystem: System {
+/// System for detect wich entities is visible on camera.
+/// All cameras has frustum and each entity should has ``BoundingComponent`` to be detected.
+/// If entity doesn't has ``BoundingComponent`` than system tries to add it.
+/// If entity has ``NoFrustumCulling`` than it will ignore frustum culling.
+public struct VisibilitySystem: System {
     
-    static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    public static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
     
     static let cameras = EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
     static let entities = EntityQuery(
@@ -25,13 +28,13 @@ struct VisibilitySystem: System {
         where: .has(Transform.self) && .without(NoFrustumCulling.self)
     )
     
-    init(scene: Scene) { }
+    public init(scene: Scene) { }
     
-    func update(context: UpdateContext) {
+    public func update(context: UpdateContext) {
         
         self.updateBoundings(context: context)
         
-        context.scene.performQuery(Self.cameras).forEach { entity in
+        context.scene.performQuery(Self.cameras).concurrentIterator.forEach { entity in
             var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
             
             if !camera.isActive {
@@ -45,10 +48,10 @@ struct VisibilitySystem: System {
         }
     }
     
-    // TODO: Should we calculate it here?
-    // Update or create bounding boxes.
+    // FIXME: Should we calculate it here?
+    /// Update or create bounding boxes for SpriteComponent and Mesh2D.
     private func updateBoundings(context: UpdateContext) {
-        context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
+        context.scene.performQuery(Self.entitiesWithTransform).concurrentIterator.forEach { entity in
             
             var bounds: BoundingComponent.Bounds?
             
@@ -62,8 +65,8 @@ struct VisibilitySystem: System {
                 let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
                 
                 bounds = .aabb(AABB(min: min, max: max))
-            } else if let mesh2d = entity.components[Mesh2DComponent.self], let aabb = mesh2d.mesh.computeAABB() {
-                bounds = .aabb(aabb)
+            } else if let mesh2d = entity.components[Mesh2DComponent.self] {
+                bounds = .aabb(mesh2d.mesh.bounds)
             }
             
             if let bounds {
@@ -72,6 +75,7 @@ struct VisibilitySystem: System {
         }
     }
     
+    /// Filter entities for passed camera.
     private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()

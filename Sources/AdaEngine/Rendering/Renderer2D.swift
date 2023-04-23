@@ -1,6 +1,6 @@
 //
 //  Renderer2D.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/10/22.
 //
@@ -9,6 +9,9 @@ import Math
 
 // TODO: Should we use separete renderer? Maybe switch to render graph???
 // TODO: Needs optimizations
+
+/// A first implementation for 2D rendering.
+@available(*, deprecated, message: "Currently we don't use it in code base")
 public class Renderer2D {
     
     enum Bindings {

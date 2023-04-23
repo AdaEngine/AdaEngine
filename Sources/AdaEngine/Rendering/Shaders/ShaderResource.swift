@@ -1,6 +1,6 @@
 //
 //  ShaderResource.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/19/23.
 //
@@ -26,6 +26,7 @@ extension ShaderStage {
     }
 }
 
+/// Name space for shader resources.
 public enum ShaderResource {
     
     public struct DescriptorSet: Codable {
@@ -40,6 +41,7 @@ public enum ShaderResource {
         case readWrite
     }
     
+    /// Resource type that will be searching into shader.
     enum ResourceType: CaseIterable, Codable {
         case uniformBuffer
         case storageBuffer
@@ -51,6 +53,7 @@ public enum ShaderResource {
         case sampler
     }
     
+    /// Describe reflected uniform buffer information.
     public struct UniformBuffer: Codable {
         public let name: String
         public let binding: Int
@@ -58,11 +61,13 @@ public enum ShaderResource {
         public let resourceAccess: ResourceAccess
     }
     
+    /// Describe reflected sampler information.
     public struct Sampler: Codable {
         public let name: String
         public let binding: Int
     }
     
+    /// Describe reflected texture information.
     public struct ImageSampler: Codable {
         let name: String
         let binding: Int
@@ -73,6 +78,7 @@ public enum ShaderResource {
         public let resourceAccess: ResourceAccess
     }
     
+    /// Describe reflected shader buffer information. That shader buffer contains members (properties)
     public struct ShaderBuffer: Codable {
         public let name: String
         public let size: Int
@@ -165,6 +171,7 @@ extension ShaderValueType {
     }
 }
 
+/// Contains information about shader stages. For example, shader reflection data can have one or more stage flags for specific resource or buffer.
 public struct ShaderStageFlags: OptionSet, Codable {
     
     public let rawValue: UInt32
@@ -200,17 +207,26 @@ public extension ShaderStageFlags {
     static let tesselationControl = ShaderStageFlags(rawValue: 1 << 3)
     static let tesselationEvaluation = ShaderStageFlags(rawValue: 1 << 4)
     
+    /// Include all stages.
     static let max: ShaderStageFlags = [.vertex, .fragment, .compute, .tesselationControl, .tesselationEvaluation]
 }
 
+/// Contains relfection data of shader like uniforms buffers, textures and etc.
+/// You can use this data to understand how to manipulate shader and how to build buffers for it.
 public struct ShaderReflectionData: Codable {
     public var descriptorSets: [ShaderResource.DescriptorSet] = []
+    
+    /// Collection information about shader buffers, like: Uniform, push values and etc.
     public var shaderBuffers: [String: ShaderResource.ShaderBuffer] = [:]
+    
+    /// Collection information about shader resources, like: textures, samplers.
     public var resources: [String: ShaderResource.ImageSampler] = [:]
 }
 
 public extension ShaderReflectionData {
-    // TODO: Descriptor sets?
+    // FIXME: We should merge descriptor sets
+    
+    /// Merge one ``ShaderReflectionData`` into another.
     mutating func merge(_ data: ShaderReflectionData) {
         self.shaderBuffers.merge(data.shaderBuffers) { _, new in return new }
         self.resources.merge(data.resources) { _, new in return new }

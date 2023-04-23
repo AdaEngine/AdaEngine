@@ -1,6 +1,6 @@
 //
 //  ShaderCompiler.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/10/23.
 //
@@ -34,7 +34,7 @@ public struct ShaderDefine: Hashable {
     }
 }
 
-/// ShaderCompiler is an entity to compile GLSL code to Shader objects (with SPIR-V binary).
+/// ShaderCompiler compile engine shader code to Shader objects (with SPIR-V binary).
 public final class ShaderCompiler {
     
     enum CompileError: LocalizedError {
@@ -54,7 +54,7 @@ public final class ShaderCompiler {
         }
     }
     
-    // Collection of include search paths available for your shader source.
+    /// Collection of include search paths available for your shader source.
     public private(set) var includeSearchPaths: [ShaderSource.IncludeSearchPath] = [
         .module(
             name: "AdaEngine",
@@ -66,11 +66,13 @@ public final class ShaderCompiler {
     
     private(set) var shaderSource: ShaderSource
     
+    /// Create a new shader compiler from file source.
     public init(from fileUrl: URL) throws {
         self.shaderSource = try ShaderSource(from: fileUrl)
         self.includeSearchPaths.append(contentsOf: self.shaderSource.includeSearchPaths)
     }
     
+    /// Create a new shader compiler from shader source.
     public init(shaderSource: ShaderSource) {
         self.shaderSource = shaderSource
         self.includeSearchPaths.append(contentsOf: shaderSource.includeSearchPaths)

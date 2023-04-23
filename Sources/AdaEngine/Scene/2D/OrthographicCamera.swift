@@ -1,12 +1,14 @@
 //
-//  CameraEntity.swift
+//  OrthographicCamera.swift
 //  AdaEngine
 //
-//  Created by v.prusakov on 2/10/23.
+//  Created by v.prusakov on 4/5/23.
 //
 
-public final class CameraEntity: Entity {
+/// A virtual camera that establishes the rendering orthographic.
+public final class OrthographicCamera: Entity {
     
+    /// A camera component for the orthographic camera entity.
     public var camera: Camera {
         get {
             self.components[Camera.self]!
@@ -17,11 +19,13 @@ public final class CameraEntity: Entity {
         }
     }
     
-    public override init(name: String = "CameraEntity") {
+    /// Create a new orthograpich camera for rendering 2D and 3D items on screen.
+    public override init(name: String = "OrthographicCamera") {
         super.init(name: name)
         
         let camera = Camera()
         camera.isActive = true
+        camera.projection = .orthographic
         self.components += camera
         self.components += VisibleEntities()
         self.components += GlobalViewUniform()
@@ -29,11 +33,13 @@ public final class CameraEntity: Entity {
         self.components += RenderItems<Transparent2DRenderItem>()
     }
     
-    public init(name: String = "CameraEntity", camera: Camera) {
+    /// Create a new orthograpich camera for rendering 2D and 3D items on screen.
+    public init(name: String = "OrthographicCamera", camera: Camera) {
         super.init(name: name)
         
         let camera = camera
         camera.isActive = true
+        camera.projection = .orthographic
         self.components += camera
         self.components += GlobalViewUniform()
         self.components += GlobalViewUniformBufferSet()

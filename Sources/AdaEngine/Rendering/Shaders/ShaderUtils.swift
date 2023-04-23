@@ -1,12 +1,17 @@
 //
 //  ShaderUtils.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/13/23.
 //
 
+// FIXME: Replace NSRegularExpression on full swift implementation.
+// Currently Swift Regex doesn't supports on macOS less than 13.0 and that's a problem here.
+// I want to use swift like solution instead of Foundation.
+
 import Foundation
 
+/// Collection of utils for works with shaders.
 enum ShaderUtils {
     
     enum CommentState {
@@ -34,7 +39,10 @@ enum ShaderUtils {
         }
     }
     
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
+    // swiftlint:disable function_body_length cyclomatic_complexity
+    
+    /// Split GLSL shader source code by available stages.
+    /// - Throws: Error if missed pragmas: `#version` or `#pragma stage`. Also throw error if not stage found.
     static func processGLSLShader(source: String) throws -> [ShaderStage: String] {
         let finalSource = ShaderUtils.removeComments(from: source)
         
@@ -108,7 +116,10 @@ enum ShaderUtils {
         return shaderSources
     }
     
-    // swiftlint:disable:next cyclomatic_complexity
+    // swiftlint:enable function_body_length
+    
+    /// Remove comments from source code.
+    /// Supports multi-line and single-line comments.
     static func removeComments(from string: String) -> String {
         var state: CommentState = .notAComment
         
@@ -156,6 +167,9 @@ enum ShaderUtils {
         return newString
     }
     
+    // swiftlint:enable cyclomatic_complexity
+    
+    /// Return shader language from file extension.
     static func shaderLang(from fileExt: String) -> ShaderLanguage {
         switch fileExt {
         case "vert", "frag", "glsl", "comp":
@@ -169,6 +183,7 @@ enum ShaderUtils {
         }
     }
     
+    /// Return shader stage from string.
     static func shaderStage(from string: String) -> ShaderStage? {
         switch string {
         case "vert", "vertex":
@@ -190,10 +205,15 @@ enum ShaderUtils {
     /// ```
     private static let entryPointRegex: String = #"\[\[(\w+)\]\]\s*(?:\[[^\]]+\])*\s*\w+\s([^\\(]+)"#
     
-    // Drop user entry point and replace it to `main`
+    /// Drop user entry point annotated with `[[main]]` attribute and replace it to `main`.
+    ///
+    /// We support custom entry points for GLSL shaders. GLSLang compiler can't supports custom entry points and we change user entry point to `main` and return user entry point for SPIRV-Cross.
+    /// That's because we want support user entry point name in final, GPU specific shader source.
+    ///
+    /// For example, if user set custom entry point and after that shader will compile to MSL shader, we want to see user entry point in debug instead of default `main0`.
     static func dropEntryPoint(from string: String) throws -> (String, String) {
         var newString = string
-        if let (attributeName, functionName) = self.getFunctionAttribute(from: newString), attributeName == "main" {
+        if let (attributeName, functionName) = self.getFirstFunctionAttribute(in: newString), attributeName == "main" {
             
             newString.replaceSubrange(functionName.startIndex..<functionName.endIndex, with: attributeName)
             
@@ -207,8 +227,9 @@ enum ShaderUtils {
         return ("main", string)
     }
     
+    /// Get first matched attribute in string.
     /// - Returns: Attribute name and function name
-    static func getFunctionAttribute(from string: String) -> (Substring, Substring)? {
+    static func getFirstFunctionAttribute(in string: String) -> (Substring, Substring)? {
         guard let regex = try? NSRegularExpression(pattern: Self.entryPointRegex, options: 0) else {
             return nil
         }
@@ -232,6 +253,9 @@ enum ShaderUtils {
 }
 
 extension String {
+    /// Get substring from ``NSRange``.
+    ///
+    /// We use it because we ``NSRegularExpression`` returns ``NSRange`` instead of `Range<String.Index>`
     @inlinable
     @inline(__always)
     func getSubstring(from nsRange: NSRange) -> Substring {
