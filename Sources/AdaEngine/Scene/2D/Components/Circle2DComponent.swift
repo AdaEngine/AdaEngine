@@ -1,6 +1,6 @@
 //
 //  Circle2DComponent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/10/22.
 //

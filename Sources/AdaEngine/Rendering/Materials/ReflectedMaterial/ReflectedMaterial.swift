@@ -1,6 +1,6 @@
 //
 //  ReflectedMaterial.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 4/2/23.
 //
@@ -26,7 +26,7 @@
 /// }
 ///
 /// ```
-/// 
+///
 /// When you declared material struct, you can pass it to the ``CustomMaterial`` object where main magic happens.
 ///
 public protocol ReflectedMaterial: ShaderBindable {

@@ -40,6 +40,12 @@ struct GraphEntryNode: RenderNode {
 
 // Inspired by Bevy Render Graph
 
+/// The render graph configures the modular, parallel and re-usable render logic.
+/// It is a retained and stateless (nodes themselves may have their own internal state) structure,
+/// which can not be modified while it is executed by the graph runner.
+///
+///  The ``RenderGraphExecutor`` is responsible for executing the entire graph each frame.
+///
 public final class RenderGraph {
     
     static let entryNodeName: String = "_GraphEntryNode"

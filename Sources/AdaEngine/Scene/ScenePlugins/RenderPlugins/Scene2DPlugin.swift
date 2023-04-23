@@ -1,16 +1,19 @@
 //
 //  Scene2DPlugin.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/19/23.
 //
 
+/// Plugin for RenderWorld added 2D render capatibilites.
 public struct Scene2DPlugin: ScenePlugin {
     
+    /// Render graph name.
     public static let renderGraph = "render_graph_2d"
     
     public init() {}
     
+    /// Input slots of render graph.
     public enum InputNode {
         public static let view = "view"
     }
@@ -39,10 +42,12 @@ public struct Scene2DPlugin: ScenePlugin {
     }
 }
 
+/// This render node responsible for rendering ``Transparent2DRenderItem``.
 public struct Main2DRenderNode: RenderNode {
     
     public static let name: String = "main_pass_2d"
     
+    /// Input slots of render node.
     public enum InputNode {
         public static let view = "view"
     }
@@ -103,11 +108,24 @@ public struct Main2DRenderNode: RenderNode {
     }
 }
 
+/// An object describe 2D render item.
 public struct Transparent2DRenderItem: RenderItem {
+    
+    /// An entity that hold additional information about render item.
     public var entity: Entity
+    
+    /// An entity for batch rendering.
     public var batchEntity: Entity
+    
+    /// Draw pass which will be used for rendering this item.
     public var drawPassId: DrawPassId
+    
+    /// Render Pipeline for rendering this item.
     public var renderPipeline: RenderPipeline
+    
+    /// Sort key used for rendering order.
     public var sortKey: Float
+    
+    /// If item support batch rendering, pass range of indecies.
     public var batchRange: Range<Int32>?
 }

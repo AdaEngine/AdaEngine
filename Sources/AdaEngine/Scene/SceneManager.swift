@@ -1,6 +1,6 @@
 //
 //  SceneManager.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/3/21.
 //
@@ -36,7 +36,6 @@ public class SceneManager {
     func setViewport(_ viewport: Viewport) {
         self.currentScene?.viewport = viewport
     }
-    
     
     /// Set window for scene manager.
     func setWindow(_ window: Window?) {
