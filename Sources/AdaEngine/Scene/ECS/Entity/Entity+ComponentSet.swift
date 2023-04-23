@@ -1,6 +1,6 @@
 //
 //  Entity+ComponentSet.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/6/22.
 //
@@ -9,10 +9,12 @@ import Collections
 
 public extension Entity {
     
-    /// Hold entity components
+    /// Hold entity components specific for entity.
     struct ComponentSet: Codable {
         
         internal weak var entity: Entity?
+        
+        let lock = NSLock()
         
         var world: World? {
             return self.entity?.world
@@ -23,11 +25,13 @@ public extension Entity {
         
         // MARK: - Codable
         
+        /// Create an empty component set.
         init() {
             self.bitset = BitSet()
             self.buffer = [:]
         }
         
+        /// Create component set from decoder.
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
             self.buffer = OrderedDictionary<ComponentId, Component>.init(minimumCapacity: container.allKeys.count)
@@ -55,6 +59,9 @@ public extension Entity {
         /// Gets or sets the component of the specified type.
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
             get {
+                lock.lock()
+                defer { lock.unlock() }
+                
                 return buffer[T.identifier] as? T
             }
             
@@ -67,7 +74,11 @@ public extension Entity {
             }
         }
 
+        /// Set the component of the specified type.
         public mutating func set<T>(_ component: T) where T : Component {
+            lock.lock()
+            defer { lock.unlock() }
+            
             let identifier = T.identifier
             self.buffer[identifier] = component
             (component as? ScriptComponent)?.entity = self.entity
@@ -77,7 +88,11 @@ public extension Entity {
             }
         }
 
+        /// Set the components of the specified type.
         public mutating func set(_ components: [Component]) {
+            lock.lock()
+            defer { lock.unlock() }
+            
             for component in components {
                 
                 let componentType = type(of: component)
@@ -95,11 +110,16 @@ public extension Entity {
 
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentType: Component.Type) -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
             return self.buffer[componentType.identifier] != nil
         }
 
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
+            lock.lock()
+            defer { lock.unlock() }
+            
             let identifier = componentType.identifier
             (self.buffer[identifier] as? ScriptComponent)?.destroy()
             self.buffer[identifier] = nil
@@ -111,7 +131,11 @@ public extension Entity {
             }
         }
         
+        /// Remove all components from set.
         public mutating func removeAll(keepingCapacity: Bool = false) {
+            lock.lock()
+            defer { lock.unlock() }
+            
             for component in self.buffer.values.elements {
                 let componentType = type(of: component)
                 (component as? ScriptComponent)?.destroy()
@@ -144,6 +168,9 @@ public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
     @inline(__always)
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
+        lock.lock()
+        defer { lock.unlock() }
+        
         return (
             buffer[a.identifier] as! A,
             buffer[b.identifier] as! B
@@ -153,6 +180,9 @@ public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
     @inline(__always)
     subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
+        lock.lock()
+        defer { lock.unlock() }
+        
         return (
             buffer[a.identifier] as! A,
             buffer[b.identifier] as! B,
@@ -163,6 +193,9 @@ public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
     @inline(__always)
     subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
+        lock.lock()
+        defer { lock.unlock() }
+        
         return (
             buffer[a.identifier] as! A,
             buffer[b.identifier] as! B,
@@ -173,6 +206,7 @@ public extension Entity.ComponentSet {
 }
 
 public extension Entity.ComponentSet {
+    /// Add new component to component set.
     @inline(__always)
     static func += <T: Component>(lhs: inout Self, rhs: T) {
         lhs[T.self] = rhs
@@ -186,7 +220,7 @@ extension Entity.ComponentSet: CustomStringConvertible {
             return partialResult + "\n   ⟐ \(name)"
         }
         
-        return "ComponentSet(entity: \(self.entity?.name ?? "\'\'"),\(result)\n)"
+        return "ComponentSet(\(result)\n)"
     }
 }
 

@@ -101,12 +101,24 @@ public protocol ShaderFunction {
     
 }
 
+/// An object specifies the rendering configuration state to use during a rendering pass, including rasterization (such as multisampling), visibility, blending, tessellation, and graphics function state.
+///
+/// To specify the vertex or fragment function in the rendering pipeline descriptor, set the vertex or fragment property.
 public struct RenderPipelineDescriptor {
+    
+    /// The vertex shader the pipeline run to process vertices.
     public var vertex: Shader?
+    
+    /// The fragment shader the pipeline run to process fragments.
     public var fragment: Shader?
+    
+    /// A string that identifies the render pipeline descriptor.
     public var debugName: String = ""
+    
     public var backfaceCulling: Bool = true
     public var primitive: IndexPrimitive = .triangle
+    
+    /// The organization of vertex data in an attribute’s argument table.
     public var vertexDescriptor: VertexDescriptor = VertexDescriptor()
     
     public var depthStencilDescriptor: DepthStencilDescriptor?

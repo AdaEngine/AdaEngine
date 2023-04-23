@@ -1,13 +1,13 @@
 //
 //  FontHandle.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/19/23.
 //
 
 @_implementationOnly import AtlasFontGenerator
 
-/// Hold information about font data and atlas
+/// Hold information about font data and atlas.
 final class FontHandle: Hashable {
     
     let atlasTexture: Texture2D

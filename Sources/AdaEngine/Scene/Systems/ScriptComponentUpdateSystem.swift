@@ -1,19 +1,20 @@
 //
 //  ScriptComponentUpdateSystem.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/7/22.
 //
 
-struct ScriptComponentUpdateSystem: System {
+/// A system that updates all scripts components.
+public struct ScriptComponentUpdateSystem: System {
     
     let fixedTime: FixedTimestep
     
-    init(scene: Scene) {
+    public init(scene: Scene) {
         self.fixedTime = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     
-    func update(context: UpdateContext) {
+    public func update(context: UpdateContext) {
         let fixedTimeResult = self.fixedTime.advance(with: context.deltaTime)
         
         context.scene.world.scripts.forEach { component in

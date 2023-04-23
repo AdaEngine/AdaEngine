@@ -1,11 +1,11 @@
 //
 //  Text2DComponent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/5/23.
 //
 
-/// Component for rendering 2d text on scene.
+/// Component for rendering 2D text on scene.
 public struct Text2DComponent: Component {
     
     /// Text with style attributes.

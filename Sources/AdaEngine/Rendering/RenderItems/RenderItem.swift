@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 2/23/23.
 //
 
+/// An object that store render items for rendering.
 public struct RenderItems<T: RenderItem>: Component {
     public var items: [T]
     

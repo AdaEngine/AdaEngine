@@ -1,6 +1,6 @@
 //
 //  MetalBuffer.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 1/18/23.
 //
@@ -45,6 +45,10 @@ extension ResourceOptions {
         
         if self.contains(.storageShared) {
             options |= MTLResourceStorageModeShared
+        }
+        
+        if self.contains(.storageManaged) {
+            options |= MTLResourceStorageModeManaged
         }
         
         return options

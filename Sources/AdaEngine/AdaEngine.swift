@@ -1,6 +1,6 @@
 //
 //  AdaEngine.swift
-//
+//  AdaEngine
 //
 //  Created by v.prusakov on 8/14/21.
 //
@@ -24,5 +24,6 @@ public final class Engine {
     
     private init() { }
     
+    /// Setup physics ticks per second. Default value is equal 60 ticks per second.
     public var physicsTickPerSecond: Int = 60
 }

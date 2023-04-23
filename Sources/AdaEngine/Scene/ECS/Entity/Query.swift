@@ -1,11 +1,11 @@
 //
 //  Query.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/24/22.
 //
 
-/// This object describe query to ecs world.
+/// This object describe query to ECS world.
 ///
 /// ```swift
 /// struct MovementSystem: System {
@@ -37,6 +37,7 @@
 /// ```
 @frozen public struct EntityQuery {
     
+    /// Filter for entity query.
     public struct Filter: OptionSet {
         public typealias RawValue = UInt8
         
@@ -46,12 +47,16 @@
             self.rawValue = rawValue
         }
         
+        /// Returns entities which added to world.
         public static let added = Filter(rawValue: 1 << 0)
         
+        /// Returns entities which stored in world.
         public static let stored = Filter(rawValue: 1 << 1)
         
+        /// Returns entities which wait removing from world.
         public static let removed = Filter(rawValue: 1 << 2)
         
+        /// Filter that include all values
         public static let all: Filter = [.added, .stored, .removed]
     }
     
@@ -59,7 +64,9 @@
     let predicate: QueryPredicate
     let filter: Filter
     
+    /// Create a new entity query for specific predicate.
     /// - Parameter predicate: Describe what entity should contains to satisfy query.
+    /// - Parameter filter: Describe filter of this query. By default is ``Filter/all``
     public init(where predicate: QueryPredicate, filter: Filter = .all) {
         self.predicate = predicate
         self.filter = filter
@@ -68,9 +75,15 @@
 }
 
 extension EntityQuery {
-    @usableFromInline final class State {
+    @usableFromInline
+    final class State {
+        @usableFromInline
         private(set) var archetypes: [Archetype] = []
+        
+        @usableFromInline
         let predicate: QueryPredicate
+        
+        @usableFromInline
         let filter: Filter
         
         private(set) weak var world: World?
@@ -89,6 +102,7 @@ extension EntityQuery {
 
 // MARK: Predicate
 
+/// An object that defines the criteria for an entity query.
 public struct QueryPredicate {
     let evaluate: (Archetype) -> Bool
 }
@@ -114,12 +128,14 @@ public extension QueryPredicate {
         }
     }
     
+    /// Set AND condition for predicate.
     static func && (lhs: QueryPredicate, rhs: QueryPredicate) -> QueryPredicate {
         QueryPredicate { value in
             lhs.evaluate(value) && rhs.evaluate(value)
         }
     }
     
+    /// Set OR condition for predicate.
     static func || (lhs: QueryPredicate, rhs: QueryPredicate) -> QueryPredicate {
         QueryPredicate { value in
             lhs.evaluate(value) || rhs.evaluate(value)
@@ -139,10 +155,17 @@ public struct QueryResult: Sequence {
     public typealias Element = Entity
     public typealias Iterator = EntityIterator
     
-    var first: Element? {
+    /// Returns first element of collection.
+    public var first: Element? {
         return self.first { _ in return true }
     }
     
+    /// Return concurrent iterator over the query results.
+    public var concurrentIterator: ConcurrentIterator {
+        ConcurrentIterator(state: self.state)
+    }
+    
+    /// Return iterator over the query results.
     public func makeIterator() -> Iterator {
         return EntityIterator(state: self.state)
     }
@@ -216,6 +239,45 @@ public extension QueryResult {
                 }
                 
                 continue
+            }
+        }
+    }
+}
+
+extension QueryResult {
+    
+    /// A parallel iterator over query results.
+    public struct ConcurrentIterator {
+        
+        public typealias Element = QueryResult.Element
+        
+        @usableFromInline
+        let state: EntityQuery.State
+        
+        init(state: EntityQuery.State) {
+            self.state = state
+        }
+        
+        /// Calls the given closure on each element in the query in parallel.
+        ///
+        /// - Parameter body: A closure that takes an element of the sequence as a
+        ///   parameter.
+        @inlinable
+        @inline(__always)
+        public func forEach(_ body: (Self.Element) -> Void) {
+            let arhetypes = self.state.archetypes
+            
+            for arhetype in arhetypes {
+                let entities = arhetype.entities
+                DispatchQueue.concurrentPerform(iterations: entities.count) { index in
+                    
+                    // skip nil values in space array
+                    guard let entity = entities[index] else {
+                        return
+                    }
+                    
+                    body(entity)
+                }
             }
         }
     }

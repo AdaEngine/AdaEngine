@@ -1,12 +1,13 @@
 //
 //  PNGSerializer.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 6/29/22.
 //
 
 import libpng
 
+/// An object that serialize png raw data to an ``Image``
 struct PNGImageSerializer: ImageLoaderStrategy {
     
     enum DecodingError: String, Error {

@@ -1,10 +1,11 @@
 //
 //  VertexDescriptor.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/3/21.
 //
 
+/// An array of vertex attribute descriptor objects.
 public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable {
     
     public typealias Element = VertexDescriptor.Attribute
@@ -60,6 +61,7 @@ public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable {
     }
 }
 
+/// An array of vertex buffer layout descriptor objects.
 public struct VertexDescriptorLayoutsArray: Sequence, Codable, Hashable {
     
     public typealias Element = VertexDescriptor.Layout
@@ -94,6 +96,7 @@ public struct VertexDescriptorLayoutsArray: Sequence, Codable, Hashable {
     }
 }
 
+/// Values that specify the organization of function vertex data.
 public enum VertexFormat: UInt, Codable {
     case invalid
     
@@ -123,29 +126,55 @@ public enum VertexFormat: UInt, Codable {
     }
 }
 
+/// An object that describes how to organize and map data to a vertex function.
+///
+/// This object is used to configure how vertex data stored in memory is mapped to attributes in a vertex shader.
+/// A pipeline state is the state of the graphics rendering pipeline, including shaders, blending, multisampling, and visibility testing. For every pipeline state, there can be only one VertexDescriptor object. 
 public struct VertexDescriptor: Codable, Hashable {
     
+    /// An array of state data that describes how vertex attribute data is stored in memory and is mapped to arguments for a vertex shader.
     public var attributes: VertexDescriptorAttributesArray
+    
+    /// An array of state data that describes how data are fetched by a vertex shader when rendering primitives.
     public var layouts: VertexDescriptorLayoutsArray
     
     public static let autocalculationOffset: Int = -2018
     
+    /// An object that determines how to store attribute data in memory and map it to the arguments of a vertex shader.
     public struct Attribute: CustomStringConvertible, Codable, Hashable {
+        
+        /// The name of an attribute in vertex data.
         public var name: String
+        
+        /// The location of an attribute in vertex data, determined by the byte offset from the start of the vertex data.
         public var offset: Int
+        
+        /// The index in the argument table for the associated vertex buffer.
         public var bufferIndex: Int
+        
+        /// The format of the vertex attribute.
         public var format: VertexFormat
+        
+        /// Create an attribute.
+        /// - Parameter format: The format of the vertex attribute.
+        /// - Parameter name: The name of an attribute.
+        /// - Parameter bufferIndex: The index in the argument table for the associated vertex buffer.
+        /// - Parameter offset: Location of an attribute in vertex data. By default is auto incrementable.
+        public static func attribute(_ format: VertexFormat, name: String, bufferIndex: Int = 0, offset: Int = autocalculationOffset) -> Self {
+            Attribute(name: name, offset: offset, bufferIndex: bufferIndex, format: format)
+        }
+        
+        // MARK: - CustomStringConvertible
         
         public var description: String {
             return "Attribute: name=\(name) offset=\(offset) bufferIndex=\(bufferIndex) format=\(format)"
         }
-        
-        public static func attribute(_ format: VertexFormat, name: String, bufferIndex: Int = 0, offset: Int = autocalculationOffset) -> Self {
-            Attribute(name: name, offset: offset, bufferIndex: bufferIndex, format: format)
-        }
     }
     
+    /// An object that configures how a render pipeline fetches data to send to the vertex function.
     public struct Layout: CustomStringConvertible, Codable, Hashable {
+        
+        /// The distance, in bytes, between the attribute data of two vertices in the buffer.
         public var stride: Int
         
         public var description: String {
@@ -163,6 +192,11 @@ public struct VertexDescriptor: Codable, Hashable {
         self.layouts = layouts
     }
     
+    /// Resets the default state for the vertex descriptor.
+    public mutating func reset() {
+        self.attributes = VertexDescriptorAttributesArray()
+        self.layouts = VertexDescriptorLayoutsArray()
+    }
 }
 
 extension VertexDescriptor: CustomStringConvertible {

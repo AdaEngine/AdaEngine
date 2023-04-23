@@ -1,10 +1,11 @@
 //
 //  Color.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/4/21.
 //
 
+/// A representation of a color that adapts to a given context.
 public struct Color: Codable, Hashable {
     
     public private(set) var red: Float
@@ -22,6 +23,7 @@ public struct Color: Codable, Hashable {
     
     // MARK: - Public Methods
     
+    /// Set the opacity of the color by the given amount.
     public func opacity(_ alpha: Float) -> Color {
         var newColor = self
         newColor.alpha = alpha

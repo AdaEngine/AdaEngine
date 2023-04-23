@@ -1,16 +1,19 @@
 //
 //  UniqueHashable.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/17/23.
 //
 
+/// A type that can be hashed into a ``UniqueHasher`` to produce an unique integer hash value.
 public protocol UniqueHashable: Equatable {
     
     associatedtype HasherFunction: UniqueHasher
     
+    /// The unique hash value.
     var uniqueHashValue: Int { get }
     
+    /// Hashes the essential components of this value by feeding them into the given hasher.
     func hash(into hasher: inout HasherFunction)
 }
 
@@ -22,8 +25,10 @@ public extension UniqueHashable {
     }
 }
 
+/// The universal hash function used by Set and Dictionary.
 public protocol UniqueHasher {
     
+    /// Creates a new hasher.
     init()
 
     /// Adds the given value to this hasher, mixing its essential parts into the

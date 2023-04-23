@@ -1,11 +1,13 @@
 //
 //  Circle2DComponent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/10/22.
 //
 
+/// Create a new 2D circle on scene.
 public struct Circle2DComponent: Component {
+    
     public var color: Color
     
     @InRange public var thickness: Float

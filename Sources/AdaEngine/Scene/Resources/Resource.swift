@@ -1,6 +1,6 @@
 //
 //  Resource.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/10/21.
 //
@@ -40,15 +40,20 @@ public protocol Resource: AnyObject {
     /// - Returns: the resource data to be saved
     func encodeContents(with encoder: AssetEncoder) throws
     
+    /// Type of resource.
     static var resourceType: ResourceType { get }
     
+    /// If resource was initiated from resource, than property will return path to that file.
     var resourcePath: String { get set }
+    
+    /// If resource was initiated from resource, than property will return name of that file.
     var resourceName: String { get set }
 }
 
+/// Contains resource type supported by AdaEngine.
 public enum ResourceType: String {
-    case texture = "atres"
-    case mesh = "amsh"
+    case texture = "texres"
+    case mesh = "mesh"
     case material = "mat"
     case text = "res"
     case scene = "ascn"

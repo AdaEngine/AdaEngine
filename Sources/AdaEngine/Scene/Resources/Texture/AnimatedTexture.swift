@@ -229,6 +229,7 @@ public final class AnimatedTexture: Texture2D {
                     self.currentFrame = self.framesCount - 1
                 } else {
                     self.currentFrame = 0
+                    self.isPaused = true
                 }
             }
             

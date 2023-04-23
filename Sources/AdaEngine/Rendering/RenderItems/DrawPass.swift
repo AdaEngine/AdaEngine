@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 2/23/23.
 //
 
+/// The context with information required to run a ``DrawPass``.
 public struct RenderContext {
     public let device: RenderEngine
     public let entity: Entity
@@ -17,6 +18,9 @@ public struct DrawPassId: Equatable, Hashable {
     let id: Int
 }
 
+/// Draw pass is a render function that will render for specific item.
+///
+/// For example, you can create render pass for rendering ``Transparent2DRenderItem`` and configure rendering whatever you want. Pass additional render data as components to ``Entity`` and pass that entity to ``Transparent2DRenderItem/entity`` property.
 public protocol DrawPass<Item> {
     
     associatedtype Item: RenderItem
@@ -32,6 +36,7 @@ public extension DrawPass {
     }
 }
 
+/// Type-erased draw pass.
 public struct AnyDrawPass<T: RenderItem>: DrawPass {
     
     private var render: (Context, Any) throws -> Void

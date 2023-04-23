@@ -1,6 +1,6 @@
 //
 //  Collision2DComponent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/11/22.
 //
@@ -8,8 +8,12 @@
 public struct Collision2DComponent: Component {
     
     internal var runtimeBody: Body2D?
-    public var shapes: [Shape2DResource] = []
+    internal private(set) var shapes: [Shape2DResource] = []
+    
+    /// The physics body’s mode, indicating how or if it moves.
     public var mode: Mode
+    
+    /// The physics body's filter.
     public var filter: CollisionFilter
     
     public init(

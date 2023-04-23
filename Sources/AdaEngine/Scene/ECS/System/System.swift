@@ -1,6 +1,6 @@
 //
 //  System.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/6/22.
 //
@@ -20,9 +20,11 @@ public struct SceneUpdateContext {
 /// An object that affects multiple entities in every frame.
 ///
 /// System is a fundomental part of ECS paradigm.
-/// Use systems to implement any behavior or logic that updates entities every frame, such as different types of objects or characters. For example, a physics simulation system calculates and applies the affect of gravity, forces, and collisions for all entities.
+/// Use systems to implement any behavior or logic that updates entities every frame,
+/// such as different types of objects or characters. For example, a physics simulation system calculates and applies the affect of gravity, forces, and collisions for all entities.
 ///
-/// A complex game or experience may consist of many systems which need to be executed in a specific order. The dependencies property defines when the update method for each system is called each frame. Update order is defined between system types and not between individual system instances.
+/// A complex game or experience may consist of many systems which need to be executed in a specific order.
+/// The dependencies property defines when the update method for each system is called each frame. Update order is defined between system types and not between individual system instances.
 ///
 /// Like example, let's create a movement system:
 ///

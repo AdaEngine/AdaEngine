@@ -5,130 +5,173 @@
 //  Created by v.prusakov on 2/26/23.
 //
 
-struct DebugPhysics2DSystem: System {
-    
-    static var dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
+struct ExctractedPhysicsMesh2DDebug: Component {
+    let entityId: Entity.ID
+    let mesh: Mesh
+    let material: Material
+    let transform: Transform3D
+}
 
+/// System for exctracting physics bodies for debug rendering.
+public struct DebugPhysicsExctract2DSystem: System {
+    
+    public static var dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
+    
     static let entities = EntityQuery(
-        where: .has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self),
-        filter: .removed
+        where: (.has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self)) && .has(Visibility.self)
     )
     
     static let cameras = EntityQuery(where:
             .has(Camera.self) &&
-            .has(VisibleEntities.self) &&
-            .has(RenderItems<Transparent2DRenderItem>.self)
+        .has(VisibleEntities.self) &&
+        .has(RenderItems<Transparent2DRenderItem>.self)
     )
     
-    init(scene: Scene) { }
+    private let colorMaterial = CustomMaterial(ColorCanvasMaterial(color: .red))
+    private let circleMaterial = CustomMaterial(
+        CircleCanvasMaterial(
+            thickness: 0.03,
+            fade: 0,
+            color: .red
+        )
+    )
     
-    func update(context: UpdateContext) {
+    /// Contains base quad mesh for rendering.
+    private let quadMesh = Mesh.generate(from: Quad())
+    
+    public init(scene: Scene) { }
+    
+    public func update(context: UpdateContext) {
         guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
             return
         }
         
-        context.scene.performQuery(Self.cameras).forEach { entity in
-            var (camera, visibleEntities, renderItems) = entity.components[Camera.self, VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
+        self.colorMaterial.color = context.scene.debugPhysicsColor
+        self.circleMaterial.color = context.scene.debugPhysicsColor
+        
+        context.scene.performQuery(Self.entities).forEach { entity in
             
-            if !camera.isActive {
+            if entity.components[Visibility.self]!.isVisible == false {
                 return
             }
             
+            guard let body = self.getRuntimeBody(from: entity) else {
+                return
+            }
+            
+            let fixtureList = body.getFixtureList()
+            
+            let emptyEntity = EmptyEntity()
+            
+            let bodyPosition = Vector3(body.getPosition(), 0)
+            
+            switch fixtureList.type {
+            case .circle:
+                let radius = fixtureList.shape.getRadius()
+                emptyEntity.components += ExctractedPhysicsMesh2DDebug(
+                    entityId: entity.id,
+                    mesh: self.quadMesh,
+                    material: self.circleMaterial,
+                    transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(radius))
+                )
+            case .polygon:
+                guard let mesh = body.debugMesh else {
+                    return
+                }
+                
+                emptyEntity.components += ExctractedPhysicsMesh2DDebug(
+                    entityId: entity.id,
+                    mesh: mesh,
+                    material: self.colorMaterial,
+                    transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(1))
+                )
+            default:
+                return
+            }
+            
+            context.renderWorld.addEntity(emptyEntity)
+        }
+    }
+    
+    private func getRuntimeBody(from entity: Entity) -> Body2D? {
+        return entity.components[PhysicsBody2DComponent.self]?.runtimeBody
+        ?? entity.components[Collision2DComponent.self]?.runtimeBody
+    }
+}
+
+/// System for rendering debug physics shape on top of the scene.
+public struct Physics2DDebugDrawSystem: System {
+    
+    public static var dependencies: [SystemDependency] = [.after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)]
+    
+    static let cameras = EntityQuery(where: .has(Camera.self) && .has(RenderItems<Transparent2DRenderItem>.self))
+    static let entities = EntityQuery(where: .has(ExctractedPhysicsMesh2DDebug.self))
+    
+    static let mesh2dDrawPassIdentifier = Mesh2DDrawPass.identifier
+    
+    public init(scene: Scene) {}
+    
+    public func update(context: UpdateContext) {
+        let exctractedValues = context.scene.performQuery(Self.entities)
+            
+        context.scene.performQuery(Self.cameras).forEach { entity in
+            let visibleEntities = entity.components[VisibleEntities.self]!
+            var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
+            
             self.draw(
-                scene: context.scene,
-                visibleEntities: visibleEntities.entities,
-                renderItems: &renderItems
+                extractedItems: exctractedValues,
+                visibleEntities: visibleEntities,
+                items: &renderItems.items
             )
             
             entity.components += renderItems
         }
     }
     
-    private func draw(scene: Scene, visibleEntities: [Entity], renderItems: inout RenderItems<Transparent2DRenderItem>) {
-        
-    }
-    
-    // MARK: - Debug draw
-    
-    // FIXME: Use body transform instead
-    private func drawDebug(
-        context: Renderer2D.DrawContext?,
-        body: Body2D,
-        transform: Transform,
-        color: Color
+    private func draw(
+        extractedItems: QueryResult,
+        visibleEntities: VisibleEntities,
+        items: inout [Transparent2DRenderItem]
     ) {
-//        guard let fixtureList = body.getFixtureList(), let context = context else { return }
-//
-//        var nextFixture: b2Fixture? = fixtureList
-//
-//        while let fixture = nextFixture {
-//            switch fixture.shape.type {
-//            case .circle:
-//                self.drawCircle(
-//                    context: context,
-//                    position: body.position.asVector2,
-//                    angle: body.angle,
-//                    radius: fixture.shape.radius,
-//                    color: color
-//                )
-//            case .polygon:
-//                self.drawQuad(
-//                    context: context,
-//                    position: body.position.asVector2,
-//                    angle: body.angle,
-//                    size: transform.scale.xy,
-//                    color: color
-//                )
-//            default:
-//                continue
-//            }
-//
-//            nextFixture = fixture.getNext()
-//        }
-    }
-    
-    private func drawCircle(context: Renderer2D.DrawContext, position: Vector2, angle: Float, radius: Float, color: Color) {
-        context.drawCircle(
-            position: Vector3(position, 0),
-            rotation: [0, 0, angle], // FIXME: (Vlad) We should set rotation angle
-            radius: radius,
-            thickness: 0.1,
-            fade: 0,
-            color: color
-        )
-    }
-    
-    private func drawQuad(context: Renderer2D.DrawContext, position: Vector2, angle: Float, size: Vector2, color: Color) {
-        context.drawQuad(position: Vector3(position, 1), size: size, color: color.opacity(0.2))
         
-//        context.drawLine(
-//            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
-//            end: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
-//            color: color
-//        )
-//
-//        context.drawLine(
-//            start: [(position.x + size.x) / 2, (position.y - size.y) / 2, 0],
-//            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
-//            color: color
-//        )
-//
-//        context.drawLine(
-//            start: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
-//            end: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
-//            color: color
-//        )
-//
-//        context.drawLine(
-//            start: [(position.x - size.x) / 2, (position.y - size.y) / 2, 0],
-//            end: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
-//            color: color
-//        )
-//
-//        context.drawLine(
-//            start: [(position.x - size.x) / 2 , (position.y + size.y) / 2, 0],
-//            end: [(position.x + size.x) / 2, (position.y + size.y) / 2, 0],
-//            color: color
-//        )
+    itemIterator:
+        for entity in extractedItems {
+            
+            // Draw meshes
+            guard let item = entity.components[ExctractedPhysicsMesh2DDebug.self] else {
+                continue
+            }
+            
+            if !visibleEntities.entityIds.contains(item.entityId) {
+                continue
+            }
+            
+            let uniform = Mesh2DUniform(
+                model: item.transform,
+                modelInverseTranspose: .identity
+            )
+            
+            for model in item.mesh.models {
+                for part in model.parts {
+                    guard let pipeline = item.material.getOrCreatePipeline(for: part.vertexDescriptor, keys: []) else {
+                        assertionFailure("Failed to create pipeline")
+                        continue itemIterator
+                    }
+                    
+                    let emptyEntity = EmptyEntity()
+                    emptyEntity.components += ExctractedMeshPart2d(part: part, material: item.material, modelUniform: uniform)
+                    
+                    items.append(
+                        Transparent2DRenderItem(
+                            entity: emptyEntity,
+                            batchEntity: emptyEntity,
+                            drawPassId: Self.mesh2dDrawPassIdentifier,
+                            renderPipeline: pipeline,
+                            sortKey: .greatestFiniteMagnitude // by default we render debug entities on top of scene.
+                        )
+                    )
+                }
+            }
+        }
     }
 }

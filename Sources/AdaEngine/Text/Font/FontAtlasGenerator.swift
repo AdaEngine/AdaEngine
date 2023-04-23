@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  FontAtlasGenerator.swift
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/5/23.
 //
@@ -12,6 +12,7 @@ public struct FontDescriptor {
     public var fontSize: Float = 1.0
 }
 
+/// Generate MTSDF atlas texture from font.
 final class FontAtlasGenerator {
     
     static let shared = FontAtlasGenerator()
