@@ -1,6 +1,6 @@
 //
 //  Mesh.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/1/21.
 //
@@ -8,42 +8,55 @@
 import Math
 
 // TODO: Add Resource implementation
+
+/// A high-level representation of a collection of vertices and edges that define a shape.
 public class Mesh: Resource {
     
+    /// A part of a model consisting of a single material.
     public struct Part: Identifiable {
+        
+        /// The stable identity of the entity associated with this instance.
         public let id: Int
         
+        /// Material index for the part.
         public var materialIndex: Int
-        public var name: String = ""
         
         let primitiveTopology: Mesh.PrimitiveTopology
         
         let isUInt32: Bool
         
+        /// Descriptors for the buffers.
         let meshDescriptor: MeshDescriptor
         
         internal var vertexDescriptor: VertexDescriptor
         
-        var indexBuffer: IndexBuffer
+        /// Index buffer for triangles.
+        public var indexBuffer: IndexBuffer
         var indexCount: Int
         var vertexBuffer: VertexBuffer
     }
     
+    /// A model consists of a list of parts.
     public struct Model {
         let name: String
         
-        var parts: [Part] = []
+        /// Table of parts composing this mesh.
+        public var parts: [Part] = []
     }
     
     internal var models: [Mesh.Model] = []
     
     internal init(models: [Model]) {
         self.models = models
+        self.bounds = Self.computeAABB(models: models) ?? .empty
     }
     
     enum CodingKeys: String, CodingKey {
         case vertexDescriptor
     }
+    
+    /// A box that bounds the mesh.
+    public private(set) var bounds: AABB
     
     // MARK: - Resource
     
@@ -61,6 +74,8 @@ public class Mesh: Resource {
 }
 
 public extension Mesh {
+    
+    /// Create a mesh resource from a list of mesh descriptors.
     static func generate(from meshDescriptors: [MeshDescriptor]) -> Mesh {
         var parts = [Part]()
         
@@ -84,21 +99,22 @@ public extension Mesh {
         return Mesh(models: [model])
     }
     
+    /// Create a mesh resource from a shape.
     static func generate(from shape: Shape) -> Mesh {
         return self.generate(from: [shape.meshDescriptor()])
     }
 }
 
-public extension Mesh {
+fileprivate extension Mesh {
     /// Compute the Axis-Aligned Bounding Box of the mesh vertices in model space
-    func computeAABB() -> AABB? {
+    static func computeAABB(models: [Mesh.Model]) -> AABB? {
         
         let floatMin = -Float.greatestFiniteMagnitude
         
         var minimum: Vector3 = Vector3(.greatestFiniteMagnitude)
         var maximum: Vector3 = Vector3(floatMin)
         
-        for model in self.models {
+        for model in models {
             for part in model.parts {
                 for position in part.meshDescriptor.positions {
                     minimum = min(minimum, position)

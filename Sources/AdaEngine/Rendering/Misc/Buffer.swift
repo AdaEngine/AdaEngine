@@ -1,11 +1,9 @@
 //
 //  Buffer.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/4/21.
 //
-
-// TODO: (Vlad) Add documentation.
 
 /// This protocol describe buffer created for GPU usage.
 public protocol Buffer: AnyObject {

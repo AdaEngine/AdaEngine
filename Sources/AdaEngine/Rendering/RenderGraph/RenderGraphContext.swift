@@ -1,10 +1,12 @@
 //
 //  RenderGraphContext.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/19/23.
 //
 
+/// The context with all graph information required to run a ``RenderNode``.
+/// This context is created for each node by the ``RenderGraphExecutor``.
 public class RenderGraphContext {
     public let graph: RenderGraph
     public let device: RenderEngine

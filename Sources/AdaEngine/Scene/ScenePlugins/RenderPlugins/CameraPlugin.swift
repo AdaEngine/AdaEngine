@@ -1,6 +1,6 @@
 //
 //  CameraPlugin.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/19/23.
 //

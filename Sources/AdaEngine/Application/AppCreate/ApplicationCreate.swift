@@ -1,6 +1,6 @@
 //
 //  ApplicationCreate.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 10/9/21.
 //
@@ -12,7 +12,6 @@ import Darwin.C
 #endif
 
 /// A type that represents the structure and behavior of an app.
-/// - Tag: App
 public protocol App {
     /// Creates an instance of the app using the body that you define for its content.
     init()

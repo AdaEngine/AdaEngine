@@ -1,6 +1,6 @@
 //
 //  MeshDescriptor.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/9/21.
 //
@@ -8,10 +8,14 @@
 import OrderedCollections
 import Math
 
+/// An object that defines a mesh.
+/// This struct contains all the mesh data.
 public struct MeshDescriptor {
     
+    /// Descriptors for the buffers.
     public internal(set) var buffers: OrderedDictionary<MeshDescriptor.Identifier, AnyMeshBuffer> = [:]
     
+    /// Name of the mesh.
     public var name: String
     
     public enum Materials {
@@ -19,16 +23,21 @@ public struct MeshDescriptor {
         case perFace([UInt32])
     }
     
+    /// Material assignments.
     public var materials: Materials = .allFaces(0)
+    
+    /// The primitives that make up the mesh.
     public var primitiveTopology: Mesh.PrimitiveTopology = .triangleList
     
     public var indicies: [UInt32] = []
     
+    /// Create an empty mesh descriptor.
     init(name: String) {
         self.name = name
         self.buffers[.positions] = AnyMeshBuffer(MeshBuffer<Vector3>([]))
     }
     
+    /// The buffer for a given semantic. There can only be one buffer for any given ID.
     public subscript<S>(semantic: S) -> MeshBuffer<S.Element>? where S : MeshArraySemantic {
         get {
             return self.buffers[semantic.id]?.get(as: S.Element.self)

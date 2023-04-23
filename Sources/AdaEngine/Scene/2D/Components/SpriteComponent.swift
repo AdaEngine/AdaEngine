@@ -1,6 +1,6 @@
 //
 //  SpriteComponent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/8/22.
 //

@@ -1,22 +1,23 @@
 //
 //  Application.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 10/9/21.
 //
 
 /// The main class represents application instance.
-/// The application cannot be created manualy, instead use an [App](x-source-tag://App) protocol.
+/// The application cannot be created manualy, instead use an ``App`` protocol.
 /// To get access to the application instance, use static property `shared`
 open class Application {
     
     // MARK: - Public
     
-    /// Contains application instance if application created from [App](x-source-tag://App).
+    /// Contains application instance if application created from ``App``.
     public internal(set) static var shared: Application!
     
     private(set) var gameLoop: GameLoop = GameLoop.current
     
+    /// Current runtime platform.
     public var platform: RuntimePlatform {
         #if os(macOS)
         return .macOS
@@ -37,6 +38,7 @@ open class Application {
     
     public var windowManager: WindowManager = WindowManager()
     
+    /// Contains world which can render on screen.
     public let renderWorld = RenderWorld()
     
     // MARK: - Internal
@@ -55,10 +57,12 @@ open class Application {
     
     // MARK: - Public methods
     
+    /// Call this method to terminate app execution with 0 status code.
     open func terminate() {
         exit(EXIT_SUCCESS)
     }
     
+    /// Method to open url.
     @discardableResult
     open func openURL(_ url: URL) -> Bool {
         assertionFailure("Not implemented")
@@ -72,6 +76,8 @@ open class Application {
 }
 
 public extension Application {
+    
+    /// The collection of available Application States.
     enum State {
         case active
         case inactive

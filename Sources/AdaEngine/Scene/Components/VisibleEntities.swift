@@ -1,6 +1,6 @@
 //
 //  VisibleEntities.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/6/23.
 //
@@ -49,7 +49,7 @@ public struct VisibilitySystem: System {
     }
     
     // FIXME: Should we calculate it here?
-    // Update or create bounding boxes for SpriteComponent and Mesh2D.
+    /// Update or create bounding boxes for SpriteComponent and Mesh2D.
     private func updateBoundings(context: UpdateContext) {
         context.scene.performQuery(Self.entitiesWithTransform).concurrentIterator.forEach { entity in
             
@@ -65,8 +65,8 @@ public struct VisibilitySystem: System {
                 let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
                 
                 bounds = .aabb(AABB(min: min, max: max))
-            } else if let mesh2d = entity.components[Mesh2DComponent.self], let aabb = mesh2d.mesh.computeAABB() {
-                bounds = .aabb(aabb)
+            } else if let mesh2d = entity.components[Mesh2DComponent.self] {
+                bounds = .aabb(mesh2d.mesh.bounds)
             }
             
             if let bounds {
