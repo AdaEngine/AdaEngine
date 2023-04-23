@@ -1,11 +1,11 @@
 //
 //  Query.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/24/22.
 //
 
-/// This object describe query to ecs world.
+/// This object describe query to ECS world.
 ///
 /// ```swift
 /// struct MovementSystem: System {
@@ -102,6 +102,7 @@ extension EntityQuery {
 
 // MARK: Predicate
 
+/// An object that defines the criteria for an entity query.
 public struct QueryPredicate {
     let evaluate: (Archetype) -> Bool
 }

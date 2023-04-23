@@ -1,10 +1,11 @@
 //
 //  TextAttribute.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/6/23.
 //
 
+/// A type that defines an attribute’s name and type.
 public protocol TextAttributeKey {
     associatedtype Value: Hashable
     

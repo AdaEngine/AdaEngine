@@ -1,6 +1,6 @@
 //
 //  World.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 6/26/22.
 //
@@ -10,9 +10,11 @@ import Collections
 /// TODO: (Vlad)
 /// [] Recalculate archetype for removed and added components. Archetype should use graph
 /// [] Archetype to struct?
-/// [] Use sparse set?
 
-/// This object represent ECS world.
+/// Stores and exposes operations on ``Entity`` and ``Component``.
+///
+/// Each ``Entity`` has a set of components. Each component can have up to one instance of each
+/// component type. Entity components can be created, updated, removed, and queried using a given World.
 /// - Warning: Still work in progress.
 public final class World {
     
@@ -35,6 +37,8 @@ public final class World {
     
     // MARK: - Methods
     
+    /// Get all entities in world.
+    /// - Complexity: O(n)
     public func getEntities() -> [Entity] {
         lock.lock()
         defer { lock.unlock() }
@@ -47,6 +51,8 @@ public final class World {
             .compactMap { $0 }
     }
     
+    /// Get entity by identifier.
+    /// - Complexity: O(1)
     public func getEntityByID(_ entityID: Entity.ID) -> Entity? {
         lock.lock()
         defer { lock.unlock() }
@@ -59,6 +65,8 @@ public final class World {
         return archetype?.entities[record.row]
     }
     
+    /// Get entity by name.
+    /// - Complexity: O(n)
     func getEntityByName(_ name: String) -> Entity? {
         lock.lock()
         defer { lock.unlock() }
@@ -73,6 +81,7 @@ public final class World {
     }
     
     // FIXME: Can crash if we change components set during runtime
+    /// Append entity to world. Entity will be added when `tick()` called.
     func appendEntity(_ entity: Entity) {
         for (identifier, component) in entity.components.buffer {
             if let script = component as? ScriptComponent {
@@ -146,6 +155,8 @@ public final class World {
         self.updatedEntities.insert(entity)
     }
     
+    /// Update all data in world.
+    /// In this step we move entities to matched archetypes and remove pending in delition entities.
     func tick() {
         self.moveEntitiesToMatchedArchetypesIfNeeded()
         
@@ -158,6 +169,7 @@ public final class World {
         self.addedEntities.removeAll(keepingCapacity: true)
     }
     
+    /// Remove all data from world.
     func clear() {
         self.records.removeAll(keepingCapacity: true)
         self.removedEntities.removeAll(keepingCapacity: true)
@@ -220,6 +232,7 @@ public final class World {
         self.updatedEntities.removeAll(keepingCapacity: true)
     }
     
+    /// Add script component
     private func addScript(_ component: ScriptComponent, entity: Entity.ID, identifier: ComponentId) {
         if self.friedScriptsIndecies.isEmpty {
             self.scripts.append(component)
@@ -231,6 +244,7 @@ public final class World {
         }
     }
     
+    /// Remove script component
     private func removeScript(entity: Entity.ID, identifier: ComponentId) {
         if let row = self.scriptRecords[entity, default: [:]][identifier] {
             self.scripts[row] = nil
@@ -240,6 +254,7 @@ public final class World {
 }
 
 extension World {
+    /// Returns all entities of the world which pass the ``QueryPredicate`` of the query.
     public func performQuery(_ query: EntityQuery) -> QueryResult {
         let state = query.state
         state.updateArchetypes(in: self)

@@ -1,13 +1,13 @@
 //
 //  ScriptComponent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/24/22.
 //
 
 // TODO: Think about it. I don't like that solution.
 
-/// Base class describe some unit of game logic
+/// Base class describe some unit of game logic.
 open class ScriptComponent: Component {
     
     internal var isAwaked: Bool = false

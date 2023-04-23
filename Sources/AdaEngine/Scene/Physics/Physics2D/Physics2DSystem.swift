@@ -9,11 +9,13 @@
 import Math
 
 // - TODO: (Vlad) Runtime update shape resource
-final class Physics2DSystem: System {
+
+/// A system for simulate and update physics bodies on the scene.
+public final class Physics2DSystem: System {
     
     let fixedTimestep: FixedTimestep
     
-    init(scene: Scene) {
+    public init(scene: Scene) {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     
@@ -31,7 +33,7 @@ final class Physics2DSystem: System {
         where: .has(PhysicsJoint2DComponent.self) && .has(Transform.self)
     )
     
-    func update(context: UpdateContext) {
+    public func update(context: UpdateContext) {
         let result = self.fixedTimestep.advance(with: context.deltaTime)
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)

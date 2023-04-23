@@ -1,6 +1,6 @@
 //
 //  Entity+ComponentSet.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/6/22.
 //

@@ -1,6 +1,6 @@
 //
 //  MinValue.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/5/23.
 //
@@ -11,6 +11,7 @@
 public struct MinValue<T: Comparable & Codable>: Codable {
     
     let minValue: T
+    
     public var wrappedValue: T {
         didSet {
             self.wrappedValue = Self.applyMinIfNeeded(self.minValue, for: self.wrappedValue)

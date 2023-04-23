@@ -13,6 +13,7 @@ import Darwin.C
 
 /// A type that represents the structure and behavior of an app.
 public protocol App {
+    
     /// Creates an instance of the app using the body that you define for its content.
     init()
     

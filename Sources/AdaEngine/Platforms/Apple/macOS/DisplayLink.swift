@@ -8,6 +8,7 @@
 #if MACOS
 import AppKit
 
+/// This class linked with display and call update method each time when display is updated.
 public final class DisplayLink {
     private let timer: CVDisplayLink
     private let source: DispatchSourceUserDataAdd

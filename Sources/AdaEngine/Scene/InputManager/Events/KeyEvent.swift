@@ -1,10 +1,11 @@
 //
 //  KeyEvent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/11/22.
 //
 
+/// An object that contains information about keyboard event.
 public class KeyEvent: InputEvent {
     
     public enum Status: UInt8, Hashable {

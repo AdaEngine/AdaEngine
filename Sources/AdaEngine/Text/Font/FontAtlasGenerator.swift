@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  FontAtlasGenerator.swift
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/5/23.
 //

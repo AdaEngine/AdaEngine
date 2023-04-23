@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  ResourceManager.swift
+//  AdaEngine
 //
 //  Created by v.prusakov on 6/19/22.
 //

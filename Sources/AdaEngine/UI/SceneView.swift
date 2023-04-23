@@ -1,14 +1,17 @@
 //
 //  SceneView.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 1/9/23.
 //
 
+/// This view contains game scene and viewport for rendering.
 public class SceneView: View {
     
+    /// The scene manager that manage a scenes for this view.
     public let sceneManager: SceneManager
     
+    /// A viewport that describe size and depth for rendering.
     public internal(set) var viewport: Viewport = Viewport()
     
     public override var window: Window? {
