@@ -1,6 +1,6 @@
 //
 //  PhysicsWorld2D.swift
-//
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/6/22.
 //
@@ -8,6 +8,7 @@
 @_implementationOnly import AdaBox2d
 import Math
 
+/// An object that holds and simulate all 2D physics bodies.
 public final class PhysicsWorld2D: Codable {
     
     enum CodingKeys: CodingKey {
@@ -19,6 +20,7 @@ public final class PhysicsWorld2D: Codable {
     public var velocityIterations: Int = 6
     public var positionIterations: Int = 2
     
+    /// Contains world gravity.
     public var gravity: Vector2 {
         get {
             return b2_world_get_gravity(self.world).asVector2
@@ -63,7 +65,59 @@ public final class PhysicsWorld2D: Codable {
     
     // MARK: - Public
     
-    public func createBody(definition: Body2DDefinition, for entity: Entity) -> Body2D {
+    /// Clear all forces in physics world.
+    public func clearForces() {
+        b2_world_clear_forces(self.world)
+    }
+    
+    // MARK: - Raycasting
+    
+    /// An array of collision cast hit results.
+    /// Each hit indicates where the ray, starting at a given point and traveling in a given direction, hit a particular entity in the scene.
+    public func raycast(
+        from startPoint: Vector2,
+        to endPoint: Vector2,
+        query: CollisionCastQueryType = .all,
+        mask: CollisionGroup = .all
+    ) -> [Raycast2DHit] {
+        var raycastCallback = _Raycast2DCallback(startPoint: startPoint, endPoint: endPoint, query: query, mask: mask)
+        
+        let callbacks = raycast_listener_callback { userData, fixture, point, normal, fraction in
+            let raycast = Unmanaged<_Raycast2DCallback>.fromOpaque(userData!).takeUnretainedValue()
+            return raycast.reportFixture(fixture!, point: point, normal: normal, fraction: fraction)
+        }
+        
+        b2_world_raycast(self.world, startPoint.b2Vec, endPoint.b2Vec, &raycastCallback, callbacks)
+        
+        return raycastCallback.results
+    }
+    
+    /// An array of collision cast hit results.
+    /// Each hit indicates where the ray, starting at a given point and traveling in a given direction, hit a particular entity in the scene.
+    public func raycast(
+        from ray: Ray,
+        query: CollisionCastQueryType = .all,
+        mask: CollisionGroup = .all
+    ) -> [Raycast2DHit] {
+        return self.raycast(from: ray.origin.xy, to: ray.direction.xy, query: query, mask: mask)
+    }
+    
+    // MARK: - Internal
+    
+    internal func updateSimulation(_ delta: Float) {
+        b2_world_step(
+            self.world,
+            delta, /* timeStep */
+            Int32(self.velocityIterations), /* velocityIterations */
+            Int32(self.positionIterations) /* positionIterations */
+        )
+    }
+    
+    internal func destroyBody(_ body: Body2D) {
+        b2_world_destroy_body(self.world, body.ref)
+    }
+    
+    internal func createBody(definition: Body2DDefinition, for entity: Entity) -> Body2D {
         var bodyDef = b2_body_def()
         bodyDef.angle = definition.angle
         bodyDef.position = definition.position.b2Vec
@@ -86,57 +140,6 @@ public final class PhysicsWorld2D: Codable {
         b2_body_set_user_data(ref, pointer)
         
         return body2d
-    }
-    
-    public func clearForces() {
-        b2_world_clear_forces(self.world)
-    }
-    
-    // MARK: - Raycasting
-    
-    // An array of collision cast hit results.
-    // Each hit indicates where the ray, starting at a given point and traveling in a given direction, hit a particular entity in the scene.
-    public func raycast(
-        from startPoint: Vector2,
-        to endPoint: Vector2,
-        query: CollisionCastQueryType = .all,
-        mask: CollisionGroup = .all
-    ) -> [Raycast2DHit] {
-        var raycastCallback = _Raycast2DCallback(startPoint: startPoint, endPoint: endPoint, query: query, mask: mask)
-        
-        let callbacks = raycast_listener_callback { userData, fixture, point, normal, fraction in
-            let raycast = Unmanaged<_Raycast2DCallback>.fromOpaque(userData!).takeUnretainedValue()
-            return raycast.reportFixture(fixture!, point: point, normal: normal, fraction: fraction)
-        }
-        
-        b2_world_raycast(self.world, startPoint.b2Vec, endPoint.b2Vec, &raycastCallback, callbacks)
-        
-        return raycastCallback.results
-    }
-    
-    // An array of collision cast hit results.
-    // Each hit indicates where the ray, starting at a given point and traveling in a given direction, hit a particular entity in the scene.
-    public func raycast(
-        from ray: Ray,
-        query: CollisionCastQueryType = .all,
-        mask: CollisionGroup = .all
-    ) -> [Raycast2DHit] {
-        return self.raycast(from: ray.origin.xy, to: ray.direction.xy, query: query, mask: mask)
-    }
-    
-    // MARK: - Internal
-    
-    internal func updateSimulation(_ delta: Float) {
-        b2_world_step(
-            self.world,
-            delta, /* timeStep */
-            Int32(self.velocityIterations), /* velocityIterations */
-            Int32(self.positionIterations) /* positionIterations */
-        )
-    }
-    
-    internal func destroyBody(_ body: Body2D) {
-        b2_world_destroy_body(self.world, body.ref)
     }
 }
 

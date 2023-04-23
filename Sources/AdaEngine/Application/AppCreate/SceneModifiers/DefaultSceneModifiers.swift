@@ -43,6 +43,7 @@ struct WindowTitleSceneModifier: SceneModifier {
     }
 }
 
+/// Add render world plugin.
 struct RenderWorldPlugin<T: ScenePlugin>: SceneModifier {
     let plugin: T
     
@@ -51,6 +52,7 @@ struct RenderWorldPlugin<T: ScenePlugin>: SceneModifier {
     }
 }
 
+/// Set flag for using defaults render plugins. Users can disable default plugins and set up their own plugins.
 struct UseDefaultRenderPlugins: SceneModifier {
     let isEnabled: Bool
     

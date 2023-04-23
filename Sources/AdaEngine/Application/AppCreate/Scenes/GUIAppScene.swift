@@ -6,14 +6,16 @@
 //
 
 /// GUI App Scene relative to work with GUI Applications.
-/// That match for application without needed to implement game logic.
+/// You must use this scene for applications with custom view hieararchy and if you don't need a game scenes.
+/// - Warning: Under development!
 public struct GUIAppScene: AppScene {
     
     public var scene: Never { fatalError() }
     
     let window: () -> Window
     
-    /// - Parameters window: Window for presenting on screen
+    /// Create a new app scene for GUI application.
+    /// - Parameters window: ``Window`` which will be presented on screen
     public init(window: @escaping () -> Window) {
         self.window = window
     }

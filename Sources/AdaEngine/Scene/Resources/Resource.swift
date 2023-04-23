@@ -1,6 +1,6 @@
 //
 //  Resource.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/10/21.
 //

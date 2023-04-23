@@ -1,10 +1,11 @@
 //
 //  MouseEvent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/11/22.
 //
 
+/// An object that contains information about mouse event.
 public final class MouseEvent: InputEvent {
     
     public enum Phase: UInt8, Hashable {

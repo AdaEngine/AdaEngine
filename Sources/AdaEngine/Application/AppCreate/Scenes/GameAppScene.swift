@@ -6,6 +6,7 @@
 //
 
 /// GameAppScene will present game scene in the pre-configured window.
+/// You must use this type of scene if your application should launch a game scene.
 public struct GameAppScene: AppScene {
     
     public typealias SceneBlock = () throws -> Scene
@@ -14,6 +15,7 @@ public struct GameAppScene: AppScene {
     
     private let gameScene: SceneBlock
     
+    /// Create a new app scene from a game scene.
     public init(scene: @escaping SceneBlock) {
         self.gameScene = scene
     }

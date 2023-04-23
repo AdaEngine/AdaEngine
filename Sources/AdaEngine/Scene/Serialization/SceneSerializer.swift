@@ -1,11 +1,13 @@
 //
 //  SceneSerializer.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/6/22.
 //
 
 import Yams
+
+/// Objects thats represents a scene as a file.
 
 struct SystemRepresentation: Codable {
     let name: String

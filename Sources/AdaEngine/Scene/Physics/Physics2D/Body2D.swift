@@ -1,6 +1,6 @@
 //
 //  Body2D.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/19/23.
 //
@@ -8,6 +8,7 @@
 @_implementationOnly import AdaBox2d
 import Math
 
+// An object that represents physics 2D body.
 public final class Body2D {
     
     unowned let world: PhysicsWorld2D

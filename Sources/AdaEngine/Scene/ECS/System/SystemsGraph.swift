@@ -7,7 +7,7 @@
 
 import OrderedCollections
 
-/// Contains information about execution order of system.
+/// Contains information about execution order of systems.
 public final class SystemsGraph {
     
     struct Edge: Equatable {

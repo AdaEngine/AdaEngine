@@ -1,6 +1,6 @@
 //
 //  TextLayoutManager.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 3/6/23.
 //

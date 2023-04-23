@@ -1,6 +1,6 @@
 //
 //  RenderResource.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 2/18/23.
 //

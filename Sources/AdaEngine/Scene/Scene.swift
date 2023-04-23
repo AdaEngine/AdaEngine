@@ -1,6 +1,6 @@
 //
 //  Scene.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/1/21.
 //
@@ -39,6 +39,8 @@ public final class Scene: Resource {
     
     /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
+    
+    /// Default color for debug physics color.
     public var debugPhysicsColor: Color = .green
     
     /// Instance of scene manager which holds this scene.
@@ -161,7 +163,7 @@ public final class Scene: Resource {
 // MARK: - ECS
 
 public extension Scene {
-    /// Perform query to the ECS World.
+    /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
     func performQuery(_ query: EntityQuery) -> QueryResult {
         return self.world.performQuery(query)
     }
@@ -196,6 +198,8 @@ public extension Scene {
         self.world.getEntityByName(name)
     }
     
+    /// Remove entity from world.
+    /// - Note: Entity will removed on next `update` call.
     func removeEntity(_ entity: Entity) {
         self.eventManager.send(SceneEvents.WillRemoveEntity(entity: entity), source: self)
         
@@ -208,11 +212,14 @@ public extension Scene {
 // TODO: Replace it to GlobalTransform
 
 public extension Scene {
+    
+    /// Returns world transform component of entity.
     func worldTransform(for entity: Entity) -> Transform {
         let worldMatrix = self.worldTransformMatrix(for: entity)
         return Transform(matrix: worldMatrix)
     }
     
+    /// Returns world transform matrix of entity.
     func worldTransformMatrix(for entity: Entity) -> Transform3D {
         var transform = Transform3D.identity
         

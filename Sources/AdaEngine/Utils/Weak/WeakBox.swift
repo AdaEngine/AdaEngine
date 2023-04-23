@@ -1,11 +1,12 @@
 //
 //  WeakBox.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/3/22.
 //
 
-public class WeakBox<T: AnyObject>: Identifiable, Hashable {
+/// An object that hold reference as weak.
+public final class WeakBox<T: AnyObject>: Identifiable, Hashable {
     
     public private(set) weak var value: T?
     

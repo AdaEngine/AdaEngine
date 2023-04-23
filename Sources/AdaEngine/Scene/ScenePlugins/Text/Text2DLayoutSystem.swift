@@ -5,10 +5,12 @@
 //  Created by v.prusakov on 3/7/23.
 //
 
+/// An object that store text layout manager
 struct TextLayoutComponent: Component {
     let textLayout: TextLayoutManager
 }
 
+/// System for layout text from ``Text2DComponent``.
 public struct Text2DLayoutSystem: System {
     
     public static var dependencies: [SystemDependency] = [.before(VisibilitySystem.self)]

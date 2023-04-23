@@ -1,6 +1,6 @@
 //
 //  Time.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 10/9/21.
 //
@@ -21,7 +21,9 @@ import Glibc
 public typealias TimeInterval = Float
 public typealias LongTimeInterval = Double
 
+/// A helper for works with time.
 public struct Time {
+    
     /// Return current time in system.
     public static var absolute: LongTimeInterval {
         #if os(iOS) || os(tvOS) || os(OSX) || os(watchOS)

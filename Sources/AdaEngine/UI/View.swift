@@ -1,6 +1,6 @@
 //
 //  View.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/11/22.
 //
@@ -19,7 +19,11 @@ import Math
 // - TODO: (Vlad) Scaling problem (hit testing)
 // - TODO: (Vlad) Cropping
 
-/// - Tag: AdaEngine.View
+/// An object that manages the content for a rectangular area on the screen.
+///
+/// Views are the fundamental building blocks of your app’s user interface, and the ``View`` class defines the behaviors that are common to all views.
+///
+/// - Warning: Under development and currently doesn't work as expected.
 open class View {
     
     // MARK: - Public Fields -

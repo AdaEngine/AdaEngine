@@ -5,10 +5,12 @@
 //  Created by v.prusakov on 1/9/23.
 //
 
+/// Base interface that can decorate launch configurations.
 protocol SceneModifier {
     func modify(_ configuration: inout _AppSceneConfiguration)
 }
 
+/// Modifier for app scene.
 struct ModifiedScene<S: AppScene, V: SceneModifier>: AppScene {
     
     private let storedScene: S
@@ -22,7 +24,6 @@ struct ModifiedScene<S: AppScene, V: SceneModifier>: AppScene {
     var scene: some AppScene {
         self.storedScene
     }
-
 }
 
 // MARK: - InternalAppScene

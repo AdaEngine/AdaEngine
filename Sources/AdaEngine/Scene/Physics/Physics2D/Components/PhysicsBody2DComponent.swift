@@ -1,21 +1,28 @@
 //
 //  PhysicsBody2DComponent.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/11/22.
 //
 
 import Math
 
+/// A component that defines an entity’s behavior in physics body simulations.
 public struct PhysicsBody2DComponent: Component {
     
+    /// The physics body’s mode, indicating how or if it moves.
     public var mode: PhysicsBodyMode
+    
+    /// The physics body's filter.
     public var filter: CollisionFilter = CollisionFilter()
     
     internal var runtimeBody: Body2D?
+    internal private(set) var shapes: [Shape2DResource]
     
-    public var shapes: [Shape2DResource]
+    /// The physics body’s material properties, like friction.
     public var material: PhysicsMaterial
+    
+    /// The physics body’s mass properties, like inertia and center of mass.
     public var massProperties: PhysicsMassProperties
     
     /// Get the world position of the center of mass.

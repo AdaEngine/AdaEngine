@@ -1,13 +1,13 @@
 //
 //  Image.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 6/28/22.
 //
 
 import Foundation
 
-/// Represent Image object.
+/// An object that manages image data in your app.
 public final class Image {
     
     public private(set) var data: Data
@@ -55,12 +55,14 @@ public final class Image {
         self.format = format
     }
     
+    /// Set pixel color for specific X and Y position.
     public func setPixel(in position: Point, color: Color) {
         let offset = Int(position.y) * self.width + Int(position.x)
         
         Self.setPixel(with: offset, color: color, in: &self.data, format: self.format)
     }
     
+    /// Get pixel color for specific X and Y position.
     public func getPixel(in position: Point) -> Color {
         let offset = Int(position.y) * self.width + Int(position.x)
         

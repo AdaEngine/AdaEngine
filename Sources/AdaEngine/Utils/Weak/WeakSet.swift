@@ -1,18 +1,19 @@
 //
 //  WeakSet.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/3/22.
 //
 
-struct WeakSet<T: AnyObject>: Sequence {
+/// A set of weak references.
+public struct WeakSet<T: AnyObject>: Sequence {
     
-    typealias Element = T
-    typealias Iterator = WeakIterator
+    public typealias Element = T
+    public typealias Iterator = WeakIterator
     
     var buffer: Set<WeakBox<T>>
     
-    class WeakIterator: IteratorProtocol {
+    public final class WeakIterator: IteratorProtocol {
         
         let buffer: [WeakBox<T>]
         let currentIndex: UnsafeMutablePointer<Int>
@@ -27,7 +28,7 @@ struct WeakSet<T: AnyObject>: Sequence {
             self.currentIndex.deallocate()
         }
         
-        func next() -> Element? {
+        public func next() -> Element? {
             
             self.currentIndex.pointee += 1
             
@@ -40,11 +41,11 @@ struct WeakSet<T: AnyObject>: Sequence {
         
     }
     
-    @inlinable func makeIterator() -> Iterator {
+    public func makeIterator() -> Iterator {
         return WeakIterator(buffer: self.buffer)
     }
     
-    mutating func insert(_ member: T) {
+    public mutating func insert(_ member: T) {
         var buffer = self.buffer.filter { !$0.isEmpty }
         buffer.insert(WeakBox(value: member))
         self.buffer = buffer
@@ -56,9 +57,9 @@ struct WeakSet<T: AnyObject>: Sequence {
 }
 
 extension WeakSet: ExpressibleByArrayLiteral {
-    typealias ArrayLiteralElement = T
+    public typealias ArrayLiteralElement = T
     
-    init(arrayLiteral elements: ArrayLiteralElement...) {
+    public init(arrayLiteral elements: ArrayLiteralElement...) {
         self.buffer = Set(elements.map { WeakBox(value: $0) })
     }
 }
