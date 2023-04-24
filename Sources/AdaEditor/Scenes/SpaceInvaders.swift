@@ -210,7 +210,7 @@ struct EnemyComponent: Component {
 
 struct EnemySpawnerSystem: System {
     
-    let fixedTime = FixedTimestep(stepsPerSecond: 2)
+    let fixedTime = FixedTimestep(stepsPerSecond: 24)
     
     let textureAtlas: TextureAtlas
     
@@ -230,7 +230,6 @@ struct EnemySpawnerSystem: System {
         if result.isFixedTick {
             self.spawnEnemy(context: context)
         }
-        
     }
     
     func spawnEnemy(context: UpdateContext) {

@@ -19,7 +19,7 @@ let targets: [Target] = [
             .glob("**/*.swift", excluding: ["Project.swift"])
         ],
         resources: [
-            "Assets/**/*.metal"
+            "Assets/**/*",
         ],
         scripts: [],
         dependencies: [
@@ -35,21 +35,36 @@ let targets: [Target] = [
                 target: "AtlasFontGenerator",
                 path: .relativeToRoot("Sources/AtlasFontGenerator")
             ),
+            .project(
+                target: "SPIRVCompiler",
+                path: .relativeToRoot("Sources/SPIRVCompiler")
+            ),
+            .project(
+                target: "AdaBox2d",
+                path: .relativeToRoot("Sources/AdaBox2d")
+            ),
             .external(name: "Collections"),
             .external(name: "Yams"),
-            .external(name: "box2d"),
+            .package(product: "SPIRV-Cross"),
             .sdk(name: "c++", type: .library)
         ],
         settings: .targetSettings(swiftFlags: [
             .define("MACOS"),
             .define("METAL"),
-            .define("TUIST")
+            .define("TUIST"),
+            .experementalCXXInterop
         ])
     ),
 ]
 
 let project = Project(
     name: "AdaEngine",
+    packages: [
+        .remote(
+            url: "https://github.com/AdaEngine/SPIRV-Cross",
+            requirement: .branch("main")
+        )
+    ],
     settings: .common,
     targets: targets
 )

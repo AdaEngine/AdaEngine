@@ -9,29 +9,29 @@ import ProjectDescription
 import ProjectDescriptionHelpers
 
 let project = Project(
-    name: "AtlasFontGenerator",
+    name: "SPIRVCompiler",
     packages: [
         .remote(
-            url: "https://github.com/AdaEngine/msdf-atlas-gen",
-            requirement: .branch("master")
+            url: "https://github.com/AdaEngine/glslang",
+            requirement: .branch("main")
         )
     ],
     settings: .common,
     targets: [
         Target(
-            name: "AtlasFontGenerator",
+            name: "SPIRVCompiler",
             platform: .macOS,
             product: .framework,
-            productName: "AtlasFontGenerator",
-            bundleId: .bundleIdentifier(name: "atlasfontgenerator"),
+            productName: "SPIRVCompiler",
+            bundleId: .bundleIdentifier(name: "spirv-compiler"),
             deploymentTarget: .macOS(targetVersion: "11.0"),
             sources: [
                 .glob("*.cpp", excluding: ["Project.swift"])
             ],
-            headers: .headers(public: ["*.h"]),
+            headers: .headers(public: ["*.hpp"]),
             dependencies: [
                 .sdk(name: "c++", type: .library),
-                .package(product: "MSDFAtlasGen")
+                .package(product: "glslang")
             ],
             settings: .targetSettings(swiftFlags: [
                 .experementalCXXInterop
