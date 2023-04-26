@@ -12,11 +12,9 @@ import Metal
 class MetalIndexBuffer: MetalBuffer, IndexBuffer {
     
     let indexFormat: IndexBufferFormat
-    let offset: Int
     
-    init(buffer: MTLBuffer, offset: Int, indexFormat: IndexBufferFormat) {
+    init(buffer: MTLBuffer, indexFormat: IndexBufferFormat) {
         self.indexFormat = indexFormat
-        self.offset = offset
         
         super.init(buffer: buffer)
     }

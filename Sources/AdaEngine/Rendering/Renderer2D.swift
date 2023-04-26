@@ -11,8 +11,8 @@ import Math
 // TODO: Needs optimizations
 
 /// A first implementation for 2D rendering.
-@available(*, deprecated, message: "Currently we don't use it in code base")
-public class Renderer2D {
+// Currently we don't use it in code base
+class Renderer2D {
     
     enum Bindings {
         static let cameraUniform: Int = 1
@@ -87,7 +87,6 @@ public class Renderer2D {
         }
         
         let quadIndexBuffer = device.makeIndexBuffer(
-            index: 0,
             format: .uInt32,
             bytes: &quadIndices,
             length: Self.maxIndecies
@@ -204,7 +203,6 @@ public class Renderer2D {
         }
         
         let indexBuffer = device.makeIndexBuffer(
-            index: 0,
             format: .uInt32,
             bytes: &buffer,
             length: Self.maxLineIndices
@@ -532,7 +530,7 @@ extension Renderer2D {
             currentDraw.bindIndexBuffer(data.indexBuffer)
             currentDraw.bindIndexPrimitive(indexPrimitive)
             
-            RenderEngine.shared.draw(currentDraw, indexCount: data.indeciesCount, instancesCount: 1)
+            RenderEngine.shared.draw(currentDraw, indexCount: data.indeciesCount, indexBufferOffset: 0, instanceCount: 1)
         }
         
     }

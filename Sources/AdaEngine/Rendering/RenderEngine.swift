@@ -80,8 +80,8 @@ public final class RenderEngine: RenderBackend {
         return self.renderBackend.makeBuffer(bytes: bytes, length: length, options: options)
     }
     
-    func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
-        return self.renderBackend.makeIndexBuffer(index: index, format: format, bytes: bytes, length: length)
+    func makeIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+        return self.renderBackend.makeIndexBuffer(format: format, bytes: bytes, length: length)
     }
     
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
@@ -136,8 +136,13 @@ public final class RenderEngine: RenderBackend {
         self.renderBackend.beginDraw(to: framebuffer, clearColors: clearColors)
     }
     
-    func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {
-        self.renderBackend.draw(list, indexCount: indexCount, instancesCount: instancesCount)
+    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
+        self.renderBackend.draw(
+            list,
+            indexCount: indexCount,
+            indexBufferOffset: indexBufferOffset,
+            instanceCount: instanceCount
+        )
     }
     
     func endDrawList(_ drawList: DrawList) {
