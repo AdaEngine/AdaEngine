@@ -35,7 +35,8 @@ let project = Project(
             settings: .targetSettings(swiftFlags: [
                 .define("MACOS"),
                 .define("METAL"),
-                .define("TUIST")
+                .define("TUIST"),
+                .experementalCXXInterop
             ])
         )
         // TODO: Add multiplatform target

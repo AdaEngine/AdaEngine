@@ -78,7 +78,7 @@ public struct Mesh2DDrawPass: DrawPass {
         drawList.bindIndexPrimitive(part.primitiveTopology.indexPrimitive)
         drawList.bindRenderPipeline(item.renderPipeline)
         
-        drawList.drawIndexed(indexCount: part.indexCount, instancesCount: 1)
+        drawList.drawIndexed(indexCount: part.indexCount, instanceCount: 1)
     }
 }
 

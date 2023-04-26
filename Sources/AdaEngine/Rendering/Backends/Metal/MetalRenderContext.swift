@@ -20,9 +20,8 @@ extension MetalRenderBackend {
         init() {
             self.physicalDevice = Self.prefferedDevice()
             
-            #if SWIFT_PACKAGE
-            UserDefaults.standard.set(NSNumber(booleanLiteral: false), forKey: "MetalForceHudEnabled")
-            #endif
+            let needsShowDebugHUD = ProcessInfo.processInfo.environment["METAL_HUD_DEBUG"] != nil
+            UserDefaults.standard.set(NSNumber(booleanLiteral: needsShowDebugHUD), forKey: "MetalForceHudEnabled")
         }
         
         // MARK: - Methods

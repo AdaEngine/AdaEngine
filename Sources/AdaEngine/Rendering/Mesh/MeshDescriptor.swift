@@ -237,7 +237,6 @@ public extension MeshDescriptor {
     func getIndexBuffer() -> IndexBuffer {
         var indicies = self.indicies
         let indexBuffer = RenderEngine.shared.makeIndexBuffer(
-            index: 0,
             format: .uInt32,
             bytes: &indicies,
             length: indicies.count * MemoryLayout<UInt32>.size

@@ -9,21 +9,21 @@ import ProjectDescription
 import ProjectDescriptionHelpers
 
 let project = Project(
-    name: "AtlasFontGenerator",
+    name: "AdaBox2d",
     packages: [
         .remote(
-            url: "https://github.com/AdaEngine/msdf-atlas-gen",
-            requirement: .branch("master")
+            url: "https://github.com/AdaEngine/box2d-swift",
+            requirement: .branch("main")
         )
     ],
     settings: .common,
     targets: [
         Target(
-            name: "AtlasFontGenerator",
+            name: "AdaBox2d",
             platform: .macOS,
             product: .framework,
-            productName: "AtlasFontGenerator",
-            bundleId: .bundleIdentifier(name: "atlasfontgenerator"),
+            productName: "AdaBox2d",
+            bundleId: .bundleIdentifier(name: "adabox2d"),
             deploymentTarget: .macOS(targetVersion: "11.0"),
             sources: [
                 .glob("*.cpp", excluding: ["Project.swift"])
@@ -31,7 +31,7 @@ let project = Project(
             headers: .headers(public: ["*.h"]),
             dependencies: [
                 .sdk(name: "c++", type: .library),
-                .package(product: "MSDFAtlasGen")
+                .package(product: "box2d")
             ],
             settings: .targetSettings(swiftFlags: [
                 .experementalCXXInterop

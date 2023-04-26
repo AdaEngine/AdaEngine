@@ -230,7 +230,6 @@ struct EnemySpawnerSystem: System {
         if result.isFixedTick {
             self.spawnEnemy(context: context)
         }
-        
     }
     
     func spawnEnemy(context: UpdateContext) {
