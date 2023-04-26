@@ -39,7 +39,11 @@ public struct SpriteDrawPass: DrawPass {
         context.drawList.bindIndexBuffer(spriteData.indexBuffer)
         context.drawList.bindRenderPipeline(item.renderPipeline)
         
-        context.drawList.drawIndexed(indexCount: item.batchRange?.count ?? 6, instancesCount: 1)
+        context.drawList.drawIndexed(
+            indexCount: item.batchRange?.count ?? 6, // indicies count per quad
+            indexBufferOffset: Int(item.batchRange?.lowerBound ?? 0) * 4, // start position must be multiple by 4
+            instanceCount: 1
+        )
         
         context.drawList.popDebugName()
     }

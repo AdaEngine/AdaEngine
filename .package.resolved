@@ -1,0 +1,41 @@
+{
+  "pins" : [
+    {
+      "identity" : "box2d-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/box2d-swift",
+      "state" : {
+        "branch" : "main",
+        "revision" : "bb0f705f88737248f34835f707c8f8027efed7d4"
+      }
+    },
+    {
+      "identity" : "glslang",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/glslang",
+      "state" : {
+        "branch" : "main",
+        "revision" : "40069c0b63762e408051851ffe7aa92765c23284"
+      }
+    },
+    {
+      "identity" : "msdf-atlas-gen",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/msdf-atlas-gen",
+      "state" : {
+        "branch" : "master",
+        "revision" : "be243203aeb31a1799866c73de79ed6400a0bd51"
+      }
+    },
+    {
+      "identity" : "spirv-cross",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/SPIRV-Cross",
+      "state" : {
+        "branch" : "main",
+        "revision" : "9011c07c49b75b97500fb61bbbf33284f38c4ee8"
+      }
+    }
+  ],
+  "version" : 2
+}

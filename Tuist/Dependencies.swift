@@ -10,10 +10,6 @@ import ProjectDescriptionHelpers
 
 let spm = SwiftPackageManagerDependencies([
     .remote(
-        url: "https://github.com/troughton/Cstb",
-        requirement: .upToNextMajor(from: "1.0.5")
-    ),
-    .remote(
         url: "https://github.com/apple/swift-collections",
         requirement: .upToNextMajor(from: "1.0.1")
     ),
@@ -21,14 +17,6 @@ let spm = SwiftPackageManagerDependencies([
         url: "https://github.com/jpsim/Yams.git",
         requirement: .upToNextMajor(from: "5.0.1")
     ),
-    .remote(
-        url: "https://github.com/AdaEngine/msdf-atlas-gen",
-        requirement: .branch("master")
-    ),
-    .remote(
-        url: "https://github.com/AdaEngine/box2d-swift",
-        requirement: .branch("main")
-    )
 ], baseSettings: .common)
 
 let dependencies = Dependencies(

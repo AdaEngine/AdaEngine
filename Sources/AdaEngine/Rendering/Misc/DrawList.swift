@@ -126,7 +126,16 @@ public final class DrawList {
         self.isViewportEnabled = false
     }
     
-    public func drawIndexed(indexCount: Int, instancesCount: Int) {
-        RenderEngine.shared.draw(self, indexCount: indexCount, instancesCount: instancesCount)
+    public func drawIndexed(
+        indexCount: Int,
+        indexBufferOffset: Int = 0,
+        instanceCount: Int
+    ) {
+        RenderEngine.shared.draw(
+            self,
+            indexCount: indexCount,
+            indexBufferOffset: indexBufferOffset,
+            instanceCount: instanceCount
+        )
     }
 }

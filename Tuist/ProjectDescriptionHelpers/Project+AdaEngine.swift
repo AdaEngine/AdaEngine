@@ -22,6 +22,13 @@ public struct CompilerFlags {
     }
 }
 
+public extension CompilerFlags {
+    static var experementalCXXInterop: CompilerFlags {
+        .define("-cxx-interoperability-mode", to: "default")
+//        .define("-enable-experimental-cxx-interop")
+    }
+}
+
 public extension Settings {
     
     static func targetSettings(
