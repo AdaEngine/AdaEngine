@@ -44,7 +44,7 @@ protocol RenderBackend: AnyObject {
     func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer
     
     /// Create a new index buffer with specific index, format, data and length.
-    func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer
+    func makeIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer
     
     /// Create a new vertex buffer for specific length and binding.
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer
@@ -91,7 +91,10 @@ protocol RenderBackend: AnyObject {
     func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList
     
     /// Draw all items from ``DrawList``.
-    func draw(_ list: DrawList, indexCount: Int, instancesCount: Int)
+    /// - Parameter indexCount: For each instance, the number of indices to read from the index buffer.
+    /// - Parameter indexBufferOffset: Byte offset within indexBuffer to start reading indices from.
+    /// - Parameter instanceCount: The number of instances to draw.
+    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int)
     
     /// Commit all draws from ``DrawList``.
     func endDrawList(_ drawList: DrawList)

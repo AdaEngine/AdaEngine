@@ -194,11 +194,11 @@ class MetalRenderBackend: RenderBackend {
     
     // MARK: - Buffers
     
-    func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+    func makeIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(length: length, options: MTLResourceStorageModeShared)!
         buffer.contents().copyMemory(from: bytes, byteCount: length)
         
-        return MetalIndexBuffer(buffer: buffer, offset: index, indexFormat: format)
+        return MetalIndexBuffer(buffer: buffer, indexFormat: format)
     }
     
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
@@ -397,7 +397,7 @@ extension MetalRenderBackend {
     }
     
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {
+    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
         guard let renderPipeline = (list.renderPipeline as? MetalRenderPipeline) else {
             fatalError("Draw doesn't have a pipeline state")
         }
@@ -489,8 +489,8 @@ extension MetalRenderBackend {
             indexCount: indexCount,
             indexType: indexBuffer.indexFormat == .uInt32 ? .uint32 : .uint16,
             indexBuffer: (indexBuffer as! MetalIndexBuffer).buffer,
-            indexBufferOffset: indexBuffer.offset,
-            instanceCount: instancesCount
+            indexBufferOffset: indexBufferOffset,
+            instanceCount: instanceCount
         )
     }
     

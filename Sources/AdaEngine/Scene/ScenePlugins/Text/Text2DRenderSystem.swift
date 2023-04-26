@@ -154,7 +154,6 @@ public struct Text2DRenderSystem: System {
             vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<GlyphVertexData>.stride)
             
             let quadIndexBuffer = device.makeIndexBuffer(
-                index: 0,
                 format: .uInt32,
                 bytes: &quadIndices,
                 length: indicies
