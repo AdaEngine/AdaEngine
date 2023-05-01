@@ -78,7 +78,7 @@ protocol RenderBackend: AnyObject {
     func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture
     
     /// Get image from texture rid.
-    func getImage(for texture2D: RID) -> Image?
+    func getImage(from texture: Texture) -> Image?
     
     // MARK: - Draw
     

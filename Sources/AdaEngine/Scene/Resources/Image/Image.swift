@@ -63,8 +63,8 @@ public final class Image {
     }
     
     /// Get pixel color for specific X and Y position.
-    public func getPixel(in position: Point) -> Color {
-        let offset = Int(position.y) * self.width + Int(position.x)
+    public func getPixel(x: Int, y: Int) -> Color {
+        let offset = y * self.width + x
         
         switch self.format {
         case .rgb8:

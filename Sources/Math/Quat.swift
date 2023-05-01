@@ -1,6 +1,6 @@
 //
 //  Quat.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 11/12/21.
 //
