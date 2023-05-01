@@ -279,7 +279,7 @@ let package = Package(
     name: "AdaEngine",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v13),
+        .iOS(.v14),
         .macOS(.v11),
     ],
     products: products,

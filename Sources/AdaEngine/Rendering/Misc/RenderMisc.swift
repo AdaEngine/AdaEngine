@@ -139,6 +139,8 @@ public enum PixelFormat {
     
     case depth_32f_stencil8
     case depth_32f
+    
+    @available(macOS 11, *)
     case depth24_stencil8
     
     var bytesPerComponent: Int {
