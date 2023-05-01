@@ -1,6 +1,6 @@
 //
 //  TextureAtlas.swift
-//
+//  AdaEngine
 //
 //  Created by v.prusakov on 6/30/22.
 //
@@ -137,10 +137,13 @@ public extension TextureAtlas {
         private let min: Vector2
         private let max: Vector2
         
+        internal let position: Vector2
+        
         required init(atlas: TextureAtlas, min: Vector2, max: Vector2, size: Size) {
             self.atlas = atlas
             self.max = max
             self.min = min
+            self.position = [min.x * Float(atlas.width), min.y * Float(atlas.height)]
             
             super.init(gpuTexture: atlas.gpuTexture, sampler: atlas.sampler, size: size)
             

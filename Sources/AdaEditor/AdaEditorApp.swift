@@ -1,6 +1,6 @@
 //
 //  AdaEditorApp.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 8/10/21.
 //

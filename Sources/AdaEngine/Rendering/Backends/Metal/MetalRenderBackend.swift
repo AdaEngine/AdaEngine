@@ -1,6 +1,6 @@
 //
 //  MetalRenderBackend.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 10/20/21.
 //
@@ -291,43 +291,42 @@ extension MetalRenderBackend {
     }
     
     // TODO: (Vlad) think about it later
-    func getImage(for texture2D: RID) -> Image? {
-        return nil
+    func getImage(from texture: Texture) -> Image? {
+        guard let mtlTexture = (texture.gpuTexture as? MetalGPUTexture)?.texture else {
+            return nil
+        }
         
-//        let mtlTexture = texture.resource
-//
-//        if mtlTexture.isFramebufferOnly {
-//            return nil
-//        }
-//
-//        let imageFormat: Image.Format
-//        let bytesInPixel: Int
-//
-//        switch mtlTexture.pixelFormat {
-//        case .bgra8Unorm_srgb, .bgra8Unorm:
-//            imageFormat = .bgra8
-//            bytesInPixel = 4
-//        default:
-//            imageFormat = .rgba8
-//            bytesInPixel = 4
-//        }
-//
-//        let bytesPerRow = bytesInPixel * mtlTexture.width
-//
-//        var data = Data(capacity: mtlTexture.allocatedSize)
-//        data.withUnsafeMutableBytes { bufferPtr in
-//            mtlTexture.getBytes(
-//                bufferPtr.baseAddress!,
-//                bytesPerRow: bytesPerRow,
-//                from: MTLRegion(
-//                    origin: MTLOrigin(x: 0, y: 0, z: 0),
-//                    size: MTLSize(width: mtlTexture.width, height: mtlTexture.height, depth: 1)
-//                ),
-//                mipmapLevel: 0
-//            )
-//        }
-//
-//        return Image(width: mtlTexture.width, height: mtlTexture.height, data: data, format: imageFormat)
+        if mtlTexture.isFramebufferOnly {
+            return nil
+        }
+        
+        let imageFormat: Image.Format
+        let bytesInPixel: Int
+        
+        switch mtlTexture.pixelFormat {
+        case .bgra8Unorm:
+            imageFormat = .bgra8
+            bytesInPixel = 4
+        default:
+            imageFormat = .rgba8
+            bytesInPixel = 4
+        }
+        
+        let bytesPerRow = mtlTexture.width * bytesInPixel
+        let pixelCount = mtlTexture.width * mtlTexture.height
+
+        var imageBytes = [UInt8](repeating: 0, count: pixelCount * bytesInPixel)
+        mtlTexture.getBytes(
+            &imageBytes,
+            bytesPerRow: bytesPerRow,
+            from: MTLRegion(
+                origin: MTLOrigin(x: 0, y: 0, z: 0),
+                size: MTLSize(width: mtlTexture.width, height: mtlTexture.height, depth: 1)
+            ),
+            mipmapLevel: 0
+        )
+
+        return Image(width: mtlTexture.width, height: mtlTexture.height, data: Data(imageBytes), format: imageFormat)
     }
 }
 

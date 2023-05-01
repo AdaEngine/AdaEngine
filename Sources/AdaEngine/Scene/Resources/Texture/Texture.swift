@@ -1,6 +1,6 @@
 //
 //  Texture.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 6/28/22.
 //
@@ -18,6 +18,14 @@ open class Texture: Resource, Codable {
         self.gpuTexture = gpuTexture
         self.textureType = textureType
         self.sampler = sampler
+    }
+    
+    public var image: Image {
+        if let image = RenderEngine.shared.getImage(from: self) {
+            return image
+        }
+        
+        return Image()
     }
     
     public required init(from decoder: Decoder) throws {
