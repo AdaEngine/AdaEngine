@@ -29,6 +29,10 @@ final class iOSWindowManager: WindowManager {
         systemWindow.rootViewController = gameViewController
         systemWindow.backgroundColor = .black
         
+        let pointerInteraction = UIPointerInteraction(delegate: systemWindow)
+        systemWindow.addInteraction(pointerInteraction)
+        systemWindow.pointerInteraction = pointerInteraction
+        
         window.systemWindow = systemWindow
         window.minSize = frame.size
         
@@ -75,6 +79,42 @@ final class iOSWindowManager: WindowManager {
         print("Method doesn't implemented", #function)
     }
     
+    private(set) var currentShape: Input.CursorShape = .arrow
+    private(set) var mouseMode: Input.MouseMode = .visible
+    
+    override func updateCursor() {
+        guard let window = self.activeWindow?.systemWindow as? _AdaUIWindow else {
+            return
+        }
+        
+        // Causes the interaction to update the pointer in response to an event.
+        window.pointerInteraction?.invalidate()
+    }
+    
+    override func setCursorImage(for shape: Input.CursorShape, texture: Texture2D?, hotspot: Vector2) {
+        
+    }
+    
+    override func setCursorShape(_ shape: Input.CursorShape) {
+        self.currentShape = shape
+        
+        self.updateCursor()
+    }
+    
+    override func getMouseMode() -> Input.MouseMode {
+        return self.mouseMode
+    }
+    
+    override func setMouseMode(_ mode: Input.MouseMode) {
+        self.mouseMode = mode
+        
+        self.updateCursor()
+    }
+    
+    override func getCursorShape() -> Input.CursorShape {
+        return self.currentShape
+    }
+    
     func findWindow(for nsWindow: UIWindow) -> Window? {
         return self.windows.first {
             ($0.systemWindow as? UIWindow) === nsWindow
@@ -82,7 +122,7 @@ final class iOSWindowManager: WindowManager {
     }
 }
 
-final class _AdaUIWindow: UIWindow, SystemWindow {
+final class _AdaUIWindow: UIWindow, SystemWindow, UIPointerInteractionDelegate {
     
     public var title: String = ""
     
@@ -108,6 +148,35 @@ final class _AdaUIWindow: UIWindow, SystemWindow {
                 y: CGFloat(newValue.y)
             )
         }
+    }
+    
+    weak var pointerInteraction: UIPointerInteraction?
+    
+    // MARK: - UIPointerInteractionDelegate
+    
+    func pointerInteraction(_ interaction: UIPointerInteraction, styleFor region: UIPointerRegion) -> UIPointerStyle? {
+        
+        if Input.getMouseMode() == .hidden {
+            return UIPointerStyle.hidden()
+        }
+        
+        var style: UIPointerStyle
+        
+        let cursorShape = Input.getCurrentCursorShape()
+        
+        switch cursorShape {
+        case .iBeam:
+            style = UIPointerStyle.hidden()
+        default:
+            if #available(iOS 15.0, *) {
+                style = UIPointerStyle.system()
+            } else {
+                // Fallback on earlier versions
+                style = UIPointerStyle.hidden()
+            }
+        }
+
+        return style
     }
 }
 
