@@ -700,7 +700,7 @@ extension StencilOperation {
     }
 }
 
-extension SamplerMigMagFilter {
+extension SamplerMinMagFilter {
     var toMetal: MTLSamplerMinMagFilter {
         switch self {
         case .nearest:

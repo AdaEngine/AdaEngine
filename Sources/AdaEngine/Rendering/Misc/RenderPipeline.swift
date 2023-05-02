@@ -7,15 +7,29 @@
 
 // TODO: (Vlad) Add documentations
 
+/// An object that contains graphics functions and configuration state to use in a render command.
 public protocol RenderPipeline: AnyObject {
+    
+    /// /// Contains information about render pipeline descriptor.
     var descriptor: RenderPipelineDescriptor { get }
 }
 
+/// An object that defines the front-facing or back-facing stencil operations of a depth and stencil state object.
 public struct StencilOperationDescriptor {
+    
+    /// The operation that is performed to update the values in the stencil attachment when the stencil test fails.
     public var fail: StencilOperation
+    
+    /// The operation that is performed to update the values in the stencil attachment when both the stencil test and the depth test pass.
     public var pass: StencilOperation
+    
+    /// The operation that is performed to update the values in the stencil attachment when the stencil test passes, but the depth test fails.
     public var depthFail: StencilOperation
+    
+    /// The comparison that is performed between the masked reference value and a masked value in the stencil attachment.
     public var compare: CompareOperation
+    
+    /// A bitmask that determines to which bits that stencil operations can write.
     public var writeMask: UInt32
     
     public init(
@@ -33,9 +47,15 @@ public struct StencilOperationDescriptor {
     }
 }
 
+/// An object that configures new depth and stencil operation.
 public struct DepthStencilDescriptor {
+    
     public var isDepthTestEnabled: Bool
+    
+    /// A Boolean value that indicates whether depth values can be written to the depth attachment.
     public var isDepthWriteEnabled: Bool
+    
+    /// The comparison that is performed between a fragment’s depth value and the depth value in the attachment, which determines whether to discard the fragment.
     public var depthCompareOperator: CompareOperation
     public var isDepthRangeEnabled: Bool
     public var depthRangeMin: Float
@@ -97,11 +117,8 @@ public struct ColorAttachmentDescriptor {
     }
 }
 
-public protocol ShaderFunction {
-    
-}
-
-/// An object specifies the rendering configuration state to use during a rendering pass, including rasterization (such as multisampling), visibility, blending, tessellation, and graphics function state.
+/// An object specifies the rendering configuration state to use during a rendering pass,
+/// including rasterization (such as multisampling), visibility, blending, tessellation, and graphics function state.
 ///
 /// To specify the vertex or fragment function in the rendering pipeline descriptor, set the vertex or fragment property.
 public struct RenderPipelineDescriptor {
