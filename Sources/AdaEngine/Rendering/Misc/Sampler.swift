@@ -6,15 +6,25 @@
 //
 
 /// Filtering options for determining which pixel value is returned within a mipmap level.
-public enum SamplerMigMagFilter: Codable {
+public enum SamplerMinMagFilter: Codable {
+    
+    /// Select the single pixel nearest to the sample point.
     case nearest
+    
+    /// Select two pixels in each dimension and interpolate linearly between them.
     case linear
 }
 
 /// Filtering options for determining what pixel value is returned with multiple mipmap levels.
 public enum SamplerMipFilter: Codable {
+    
+    /// The nearest mipmap level is selected.
     case nearest
+    
+    /// If the filter falls between mipmap levels, both levels are sampled and the results are determined by linear interpolation between levels.
     case linear
+    
+    /// The texture is sampled from mipmap level 0, and other mipmap levels are ignored.
     case notMipmapped
 }
 
@@ -22,10 +32,10 @@ public enum SamplerMipFilter: Codable {
 public struct SamplerDescriptor: Codable {
     
     /// The filtering option for combining pixels within one mipmap level when the sample footprint is larger than a pixel (minification).
-    public var minFilter: SamplerMigMagFilter
+    public var minFilter: SamplerMinMagFilter
     
     /// The filtering operation for combining pixels within one mipmap level when the sample footprint is smaller than a pixel (magnification).
-    public var magFilter: SamplerMigMagFilter
+    public var magFilter: SamplerMinMagFilter
     
     /// The filtering option for combining pixels between two mipmap levels.
     public var mipFilter: SamplerMipFilter
@@ -37,8 +47,8 @@ public struct SamplerDescriptor: Codable {
     public var lodMaxClamp: Float
     
     public init(
-        minFilter: SamplerMigMagFilter = .nearest,
-        magFilter: SamplerMigMagFilter = .nearest,
+        minFilter: SamplerMinMagFilter = .nearest,
+        magFilter: SamplerMinMagFilter = .nearest,
         mipFilter: SamplerMipFilter = .nearest,
         lodMinClamp: Float = 0,
         lodMaxClamp: Float = .greatestFiniteMagnitude

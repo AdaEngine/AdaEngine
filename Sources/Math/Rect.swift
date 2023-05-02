@@ -1,6 +1,6 @@
 //
 //  Rect.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/16/22.
 //

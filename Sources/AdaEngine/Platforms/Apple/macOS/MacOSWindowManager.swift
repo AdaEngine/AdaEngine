@@ -1,12 +1,15 @@
 //
 //  MacOSWindowManager.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/29/22.
 //
 
 #if MACOS
 import AppKit
+import Math
+
+// swiftlint:disable cyclomatic_complexity
 
 final class MacOSWindowManager: WindowManager {
     
@@ -115,6 +118,160 @@ final class MacOSWindowManager: WindowManager {
         }
         
         return ScreenManager.shared.makeScreen(from: screen)
+    }
+    
+    private var currentShape: Input.CursorShape = .arrow
+    private var mouseMode: Input.MouseMode = .visible
+    private var cursors: [Input.CursorShape: (NSCursor, Texture2D, Vector2)] = [:]
+    
+    override func setCursorShape(_ shape: Input.CursorShape) {        
+        self.currentShape = shape
+        
+        var cursor = NSCursor.current
+        
+        switch shape {
+        case .arrow:
+            cursor = .arrow
+        case .pointingHand:
+            cursor = .pointingHand
+        case .iBeam:
+            cursor = .iBeam
+        case .wait:
+            cursor = .arrow
+        case .cross:
+            cursor = .crosshair
+        case .busy:
+            cursor = .arrow
+        case .drag:
+            cursor = .dragCopy
+        case .drop:
+            cursor = .openHand
+        case .resizeLeft:
+            cursor = .resizeLeft
+        case .resizeRight:
+            cursor = .resizeRight
+        case .resizeLeftRight:
+            cursor = .resizeLeftRight
+        case .resizeUp:
+            cursor = .resizeUp
+        case .resizeDown:
+            cursor = .resizeDown
+        case .resizeUpDown:
+            cursor = .resizeUpDown
+        case .move:
+            cursor = .closedHand
+        case .forbidden:
+            cursor = .operationNotAllowed
+        case .help:
+            break
+        }
+        
+        cursor.set()
+    }
+    
+    override func updateCursor() {
+        if let customCursor = self.cursors[self.currentShape]?.0 {
+            customCursor.set()
+        } else {
+            self.setCursorShape(self.currentShape)
+        }
+    }
+    
+    override func getCursorShape() -> Input.CursorShape {
+        return self.currentShape
+    }
+    
+    override func setCursorImage(for shape: Input.CursorShape, texture: Texture2D?, hotspot: Vector2) {
+        defer {
+            updateCursor()
+        }
+        
+        guard let texture = texture else {
+            self.cursors[shape] = nil
+            
+            return
+        }
+        
+        if self.cursors[shape]?.1 === texture && self.cursors[shape]?.2 == hotspot {
+            return
+        }
+        
+        var position: Vector2 = .one
+        
+        if let atlas = texture as? TextureAtlas.Slice {
+            position = atlas.position
+        }
+        
+        let image = texture.image
+        
+        guard let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: texture.width,
+            pixelsHigh: texture.height,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bitmapFormat: NSBitmapFormat(),
+            bytesPerRow: texture.width * 4,
+            bitsPerPixel: 32
+        ) else {
+            return
+        }
+        
+        guard let pixels = bitmap.bitmapData else {
+            return
+        }
+        
+        let length = texture.height * texture.width
+        
+        for index in 0..<length {
+            let rowIndex = index / texture.width + Int(position.y)
+            let columnIndex = index % texture.width + Int(position.x)
+            
+            let color = image.getPixel(x: columnIndex, y: rowIndex)
+            
+            pixels[index * 4 + 0] = UInt8(clamp(color.red * 255.0, 0, 255))
+            pixels[index * 4 + 1] = UInt8(clamp(color.green * 255.0, 0, 255))
+            pixels[index * 4 + 2] = UInt8(clamp(color.blue * 255.0, 0, 255))
+            pixels[index * 4 + 3] = UInt8(clamp(color.alpha * 255.0, 0, 255))
+        }
+        
+        let nsImage = NSImage(size: CGSize(width: CGFloat(texture.width), height: CGFloat(texture.height)))
+        nsImage.addRepresentation(bitmap)
+        
+        let cursor = NSCursor(
+            image: nsImage,
+            hotSpot: CGPoint(x: CGFloat(hotspot.x), y: CGFloat(hotspot.y))
+        )
+        
+        self.cursors[shape] = (cursor, texture, hotspot)
+    }
+    
+    override func setMouseMode(_ mode: Input.MouseMode) {
+        if (self.mouseMode == mode) {
+            return
+        }
+        
+        self.mouseMode = mode
+        
+        switch mode {
+        case .captured:
+            break
+        case .visible:
+            NSCursor.unhide()
+        case .hidden:
+            NSCursor.hide()
+        case .confinedHidden:
+            break
+        case .confined:
+            break
+        }
+    }
+    
+    override func getMouseMode() -> Input.MouseMode {
+        self.mouseMode
     }
     
     func findWindow(for nsWindow: NSWindow) -> Window? {
@@ -230,5 +387,7 @@ extension NSWindow: SystemWindow {
         }
     }
 }
+
+// swiftlint:enable cyclomatic_complexity
 
 #endif

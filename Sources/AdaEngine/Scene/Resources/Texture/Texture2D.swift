@@ -1,6 +1,6 @@
 //
 //  Texture2D.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 6/28/22.
 //

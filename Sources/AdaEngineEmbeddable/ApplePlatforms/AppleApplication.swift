@@ -1,6 +1,6 @@
 //
 //  AppleApplication.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 1/9/23.
 //

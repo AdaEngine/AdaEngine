@@ -1,6 +1,6 @@
 //
 //  AnimatedTexture.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/3/22.
 //

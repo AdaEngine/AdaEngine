@@ -96,6 +96,30 @@ open class WindowManager {
         window.windowDidBecameActive()
     }
     
+    internal func setCursorShape(_ shape: Input.CursorShape) {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func getCursorShape() -> Input.CursorShape {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func setCursorImage(for shape: Input.CursorShape, texture: Texture2D?, hotspot: Vector2) {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func setMouseMode(_ mode: Input.MouseMode) {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func getMouseMode() -> Input.MouseMode {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func updateCursor() {
+        fatalErrorMethodNotImplemented()
+    }
+    
     public final func removeWindow(_ window: Window, setActiveAnotherIfNeeded: Bool = true) {
         guard let index = self.windows.firstIndex(where: { $0 === window }) else {
             assertionFailure("We don't have window in windows stack. That strange problem.")

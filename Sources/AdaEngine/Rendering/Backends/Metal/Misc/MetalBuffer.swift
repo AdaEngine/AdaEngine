@@ -47,8 +47,13 @@ extension ResourceOptions {
             options |= MTLResourceStorageModeShared
         }
         
-        if self.contains(.storageManaged) {
-            options |= MTLResourceStorageModeManaged
+        if #available(macOS 11, *) {
+#if os(macOS)
+            if self.contains(.storageManaged) {
+                
+                options |= MTLResourceStorageModeManaged
+            }
+#endif
         }
         
         return options
