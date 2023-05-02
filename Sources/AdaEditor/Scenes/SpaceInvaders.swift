@@ -65,12 +65,6 @@ class SpaceInvaders {
         return scene
     }
     
-    func makeGameScene() throws -> Scene {
-        let startScene = Scene()
-        
-        return startScene
-    }
-    
 }
 
 extension SpaceInvaders {

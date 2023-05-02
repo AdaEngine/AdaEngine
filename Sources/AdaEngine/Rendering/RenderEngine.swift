@@ -1,6 +1,6 @@
 //
 //  RenderEngine.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 10/25/21.
 //
@@ -23,7 +23,6 @@ public final class RenderEngine: RenderBackend {
     
     /// Setup configuration for render engine
     public static var configurations: Configuration = Configuration()
-    
     
     /// Return instance of render engine for specific backend.
     public static let shared: RenderEngine = {
@@ -122,8 +121,8 @@ public final class RenderEngine: RenderBackend {
         self.renderBackend.makeTexture(from: descriptor)
     }
     
-    func getImage(for texture2D: RID) -> Image? {
-        self.renderBackend.getImage(for: texture2D)
+    func getImage(from texture: Texture) -> Image? {
+        self.renderBackend.getImage(from: texture)
     }
     
     // MARK: - Drawing -

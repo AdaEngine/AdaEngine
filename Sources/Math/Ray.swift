@@ -1,6 +1,6 @@
 //
 //  Ray.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 4/5/23.
 //
