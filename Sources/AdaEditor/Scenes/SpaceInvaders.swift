@@ -25,7 +25,7 @@ class SpaceInvaders {
     func makeScene() throws -> Scene {
         let scene = Scene()
         
-        scene.debugOptions = [.showPhysicsShapes]
+//        scene.debugOptions = [.showPhysicsShapes]
         
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
@@ -71,6 +71,9 @@ extension SpaceInvaders {
     func makePlayer(for scene: Scene) throws {
         let player = Entity()
         
+        let audio = try ResourceManager.load("Assets/WindlessSlopes.wav", from: Bundle.module) as AudioResource
+        
+        player.components += AudioComponent(resource: audio)
         player.components += Transform(scale: Vector3(0.2), position: [0, -0.85, 0])
         player.components += PlayerComponent()
         player.components += SpriteComponent(texture: characterAtlas[7, 1])
@@ -116,6 +119,16 @@ struct MovementSystem: System {
             transform.position.y = -worldPosition.y
             
             entity.components += transform
+            
+            var audio = entity.components[AudioComponent.self]
+            
+            if Input.isKeyPressed(.v) {
+                audio?.start()
+            }
+            
+            if Input.isKeyPressed(.m) {
+                audio?.stop()
+            }
         }
     }
 }
