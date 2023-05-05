@@ -149,6 +149,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
+    "miniaudio",
     "AtlasFontGenerator",
     "Yams",
     "libpng",
@@ -298,6 +299,7 @@ package.dependencies += [
     .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
     .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
     .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
+    .package(path: "../miniaudio"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0"),
 ]
