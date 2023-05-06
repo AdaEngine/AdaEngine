@@ -8,11 +8,14 @@
 import Math
 
 public enum SoundState {
+    case ready
     case playing
     case paused
+    case stopped
 }
 
 protocol Sound: AnyObject {
+    
     var volume: Float { get set }
     
     var pitch: Float { get set }
@@ -29,4 +32,5 @@ protocol Sound: AnyObject {
     
     func update(_ deltaTime: TimeInterval)
     
+    func onCompleteHandler(_ block: @escaping () -> Void) 
 }

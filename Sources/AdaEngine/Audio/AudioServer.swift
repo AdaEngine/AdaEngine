@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 5/3/23.
 //
 
-@_implementationOnly import miniaudio
 import Math
 
 enum AudioError: Error {
@@ -24,99 +23,36 @@ protocol AudioEngine {
     func makeSound(from url: URL) throws -> Sound
     
     func makeSound(from data: Data) throws -> Sound
+    
+    func getAudioListener(at index: Int) -> AudioEngineListener
 }
 
-final class MiniSound: Sound {
+public final class AudioPlaybackController {
     
-    private var sound: ma_sound
+    public let resource: AudioResource
     
-    init(from fileURL: URL, engine: UnsafeMutablePointer<ma_engine>!) throws {
-        self.sound = ma_sound()
-        
-        let flags = MA_SOUND_FLAG_DECODE.rawValue | MA_SOUND_FLAG_NO_SPATIALIZATION.rawValue
-        
-        let result = fileURL.path.withCString { pFilePath in
-            ma_sound_init_from_file(engine, pFilePath, flags, nil, nil, &sound)
-        }
-        
-        if result != MA_SUCCESS {
-            throw AudioError.soundInitializationFailed
-        }
+    init(resource: AudioResource) {
+        self.resource = resource
     }
     
-    init(from data: Data, engine: UnsafeMutablePointer<ma_engine>!) throws {
-        
-        self.sound = ma_sound()
-        
-        var data = data
-        let flags = MA_SOUND_FLAG_DECODE.rawValue | MA_SOUND_FLAG_NO_SPATIALIZATION.rawValue
-        let result = data.withUnsafeMutableBytes { ptr in
-            ma_sound_init_from_data_source(engine, ptr.baseAddress!, flags, nil, &sound)
-        }
-        
-        if result != MA_SUCCESS {
-            throw AudioError.soundInitializationFailed
-        }
+    public func setLoop(_ isLooping: Bool) {
+        self.resource.sound.isLooping = isLooping
     }
     
-    deinit {
-        ma_sound_uninit(&sound)
+    public func play() {
+        self.resource.sound.start()
     }
     
-    func update(_ deltaTime: TimeInterval) {
-        
+    public func pause() {
+        self.resource.sound.pause()
     }
     
-    var volume: Float {
-        get {
-            ma_sound_get_volume(&sound)
-        }
-        
-        set {
-            ma_sound_set_volume(&sound, newValue)
-        }
+    public func stop() {
+        self.resource.sound.stop()
     }
     
-    var pitch: Float {
-        get {
-            ma_sound_get_pitch(&sound)
-        }
-        
-        set {
-            ma_sound_set_pitch(&sound, newValue)
-        }
-    }
-    
-    var position: Vector3 {
-        get {
-            let position = ma_sound_get_position(&sound)
-            return [position.x, position.y, position.z]
-        }
-        set {
-            ma_sound_set_position(&sound, newValue.x, newValue.y, newValue.z)
-        }
-    }
-    
-    var isLooping: Bool {
-        get {
-            return ma_sound_is_looping(&sound) == 1
-        }
-        
-        set {
-            ma_sound_set_looping(&sound, newValue ? 1 : 0)
-        }
-    }
-    
-    func start() {
-        ma_sound_start(&sound)
-    }
-    
-    func stop() {
-        ma_sound_stop(&sound)
-    }
-    
-    func pause() {
-        
+    public func onCompleteHandler(_ block: @escaping () -> Void) {
+        self.resource.sound.onCompleteHandler(block)
     }
 }
 
@@ -149,45 +85,24 @@ public final class AudioServer {
     
     // MARK: - Public
     
+    public func prepareAudio(_ resource: AudioResource) -> AudioPlaybackController {
+        return AudioPlaybackController(resource: resource)
+    }
 }
 
-class MiniAudioEngine: AudioEngine {
+/// Interface describes audio listener entity in spatial audio scene.
+protocol AudioEngineListener: AnyObject {
     
-    private var engine: ma_engine
+    var position: Vector3 { get set }
+    var direction: Vector3 { get set }
+    var velocity: Vector3 { get set }
+    var worldUp: Vector3 { get set }
     
-    init() throws {
-        var config = ma_engine_config()
-        config.channels = 2
-        self.engine = ma_engine()
-        
-        if ma_engine_init(&config, &engine) != MA_SUCCESS {
-            throw AudioError.engineInitializationFailed
-        }
-    }
+    var isEnabled: Bool { get set }
     
-    deinit {
-        ma_engine_uninit(&engine)
-    }
+    func setCone(innerAngle: Angle, outerAngle: Angle, outerGain: Float)
     
-    // AudioEngine
-    
-    func start() throws {
-        ma_engine_start(&engine)
-    }
-    
-    func stop() throws {
-        ma_engine_stop(&engine)
-    }
-    
-    func update(_ deltaTime: TimeInterval) {
-        let graph = ma_engine_get_node_graph(&engine)
-    }
-    
-    func makeSound(from url: URL) throws -> Sound {
-        try MiniSound(from: url, engine: &engine)
-    }
-    
-    func makeSound(from data: Data) throws -> Sound {
-        try MiniSound(from: data, engine: &engine)
-    }
+    var innerAngle: Angle { get }
+    var outerAngle: Angle { get }
+    var outerGain: Float { get }
 }
