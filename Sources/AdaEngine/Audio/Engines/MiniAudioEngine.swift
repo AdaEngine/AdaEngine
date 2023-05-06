@@ -102,7 +102,6 @@ final class MiniAudioEngineListener: AudioEngineListener {
         }
     }
     
-    
     var isEnabled: Bool {
         get {
             return ma_engine_listener_is_enabled(engine, listenerIndex) == 1
@@ -155,7 +154,7 @@ final class MiniSound: Sound {
     
     private(set) var state: SoundState = .ready
     
-    private var completionHandler: (() -> Void)? = nil
+    private var completionHandler: (() -> Void)?
     
     private var sound: ma_sound
     
@@ -174,7 +173,6 @@ final class MiniSound: Sound {
     }
     
     init(from data: Data, engine: UnsafeMutablePointer<ma_engine>!) throws {
-        
         self.sound = ma_sound()
         
         var data = data
@@ -237,6 +235,7 @@ final class MiniSound: Sound {
     }
     
     func start() {
+        self.state = .playing
         ma_sound_start(&sound)
     }
     
@@ -251,6 +250,13 @@ final class MiniSound: Sound {
     }
     
     func onCompleteHandler(_ block: @escaping () -> Void) {
+        let pointer = Unmanaged<MiniSound>.passUnretained(self).toOpaque()
+        
+        ma_sound_set_end_callback(&sound, { userData, sound in
+            let soundObj = Unmanaged<MiniSound>.fromOpaque(userData!).takeUnretainedValue()
+            soundObj.completionHandler?()
+        }, pointer)
+        
         self.completionHandler = block
     }
     

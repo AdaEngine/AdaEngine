@@ -27,35 +27,73 @@ protocol AudioEngine {
     func getAudioListener(at index: Int) -> AudioEngineListener
 }
 
-public final class AudioPlaybackController {
+/// A controller that manages audio playback of a resource.
+///
+/// You receive an audio playback controller by calling an entity’s ``Entity/prepareAudio(_:)`` method.
+/// You typically pass an ``AudioResource`` instance to this call that tells the playback controller how to stream the contents of an audio file.
+public class AudioPlaybackController {
     
+    /// The resource that provides the audio stream.
     public let resource: AudioResource
     
-    init(resource: AudioResource) {
+    let sound: Sound
+    
+    /// The entity from which the audio stream emanates.
+    public internal(set) weak var entity: Entity?
+    
+    init(resource: AudioResource, sound: Sound) {
         self.resource = resource
+        self.sound = sound
     }
     
-    public func setLoop(_ isLooping: Bool) {
-        self.resource.sound.isLooping = isLooping
+    /// A Boolean that indicates whether playback is currently active.
+    public var isPlaying: Bool {
+        return self.sound.state == .playing
     }
     
+    public var volume: Float {
+        get {
+            self.sound.volume
+        }
+        
+        set {
+            self.sound.volume = newValue
+        }
+    }
+    
+    public func setLoop(_ isLooping: Bool) -> Self {
+        self.sound.isLooping = isLooping
+        return self
+    }
+    
+    /// Plays the audio resource.
     public func play() {
-        self.resource.sound.start()
+        self.sound.start()
     }
     
+    /// Pauses playback of the audio resource while maintaining the position in the audio stream.
     public func pause() {
-        self.resource.sound.pause()
+        self.sound.pause()
     }
     
+    /// Stops playback of the audio resource and discards the location in the audio stream.
     public func stop() {
-        self.resource.sound.stop()
+        self.sound.stop()
     }
     
-    public func onCompleteHandler(_ block: @escaping () -> Void) {
-        self.resource.sound.onCompleteHandler(block)
+    /// A closure that the playback controller executes when it comes to the end of the audio stream.
+    public func onCompleteHandler(_ block: @escaping () -> Void) -> Self {
+        self.sound.onCompleteHandler(block)
+        return self
+    }
+    
+    public func setVolume(_ volume: Float) -> Self {
+        self.volume = volume
+        return self
     }
 }
 
+/// An instance that managed audio in the AdaEngine.
 public final class AudioServer {
     
     public private(set) static var shared: AudioServer!
@@ -83,10 +121,24 @@ public final class AudioServer {
         try self.engine.stop()
     }
     
+    private func makeSound(from resource: AudioResource) throws -> Sound {
+        switch resource.source {
+        case .data(let data):
+            return try self.engine.makeSound(from: data)
+        case .file(let file):
+            return try self.engine.makeSound(from: file)
+        }
+    }
+    
     // MARK: - Public
     
     public func prepareAudio(_ resource: AudioResource) -> AudioPlaybackController {
-        return AudioPlaybackController(resource: resource)
+        do {
+            let sound = try self.makeSound(from: resource)
+            return AudioPlaybackController(resource: resource, sound: sound)
+        } catch {
+            fatalError("[AudioServer] Can't create sound from resource \(error.localizedDescription)")
+        }
     }
 }
 
