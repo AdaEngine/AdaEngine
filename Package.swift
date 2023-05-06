@@ -255,20 +255,6 @@ targets += [
 targets.append(contentsOf: swiftLintTargets)
 #endif
 
-// MARK: - Vendors -
-
-// libpng
-
-targets += [
-    .target(
-        name: "libpng",
-        exclude: ["Project.swift", "Derived"],
-        cSettings: [
-            .define("PNG_ARM_NEON_OPT", to: useNeon ? "2" : "0")
-        ]
-    )
-]
-
 // MARK: - Package -
 
 let package = Package(
@@ -295,6 +281,7 @@ package.dependencies += [
     .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
     .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
     .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
+    .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0"),
 ]
