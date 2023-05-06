@@ -19,6 +19,15 @@
       }
     },
     {
+      "identity" : "miniaudio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/miniaudio",
+      "state" : {
+        "branch" : "master",
+        "revision" : "3c0cb21204946f4130ca835d3ddd7250ac58323d"
+      }
+    },
+    {
       "identity" : "msdf-atlas-gen",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/AdaEngine/msdf-atlas-gen",

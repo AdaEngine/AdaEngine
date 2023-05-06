@@ -28,26 +28,6 @@ open class Entity: Identifiable {
     /// Contains reference for world where entity placed.
     public internal(set) weak var world: World?
     
-    /// Contains children if has one.
-    public var children: [Entity] {
-        guard let relationship = self.components[RelationshipComponent.self] else {
-            return []
-        }
-        
-        return relationship.children.compactMap {
-            self.world?.getEntityByID($0)
-        }
-    }
-    
-    /// Contains reference for parent entity if available.
-    public var parent: Entity? {
-        guard let relationship = self.components[RelationshipComponent.self], let parent = relationship.parent else {
-            return nil
-        }
-        
-        return self.world?.getEntityByID(parent)
-    }
-    
     /// Create a new entity.
     /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
     /// - Note: If you want to use entity without any components use ``EmptyEntity``
@@ -107,39 +87,6 @@ extension Entity: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.name)
         hasher.combine(self.id)
-    }
-}
-
-// MARK: - Relationship
-
-public extension Entity {
-    
-    /// Add child entity
-    /// - Warning: Will throw assert error if entity contains that child.
-    func addChild(_ entity: Entity) {
-        assert(!self.children.contains { $0 === entity }, "Currently has entity in child")
-        
-        guard var relationship = self.components[RelationshipComponent.self] else {
-            return
-        }
-        
-        relationship.parent = entity.id
-    }
-    
-    /// Remove entity from children.
-    func removeChild(_ entity: Entity) {
-        guard var relationship = self.components[RelationshipComponent.self] else {
-            return
-        }
-        
-        entity.components[RelationshipComponent.self]?.parent = nil
-        relationship.children.remove(entity.id)
-    }
-    
-    /// Remove entity from parent
-    func removeFromParent() {
-        guard let parent = self.parent else { return }
-        parent.removeChild(self)
     }
 }
 

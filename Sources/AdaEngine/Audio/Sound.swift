@@ -12,8 +12,10 @@ public enum SoundState {
     case playing
     case paused
     case stopped
+    case finished
 }
 
+/// Interface describe sound object.
 protocol Sound: AnyObject {
     
     var state: SoundState { get }
@@ -30,7 +32,9 @@ protocol Sound: AnyObject {
     
     func stop()
     
-    func pause() 
+    func pause()
+    
+    func copy() throws -> Sound
     
     func update(_ deltaTime: TimeInterval)
     
