@@ -30,6 +30,7 @@ public final class OrthographicCamera: Entity {
         self.components += VisibleEntities()
         self.components += GlobalViewUniform()
         self.components += GlobalViewUniformBufferSet()
+        self.components += AudioReceiver()
         self.components += RenderItems<Transparent2DRenderItem>()
     }
     

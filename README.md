@@ -2,6 +2,8 @@
 
 AdaEngine is a game engine fully written in Swift. The main idea is to encourage Swift developers to use this game engine to create fast and impressive games and user interfaces using Swift as their main language. We hope that AdaEngine can become as popular in the GameDev community as Rust and C# are.
 
+![Screenshot from test game SpaceInvaders](Assets/space_invaders.jpeg)
+
 # Features
 
 1) AdaEngine is based on the data-oriented paradigm using a self-written ECS. The AdaEngine ECS has been inspired by Apple's RealityKit framework. ECS provides a fast way to work with the game world because it is more friendly to CPU caches.

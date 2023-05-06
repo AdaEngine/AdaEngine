@@ -30,6 +30,7 @@ public final class PerspectiveCamera: Entity {
         self.components += VisibleEntities()
         self.components += GlobalViewUniform()
         self.components += GlobalViewUniformBufferSet()
+        self.components += AudioReceiver()
         self.components += RenderItems<Transparent2DRenderItem>()
     }
     
