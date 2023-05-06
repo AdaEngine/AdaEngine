@@ -27,9 +27,16 @@ class SpaceInvaders {
         
 //        scene.debugOptions = [.showPhysicsShapes]
         
+        let sound = try ResourceManager.load("Assets/WindlessSlopes.wav", from: Bundle.module) as AudioResource
+        
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
         camera.camera.backgroundColor = .black
+        camera.prepareAudio(sound)
+            .setLoop(true)
+            .setVolume(0.6)
+            .play()
+        
         scene.addEntity(camera)
         
         try self.makePlayer(for: scene)
@@ -71,9 +78,6 @@ extension SpaceInvaders {
     func makePlayer(for scene: Scene) throws {
         let player = Entity()
         
-        let audio = try ResourceManager.load("Assets/WindlessSlopes.wav", from: Bundle.module) as AudioResource
-        
-        player.components += AudioComponent(resource: audio)
         player.components += Transform(scale: Vector3(0.2), position: [0, -0.85, 0])
         player.components += PlayerComponent()
         player.components += SpriteComponent(texture: characterAtlas[7, 1])
@@ -119,16 +123,6 @@ struct MovementSystem: System {
             transform.position.y = -worldPosition.y
             
             entity.components += transform
-            
-            let audio = entity.components[AudioComponent.self]
-            
-            if Input.isKeyPressed(.v) {
-                audio?.playbackController.play()
-            }
-            
-            if Input.isKeyPressed(.m) {
-                audio?.playbackController.stop()
-            }
         }
     }
 }
@@ -138,17 +132,31 @@ struct FireSystem: System {
     static let player = EntityQuery(where: .has(PlayerComponent.self))
     
     let fixedTime = FixedTimestep(stepsPerSecond: 12)
+    let laserAudio: AudioResource
     
-    init(scene: Scene) { }
+    init(scene: Scene) {
+        self.laserAudio = try! ResourceManager.load("Assets/laserShoot.wav", from: .module) as AudioResource
+    }
     
     func update(context: UpdateContext) {
         context.scene.performQuery(Self.player).forEach { entity in
             let transform = entity.components[Transform.self]!
             
             if Input.isMouseButtonPressed(.left) || Input.isKeyPressed(.space) {
+                
                 let result = fixedTime.advance(with: context.deltaTime)
                 
                 if result.isFixedTick {
+                    
+                    let controller = entity.prepareAudio(self.laserAudio)
+                    
+                    if controller.isPlaying {
+                        controller.stop()
+                    }
+                    
+                    controller.volume = 0.15
+                    controller.play()
+                    
                     fireBullet(context: context, shipTransform: transform)
                 }
             }
@@ -197,7 +205,7 @@ struct BulletSystem: System {
         context.scene.performQuery(Self.bullet).concurrentIterator.forEach { entity in
             var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
             
-            body.applyLinearImpulse([0, Self.bulletSpeed * context.deltaTime], point: .zero, wake: true)
+            body.setLinearVelocity([0, Self.bulletSpeed])
             bullet.currentLifetime += context.deltaTime
             
             if bullet.lifetime > bullet.currentLifetime {
@@ -308,10 +316,13 @@ struct ExplosionComponent: Component { }
 struct EnemyExplosionSystem: System {
     
     let exposionAtlas: TextureAtlas
+    let explosionAudio: AudioResource
     
     init(scene: Scene) {
         let image = try! ResourceManager.load("Assets/explosion.png", from: .module) as Image
         self.exposionAtlas = TextureAtlas(from: image, size: Size(width: 32, height: 32))
+        
+        self.explosionAudio = try! ResourceManager.load("Assets/explosion-1.wav", from: .module) as AudioResource
     }
     
     static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))
@@ -342,6 +353,10 @@ struct EnemyExplosionSystem: System {
                 texture[5] = self.exposionAtlas[5, 0]
                 
                 let explosion = Entity()
+                let controller = explosion.prepareAudio(self.explosionAudio)
+                controller.volume = 0.4
+                controller.play()
+                
                 explosion.components += SpriteComponent(texture: texture)
                 explosion.components += transform
                 explosion.components += ExplosionComponent()

@@ -16,6 +16,8 @@ public enum SoundState {
 
 protocol Sound: AnyObject {
     
+    var state: SoundState { get }
+    
     var volume: Float { get set }
     
     var pitch: Float { get set }

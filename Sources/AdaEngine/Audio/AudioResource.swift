@@ -5,14 +5,20 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
+import Foundation
+
 /// An audio resource that can be played.
 /// The AudioResource class stores audio that you can play in your scene or entire app.
 public final class AudioResource: Resource {
     
-    internal let sound: Sound
+    enum Source {
+        case file(URL)
+        case data(Data)
+    }
     
     public var resourceName: String = ""
     public var resourcePath: String = ""
+    internal let source: Source
     
     public static var resourceType: ResourceType = .audio
     
@@ -22,13 +28,14 @@ public final class AudioResource: Resource {
                 throw AssetDecodingError.decodingProblem("Can't read file at path")
             }
             
-            self.sound = try AudioServer.shared.engine.makeSound(from: data)
+            self.source = .data(data)
         } else {
-            self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetMeta.filePath)
+            self.source = .file(decoder.assetMeta.filePath)
         }
     }
     
     public func encodeContents(with encoder: AssetEncoder) throws {
         
     }
+    
 }

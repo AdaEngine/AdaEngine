@@ -44,7 +44,7 @@ public struct AudioPlugin: ScenePlugin {
 
 public struct AudioSystem: System {
     
-    static let query = EntityQuery(where: .has(AudioComponent.self) && .has(Transform.self))
+    static let query = EntityQuery(where: .has(AudioPlaybacksControllers.self) && .has(Transform.self))
     
     static let audioReceiverQuery = EntityQuery(where: .has(AudioReceiver.self) && .has(Transform.self))
     
@@ -56,8 +56,10 @@ public struct AudioSystem: System {
     
     public func update(context: UpdateContext) {
         context.scene.performQuery(Self.query).forEach { entity in
-            let (audioComponent, transform) = entity.components[AudioComponent.self, Transform.self]
-            audioComponent.playbackController.resource.sound.position = transform.position
+            let (audioComponent, transform) = entity.components[AudioPlaybacksControllers.self, Transform.self]
+            audioComponent.controllers.forEach { controller in
+                controller.sound.position = transform.position
+            }
         }
         
         context.scene.performQuery(Self.audioReceiverQuery).forEach { entity in
@@ -70,5 +72,28 @@ public struct AudioSystem: System {
                 entity.components += audioReceiver
             }
         }
+    }
+}
+
+struct AudioPlaybacksControllers: Component {
+    var controllers: [AudioPlaybackController] = []
+}
+
+extension Entity {
+    public func prepareAudio(_ resource: AudioResource) -> AudioPlaybackController {
+        var controllers = self.components[AudioPlaybacksControllers.self] ?? AudioPlaybacksControllers()
+        
+        if let controller = controllers.controllers.first(where: { $0.resource === resource }) {
+            return controller
+        }
+        
+        let playbackController = AudioServer.shared.prepareAudio(resource)
+        playbackController.entity = self
+        
+        controllers.controllers.append(playbackController)
+        
+        self.components += controllers
+        
+        return playbackController
     }
 }
