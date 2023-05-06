@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
-// TODO: Must copy sound cross playbacks controllers
-
 /// Emmiter of audio in spatial environment.
 public struct AudioComponent: Component {
     
@@ -28,11 +26,12 @@ public struct AudioReceiver: Component {
         }
         
         set {
-            audioListener?.isEnabled = true
+            audioListener?.isEnabled = newValue
         }
     }
 }
 
+/// Add audio capatibilities to the scene.
 public struct AudioPlugin: ScenePlugin {
     
     public init() {}
@@ -42,6 +41,7 @@ public struct AudioPlugin: ScenePlugin {
     }
 }
 
+/// A system that managed an audio resources for spatial audio.
 public struct AudioSystem: System {
     
     static let query = EntityQuery(where: .has(AudioPlaybacksControllers.self) && .has(Transform.self))
@@ -75,12 +75,19 @@ public struct AudioSystem: System {
     }
 }
 
+/// Holds ``AudioPlaybackController`` to controll their lifetimes
 struct AudioPlaybacksControllers: Component {
     var controllers: [AudioPlaybackController] = []
 }
 
-extension Entity {
-    public func prepareAudio(_ resource: AudioResource) -> AudioPlaybackController {
+public extension Entity {
+    
+    /// Create a new ``AudioPlaybackController`` for audio resource or returns existings once if ``AudioResource`` being used earlier for this entity.
+    ///
+    /// - Note: Audio controller will be automatically freed when entity is removed from memory and nobody own a reference to the playback controller.
+    ///
+    /// When you create an audio playback controller engine will automatically update position for spatial audio.
+    func prepareAudio(_ resource: AudioResource) -> AudioPlaybackController {
         var controllers = self.components[AudioPlaybacksControllers.self] ?? AudioPlaybacksControllers()
         
         if let controller = controllers.controllers.first(where: { $0.resource === resource }) {
@@ -95,5 +102,24 @@ extension Entity {
         self.components += controllers
         
         return playbackController
+    }
+    
+    /// Plays sound from an audio resource on this entity.
+    ///
+    /// An ``AudioPlaybackController`` instance that you use to manage audio playback.
+    /// Use the controller to set playback characteristics like volume and reverb, and then start or stop playback.
+    ///
+    /// This method first prepares the audio by calling ``Entity/prepareAudio(_:)``, and then immediately calls the ``AudioPlaybackController/play()`` method on the returned controller.
+    func playAudio(_ resource: AudioResource) -> AudioPlaybackController {
+        let controller = self.prepareAudio(resource)
+        controller.play()
+        return controller
+    }
+    
+    /// Stops audio playback.
+    ///
+    /// You can stop a specific ``AudioPlaybackController`` instance from playing a particular resource by calling the controller’s ``AudioPlaybackController/stop()`` method. To stop all controllers associated with a particular Entity instance with a single call, use the ``Entity/stopAllAudio()`` method instead.
+    func stopAllAudio() {
+        self.components += AudioPlaybacksControllers()
     }
 }

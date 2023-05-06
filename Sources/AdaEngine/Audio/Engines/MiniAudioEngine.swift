@@ -186,8 +186,23 @@ final class MiniSound: Sound {
         }
     }
     
+    private init(prototype: MiniSound) throws {
+        self.sound = ma_sound()
+        
+        var engine = ma_sound_get_engine(&prototype.sound)
+        let result = ma_sound_init_copy(engine, &prototype.sound, 0, nil, &sound)
+        
+        if result != MA_SUCCESS {
+            throw AudioError.soundInitializationFailed
+        }
+    }
+    
     deinit {
         ma_sound_uninit(&sound)
+    }
+    
+    func copy() throws -> Sound {
+        return try MiniSound(prototype: self)
     }
     
     func update(_ deltaTime: TimeInterval) {
@@ -252,8 +267,9 @@ final class MiniSound: Sound {
     func onCompleteHandler(_ block: @escaping () -> Void) {
         let pointer = Unmanaged<MiniSound>.passUnretained(self).toOpaque()
         
-        ma_sound_set_end_callback(&sound, { userData, sound in
+        ma_sound_set_end_callback(&sound, { userData, _ in
             let soundObj = Unmanaged<MiniSound>.fromOpaque(userData!).takeUnretainedValue()
+            soundObj.state = .finished
             soundObj.completionHandler?()
         }, pointer)
         

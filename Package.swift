@@ -198,11 +198,6 @@ var targets: [Target] = [
 
 // MARK: Extra
 
-targets += [
-    // Empty target with documentation docc files
-    .target(name: "Documentation")
-]
-
 #if os(Android) || os(Linux)
 targets += [
     .systemLibrary(
@@ -299,7 +294,7 @@ package.dependencies += [
     .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
     .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
     .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
-    .package(path: "../miniaudio"),
+    .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0"),
 ]
