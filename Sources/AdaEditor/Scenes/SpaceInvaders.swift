@@ -120,14 +120,14 @@ struct MovementSystem: System {
             
             entity.components += transform
             
-            var audio = entity.components[AudioComponent.self]
+            let audio = entity.components[AudioComponent.self]
             
             if Input.isKeyPressed(.v) {
-                audio?.start()
+                audio?.playbackController.play()
             }
             
             if Input.isKeyPressed(.m) {
-                audio?.stop()
+                audio?.playbackController.stop()
             }
         }
     }
