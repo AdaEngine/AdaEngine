@@ -67,7 +67,6 @@ class SpaceInvaders {
         
         scene.subscribe(to: SceneEvents.OnReady.self) { event in
             event.scene.physicsWorld2D?.gravity = .zero
-            Input.setMouseMode(.hidden)
         }.store(in: &self.disposeBag)
         
         return scene

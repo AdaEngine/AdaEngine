@@ -19,6 +19,15 @@
       }
     },
     {
+      "identity" : "libpng",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/libpng",
+      "state" : {
+        "branch" : "main",
+        "revision" : "cd44f65ac9a5b943cb169410f20cff62161a3af2"
+      }
+    },
+    {
       "identity" : "miniaudio",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/AdaEngine/miniaudio",
