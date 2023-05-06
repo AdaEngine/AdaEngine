@@ -19,6 +19,8 @@ DerivedData/
 /.vs
 /.vscode
 
+/.idea
+
 # Tuist
 
 /Tuist/Dependencies/

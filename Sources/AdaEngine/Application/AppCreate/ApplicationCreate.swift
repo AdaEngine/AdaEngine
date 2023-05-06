@@ -37,6 +37,7 @@ public extension App {
         let argv = CommandLine.unsafeArgv
         
         try ResourceManager.initialize()
+        try AudioServer.initialize()
         
         let app = Self.init()
         
@@ -74,6 +75,10 @@ public extension App {
         
         window.showWindow(makeFocused: true)
         
+        try AudioServer.shared.start()
+        
         try application.run()
+        
+        try AudioServer.shared.stop()
     }
 }

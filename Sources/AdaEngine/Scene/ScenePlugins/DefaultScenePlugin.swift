@@ -19,6 +19,7 @@ struct DefaultScenePlugin: ScenePlugin {
         scene.addPlugin(SpritePlugin())
         scene.addPlugin(Mesh2DPlugin())
         scene.addPlugin(Text2DPlugin())
+        scene.addPlugin(AudioPlugin())
         
         // Setup Physics
         scene.addPlugin(Physics2DPlugin())

@@ -1,9 +1,0 @@
-@Tutorials(name: "Create your first Game") {
-    @Intro(title: "Time to") {
-        In this tutorials you learn how to create your first 2D game using AdaEngine
-    }
-    
-    @Chapter(name: "Create your first scene.") {
-        @TutorialReference(tutorial: "doc:CreateFirstScene")
-    }
-}
