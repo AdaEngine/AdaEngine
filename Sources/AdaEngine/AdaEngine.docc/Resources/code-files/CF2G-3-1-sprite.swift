@@ -1,24 +1,16 @@
 import AdaEngine
 
 class FirstScene {
-    func makeScene() -> Scene {
+    func makeScene() throws -> Scene {
         let scene = Scene()
         
-        let cameraEntity = Entity(name: "Camera")
-        
-        let camera = Camera()
-        camera.projection = .orthographic
-        camera.isPrimal = true
-        
-        cameraEntity.components += camera
+        let cameraEntity = OrthographicCamera()
+        cameraEntity.camera.backgroundColor = Color(45/255, 171/255, 255/255, 1)
         scene.addEntity(cameraEntity)
         
-        self.makePlayer(for: scene)
+        let playerEntity = Entity(name: "Player")
+        scene.addEntity(playerEntity)
         
         return scene
-    }
-    
-    func makePlayer(for scene: Scene) {
-        
     }
 }
