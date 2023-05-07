@@ -1,28 +1,19 @@
 import AdaEngine
 
 class FirstScene {
-    func makeScene() -> Scene {
+    func makeScene() throws -> Scene {
         let scene = Scene()
         
-        let cameraEntity = Entity(name: "Camera")
-        
-        let camera = Camera()
-        camera.projection = .orthographic
-        camera.isPrimal = true
-        
-        cameraEntity.components += camera
+        let cameraEntity = OrthographicCamera()
+        cameraEntity.camera.backgroundColor = Color(45/255, 171/255, 255/255, 1)
         scene.addEntity(cameraEntity)
         
-        self.makePlayer(for: scene)
-        
-        return scene
-    }
-    
-    func makePlayer(for scene: Scene) {
-        let url = Bundle.main.url(forResource: "player", withExtension: "png")!
-        let image = try! Image(contentsOf: url)
+        let spriteSheetImage = try ResourceManager.load("characters_packed.png", from: Bundle.main) as Image
+        let spriteSheet = TextureAtlas(from: spriteSheetImage, size: [20, 23], margin: [4, 1])
         
         let playerEntity = Entity(name: "Player")
         scene.addEntity(playerEntity)
+        
+        return scene
     }
 }

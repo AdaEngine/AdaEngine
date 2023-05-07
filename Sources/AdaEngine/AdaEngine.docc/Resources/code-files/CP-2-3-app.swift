@@ -6,7 +6,5 @@ struct FirstPackageApp: App {
         GameAppScene {
             Scene()
         }
-        .windowMode(.windowed)
-        .windowTitle("First Ada App")
     }
 }

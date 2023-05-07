@@ -1,12 +1,11 @@
 import AdaEngine
 
 class FirstScene {
-    func makeScene() -> Scene {
+    func makeScene() throws -> Scene {
         let scene = Scene()
         
-        let cameraEntity = Entity(name: "Camera")
-        
-        let camera = Camera()
+        let cameraEntity = OrthographicCamera()
+        scene.addEntity(cameraEntity)
         
         return scene
     }
