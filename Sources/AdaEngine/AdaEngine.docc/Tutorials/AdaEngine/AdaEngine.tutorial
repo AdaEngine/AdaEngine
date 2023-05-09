@@ -1,12 +1,22 @@
 @Tutorials(name: "Ada Engine") {
-    @Intro(title: "Time to") {
-        In this tutorials you learn how to create your first 2D game using AdaEngine.
+    @Intro(title: "Meet AdaEngine") {
+        Learn the basics of AdaEngine and starts to develop your own games!
     }
     
     @Chapter(name: "Create your first 2D game project.") {
         
+        @Image(source: "first2dscene-intro.png", alt: "")
+        
         @TutorialReference(tutorial: "doc:CreateProject")
         
         @TutorialReference(tutorial: "doc:CreateFirst2DScene")
+    }
+    
+    @Resources {
+        @Stack {
+            
+            
+            
+        }
     }
 }
