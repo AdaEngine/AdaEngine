@@ -2,6 +2,10 @@
     @Intro(title: "Create your first game project") {
         In this tutorial you learn how to create your first AdaEngine project.
         
+        @Comment {
+            Add same example to SPM package, currently it doesn't works.
+        }
+        
 <!--        @Image(source: <#file#>, alt: "<#accessible description#>")-->
     }
 <!--  This step doesn't works, because SPM doesn't apply C++ interop  -->
