@@ -14,10 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Build Documentation
-        run: |
-        swift package --allow-writing-to-directory ./docs \ 
-        generate-documentation --target AdaEngine --output-path ./docs \
-        --transform-for-static-hosting --hosting-base-path adaengine.github.io
+        run: swift package --allow-writing-to-directory ./docs generate-documentation --target AdaEngine --output-path ./docs --transform-for-static-hosting --hosting-base-path adaengine.github.io
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
