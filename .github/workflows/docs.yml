@@ -5,7 +5,7 @@ on:
     branches:
       - 'main'
 
-# env:
+env:
 #   RUSTDOCFLAGS: --html-in-header header.html
 
 jobs:
@@ -19,9 +19,9 @@ jobs:
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          branch: main
+          branch: docs
           folder: docs
-          repository-name: AdaEngine/adaengine-docs
+          repository-name: AdaEngine/ada-website
           target-folder: Resources
-          single-commit: true
+          single-commit: false
           force: true
