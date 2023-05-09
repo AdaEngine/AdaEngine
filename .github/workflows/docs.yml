@@ -21,7 +21,7 @@ jobs:
         with:
           branch: main
           folder: docs
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.DOCS_ACCESS_TOKEN }}
           repository-name: AdaEngine/adaengine-docs
           single-commit: true
           force: true
