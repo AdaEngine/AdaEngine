@@ -19,8 +19,9 @@ jobs:
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          branch: gh-pages
+          branch: main
           folder: docs
+          repository-name: AdaEngine/adaengine-docs
           target-folder: Resources
           single-commit: true
           force: true
