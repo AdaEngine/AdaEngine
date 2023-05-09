@@ -1,0 +1,210 @@
+@Tutorial(time: 20, projectFiles: "CF2G-FirstPackage.zip") {
+    @Intro(title: "Create your first 2D scene") {
+        
+        In this tutorial you can learn how to create your first 2D scene using AdaEngine
+    }
+    
+    @XcodeRequirement(title: "Xcode 14.3 or later", destination: "https://developer.apple.com/download/")
+    
+    @Section(title: "Create an app") {
+        @ContentAndMedia {
+            For the first time, we should create base files to launch our application
+        }
+        
+        @Steps {
+            @Step {
+                In the previous tutorial we've created an app and an empty game scene.
+                
+                @Code(name: "FirstGameApp.swift", file: CF2G-1-1-app.swift)
+            }
+            
+            @Step {
+                Let's create a game scene. To do this, let's create a file named `FirstScene.swift` and import AdaEngine. After that, create a class named `FirstScene` and add a method named `makeScene` which returns an ``Scene`` object.
+                In this method we will create and configure our scene later.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-1-2-scene.swift)
+            }
+            
+            @Step {
+                Create the ``Scene`` instance in your `FirstScene.swift` file and return it.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-1-3-scene.swift)
+            }
+            
+            @Step {
+                Great! Now we can create and return our game scene instance to the ``GameAppScene`` object.
+                
+                ``GameAppScene`` will automatically create a game window with your scene.
+                
+                @Code(name: "FirstGameApp.swift", file: CF2G-1-4-app.swift)
+            }
+        }
+    }
+        
+    @Section(title: "Create a main camera.") {
+        @ContentAndMedia {
+            AdaEngine used Entity Component System paradigm where all game objects are called ``Entity``.
+            Entities are objects that store user or engine data like position, scale, mesh instance, audio etc. This data is called components and they should inherit from ``Component`` protocol.
+            
+            @Comment {
+                We should link to ECS article here
+            }
+        }
+        
+        ``Camera`` is a component where all entities will render. AdaEngine supports rendering to the texture or to the ``Window``. We recommend you to use engine entities ``OrthographicCamera`` or ``PerspectiveCamera``, because the engine provides additional components for rendering and audio capabilities.
+        
+        @Steps {
+            @Step {
+                Let's create our 2D camera. Create an ``OrthographicCamera`` entity and add this entity to the scene using the `addEntity` method. 
+                
+                @Code(name: "FirstScene.swift", file: CF2G-2-1-camera.swift)
+            }
+            
+            @Step {
+                Now let's fill the camera background with sky blue color.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-2-2-camera.swift) {
+                    @Image(source: "CF2G-2-1.png", alt: "Empty window with blue color")
+                }
+            }
+        }
+    }
+        
+    @Section(title: "First sprite") {
+        @ContentAndMedia {
+            Now we can create our first custom sprite. 
+        }
+        
+        @Steps {
+            @Step {
+                First we should create an assets folder where we will store our game assets, like sprite sheets, sounds, shaders, etc. Let's create a folder named `Assets` and add any sprite sheets you want, we will use this next sprite sheet.
+                
+                @Image(source: "CF2G-3-1.png", alt: "Our sprite sheet")
+            }
+            
+            @Step {
+                In the end we should have this file structure in our project. AdaEngine doesn't use xcassets and
+                
+                You can download this texture using right click on image from right and save it to the downloads folder. 
+                
+                @Image(source: "CF2G-3-2.png", alt: "Our sprite sheet")
+            }
+            
+            @Step {
+                Create a player entity and then add it to the scene. Player entity will store our sprite component and other player data.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-3-1-sprite.swift)
+            }
+            
+            @Step {
+                Let's create an image from a file using a special resource manager object. ``ResourceManager`` manages and cache game and engine resources. In our case we should load an image from a file named `characters_packed.png` and use `Bundle.main` as a search path.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-3-2-sprite.swift)
+            }
+            
+            @Step {
+                To split the sprite sheet image to sprites we can use the ``TextureAtlas`` object. This object gets an image, sprite size and margin between sprites if needed. In our case we have a margin between sprites 4xp horizontally and 1px vertically and sprite size 20px width and 23px height.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-3-3-sprite.swift)
+            }
+            
+            @Step {
+                Now we can add our sprite to the player entity using special ``SpriteComponent``. These components are efficient for rendering, because they use a special batching system and require less drawing calls. 
+                
+                Add a new sprite component to entity components using the special `+=` operator. As you can see we use subscripts in our TextureAtlas instance where 7 is the number of columns in our sprite sheet and 1 is the number of rows.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-3-4-sprite.swift) {
+                    @Image(source: "CF2G-3-3.png", alt: "Our sprite sheet")
+                }
+            }
+            
+            @Step {
+                And finally let's set the scale for our sprite. Create a special ``Transform`` component with scale equals 0.19. `Vector3.init(_ scalar: Float)` creates a vector with x, y, z components equals scalar value. 
+                
+                By default ``Entity`` has a ``Transform`` component when initialized. 
+                
+                @Code(name: "FirstScene.swift", file: CF2G-3-5-sprite.swift) {
+                    @Image(source: "CF2G-3-4.png", alt: "Our sprite sheet")
+                }
+            }
+        }
+    }
+        
+    @Section(title: "Make it move") {
+        @ContentAndMedia {
+            We did a lot of work, but our scene looks very simple. We should add more life for our player entity. All game logic we describe in special objects named ``System``. System is a unit that executes each game loop and manipulates entities and their data. We will use one to add life for our player.
+        }
+            
+        @Steps {
+            @Step {
+                First we should create a special tag component named `PlayerComponent`. This component we will use in the near future and indicates for us that this entity is a player.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-1-player.swift)
+            }
+            
+            @Step {
+                Create a new system named `MovementSystem`. This system will listen to user inputs and move our player component on the screen. System interface required `init(scene:)` and `update(context:)` methods.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-2-player.swift)
+            }
+            
+            @Step {
+                Add a new system to our game scene. Our system will be created once the game scene will be active and present on the screen.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-3-player.swift)
+            }
+            
+            @Step {
+                In the `MovementSystem` add a static property named `playerQuery` and set a special `EntityQuery` object. This object will request a scene world with a special query and returns entities that conform to your predicate. In our case we will require two components in entity `PlayerComponent` and ``Transform``. 
+                
+                Also add a property named `speed` which will store our player speed value.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-4-player.swift)
+            }
+            
+            @Step {
+                Now we can make our first request to the scene using the special scene method `performQuery`. This method will return a sequence of entities that conforms to our query. 
+                
+                Add the next query to the update method. 
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-5-player.swift)
+            }
+            
+            @Step {
+                Let's iterate over all founded entities using the `forEach` loop and get the ``Transform`` component.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-6-player.swift)
+            }
+            
+            We want to update our player position so that we should listen to keyboard inputs and if some key is pressed, we should change player transform.
+            
+            @Step {
+                Get ``Transform`` component from entity using `components` property from entity. You can do this using subscript.   
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-6-player.swift)
+            }
+            
+            @Step {
+                Add `if` condition where we will listen to the `w` key. If the key is pressed, then add multiplication speed by delta time. We do this for smooth transition between frames.   
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-7-player.swift)
+            }
+            
+            @Step {
+                Now we should set a new, modified transform to our entity, to apply a new transform in the scene.
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-8-player.swift)
+            }
+            
+            @Step {
+                Finally, add the same logic for other keys - `a`, `s` and `d`.
+                
+                Run the app and try to move your player
+                
+                
+                @Code(name: "FirstScene.swift", file: CF2G-4-9-player.swift) {
+                    @Video(source: "CF2G-3-5.mov", alt: "")
+            }
+        }
+    }
+}
