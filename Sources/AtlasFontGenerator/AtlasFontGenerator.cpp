@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 3/4/23.
 //
 
+#include "assert.h"
 #include "atlas_font_gen.h"
 #include "FontHolder.h"
 #include "AtlasFontGenerator.h"

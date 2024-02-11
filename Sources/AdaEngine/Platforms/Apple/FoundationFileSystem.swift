@@ -34,7 +34,7 @@ final class FoundationFileSystem: FileSystem {
             searchPathDir = .cachesDirectory
         }
         
-        return try self.fileManager.url(for: searchPathDir, in: NSUserDomainMask, appropriateFor: nil, create: create)
+        return try self.fileManager.url(for: searchPathDir, in: .userDomainMask, appropriateFor: nil, create: create)
     }
     
     override func itemExists(at url: URL) -> Bool {
