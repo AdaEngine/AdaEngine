@@ -1,4 +1,4 @@
-// swift-tools-version:5.7
+// swift-tools-version:5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -25,6 +25,8 @@ let isVulkanEnabled = false
 #else
 let isVulkanEnabled = true
 #endif
+
+//let isVulkanEnabled = true
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS]
 
@@ -108,10 +110,7 @@ var swiftSettings: [SwiftSetting] = [
     .define("TVOS", .when(platforms: [.tvOS])),
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
-    
-    // To avoid problems with debugging add `settings set target.experimental.swift-enable-cxx-interop true` to your `~/.lldbinit` file
-    // See Also: https://forums.swift.org/t/lldb-failed-when-i-connected-my-c-lib/63712/2
-    .unsafeFlags(["-enable-experimental-cxx-interop"])
+    .interoperabilityMode(.Cxx)
 ]
 
 if isVulkanEnabled {
@@ -154,7 +153,8 @@ var adaEngineDependencies: [Target.Dependency] = [
     "libpng",
     "SPIRV-Cross",
     "SPIRVCompiler",
-    "AdaBox2d"
+    "AdaBox2d",
+//    "Vulkan"
 ]
 
 #if os(Linux)
@@ -298,8 +298,9 @@ package.dependencies += [
     .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
     .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
     .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
+//    .package(path: "Modules/Vulkan"),
     // Plugins
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0"),
+    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0")
 ]
 
 // MARK: - Vulkan -

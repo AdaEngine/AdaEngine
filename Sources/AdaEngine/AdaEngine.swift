@@ -26,4 +26,7 @@ public final class Engine {
     
     /// Setup physics ticks per second. Default value is equal 60 ticks per second.
     public var physicsTickPerSecond: Int = 60
+    
+    /// Engine version
+    public var engineVersion: Version = Version(string: "0.1.0")
 }

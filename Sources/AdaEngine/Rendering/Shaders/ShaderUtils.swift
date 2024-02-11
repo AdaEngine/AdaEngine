@@ -62,10 +62,10 @@ enum ShaderUtils {
                 break
             }
             
-            let regular = try NSRegularExpression(pattern: "((^\\W|^\\w+)|(\\w+)|[:()])", options: 0)
+            let regular = try NSRegularExpression(pattern: "((^\\W|^\\w+)|(\\w+)|[:()])", options: [])
             let matches = regular.matches(
                 in: finalSource,
-                options: 0,
+                options: [],
                 range: NSRange(pointer..<endOfLine, in: finalSource)
             )
             
@@ -230,13 +230,13 @@ enum ShaderUtils {
     /// Get first matched attribute in string.
     /// - Returns: Attribute name and function name
     static func getFirstFunctionAttribute(in string: String) -> (Substring, Substring)? {
-        guard let regex = try? NSRegularExpression(pattern: Self.entryPointRegex, options: 0) else {
+        guard let regex = try? NSRegularExpression(pattern: Self.entryPointRegex, options: []) else {
             return nil
         }
         
         guard let firstMatch = regex.firstMatch(
             in: string,
-            options: 0,
+            options: [],
             range: NSRange(string.startIndex..<string.endIndex, in: string)
         ) else {
             // We don't find any attributes

@@ -24,7 +24,6 @@ public final class RenderEngine: RenderBackend {
     /// Setup configuration for render engine
     public static var configurations: Configuration = Configuration()
     
-    
     /// Return instance of render engine for specific backend.
     public static let shared: RenderEngine = {
         let renderBackend: RenderBackend
@@ -32,7 +31,7 @@ public final class RenderEngine: RenderBackend {
         #if METAL
         renderBackend = MetalRenderBackend(appName: "Ada Engine")
         #elseif VULKAN
-        // vulkan here
+        renderBackend = VulkanRenderBackend(appName: "Ada Engine")
         #endif
         
         return RenderEngine(renderBackend: renderBackend)

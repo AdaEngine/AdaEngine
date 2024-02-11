@@ -36,6 +36,20 @@ extension Version: ExpressibleByStringLiteral {
     }
 }
 
+public extension Version {
+    var major: Int {
+        return self.components[0]
+    }
+    
+    var minor: Int {
+        return self.components[1]
+    }
+    
+    var patch: Int {
+        return self.components[2]
+    }
+}
+
 extension Version: Comparable {
     // MARK: - Comparable Helper
     public static func < (lhs: Version, rhs: Version) -> Bool {

@@ -195,14 +195,14 @@ class MetalRenderBackend: RenderBackend {
     // MARK: - Buffers
     
     func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
-        let buffer = self.context.physicalDevice.makeBuffer(length: length, options: MTLResourceStorageModeShared)!
+        let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
         buffer.contents().copyMemory(from: bytes, byteCount: length)
         
         return MetalIndexBuffer(buffer: buffer, offset: index, indexFormat: format)
     }
     
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
-        let buffer = self.context.physicalDevice.makeBuffer(length: length, options: MTLResourceStorageModeShared)!
+        let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
         return MetalVertexBuffer(buffer: buffer, binding: 0, offset: 0)
     }
     
@@ -244,18 +244,18 @@ extension MetalRenderBackend {
             textureDesc.textureType = .typeTextureBuffer
         }
         
-        var mtlUsage: MTLTextureUsage = 0
+        var mtlUsage: MTLTextureUsage = []
         
         if descriptor.textureUsage.contains(.read) {
-            mtlUsage |= MTLTextureUsageShaderRead
+            mtlUsage.insert(.shaderRead)
         }
         
         if descriptor.textureUsage.contains(.write) {
-            mtlUsage |= MTLTextureUsageShaderWrite
+            mtlUsage.insert(.shaderWrite)
         }
         
         if descriptor.textureUsage.contains(.renderTarget) {
-            mtlUsage |= MTLTextureUsageRenderTarget
+            mtlUsage.insert(.renderTarget)
         }
         
         textureDesc.usage = mtlUsage
@@ -389,7 +389,7 @@ extension MetalRenderBackend {
     func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(
             length: length,
-            options: MTLResourceStorageModeShared
+            options: .storageModeShared
         )!
         
         let uniformBuffer = MetalUniformBuffer(buffer: buffer, binding: binding)
@@ -717,10 +717,6 @@ class MetalCommandBuffer: CommandBuffer {
     }
 }
 
-public protocol DrawCommandBuffer {
-    
-}
-
 class MetalRenderCommandBuffer: DrawCommandBuffer {
     let encoder: MTLRenderCommandEncoder
     let commandBuffer: MTLCommandBuffer
@@ -730,9 +726,6 @@ class MetalRenderCommandBuffer: DrawCommandBuffer {
         self.commandBuffer = commandBuffer
     }
 }
-
-// That's hack to support StorageSharedMode for swift interop
-let MTLResourceStorageModeShared = Int(MTLStorageMode(rawValue: 0)!.rawValue << UInt(MTLResourceStorageModeShift))
 
 #endif
 
@@ -753,5 +746,9 @@ class BundleToken {}
 #endif
 
 public protocol CommandBuffer {
+    
+}
+
+public protocol DrawCommandBuffer {
     
 }

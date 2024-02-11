@@ -1,4 +1,4 @@
-// swift-tools-version:5.6
+// swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -9,16 +9,14 @@ let package = Package(
     name: "Vulkan",
     products: [
         .library(
-            name: "LibPNG",
-            targets: ["cpng"]
-        ),
-        .plugin(name: "SPIR-V", targets: ["SPIRVPlugin"])
+            name: "Vulkan",
+            targets: ["Vulkan"]
+        )
     ],
     targets: [
         .target(
             name: "Vulkan",
             dependencies: ["CVulkan"],
-            exclude: ["Project.swift", "Derived"],
             cxxSettings: [
                 // Apple
                 .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
@@ -36,20 +34,6 @@ let package = Package(
             name: "CVulkan",
             pkgConfig: "vulkan"
         ),
-        .plugin(
-            name: "SPIRVBuildPlugin",
-            capability: .buildTool()
-        ),
-        .plugin(
-            name: "SPIRVPlugin",
-            capability:
-                    .command(
-                        intent: .custom(verb: "spirv", description: "Compile vert and frag shaders to spirv binary"),
-                        permissions: [
-                            .writeToPackageDirectory(reason: "Compile vert and frag shaders to spirv binary")
-                        ]
-                    )
-        )
     ],
     swiftLanguageVersions: [.v5]
 )

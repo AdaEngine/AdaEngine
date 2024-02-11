@@ -20,7 +20,7 @@ extension MetalView {
             self.removeTrackingArea(area)
         }
         
-        let options: NSTrackingAreaOptions = NSTrackingMouseMoved | NSTrackingMouseEnteredAndExited | NSTrackingCursorUpdate | NSTrackingInVisibleRect | NSTrackingActiveInKeyWindow
+        let options: NSTrackingArea.Options = [.mouseMoved, .mouseEnteredAndExited, .cursorUpdate, .inVisibleRect, .activeInKeyWindow]
         
         let newTrackingArea = NSTrackingArea(rect: self.bounds, options: options, owner: self, userInfo: nil)
         self.addTrackingArea(newTrackingArea)
@@ -154,17 +154,16 @@ extension MetalView {
         return position
     }
     
-    private func inputPhase(from phase: NSEventPhase) -> MouseEvent.Phase {
+    private func inputPhase(from phase: NSEvent.Phase) -> MouseEvent.Phase {
         switch phase {
-        case NSEventPhaseBegan: return .began
-        case NSEventPhaseCancelled: return .cancelled
-        case NSEventPhaseEnded: return .ended
-        case NSEventPhaseChanged: return .changed
+        case .began: return .began
+        case .cancelled: return .cancelled
+        case .ended: return .ended
+        case .changed: return .changed
         default:
             return .ended
         }
     }
-
 }
 
 #endif
