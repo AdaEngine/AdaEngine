@@ -6,7 +6,8 @@
 //
 
 /// Component contains information about entity transform. This is main component for entities which want be rendering.
-public struct Transform: Component {
+@Component
+public struct Transform {
     
     /// Contains rotation of model.
     public var rotation: Quat

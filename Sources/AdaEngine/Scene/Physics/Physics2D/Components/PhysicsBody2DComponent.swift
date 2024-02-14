@@ -8,7 +8,8 @@
 import Math
 
 /// A component that defines an entity’s behavior in physics body simulations.
-public struct PhysicsBody2DComponent: Component {
+@Component
+public struct PhysicsBody2DComponent {
     
     /// The physics body’s mode, indicating how or if it moves.
     public var mode: PhysicsBodyMode

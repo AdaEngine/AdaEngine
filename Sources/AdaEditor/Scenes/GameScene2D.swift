@@ -118,9 +118,11 @@ struct PlayerMovementSystem: System {
     }
 }
 
-struct PlayerComponent: Component { }
+@Component
+struct PlayerComponent { }
 
-struct TubeComponent: Component { }
+@Component
+struct TubeComponent { }
 
 struct TubeMovementSystem: System {
     

@@ -7,7 +7,8 @@
 
 import AdaEngine
 
-struct EditorCameraComponent: Component {
+@Component
+struct EditorCameraComponent {
     var speed: Float = 20
     var pitch: Angle = Angle.radians(0)
     var yaw: Angle = Angle.radians(-90)

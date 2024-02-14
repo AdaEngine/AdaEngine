@@ -6,7 +6,8 @@
 //
 
 /// Contains information about all visible entities on the camera.
-public struct VisibleEntities: Component {
+@Component
+public struct VisibleEntities {
     
     /// Contains visible entities.
     public var entities: [Entity] = []
@@ -18,7 +19,8 @@ public struct VisibleEntities: Component {
 /// Contains information about visibility of entity.
 /// This component indicates that entity can be rendered on the screen.
 /// - Note: By default visibility is always true.
-public struct Visibility: Component {
+@Component
+public struct Visibility {
     
     public var isVisible: Bool
     
@@ -28,6 +30,7 @@ public struct Visibility: Component {
 }
 
 /// This components indicates that entity will not affected by frustum culling.
-public struct NoFrustumCulling: Component {
+@Component
+public struct NoFrustumCulling {
     public init() {}
 }
