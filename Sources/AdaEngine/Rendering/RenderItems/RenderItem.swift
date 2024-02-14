@@ -6,7 +6,8 @@
 //
 
 /// An object that store render items for rendering.
-public struct RenderItems<T: RenderItem>: Component {
+@Component
+public struct RenderItems<T: RenderItem> {
     public var items: [T]
     
     public init(items: [T] = []) {

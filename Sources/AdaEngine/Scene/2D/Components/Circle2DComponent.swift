@@ -6,7 +6,8 @@
 //
 
 /// Create a new 2D circle on scene.
-public struct Circle2DComponent: Component {
+@Component
+public struct Circle2DComponent {
     
     public var color: Color
     

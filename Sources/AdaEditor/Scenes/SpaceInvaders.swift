@@ -173,7 +173,8 @@ struct FireSystem: System {
     }
 }
 
-struct Bullet: Component {
+@Component
+struct Bullet {
     var damage: Float = 30
     let lifetime: Float
     var currentLifetime: Float = 0
@@ -202,7 +203,8 @@ struct BulletSystem: System {
     }
 }
 
-struct EnemyComponent: Component {
+@Component
+struct EnemyComponent {
     var health: Float
     let lifetime: Float
     var currentLifetime: Float = 0
@@ -297,7 +299,8 @@ extension CollisionGroup {
     static let bullet = CollisionGroup(rawValue: 1 << 2)
 }
 
-struct ExplosionComponent: Component { }
+@Component
+struct ExplosionComponent { }
 
 struct EnemyExplosionSystem: System {
     
@@ -358,7 +361,8 @@ struct EnemyExplosionSystem: System {
     }
 }
 
-struct GameState: Component {
+@Component
+struct GameState {
     var score: Int = 0
 }
 

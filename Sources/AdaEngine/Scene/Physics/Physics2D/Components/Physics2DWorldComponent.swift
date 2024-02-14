@@ -6,6 +6,7 @@
 //
 
 /// Component contains ``PhysicsWorld2D``.
-public struct Physics2DWorldComponent: Component {
+@Component
+public struct Physics2DWorldComponent {
     public let world: PhysicsWorld2D
 }

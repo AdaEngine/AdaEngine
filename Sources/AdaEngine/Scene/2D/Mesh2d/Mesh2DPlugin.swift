@@ -16,7 +16,8 @@ struct Mesh2DPlugin: ScenePlugin {
     }
 }
 
-public struct ExctractedMeshes2D: Component {
+@Component
+public struct ExctractedMeshes2D {
     public var meshes: [ExctractedMesh2D] = []
     
     public init(meshes: [ExctractedMesh2D] = []) {
@@ -24,7 +25,8 @@ public struct ExctractedMeshes2D: Component {
     }
 }
 
-public struct ExctractedMesh2D: Component {
+@Component
+public struct ExctractedMesh2D {
     public var entityId: Entity.ID
     public var mesh: Mesh2DComponent
     public var transform: Transform
@@ -160,7 +162,8 @@ public struct Mesh2DRenderSystem: System {
     }
 }
 
-struct ExctractedMeshPart2d: Component {
+@Component
+struct ExctractedMeshPart2d {
     let part: Mesh.Part
     let material: Material
     let modelUniform: Mesh2DUniform

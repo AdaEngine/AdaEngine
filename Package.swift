@@ -1,8 +1,9 @@
-// swift-tools-version:5.9
+// swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 import Foundation
+import CompilerPluginSupport
 
 #if canImport(AppleProductTypes) && os(iOS)
 import AppleProductTypes
@@ -154,6 +155,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "SPIRV-Cross",
     "SPIRVCompiler",
     "AdaBox2d",
+    "AdaEngineMacros"
 //    "Vulkan"
 ]
 
@@ -183,12 +185,21 @@ let adaEngineEmbeddable: Target = .target(
     exclude: ["Project.swift", "Derived"]
 )
 
+let adaEngineMacros: Target = .macro(
+    name: "AdaEngineMacros",
+    dependencies: [
+        .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+        .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
+    ]
+)
+
 // MARK: Other Targets
 
 var targets: [Target] = [
     editorTarget,
     adaEngineTarget,
     adaEngineEmbeddable,
+    adaEngineMacros,
     .target(
         name: "Math",
         exclude: ["Project.swift", "Derived"]
@@ -300,7 +311,8 @@ package.dependencies += [
     .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
 //    .package(path: "Modules/Vulkan"),
     // Plugins
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0")
+    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0"),
+    .package(url: "https://github.com/apple/swift-syntax", from: "509.1.1")
 ]
 
 // MARK: - Vulkan -

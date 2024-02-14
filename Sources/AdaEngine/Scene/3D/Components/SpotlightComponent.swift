@@ -7,19 +7,22 @@
 
 import Math
 
-public struct SpotLightComponent: Component {
+@Component
+public struct SpotLightComponent {
     public var radiance: Vector3 = .one
     public var intensity: Float = 1
     public var castShadows = true
 }
 
-public struct PointLightComponent: Component {
+@Component
+public struct PointLightComponent {
     public var radiance: Vector3 = .one
     public var intensity: Float = 1
     public var castShadows = true
 }
 
-public struct DirectionalLightComponent: Component {
+@Component
+public struct DirectionalLightComponent {
     public var radiance: Vector3 = .one
     public var intensity: Float = 1
     public var castShadows = true

@@ -219,18 +219,21 @@ public struct SpriteRenderSystem: System {
     }
 }
 
-struct SpriteDataComponent: Component {
+@Component
+struct SpriteDataComponent {
     let vertexBuffer: VertexBuffer
     let indexBuffer: IndexBuffer
 }
 
-public struct BatchComponent: Component {
+@Component
+public struct BatchComponent {
     public var textures: [Texture2D]
 }
 
 // MARK: Extraction to Render World
 
-public struct ExtractedSprites: Component {
+@Component
+public struct ExtractedSprites {
     public var sprites: [ExtractedSprite]
     
     public init(sprites: [ExtractedSprite]) {
@@ -238,7 +241,8 @@ public struct ExtractedSprites: Component {
     }
 }
 
-public struct ExtractedSprite: Component {
+@Component
+public struct ExtractedSprite {
     public var entityId: Entity.ID
     public var texture: Texture2D?
     public var tintColor: Color
