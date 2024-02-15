@@ -1,0 +1,40 @@
+###############################################################################
+# Bazel now uses Bzlmod by default to manage external dependencies.
+# Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
+#
+# For more details, please check https://github.com/bazelbuild/bazel/issues/18958
+###############################################################################
+
+module(
+    name = "ada-engine",
+    version = "0",
+    compatibility_level = 1,
+    repo_name = "AdaEngine"
+)
+
+bazel_dep(name = "rules_swift", version = "1.16.0", repo_name = "build_bazel_rules_swift")
+bazel_dep(name = "apple_support", version = "1.11.1", repo_name = "build_bazel_apple_support")
+bazel_dep(name = "rules_xcodeproj", version = "1.16.0", repo_name = "rules_xcodeproj")
+bazel_dep(name = "swift-syntax", version = "509.1.1", repo_name = "SwiftSyntax")
+bazel_dep(name = "gazelle", version = "0.35.0", repo_name = "bazel_gazelle")
+bazel_dep(name = "swiftlint", version = "0.54.0", repo_name = "SwiftLint")
+bazel_dep(name = "rules_swift_package_manager", version = "0.28.0")# swift_deps START
+swift_deps = use_extension(
+    "@rules_swift_package_manager//:extensions.bzl",
+    "swift_deps",
+)
+swift_deps.from_file(
+    deps_index = "//:swift_deps_index.json",
+)
+use_repo(
+    swift_deps,
+    "swiftpkg_box2d_swift",
+    "swiftpkg_glslang",
+    "swiftpkg_msdf_atlas_gen",
+    "swiftpkg_spirv_cross",
+    "swiftpkg_swift_collections",
+    "swiftpkg_swift_docc_plugin",
+    "swiftpkg_swift_syntax",
+    "swiftpkg_yams",
+)
+# swift_deps END

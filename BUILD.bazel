@@ -1,0 +1,255 @@
+load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test")
+load("@rules_swift_package_manager//swiftpkg:defs.bzl", "swift_update_packages")
+load(
+    "@rules_xcodeproj//xcodeproj:defs.bzl",
+    "xcodeproj",
+    "xcode_schemes"
+)
+load("//utils/bazel:cc_ada_library.bzl", "cc_ada_library")
+load("//utils/bazel:swift_ada_binary.bzl", "swift_ada_binary")
+load("//utils/bazel:swift_ada_library.bzl", "swift_ada_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Swift Package Manager
+
+gazelle_binary(
+    name = "gazelle_bin",
+    languages = [
+        "@rules_swift_package_manager//gazelle",
+    ],
+)
+
+swift_update_packages(
+    name = "swift_update_pkgs",
+    gazelle = ":gazelle_bin",
+    generate_swift_deps_for_workspace = False,
+    update_bzlmod_stanzas = True,
+)
+
+gazelle(
+    name = "update_build_files",
+    gazelle = ":gazelle_bin",
+)
+
+# Config settings
+
+config_setting(
+    name = "debug",
+    values = {
+        "compilation_mode" : "dbg"
+    }
+)
+
+config_setting(
+    name = "release",
+    values = {
+        "compilation_mode" : "fastbuild"
+    }
+)
+
+config_setting(
+    name = "apple_platform", 
+    constraint_values = [
+        "@platforms//os:osx",
+        "@platforms//os:ios",
+        "@platforms//os:tvos",
+        "@platforms//os:visionos",
+    ],
+)
+
+
+
+swift_defines = select({
+    "@platforms//os:osx": [
+        "MACOS"
+    ],
+    "@platforms//os:ios": [
+        "IOS"
+    ],
+    "@platforms//os:tvos": [
+        "TVOS"
+    ],
+    "@platforms//os:windows": [
+        "WINDOWS"
+    ],
+    "@platforms//os:linux": [
+        "LINUX"
+    ],
+    "@platforms//os:android": [
+        "ANDROID"
+    ],
+    "//conditions:default": [],
+})
+
+ada_editor_defines = select({
+    "@platforms//os:osx": [
+        "EDITOR_MACOS"
+    ],
+    "@platforms//os:ios": [
+        "EDITOR_IOS"
+    ],
+    "@platforms//os:tvos": [
+        "EDITOR_TVOS"
+    ],
+    "@platforms//os:windows": [
+        "EDITOR_WINDOWS"
+    ],
+    "@platforms//os:linux": [
+        "EDITOR_LINUX"
+    ],
+    "@platforms//os:android": [
+        "EDITOR_ANDROID"
+    ],
+    "//conditions:default": []
+})
+
+ada_engine_deps = [
+        ":Math",
+        "@ada_deps//swift-collections:Collections",
+        "@ada_deps//swift-collections:BitCollections",
+        ":AtlasFontGenerator",
+        "@ada_deps//Yams:Yams",
+        ":libpng",
+        "@ada_deps//SPIRV-Cross:SPIRV-Cross",
+        ":SPIRVCompiler",
+        ":AdaBox2d",
+        ":AdaEngineMacros"
+    ]
+
+# [
+    # .interoperabilityMode(.Cxx)
+# ]
+
+# C & CXX Libraries
+
+cc_ada_library(
+    name = "AtlasFontGenerator",
+    deps = [
+        "@ada_deps//msdf-atlas-gen:MSDFAtlasGen",
+    ]
+)
+
+cc_ada_library(
+    name = "SPIRVCompiler",
+    deps = [
+        "@ada_deps//glslang:glslang",
+    ]
+)
+
+cc_ada_library(
+    name = "AdaBox2d",
+    deps = [
+        "@ada_deps//box2d-swift:box2d",
+    ]
+)
+
+cc_ada_library(
+    name = "libpng",
+    defines = select({
+        "@platforms//cpu:arm": [
+            "PNG_ARM_NEON_OPT=2"
+        ],
+        "@platforms//cpu:arm64": [
+            "PNG_ARM_NEON_OPT=2"
+        ],
+        "//conditions:default": [
+            "PNG_ARM_NEON_OPT=0"
+        ]
+    })
+)
+
+# Swift Libraries
+
+swift_ada_library(
+    name = "Math"
+)
+
+swift_compiler_plugin(
+    name = "AdaEngineMacros",
+    srcs = glob(["Sources/AdaEngineMacros/**/*.swift"]),
+    deps = [
+        "@SwiftSyntax",
+        "@SwiftSyntax//:SwiftCompilerPlugin",
+        "@SwiftSyntax//:SwiftSyntaxMacros"
+    ]
+)
+
+swift_ada_library(
+    name = "AdaEngine",
+    deps = ada_engine_deps,
+    data = [
+        "Sources/AdaEngine/Assets/Shaders",
+        "Sources/AdaEngine/Assets/Models",
+        "Sources/AdaEngine/Assets/Fonts",
+    ],
+    defines = swift_defines
+)
+
+swift_ada_binary(
+    name = "AdaEngineEmbeddable",
+    deps = [
+        ":AdaEngine"
+    ]
+)
+
+swift_ada_binary(
+    name = "AdaEditor",
+    deps = [
+        ":AdaEngine",
+        ":Math"
+    ],
+    data = [
+        "Sources/AdaEditor/Assets",
+    ],
+    defines = swift_defines + ada_editor_defines + select({
+    ":debug": [
+        "EDITOR_DEBUG"    
+    ],
+    "//conditions:default": []
+    })
+)
+
+swift_test(
+    name = "AdaEngineTests",
+    srcs = ["Tests/AdaEngineTests"],
+    deps = [
+        ":AdaEngine"
+    ]
+)
+
+swift_test(
+    name = "MathTests",
+    srcs = ["Tests/MathTests"],
+    deps = [
+        ":Math"
+    ]
+)
+
+xcodeproj(
+    name = "xcodeproj",
+    project_name = "AdaEditor",
+    tags = ["manual"],
+    schemes = [
+        xcode_schemes.scheme(
+            name = "AdaEditor",
+            launch_action = xcode_schemes.launch_action(
+                ":AdaEditor",
+                args = [
+                    
+                ],
+            ),
+            test_action = xcode_schemes.test_action([
+                ":AdaEditor",
+                ":AdaEngineTests",
+                ":Math"
+            ]),
+        ),  
+    ],
+    top_level_targets = [
+        ":AdaEditor",
+        ":AdaEngineTests",
+        ":Math"
+    ]
+)
