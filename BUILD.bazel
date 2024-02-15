@@ -17,20 +17,30 @@ package(default_visibility = ["//visibility:public"])
 gazelle_binary(
     name = "gazelle_bin",
     languages = [
+        "@bazel_skylib_gazelle_plugin//bzl",
         "@rules_swift_package_manager//gazelle",
     ],
-)
-
-swift_update_packages(
-    name = "swift_update_pkgs",
-    gazelle = ":gazelle_bin",
-    generate_swift_deps_for_workspace = False,
-    update_bzlmod_stanzas = True,
+    visibility = ["//:__subpackages__"]
 )
 
 gazelle(
     name = "update_build_files",
+    args = [
+        "-swift_dependency_index=bazel/swift/deps_index.json",
+    ],
     gazelle = ":gazelle_bin",
+)
+
+# Aliases
+
+alias(
+    name = "swift_update_pkgs",
+    actual = "//bazel/swift:update_pkgs",
+)
+
+alias(
+    name = "swift_update_pkgs_to_latest",
+    actual = "//bazel/swift:update_pkgs_to_latest",
 )
 
 # Config settings
@@ -58,8 +68,6 @@ config_setting(
         "@platforms//os:visionos",
     ],
 )
-
-
 
 swift_defines = select({
     "@platforms//os:osx": [
@@ -107,12 +115,12 @@ ada_editor_defines = select({
 
 ada_engine_deps = [
         ":Math",
-        "@ada_deps//swift-collections:Collections",
-        "@ada_deps//swift-collections:BitCollections",
+        "@swiftpkg_swift_collections//:Collections",
+        "@swiftpkg_swift_collections//:BitCollections",
         ":AtlasFontGenerator",
-        "@ada_deps//Yams:Yams",
+        "@swiftpkg_yams//:Yams",
         ":libpng",
-        "@ada_deps//SPIRV-Cross:SPIRV-Cross",
+        "@swiftpkg_spirv_cross//:SPIRV-Cross",
         ":SPIRVCompiler",
         ":AdaBox2d",
         ":AdaEngineMacros"
@@ -127,21 +135,21 @@ ada_engine_deps = [
 cc_ada_library(
     name = "AtlasFontGenerator",
     deps = [
-        "@ada_deps//msdf-atlas-gen:MSDFAtlasGen",
+        "@swiftpkg_msdf_atlas_gen//:MSDFAtlasGen",
     ]
 )
 
 cc_ada_library(
     name = "SPIRVCompiler",
     deps = [
-        "@ada_deps//glslang:glslang",
+        "@swiftpkg_glslang//:glslang",
     ]
 )
 
 cc_ada_library(
     name = "AdaBox2d",
     deps = [
-        "@ada_deps//box2d-swift:box2d",
+        "@swiftpkg_box2d_swift//:box2d",
     ]
 )
 
