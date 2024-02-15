@@ -8,8 +8,10 @@
 *.xcodeproj
 # Ignore SwiftPM state, such as the generated xcodeproj when opening the project directly
 .swiftpm
-swift_deps_index.json
+bazel/swift/deps_index.json
+bazel/swift/deps.bzl
 Package.resolved
+
 
 # Ignore user state in Xcode Projects
 *.xcuserdatad
