@@ -221,7 +221,7 @@ swift_ada_binary(
 
 swift_test(
     name = "AdaEngineTests",
-    srcs = ["Tests/AdaEngineTests"],
+    srcs = glob(["Tests/AdaEngineTests/**/*.swift"]),
     deps = [
         ":AdaEngine"
     ]
@@ -229,7 +229,7 @@ swift_test(
 
 swift_test(
     name = "MathTests",
-    srcs = ["Tests/MathTests"],
+    srcs = glob(["Tests/MathTests/**/*.swift"]),
     deps = [
         ":Math"
     ]
@@ -249,15 +249,12 @@ xcodeproj(
                 ],
             ),
             test_action = xcode_schemes.test_action([
-                ":AdaEditor",
                 ":AdaEngineTests",
-                ":Math"
             ]),
         ),  
     ],
     top_level_targets = [
         ":AdaEditor",
         ":AdaEngineTests",
-        ":Math"
     ]
 )
