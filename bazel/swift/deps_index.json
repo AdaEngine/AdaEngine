@@ -1,0 +1,347 @@
+{
+  "direct_dep_identities": [
+    "box2d-swift",
+    "glslang",
+    "msdf-atlas-gen",
+    "spirv-cross",
+    "swift-collections",
+    "yams"
+  ],
+  "modules": [
+    {
+      "name": "box2d",
+      "c99name": "box2d",
+      "src_type": "clang",
+      "label": "@swiftpkg_box2d_swift//:box2d.rspm",
+      "package_identity": "box2d-swift",
+      "product_memberships": [
+        "box2d"
+      ]
+    },
+    {
+      "name": "glslang",
+      "c99name": "glslang",
+      "src_type": "clang",
+      "label": "@swiftpkg_glslang//:glslang.rspm",
+      "package_identity": "glslang",
+      "product_memberships": [
+        "glslang"
+      ]
+    },
+    {
+      "name": "MSDFAtlasGen",
+      "c99name": "MSDFAtlasGen",
+      "src_type": "clang",
+      "label": "@swiftpkg_msdf_atlas_gen//:MSDFAtlasGen.rspm",
+      "package_identity": "msdf-atlas-gen",
+      "product_memberships": [
+        "MSDFAtlasGen"
+      ]
+    },
+    {
+      "name": "MSDFGen",
+      "c99name": "MSDFGen",
+      "src_type": "clang",
+      "label": "@swiftpkg_msdf_atlas_gen//:MSDFGen.rspm",
+      "package_identity": "msdf-atlas-gen",
+      "product_memberships": [
+        "MSDFAtlasGen"
+      ]
+    },
+    {
+      "name": "freetype",
+      "c99name": "freetype",
+      "src_type": "clang",
+      "label": "@swiftpkg_msdf_atlas_gen//:freetype.rspm",
+      "package_identity": "msdf-atlas-gen",
+      "product_memberships": [
+        "MSDFAtlasGen"
+      ]
+    },
+    {
+      "name": "tinyxml",
+      "c99name": "tinyxml",
+      "src_type": "clang",
+      "label": "@swiftpkg_msdf_atlas_gen//:tinyxml.rspm",
+      "package_identity": "msdf-atlas-gen",
+      "product_memberships": [
+        "MSDFAtlasGen"
+      ]
+    },
+    {
+      "name": "SPIRV-Cross",
+      "c99name": "SPIRV_Cross",
+      "src_type": "clang",
+      "label": "@swiftpkg_spirv_cross//:SPIRV-Cross.rspm",
+      "package_identity": "spirv-cross",
+      "product_memberships": [
+        "SPIRV-Cross"
+      ]
+    },
+    {
+      "name": "BitCollections",
+      "c99name": "BitCollections",
+      "src_type": "swift",
+      "label": "@swiftpkg_swift_collections//:BitCollections.rspm",
+      "package_identity": "swift-collections",
+      "product_memberships": [
+        "BitCollections",
+        "Collections"
+      ]
+    },
+    {
+      "name": "Collections",
+      "c99name": "Collections",
+      "src_type": "swift",
+      "label": "@swiftpkg_swift_collections//:Collections.rspm",
+      "package_identity": "swift-collections",
+      "product_memberships": [
+        "Collections"
+      ]
+    },
+    {
+      "name": "DequeModule",
+      "c99name": "DequeModule",
+      "src_type": "swift",
+      "label": "@swiftpkg_swift_collections//:DequeModule.rspm",
+      "package_identity": "swift-collections",
+      "product_memberships": [
+        "DequeModule",
+        "Collections"
+      ]
+    },
+    {
+      "name": "HashTreeCollections",
+      "c99name": "HashTreeCollections",
+      "src_type": "swift",
+      "label": "@swiftpkg_swift_collections//:HashTreeCollections.rspm",
+      "package_identity": "swift-collections",
+      "product_memberships": [
+        "HashTreeCollections",
+        "Collections"
+      ]
+    },
+    {
+      "name": "HeapModule",
+      "c99name": "HeapModule",
+      "src_type": "swift",
+      "label": "@swiftpkg_swift_collections//:HeapModule.rspm",
+      "package_identity": "swift-collections",
+      "product_memberships": [
+        "HeapModule",
+        "Collections"
+      ]
+    },
+    {
+      "name": "OrderedCollections",
+      "c99name": "OrderedCollections",
+      "src_type": "swift",
+      "label": "@swiftpkg_swift_collections//:OrderedCollections.rspm",
+      "package_identity": "swift-collections",
+      "product_memberships": [
+        "OrderedCollections",
+        "Collections"
+      ]
+    },
+    {
+      "name": "SortedCollections",
+      "c99name": "SortedCollections",
+      "src_type": "swift",
+      "label": "@swiftpkg_swift_collections//:SortedCollections.rspm",
+      "package_identity": "swift-collections",
+      "product_memberships": [
+        "SortedCollections",
+        "Collections"
+      ]
+    },
+    {
+      "name": "_CollectionsUtilities",
+      "c99name": "_CollectionsUtilities",
+      "src_type": "swift",
+      "label": "@swiftpkg_swift_collections//:_CollectionsUtilities.rspm",
+      "package_identity": "swift-collections",
+      "product_memberships": [
+        "BitCollections",
+        "DequeModule",
+        "HashTreeCollections",
+        "HeapModule",
+        "OrderedCollections",
+        "_RopeModule",
+        "SortedCollections",
+        "Collections"
+      ]
+    },
+    {
+      "name": "_RopeModule",
+      "c99name": "_RopeModule",
+      "src_type": "swift",
+      "label": "@swiftpkg_swift_collections//:_RopeModule.rspm",
+      "package_identity": "swift-collections",
+      "product_memberships": [
+        "_RopeModule",
+        "Collections"
+      ]
+    },
+    {
+      "name": "CYaml",
+      "c99name": "CYaml",
+      "src_type": "clang",
+      "label": "@swiftpkg_yams//:CYaml.rspm",
+      "package_identity": "yams",
+      "product_memberships": [
+        "Yams"
+      ]
+    },
+    {
+      "name": "Yams",
+      "c99name": "Yams",
+      "src_type": "swift",
+      "label": "@swiftpkg_yams//:Yams.rspm",
+      "package_identity": "yams",
+      "product_memberships": [
+        "Yams"
+      ]
+    }
+  ],
+  "products": [
+    {
+      "identity": "box2d-swift",
+      "name": "box2d",
+      "type": "library",
+      "label": "@swiftpkg_box2d_swift//:box2d"
+    },
+    {
+      "identity": "glslang",
+      "name": "glslang",
+      "type": "library",
+      "label": "@swiftpkg_glslang//:glslang"
+    },
+    {
+      "identity": "msdf-atlas-gen",
+      "name": "MSDFAtlasGen",
+      "type": "library",
+      "label": "@swiftpkg_msdf_atlas_gen//:MSDFAtlasGen"
+    },
+    {
+      "identity": "spirv-cross",
+      "name": "SPIRV-Cross",
+      "type": "library",
+      "label": "@swiftpkg_spirv_cross//:SPIRV-Cross"
+    },
+    {
+      "identity": "swift-collections",
+      "name": "BitCollections",
+      "type": "library",
+      "label": "@swiftpkg_swift_collections//:BitCollections"
+    },
+    {
+      "identity": "swift-collections",
+      "name": "Collections",
+      "type": "library",
+      "label": "@swiftpkg_swift_collections//:Collections"
+    },
+    {
+      "identity": "swift-collections",
+      "name": "DequeModule",
+      "type": "library",
+      "label": "@swiftpkg_swift_collections//:DequeModule"
+    },
+    {
+      "identity": "swift-collections",
+      "name": "HashTreeCollections",
+      "type": "library",
+      "label": "@swiftpkg_swift_collections//:HashTreeCollections"
+    },
+    {
+      "identity": "swift-collections",
+      "name": "HeapModule",
+      "type": "library",
+      "label": "@swiftpkg_swift_collections//:HeapModule"
+    },
+    {
+      "identity": "swift-collections",
+      "name": "OrderedCollections",
+      "type": "library",
+      "label": "@swiftpkg_swift_collections//:OrderedCollections"
+    },
+    {
+      "identity": "swift-collections",
+      "name": "SortedCollections",
+      "type": "library",
+      "label": "@swiftpkg_swift_collections//:SortedCollections"
+    },
+    {
+      "identity": "swift-collections",
+      "name": "_RopeModule",
+      "type": "library",
+      "label": "@swiftpkg_swift_collections//:_RopeModule"
+    },
+    {
+      "identity": "yams",
+      "name": "Yams",
+      "type": "library",
+      "label": "@swiftpkg_yams//:Yams"
+    }
+  ],
+  "packages": [
+    {
+      "name": "swiftpkg_box2d_swift",
+      "identity": "box2d-swift",
+      "remote": {
+        "commit": "bb0f705f88737248f34835f707c8f8027efed7d4",
+        "remote": "https://github.com/AdaEngine/box2d-swift",
+        "branch": "main"
+      },
+      "cxxLanguageStandard": "c++20"
+    },
+    {
+      "name": "swiftpkg_glslang",
+      "identity": "glslang",
+      "remote": {
+        "commit": "40069c0b63762e408051851ffe7aa92765c23284",
+        "remote": "https://github.com/AdaEngine/glslang",
+        "branch": "main"
+      },
+      "cxxLanguageStandard": "c++17"
+    },
+    {
+      "name": "swiftpkg_msdf_atlas_gen",
+      "identity": "msdf-atlas-gen",
+      "remote": {
+        "commit": "be243203aeb31a1799866c73de79ed6400a0bd51",
+        "remote": "https://github.com/AdaEngine/msdf-atlas-gen",
+        "branch": "master"
+      },
+      "cLanguageStandard": "c11",
+      "cxxLanguageStandard": "c++17"
+    },
+    {
+      "name": "swiftpkg_spirv_cross",
+      "identity": "spirv-cross",
+      "remote": {
+        "commit": "9011c07c49b75b97500fb61bbbf33284f38c4ee8",
+        "remote": "https://github.com/AdaEngine/SPIRV-Cross",
+        "branch": "main"
+      },
+      "cxxLanguageStandard": "c++14"
+    },
+    {
+      "name": "swiftpkg_swift_collections",
+      "identity": "swift-collections",
+      "remote": {
+        "commit": "ca8b4ab855f4b8075c1fd29eb50db756b1688e61",
+        "remote": "https://github.com/apple/swift-collections",
+        "branch": "main"
+      }
+    },
+    {
+      "name": "swiftpkg_yams",
+      "identity": "yams",
+      "remote": {
+        "commit": "0d9ee7ea8c4ebd4a489ad7a73d5c6cad55d6fed3",
+        "remote": "https://github.com/jpsim/Yams",
+        "version": "5.0.6"
+      }
+    }
+  ]
+}
