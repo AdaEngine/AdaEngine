@@ -8,8 +8,8 @@
 *.xcodeproj
 # Ignore SwiftPM state, such as the generated xcodeproj when opening the project directly
 .swiftpm
-bazel/swift/deps_index.json
-bazel/swift/deps.bzl
+bazel/swiftpm/deps_index.json
+bazel/swiftpm/deps.bzl
 Package.resolved
 
 

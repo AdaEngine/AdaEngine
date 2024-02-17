@@ -1,6 +1,6 @@
 """Convenience wrapper for swift_library targets using this repo's conventions"""
 
-def cc_ada_library(name, includes = ["include"], deps = [], defines = [], data = [], testonly = False):
+def cc_ada_library(name, srcs = [], includes = ["include"], deps = [], defines = [], data = [], testonly = False):
     native.cc_library(
         name = name,
         srcs = native.glob(
@@ -11,9 +11,12 @@ def cc_ada_library(name, includes = ["include"], deps = [], defines = [], data =
             ],
             exclude = ["**/*.docc/**"],
             allow_empty = True,
-        ),
+        ) + srcs,
         hdrs = native.glob(
-            ["Sources/{}/**/*.h".format(name)],
+            [
+                "Sources/{}/**/*.h".format(name),
+                "Sources/{}/**/*.hpp".format(name)
+            ],
             exclude = ["**/*.docc/**"],
             allow_empty = True,
         ),
@@ -21,5 +24,6 @@ def cc_ada_library(name, includes = ["include"], deps = [], defines = [], data =
         deps = deps,
         data = data,
         defines = defines,
-        testonly = testonly
+        testonly = testonly,
+        tags = ["swift_module={}".format(name)]
     )

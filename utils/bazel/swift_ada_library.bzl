@@ -1,8 +1,8 @@
 """Convenience wrapper for swift_library targets using this repo's conventions"""
 
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library", "swift_binary")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 
-def swift_ada_library(name, deps = [], data = [], defines = [], copts = [], testonly = False):
+def swift_ada_library(name, deps = [], data = [], defines = [], copts = [], linkopts = [], linkstatic = True, testonly = False):
     swift_library(
         name = name,
         srcs = native.glob(
@@ -14,5 +14,7 @@ def swift_ada_library(name, deps = [], data = [], defines = [], copts = [], test
         data = data,
         defines = defines,
         copts = copts,
+        linkopts = linkopts,
+        linkstatic = linkstatic,
         testonly = testonly
     )

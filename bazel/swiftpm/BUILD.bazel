@@ -12,9 +12,9 @@ load("@rules_swift_package_manager//swiftpkg:defs.bzl", "swift_update_packages")
 swift_update_packages(
     name = "update_pkgs",
     gazelle = "//:gazelle_bin",
-    package_manifest = "bazel/swift/Package.swift",
-    swift_deps = "bazel/swift/deps.bzl",
-    swift_deps_index = "bazel/swift/deps_index.json",
+    package_manifest = "bazel/swiftpm/Package.swift",
+    swift_deps = "bazel/swiftpm/deps.bzl",
+    swift_deps_index = "bazel/swiftpm/deps_index.json",
     update_bzlmod_stanzas = True,
     update_bzlmod_use_repo_names = True,
     visibility = ["//:__subpackages__"],
