@@ -1,13 +1,13 @@
 load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test")
-load("@rules_swift_package_manager//swiftpkg:defs.bzl", "swift_update_packages")
+load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
+load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test", "swift_c_module")
 load(
     "@rules_xcodeproj//xcodeproj:defs.bzl",
-    "xcodeproj",
-    "xcode_schemes"
+    "xcode_schemes",
+    "xcodeproj"
 )
 load("//utils/bazel:cc_ada_library.bzl", "cc_ada_library")
-load("//utils/bazel:swift_ada_binary.bzl", "swift_ada_binary")
 load("//utils/bazel:swift_ada_library.bzl", "swift_ada_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -26,7 +26,7 @@ gazelle_binary(
 gazelle(
     name = "update_build_files",
     args = [
-        "-swift_dependency_index=bazel/swift/deps_index.json",
+        "-swift_dependency_index=bazel/swiftpm/deps_index.json",
     ],
     gazelle = ":gazelle_bin",
 )
@@ -35,12 +35,12 @@ gazelle(
 
 alias(
     name = "swift_update_pkgs",
-    actual = "//bazel/swift:update_pkgs",
+    actual = "//bazel/swiftpm:update_pkgs",
 )
 
 alias(
     name = "swift_update_pkgs_to_latest",
-    actual = "//bazel/swift:update_pkgs_to_latest",
+    actual = "//bazel/swiftpm:update_pkgs_to_latest",
 )
 
 # Config settings
@@ -48,19 +48,19 @@ alias(
 config_setting(
     name = "debug",
     values = {
-        "compilation_mode" : "dbg"
-    }
+        "compilation_mode": "dbg",
+    },
 )
 
 config_setting(
     name = "release",
     values = {
-        "compilation_mode" : "fastbuild"
-    }
+        "compilation_mode": "fastbuild",
+    },
 )
 
 config_setting(
-    name = "apple_platform", 
+    name = "apple_platform",
     constraint_values = [
         "@platforms//os:osx",
         "@platforms//os:ios",
@@ -71,63 +71,63 @@ config_setting(
 
 swift_defines = select({
     "@platforms//os:osx": [
-        "MACOS"
+        "MACOS",
     ],
     "@platforms//os:ios": [
-        "IOS"
+        "IOS",
     ],
     "@platforms//os:tvos": [
-        "TVOS"
+        "TVOS",
     ],
     "@platforms//os:windows": [
-        "WINDOWS"
+        "WINDOWS",
     ],
     "@platforms//os:linux": [
-        "LINUX"
+        "LINUX",
     ],
     "@platforms//os:android": [
-        "ANDROID"
+        "ANDROID",
     ],
     "//conditions:default": [],
 })
 
 ada_editor_defines = select({
     "@platforms//os:osx": [
-        "EDITOR_MACOS"
+        "EDITOR_MACOS",
     ],
     "@platforms//os:ios": [
-        "EDITOR_IOS"
+        "EDITOR_IOS",
     ],
     "@platforms//os:tvos": [
-        "EDITOR_TVOS"
+        "EDITOR_TVOS",
     ],
     "@platforms//os:windows": [
-        "EDITOR_WINDOWS"
+        "EDITOR_WINDOWS",
     ],
     "@platforms//os:linux": [
-        "EDITOR_LINUX"
+        "EDITOR_LINUX",
     ],
     "@platforms//os:android": [
-        "EDITOR_ANDROID"
+        "EDITOR_ANDROID",
     ],
-    "//conditions:default": []
+    "//conditions:default": [],
 })
 
 ada_engine_deps = [
-        ":Math",
-        "@swiftpkg_swift_collections//:Collections",
-        "@swiftpkg_swift_collections//:BitCollections",
-        ":AtlasFontGenerator",
-        "@swiftpkg_yams//:Yams",
-        ":libpng",
-        "@swiftpkg_spirv_cross//:SPIRV-Cross",
-        ":SPIRVCompiler",
-        ":AdaBox2d",
-        ":AdaEngineMacros"
-    ]
+    ":Math",
+    "@swiftpkg_swift_collections//:Collections",
+    "@swiftpkg_swift_collections//:BitCollections",
+    ":AtlasFontGenerator",
+    "@sourcekitten_com_github_jpsim_yams//:Yams",
+    ":libpng",
+    "@SPIRV-Cross",
+    ":SPIRVCompiler",
+    ":AdaBox2d",
+    ":AdaEngineMacros",
+]
 
 # [
-    # .interoperabilityMode(.Cxx)
+# .interoperabilityMode(.Cxx)
 # ]
 
 # C & CXX Libraries
@@ -135,43 +135,47 @@ ada_engine_deps = [
 cc_ada_library(
     name = "AtlasFontGenerator",
     deps = [
-        "@swiftpkg_msdf_atlas_gen//:MSDFAtlasGen",
-    ]
+        "@MSDFAtlasGen",
+    ],
 )
 
 cc_ada_library(
     name = "SPIRVCompiler",
     deps = [
-        "@swiftpkg_glslang//:glslang",
-    ]
+        "@glslang",
+    ],
 )
 
 cc_ada_library(
     name = "AdaBox2d",
     deps = [
         "@swiftpkg_box2d_swift//:box2d",
-    ]
+    ],
 )
 
 cc_ada_library(
     name = "libpng",
+    srcs = [
+        "Sources/libpng/arm/filter_neon.S",
+    ],
+    includes = ["Sources/libpng/include"],
     defines = select({
         "@platforms//cpu:arm": [
-            "PNG_ARM_NEON_OPT=2"
+            "PNG_ARM_NEON_OPT=2",
         ],
         "@platforms//cpu:arm64": [
-            "PNG_ARM_NEON_OPT=2"
+            "PNG_ARM_NEON_OPT=2",
         ],
         "//conditions:default": [
-            "PNG_ARM_NEON_OPT=0"
-        ]
-    })
+            "PNG_ARM_NEON_OPT=0",
+        ],
+    }),
 )
 
 # Swift Libraries
 
 swift_ada_library(
-    name = "Math"
+    name = "Math",
 )
 
 swift_compiler_plugin(
@@ -180,50 +184,56 @@ swift_compiler_plugin(
     deps = [
         "@SwiftSyntax",
         "@SwiftSyntax//:SwiftCompilerPlugin",
-        "@SwiftSyntax//:SwiftSyntaxMacros"
-    ]
+        "@SwiftSyntax//:SwiftSyntaxMacros",
+    ],
 )
 
 swift_ada_library(
     name = "AdaEngine",
-    deps = ada_engine_deps,
     data = [
-        "Sources/AdaEngine/Assets/Shaders",
-        "Sources/AdaEngine/Assets/Models",
         "Sources/AdaEngine/Assets/Fonts",
+        "Sources/AdaEngine/Assets/Models",
+        "Sources/AdaEngine/Assets/Shaders",
     ],
-    defines = swift_defines
-)
-
-swift_ada_binary(
-    name = "AdaEngineEmbeddable",
-    deps = [
-        ":AdaEngine"
+    defines = swift_defines,
+    deps = ada_engine_deps,
+    copts = [
+        "-cxx-interoperability-mode=default"
     ]
 )
 
-swift_ada_binary(
-    name = "AdaEditor",
+swift_ada_library(
+    name = "AdaEngineEmbeddable",
     deps = [
         ":AdaEngine",
-        ":Math"
-    ],
+    ]
+)
+
+swift_ada_library(
+    name = "AdaEditor",
     data = [
         "Sources/AdaEditor/Assets",
     ],
     defines = swift_defines + ada_editor_defines + select({
-    ":debug": [
-        "EDITOR_DEBUG"    
+        ":debug": [
+            "EDITOR_DEBUG",
+        ],
+        "//conditions:default": [],
+    }),
+    deps = [
+        ":AdaEngine",
+        ":Math",
     ],
-    "//conditions:default": []
-    })
+    copts = [
+        "-cxx-interoperability-mode=default"
+    ]
 )
 
 swift_test(
     name = "AdaEngineTests",
     srcs = glob(["Tests/AdaEngineTests/**/*.swift"]),
     deps = [
-        ":AdaEngine"
+        ":AdaEngine",
     ]
 )
 
@@ -231,30 +241,70 @@ swift_test(
     name = "MathTests",
     srcs = glob(["Tests/MathTests/**/*.swift"]),
     deps = [
-        ":Math"
+        ":Math",
     ]
 )
 
+# Platform specific builds
+
+macos_application(
+    name = "AdaEditor-macos",
+    bundle_id = "org.adaengine.AdaEditor-macos",
+    infoplists = ["Sources/AdaEditor/Platforms/macOS/Info.plist"],
+    minimum_os_version = "13.0",
+    deps = [
+        ":AdaEditor",
+    ]
+)
+
+ios_application(
+    name = "AdaEditor-ios",
+    bundle_id = "org.adaengine.AdaEditor-ios",
+    families = [
+        "ipad",
+    ],
+    infoplists = ["Sources/AdaEditor/Platforms/iOS/Info.plist"],
+    minimum_os_version = "14.0",
+    deps = [
+        ":AdaEditor",
+    ]
+)
+
+# Xcode gen
+
 xcodeproj(
     name = "xcodeproj",
-    project_name = "AdaEditor",
-    tags = ["manual"],
+    project_name = "AdaEngine",
     schemes = [
         xcode_schemes.scheme(
-            name = "AdaEditor",
+            name = "AdaEditor macOS",
             launch_action = xcode_schemes.launch_action(
-                ":AdaEditor",
+                ":AdaEditor-macos",
                 args = [
-                    
                 ],
             ),
             test_action = xcode_schemes.test_action([
                 ":AdaEngineTests",
+                ":MathTests"
             ]),
-        ),  
+        ),
+        # xcode_schemes.scheme(
+        #     name = "AdaEditor iOS",
+        #     launch_action = xcode_schemes.launch_action(
+        #         ":AdaEditor-ios",
+        #         args = [
+        #         ],
+        #     ),
+        #     test_action = xcode_schemes.test_action([
+        #         ":AdaEngineTests",
+        #     ]),
+        # ),
     ],
+    tags = ["manual"],
     top_level_targets = [
-        ":AdaEditor",
+        ":AdaEditor-macos",
+        ":AdaEditor-ios",
         ":AdaEngineTests",
-    ]
+        ":MathTests"
+    ],
 )
