@@ -1,7 +1,7 @@
 load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test", "swift_c_module")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test")
 load(
     "@rules_xcodeproj//xcodeproj:defs.bzl",
     "xcode_schemes",
@@ -122,13 +122,8 @@ ada_engine_deps = [
     ":libpng",
     "@SPIRV-Cross",
     ":SPIRVCompiler",
-    ":AdaBox2d",
-    ":AdaEngineMacros",
+    ":AdaBox2d"
 ]
-
-# [
-# .interoperabilityMode(.Cxx)
-# ]
 
 # C & CXX Libraries
 
@@ -197,6 +192,7 @@ swift_ada_library(
     ],
     defines = swift_defines,
     deps = ada_engine_deps,
+    plugins = [":AdaEngineMacros"],
     copts = [
         "-cxx-interoperability-mode=default"
     ]
