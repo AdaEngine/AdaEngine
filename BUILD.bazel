@@ -1,7 +1,7 @@
 load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "universal_swift_compiler_plugin", "swift_test")
 load(
     "@rules_xcodeproj//xcodeproj:defs.bzl",
     "xcode_schemes",
@@ -62,7 +62,7 @@ config_setting(
 config_setting(
     name = "apple_platform",
     constraint_values = [
-        "@platforms//os:osx",
+        "@platforms//os:macos",
         "@platforms//os:ios",
         "@platforms//os:tvos",
         "@platforms//os:visionos",
@@ -70,7 +70,7 @@ config_setting(
 )
 
 swift_defines = select({
-    "@platforms//os:osx": [
+    "@platforms//os:macos": [
         "MACOS",
     ],
     "@platforms//os:ios": [
@@ -92,7 +92,7 @@ swift_defines = select({
 })
 
 ada_editor_defines = select({
-    "@platforms//os:osx": [
+    "@platforms//os:macos": [
         "EDITOR_MACOS",
     ],
     "@platforms//os:ios": [
@@ -170,17 +170,19 @@ cc_ada_library(
 # Swift Libraries
 
 swift_ada_library(
-    name = "Math",
+    name = "Math"
 )
 
 swift_compiler_plugin(
     name = "AdaEngineMacros",
-    srcs = glob(["Sources/AdaEngineMacros/**/*.swift"]),
+    srcs = glob(["Sources/AdaEngineMacros/*.swift"]),
     deps = [
         "@SwiftSyntax",
-        "@SwiftSyntax//:SwiftCompilerPlugin",
-        "@SwiftSyntax//:SwiftSyntaxMacros",
+        "@SwiftSyntax//:SwiftCompilerPlugin_opt",
+        "@SwiftSyntax//:SwiftSyntaxBuilder_opt",
+        "@SwiftSyntax//:SwiftSyntaxMacros_opt",
     ],
+    visibility = ["//visibility:public"]
 )
 
 swift_ada_library(
