@@ -59,37 +59,35 @@ config_setting(
     },
 )
 
-config_setting(
-    name = "apple_platform",
-    constraint_values = [
-        "@platforms//os:macos",
-        "@platforms//os:ios",
-        "@platforms//os:tvos",
-        "@platforms//os:visionos",
-    ],
-)
-
 swift_defines = select({
     "@platforms//os:macos": [
         "MACOS",
+        "METAL"
     ],
     "@platforms//os:ios": [
         "IOS",
+        "METAL"
     ],
     "@platforms//os:tvos": [
         "TVOS",
+        "METAL"
     ],
     "@platforms//os:windows": [
         "WINDOWS",
+        "VULKAN"
     ],
     "@platforms//os:linux": [
         "LINUX",
+        "VULKAN"
     ],
     "@platforms//os:android": [
         "ANDROID",
+        "VULKAN"
     ],
     "//conditions:default": [],
-})
+}) + [
+    "BAZEL_BUILD"
+]
 
 ada_editor_defines = select({
     "@platforms//os:macos": [
@@ -177,7 +175,6 @@ swift_compiler_plugin(
     name = "AdaEngineMacros",
     srcs = glob(["Sources/AdaEngineMacros/*.swift"]),
     deps = [
-        "@SwiftSyntax",
         "@SwiftSyntax//:SwiftCompilerPlugin_opt",
         "@SwiftSyntax//:SwiftSyntaxBuilder_opt",
         "@SwiftSyntax//:SwiftSyntaxMacros_opt",

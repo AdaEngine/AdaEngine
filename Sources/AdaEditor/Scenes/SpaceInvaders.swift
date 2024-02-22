@@ -15,7 +15,7 @@ class SpaceInvaders {
     
     init() {
         do {
-            let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.module) as Image
+            let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.editor) as Image
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
         } catch {
             fatalError(error.localizedDescription)
@@ -218,7 +218,7 @@ struct EnemySpawnerSystem: System {
     
     init(scene: Scene) {
         do {
-            let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.module) as Image
+            let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.editor) as Image
             
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
         } catch {
@@ -307,7 +307,7 @@ struct EnemyExplosionSystem: System {
     let exposionAtlas: TextureAtlas
     
     init(scene: Scene) {
-        let image = try! ResourceManager.load("Assets/explosion.png", from: .module) as Image
+        let image = try! ResourceManager.load("Assets/explosion.png", from: .editor) as Image
         self.exposionAtlas = TextureAtlas(from: image, size: Size(width: 32, height: 32))
     }
     
