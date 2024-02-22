@@ -20,3 +20,17 @@ struct AdaEditorApp: App {
         .windowTitle("AdaEngine")
     }
 }
+
+public extension Bundle {
+    static var editor: Bundle {
+#if SWIFT_PACKAGE && !BAZEL_BUILD
+        return Bundle.module
+#else
+        return Bundle(for: BundleToken.self)
+#endif
+    }
+}
+
+#if !SWIFT_PACKAGE || BAZEL_BUILD
+class BundleToken {}
+#endif

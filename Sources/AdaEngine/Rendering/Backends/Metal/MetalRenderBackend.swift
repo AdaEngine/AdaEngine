@@ -733,7 +733,7 @@ class MetalRenderCommandBuffer: DrawCommandBuffer {
 
 public extension Bundle {
     static var engineBundle: Bundle {
-#if SWIFT_PACKAGE
+#if SWIFT_PACKAGE && !BAZEL_BUILD
         return Bundle.module
 #else
         return Bundle(for: BundleToken.self)
@@ -741,7 +741,7 @@ public extension Bundle {
     }
 }
 
-#if !SWIFT_PACKAGE
+#if !SWIFT_PACKAGE || BAZEL_BUILD
 class BundleToken {}
 #endif
 
