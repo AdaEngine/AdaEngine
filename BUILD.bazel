@@ -1,7 +1,7 @@
 load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "universal_swift_compiler_plugin", "swift_test")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "universal_swift_compiler_plugin", "swift_test", "swift_c_module")
 load(
     "@rules_xcodeproj//xcodeproj:defs.bzl",
     "xcode_schemes",
@@ -146,23 +146,57 @@ cc_ada_library(
     ],
 )
 
-cc_ada_library(
-    name = "libpng",
+cc_library(
+    name = "_libpng_cxx",
     srcs = [
-        "Sources/libpng/arm/filter_neon.S",
+        "Sources/libpng/png.c",
+        "Sources/libpng/include/pngdebug.h",
+        "Sources/libpng/pngerror.c",
+        "Sources/libpng/pngget.c",
+        "Sources/libpng/include/pnginfo.h",
+        "Sources/libpng/include/pnglibconf.h",
+        "Sources/libpng/pngmem.c",
+        "Sources/libpng/pngpread.c",
+        "Sources/libpng/include/pngpriv.h",
+        "Sources/libpng/pngread.c",
+        "Sources/libpng/pngrio.c",
+        "Sources/libpng/pngrtran.c",
+        "Sources/libpng/pngrutil.c",
+        "Sources/libpng/pngset.c",
+        "Sources/libpng/include/pngstruct.h",
+        "Sources/libpng/pngtrans.c",
+        "Sources/libpng/pngwio.c",
+        "Sources/libpng/pngwrite.c",
+        "Sources/libpng/pngwtran.c",
+        "Sources/libpng/pngwutil.c",
+    ] + select({
+        "@platforms//cpu:arm64": [
+            "Sources/libpng/arm/arm_init.c",
+            "Sources/libpng/arm/filter_neon_intrinsics.c",
+            "Sources/libpng/arm/palette_neon_intrinsics.c",
+        ],
+        "//conditions:default": [],
+    }),
+    hdrs = [
+        "Sources/libpng/include/libpng.h",
+        "Sources/libpng/include/png.h",
+        "Sources/libpng/include/pngconf.h"
     ],
     includes = ["Sources/libpng/include"],
     defines = select({
-        "@platforms//cpu:arm": [
-            "PNG_ARM_NEON_OPT=2",
-        ],
         "@platforms//cpu:arm64": [
             "PNG_ARM_NEON_OPT=2",
         ],
-        "//conditions:default": [
-            "PNG_ARM_NEON_OPT=0",
-        ],
+        "//conditions:default": [],
     }),
+    linkopts = ["-lz"]
+)
+
+swift_c_module(
+    name = "libpng",
+    module_map = "Sources/libpng/module.modulemap",
+    module_name = "libpng",
+    deps = [":_libpng_cxx"]
 )
 
 # Swift Libraries
