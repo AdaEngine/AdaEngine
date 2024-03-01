@@ -139,6 +139,8 @@ public enum PixelFormat {
     
     case depth_32f_stencil8
     case depth_32f
+
+    @available(iOS, unavailable, message: "Not available for iOS")
     case depth24_stencil8
     
     var bytesPerComponent: Int {
@@ -157,6 +159,10 @@ public enum PixelFormat {
     }
     
     var isDepthFormat: Bool {
+        #if MACOS
         self == .depth_32f_stencil8 || self == .depth_32f || self == .depth24_stencil8
+        #else
+        self == .depth_32f_stencil8 || self == .depth_32f
+        #endif
     }
 }

@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
-#if os(iOS)
+#if IOS || TVOS
 import UIKit
 
 // swiftlint:disable:next type_name
@@ -28,7 +28,7 @@ final class iOSWindowManager: WindowManager {
         let systemWindow = _AdaUIWindow(frame: screen.bounds)
         systemWindow.rootViewController = gameViewController
         systemWindow.backgroundColor = .black
-        
+
         window.systemWindow = systemWindow
         window.minSize = frame.size
         
@@ -66,7 +66,15 @@ final class iOSWindowManager: WindowManager {
         nsWindow.isHidden = true
         nsWindow.windowScene = nil
     }
-    
+
+    override func getScreen(for window: Window) -> Screen? {
+        guard let screen = (window.systemWindow as? UIWindow)?.screen else {
+            return nil
+        }
+        
+        return Screen(systemScreen: screen)
+    }
+
     override func resizeWindow(_ window: Window, size: Size) {
         print("Method doesn't implemented", #function)
     }

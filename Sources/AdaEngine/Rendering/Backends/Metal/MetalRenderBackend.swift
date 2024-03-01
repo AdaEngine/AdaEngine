@@ -544,13 +544,17 @@ extension MetalRenderBackend {
 
 extension PixelFormat {
     var toMetal: MTLPixelFormat {
+        #if MACOS
+        if case .depth24_stencil8 = self {
+            return .depth24Unorm_stencil8
+        }
+        #endif
+
         switch self {
         case .depth_32f_stencil8:
             return .depth32Float_stencil8
         case .depth_32f:
             return .depth32Float
-        case .depth24_stencil8:
-            return .depth24Unorm_stencil8
         case .bgra8:
             return .bgra8Unorm
         case .bgra8_srgb:

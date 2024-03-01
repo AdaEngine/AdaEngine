@@ -14,8 +14,10 @@ final class FoundationFileSystem: FileSystem {
     let fileManager: Foundation.FileManager = .default
     
     override var applicationFolderURL: URL {
-        #if os(macOS)
+        #if MACOS
         return Bundle.engineBundle.bundleURL.deletingLastPathComponent()
+        #elseif IOS || TVOS
+        return try! self.fileManager.url(for: .applicationDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         #else
         return URL(fileURLWithPath: fileManager.currentDirectoryPath)
         #endif
