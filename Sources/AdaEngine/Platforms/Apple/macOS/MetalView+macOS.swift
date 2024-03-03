@@ -1,6 +1,6 @@
 //
 //  MetalView+macOS.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 7/11/22.
 //
@@ -59,6 +59,10 @@ extension MetalView {
         
         Input.shared.mousePosition = position
         Input.shared.receiveEvent(mouseEvent)
+    }
+    
+    open override func cursorUpdate(with event: NSEvent) {
+        Application.shared.windowManager.updateCursor()
     }
     
     public override func mouseDown(with event: NSEvent) {

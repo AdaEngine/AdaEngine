@@ -1,0 +1,104 @@
+{
+  "pins" : [
+    {
+      "identity" : "box2d-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/box2d-swift",
+      "state" : {
+        "branch" : "main",
+        "revision" : "bb0f705f88737248f34835f707c8f8027efed7d4"
+      }
+    },
+    {
+      "identity" : "glslang",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/glslang",
+      "state" : {
+        "branch" : "main",
+        "revision" : "40069c0b63762e408051851ffe7aa92765c23284"
+      }
+    },
+    {
+      "identity" : "libpng",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/libpng",
+      "state" : {
+        "branch" : "main",
+        "revision" : "cd44f65ac9a5b943cb169410f20cff62161a3af2"
+      }
+    },
+    {
+      "identity" : "miniaudio",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/miniaudio",
+      "state" : {
+        "branch" : "master",
+        "revision" : "3c0cb21204946f4130ca835d3ddd7250ac58323d"
+      }
+    },
+    {
+      "identity" : "msdf-atlas-gen",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/msdf-atlas-gen",
+      "state" : {
+        "branch" : "master",
+        "revision" : "be243203aeb31a1799866c73de79ed6400a0bd51"
+      }
+    },
+    {
+      "identity" : "spirv-cross",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AdaEngine/SPIRV-Cross",
+      "state" : {
+        "branch" : "main",
+        "revision" : "9011c07c49b75b97500fb61bbbf33284f38c4ee8"
+      }
+    },
+    {
+      "identity" : "swift-collections",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-collections",
+      "state" : {
+        "branch" : "main",
+        "revision" : "53a8adc54374f620002a3b6401d39e0feb3c57ae"
+      }
+    },
+    {
+      "identity" : "swift-docc-plugin",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-docc-plugin",
+      "state" : {
+        "revision" : "9b1258905c21fc1b97bf03d1b4ca12c4ec4e5fda",
+        "version" : "1.2.0"
+      }
+    },
+    {
+      "identity" : "swift-docc-symbolkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-docc-symbolkit",
+      "state" : {
+        "revision" : "b45d1f2ed151d057b54504d653e0da5552844e34",
+        "version" : "1.0.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-syntax",
+      "state" : {
+        "revision" : "64889f0c732f210a935a0ad7cda38f77f876262d",
+        "version" : "509.1.1"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams",
+      "state" : {
+        "revision" : "f47ba4838c30dbd59998a4e4c87ab620ff959e8a",
+        "version" : "5.0.5"
+      }
+    }
+  ],
+  "version" : 2
+}

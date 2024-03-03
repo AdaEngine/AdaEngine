@@ -29,8 +29,6 @@ open class WindowManager {
     
     public init() { }
     
-    lazy var renderEngine = Renderer2D.default
-    
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) {
         for window in self.windows {
@@ -40,7 +38,7 @@ open class WindowManager {
             }
             
             if window.canDraw {
-                let context = GUIRenderContext(window: window, engine: renderEngine)
+                let context = GUIRenderContext(window: window)
                 
                 context.beginDraw(in: window.bounds)
                 window.draw(with: context)
@@ -96,6 +94,30 @@ open class WindowManager {
         self.activeWindow = window
         window.isActive = true
         window.windowDidBecameActive()
+    }
+    
+    internal func setCursorShape(_ shape: Input.CursorShape) {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func getCursorShape() -> Input.CursorShape {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func setCursorImage(for shape: Input.CursorShape, texture: Texture2D?, hotspot: Vector2) {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func setMouseMode(_ mode: Input.MouseMode) {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func getMouseMode() -> Input.MouseMode {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    internal func updateCursor() {
+        fatalErrorMethodNotImplemented()
     }
     
     public final func removeWindow(_ window: Window, setActiveAnotherIfNeeded: Bool = true) {

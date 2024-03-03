@@ -1,6 +1,6 @@
 //
 //  MetalRenderBackend.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 10/20/21.
 //
@@ -194,11 +194,11 @@ class MetalRenderBackend: RenderBackend {
     
     // MARK: - Buffers
     
-    func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+    func makeIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         let buffer = self.context.physicalDevice.makeBuffer(length: length, options: .storageModeShared)!
         buffer.contents().copyMemory(from: bytes, byteCount: length)
         
-        return MetalIndexBuffer(buffer: buffer, offset: index, indexFormat: format)
+        return MetalIndexBuffer(buffer: buffer, indexFormat: format)
     }
     
     func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
@@ -291,43 +291,42 @@ extension MetalRenderBackend {
     }
     
     // TODO: (Vlad) think about it later
-    func getImage(for texture2D: RID) -> Image? {
-        return nil
+    func getImage(from texture: Texture) -> Image? {
+        guard let mtlTexture = (texture.gpuTexture as? MetalGPUTexture)?.texture else {
+            return nil
+        }
         
-//        let mtlTexture = texture.resource
-//
-//        if mtlTexture.isFramebufferOnly {
-//            return nil
-//        }
-//
-//        let imageFormat: Image.Format
-//        let bytesInPixel: Int
-//
-//        switch mtlTexture.pixelFormat {
-//        case .bgra8Unorm_srgb, .bgra8Unorm:
-//            imageFormat = .bgra8
-//            bytesInPixel = 4
-//        default:
-//            imageFormat = .rgba8
-//            bytesInPixel = 4
-//        }
-//
-//        let bytesPerRow = bytesInPixel * mtlTexture.width
-//
-//        var data = Data(capacity: mtlTexture.allocatedSize)
-//        data.withUnsafeMutableBytes { bufferPtr in
-//            mtlTexture.getBytes(
-//                bufferPtr.baseAddress!,
-//                bytesPerRow: bytesPerRow,
-//                from: MTLRegion(
-//                    origin: MTLOrigin(x: 0, y: 0, z: 0),
-//                    size: MTLSize(width: mtlTexture.width, height: mtlTexture.height, depth: 1)
-//                ),
-//                mipmapLevel: 0
-//            )
-//        }
-//
-//        return Image(width: mtlTexture.width, height: mtlTexture.height, data: data, format: imageFormat)
+        if mtlTexture.isFramebufferOnly {
+            return nil
+        }
+        
+        let imageFormat: Image.Format
+        let bytesInPixel: Int
+        
+        switch mtlTexture.pixelFormat {
+        case .bgra8Unorm:
+            imageFormat = .bgra8
+            bytesInPixel = 4
+        default:
+            imageFormat = .rgba8
+            bytesInPixel = 4
+        }
+        
+        let bytesPerRow = mtlTexture.width * bytesInPixel
+        let pixelCount = mtlTexture.width * mtlTexture.height
+
+        var imageBytes = [UInt8](repeating: 0, count: pixelCount * bytesInPixel)
+        mtlTexture.getBytes(
+            &imageBytes,
+            bytesPerRow: bytesPerRow,
+            from: MTLRegion(
+                origin: MTLOrigin(x: 0, y: 0, z: 0),
+                size: MTLSize(width: mtlTexture.width, height: mtlTexture.height, depth: 1)
+            ),
+            mipmapLevel: 0
+        )
+
+        return Image(width: mtlTexture.width, height: mtlTexture.height, data: Data(imageBytes), format: imageFormat)
     }
 }
 
@@ -397,7 +396,7 @@ extension MetalRenderBackend {
     }
     
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {
+    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
         guard let renderPipeline = (list.renderPipeline as? MetalRenderPipeline) else {
             fatalError("Draw doesn't have a pipeline state")
         }
@@ -489,8 +488,8 @@ extension MetalRenderBackend {
             indexCount: indexCount,
             indexType: indexBuffer.indexFormat == .uInt32 ? .uint32 : .uint16,
             indexBuffer: (indexBuffer as! MetalIndexBuffer).buffer,
-            indexBufferOffset: indexBuffer.offset,
-            instanceCount: instancesCount
+            indexBufferOffset: indexBufferOffset,
+            instanceCount: instanceCount
         )
     }
     
@@ -701,7 +700,7 @@ extension StencilOperation {
     }
 }
 
-extension SamplerMigMagFilter {
+extension SamplerMinMagFilter {
     var toMetal: MTLSamplerMinMagFilter {
         switch self {
         case .nearest:

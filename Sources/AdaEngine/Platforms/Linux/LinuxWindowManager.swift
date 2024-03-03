@@ -1,6 +1,6 @@
 //
-//  File.swift
-//  
+//  LinuxWindowManager.swift
+//  AdaEngine
 //
 //  Created by v.prusakov on 9/2/22.
 //

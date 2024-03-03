@@ -1,4 +1,0 @@
-module libpng {
-    header "include/png.h"
-    header "include/libpng.h"
-}

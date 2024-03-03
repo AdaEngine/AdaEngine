@@ -27,6 +27,8 @@ build/
 /bazel-*
 /MODULE.bazel.lock
 
+/docs
+
 Derived/
 
 # Idea
