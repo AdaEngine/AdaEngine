@@ -149,6 +149,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
+    "miniaudio",
     "AtlasFontGenerator",
     "Yams",
     "libpng",
@@ -208,11 +209,6 @@ var targets: [Target] = [
 
 // MARK: Extra
 
-targets += [
-    // Empty target with documentation docc files
-    .target(name: "Documentation")
-]
-
 #if os(Android) || os(Linux)
 targets += [
     .systemLibrary(
@@ -270,27 +266,13 @@ targets += [
 targets.append(contentsOf: swiftLintTargets)
 #endif
 
-// MARK: - Vendors -
-
-// libpng
-
-targets += [
-    .target(
-        name: "libpng",
-        exclude: ["Project.swift", "Derived"],
-        cSettings: [
-            .define("PNG_ARM_NEON_OPT", to: useNeon ? "2" : "0")
-        ]
-    )
-]
-
 // MARK: - Package -
 
 let package = Package(
     name: "AdaEngine",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v13),
+        .iOS(.v14),
         .macOS(.v11),
     ],
     products: products,
@@ -309,7 +291,8 @@ package.dependencies += [
     .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
     .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
     .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
-//    .package(path: "Modules/Vulkan"),
+    .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
+    .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0"),
     .package(url: "https://github.com/apple/swift-syntax", from: "509.1.1")

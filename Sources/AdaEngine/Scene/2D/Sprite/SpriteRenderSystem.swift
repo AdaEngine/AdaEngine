@@ -205,7 +205,6 @@ public struct SpriteRenderSystem: System {
         vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride)
         
         let quadIndexBuffer = device.makeIndexBuffer(
-            index: 0,
             format: .uInt32,
             bytes: &quadIndices,
             length: indicies

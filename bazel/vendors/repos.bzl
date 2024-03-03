@@ -19,4 +19,17 @@ def _ada_engine_vendor(_):
         remote = "https://github.com/AdaEngine/SPIRV-Cross"
     )
 
+    git_repository(
+        name = "libpng",
+        commit = "22465834d2d062f9d8ab5b7fcb5955df6d678c2b",
+        remote = "https://github.com/AdaEngine/libpng"
+    )
+
+    git_repository(
+        name = "miniaudio",
+        commit = "3c0cb21204946f4130ca835d3ddd7250ac58323d",
+        build_file = "@AdaEngine//bazel/vendors:miniaudio.BUILD",
+        remote = "https://github.com/AdaEngine/miniaudio"
+    )
+
 ada_engine_vendor = module_extension(implementation = _ada_engine_vendor)

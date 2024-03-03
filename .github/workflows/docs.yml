@@ -1,0 +1,27 @@
+name: Deploy Docs
+
+on:
+  push:
+    branches:
+      - 'main'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy-docs:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build Documentation
+        run: swift package --allow-writing-to-directory ./docs generate-documentation --target AdaEngine --output-path ./docs --transform-for-static-hosting --hosting-base-path adaengine-docs
+
+      - name: Deploy to Github pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: main
+          folder: docs
+          token: ${{ secrets.DOCS_ACCESS_TOKEN }}
+          repository-name: AdaEngine/adaengine-docs
+          single-commit: true
+          force: true

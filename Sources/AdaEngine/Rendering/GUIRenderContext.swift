@@ -1,6 +1,6 @@
 //
 //  GUIRenderContext.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/16/22.
 //
@@ -13,7 +13,7 @@ import Math
 /// Context use orthogonal projection.
 final public class GUIRenderContext {
     
-    private let engine: Renderer2D
+    private let engine: Renderer2D = .default
     
     private var fillColor: Color = .clear
     private var strokeColor: Color = .black
@@ -23,9 +23,8 @@ final public class GUIRenderContext {
     /// Window Identifier related presented window.
     private unowned let window: Window
     
-    public init(window: Window, engine: Renderer2D) {
+    init(window: Window) {
         self.window = window
-        self.engine = engine
     }
     
     public func concatenate(_ transform: Transform3D) {

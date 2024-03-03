@@ -1,6 +1,6 @@
 //
 //  EditorCamera.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/21/22.
 //
