@@ -2,12 +2,6 @@ load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test", "swift_c_module")
-load(
-    "@rules_xcodeproj//xcodeproj:defs.bzl",
-    "xcode_schemes",
-    "xcodeproj",
-    "top_level_target"
-)
 load("//utils/bazel:cc_ada_library.bzl", "cc_ada_library")
 load("//utils/bazel:swift_ada_library.bzl", "swift_ada_library")
 
@@ -122,7 +116,7 @@ ada_engine_deps = [
     "@SPIRV-Cross",
     ":SPIRVCompiler",
     ":AdaBox2d",
-    "@miniaudio//:miniaudio"
+    ":miniaudio"
 ]
 
 # C & CXX Libraries
@@ -146,6 +140,27 @@ cc_ada_library(
     deps = [
         "@swiftpkg_box2d_swift//:box2d",
     ],
+)
+
+cc_library(
+    name = "_cxx_miniaudio",
+    hdrs = ["Sources/miniaudio/miniaudio.h"],
+    srcs = ["Sources/miniaudio/miniaudio.c"],
+    includes = ["Sources/miniaudio"],
+    defines = [
+        # "MINIAUDIO_IMPLEMENTATION"
+    ],
+    copts = [
+        "-Wno-module-import-in-extern-c"
+    ],
+    linkopts = ['-lstdc++']
+)
+
+swift_c_module(
+    name = "miniaudio",
+    module_name = "miniaudio",
+    module_map = "Sources/miniaudio/module.modulemap",
+    deps = ["_cxx_miniaudio"]
 )
 
 # Swift Libraries
@@ -246,45 +261,4 @@ ios_application(
     deps = [
         ":AdaEditor",
     ]
-)
-
-# Xcode gen
-
-xcodeproj(
-    name = "xcodeproj",
-    project_name = "AdaEngine",
-    schemes = [
-        xcode_schemes.scheme(
-            name = "AdaEditor macOS",
-            launch_action = xcode_schemes.launch_action(
-                ":AdaEditor-macos",
-                args = [],
-            ),
-            test_action = xcode_schemes.test_action([
-                ":AdaEngineTests",
-                ":MathTests"
-            ]),
-        ),
-        xcode_schemes.scheme(
-            name = "AdaEditor iOS",
-            launch_action = xcode_schemes.launch_action(
-                ":AdaEditor-ios",
-                args = [],
-            ),
-            test_action = xcode_schemes.test_action([
-                ":AdaEngineTests",
-                ":MathTests"
-            ]),
-        ),
-    ],
-    tags = ["manual"],
-    top_level_targets = [
-        ":AdaEditor-macos",
-        top_level_target(
-            ":AdaEditor-ios", 
-            target_environments = ["simulator"]
-        ),
-        ":AdaEngineTests",
-        ":MathTests"
-    ],
 )
