@@ -5,6 +5,5 @@ install_vulkan:
 compile_shaders:
 		${VULKAN_SDK}/bin/glslc -fshader-stage=vert Sources/AdaEditor/Assets/circle.glsl -o Sources/AdaEditor/Assets/circle.glsl.spv
 		
-xcodeproj:
-	tuist fetch
-	tuist generate
+xcproj:
+	bazel run utils/bazel:xcodeproj
