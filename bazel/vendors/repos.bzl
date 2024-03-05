@@ -25,10 +25,10 @@ def _ada_engine_vendor(_):
         remote = "https://github.com/AdaEngine/libpng"
     )
 
-    # git_repository(
-    #     name = "miniaudio",
-    #     commit = "3c0cb21204946f4130ca835d3ddd7250ac58323d",
-    #     remote = "https://github.com/AdaEngine/miniaudio"
-    # )
+    git_repository(
+        name = "miniaudio",
+        commit = "34e3a6d5ea0f71453d22ddf2758a2465eb37e0a7",
+        remote = "https://github.com/AdaEngine/miniaudio"
+    )
 
 ada_engine_vendor = module_extension(implementation = _ada_engine_vendor)

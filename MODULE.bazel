@@ -41,7 +41,8 @@ use_repo(
     "MSDFAtlasGen",
     "glslang",
     "SPIRV-Cross",
-    "libpng"
+    "libpng",
+    "miniaudio"
 )
 # swift_deps START
 swift_deps = use_extension(

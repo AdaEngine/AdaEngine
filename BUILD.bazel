@@ -1,7 +1,7 @@
 load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test", "swift_c_module")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test")
 load("//utils/bazel:cc_ada_library.bzl", "cc_ada_library")
 load("//utils/bazel:swift_ada_library.bzl", "swift_ada_library")
 
@@ -116,7 +116,7 @@ ada_engine_deps = [
     "@SPIRV-Cross",
     ":SPIRVCompiler",
     ":AdaBox2d",
-    ":miniaudio"
+    "@miniaudio"
 ]
 
 # C & CXX Libraries
@@ -142,27 +142,6 @@ cc_ada_library(
     ],
 )
 
-cc_library(
-    name = "_cxx_miniaudio",
-    hdrs = ["Sources/miniaudio/miniaudio.h"],
-    srcs = ["Sources/miniaudio/miniaudio.c"],
-    includes = ["Sources/miniaudio"],
-    defines = [
-        # "MINIAUDIO_IMPLEMENTATION"
-    ],
-    copts = [
-        "-Wno-module-import-in-extern-c"
-    ],
-    linkopts = ['-lstdc++']
-)
-
-swift_c_module(
-    name = "miniaudio",
-    module_name = "miniaudio",
-    module_map = "Sources/miniaudio/module.modulemap",
-    deps = ["_cxx_miniaudio"]
-)
-
 # Swift Libraries
 
 swift_ada_library(
@@ -184,7 +163,6 @@ swift_ada_library(
     name = "AdaEngine",
     data = [
         "Sources/AdaEngine/Assets/Fonts",
-        "Sources/AdaEngine/Assets/Models",
         "Sources/AdaEngine/Assets/Shaders",
     ],
     defines = swift_defines,
