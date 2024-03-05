@@ -566,6 +566,8 @@ extension PixelFormat {
             return .rgba32Float
         case .none:
             return .invalid
+        default:
+            return .invalid
         }
     }
 }

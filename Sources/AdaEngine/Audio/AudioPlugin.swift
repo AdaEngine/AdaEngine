@@ -6,7 +6,8 @@
 //
 
 /// Emmiter of audio in spatial environment.
-public struct AudioComponent: Component {
+@Component
+public struct AudioComponent {
     
     public let playbackController: AudioPlaybackController
     
@@ -16,8 +17,9 @@ public struct AudioComponent: Component {
 }
 
 /// AudioReceiver should be used for spatial audio.
-public struct AudioReceiver: Component {
-    
+@Component
+public struct AudioReceiver {
+
     internal var audioListener: AudioEngineListener?
     
     public var isEnabled: Bool {
@@ -76,7 +78,8 @@ public struct AudioSystem: System {
 }
 
 /// Holds ``AudioPlaybackController`` to controll their lifetimes
-struct AudioPlaybacksControllers: Component {
+@Component
+struct AudioPlaybacksControllers {
     var controllers: [AudioPlaybackController] = []
 }
 
