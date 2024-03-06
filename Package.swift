@@ -148,7 +148,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
-    "miniaudio",
+    "MiniAudioBindings",
     "AtlasFontGenerator",
     "Yams",
     "libpng",
@@ -220,6 +220,13 @@ targets += [
         name: "AtlasFontGenerator",
         dependencies: [
             .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
+        ],
+        publicHeadersPath: "."
+    ),
+    .target(
+        name: "MiniAudioBindings",
+        dependencies: [
+            "miniaudio"
         ],
         publicHeadersPath: "."
     ),

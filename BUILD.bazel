@@ -116,7 +116,7 @@ ada_engine_deps = [
     "@SPIRV-Cross",
     ":SPIRVCompiler",
     ":AdaBox2d",
-    "@miniaudio"
+    ":MiniAudioBindings"
 ]
 
 # C & CXX Libraries
@@ -197,6 +197,13 @@ swift_ada_library(
     ],
     copts = [
         "-cxx-interoperability-mode=default"
+    ]
+)
+
+cc_ada_library(
+    name = "MiniAudioBindings",
+    deps = [
+        "@miniaudio"
     ]
 )
 
