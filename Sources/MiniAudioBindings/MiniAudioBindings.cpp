@@ -5,13 +5,12 @@
 //  Created by v.prusakov on 3/6/24.
 //
 
-#include <stdio.h>
 #include "MiniAudioBindings.hpp"
 
 namespace ma {
+#define MA_IMPLEMENTATION
 #include <miniaudio.h>
 }
-
 
 namespace ada {
 
