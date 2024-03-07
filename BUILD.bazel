@@ -116,7 +116,8 @@ ada_engine_deps = [
     "@SPIRV-Cross",
     ":SPIRVCompiler",
     ":AdaBox2d",
-    ":MiniAudioBindings"
+    ":MiniAudioBindings",
+    "@rules_vulkan//vulkan:vulkan_cc_library"
 ]
 
 # C & CXX Libraries
