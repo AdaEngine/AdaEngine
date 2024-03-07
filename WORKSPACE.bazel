@@ -1,1 +1,15 @@
 workspace(name = "AdaEngine")
+
+load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
+
+git_repository(
+    name = "rules_vulkan",
+    commit = "a70c75d0fa4a7df98501efad0a31b1f2ca94de8f",
+    remote = "https://github.com/AdaEngine/rules_vulkan/"
+)
+
+load("@rules_vulkan//vulkan:repositories.bzl", "vulkan_repositories")
+
+vulkan_repositories(
+    android_use_host_vulkan_sdk = True # For android, whether or not use the Vulkan headers provided by the NDK.
+)
