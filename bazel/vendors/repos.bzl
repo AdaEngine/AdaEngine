@@ -27,7 +27,7 @@ def _ada_engine_vendor(_):
 
     git_repository(
         name = "miniaudio",
-        commit = "34e3a6d5ea0f71453d22ddf2758a2465eb37e0a7",
+        commit = "490c6955d4fa1d9307123abc379818f561d80394",
         remote = "https://github.com/AdaEngine/miniaudio"
     )
 

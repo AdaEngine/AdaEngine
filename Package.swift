@@ -226,7 +226,7 @@ targets += [
     .target(
         name: "MiniAudioBindings",
         dependencies: [
-            "miniaudio"
+            "miniaudio",
         ],
         publicHeadersPath: "."
     ),

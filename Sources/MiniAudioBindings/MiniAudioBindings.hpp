@@ -12,6 +12,9 @@
 
 // MARK: Common
 
+#include <stddef.h>
+#include <math.h>
+
 namespace ada {
 
 /* Sized types. */

@@ -2,7 +2,7 @@
 
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_c_module")
 
-def cc_ada_library(name, srcs = [], includes = ["include"], deps = [], defines = [], data = [], testonly = False):
+def cc_ada_library(name, srcs = [], includes = ["include"], copts = [], linkopts = [], deps = [], defines = [], data = [], testonly = False):
 
     cxx_lib_name = "_{}_cxx_lib".format(name)
 
@@ -28,6 +28,8 @@ def cc_ada_library(name, srcs = [], includes = ["include"], deps = [], defines =
         includes = includes,
         deps = deps,
         data = data,
+        linkopts = linkopts,
+        copts = copts,
         defines = defines,
         testonly = testonly,
         visibility = ["//:__subpackages__"]
