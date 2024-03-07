@@ -8,9 +8,9 @@
 #include "spirv_compiler.hpp"
 #include "glslang_resource_limits.hpp"
 
-#include <glslang/Include/Types.h>
-#include <glslang/Public/ShaderLang.h>
-#include <SPIRV/GlslangToSpv.h>
+#include "glslang/Include/Types.h"
+#include "glslang/Public/ShaderLang.h"
+#include "SPIRV/GlslangToSpv.h"
 
 bool glslang_init_process() {
     return glslang::InitializeProcess();

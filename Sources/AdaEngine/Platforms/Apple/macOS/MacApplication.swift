@@ -30,7 +30,7 @@ final class MacApplication: Application {
         // process application:openFile: event
         while true {
             let event = app.nextEvent(
-                matchingMask: NSEventMaskAny,
+                matchingMask: .any,
                 until: .distantPast,
                 inMode: .default,
                 dequeue: true
@@ -103,7 +103,7 @@ final class MacApplication: Application {
 
 class AdaApplication: NSApplication {
     override func sendEvent(_ event: NSEvent) {
-        if event.type == .keyUp && ((event.modifierFlags & NSEventModifierFlagCommand) == NSEventModifierFlagCommand) {
+        if event.type == .keyUp && event.modifierFlags.contains(.command) {
             self.keyWindow?.sendEvent(event)
         } else {
             super.sendEvent(event)

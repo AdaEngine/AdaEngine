@@ -55,13 +55,13 @@ enum ShaderIncluder {
         in source: String,
         includeSearchPath: [ShaderSource.IncludeSearchPath]
     ) throws -> String {
-        let localIncludeRegex = try NSRegularExpression(pattern: Self.moduleIncludePattern, options: 0)
+        let localIncludeRegex = try NSRegularExpression(pattern: Self.moduleIncludePattern, options: [])
         
         var modifiedString = source
         
         var firstLocalInclude = localIncludeRegex.firstMatch(
             in: modifiedString,
-            options: 0,
+            options: [],
             range: NSRange(modifiedString.startIndex..<modifiedString.endIndex, in: modifiedString)
         )
         
@@ -111,7 +111,7 @@ enum ShaderIncluder {
             
             firstLocalInclude = localIncludeRegex.firstMatch(
                 in: modifiedString,
-                options: 0,
+                options: [],
                 range: NSRange(modifiedString.startIndex..<modifiedString.endIndex, in: modifiedString)
             )
         }
@@ -123,13 +123,13 @@ enum ShaderIncluder {
         in source: String,
         includeSearchPath: [ShaderSource.IncludeSearchPath]
     ) throws -> String {
-        let localIncludeRegex = try NSRegularExpression(pattern: Self.localIncludePattern, options: 0)
+        let localIncludeRegex = try NSRegularExpression(pattern: Self.localIncludePattern, options: [])
         
         var modifiedString = source
         
         var firstLocalInclude = localIncludeRegex.firstMatch(
             in: modifiedString,
-            options: 0,
+            options: [],
             range: NSRange(modifiedString.startIndex..<modifiedString.endIndex, in: modifiedString)
         )
         
@@ -165,7 +165,7 @@ enum ShaderIncluder {
             
             firstLocalInclude = localIncludeRegex.firstMatch(
                 in: modifiedString,
-                options: 0,
+                options: [],
                 range: NSRange(modifiedString.startIndex..<modifiedString.endIndex, in: modifiedString)
             )
         }

@@ -5,7 +5,8 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
-public struct Collision2DComponent: Component {
+@Component
+public struct Collision2DComponent {
     
     internal var runtimeBody: Body2D?
     internal private(set) var shapes: [Shape2DResource] = []

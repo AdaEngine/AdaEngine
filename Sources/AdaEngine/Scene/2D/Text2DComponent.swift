@@ -6,7 +6,8 @@
 //
 
 /// Component for rendering 2D text on scene.
-public struct Text2DComponent: Component {
+@Component
+public struct Text2DComponent {
     
     /// Text with style attributes.
     public var text: AttributedText

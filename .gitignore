@@ -1,33 +1,38 @@
 # macOS
-
 .DS_Store
 
-# Swift Package Manager
-
+# Ignore Swift Package Manager build artifacts directory.
 .build/
-/Packages
+
+# Ignore generated Xcode projects
+*.xcodeproj
+# Ignore SwiftPM state, such as the generated xcodeproj when opening the project directly
+.swiftpm
+bazel/swiftpm/deps_index.json
+bazel/swiftpm/deps.bzl
+Package.resolved
+
+
+# Ignore user state in Xcode Projects
+*.xcuserdatad
+UserInterfaceState.xcuserstate
 xcuserdata/
-DerivedData/
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
-/*.xcscheme
-*.xcworkspace
+# Ignore VScode workspace settings and launch configurations
+.vscode
 
-*.xcodeproj/
-.swiftpm/
+# Ignore cmake build configuration and output
+build/
 
-# VS Code
-/.vs
-/.vscode
-
-/.idea
-
-# Tuist
-
-/Tuist/Dependencies/
+# Ignore bazel symlinks
+/bazel-*
+/MODULE.bazel.lock
 
 /docs
 
 Derived/
+
+# Idea
+.idea/
 
 # Compiled Shaders
 

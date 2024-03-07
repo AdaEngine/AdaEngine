@@ -15,7 +15,7 @@ class SpaceInvaders {
     
     init() {
         do {
-            let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.module) as Image
+            let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.editor) as Image
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
         } catch {
             fatalError(error.localizedDescription)
@@ -27,7 +27,7 @@ class SpaceInvaders {
         
 //        scene.debugOptions = [.showPhysicsShapes]
         
-        let sound = try ResourceManager.load("Assets/WindlessSlopes.wav", from: Bundle.module) as AudioResource
+        let sound = try ResourceManager.load("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
         
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
@@ -135,7 +135,7 @@ struct FireSystem: System {
     let laserAudio: AudioResource
     
     init(scene: Scene) {
-        self.laserAudio = try! ResourceManager.load("Assets/laserShoot.wav", from: .module) as AudioResource
+        self.laserAudio = try! ResourceManager.load("Assets/laserShoot.wav", from: .editor) as AudioResource
     }
     
     func update(context: UpdateContext) {
@@ -188,7 +188,8 @@ struct FireSystem: System {
     }
 }
 
-struct Bullet: Component {
+@Component
+struct Bullet {
     var damage: Float = 30
     let lifetime: Float
     var currentLifetime: Float = 0
@@ -217,7 +218,8 @@ struct BulletSystem: System {
     }
 }
 
-struct EnemyComponent: Component {
+@Component
+struct EnemyComponent {
     var health: Float
     let lifetime: Float
     var currentLifetime: Float = 0
@@ -231,7 +233,7 @@ struct EnemySpawnerSystem: System {
     
     init(scene: Scene) {
         do {
-            let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.module) as Image
+            let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.editor) as Image
             
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
         } catch {
@@ -311,7 +313,8 @@ extension CollisionGroup {
     static let bullet = CollisionGroup(rawValue: 1 << 2)
 }
 
-struct ExplosionComponent: Component { }
+@Component
+struct ExplosionComponent { }
 
 struct EnemyExplosionSystem: System {
     
@@ -319,10 +322,10 @@ struct EnemyExplosionSystem: System {
     let explosionAudio: AudioResource
     
     init(scene: Scene) {
-        let image = try! ResourceManager.load("Assets/explosion.png", from: .module) as Image
+        let image = try! ResourceManager.load("Assets/explosion.png", from: .editor) as Image
         self.exposionAtlas = TextureAtlas(from: image, size: Size(width: 32, height: 32))
         
-        self.explosionAudio = try! ResourceManager.load("Assets/explosion-1.wav", from: .module) as AudioResource
+        self.explosionAudio = try! ResourceManager.load("Assets/explosion-1.wav", from: .editor) as AudioResource
     }
     
     static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))
@@ -379,7 +382,8 @@ struct EnemyExplosionSystem: System {
     }
 }
 
-struct GameState: Component {
+@Component
+struct GameState {
     var score: Int = 0
 }
 

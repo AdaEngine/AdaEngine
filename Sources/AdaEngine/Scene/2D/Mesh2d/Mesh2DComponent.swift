@@ -6,7 +6,8 @@
 //
 
 /// Component that hold mesh and collection of materials for rendering.
-public struct Mesh2DComponent: Component {
+@Component
+public struct Mesh2DComponent {
     public var mesh: Mesh
     public var materials: [Material]
     

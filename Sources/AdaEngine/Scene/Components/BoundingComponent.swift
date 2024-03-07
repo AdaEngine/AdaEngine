@@ -6,7 +6,8 @@
 //
 
 /// Contains information about bounds of entity.
-public struct BoundingComponent: Component {
+@Component
+public struct BoundingComponent {
     
     public enum Bounds: Codable {
         case aabb(AABB)

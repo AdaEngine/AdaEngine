@@ -297,6 +297,10 @@ public extension PixelFormat {
     
     /// Returns `true` if pixel format is depth format.
     var isDepthFormat: Bool {
+        #if MACOS
         self == .depth_32f_stencil8 || self == .depth_32f || self == .depth24_stencil8
+        #else
+        self == .depth_32f_stencil8 || self == .depth_32f
+        #endif
     }
 }

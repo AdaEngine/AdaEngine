@@ -1,0 +1,5 @@
+module MiniAudioBindings {
+    header "MiniAudioBindings.hpp"
+
+    export *
+}

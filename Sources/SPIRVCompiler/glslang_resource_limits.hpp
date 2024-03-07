@@ -8,7 +8,7 @@
 #ifndef GLSLANG_RESOURCE_LIMITS_H
 #define GLSLANG_RESOURCE_LIMITS_H
 
-#include <glslang/Include/ResourceLimits.h>
+#include "glslang/Include/ResourceLimits.h"
 
 // Synchronized with upstream glslang/StandAlone/ResourceLimits.cpp which is not
 // part of the public API.

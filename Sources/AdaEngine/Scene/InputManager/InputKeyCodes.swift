@@ -115,26 +115,26 @@ public struct KeyModifier: OptionSet, Hashable {
 import AppKit
 
 extension KeyModifier {
-    init(modifiers: NSEventModifierFlags) {
+    init(modifiers: NSEvent.ModifierFlags) {
         var flags: KeyModifier = []
         
-        if (modifiers & NSEventModifierFlagCapsLock) == NSEventModifierFlagCapsLock {
+        if modifiers.contains(.capsLock) {
             flags.insert(.capsLock)
         }
         
-        if (modifiers & NSEventModifierFlagCommand) == NSEventModifierFlagCommand {
+        if modifiers.contains(.command) {
             flags.insert(.main)
         }
         
-        if (modifiers & NSEventModifierFlagControl) == NSEventModifierFlagControl {
+        if modifiers.contains(.control) {
             flags.insert(.control)
         }
         
-        if (modifiers & NSEventModifierFlagOption) == NSEventModifierFlagOption {
+        if modifiers.contains(.option) {
             flags.insert(.alt)
         }
         
-        if (modifiers & NSEventModifierFlagShift) == NSEventModifierFlagShift {
+        if modifiers.contains(.shift) {
             flags.insert(.shift)
         }
         
