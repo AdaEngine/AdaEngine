@@ -117,7 +117,8 @@ ada_engine_deps = [
     ":SPIRVCompiler",
     "@swiftpkg_box2d_swift//:box2d",
     "@swiftpkg_swift_log//:Logging",
-    ":MiniAudioBindings"
+    ":MiniAudioBindings",
+    "@rules_vulkan//vulkan:vulkan_cc_library"
 ]
 
 # C & CXX Libraries
