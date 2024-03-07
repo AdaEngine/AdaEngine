@@ -6,7 +6,8 @@
 //
 
 /// An object that store text layout manager
-struct TextLayoutComponent: Component {
+@Component
+struct TextLayoutComponent {
     let textLayout: TextLayoutManager
 }
 

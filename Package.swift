@@ -1,8 +1,9 @@
-// swift-tools-version:5.7
+// swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 import Foundation
+import CompilerPluginSupport
 
 #if canImport(AppleProductTypes) && os(iOS)
 import AppleProductTypes
@@ -25,6 +26,8 @@ let isVulkanEnabled = false
 #else
 let isVulkanEnabled = true
 #endif
+
+let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS]
 
@@ -108,10 +111,7 @@ var swiftSettings: [SwiftSetting] = [
     .define("TVOS", .when(platforms: [.tvOS])),
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
-    
-    // To avoid problems with debugging add `settings set target.experimental.swift-enable-cxx-interop true` to your `~/.lldbinit` file
-    // See Also: https://forums.swift.org/t/lldb-failed-when-i-connected-my-c-lib/63712/2
-    .unsafeFlags(["-enable-experimental-cxx-interop"])
+    .interoperabilityMode(.Cxx)
 ]
 
 if isVulkanEnabled {
@@ -123,7 +123,6 @@ if isVulkanEnabled {
 let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
     dependencies: ["AdaEngine", "Math"],
-    exclude: ["Project.swift", "Derived"],
     resources: [
         .copy("Assets")
     ],
@@ -149,13 +148,15 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
-    "miniaudio",
+    "MiniAudioBindings",
     "AtlasFontGenerator",
     "Yams",
     "libpng",
     "SPIRV-Cross",
     "SPIRVCompiler",
-    "AdaBox2d"
+    "AdaBox2d",
+    "AdaEngineMacros"
+//    "Vulkan"
 ]
 
 #if os(Linux)
@@ -165,10 +166,8 @@ adaEngineDependencies += ["X11"]
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
-    exclude: ["Project.swift", "Derived"],
     resources: [
         .copy("Assets/Shaders"),
-        .copy("Assets/Models"),
         .copy("Assets/Fonts")
     ],
     swiftSettings: adaEngineSwiftSettings,
@@ -180,8 +179,15 @@ let adaEngineTarget: Target = .target(
 
 let adaEngineEmbeddable: Target = .target(
     name: "AdaEngineEmbeddable",
-    dependencies: ["AdaEngine"],
-    exclude: ["Project.swift", "Derived"]
+    dependencies: ["AdaEngine"]
+)
+
+let adaEngineMacros: Target = .macro(
+    name: "AdaEngineMacros",
+    dependencies: [
+        .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+        .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
+    ]
 )
 
 // MARK: Other Targets
@@ -190,10 +196,8 @@ var targets: [Target] = [
     editorTarget,
     adaEngineTarget,
     adaEngineEmbeddable,
-    .target(
-        name: "Math",
-        exclude: ["Project.swift", "Derived"]
-    )
+    adaEngineMacros,
+    .target(name: "Math")
 ]
 
 // MARK: Extra
@@ -217,7 +221,13 @@ targets += [
         dependencies: [
             .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
         ],
-        exclude: ["Project.swift", "Derived"],
+        publicHeadersPath: "."
+    ),
+    .target(
+        name: "MiniAudioBindings",
+        dependencies: [
+            "miniaudio",
+        ],
         publicHeadersPath: "."
     ),
     .target(
@@ -225,7 +235,6 @@ targets += [
         dependencies: [
             "glslang"
         ],
-        exclude: ["Project.swift", "Derived"],
         publicHeadersPath: "."
     ),
     .target(
@@ -233,7 +242,6 @@ targets += [
         dependencies: [
             .product(name: "box2d", package: "box2d-swift")
         ],
-        exclude: ["Project.swift", "Derived"],
         publicHeadersPath: "."
     )
 ]
@@ -272,19 +280,33 @@ let package = Package(
     cxxLanguageStandard: .cxx20
 )
 
-// FIXME: If possible - move to local `vendors` folder
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", branch: "main"),
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
-    .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "main"),
-    .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
-    .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
-    .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
-    .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
-    .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.2.0"),
+    .package(url: "https://github.com/apple/swift-syntax", from: "509.1.1")
 ]
+
+if useLocalDeps {
+    package.dependencies += [
+        .package(path: "../box2d-swift"),
+        .package(path: "../msdf-atlas-gen"),
+        .package(path: "../SPIRV-Cross"),
+        .package(path: "../glslang"),
+        .package(path: "../miniaudio"),
+        .package(path: "../libpng"),
+    ]
+} else {
+    package.dependencies += [
+        .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "main"),
+        .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
+        .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
+        .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
+        .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
+        .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
+    ]
+}
 
 // MARK: - Vulkan -
 //

@@ -5,7 +5,8 @@
 //  Created by v.prusakov on 2/26/23.
 //
 
-struct ExctractedPhysicsMesh2DDebug: Component {
+@Component
+struct ExctractedPhysicsMesh2DDebug {
     let entityId: Entity.ID
     let mesh: Mesh
     let material: Material

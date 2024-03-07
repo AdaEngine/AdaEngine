@@ -25,9 +25,9 @@ final class iOSApplication: Application {
     }
     
     override func run() throws {
-        
         self.displayLink = CADisplayLink(target: self, selector: #selector(update))
-        
+        self.displayLink.add(to: .main, forMode: .default)
+
         // FIXME: We should store bundleIdentifier? err ("Invalid parameter not satisfying: bundleIdentifier")
         let exitCode = UIApplicationMain(
             argc,

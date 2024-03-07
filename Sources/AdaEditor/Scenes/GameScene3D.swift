@@ -60,7 +60,7 @@ struct SpawnEntitySystem: System {
     
     init(scene: Scene) {
         self.transform = Transform(scale: Vector3(0.2))
-        let charactersTiles = try! Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/characters_packed.png"))
+        let charactersTiles = try! Image(contentsOf: Bundle.editor.resourceURL!.appendingPathComponent("Assets/characters_packed.png"))
 //        self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
     }
     
@@ -93,7 +93,7 @@ class StressTestGameScene {
     
     init() {
         do {
-            let tiles = try Image(contentsOf: Bundle.module.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
+            let tiles = try Image(contentsOf: Bundle.editor.resourceURL!.appendingPathComponent("Assets/tiles_packed.png"))
 
 //            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
             

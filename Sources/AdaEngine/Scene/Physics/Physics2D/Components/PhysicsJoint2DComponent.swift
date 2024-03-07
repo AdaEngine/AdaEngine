@@ -30,7 +30,8 @@ public final class PhysicsJoint2DDescriptor: Codable {
     }
 }
 
-public struct PhysicsJoint2DComponent: Component {
+@Component
+public struct PhysicsJoint2DComponent {
     let jointDescriptor: PhysicsJoint2DDescriptor
     
     var runtimeJoint: OpaquePointer?

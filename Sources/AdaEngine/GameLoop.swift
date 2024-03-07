@@ -61,7 +61,7 @@ public final class GameLoop {
         if physicsTime.isFixedTick {
             Input.shared.removeEvents()
         }
-        
+
         FPSCounter.shared.tick()
     }
 }

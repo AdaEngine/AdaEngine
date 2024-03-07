@@ -1,0 +1,28 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_swift_package_manager//swiftpkg:defs.bzl", "swift_update_packages")
+
+# NOTE: If you decide to move the Swift dependency files like this example, do
+# not forget to update the `gazelle` declaration `//:update_build_files` to
+# point at the new location of the Swift dependency index JSON file.  Also, the
+# `//:gazelle_bin target` must be visible to this package.
+
+# Ignore the Swift build folder
+# gazelle:exclude .build
+
+swift_update_packages(
+    name = "update_pkgs",
+    gazelle = "//:gazelle_bin",
+    package_manifest = "bazel/swiftpm/Package.swift",
+    swift_deps = "bazel/swiftpm/deps.bzl",
+    swift_deps_index = "bazel/swiftpm/deps_index.json",
+    update_bzlmod_stanzas = True,
+    update_bzlmod_use_repo_names = True,
+    visibility = ["//:__subpackages__"],
+)
+
+bzl_library(
+    name = "deps",
+    srcs = ["deps.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_swift_package_manager//swiftpkg:defs"],
+)

@@ -118,9 +118,11 @@ struct PlayerMovementSystem: System {
     }
 }
 
-struct PlayerComponent: Component { }
+@Component
+struct PlayerComponent { }
 
-struct TubeComponent: Component { }
+@Component
+struct TubeComponent { }
 
 struct TubeMovementSystem: System {
     
@@ -207,9 +209,9 @@ final class GameScene2D {
     
     init() {
         do {
-            let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.module) as Image
-            let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.module) as Image
-            
+            let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.editor) as Image
+            let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.editor) as Image
+
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
         } catch {
@@ -305,8 +307,8 @@ final class GameScene2D {
     
     func makeCanvasItem(for scene: Scene, position: Vector3) throws {
         
-        let dogTexture = try ResourceManager.load("Assets/dog.png", from: Bundle.module) as Texture2D
-        
+        let dogTexture = try ResourceManager.load("Assets/dog.png", from: Bundle.editor) as Texture2D
+
         let material = MyMaterial(
             color: .red,
             customTexture: dogTexture
@@ -421,6 +423,6 @@ struct MyMaterial: CanvasMaterial {
     }
     
     static func fragmentShader() throws -> ShaderSource {
-        try ResourceManager.load("Assets/custom_material.glsl", from: .module)
+        try ResourceManager.load("Assets/custom_material.glsl", from: .editor)
     }
 }

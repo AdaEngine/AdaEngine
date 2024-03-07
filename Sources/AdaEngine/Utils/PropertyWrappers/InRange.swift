@@ -10,7 +10,8 @@
 /// It's works with any comparable types, like Float, Int, Double and so on.
 ///
 /// ```swift
-/// struct CircleComponent: Component {
+/// @Component
+/// struct CircleComponent {
 ///     @InRange(0...1) var fade: Float = 1
 /// }
 ///

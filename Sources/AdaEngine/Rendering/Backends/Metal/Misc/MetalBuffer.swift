@@ -36,24 +36,23 @@ public class MetalBuffer: Buffer {
 
 extension ResourceOptions {
     var metal: MTLResourceOptions {
-        
-        var options: MTLResourceOptions = 0
+        var options: MTLResourceOptions = []
         
         if self.contains(.storagePrivate) {
-            options |= MTLResourceStorageModePrivate
+            options.insert(.storageModePrivate)
         }
         
         if self.contains(.storageShared) {
-            options |= MTLResourceStorageModeShared
+            options.insert(.storageModeShared)
         }
-        
-        if #available(macOS 11, *) {
-#if os(macOS)
-            if self.contains(.storageManaged) {
-                
-                options |= MTLResourceStorageModeManaged
-            }
-#endif
+
+        if self.contains(.storageManaged) {
+            #if MACOS
+            options.insert(.storageModeManaged)
+            #else
+            assertionFailure("ResourceOptions.storageManaged not available for iOS for Metal")
+            options.insert(.storageModeShared)
+            #endif
         }
         
         return options

@@ -38,4 +38,12 @@ You are welcome to contribute to AdaEngine. Currently, it is under development, 
 
 ## How to build
 
-Download Xcode 14.3 or Visual Studio Code with the [Swift VSCode Extension](https://www.swift.org/blog/vscode-extension/) and then open `Package.swift` file from the root directory. 
+Currently we use Bazel and Swift Package Manager as build tools. 
+
+* Bazel 
+
+Bazel is major build system for project, SPM maybe will be removed in future versions. To build project for development download [Bazelisk](https://github.com/bazelbuild/bazelisk). To generate xcproject, use `make xcproj` command in terminal. 
+
+* Swift Package Manager
+
+Use Xcode 15 or Visual Studio Code with the [Swift VSCode Extension](https://www.swift.org/blog/vscode-extension/) and then open `Package.swift` file from the root directory. 

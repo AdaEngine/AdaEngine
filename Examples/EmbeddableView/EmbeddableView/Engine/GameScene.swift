@@ -63,7 +63,8 @@ final class PlayerComponent: ScriptComponent {
     }
 }
 
-struct TubeComponent: Component { }
+@Component
+struct TubeComponent { }
 
 struct TubeMovementSystem: System {
 

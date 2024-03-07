@@ -35,7 +35,8 @@ public struct CameraClearFlags: OptionSet, Codable {
 // TODO: We should translate mouse coordinate space to scene coordinate space
 /// This component represent camera on scene. You can create more than one camera for rendering.
 /// Each camera has frustum, projection data.
-public struct Camera: Component {
+@Component
+public struct Camera {
     
     /// View projection for camera
     public enum Projection: UInt8, Codable, CaseIterable {
@@ -197,13 +198,15 @@ extension Camera {
     }
 }
 
-public struct GlobalViewUniform: Component {
+@Component
+public struct GlobalViewUniform {
     public internal(set) var projectionMatrix: Transform3D = .identity
     public internal(set) var viewProjectionMatrix: Transform3D = .identity
     public internal(set) var viewMatrix: Transform3D = .identity
 }
 
-struct GlobalViewUniformBufferSet: Component {
+@Component
+struct GlobalViewUniformBufferSet {
     let uniformBufferSet: UniformBufferSet
     
     init() {

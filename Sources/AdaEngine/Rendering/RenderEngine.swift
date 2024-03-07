@@ -31,7 +31,7 @@ public final class RenderEngine: RenderBackend {
         #if METAL
         renderBackend = MetalRenderBackend(appName: "Ada Engine")
         #elseif VULKAN
-        // vulkan here
+        renderBackend = VulkanRenderBackend(appName: "Ada Engine")
         #endif
         
         return RenderEngine(renderBackend: renderBackend)
