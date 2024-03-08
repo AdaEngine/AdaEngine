@@ -156,12 +156,15 @@ var adaEngineDependencies: [Target.Dependency] = [
     "SPIRVCompiler",
     "AdaBox2d",
     "AdaEngineMacros"
-//    "Vulkan"
 ]
 
 #if os(Linux)
 adaEngineDependencies += ["X11"]
 #endif
+
+if isVulkanEnabled {
+    adaEngineDependencies += [.product(name: "Vulkan", package: "Vulkan")]
+}
 
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
@@ -304,14 +307,13 @@ if useLocalDeps {
         .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
         .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
         .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
-        .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
+        .package(url: "https://github.com/AdaEngine/libpng", branch: "main")
     ]
 }
 
 // MARK: - Vulkan -
-//
-//// We turn on vulkan via build
-//if isVulkanEnabled {
-//    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
-//    package.dependencies.append(.package(path: "vendors/Vulkan"))
-//}
+
+// We turn on vulkan via build
+if isVulkanEnabled {
+    package.dependencies.append(.package(path: "Modules/Vulkan"))
+}
