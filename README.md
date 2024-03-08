@@ -62,6 +62,14 @@ Currently we use Bazel and Swift Package Manager as build tools.
 
 Bazel is major build system for project, SPM maybe will be removed in the future versions. To build project for development download [Bazelisk](https://github.com/bazelbuild/bazelisk). To generate xcproject, use `make xcproj` command in terminal. 
 
+**For Xcode**
+
+To build project with vulkan, add `VULKAN_SDK` environment path to `Xcode -> Settings -> Locations -> Custom Paths`, where path must be locate to Vulkan SDK.
+
+**For Other**
+
+By default Bazel will search Vulkan SDK in your environment variables, set `export VULKAN_SDK = /User/username/VULKAN_SDK` in your env variables or in your terminal file `.zshrc`, `.bashprofile`, etc.
+
 #### Swift Package Manager
 
 Use Xcode 16.0 or Visual Studio Code with the [Swift VSCode Extension](https://www.swift.org/blog/vscode-extension/) and then open `Package.swift` file from the root directory. 
