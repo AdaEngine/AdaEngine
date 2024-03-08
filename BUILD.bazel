@@ -57,7 +57,7 @@ config_setting(
 swift_defines = select({
     "@platforms//os:macos": [
         "MACOS",
-        "METAL"
+        "VULKAN"
     ],
     "@platforms//os:ios": [
         "IOS",
@@ -118,7 +118,7 @@ ada_engine_deps = [
     "@swiftpkg_box2d_swift//:box2d",
     "@swiftpkg_swift_log//:Logging",
     ":MiniAudioBindings",
-    "@rules_vulkan//vulkan:vulkan_cc_library"
+    ":Vulkan",
 ]
 
 # C & CXX Libraries
@@ -127,7 +127,7 @@ cc_ada_library(
     name = "AtlasFontGenerator",
     deps = [
         "@MSDFAtlasGen",
-    ],
+    ]
 )
 
 cc_ada_library(
@@ -138,6 +138,12 @@ cc_ada_library(
 )
 
 # Swift Libraries
+
+
+swift_ada_library(
+    name = "Vulkan",
+    deps = ["//Modules/Vulkan:CVulkan"]
+)
 
 swift_ada_library(
     name = "Math"
