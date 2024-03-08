@@ -4,7 +4,7 @@ load("@bazel_tools//tools/build_defs/repo:git.bzl", "git_repository")
 
 git_repository(
     name = "rules_vulkan",
-    commit = "a70c75d0fa4a7df98501efad0a31b1f2ca94de8f",
+    commit = "dad3ccbb8d8471581770122062a4c2f3efb78425",
     remote = "https://github.com/AdaEngine/rules_vulkan/"
 )
 

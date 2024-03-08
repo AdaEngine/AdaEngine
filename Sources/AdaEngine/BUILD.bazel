@@ -65,7 +65,7 @@ ada_engine_deps = [
     "//Sources/SPIRVCompiler",
     "//Sources/MiniAudioBindings",
     "//Sources/Math",
-    #  "@rules_vulkan//vulkan:vulkan_cc_library"
+    # "//Sources/Vulkan"
 ]
 
 swift_ada_library(

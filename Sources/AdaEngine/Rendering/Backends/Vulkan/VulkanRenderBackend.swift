@@ -41,8 +41,16 @@ final class VulkanRenderBackend: RenderBackend {
     func endFrame() throws {
         
     }
-    
-    func createBuffer(length: Int, options: ResourceOptions) -> Buffer {
+
+    func getImage(from texture: Texture) -> Image? {
+        return nil
+    }
+
+    func makeIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+        fatalError("Kek")
+    }
+
+    func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
         fatalError("Kek")
     }
     
@@ -98,10 +106,10 @@ final class VulkanRenderBackend: RenderBackend {
         fatalError("Kek")
     }
     
-    func draw(_ list: DrawList, indexCount: Int, instancesCount: Int) {
+    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
         
     }
-    
+
     func endDrawList(_ drawList: DrawList) {
         
     }

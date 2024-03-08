@@ -154,6 +154,10 @@ var adaEngineDependencies: [Target.Dependency] = [
 adaEngineDependencies += ["X11"]
 #endif
 
+if isVulkanEnabled {
+    adaEngineDependencies += [.product(name: "Vulkan", package: "Vulkan")]
+}
+
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
