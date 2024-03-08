@@ -25,7 +25,7 @@ extension VulkanRenderBackend {
                 applicationVersion: Engine.shared.engineVersion.toVulkanVersion,
                 pEngineName: "AdaEngine",
                 engineVersion: 1,
-                apiVersion: Version(string: "1.14.0").toVulkanVersion
+                apiVersion: vkApiVersion_1_2()
             )
             
             let createInfo = InstanceCreateInfo(
