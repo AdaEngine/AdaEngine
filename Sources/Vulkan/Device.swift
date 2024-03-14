@@ -37,21 +37,27 @@ public final class Device {
         let extensions = createInfo.enabledExtensions.map { $0.toPointer() }
         let features = createInfo.enabledFeatures ?? VkPhysicalDeviceFeatures()
         
-        let result = withUnsafePointer(to: features) { featuresPtr -> VkResult in
-            var info = VkDeviceCreateInfo(
-                sType: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-                pNext: nil,
-                flags: 0,
-                queueCreateInfoCount: UInt32(createInfo.queueCreateInfo.count),
-                pQueueCreateInfos: queueCreateInfos,
-                enabledLayerCount: UInt32(createInfo.layers.count),
-                ppEnabledLayerNames: layers,
-                enabledExtensionCount: UInt32(createInfo.enabledExtensions.count),
-                ppEnabledExtensionNames: extensions,
-                pEnabledFeatures: createInfo.enabledFeatures != nil ? featuresPtr : nil
-            )
-            
-            return vkCreateDevice(physicalDevice.pointer, &info, nil, &devicePointer)
+        let result: VkResult = withUnsafePointer(to: features) { featuresPtr in
+            queueCreateInfos.withUnsafeBufferPointer { queuesPtr in
+                extensions.withUnsafeBufferPointer { extPtr in
+                    layers.withUnsafeBufferPointer { layersPtr in
+                        var info = VkDeviceCreateInfo(
+                            sType: VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+                            pNext: nil,
+                            flags: 0,
+                            queueCreateInfoCount: UInt32(createInfo.queueCreateInfo.count),
+                            pQueueCreateInfos: queuesPtr.baseAddress,
+                            enabledLayerCount: UInt32(createInfo.layers.count),
+                            ppEnabledLayerNames: layersPtr.baseAddress,
+                            enabledExtensionCount: UInt32(createInfo.enabledExtensions.count),
+                            ppEnabledExtensionNames: extPtr.baseAddress,
+                            pEnabledFeatures: createInfo.enabledFeatures != nil ? featuresPtr : nil
+                        )
+
+                        return vkCreateDevice(physicalDevice.pointer, &info, nil, &devicePointer)
+                    }
+                }
+            }
         }
 
         guard let pointer = devicePointer, result == VK_SUCCESS else {
