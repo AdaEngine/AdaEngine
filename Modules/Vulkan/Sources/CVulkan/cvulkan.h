@@ -4,6 +4,10 @@ static uint32_t vkApiVersion_1_2() {
     return VK_API_VERSION_1_2;
 }
 
+static uint32_t vkApiVersion_1_0() {
+    return VK_API_VERSION_1_0;
+}
+
 static uint32_t vkMakeApiVersion(uint32_t v1, uint32_t v2, uint32_t v3) {
     return VK_MAKE_VERSION(v1, v2, v3);
 }

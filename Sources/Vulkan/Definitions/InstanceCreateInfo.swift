@@ -8,19 +8,19 @@
 import CVulkan
 
 public struct InstanceCreateInfo {
-    public let applicationInfo: VkApplicationInfo?
-    public let enabledLayerNames: [String]
-    public let enabledExtensionNames: [String]
-    
-    public let next: UnsafePointer<Any>?
-    public let flags: Int
-    
+    public var applicationInfo:  UnsafePointer<VkApplicationInfo>!
+    public var enabledLayerNames: [String]
+    public var enabledExtensionNames: [String]
+
+    public var next: UnsafePointer<Any>?
+    public var flags: UInt32
+
     public init(
-        applicationInfo: VkApplicationInfo? = nil,
+        applicationInfo: UnsafePointer<VkApplicationInfo>!,
         enabledLayerNames: [String],
         enabledExtensionNames: [String],
         next: UnsafePointer<Any>? = nil,
-        flags: Int = 0
+        flags: UInt32 = 0
     ) {
         self.applicationInfo = applicationInfo
         self.enabledLayerNames = enabledLayerNames

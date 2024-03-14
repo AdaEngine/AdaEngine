@@ -85,7 +85,7 @@ public final class PhysicalDevice {
             .map { index, element in
                 QueueFamilyProperties(
                     index: UInt32(index),
-                    queueFlags: .init(rawValue: element.queueFlags),
+                    queueFlags: QueueFamilyProperties.Flags(rawValue: element.queueFlags),
                     queueCount: element.queueCount,
                     timestampValidBits: element.timestampValidBits,
                     minImageTransferGranularity: element.minImageTransferGranularity

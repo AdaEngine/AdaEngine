@@ -14,10 +14,14 @@ public extension VulkanInstance {
         var extensionsCount: UInt32 = 0
         var result = vkEnumerateInstanceExtensionProperties(nil, &extensionsCount, nil)
         
-        guard result == VK_SUCCESS, extensionsCount > 0 else {
+        guard result == VK_SUCCESS else {
             throw VKError(code: result, message: "Can't get extensions properties")
         }
-        
+
+        if extensionsCount == 0 {
+            return []
+        }
+
         var extensionProperties = [VkExtensionProperties](repeating: VkExtensionProperties(),
                                                           count: Int(extensionsCount))
         
@@ -35,10 +39,14 @@ public extension VulkanInstance {
         var layersCount: UInt32 = 0
         var result = vkEnumerateInstanceLayerProperties(&layersCount, nil)
         
-        guard result == VK_SUCCESS, layersCount > 0 else {
+        guard result == VK_SUCCESS else {
             throw VKError(code: result, message: "Cannot get layer properties")
         }
-        
+
+        if layersCount == 0 {
+            return []
+        }
+
         var layers = [VkLayerProperties](repeating: VkLayerProperties(), count: Int(layersCount))
         
         result = vkEnumerateInstanceLayerProperties(&layersCount, &layers)
