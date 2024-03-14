@@ -25,7 +25,7 @@ public struct QueueFamilyProperties {
         self.timestampValidBits = timestampValidBits
         self.minImageTransferGranularity = minImageTransferGranularity
     }
-    
+
     public struct Flags: OptionSet {
         public let rawValue: UInt32
         
@@ -33,10 +33,14 @@ public struct QueueFamilyProperties {
             self.rawValue = rawValue
         }
         
-        public static let graphicsBit = Flags(rawValue: 1 << 0)
-        public static let computeBit = Flags(rawValue: 1 << 1)
-        public static let transferBit = Flags(rawValue: 1 << 2)
-        public static let sparseBindingBit = Flags(rawValue: 1 << 3)
-        public static let protectedBit = Flags(rawValue: 1 << 4)
+        public static let graphicsBit = Flags(rawValue: VK_QUEUE_GRAPHICS_BIT.rawValue)
+        public static let computeBit = Flags(rawValue: VK_QUEUE_COMPUTE_BIT.rawValue)
+        public static let transferBit = Flags(rawValue: VK_QUEUE_TRANSFER_BIT.rawValue)
+        public static let sparseBindingBit = Flags(rawValue: VK_QUEUE_SPARSE_BINDING_BIT.rawValue)
+        public static let protectedBit = Flags(rawValue: VK_QUEUE_PROTECTED_BIT.rawValue)
+        public static let videoDecodeBitKHR = Flags(rawValue: VK_QUEUE_VIDEO_DECODE_BIT_KHR.rawValue)
+        public static let videoEncodeBitKHR = Flags(rawValue: VK_QUEUE_VIDEO_ENCODE_BIT_KHR.rawValue)
+        public static let opticalFlowBitNV = Flags(rawValue: VK_QUEUE_OPTICAL_FLOW_BIT_NV.rawValue)
+        public static let bitsMaxEnum = Flags(rawValue: VK_QUEUE_FLAG_BITS_MAX_ENUM.rawValue)
     }
 }

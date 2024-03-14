@@ -55,6 +55,16 @@ public extension Entity {
             }
         }
 
+        // FIXME: Replace to subscript??
+
+        /// Get any count of component types from set.
+        @inline(__always)
+        public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
+            lock.lock()
+            defer { lock.unlock() }
+            return (repeat self.buffer[(each type).identifier] as! each T)
+        }
+
         /// Gets or sets the component of the specified type.
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
             get {

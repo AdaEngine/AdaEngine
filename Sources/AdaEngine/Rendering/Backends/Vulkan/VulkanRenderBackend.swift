@@ -91,7 +91,68 @@ final class VulkanRenderBackend: RenderBackend {
     }
     
     func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture {
-        fatalError("Kek")
+        var imageInfo = VkImageCreateInfo(
+            sType: VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            imageType: VK_IMAGE_TYPE_2D,
+            format: descriptor.pixelFormat.toVulkan,
+            extent: VkExtent3D(width: UInt32(descriptor.width), height: UInt32(descriptor.height), depth: 1),
+            mipLevels: UInt32(descriptor.mipmapLevel),
+            arrayLayers: 1,
+            samples: VK_SAMPLE_COUNT_1_BIT,
+            tiling: VK_IMAGE_TILING_OPTIMAL,
+            usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue,
+            sharingMode: VK_SHARING_MODE_EXCLUSIVE,
+            queueFamilyIndexCount: 0,
+            pQueueFamilyIndices: nil,
+            initialLayout: VK_IMAGE_LAYOUT_UNDEFINED
+        )
+
+        if descriptor.textureType == .textureCube {
+            imageInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT.rawValue
+        }
+
+
+        do {
+            let vkImage = try Vulkan.Image(
+                device: context.device,
+                createInfo: imageInfo
+            )
+
+            let imageViewInfo = VkImageViewCreateInfo(
+                sType: VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                pNext: nil,
+                flags: 0,
+                image: vkImage.rawPointer,
+                viewType: descriptor.textureType.toVulkan,
+                format: descriptor.pixelFormat.toVulkan,
+                components: VkComponentMapping(
+                    r: VK_COMPONENT_SWIZZLE_IDENTITY,
+                    g: VK_COMPONENT_SWIZZLE_IDENTITY,
+                    b: VK_COMPONENT_SWIZZLE_IDENTITY,
+                    a: VK_COMPONENT_SWIZZLE_IDENTITY
+                ),
+                subresourceRange: VkImageSubresourceRange(
+                    aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue,
+                    baseMipLevel: 0,
+                    levelCount: imageInfo.mipLevels,
+                    baseArrayLayer: 0,
+                    layerCount: imageInfo.arrayLayers
+                )
+            )
+
+            let index = try DeviceMemory.findMemoryTypeIndex(
+                for: vkImage.memoryRequirements,
+                properties: properties,
+                in: self.context.physicalDevices
+            )
+
+            let imageView = try Vulkan.ImageView(device: context.physicalDevice, info: imageViewInfo)
+            return VulkanGPUTexture(image: vkImage, imageView: imageView)
+        } catch {
+            fatalError("[VulkanRenderBackend] Failed to create texture: \(error.localizedDescription)")
+        }
     }
     
     func getImage(for texture2D: RID) -> Image? {
@@ -119,6 +180,56 @@ final class VulkanRenderBackend: RenderBackend {
 extension Version {
     var toVulkanVersion: UInt32 {
         return vkMakeApiVersion(UInt32(self.major), UInt32(self.minor), UInt32(self.patch))
+    }
+}
+
+extension PixelFormat {
+    var toVulkan: VkFormat {
+        switch self {
+        case .bgra8:
+            return VK_FORMAT_B8G8R8A8_UINT
+        case .bgra8_srgb:
+            return VK_FORMAT_B8G8R8A8_SRGB
+        case .rgba8:
+            return VK_FORMAT_R8G8B8A8_UINT
+        case .rgba_16f:
+            return VK_FORMAT_R16G16B16A16_SFLOAT
+        case .rgba_32f:
+            return VK_FORMAT_R32G32B32A32_SFLOAT
+        case .depth_32f_stencil8:
+            return VK_FORMAT_D32_SFLOAT_S8_UINT
+        case .depth_32f:
+            return VK_FORMAT_D32_SFLOAT
+        case .depth24_stencil8:
+            return VK_FORMAT_D24_UNORM_S8_UINT
+        case .none:
+            return VK_FORMAT_UNDEFINED
+        }
+    }
+}
+
+extension Texture.TextureType {
+    var toVulkan: VkImageViewType {
+        switch self {
+        case .texture1D:
+            return VK_IMAGE_VIEW_TYPE_1D
+        case .texture1DArray:
+            return VK_IMAGE_VIEW_TYPE_1D_ARRAY
+        case .texture2D:
+            return VK_IMAGE_VIEW_TYPE_2D
+        case .texture2DArray:
+            return VK_IMAGE_VIEW_TYPE_2D_ARRAY
+        case .texture2DMultisample:
+            return VK_IMAGE_VIEW_TYPE_2D
+        case .texture2DMultisampleArray:
+            return VK_IMAGE_VIEW_TYPE_2D_ARRAY
+        case .textureCube:
+            return VK_IMAGE_VIEW_TYPE_CUBE
+        case .texture3D:
+            return VK_IMAGE_VIEW_TYPE_3D
+        case .textureBuffer:
+            fatalError("Unsupported type")
+        }
     }
 }
 

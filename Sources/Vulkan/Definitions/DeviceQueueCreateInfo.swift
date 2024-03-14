@@ -23,7 +23,11 @@ public struct DeviceQueueCreateInfo {
         public static let protectedBit = Flags(rawValue: 1)
     }
     
-    public init(queueFamilyIndex: UInt32, flags: Flags, queuePriorities: [Float]) {
+    public init(
+        queueFamilyIndex: UInt32,
+        flags: Flags,
+        queuePriorities: [Float]
+    ) {
         self.queueFamilyIndex = queueFamilyIndex
         self.queuePriorities = queuePriorities
         self.flags = flags
@@ -36,6 +40,7 @@ public struct DeviceQueueCreateInfo {
             flags: self.flags.rawValue,
             queueFamilyIndex: self.queueFamilyIndex,
             queueCount: UInt32(self.queuePriorities.count),
-            pQueuePriorities: self.queuePriorities)
+            pQueuePriorities: self.queuePriorities
+        )
     }
 }

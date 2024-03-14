@@ -52,7 +52,11 @@ public final class DeviceMemory {
 }
 
 public extension DeviceMemory {
-    static func findMemoryTypeIndex(for memoryRequirements: VkMemoryRequirements, properties: VkMemoryPropertyFlags, in gpu: PhysicalDevice) throws -> UInt32 {
+    static func findMemoryTypeIndex(
+        for memoryRequirements: VkMemoryRequirements,
+        properties: VkMemoryPropertyFlags,
+        in gpu: PhysicalDevice
+    ) throws -> UInt32 {
         let memProperties = gpu.memoryProperties
         var typesTuple = memProperties.memoryTypes
         let memoryTypes = convertTupleToArray(tuple: typesTuple, start: &typesTuple.0)

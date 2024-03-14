@@ -30,6 +30,8 @@ public final class Surface {
     }
 }
 
+// TODO: Make common surface for Metal family
+
 #if os(macOS)
 
 import AppKit
@@ -98,4 +100,3 @@ public extension Surface {
 }
 
 #endif
-

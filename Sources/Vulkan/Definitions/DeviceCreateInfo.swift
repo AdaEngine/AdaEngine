@@ -13,7 +13,12 @@ public struct DeviceCreateInfo {
     public let queueCreateInfo: [DeviceQueueCreateInfo]
     public let enabledFeatures: VkPhysicalDeviceFeatures?
 
-    public init(enabledExtensions: [String], layers: [String], queueCreateInfo: [DeviceQueueCreateInfo], enabledFeatures: VkPhysicalDeviceFeatures?) {
+    public init(
+        enabledExtensions: [String],
+        layers: [String],
+        queueCreateInfo: [DeviceQueueCreateInfo],
+        enabledFeatures: VkPhysicalDeviceFeatures?
+    ) {
         self.enabledExtensions = enabledExtensions
         self.layers = layers
         self.queueCreateInfo = queueCreateInfo

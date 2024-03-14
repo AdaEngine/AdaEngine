@@ -11,75 +11,252 @@ import Vulkan
 import CVulkan
 
 extension VulkanRenderBackend {
-    
+
     final class Context {
-        
+
         private(set) var windows: [Window.ID: RenderWindow] = [:]
         private(set) var instance: VulkanInstance
-        
+        private(set) var physicalDevice: PhysicalDevice
+        private(set) var device: Device
+
+        private(set) var physicalDevices: [PhysicalDevice]
+        private(set) var deviceQueueFamilyProperties: [[QueueFamilyProperties]]
+
         init(appName: String) {
-            let appInfo = VkApplicationInfo(
-                sType: VK_STRUCTURE_TYPE_APPLICATION_INFO,
-                pNext: nil,
-                pApplicationName: appName,
-                applicationVersion: Engine.shared.engineVersion.toVulkanVersion,
-                pEngineName: "AdaEngine",
-                engineVersion: 1,
-                apiVersion: vkApiVersion_1_2()
-            )
-            
-            let createInfo = InstanceCreateInfo(
-                applicationInfo: appInfo,
-                enabledLayerNames: [],
-                enabledExtensionNames: []
-            )
-            
-            self.instance = try! VulkanInstance(info: createInfo)
+
+            let version = Self.determineVulkanVersion()
+            let engineName = "AdaEngine"
+
+            do {
+                let vulkanInstance = try appName.withCString { appNamePtr in
+                    return try engineName.withCString { engineNamePtr in
+                        var appInfo = VkApplicationInfo(
+                            sType: VK_STRUCTURE_TYPE_APPLICATION_INFO,
+                            pNext: nil,
+                            pApplicationName: appNamePtr,
+                            applicationVersion: Version(string: "1.0.0").toVulkanVersion,
+                            pEngineName: engineNamePtr,
+                            engineVersion: Engine.shared.engineVersion.toVulkanVersion,
+                            apiVersion: version
+                        )
+
+                        let extensions = try Self.getAvailableExtensionNames()
+                        let layers = try VulkanInstance.getLayerProperties()
+
+                        let createInfo = InstanceCreateInfo(
+                            applicationInfo: &appInfo,
+                            enabledLayerNames: layers.map { $0.layerName },
+                            enabledExtensionNames: extensions,
+                            flags: VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR.rawValue
+                        )
+
+                        return try VulkanInstance(info: createInfo)
+                    }
+                }
+
+                self.instance = vulkanInstance
+                self.physicalDevices = try self.instance.physicalDevices()
+                self.deviceQueueFamilyProperties = self.physicalDevices.map { $0.getQueueFamily() }
+                let deviceIndex = try self.getPreferredPhysicalDeviceIndex()
+
+                self.physicalDevice = self.physicalDevices[deviceIndex]
+                self.device = try self.createDevice(for: deviceIndex)
+            } catch {
+                fatalError("[VulkanRenderBackend] \(error.localizedDescription)")
+            }
         }
-        
-        func createRenderWindow(with id: Window.ID, surface: RenderSurface, size: Size) throws {
+
+        private func createDevice(for deviceIndex: Int) throws -> Device {
+            let gpu = self.physicalDevices[deviceIndex]
+            let queueFamiliesProps = self.deviceQueueFamilyProperties[deviceIndex]
+
+            let deviceExtensions = try gpu.getExtensions()
+            var availableExtenstions = [ExtensionProperties]()
+
+            for ext in deviceExtensions {
+                if ext.extensionName == VK_KHR_SWAPCHAIN_EXTENSION_NAME {
+                    availableExtenstions.append(ext)
+                }
+            }
+
+            let properties: [Float] = [0.0]
+            var queueCreateInfos = [DeviceQueueCreateInfo]()
+
+            for (index, prop) in queueFamiliesProps.enumerated() where prop.queueFlags.isSubset(of: [.graphicsBit, .computeBit, .transferBit]) {
+                queueCreateInfos.append(
+                    DeviceQueueCreateInfo(
+                        queueFamilyIndex: UInt32(index),
+                        flags: .none,
+                        queuePriorities: properties
+                    )
+                )
+            }
+
+            var features = gpu.features
+            features.robustBufferAccess = false
+
+            let info = DeviceCreateInfo(
+                enabledExtensions: availableExtenstions.map(\.extensionName),
+                layers: [],
+                queueCreateInfo: queueCreateInfos,
+                enabledFeatures: features
+            )
+
+            return try Device(physicalDevice: gpu, createInfo: info)
+        }
+
+        private func deviceSupportPresent(deviceIndex: Int, surface: Surface) -> Bool {
+            let device = self.physicalDevices[deviceIndex]
+            let queueFamiliesProps = self.deviceQueueFamilyProperties[deviceIndex]
+
+            for prop in queueFamiliesProps {
+                do {
+                    if try prop.queueFlags.contains(.graphicsBit) && device.supportSurface(surface, queueFamily: prop) {
+                        return true
+                    }
+                } catch {
+                    continue
+                }
+            }
+
+            return false
+        }
+
+        // FIXME: Make it better
+        private func getPreferredPhysicalDeviceIndex() throws -> Int {
+            let devices = self.physicalDevices
+
+            if devices.isEmpty {
+                throw ContextError.initializationFailure("Could not find any compitable devices for Vulkan. Do you have a compitable Vulkan devices?")
+            }
+
+            let preferredGPU = devices.firstIndex(where: { $0.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU })
+
+            return preferredGPU ?? 0
+        }
+
+        private static func determineVulkanVersion() -> UInt32 {
+            var version: UInt32 = UInt32.max
+            let result = vkEnumerateInstanceVersion(&version)
+
+            if result != VK_SUCCESS {
+                return vkApiVersion_1_0()
+            }
+
+            return version
+        }
+
+        private static func getAvailableExtensionNames() throws -> [String] {
+            let extensions = try VulkanInstance.getExtensions()
+
+            var availableExtenstions = [String]()
+            var isPlatformExtFound = false
+            var isSurfaceExtFound = false
+
+            for ext in extensions {
+
+                if ext.extensionName == VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME {
+                    availableExtenstions.append(ext.extensionName)
+                }
+
+                if ext.extensionName == VK_KHR_SURFACE_EXTENSION_NAME {
+                    availableExtenstions.append(ext.extensionName)
+                    isSurfaceExtFound = true
+                }
+
+                if ext.extensionName == Self.platformSpecificSurfaceExtensionName {
+                    availableExtenstions.append(ext.extensionName)
+                    isPlatformExtFound = true
+                }
+
+                if ext.extensionName == VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME {
+                    availableExtenstions.append(ext.extensionName)
+                }
+
+                if ext.extensionName == VK_EXT_DEBUG_UTILS_EXTENSION_NAME {
+                    availableExtenstions.append(ext.extensionName)
+                }
+            }
+
+            if !isPlatformExtFound {
+                availableExtenstions.append(self.platformSpecificSurfaceExtensionName)
+            }
+
+            if !isSurfaceExtFound {
+                availableExtenstions.append(VK_KHR_SURFACE_EXTENSION_NAME)
+            }
+
+            return availableExtenstions
+        }
+
+        // TODO: Change to constants
+        // TODO: Headless mode
+        private static var platformSpecificSurfaceExtensionName: String {
+#if MACOS || IOS || TVOS || VISIONOS
+            return VK_EXT_METAL_SURFACE_EXTENSION_NAME
+#elseif WINDOWS
+            return "VK_KHR_win32_surface"
+#elseif LINUX
+            return "VK_KHR_xlib_surface"
+#elseif ANDROID
+            return "VK_KHR_xlib_surface"
+#else
+            return "NotFound"
+#endif
+        }
+
+        func createRenderWindow(with id: Window.ID, view: RenderView, size: Size) throws {
             if self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
-            
+
             let surface = try Surface(vulkan: self.instance, view: view)
             let window = RenderWindow(window: id, surface: surface)
-            
+
             self.windows[id] = window
         }
-        
+
         func updateSizeForRenderWindow(_ windowId: Window.ID, size: Size) {
             guard let window = self.windows[windowId] else {
                 assertionFailure("Not found window by id \(windowId)")
                 return
             }
-            
+
         }
-        
+
         func destroyWindow(at windowId: Window.ID) throws {
             if self.windows[windowId] != nil {
                 assertionFailure("Window was already destroyed")
             }
-            
+
             self.windows[windowId] = nil
         }
     }
-    
+
     struct RenderWindow {
         let window: Window.ID
         let surface: Surface
     }
-    
+
+    private struct QueueFamilyIndices {
+        let graphicsIndex: Int
+        let presentationIndex: Int
+        let isSeparate: Bool
+    }
+
     enum ContextError: LocalizedError {
         case creationWindowAlreadyExists
         case commandQueueCreationFailed
-        
+        case initializationFailure(String)
+
         var errorDescription: String? {
             switch self {
             case .creationWindowAlreadyExists:
                 return "RenderWindow Creation Failed: Window by given id already exists."
             case .commandQueueCreationFailed:
                 return "RenderWindow Creation Failed: MTLDevice cannot create MTLCommandQueue."
+            case .initializationFailure(let message):
+                return "[VulkanContext] \(message)"
             }
         }
     }

@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 2/6/23.
 //
 
+// TODO: Replace to (repeat each T) with tuple
+
 /// Create a fixed sized array on a heap.
 @frozen
 public struct FixedArray<T>: Sequence, RandomAccessCollection {

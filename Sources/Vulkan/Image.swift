@@ -12,7 +12,6 @@ public final class Image {
     public let rawPointer: VkImage
     private unowned let device: Device
     
-    
     public lazy var memoryRequirements: VkMemoryRequirements = {
         var memoryRequirements = VkMemoryRequirements()
         vkGetImageMemoryRequirements(self.device.rawPointer, self.rawPointer, &memoryRequirements)
