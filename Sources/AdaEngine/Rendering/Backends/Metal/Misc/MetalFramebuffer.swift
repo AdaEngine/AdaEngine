@@ -9,8 +9,8 @@
 import Metal
 import Math
 
-class MetalFramebuffer: Framebuffer {
-    
+final class MetalFramebuffer: Framebuffer {
+
     private(set) var attachments: [FramebufferAttachment]
     private(set) var renderPassDescriptor: MTLRenderPassDescriptor!
     private(set) var descriptor: FramebufferDescriptor
@@ -38,7 +38,9 @@ class MetalFramebuffer: Framebuffer {
         if self.size.width == newSize.width && self.size.height == newSize.height {
             return
         }
-        
+
+        self.size = newSize
+
         self.invalidate()
     }
     
@@ -104,7 +106,7 @@ class MetalFramebuffer: Framebuffer {
     }
 }
 
-class MetalGPUTexture: GPUTexture {
+final class MetalGPUTexture: GPUTexture {
     var texture: MTLTexture
     
     init(texture: MTLTexture) {

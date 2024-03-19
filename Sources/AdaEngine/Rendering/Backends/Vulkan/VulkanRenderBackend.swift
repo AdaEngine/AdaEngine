@@ -8,16 +8,22 @@
 #if VULKAN
 
 import Foundation
-import Vulkan
 import CVulkan
+import Vulkan
 import Math
 
 final class VulkanRenderBackend: RenderBackend {
-    
+
     private let context: Context
-    
+
+    var currentFrameIndex: Int = 0
+    private var inFlightSemaphore: DispatchSemaphore
+    private var commandQueues: [Vulkan.CommandBuffer] = []
+
     init(appName: String) {
         self.context = Context(appName: appName)
+
+        self.inFlightSemaphore = DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
     }
     
     var currentFrameIndex: Int = 0
@@ -47,109 +53,97 @@ final class VulkanRenderBackend: RenderBackend {
     }
 
     func makeIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
-        fatalError("Kek")
+        do {
+            let indexBuffer = try VulkanIndexBuffer(device: self.context.logicalDevice, size: length, queueFamilyIndecies: [], indexFormat: format)
+            let rawPointer = UnsafeMutableRawPointer(mutating: bytes)
+            indexBuffer.setData(rawPointer, byteCount: length)
+            return indexBuffer
+        } catch {
+            fatalError("\(error.localizedDescription)")
+        }
     }
 
     func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
-        fatalError("Kek")
+        do {
+            return try VulkanBuffer(
+                device: self.context.logicalDevice,
+                size: length,
+                usage: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT.rawValue,
+                queueFamilyIndecies: []
+            )
+        } catch {
+            fatalError("\(error.localizedDescription)")
+        }
     }
-    
-    func createBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
-        fatalError("Kek")
+
+    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
+        do {
+            let buffer = try VulkanBuffer(
+                device: self.context.logicalDevice,
+                size: length,
+                usage: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT.rawValue,
+                queueFamilyIndecies: []
+            )
+            buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
+
+            return buffer
+        } catch {
+            fatalError("\(error.localizedDescription)")
+        }
     }
-    
-    func createIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
-        fatalError("Kek")
-    }
-    
-    func createVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
-        fatalError("Kek")
+
+    func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
+        do {
+            return try VulkanVertexBuffer(
+                device: self.context.logicalDevice,
+                size: length,
+                queueFamilyIndecies: [],
+                binding: binding
+            )
+        } catch {
+            fatalError("\(error.localizedDescription)")
+        }
     }
     
     func compileShader(from shader: Shader) throws -> CompiledShader {
-        fatalError("Kek")
+        return try VulkanShader.make(from: shader, device: self.context.logicalDevice)
     }
     
-    func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
-        fatalError("Kek")
+    func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
+        return VulkanFramebuffer(device: self.context.logicalDevice, descriptor: descriptor)
     }
     
-    func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
-        fatalError("Kek")
+    func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
+        do {
+            return try VulkanRenderPipeline(device: self.context.logicalDevice, descriptor: descriptor)
+        } catch {
+            fatalError("\(error.localizedDescription)")
+        }
     }
     
     func makeSampler(from descriptor: SamplerDescriptor) -> Sampler {
-        fatalError("Kek")
+        do {
+            return try VulkanSampler(device: self.context.logicalDevice, descriptor: descriptor)
+        } catch {
+            fatalError("\(error.localizedDescription)")
+        }
     }
     
     func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {
-        fatalError("Kek")
+        do {
+            return try VulkanUniformBuffer(device: self.context.logicalDevice, size: length, queueFamilyIndecies: [], binding: binding)
+        } catch {
+            fatalError("\(error.localizedDescription)")
+        }
     }
     
     func makeUniformBufferSet() -> UniformBufferSet {
-        fatalError("Kek")
+        return GenericUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, backend: self)
     }
     
     func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture {
-        var imageInfo = VkImageCreateInfo(
-            sType: VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            pNext: nil,
-            flags: 0,
-            imageType: VK_IMAGE_TYPE_2D,
-            format: descriptor.pixelFormat.toVulkan,
-            extent: VkExtent3D(width: UInt32(descriptor.width), height: UInt32(descriptor.height), depth: 1),
-            mipLevels: UInt32(descriptor.mipmapLevel),
-            arrayLayers: 1,
-            samples: VK_SAMPLE_COUNT_1_BIT,
-            tiling: VK_IMAGE_TILING_OPTIMAL,
-            usage: VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue,
-            sharingMode: VK_SHARING_MODE_EXCLUSIVE,
-            queueFamilyIndexCount: 0,
-            pQueueFamilyIndices: nil,
-            initialLayout: VK_IMAGE_LAYOUT_UNDEFINED
-        )
-
-        if descriptor.textureType == .textureCube {
-            imageInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT.rawValue
-        }
-
-
         do {
-            let vkImage = try Vulkan.Image(
-                device: context.device,
-                createInfo: imageInfo
-            )
-
-            let imageViewInfo = VkImageViewCreateInfo(
-                sType: VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                pNext: nil,
-                flags: 0,
-                image: vkImage.rawPointer,
-                viewType: descriptor.textureType.toVulkan,
-                format: descriptor.pixelFormat.toVulkan,
-                components: VkComponentMapping(
-                    r: VK_COMPONENT_SWIZZLE_IDENTITY,
-                    g: VK_COMPONENT_SWIZZLE_IDENTITY,
-                    b: VK_COMPONENT_SWIZZLE_IDENTITY,
-                    a: VK_COMPONENT_SWIZZLE_IDENTITY
-                ),
-                subresourceRange: VkImageSubresourceRange(
-                    aspectMask: VK_IMAGE_ASPECT_COLOR_BIT.rawValue,
-                    baseMipLevel: 0,
-                    levelCount: imageInfo.mipLevels,
-                    baseArrayLayer: 0,
-                    layerCount: imageInfo.arrayLayers
-                )
-            )
-
-            let index = try DeviceMemory.findMemoryTypeIndex(
-                for: vkImage.memoryRequirements,
-                properties: properties,
-                in: self.context.physicalDevices
-            )
-
-            let imageView = try Vulkan.ImageView(device: context.physicalDevice, info: imageViewInfo)
-            return VulkanGPUTexture(image: vkImage, imageView: imageView)
+            return try VulkanGPUTexture(device: self.context.logicalDevice, descriptor: descriptor)
         } catch {
             fatalError("[VulkanRenderBackend] Failed to create texture: \(error.localizedDescription)")
         }

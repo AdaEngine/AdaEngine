@@ -65,9 +65,9 @@ public final class Buffer {
         try vkCheck(result)
     }
     
-    public func copy(from source: UnsafeRawPointer, to dest: UnsafeMutableRawPointer, size: Int) {
-        dest.copyMemory(from: source, byteCount: size)
-    }
+//    public func copy(from source: UnsafeRawPointer, to dest: UnsafeMutableRawPointer, size: Int) {
+//        dest.copyMemory(from: source, byteCount: size)
+//    }
     
     public func copyBuffer(
         from source: Buffer,
