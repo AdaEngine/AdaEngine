@@ -6,28 +6,14 @@
 //
 
 import CVulkan
-
-public struct VKError: Error {
-    
-    public let code: VkResult
-    public let message: String
-    
-}
-
-#if canImport(Foundation)
-
 import Foundation
 
-extension VKError: CustomNSError {
+public struct VKError: LocalizedError {
+
+    public let code: VkResult
+    public let message: String
+
     public var errorDescription: String? {
-        return self.message
-    }
-    
-    public static var errorDomain: String = "ada.engine.vulkan.error"
-    
-    public var errorCode: Int {
-        return Int(self.code.rawValue)
+        return "Vulkan Error \(code.rawValue): \(self.message)"
     }
 }
-
-#endif

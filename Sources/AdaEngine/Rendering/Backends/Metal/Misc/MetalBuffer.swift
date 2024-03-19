@@ -8,10 +8,10 @@
 #if METAL
 import Metal
 
-public class MetalBuffer: Buffer {
+class MetalBuffer: Buffer {
     let buffer: MTLBuffer
     
-    public var label: String? {
+    var label: String? {
         get {
             self.buffer.label
         }
@@ -25,11 +25,11 @@ public class MetalBuffer: Buffer {
         self.buffer = buffer
     }
     
-    public var length: Int { return buffer.length }
+    var length: Int { return buffer.length }
     
-    public func contents() -> UnsafeMutableRawPointer { return self.buffer.contents() }
+    func contents() -> UnsafeMutableRawPointer { return self.buffer.contents() }
     
-    public func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
+    func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
         self.buffer.contents().advanced(by: offset).copyMemory(from: bytes, byteCount: byteCount)
     }
 }
