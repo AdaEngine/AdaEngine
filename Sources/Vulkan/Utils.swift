@@ -36,37 +36,3 @@ public func vkCheck(_ result: VkResult, _ message: String = "") throws {
         throw VKError(code: result, message: message)
     }
 }
-
-//#if canImport(Foundation)
-//import Foundation
-//
-//extension String {
-//    
-//    // TODO: Replace to closure like sintax"
-//    func asCString() -> UnsafePointer<CChar>? {
-//        let cString = (self as NSString).utf8String
-//        return cString
-//    }
-//
-//
-//}
-//#endif
-
-extension String {
-    func toPointer() -> UnsafePointer<CChar>? {
-        guard let data = self.data(using: String.Encoding.utf8) else { return nil }
-
-        let buffer = UnsafeMutablePointer<CChar>.allocate(capacity: data.count)
-        let pointer = data.withUnsafeBytes { pointer in
-            return pointer.baseAddress?.bindMemory(to: CChar.self, capacity: data.count)
-        }
-
-        guard let pointer else {
-            return nil
-        }
-
-        buffer.initialize(from: pointer, count: data.count)
-
-        return UnsafePointer<CChar>(buffer)
-    }
-}
