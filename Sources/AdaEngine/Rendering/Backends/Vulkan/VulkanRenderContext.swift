@@ -17,13 +17,12 @@ extension VulkanRenderBackend {
         private(set) var windows: [Window.ID: RenderWindow] = [:]
         private(set) var instance: VulkanInstance
         private(set) var physicalDevice: PhysicalDevice
-        private(set) var device: Device
+        private(set) var logicalDevice: Device
 
         private(set) var physicalDevices: [PhysicalDevice]
         private(set) var deviceQueueFamilyProperties: [[QueueFamilyProperties]]
 
         init(appName: String) {
-
             let version = Self.determineVulkanVersion()
             let engineName = "AdaEngine"
 
@@ -57,25 +56,46 @@ extension VulkanRenderBackend {
                 self.instance = vulkanInstance
                 self.physicalDevices = try self.instance.physicalDevices()
                 self.deviceQueueFamilyProperties = self.physicalDevices.map { $0.getQueueFamily() }
-                let deviceIndex = try self.getPreferredPhysicalDeviceIndex()
-
+                let deviceIndex = try Self.getPreferredPhysicalDeviceIndex(in: self.physicalDevices)
+                
                 self.physicalDevice = self.physicalDevices[deviceIndex]
-                self.device = try self.createDevice(for: deviceIndex)
+                self.logicalDevice = try Self.createLogicalDevice(
+                    for: self.physicalDevices,
+                    deviceIndex: deviceIndex,
+                    deviceQueueFamilyProperties: self.deviceQueueFamilyProperties
+                )
             } catch {
                 fatalError("[VulkanRenderBackend] \(error.localizedDescription)")
             }
         }
 
-        private func createDevice(for deviceIndex: Int) throws -> Device {
-            let gpu = self.physicalDevices[deviceIndex]
-            let queueFamiliesProps = self.deviceQueueFamilyProperties[deviceIndex]
+        private static func createLogicalDevice(
+            for physicalDevices: [PhysicalDevice],
+            deviceIndex: Int,
+            deviceQueueFamilyProperties: [[QueueFamilyProperties]]
+        ) throws -> Device {
+            let gpu = physicalDevices[deviceIndex]
+            let queueFamiliesProps = deviceQueueFamilyProperties[deviceIndex]
 
             let deviceExtensions = try gpu.getExtensions()
-            var availableExtenstions = [ExtensionProperties]()
+            var availableExtenstions = [String]()
+
+            let optionalExtensions: Set<String> = [
+                VK_KHR_MULTIVIEW_EXTENSION_NAME,
+                VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME,
+                VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
+                VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
+                VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME,
+                VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+                VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
+                VK_KHR_MAINTENANCE_2_EXTENSION_NAME,
+                VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME,
+                VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME
+            ]
 
             for ext in deviceExtensions {
-                if ext.extensionName == VK_KHR_SWAPCHAIN_EXTENSION_NAME {
-                    availableExtenstions.append(ext)
+                if optionalExtensions.contains(ext.extensionName) {
+                    availableExtenstions.append(ext.extensionName)
                 }
             }
 
@@ -96,7 +116,7 @@ extension VulkanRenderBackend {
             features.robustBufferAccess = false
 
             let info = DeviceCreateInfo(
-                enabledExtensions: availableExtenstions.map(\.extensionName),
+                enabledExtensions: availableExtenstions,
                 layers: [],
                 queueCreateInfo: queueCreateInfos,
                 enabledFeatures: features
@@ -123,9 +143,7 @@ extension VulkanRenderBackend {
         }
 
         // FIXME: Make it better
-        private func getPreferredPhysicalDeviceIndex() throws -> Int {
-            let devices = self.physicalDevices
-
+        private static func getPreferredPhysicalDeviceIndex(in devices: [PhysicalDevice]) throws -> Int {
             if devices.isEmpty {
                 throw ContextError.initializationFailure("Could not find any compitable devices for Vulkan. Do you have a compitable Vulkan devices?")
             }
@@ -153,9 +171,14 @@ extension VulkanRenderBackend {
             var isPlatformExtFound = false
             var isSurfaceExtFound = false
 
+            let optionalExtensions: Set<String> = [
+                VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+                VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
+            ]
+
             for ext in extensions {
 
-                if ext.extensionName == VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME {
+                if optionalExtensions.contains(ext.extensionName) {
                     availableExtenstions.append(ext.extensionName)
                 }
 
@@ -169,11 +192,13 @@ extension VulkanRenderBackend {
                     isPlatformExtFound = true
                 }
 
-                if ext.extensionName == VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME {
+                #if DEBUG
+                if ext.extensionName == VK_EXT_DEBUG_UTILS_EXTENSION_NAME {
                     availableExtenstions.append(ext.extensionName)
                 }
+                #endif
 
-                if ext.extensionName == VK_EXT_DEBUG_UTILS_EXTENSION_NAME {
+                if ext.extensionName == VK_EXT_DEBUG_REPORT_EXTENSION_NAME && Engine.shared.useValidationLayers {
                     availableExtenstions.append(ext.extensionName)
                 }
             }
@@ -252,9 +277,9 @@ extension VulkanRenderBackend {
         var errorDescription: String? {
             switch self {
             case .creationWindowAlreadyExists:
-                return "RenderWindow Creation Failed: Window by given id already exists."
+                return "[VulkanContext] RenderWindow Creation Failed: Window by given id already exists."
             case .commandQueueCreationFailed:
-                return "RenderWindow Creation Failed: MTLDevice cannot create MTLCommandQueue."
+                return "[VulkanContext] RenderWindow Creation Failed: MTLDevice cannot create MTLCommandQueue."
             case .initializationFailure(let message):
                 return "[VulkanContext] \(message)"
             }
