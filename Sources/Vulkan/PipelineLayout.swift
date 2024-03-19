@@ -13,17 +13,19 @@ public final class PipelineLayout {
     private unowned let device: Device
     
     public init(device: Device, layouts: [DescriptorSetLayout]) throws {
-        
+
+        let holder = VulkanUtils.TemporaryBufferHolder(label: "PipelineLayout init")
+
         var pointer: VkPipelineLayout?
         
-        var layouts: [VkDescriptorSetLayout?] = layouts.map(\.rawPointer)
-        
+        var layoutsPtr: UnsafePointer<VkDescriptorSetLayout?>? = holder.unsafePointerCopy(collection: layouts.map(\.rawPointer))
+
         let info = VkPipelineLayoutCreateInfo(
             sType: VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             pNext: nil,
             flags: 0,
             setLayoutCount: UInt32(layouts.count),
-            pSetLayouts: &layouts,
+            pSetLayouts: layoutsPtr,
             pushConstantRangeCount: 0,
             pPushConstantRanges: nil
         )

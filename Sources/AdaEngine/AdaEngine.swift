@@ -29,4 +29,12 @@ public final class Engine {
     
     /// Engine version
     public var engineVersion: Version = Version(string: "0.1.0")
+
+    internal var useValidationLayers: Bool {
+        #if DEBUG
+        return true
+        #endif
+
+        return false
+    }
 }

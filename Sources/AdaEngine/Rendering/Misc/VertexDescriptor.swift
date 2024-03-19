@@ -325,3 +325,34 @@ extension VertexFormat {
 }
 
 #endif
+
+#if VULKAN
+
+import CVulkan
+
+extension VertexFormat {
+    var toVulkan: VkFormat {
+        switch self {
+        case .invalid:
+            return VK_FORMAT_UNDEFINED
+        case .uint:
+            return VK_FORMAT_R32_UINT
+        case .char:
+            return VK_FORMAT_R8_SINT
+        case .short:
+            return VK_FORMAT_R16_SINT
+        case .int:
+            return VK_FORMAT_R32_SINT
+        case .float:
+            return VK_FORMAT_R32_SFLOAT
+        case .vector4:
+            return VK_FORMAT_R32G32B32A32_SFLOAT
+        case .vector3:
+            return VK_FORMAT_R32G32B32_SFLOAT
+        case .vector2:
+            return VK_FORMAT_R32G32_SFLOAT
+        }
+    }
+}
+
+#endif
