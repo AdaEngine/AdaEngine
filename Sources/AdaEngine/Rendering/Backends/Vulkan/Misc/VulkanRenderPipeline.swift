@@ -27,7 +27,11 @@ class VulkanRenderPipeline: RenderPipeline {
             .map { try Self.makeShaderStageCreateInfo(from: $0, holder: holder) }
 
         let stagesPtr = holder.unsafePointerCopy(collection: stages)
-        
+
+        let depthStencil = descriptor.depthStencilDescriptor.map {
+            holder.unsafePointerCopy(from: Self.makeVkPipelineDepthStencilStateInfo(for: $0))
+        }
+
         let vertexInputState = Self.makeVkPipelineVertexInputStateCreateInfo(for: descriptor, holder: holder)
 
         var createInfo = VkGraphicsPipelineCreateInfo(
@@ -42,7 +46,7 @@ class VulkanRenderPipeline: RenderPipeline {
             pViewportState: nil,//UnsafePointer<VkPipelineViewportStateCreateInfo>!,
             pRasterizationState: nil,//UnsafePointer<VkPipelineRasterizationStateCreateInfo>!,
             pMultisampleState: nil,//UnsafePointer<VkPipelineMultisampleStateCreateInfo>!,
-            pDepthStencilState: nil,//UnsafePointer<VkPipelineDepthStencilStateCreateInfo>!,
+            pDepthStencilState: depthStencil,
             pColorBlendState: nil,//UnsafePointer<VkPipelineColorBlendStateCreateInfo>!,
             pDynamicState: nil,//UnsafePointer<VkPipelineDynamicStateCreateInfo>!,
             layout: nil,//VkPipelineLayout!,
@@ -122,6 +126,82 @@ class VulkanRenderPipeline: RenderPipeline {
             vertexAttributeDescriptionCount: UInt32(attributes.count),
             pVertexAttributeDescriptions: holder.unsafePointerCopy(collection: attributes)
         )
+    }
+
+    private static func makeVkPipelineDepthStencilStateInfo(for descriptor: DepthStencilDescriptor) -> VkPipelineDepthStencilStateCreateInfo {
+
+        let stencilDescriptor = descriptor.stencilOperationDescriptor
+
+        let front = VkStencilOpState(
+            failOp: stencilDescriptor?.fail.toVulkan ?? VK_STENCIL_OP_ZERO,
+            passOp: stencilDescriptor?.pass.toVulkan ?? VK_STENCIL_OP_ZERO,
+            depthFailOp: stencilDescriptor?.depthFail.toVulkan ?? VK_STENCIL_OP_ZERO,
+            compareOp: stencilDescriptor?.compare.toVulkan ?? VK_COMPARE_OP_NEVER,
+            compareMask: UInt32(0),
+            writeMask: UInt32(stencilDescriptor?.writeMask ?? 0),
+            reference: 0
+        )
+
+        return VkPipelineDepthStencilStateCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            pNext: nil,
+            flags: 0,
+            depthTestEnable: descriptor.isDepthTestEnabled ? VK_TRUE : VK_FALSE,
+            depthWriteEnable: descriptor.isDepthWriteEnabled ? VK_TRUE : VK_FALSE,
+            depthCompareOp: descriptor.depthCompareOperator.toVulkan,
+            depthBoundsTestEnable: descriptor.isDepthRangeEnabled ? VK_TRUE : VK_FALSE,
+            stencilTestEnable: descriptor.isEnableStencil ? VK_TRUE : VK_FALSE,
+            front: front,
+            back: front,
+            minDepthBounds: descriptor.depthRangeMin,
+            maxDepthBounds: descriptor.depthRangeMax
+        )
+    }
+}
+
+extension CompareOperation {
+    var toVulkan: VkCompareOp {
+        switch self {
+        case .never:
+            return VK_COMPARE_OP_NEVER
+        case .always:
+            return VK_COMPARE_OP_ALWAYS
+        case .equal:
+            return VK_COMPARE_OP_EQUAL
+        case .notEqual:
+            return VK_COMPARE_OP_NOT_EQUAL
+        case .less:
+            return VK_COMPARE_OP_LESS
+        case .lessOrEqual:
+            return VK_COMPARE_OP_LESS_OR_EQUAL
+        case .greater:
+            return VK_COMPARE_OP_GREATER
+        case .greaterOrEqual:
+            return VK_COMPARE_OP_GREATER_OR_EQUAL
+        }
+    }
+}
+
+extension StencilOperation {
+    var toVulkan: VkStencilOp {
+        switch self {
+        case .zero:
+            return VK_STENCIL_OP_ZERO
+        case .keep:
+            return VK_STENCIL_OP_KEEP
+        case .replace:
+            return VK_STENCIL_OP_REPLACE
+        case .incrementAndClamp:
+            return VK_STENCIL_OP_INCREMENT_AND_CLAMP
+        case .decrementAndClamp:
+            return VK_STENCIL_OP_DECREMENT_AND_CLAMP
+        case .invert:
+            return VK_STENCIL_OP_INVERT
+        case .incrementAndWrap:
+            return VK_STENCIL_OP_INCREMENT_AND_WRAP
+        case .decrementAndWrap:
+            return VK_STENCIL_OP_DECREMENT_AND_WRAP
+        }
     }
 }
 
