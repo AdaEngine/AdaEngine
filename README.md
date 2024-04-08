@@ -60,7 +60,7 @@ Currently we use Bazel and Swift Package Manager as build tools.
 
 #### Bazel 
 
-Bazel is major build system for project, SPM maybe will be removed in the future versions. To build project for development download [Bazelisk](https://github.com/bazelbuild/bazelisk). To generate xcproject, use `make xcproj` command in terminal. 
+Bazel is major build system for project, SPM maybe will be removed in the future versions. To build project for development download [Bazelisk](https://github.com/bazelbuild/bazelisk). To generate xcproject, use `bazel run generate_xcproj` command in terminal. 
 
 **For Xcode**
 
