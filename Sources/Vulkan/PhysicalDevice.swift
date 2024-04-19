@@ -1,6 +1,6 @@
 //
 //  PhysicalDevice.swift
-//  
+//
 //
 //  Created by v.prusakov on 8/11/21.
 //
@@ -96,8 +96,7 @@ public final class PhysicalDevice {
     public func surfaceFormats(for surface: Surface) throws -> [VkSurfaceFormatKHR] {
         var count: UInt32 = 0
         
-        var result =
-            vkGetPhysicalDeviceSurfaceFormatsKHR(self.pointer, surface.rawPointer, &count, nil)
+        var result = vkGetPhysicalDeviceSurfaceFormatsKHR(self.pointer, surface.rawPointer, &count, nil)
         
         guard result == VK_SUCCESS, count > 0 else {
             throw VKError(code: result, message: "Can't get surface formats")

@@ -124,10 +124,10 @@ public struct ColorAttachmentDescriptor: Sendable {
 public struct RenderPipelineDescriptor: Sendable {
 
     /// The vertex shader the pipeline run to process vertices.
-    public var vertex: Shader?
+    public var vertex: Shader!
     
     /// The fragment shader the pipeline run to process fragments.
-    public var fragment: Shader?
+    public var fragment: Shader!
     
     /// A string that identifies the render pipeline descriptor.
     public var debugName: String = ""

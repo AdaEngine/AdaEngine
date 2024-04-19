@@ -17,11 +17,17 @@ class VulkanRenderPipeline: RenderPipeline {
     private(set) var renderPipeline: VkPipeline!
 
     init(device: Device, descriptor: RenderPipelineDescriptor) throws {
-        let holder = VulkanUtils.TemporaryBufferHolder(label: "VulkanRenderPipeline init")
-
         self.descriptor = descriptor
         self.device = device
+    }
 
+    deinit {
+        vkDestroyPipeline(self.device.rawPointer, renderPipeline, nil)
+    }
+    
+    func update(for framebuffer: VulkanFramebuffer) throws {
+        let holder = VulkanUtils.TemporaryBufferHolder(label: "VulkanRenderPipeline init")
+        
         let stages = try [descriptor.vertex, descriptor.fragment]
             .compactMap { $0 }
             .map { try Self.makeShaderStageCreateInfo(from: $0, holder: holder) }
@@ -33,6 +39,25 @@ class VulkanRenderPipeline: RenderPipeline {
         }
 
         let vertexInputState = Self.makeVkPipelineVertexInputStateCreateInfo(for: descriptor, holder: holder)
+        
+        let vertexDescriptorSetLayouts = (descriptor.vertex.compiledShader as! VulkanShader).descriptorSetLayouts
+        let fragmentDescriptorSetLayouts = (descriptor.fragment.compiledShader as! VulkanShader).descriptorSetLayouts
+        
+        let setLayouts: [VkDescriptorSetLayout?] = vertexDescriptorSetLayouts + fragmentDescriptorSetLayouts
+        
+        let setLayoutsPtr = holder.unsafePointerCopy(collection: setLayouts)
+        
+        let layoutCreateInfo = VkPipelineLayoutCreateInfo(
+            sType: VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            pNext: nil,
+            flags: VkPipelineLayoutCreateFlags(),
+            setLayoutCount: UInt32(setLayouts.count),
+            pSetLayouts: setLayoutsPtr,
+            pushConstantRangeCount: 0,
+            pPushConstantRanges: nil
+        )
+        
+        let pipelineLayout = try PipelineLayout(device: self.device, createInfo: layoutCreateInfo)
 
         var createInfo = VkGraphicsPipelineCreateInfo(
             sType: VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -49,8 +74,8 @@ class VulkanRenderPipeline: RenderPipeline {
             pDepthStencilState: depthStencil,
             pColorBlendState: nil,//UnsafePointer<VkPipelineColorBlendStateCreateInfo>!,
             pDynamicState: nil,//UnsafePointer<VkPipelineDynamicStateCreateInfo>!,
-            layout: nil,//VkPipelineLayout!,
-            renderPass: nil,//VkRenderPass!,
+            layout: pipelineLayout.rawPointer,
+            renderPass: framebuffer.renderPass.rawPointer,
             subpass: UInt32(0),
             basePipelineHandle: nil,//VkPipeline!,
             basePipelineIndex: Int32(0)
@@ -65,12 +90,8 @@ class VulkanRenderPipeline: RenderPipeline {
         guard let renderPipeline, result == VK_SUCCESS else {
             throw VulkanError.failedInit(code: result)
         }
-
+        
         self.renderPipeline = renderPipeline
-    }
-
-    deinit {
-        vkDestroyPipeline(self.device.rawPointer, renderPipeline, nil)
     }
 
     // MARK: - Static

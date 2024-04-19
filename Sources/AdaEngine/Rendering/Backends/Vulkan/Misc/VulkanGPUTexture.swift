@@ -64,12 +64,6 @@ class VulkanGPUTexture: GPUTexture {
             )
         )
 
-//        let index = try DeviceMemory.findMemoryTypeIndex(
-//            for: vkImage.memoryRequirements,
-//            properties: 0,
-//            in: device.
-//        )
-
         let imageView = try Vulkan.ImageView(device: device, info: imageViewInfo)
 
         self.image = vkImage

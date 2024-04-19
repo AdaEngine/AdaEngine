@@ -75,6 +75,24 @@ public final class Device {
     public func getQueue(at index: Int) -> Queue? {
         return Queue(device: self, index: UInt32(index))
     }
+    
+    public func getCommandBuffer(commandPool: CommandPool) throws -> CommandBuffer {
+        let info = VkCommandBufferAllocateInfo(
+            sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            pNext: nil,
+            commandPool: commandPool.rawPointer,
+            level: VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            commandBufferCount: 1
+        )
+        
+        let commandBuffer = try CommandBuffer.allocateCommandBuffers(
+            for: self,
+            commandPool: commandPool,
+            info: info
+        ).first!
+        
+        return commandBuffer
+    }
 
     deinit {
         vkDestroyDevice(self.rawPointer, nil)

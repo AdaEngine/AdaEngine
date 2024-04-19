@@ -72,8 +72,9 @@ public final class Buffer {
     public func copyBuffer(
         from source: Buffer,
         size: Int,
-        commandPool: CommandPool,
-        graphicsQueue: Queue
+        srcOffset: Int,
+        dstOffset: Int,
+        commandPool: CommandPool
     ) throws {
         let info = VkCommandBufferAllocateInfo(
             sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -92,17 +93,14 @@ public final class Buffer {
         try commandBuffer.beginUpdate(flags: .oneTimeSubmit)
         
         var copyRegion = VkBufferCopy(
-            srcOffset: 0,
-            dstOffset: 0,
+            srcOffset: VkDeviceSize(srcOffset),
+            dstOffset: VkDeviceSize(dstOffset),
             size: VkDeviceSize(size)
         )
         
         vkCmdCopyBuffer(commandBuffer.rawPointer, source.rawPointer, self.rawPointer, 1, &copyRegion)
         
         try commandBuffer.endUpdate()
-        
-        try graphicsQueue.submit(commandsBuffers: [commandBuffer])
-        try graphicsQueue.wait()
     }
     
     deinit {

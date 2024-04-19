@@ -31,6 +31,11 @@ public final class Image {
         self.device = device
     }
     
+    public init(device: Device, pointer: VkImage) {
+        self.rawPointer = pointer
+        self.device = device
+    }
+    
     deinit {
         vkDestroyImage(self.device.rawPointer, self.rawPointer, nil)
     }

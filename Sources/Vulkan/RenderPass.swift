@@ -13,7 +13,6 @@ public class RenderPass {
     public unowned let device: Device
     
     public init(device: Device, createInfo: VkRenderPassCreateInfo) throws {
-        
         var pointer: VkRenderPass?
         
         let result = withUnsafePointer(to: createInfo) { infoPtr in

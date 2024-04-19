@@ -32,67 +32,32 @@ public final class Surface {
 
 // TODO: Make common surface for Metal family
 
-#if os(macOS)
+#if os(iOS) || os(tvOS) || os(macOS)
 
-import AppKit
+import MetalKit
 
 public extension Surface {
     convenience init(
         vulkan: VulkanInstance,
-        view: NSView
+        view: MTKView
     ) throws {
         precondition(view.layer is CAMetalLayer, "Surface can init only with CAMetalLayer backed view")
         // We should use unmnanaged opaque pointer to pass it on vkCreateMacOSSurfaceMVK,
         // because Vulkan crashed if we refer to local veriable or using `withUnsafePointer` function.
         // I really thought that isn't correct solution, but it's works..
-        let unmanagedView = Unmanaged.passRetained(view).autorelease().toOpaque()
-
-        var info = VkMacOSSurfaceCreateInfoMVK(
-            sType: VK_STRUCTURE_TYPE_MACOS_SURFACE_CREATE_INFO_MVK,
-            pNext: nil,
-            flags: 0,
-            pView: unmanagedView)
+        let unmanagedLayer = Unmanaged.passRetained(view.layer!).autorelease().toOpaque()
+        
+        var createInfo = VkMetalSurfaceCreateInfoEXT_Swift()
+        createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+        createInfo.pLayer = UnsafeRawPointer(unmanagedLayer)
         
         var surface: VkSurfaceKHR?
-        let result = vkCreateMacOSSurfaceMVK(vulkan.pointer, &info, nil, &surface)
+        let result = withUnsafePointer(to: &createInfo) { ptr in
+            vkCreateMetalSurfaceEXT(vulkan.pointer, OpaquePointer(ptr), nil, &surface)
+        }
         
         guard let surface = surface, result == VK_SUCCESS else {
             throw VKError(code: result, message: "Can't create macOS surface")
-        }
-        
-        self.init(vulkan: vulkan, surface: surface)
-    }
-}
-
-#endif
-
-#if os(iOS) || os(tvOS)
-
-import UIKit
-
-public extension Surface {
-    convenience init(
-        vulkan: VulkanInstance,
-        view: UIView
-    ) throws {
-        precondition(view.layer is CAMetalLayer, "Surface can init only with CAMetalLayer backed view")
-        
-        // We should use unmnanaged opaque pointer to pass it on vkCreateIOSSurfaceMVK,
-        // because Vulkan crashed if we refer to local veriable or using `withUnsafePointer` function.
-        // I really thought that isn't correct solution, but it's works..
-        let unmanagedView = Unmanaged.passRetained(view).autorelease().toOpaque()
-        
-        var info = VkIOSSurfaceCreateInfoMVK(
-            sType: VK_STRUCTURE_TYPE_IOS_SURFACE_CREATE_INFO_MVK,
-            pNext: nil,
-            flags: 0,
-            pView: unmanagedView)
-        
-        var surface: VkSurfaceKHR?
-        let result = vkCreateIOSSurfaceMVK(vulkan.pointer, &info, nil, &surface)
-        
-        guard let surface = surface, result == VK_SUCCESS else {
-            throw VKError(code: result, message: "Can't create surface for UIView")
         }
         
         self.init(vulkan: vulkan, surface: surface)

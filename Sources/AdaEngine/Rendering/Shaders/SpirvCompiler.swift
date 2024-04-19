@@ -283,7 +283,7 @@ final class SpirvCompiler {
                     )
 
                     reflectionData.resources[resourceName] = image
-                    descriptorSet.sampledImages[resourceName] = image
+                    descriptorSet.sampledImages[Int(binding)] = image
                 default:
                     continue
                 }
