@@ -23,3 +23,10 @@ static uint32_t vkVersionMinor(uint32_t version) {
 static uint32_t vkVersionPatch(uint32_t version) {
     return VK_VERSION_PATCH(version);
 }
+
+typedef struct VkMetalSurfaceCreateInfoEXT_Swift {
+    VkStructureType         sType;
+    const void*             pNext;
+    VkFlags                 flags;
+    const void*             pLayer;
+} VkMetalSurfaceCreateInfoEXT_Swift;

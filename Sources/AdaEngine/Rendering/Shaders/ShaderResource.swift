@@ -31,8 +31,8 @@ public enum ShaderResource {
     
     public struct DescriptorSet: Codable {
         public var uniformsBuffers: [Int: ShaderBuffer] = [:]
-        public var constantBuffers: [String: ShaderBuffer] = [:]
-        public var sampledImages: [String: ImageSampler] = [:]
+        public var constantBuffers: [Int: ShaderBuffer] = [:]
+        public var sampledImages: [Int: ImageSampler] = [:]
     }
     
     public enum ResourceAccess: Codable {
