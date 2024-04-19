@@ -15,6 +15,7 @@ final class VulkanFramebuffer: Framebuffer {
     private(set) var attachments: [FramebufferAttachment]
     private(set) var descriptor: FramebufferDescriptor
 
+    private(set) var isScreenBuffer = false
     private var size: Size = .zero
 
     private unowned let device: Device
@@ -25,6 +26,8 @@ final class VulkanFramebuffer: Framebuffer {
         self.device = device
         self.vkFramebuffer = framebuffer
         self.renderPass = renderPass
+        
+        self.isScreenBuffer = true
         
         self.attachments = []
         descriptor = FramebufferDescriptor()

@@ -116,6 +116,8 @@ extension VulkanRenderBackend {
                 VK_EXT_PIPELINE_CREATION_CACHE_CONTROL_EXTENSION_NAME,
                 VK_EXT_SUBGROUP_SIZE_CONTROL_EXTENSION_NAME
             ]
+            
+            availableExtenstions.append(VK_KHR_SWAPCHAIN_EXTENSION_NAME)
 
             for ext in deviceExtensions {
                 if optionalExtensions.contains(ext.extensionName) {
@@ -201,11 +203,10 @@ extension VulkanRenderBackend {
             ]
 
             for ext in extensions {
-
                 if optionalExtensions.contains(ext.extensionName) {
                     availableExtenstions.append(ext.extensionName)
                 }
-
+                
                 if ext.extensionName == VK_KHR_SURFACE_EXTENSION_NAME {
                     availableExtenstions.append(ext.extensionName)
                     isSurfaceExtFound = true
@@ -324,6 +325,8 @@ extension VulkanRenderBackend {
             let window = RenderWindow(swapchain: swapchain)
 
             self.windows[id] = window
+            
+            self.updateSizeForRenderWindow(id, size: size)
         }
 
         func updateSizeForRenderWindow(_ windowId: Window.ID, size: Size) {

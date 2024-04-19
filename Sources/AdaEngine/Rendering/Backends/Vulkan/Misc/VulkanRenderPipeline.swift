@@ -45,41 +45,73 @@ class VulkanRenderPipeline: RenderPipeline {
         
         let setLayouts: [VkDescriptorSetLayout?] = vertexDescriptorSetLayouts + fragmentDescriptorSetLayouts
         
-        let setLayoutsPtr = holder.unsafePointerCopy(collection: setLayouts)
+        let pSetLayouts = holder.unsafePointerCopy(collection: setLayouts)
         
-        let layoutCreateInfo = VkPipelineLayoutCreateInfo(
-            sType: VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            pNext: nil,
-            flags: VkPipelineLayoutCreateFlags(),
-            setLayoutCount: UInt32(setLayouts.count),
-            pSetLayouts: setLayoutsPtr,
-            pushConstantRangeCount: 0,
-            pPushConstantRanges: nil
-        )
+        var layoutCreateInfo = VkPipelineLayoutCreateInfo()
+        layoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO
+        layoutCreateInfo.setLayoutCount = UInt32(setLayouts.count)
+        layoutCreateInfo.pSetLayouts = pSetLayouts
+        layoutCreateInfo.pushConstantRangeCount = 0
+        layoutCreateInfo.pPushConstantRanges = nil
         
         let pipelineLayout = try PipelineLayout(device: self.device, createInfo: layoutCreateInfo)
+        
+        var dynamicStates: [VkDynamicState] = [
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        ]
+        
+        if descriptor.primitive == .line || descriptor.primitive == .lineStrip {
+            dynamicStates.append(VK_DYNAMIC_STATE_LINE_WIDTH)
+        }
+        
+        let pDynamicStates = holder.unsafePointerCopy(collection: dynamicStates)
+        
+        var dynamicState = VkPipelineDynamicStateCreateInfo()
+        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO
+        dynamicState.dynamicStateCount = UInt32(dynamicStates.count)
+        dynamicState.pDynamicStates = pDynamicStates
+        
+        var multisampleState = VkPipelineMultisampleStateCreateInfo()
+        multisampleState.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
+        multisampleState.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT
+        
+        let colorBlendState = Self.makeColorBlendAttachmentStateCreateInfo(for: descriptor, framebuffer: framebuffer, holder: holder)
+        
+        var viewportState = VkPipelineViewportStateCreateInfo()
+        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO
+        viewportState.viewportCount = 1
+        viewportState.scissorCount = 1
+        
+        var rasterizationState = VkPipelineRasterizationStateCreateInfo()
+        rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO
+        rasterizationState.polygonMode = VK_POLYGON_MODE_FILL
+        rasterizationState.cullMode = descriptor.backfaceCulling ? VK_CULL_MODE_BACK_BIT.rawValue : VK_CULL_MODE_NONE.rawValue
+        rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE
+        rasterizationState.depthClampEnable = false
+        rasterizationState.rasterizerDiscardEnable = false
+        rasterizationState.depthBiasEnable = false
+        rasterizationState.lineWidth = 1
+        
+        let pRasterizationState = holder.unsafePointerCopy(from: rasterizationState)
+        let pViewportState = holder.unsafePointerCopy(from: viewportState)
+        let pColorBlendState = holder.unsafePointerCopy(from: colorBlendState)
+        let pMultisampleState = holder.unsafePointerCopy(from: multisampleState)
+        let pDynamicState = holder.unsafePointerCopy(from: dynamicState)
 
-        var createInfo = VkGraphicsPipelineCreateInfo(
-            sType: VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            pNext: nil,
-            flags: 0,
-            stageCount: UInt32(stages.count),
-            pStages: stagesPtr,
-            pVertexInputState: holder.unsafePointerCopy(from: vertexInputState),
-            pInputAssemblyState: nil,
-            pTessellationState: nil,
-            pViewportState: nil,//UnsafePointer<VkPipelineViewportStateCreateInfo>!,
-            pRasterizationState: nil,//UnsafePointer<VkPipelineRasterizationStateCreateInfo>!,
-            pMultisampleState: nil,//UnsafePointer<VkPipelineMultisampleStateCreateInfo>!,
-            pDepthStencilState: depthStencil,
-            pColorBlendState: nil,//UnsafePointer<VkPipelineColorBlendStateCreateInfo>!,
-            pDynamicState: nil,//UnsafePointer<VkPipelineDynamicStateCreateInfo>!,
-            layout: pipelineLayout.rawPointer,
-            renderPass: framebuffer.renderPass.rawPointer,
-            subpass: UInt32(0),
-            basePipelineHandle: nil,//VkPipeline!,
-            basePipelineIndex: Int32(0)
-        )
+        var createInfo = VkGraphicsPipelineCreateInfo()
+        createInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO
+        createInfo.stageCount = UInt32(stages.count)
+        createInfo.pStages = stagesPtr
+        createInfo.pVertexInputState = holder.unsafePointerCopy(from: vertexInputState)
+        createInfo.pViewportState = pViewportState
+        createInfo.pRasterizationState = pRasterizationState
+        createInfo.pMultisampleState = pMultisampleState
+        createInfo.pDepthStencilState = depthStencil
+        createInfo.pColorBlendState = pColorBlendState
+        createInfo.pDynamicState = pDynamicState
+        createInfo.layout = pipelineLayout.rawPointer
+        createInfo.renderPass = framebuffer.renderPass.rawPointer
 
         var renderPipeline: VkPipeline?
 
@@ -115,6 +147,51 @@ class VulkanRenderPipeline: RenderPipeline {
 
         return createInfo
     }
+    
+    private static func makeColorBlendAttachmentStateCreateInfo(
+        for descriptor: RenderPipelineDescriptor,
+        framebuffer: VulkanFramebuffer,
+        holder: VulkanUtils.TemporaryBufferHolder
+    ) -> VkPipelineColorBlendStateCreateInfo {
+        
+        var colorAttachments: [VkPipelineColorBlendAttachmentState] = []
+        
+        if framebuffer.isScreenBuffer {
+            
+            var state = VkPipelineColorBlendAttachmentState()
+            state.colorWriteMask = 0xf
+            state.blendEnable = true
+            state.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA
+            state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+            state.colorBlendOp = VK_BLEND_OP_ADD
+            state.alphaBlendOp = VK_BLEND_OP_ADD
+            state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE
+            state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO
+            
+            colorAttachments.append(state)
+        } else {
+            for attachment in descriptor.colorAttachments {
+                var state = VkPipelineColorBlendAttachmentState()
+                state.blendEnable = attachment.isBlendingEnabled ? VK_TRUE : VK_FALSE
+                state.alphaBlendOp = attachment.alphaBlendOperation.toVulkan
+                state.srcAlphaBlendFactor = attachment.sourceAlphaBlendFactor.toVulkan
+                state.dstAlphaBlendFactor = attachment.destinationAlphaBlendFactor.toVulkan
+                state.colorBlendOp = attachment.rgbBlendOperation.toVulkan
+                state.srcColorBlendFactor = attachment.sourceRGBBlendFactor.toVulkan
+                state.dstColorBlendFactor = attachment.destinationRGBBlendFactor.toVulkan
+                
+                colorAttachments.append(state)
+            }
+        }
+        
+        let pAttachments = holder.unsafePointerCopy(collection: colorAttachments)
+        
+        var createInfo = VkPipelineColorBlendStateCreateInfo()
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
+        createInfo.attachmentCount = UInt32(colorAttachments.count)
+        createInfo.pAttachments = pAttachments
+        return createInfo
+    }
 
     private static func makeVkPipelineVertexInputStateCreateInfo(
         for descriptor: RenderPipelineDescriptor,
@@ -128,25 +205,24 @@ class VulkanRenderPipeline: RenderPipeline {
                 inputRate: VK_VERTEX_INPUT_RATE_VERTEX
             )
         }
-
-        let attributes = descriptor.vertexDescriptor.attributes.map { attribute in
+        
+        let attributes = descriptor.vertexDescriptor.attributes.enumerated().map { (index, attribute) in
             VkVertexInputAttributeDescription(
-                location: UInt32(attribute.bufferIndex),
+                location: UInt32(index),
                 binding: UInt32(attribute.bufferIndex),
                 format: attribute.format.toVulkan,
                 offset: UInt32(attribute.offset)
             )
         }
 
-        return VkPipelineVertexInputStateCreateInfo(
-            sType: VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            pNext: nil,
-            flags: 0,
-            vertexBindingDescriptionCount: UInt32(layouts.count),
-            pVertexBindingDescriptions: holder.unsafePointerCopy(collection: layouts),
-            vertexAttributeDescriptionCount: UInt32(attributes.count),
-            pVertexAttributeDescriptions: holder.unsafePointerCopy(collection: attributes)
-        )
+        var createInfo = VkPipelineVertexInputStateCreateInfo()
+        createInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
+        createInfo.vertexBindingDescriptionCount = UInt32(layouts.count)
+        createInfo.pVertexBindingDescriptions = holder.unsafePointerCopy(collection: layouts)
+        createInfo.vertexAttributeDescriptionCount = UInt32(attributes.count)
+        createInfo.pVertexAttributeDescriptions = holder.unsafePointerCopy(collection: attributes)
+        
+        return createInfo
     }
 
     private static func makeVkPipelineDepthStencilStateInfo(for descriptor: DepthStencilDescriptor) -> VkPipelineDepthStencilStateCreateInfo {
@@ -241,6 +317,60 @@ extension ShaderStage {
             return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT
         case .max:
             return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM
+        }
+    }
+}
+
+extension BlendFactor {
+    var toVulkan: VkBlendFactor {
+        switch self {
+        case .zero:
+            return VK_BLEND_FACTOR_ZERO
+        case .one:
+            return VK_BLEND_FACTOR_ONE
+        case .sourceColor:
+            return VK_BLEND_FACTOR_SRC_COLOR
+        case .oneMinusSourceColor:
+            return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR
+        case .sourceAlpha:
+            return VK_BLEND_FACTOR_SRC_ALPHA
+        case .oneMinusSourceAlpha:
+            return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
+        case .destinationColor:
+            return VK_BLEND_FACTOR_DST_COLOR
+        case .oneMinusDestinationColor:
+            return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR
+        case .destinationAlpha:
+            return VK_BLEND_FACTOR_DST_ALPHA
+        case .oneMinusDestinationAlpha:
+            return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA
+        case .sourceAlphaSaturated:
+            return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE
+        case .blendColor:
+            return VK_BLEND_FACTOR_CONSTANT_COLOR
+        case .oneMinusBlendColor:
+            return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR
+        case .blendAlpha:
+            return VK_BLEND_FACTOR_CONSTANT_ALPHA
+        case .oneMinusBlendAlpha:
+            return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA
+        }
+    }
+}
+
+extension BlendOperation {
+    var toVulkan: VkBlendOp {
+        switch self {
+        case .add:
+            return VK_BLEND_OP_ADD
+        case .subtract:
+            return VK_BLEND_OP_SUBTRACT
+        case .reverseSubtract:
+            return VK_BLEND_OP_REVERSE_SUBTRACT
+        case .min:
+            return VK_BLEND_OP_MIN
+        case .max:
+            return VK_BLEND_OP_MAX
         }
     }
 }
