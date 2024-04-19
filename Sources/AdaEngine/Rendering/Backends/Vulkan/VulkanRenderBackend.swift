@@ -14,7 +14,7 @@ import Math
 
 final class VulkanRenderBackend: RenderBackend {
 
-    private let context: Context
+    let context: Context
 
     var currentFrameIndex: Int = 0
     private var inFlightSemaphore: DispatchSemaphore
@@ -54,7 +54,7 @@ final class VulkanRenderBackend: RenderBackend {
 
     func makeIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         do {
-            let indexBuffer = try VulkanIndexBuffer(device: self.context.logicalDevice, size: length, queueFamilyIndecies: [], indexFormat: format)
+            let indexBuffer = try VulkanIndexBuffer(device: self.context.logicalDevice, size: length, backend: self, queueFamilyIndecies: [], indexFormat: format)
             let rawPointer = UnsafeMutableRawPointer(mutating: bytes)
             indexBuffer.setData(rawPointer, byteCount: length)
             return indexBuffer
@@ -69,6 +69,7 @@ final class VulkanRenderBackend: RenderBackend {
                 device: self.context.logicalDevice,
                 size: length,
                 usage: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT.rawValue,
+                backend: self,
                 queueFamilyIndecies: []
             )
         } catch {
@@ -82,6 +83,7 @@ final class VulkanRenderBackend: RenderBackend {
                 device: self.context.logicalDevice,
                 size: length,
                 usage: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT.rawValue,
+                backend: self,
                 queueFamilyIndecies: []
             )
             buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
@@ -97,6 +99,7 @@ final class VulkanRenderBackend: RenderBackend {
             return try VulkanVertexBuffer(
                 device: self.context.logicalDevice,
                 size: length,
+                backend: self,
                 queueFamilyIndecies: [],
                 binding: binding
             )
@@ -131,7 +134,7 @@ final class VulkanRenderBackend: RenderBackend {
     
     func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {
         do {
-            return try VulkanUniformBuffer(device: self.context.logicalDevice, size: length, queueFamilyIndecies: [], binding: binding)
+            return try VulkanUniformBuffer(device: self.context.logicalDevice, size: length, backend: self, queueFamilyIndecies: [], binding: binding)
         } catch {
             fatalError("\(error.localizedDescription)")
         }
@@ -154,15 +157,43 @@ final class VulkanRenderBackend: RenderBackend {
     }
     
     func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList {
-        fatalError("Kek")
+        guard let window = self.context.windows[window] else {
+            fatalError("Can't find window for draw")
+        }
+        
+        let framebuffer = window.swapchain.framebuffers[window.swapchain.imageIndex]
+        let vkFramebuffer = VulkanFramebuffer(
+            device: self.context.logicalDevice,
+            framebuffer: framebuffer,
+            renderPass: window.swapchain.renderPass
+        )
+        return DrawList(commandBuffer: VulkanRenderCommandBuffer(framebuffer: vkFramebuffer))
     }
     
     func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList {
-        fatalError("Kek")
+        guard let vulkanFramebuffer = framebuffer as? VulkanFramebuffer else {
+            fatalError("Not correct framebuffer object")
+        }
+        
+        return DrawList(commandBuffer: VulkanRenderCommandBuffer(framebuffer: vulkanFramebuffer))
     }
     
     func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
+        guard let renderPipeline = list.renderPipeline as? VulkanRenderPipeline else {
+            return
+        }
         
+        guard let renderCommandBuffer = list.commandBuffer as? VulkanRenderCommandBuffer else {
+            return
+        }
+        
+        do {
+            try renderPipeline.update(for: renderCommandBuffer.framebuffer)
+        } catch {
+            
+        }
+        
+        print(list)
     }
 
     func endDrawList(_ drawList: DrawList) {
@@ -224,6 +255,14 @@ extension Texture.TextureType {
         case .textureBuffer:
             fatalError("Unsupported type")
         }
+    }
+}
+
+class VulkanRenderCommandBuffer: DrawCommandBuffer {
+    let framebuffer: VulkanFramebuffer
+    
+    init(framebuffer: VulkanFramebuffer) {
+        self.framebuffer = framebuffer
     }
 }
 
