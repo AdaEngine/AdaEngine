@@ -9,8 +9,9 @@ import Foundation
 
 public enum VulkanUtils {
 
-    public class TemporaryBufferHolder {
-        var buffers: [UnsafeRawPointer] = []
+    /// Helper to hold and release all pointers.
+    public class TemporaryBufferHolder: CustomStringConvertible {
+        private var buffers: [UnsafeRawPointer] = []
 
         let label: String
 
@@ -23,6 +24,12 @@ public enum VulkanUtils {
                 ptr.deallocate()
             }
         }
+        
+        public var description: String {
+            return "Temporary Buffer Holder: \(label). Contains \(buffers.count) pointers"
+        }
+        
+        // MARK: Public
 
         public func unsafePointerCopy<T>(from object: T) -> UnsafePointer<T> {
             let buffer: UnsafeMutablePointer<T> = .allocate(capacity: 1)

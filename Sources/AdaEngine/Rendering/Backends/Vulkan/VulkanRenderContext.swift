@@ -9,8 +9,28 @@
 import Foundation
 import Vulkan
 import CVulkan
+import Math
 
 extension VulkanRenderBackend {
+    
+    struct VKSwapchain {
+        let format: VkFormat
+        let colorSpace: VkColorSpaceKHR
+        let surface: Surface
+        let renderPass: Vulkan.RenderPass
+        
+        var vkSwapchain: Vulkan.Swapchain?
+        
+        var images: [VkImage] = []
+        var imageViews: [ImageView] = []
+        var framebuffers: [Vulkan.Framebuffer] = []
+        
+        var imageIndex = 0
+    }
+    
+    struct RenderWindow {
+        var swapchain: VKSwapchain
+    }
 
     final class Context {
 
@@ -21,37 +41,37 @@ extension VulkanRenderBackend {
 
         private(set) var physicalDevices: [PhysicalDevice]
         private(set) var deviceQueueFamilyProperties: [[QueueFamilyProperties]]
+        
+        private(set) var commandPool: CommandPool
 
         init(appName: String) {
             let version = Self.determineVulkanVersion()
             let engineName = "AdaEngine"
+            
+            let holder = VulkanUtils.TemporaryBufferHolder(label: "Vulkan Render Context")
 
             do {
-                let vulkanInstance = try appName.withCString { appNamePtr in
-                    return try engineName.withCString { engineNamePtr in
-                        var appInfo = VkApplicationInfo(
-                            sType: VK_STRUCTURE_TYPE_APPLICATION_INFO,
-                            pNext: nil,
-                            pApplicationName: appNamePtr,
-                            applicationVersion: Version(string: "1.0.0").toVulkanVersion,
-                            pEngineName: engineNamePtr,
-                            engineVersion: Engine.shared.engineVersion.toVulkanVersion,
-                            apiVersion: version
-                        )
+                let appInfo = VkApplicationInfo(
+                    sType: VK_STRUCTURE_TYPE_APPLICATION_INFO,
+                    pNext: nil,
+                    pApplicationName: holder.unsafePointerCopy(string: appName),
+                    applicationVersion: Version(string: "1.0.0").toVulkanVersion,
+                    pEngineName: holder.unsafePointerCopy(string: engineName),
+                    engineVersion: Engine.shared.engineVersion.toVulkanVersion,
+                    apiVersion: version
+                )
+                
+                let extensions = try Self.getAvailableExtensionNames()
+                let layers = try VulkanInstance.getLayerProperties()
 
-                        let extensions = try Self.getAvailableExtensionNames()
-                        let layers = try VulkanInstance.getLayerProperties()
+                let createInfo = InstanceCreateInfo(
+                    applicationInfo: holder.unsafePointerCopy(from: appInfo),
+                    enabledLayerNames: layers.map { $0.layerName },
+                    enabledExtensionNames: extensions,
+                    flags: VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR.rawValue
+                )
 
-                        let createInfo = InstanceCreateInfo(
-                            applicationInfo: &appInfo,
-                            enabledLayerNames: layers.map { $0.layerName },
-                            enabledExtensionNames: extensions,
-                            flags: VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR.rawValue
-                        )
-
-                        return try VulkanInstance(info: createInfo)
-                    }
-                }
+                let vulkanInstance = try VulkanInstance(info: createInfo)
 
                 self.instance = vulkanInstance
                 self.physicalDevices = try self.instance.physicalDevices()
@@ -64,6 +84,10 @@ extension VulkanRenderBackend {
                     deviceIndex: deviceIndex,
                     deviceQueueFamilyProperties: self.deviceQueueFamilyProperties
                 )
+                
+                let queue = self.deviceQueueFamilyProperties[deviceIndex].first(where: { $0.queueFlags.contains(.graphicsBit) })!
+                
+                self.commandPool = try CommandPool(device: self.logicalDevice, queueFamilyIndex: queue.index)
             } catch {
                 fatalError("[VulkanRenderBackend] \(error.localizedDescription)")
             }
@@ -131,7 +155,7 @@ extension VulkanRenderBackend {
 
             for prop in queueFamiliesProps {
                 do {
-                    if try prop.queueFlags.contains(.graphicsBit) && device.supportSurface(surface, queueFamily: prop) {
+                if try prop.queueFlags.contains(.graphicsBit) && device.supportSurface(surface, queueFamily: prop) {
                         return true
                     }
                 } catch {
@@ -234,19 +258,153 @@ extension VulkanRenderBackend {
             if self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
+            
+            let holder = VulkanUtils.TemporaryBufferHolder(label: "Create Vulkan Window")
 
             let surface = try Surface(vulkan: self.instance, view: view)
-            let window = RenderWindow(window: id, surface: surface)
+            let formats = try self.physicalDevice.surfaceFormats(for: surface)
+            
+            var format: VkFormat = VK_FORMAT_UNDEFINED
+            var colorSpace: VkColorSpaceKHR = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+            
+            if formats.count == 1 && formats[0].format == VK_FORMAT_UNDEFINED {
+                format = VK_FORMAT_B8G8R8A8_UNORM;
+                colorSpace = formats[0].colorSpace;
+            } else {
+                let preferredFormats = VK_FORMAT_B8G8R8A8_UNORM
+                let lessPreferredFormat = VK_FORMAT_R8G8B8A8_UNORM
+                
+                for item in formats where item.format == preferredFormats || item.format == lessPreferredFormat {
+                    format = item.format
+                    
+                    if item.format == preferredFormats {
+                        break
+                    }
+                }
+            }
+            
+            var attachment = VkAttachmentDescription()
+            attachment.format = format
+            attachment.samples = VK_SAMPLE_COUNT_1_BIT
+            attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR
+            attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE
+            attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE
+            attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE
+            attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+            attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+            
+            var colorReference = VkAttachmentReference()
+            colorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+            
+            let pColorAttachments = holder.unsafePointerCopy(from: colorReference)
+            
+            var subpass = VkSubpassDescription()
+            subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS
+            subpass.colorAttachmentCount = 1
+            subpass.pColorAttachments = pColorAttachments
+            
+            let pAttachments = holder.unsafePointerCopy(from: attachment)
+            let pSubpasses = holder.unsafePointerCopy(from: subpass)
+
+            var passInfo = VkRenderPassCreateInfo()
+            passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO
+            passInfo.attachmentCount = 1
+            passInfo.pAttachments = pAttachments
+            passInfo.subpassCount = 1
+            passInfo.pSubpasses = pSubpasses
+            
+            let renderPass = try Vulkan.RenderPass(device: self.logicalDevice, createInfo: passInfo)
+            
+            let swapchain = VKSwapchain(
+                format: format,
+                colorSpace: colorSpace,
+                surface: surface,
+                renderPass: renderPass
+            )
+            let window = RenderWindow(swapchain: swapchain)
 
             self.windows[id] = window
         }
 
         func updateSizeForRenderWindow(_ windowId: Window.ID, size: Size) {
-            guard let window = self.windows[windowId] else {
+            guard var window = self.windows[windowId] else {
                 assertionFailure("Not found window by id \(windowId)")
                 return
             }
-
+            
+            let holder = VulkanUtils.TemporaryBufferHolder(label: "Resize Render Window")
+            
+            do {
+                let surface = window.swapchain.surface
+                let capabilities = try self.physicalDevice.surfaceCapabilities(for: surface)
+                
+                var extent = VkExtent2D()
+                // The extent isn't defined
+                if capabilities.currentExtent.width == 0xFFFFFFFF {
+                    extent.width = Math.clamp(UInt32(size.width), capabilities.minImageExtent.width, capabilities.maxImageExtent.width)
+                    extent.height = Math.clamp(UInt32(size.height), capabilities.minImageExtent.height, capabilities.maxImageExtent.height)
+                }
+                
+                var createInfo = VkSwapchainCreateInfoKHR()
+            createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
+                createInfo.surface = surface.rawPointer
+                createInfo.minImageCount = 1
+                createInfo.imageExtent = extent
+                createInfo.imageFormat = window.swapchain.format
+                createInfo.imageColorSpace = window.swapchain.colorSpace
+                createInfo.imageArrayLayers = 1
+                createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT.rawValue
+                createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE
+//                createInfo.preTransform = surface_transform_bits;
+//                createInfo.compositeAlpha = composite_alpha;
+//                createInfo.presentMode = present_mode;
+                createInfo.clipped = true
+                
+                let swapchain = try Vulkan.Swapchain(device: logicalDevice, createInfo: createInfo)
+                window.swapchain.vkSwapchain = swapchain
+                
+                let images = try swapchain.getImages()
+                
+                var imageViewCreateInfo = VkImageViewCreateInfo()
+                imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO
+                imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D
+                imageViewCreateInfo.format = window.swapchain.format
+                imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R
+                imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G
+                imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B
+                imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A
+                imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT.rawValue
+                imageViewCreateInfo.subresourceRange.levelCount = 1
+                imageViewCreateInfo.subresourceRange.layerCount = 1
+                
+                let imageViews = try images.map {
+                    imageViewCreateInfo.image = $0
+                    return try Vulkan.ImageView(device: logicalDevice, info: imageViewCreateInfo)
+                }
+                
+                window.swapchain.images = images
+                window.swapchain.imageViews = imageViews
+                
+                var framebufferCreateInfo = VkFramebufferCreateInfo()
+                framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO
+                framebufferCreateInfo.renderPass = window.swapchain.renderPass.rawPointer
+                framebufferCreateInfo.width = extent.width
+                framebufferCreateInfo.height = extent.height
+                framebufferCreateInfo.layers = 1
+                framebufferCreateInfo.attachmentCount = 1
+                
+                let framebuffers = try imageViews.map {
+                    framebufferCreateInfo.pAttachments = holder.unsafePointerCopy(from: $0.rawPointer)
+                    return try Vulkan.Framebuffer(device: logicalDevice, createInfo: framebufferCreateInfo)
+                }
+                
+                window.swapchain.framebuffers = framebuffers
+                
+                self.windows[windowId] = window
+            } catch {
+                assertionFailure("Can't resize window with error \(error)")
+            }
+            
         }
 
         func destroyWindow(at windowId: Window.ID) throws {
@@ -255,14 +413,11 @@ extension VulkanRenderBackend {
             }
 
             self.windows[windowId] = nil
+            
+            // Destroy swapchain, surface
         }
     }
-
-    struct RenderWindow {
-        let window: Window.ID
-        let surface: Surface
-    }
-
+    
     private struct QueueFamilyIndices {
         let graphicsIndex: Int
         let presentationIndex: Int
