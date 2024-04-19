@@ -53,7 +53,6 @@ final class MetalFramebuffer: Framebuffer {
     }
     
     func invalidate() {
-        
         let renderPassDescriptor = MTLRenderPassDescriptor()
         
         self.attachments.removeAll(keepingCapacity: true)

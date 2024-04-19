@@ -30,7 +30,7 @@ final class MacApplication: Application {
         // process application:openFile: event
         while true {
             let event = app.nextEvent(
-                matchingMask: .any,
+                matching: .any,
                 until: .distantPast,
                 inMode: .default,
                 dequeue: true
