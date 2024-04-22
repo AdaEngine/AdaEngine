@@ -24,8 +24,6 @@ extension VulkanRenderBackend {
         var images: [VkImage] = []
         var imageViews: [ImageView] = []
         var framebuffers: [Vulkan.Framebuffer] = []
-        
-        var imageIndex = 0
     }
     
     struct RenderWindow {
@@ -43,6 +41,8 @@ extension VulkanRenderBackend {
         private(set) var deviceQueueFamilyProperties: [[QueueFamilyProperties]]
         
         private(set) var commandPool: CommandPool
+        private(set) var commandBuffers: [Vulkan.CommandBuffer] = []
+        private(set) var drawFences: [Vulkan.Fence] = []
 
         init(appName: String) {
             let version = Self.determineVulkanVersion()
@@ -88,6 +88,19 @@ extension VulkanRenderBackend {
                 let queue = self.deviceQueueFamilyProperties[deviceIndex].first(where: { $0.queueFlags.contains(.graphicsBit) })!
                 
                 self.commandPool = try CommandPool(device: self.logicalDevice, queueFamilyIndex: queue.index)
+                
+                for _ in 0 ..< RenderEngine.configurations.maxFramesInFlight {
+                    let cmdBuffer = try Vulkan.CommandBuffer(
+                        device: self.logicalDevice,
+                        commandPool: self.commandPool,
+                        isPrimary: true
+                    )
+                    
+                    self.commandBuffers.append(cmdBuffer)
+                    
+                    let fence = try Vulkan.Fence(device: self.logicalDevice)
+                    self.drawFences.append(fence)
+                }
             } catch {
                 fatalError("[VulkanRenderBackend] \(error.localizedDescription)")
             }
