@@ -18,7 +18,6 @@ final class VulkanRenderBackend: RenderBackend {
 
     var currentFrameIndex: Int = 0
     private var inFlightSemaphore: DispatchSemaphore
-    private var commandQueues: [Vulkan.CommandBuffer] = []
 
     init(appName: String) {
         self.context = Context(appName: appName)
@@ -42,10 +41,23 @@ final class VulkanRenderBackend: RenderBackend {
     
     func beginFrame() throws {
         
+        let fence = self.context.drawFences[self.currentFrameIndex]
+        try fence.wait()
+        
+        let cmdBuffer = self.context.commandBuffers[self.currentFrameIndex]
+        try cmdBuffer.beginUpdate()
     }
     
     func endFrame() throws {
+        self.inFlightSemaphore.wait()
         
+        let cmdBuffer = self.context.commandBuffers[self.currentFrameIndex]
+        
+        try cmdBuffer.endUpdate()
+        
+        self.inFlightSemaphore.signal()
+        
+        currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
     }
 
     func getImage(from texture: Texture) -> Image? {
@@ -161,7 +173,7 @@ final class VulkanRenderBackend: RenderBackend {
             fatalError("Can't find window for draw")
         }
         
-        let framebuffer = window.swapchain.framebuffers[window.swapchain.imageIndex]
+        let framebuffer = window.swapchain.framebuffers[currentFrameIndex]
         let vkFramebuffer = VulkanFramebuffer(
             device: self.context.logicalDevice,
             framebuffer: framebuffer,
@@ -188,12 +200,15 @@ final class VulkanRenderBackend: RenderBackend {
         }
         
         do {
-            try renderPipeline.update(for: renderCommandBuffer.framebuffer)
-        } catch {
+            // Prepare render pipeline
+            try renderPipeline.update(
+                for: renderCommandBuffer.framebuffer,
+                drawList: list
+            )
             
+        } catch {
+            assertionFailure("Failed to draw: \(error)")
         }
-        
-        print(list)
     }
 
     func endDrawList(_ drawList: DrawList) {
