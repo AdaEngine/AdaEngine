@@ -15,6 +15,7 @@ class VulkanRenderPipeline: RenderPipeline {
     let descriptor: RenderPipelineDescriptor
     private unowned let device: Device
     private(set) var renderPipeline: VkPipeline!
+    private(set) var pipelineLayout: Vulkan.PipelineLayout!
 
     init(device: Device, descriptor: RenderPipelineDescriptor) throws {
         self.descriptor = descriptor
@@ -25,7 +26,7 @@ class VulkanRenderPipeline: RenderPipeline {
         vkDestroyPipeline(self.device.rawPointer, renderPipeline, nil)
     }
     
-    func update(for framebuffer: VulkanFramebuffer) throws {
+    func update(for framebuffer: VulkanFramebuffer, drawList: DrawList) throws {
         let holder = VulkanUtils.TemporaryBufferHolder(label: "VulkanRenderPipeline init")
         
         let stages = try [descriptor.vertex, descriptor.fragment]
@@ -85,13 +86,13 @@ class VulkanRenderPipeline: RenderPipeline {
         
         var rasterizationState = VkPipelineRasterizationStateCreateInfo()
         rasterizationState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO
-        rasterizationState.polygonMode = VK_POLYGON_MODE_FILL
+        rasterizationState.polygonMode = drawList.triangleFillMode == .fill ? VK_POLYGON_MODE_FILL : VK_POLYGON_MODE_LINE
         rasterizationState.cullMode = descriptor.backfaceCulling ? VK_CULL_MODE_BACK_BIT.rawValue : VK_CULL_MODE_NONE.rawValue
         rasterizationState.frontFace = VK_FRONT_FACE_CLOCKWISE
         rasterizationState.depthClampEnable = false
         rasterizationState.rasterizerDiscardEnable = false
         rasterizationState.depthBiasEnable = false
-        rasterizationState.lineWidth = 1
+        rasterizationState.lineWidth = drawList.lineWidth ?? 1
         
         let pRasterizationState = holder.unsafePointerCopy(from: rasterizationState)
         let pViewportState = holder.unsafePointerCopy(from: viewportState)
@@ -124,6 +125,7 @@ class VulkanRenderPipeline: RenderPipeline {
         }
         
         self.renderPipeline = renderPipeline
+        self.pipelineLayout = pipelineLayout
     }
 
     // MARK: - Static

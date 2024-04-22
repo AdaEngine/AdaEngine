@@ -50,23 +50,6 @@ final public class CommandBuffer {
         self.commandPool = commandPool
     }
     
-    public func beginUpdate(flags: BeginFlags = .simultaneousUse) throws {
-        let info = VkCommandBufferBeginInfo(
-            sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            pNext: nil,
-            flags: flags.rawValue,
-            pInheritanceInfo: nil
-        )
-        
-        let result = withUnsafePointer(to: info) { ptr in
-            vkBeginCommandBuffer(self.rawPointer, ptr)
-        }
-        
-        try vkCheck(result, "Command buffer cannot begins update")
-        
-        self.state = .recording
-    }
-    
     public func commandBarrier(_ barrier: VkImageMemoryBarrier) throws {
         vkCmdPipelineBarrier(self.rawPointer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, 0, 0, nil, 0, nil, 1, [barrier])
     }
@@ -84,6 +67,23 @@ final public class CommandBuffer {
             Int32(vertexOffset),
             UInt32(firstInstance)
         )
+    }
+    
+    public func beginUpdate(flags: BeginFlags = .simultaneousUse) throws {
+        let info = VkCommandBufferBeginInfo(
+            sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            pNext: nil,
+            flags: flags.rawValue,
+            pInheritanceInfo: nil
+        )
+        
+        let result = withUnsafePointer(to: info) { ptr in
+            vkBeginCommandBuffer(self.rawPointer, ptr)
+        }
+        
+        try vkCheck(result, "Command buffer cannot begins update")
+        
+        self.state = .recording
     }
     
     public func endUpdate() throws {

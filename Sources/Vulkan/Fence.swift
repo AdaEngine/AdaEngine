@@ -7,12 +7,12 @@
 
 import CVulkan
 
-public class Fence {
+public final class Fence {
     
-    public let rawPointer: VkFence
+    public private(set) var rawPointer: VkFence?
     private unowned let device: Device
     
-    var isSignaled = false
+    public private(set) var isSignaled = false
     
     public init(device: Device) throws {
         var fence: VkFence?
@@ -33,13 +33,18 @@ public class Fence {
         self.rawPointer = fence!
     }
     
+    deinit {
+        vkDestroyFence(self.device.rawPointer, self.rawPointer, nil)
+    }
+    
+    // MARK: - Public
+    
     public func wait(timeout: UInt64 = .max) throws {
         guard !self.isSignaled else {
             return // fence was signaled should wait
         }
         
-        var fence: VkFence? = self.rawPointer
-        let result = vkWaitForFences(self.device.rawPointer, 1, &fence, true, timeout)
+        let result = vkWaitForFences(self.device.rawPointer, 1, &rawPointer, true, timeout)
         
         switch result {
         case VK_SUCCESS:
@@ -52,15 +57,13 @@ public class Fence {
     }
     
     public func reset() throws {
-        guard self.isSignaled else { return }
-        var fence: VkFence? = self.rawPointer
-        let result = vkResetFences(self.device.rawPointer, 1, &fence)
+        guard self.isSignaled else {
+            return
+        }
+        
+        let result = vkResetFences(self.device.rawPointer, 1, &rawPointer)
         try vkCheck(result)
         
         self.isSignaled = false
-    }
-    
-    deinit {
-        vkDestroyFence(self.device.rawPointer, self.rawPointer, nil)
     }
 }
