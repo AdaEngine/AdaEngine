@@ -7,7 +7,9 @@
 
 #if MACOS
 import AppKit
+import MetalKit
 
+@MainActor
 final class MacApplication: Application {
     
     // Timer that synced with display refresh rate.
@@ -48,7 +50,8 @@ final class MacApplication: Application {
     
     override func run() throws {
         self.displayLink.setHandler { [weak self] in
-            self?.update()
+            print("Display link")
+//            self?.update()
         }
     
         self.displayLink.start()
@@ -90,13 +93,35 @@ final class MacApplication: Application {
     }
     
     // MARK: - Private
-    
-    private func update() {
-        do {
-            try self.gameLoop.iterate()
-        } catch {
+
+    private let scheduler = Scheduler()
+
+    private nonisolated func update() {
+        scheduler.run {
+//            try await self.gameLoop.iterate()
+        } onCatchError: { error in
             print(error.localizedDescription)
             exit(-1)
+        }
+    }
+}
+
+class Scheduler {
+
+    private var previousTask: Task<Void, Error>?
+
+    func run(block: @escaping @Sendable () async throws -> Void, onCatchError: @escaping (Error) -> Void) {
+        print("start")
+        let previousTask = self.previousTask
+        self.previousTask = Task.detached {
+            do {
+                try await previousTask?.value
+                try await block()
+
+                print("end")
+            } catch {
+                onCatchError(error)
+            }
         }
     }
 }

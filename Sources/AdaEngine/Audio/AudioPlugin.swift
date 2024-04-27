@@ -38,7 +38,7 @@ public struct AudioPlugin: ScenePlugin {
     
     public init() {}
     
-    public func setup(in scene: Scene) {
+    public func setup(in scene: Scene) async {
         scene.addSystem(AudioSystem.self)
     }
 }

@@ -22,6 +22,7 @@ extension ScenePlugin {
     }
 }
 
+@ECSActor
 enum ScenePluginStorage {
     
     private static var registeredPlugins: [String: ScenePlugin.Type] = [:]

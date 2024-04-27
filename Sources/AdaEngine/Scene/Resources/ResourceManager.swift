@@ -56,7 +56,6 @@ public final class ResourceManager {
         _ path: String
     ) throws -> R {
         try self.syncQueue.sync {
-            
             let key = self.makeCacheKey(resource: R.self, path: path)
             
             if let cachedResource = self.loadedResources[key], cachedResource is R {

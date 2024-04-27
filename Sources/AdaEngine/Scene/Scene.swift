@@ -15,7 +15,7 @@ enum SceneSerializationError: Error {
 
 /// A container that holds the collection of entities for render.
 public final class Scene: Resource {
-    
+
     /// Current supported version for mapping scene from file.
     static var currentVersion: Version = "1.0.0"
     
@@ -34,8 +34,8 @@ public final class Scene: Resource {
     
     private(set) var eventManager: EventManager = EventManager.default
     
-    internal let systemGraph = SystemsGraph()
-    internal let systemGraphExecutor = SystemsGraphExecutor()
+    @ECSActor internal let systemGraph = SystemsGraph()
+    @ECSActor internal let systemGraphExecutor = SystemsGraphExecutor()
     
     /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
@@ -50,7 +50,7 @@ public final class Scene: Resource {
     
     /// Create new scene instance.
     /// - Parameter name: Name of this scene. By default name is `Scene`.
-    public init(name: String? = nil) {
+    public nonisolated init(name: String? = nil) {
         self.id = UUID()
         self.name = name ?? "Scene"
         self.world = World()
@@ -65,58 +65,61 @@ public final class Scene: Resource {
             throw SceneSerializationError.invalidExtensionType
         }
         
-        let sceneData = SceneRepresentation(
-            version: Self.currentVersion,
-            scene: self.name,
-            plugins: self.plugins.map {
-                ScenePluginRepresentation(name: type(of: $0).swiftName)
-            },
-            systems: self.systemGraph.systems.map {
-                SystemRepresentation(name: type(of: $0).swiftName)
-            },
-            entities: self.world.getEntities()
-        )
-        
-        try encoder.encode(sceneData)
+//        let sceneData = SceneRepresentation(
+//            version: Self.currentVersion,
+//            scene: self.name,
+//            plugins: self.plugins.map {
+//                ScenePluginRepresentation(name: type(of: $0).swiftName)
+//            },
+//            systems: self.systemGraph.systems.map {
+//                SystemRepresentation(name: type(of: $0).swiftName)
+//            },
+//            entities: self.world.getEntities()
+//        )
+//        
+//        try encoder.encode(sceneData)
     }
     
-    public convenience init(asset decoder: AssetDecoder) throws {
+    nonisolated public convenience init(asset decoder: AssetDecoder) throws {
         guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
         let sceneData = try decoder.decode(SceneRepresentation.self)
         
-        if Self.currentVersion < sceneData.version {
-            throw SceneSerializationError.unsupportedVersion
-        }
-        
-        self.init(name: sceneData.scene)
-        
-        for system in sceneData.systems {
-            guard let systemType = SystemStorage.getRegistredSystem(for: system.name) else {
-                throw SceneSerializationError.notRegistedObject(system)
-            }
-            self.addSystem(systemType)
-        }
-        
-        for plugin in sceneData.plugins {
-            guard let pluginType = ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
-                throw SceneSerializationError.notRegistedObject(plugin)
-            }
-            
-            self.addPlugin(pluginType.init())
-        }
-        
-        for entity in sceneData.entities {
-            self.addEntity(entity)
-        }
+//        if Self.currentVersion < sceneData.version {
+//            throw SceneSerializationError.unsupportedVersion
+//        }
+//        
+//        self.init(name: sceneData.scene)
+//        
+//        for system in sceneData.systems {
+//            guard let systemType = SystemStorage.getRegistredSystem(for: system.name) else {
+//                throw SceneSerializationError.notRegistedObject(system)
+//            }
+//            self.addSystem(systemType)
+//        }
+//        
+//        for plugin in sceneData.plugins {
+//            guard let pluginType = ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
+//                throw SceneSerializationError.notRegistedObject(plugin)
+//            }
+//            
+//            self.addPlugin(pluginType.init())
+//        }
+//        
+//        for entity in sceneData.entities {
+//            self.addEntity(entity)
+//        }
+
+        fatalErrorMethodNotImplemented()
     }
     
     // MARK: - Public methods -
     
     /// Add new system to the scene.
     /// - Warning: Systems should be added before presenting.
+    @ECSActor
     public func addSystem<T: System>(_ systemType: T.Type) {
         let system = systemType.init(scene: self)
         self.systemGraph.addSystem(system)
@@ -124,8 +127,8 @@ public final class Scene: Resource {
     
     /// Add new scene plugin to the scene.
     /// - Warning: Plugin should be added before presenting.
-    public func addPlugin<T: ScenePlugin>(_ plugin: T) {
-        plugin.setup(in: self)
+    public func addPlugin<T: ScenePlugin>(_ plugin: T) async {
+        await plugin.setup(in: self)
         self.plugins.append(plugin)
     }
     
@@ -134,29 +137,36 @@ public final class Scene: Resource {
     // TODO: Looks like not a good solution here
     /// Check the scene will not run earlier.
     private(set) var isReady = false
-    
-    func ready() {
+
+    func readyIfNeeded() async {
+        if self.isReady {
+            return
+        }
+
+        await self.ready()
+    }
+
+    func ready() async {
         // TODO: In the future we need minimal scene plugin for headless mode.
-        self.addPlugin(DefaultScenePlugin())
-        
+        await self.addPlugin(DefaultScenePlugin())
+
         self.isReady = true
         
-        self.systemGraph.linkSystems()
+        await self.systemGraph.linkSystems()
         self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
     }
     
     /// Update scene world and systems by delta time.
-    func update(_ deltaTime: TimeInterval) {
+    func update(_ deltaTime: TimeInterval) async {
         self.world.tick()
         
         let context = SceneUpdateContext(
             scene: self,
-            deltaTime: deltaTime,
-            renderWorld: Application.shared.renderWorld
+            deltaTime: deltaTime
         )
         
-        self.systemGraphExecutor.execute(self.systemGraph, context: context)
+        await self.systemGraphExecutor.execute(self.systemGraph, context: context)
     }
 }
 

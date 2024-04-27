@@ -8,6 +8,7 @@
 import OrderedCollections
 
 /// Contains information about execution order of systems.
+@ECSActor
 public final class SystemsGraph {
     
     struct Edge: Equatable {

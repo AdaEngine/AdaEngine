@@ -37,9 +37,9 @@ public class SceneView: View {
         
         self.sceneManager.setViewport(self.viewport)
     }
-    
-    public override func update(_ deltaTime: TimeInterval) {
-        self.sceneManager.update(deltaTime)
+
+    public override func update(_ deltaTime: TimeInterval) async {
+        await self.sceneManager.update(deltaTime)
     }
     
 }
