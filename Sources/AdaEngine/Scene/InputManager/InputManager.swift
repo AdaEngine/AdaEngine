@@ -82,31 +82,31 @@ public final class Input {
     }
     
     /// Get mouse mode for active window.
-    public static func getMouseMode() -> MouseMode {
-        Application.shared.windowManager.getMouseMode()
+    public static func getMouseMode() async -> MouseMode {
+        await Application.shared.windowManager.getMouseMode()
     }
     
     /// Set mouse mode for active window.
-    public static func setMouseMode(_ mode: MouseMode) {
-        Application.shared.windowManager.setMouseMode(mode)
+    public static func setMouseMode(_ mode: MouseMode) async {
+        await Application.shared.windowManager.setMouseMode(mode)
     }
     
     /// Set current cursor shape.
-    public static func setCursorShape(_ shape: CursorShape) {
-        Application.shared.windowManager.setCursorShape(shape)
+    public static func setCursorShape(_ shape: CursorShape) async {
+        await Application.shared.windowManager.setCursorShape(shape)
     }
     
     /// Set custom image for cursor.
     /// - Parameter shape: What cursor shape will update the texture.
     /// - Parameter texture: Texture for cursor, also available ``TextureAtlas``. If you pass nil, then we remove saved image.
     /// - Parameter hotSpot: The point to set as the cursor's hot spot.
-    public static func setCursorImage(for shape: Input.CursorShape, texture: Texture2D?, hotSpot: Vector2 = .zero) {
-        Application.shared.windowManager.setCursorImage(for: shape, texture: texture, hotspot: hotSpot)
+    public static func setCursorImage(for shape: Input.CursorShape, texture: Texture2D?, hotSpot: Vector2 = .zero) async {
+        await Application.shared.windowManager.setCursorImage(for: shape, texture: texture, hotspot: hotSpot)
     }
     
     /// Get current cursor shape.
-    public static func getCurrentCursorShape() -> CursorShape {
-        Application.shared.windowManager.getCursorShape()
+    public static func getCurrentCursorShape() async -> CursorShape {
+        await Application.shared.windowManager.getCursorShape()
     }
     
     // MARK: Internal

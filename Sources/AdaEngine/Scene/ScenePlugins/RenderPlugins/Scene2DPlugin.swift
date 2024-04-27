@@ -18,27 +18,28 @@ public struct Scene2DPlugin: ScenePlugin {
         public static let view = "view"
     }
     
-    public func setup(in scene: Scene) {
-        
+    public func setup(in scene: Scene) async {
         // Add Systems
         scene.addSystem(BatchTransparent2DItemsSystem.self)
-        
-        // Add Render graph
-        let graph = RenderGraph()
-        
-        let entryNode = graph.addEntryNode(inputs: [
-            RenderSlot(name: InputNode.view, kind: .entity)
-        ])
-        
-        graph.addNode(with: Main2DRenderNode.name, node: Main2DRenderNode())
-        graph.addSlotEdge(
-            fromNode: entryNode,
-            outputSlot: InputNode.view,
-            toNode: Main2DRenderNode.name,
-            inputSlot: Main2DRenderNode.InputNode.view
-        )
-        
-        Application.shared.renderWorld.renderGraph.addSubgraph(graph, name: Self.renderGraph)
+
+        Task { @RenderGraphActor in
+            // Add Render graph
+            let graph = RenderGraph()
+
+            let entryNode = graph.addEntryNode(inputs: [
+                RenderSlot(name: InputNode.view, kind: .entity)
+            ])
+
+            graph.addNode(with: Main2DRenderNode.name, node: Main2DRenderNode())
+            graph.addSlotEdge(
+                fromNode: entryNode,
+                outputSlot: InputNode.view,
+                toNode: Main2DRenderNode.name,
+                inputSlot: Main2DRenderNode.InputNode.view
+            )
+
+            await Application.shared.renderWorld.renderGraph.addSubgraph(graph, name: Self.renderGraph)
+        }
     }
 }
 
@@ -58,8 +59,8 @@ public struct Main2DRenderNode: RenderNode {
         RenderSlot(name: InputNode.view, kind: .entity)
     ]
     
-    public func execute(context: Context) throws -> [RenderSlotValue] {
-        guard let entity = context.entityResource(by: InputNode.view) else {
+    public func execute(context: Context) async throws -> [RenderSlotValue] {
+        guard let entity = await context.entityResource(by: InputNode.view) else {
             return []
         }
         

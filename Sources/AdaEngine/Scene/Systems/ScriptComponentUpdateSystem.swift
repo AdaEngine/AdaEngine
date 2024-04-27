@@ -18,14 +18,15 @@ public struct ScriptComponentUpdateSystem: System {
         let fixedTimeResult = self.fixedTime.advance(with: context.deltaTime)
         
         context.scene.world.scripts.forEach { component in
-            
+
             // Initialize component
             if !component.isAwaked {
                 component.ready()
                 component.isAwaked = true
             }
             
-            component.onEvent(Input.shared.eventsPool)
+            // FIXME: Actor model for that
+//            component.onEvent(Input.shared.eventsPool)
             
             component.update(context.deltaTime)
 

@@ -22,6 +22,7 @@ extension System {
     }
 }
 
+@ECSActor
 enum SystemStorage {
     
     private static var registeredSystem: [String: System.Type] = [:]

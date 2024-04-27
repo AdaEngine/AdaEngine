@@ -6,15 +6,15 @@
 //
 
 struct CameraPlugin: ScenePlugin {
-    func setup(in scene: Scene) {
+    func setup(in scene: Scene) async {
         scene.addSystem(CameraSystem.self)
         scene.addSystem(ExtractCameraSystem.self)
     }
 }
 
 struct CameraRenderPlugin: ScenePlugin {
-    func setup(in scene: Scene) {
-        Application.shared.renderWorld.renderGraph.addNode(with: "CameraRenderNode", node: CameraRenderNode())
+    func setup(in scene: Scene) async {
+        await Application.shared.renderWorld.renderGraph.addNode(with: "CameraRenderNode", node: CameraRenderNode())
     }
 }
 
@@ -22,17 +22,17 @@ struct CameraRenderNode: RenderNode {
     
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
     
-    func execute(context: Context) -> [RenderSlotValue] {
-        context.world.performQuery(Self.query).forEach { entity in
+    func execute(context: Context) async -> [RenderSlotValue] {
+        await context.world.performQuery(Self.query).forEach { entity in
             guard let camera = entity.components[Camera.self], camera.isActive else {
                 return
             }
-            
-            context.runSubgraph(by: Scene2DPlugin.renderGraph, inputs: [
+
+            await context.runSubgraph(by: Scene2DPlugin.renderGraph, inputs: [
                 RenderSlotValue(name: Scene2DPlugin.InputNode.view, value: .entity(entity))
             ])
         }
-        
+
         return []
     }
 }

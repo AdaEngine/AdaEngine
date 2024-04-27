@@ -42,7 +42,7 @@ public struct DebugPhysicsExctract2DSystem: System {
     
     public init(scene: Scene) { }
     
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
         guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
             return
         }
@@ -50,8 +50,8 @@ public struct DebugPhysicsExctract2DSystem: System {
         self.colorMaterial.color = context.scene.debugPhysicsColor
         self.circleMaterial.color = context.scene.debugPhysicsColor
         
-        context.scene.performQuery(Self.entities).forEach { entity in
-            
+        await context.scene.performQuery(Self.entities).forEach { entity in
+
             if entity.components[Visibility.self]!.isVisible == false {
                 return
             }
@@ -89,8 +89,8 @@ public struct DebugPhysicsExctract2DSystem: System {
             default:
                 return
             }
-            
-            context.renderWorld.addEntity(emptyEntity)
+
+            await Application.shared.renderWorld.addEntity(emptyEntity)
         }
     }
     
@@ -112,10 +112,10 @@ public struct Physics2DDebugDrawSystem: System {
     
     public init(scene: Scene) {}
     
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
         let exctractedValues = context.scene.performQuery(Self.entities)
             
-        context.scene.performQuery(Self.cameras).forEach { entity in
+        await context.scene.performQuery(Self.cameras).forEach { entity in
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
             

@@ -12,6 +12,7 @@ import Darwin.C
 #endif
 
 /// A type that represents the structure and behavior of an app.
+@MainActor
 public protocol App {
     
     /// Creates an instance of the app using the body that you define for its content.
@@ -30,7 +31,7 @@ public extension App {
     }
     
     // Initializes and runs the app.
-    static func main() throws {
+    @MainActor static func main() async throws {
         var application: Application!
         
         let argc = CommandLine.argc
@@ -63,14 +64,14 @@ public extension App {
         
         var configuration = _AppSceneConfiguration()
         appScene._buildConfiguration(&configuration)
-        let window = try appScene._makeWindow(with: configuration)
-        
+        let window = try await appScene._makeWindow(with: configuration)
+
         if configuration.useDefaultRenderPlugins {
-            application.renderWorld.addPlugin(DefaultRenderPlugin())
+            await application.renderWorld.addPlugin(DefaultRenderPlugin())
         }
         
         for plugin in configuration.plugins {
-            application.renderWorld.addPlugin(plugin)
+            await application.renderWorld.addPlugin(plugin)
         }
         
         window.showWindow(makeFocused: true)

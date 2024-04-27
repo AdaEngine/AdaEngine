@@ -10,7 +10,7 @@ import Math
 
 /// An object that holds and simulate all 2D physics bodies.
 public final class PhysicsWorld2D: Codable {
-    
+
     enum CodingKeys: CodingKey {
         case velocityIterations
         case positionIterations
@@ -37,7 +37,7 @@ public final class PhysicsWorld2D: Codable {
     let contactListner = _Physics2DContactListener()
     
     /// - Parameter gravity: default gravity is 9.8.
-    init(gravity: Vector2 = [0, -9.81]) {
+    nonisolated init(gravity: Vector2 = [0, -9.81]) {
         self.world = b2_world_create(gravity.b2Vec)
         b2_world_set_contact_listener(self.world, self.contactListner.contactListener)
     }
@@ -46,7 +46,7 @@ public final class PhysicsWorld2D: Codable {
         b2_world_destroy(self.world)
     }
     
-    public convenience init(from decoder: Decoder) throws {
+    public nonisolated convenience init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let gravity = try container.decode(Vector2.self, forKey: .gravity)
 
@@ -269,11 +269,15 @@ final class _Physics2DContactListener {
     lazy var contactListener: OpaquePointer = {
         let ptr = Unmanaged.passUnretained(self).toOpaque()
         let callbacks = contact_listener_callbacks { userData, contact in
-            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
-            listener.beginContact(contact!)
+            Task { @ECSActor in
+                let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+                listener.beginContact(contact!)
+            }
         } end_contact: { userData, contact in
-            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
-            listener.endContact(contact!)
+            Task { @ECSActor in
+                let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+                listener.endContact(contact!)
+            }
         } pre_solve: { userData, contact, manifold in
             let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
             listener.preSolve(contact!, oldManifold: manifold!)
@@ -289,6 +293,7 @@ final class _Physics2DContactListener {
         self.contactListener.deallocate()
     }
 
+    @ECSActor 
     func beginContact(_ contact: OpaquePointer) {
         let fixtureA = b2_contact_get_fixture_a(contact)!
         let fixtureB = b2_contact_get_fixture_b(contact)!
@@ -330,6 +335,7 @@ final class _Physics2DContactListener {
         bodyA.world.scene?.eventManager.send(event)
     }
 
+    @ECSActor 
     func endContact(_ contact: OpaquePointer) {
         let fixtureA = b2_contact_get_fixture_a(contact)!
         let fixtureB = b2_contact_get_fixture_b(contact)!

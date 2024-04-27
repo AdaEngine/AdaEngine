@@ -9,8 +9,8 @@
 /// You must use this type of scene if your application should launch a game scene.
 public struct GameAppScene: AppScene {
     
-    public typealias SceneBlock = () throws -> Scene
-    
+    public typealias SceneBlock = @Sendable () async throws -> Scene
+
     public var scene: Never { fatalError() }
     
     private let gameScene: SceneBlock
@@ -24,8 +24,9 @@ public struct GameAppScene: AppScene {
 // MARK: - InternalAppScene
 
 extension GameAppScene: InternalAppScene {
-    func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window {
-        let scene = try self.gameScene()
+    @MainActor
+    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window {
+        let scene = try await self.gameScene()
         
         let frame = Rect(origin: .zero, size: configuration.minimumSize)
         let window = Window(frame: frame)
@@ -33,7 +34,7 @@ extension GameAppScene: InternalAppScene {
         let gameSceneView = SceneView(scene: scene, frame: frame)
         window.addSubview(gameSceneView)
         
-        window.setWindowMode(configuration.windowMode)
+        await window.setWindowMode(configuration.windowMode)
         window.minSize = configuration.minimumSize
         
         if let title = configuration.title {

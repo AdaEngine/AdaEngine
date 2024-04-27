@@ -13,7 +13,7 @@ import Math
 /// Context use orthogonal projection.
 final public class GUIRenderContext {
     
-    private let engine: Renderer2D = .default
+//    private let engine: Renderer2D = .default
     
     private var fillColor: Color = .clear
     private var strokeColor: Color = .black
@@ -38,7 +38,7 @@ final public class GUIRenderContext {
     var view: Transform3D = .identity
     private var screenRect: Rect = .zero
     
-    private var currentDrawContext: Renderer2D.DrawContext?
+//    private var currentDrawContext: Renderer2D.DrawContext?
     
     public func beginDraw(in screenRect: Rect) {
         let size = screenRect.size
@@ -55,7 +55,7 @@ final public class GUIRenderContext {
         self.screenRect = screenRect
         self.view = .identity//view
         
-        self.currentDrawContext = self.engine.beginContext(for: self.window, viewTransform: view)
+//        self.currentDrawContext = self.engine.beginContext(for: self.window, viewTransform: view)
     }
     
     public func setFillColor(_ color: Color) {
@@ -71,27 +71,27 @@ final public class GUIRenderContext {
     }
     
     public func pushDebugName(_ name: String) {
-        self.currentDrawContext?.pushDebugName(name)
+//        self.currentDrawContext?.pushDebugName(name)
     }
     
     /// Paints the area contained within the provided rectangle, using the fill color in the current graphics state.
     public func fillRect(_ rect: Rect) {
         let transform = self.makeCanvasTransform3D(from: rect)
-        self.currentDrawContext?.drawQuad(transform: transform, color: self.fillColor)
+//        self.currentDrawContext?.drawQuad(transform: transform, color: self.fillColor)
     }
     
     public func fillRect(_ xform: Transform3D) {
-        self.currentDrawContext?.drawQuad(transform: xform, color: self.fillColor)
+//        self.currentDrawContext?.drawQuad(transform: xform, color: self.fillColor)
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
     public func fillEllipse(in rect: Rect) {
         let transform = self.makeCanvasTransform3D(from: rect)
-        self.currentDrawContext?.drawCircle(transform: self.currentTransform * transform, thickness: 1, fade: 0.005, color: self.fillColor)
+//        self.currentDrawContext?.drawCircle(transform: self.currentTransform * transform, thickness: 1, fade: 0.005, color: self.fillColor)
     }
     
     public func commitDraw() {
-        self.currentDrawContext?.commitContext()
+//        self.currentDrawContext?.commitContext()
         
         self.clear()
     }

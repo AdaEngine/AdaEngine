@@ -57,7 +57,7 @@ open class Texture2D: Texture {
     // MARK: - Codable
     
     // TODO: Add Sampler support
-    
+
     public convenience required init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let path = try container.decode(String.self)

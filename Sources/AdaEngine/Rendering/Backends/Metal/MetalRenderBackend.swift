@@ -59,7 +59,7 @@ class MetalRenderBackend: RenderBackend {
     
     func endFrame() throws {
         self.inFlightSemaphore.wait()
-        
+
         for window in self.context.windows.values {
             guard let drawable = window.drawable, let commandBuffer = window.commandBuffer else {
                 return

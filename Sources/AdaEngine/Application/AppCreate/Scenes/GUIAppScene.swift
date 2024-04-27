@@ -24,7 +24,7 @@ public struct GUIAppScene: AppScene {
 
 extension GUIAppScene: InternalAppScene {
     
-    func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window {
+    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window {
         let window = window()
         
         if window.frame.size == .zero {
@@ -35,7 +35,7 @@ extension GUIAppScene: InternalAppScene {
             window.title = title
         }
         
-        window.setWindowMode(configuration.windowMode)
+        await window.setWindowMode(configuration.windowMode)
         window.minSize = configuration.minimumSize
         return window
     }

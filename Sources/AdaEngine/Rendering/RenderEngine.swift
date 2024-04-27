@@ -61,11 +61,11 @@ public final class RenderEngine: RenderBackend {
         try self.renderBackend.destroyWindow(windowId)
     }
     
-    func beginFrame() throws {
+    @MainActor func beginFrame() throws {
         try self.renderBackend.beginFrame()
     }
     
-    func endFrame() throws {
+    @MainActor func endFrame() throws {
         try self.renderBackend.endFrame()
     }
     

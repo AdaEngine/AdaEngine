@@ -30,18 +30,17 @@ public struct VisibilitySystem: System {
     
     public init(scene: Scene) { }
     
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
+        await self.updateBoundings(context: context)
         
-        self.updateBoundings(context: context)
-        
-        context.scene.performQuery(Self.cameras).concurrentIterator.forEach { entity in
+        await context.scene.performQuery(Self.cameras).forEach { entity in
             var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
             
             if !camera.isActive {
                 return
             }
             
-            let (filtredEntities, entityIds) = self.filterVisibileEntities(context: context, for: camera)
+            let (filtredEntities, entityIds) = await self.filterVisibileEntities(context: context, for: camera)
             visibleEntities.entities = filtredEntities
             visibleEntities.entityIds = entityIds
             entity.components[VisibleEntities.self] = visibleEntities
@@ -50,9 +49,9 @@ public struct VisibilitySystem: System {
     
     // FIXME: Should we calculate it here?
     /// Update or create bounding boxes for SpriteComponent and Mesh2D.
-    private func updateBoundings(context: UpdateContext) {
-        context.scene.performQuery(Self.entitiesWithTransform).concurrentIterator.forEach { entity in
-            
+    private func updateBoundings(context: UpdateContext) async {
+        await context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
+
             var bounds: BoundingComponent.Bounds?
             
             if entity.components.has(SpriteComponent.self) || entity.components.has(Circle2DComponent.self) {
@@ -76,10 +75,10 @@ public struct VisibilitySystem: System {
     }
     
     /// Filter entities for passed camera.
-    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
+    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) async -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()
-        let filtredEntities = context.scene.performQuery(Self.entities).filter { entity in
+        let filtredEntities = await context.scene.performQuery(Self.entities).filter { entity in
             let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
             
             if !visibility.isVisible {
@@ -98,7 +97,7 @@ public struct VisibilitySystem: System {
             }
         }
         
-        let withNoFrustumEntities = context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
+        let withNoFrustumEntities = await context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
             let visibility = entity.components[Visibility.self]!
             
             if visibility.isVisible {

@@ -9,8 +9,9 @@ import Collections
 
 // TODO: Add parallels execution for nodes without inputs
 
+@ECSActor
 final class SystemsGraphExecutor {
-    func execute(_ graph: SystemsGraph, context: SceneUpdateContext) {
+    func execute(_ graph: SystemsGraph, context: SceneUpdateContext) async {
         var completedSystems: Set<String> = []
         completedSystems.reserveCapacity(graph.nodes.count)
         
@@ -32,7 +33,7 @@ final class SystemsGraphExecutor {
                 }
             }
             
-            currentNode.system.update(context: context)
+            await currentNode.system.update(context: context)
             completedSystems.insert(currentNode.name)
             
             for outputNode in graph.getOuputNodes(for: currentNode.name) {

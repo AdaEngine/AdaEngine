@@ -7,6 +7,7 @@
 
 /// SceneManager used for scene managment on screen. Each scene has access to scene manager instance.
 /// You can use scene manager for transition between scenes.
+@MainActor
 public class SceneManager {
     
     public private(set) var currentScene: Scene?
@@ -21,36 +22,46 @@ public class SceneManager {
     internal init() { }
     
     /// Update current scene by delta time.
-    func update(_ deltaTime: TimeInterval) {
+    func update(_ deltaTime: TimeInterval) async {
         guard let currentScene else {
             return
         }
-        if currentScene.isReady == false {
-            currentScene.ready()
-        }
-        
-        currentScene.update(deltaTime)
+
+        await currentScene.readyIfNeeded()
+        await currentScene.update(deltaTime)
     }
     
     /// Set viewport for current scene.
     func setViewport(_ viewport: Viewport) {
-        self.currentScene?.viewport = viewport
+        Task { @ECSActor in
+            await self.currentScene?.viewport = viewport
+        }
     }
     
     /// Set window for scene manager.
     func setWindow(_ window: Window?) {
-        self.currentScene?.window = window
-        self.window = window
+        Task { @ECSActor in
+            await self.currentScene?.window = window
+
+            await MainActor.run {
+                self.window = window
+            }
+        }
     }
     
     // MARK: - Public Methods
     
     /// Set new scene for presenting on screen.
     public func presentScene(_ scene: Scene) {
-        scene.sceneManager = self
-        scene.window = self.window
-        scene.viewport = self.sceneView?.viewport ?? Viewport()
-        self.currentScene = scene
+        Task { @ECSActor in
+            scene.sceneManager = self
+            scene.window = await self.window
+            scene.viewport = await self.sceneView?.viewport ?? Viewport()
+
+            await MainActor.run {
+                self.currentScene = scene
+            }
+        }
     }
     
 }

@@ -8,14 +8,15 @@
 /// The main class represents application instance.
 /// The application cannot be created manualy, instead use an ``App`` protocol.
 /// To get access to the application instance, use static property `shared`
-open class Application {
-    
+@MainActor
+open class Application: @unchecked Sendable {
+
     // MARK: - Public
     
     /// Contains application instance if application created from ``App``.
-    public internal(set) static var shared: Application!
-    
-    private(set) var gameLoop: GameLoop = GameLoop.current
+    @MainActor public internal(set) static var shared: Application!
+
+    let gameLoop: GameLoop = GameLoop.current
     
     /// Current runtime platform.
     public var platform: RuntimePlatform {
@@ -39,7 +40,7 @@ open class Application {
     public var windowManager: WindowManager = WindowManager()
     
     /// Contains world which can render on screen.
-    public let renderWorld = RenderWorld()
+    @RenderGraphActor public let renderWorld = RenderWorld()
     
     // MARK: - Internal
     

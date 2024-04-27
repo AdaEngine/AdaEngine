@@ -46,8 +46,9 @@ struct GraphEntryNode: RenderNode {
 ///
 ///  The ``RenderGraphExecutor`` is responsible for executing the entire graph each frame.
 ///
+@RenderGraphActor
 public final class RenderGraph {
-    
+
     static let entryNodeName: String = "_GraphEntryNode"
     
     enum Edge: Equatable, Hashable {
@@ -83,7 +84,9 @@ public final class RenderGraph {
         var inputEdges: [Edge] = []
         var outputEdges: [Edge] = []
     }
-    
+
+    public nonisolated init() { }
+
     internal private(set) var nodes: [Node.ID: Node] = [:]
     internal private(set) var subGraphs: [String: RenderGraph] = [:]
     
@@ -173,7 +176,7 @@ public final class RenderGraph {
         
         return true
     }
-    
+
     public func removeSlotEdge(
         fromNode outputNodeName: String,
         outputSlot: String,
@@ -297,15 +300,15 @@ public final class RenderGraph {
     
 }
 
-extension RenderGraph: CustomDebugStringConvertible {
-    public var debugDescription: String {
-        var string = ""
-        for node in self.nodes.values {
-            string = "\(node.name)\n"
-            string = " in: \(node.inputEdges.debugDescription)\n"
-            string = " out: \(node.outputEdges.debugDescription)\n\n"
-        }
-        
-        return string
-    }
-}
+//extension RenderGraph: CustomDebugStringConvertible {
+//    public var debugDescription: String {
+//        var string = ""
+//        for node in self.nodes.values {
+//            string = "\(node.name)\n"
+//            string = " in: \(node.inputEdges.debugDescription)\n"
+//            string = " out: \(node.outputEdges.debugDescription)\n\n"
+//        }
+//        
+//        return string
+//    }
+//}
