@@ -49,7 +49,7 @@ open class Application {
     ) throws {
         Self.shared = self
     }
-    
+
     /// Call this method to start main loop.
     func run() throws {
         assertionFailure("Not implemented")
@@ -58,7 +58,8 @@ open class Application {
     // MARK: - Public methods
     
     /// Call this method to terminate app execution with 0 status code.
-    @MainActor open func terminate() {
+    @MainActor 
+    open func terminate() {
         exit(EXIT_SUCCESS)
     }
     

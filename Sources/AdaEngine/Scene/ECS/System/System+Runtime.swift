@@ -32,7 +32,7 @@ enum SystemStorage {
     static func getRegistredSystem(for name: String) -> System.Type? {
         return self.registeredSystem[name] ?? (NSClassFromString(name) as? System.Type)
     }
-    
+
     static func register<T: System>(_ system: T.Type) {
         self.registeredSystem[T.swiftName] = system
     }

@@ -85,7 +85,7 @@ public struct SpriteRenderSystem: System {
 
     // MARK: - Private
 
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
+    // swiftlint:disable:next function_body_length
     private func draw(
         extractedSprites: [ExtractedSprite],
         visibleEntities: VisibleEntities,

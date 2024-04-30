@@ -20,7 +20,11 @@ public final class GameLoop {
 
     private var fixedTimestep: FixedTimestep = FixedTimestep(step: 0)
 
-    // MARK: Internal Methods
+    public func setup() {
+        let physicsTickPerSecond = 30
+        self.fixedTimestep.step = 1 / TimeInterval(physicsTickPerSecond)
+    }
+    
     public func iterate() async throws {
         if self.isIterating {
             assertionFailure("Can't iterated twice.")
@@ -39,9 +43,6 @@ public final class GameLoop {
             self.isFirstTick = false
             return
         }
-
-        let physicsTickPerSecond = Engine.shared.physicsTickPerSecond
-        self.fixedTimestep.step = 1 / TimeInterval(physicsTickPerSecond)
 
         let physicsTime = self.fixedTimestep.advance(with: deltaTime)
 
