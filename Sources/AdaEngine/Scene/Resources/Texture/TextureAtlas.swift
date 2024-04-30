@@ -36,7 +36,7 @@ public final class TextureAtlas: Texture2D {
         let margin: Size
     }
     
-    public required init(asset decoder: AssetDecoder) throws {
+    public required init(asset decoder: AssetDecoder) async throws {
         guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
         }
@@ -46,12 +46,12 @@ public final class TextureAtlas: Texture2D {
         self.margin = atlas.margin
         self.spriteSize = atlas.spriteSize
         
-        let image = try ResourceManager.load(atlas.filePath) as Image
-        
+        let image = try await ResourceManager.load(atlas.filePath) as Image
+
         super.init(image: image)
     }
     
-    public override func encodeContents(with encoder: AssetEncoder) throws {
+    public override func encodeContents(with encoder: AssetEncoder) async throws {
         guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
         }
@@ -74,18 +74,19 @@ public final class TextureAtlas: Texture2D {
     }
     
     public required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        self.margin = try container.decode(Size.self, forKey: .margin)
-        self.spriteSize = try container.decode(Size.self, forKey: .spriteSize)
-        
-        let path = try container.decode(String.self, forKey: .resource)
-        let image = try ResourceManager.load(path) as Image
-        
-        super.init(image: image)
-        
-        let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
-        context?.appendResource(self)
+//        let container = try decoder.container(keyedBy: CodingKeys.self)
+//        
+//        self.margin = try container.decode(Size.self, forKey: .margin)
+//        self.spriteSize = try container.decode(Size.self, forKey: .spriteSize)
+//        
+//        let path = try container.decode(String.self, forKey: .resource)
+//        let image = try ResourceManager.load(path) as Image
+//        
+//        super.init(image: image)
+//        
+//        let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
+//        context?.appendResource(self)
+        fatalErrorMethodNotImplemented()
     }
     
     public override func encode(to encoder: Encoder) throws {
@@ -163,11 +164,11 @@ public extension TextureAtlas {
             }
         }
         
-        public required init(asset decoder: AssetDecoder) throws {
+        public required init(asset decoder: AssetDecoder) async throws {
             throw AssetError()
         }
         
-        public override func encodeContents(with encoder: AssetEncoder) throws {
+        public override func encodeContents(with encoder: AssetEncoder) async throws {
             throw AssetError()
         }
         

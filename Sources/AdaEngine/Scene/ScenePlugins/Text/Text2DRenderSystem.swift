@@ -36,7 +36,7 @@ public struct Text2DRenderSystem: System {
     public init(scene: Scene) {
         let device = RenderEngine.shared
 
-        let textShader = try! ResourceManager.load("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
+        let textShader = try! ResourceManager.loadSync("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
         var piplineDesc = RenderPipelineDescriptor()
         piplineDesc.vertex = textShader.getShader(for: .vertex)
         piplineDesc.fragment = textShader.getShader(for: .fragment)

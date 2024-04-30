@@ -104,7 +104,7 @@ public final class AnimatedTexture: Texture2D {
         let options: Options
     }
     
-    public convenience required init(asset decoder: AssetDecoder) throws {
+    public convenience required init(asset decoder: AssetDecoder) async throws {
         guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
         }
@@ -123,7 +123,7 @@ public final class AnimatedTexture: Texture2D {
         }
     }
     
-    public override func encodeContents(with encoder: AssetEncoder) throws {
+    public override func encodeContents(with encoder: AssetEncoder) async throws {
         guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
         }
@@ -157,14 +157,16 @@ public final class AnimatedTexture: Texture2D {
     // MARK: - Codable
     
     public convenience required init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let path = try container.decode(String.self)
-        let texture = try ResourceManager.load(path) as AnimatedTexture
-        
-        self.init()
-        
-        self.frames = texture.frames
-        self.framesPerSecond = texture.framesPerSecond
+//        let container = try decoder.singleValueContainer()
+//        let path = try container.decode(String.self)
+//        let texture = try ResourceManager.load(path) as AnimatedTexture
+//        
+//        self.init()
+//        
+//        self.frames = texture.frames
+//        self.framesPerSecond = texture.framesPerSecond
+
+        fatalErrorMethodNotImplemented()
     }
     
     public override func encode(to encoder: Encoder) throws {

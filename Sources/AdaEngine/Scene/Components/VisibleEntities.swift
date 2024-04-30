@@ -50,7 +50,7 @@ public struct VisibilitySystem: System {
     // FIXME: Should we calculate it here?
     /// Update or create bounding boxes for SpriteComponent and Mesh2D.
     private func updateBoundings(context: UpdateContext) async {
-        await context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
+        await context.scene.performQuery(Self.entitiesWithTransform).concurrent.forEach { entity in
 
             var bounds: BoundingComponent.Bounds?
             

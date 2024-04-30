@@ -14,19 +14,18 @@ public struct ScriptComponentUpdateSystem: System {
         self.fixedTime = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
         let fixedTimeResult = self.fixedTime.advance(with: context.deltaTime)
         
-        context.scene.world.scripts.forEach { component in
+        await context.scene.world.scripts.concurrent.forEach { @MainActor component in
 
             // Initialize component
             if !component.isAwaked {
                 component.ready()
                 component.isAwaked = true
             }
-            
-            // FIXME: Actor model for that
-//            component.onEvent(Input.shared.eventsPool)
+
+            component.onEvent(Input.shared.eventsPool)
             
             component.update(context.deltaTime)
 

@@ -146,37 +146,3 @@ public struct ExtractCameraSystem: System {
         }
     }
 }
-
-public struct ConcurrentSequence<S: Sequence> {
-
-    public typealias Element = S.Element
-
-    private let base: S
-
-    init(base: S) {
-        self.base = base
-    }
-}
-
-extension Sequence {
-    public var concurrent: ConcurrentSequence<Self> {
-        return ConcurrentSequence(base: self)
-    }
-}
-
-public extension ConcurrentSequence {
-    func forEach(
-        _ operation: @escaping (Element) async -> Void
-    ) async {
-        // A task group automatically waits for all of its
-        // sub-tasks to complete, while also performing those
-        // tasks in parallel:
-        await withTaskGroup(of: Void.self) { group in
-            for element in self.base {
-                group.addTask {
-                    await operation(element)
-                }
-            }
-        }
-    }
-}

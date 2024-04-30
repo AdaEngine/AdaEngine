@@ -63,27 +63,27 @@ public final class Scene: Resource, @unchecked Sendable {
     
     public static let resourceType: ResourceType = .scene
     
-    public func encodeContents(with encoder: AssetEncoder) throws {
+    public func encodeContents(with encoder: AssetEncoder) async throws {
         guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
-        let sceneData = SceneRepresentation(
-            version: Self.currentVersion,
-            scene: self.name,
-            plugins: self.plugins.map {
-                ScenePluginRepresentation(name: type(of: $0).swiftName)
-            },
-            systems: self.systemGraph.systems.map {
-                SystemRepresentation(name: type(of: $0).swiftName)
-            },
-            entities: self.world.getEntities()
-        )
-        
-        try encoder.encode(sceneData)
+//        let sceneData = SceneRepresentation(
+//            version: Self.currentVersion,
+//            scene: self.name,
+//            plugins: self.plugins.map {
+//                ScenePluginRepresentation(name: type(of: $0).swiftName)
+//            },
+//            systems: self.systemGraph.systems.map {
+//                SystemRepresentation(name: type(of: $0).swiftName)
+//            },
+//            entities: self.world.getEntities()
+//        )
+//        
+//        try encoder.encode(sceneData)
     }
     
-    nonisolated public convenience init(asset decoder: AssetDecoder) throws {
+    nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
         guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }

@@ -39,7 +39,7 @@ public struct SpriteRenderSystem: System {
     public init(scene: Scene) {
         let device = RenderEngine.shared
 
-        let quadShader = try! ResourceManager.load("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
+        let quadShader = try! ResourceManager.loadSync("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
 
         var piplineDesc = RenderPipelineDescriptor()
         piplineDesc.vertex = quadShader.getShader(for: .vertex)
@@ -62,10 +62,10 @@ public struct SpriteRenderSystem: System {
         self.quadRenderPipeline = quadPipeline
     }
 
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
         let extractedSprites = context.scene.performQuery(Self.extractedSprites)
 
-        context.scene.performQuery(Self.cameras).forEach { entity in
+        await context.scene.performQuery(Self.cameras).concurrent.forEach { entity in
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
 

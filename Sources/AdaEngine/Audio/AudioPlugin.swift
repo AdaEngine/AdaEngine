@@ -56,15 +56,15 @@ public struct AudioSystem: System {
         self.audioEngine = AudioServer.shared.engine
     }
     
-    public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
+    public func update(context: UpdateContext) async {
+        await context.scene.performQuery(Self.query).concurrent.forEach { entity in
             let (audioComponent, transform) = entity.components[AudioPlaybacksControllers.self, Transform.self]
             audioComponent.controllers.forEach { controller in
                 controller.sound.position = transform.position
             }
         }
         
-        context.scene.performQuery(Self.audioReceiverQuery).forEach { entity in
+        await context.scene.performQuery(Self.audioReceiverQuery).concurrent.forEach { entity in
             var (audioReceiver, transform) = entity.components[AudioReceiver.self, Transform.self]
             
             if let listener = audioReceiver.audioListener, listener.position != transform.position {
