@@ -5,9 +5,7 @@
 //  Created by v.prusakov on 3/21/23.
 //
 
-// FIXME: Should run on render thread.
-
-/// RenderWorld store entities for rendering. Each update tick entities removed from RenderWorld.
+/// RenderWorld that store entities for rendering. Each update tick entities removed from RenderWorld.
 @RenderGraphActor
 public final class RenderWorld {
     
@@ -22,8 +20,8 @@ public final class RenderWorld {
     }
     
     /// Add a new system to the scene.
-    public func addSystem<T: System>(_ systemType: T.Type) async {
-        await scene.addSystem(systemType)
+    public func addSystem<T: System>(_ systemType: T.Type) {
+        scene.addSystem(systemType)
     }
     
     /// Add a new scene plugin to the scene.
@@ -32,7 +30,7 @@ public final class RenderWorld {
     }
     
     /// Add a new entity to render world.
-    public func addEntity(_ entity: Entity) async {
+    public func addEntity(_ entity: Entity) {
         self.scene.addEntity(entity)
     }
     

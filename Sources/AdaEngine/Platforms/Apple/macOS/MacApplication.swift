@@ -51,6 +51,8 @@ final class MacApplication: Application {
 
     override func run() throws {
         scheduler.run { @MainActor [weak self] in
+            self?.gameLoop.setup()
+
             while true {
                 if Task.isCancelled {
                     break

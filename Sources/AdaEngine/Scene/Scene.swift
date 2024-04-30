@@ -34,8 +34,8 @@ public final class Scene: Resource, @unchecked Sendable {
     
     private(set) var eventManager: EventManager = EventManager.default
     
-    @MainActor internal let systemGraph = SystemsGraph()
-    @MainActor internal let systemGraphExecutor = SystemsGraphExecutor()
+    internal let systemGraph = SystemsGraph()
+    internal let systemGraphExecutor = SystemsGraphExecutor()
 
     /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
@@ -45,7 +45,10 @@ public final class Scene: Resource, @unchecked Sendable {
     
     /// Instance of scene manager which holds this scene.
     public weak var sceneManager: SceneManager?
-    
+
+    /// Flag indicate that scene is updating right now.
+    private(set) var isUpdating = false
+
     // MARK: - Initialization -
     
     /// Create new scene instance.
@@ -65,19 +68,19 @@ public final class Scene: Resource, @unchecked Sendable {
             throw SceneSerializationError.invalidExtensionType
         }
         
-//        let sceneData = SceneRepresentation(
-//            version: Self.currentVersion,
-//            scene: self.name,
-//            plugins: self.plugins.map {
-//                ScenePluginRepresentation(name: type(of: $0).swiftName)
-//            },
-//            systems: self.systemGraph.systems.map {
-//                SystemRepresentation(name: type(of: $0).swiftName)
-//            },
-//            entities: self.world.getEntities()
-//        )
-//        
-//        try encoder.encode(sceneData)
+        let sceneData = SceneRepresentation(
+            version: Self.currentVersion,
+            scene: self.name,
+            plugins: self.plugins.map {
+                ScenePluginRepresentation(name: type(of: $0).swiftName)
+            },
+            systems: self.systemGraph.systems.map {
+                SystemRepresentation(name: type(of: $0).swiftName)
+            },
+            entities: self.world.getEntities()
+        )
+        
+        try encoder.encode(sceneData)
     }
     
     nonisolated public convenience init(asset decoder: AssetDecoder) throws {
@@ -87,48 +90,54 @@ public final class Scene: Resource, @unchecked Sendable {
         
         let sceneData = try decoder.decode(SceneRepresentation.self)
         
-//        if Self.currentVersion < sceneData.version {
-//            throw SceneSerializationError.unsupportedVersion
-//        }
-//        
-//        self.init(name: sceneData.scene)
-//        
-//        for system in sceneData.systems {
-//            guard let systemType = SystemStorage.getRegistredSystem(for: system.name) else {
-//                throw SceneSerializationError.notRegistedObject(system)
-//            }
-//            self.addSystem(systemType)
-//        }
-//        
-//        for plugin in sceneData.plugins {
-//            guard let pluginType = ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
-//                throw SceneSerializationError.notRegistedObject(plugin)
-//            }
-//            
-//            self.addPlugin(pluginType.init())
-//        }
-//        
-//        for entity in sceneData.entities {
-//            self.addEntity(entity)
-//        }
+        if Self.currentVersion < sceneData.version {
+            throw SceneSerializationError.unsupportedVersion
+        }
+        
+        self.init(name: sceneData.scene)
 
-        fatalErrorMethodNotImplemented()
+        Task { @MainActor in
+            for system in sceneData.systems {
+                guard let systemType = SystemStorage.getRegistredSystem(for: system.name) else {
+                    throw SceneSerializationError.notRegistedObject(system)
+                }
+                self.addSystem(systemType)
+            }
+
+            for plugin in sceneData.plugins {
+                guard let pluginType = ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
+                    throw SceneSerializationError.notRegistedObject(plugin)
+                }
+
+                await self.addPlugin(pluginType.init())
+            }
+
+            for entity in sceneData.entities {
+                self.addEntity(entity)
+            }
+        }
     }
     
     // MARK: - Public methods -
     
     /// Add new system to the scene.
     /// - Warning: Systems should be added before presenting.
-    @MainActor
     public func addSystem<T: System>(_ systemType: T.Type) {
+        if self.isReady {
+            assertionFailure("Can't insert system if scene was ready")
+        }
+
         let system = systemType.init(scene: self)
         self.systemGraph.addSystem(system)
     }
     
     /// Add new scene plugin to the scene.
     /// - Warning: Plugin should be added before presenting.
-    @MainActor
     public func addPlugin<T: ScenePlugin>(_ plugin: T) async {
+        if self.isReady {
+            assertionFailure("Can't insert plugin if scene was ready")
+        }
+
         await plugin.setup(in: self)
         self.plugins.append(plugin)
     }
@@ -153,13 +162,21 @@ public final class Scene: Resource, @unchecked Sendable {
 
         self.isReady = true
         
-        await self.systemGraph.linkSystems()
+        self.systemGraph.linkSystems()
         self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
     }
     
     /// Update scene world and systems by delta time.
     func update(_ deltaTime: TimeInterval) async {
+        if self.isUpdating {
+            assertionFailure("Can't update scene twice")
+            return
+        }
+
+        self.isUpdating = true
+        defer { self.isUpdating = false }
+
         self.world.tick()
         
         let context = SceneUpdateContext(
