@@ -26,8 +26,9 @@ public final class RenderGraphContext {
 
 public extension RenderGraphContext {
     
+    @RenderGraphActor
     func runSubgraph(by name: String, inputs: [RenderSlotValue]) async {
-        guard let graph = await self.graph.subGraphs[name], let inputResources = await graph.entryNode?.node.inputResources else {
+        guard let graph = self.graph.subGraphs[name], let inputResources = graph.entryNode?.node.inputResources else {
             return
         }
         
@@ -40,23 +41,26 @@ public extension RenderGraphContext {
         self.pendingSubgraphs.append((graph, inputs))
     }
     
+    @RenderGraphActor
     func entityResource(by name: String) async -> Entity? {
         self.inputResources.first(where: { $0.name == name })?.value.entity
     }
     
+    @RenderGraphActor
     func textureResource(by name: String) async-> Texture? {
         self.inputResources.first(where: { $0.name == name })?.value.texture
     }
     
+    @RenderGraphActor
     func bufferResource(by name: String) async -> Buffer? {
         self.inputResources.first(where: { $0.name == name })?.value.buffer
     }
     
+    @RenderGraphActor
     func samplerResource(by name: String) async -> Sampler? {
         self.inputResources.first(where: { $0.name == name })?.value.sampler
     }
 }
-
 
 @globalActor
 public actor RenderGraphActor: GlobalActor {

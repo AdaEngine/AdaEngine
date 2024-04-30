@@ -45,7 +45,7 @@ extension MetalRenderBackend {
             view.colorPixelFormat = .bgra8Unorm
             view.device = self.physicalDevice
             view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
-            view.framebufferOnly = false
+//            view.framebufferOnly = false
             view.sampleCount = 1
             
             self.windows[id] = window

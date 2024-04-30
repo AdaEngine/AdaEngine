@@ -22,7 +22,7 @@ class SpaceInvaders {
         }
     }
 
-    @ECSActor
+    @MainActor
     func makeScene() async throws -> Scene {
         let scene = Scene()
 
@@ -33,10 +33,10 @@ class SpaceInvaders {
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
         camera.camera.backgroundColor = .black
-        camera.prepareAudio(sound)
-            .setLoop(true)
-            .setVolume(0.6)
-            .play()
+//        camera.prepareAudio(sound)
+//            .setLoop(true)
+//            .setVolume(0.6)
+//            .play()
 
         scene.addEntity(camera)
 

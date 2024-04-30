@@ -33,7 +33,7 @@ public struct VisibilitySystem: System {
     public func update(context: UpdateContext) async {
         await self.updateBoundings(context: context)
         
-        await context.scene.performQuery(Self.cameras).forEach { entity in
+        await context.scene.performQuery(Self.cameras).concurrent.forEach { entity in
             var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
             
             if !camera.isActive {

@@ -51,15 +51,15 @@ class MetalRenderBackend: RenderBackend {
     
     // FIXME: (Vlad) I'm not sure how it should works with multiple window instances.
     func beginFrame() throws {
+        self.inFlightSemaphore.wait()
+
         for (_, window) in self.context.windows {
             window.commandBuffer = self.commandQueue.makeCommandBuffer()
-            window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
+            window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()//window.view?.currentDrawable
         }
     }
     
     func endFrame() throws {
-        self.inFlightSemaphore.wait()
-
         for window in self.context.windows.values {
             guard let drawable = window.drawable, let commandBuffer = window.commandBuffer else {
                 return
@@ -68,9 +68,9 @@ class MetalRenderBackend: RenderBackend {
             commandBuffer.addCompletedHandler { _ in
                 self.inFlightSemaphore.signal()
             }
-            
+
             commandBuffer.present(drawable)
-            
+
             commandBuffer.commit()
         }
         

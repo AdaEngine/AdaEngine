@@ -34,7 +34,7 @@ extension GameAppScene: InternalAppScene {
         let gameSceneView = SceneView(scene: scene, frame: frame)
         window.addSubview(gameSceneView)
         
-        await window.setWindowMode(configuration.windowMode)
+        window.setWindowMode(configuration.windowMode)
         window.minSize = configuration.minimumSize
         
         if let title = configuration.title {

@@ -269,15 +269,11 @@ final class _Physics2DContactListener {
     lazy var contactListener: OpaquePointer = {
         let ptr = Unmanaged.passUnretained(self).toOpaque()
         let callbacks = contact_listener_callbacks { userData, contact in
-            Task { @ECSActor in
-                let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
-                listener.beginContact(contact!)
-            }
+            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+            listener.beginContact(contact!)
         } end_contact: { userData, contact in
-            Task { @ECSActor in
-                let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
-                listener.endContact(contact!)
-            }
+            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+            listener.endContact(contact!)
         } pre_solve: { userData, contact, manifold in
             let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
             listener.preSolve(contact!, oldManifold: manifold!)
@@ -293,7 +289,6 @@ final class _Physics2DContactListener {
         self.contactListener.deallocate()
     }
 
-    @ECSActor 
     func beginContact(_ contact: OpaquePointer) {
         let fixtureA = b2_contact_get_fixture_a(contact)!
         let fixtureB = b2_contact_get_fixture_b(contact)!
@@ -334,8 +329,7 @@ final class _Physics2DContactListener {
 
         bodyA.world.scene?.eventManager.send(event)
     }
-
-    @ECSActor 
+    
     func endContact(_ contact: OpaquePointer) {
         let fixtureA = b2_contact_get_fixture_a(contact)!
         let fixtureB = b2_contact_get_fixture_b(contact)!

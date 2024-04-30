@@ -9,12 +9,11 @@
 import AppKit
 import MetalKit
 
-@MainActor
 final class MacApplication: Application {
     
     // Timer that synced with display refresh rate.
     private let displayLink: DisplayLink
-    
+
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         self.displayLink = DisplayLink(on: .main)!
         try super.init(argc: argc, argv: argv)
@@ -47,18 +46,28 @@ final class MacApplication: Application {
         
         app.activate(ignoringOtherApps: true)
     }
-    
-    override func run() throws {
-        self.displayLink.setHandler { [weak self] in
-            print("Display link")
-//            self?.update()
-        }
-    
-        self.displayLink.start()
 
-        AdaApplication.shared.run()
+    let scheduler = Scheduler()
+
+    override func run() throws {
+        scheduler.run { @MainActor [weak self] in
+            while true {
+                if Task.isCancelled {
+                    break
+                }
+
+                try await self?.gameLoop.iterate()
+
+                // Free main loop
+                await Task.yield()
+            }
+        } onCatchError: { error in
+            print(error)
+        }
+
+        NSApplication.shared.run()
     }
-    
+
     override func terminate() {
         NSApplication.shared.terminate(nil)
     }
@@ -91,34 +100,16 @@ final class MacApplication: Application {
         
         Application.shared.windowManager.activeWindow?.showWindow(makeFocused: true)
     }
-    
-    // MARK: - Private
-
-    private let scheduler = Scheduler()
-
-    private nonisolated func update() {
-        scheduler.run {
-//            try await self.gameLoop.iterate()
-        } onCatchError: { error in
-            print(error.localizedDescription)
-            exit(-1)
-        }
-    }
 }
 
 class Scheduler {
 
-    private var previousTask: Task<Void, Error>?
+    private var task: Task<Void, Error>?
 
     func run(block: @escaping @Sendable () async throws -> Void, onCatchError: @escaping (Error) -> Void) {
-        print("start")
-        let previousTask = self.previousTask
-        self.previousTask = Task.detached {
+        self.task = Task.detached(priority: .userInitiated) {
             do {
-                try await previousTask?.value
                 try await block()
-
-                print("end")
             } catch {
                 onCatchError(error)
             }
@@ -133,6 +124,37 @@ class AdaApplication: NSApplication {
         } else {
             super.sendEvent(event)
         }
+    }
+}
+
+final class MacOSUpdateScheduler: NSObject, MTKViewDelegate {
+
+    private let scheduler = Scheduler()
+
+    func run() {
+        let nswindow = NSApplication.shared.windows.first!
+        let mtkView = nswindow.contentView as! MTKView
+        mtkView.delegate = self
+        mtkView.isPaused = false
+    }
+
+    func draw(in view: MTKView) {
+        print("KEEK")
+//        scheduler.run { @MainActor in
+//            for window in Application.shared.windowManager.windows.dropFirst() {
+//                ((window.systemWindow as! NSWindow).contentView as? MTKView)?.draw()
+//            }
+//
+//            try await Application.shared.gameLoop.iterate()
+//        } onCatchError: { error in
+//            assertionFailure("\(error.localizedDescription)")
+//            exit(0)
+//        }
+
+    }
+
+    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+
     }
 }
 

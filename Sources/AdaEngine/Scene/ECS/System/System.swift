@@ -6,8 +6,7 @@
 //
 
 /// Contains information about current scene update.
-@ECSActor
-public struct SceneUpdateContext {
+public struct SceneUpdateContext: Sendable {
     /// The updating scene.
     public let scene: Scene
     
@@ -51,7 +50,6 @@ public struct SceneUpdateContext {
 /// }
 ///
 /// ```
-@ECSActor
 public protocol System {
     
     typealias UpdateContext = SceneUpdateContext
@@ -61,7 +59,7 @@ public protocol System {
     
     /// Updates entities every frame.
     func update(context: UpdateContext) async
-    
+
     // MARK: Dependencies
     
     /// An array of dependencies for this system.

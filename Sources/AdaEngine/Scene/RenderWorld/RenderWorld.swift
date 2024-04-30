@@ -18,9 +18,7 @@ public final class RenderWorld {
     private let scene: Scene = Scene(name: "RenderWorld")
 
     public var world: World {
-        get async {
-            return await self.scene.world
-        }
+        return self.scene.world
     }
     
     /// Add a new system to the scene.
@@ -35,14 +33,14 @@ public final class RenderWorld {
     
     /// Add a new entity to render world.
     public func addEntity(_ entity: Entity) async {
-        await self.scene.addEntity(entity)
+        self.scene.addEntity(entity)
     }
     
     func update(_ deltaTime: TimeInterval) async throws {
         await self.scene.update(deltaTime)
         try await self.renderGraphExecutor.execute(self.renderGraph, in: self.world)
 
-        await self.scene.world.clear()
+        self.scene.world.clear()
     }
 }
 

@@ -262,7 +262,7 @@ public struct ExtractSpriteSystem: System {
         let extractedEntity = EmptyEntity()
         var extractedSprites = ExtractedSprites(sprites: [])
 
-        await context.scene.performQuery(Self.sprites).forEach { entity in
+        context.scene.performQuery(Self.sprites).forEach { entity in
             let (sprite, transform, visible) = entity.components[SpriteComponent.self, Transform.self, Visibility.self]
 
             if !visible.isVisible {

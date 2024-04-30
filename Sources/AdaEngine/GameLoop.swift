@@ -7,7 +7,7 @@
 
 /// The main class responds to update all systems in engine.
 /// You can have only one GameLoop per app.
-
+@MainActor
 public final class GameLoop {
 
     public private(set) static var current: GameLoop = GameLoop()
@@ -21,8 +21,7 @@ public final class GameLoop {
     private var fixedTimestep: FixedTimestep = FixedTimestep(step: 0)
 
     // MARK: Internal Methods
-
-    @MainActor public func iterate() async throws {
+    public func iterate() async throws {
         if self.isIterating {
             assertionFailure("Can't iterated twice.")
             return
@@ -51,25 +50,18 @@ public final class GameLoop {
         if physicsTime.isFixedTick {
             Input.shared.processEvents()
         }
-
-        print("Begin frame")
-
+        
         try RenderEngine.shared.beginFrame()
 
-        let application = Application.shared!
-        try await application.renderWorld.update(deltaTime)
-        await application.windowManager.update(deltaTime)
+        try await Application.shared.renderWorld.update(deltaTime)
+        await Application.shared.windowManager.update(deltaTime)
 
         try RenderEngine.shared.endFrame()
-
-        print("End frame")
 
         if physicsTime.isFixedTick {
             Input.shared.removeEvents()
         }
 
         FPSCounter.shared.tick()
-
-        print("End tick")
     }
 }
