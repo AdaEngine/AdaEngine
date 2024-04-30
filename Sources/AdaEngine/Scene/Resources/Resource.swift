@@ -33,19 +33,19 @@ public protocol Resource: AnyObject {
     /// Data is the same data given from `encodedContents()` method.
     /// - Parameter data: Resource data.
     /// - Returns: Return instance of resource
-    init(asset decoder: AssetDecoder) throws
-    
+    @ResourceActor init(asset decoder: AssetDecoder) async throws
+
     /// To store resource on the disk, you should implement this method.
     /// This data will return to `load(from:)` method when Resource will load.
     /// - Returns: the resource data to be saved
-    func encodeContents(with encoder: AssetEncoder) throws
-    
+    @ResourceActor func encodeContents(with encoder: AssetEncoder) async throws
+
     /// Type of resource.
     static var resourceType: ResourceType { get }
-    
+
     /// If resource was initiated from resource, than property will return path to that file.
     var resourcePath: String { get set }
-    
+
     /// If resource was initiated from resource, than property will return name of that file.
     var resourceName: String { get set }
 }

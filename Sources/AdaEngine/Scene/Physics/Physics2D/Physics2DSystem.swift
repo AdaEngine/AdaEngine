@@ -36,6 +36,7 @@ public final class Physics2DSystem: System {
     @MainActor
     public func update(context: UpdateContext) {
         preconditionMainThreadOnly()
+        
         let result = self.fixedTimestep.advance(with: context.deltaTime)
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)

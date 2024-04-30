@@ -59,30 +59,32 @@ open class Texture2D: Texture {
     // TODO: Add Sampler support
 
     public convenience required init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let path = try container.decode(String.self)
-        
-        let image = try ResourceManager.load(path) as Image
-        self.init(image: image)
-        
-        let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
-        context?.appendResource(self)
+        fatalErrorMethodNotImplemented()
+//        let container = try decoder.singleValueContainer()
+//        let path = try container.decode(String.self)
+//        
+//        let image = try ResourceManager.load(path) as Image
+//        self.init(image: image)
+//        
+//        let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
+//        context?.appendResource(self)
     }
     
     public override func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        
-        if self.resourcePath.isEmpty {
-            try container.encode(self.resourcePath)
-            return
-        }
-        
-        try container.encode(self.resourcePath)
+        fatalErrorMethodNotImplemented()
+//        var container = encoder.singleValueContainer()
+//        
+//        if self.resourcePath.isEmpty {
+//            try container.encode(self.resourcePath)
+//            return
+//        }
+//        
+//        try container.encode(self.resourcePath)
     }
     
     // MARK: - Resource
     
-    public required init(asset decoder: AssetDecoder) throws {
+    public required init(asset decoder: AssetDecoder) async throws {
         let image = try Image(asset: decoder)
         
         let descriptor = TextureDescriptor(
@@ -103,8 +105,8 @@ open class Texture2D: Texture {
         super.init(gpuTexture: gpuTexture, sampler: sampler, textureType: .texture2D)
     }
     
-    public override func encodeContents(with encoder: AssetEncoder) throws {
-        
+    public override func encodeContents(with encoder: AssetEncoder) async throws {
+
     }
 }
 

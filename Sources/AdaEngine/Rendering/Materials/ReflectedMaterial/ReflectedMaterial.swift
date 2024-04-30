@@ -34,7 +34,7 @@ public protocol ReflectedMaterial: ShaderBindable {
     /// Configure and pass shader source for custom material.
     /// - Returns: A shader sources for vertex shader.
     static func vertexShader() throws -> ShaderSource
-    
+
     /// Configure and pass shader source for custom material.
     /// - Returns: A shader sources for fragment shader.
     static func fragmentShader() throws -> ShaderSource

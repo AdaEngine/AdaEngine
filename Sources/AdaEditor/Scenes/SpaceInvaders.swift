@@ -15,7 +15,7 @@ class SpaceInvaders {
 
     init() {
         do {
-            let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.editor) as Image
+            let charactersTiles = try ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
         } catch {
             fatalError(error.localizedDescription)
@@ -25,10 +25,9 @@ class SpaceInvaders {
     @MainActor
     func makeScene() async throws -> Scene {
         let scene = Scene()
+        scene.debugOptions = [.showPhysicsShapes]
 
-        //        scene.debugOptions = [.showPhysicsShapes]
-
-        let sound = try ResourceManager.load("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
+        let sound = try ResourceManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
 
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
@@ -40,8 +39,8 @@ class SpaceInvaders {
 
         scene.addEntity(camera)
 
-        try await self.makePlayer(for: scene)
-        try await self.makeScore(for: scene)
+        try self.makePlayer(for: scene)
+        try self.makeScore(for: scene)
 
         // Systems
 
@@ -72,21 +71,20 @@ class SpaceInvaders {
 
         return scene
     }
-
 }
 
 extension SpaceInvaders {
-    func makePlayer(for scene: Scene) async throws {
+    func makePlayer(for scene: Scene) throws {
         let player = Entity()
 
         player.components += Transform(scale: Vector3(0.2), position: [0, -0.85, 0])
         player.components += PlayerComponent()
         player.components += SpriteComponent(texture: characterAtlas[7, 1])
 
-        await scene.addEntity(player)
+        scene.addEntity(player)
     }
 
-    func makeScore(for scene: Scene) async throws {
+    func makeScore(for scene: Scene) throws {
         let score = Entity(name: "Score")
 
         var container = TextAttributeContainer()
@@ -98,7 +96,7 @@ extension SpaceInvaders {
         score.components += Transform(scale: Vector3(0.1), position: [-0.2, -0.9, 0])
         score.components += NoFrustumCulling()
 
-        await scene.addEntity(score)
+        scene.addEntity(score)
     }
 }
 
@@ -136,7 +134,7 @@ struct FireSystem: System {
     let laserAudio: AudioResource
 
     init(scene: Scene) {
-        self.laserAudio = try! ResourceManager.load("Assets/laserShoot.wav", from: .editor) as AudioResource
+        self.laserAudio = try! ResourceManager.loadSync("Assets/laserShoot.wav", from: .editor) as AudioResource
     }
 
     func update(context: UpdateContext) async {
@@ -204,8 +202,8 @@ struct BulletSystem: System {
 
     init(scene: Scene) { }
 
-    func update(context: UpdateContext) {
-        context.scene.performQuery(Self.bullet).concurrentIterator.forEach { entity in
+    func update(context: UpdateContext) async {
+        await context.scene.performQuery(Self.bullet).concurrent.forEach { entity in
             var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
 
             body.setLinearVelocity([0, Self.bulletSpeed])
@@ -235,7 +233,7 @@ struct EnemySpawnerSystem: System {
 
     init(scene: Scene) {
         do {
-            let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.editor) as Image
+            let tiles = try ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
 
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
         } catch {
@@ -302,8 +300,8 @@ struct EnemyMovementSystem: System {
 
     init(scene: Scene) { }
 
-    func update(context: UpdateContext) {
-        context.scene.performQuery(Self.enemy).concurrentIterator.forEach { entity in
+    func update(context: UpdateContext) async {
+        await context.scene.performQuery(Self.enemy).concurrent.forEach { entity in
             var transform = entity.components[Transform.self]!
             transform.position.y -= Self.speed * context.deltaTime
             entity.components += transform
@@ -324,10 +322,10 @@ struct EnemyExplosionSystem: System {
     let explosionAudio: AudioResource
 
     init(scene: Scene) {
-        let image = try! ResourceManager.load("Assets/explosion.png", from: .editor) as Image
+        let image = try! ResourceManager.loadSync("Assets/explosion.png", from: .editor) as Image
         self.exposionAtlas = TextureAtlas(from: image, size: Size(width: 32, height: 32))
 
-        self.explosionAudio = try! ResourceManager.load("Assets/explosion-1.wav", from: .editor) as AudioResource
+        self.explosionAudio = try! ResourceManager.loadSync("Assets/explosion-1.wav", from: .editor) as AudioResource
     }
 
     static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))
@@ -338,7 +336,7 @@ struct EnemyExplosionSystem: System {
         let scores = context.scene.performQuery(Self.scores).first
 
         // Make expolosions
-        await context.scene.performQuery(Self.enemy).forEach { entity in
+        context.scene.performQuery(Self.enemy).forEach { entity in
             let (enemy, transform) = entity.components[EnemyComponent.self, Transform.self]
 
             if enemy.health <= 0 {
@@ -371,7 +369,7 @@ struct EnemyExplosionSystem: System {
         }
 
         // Remove explosions
-        await context.scene.performQuery(Self.explosions).forEach { entity in
+        context.scene.performQuery(Self.explosions).forEach { entity in
             guard let texture = entity.components[SpriteComponent.self]?.texture as? AnimatedTexture else {
                 return
             }

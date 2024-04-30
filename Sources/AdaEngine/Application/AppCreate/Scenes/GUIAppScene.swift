@@ -23,7 +23,7 @@ public struct GUIAppScene: AppScene {
 }
 
 extension GUIAppScene: InternalAppScene {
-    
+    @MainActor
     func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window {
         let window = window()
         

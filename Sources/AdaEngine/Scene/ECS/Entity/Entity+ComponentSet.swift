@@ -10,7 +10,7 @@ import Collections
 public extension Entity {
     
     /// Hold entity components specific for entity.
-    struct ComponentSet: Codable {
+    struct ComponentSet: Codable, Sendable {
         
         internal weak var entity: Entity?
         

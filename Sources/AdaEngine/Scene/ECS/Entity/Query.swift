@@ -160,11 +160,6 @@ public struct QueryResult: Sequence {
         return self.first { _ in return true }
     }
     
-    /// Return concurrent iterator over the query results.
-    public var concurrentIterator: ConcurrentIterator {
-        ConcurrentIterator(state: self.state)
-    }
-    
     /// Return iterator over the query results.
     public func makeIterator() -> Iterator {
         return EntityIterator(state: self.state)
@@ -239,45 +234,6 @@ public extension QueryResult {
                 }
                 
                 continue
-            }
-        }
-    }
-}
-
-extension QueryResult {
-    
-    /// A parallel iterator over query results.
-    public struct ConcurrentIterator {
-        
-        public typealias Element = QueryResult.Element
-        
-        @usableFromInline
-        let state: EntityQuery.State
-        
-        init(state: EntityQuery.State) {
-            self.state = state
-        }
-        
-        /// Calls the given closure on each element in the query in parallel.
-        ///
-        /// - Parameter body: A closure that takes an element of the sequence as a
-        ///   parameter.
-        @inlinable
-        @inline(__always)
-        public func forEach(_ body: (Self.Element) -> Void) {
-            let arhetypes = self.state.archetypes
-            
-            for arhetype in arhetypes {
-                let entities = arhetype.entities
-                DispatchQueue.concurrentPerform(iterations: entities.count) { index in
-                    
-                    // skip nil values in space array
-                    guard let entity = entities[index] else {
-                        return
-                    }
-                    
-                    body(entity)
-                }
             }
         }
     }

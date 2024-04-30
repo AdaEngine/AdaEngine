@@ -64,7 +64,13 @@ final class MacApplication: Application {
                 await Task.yield()
             }
         } onCatchError: { error in
-            print(error)
+            Task { @MainActor in
+                let alert = Alert(title: "AdaEngine finished with Error", message: error.localizedDescription, buttons: [.cancel("OK", action: {
+                    exit(EXIT_FAILURE)
+                })])
+
+                Application.shared.showAlert(alert)
+            }
         }
 
         NSApplication.shared.run()

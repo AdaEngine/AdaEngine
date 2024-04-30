@@ -209,8 +209,8 @@ final class GameScene2D {
 
     init() {
         do {
-            let tiles = try ResourceManager.load("Assets/tiles_packed.png", from: Bundle.editor) as Image
-            let charactersTiles = try ResourceManager.load("Assets/characters_packed.png", from: Bundle.editor) as Image
+            let tiles = try ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
+            let charactersTiles = try ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
 
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
@@ -238,7 +238,7 @@ final class GameScene2D {
         scene.debugPhysicsColor = .red
         self.makePlayer(for: scene)
         self.makeGround(for: scene)
-        try self.makeCanvasItem(for: scene, position: [-0.3, 0.4, -1])
+        try await self.makeCanvasItem(for: scene, position: [-0.3, 0.4, -1])
         self.collisionHandler(for: scene)
         //        self.fpsCounter(for: scene)
         await self.addText(to: scene)
@@ -299,9 +299,8 @@ final class GameScene2D {
         scene.addEntity(playerEntity)
     }
 
-    func makeCanvasItem(for scene: Scene, position: Vector3) throws {
-
-        let dogTexture = try ResourceManager.load("Assets/dog.png", from: Bundle.editor) as Texture2D
+    func makeCanvasItem(for scene: Scene, position: Vector3) async throws {
+        let dogTexture = try await ResourceManager.load("Assets/dog.png", from: Bundle.editor) as Texture2D
 
         let material = MyMaterial(
             color: .red,
@@ -417,6 +416,6 @@ struct MyMaterial: CanvasMaterial {
     }
 
     static func fragmentShader() throws -> ShaderSource {
-        try ResourceManager.load("Assets/custom_material.glsl", from: .editor)
+        try ResourceManager.loadSync("Assets/custom_material.glsl", from: .editor)
     }
 }
