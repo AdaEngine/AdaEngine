@@ -18,28 +18,27 @@ public struct Scene2DPlugin: ScenePlugin {
         public static let view = "view"
     }
     
+    @RenderGraphActor
     public func setup(in scene: Scene) async {
         // Add Systems
-        scene.addSystem(BatchTransparent2DItemsSystem.self)
+        await scene.addSystem(BatchTransparent2DItemsSystem.self)
 
-        Task { @RenderGraphActor in
-            // Add Render graph
-            let graph = RenderGraph()
+        // Add Render graph
+        let graph = RenderGraph()
 
-            let entryNode = graph.addEntryNode(inputs: [
-                RenderSlot(name: InputNode.view, kind: .entity)
-            ])
+        let entryNode = graph.addEntryNode(inputs: [
+            RenderSlot(name: InputNode.view, kind: .entity)
+        ])
 
-            graph.addNode(with: Main2DRenderNode.name, node: Main2DRenderNode())
-            graph.addSlotEdge(
-                fromNode: entryNode,
-                outputSlot: InputNode.view,
-                toNode: Main2DRenderNode.name,
-                inputSlot: Main2DRenderNode.InputNode.view
-            )
+        graph.addNode(with: Main2DRenderNode.name, node: Main2DRenderNode())
+        graph.addSlotEdge(
+            fromNode: entryNode,
+            outputSlot: InputNode.view,
+            toNode: Main2DRenderNode.name,
+            inputSlot: Main2DRenderNode.InputNode.view
+        )
 
-            await Application.shared.renderWorld.renderGraph.addSubgraph(graph, name: Self.renderGraph)
-        }
+        Application.shared.renderWorld.renderGraph.addSubgraph(graph, name: Self.renderGraph)
     }
 }
 

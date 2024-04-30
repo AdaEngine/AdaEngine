@@ -17,7 +17,7 @@ public struct CameraSystem: System {
     public init(scene: Scene) { }
 
     public func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.query).forEach { entity in
+        await context.scene.performQuery(Self.query).concurrent.forEach { @MainActor entity in
             guard var camera = entity.components[Camera.self] else {
                 return
             }
@@ -26,7 +26,7 @@ public struct CameraSystem: System {
             let viewMatrix = transform.inverse
             camera.viewMatrix = viewMatrix
 
-            await self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
+            self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
             self.updateProjectionMatrix(for: &camera)
             self.updateFrustum(for: &camera)
 
@@ -39,16 +39,17 @@ public struct CameraSystem: System {
         }
     }
 
-    private func updateViewportSizeIfNeeded(for camera: inout Camera, window: Window?) async {
+    @MainActor
+    private func updateViewportSizeIfNeeded(for camera: inout Camera, window: Window?) {
         switch camera.renderTarget {
         case .window(let id):
 
             if id != window?.id {
                 camera.renderTarget = .window(window?.id ?? .empty)
-                camera.computedData.targetScaleFactor = await window?.screen?.scale ?? 1
+                camera.computedData.targetScaleFactor = window?.screen?.scale ?? 1
             }
 
-            let windowSize = await window?.frame.size ?? .zero
+            let windowSize = window?.frame.size ?? .zero
 
             if camera.viewport == nil {
                 camera.viewport = Viewport(rect: Rect(origin: .zero, size: windowSize))
@@ -122,7 +123,7 @@ public struct ExtractCameraSystem: System {
     public init(scene: Scene) { }
 
     public func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.query).forEach { entity in
+        await context.scene.performQuery(Self.query).concurrent.forEach { entity in
             let cameraEntity = EmptyEntity()
 
             if
@@ -172,23 +173,6 @@ public extension ConcurrentSequence {
         // tasks in parallel:
         await withTaskGroup(of: Void.self) { group in
             for element in self.base {
-                group.addTask {
-                    await operation(element)
-                }
-            }
-        }
-    }
-}
-
-public extension QueryResult {
-    func forEach(
-        _ operation: @escaping (Element) async -> Void
-    ) async {
-        // A task group automatically waits for all of its
-        // sub-tasks to complete, while also performing those
-        // tasks in parallel:
-        await withTaskGroup(of: Void.self) { group in
-            for element in self {
                 group.addTask {
                     await operation(element)
                 }

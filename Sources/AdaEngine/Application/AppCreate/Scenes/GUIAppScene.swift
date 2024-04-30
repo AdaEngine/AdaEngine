@@ -35,7 +35,7 @@ extension GUIAppScene: InternalAppScene {
             window.title = title
         }
         
-        await window.setWindowMode(configuration.windowMode)
+        window.setWindowMode(configuration.windowMode)
         window.minSize = configuration.minimumSize
         return window
     }

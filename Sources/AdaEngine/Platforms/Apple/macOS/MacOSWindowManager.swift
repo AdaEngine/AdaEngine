@@ -10,7 +10,6 @@ import AppKit
 import Math
 
 // swiftlint:disable cyclomatic_complexity
-@MainActor
 final class MacOSWindowManager: WindowManager {
 
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)

@@ -28,10 +28,9 @@ open class WindowManager {
     /// Contains active window if available.
     public private(set) var activeWindow: Window?
     
-    public init() { }
+    public nonisolated init() { }
     
     /// Called each frame to update windows.
-    @MainActor
     func update(_ deltaTime: TimeInterval) async {
         for window in self.windows {
             for event in Input.shared.eventsPool {

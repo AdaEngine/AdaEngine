@@ -164,7 +164,7 @@ final class SpirvCompiler {
         }
     }
 
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func reflection() -> ShaderReflectionData {
         var shaderResources: spvc_resources!
         spvc_compiler_create_shader_resources(self.spvcCompiler, &shaderResources)
@@ -298,7 +298,6 @@ final class SpirvCompiler {
 
 extension SpirvCompiler {
     static func makeCompileOptions(_ options: spvc_compiler_options?) {
-        print(Thread.current)
 #if METAL
         let version = { (major: UInt32, minor: UInt32, patch: UInt32) in
             return (major * 10000) + (minor * 100) + patch

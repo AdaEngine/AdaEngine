@@ -180,7 +180,7 @@ struct ExctractTextSystem: System {
     init(scene: Scene) { }
 
     func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.textComponents).forEach { entity in
+        await context.scene.performQuery(Self.textComponents).concurrent.forEach { entity in
             if entity.components[Visibility.self]?.isVisible == false {
                 return
             }

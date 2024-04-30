@@ -6,7 +6,7 @@
 //
 
 /// Describe which kind of scene will present on start.
-@MainActor
+@MainActor(unsafe)
 public protocol AppScene {
     associatedtype Body: AppScene
     var scene: Body { get }

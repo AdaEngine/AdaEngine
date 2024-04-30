@@ -19,7 +19,6 @@ struct _AppSceneConfiguration {
 
 /// Helper interface for creating window from scene.
 /// Each scene should conforms this protocol to avoid fatal error on start.
-@MainActor
 protocol InternalAppScene {
 
     /// Create a window with given configuration.

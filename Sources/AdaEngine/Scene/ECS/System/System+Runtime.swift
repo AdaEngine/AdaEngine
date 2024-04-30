@@ -13,6 +13,7 @@ extension System {
     /// When engine will initiate system from scene file, it will try to find
     /// system in registred list.
     /// Otherwise system will not be initialized.
+    @MainActor
     public static func registerSystem() {
         SystemStorage.register(self)
     }
@@ -22,7 +23,7 @@ extension System {
     }
 }
 
-@ECSActor
+@MainActor
 enum SystemStorage {
     
     private static var registeredSystem: [String: System.Type] = [:]

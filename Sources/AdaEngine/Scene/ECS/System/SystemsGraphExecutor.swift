@@ -9,7 +9,7 @@ import Collections
 
 // TODO: Add parallels execution for nodes without inputs
 
-@ECSActor
+@MainActor
 final class SystemsGraphExecutor {
     func execute(_ graph: SystemsGraph, context: SceneUpdateContext) async {
         var completedSystems: Set<String> = []

@@ -199,7 +199,7 @@ class TubeSpawnerSystem: System {
     }
 }
 
-@ECSActor
+@MainActor
 final class GameScene2D {
 
     var disposeBag: Set<AnyCancellable> = []

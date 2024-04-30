@@ -33,7 +33,9 @@ public final class Physics2DSystem: System {
         where: .has(PhysicsJoint2DComponent.self) && .has(Transform.self)
     )
     
+    @MainActor
     public func update(context: UpdateContext) {
+        preconditionMainThreadOnly()
         let result = self.fixedTimestep.advance(with: context.deltaTime)
         
         let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
@@ -53,6 +55,7 @@ public final class Physics2DSystem: System {
     
     // MARK: - Private
     
+    @MainActor
     private func updatePhysicsBodyEntities(_ entities: QueryResult, in world: PhysicsWorld2D) {
         entities.forEach { entity in
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
@@ -115,7 +118,8 @@ public final class Physics2DSystem: System {
             entity.components += physicsBody
         }
     }
-    
+
+    @MainActor
     private func updateCollisionEntities(_ entities: QueryResult, in world: PhysicsWorld2D) {
         entities.forEach { entity in
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]

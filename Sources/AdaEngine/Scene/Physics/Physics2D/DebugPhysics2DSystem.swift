@@ -50,7 +50,7 @@ public struct DebugPhysicsExctract2DSystem: System {
         self.colorMaterial.color = context.scene.debugPhysicsColor
         self.circleMaterial.color = context.scene.debugPhysicsColor
         
-        await context.scene.performQuery(Self.entities).forEach { entity in
+        await context.scene.performQuery(Self.entities).concurrent.forEach { entity in
 
             if entity.components[Visibility.self]!.isVisible == false {
                 return

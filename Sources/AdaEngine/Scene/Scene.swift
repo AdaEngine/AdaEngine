@@ -14,7 +14,7 @@ enum SceneSerializationError: Error {
 }
 
 /// A container that holds the collection of entities for render.
-public final class Scene: Resource {
+public final class Scene: Resource, @unchecked Sendable {
 
     /// Current supported version for mapping scene from file.
     static var currentVersion: Version = "1.0.0"
@@ -34,9 +34,9 @@ public final class Scene: Resource {
     
     private(set) var eventManager: EventManager = EventManager.default
     
-    @ECSActor internal let systemGraph = SystemsGraph()
-    @ECSActor internal let systemGraphExecutor = SystemsGraphExecutor()
-    
+    @MainActor internal let systemGraph = SystemsGraph()
+    @MainActor internal let systemGraphExecutor = SystemsGraphExecutor()
+
     /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     
@@ -119,7 +119,7 @@ public final class Scene: Resource {
     
     /// Add new system to the scene.
     /// - Warning: Systems should be added before presenting.
-    @ECSActor
+    @MainActor
     public func addSystem<T: System>(_ systemType: T.Type) {
         let system = systemType.init(scene: self)
         self.systemGraph.addSystem(system)
@@ -127,6 +127,7 @@ public final class Scene: Resource {
     
     /// Add new scene plugin to the scene.
     /// - Warning: Plugin should be added before presenting.
+    @MainActor
     public func addPlugin<T: ScenePlugin>(_ plugin: T) async {
         await plugin.setup(in: self)
         self.plugins.append(plugin)

@@ -6,8 +6,9 @@
 //
 
 /// This view contains game scene and viewport for rendering.
+@MainActor
 public class SceneView: View {
-    
+
     /// The scene manager that manage a scenes for this view.
     public let sceneManager: SceneManager
     

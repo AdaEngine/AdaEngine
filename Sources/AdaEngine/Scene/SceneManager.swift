@@ -9,7 +9,7 @@
 /// You can use scene manager for transition between scenes.
 @MainActor
 public class SceneManager {
-    
+
     public private(set) var currentScene: Scene?
     
     /// View where all renders happend
@@ -33,35 +33,24 @@ public class SceneManager {
     
     /// Set viewport for current scene.
     func setViewport(_ viewport: Viewport) {
-        Task { @ECSActor in
-            await self.currentScene?.viewport = viewport
-        }
+        self.currentScene?.viewport = viewport
     }
     
     /// Set window for scene manager.
     func setWindow(_ window: Window?) {
-        Task { @ECSActor in
-            await self.currentScene?.window = window
-
-            await MainActor.run {
-                self.window = window
-            }
-        }
+        self.currentScene?.window = window
+        self.window = window
     }
     
     // MARK: - Public Methods
     
     /// Set new scene for presenting on screen.
     public func presentScene(_ scene: Scene) {
-        Task { @ECSActor in
-            scene.sceneManager = self
-            scene.window = await self.window
-            scene.viewport = await self.sceneView?.viewport ?? Viewport()
+        scene.sceneManager = self
+        scene.window = self.window
+        scene.viewport = self.sceneView?.viewport ?? Viewport()
 
-            await MainActor.run {
-                self.currentScene = scene
-            }
-        }
+        self.currentScene = scene
     }
     
 }

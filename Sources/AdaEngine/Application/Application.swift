@@ -8,16 +8,15 @@
 /// The main class represents application instance.
 /// The application cannot be created manualy, instead use an ``App`` protocol.
 /// To get access to the application instance, use static property `shared`
-@MainActor
-open class Application: @unchecked Sendable {
+open class Application {
 
     // MARK: - Public
     
     /// Contains application instance if application created from ``App``.
-    @MainActor public internal(set) static var shared: Application!
+    public internal(set) static var shared: Application!
 
-    let gameLoop: GameLoop = GameLoop.current
-    
+    @MainActor let gameLoop: GameLoop = GameLoop.current
+
     /// Current runtime platform.
     public var platform: RuntimePlatform {
         #if os(macOS)
@@ -37,14 +36,14 @@ open class Application: @unchecked Sendable {
         #endif
     }
     
-    public var windowManager: WindowManager = WindowManager()
+    @MainActor public var windowManager: WindowManager = WindowManager()
     
     /// Contains world which can render on screen.
     @RenderGraphActor public let renderWorld = RenderWorld()
     
     // MARK: - Internal
     
-    public init(
+    public nonisolated init(
         argc: Int32,
         argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
     ) throws {
@@ -59,11 +58,12 @@ open class Application: @unchecked Sendable {
     // MARK: - Public methods
     
     /// Call this method to terminate app execution with 0 status code.
-    open func terminate() {
+    @MainActor open func terminate() {
         exit(EXIT_SUCCESS)
     }
     
     /// Method to open url.
+    @MainActor
     @discardableResult
     open func openURL(_ url: URL) -> Bool {
         assertionFailure("Not implemented")
@@ -71,6 +71,7 @@ open class Application: @unchecked Sendable {
     }
     
     /// Call this method to show specific alert.
+    @MainActor
     open func showAlert(_ alert: Alert) {
         assertionFailure("Not implemented")
     }

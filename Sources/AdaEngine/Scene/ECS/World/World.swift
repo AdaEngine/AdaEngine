@@ -17,7 +17,7 @@ import Collections
 /// component type. Entity components can be created, updated, removed, and queried using a given World.
 /// - Warning: Still work in progress.
 public final class World {
-    
+
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
     
     let lock = NSLock()
