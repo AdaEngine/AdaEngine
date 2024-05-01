@@ -40,11 +40,11 @@ public final class ResourceManager {
     /// Load a resource and saving it to memory cache. We use `@res:` prefix to link to resource folder.
     ///
     /// ```swift
-    /// let texture = try ResourceManager.load("@res:Assets/armor.png") as Texture2D
+    /// let texture = try await ResourceManager.load("@res:Assets/armor.png") as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try ResourceManager.load("@res:Assets/armor.png")
+    /// let texture: Texture2D = try await ResourceManager.load("@res:Assets/armor.png")
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
@@ -79,11 +79,11 @@ public final class ResourceManager {
     /// Load a resource and saving it to memory cache
     ///
     /// ```swift
-    /// let texture = try ResourceManager.load("Assets/armor.png", from: Bundle.module) as Texture2D
+    /// let texture = try await ResourceManager.load("Assets/armor.png", from: Bundle.module) as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try ResourceManager.load("Assets/armor.png", from: Bundle.module)
+    /// let texture: Texture2D = try await ResourceManager.load("Assets/armor.png", from: Bundle.module)
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Parameter bundle: Bundle where we search our resources
@@ -110,7 +110,20 @@ public final class ResourceManager {
 
         return resource
     }
-
+    
+    /// Load a resource with block current thread and saving it to memory cache.
+    /// It may be useful to load resource without concurrent context.
+    ///
+    /// ```swift
+    /// let texture = try ResourceManager.loadSync("Assets/armor.png", from: Bundle.module) as Texture2D
+    ///
+    /// // == or ==
+    ///
+    /// let texture: Texture2D = try ResourceManager.loadSync("Assets/armor.png", from: Bundle.module)
+    /// ```
+    /// - Parameter path: Path to the resource.
+    /// - Parameter bundle: Bundle where we search our resources
+    /// - Returns: Instance of resource.
     public static func loadSync<R: Resource>(
         _ path: String,
         from bundle: Bundle,
@@ -300,9 +313,11 @@ public final class ResourceManager {
         let query: [AssetQuery]
     }
 
-    private class UnsafeTask<T> {
-        let semaphore = DispatchSemaphore(value: 0)
+    private final class UnsafeTask<T> {
+
+        private let semaphore = DispatchSemaphore(value: 0)
         private var result: Result<T, Error>?
+
         init(block: @escaping () async throws -> T) {
             Task {
                 do {
@@ -321,12 +336,13 @@ public final class ResourceManager {
             }
 
             semaphore.wait()
-
             return try result!.get()
         }
     }
 }
 
+
+/// Actor for loading and saving resources
 @globalActor
 public actor ResourceActor {
     public static var shared = ResourceActor()

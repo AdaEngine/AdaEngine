@@ -24,7 +24,7 @@ public final class Input {
     internal var eventsPool: Set<InputEvent> = []
     
     // FIXME: (Vlad) Should think about capacity. We should store ~256 keycode events
-    internal private(set) var keyEvents: [KeyCode: KeyEvent] = [:]
+    internal private(set) var keyEvents: Set<KeyCode> = []
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
     internal private(set) var touches: Set<TouchEvent> = []
     
@@ -37,29 +37,7 @@ public final class Input {
     
     /// Returns `true` if you are pressing the Latin key in the current keyboard layout.
     public static func isKeyPressed(_ keyCode: KeyCode) -> Bool {
-        return self.shared.keyEvents[keyCode]?.status == .down
-    }
-    
-    /// Returns `true` if you are pressing the Latin key in the current keyboard layout.
-    public static func isKeyPressed(_ keyCode: String) -> Bool {
-        guard let code = KeyCode(rawValue: keyCode) else {
-            return false
-        }
-        
-        return self.shared.keyEvents[code]?.status == .down
-    }
-    
-    /// Returns `true` when the user stops pressing the key button, meaning it's true only on the frame that the user released the button.
-    public static func isKeyRelease(_ keyCode: KeyCode) -> Bool {
-        return self.shared.keyEvents[keyCode]?.status == .up
-    }
-    
-    /// Returns `true` when the user stops pressing the key button, meaning it's true only on the frame that the user released the button.
-    public static func isKeyRelease(_ keyCode: String) -> Bool {
-        guard let code = KeyCode(rawValue: keyCode) else {
-            return false
-        }
-        return self.shared.keyEvents[code]?.status == .up
+        return self.shared.keyEvents.contains(keyCode)
     }
     
     /// Returns true if you are pressing the mouse button specified with MouseButton.
@@ -118,11 +96,21 @@ public final class Input {
     
     // TODO: (Vlad) Think about moving this code to receiveEvent(_:) method
     @MainActor
-    func processEvents() {
+    func processBufferedEvents() {
         for event in eventsPool {
             switch event {
             case let keyEvent as KeyEvent:
-                self.keyEvents[keyEvent.keyCode] = keyEvent
+                if keyEvent.keyCode == .none && keyEvent.isRepeated {
+                    return
+                }
+
+                if keyEvent.status == .down {
+                    print("Key added", keyEvent.keyCode)
+                    self.keyEvents.insert(keyEvent.keyCode)
+                } else {
+                    print("Key removed", keyEvent.keyCode)
+                    self.keyEvents.remove(keyEvent.keyCode)
+                }
             case let mouseEvent as MouseEvent:
                 self.mouseEvents[mouseEvent.button] = mouseEvent
             case let touchEvent as TouchEvent:

@@ -18,7 +18,7 @@ final class MacApplication: Application {
         self.displayLink = DisplayLink(on: .main)!
         try super.init(argc: argc, argv: argv)
         self.windowManager = MacOSWindowManager()
-        
+
         // Create application
         let app = AdaApplication.shared
         app.setActivationPolicy(.regular)
@@ -28,26 +28,12 @@ final class MacApplication: Application {
         let delegate = MacAppDelegate()
         app.delegate = delegate
         
-        // process application:openFile: event
-        while true {
-            let event = app.nextEvent(
-                matchingMask: .any,
-                until: .distantPast,
-                inMode: .default,
-                dequeue: true
-            )
-            
-            guard let event else {
-                break
-            }
-            
-            app.sendEvent(event)
-        }
-        
+        self.processEvents()
+
         app.activate(ignoringOtherApps: true)
     }
 
-    let scheduler = Scheduler()
+    private let scheduler = Scheduler()
 
     override func run() throws {
         scheduler.run { @MainActor [weak self] in
@@ -57,6 +43,8 @@ final class MacApplication: Application {
                 if Task.isCancelled {
                     break
                 }
+
+                self?.processEvents()
 
                 try await self?.gameLoop.iterate()
 
@@ -108,6 +96,25 @@ final class MacApplication: Application {
         
         Application.shared.windowManager.activeWindow?.showWindow(makeFocused: true)
     }
+
+    // MARK: - Private
+
+    func processEvents() {
+        while true {
+            let event = NSApp.nextEvent(
+                matchingMask: .any,
+                until: .distantPast,
+                inMode: .default,
+                dequeue: true
+            )
+
+            guard let event else {
+                break
+            }
+
+            NSApp.sendEvent(event)
+        }
+    }
 }
 
 class Scheduler {
@@ -132,37 +139,6 @@ class AdaApplication: NSApplication {
         } else {
             super.sendEvent(event)
         }
-    }
-}
-
-final class MacOSUpdateScheduler: NSObject, MTKViewDelegate {
-
-    private let scheduler = Scheduler()
-
-    func run() {
-        let nswindow = NSApplication.shared.windows.first!
-        let mtkView = nswindow.contentView as! MTKView
-        mtkView.delegate = self
-        mtkView.isPaused = false
-    }
-
-    func draw(in view: MTKView) {
-        print("KEEK")
-//        scheduler.run { @MainActor in
-//            for window in Application.shared.windowManager.windows.dropFirst() {
-//                ((window.systemWindow as! NSWindow).contentView as? MTKView)?.draw()
-//            }
-//
-//            try await Application.shared.gameLoop.iterate()
-//        } onCatchError: { error in
-//            assertionFailure("\(error.localizedDescription)")
-//            exit(0)
-//        }
-
-    }
-
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
-
     }
 }
 

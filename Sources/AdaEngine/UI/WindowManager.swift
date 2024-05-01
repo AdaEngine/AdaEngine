@@ -48,7 +48,7 @@ open class WindowManager {
             await window.update(deltaTime)
         }
     }
-    
+
     /// Create platform window and register app window inside the manager.
     /// - Warning: You should call this method when override this method!
     open func createWindow(for window: Window) {
