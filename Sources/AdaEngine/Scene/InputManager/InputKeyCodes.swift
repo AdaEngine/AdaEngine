@@ -7,9 +7,10 @@
 
 // swiftlint:disable all
 
-public enum KeyCode: String, Hashable {
-    
-    case `return` = "\r"
+public enum KeyCode: String, Hashable, CaseIterable {
+    case none = ""
+
+    case enter = "\r"
     case escape = "\\x1B"
     case backspace = "\\b"
     case tab = "\\t"
@@ -29,7 +30,13 @@ public enum KeyCode: String, Hashable {
     case minus = "-"
     case period = "."
     case slash = "/"
-    
+    case apostrophe = "§"
+
+    case shift = "shift"
+    case capslock = "capslock"
+    case ctrl = "ctrl"
+    case alt = "alt"
+
     case num0 = "0"
     case num1 = "1"
     case num2 = "2"
@@ -80,9 +87,11 @@ public enum KeyCode: String, Hashable {
     case rightBracket = "]"
     case backslash = "\\"
     case caret = "^"
-    case underScore = "_"
+    case underscore = "_"
     case backquote = "`"
-    
+
+    case insert = "insert"
+
     // TODO: (Vlad) Make it more platform specific.
     case arrowDown = "125"
     case arrowUp = "126"

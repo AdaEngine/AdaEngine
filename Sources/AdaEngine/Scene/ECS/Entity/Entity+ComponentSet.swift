@@ -121,7 +121,7 @@ public extension Entity {
             defer { lock.unlock() }
             
             let identifier = componentType.identifier
-            (self.buffer[identifier] as? ScriptComponent)?.destroy()
+            (self.buffer[identifier] as? ScriptComponent)?.onDestroy()
             self.buffer[identifier] = nil
             
             self.bitset.remove(componentType)
@@ -138,8 +138,8 @@ public extension Entity {
             
             for component in self.buffer.values.elements {
                 let componentType = type(of: component)
-                (component as? ScriptComponent)?.destroy()
-                
+                (component as? ScriptComponent)?.onDestroy()
+
                 if let ent = self.entity {
                     self.world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
                 }

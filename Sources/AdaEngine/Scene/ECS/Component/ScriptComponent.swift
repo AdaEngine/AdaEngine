@@ -18,24 +18,24 @@ open class ScriptComponent: Component {
     public required init() {}
     
     /// Called once when component is on scene and ready to use.
-    open func ready() {
-        
+    open func onReady() {
+
     }
     
     /// Called each frame.
-    open func update(_ deltaTime: TimeInterval) {
-        
+    open func onUpdate(_ deltaTime: TimeInterval) {
+
     }
     
     // TODO: Fix that
     /// Called each frame to update gui.
-    open func updateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {
-        
+    open func onUpdateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {
+
     }
     
     /// Called each time with interval in seconds for physics and other updates.
-    open func physicsUpdate(_ deltaTime: TimeInterval) {
-        
+    open func onPhysicsUpdate(_ deltaTime: TimeInterval) {
+
     }
     
     /// Called each time when scene receive events.
@@ -44,7 +44,7 @@ open class ScriptComponent: Component {
     }
     
     /// Called once when component removed from entity
-    open func destroy() {
+    open func onDestroy() {
         
     }
     

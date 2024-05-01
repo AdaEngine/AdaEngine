@@ -21,7 +21,7 @@ public final class GameLoop {
     private var fixedTimestep: FixedTimestep = FixedTimestep(step: 0)
 
     public func setup() {
-        let physicsTickPerSecond = 30
+        let physicsTickPerSecond = Engine.shared.physicsTickPerSecond
         self.fixedTimestep.step = 1 / TimeInterval(physicsTickPerSecond)
     }
     
@@ -49,7 +49,7 @@ public final class GameLoop {
         EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
 
         if physicsTime.isFixedTick {
-            Input.shared.processEvents()
+            Input.shared.processBufferedEvents()
         }
         
         try RenderEngine.shared.beginFrame()

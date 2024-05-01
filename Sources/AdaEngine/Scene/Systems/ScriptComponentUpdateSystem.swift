@@ -21,16 +21,16 @@ public struct ScriptComponentUpdateSystem: System {
 
             // Initialize component
             if !component.isAwaked {
-                component.ready()
+                component.onReady()
                 component.isAwaked = true
             }
 
             component.onEvent(Input.shared.eventsPool)
             
-            component.update(context.deltaTime)
+            component.onUpdate(context.deltaTime)
 
             if fixedTimeResult.isFixedTick {
-                component.physicsUpdate(fixedTimeResult.fixedTime)
+                component.onPhysicsUpdate(fixedTimeResult.fixedTime)
             }
         }
     }

@@ -25,7 +25,6 @@ class SpaceInvaders {
     @MainActor
     func makeScene() async throws -> Scene {
         let scene = Scene()
-        scene.debugOptions = [.showPhysicsShapes]
 
         let sound = try ResourceManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
 

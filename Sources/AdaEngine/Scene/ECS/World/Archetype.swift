@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 6/21/22.
 //
 
-// TODO: add sparse set
-
 struct ComponentId: Hashable, Equatable {
     let id: Int
 }
