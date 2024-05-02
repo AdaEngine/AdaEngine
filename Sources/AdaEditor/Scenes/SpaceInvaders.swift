@@ -137,7 +137,7 @@ struct FireSystem: System {
     }
 
     func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.player).forEach { entity in
+        context.scene.performQuery(Self.player).forEach { entity in
             let transform = entity.components[Transform.self]!
 
             if Input.isMouseButtonPressed(.left) || Input.isKeyPressed(.space) {
@@ -226,7 +226,7 @@ struct EnemyComponent {
 
 struct EnemySpawnerSystem: System {
 
-    let fixedTime = FixedTimestep(stepsPerSecond: 2)
+    let fixedTime = FixedTimestep(stepsPerSecond: 30)
 
     let textureAtlas: TextureAtlas
 
@@ -243,9 +243,9 @@ struct EnemySpawnerSystem: System {
     func update(context: UpdateContext) {
         let result = fixedTime.advance(with: context.deltaTime)
 
-        if result.isFixedTick {
+//        if result.isFixedTick {
             self.spawnEnemy(context: context)
-        }
+//        }
     }
 
     func spawnEnemy(context: UpdateContext) {
@@ -256,6 +256,7 @@ struct EnemySpawnerSystem: System {
         transform.position = [Float.random(in: -1.8...1.8), 1, -1]
         entity.components += transform
         entity.components += SpriteComponent(texture: textureAtlas[5, 7])
+//        entity.components += NoFrustumCulling()
 
         var collision = Collision2DComponent(
             shapes: [
@@ -267,7 +268,7 @@ struct EnemySpawnerSystem: System {
         collision.filter.collisionBitMask = .bullet
 
         entity.components += collision
-        entity.components += EnemyComponent(health: 100, lifetime: 12)
+        entity.components += EnemyComponent(health: 100, lifetime: 30)
         context.scene.addEntity(entity)
     }
 }
@@ -278,6 +279,7 @@ struct EnemyLifetimeSystem: System {
     init(scene: Scene) { }
 
     func update(context: UpdateContext) {
+        var count = 0
         context.scene.performQuery(Self.enemy).forEach { entity in
             var enemy = entity.components[EnemyComponent.self]!
 
@@ -285,10 +287,13 @@ struct EnemyLifetimeSystem: System {
 
             if enemy.lifetime > enemy.currentLifetime {
                 entity.components += enemy
+                count += 1
             } else {
                 entity.removeFromScene()
             }
         }
+
+        print("Enimies on screen:", count)
     }
 }
 
@@ -321,10 +326,14 @@ struct EnemyExplosionSystem: System {
     let explosionAudio: AudioResource
 
     init(scene: Scene) {
-        let image = try! ResourceManager.loadSync("Assets/explosion.png", from: .editor) as Image
-        self.exposionAtlas = TextureAtlas(from: image, size: Size(width: 32, height: 32))
+        do {
+            let image = try ResourceManager.loadSync("Assets/explosion.png", from: .editor) as Image
+            self.exposionAtlas = TextureAtlas(from: image, size: Size(width: 32, height: 32))
 
-        self.explosionAudio = try! ResourceManager.loadSync("Assets/explosion-1.wav", from: .editor) as AudioResource
+            self.explosionAudio = try ResourceManager.loadSync("Assets/explosion-1.wav", from: .editor) as AudioResource
+        } catch {
+            fatalError("Can't load assets \(error)")
+        }
     }
 
     static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))

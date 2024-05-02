@@ -7,6 +7,8 @@
 
 // TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
+// swiftlint:disable file_length
+
 #if METAL
 import Metal
 import ModelIO
@@ -55,7 +57,7 @@ class MetalRenderBackend: RenderBackend {
 
         for (_, window) in self.context.windows {
             window.commandBuffer = self.commandQueue.makeCommandBuffer()
-            window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()//window.view?.currentDrawable
+            window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
         }
     }
     
@@ -220,6 +222,7 @@ class MetalRenderBackend: RenderBackend {
 // MARK: Texture
 
 extension MetalRenderBackend {
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture {
         let textureDesc = MTLTextureDescriptor()
         

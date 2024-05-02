@@ -21,7 +21,7 @@ public struct Scene2DPlugin: ScenePlugin {
     @RenderGraphActor
     public func setup(in scene: Scene) async {
         // Add Systems
-        await scene.addSystem(BatchTransparent2DItemsSystem.self)
+        scene.addSystem(BatchTransparent2DItemsSystem.self)
 
         // Add Render graph
         let graph = RenderGraph()

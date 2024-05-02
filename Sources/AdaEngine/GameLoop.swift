@@ -47,10 +47,6 @@ public final class GameLoop {
         let physicsTime = self.fixedTimestep.advance(with: deltaTime)
 
         EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
-
-        if physicsTime.isFixedTick {
-            Input.shared.processBufferedEvents()
-        }
         
         try RenderEngine.shared.beginFrame()
 
@@ -59,9 +55,7 @@ public final class GameLoop {
 
         try RenderEngine.shared.endFrame()
 
-        if physicsTime.isFixedTick {
-            Input.shared.removeEvents()
-        }
+        Input.shared.removeEvents()
 
         FPSCounter.shared.tick()
     }

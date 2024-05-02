@@ -40,7 +40,7 @@ public struct VisibilitySystem: System {
                 return
             }
             
-            let (filtredEntities, entityIds) = await self.filterVisibileEntities(context: context, for: camera)
+            let (filtredEntities, entityIds) = self.filterVisibileEntities(context: context, for: camera)
             visibleEntities.entities = filtredEntities
             visibleEntities.entityIds = entityIds
             entity.components[VisibleEntities.self] = visibleEntities
@@ -75,10 +75,10 @@ public struct VisibilitySystem: System {
     }
     
     /// Filter entities for passed camera.
-    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) async -> ([Entity], Set<Entity.ID>) {
+    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()
-        let filtredEntities = await context.scene.performQuery(Self.entities).filter { entity in
+        let filtredEntities = context.scene.performQuery(Self.entities).filter { entity in
             let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
             
             if !visibility.isVisible {
@@ -97,7 +97,7 @@ public struct VisibilitySystem: System {
             }
         }
         
-        let withNoFrustumEntities = await context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
+        let withNoFrustumEntities = context.scene.performQuery(Self.entitiesWithNoFrustum).filter { entity in
             let visibility = entity.components[Visibility.self]!
             
             if visibility.isVisible {

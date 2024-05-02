@@ -48,7 +48,7 @@ final class MacApplication: Application {
 
                 try await self?.gameLoop.iterate()
 
-                // Free main loop
+                // Free main loop for other tasks
                 await Task.yield()
             }
         } onCatchError: { error in

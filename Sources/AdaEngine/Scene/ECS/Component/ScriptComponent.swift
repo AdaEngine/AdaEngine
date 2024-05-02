@@ -5,9 +5,9 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
-// TODO: Think about it. I don't like that solution.
-
 /// Base class describe some unit of game logic.
+/// It can be used when you need some Unity-like component with specific behaviour.
+/// - Note: In this scenario we don't have order of execution.
 open class ScriptComponent: Component {
     
     internal var isAwaked: Bool = false
@@ -18,15 +18,11 @@ open class ScriptComponent: Component {
     public required init() {}
     
     /// Called once when component is on scene and ready to use.
-    open func onReady() {
+    open func onReady() { }
 
-    }
-    
     /// Called each frame.
-    open func onUpdate(_ deltaTime: TimeInterval) {
+    open func onUpdate(_ deltaTime: TimeInterval) { }
 
-    }
-    
     // TODO: Fix that
     /// Called each frame to update gui.
     open func onUpdateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {

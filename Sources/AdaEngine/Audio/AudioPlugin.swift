@@ -121,7 +121,9 @@ public extension Entity {
     
     /// Stops audio playback.
     ///
-    /// You can stop a specific ``AudioPlaybackController`` instance from playing a particular resource by calling the controller’s ``AudioPlaybackController/stop()`` method. To stop all controllers associated with a particular Entity instance with a single call, use the ``Entity/stopAllAudio()`` method instead.
+    /// You can stop a specific ``AudioPlaybackController`` instance from playing a particular resource 
+    /// by calling the controller’s ``AudioPlaybackController/stop()`` method. 
+    /// To stop all controllers associated with a particular Entity instance with a single call, use the ``Entity/stopAllAudio()`` method instead.
     func stopAllAudio() {
         self.components[AudioPlaybacksControllers.self]?.controllers.forEach { $0.stop() }
         self.components += AudioPlaybacksControllers()

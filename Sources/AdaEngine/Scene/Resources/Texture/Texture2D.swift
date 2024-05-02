@@ -57,29 +57,26 @@ open class Texture2D: Texture {
     // MARK: - Codable
     
     // TODO: Add Sampler support
-
     public convenience required init(from decoder: Decoder) throws {
-        fatalErrorMethodNotImplemented()
-//        let container = try decoder.singleValueContainer()
-//        let path = try container.decode(String.self)
-//        
-//        let image = try ResourceManager.load(path) as Image
-//        self.init(image: image)
-//        
-//        let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
-//        context?.appendResource(self)
+        let container = try decoder.singleValueContainer()
+        let path = try container.decode(String.self)
+        
+        let image = try ResourceManager.loadSync(path) as Image
+        self.init(image: image)
+        
+        let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
+        context?.appendResource(self)
     }
     
     public override func encode(to encoder: Encoder) throws {
-        fatalErrorMethodNotImplemented()
-//        var container = encoder.singleValueContainer()
-//        
-//        if self.resourcePath.isEmpty {
-//            try container.encode(self.resourcePath)
-//            return
-//        }
-//        
-//        try container.encode(self.resourcePath)
+        var container = encoder.singleValueContainer()
+        
+        if self.resourcePath.isEmpty {
+            try container.encode(self.resourcePath)
+            return
+        }
+        
+        try container.encode(self.resourcePath)
     }
     
     // MARK: - Resource

@@ -180,6 +180,7 @@ final class MacOSWindowManager: WindowManager {
         return self.currentShape
     }
     
+    // swiftlint:disable:next function_body_length
     override func setCursorImage(for shape: Input.CursorShape, texture: Texture2D?, hotspot: Vector2) {
         defer {
             updateCursor()

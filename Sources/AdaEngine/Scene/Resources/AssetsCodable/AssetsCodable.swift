@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 3/9/23.
 //
 
-import Yams
-
 // TODO: Mode for decoding/encoding files from/into binary format.
 
 public struct AssetQuery {
@@ -37,81 +35,47 @@ public enum AssetDecodingError: LocalizedError {
 
 // MARK: - Encoder -
 
+/// A type that can encode itself to an external asset representation.
 public protocol AssetEncoder {
+
     var assetMeta: AssetMeta { get }
     
     func encode<T: Encodable>(_ value: T) throws
 }
 
-public final class DefaultAssetEncoder: AssetEncoder {
-    
-    public let assetMeta: AssetMeta
-    let yamlEncoder: YAMLEncoder
-    
-    var encodedData: Data?
-    
-    init(meta: AssetMeta) {
-        self.assetMeta = meta
-        
-        self.yamlEncoder = YAMLEncoder()
-    }
-    
-    public func encode<T>(_ value: T) throws where T : Encodable {
-        if let data = value as? Data {
-            encodedData = data
-        } else {
-            let data = try yamlEncoder.encode(value).data(using: .utf8)
-            encodedData = data
-        }
-    }
-}
-
 // MARK: - Decoder -
 
+/// A type that can decode itself from external asset representation.
 public protocol AssetDecoder {
+
     var assetMeta: AssetMeta { get }
     
     func decode<T: Decodable>(_ type: T.Type) throws -> T
 }
 
+// MARK: Asset Decoding Context
+
 public extension CodingUserInfoKey {
+    /// Returns ``AssetDecodingContext`` object that contains information about resources
     static var assetsDecodingContext: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetdecoder.context")!
 }
 
 public final class AssetDecodingContext {
-    
+
     private var resources: [String: WeakBox<AnyObject>] = [:]
-    
+
     public func getResource<R: Resource>(at path: String) -> R? {
         self.resources[path]?.value as? R
     }
-    
+
     public func appendResource<R: Resource>(_ resource: R) {
         self.resources[resource.resourcePath] = WeakBox(value: resource)
     }
 }
 
-public final class DefaultAssetDecoder: AssetDecoder {
-    
-    public let assetMeta: AssetMeta
-    let yamlDecoder: YAMLDecoder
-    let data: Data
-    let context: AssetDecodingContext
-    
-    init(meta: AssetMeta, data: Data) {
-        self.assetMeta = meta
-        self.data = data
-        
-        self.context = AssetDecodingContext()
-        
-        self.yamlDecoder = YAMLDecoder(encoding: .utf16)
-    }
-    
-    public func decode<T: Decodable>(_ type: T.Type) throws -> T {
-        if T.self == Data.self {
-            return data as! T
-        }
-        
-        return try yamlDecoder.decode(T.self, from: data, userInfo: [.assetsDecodingContext: self.context])
+public extension Decoder {
+    /// Returns instance of asset decoding context if exists.
+    var assetsDecodingContext: AssetDecodingContext? {
+        return self.userInfo[.assetsDecodingContext] as? AssetDecodingContext
     }
 }

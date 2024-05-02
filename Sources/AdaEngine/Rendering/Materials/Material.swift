@@ -9,8 +9,10 @@
 
 /// A type that describes the material aspects of a mesh, like color and texture.
 ///
-/// In AdaEngine, a material defines the surface properties of a 3D and 2D model. It specifies how AdaEngine renders the entity, including its color and whether it’s shiny or reflective. 
-/// Some components like ``Mesh2DComponent`` may have one material that defines the way AdaEngine renders the entire entity, or it may have several that define the look of different parts of the model.
+/// In AdaEngine, a material defines the surface properties of a 3D and 2D model. It specifies how AdaEngine renders the entity, 
+/// including its color and whether it’s shiny or reflective. 
+/// Some components like ``Mesh2DComponent`` may have one material that defines the way AdaEngine renders the entire entity,
+/// or it may have several that define the look of different parts of the model.
 public class Material: Resource, Hashable {
     
     public var resourceName: String = ""

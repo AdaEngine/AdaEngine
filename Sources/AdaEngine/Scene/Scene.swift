@@ -141,7 +141,7 @@ public final class Scene: Resource, @unchecked Sendable {
         await plugin.setup(in: self)
         self.plugins.append(plugin)
     }
-    
+
     // MARK: - Internal methods
     
     // TODO: Looks like not a good solution here
@@ -173,6 +173,8 @@ public final class Scene: Resource, @unchecked Sendable {
             assertionFailure("Can't update scene twice")
             return
         }
+
+        self.eventManager.send(SceneEvents.Update(scene: self, deltaTime: deltaTime), source: self)
 
         self.isUpdating = true
         defer { self.isUpdating = false }
@@ -238,7 +240,6 @@ public extension Scene {
 // MARK: - World Transform
 
 // TODO: Replace it to GlobalTransform
-
 public extension Scene {
     
     /// Returns world transform component of entity.
@@ -271,7 +272,7 @@ extension Scene: EventSource {
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
     /// - Parameters completion: A closure to call with the event.
     /// - Returns: A cancellable object. You should store it in memory, to recieve events.
-    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> AnyCancellable where E : Event {
+    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> any Cancellable where E : Event {
         return self.eventManager.subscribe(to: event, on: eventSource ?? self, completion: completion)
     }
 }
@@ -284,24 +285,41 @@ public extension Scene {
             self.rawValue = rawValue
         }
         
+        /// Draw physics collision shapes for physics object.
         public static let showPhysicsShapes = DebugOptions(rawValue: 1 << 0)
+
         public static let showFPS = DebugOptions(rawValue: 1 << 1)
+
         public static let showBoundingBoxes = DebugOptions(rawValue: 1 << 2)
     }
 }
 
+/// Events the scene triggers.
 public enum SceneEvents {
     
+    /// An event triggered once when scene is ready to use and will starts update soon.
     public struct OnReady: Event {
         public let scene: Scene
     }
     
+    /// Raised after an entity is added to the scene.
     public struct DidAddEntity: Event {
         public let entity: Entity
     }
     
+    /// Raised before an entity is removed from the scene.
     public struct WillRemoveEntity: Event {
         public let entity: Entity
     }
-    
+
+    /// An event triggered once per frame interval that you can use to execute custom logic for each frame.
+    public struct Update: Event {
+
+        /// The updated scene.
+        public let scene: Scene
+
+        /// The elapsed time since the last update.
+        public let deltaTime: TimeInterval
+    }
+
 }

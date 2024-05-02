@@ -53,7 +53,7 @@ public struct ExctractMesh2DSystem: System {
         let extractedEntity = EmptyEntity()
         var extractedMeshes = ExctractedMeshes2D()
 
-        await context.scene.performQuery(Self.query).forEach { entity in
+        context.scene.performQuery(Self.query).forEach { entity in
             let (mesh, transform, visibility) = entity.components[Mesh2DComponent.self, Transform.self, Visibility.self]
 
             if !visibility.isVisible {

@@ -71,8 +71,3 @@ public extension System {
         return []
     }
 }
-
-@globalActor
-public actor ECSActor {
-    public static var shared = ECSActor()
-}
