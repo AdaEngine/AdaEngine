@@ -9,7 +9,6 @@
 // FIXME: (Vlad) I think we should store components in ComponentTable and avoid storing them in ComponentSet. (Think about after benchmark)
 // TODO: (Vlad) Should we create entity with default components?
 
-import Foundation.NSUUID // TODO: (Vlad) Replace to own realization
 import OrderedCollections
 
 /// Describe an entity and his characteristics.

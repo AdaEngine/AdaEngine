@@ -11,7 +11,6 @@ import Glibc
 import Darwin.C
 #endif
 
-// - TODO: (Vlad) Input manager doesn't work if keyboard set to cirillic mode.
 // - TODO: (Vlad) Add actions list and method like `isActionPressed`
 
 /// An object that contains inputs from keyboards, mouse, touch screens and etc.
@@ -20,28 +19,48 @@ public final class Input {
     internal static let shared = Input()
     
     internal var mousePosition: Point = .zero
-    
-    internal var eventsPool: Set<InputEvent> = []
-    
+
+    private static let lock = NSLock()
+
+    internal private(set) var eventsPool: [InputEvent] = []
+
     // FIXME: (Vlad) Should think about capacity. We should store ~256 keycode events
     internal private(set) var keyEvents: Set<KeyCode> = []
     internal private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
     internal private(set) var touches: Set<TouchEvent> = []
-    
+
+    private init() {}
+
     // MARK: - Public Methods
     
     /// Returns set of touches on screens.
     public static func getTouches() -> Set<TouchEvent> {
+        lock.lock()
+        defer { lock.unlock() }
+        
         return self.shared.touches
     }
-    
+
+    public static func getInputEvents() -> Set<InputEvent> {
+        lock.lock()
+        defer { lock.unlock() }
+
+        return Set(self.shared.eventsPool)
+    }
+
     /// Returns `true` if you are pressing the Latin key in the current keyboard layout.
     public static func isKeyPressed(_ keyCode: KeyCode) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        
         return self.shared.keyEvents.contains(keyCode)
     }
     
     /// Returns true if you are pressing the mouse button specified with MouseButton.
     public static func isMouseButtonPressed(_ button: MouseButton) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
         guard let phase = self.shared.mouseEvents[button]?.phase else {
             return false
         }
@@ -51,11 +70,17 @@ public final class Input {
     
     /// Returns `true` if you are released the mouse button.
     public static func isMouseButtonRelease(_ button: MouseButton) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
         return self.shared.mouseEvents[button]?.phase == .ended
     }
     
     /// Get mouse position on window.
     public static func getMousePosition() -> Vector2 {
+        lock.lock()
+        defer { lock.unlock() }
+
         return self.shared.mousePosition
     }
     
@@ -94,33 +119,6 @@ public final class Input {
     
     // MARK: Internal
     
-    // TODO: (Vlad) Think about moving this code to receiveEvent(_:) method
-    @MainActor
-    func processBufferedEvents() {
-        for event in eventsPool {
-            switch event {
-            case let keyEvent as KeyEvent:
-                if keyEvent.keyCode == .none && keyEvent.isRepeated {
-                    return
-                }
-
-                if keyEvent.status == .down {
-                    print("Key added", keyEvent.keyCode)
-                    self.keyEvents.insert(keyEvent.keyCode)
-                } else {
-                    print("Key removed", keyEvent.keyCode)
-                    self.keyEvents.remove(keyEvent.keyCode)
-                }
-            case let mouseEvent as MouseEvent:
-                self.mouseEvents[mouseEvent.button] = mouseEvent
-            case let touchEvent as TouchEvent:
-                self.touches.insert(touchEvent)
-            default:
-                break
-            }
-        }
-    }
-    
     @MainActor
     func removeEvents() {
         self.eventsPool.removeAll()
@@ -128,7 +126,31 @@ public final class Input {
     
     @MainActor
     func receiveEvent(_ event: InputEvent) {
-        self.eventsPool.insert(event)
+        self.eventsPool.append(event)
+        self.parseInputEvent(event)
+    }
+
+    // MARK: - Private
+
+    private func parseInputEvent(_ event: InputEvent) {
+        switch event {
+        case let keyEvent as KeyEvent:
+            if keyEvent.keyCode == .none && keyEvent.isRepeated {
+                return
+            }
+
+            if keyEvent.status == .down {
+                self.keyEvents.insert(keyEvent.keyCode)
+            } else {
+                self.keyEvents.remove(keyEvent.keyCode)
+            }
+        case let mouseEvent as MouseEvent:
+            self.mouseEvents[mouseEvent.button] = mouseEvent
+        case let touchEvent as TouchEvent:
+            self.touches.insert(touchEvent)
+        default:
+            break
+        }
     }
 }
 

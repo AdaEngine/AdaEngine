@@ -37,32 +37,7 @@ class InputMapCallComponent: ScriptComponent {
             text += "d"
         }
 
-        if text.isEmpty {
-            return
-        }
-
-        print(text)
         textComponent.text = AttributedText(text, attributes: container)
-    }
-
-    override func onEvent(_ events: Set<InputEvent>) {
-//        var text: String = "Pressed: "
-//
-//        for event in events {
-//            switch event {
-//            case let keyEvent as KeyEvent where !keyEvent.isRepeated:
-//                text += "\(keyEvent.keyCode.rawValue) "
-//            default:
-//                continue
-//            }
-//        }
-//
-//        if text == "Pressed: " {
-//            return
-//        }
-//        
-//        print(text)
-//        textComponent.text = AttributedText(text, attributes: container)
     }
 }
 
@@ -82,29 +57,29 @@ struct PlayerMovementSystem: System {
 
         let speed: Float = 2 * context.deltaTime
 
-//        if Input.isKeyPressed(.w) {
-//            cameraTransform.position.y += speed
-//        }
-//
-//        if Input.isKeyPressed(.s) {
-//            cameraTransform.position.y -= speed
-//        }
-//
-//        if Input.isKeyPressed(.a) {
-//            cameraTransform.position.x -= speed
-//        }
-//
-//        if Input.isKeyPressed(.d) {
-//            cameraTransform.position.x += speed
-//        }
-//
-//        if Input.isKeyPressed(.arrowUp) {
-//            camera.orthographicScale -= speed
-//        }
-//
-//        if Input.isKeyPressed(.arrowDown) {
-//            camera.orthographicScale += speed
-//        }
+        if Input.isKeyPressed(.w) {
+            cameraTransform.position.y += speed
+        }
+
+        if Input.isKeyPressed(.s) {
+            cameraTransform.position.y -= speed
+        }
+
+        if Input.isKeyPressed(.a) {
+            cameraTransform.position.x -= speed
+        }
+
+        if Input.isKeyPressed(.d) {
+            cameraTransform.position.x += speed
+        }
+
+        if Input.isKeyPressed(.arrowUp) {
+            camera.orthographicScale -= speed
+        }
+
+        if Input.isKeyPressed(.arrowDown) {
+            camera.orthographicScale += speed
+        }
 
         cameraEntity.components += cameraTransform
         cameraEntity.components += camera
@@ -294,23 +269,24 @@ final class GameScene2D {
         let textTextEnt = Entity()
         textTextEnt.components += Text2DComponent(text: AttributedText(""))
         textTextEnt.components += InputMapCallComponent()
+        textTextEnt.components += NoFrustumCulling()
         scene.addEntity(textTextEnt)
 
         // DEBUG
         scene.debugOptions = [.showPhysicsShapes]
         //        scene.debugOptions = [.showBoundingBoxes]
         scene.debugPhysicsColor = .red
-//        self.makePlayer(for: scene)
-//        self.makeGround(for: scene)
-//        try self.makeCanvasItem(for: scene, position: [-0.3, 0.4, -1])
-//        self.collisionHandler(for: scene)
+        self.makePlayer(for: scene)
+        self.makeGround(for: scene)
+        try self.makeCanvasItem(for: scene, position: [-0.3, 0.4, -1])
+        self.collisionHandler(for: scene)
         //        self.fpsCounter(for: scene)
 //        self.addText(to: scene)
 
 //        scene.addSystem(TubeMovementSystem.self)
 //        scene.addSystem(TubeSpawnerSystem.self)
 //        scene.addSystem(TubeDestroyerSystem.self)
-//        scene.addSystem(PlayerMovementSystem.self)
+        scene.addSystem(PlayerMovementSystem.self)
 
         //        try ResourceManager.save(scene, at: scenePath)
 
@@ -386,7 +362,6 @@ final class GameScene2D {
 
         let entity = Entity(name: "custom_material")
         entity.components += mesh
-        entity.components += NoFrustumCulling()
         entity.components += transform
         scene.addEntity(entity)
     }

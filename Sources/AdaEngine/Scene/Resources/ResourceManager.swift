@@ -50,11 +50,12 @@ public final class ResourceManager {
     /// - Returns: Instance of resource.
     @ResourceActor
     public static func load<R: Resource>(
-        _ path: String
+        _ path: String,
+        ignoreCache: Bool = false
     ) async throws -> R {
         let key = self.makeCacheKey(resource: R.self, path: path)
 
-        if let cachedResource = self.loadedResources[key], cachedResource is R {
+        if let cachedResource = self.loadedResources[key], !ignoreCache {
             return cachedResource as! R
         }
 
@@ -74,6 +75,29 @@ public final class ResourceManager {
         self.loadedResources[key] = resource
 
         return resource
+    }
+
+    /// Load a resource with block current thread and saving it to memory cache.
+    /// It may be useful to load resource without concurrent context.
+    ///
+    /// ```swift
+    /// let texture = try ResourceManager.loadSync("Assets/armor.png") as Texture2D
+    ///
+    /// // == or ==
+    ///
+    /// let texture: Texture2D = try ResourceManager.loadSync("Assets/armor.png")
+    /// ```
+    /// - Parameter path: Path to the resource.
+    /// - Returns: Instance of resource.
+    public static func loadSync<R: Resource>(
+        _ path: String,
+        ignoreCache: Bool = false
+    ) throws -> R {
+        let task = UnsafeTask<R> {
+            return try await load(path)
+        }
+
+        return try task.get()
     }
 
     /// Load a resource and saving it to memory cache
@@ -142,33 +166,30 @@ public final class ResourceManager {
         at path: String,
         completion: ((Result<Void, Error>) -> Void)?
     ) {
-        Task {
-            do {
-                _ = try await self.load(path) as R
-                completion?(.success(()))
-            } catch {
-                completion?(.failure(error))
-            }
+        loadAsync(resourceType, at: path) { result in
+            completion?(result.map({ _ in return }))
         }
     }
 
-    /// Load resource in background ans save it to the memory.
+    /// Load resource in background and save it to the memory.
     public static func loadAsync<R: Resource>(
         _ resourceType: R.Type,
         at path: String,
-        completion: ((Result<R, Error>) -> Void)?
+        completion: @escaping (Result<R, Error>) -> Void
     ) {
-        Task {
+        Task(priority: .background) {
             do {
                 let resource = try await self.load(path) as R
-                completion?(.success(resource))
+                completion(.success(resource))
             } catch {
-                completion?(.failure(error))
+                completion(.failure(error))
             }
         }
     }
 
     // MARK: - SAVING -
+
+    // FIXME: Use binary format for specific resource types
 
     /// Save resource at path.
     @ResourceActor
@@ -184,7 +205,7 @@ public final class ResourceManager {
         }
 
         let meta = AssetMeta(filePath: processedPath.url, queryParams: processedPath.query)
-        let defaultEncoder = DefaultAssetEncoder(meta: meta)
+        let defaultEncoder = TextAssetEncoder(meta: meta)
         try await resource.encodeContents(with: defaultEncoder)
 
         let intermediateDirs = processedPath.url.deletingLastPathComponent()
@@ -256,7 +277,7 @@ public final class ResourceManager {
         }
 
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
-        let decoder = DefaultAssetDecoder(meta: meta, data: data)
+        let decoder = TextAssetDecoder(meta: meta, data: data)
         let resource = try await R.init(asset: decoder)
         resource.resourceName = path.url.lastPathComponent
         resource.resourcePath = path.url.path
@@ -313,13 +334,14 @@ public final class ResourceManager {
         let query: [AssetQuery]
     }
 
+    /// Use Swift Coroutines but block current execution context and wait until task is done.
     private final class UnsafeTask<T> {
 
         private let semaphore = DispatchSemaphore(value: 0)
         private var result: Result<T, Error>?
 
-        init(block: @escaping () async throws -> T) {
-            Task {
+        init(priority: TaskPriority = .userInitiated, block: @escaping () async throws -> T) {
+            Task(priority: priority) {
                 do {
                     result = .success(try await block())
                 } catch {
@@ -341,8 +363,7 @@ public final class ResourceManager {
     }
 }
 
-
-/// Actor for loading and saving resources
+/// Actor for loading and saving resources.
 @globalActor
 public actor ResourceActor {
     public static var shared = ResourceActor()

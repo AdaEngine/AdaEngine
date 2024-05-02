@@ -28,6 +28,7 @@ excluded: # paths to ignore during linting. Takes precedence over `included`.
   - Carthage
   - Pods
   - Plugins
+  - Sources/AdaEngine/AdaEngine.docc/
 analyzer_rules: # Rules run by `swiftlint analyze` (experimental)
   - explicit_self
 

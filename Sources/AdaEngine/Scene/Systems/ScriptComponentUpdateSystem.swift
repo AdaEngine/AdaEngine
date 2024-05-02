@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/7/22.
 //
 
-/// A system that updates all scripts components.
+/// A system that updates all scripts components on scene
 public struct ScriptComponentUpdateSystem: System {
     
     let fixedTime: FixedTimestep
@@ -25,7 +25,7 @@ public struct ScriptComponentUpdateSystem: System {
                 component.isAwaked = true
             }
 
-            component.onEvent(Input.shared.eventsPool)
+            component.onEvent(Set(Input.shared.eventsPool))
             
             component.onUpdate(context.deltaTime)
 

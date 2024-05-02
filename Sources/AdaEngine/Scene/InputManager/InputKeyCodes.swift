@@ -32,10 +32,16 @@ public enum KeyCode: String, Hashable, CaseIterable {
     case slash = "/"
     case apostrophe = "§"
 
-    case shift = "shift"
-    case capslock = "capslock"
-    case ctrl = "ctrl"
-    case alt = "alt"
+    case shift
+    case capslock
+    case ctrl
+    case alt
+    case meta // "Command" button for macOS/iOS and "Windows" button for Windows/Linux
+
+    case home
+    case pageUp
+    case pageDown
+    case delete
 
     case num0 = "0"
     case num1 = "1"
@@ -82,7 +88,32 @@ public enum KeyCode: String, Hashable, CaseIterable {
     case x = "x"
     case y = "y"
     case z = "z"
-    
+
+    case f1 = "F1"
+    case f2 = "F2"
+    case f3 = "F3"
+    case f4 = "F4"
+    case f5 = "F5"
+    case f6 = "F6"
+    case f7 = "F7"
+    case f8 = "F8"
+    case f9 = "F9"
+    case f10 = "F10"
+    case f11 = "F11"
+    case f12 = "F12"
+    case f13 = "F13"
+    case f14 = "F14"
+    case f15 = "F15"
+    case f16 = "F16"
+    case f17 = "F17"
+    case f18 = "F18"
+    case f19 = "F19"
+    case f20 = "F20"
+
+    case volumeDown = "VOLUME_DOWN"
+    case volumeUp = "VOLUME_UP"
+    case volumeMute = "VOLUME_MUTE"
+
     case leftBracket = "["
     case rightBracket = "]"
     case backslash = "\\"

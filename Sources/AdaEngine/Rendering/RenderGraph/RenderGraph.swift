@@ -300,15 +300,15 @@ public final class RenderGraph {
     
 }
 
-//extension RenderGraph: CustomDebugStringConvertible {
-//    public var debugDescription: String {
-//        var string = ""
-//        for node in self.nodes.values {
-//            string = "\(node.name)\n"
-//            string = " in: \(node.inputEdges.debugDescription)\n"
-//            string = " out: \(node.outputEdges.debugDescription)\n\n"
-//        }
-//        
-//        return string
-//    }
-//}
+extension RenderGraph: CustomDebugStringConvertible {
+    public var debugDescription: String {
+        var string = ""
+        for node in self.nodes.values {
+            string = "\(node.name)\n"
+            string = " in: \(node.inputEdges.debugDescription)\n"
+            string = " out: \(node.outputEdges.debugDescription)\n\n"
+        }
+        
+        return string
+    }
+}

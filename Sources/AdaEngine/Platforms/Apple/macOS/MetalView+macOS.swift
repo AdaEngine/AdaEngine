@@ -113,7 +113,6 @@ extension MetalView {
     public override func keyUp(with event: NSEvent) {
         let keyCode = MacOSKeyboard.shared.translateKey(from: event.keyCode)
 
-        print("up", keyCode.rawValue)
         let modifers = KeyModifier(modifiers: event.modifierFlags)
         
         let keyEvent = KeyEvent(
@@ -130,8 +129,6 @@ extension MetalView {
     
     public override func keyDown(with event: NSEvent) {
         let keyCode = MacOSKeyboard.shared.translateKey(from: event.keyCode)
-
-        print("keydown", keyCode.rawValue)
         let modifers = KeyModifier(modifiers: event.modifierFlags)
         
         let keyEvent = KeyEvent(

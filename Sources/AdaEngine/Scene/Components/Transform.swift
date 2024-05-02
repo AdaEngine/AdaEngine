@@ -5,17 +5,17 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
-/// Component contains information about entity transform. This is main component for entities which want be rendering.
+/// A component that defines the scale, rotation, and translation of an entity.
 @Component
-public struct Transform {
+public struct Transform: Codable, Hashable {
     
-    /// Contains rotation of model.
+    /// The rotation of the entity specified as a unit quaternion.
     public var rotation: Quat
     
-    /// Contains scale of model.
+    /// The scaling factor applied to the entity.
     public var scale: Vector3
     
-    /// Contains position of model.
+    /// The position of the entity along the x, y, and z axes.
     public var position: Vector3
     
     /// Create a new transform component from rotation, scale and position.
@@ -39,7 +39,7 @@ public struct Transform {
 
 public extension Transform {
     
-    /// Return transformation matrix for transform component.
+    /// The transform represented as a Transform3D aka 4x4 matrix.
     /// - Note: Getter of this property is compute. 
     var matrix: Transform3D {
         get {

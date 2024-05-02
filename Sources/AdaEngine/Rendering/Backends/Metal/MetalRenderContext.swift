@@ -22,7 +22,6 @@ extension MetalRenderBackend {
             
             let needsShowDebugHUD = ProcessInfo.processInfo.environment["METAL_HUD_DEBUG"] != nil
             UserDefaults.standard.set(needsShowDebugHUD, forKey: "MetalForceHudEnabled")
-            UserDefaults.standard.set(NSNumber(booleanLiteral: false), forKey: "MetalForceHudEnabled")
         }
         
         // MARK: - Methods
@@ -45,7 +44,7 @@ extension MetalRenderBackend {
             view.colorPixelFormat = .bgra8Unorm
             view.device = self.physicalDevice
             view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
-//            view.framebufferOnly = false
+            view.framebufferOnly = false
             view.sampleCount = 1
             
             self.windows[id] = window

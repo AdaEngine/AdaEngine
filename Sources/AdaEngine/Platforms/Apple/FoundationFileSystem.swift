@@ -13,6 +13,7 @@ final class FoundationFileSystem: FileSystem {
     
     let fileManager: Foundation.FileManager = .default
     
+    // swiftlint:disable force_try
     override var applicationFolderURL: URL {
         #if MACOS
         return Bundle.engineBundle.bundleURL.deletingLastPathComponent()
@@ -22,7 +23,8 @@ final class FoundationFileSystem: FileSystem {
         return URL(fileURLWithPath: fileManager.currentDirectoryPath)
         #endif
     }
-    
+    // swiftlint:enable force_try
+
     override func url(for searchPath: SearchDirectoryPath, create: Bool = false) throws -> URL {
         
         let searchPathDir: FileManager.SearchPathDirectory

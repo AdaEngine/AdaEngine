@@ -7,7 +7,7 @@
 
 /// Contains information about sprite, like texture and tint coloring.
 @Component
-public struct SpriteComponent {
+public struct SpriteComponent: Codable {
     public var texture: Texture2D?
     public var tintColor: Color
     

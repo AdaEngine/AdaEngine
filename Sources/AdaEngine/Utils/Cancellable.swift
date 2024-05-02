@@ -14,16 +14,24 @@ public protocol Cancellable {
     func cancel()
 }
 
-public extension AnyCancellable {
+public extension Cancellable {
     
     /// Stores this type-erasing cancellable instance in the specified set.
-    func store(in buffer: inout Set<AnyCancellable>) {
-        buffer.insert(self)
+    func store(in set: inout Set<AnyCancellable>) {
+        if let anyCancellable = self as? AnyCancellable {
+            set.insert(anyCancellable)
+        } else {
+            set.insert(AnyCancellable(self))
+        }
     }
     
     /// Stores this type-erasing cancellable instance in the specified collection.
     func store<C: RangeReplaceableCollection>(in collection: inout C) where C.Element == AnyCancellable {
-        collection.append(self)
+        if let anyCancellable = self as? AnyCancellable {
+            collection.append(anyCancellable)
+        } else {
+            collection.append(AnyCancellable(self))
+        }
     }
 }
 

@@ -28,10 +28,9 @@ public class KeyEvent: InputEvent {
     }
     
     public override func hash(into hasher: inout Hasher) {
-        super.hash(into: &hasher)
         hasher.combine(keyCode)
         hasher.combine(modifiers)
-        hasher.combine(isRepeated)
+        hasher.combine(window)
     }
     
     public static func == (lhs: KeyEvent, rhs: KeyEvent) -> Bool {

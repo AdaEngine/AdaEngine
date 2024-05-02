@@ -20,7 +20,8 @@ public struct DrawPassId: Equatable, Hashable {
 
 /// Draw pass is a render function that will render for specific item.
 ///
-/// For example, you can create render pass for rendering ``Transparent2DRenderItem`` and configure rendering whatever you want. Pass additional render data as components to ``Entity`` and pass that entity to ``Transparent2DRenderItem/entity`` property.
+/// For example, you can create render pass for rendering ``Transparent2DRenderItem`` and configure rendering whatever you want. 
+/// Pass additional render data as components to ``Entity`` and pass that entity to ``Transparent2DRenderItem/entity`` property.
 public protocol DrawPass<Item> {
     
     associatedtype Item: RenderItem

@@ -53,7 +53,7 @@ final public class GUIRenderContext {
 //        )
         
         self.screenRect = screenRect
-        self.view = .identity//view
+        self.view = .identity
         
 //        self.currentDrawContext = self.engine.beginContext(for: self.window, viewTransform: view)
     }
