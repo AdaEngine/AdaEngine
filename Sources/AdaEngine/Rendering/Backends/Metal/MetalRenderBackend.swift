@@ -51,7 +51,6 @@ class MetalRenderBackend: RenderBackend {
         self.context.destroyWindow(by: windowId)
     }
     
-    // FIXME: (Vlad) I'm not sure how it should works with multiple window instances.
     func beginFrame() throws {
         self.inFlightSemaphore.wait()
 
