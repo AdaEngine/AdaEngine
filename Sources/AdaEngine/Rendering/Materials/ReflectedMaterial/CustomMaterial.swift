@@ -88,7 +88,7 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
         do {
             let vertexShaderSource = try T.vertexShader()
             let fragmentShaderSource = try T.fragmentShader()
-            
+
             assert(vertexShaderSource.getSource(for: .vertex) != nil, "Failed to load vertex data")
             assert(fragmentShaderSource.getSource(for: .fragment) != nil, "Failed to load fragment data")
             

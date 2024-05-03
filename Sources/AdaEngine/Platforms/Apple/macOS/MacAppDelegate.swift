@@ -12,4 +12,5 @@ import MetalKit
 final class MacAppDelegate: NSObject, NSApplicationDelegate {
     
 }
+
 #endif

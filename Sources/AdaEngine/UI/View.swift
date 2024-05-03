@@ -24,8 +24,9 @@ import Math
 /// Views are the fundamental building blocks of your app’s user interface, and the ``View`` class defines the behaviors that are common to all views.
 ///
 /// - Warning: Under development and currently doesn't work as expected.
+@MainActor
 open class View {
-    
+
     // MARK: - Public Fields -
     
     /// Contains size and position coordinates relative to parent local coordinates
@@ -230,9 +231,9 @@ open class View {
     }
     
     /// Called each frame
-    open func update(_ deltaTime: TimeInterval) {
-        self.subviews.forEach {
-            $0.update(deltaTime)
+    open func update(_ deltaTime: TimeInterval) async {
+        for subview in self.subviews {
+            await subview.update(deltaTime)
         }
     }
 }

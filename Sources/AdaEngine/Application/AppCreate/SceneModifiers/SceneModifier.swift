@@ -36,7 +36,7 @@ extension ModifiedScene: InternalAppScene {
         (self.scene as? InternalAppScene)?._buildConfiguration(&configuration)
     }
     
-    func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window {
-        try (self.scene as! InternalAppScene)._makeWindow(with: configuration)
+    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window {
+        try await (self.scene as! InternalAppScene)._makeWindow(with: configuration)
     }
 }

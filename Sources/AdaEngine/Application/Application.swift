@@ -9,14 +9,14 @@
 /// The application cannot be created manualy, instead use an ``App`` protocol.
 /// To get access to the application instance, use static property `shared`
 open class Application {
-    
+
     // MARK: - Public
     
     /// Contains application instance if application created from ``App``.
     public internal(set) static var shared: Application!
-    
-    private(set) var gameLoop: GameLoop = GameLoop.current
-    
+
+    @MainActor let gameLoop: GameLoop = GameLoop.current
+
     /// Current runtime platform.
     public var platform: RuntimePlatform {
         #if os(macOS)
@@ -36,20 +36,20 @@ open class Application {
         #endif
     }
     
-    public var windowManager: WindowManager = WindowManager()
+    @MainActor public var windowManager: WindowManager = WindowManager()
     
     /// Contains world which can render on screen.
-    public let renderWorld = RenderWorld()
+    @RenderGraphActor public let renderWorld = RenderWorld()
     
     // MARK: - Internal
     
-    public init(
+    public nonisolated init(
         argc: Int32,
         argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
     ) throws {
         Self.shared = self
     }
-    
+
     /// Call this method to start main loop.
     func run() throws {
         assertionFailure("Not implemented")
@@ -58,11 +58,13 @@ open class Application {
     // MARK: - Public methods
     
     /// Call this method to terminate app execution with 0 status code.
+    @MainActor 
     open func terminate() {
         exit(EXIT_SUCCESS)
     }
     
     /// Method to open url.
+    @MainActor
     @discardableResult
     open func openURL(_ url: URL) -> Bool {
         assertionFailure("Not implemented")
@@ -70,6 +72,7 @@ open class Application {
     }
     
     /// Call this method to show specific alert.
+    @MainActor
     open func showAlert(_ alert: Alert) {
         assertionFailure("Not implemented")
     }

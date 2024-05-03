@@ -9,6 +9,7 @@
 import UIKit
 
 // swiftlint:disable type_name
+@MainActor
 final class iOSApplication: Application {
     
     let argc: Int32

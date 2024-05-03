@@ -17,7 +17,7 @@ import Collections
 /// component type. Entity components can be created, updated, removed, and queried using a given World.
 /// - Warning: Still work in progress.
 public final class World {
-    
+
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
     
     let lock = NSLock()
@@ -83,6 +83,9 @@ public final class World {
     // FIXME: Can crash if we change components set during runtime
     /// Append entity to world. Entity will be added when `tick()` called.
     func appendEntity(_ entity: Entity) {
+        lock.lock()
+        defer { lock.unlock() }
+
         for (identifier, component) in entity.components.buffer {
             if let script = component as? ScriptComponent {
                 self.addScript(script, entity: entity.id, identifier: identifier)

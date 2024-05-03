@@ -7,17 +7,18 @@
 
 #if MACOS
 import AppKit
+import MetalKit
 
 final class MacApplication: Application {
     
     // Timer that synced with display refresh rate.
     private let displayLink: DisplayLink
-    
+
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         self.displayLink = DisplayLink(on: .main)!
         try super.init(argc: argc, argv: argv)
         self.windowManager = MacOSWindowManager()
-        
+
         // Create application
         let app = AdaApplication.shared
         app.setActivationPolicy(.regular)
@@ -27,35 +28,42 @@ final class MacApplication: Application {
         let delegate = MacAppDelegate()
         app.delegate = delegate
         
-        // process application:openFile: event
-        while true {
-            let event = app.nextEvent(
-                matchingMask: .any,
-                until: .distantPast,
-                inMode: .default,
-                dequeue: true
-            )
-            
-            guard let event else {
-                break
-            }
-            
-            app.sendEvent(event)
-        }
-        
+        self.processEvents()
+
         app.activate(ignoringOtherApps: true)
     }
-    
-    override func run() throws {
-        self.displayLink.setHandler { [weak self] in
-            self?.update()
-        }
-    
-        self.displayLink.start()
 
-        AdaApplication.shared.run()
+    private let scheduler = Scheduler()
+
+    override func run() throws {
+        scheduler.run { @MainActor [weak self] in
+            self?.gameLoop.setup()
+
+            while true {
+                if Task.isCancelled {
+                    break
+                }
+
+                self?.processEvents()
+
+                try await self?.gameLoop.iterate()
+
+                // Free main loop for other tasks
+                await Task.yield()
+            }
+        } onCatchError: { error in
+            Task { @MainActor in
+                let alert = Alert(title: "AdaEngine finished with Error", message: error.localizedDescription, buttons: [.cancel("OK", action: {
+                    exit(EXIT_FAILURE)
+                })])
+
+                Application.shared.showAlert(alert)
+            }
+        }
+
+        NSApplication.shared.run()
     }
-    
+
     override func terminate() {
         NSApplication.shared.terminate(nil)
     }
@@ -88,15 +96,38 @@ final class MacApplication: Application {
         
         Application.shared.windowManager.activeWindow?.showWindow(makeFocused: true)
     }
-    
+
     // MARK: - Private
-    
-    private func update() {
-        do {
-            try self.gameLoop.iterate()
-        } catch {
-            print(error.localizedDescription)
-            exit(-1)
+
+    func processEvents() {
+        while true {
+            let event = NSApp.nextEvent(
+                matchingMask: .any,
+                until: .distantPast,
+                inMode: .default,
+                dequeue: true
+            )
+
+            guard let event else {
+                break
+            }
+
+            NSApp.sendEvent(event)
+        }
+    }
+}
+
+class Scheduler {
+
+    private var task: Task<Void, Error>?
+
+    func run(block: @escaping @Sendable () async throws -> Void, onCatchError: @escaping (Error) -> Void) {
+        self.task = Task.detached(priority: .userInitiated) {
+            do {
+                try await block()
+            } catch {
+                onCatchError(error)
+            }
         }
     }
 }

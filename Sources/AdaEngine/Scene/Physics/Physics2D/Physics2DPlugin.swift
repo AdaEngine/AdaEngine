@@ -10,7 +10,7 @@ public struct Physics2DPlugin: ScenePlugin {
     
     public init() {}
     
-    public func setup(in scene: Scene) {
+    public func setup(in scene: Scene) async {
         /// We have physics world as an entity, because it's more flexible solution then store
         /// physics world in the scene object.
         let physicsWorldEntity = Entity(name: "PhysicsWorld2D")
@@ -22,7 +22,7 @@ public struct Physics2DPlugin: ScenePlugin {
         scene.addSystem(DebugPhysicsExctract2DSystem.self)
         scene.addSystem(Physics2DSystem.self)
         
-        Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)
+        await Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)
     }
 }
 

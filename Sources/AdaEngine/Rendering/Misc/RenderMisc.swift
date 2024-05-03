@@ -59,7 +59,7 @@ public enum BlendFactor: UInt {
     ///
     /// F(rgb) = 1 - Dest.rgb
     ///
-    ///F(a) = 1 - Dest.a
+    /// F(a) = 1 - Dest.a
     case oneMinusDestinationColor
     
     /// Blend factor of destination alpha.
@@ -101,7 +101,8 @@ public enum BlendFactor: UInt {
 }
 
 /// For every pixel, ``BlendOperation`` determines how to combine and weight the source fragment values with the destination values.
-/// Some blend operations multiply the source values by a source blend factor (SBF), multiply the destination values by a destination blend factor (DBF), and then combine the results using addition or subtraction.
+/// Some blend operations multiply the source values by a source blend factor (SBF), 
+/// multiply the destination values by a destination blend factor (DBF), and then combine the results using addition or subtraction.
 /// Other blend operations use either a minimum or maximum function to determine the result.
 public enum BlendOperation: UInt {
     
@@ -156,7 +157,8 @@ public enum StencilOperation: UInt {
     /// - WARNING: Currently not supported.
     case replace
     
-    /// If the current stencil value is not the maximum representable value, increase the stencil value by one. Otherwise, if the current stencil value is the maximum representable value, do not change the stencil value.
+    /// If the current stencil value is not the maximum representable value, increase the stencil value by one. 
+    /// Otherwise, if the current stencil value is the maximum representable value, do not change the stencil value.
     case incrementAndClamp
     
     /// If the current stencil value is not zero, decrease the stencil value by one. Otherwise, if the current stencil value is zero, do not change the stencil value.
@@ -165,10 +167,12 @@ public enum StencilOperation: UInt {
     /// Perform a logical bitwise invert operation on the current stencil value.
     case invert
     
-    /// If the current stencil value is not the maximum representable value, increase the stencil value by one. Otherwise, if the current stencil value is the maximum representable value, set the stencil value to zero.
+    /// If the current stencil value is not the maximum representable value, increase the stencil value by one. 
+    /// Otherwise, if the current stencil value is the maximum representable value, set the stencil value to zero.
     case incrementAndWrap
     
-    /// If the current stencil value is not zero, decrease the stencil value by one. Otherwise, if the current stencil value is zero, set the stencil value to the maximum representable value.
+    /// If the current stencil value is not zero, decrease the stencil value by one. 
+    /// Otherwise, if the current stencil value is zero, set the stencil value to the maximum representable value.
     case decrementAndWrap
 }
 

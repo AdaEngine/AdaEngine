@@ -43,11 +43,11 @@ open class Texture: Resource, Codable {
     
     // MARK: - Resources
     
-    public required init(asset decoder: AssetDecoder) throws {
+    public required init(asset decoder: AssetDecoder) async throws {
         fatalError()
     }
     
-    public func encodeContents(with encoder: AssetEncoder) throws {
+    public func encodeContents(with encoder: AssetEncoder) async throws {
         fatalError()
     }
     

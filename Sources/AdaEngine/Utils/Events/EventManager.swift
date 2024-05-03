@@ -6,7 +6,7 @@
 //
 
 /// A type that can be sent as an event.
-public protocol Event { }
+public protocol Event: Sendable { }
 
 /// An object on which events can be published and subscribed.
 public final class EventManager {
@@ -19,7 +19,7 @@ public final class EventManager {
         to: T.Type,
         on source: EventSource? = nil,
         completion: @escaping (T) -> Void
-    ) -> AnyCancellable {
+    ) -> any Cancellable {
         let subscriber = EventSubscriber(source: source, completion: completion)
         
         let key = ObjectIdentifier(T.self)
@@ -66,7 +66,7 @@ private class EventSubscriber: Cancellable {
 
 /// A type on which events can be published and subscribed.
 public protocol EventSource: AnyObject {
-    func subscribe<E: Event>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> AnyCancellable
+    func subscribe<E: Event>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> any Cancellable
 }
 
 public extension EventSource {
@@ -74,7 +74,7 @@ public extension EventSource {
         to event: E.Type,
         on source: EventSource? = nil,
         completion: @escaping (E) -> Void
-    ) -> AnyCancellable {
+    ) -> any Cancellable {
         return self.subscribe(to: event, on: source, completion: completion)
     }
 }

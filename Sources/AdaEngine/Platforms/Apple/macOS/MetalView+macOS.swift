@@ -14,7 +14,7 @@ extension MetalView {
     public override var acceptsFirstResponder: Bool {
         return true
     }
-    
+
     public override func updateTrackingAreas() {
         if let area = self.currentTrackingArea {
             self.removeTrackingArea(area)
@@ -111,10 +111,8 @@ extension MetalView {
     }
     
     public override func keyUp(with event: NSEvent) {
-        guard let keyCode = KeyCode(rawValue: event.charactersIgnoringModifiers ?? "") ?? KeyCode(keyCode: event.keyCode) else {
-            return
-        }
-        
+        let keyCode = MacOSKeyboard.shared.translateKey(from: event.keyCode)
+
         let modifers = KeyModifier(modifiers: event.modifierFlags)
         
         let keyEvent = KeyEvent(
@@ -122,17 +120,15 @@ extension MetalView {
             keyCode: keyCode,
             modifiers: modifers,
             status: .up,
-            time: TimeInterval(event.timestamp)
+            time: TimeInterval(event.timestamp),
+            isRepeated: event.isARepeat
         )
         
         Input.shared.receiveEvent(keyEvent)
     }
     
     public override func keyDown(with event: NSEvent) {
-        guard let keyCode = KeyCode(rawValue: event.charactersIgnoringModifiers ?? "") ?? KeyCode(keyCode: event.keyCode) else {
-            return
-        }
-        
+        let keyCode = MacOSKeyboard.shared.translateKey(from: event.keyCode)
         let modifers = KeyModifier(modifiers: event.modifierFlags)
         
         let keyEvent = KeyEvent(
@@ -140,7 +136,8 @@ extension MetalView {
             keyCode: keyCode,
             modifiers: modifers,
             status: .down,
-            time: TimeInterval(event.timestamp)
+            time: TimeInterval(event.timestamp),
+            isRepeated: event.isARepeat
         )
         
         Input.shared.receiveEvent(keyEvent)
