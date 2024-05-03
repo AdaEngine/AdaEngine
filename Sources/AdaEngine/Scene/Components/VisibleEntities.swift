@@ -30,10 +30,10 @@ public struct VisibilitySystem: System {
     
     public init(scene: Scene) { }
     
-    public func update(context: UpdateContext) async {
-        await self.updateBoundings(context: context)
+    public func update(context: UpdateContext) {
+        self.updateBoundings(context: context)
         
-        await context.scene.performQuery(Self.cameras).concurrent.forEach { entity in
+        context.scene.performQuery(Self.cameras).forEach { entity in
             var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
             
             if !camera.isActive {
@@ -46,11 +46,11 @@ public struct VisibilitySystem: System {
             entity.components[VisibleEntities.self] = visibleEntities
         }
     }
-    
+
     // FIXME: Should we calculate it here?
     /// Update or create bounding boxes for SpriteComponent and Mesh2D.
-    private func updateBoundings(context: UpdateContext) async {
-        await context.scene.performQuery(Self.entitiesWithTransform).concurrent.forEach { entity in
+    private func updateBoundings(context: UpdateContext) {
+        context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
 
             var bounds: BoundingComponent.Bounds?
             
