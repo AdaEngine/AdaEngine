@@ -27,9 +27,9 @@ final class MacApplication: Application {
         
         let delegate = MacAppDelegate()
         app.delegate = delegate
-        
-        self.processEvents()
 
+        self.processEvents()
+        
         app.activate(ignoringOtherApps: true)
     }
 

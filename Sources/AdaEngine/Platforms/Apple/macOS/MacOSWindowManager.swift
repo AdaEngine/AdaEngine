@@ -31,7 +31,11 @@ final class MacOSWindowManager: WindowManager {
         /// Register view in engine
         let metalView = MetalView(windowId: window.id, frame: contentRect)
         
-        try? RenderEngine.shared.createWindow(window.id, for: metalView, size: size)
+        do {
+            try RenderEngine.shared.createWindow(window.id, for: metalView, size: size)
+        } catch {
+            fatalError("Failed to create render window \(error)")
+        }
         
         let systemWindow = NSWindow(
             contentRect: contentRect,
@@ -213,7 +217,7 @@ final class MacOSWindowManager: WindowManager {
             hasAlpha: true,
             isPlanar: false,
             colorSpaceName: .deviceRGB,
-            bitmapFormat: NSBitmapFormat(),
+            bitmapFormat: NSBitmapImageRep.Format(),
             bytesPerRow: texture.width * 4,
             bitsPerPixel: 32
         ) else {
