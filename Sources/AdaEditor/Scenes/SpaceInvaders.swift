@@ -226,7 +226,7 @@ struct EnemyComponent {
 
 struct EnemySpawnerSystem: System {
 
-    let fixedTime = FixedTimestep(stepsPerSecond: 30)
+    let fixedTime = FixedTimestep(stepsPerSecond: 2)
 
     let textureAtlas: TextureAtlas
 
@@ -243,9 +243,9 @@ struct EnemySpawnerSystem: System {
     func update(context: UpdateContext) {
         let result = fixedTime.advance(with: context.deltaTime)
 
-//        if result.isFixedTick {
+        if result.isFixedTick {
             self.spawnEnemy(context: context)
-//        }
+        }
     }
 
     func spawnEnemy(context: UpdateContext) {
@@ -256,7 +256,6 @@ struct EnemySpawnerSystem: System {
         transform.position = [Float.random(in: -1.8...1.8), 1, -1]
         entity.components += transform
         entity.components += SpriteComponent(texture: textureAtlas[5, 7])
-//        entity.components += NoFrustumCulling()
 
         var collision = Collision2DComponent(
             shapes: [
@@ -268,7 +267,7 @@ struct EnemySpawnerSystem: System {
         collision.filter.collisionBitMask = .bullet
 
         entity.components += collision
-        entity.components += EnemyComponent(health: 100, lifetime: 30)
+        entity.components += EnemyComponent(health: 100, lifetime: 12)
         context.scene.addEntity(entity)
     }
 }
@@ -279,7 +278,6 @@ struct EnemyLifetimeSystem: System {
     init(scene: Scene) { }
 
     func update(context: UpdateContext) {
-        var count = 0
         context.scene.performQuery(Self.enemy).forEach { entity in
             var enemy = entity.components[EnemyComponent.self]!
 
@@ -287,13 +285,10 @@ struct EnemyLifetimeSystem: System {
 
             if enemy.lifetime > enemy.currentLifetime {
                 entity.components += enemy
-                count += 1
             } else {
                 entity.removeFromScene()
             }
         }
-
-        print("Enimies on screen:", count)
     }
 }
 
@@ -304,8 +299,8 @@ struct EnemyMovementSystem: System {
 
     init(scene: Scene) { }
 
-    func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.enemy).concurrent.forEach { entity in
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.enemy).forEach { entity in
             var transform = entity.components[Transform.self]!
             transform.position.y -= Self.speed * context.deltaTime
             entity.components += transform

@@ -232,8 +232,8 @@ open class View {
     
     /// Called each frame
     open func update(_ deltaTime: TimeInterval) async {
-        await self.subviews.concurrent.forEach {
-            await $0.update(deltaTime)
+        for subview in self.subviews {
+            await subview.update(deltaTime)
         }
     }
 }
