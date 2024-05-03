@@ -37,7 +37,7 @@ public final class PhysicsWorld2D: Codable {
     let contactListner = _Physics2DContactListener()
     
     /// - Parameter gravity: default gravity is 9.8.
-    nonisolated init(gravity: Vector2 = [0, -9.81]) {
+    init(gravity: Vector2 = [0, -9.81]) {
         self.world = b2_world_create(gravity.b2Vec)
         b2_world_set_contact_listener(self.world, self.contactListner.contactListener)
     }
