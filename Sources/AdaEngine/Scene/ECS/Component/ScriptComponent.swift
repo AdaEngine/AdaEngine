@@ -5,9 +5,9 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
-// TODO: Think about it. I don't like that solution.
-
 /// Base class describe some unit of game logic.
+/// It can be used when you need some Unity-like component with specific behaviour.
+/// - Note: In this scenario we don't have order of execution.
 open class ScriptComponent: Component {
     
     internal var isAwaked: Bool = false
@@ -18,24 +18,20 @@ open class ScriptComponent: Component {
     public required init() {}
     
     /// Called once when component is on scene and ready to use.
-    open func ready() {
-        
-    }
-    
+    open func onReady() { }
+
     /// Called each frame.
-    open func update(_ deltaTime: TimeInterval) {
-        
-    }
-    
+    open func onUpdate(_ deltaTime: TimeInterval) { }
+
     // TODO: Fix that
     /// Called each frame to update gui.
-    open func updateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {
-        
+    open func onUpdateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {
+
     }
     
     /// Called each time with interval in seconds for physics and other updates.
-    open func physicsUpdate(_ deltaTime: TimeInterval) {
-        
+    open func onPhysicsUpdate(_ deltaTime: TimeInterval) {
+
     }
     
     /// Called each time when scene receive events.
@@ -44,7 +40,7 @@ open class ScriptComponent: Component {
     }
     
     /// Called once when component removed from entity
-    open func destroy() {
+    open func onDestroy() {
         
     }
     

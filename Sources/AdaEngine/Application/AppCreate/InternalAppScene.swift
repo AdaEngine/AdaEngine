@@ -20,11 +20,11 @@ struct _AppSceneConfiguration {
 /// Helper interface for creating window from scene.
 /// Each scene should conforms this protocol to avoid fatal error on start.
 protocol InternalAppScene {
-    
+
     /// Create a window with given configuration.
     /// - Throws: Any error.
     /// - Returns: The configured window.
-    func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window
+    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window
     
     /// Collect all modification of default scene configuration.
     /// - NOTE: We use this method for ``SceneModifier`` interface.

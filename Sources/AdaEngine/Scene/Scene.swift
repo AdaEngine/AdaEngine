@@ -14,8 +14,8 @@ enum SceneSerializationError: Error {
 }
 
 /// A container that holds the collection of entities for render.
-public final class Scene: Resource {
-    
+public final class Scene: Resource, @unchecked Sendable {
+
     /// Current supported version for mapping scene from file.
     static var currentVersion: Version = "1.0.0"
     
@@ -36,7 +36,7 @@ public final class Scene: Resource {
     
     internal let systemGraph = SystemsGraph()
     internal let systemGraphExecutor = SystemsGraphExecutor()
-    
+
     /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     
@@ -45,12 +45,15 @@ public final class Scene: Resource {
     
     /// Instance of scene manager which holds this scene.
     public weak var sceneManager: SceneManager?
-    
+
+    /// Flag indicate that scene is updating right now.
+    private(set) var isUpdating = false
+
     // MARK: - Initialization -
     
     /// Create new scene instance.
     /// - Parameter name: Name of this scene. By default name is `Scene`.
-    public init(name: String? = nil) {
+    public nonisolated init(name: String? = nil) {
         self.id = UUID()
         self.name = name ?? "Scene"
         self.world = World()
@@ -60,27 +63,27 @@ public final class Scene: Resource {
     
     public static let resourceType: ResourceType = .scene
     
-    public func encodeContents(with encoder: AssetEncoder) throws {
+    public func encodeContents(with encoder: AssetEncoder) async throws {
         guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
-        let sceneData = SceneRepresentation(
-            version: Self.currentVersion,
-            scene: self.name,
-            plugins: self.plugins.map {
-                ScenePluginRepresentation(name: type(of: $0).swiftName)
-            },
-            systems: self.systemGraph.systems.map {
-                SystemRepresentation(name: type(of: $0).swiftName)
-            },
-            entities: self.world.getEntities()
-        )
-        
-        try encoder.encode(sceneData)
+//        let sceneData = SceneRepresentation(
+//            version: Self.currentVersion,
+//            scene: self.name,
+//            plugins: self.plugins.map {
+//                ScenePluginRepresentation(name: type(of: $0).swiftName)
+//            },
+//            systems: self.systemGraph.systems.map {
+//                SystemRepresentation(name: type(of: $0).swiftName)
+//            },
+//            entities: self.world.getEntities()
+//        )
+//        
+//        try encoder.encode(sceneData)
     }
     
-    public convenience init(asset decoder: AssetDecoder) throws {
+    nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
         guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
@@ -92,24 +95,26 @@ public final class Scene: Resource {
         }
         
         self.init(name: sceneData.scene)
-        
-        for system in sceneData.systems {
-            guard let systemType = SystemStorage.getRegistredSystem(for: system.name) else {
-                throw SceneSerializationError.notRegistedObject(system)
+
+        Task { @MainActor in
+            for system in sceneData.systems {
+                guard let systemType = SystemStorage.getRegistredSystem(for: system.name) else {
+                    throw SceneSerializationError.notRegistedObject(system)
+                }
+                self.addSystem(systemType)
             }
-            self.addSystem(systemType)
-        }
-        
-        for plugin in sceneData.plugins {
-            guard let pluginType = ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
-                throw SceneSerializationError.notRegistedObject(plugin)
+
+            for plugin in sceneData.plugins {
+                guard let pluginType = ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
+                    throw SceneSerializationError.notRegistedObject(plugin)
+                }
+
+                await self.addPlugin(pluginType.init())
             }
-            
-            self.addPlugin(pluginType.init())
-        }
-        
-        for entity in sceneData.entities {
-            self.addEntity(entity)
+
+            for entity in sceneData.entities {
+                self.addEntity(entity)
+            }
         }
     }
     
@@ -118,27 +123,43 @@ public final class Scene: Resource {
     /// Add new system to the scene.
     /// - Warning: Systems should be added before presenting.
     public func addSystem<T: System>(_ systemType: T.Type) {
+        if self.isReady {
+            assertionFailure("Can't insert system if scene was ready")
+        }
+
         let system = systemType.init(scene: self)
         self.systemGraph.addSystem(system)
     }
     
     /// Add new scene plugin to the scene.
     /// - Warning: Plugin should be added before presenting.
-    public func addPlugin<T: ScenePlugin>(_ plugin: T) {
-        plugin.setup(in: self)
+    public func addPlugin<T: ScenePlugin>(_ plugin: T) async {
+        if self.isReady {
+            assertionFailure("Can't insert plugin if scene was ready")
+        }
+
+        await plugin.setup(in: self)
         self.plugins.append(plugin)
     }
-    
+
     // MARK: - Internal methods
     
     // TODO: Looks like not a good solution here
     /// Check the scene will not run earlier.
     private(set) var isReady = false
-    
-    func ready() {
+
+    func readyIfNeeded() async {
+        if self.isReady {
+            return
+        }
+
+        await self.ready()
+    }
+
+    func ready() async {
         // TODO: In the future we need minimal scene plugin for headless mode.
-        self.addPlugin(DefaultScenePlugin())
-        
+        await self.addPlugin(DefaultScenePlugin())
+
         self.isReady = true
         
         self.systemGraph.linkSystems()
@@ -147,16 +168,25 @@ public final class Scene: Resource {
     }
     
     /// Update scene world and systems by delta time.
-    func update(_ deltaTime: TimeInterval) {
+    func update(_ deltaTime: TimeInterval) async {
+        if self.isUpdating {
+            assertionFailure("Can't update scene twice")
+            return
+        }
+
+        self.eventManager.send(SceneEvents.Update(scene: self, deltaTime: deltaTime), source: self)
+
+        self.isUpdating = true
+        defer { self.isUpdating = false }
+
         self.world.tick()
         
         let context = SceneUpdateContext(
             scene: self,
-            deltaTime: deltaTime,
-            renderWorld: Application.shared.renderWorld
+            deltaTime: deltaTime
         )
         
-        self.systemGraphExecutor.execute(self.systemGraph, context: context)
+        await self.systemGraphExecutor.execute(self.systemGraph, context: context)
     }
 }
 
@@ -210,7 +240,6 @@ public extension Scene {
 // MARK: - World Transform
 
 // TODO: Replace it to GlobalTransform
-
 public extension Scene {
     
     /// Returns world transform component of entity.
@@ -243,7 +272,7 @@ extension Scene: EventSource {
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
     /// - Parameters completion: A closure to call with the event.
     /// - Returns: A cancellable object. You should store it in memory, to recieve events.
-    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> AnyCancellable where E : Event {
+    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> any Cancellable where E : Event {
         return self.eventManager.subscribe(to: event, on: eventSource ?? self, completion: completion)
     }
 }
@@ -256,24 +285,41 @@ public extension Scene {
             self.rawValue = rawValue
         }
         
+        /// Draw physics collision shapes for physics object.
         public static let showPhysicsShapes = DebugOptions(rawValue: 1 << 0)
+
         public static let showFPS = DebugOptions(rawValue: 1 << 1)
+
         public static let showBoundingBoxes = DebugOptions(rawValue: 1 << 2)
     }
 }
 
+/// Events the scene triggers.
 public enum SceneEvents {
     
+    /// An event triggered once when scene is ready to use and will starts update soon.
     public struct OnReady: Event {
         public let scene: Scene
     }
     
+    /// Raised after an entity is added to the scene.
     public struct DidAddEntity: Event {
         public let entity: Entity
     }
     
+    /// Raised before an entity is removed from the scene.
     public struct WillRemoveEntity: Event {
         public let entity: Entity
     }
-    
+
+    /// An event triggered once per frame interval that you can use to execute custom logic for each frame.
+    public struct Update: Event {
+
+        /// The updated scene.
+        public let scene: Scene
+
+        /// The elapsed time since the last update.
+        public let deltaTime: TimeInterval
+    }
+
 }

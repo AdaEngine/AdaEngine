@@ -23,8 +23,8 @@ public struct GUIAppScene: AppScene {
 }
 
 extension GUIAppScene: InternalAppScene {
-    
-    func _makeWindow(with configuration: _AppSceneConfiguration) throws -> Window {
+    @MainActor
+    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window {
         let window = window()
         
         if window.frame.size == .zero {

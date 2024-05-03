@@ -8,6 +8,7 @@
 // TODO: Add export name
 // TODO: Add more options for export
 // TODO: Should me mutating
+// TODO: Make it macro to avoid runtime?
 
 /// Fields marked as `@Export` can be serialized and deserialized by AdaEngine.
 /// If you want serialize your ``Component`` object, annotate properties inside them as `@Export`.

@@ -85,11 +85,13 @@ public extension Font {
     
 }
 
+// TODO: Add cache
+
 public extension Font {
     /// Returns default font from AdaEngine bundle.
     static func system(weight: FontWeight = .regular) -> Font {
         do {
-            return try ResourceManager.load("Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf", from: .engineBundle) as Font
+            return try ResourceManager.loadSync("Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf", from: .engineBundle) as Font
         } catch {
             fatalError("[Font]: Something went wrong \(error.localizedDescription)")
         }

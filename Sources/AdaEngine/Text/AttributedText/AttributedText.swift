@@ -20,7 +20,7 @@ public struct AttributedText: Hashable {
     @usableFromInline
     var attributes: OrderedDictionary<String.Index, TextAttributeContainer> = [:]
     
-    public init(_ text: String, attributes: TextAttributeContainer) {
+    public init(_ text: String, attributes: TextAttributeContainer = TextAttributeContainer()) {
         self.text = text
         
         for index in text.indices {

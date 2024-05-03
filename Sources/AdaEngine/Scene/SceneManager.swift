@@ -7,8 +7,9 @@
 
 /// SceneManager used for scene managment on screen. Each scene has access to scene manager instance.
 /// You can use scene manager for transition between scenes.
+@MainActor
 public class SceneManager {
-    
+
     public private(set) var currentScene: Scene?
     
     /// View where all renders happend
@@ -21,15 +22,13 @@ public class SceneManager {
     internal init() { }
     
     /// Update current scene by delta time.
-    func update(_ deltaTime: TimeInterval) {
+    func update(_ deltaTime: TimeInterval) async {
         guard let currentScene else {
             return
         }
-        if currentScene.isReady == false {
-            currentScene.ready()
-        }
-        
-        currentScene.update(deltaTime)
+
+        await currentScene.readyIfNeeded()
+        await currentScene.update(deltaTime)
     }
     
     /// Set viewport for current scene.
@@ -50,6 +49,7 @@ public class SceneManager {
         scene.sceneManager = self
         scene.window = self.window
         scene.viewport = self.sceneView?.viewport ?? Viewport()
+
         self.currentScene = scene
     }
     

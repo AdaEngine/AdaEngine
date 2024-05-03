@@ -21,3 +21,7 @@ func fatalErrorMethodNotImplemented(
 @inlinable public func assertionFailure(_ message: @autoclosure () -> String = "", file: StaticString = #file, line: UInt = #line) {
     Swift.assertionFailure(message(), file: file, line: line)
 }
+
+@inlinable public func preconditionMainThreadOnly(_ message: @autoclosure () -> String = "", file: StaticString = #file, line: UInt = #line) {
+    assert(Thread.isMainThread, message(), file: file, line: line)
+}

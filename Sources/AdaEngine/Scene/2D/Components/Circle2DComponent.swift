@@ -7,7 +7,7 @@
 
 /// Create a new 2D circle on scene.
 @Component
-public struct Circle2DComponent {
+public struct Circle2DComponent: Codable {
     
     public var color: Color
     

@@ -22,7 +22,6 @@ extension MetalRenderBackend {
             
             let needsShowDebugHUD = ProcessInfo.processInfo.environment["METAL_HUD_DEBUG"] != nil
             UserDefaults.standard.set(needsShowDebugHUD, forKey: "MetalForceHudEnabled")
-            UserDefaults.standard.set(NSNumber(booleanLiteral: false), forKey: "MetalForceHudEnabled")
         }
         
         // MARK: - Methods

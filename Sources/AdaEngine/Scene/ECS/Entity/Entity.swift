@@ -9,13 +9,12 @@
 // FIXME: (Vlad) I think we should store components in ComponentTable and avoid storing them in ComponentSet. (Think about after benchmark)
 // TODO: (Vlad) Should we create entity with default components?
 
-import Foundation.NSUUID // TODO: (Vlad) Replace to own realization
 import OrderedCollections
 
 /// Describe an entity and his characteristics.
 /// Entity in ECS based architecture is main object that holds components.
-open class Entity: Identifiable {
-    
+open class Entity: Identifiable, @unchecked Sendable {
+
     /// Contains entity name.
     public var name: String
     

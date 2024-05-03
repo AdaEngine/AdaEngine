@@ -6,15 +6,12 @@
 //
 
 /// Contains information about current scene update.
-public struct SceneUpdateContext {
+public struct SceneUpdateContext: Sendable {
     /// The updating scene.
     public let scene: Scene
     
     /// The number of seconds elapsed since the last update.
     public let deltaTime: TimeInterval
-    
-    /// The instance of render world
-    public let renderWorld: RenderWorld
 }
 
 /// An object that affects multiple entities in every frame.
@@ -61,8 +58,8 @@ public protocol System {
     init(scene: Scene)
     
     /// Updates entities every frame.
-    func update(context: UpdateContext)
-    
+    func update(context: UpdateContext) async
+
     // MARK: Dependencies
     
     /// An array of dependencies for this system.

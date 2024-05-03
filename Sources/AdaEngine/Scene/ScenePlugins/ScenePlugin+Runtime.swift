@@ -13,7 +13,7 @@ extension ScenePlugin {
     /// When engine will initiate system from scene file, it will try to find
     /// system in registred list.
     /// Otherwise system will not be initialized.
-    public static func registerPlugin() {
+    @MainActor public static func registerPlugin() {
         ScenePluginStorage.register(self)
     }
     
@@ -22,6 +22,7 @@ extension ScenePlugin {
     }
 }
 
+@MainActor
 enum ScenePluginStorage {
     
     private static var registeredPlugins: [String: ScenePlugin.Type] = [:]

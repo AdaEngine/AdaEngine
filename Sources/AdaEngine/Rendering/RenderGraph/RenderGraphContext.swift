@@ -7,7 +7,8 @@
 
 /// The context with all graph information required to run a ``RenderNode``.
 /// This context is created for each node by the ``RenderGraphExecutor``.
-public class RenderGraphContext {
+@RenderGraphActor
+public final class RenderGraphContext {
     public let graph: RenderGraph
     public let device: RenderEngine
     public let world: World
@@ -25,7 +26,8 @@ public class RenderGraphContext {
 
 public extension RenderGraphContext {
     
-    func runSubgraph(by name: String, inputs: [RenderSlotValue]) {
+    @RenderGraphActor
+    func runSubgraph(by name: String, inputs: [RenderSlotValue]) async {
         guard let graph = self.graph.subGraphs[name], let inputResources = graph.entryNode?.node.inputResources else {
             return
         }
@@ -39,19 +41,28 @@ public extension RenderGraphContext {
         self.pendingSubgraphs.append((graph, inputs))
     }
     
-    func entityResource(by name: String) -> Entity? {
+    @RenderGraphActor
+    func entityResource(by name: String) async -> Entity? {
         self.inputResources.first(where: { $0.name == name })?.value.entity
     }
     
-    func textureResource(by name: String) -> Texture? {
+    @RenderGraphActor
+    func textureResource(by name: String) async-> Texture? {
         self.inputResources.first(where: { $0.name == name })?.value.texture
     }
     
-    func bufferResource(by name: String) -> Buffer? {
+    @RenderGraphActor
+    func bufferResource(by name: String) async -> Buffer? {
         self.inputResources.first(where: { $0.name == name })?.value.buffer
     }
     
-    func samplerResource(by name: String) -> Sampler? {
+    @RenderGraphActor
+    func samplerResource(by name: String) async -> Sampler? {
         self.inputResources.first(where: { $0.name == name })?.value.sampler
     }
+}
+
+@globalActor
+public actor RenderGraphActor: GlobalActor {
+    public static var shared = RenderGraphActor()
 }

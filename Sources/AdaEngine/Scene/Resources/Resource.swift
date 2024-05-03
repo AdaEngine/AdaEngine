@@ -5,9 +5,9 @@
 //  Created by v.prusakov on 11/10/21.
 //
 
-/// The interface describe resource in a system.
+/// The interface describe asset resource in a system.
 /// Resource describe information needed to your game, like Audio, Mesh, Texture and etc.
-/// You can create your own resource and use loaded it using ``ResourceManager``.
+/// You can create your own resource and use loaded it using ``ResourceManager`` object.
 ///
 /// Each resource should support saving and loading behaviour. In example we have simple scenario how to implement it,
 /// but you can create custom ``Codable`` structure or use different path to do that.
@@ -17,35 +17,35 @@
 ///
 ///     let text: String
 ///
-///     static func load(from data: Data) throws -> MyResource {
-///         let text = try JSONDecoder().decode(String.self, from: data)
-///         return MyResource(text: text)
+///     init(asset decoder: AssetDecoder) async throws {
+///         let text = try decoder.decode(String.self, from: data)
+///         self.text = text
 ///     }
 ///
-///     func encodeContents() throws -> Data {
-///         return try JSONEncoder().encode(self.text)
+///     func encodeContents(with encoder: AssetEncoder) async throws
+///         return try encoder.encode(self.text)
 ///     }
 /// }
 /// ```
 public protocol Resource: AnyObject {
     
     /// When resource load from the disk, this method will be called.
-    /// Data is the same data given from `encodedContents()` method.
+    ///
     /// - Parameter data: Resource data.
     /// - Returns: Return instance of resource
-    init(asset decoder: AssetDecoder) throws
-    
+    @ResourceActor init(asset decoder: AssetDecoder) async throws
+
     /// To store resource on the disk, you should implement this method.
-    /// This data will return to `load(from:)` method when Resource will load.
+    ///
     /// - Returns: the resource data to be saved
-    func encodeContents(with encoder: AssetEncoder) throws
-    
+    @ResourceActor func encodeContents(with encoder: AssetEncoder) async throws
+
     /// Type of resource.
     static var resourceType: ResourceType { get }
-    
+
     /// If resource was initiated from resource, than property will return path to that file.
     var resourcePath: String { get set }
-    
+
     /// If resource was initiated from resource, than property will return name of that file.
     var resourceName: String { get set }
 }

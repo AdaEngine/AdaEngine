@@ -36,7 +36,7 @@ public final class TextureAtlas: Texture2D {
         let margin: Size
     }
     
-    public required init(asset decoder: AssetDecoder) throws {
+    public required init(asset decoder: AssetDecoder) async throws {
         guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
         }
@@ -46,12 +46,12 @@ public final class TextureAtlas: Texture2D {
         self.margin = atlas.margin
         self.spriteSize = atlas.spriteSize
         
-        let image = try ResourceManager.load(atlas.filePath) as Image
-        
+        let image = try await ResourceManager.load(atlas.filePath) as Image
+
         super.init(image: image)
     }
     
-    public override func encodeContents(with encoder: AssetEncoder) throws {
+    public override func encodeContents(with encoder: AssetEncoder) async throws {
         guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
         }
@@ -80,7 +80,7 @@ public final class TextureAtlas: Texture2D {
         self.spriteSize = try container.decode(Size.self, forKey: .spriteSize)
         
         let path = try container.decode(String.self, forKey: .resource)
-        let image = try ResourceManager.load(path) as Image
+        let image = try ResourceManager.loadSync(path) as Image
         
         super.init(image: image)
         
@@ -163,11 +163,11 @@ public extension TextureAtlas {
             }
         }
         
-        public required init(asset decoder: AssetDecoder) throws {
+        public required init(asset decoder: AssetDecoder) async throws {
             throw AssetError()
         }
         
-        public override func encodeContents(with encoder: AssetEncoder) throws {
+        public override func encodeContents(with encoder: AssetEncoder) async throws {
             throw AssetError()
         }
         
@@ -188,19 +188,24 @@ public extension TextureAtlas {
             let max = try container.decode(Vector2.self, forKey: .max)
             let size = try container.decode(Size.self, forKey: .size)
             
-            guard let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext else {
-                fatalError()
+            let textureAtlas: TextureAtlas
+
+            if let context = decoder.assetsDecodingContext, let atlas = context.getResource(at: path) as TextureAtlas? {
+                textureAtlas = atlas
+            } else {
+                textureAtlas = try ResourceManager.loadSync(path) as TextureAtlas
             }
-            
-            guard let atlas = context.getResource(at: path) as TextureAtlas? else {
-                fatalError()
-            }
-            
-            self.init(atlas: atlas, min: min, max: max, size: size)
+
+            self.init(atlas: textureAtlas, min: min, max: max, size: size)
         }
         
         public override func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
+
+            if self.atlas.resourcePath.isEmpty {
+                throw AssetDecodingError.decodingProblem("Can't encode TextureAtlas.Slice, because TextureAtlas doesn't have resource path on disk.")
+            }
+
             try container.encode(self.atlas.resourcePath, forKey: .textureAtlasResource)
             try container.encode(self.min, forKey: .min)
             try container.encode(self.max, forKey: .max)

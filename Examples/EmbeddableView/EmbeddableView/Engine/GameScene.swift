@@ -46,7 +46,7 @@ final class PlayerComponent: ScriptComponent {
     
     @RequiredComponent var body: PhysicsBody2DComponent
     
-    override func update(_ deltaTime: AdaEngine.TimeInterval) {
+    override func onUpdate(_ deltaTime: AdaEngine.TimeInterval) {
         if Input.isKeyPressed(.space) {
             body.applyLinearImpulse([0, 1], point: .zero, wake: true)
         }

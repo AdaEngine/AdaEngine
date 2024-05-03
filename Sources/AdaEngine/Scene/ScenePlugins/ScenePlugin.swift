@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 8/11/22.
 //
 
+// swiftlint:disable line_length
+
 /// The base interface to configure scene.
 /// You can create custom scene plugin with specific configurations and connect it to any scene.
 /// ScenePlugins is a great tool for delivery your content to other users or hide huge installation in one place.
@@ -14,5 +16,8 @@ public protocol ScenePlugin {
     init()
     
     /// Called once when scene will setup plugin.
-    func setup(in scene: Scene)
+    @MainActor
+    func setup(in scene: Scene) async
 }
+
+// swiftlint:enable line_length

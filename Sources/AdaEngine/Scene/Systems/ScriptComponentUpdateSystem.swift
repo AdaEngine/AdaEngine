@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/7/22.
 //
 
-/// A system that updates all scripts components.
+/// A system that updates all scripts components on scene
 public struct ScriptComponentUpdateSystem: System {
     
     let fixedTime: FixedTimestep
@@ -14,23 +14,23 @@ public struct ScriptComponentUpdateSystem: System {
         self.fixedTime = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
         let fixedTimeResult = self.fixedTime.advance(with: context.deltaTime)
         
-        context.scene.world.scripts.forEach { component in
-            
+        await context.scene.world.scripts.concurrent.forEach { @MainActor component in
+
             // Initialize component
             if !component.isAwaked {
-                component.ready()
+                component.onReady()
                 component.isAwaked = true
             }
+
+            component.onEvent(Set(Input.shared.eventsPool))
             
-            component.onEvent(Input.shared.eventsPool)
-            
-            component.update(context.deltaTime)
+            component.onUpdate(context.deltaTime)
 
             if fixedTimeResult.isFixedTick {
-                component.physicsUpdate(fixedTimeResult.fixedTime)
+                component.onPhysicsUpdate(fixedTimeResult.fixedTime)
             }
         }
     }

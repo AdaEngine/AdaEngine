@@ -11,11 +11,11 @@ public protocol CanvasMaterial: ReflectedMaterial { }
 public extension CanvasMaterial {
     
     static func vertexShader() throws -> ShaderSource {
-        return try ResourceManager.load("Shaders/Vulkan/mesh2d/mesh2d.glsl#vert", from: .engineBundle)
+        return try ResourceManager.loadSync("Shaders/Vulkan/mesh2d/mesh2d.glsl#vert", from: .engineBundle)
     }
     
     static func fragmentShader() throws -> ShaderSource {
-        return try ResourceManager.load("Shaders/Vulkan/mesh2d/mesh2d.glsl#frag", from: .engineBundle)
+        return try ResourceManager.loadSync("Shaders/Vulkan/mesh2d/mesh2d.glsl#frag", from: .engineBundle)
     }
     
     static func configureShaderDefines(
@@ -77,7 +77,7 @@ public struct ColorCanvasMaterial: CanvasMaterial {
     }
     
     public static func fragmentShader() throws -> ShaderSource {
-        return try ResourceManager.load("Shaders/Vulkan/Materials/color_canvas_material.glsl", from: .engineBundle)
+        return try ResourceManager.loadSync("Shaders/Vulkan/Materials/color_canvas_material.glsl", from: .engineBundle)
     }
 }
 
@@ -100,6 +100,6 @@ struct CircleCanvasMaterial: CanvasMaterial {
     }
     
     public static func fragmentShader() throws -> ShaderSource {
-        return try ResourceManager.load("Shaders/Vulkan/Materials/circle_canvas_material.glsl", from: .engineBundle)
+        return try ResourceManager.loadSync("Shaders/Vulkan/Materials/circle_canvas_material.glsl", from: .engineBundle)
     }
 }

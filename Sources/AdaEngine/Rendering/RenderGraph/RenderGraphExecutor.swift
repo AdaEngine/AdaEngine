@@ -10,15 +10,18 @@
 import Collections
 
 /// Execute ``RenderGraph`` objects.
+@RenderGraphActor
 public class RenderGraphExecutor {
-    
+
+    public nonisolated init() {}
+
     /// Execute ``RenderGraph`` for specific ``World``.
-    public func execute(_ graph: RenderGraph, in world: World) throws {
-        try self.executeGraph(graph, world: world, inputResources: [])
+    public func execute(_ graph: RenderGraph, in world: World) async throws {
+        try await self.executeGraph(graph, world: world, inputResources: [])
     }
     
     // swiftlint:disable:next cyclomatic_complexity
-    private func executeGraph(_ graph: RenderGraph, world: World, inputResources: [RenderSlotValue]) throws {
+    private func executeGraph(_ graph: RenderGraph, world: World, inputResources: [RenderSlotValue]) async throws {
         var writtenResources = [RenderGraph.Node.ID: [RenderSlotValue]]()
         
         /// Should execute firsts
@@ -72,10 +75,10 @@ public class RenderGraphExecutor {
             }
             let inputs = inputSlots.sorted(by: { $0.0 > $1.0 }).map { $0.1 }
             let context = RenderGraphContext(graph: graph, world: world, device: RenderEngine.shared, inputResources: inputs)
-            let outputs = try currentNode.node.execute(context: context)
-            
+            let outputs = try await currentNode.node.execute(context: context)
+
             for (subGraph, inputValues) in context.pendingSubgraphs {
-                try self.executeGraph(subGraph, world: world, inputResources: inputValues)
+                try await self.executeGraph(subGraph, world: world, inputResources: inputValues)
             }
             
             precondition(outputs.count == currentNode.node.outputResources.count)

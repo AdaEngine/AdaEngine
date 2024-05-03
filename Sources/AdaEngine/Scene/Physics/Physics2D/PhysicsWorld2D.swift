@@ -10,7 +10,7 @@ import Math
 
 /// An object that holds and simulate all 2D physics bodies.
 public final class PhysicsWorld2D: Codable {
-    
+
     enum CodingKeys: CodingKey {
         case velocityIterations
         case positionIterations
@@ -46,7 +46,7 @@ public final class PhysicsWorld2D: Codable {
         b2_world_destroy(self.world)
     }
     
-    public convenience init(from decoder: Decoder) throws {
+    public nonisolated convenience init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let gravity = try container.decode(Vector2.self, forKey: .gravity)
 
@@ -329,7 +329,7 @@ final class _Physics2DContactListener {
 
         bodyA.world.scene?.eventManager.send(event)
     }
-
+    
     func endContact(_ contact: OpaquePointer) {
         let fixtureA = b2_contact_get_fixture_a(contact)!
         let fixtureB = b2_contact_get_fixture_b(contact)!

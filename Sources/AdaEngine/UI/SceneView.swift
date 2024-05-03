@@ -6,8 +6,9 @@
 //
 
 /// This view contains game scene and viewport for rendering.
+@MainActor
 public class SceneView: View {
-    
+
     /// The scene manager that manage a scenes for this view.
     public let sceneManager: SceneManager
     
@@ -37,9 +38,9 @@ public class SceneView: View {
         
         self.sceneManager.setViewport(self.viewport)
     }
-    
-    public override func update(_ deltaTime: TimeInterval) {
-        self.sceneManager.update(deltaTime)
+
+    public override func update(_ deltaTime: TimeInterval) async {
+        await self.sceneManager.update(deltaTime)
     }
     
 }

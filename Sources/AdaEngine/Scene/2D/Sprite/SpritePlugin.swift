@@ -10,20 +10,19 @@ public struct SpritePlugin: ScenePlugin {
     
     public init() {}
     
-    public func setup(in scene: Scene) {
+    public func setup(in scene: Scene) async {
         scene.addSystem(ExtractSpriteSystem.self)
     }
 }
-
 
 /// Plugin for RenderWorld to render sprites.
 public struct SpriteRenderPlugin: ScenePlugin {
     
     public init() {}
     
-    public func setup(in scene: Scene) {
+    public func setup(in scene: Scene) async {
         scene.addSystem(SpriteRenderSystem.self)
-        
+
         let spriteDraw = SpriteDrawPass()
         DrawPassStorage.setDrawPass(spriteDraw)
     }
