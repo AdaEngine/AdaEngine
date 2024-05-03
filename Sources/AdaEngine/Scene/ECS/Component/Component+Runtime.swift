@@ -5,9 +5,10 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
-// We should register our components in engine, because we should initiate them in memory
 // TODO: (Vlad) Add components list to editor and generate file with registered components.
 // TODO: (Vlad) We can think about `swift_getMangledTypeName` and `swift_getTypeByMangledNameInContext`
+
+// We should register our components in engine, because we should initiate them in memory
 // This can help to avoid registering components during runtime.
 extension Component {
     

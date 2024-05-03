@@ -28,21 +28,24 @@ public struct DebugPhysicsExctract2DSystem: System {
         .has(RenderItems<Transparent2DRenderItem>.self)
     )
     
-    private let colorMaterial = CustomMaterial(ColorCanvasMaterial(color: .red))
-    private let circleMaterial = CustomMaterial(
-        CircleCanvasMaterial(
-            thickness: 0.03,
-            fade: 0,
-            color: .red
-        )
-    )
-    
+    private let colorMaterial: CustomMaterial<ColorCanvasMaterial>
+    private let circleMaterial: CustomMaterial<CircleCanvasMaterial>
+
     /// Contains base quad mesh for rendering.
     private let quadMesh = Mesh.generate(from: Quad())
     
-    public init(scene: Scene) { }
+    public init(scene: Scene) { 
+        colorMaterial = CustomMaterial(ColorCanvasMaterial(color: .red))
+        circleMaterial = CustomMaterial(
+            CircleCanvasMaterial(
+                thickness: 0.03,
+                fade: 0,
+                color: .red
+            )
+        )
+    }
     
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
         guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
             return
         }
@@ -50,8 +53,8 @@ public struct DebugPhysicsExctract2DSystem: System {
         self.colorMaterial.color = context.scene.debugPhysicsColor
         self.circleMaterial.color = context.scene.debugPhysicsColor
         
-        context.scene.performQuery(Self.entities).forEach { entity in
-            
+        await context.scene.performQuery(Self.entities).concurrent.forEach { entity in
+
             if entity.components[Visibility.self]!.isVisible == false {
                 return
             }
@@ -89,8 +92,8 @@ public struct DebugPhysicsExctract2DSystem: System {
             default:
                 return
             }
-            
-            context.renderWorld.addEntity(emptyEntity)
+
+            await Application.shared.renderWorld.addEntity(emptyEntity)
         }
     }
     
@@ -112,10 +115,10 @@ public struct Physics2DDebugDrawSystem: System {
     
     public init(scene: Scene) {}
     
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
         let exctractedValues = context.scene.performQuery(Self.entities)
             
-        context.scene.performQuery(Self.cameras).forEach { entity in
+        await context.scene.performQuery(Self.cameras).concurrent.forEach { entity in
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
             

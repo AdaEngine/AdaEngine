@@ -57,12 +57,11 @@ open class Texture2D: Texture {
     // MARK: - Codable
     
     // TODO: Add Sampler support
-    
     public convenience required init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         let path = try container.decode(String.self)
         
-        let image = try ResourceManager.load(path) as Image
+        let image = try ResourceManager.loadSync(path) as Image
         self.init(image: image)
         
         let context = decoder.userInfo[.assetsDecodingContext] as? AssetDecodingContext
@@ -82,7 +81,7 @@ open class Texture2D: Texture {
     
     // MARK: - Resource
     
-    public required init(asset decoder: AssetDecoder) throws {
+    public required init(asset decoder: AssetDecoder) async throws {
         let image = try Image(asset: decoder)
         
         let descriptor = TextureDescriptor(
@@ -103,8 +102,8 @@ open class Texture2D: Texture {
         super.init(gpuTexture: gpuTexture, sampler: sampler, textureType: .texture2D)
     }
     
-    public override func encodeContents(with encoder: AssetEncoder) throws {
-        
+    public override func encodeContents(with encoder: AssetEncoder) async throws {
+
     }
 }
 

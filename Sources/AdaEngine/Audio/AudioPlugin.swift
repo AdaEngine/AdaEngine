@@ -38,7 +38,7 @@ public struct AudioPlugin: ScenePlugin {
     
     public init() {}
     
-    public func setup(in scene: Scene) {
+    public func setup(in scene: Scene) async {
         scene.addSystem(AudioSystem.self)
     }
 }
@@ -56,15 +56,15 @@ public struct AudioSystem: System {
         self.audioEngine = AudioServer.shared.engine
     }
     
-    public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
+    public func update(context: UpdateContext) async {
+        await context.scene.performQuery(Self.query).concurrent.forEach { entity in
             let (audioComponent, transform) = entity.components[AudioPlaybacksControllers.self, Transform.self]
             audioComponent.controllers.forEach { controller in
                 controller.sound.position = transform.position
             }
         }
         
-        context.scene.performQuery(Self.audioReceiverQuery).forEach { entity in
+        await context.scene.performQuery(Self.audioReceiverQuery).concurrent.forEach { entity in
             var (audioReceiver, transform) = entity.components[AudioReceiver.self, Transform.self]
             
             if let listener = audioReceiver.audioListener, listener.position != transform.position {
@@ -121,7 +121,9 @@ public extension Entity {
     
     /// Stops audio playback.
     ///
-    /// You can stop a specific ``AudioPlaybackController`` instance from playing a particular resource by calling the controller’s ``AudioPlaybackController/stop()`` method. To stop all controllers associated with a particular Entity instance with a single call, use the ``Entity/stopAllAudio()`` method instead.
+    /// You can stop a specific ``AudioPlaybackController`` instance from playing a particular resource 
+    /// by calling the controller’s ``AudioPlaybackController/stop()`` method. 
+    /// To stop all controllers associated with a particular Entity instance with a single call, use the ``Entity/stopAllAudio()`` method instead.
     func stopAllAudio() {
         self.components[AudioPlaybacksControllers.self]?.controllers.forEach { $0.stop() }
         self.components += AudioPlaybacksControllers()

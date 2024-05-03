@@ -10,9 +10,8 @@ import AppKit
 import Math
 
 // swiftlint:disable cyclomatic_complexity
-
 final class MacOSWindowManager: WindowManager {
-    
+
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)
     
     override func createWindow(for window: Window) {
@@ -181,6 +180,7 @@ final class MacOSWindowManager: WindowManager {
         return self.currentShape
     }
     
+    // swiftlint:disable:next function_body_length
     override func setCursorImage(for shape: Input.CursorShape, texture: Texture2D?, hotspot: Vector2) {
         defer {
             updateCursor()

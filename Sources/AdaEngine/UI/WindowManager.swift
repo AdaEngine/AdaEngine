@@ -19,20 +19,20 @@ public protocol SystemWindow {
 
 /// Base class using to manage windows in application. All created window should be registred there.
 /// Application has only one window manager per instance.
+@MainActor
 open class WindowManager {
-    
+
     /// Returns all windows registred in current process.
     public internal(set) var windows: [Window] = []
     
     /// Contains active window if available.
     public private(set) var activeWindow: Window?
     
-    public init() { }
+    public nonisolated init() { }
     
     /// Called each frame to update windows.
-    func update(_ deltaTime: TimeInterval) {
+    func update(_ deltaTime: TimeInterval) async {
         for window in self.windows {
-            
             for event in Input.shared.eventsPool {
                 window.sendEvent(event)
             }
@@ -45,10 +45,10 @@ open class WindowManager {
                 context.commitDraw()
             }
             
-            window.update(deltaTime)
+            await window.update(deltaTime)
         }
     }
-    
+
     /// Create platform window and register app window inside the manager.
     /// - Warning: You should call this method when override this method!
     open func createWindow(for window: Window) {

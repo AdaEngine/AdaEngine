@@ -8,7 +8,6 @@
 // TODO: (Vlad) Create object aka CGFloat for float or doubles
 // TODO: (Vlad) when move to new vector object, we should use same object size
 
-
 /// A 2-dimensional vector used for 2D math using floating point coordinates.
 @frozen
 public struct Vector2: Hashable, Equatable, Codable {

@@ -13,6 +13,7 @@ extension System {
     /// When engine will initiate system from scene file, it will try to find
     /// system in registred list.
     /// Otherwise system will not be initialized.
+    @MainActor
     public static func registerSystem() {
         SystemStorage.register(self)
     }
@@ -22,6 +23,7 @@ extension System {
     }
 }
 
+@MainActor
 enum SystemStorage {
     
     private static var registeredSystem: [String: System.Type] = [:]
@@ -30,7 +32,7 @@ enum SystemStorage {
     static func getRegistredSystem(for name: String) -> System.Type? {
         return self.registeredSystem[name] ?? (NSClassFromString(name) as? System.Type)
     }
-    
+
     static func register<T: System>(_ system: T.Type) {
         self.registeredSystem[T.swiftName] = system
     }

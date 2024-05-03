@@ -207,7 +207,8 @@ enum ShaderUtils {
     
     /// Drop user entry point annotated with `[[main]]` attribute and replace it to `main`.
     ///
-    /// We support custom entry points for GLSL shaders. GLSLang compiler can't supports custom entry points and we change user entry point to `main` and return user entry point for SPIRV-Cross.
+    /// We support custom entry points for GLSL shaders. GLSLang compiler can't supports custom entry points 
+    /// and we change user entry point to `main` and return user entry point for SPIRV-Cross.
     /// That's because we want support user entry point name in final, GPU specific shader source.
     ///
     /// For example, if user set custom entry point and after that shader will compile to MSL shader, we want to see user entry point in debug instead of default `main0`.

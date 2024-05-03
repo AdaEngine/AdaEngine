@@ -16,23 +16,27 @@ public class KeyEvent: InputEvent {
     public let keyCode: KeyCode
     public let modifiers: KeyModifier
     public let status: Status
-    
-    internal init(window: Window.ID, keyCode: KeyCode, modifiers: KeyModifier, status: Status, time: TimeInterval) {
+    public var isRepeated: Bool
+
+    internal init(window: Window.ID, keyCode: KeyCode, modifiers: KeyModifier, status: Status, time: TimeInterval, isRepeated: Bool) {
         self.keyCode = keyCode
         self.modifiers = modifiers
         self.status = status
-        
+        self.isRepeated = isRepeated
+
         super.init(window: window, time: time)
     }
     
     public override func hash(into hasher: inout Hasher) {
-        super.hash(into: &hasher)
         hasher.combine(keyCode)
         hasher.combine(modifiers)
+        hasher.combine(window)
     }
     
     public static func == (lhs: KeyEvent, rhs: KeyEvent) -> Bool {
-        return lhs.time == rhs.time && lhs.window == rhs.window && lhs.eventId == rhs.eventId && lhs.keyCode == rhs.keyCode && lhs.modifiers == rhs.modifiers
+        return lhs.time == rhs.time && lhs.window == rhs.window 
+        && lhs.eventId == rhs.eventId && lhs.keyCode == rhs.keyCode
+        && lhs.modifiers == rhs.modifiers && lhs.isRepeated == rhs.isRepeated
     }
     
 }

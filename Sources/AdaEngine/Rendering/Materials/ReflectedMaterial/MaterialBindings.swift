@@ -9,9 +9,11 @@
 
 /// Property wrapper that specify uniform for using in ``ReflectedMaterial``.
 ///
-/// When you want to update value in shader define `Uniform` property wrapper. That property wrapper will capture your property name and will try to change the same uniform shader value in your material.
+/// When you want to update value in shader define `Uniform` property wrapper. 
+/// That property wrapper will capture your property name and will try to change the same uniform shader value in your material.
 ///
-/// For example, if your shader uniform has property with name `color` and you specify the same name in your ``ReflectedMaterial``, than Uniform will connected to it by default.
+/// For example, if your shader uniform has property named `color` and you specify the same name in your ``ReflectedMaterial``, 
+/// than Uniform will connected to it by default.
 @propertyWrapper
 public final class Uniform<T: ShaderBindable & ShaderUniformValue>: _ShaderBindProperty, _ShaderUniformProperty {
     

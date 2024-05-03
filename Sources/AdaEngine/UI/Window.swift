@@ -8,14 +8,15 @@
 /// The base class describes the window in the system.
 /// Each window instance can be presented on the screen.
 /// - Tag: AdaEngine.Window
+@MainActor
 open class Window: View {
-    
+
     public typealias ID = RID
     
     // TODO: (Vlad) Maybe, we should use unique ID without RID
     /// Identifier using to register window in the render engine.
     /// We use this id to start drawing.
-    public var id: ID = RID()
+    public let id: ID = RID()
     
     public var title: String {
         get { self.systemWindow?.title ?? "" }
@@ -61,17 +62,17 @@ open class Window: View {
         self.backgroundColor = .clear
         self.windowManager.createWindow(for: self)
     }
-    
+
     open func showWindow(makeFocused flag: Bool) {
         self.windowManager.showWindow(self, isFocused: flag)
     }
-    
+
     open func close() {
         self.windowManager.closeWindow(self)
     }
     
     // MARK: - Public Methods
-    
+
     open func setWindowMode(_ mode: Window.Mode) {
         self.windowManager.setWindowMode(self, mode: mode)
     }
@@ -110,7 +111,6 @@ open class Window: View {
     
     override func frameDidChange() {
         self.windowManager.resizeWindow(self, size: self.frame.size)
-        
         super.frameDidChange()
     }
     

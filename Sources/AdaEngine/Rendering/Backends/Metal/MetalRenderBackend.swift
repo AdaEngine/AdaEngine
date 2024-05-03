@@ -7,6 +7,8 @@
 
 // TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
+// swiftlint:disable file_length
+
 #if METAL
 import Metal
 import ModelIO
@@ -49,8 +51,9 @@ class MetalRenderBackend: RenderBackend {
         self.context.destroyWindow(by: windowId)
     }
     
-    // FIXME: (Vlad) I'm not sure how it should works with multiple window instances.
     func beginFrame() throws {
+        self.inFlightSemaphore.wait()
+
         for (_, window) in self.context.windows {
             window.commandBuffer = self.commandQueue.makeCommandBuffer()
             window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
@@ -58,8 +61,6 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func endFrame() throws {
-        self.inFlightSemaphore.wait()
-        
         for window in self.context.windows.values {
             guard let drawable = window.drawable, let commandBuffer = window.commandBuffer else {
                 return
@@ -68,9 +69,9 @@ class MetalRenderBackend: RenderBackend {
             commandBuffer.addCompletedHandler { _ in
                 self.inFlightSemaphore.signal()
             }
-            
+
             commandBuffer.present(drawable)
-            
+
             commandBuffer.commit()
         }
         
@@ -220,6 +221,7 @@ class MetalRenderBackend: RenderBackend {
 // MARK: Texture
 
 extension MetalRenderBackend {
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture {
         let textureDesc = MTLTextureDescriptor()
         

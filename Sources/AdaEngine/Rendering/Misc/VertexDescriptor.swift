@@ -129,7 +129,8 @@ public enum VertexFormat: UInt, Codable {
 /// An object that describes how to organize and map data to a vertex function.
 ///
 /// This object is used to configure how vertex data stored in memory is mapped to attributes in a vertex shader.
-/// A pipeline state is the state of the graphics rendering pipeline, including shaders, blending, multisampling, and visibility testing. For every pipeline state, there can be only one VertexDescriptor object. 
+/// A pipeline state is the state of the graphics rendering pipeline, including shaders, blending, 
+/// multisampling, and visibility testing. For every pipeline state, there can be only one VertexDescriptor object.
 public struct VertexDescriptor: Codable, Hashable {
     
     /// An array of state data that describes how vertex attribute data is stored in memory and is mapped to arguments for a vertex shader.

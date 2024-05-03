@@ -9,17 +9,17 @@
 import AppKit
 
 /// This class linked with display and call update method each time when display is updated.
-public final class DisplayLink {
+public final class DisplayLink: @unchecked Sendable {
     private let timer: CVDisplayLink
-    private let source: DispatchSourceUserDataAdd
-    
+    private let source: DisplayLinkEventHandler
+
     public var isRunning: Bool {
         return CVDisplayLinkIsRunning(timer)
     }
     
     public init?(on queue: DispatchQueue = DispatchQueue.main) {
-        self.source = DispatchSource.makeUserDataAddSource(queue: queue)
-        
+        self.source = DisplayLinkEventHandler(queue: queue)
+
         var timerRef: CVDisplayLink?
         
         var successLink = CVDisplayLinkCreateWithActiveCGDisplays(&timerRef)
@@ -27,8 +27,8 @@ public final class DisplayLink {
         if let timer = timerRef {
             successLink = CVDisplayLinkSetOutputCallback(timer, { _, _, _, _, _, source -> CVReturn in
                 if let source = source {
-                    let sourceUnmanaged = Unmanaged<DispatchSourceUserDataAdd>.fromOpaque(source)
-                    sourceUnmanaged.takeUnretainedValue().add(data: 1)
+                    let sourceUnmanaged = Unmanaged<DisplayLinkEventHandler>.fromOpaque(source)
+                    sourceUnmanaged.takeUnretainedValue().onEvent()
                 }
                 
                 return kCVReturnSuccess
@@ -55,14 +55,12 @@ public final class DisplayLink {
         guard !self.isRunning else { return }
         
         CVDisplayLinkStart(self.timer)
-        self.source.resume()
     }
     
     public func pause() {
         guard self.isRunning else { return }
         
         CVDisplayLinkStop(timer)
-        self.source.cancel()
     }
     
     public func setHandler(_ handler: @escaping () -> Void) {
@@ -74,6 +72,27 @@ public final class DisplayLink {
             self.pause()
         }
     }
+}
+
+final class DisplayLinkEventHandler {
+
+    private var handler: (() -> Void)?
+    private let queue: DispatchQueue
+
+    init(queue: DispatchQueue) {
+        self.queue = queue
+    }
+
+    func setEventHandler(handler: @escaping () -> Void) {
+        self.handler = handler
+    }
+
+    func onEvent() {
+        queue.async {
+            self.handler?()
+        }
+    }
+
 }
 
 #endif

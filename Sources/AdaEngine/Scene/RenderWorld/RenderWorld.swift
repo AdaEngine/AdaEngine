@@ -5,19 +5,18 @@
 //  Created by v.prusakov on 3/21/23.
 //
 
-// FIXME: Should run on render thread.
-
-/// RenderWorld store entities for rendering. Each update tick entities removed from RenderWorld.
+/// RenderWorld that store entities for rendering. Each update tick entities removed from RenderWorld.
+@RenderGraphActor
 public final class RenderWorld {
     
     let renderGraphExecutor = RenderGraphExecutor()
     
-    public let renderGraph = RenderGraph()
-    
+    public let renderGraph: RenderGraph = RenderGraph()
+
     private let scene: Scene = Scene(name: "RenderWorld")
-    
+
     public var world: World {
-        self.scene.world
+        return self.scene.world
     }
     
     /// Add a new system to the scene.
@@ -26,8 +25,8 @@ public final class RenderWorld {
     }
     
     /// Add a new scene plugin to the scene.
-    public func addPlugin<T: ScenePlugin>(_ plugin: T) {
-        self.scene.addPlugin(plugin)
+    public func addPlugin<T: ScenePlugin>(_ plugin: T) async {
+        await self.scene.addPlugin(plugin)
     }
     
     /// Add a new entity to render world.
@@ -35,38 +34,10 @@ public final class RenderWorld {
         self.scene.addEntity(entity)
     }
     
-    func update(_ deltaTime: TimeInterval) throws {
-        self.scene.update(deltaTime)
-        try self.renderGraphExecutor.execute(self.renderGraph, in: self.world)
-        
-        self.scene.world.clear()
-    }
-}
+    func update(_ deltaTime: TimeInterval) async throws {
+        await self.scene.update(deltaTime)
+        try await self.renderGraphExecutor.execute(self.renderGraph, in: self.world)
 
-@propertyWrapper
-struct Atomic<Value> {
-    
-    private var value: Value
-    private let lock = NSLock()
-    
-    init(wrappedValue value: Value) {
-        self.value = value
-    }
-    
-    var wrappedValue: Value {
-        get { return load() }
-        set { store(newValue: newValue) }
-    }
-    
-    func load() -> Value {
-        lock.lock()
-        defer { lock.unlock() }
-        return value
-    }
-    
-    mutating func store(newValue: Value) {
-        lock.lock()
-        defer { lock.unlock() }
-        value = newValue
+        self.scene.world.clear()
     }
 }

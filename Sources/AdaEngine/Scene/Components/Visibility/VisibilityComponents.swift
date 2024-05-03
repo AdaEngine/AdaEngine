@@ -20,8 +20,8 @@ public struct VisibleEntities {
 /// This component indicates that entity can be rendered on the screen.
 /// - Note: By default visibility is always true.
 @Component
-public struct Visibility {
-    
+public struct Visibility: Codable {
+
     public var isVisible: Bool
     
     public init(isVisible: Bool = true) {

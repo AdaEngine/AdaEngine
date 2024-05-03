@@ -62,10 +62,12 @@ public final class RenderEngine: RenderBackend {
     }
     
     func beginFrame() throws {
+        preconditionMainThreadOnly()
         try self.renderBackend.beginFrame()
     }
     
     func endFrame() throws {
+        preconditionMainThreadOnly()
         try self.renderBackend.endFrame()
     }
     
