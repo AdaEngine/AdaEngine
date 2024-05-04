@@ -52,8 +52,9 @@ public final class AEView: MetalView {
     }
     
     deinit {
-        // We should destroy renderable view to avoid unpredictable behaviour.
-        try! RenderEngine.shared.destroyWindow(self.engineWindow.id)
+        Task.detached { @MainActor in
+            try! RenderEngine.shared.destroyWindow(self.engineWindow.id)
+        }
     }
 }
 
@@ -70,10 +71,12 @@ extension AEView: MTKViewDelegate {
     }
     
     public func draw(in view: MTKView) {
-        do {
-            try GameLoop.current.iterate()
-        } catch {
-            print("[AEView Error]", error.localizedDescription)
+        Task.detached { @MainActor in
+            do {
+                try await GameLoop.current.iterate()
+            } catch {
+                print("[AEView Error]", error.localizedDescription)
+            }
         }
     }
 }

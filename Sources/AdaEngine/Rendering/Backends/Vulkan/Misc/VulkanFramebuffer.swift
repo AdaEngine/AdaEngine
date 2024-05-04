@@ -39,21 +39,7 @@ final class VulkanFramebuffer: Framebuffer {
 
         self.attachments = []
 
-        var size = Size(width: 1, height: 1)
-
-        if descriptor.width == 0 && descriptor.height == 0 {
-            let windowSize = Application.shared.windowManager.activeWindow?.frame.size ?? .zero
-            if windowSize.height > 0 && windowSize.width > 0 {
-                size = windowSize
-            }
-        } else {
-            size = Size(
-                width: Float(descriptor.width),
-                height: Float(descriptor.width)
-            )
-        }
-
-        self.size = size
+        self.size = Size(width: Float(descriptor.width), height: Float(descriptor.width))
 
         self.invalidate()
     }

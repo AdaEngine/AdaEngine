@@ -182,7 +182,10 @@ let adaEngineTarget: Target = .target(
 
 let adaEngineEmbeddable: Target = .target(
     name: "AdaEngineEmbeddable",
-    dependencies: ["AdaEngine"]
+    dependencies: ["AdaEngine"],
+    swiftSettings: [
+        .interoperabilityMode(.Cxx)
+    ]
 )
 
 let adaEngineMacros: Target = .macro(
@@ -273,7 +276,7 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [
         .iOS(.v14),
-        .macOS(.v11),
+        .macOS(.v13),
     ],
     products: products,
     dependencies: [],
