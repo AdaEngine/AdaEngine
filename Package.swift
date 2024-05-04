@@ -176,9 +176,8 @@ let adaEngineTarget: Target = .target(
 let adaEngineEmbeddable: Target = .target(
     name: "AdaEngineEmbeddable",
     dependencies: ["AdaEngine"],
-    swiftSettings: [.interoperabilityMode(.Cxx)],
-    linkerSettings: [
-        .linkedLibrary("c++")
+    swiftSettings: [
+        .interoperabilityMode(.Cxx)
     ]
 )
 

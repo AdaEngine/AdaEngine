@@ -31,7 +31,7 @@ public struct RenderItems<T: RenderItem> {
                 continue
             }
             
-            let context = RenderContext(
+            let context = DrawPassRenderContext(
                 device: drawList.renderDevice,
                 entity: item.entity,
                 world: world,
