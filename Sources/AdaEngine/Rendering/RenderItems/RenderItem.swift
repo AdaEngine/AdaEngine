@@ -30,7 +30,7 @@ public struct RenderItems<T: RenderItem> {
                 continue
             }
             
-            let context = RenderContext(
+            let context = DrawPassRenderContext(
                 device: .shared,
                 entity: item.entity,
                 world: world,

@@ -11,6 +11,8 @@ import Vulkan
 import CVulkan
 import Math
 
+// TODO: Replace Prints to AdaEngine Logging system.
+
 extension VulkanRenderBackend {
     
     struct VKSwapchain {
@@ -31,6 +33,8 @@ extension VulkanRenderBackend {
     }
 
     final class Context {
+
+        private var debugCallback : VkDebugReportCallbackEXT? = nil
 
         private(set) var windows: [Window.ID: RenderWindow] = [:]
         private(set) var instance: VulkanInstance
@@ -84,7 +88,7 @@ extension VulkanRenderBackend {
                     deviceIndex: deviceIndex,
                     deviceQueueFamilyProperties: self.deviceQueueFamilyProperties
                 )
-                
+
                 let queue = self.deviceQueueFamilyProperties[deviceIndex].first(where: { $0.queueFlags.contains(.graphicsBit) })!
                 
                 self.commandPool = try CommandPool(device: self.logicalDevice, queueFamilyIndex: queue.index)
@@ -100,6 +104,10 @@ extension VulkanRenderBackend {
                     
                     let fence = try Vulkan.Fence(device: self.logicalDevice)
                     self.drawFences.append(fence)
+                }
+
+                if Engine.shared.useVulkanDebugMessages {
+                    self.subscribeToVulkanDebugMsgs()
                 }
             } catch {
                 fatalError("[VulkanRenderBackend] \(error.localizedDescription)")
@@ -203,6 +211,32 @@ extension VulkanRenderBackend {
             return version
         }
 
+        private func subscribeToVulkanDebugMsgs() {
+            guard let vkCreateDebugReportCallbackEXT = unsafeBitCast(vkGetInstanceProcAddr(self.instance.pointer, "vkCreateDebugReportCallbackEXT"), to: PFN_vkCreateDebugReportCallbackEXT?.self) else {
+                print("[VulkanContext] Could not find DebugReportCallbackEXT")
+                return
+            }
+
+            /* Setup callback creation information */
+            var callbackCreateInfo = VkDebugReportCallbackCreateInfoEXT()
+            callbackCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT
+            callbackCreateInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT.rawValue | VK_DEBUG_REPORT_WARNING_BIT_EXT.rawValue | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT.rawValue
+            callbackCreateInfo.pfnCallback = { flags, objectType, object,  location, messageCode, pLayerPrefix, pMessage, pUserData in
+                print("⚠️ [Vulkan Debug Message]", String(cString: pMessage!), "⚠️")
+
+                return false
+            }
+
+            /* Register the callback */
+            let result = vkCreateDebugReportCallbackEXT(self.instance.pointer, &callbackCreateInfo, nil, &self.debugCallback)
+
+            if result == VK_SUCCESS {
+                print("[VulkanContext] Registered Vulkan debug callback.")
+            } else {
+                print("[VulkanContext] Could not register Vulkan debug report callback. Error code: \(result)")
+            }
+        }
+
         private static func getAvailableExtensionNames() throws -> [String] {
             let extensions = try VulkanInstance.getExtensions()
 
@@ -236,7 +270,7 @@ extension VulkanRenderBackend {
                 }
                 #endif
 
-                if ext.extensionName == VK_EXT_DEBUG_REPORT_EXTENSION_NAME && Engine.shared.useValidationLayers {
+                if ext.extensionName == VK_EXT_DEBUG_REPORT_EXTENSION_NAME && Engine.shared.useVulkanDebugMessages {
                     availableExtenstions.append(ext.extensionName)
                 }
             }
