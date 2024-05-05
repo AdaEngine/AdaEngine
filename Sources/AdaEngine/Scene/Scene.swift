@@ -230,10 +230,11 @@ public extension Scene {
     
     /// Remove entity from world.
     /// - Note: Entity will removed on next `update` call.
-    func removeEntity(_ entity: Entity) {
+    /// - Parameter recursively: also remove entity child.
+    func removeEntity(_ entity: Entity, recursively: Bool = false) {
         self.eventManager.send(SceneEvents.WillRemoveEntity(entity: entity), source: self)
         
-        self.world.removeEntityOnNextTick(entity)
+        self.world.removeEntityOnNextTick(entity, recursively: recursively)
     }
 }
 

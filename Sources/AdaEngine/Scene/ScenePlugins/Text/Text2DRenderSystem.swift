@@ -81,8 +81,6 @@ public struct Text2DRenderSystem: System {
 
         let spriteDraw = SpriteDrawPass.identifier
 
-        let spriteData = EmptyEntity(name: "sprite_data")
-
         let texts = visibleEntities.filter {
             $0.components.has(Text2DComponent.self) && $0.components.has(TextLayoutComponent.self)
         }

@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
-// FIXME: Skipped items when batched a lot of sprites entities
-
 /// System in RenderWorld for render sprites from exctracted sprites.
 public struct SpriteRenderSystem: System {
 
@@ -18,13 +16,6 @@ public struct SpriteRenderSystem: System {
 
     static let extractedSprites = EntityQuery(where: .has(ExtractedSprites.self))
 
-    struct SpriteVertexData {
-        let position: Vector4
-        let color: Color
-        let textureCoordinate: Vector2
-        let textureIndex: Int
-    }
-
     static let quadPosition: [Vector4] = [
         [-0.5, -0.5,  0.0, 1.0],
         [ 0.5, -0.5,  0.0, 1.0],
@@ -34,33 +25,7 @@ public struct SpriteRenderSystem: System {
 
     static let maxTexturesPerBatch = 16
 
-    let quadRenderPipeline: RenderPipeline
-
-    public init(scene: Scene) {
-        let device = RenderEngine.shared
-
-        let quadShader = try! ResourceManager.loadSync("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
-
-        var piplineDesc = RenderPipelineDescriptor()
-        piplineDesc.vertex = quadShader.getShader(for: .vertex)
-        piplineDesc.fragment = quadShader.getShader(for: .fragment)
-        piplineDesc.debugName = "Sprite Pipeline"
-
-        piplineDesc.vertexDescriptor.attributes.append([
-            .attribute(.vector4, name: "a_Position"),
-            .attribute(.vector4, name: "a_Color"),
-            .attribute(.vector2, name: "a_TexCoordinate"),
-            .attribute(.int, name: "a_TexIndex")
-        ])
-
-        piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<SpriteVertexData>.stride
-
-        piplineDesc.colorAttachments = [ColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
-
-        let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
-
-        self.quadRenderPipeline = quadPipeline
-    }
+    public init(scene: Scene) { }
 
     public func update(context: UpdateContext) async {
         let extractedSprites = context.scene.performQuery(Self.extractedSprites)
@@ -165,7 +130,7 @@ public struct SpriteRenderSystem: System {
                     entity: spriteData,
                     batchEntity: currentBatchEntity,
                     drawPassId: spriteDraw,
-                    renderPipeline: self.quadRenderPipeline,
+                    renderPipeline: SpriteRenderPipeline.default.renderPipeline,
                     sortKey: sprite.transform.position.z,
                     batchRange: itemStart..<itemEnd
                 )
@@ -269,15 +234,13 @@ public struct ExtractSpriteSystem: System {
                 return
             }
 
-            let worldTransform = context.scene.worldTransformMatrix(for: entity)
-
             extractedSprites.sprites.append(
                 ExtractedSprite(
                     entityId: entity.id,
                     texture: sprite.texture,
                     tintColor: sprite.tintColor,
                     transform: transform,
-                    worldTransform: worldTransform
+                    worldTransform: transform.matrix
                 )
             )
         }

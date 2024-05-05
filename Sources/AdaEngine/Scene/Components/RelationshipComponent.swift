@@ -55,8 +55,11 @@ public extension Entity {
         guard var relationship = self.components[RelationshipComponent.self] else {
             return
         }
-        
-        relationship.parent = entity.id
+
+        entity.components[RelationshipComponent.self]?.parent = self.id
+        _ = relationship.children.unordered.insert(entity.id)
+
+        self.components += relationship
     }
     
     /// Remove entity from children.
@@ -67,6 +70,8 @@ public extension Entity {
         
         entity.components[RelationshipComponent.self]?.parent = nil
         relationship.children.remove(entity.id)
+        
+        self.components += relationship
     }
     
     /// Remove entity from parent

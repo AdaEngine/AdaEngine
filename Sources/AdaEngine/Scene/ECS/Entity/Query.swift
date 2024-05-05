@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
+// TODO: Should EntityQuery hold state?
+
 /// This object describe query to ECS world.
 ///
 /// ```swift
@@ -52,7 +54,7 @@
         
         /// Returns entities which stored in world.
         public static let stored = Filter(rawValue: 1 << 1)
-        
+
         /// Returns entities which wait removing from world.
         public static let removed = Filter(rawValue: 1 << 2)
         

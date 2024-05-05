@@ -7,6 +7,13 @@
 
 import Math
 
+struct SpriteVertexData {
+    let position: Vector4
+    let color: Color
+    let textureCoordinate: Vector2
+    let textureIndex: Int
+}
+
 /// Render draw pass for rendering sprites. Support batching.
 public struct SpriteDrawPass: DrawPass {
     

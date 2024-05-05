@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/7/22.
 //
 
-// TODO: Currently we render on window directly
+// FIXME: Currently we render on window directly
 
 /// System for updating cameras data on scene.
 public struct CameraSystem: System {
