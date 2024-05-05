@@ -23,6 +23,9 @@ struct DefaultScenePlugin: ScenePlugin {
 
         // Setup Physics
         await scene.addPlugin(Physics2DPlugin())
+
+        await scene.addPlugin(TransformPlugin())
+        await scene.addPlugin(TileMapPlugin())
     }
 }
 

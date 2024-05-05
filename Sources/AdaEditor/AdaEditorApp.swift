@@ -10,7 +10,7 @@ import AdaEngine
 @main
 struct AdaEditorApp: App {
     
-    let gameScene = SpaceInvaders()
+    let gameScene = TilemapScene()
     
     var scene: some AppScene {
         GameAppScene {
