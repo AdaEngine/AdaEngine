@@ -32,7 +32,7 @@ public final class World {
     private var updatedComponents: [Entity: Set<ComponentId>] = [:]
 
     /// FIXME: Not efficient, should refactor later
-    private(set) var scripts: SparseArray<ScriptComponent> = []
+    private(set) var scripts: SparseArray<ScriptableComponent> = []
     private(set) var scriptRecords: [Entity.ID: [ComponentId: Int]] = [:]
     private(set) var friedScriptsIndecies: [Int] = []
     
@@ -88,7 +88,7 @@ public final class World {
         defer { lock.unlock() }
 
         for (identifier, component) in entity.components.buffer {
-            if let script = component as? ScriptComponent {
+            if let script = component as? ScriptableComponent {
                 self.addScript(script, entity: entity.id, identifier: identifier)
             }
         }
@@ -113,7 +113,7 @@ public final class World {
         guard self.records[entity.id] != nil else { 
             return
         }
-        
+
         self.removedEntities.insert(entity.id)
 
         guard recursively && !entity.children.isEmpty else {
@@ -229,7 +229,7 @@ public final class World {
     }
     
     /// Add script component
-    private func addScript(_ component: ScriptComponent, entity: Entity.ID, identifier: ComponentId) {
+    private func addScript(_ component: ScriptableComponent, entity: Entity.ID, identifier: ComponentId) {
         if self.friedScriptsIndecies.isEmpty {
             self.scripts.append(component)
             self.scriptRecords[entity, default: [:]][identifier] = self.scripts.count - 1
@@ -254,7 +254,7 @@ public final class World {
         lock.lock()
         defer { lock.unlock() }
 
-        if let script = component as? ScriptComponent {
+        if let script = component as? ScriptableComponent {
             self.addScript(script, entity: entity.id, identifier: identifier)
         }
 
@@ -268,7 +268,7 @@ public final class World {
         lock.lock()
         defer { lock.unlock() }
 
-        if let script = component as? ScriptComponent {
+        if let script = component as? ScriptableComponent {
             self.addScript(script, entity: entity.id, identifier: identifier)
         }
 
@@ -285,7 +285,7 @@ public final class World {
 
         EventManager.default.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
 
-        if component is ScriptComponent.Type {
+        if component is ScriptableComponent.Type {
             self.removeScript(entity: entity.id, identifier: identifier)
         }
 
