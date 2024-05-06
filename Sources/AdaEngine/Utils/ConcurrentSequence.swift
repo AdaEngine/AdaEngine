@@ -1,11 +1,9 @@
 //
-//  File.swift
-//  
+//  ConcurrentSequence.swift
+//  AdaEngine
 //
 //  Created by v.prusakov on 4/30/24.
 //
-
-import Foundation
 
 public struct ConcurrentSequence<S: Sequence> {
 

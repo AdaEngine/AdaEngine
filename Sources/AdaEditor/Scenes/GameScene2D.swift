@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class InputMapCallComponent: ScriptComponent {
+class InputMapCallComponent: ScriptableComponent {
 
     @RequiredComponent var textComponent: Text2DComponent
 

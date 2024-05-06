@@ -19,59 +19,10 @@ class TilemapScene {
 
         let tileMap = TileMap()
 
-        let image = try ResourceManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image
+        let image = try await ResourceManager.load("Assets/tiles_packed.png", from: .editor) as Image
         let source = TileTextureAtlasSource(from: image, size: [18, 18])
 
         let sourceId = tileMap.tileSet.addTileSource(source)
-
-        func getCoordinates(for x: Int, y: Int, maxX: Int, maxY: Int) -> PointInt {
-            let isFirst = x == 0
-            let isLast = x == maxX - 1
-
-            let bottom = y == 0
-            let top = y == maxY - 1
-
-            let topLeft: PointInt = [1, 5]
-            let topRight: PointInt = [3, 5]
-            let bottomLeft: PointInt = [1, 7]
-            let bottomRight: PointInt = [3, 7]
-            let middleTop: PointInt = [2, 5]
-            let middleBottom: PointInt = [2, 7]
-
-            if isFirst && top {
-                return topLeft
-            }
-
-            if isFirst && bottom {
-                return bottomLeft
-            }
-
-            if isLast && top {
-                return topRight
-            }
-
-            if isLast && bottom {
-                return bottomRight
-            }
-
-            if top {
-                return middleTop
-            }
-
-            if bottom {
-                return middleBottom
-            }
-
-            if isFirst {
-                return [1, 6]
-            }
-
-            if isLast {
-                return [3, 6]
-            }
-
-            return [2, 6]
-        }
 
         let xRange = 0..<15
         let yRange = 0..<6
@@ -110,6 +61,55 @@ class TilemapScene {
         scene.addSystem(CamMovementSystem.self)
 
         return scene
+    }
+
+    func getCoordinates(for x: Int, y: Int, maxX: Int, maxY: Int) -> PointInt {
+        let isFirst = x == 0
+        let isLast = x == maxX - 1
+
+        let bottom = y == 0
+        let top = y == maxY - 1
+
+        let topLeft: PointInt = [1, 5]
+        let topRight: PointInt = [3, 5]
+        let bottomLeft: PointInt = [1, 7]
+        let bottomRight: PointInt = [3, 7]
+        let middleTop: PointInt = [2, 5]
+        let middleBottom: PointInt = [2, 7]
+
+        if isFirst && top {
+            return topLeft
+        }
+
+        if isFirst && bottom {
+            return bottomLeft
+        }
+
+        if isLast && top {
+            return topRight
+        }
+
+        if isLast && bottom {
+            return bottomRight
+        }
+
+        if top {
+            return middleTop
+        }
+
+        if bottom {
+            return middleBottom
+        }
+
+        if isFirst {
+            return [1, 6]
+        }
+
+        if isLast {
+            return [3, 6]
+        }
+
+        return [2, 6]
     }
 
 }
@@ -161,4 +161,6 @@ struct CamMovementSystem: System {
         cameraEntity.components += cameraTransform
         cameraEntity.components += camera
     }
+
+    
 }

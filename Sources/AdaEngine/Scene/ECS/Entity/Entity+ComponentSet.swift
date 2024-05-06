@@ -86,7 +86,7 @@ public extension Entity {
             }
 
             self.buffer[identifier] = component
-            (component as? ScriptComponent)?.entity = self.entity
+            (component as? ScriptableComponent)?.entity = self.entity
             self.bitset.insert(T.self)
             guard let ent = self.entity else {
                 return
@@ -116,7 +116,7 @@ public extension Entity {
                 }
 
                 self.buffer[identifier] = component
-                (component as? ScriptComponent)?.entity = self.entity
+                (component as? ScriptableComponent)?.entity = self.entity
                 self.bitset.insert(identifier)
                 
                 guard let ent = self.entity else {
@@ -144,7 +144,7 @@ public extension Entity {
             defer { lock.unlock() }
             
             let identifier = componentType.identifier
-            (self.buffer[identifier] as? ScriptComponent)?.onDestroy()
+            (self.buffer[identifier] as? ScriptableComponent)?.onDestroy()
             self.buffer[identifier] = nil
             
             self.bitset.remove(componentType)
@@ -161,7 +161,7 @@ public extension Entity {
             
             for component in self.buffer.values.elements {
                 let componentType = type(of: component)
-                (component as? ScriptComponent)?.onDestroy()
+                (component as? ScriptableComponent)?.onDestroy()
 
                 if let ent = self.entity {
                     self.world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)

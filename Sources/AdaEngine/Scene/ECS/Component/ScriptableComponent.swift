@@ -1,15 +1,20 @@
 //
-//  ScriptComponent.swift
+//  ScriptableComponent.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 5/24/22.
 //
 
 /// Base class describe some unit of game logic.
+///
+/// - Note: We don't recomend use a lot of scriptable objects, instead use ECS paradigm.
+///
 /// It can be used when you need some Unity-like component with specific behaviour.
-/// - Note: In this scenario we don't have order of execution.
-open class ScriptComponent: Component {
-    
+///
+/// - Warning: AdaEngine doesn't has execution order for `ScriptableComponent`.
+///
+open class ScriptableComponent: Component {
+
     internal var isAwaked: Bool = false
     
     public internal(set) weak var entity: Entity?
@@ -106,7 +111,7 @@ open class ScriptComponent: Component {
     
 }
 
-public extension ScriptComponent {
+public extension ScriptableComponent {
     
     /// Get collection of components in entity
     /// - Warning: Crashed if component not connected to entity.
