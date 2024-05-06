@@ -23,7 +23,11 @@ open class Entity: Identifiable, @unchecked Sendable {
     
     /// Contains components specific for current entity.
     public var components: ComponentSet
-    
+
+    /// A Boolean that indicates whether the entity is active.
+    /// - Note:  AdaEngine doesn’t simulate or render inactive entities.
+    public var isActive: Bool = true
+
     /// Contains reference for world where entity placed.
     public internal(set) weak var world: World?
     

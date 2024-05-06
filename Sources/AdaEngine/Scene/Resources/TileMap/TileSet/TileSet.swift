@@ -52,7 +52,5 @@ public class TileSet: Resource {
     public func removeTileSet(at id: TileSource.ID) {
         self.sources[id] = nil
     }
-
-    // MARK: Physics
     
 }
