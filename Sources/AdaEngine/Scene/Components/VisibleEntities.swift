@@ -51,12 +51,15 @@ public struct VisibilitySystem: System {
     /// Update or create bounding boxes for SpriteComponent and Mesh2D.
     private func updateBoundings(context: UpdateContext) {
         context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
-
             var bounds: BoundingComponent.Bounds?
             
             if entity.components.has(SpriteComponent.self) || entity.components.has(Circle2DComponent.self) {
                 let transform = entity.components[Transform.self]!
-                
+
+                if !entity.components.isComponentChanged(transform) && entity.components.has(BoundingComponent.self) {
+                    return
+                }
+
                 let position = transform.position
                 let scale = transform.scale
                 

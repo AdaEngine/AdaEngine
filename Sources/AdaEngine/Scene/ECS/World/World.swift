@@ -110,10 +110,13 @@ public final class World {
         lock.lock()
         defer { lock.unlock() }
         
-        guard self.records[entity.id] != nil else { return }
+        guard self.records[entity.id] != nil else { 
+            return
+        }
+        
         self.removedEntities.insert(entity.id)
 
-        if !recursively {
+        guard recursively && !entity.children.isEmpty else {
             return
         }
 

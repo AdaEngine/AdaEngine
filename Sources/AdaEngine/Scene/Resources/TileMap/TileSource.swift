@@ -8,15 +8,22 @@
 public class TileSource {
 
     struct TileData {
-        var sizeInAtlas: Size = Size(width: 1, height: 1)
-        var textureOffset: Vector2
         var modulateColor = Color(1.0, 1.0, 1.0, 1.0)
+        var flipH: Bool = false
+        var flipV: Bool = false
+        var zIndex: Int = 0
     }
 
     public typealias ID = RID
 
+    private var tileData: [PointInt: TileData] = [:]
+
     func getTexture(at coordinates: PointInt) -> Texture2D {
         fatalErrorMethodNotImplemented()
+    }
+
+    func getTileData(at coordinates: PointInt) -> TileData {
+        return tileData[coordinates] ?? TileData()
     }
 }
 

@@ -24,7 +24,15 @@ public struct TileMapSystem: System {
             var (tileMapComponent, transform) = entity.components[TileMapComponent.self, Transform.self]
             let tileMap = tileMapComponent.tileMap
 
-            for layer in tileMap.layers where layer.isEnabled {
+            if !tileMap.needsUpdate {
+                return
+            }
+
+            for layer in tileMap.layers {
+                if let ent = tileMapComponent.tileLayers[layer.id] {
+                    self.setEntityActive(ent, isActive: layer.isEnabled)
+                }
+
                 await self.addTiles(
                     for: layer,
                     tileMapComponent: &tileMapComponent,
@@ -39,7 +47,15 @@ public struct TileMapSystem: System {
         }
     }
 
-    public func addTiles(
+    private func setEntityActive(_ entity: Entity, isActive: Bool) {
+        entity.isActive = isActive
+
+        for child in entity.children {
+            child.isActive = isActive
+        }
+    }
+
+    private func addTiles(
         for layer: TileMapLayer,
         tileMapComponent: inout TileMapComponent,
         transform: Transform,
@@ -51,27 +67,34 @@ public struct TileMapSystem: System {
             return
         }
 
-        let gridSize = 1 / Float(layer.gridSize)
+        let scale = Vector3(1)
 
         if layer.needUpdates {
             tileMapComponent.tileLayers[layer.id]?.removeFromScene(recursively: true)
 
             let tileParent = Entity()
 
-            for (position, tile) in layer.tileMap {
+            for (position, tile) in layer.tileCells {
                 guard let source = tileSet.sources[tile.sourceId] else {
                     continue
                 }
 
                 let texture = source.getTexture(at: tile.coordinates)
+                let tileData = source.getTileData(at: position)
 
                 let tileEntity = Entity()
-                tileEntity.components += SpriteComponent(texture: texture, tintColor: .white)
-                tileEntity.components += Transform(scale: [gridSize, gridSize, gridSize], position: [Float(position.x), Float(position.y), 1])
-                tileEntity.components += Collision2DComponent(
-                    shapes: [.generateBox(width: gridSize, height: gridSize)],
-                    filter: CollisionFilter(categoryBitMask: .default, collisionBitMask: .default) // TODO: Change
-                )
+                tileEntity.components += SpriteComponent(texture: texture, tintColor: tileData.modulateColor)
+                tileEntity.components += Transform(scale: scale, position: [Float(position.x), Float(position.y), 1])
+
+//                if tileData.useCollisition {
+//                    tileEntity.components += Collision2DComponent(
+//                        shapes: [.generateBox()],
+//                        filter: CollisionFilter(
+//                            categoryBitMask: tileData.physicLayer.collisionLayer,
+//                            collisionBitMask: tileData.physicLayer.collisionMask
+//                        )
+//                    )
+//                }
 
                 tileParent.addChild(tileParent)
                 scene.addEntity(tileEntity)
@@ -83,38 +106,5 @@ public struct TileMapSystem: System {
 
             layer.updateDidFinish()
         }
-//
-//        let extractedEntity = EmptyEntity()
-//        var extractedSprites = ExtractedSprites(sprites: [])
-//
-//        let gridSize = Float(layer.gridSize)
-//
-//        for (position, tile) in layer.tileMap {
-//            guard let source = tileSet.sources[tile.sourceId] else {
-//                continue
-//            }
-//
-//            let texture = source.getTexture(at: tile.coordinates)
-//
-//            let tileTransformMat = Transform3D(
-//                translation: [Float(position.x), Float(position.y), 1],
-//                rotation: .identity,
-//                scale: [gridSize, gridSize, gridSize]
-//            ) * transform.matrix
-//
-//            extractedSprites.sprites.append(
-//                ExtractedSprite(
-//                    entityId: entityId,
-//                    texture: texture,
-//                    tintColor: Color.white,
-//                    transform: Transform(matrix: tileTransformMat),
-//                    worldTransform: tileTransformMat
-//                )
-//            )
-//        }
-//
-//        extractedEntity.components += extractedSprites
-//
-//        await Application.shared.renderWorld.addEntity(extractedEntity)
     }
 }

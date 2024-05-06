@@ -217,7 +217,7 @@ public extension QueryResult {
                 
                 let currentArchetype = self.state.archetypes[self.currentArchetypeIndex]
 
-                guard let entity = currentArchetype.entities[self.currentEntityIndex] else {
+                guard let entity = currentArchetype.entities[self.currentEntityIndex], entity.isActive else {
                     continue
                 }
                 

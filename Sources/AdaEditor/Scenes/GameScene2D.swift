@@ -342,16 +342,11 @@ final class GameScene2D {
     func makeCanvasItem(for scene: Scene, position: Vector3) throws {
         let dogTexture = try ResourceManager.loadSync("Assets/dog.png", from: Bundle.editor) as Texture2D
 
-        let material = MyMaterial(
-            color: .red,
-            customTexture: dogTexture
-        )
-
-        let handle = CustomMaterial(material)
+        @CustomMaterial var material = MyMaterial(color: .red, customTexture: dogTexture)
 
         let mesh = Mesh2DComponent(
             mesh: Mesh.generate(from: Quad()),
-            materials: [handle]
+            materials: [$material]
         )
 
         var transform = Transform()

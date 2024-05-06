@@ -20,6 +20,8 @@ public class TileMap: Resource {
     public var resourcePath: String = ""
     public var resourceName: String = ""
 
+    internal private(set) var needsUpdate: Bool = false
+
     public init() {
         self.tileSetDidChange()
     }
@@ -64,56 +66,23 @@ public class TileMap: Resource {
         layer.removeCell(at: coordinates)
     }
 
+    // MARK: - Internals
+
+    func setNeedsUpdate() {
+        self.needsUpdate = true
+    }
+
+    func updateDidFinish() {
+        self.needsUpdate = false
+    }
+
     // MARK: - Private
 
     private func tileSetDidChange() {
+        self.setNeedsUpdate()
+
         for layer in layers {
             layer.tileSet = self.tileSet
         }
-    }
-}
-
-public final class TileMapLayer: Identifiable {
-
-    public var name: String = ""
-
-    public var id: RID = RID()
-
-    public internal(set) weak var tileSet: TileSet?
-
-    struct TileCellData {
-        let coordinates: PointInt
-        let sourceId: TileSource.ID
-    }
-
-    public var isEnabled: Bool = true
-
-    internal private(set) var needUpdates = false
-
-    var gridSize: Int = 16
-    public var zIndex: Int = 0
-
-    private(set) var tileMap: [PointInt: TileCellData] = [:]
-
-    public func setCell(at position: PointInt, sourceId: TileSource.ID, atlasCoordinates: PointInt) {
-        self.tileMap[position] = TileCellData(coordinates: atlasCoordinates, sourceId: sourceId)
-
-        self.needUpdates = true
-    }
-
-    public func removeCell(at position: PointInt) {
-        self.tileMap[position] = nil
-
-        self.needUpdates = true
-    }
-
-    public func getSource(at position: PointInt) -> TileSource.ID {
-        return self.tileMap[position]?.sourceId ?? .empty
-    }
-
-    // MARK: - Internals
-
-    func updateDidFinish() {
-        self.needUpdates = false
     }
 }
