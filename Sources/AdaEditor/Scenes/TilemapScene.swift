@@ -10,10 +10,6 @@ import AdaEngine
 class TilemapScene: Scene {
 
     override func sceneDidMove(to view: SceneView) {
-
-        let newView = View(frame: Rect(x: 0, y: 0, width: 20, height: 20))
-        view.addSubview(newView)
-
         let tileMap = TileMap()
 
         let image = try! ResourceManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image
@@ -36,7 +32,7 @@ class TilemapScene: Scene {
             }
         }
 
-//        scene.debugOptions = [.showPhysicsShapes]
+        self.debugOptions = [.showPhysicsShapes]
 
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
@@ -49,22 +45,14 @@ class TilemapScene: Scene {
         transform.position.y = -0.5
         transform.scale = Vector3(0.5)
 
-        let tilemapEnt = Entity()
-        tilemapEnt.components += TileMapComponent(tileMap: tileMap)
-        tilemapEnt.components += NoFrustumCulling()
-        tilemapEnt.components += transform
+        let tilemapEnt = Entity {
+            TileMapComponent(tileMap: tileMap)
+            NoFrustumCulling()
+            transform
+        }
 
         self.addEntity(tilemapEnt)
         self.addSystem(CamMovementSystem.self)
-    }
-
-    @MainActor
-    func makeScene() async throws -> Scene {
-        let scene = Scene()
-
-
-
-        return scene
     }
 
     func getCoordinates(for x: Int, y: Int, maxX: Int, maxY: Int) -> PointInt {
@@ -165,6 +153,4 @@ struct CamMovementSystem: System {
         cameraEntity.components += cameraTransform
         cameraEntity.components += camera
     }
-
-    
 }

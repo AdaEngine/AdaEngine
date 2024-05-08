@@ -131,6 +131,11 @@ public extension Entity {
             }
         }
 
+        /// Set the components of the specified type using ``ComponentsBuilder``.
+        public mutating func set(@ComponentsBuilder components: () -> [Component]) {
+            self.set(components())
+        }
+
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentType: Component.Type) -> Bool {
             lock.lock()
