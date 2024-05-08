@@ -44,8 +44,6 @@ open class View {
 
     public private(set) var subviews: [View] = []
 
-    open var backgroundColor: Color = Color.white
-
     open var isInteractionEnabled: Bool = true
 
     open var isHidden: Bool = false
@@ -90,9 +88,6 @@ open class View {
             return
         }
 
-        context.setFillColor(self.backgroundColor)
-        context.fillRect(rect)
-
         for subview in self.subviews {
             subview.draw(with: context)
         }
@@ -114,9 +109,7 @@ open class View {
 
     /// - Parameter superView: Return view instance if view attached to superview or nil if view deattached from superview.
     /// Also superview can be [Window](x-source-tag://AdaEngine.Window) instance.
-    open func viewDidMove(to superView: View?) {
-
-    }
+    open func viewDidMove(to superView: View?) { }
 
     // MARK: - Interaction
 
@@ -200,9 +193,6 @@ open class View {
 
     private func handleClick(_ position: Point, with event: InputEvent) {
         guard self.isInteractionEnabled else { return }
-
-        let view = self.hitTest(position, with: event)
-        view?.backgroundColor = .mint
     }
 
     // MARK: - View Hierarchy

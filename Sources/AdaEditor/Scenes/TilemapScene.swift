@@ -10,6 +10,10 @@ import AdaEngine
 class TilemapScene: Scene {
 
     override func sceneDidMove(to view: SceneView) {
+
+        let newView = View(frame: Rect(x: 0, y: 0, width: 20, height: 20))
+        view.addSubview(newView)
+
         let tileMap = TileMap()
 
         let image = try! ResourceManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image

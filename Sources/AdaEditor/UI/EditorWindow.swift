@@ -12,8 +12,6 @@ class EditorWindow: Window {
         self.title = "Ada Editor"
         
         self.canDraw = true
-        
-        self.backgroundColor = .red
 //
 //        let blueView = View(frame: Rect(origin: .zero, size: Size(width: 400, height: 400)))
 //        blueView.backgroundColor = .blue

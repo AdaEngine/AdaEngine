@@ -59,7 +59,6 @@ open class Window: View {
     public required init(frame: Rect) {
         super.init(frame: frame)
         
-        self.backgroundColor = .clear
         self.windowManager.createWindow(for: self)
     }
 
