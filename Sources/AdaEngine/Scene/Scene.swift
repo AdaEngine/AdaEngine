@@ -14,7 +14,7 @@ enum SceneSerializationError: Error {
 }
 
 /// A container that holds the collection of entities for render.
-public final class Scene: Resource, @unchecked Sendable {
+open class Scene: Resource, @unchecked Sendable {
 
     /// Current supported version for mapping scene from file.
     static var currentVersion: Version = "1.0.0"
@@ -44,10 +44,13 @@ public final class Scene: Resource, @unchecked Sendable {
     public var debugPhysicsColor: Color = .green
     
     /// Instance of scene manager which holds this scene.
-    public weak var sceneManager: SceneManager?
+    public internal(set) weak var sceneManager: SceneManager?
 
     /// Flag indicate that scene is updating right now.
     private(set) var isUpdating = false
+
+    /// Check the scene will not run earlier.
+    private(set) var isReady = false
 
     // MARK: - Initialization -
     
@@ -83,7 +86,7 @@ public final class Scene: Resource, @unchecked Sendable {
 //        try encoder.encode(sceneData)
     }
     
-    nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
+    required nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
         guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
@@ -142,11 +145,20 @@ public final class Scene: Resource, @unchecked Sendable {
         self.plugins.append(plugin)
     }
 
+    // MARK: - Life Cycle
+
+    /// Tells you when the scene is presented.
+    ///
+    /// - Note: Scene is configured and you can't add new systems to the scene.
+    @MainActor open func sceneDidLoad() { }
+
+    /// Tells you when the scene is about to be removed from a view.
+    @MainActor open func sceneDidMove(to view: SceneView) { }
+
+    /// Tells you when the scene is about to be removed from a view.
+    @MainActor open func sceneWillMove(from view: SceneView) { }
+
     // MARK: - Internal methods
-    
-    // TODO: Looks like not a good solution here
-    /// Check the scene will not run earlier.
-    private(set) var isReady = false
 
     func readyIfNeeded() async {
         if self.isReady {
@@ -165,6 +177,8 @@ public final class Scene: Resource, @unchecked Sendable {
         self.systemGraph.linkSystems()
         self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
+
+        await self.sceneDidLoad()
     }
     
     /// Update scene world and systems by delta time.

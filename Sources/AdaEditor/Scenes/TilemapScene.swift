@@ -7,19 +7,12 @@
 
 import AdaEngine
 
-class TilemapScene {
+class TilemapScene: Scene {
 
-    init() {
-//        self.tileMap = try! ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as TileMap
-    }
-
-    @MainActor
-    func makeScene() async throws -> Scene {
-        let scene = Scene()
-
+    override func sceneDidMove(to view: SceneView) {
         let tileMap = TileMap()
 
-        let image = try await ResourceManager.load("Assets/tiles_packed.png", from: .editor) as Image
+        let image = try! ResourceManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image
         let source = TileTextureAtlasSource(from: image, size: [18, 18])
 
         let sourceId = tileMap.tileSet.addTileSource(source)
@@ -46,7 +39,7 @@ class TilemapScene {
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 1.5
 
-        scene.addEntity(cameraEntity)
+        self.addEntity(cameraEntity)
 
         var transform = Transform()
         transform.position.y = -0.5
@@ -57,8 +50,15 @@ class TilemapScene {
         tilemapEnt.components += NoFrustumCulling()
         tilemapEnt.components += transform
 
-        scene.addEntity(tilemapEnt)
-        scene.addSystem(CamMovementSystem.self)
+        self.addEntity(tilemapEnt)
+        self.addSystem(CamMovementSystem.self)
+    }
+
+    @MainActor
+    func makeScene() async throws -> Scene {
+        let scene = Scene()
+
+
 
         return scene
     }

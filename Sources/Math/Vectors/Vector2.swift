@@ -245,8 +245,10 @@ public typealias Point = Vector2
 
 public extension Point {
     func applying(_ affineTransform: Transform2D) -> Point {
-        let point = (affineTransform * Vector3(self.x, self.y, 1))
-        return [point.x, point.y]
+        return Point(
+            x: self.x * affineTransform[0, 0] + y * affineTransform[1, 0] + affineTransform.position.x,
+            y: self.x * affineTransform[0, 1] + y * affineTransform[1, 1] + affineTransform.position.y
+        )
     }
 }
 

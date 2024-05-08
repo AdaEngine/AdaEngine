@@ -46,11 +46,20 @@ public class SceneManager {
     
     /// Set new scene for presenting on screen.
     public func presentScene(_ scene: Scene) {
+        guard let view = self.sceneView else {
+            assertionFailure("Can't present scene without SceneView.")
+            return
+        }
+
+        self.currentScene?.sceneWillMove(from: view)
+
         scene.sceneManager = self
         scene.window = self.window
         scene.viewport = self.sceneView?.viewport ?? Viewport()
 
         self.currentScene = scene
+
+        scene.sceneDidMove(to: view)
     }
     
 }

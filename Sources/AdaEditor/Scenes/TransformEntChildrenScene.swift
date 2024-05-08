@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class TransformEntChildrenScene{
+class TransformEntChildrenScene {
 
     let characterAtlas: TextureAtlas
 

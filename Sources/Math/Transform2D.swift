@@ -262,7 +262,11 @@ public extension Transform2D {
         det = det + self.z.x * d3
         return det
     }
-    
+
+    var isAffineMatrix: Bool {
+        return self[0, 2] == 0 && self[1, 2] == 0 && self[2, 2] == 1
+    }
+
 }
 
 public extension Transform2D {
