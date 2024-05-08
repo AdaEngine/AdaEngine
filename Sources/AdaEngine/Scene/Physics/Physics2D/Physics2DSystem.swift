@@ -58,7 +58,7 @@ public final class Physics2DSystem: System {
     
     @MainActor
     private func updatePhysicsBodyEntities(_ entities: QueryResult, in world: PhysicsWorld2D) {
-        entities.forEach { entity in
+        for entity in entities {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
 
             if let body = physicsBody.runtimeBody {
@@ -122,7 +122,7 @@ public final class Physics2DSystem: System {
 
     @MainActor
     private func updateCollisionEntities(_ entities: QueryResult, in world: PhysicsWorld2D) {
-        entities.forEach { entity in
+        for entity in entities {
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
 
             if let body = collisionBody.runtimeBody {

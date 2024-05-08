@@ -7,26 +7,15 @@
 
 import AdaEngine
 
-class SpaceInvaders {
+class SpaceInvaders: Scene {
 
     var disposeBag: Set<AnyCancellable> = []
-
-    let characterAtlas: TextureAtlas
-
-    init() {
-        do {
-            let charactersTiles = try ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
-            self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
-        } catch {
-            fatalError(error.localizedDescription)
-        }
-    }
-
-    @MainActor
-    func makeScene() async throws -> Scene {
-        let scene = Scene()
-
-        let sound = try ResourceManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
+    var characterAtlas: TextureAtlas!
+    
+    override func sceneDidMove(to view: SceneView) {
+        let sound = try! ResourceManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
+        let charactersTiles = try! ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
+        self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
 
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
@@ -36,25 +25,25 @@ class SpaceInvaders {
 //            .setVolume(0.6)
 //            .play()
 
-        scene.addEntity(camera)
+        self.addEntity(camera)
 
-        try self.makePlayer(for: scene)
-        try self.makeScore(for: scene)
+        try! self.makePlayer()
+        try! self.makeScore()
 
         // Systems
 
-        scene.addSystem(MovementSystem.self)
-        scene.addSystem(FireSystem.self)
-        scene.addSystem(BulletSystem.self)
+        self.addSystem(MovementSystem.self)
+        self.addSystem(FireSystem.self)
+        self.addSystem(BulletSystem.self)
 
-        scene.addSystem(EnemySpawnerSystem.self)
-        scene.addSystem(EnemyMovementSystem.self)
-        scene.addSystem(EnemyLifetimeSystem.self)
-        scene.addSystem(EnemyExplosionSystem.self)
+        self.addSystem(EnemySpawnerSystem.self)
+        self.addSystem(EnemyMovementSystem.self)
+        self.addSystem(EnemyLifetimeSystem.self)
+        self.addSystem(EnemyExplosionSystem.self)
 
-        scene.addSystem(ScoreSystem.self)
+        self.addSystem(ScoreSystem.self)
 
-        scene.subscribe(to: CollisionEvents.Began.self) { event in
+        self.subscribe(to: CollisionEvents.Began.self) { event in
             if let bullet = event.entityB.components[Bullet.self], var enemy = event.entityA.components[EnemyComponent.self] {
                 enemy.health -= bullet.damage
 
@@ -64,26 +53,22 @@ class SpaceInvaders {
         }
         .store(in: &self.disposeBag)
 
-        scene.subscribe(to: SceneEvents.OnReady.self) { event in
+        self.subscribe(to: SceneEvents.OnReady.self) { event in
             event.scene.physicsWorld2D?.gravity = .zero
         }.store(in: &self.disposeBag)
-
-        return scene
     }
-}
 
-extension SpaceInvaders {
-    func makePlayer(for scene: Scene) throws {
+    private func makePlayer() throws {
         let player = Entity()
 
         player.components += Transform(scale: Vector3(0.2), position: [0, -0.85, 0])
         player.components += PlayerComponent()
         player.components += SpriteComponent(texture: characterAtlas[7, 1])
 
-        scene.addEntity(player)
+        self.addEntity(player)
     }
 
-    func makeScore(for scene: Scene) throws {
+    private func makeScore() throws {
         let score = Entity(name: "Score")
 
         var container = TextAttributeContainer()
@@ -95,7 +80,7 @@ extension SpaceInvaders {
         score.components += Transform(scale: Vector3(0.1), position: [-0.2, -0.9, 0])
         score.components += NoFrustumCulling()
 
-        scene.addEntity(score)
+        self.addEntity(score)
     }
 }
 
