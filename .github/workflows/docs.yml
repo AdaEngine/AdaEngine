@@ -19,7 +19,7 @@ jobs:
       - name: Deploy to Github pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          branch: main
+#          branch: main
           folder: docs
           token: ${{ secrets.DOCS_ACCESS_TOKEN }}
           repository-name: AdaEngine/adaengine-docs
