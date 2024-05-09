@@ -102,7 +102,7 @@ final class MacApplication: Application {
     func processEvents() {
         while true {
             let event = NSApp.nextEvent(
-                matchingMask: .any,
+                matching: .any,
                 until: .distantPast,
                 inMode: .default,
                 dequeue: true

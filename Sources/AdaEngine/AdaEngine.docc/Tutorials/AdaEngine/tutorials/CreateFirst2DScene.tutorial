@@ -6,6 +6,14 @@
     
     @XcodeRequirement(title: "Xcode 14.3 or later", destination: "https://developer.apple.com/download/")
     
+    @Section(title: "Intro") {
+        @ContentAndMedia {
+            For the first 2D scene we will try to repeat this example. We'll look at adding a scene and a camera. 
+            In addition, we'll learn how to add sprites and movement systems.
+            @Video(source: "CF2G-3-5.mov", alt: "")
+        }
+    }
+    
     @Section(title: "Create an app") {
         @ContentAndMedia {
             For the first time, we should create base files to launch our application
