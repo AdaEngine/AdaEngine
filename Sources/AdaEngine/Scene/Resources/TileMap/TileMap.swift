@@ -81,6 +81,8 @@ public class TileMap: Resource {
     private func tileSetDidChange() {
         self.setNeedsUpdate()
 
+        self.tileSet.tileMap = self
+
         for layer in layers {
             layer.tileSet = self.tileSet
         }
