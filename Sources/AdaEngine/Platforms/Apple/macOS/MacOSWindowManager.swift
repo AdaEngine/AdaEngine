@@ -213,7 +213,7 @@ final class MacOSWindowManager: WindowManager {
             hasAlpha: true,
             isPlanar: false,
             colorSpaceName: .deviceRGB,
-            bitmapFormat: NSBitmapFormat(),
+            bitmapFormat: NSBitmapImageRep.Format(),
             bytesPerRow: texture.width * 4,
             bitsPerPixel: 32
         ) else {
