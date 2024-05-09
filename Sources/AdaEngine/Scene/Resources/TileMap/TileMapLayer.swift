@@ -14,10 +14,19 @@ public final class TileMapLayer: Identifiable {
     public internal(set) weak var tileSet: TileSet?
     public internal(set) weak var tileMap: TileMap?
 
+
+    var gridSize: Int = 16
+    public var zIndex: Int = 0
+
     struct TileCellData {
-        let coordinates: PointInt
+        /// Position in atlas
+        let atlasCoordinates: PointInt
+        /// where get a tile
         let sourceId: TileSource.ID
     }
+
+    /// Key - position of tile in game world
+    private(set) var tileCells: [PointInt: TileCellData] = [:]
 
     public var isEnabled: Bool = true {
         didSet {
@@ -31,13 +40,11 @@ public final class TileMapLayer: Identifiable {
         }
     }
 
-    var gridSize: Int = 16
-    public var zIndex: Int = 0
-
-    private(set) var tileCells: [PointInt: TileCellData] = [:]
-
     public func setCell(at position: PointInt, sourceId: TileSource.ID, atlasCoordinates: PointInt) {
-        self.tileCells[position] = TileCellData(coordinates: atlasCoordinates, sourceId: sourceId)
+        self.tileCells[position] = TileCellData(
+            atlasCoordinates: atlasCoordinates,
+            sourceId: sourceId
+        )
 
         self.needUpdates = true
     }

@@ -7,27 +7,32 @@
 
 public class TileSource {
 
-    struct TileData {
-        var modulateColor = Color(1.0, 1.0, 1.0, 1.0)
-        var flipH: Bool = false
-        var flipV: Bool = false
-        var zIndex: Int = 0
-    }
+    public internal(set) weak var tileSet: TileSet?
 
     public typealias ID = RID
-
-    private var tileData: [PointInt: TileData] = [:]
 
     func getTexture(at coordinates: PointInt) -> Texture2D {
         fatalErrorMethodNotImplemented()
     }
 
     func getTileData(at coordinates: PointInt) -> TileData {
-        return tileData[coordinates] ?? TileData()
+        fatalErrorMethodNotImplemented()
+    }
+
+    func setNeedsUpdate() {
+        self.tileSet?.tileMap?.setNeedsUpdate()
     }
 }
 
 public class TileTextureAtlasSource: TileSource {
+
+    private struct AtlasTileData {
+        var animationFrameDuration: TimeInterval = 1.0
+        var tileData: TileData
+    }
+
+    // key - atlas coordinates
+    private var tiles: [PointInt: AtlasTileData] = [:]
 
     let textureAtlas: TextureAtlas
 
@@ -43,4 +48,35 @@ public class TileTextureAtlasSource: TileSource {
         textureAtlas.textureSlice(at: Vector2(Float(coordinates.x), Float(coordinates.y)))
     }
 
+    // Tiles
+
+    public func createTile(_ atlasCoordinates: PointInt) {
+        var data = TileData()
+        data.tileSet = self.tileSet
+        let atlasTileData = AtlasTileData(tileData: data)
+
+        self.tiles[atlasCoordinates] = atlasTileData
+    }
+
+    public func removeTile(_ atlasCoordinates: PointInt) {
+        self.tiles.removeValue(forKey: atlasCoordinates)
+
+        self.setNeedsUpdate()
+    }
+
+    override func getTileData(at coordinates: PointInt) -> TileData {
+        return tiles[coordinates]?.tileData ?? TileData()
+    }
+
+    // Animation
+}
+
+struct TileData {
+
+    weak var tileSet: TileSet?
+
+    var modulateColor = Color(1.0, 1.0, 1.0, 1.0)
+    var flipH: Bool = false
+    var flipV: Bool = false
+    var zIndex: Int = 0
 }

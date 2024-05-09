@@ -10,12 +10,15 @@ public class TileSet: Resource {
     struct PhysicsLayer {
         var collisionLayer: CollisionGroup = .default
         var collisionMask: CollisionGroup = .default
+        var shape: Shape2DResource
     }
 
     public var tileSize: PointInt = [16, 16]
 
     private var physicsLayers: [PhysicsLayer] = []
     public private(set) var sources: [TileSource.ID: TileSource] = [:]
+
+    public internal(set) weak var tileMap: TileMap?
 
     // MARK: - Resource
 
