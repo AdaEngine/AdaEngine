@@ -1,0 +1,53 @@
+@Tutorial(time: 5) {
+    @Intro(title: "Event Listeners in Ada Engine") {
+        In this tutorial you will learn about the event listeners system in Ada Engine. 
+        How can you catch events and process them
+    
+    }
+    
+    @Section(title: "Base of Event-Subscriber pattern") {
+        @ContentAndMedia {
+            Event listeners in Ada Engine are built on the Observer pattern. 
+            Its main concept is based on the fact that there is a certain Subject that can send any events. 
+            And there is an Observer that can receive and process this event. 
+            In addition, Observer “subscribes” to events, as if you had subscribed to your favorite blog or magazine - as soon as an event occurs, Observer immediately knows about it. 
+            
+            @Image(source: "EL-1.jpg", alt: "Observer pattern scheme")
+        }
+    }
+    
+    @Section(title: "Subscribe to scene events") {
+        @ContentAndMedia {
+            Having understood how the Observer pattern works, let's look at how to subscribe to scene events.
+            
+        }
+        
+        @Steps {            
+            @Step {
+                
+                Let's say we have some kind of game scene in which we would like to listen to some events.
+                
+                @Code(name: "EventListenerScene.swift", file: EL-2-1-scene.swift)
+            }
+            
+            @Step {
+                
+                First of all, to control subscription/unsubscription to events and for proper memory management, we must create a disposeBag.
+                Now you don’t need to know its detailed structure.
+                
+                @Code(name: "EventListenerScene.swift", file: EL-2-2-scene.swift)
+            }
+            
+            @Step {
+                
+                After that, in the ``makeScene()`` method before the return statement, you can call some code to subscribe to the event. 
+                The ``scene.subscribe`` method helps with this. 
+                When an event is triggered, our listener subscribes to it and in the callback we can process our event
+                
+                
+                
+                @Code(name: "EventListenerScene.swift", file: EL-2-3-scene.swift)
+            }
+        }
+    }
+}
