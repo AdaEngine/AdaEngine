@@ -33,7 +33,7 @@ public struct TileMapSystem: System {
                     self.setEntityActive(ent, isActive: layer.isEnabled)
                 }
 
-                await self.addTiles(
+                self.addTiles(
                     for: layer,
                     tileMapComponent: &tileMapComponent,
                     transform: transform,
@@ -62,7 +62,7 @@ public struct TileMapSystem: System {
         entity: Entity,
         physicsWorld: PhysicsWorld2D?,
         scene: Scene
-    ) async {
+    ) {
         guard let tileSet = layer.tileSet else {
             return
         }
@@ -75,12 +75,12 @@ public struct TileMapSystem: System {
             let tileParent = Entity()
 
             for (position, tile) in layer.tileCells {
-                guard let source = tileSet.sources[tile.sourceId] else {
+                guard let source = tileSet.sources[tile.sourceId] as? TileTextureAtlasSource else {
                     continue
                 }
 
-                let texture = source.getTexture(at: tile.coordinates)
-                let tileData = source.getTileData(at: position)
+                let texture = source.getTexture(at: tile.atlasCoordinates)
+                let tileData = source.getTileData(at: tile.atlasCoordinates)
 
                 let tileEntity = Entity()
                 tileEntity.components += SpriteComponent(texture: texture, tintColor: tileData.modulateColor)

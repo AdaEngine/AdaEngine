@@ -229,9 +229,9 @@ public final class AnimatedTexture: Texture2D {
             if self.currentFrame >= self.framesCount {
                 if !self.options.contains(.repeat) {
                     self.currentFrame = self.framesCount - 1
+                    self.isPaused = true
                 } else {
                     self.currentFrame = 0
-                    self.isPaused = true
                 }
             }
             
