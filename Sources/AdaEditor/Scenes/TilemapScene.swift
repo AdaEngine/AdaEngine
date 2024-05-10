@@ -9,11 +9,52 @@ import AdaEngine
 
 class TilemapScene: Scene {
 
+    enum TileAtlasCoordinates {
+        static let topLeft: PointInt = [1, 5]
+        static let topRight: PointInt = [3, 5]
+        static let bottomLeft: PointInt = [1, 7]
+        static let bottomRight: PointInt = [3, 7]
+        static let middleTop: PointInt = [2, 5]
+        static let middleBottom: PointInt = [2, 7]
+
+        static let first: PointInt = [1, 6]
+        static let last: PointInt = [3, 6]
+        static let plain: PointInt = [2, 6]
+
+        static let riverStart: PointInt = [14, 1]
+        static let riverBody: PointInt = [14, 2]
+        static let riverEnd: PointInt = [14, 3]
+    }
+
     override func sceneDidMove(to view: SceneView) {
         let tileMap = TileMap()
 
         let image = try! ResourceManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image
         let source = TileTextureAtlasSource(from: image, size: [18, 18])
+
+        source.createTile(for: TileAtlasCoordinates.topLeft)
+        source.createTile(for: TileAtlasCoordinates.topRight)
+        source.createTile(for: TileAtlasCoordinates.bottomLeft)
+        source.createTile(for: TileAtlasCoordinates.bottomRight)
+        source.createTile(for: TileAtlasCoordinates.middleTop)
+        source.createTile(for: TileAtlasCoordinates.middleBottom)
+
+        source.createTile(for: TileAtlasCoordinates.last)
+        source.createTile(for: TileAtlasCoordinates.first)
+        source.createTile(for: TileAtlasCoordinates.plain)
+
+        /// Add animated river
+        source.createTile(for: TileAtlasCoordinates.riverStart)
+            .setAnimationFrameColumns(2)
+            .setAnimationFrameDuration(0.5)
+
+        source.createTile(for: TileAtlasCoordinates.riverBody)
+            .setAnimationFrameColumns(2)
+            .setAnimationFrameDuration(0.5)
+
+        source.createTile(for: TileAtlasCoordinates.riverEnd)
+            .setAnimationFrameColumns(2)
+            .setAnimationFrameDuration(0.5)
 
         let sourceId = tileMap.tileSet.addTileSource(source)
 
@@ -22,14 +63,35 @@ class TilemapScene: Scene {
 
         for x in xRange {
             for y in yRange {
-                let point = getCoordinates(for: x, y: y, maxX: xRange.upperBound, maxY: yRange.upperBound)
+                let atlasCoordinates = getCoordinates(for: x, y: y, maxX: xRange.upperBound, maxY: yRange.upperBound)
 
                 tileMap.layers[0].setCell(
                     at: [x, y],
                     sourceId: sourceId,
-                    atlasCoordinates: point
+                    atlasCoordinates: atlasCoordinates
                 )
             }
+        }
+
+        for y in yRange {
+            let isStart = y == 0
+            let isEnd = y == yRange.upperBound - 1
+
+            var coordinates: PointInt = [0, 0]
+
+            if isStart {
+                coordinates = TileAtlasCoordinates.riverEnd
+            } else if isEnd {
+                coordinates = TileAtlasCoordinates.riverStart
+            } else {
+                coordinates = TileAtlasCoordinates.riverBody
+            }
+
+            tileMap.layers[0].setCell(
+                at: [0, y],
+                sourceId: sourceId,
+                atlasCoordinates: coordinates
+            )
         }
 
         self.debugOptions = [.showPhysicsShapes]
@@ -62,46 +124,39 @@ class TilemapScene: Scene {
         let bottom = y == 0
         let top = y == maxY - 1
 
-        let topLeft: PointInt = [1, 5]
-        let topRight: PointInt = [3, 5]
-        let bottomLeft: PointInt = [1, 7]
-        let bottomRight: PointInt = [3, 7]
-        let middleTop: PointInt = [2, 5]
-        let middleBottom: PointInt = [2, 7]
-
         if isFirst && top {
-            return topLeft
+            return TileAtlasCoordinates.topLeft
         }
 
         if isFirst && bottom {
-            return bottomLeft
+            return TileAtlasCoordinates.bottomLeft
         }
 
         if isLast && top {
-            return topRight
+            return TileAtlasCoordinates.topRight
         }
 
         if isLast && bottom {
-            return bottomRight
+            return TileAtlasCoordinates.bottomRight
         }
 
         if top {
-            return middleTop
+            return TileAtlasCoordinates.middleTop
         }
 
         if bottom {
-            return middleBottom
+            return TileAtlasCoordinates.middleBottom
         }
 
         if isFirst {
-            return [1, 6]
+            return TileAtlasCoordinates.first
         }
 
         if isLast {
-            return [3, 6]
+            return TileAtlasCoordinates.last
         }
 
-        return [2, 6]
+        return TileAtlasCoordinates.plain
     }
 
 }

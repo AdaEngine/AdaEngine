@@ -13,7 +13,9 @@ import Math
 final class MacOSWindowManager: WindowManager {
 
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)
-    
+
+    public nonisolated override init() { }
+
     override func createWindow(for window: Window) {
         
         let minSize = Window.defaultMinimumSize

@@ -11,10 +11,6 @@ public class TileSource {
 
     public typealias ID = RID
 
-    func getTexture(at coordinates: PointInt) -> Texture2D {
-        fatalErrorMethodNotImplemented()
-    }
-
     func getTileData(at coordinates: PointInt) -> TileData {
         fatalErrorMethodNotImplemented()
     }
@@ -26,15 +22,10 @@ public class TileSource {
 
 public class TileTextureAtlasSource: TileSource {
 
-    private struct AtlasTileData {
-        var animationFrameDuration: TimeInterval = 1.0
-        var tileData: TileData
-    }
-
     // key - atlas coordinates
     private var tiles: [PointInt: AtlasTileData] = [:]
 
-    let textureAtlas: TextureAtlas
+    private let textureAtlas: TextureAtlas
 
     public init(from image: Image, size: Size, margin: Size = .zero) {
         self.textureAtlas = TextureAtlas(from: image, size: size, margin: margin)
@@ -44,31 +35,98 @@ public class TileTextureAtlasSource: TileSource {
         self.textureAtlas = atlas
     }
 
-    override func getTexture(at coordinates: PointInt) -> Texture2D {
-        textureAtlas.textureSlice(at: Vector2(Float(coordinates.x), Float(coordinates.y)))
-    }
-
     // Tiles
 
-    public func createTile(_ atlasCoordinates: PointInt) {
+    public func getTexture(at atlasCoordinates: PointInt) -> Texture2D {
+        guard let tileData = self.tiles[atlasCoordinates] else {
+            fatalError("Tile Not Found for coordinates \(atlasCoordinates)")
+        }
+        
+        // Animated
+
+        if tileData.animationFrameColumns > 1 {
+            let animatedTexture = AnimatedTexture()
+            animatedTexture.options = [.repeat]
+            animatedTexture.framesCount = tileData.animationFrameColumns
+            animatedTexture.framesPerSecond = Float(tileData.animationFrameColumns) / tileData.animationFrameDuration
+
+            let alignment = tileData.animationColumnsAlignment
+
+            for index in 0..<tileData.animationFrameColumns {
+                let x = Float(atlasCoordinates.x + (alignment == .horizontal ? index : 0))
+                let y = Float(atlasCoordinates.y + (alignment == .vertical ? index : 0))
+
+                print("Animated slice, alignment \(alignment):", x, y)
+
+                let slice = self.textureAtlas.textureSlice(at: [x, y])
+                animatedTexture[index] = slice
+            }
+
+            return animatedTexture
+        }
+
+        return self.textureAtlas.textureSlice(at: Vector2(Float(atlasCoordinates.x), Float(atlasCoordinates.y)))
+    }
+
+    @discardableResult
+    public func createTile(for atlasCoordinates: PointInt) -> AtlasTileData {
         var data = TileData()
         data.tileSet = self.tileSet
         let atlasTileData = AtlasTileData(tileData: data)
 
         self.tiles[atlasCoordinates] = atlasTileData
+        return atlasTileData
     }
 
-    public func removeTile(_ atlasCoordinates: PointInt) {
+    public func removeTile(at atlasCoordinates: PointInt) {
         self.tiles.removeValue(forKey: atlasCoordinates)
 
         self.setNeedsUpdate()
     }
 
-    override func getTileData(at coordinates: PointInt) -> TileData {
-        return tiles[coordinates]?.tileData ?? TileData()
+    override func getTileData(at atlasCoordinates: PointInt) -> TileData {
+        return tiles[atlasCoordinates]?.tileData ?? TileData()
     }
 
     // Animation
+}
+
+extension TileTextureAtlasSource {
+    public class AtlasTileData {
+
+        public enum Alignment: UInt8 {
+            case vertical
+            case horizontal
+        }
+        
+        public var animationFrameDuration: TimeInterval = 1.0
+        public var animationFrameColumns: Int = 1
+        public var animationColumnsAlignment: Alignment = .horizontal
+
+        internal private(set) var tileData: TileData
+
+        init(tileData: TileData) {
+            self.tileData = tileData
+        }
+
+        @discardableResult
+        public func setAnimationFrameDuration(_ duration: TimeInterval) -> Self {
+            self.animationFrameDuration = duration
+            return self
+        }
+
+        @discardableResult
+        public func setAnimationFrameColumns(_ columns: Int) -> Self {
+            self.animationFrameColumns = columns
+            return self
+        }
+
+        @discardableResult
+        public func setAnimationColumnsAlignment(_ alignment: Alignment) -> Self {
+            self.animationColumnsAlignment = alignment
+            return self
+        }
+    }
 }
 
 struct TileData {

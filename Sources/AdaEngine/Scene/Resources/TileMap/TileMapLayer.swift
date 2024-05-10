@@ -14,8 +14,6 @@ public final class TileMapLayer: Identifiable {
     public internal(set) weak var tileSet: TileSet?
     public internal(set) weak var tileMap: TileMap?
 
-
-    var gridSize: Int = 16
     public var zIndex: Int = 0
 
     struct TileCellData {
