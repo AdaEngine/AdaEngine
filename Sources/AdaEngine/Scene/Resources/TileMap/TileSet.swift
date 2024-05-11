@@ -1,6 +1,6 @@
 //
 //  TileSet.swift
-//
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/5/24.
 //
@@ -41,8 +41,9 @@ public class TileSet: Resource {
 
     // MARK: Tile Sources
 
+    @discardableResult
     public func addTileSource(_ source: TileSource) -> TileSource.ID {
-        let identifier = RID()
+        let identifier = source.id != TileSource.invalidSource ? source.id : RID().id
         self.sources[identifier] = source
 
         return identifier

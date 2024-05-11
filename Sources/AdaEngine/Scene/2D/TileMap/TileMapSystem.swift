@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
+// FIXME: a lot of sprites drop fps.
+
 public struct TileMapSystem: System {
 
     public static var dependencies: [SystemDependency] = [
@@ -75,16 +77,30 @@ public struct TileMapSystem: System {
             let tileParent = Entity()
 
             for (position, tile) in layer.tileCells {
-                guard let source = tileSet.sources[tile.sourceId] as? TileTextureAtlasSource else {
+                guard let source = tileSet.sources[tile.sourceId] else {
+                    assertionFailure("TileSource not found for id: \(tile.sourceId)")
                     continue
                 }
 
-                let texture = source.getTexture(at: tile.atlasCoordinates)
                 let tileData = source.getTileData(at: tile.atlasCoordinates)
+                let position = Vector3(x: Float(position.x), y: Float(position.y), z: Float(layer.zIndex))
 
-                let tileEntity = Entity()
-                tileEntity.components += SpriteComponent(texture: texture, tintColor: tileData.modulateColor)
-                tileEntity.components += Transform(scale: scale, position: [Float(position.x), Float(position.y), 1])
+                let tileEntity: Entity
+
+                switch source {
+                case let atlasSource as TileTextureAtlasSource:
+                    let texture = atlasSource.getTexture(at: tile.atlasCoordinates)
+
+                    tileEntity = Entity()
+                    tileEntity.components += SpriteComponent(texture: texture, tintColor: tileData.modulateColor)
+                    tileEntity.components += Transform(scale: scale, position: position)
+                case let entitySource as TileEntityAtlasSource:
+                    tileEntity = entitySource.getEntity(at: tile.atlasCoordinates)
+                    tileEntity.components += Transform(scale: scale, position: position)
+                default:
+                    print("TileSource isn't supported for id: \(tile.sourceId)")
+                    continue
+                }
 
 //                if tileData.useCollisition {
 //                    tileEntity.components += Collision2DComponent(

@@ -1,0 +1,40 @@
+//
+//  TileEntityAtlasSource.swift
+//  AdaEngine
+//
+//  Created by v.prusakov on 5/10/24.
+//
+
+public class TileEntityAtlasSource: TileSource {
+
+    struct EntityTileData {
+        var entity: Entity
+
+        var tileData: TileData
+    }
+
+    private var tiles: [PointInt: EntityTileData] = [:]
+
+    public func createTile(at atlasCoordinates: PointInt, for entity: Entity) {
+        var tileData = TileData()
+        tileData.tileSet = self.tileSet
+        let data = EntityTileData.init(entity: entity, tileData: tileData)
+        self.tiles[atlasCoordinates] = data
+    }
+
+    public func getEntity(at atlasCoordinates: PointInt) -> Entity {
+        guard let data = self.tiles[atlasCoordinates] else {
+            fatalError("Entity not found at coordinates \(atlasCoordinates)")
+        }
+
+        return data.entity
+    }
+
+    public func removeTile(at atlasCoordinates: PointInt) {
+        self.tiles.removeValue(forKey: atlasCoordinates)
+    }
+
+    override func getTileData(at atlasCoordinates: PointInt) -> TileData {
+        return self.tiles[atlasCoordinates]?.tileData ?? TileData()
+    }
+}

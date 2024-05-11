@@ -7,6 +7,39 @@
 
 import AdaEngine
 
+class LdtkTilemapScene: Scene {
+    override func sceneDidMove(to view: SceneView) {
+        self.debugOptions = [.showPhysicsShapes]
+
+        let cameraEntity = OrthographicCamera()
+        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
+        cameraEntity.camera.clearFlags = .solid
+        cameraEntity.camera.orthographicScale = 1.5
+
+        self.addEntity(cameraEntity)
+
+        var transform = Transform()
+        transform.position.y = -0.5
+        transform.scale = Vector3(0.5)
+
+        do {
+            let tileMap = try ResourceManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LdtkTileMap
+
+            let tilemapEnt = Entity {
+                TileMapComponent(tileMap: tileMap)
+                NoFrustumCulling()
+                transform
+            }
+
+            self.addEntity(tilemapEnt)
+        } catch {
+            fatalError("Failed to load \(error)")
+        }
+
+        self.addSystem(CamMovementSystem.self)
+    }
+}
+
 class TilemapScene: Scene {
 
     enum TileAtlasCoordinates {
