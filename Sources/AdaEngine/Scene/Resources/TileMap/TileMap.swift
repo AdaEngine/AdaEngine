@@ -1,6 +1,6 @@
 //
 //  TileMap.swift
-//
+//  AdaEngine
 //
 //  Created by v.prusakov on 5/4/24.
 //
@@ -36,7 +36,9 @@ public class TileMap: Resource {
 
     public func createLayer() -> TileMapLayer {
         let layer = TileMapLayer()
+        layer.name = "Layer \(self.layers.count)"
         self.layers.append(layer)
+        
         return layer
     }
 

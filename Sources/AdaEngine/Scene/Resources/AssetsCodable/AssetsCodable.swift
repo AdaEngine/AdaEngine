@@ -48,8 +48,13 @@ public protocol AssetEncoder {
 /// A type that can decode itself from external asset representation.
 public protocol AssetDecoder {
 
+    /// - Returns: Meta information about asset.
     var assetMeta: AssetMeta { get }
     
+    /// - Returns: asset file data.
+    var assetData: Data { get }
+
+    /// Use this method to decode content from asset.
     func decode<T: Decodable>(_ type: T.Type) throws -> T
 }
 

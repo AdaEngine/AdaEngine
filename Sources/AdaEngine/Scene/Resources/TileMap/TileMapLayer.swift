@@ -9,11 +9,12 @@ public final class TileMapLayer: Identifiable {
 
     public var name: String = ""
 
-    public var id: RID = RID()
+    public var id: Int = RID().id
 
     public internal(set) weak var tileSet: TileSet?
     public internal(set) weak var tileMap: TileMap?
 
+    /// Set z index for layer
     public var zIndex: Int = 0
 
     struct TileCellData {
@@ -53,8 +54,13 @@ public final class TileMapLayer: Identifiable {
         self.needUpdates = true
     }
 
-    public func getSource(at position: PointInt) -> TileSource.ID {
-        return self.tileCells[position]?.sourceId ?? .empty
+    /// - Returns: Return TileSource identifier or ``TileSource.invalidSource``.
+    public func getCellTileSource(at position: PointInt) -> TileSource.ID {
+        return self.tileCells[position]?.sourceId ?? TileSource.invalidSource
+    }
+
+    public func getCellAtlasCoordinates(at position: PointInt) -> PointInt {
+        return self.tileCells[position]?.atlasCoordinates ?? PointInt(x: 0, y: 0)
     }
 
     // MARK: - Internals
