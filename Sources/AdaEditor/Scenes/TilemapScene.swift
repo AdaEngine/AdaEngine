@@ -23,7 +23,7 @@ class LdtkTilemapScene: Scene {
         transform.scale = Vector3(0.5)
 
         do {
-            let tileMap = try ResourceManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LdtkTileMap
+            let tileMap = try ResourceManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LDtkTileMap
 
             let tilemapEnt = Entity {
                 TileMapComponent(tileMap: tileMap)

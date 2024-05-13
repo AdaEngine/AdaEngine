@@ -1,5 +1,5 @@
 //
-//  LdtkTileMap.swift
+//  LDtkTileMap.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 5/11/24.
@@ -8,7 +8,15 @@
 // - FIXME: Invalid atlas coordinates
 // - FIXME: Entities support
 
-public class LdtkTileMap: TileMap {
+/// Tile map that supports LDtk file formats (`ldtk` or `json`).
+/// - Note: We only support tilesets, layers and levels.
+///
+/// You can load LDtk tile map using ``ResourceManager`` object.
+/// ```swift
+/// let tileMap = try await ResourceManager.load("@res://Assets/TileMap.ldtk") as LDtkTileMap
+/// ```
+
+public final class LDtkTileMap: TileMap {
 
     private let project: LdtkProject
 
