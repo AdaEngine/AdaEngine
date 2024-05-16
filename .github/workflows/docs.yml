@@ -16,7 +16,8 @@ jobs:
   build-and-deploy-docs:
     runs-on: macos-latest            
     steps:
-      - uses: maxim-lobanov/setup-xcode@v1.6.0
+      - name: Setup Xcode version
+        uses: maxim-lobanov/setup-xcode@v1.6.0
         with:
           xcode-version: latest-stable
       - uses: actions/checkout@v2
