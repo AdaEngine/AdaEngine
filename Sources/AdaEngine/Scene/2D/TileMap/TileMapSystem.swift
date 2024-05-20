@@ -30,6 +30,8 @@ public struct TileMapSystem: System {
                 return
             }
 
+            print("Need update tilemap")
+
             for layer in tileMap.layers {
                 if let ent = tileMapComponent.tileLayers[layer.id] {
                     self.setEntityActive(ent, isActive: layer.isEnabled)
@@ -46,6 +48,8 @@ public struct TileMapSystem: System {
             }
 
             entity.components += tileMapComponent
+
+            tileMap.updateDidFinish()
         }
     }
 
@@ -73,6 +77,8 @@ public struct TileMapSystem: System {
 
         if layer.needUpdates {
             tileMapComponent.tileLayers[layer.id]?.removeFromScene(recursively: true)
+
+            print("Remove layer from scene")
 
             let tileParent = Entity()
 
@@ -112,7 +118,7 @@ public struct TileMapSystem: System {
 //                    )
 //                }
 
-                tileParent.addChild(tileParent)
+                tileParent.addChild(tileEntity)
                 scene.addEntity(tileEntity)
             }
 

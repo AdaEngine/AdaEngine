@@ -25,7 +25,11 @@ public final class TileMapLayer: Identifiable {
     }
 
     /// Key - position of tile in game world
-    private(set) var tileCells: [PointInt: TileCellData] = [:]
+    private(set) var tileCells: [PointInt: TileCellData] = [:] {
+        didSet {
+            self.needUpdates = true
+        }
+    }
 
     public var isEnabled: Bool = true {
         didSet {
@@ -44,14 +48,14 @@ public final class TileMapLayer: Identifiable {
             atlasCoordinates: atlasCoordinates,
             sourceId: sourceId
         )
-
-        self.needUpdates = true
     }
 
     public func removeCell(at position: PointInt) {
         self.tileCells[position] = nil
+    }
 
-        self.needUpdates = true
+    public func removeAllCells() {
+        self.tileCells = [:]
     }
 
     /// - Returns: Return TileSource identifier or ``TileSource.invalidSource``.
@@ -64,6 +68,10 @@ public final class TileMapLayer: Identifiable {
     }
 
     // MARK: - Internals
+
+    func setNeedsUpdate() {
+        self.needUpdates = true
+    }
 
     func updateDidFinish() {
         self.needUpdates = false

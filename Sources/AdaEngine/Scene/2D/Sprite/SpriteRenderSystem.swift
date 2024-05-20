@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
+// TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
+
 /// System in RenderWorld for render sprites from exctracted sprites.
 public struct SpriteRenderSystem: System {
 

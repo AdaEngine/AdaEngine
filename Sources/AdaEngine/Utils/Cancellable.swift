@@ -49,11 +49,16 @@ public final class AnyCancellable: Cancellable, Hashable, Equatable {
     let cancellable: Cancellable
     
     /// Initializes the cancellable object with the given cancallable object.
-    init<T: Cancellable>(_ cancellable: T) {
+    public init<T: Cancellable>(_ cancellable: T) {
         self.id = UUID()
         self.cancellable = cancellable
     }
-    
+
+    /// Initializes the cancellable object with the given cancallable callback.
+    public convenience init(_ cancelBlock: @escaping () -> Void) {
+        self.init(CancelBlockHolder(cancelBlock: cancelBlock))
+    }
+
     deinit {
         self.cancellable.cancel()
     }
@@ -69,5 +74,14 @@ public final class AnyCancellable: Cancellable, Hashable, Equatable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.id)
     }
-    
+}
+
+extension AnyCancellable {
+    private struct CancelBlockHolder: Cancellable {
+        let cancelBlock: () -> Void
+
+        func cancel() {
+            cancelBlock()
+        }
+    }
 }
