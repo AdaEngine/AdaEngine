@@ -52,14 +52,18 @@ open class Scene: Resource, @unchecked Sendable {
     /// Check the scene will not run earlier.
     private(set) var isReady = false
 
+    private var instantiateDefaultPlugin: Bool = true
+
     // MARK: - Initialization -
     
     /// Create new scene instance.
     /// - Parameter name: Name of this scene. By default name is `Scene`.
-    public nonisolated init(name: String? = nil) {
+    /// - Parameter instantiateDefaultPlugin:
+    public nonisolated init(name: String? = nil, instantiateDefaultPlugin: Bool = true) {
         self.id = UUID()
         self.name = name ?? "Scene"
         self.world = World()
+        self.instantiateDefaultPlugin = instantiateDefaultPlugin
     }
     
     // MARK: - Resource -
@@ -170,7 +174,9 @@ open class Scene: Resource, @unchecked Sendable {
 
     func ready() async {
         // TODO: In the future we need minimal scene plugin for headless mode.
-        await self.addPlugin(DefaultScenePlugin())
+        if self.instantiateDefaultPlugin {
+            await self.addPlugin(DefaultScenePlugin())
+        }
 
         self.isReady = true
         

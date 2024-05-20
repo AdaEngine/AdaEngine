@@ -51,10 +51,9 @@ public extension Entity {
     /// - Warning: Will throw assert error if entity contains that child.
     func addChild(_ entity: Entity) {
         assert(!self.children.contains { $0 === entity }, "Currently has entity in child")
-        
-        guard var relationship = self.components[RelationshipComponent.self] else {
-            return
-        }
+        assert(self !== entity, "Could not add entity as its child")
+
+        var relationship = self.components[RelationshipComponent.self] ?? RelationshipComponent()
 
         entity.components[RelationshipComponent.self]?.parent = self.id
         _ = relationship.children.unordered.insert(entity.id)
@@ -67,7 +66,7 @@ public extension Entity {
         guard var relationship = self.components[RelationshipComponent.self] else {
             return
         }
-        
+
         entity.components[RelationshipComponent.self]?.parent = nil
         relationship.children.remove(entity.id)
         

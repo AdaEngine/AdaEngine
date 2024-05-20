@@ -120,8 +120,13 @@ public final class World {
             return
         }
 
+        print("Start")
+        print("Ent", entity)
+        print("Fail?", entity.children.map { $0 === entity })
+        print("Child", entity.children)
+
         for child in entity.children {
-            self.removeEntityOnNextTick(child, recursively: true)
+            self.removeEntityOnNextTick(child, recursively: recursively)
         }
     }
 

@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class LdtkTilemapScene: Scene {
+class LdtkTilemapScene: Scene, LDtk.TileMapDelegate {
     override func sceneDidMove(to view: SceneView) {
         self.debugOptions = [.showPhysicsShapes]
 
@@ -23,8 +23,10 @@ class LdtkTilemapScene: Scene {
         transform.scale = Vector3(0.5)
 
         do {
-            let tileMap = try ResourceManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LDtkTileMap
-
+            let tileMap = try ResourceManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LDtk.TileMap
+            tileMap.delegate = self
+            tileMap.loadLevel(at: 0)
+            
             let tilemapEnt = Entity {
                 TileMapComponent(tileMap: tileMap)
                 NoFrustumCulling()
@@ -37,6 +39,12 @@ class LdtkTilemapScene: Scene {
         }
 
         self.addSystem(CamMovementSystem.self)
+    }
+
+    // MARK: - LDtk.EntityTileSourceDelegate
+
+    func tileMap(_ entityTileSource: LDtk.EntityTileSource, entityInstance: LDtk.EntityInstance) -> Entity {
+        return EmptyEntity()
     }
 }
 

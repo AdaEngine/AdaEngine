@@ -15,7 +15,7 @@ public class TileMap: Resource {
         }
     }
 
-    public private(set) var layers: [TileMapLayer] = [TileMapLayer()]
+    @Atomic public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
 
     public var resourcePath: String = ""
     public var resourceName: String = ""
@@ -70,8 +70,13 @@ public class TileMap: Resource {
 
     // MARK: - Internals
 
-    func setNeedsUpdate() {
+    // Update entire tilemap
+    func setNeedsUpdate(updateLayers: Bool = false) {
         self.needsUpdate = true
+
+        if updateLayers {
+            self.layers.forEach { $0.setNeedsUpdate() }
+        }
     }
 
     func updateDidFinish() {
