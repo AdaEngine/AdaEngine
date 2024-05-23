@@ -1,9 +1,7 @@
 name: Deploy Docs
 
 on:
-  push:
-    branches:
-      - 'fix-docc'
+  push
 
 permissions:
   contents: write
