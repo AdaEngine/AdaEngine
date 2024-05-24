@@ -10,7 +10,7 @@ import Collections
 /// Contains information about relationship of entity.
 @Component
 public struct RelationshipComponent {
-    
+
     /// Identifier of parent entity.
     public var parent: Entity.ID?
     

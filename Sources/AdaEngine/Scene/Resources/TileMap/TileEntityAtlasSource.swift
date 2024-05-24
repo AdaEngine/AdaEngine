@@ -13,12 +13,12 @@ public class TileEntityAtlasSource: TileSource {
         var tileData: TileData
     }
 
-    private var tiles: [PointInt: EntityTileData] = [:]
+    private(set) var tiles: [PointInt: EntityTileData] = [:]
 
     public func createTile(at atlasCoordinates: PointInt, for entity: Entity) {
         var tileData = TileData()
         tileData.tileSet = self.tileSet
-        let data = EntityTileData.init(entity: entity, tileData: tileData)
+        let data = EntityTileData(entity: entity, tileData: tileData)
         self.tiles[atlasCoordinates] = data
     }
 

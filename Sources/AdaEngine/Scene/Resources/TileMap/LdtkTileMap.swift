@@ -33,7 +33,7 @@ extension LDtk {
 
         public private(set) var currentLevelIndex: Int = 0
         public private(set) var levelsCount: Int = 0
-        private var project: Project! = nil
+        private var project: Project?
         private let filePath: URL
 
         private let fileWatcher: FileWatcher
@@ -69,7 +69,12 @@ extension LDtk {
             try await super.encodeContents(with: encoder)
         }
 
+        // swiftlint:disable:next cyclomatic_complexity
         public func loadLevel(at index: Int) {
+            guard let project else {
+                return
+            }
+
             let level = project.levels[index]
 
             self.currentLevelIndex = index
@@ -87,33 +92,53 @@ extension LDtk {
                     fatalError("Could not find a layer in project for id: \(layerInstance.layerDefUid)")
                 }
 
-                let source = tileSet.sources[projectLayer.tilesetDefUid] as! TileTextureAtlasSource
-
                 switch layerInstance.__type {
                 case .autoLayer, .intGrid:
+                    let source = tileSet.sources[projectLayer.tilesetDefUid!] as! TileTextureAtlasSource
+
                     for tile in layerInstance.autoLayerTiles {
-                        let atlasCoordinates = Self.gridCoordinates(from: tile.source, gridSize: layerInstance.__gridSize)
+                        let atlasCoordinates = Utils.gridCoordinates(from: tile.source, gridSize: layerInstance.__gridSize)
                         if !source.hasTile(at: atlasCoordinates) {
                             source.createTile(for: atlasCoordinates)
                         }
 
                         layer.setCell(
-                            at: Self.pixelCoordsToGridCoords(from: tile.position, gridSize: layerInstance.__gridSize),
-                            sourceId: projectLayer.tilesetDefUid,
+                            at: Utils.pixelCoordsToGridCoords(from: tile.position, gridSize: layerInstance.__gridSize, gridHeight: layerInstance.__cHei),
+                            sourceId: projectLayer.tilesetDefUid!,
+                            atlasCoordinates: atlasCoordinates
+                        )
+                    }
+                case .entities:
+                    let source = tileSet.sources[projectLayer.uid] as! LDtk.EntityTileSource
+                    let entityInstances = layerInstance.entityInstances ?? []
+                    for entity in entityInstances {
+                        let atlasCoordinates = Utils.gridCoordinates(from: entity.px, gridSize: layerInstance.__gridSize)
+
+                        source.createTile(at: atlasCoordinates, entityInstance: entity)
+
+                        if !source.hasTile(at: atlasCoordinates) {
+                            source.createTile(at: atlasCoordinates, entityInstance: entity)
+                        }
+
+                        layer.setCell(
+                            at: Utils.pixelCoordsToGridCoords(from: entity.px, gridSize: layerInstance.__gridSize, gridHeight: layerInstance.__cHei),
+                            sourceId: projectLayer.uid,
                             atlasCoordinates: atlasCoordinates
                         )
                     }
                 case .tiles:
+                    let source = tileSet.sources[projectLayer.tilesetDefUid!] as! TileTextureAtlasSource
+
                     for tile in layerInstance.gridTiles {
-                        let atlasCoordinates = Self.gridCoordinates(from: tile.source, gridSize: layerInstance.__gridSize)
+                        let atlasCoordinates = Utils.gridCoordinates(from: tile.source, gridSize: layerInstance.__gridSize)
 
                         if !source.hasTile(at: atlasCoordinates) {
                             source.createTile(for: atlasCoordinates)
                         }
 
                         layer.setCell(
-                            at: Self.pixelCoordsToGridCoords(from: tile.position, gridSize: layerInstance.__gridSize),
-                            sourceId: projectLayer.tilesetDefUid,
+                            at: Utils.pixelCoordsToGridCoords(from: tile.position, gridSize: layerInstance.__gridSize, gridHeight: layerInstance.__cHei),
+                            sourceId: projectLayer.tilesetDefUid!,
                             atlasCoordinates: atlasCoordinates
                         )
                     }
@@ -139,66 +164,64 @@ extension LDtk {
 
         @ResourceActor
         private func loadLdtkProject(from data: Data) async throws {
+            let currentProject = self.project
+
             let jsonDecoder = JSONDecoder()
             let project = try jsonDecoder.decode(Project.self, from: data)
 
-            let tileSet = AdaEngine.TileSet()
+            if currentProject?.defs.tilesets != project.defs.tilesets || currentProject?.defs.entities != project.defs.entities {
+                let tileSet = AdaEngine.TileSet()
 
-            for tileSource in project.defs.tilesets {
-                let atlasPath = filePath
-                    .deletingLastPathComponent()
-                    .appending(path: tileSource.relPath ?? "")
+                for entitySource in project.defs.entities {
+                    let source = LDtk.EntityTileSource()
 
-                let image = try await ResourceManager.load(atlasPath.absoluteString) as Image
+                    source.name = entitySource.identifier
+                    source.id = entitySource.uid
 
-                let source = TileTextureAtlasSource(
-                    from: image,
-                    size: Size(width: Float(tileSource.tileGridSize), height: Float(tileSource.tileGridSize)),
-                    margin: Size(width: Float(tileSource.padding), height: Float(tileSource.padding))
-                )
+                    tileSet.addTileSource(source)
+                }
 
-                source.name = tileSource.identifier
-                source.id = tileSource.uid
+                for tileSource in project.defs.tilesets {
+                    let atlasPath = filePath
+                        .deletingLastPathComponent()
+                        .appending(path: tileSource.relPath ?? "")
 
-                tileSet.addTileSource(source)
+                    let image = try await ResourceManager.load(atlasPath.absoluteString) as Image
+
+                    let source = TileTextureAtlasSource(
+                        from: image,
+                        size: Size(width: Float(tileSource.tileGridSize), height: Float(tileSource.tileGridSize)),
+                        margin: Size(width: Float(tileSource.padding), height: Float(tileSource.padding))
+                    )
+
+                    source.name = tileSource.identifier
+                    source.id = tileSource.uid
+
+                    tileSet.addTileSource(source)
+                }
+
+                self.tileSet = tileSet
             }
 
-            self.layers.removeAll()
+            if currentProject?.defs.layers != project.defs.layers {
+                self.layers.removeAll()
 
-            /// Add layers from project to tile map.
-            for layer in project.defs.layers {
-                let newLayer = self.createLayer()
-                newLayer.name = layer.identifier
-                newLayer.id = layer.uid
+                /// Add layers from project to tile map.
+                for layer in project.defs.layers {
+                    let newLayer = self.createLayer()
+                    newLayer.name = layer.identifier
+                    newLayer.id = layer.uid
+                }
             }
 
-            self.tileSet = tileSet
             self.project = project
             self.levelsCount = project.levels.count
 
             if levelsCount > 0 {
                 self.loadLevel(at: self.currentLevelIndex)
             }
-        }
 
-        // MARK: Utils
-
-        private static func pixelCoordsToGridCoords(from coords: [Int], gridSize: Int) -> PointInt {
-            return PointInt(x: coords[0] / gridSize, y: gridSize - (coords[1] / gridSize))
-        }
-
-        private static func gridCoordinates(from pxCoordinates: [Int], gridSize: Int) -> PointInt {
-            let gridX = pxCoordinates[0] / gridSize
-            let gridY = pxCoordinates[1] / gridSize
-
-            return PointInt(x: gridX, y: gridY)
-        }
-
-        private static func gridCoordinates(from coordinateId: Int, gridWidth: Int) -> PointInt {
-            let gridY = coordinateId / gridWidth
-            let gridX = coordinateId - (gridY * gridWidth)
-
-            return PointInt(x: gridX, y: gridY)
+            self.setNeedsUpdate()
         }
     }
 
@@ -208,19 +231,20 @@ extension LDtk {
 
 extension LDtk {
 
-    struct Project: Codable {
+    struct Project: Codable, Equatable {
         let iid: String
         let jsonVersion: Version
         let defs: Definitions
         let levels: [Level]
     }
 
-    struct Definitions: Codable {
+    struct Definitions: Codable, Equatable {
         let tilesets: [TileSet]
+        let entities: [EntitySet]
         let layers: [Layer]
     }
 
-    struct TileSet: Codable {
+    struct TileSet: Codable, Equatable {
         let uid: Int
         let identifier: String
         let relPath: String?
@@ -229,13 +253,30 @@ extension LDtk {
         let padding: Int
     }
 
-    struct Level: Codable {
+    struct EntitySet: Codable, Equatable {
+        let uid: Int
+        let identifier: String
+        let width: Int
+        let height: Int
+        let color: String
+        let tilesetId: Int
+        let tileRenderMode: String
+        let fieldDefs: [FieldDefinition]
+    }
+
+    struct FieldDefinition: Codable, Equatable {
+        let identifier: String
+        let uid: Int
+        let __type: String
+    }
+
+    struct Level: Codable, Equatable {
         let identifier: String
         let iid: String
         let layerInstances: [LayerInstance]
     }
 
-    struct LayerInstance: Codable {
+    struct LayerInstance: Codable, Equatable {
         let __identifier: String
         let __type: LayerType
         let __gridSize: Int
@@ -249,13 +290,14 @@ extension LDtk {
         let entityInstances: [EntityInstance]?
     }
 
-    enum LayerType: String, Codable {
+    enum LayerType: String, Codable, Equatable {
         case autoLayer = "AutoLayer"
         case intGrid = "IntGrid"
         case tiles = "Tiles"
+        case entities = "Entities"
     }
 
-    struct GridTileData: Codable {
+    struct GridTileData: Codable, Equatable {
 
         /// Pixel coordinates of the tile in the layer (array format [x,y]). Don’t forget optional layer offsets, if they exist!
         let position: [Int]
@@ -289,14 +331,15 @@ extension LDtk {
         }
     }
 
-    struct Layer: Codable {
+    struct Layer: Codable, Equatable {
         let identifier: String
+        let type: LayerType
         let uid: Int
-        let tilesetDefUid: Int
+        let tilesetDefUid: Int?
         let gridSize: Int
     }
 
-    struct Entity: Codable {
+    struct Entity: Codable, Equatable {
         let identifier: String
         let uid: Int
         let width: Int
@@ -305,8 +348,9 @@ extension LDtk {
         let tilesetId: Int
     }
 
-    public struct EntityInstance: Codable {
+    public struct EntityInstance: Codable, Equatable {
         public let identifier: String
+        public let tile: Tile
         public let iid: String
         public let width: Int
         public let height: Int
@@ -316,26 +360,35 @@ extension LDtk {
 
         enum CodingKeys: String, CodingKey {
             case identifier = "__identifier"
+            case tile = "__tile"
             case iid, width, height, defUid, px, fieldInstances
         }
     }
 
-    public struct FieldInstance: Codable {
+    public struct Tile: Codable, Equatable {
+        public let tilesetUid: Int
+        public let x: Int
+        public let y: Int
+        public let w: Int
+        public let h: Int
+    }
+
+    public struct FieldInstance: Codable, Equatable {
         public let identifier: String
         public let type: String
-        public let value: [String]
+//        public let value: Any
         public let defUid: Int
         public let readEditorValues: [EditorValue]
 
         enum CodingKeys: String, CodingKey {
             case identifier = "__identifier"
-            case type = "__type"
+//            case type = "__type"
             case value = "__value"
             case defUid, readEditorValues
         }
     }
 
-    public struct EditorValue: Codable {
+    public struct EditorValue: Codable, Equatable {
         public let id: String
         public let params: [String]
     }
@@ -343,10 +396,57 @@ extension LDtk {
 
 extension LDtk {
     public class EntityTileSource: TileEntityAtlasSource {
+
         weak var delegate: LDtk.TileMapDelegate?
+
+        public func hasTile(at atlasCoordinates: PointInt) -> Bool {
+            return self.tiles[atlasCoordinates] != nil
+        }
+
+        public func createTile(at atlasCoordinates: PointInt, entityInstance: LDtk.EntityInstance) {
+            let entity = AdaEngine.Entity(name: entityInstance.identifier)
+
+            if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TileTextureAtlasSource {
+                let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
+                let data = source.getTileData(at: tileCoordinate)
+                let texture = source.getTexture(at: tileCoordinate)
+                entity.components += SpriteComponent(texture: texture, tintColor: data.modulateColor)
+            }
+
+            if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {
+                self.delegate?.tileMap(ldtkTileMap, needsUpdate: entity, from: entityInstance, in: self)
+            }
+
+            self.createTile(at: atlasCoordinates, for: entity)
+        }
     }
 
     public protocol TileMapDelegate: AnyObject {
-        func tileMap(_ entityTileSource: LDtk.EntityTileSource, entityInstance: LDtk.EntityInstance) -> AdaEngine.Entity
+        func tileMap(_ tileMap: LDtk.TileMap, needsUpdate entity: AdaEngine.Entity, 
+                     from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource)
     }
+}
+
+
+extension LDtk {
+    enum Utils {
+        static func pixelCoordsToGridCoords(from coords: [Int], gridSize: Int, gridHeight: Int) -> PointInt {
+            return PointInt(x: coords[0] / gridSize, y: gridHeight - (coords[1] / gridSize))
+        }
+
+        static func gridCoordinates(from pxCoordinates: [Int], gridSize: Int) -> PointInt {
+            let gridX = pxCoordinates[0] / gridSize
+            let gridY = pxCoordinates[1] / gridSize
+
+            return PointInt(x: gridX, y: gridY)
+        }
+
+        static func gridCoordinates(from coordinateId: Int, gridWidth: Int) -> PointInt {
+            let gridY = coordinateId / gridWidth
+            let gridX = coordinateId - (gridY * gridWidth)
+
+            return PointInt(x: gridX, y: gridY)
+        }
+    }
+
 }
