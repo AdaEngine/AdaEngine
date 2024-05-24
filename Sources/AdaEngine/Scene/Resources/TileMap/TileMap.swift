@@ -37,6 +37,8 @@ public class TileMap: Resource {
     public func createLayer() -> TileMapLayer {
         let layer = TileMapLayer()
         layer.name = "Layer \(self.layers.count)"
+        layer.tileSet = self.tileSet
+        layer.tileMap = self
         self.layers.append(layer)
         
         return layer

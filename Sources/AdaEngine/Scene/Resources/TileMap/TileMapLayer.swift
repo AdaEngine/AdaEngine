@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
-public final class TileMapLayer: Identifiable {
+public class TileMapLayer: Identifiable {
 
     public var name: String = ""
 

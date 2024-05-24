@@ -14,7 +14,7 @@ class LdtkTilemapScene: Scene, LDtk.TileMapDelegate {
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraEntity.camera.clearFlags = .solid
-        cameraEntity.camera.orthographicScale = 1.5
+        cameraEntity.camera.orthographicScale = 10.5
 
         self.addEntity(cameraEntity)
 
@@ -43,8 +43,8 @@ class LdtkTilemapScene: Scene, LDtk.TileMapDelegate {
 
     // MARK: - LDtk.EntityTileSourceDelegate
 
-    func tileMap(_ entityTileSource: LDtk.EntityTileSource, entityInstance: LDtk.EntityInstance) -> Entity {
-        return EmptyEntity()
+    func tileMap(_ tileMap: LDtk.TileMap, needsUpdate entity: Entity, from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource) {
+
     }
 }
 
@@ -199,7 +199,6 @@ class TilemapScene: Scene {
 
         return TileAtlasCoordinates.plain
     }
-
 }
 
 struct CamMovementSystem: System {
