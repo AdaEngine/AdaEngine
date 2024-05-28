@@ -44,7 +44,7 @@ class LdtkTilemapScene: Scene, LDtk.TileMapDelegate {
     // MARK: - LDtk.EntityTileSourceDelegate
 
     func tileMap(_ tileMap: LDtk.TileMap, needsUpdate entity: Entity, from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource) {
-
+        print("Kek", entity, instance, tileSource)
     }
 }
 

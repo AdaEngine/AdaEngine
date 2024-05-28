@@ -45,6 +45,7 @@ public class TileSet: Resource {
     public func addTileSource(_ source: TileSource) -> TileSource.ID {
         let identifier = source.id != TileSource.invalidSource ? source.id : RID().id
         self.sources[identifier] = source
+        source.tileSet = self
 
         return identifier
     }
