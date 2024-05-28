@@ -69,7 +69,7 @@ extension LDtk {
             try await super.encodeContents(with: encoder)
         }
 
-        // swiftlint:disable:next cyclomatic_complexity
+        // swiftlint:disable:next cyclomatic_complexity function_body_length
         public func loadLevel(at index: Int) {
             guard let project else {
                 return
@@ -109,10 +109,11 @@ extension LDtk {
                         )
                     }
                 case .entities:
-                    let source = tileSet.sources[projectLayer.uid] as! LDtk.EntityTileSource
                     let entityInstances = layerInstance.entityInstances ?? []
                     for entity in entityInstances {
                         let atlasCoordinates = Utils.gridCoordinates(from: entity.px, gridSize: layerInstance.__gridSize)
+                        
+                        let source = tileSet.sources[entity.defUid] as! LDtk.EntityTileSource
 
                         source.createTile(at: atlasCoordinates, entityInstance: entity)
 
@@ -122,7 +123,7 @@ extension LDtk {
 
                         layer.setCell(
                             at: Utils.pixelCoordsToGridCoords(from: entity.px, gridSize: layerInstance.__gridSize, gridHeight: layerInstance.__cHei),
-                            sourceId: projectLayer.uid,
+                            sourceId: entity.defUid,
                             atlasCoordinates: atlasCoordinates
                         )
                     }
@@ -376,16 +377,40 @@ extension LDtk {
     public struct FieldInstance: Codable, Equatable {
         public let identifier: String
         public let type: String
-//        public let value: Any
+        public let value: Value
         public let defUid: Int
-        public let readEditorValues: [EditorValue]
+        public let readEditorValues: [EditorValue]?
 
         enum CodingKeys: String, CodingKey {
             case identifier = "__identifier"
-//            case type = "__type"
+            case type = "__type"
             case value = "__value"
             case defUid, readEditorValues
         }
+        
+        public init(from decoder: any Decoder) throws {
+            let container: KeyedDecodingContainer<LDtk.FieldInstance.CodingKeys> = try decoder.container(keyedBy: LDtk.FieldInstance.CodingKeys.self)
+            self.identifier = try container.decode(String.self, forKey: LDtk.FieldInstance.CodingKeys.identifier)
+            self.type = try container.decode(String.self, forKey: LDtk.FieldInstance.CodingKeys.type)
+            
+            switch type {
+            case "Int":
+                self.value = try Value.integer(container.decode(Int.self, forKey: LDtk.FieldInstance.CodingKeys.value))
+            case "String":
+                self.value = try Value.string(container.decode(String.self, forKey: LDtk.FieldInstance.CodingKeys.value))
+            default:
+                self.value = .undefined
+            }
+        
+            self.defUid = try container.decode(Int.self, forKey: LDtk.FieldInstance.CodingKeys.defUid)
+            self.readEditorValues = try container.decodeIfPresent([LDtk.EditorValue].self, forKey: LDtk.FieldInstance.CodingKeys.readEditorValues)
+        }
+    }
+    
+    public enum Value: Codable, Equatable {
+        case integer(Int)
+        case string(String)
+        case undefined
     }
 
     public struct EditorValue: Codable, Equatable {
@@ -408,6 +433,11 @@ extension LDtk {
 
             if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TileTextureAtlasSource {
                 let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
+                
+                if !source.hasTile(at: tileCoordinate) {
+                    source.createTile(for: tileCoordinate)
+                }
+                
                 let data = source.getTileData(at: tileCoordinate)
                 let texture = source.getTexture(at: tileCoordinate)
                 entity.components += SpriteComponent(texture: texture, tintColor: data.modulateColor)
@@ -426,7 +456,6 @@ extension LDtk {
                      from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource)
     }
 }
-
 
 extension LDtk {
     enum Utils {
