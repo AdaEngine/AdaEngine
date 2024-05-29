@@ -373,7 +373,7 @@ extension LDtk {
         public let w: Int
         public let h: Int
     }
-
+    
     public struct FieldInstance: Codable, Equatable {
         public let identifier: String
         public let type: String
@@ -407,10 +407,29 @@ extension LDtk {
         }
     }
     
+    /// Contains information for ``FieldInstance``
     public enum Value: Codable, Equatable {
         case integer(Int)
         case string(String)
         case undefined
+        
+        /// Return int value if value was an integer
+        public var intValue: Int? {
+            guard case .integer(let int) = self else {
+                return nil
+            }
+            
+            return int
+        }
+        
+        /// Return string value if value was a string.
+        public var stringValue: String? {
+            guard case .string(let string) = self else {
+                return nil
+            }
+            
+            return string
+        }
     }
 
     public struct EditorValue: Codable, Equatable {
@@ -419,7 +438,10 @@ extension LDtk {
     }
 }
 
+// MARK: - Tile Source
+
 extension LDtk {
+    
     public class EntityTileSource: TileEntityAtlasSource {
 
         weak var delegate: LDtk.TileMapDelegate?
@@ -457,7 +479,10 @@ extension LDtk {
     }
 }
 
+// MARK: - Utils
+
 extension LDtk {
+    
     enum Utils {
         static func pixelCoordsToGridCoords(from coords: [Int], gridSize: Int, gridHeight: Int) -> PointInt {
             return PointInt(x: coords[0] / gridSize, y: gridHeight - (coords[1] / gridSize))
