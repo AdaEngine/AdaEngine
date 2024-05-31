@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
+import OrderedCollections
+
 public class TileMapLayer: Identifiable {
 
     public var name: String = ""
@@ -25,7 +27,7 @@ public class TileMapLayer: Identifiable {
     }
 
     /// Key - position of tile in game world
-    private(set) var tileCells: [PointInt: TileCellData] = [:] {
+    private(set) var tileCells: OrderedDictionary<PointInt, TileCellData> = [:] {
         didSet {
             self.needUpdates = true
         }

@@ -1,12 +1,13 @@
 import AdaEngine
 
-class FirstScene {
-    func makeScene() throws -> Scene {
+class FirstScene: Scene {
+    override func sceneDidMove(to view: SceneView) {
         /** Collapsed code */
     }
 }
 
-struct PlayerComponent: Component {}
+@Component
+struct PlayerComponent {}
 
 struct MovementSystem: System {
     
@@ -14,9 +15,7 @@ struct MovementSystem: System {
     
     let speed: Float = 3
     
-    init(scene: Scene) {
-        
-    }
+    init(scene: Scene) { }
     
     func update(context: UpdateContext) {
         context.scene.performQuery(Self.playerQuery)

@@ -27,11 +27,38 @@ public class TileMap: Resource {
     }
 
     public required init(asset decoder: AssetDecoder) async throws {
-        fatalErrorMethodNotImplemented()
+        let fileContent = try decoder.decode(TileMapFileContent.self)
+        self.tileSet = fileContent.tileSet
+        
+        for layer in fileContent.layers {
+            let newLayer = self.createLayer()
+            newLayer.name = layer.name
+            
+            for tile in layer.tiles {
+                newLayer.setCell(
+                    at: tile.position,
+                    sourceId: tile.sourceId,
+                    atlasCoordinates: tile.atlasPosition
+                )
+            }
+        }
     }
 
     public func encodeContents(with encoder: AssetEncoder) async throws {
-        fatalErrorMethodNotImplemented()
+        var layers = [TileMapFileContent.Layer]()
+        
+        for layer in self.layers {
+            let tiles = layer.tileCells.elements.map { (position, data) in
+                TileMapFileContent.Tile(position: position, atlasPosition: data.atlasCoordinates, sourceId: data.sourceId)
+            }
+            
+            layers.append(
+                TileMapFileContent.Layer(name: layer.name, id: layer.id, tiles: tiles)
+            )
+        }
+        
+        let content = TileMapFileContent(layers: layers, tileSet: self.tileSet)
+        try encoder.encode(content)
     }
 
     public func createLayer() -> TileMapLayer {
@@ -96,4 +123,30 @@ public class TileMap: Resource {
             layer.tileSet = self.tileSet
         }
     }
+}
+
+@_spi(Runtime)
+extension TileMap: RuntimeRegistrable {
+    public static func registerTypes() {
+        TileTextureAtlasSource.registerTileSource()
+        TileEntityAtlasSource.registerTileSource()
+    }
+}
+
+struct TileMapFileContent: Codable {
+    
+    struct Layer: Codable {
+        let name: String
+        let id: Int
+        let tiles: [Tile]
+    }
+    
+    struct Tile: Codable {
+        let position: PointInt
+        let atlasPosition: PointInt
+        let sourceId: TileSource.ID
+    }
+    
+    let layers: [Layer]
+    let tileSet: TileSet
 }

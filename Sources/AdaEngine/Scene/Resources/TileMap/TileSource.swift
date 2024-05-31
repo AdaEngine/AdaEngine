@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
-public class TileSource {
+public class TileSource: Codable {
 
     static let invalidSource: Int = Int.min
 
@@ -15,6 +15,20 @@ public class TileSource {
 
     public internal(set) var id: ID = TileSource.invalidSource
     public var name: String = ""
+    
+    public init() { }
+    
+    // MARK: - Codable
+    
+    public required init(from decoder: any Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    // MARK: - Internal
 
     func getTileData(at atlasCoordinates: PointInt) -> TileData {
         fatalErrorMethodNotImplemented()
@@ -23,12 +37,18 @@ public class TileSource {
     func setNeedsUpdate() {
         self.tileSet?.tileMap?.setNeedsUpdate()
     }
+    
+    // MARK: - Register
+    
+    static private(set) var types: [String: TileSource.Type] = [:]
+    
+    /// Call this function if you inherited from TileSource
+    public static func registerTileSource() {
+        self.types[String(reflecting: self)] = Self.self
+    }
 }
 
-struct TileData {
-
-    weak var tileSet: TileSet?
-
+struct TileData: Codable {
     var modulateColor = Color(1.0, 1.0, 1.0, 1.0)
     var flipH: Bool = false
     var flipV: Bool = false

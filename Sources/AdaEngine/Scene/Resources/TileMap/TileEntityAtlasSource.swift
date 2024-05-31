@@ -14,10 +14,25 @@ public class TileEntityAtlasSource: TileSource {
     }
 
     private(set) var tiles: [PointInt: EntityTileData] = [:]
+    
+    public override init() {
+        super.init()
+    }
+    
+    // MARK: - Codable
+    
+    public required init(from decoder: any Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public override func encode(to encoder: any Encoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    // MARK: - Public
 
     public func createTile(at atlasCoordinates: PointInt, for entity: Entity) {
-        var tileData = TileData()
-        tileData.tileSet = self.tileSet
+        let tileData = TileData()
         let data = EntityTileData(entity: entity, tileData: tileData)
         self.tiles[atlasCoordinates] = data
     }

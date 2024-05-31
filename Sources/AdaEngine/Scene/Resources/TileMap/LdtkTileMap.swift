@@ -5,22 +5,18 @@
 //  Created by v.prusakov on 5/11/24.
 //
 
-// - FIXME: Invalid atlas coordinates
-// - FIXME: Entities support
-
-/// Tile map that supports LDtk file formats (`ldtk` or `json`).
-/// - Note: We only support tilesets, layers and levels.
-///
-/// You can load LDtk tile map using ``ResourceManager`` object.
-/// ```swift
-/// let tileMap = try await ResourceManager.load("@res://Assets/TileMap.ldtk") as LDtkTileMap
-/// ```
-
 /// Namespace for LDtk
 public enum LDtk { }
 
 extension LDtk {
 
+    /// Tile map that supports LDtk file formats (`ldtk` or `json`).
+    /// - Note: We only support tilesets, layers and levels.
+    ///
+    /// You can load LDtk tile map using ``ResourceManager`` object.
+    /// ```swift
+    /// let tileMap = try await ResourceManager.load("@res://Assets/TileMap.ldtk") as LDtkTileMap
+    /// ```
     public final class TileMap: AdaEngine.TileMap {
 
         public weak var delegate: LDtk.TileMapDelegate? {
@@ -38,7 +34,11 @@ extension LDtk {
 
         private let fileWatcher: FileWatcher
         private var fileWatcherObserver: Cancellable?
-
+        
+        /// When is hot reloading enabled, TileMap will automatically update tiles when LDtk project changed.
+        /// Default value is true.
+        ///
+        /// - Note: Use ``TileMap/resourcePath`` field to get runtime path to your LDtk file.
         public var isHotReloadingEnabled: Bool = true {
             didSet {
                 if isHotReloadingEnabled {
@@ -68,7 +68,10 @@ extension LDtk {
         public override func encodeContents(with encoder: AssetEncoder) async throws {
             try await super.encodeContents(with: encoder)
         }
-
+        
+        /// Load level from LDtk project at index.
+        /// You can get information about levels count using ``levelsCount`` property.
+        /// - Note: Each time when you call ``loadLevel(at:)`` method, then previous tiles will deleted.
         // swiftlint:disable:next cyclomatic_complexity function_body_length
         public func loadLevel(at index: Int) {
             guard let project else {
@@ -227,6 +230,68 @@ extension LDtk {
     }
 
 }
+
+// MARK: - Tile Source
+
+extension LDtk {
+    
+    public class EntityTileSource: TileEntityAtlasSource {
+
+        weak var delegate: LDtk.TileMapDelegate?
+        
+        public override init() {
+            super.init()
+        }
+        
+        public required init(from decoder: any Decoder) throws {
+            fatalErrorMethodNotImplemented()
+        }
+        
+        public override func encode(to encoder: any Encoder) throws {
+            fatalErrorMethodNotImplemented()
+        }
+
+        public func hasTile(at atlasCoordinates: PointInt) -> Bool {
+            return self.tiles[atlasCoordinates] != nil
+        }
+
+        public func createTile(at atlasCoordinates: PointInt, entityInstance: LDtk.EntityInstance) {
+            let entity = AdaEngine.Entity(name: entityInstance.identifier)
+
+            if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TileTextureAtlasSource {
+                let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
+                
+                if !source.hasTile(at: tileCoordinate) {
+                    source.createTile(for: tileCoordinate)
+                }
+                
+                let data = source.getTileData(at: tileCoordinate)
+                let texture = source.getTexture(at: tileCoordinate)
+                entity.components += SpriteComponent(texture: texture, tintColor: data.modulateColor)
+            }
+
+            if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {
+                self.delegate?.tileMap(ldtkTileMap, needsUpdate: entity, from: entityInstance, in: self)
+            }
+
+            self.createTile(at: atlasCoordinates, for: entity)
+        }
+    }
+    
+    /// Delegate that help configure LDtk TileMap.
+    public protocol TileMapDelegate: AnyObject {
+        
+        /// Configure entity from LDtk project. By default entity has ``Transform`` and ``SpriteComponent``
+        ///
+        /// - Parameter tileMap: Instance of TileMap.
+        /// - Parameter entity: AdaEngine entity which will store in TileSource.
+        /// - Parameter instance: Entity Instance from LDtk project. Use this object to get info about entity
+        /// - Parameter tileSource: Instance of TileSource where entity will store.
+        func tileMap(_ tileMap: LDtk.TileMap, needsUpdate entity: AdaEngine.Entity,
+                     from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource)
+    }
+}
+
 
 // MARK: - JSON Data
 
@@ -435,47 +500,6 @@ extension LDtk {
     public struct EditorValue: Codable, Equatable {
         public let id: String
         public let params: [String]
-    }
-}
-
-// MARK: - Tile Source
-
-extension LDtk {
-    
-    public class EntityTileSource: TileEntityAtlasSource {
-
-        weak var delegate: LDtk.TileMapDelegate?
-
-        public func hasTile(at atlasCoordinates: PointInt) -> Bool {
-            return self.tiles[atlasCoordinates] != nil
-        }
-
-        public func createTile(at atlasCoordinates: PointInt, entityInstance: LDtk.EntityInstance) {
-            let entity = AdaEngine.Entity(name: entityInstance.identifier)
-
-            if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TileTextureAtlasSource {
-                let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
-                
-                if !source.hasTile(at: tileCoordinate) {
-                    source.createTile(for: tileCoordinate)
-                }
-                
-                let data = source.getTileData(at: tileCoordinate)
-                let texture = source.getTexture(at: tileCoordinate)
-                entity.components += SpriteComponent(texture: texture, tintColor: data.modulateColor)
-            }
-
-            if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {
-                self.delegate?.tileMap(ldtkTileMap, needsUpdate: entity, from: entityInstance, in: self)
-            }
-
-            self.createTile(at: atlasCoordinates, for: entity)
-        }
-    }
-
-    public protocol TileMapDelegate: AnyObject {
-        func tileMap(_ tileMap: LDtk.TileMap, needsUpdate entity: AdaEngine.Entity, 
-                     from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource)
     }
 }
 
