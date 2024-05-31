@@ -10,6 +10,10 @@
         @TutorialReference(tutorial: "doc:CreateProject")
         
         @TutorialReference(tutorial: "doc:CreateFirst2DScene")
+        
+        @TutorialReference(tutorial: "doc:PlayerAndText")
+        
+        @TutorialReference(tutorial: "doc:EventListeners")
     }
     
     @Resources {
