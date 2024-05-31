@@ -63,6 +63,9 @@ public protocol AssetDecoder {
 public extension CodingUserInfoKey {
     /// Returns ``AssetDecodingContext`` object that contains information about resources
     static var assetsDecodingContext: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetdecoder.context")!
+    
+    /// Returns ``AssetMeta`` object that contains information about resources
+    static var assetMetaInfo: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetsMetaInfo")!
 }
 
 public final class AssetDecodingContext {
@@ -82,5 +85,18 @@ public extension Decoder {
     /// Returns instance of asset decoding context if exists.
     var assetsDecodingContext: AssetDecodingContext? {
         return self.userInfo[.assetsDecodingContext] as? AssetDecodingContext
+    }
+    
+    /// Returns instance of asset meta
+    var assetMetaInfo: AssetMeta? {
+        return self.userInfo[.assetMetaInfo] as? AssetMeta
+    }
+}
+
+public extension Encoder {
+    
+    /// Returns instance of asset meta
+    var assetMetaInfo: AssetMeta? {
+        return self.userInfo[.assetMetaInfo] as? AssetMeta
     }
 }

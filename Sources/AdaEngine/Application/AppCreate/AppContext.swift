@@ -36,6 +36,8 @@ final class AppContext<T: App> {
     func setup() throws {
         try ResourceManager.initialize()
         try AudioServer.initialize()
+        
+        RuntimeTypeLoader.loadTypes()
 
         guard let appScene = app.scene as? InternalAppScene else {
             fatalError("Incorrect object of App Scene")
