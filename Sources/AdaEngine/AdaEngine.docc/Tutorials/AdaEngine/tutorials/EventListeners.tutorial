@@ -40,8 +40,8 @@
             
             @Step {
                 
-                After that, in the ``makeScene()`` method before the return statement, you can call some code to subscribe to the event. 
-                The ``scene.subscribe`` method helps with this. 
+                After that, in the ``Scene\sceneDidMove(to:)`` method before the return statement, you can call some code to subscribe to the event. 
+                The ``Scene\subscribe`` method helps with this. 
                 When an event is triggered, our listener subscribes to it and in the callback we can process our event
                 @Code(name: "EventListenerScene.swift", file: EL-2-3-scene.swift)
             }
