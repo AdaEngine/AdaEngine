@@ -1,7 +1,7 @@
 import AdaEngine
 
-@MainActor
-func makeScene() async throws -> Scene {
-    let scene = Scene()
-    try self.makePlayer(for: scene)
+class PlayerAndTextScene: Scene {
+    override func sceneDidMove(to view: SceneView) {
+        try self.makePlayer(for: self)
+    }
 }

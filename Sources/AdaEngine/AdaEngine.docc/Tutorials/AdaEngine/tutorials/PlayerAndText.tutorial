@@ -19,7 +19,7 @@
             }
             
             @Step {
-                We must add our player to the scene. To do this we will use Entity and a couple of helper functions. Follow the code!
+                We must add our player to the scene. To do this we will use ``Entity`` and a couple of helper functions. Follow the code!
                 
                 We will create a separate makePlayer function for our scene where we will add various components.
                 
@@ -48,7 +48,7 @@
             
             @Step {
                 
-                After all the preparations, let's call our function in makeScene
+                After all the preparations, let's call our function in ``Scene\sceneDidMove(to:)``
                 
                 @Code(name: "MakePlayer.swift", file: PAT-1-6-makeScene.swift)
             }
@@ -68,7 +68,7 @@
             }
             
             @Step {
-                By analogy with the player, we will create a separate function for adding glasses text to the scene. Here, we also create an Entity, add a Text2DComponent to it - it will help us draw the text. We add our GameState to take updated values ​​from the state and add Transform.
+                By analogy with the player, we will create a separate function for adding glasses text to the scene. Here, we also create an ``Entity``, add a ``Text2DComponent`` to it - it will help us draw the text. We add our GameState to take updated values ​​from the state and add Transform.
                 
                 To customize the text, you can use TextAttributeContainer.
                 
