@@ -1,12 +1,10 @@
 import AdaEngine
 
-class EventListenerScene {
+class EventListenerScene: Scene {
     
     var disposeBag: Set<AnyCancellable> = []
     
-    func makeScene() throws -> Scene {
-        let scene = Scene()
+    override func sceneDidMove(to view: SceneView) {
         
-        return scene
     }
 }

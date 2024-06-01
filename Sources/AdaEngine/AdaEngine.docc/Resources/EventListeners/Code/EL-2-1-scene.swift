@@ -1,10 +1,8 @@
 import AdaEngine
 
-class EventListenerScene {
-    func makeScene() throws -> Scene {
-        let scene = Scene()
+class EventListenerScene: Scene {
+    override func sceneDidMove(to view: SceneView) {
         
-        return scene
     }
 }
 
