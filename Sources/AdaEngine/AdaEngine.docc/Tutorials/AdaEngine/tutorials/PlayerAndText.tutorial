@@ -1,29 +1,80 @@
 @Tutorial(time: 5) {
-    @Intro(title: "<#text#>") {
-        <#text#>
+    @Intro(title: "Player and Text in Ada Engine") {
         
-        @Image(source: <#file#>, alt: "<#accessible description#>")
+        In this tutorial, you will learn how to add a player component that you can control and how to add text and various labels to your game scene.        
     }
     
-    @Section(title: "<#text#>") {
+    @Section(title: "Add Player component") {
         @ContentAndMedia {
-            <#text#>
             
-            @Image(source: <#file#>, alt: "<#accessible description#>")
+            Here we will start adding our Components and Entity, so that AdaEngine will correctly render our player and make him alive!
+            
         }
         
         @Steps {
             @Step {
-                <#text#>
+                First of all you have to add the player component. For AdaEngine to understand you, just specify the following code.
                 
-                @Image(source: <#file#>, alt: "<#accessible description#>")
+                @Code(name: "PlayerComponent.swift", file: PAT-1-1-player-component.swift)
             }
             
             @Step {
-                <#text#>
+                We must add our player to the scene. To do this we will use Entity and a couple of helper functions. Follow the code!
                 
-                @Code(name: "<#display name#>", file: <#filename.swift#>)
+                We will create a separate makePlayer function for our scene where we will add various components.
+                
+                @Code(name: "MakePlayer.swift", file: PAT-1-2-makePlayer.swift)
             }
+            
+            @Step {
+                
+                Next, let's declare that our player is an Entity, which can contain several components for various modifications and features in the future. First, let's add the PlayerComponent, which we discussed earlier, so that we can then easily indicate that this entity is our player. At the end, don't forget to add the player entity to the scene.
+                
+                @Code(name: "MakePlayer.swift", file: PAT-1-3-makePlayer.swift)
+            }
+            
+            @Step {
+                AdaEngine knows that the player has been added to the scene, but... he can't do anything and doesn't have any properties. Let's fix this! To begin with, we will give the player the opportunity to move and, in general, somehow change his size and position. Let's use the built-in Transform component and set some initial values
+                
+                @Code(name: "MakePlayer.swift", file: PAT-1-4-makePlayer.swift)
+            }
+            
+            @Step {
+    
+                One more component is missing - what will the player look like? To do this, you can use sprites and the corresponding component in AdaEngine
+                
+                @Code(name: "MakePlayer.swift", file: PAT-1-5-makePlayer.swift)
+            }
+            
+            @Step {
+                
+                After all the preparations, let's call our function in makeScene
+                
+                @Code(name: "MakePlayer.swift", file: PAT-1-6-makeScene.swift)
+            }
+        }
+    }
+    
+    @Section(title: "Add Text component") {
+        @ContentAndMedia {
+            Let's dive deeper into the AdaEngine text component
+        }
+        
+        @Steps {
+            @Step {
+                Okay, most likely you want to count some points for your player. Let's start creating the GameState component
+                
+                @Code(name: "GameState.swift", file: PAT-2-1-gameState.swift)
+            }
+            
+            @Step {
+                By analogy with the player, we will create a separate function for adding glasses text to the scene. Here, we also create an Entity, add a Text2DComponent to it - it will help us draw the text. We add our GameState to take updated values ​​from the state and add Transform.
+                
+                To customize the text, you can use TextAttributeContainer.
+                
+                @Code(name: "MakeScore.swift", file: PAT-2-2-makeScore.swift)
+            }
+    
         }
     }
 }
