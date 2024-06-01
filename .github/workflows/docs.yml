@@ -1,16 +1,20 @@
 name: Deploy Docs
 
+# on:
+#   push:
+#     branches:
+#       - 'main'
 on:
-  push:
-    branches:
-      - 'main'
+  push
+    # branches:
+    #   - 'main'
 
 permissions:
   contents: write
 
 jobs:
   build-and-deploy-docs:
-    runs-on: macos-latest
+    runs-on: macos-latest            
     steps:
       - name: Setup Xcode version
         uses: maxim-lobanov/setup-xcode@v1.6.0
