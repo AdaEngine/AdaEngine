@@ -2,6 +2,8 @@
     @Intro(title: "Create your first game project") {
         In this tutorial you learn how to create your first AdaEngine project.
         
+        You should have some programming experience and knowledge of basic Swift language syntax.
+        
         @Comment {
             Add same example to SPM package, currently it doesn't works.
         }
