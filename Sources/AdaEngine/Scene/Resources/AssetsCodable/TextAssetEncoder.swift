@@ -22,10 +22,13 @@ public final class TextAssetEncoder: AssetEncoder {
 
     public func encode<T>(_ value: T) throws where T : Encodable {
         if let data = value as? Data {
-            encodedData = data
+            self.encodedData = data
         } else {
-            let data = try yamlEncoder.encode(value).data(using: .utf8)
-            encodedData = data
+            let data = try yamlEncoder.encode(value, userInfo: [
+                .assetMetaInfo: self.assetMeta
+            ]).data(using: .utf8)
+            
+            self.encodedData = data
         }
     }
 }
