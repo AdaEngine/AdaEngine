@@ -37,9 +37,11 @@ public enum AssetDecodingError: LocalizedError {
 
 /// A type that can encode itself to an external asset representation.
 public protocol AssetEncoder {
-
+    
+    /// - Returns: Meta information about asset.
     var assetMeta: AssetMeta { get }
     
+    /// Use this method to encode content from asset.
     func encode<T: Encodable>(_ value: T) throws
 }
 
@@ -68,12 +70,20 @@ public extension CodingUserInfoKey {
     static var assetMetaInfo: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetsMetaInfo")!
 }
 
+/// Context contains all resolved resources from decoding.
 public final class AssetDecodingContext {
 
     private var resources: [String: WeakBox<AnyObject>] = [:]
 
-    public func getResource<R: Resource>(at path: String) -> R? {
-        self.resources[path]?.value as? R
+    public func getOrLoadResource<R: Resource>(at path: String) throws -> R {
+        if let value = self.resources[path]?.value as? R {
+            return value
+        } else {
+            let value = try ResourceManager.loadSync(path, ignoreCache: true) as R
+            self.appendResource(value)
+            
+            return value
+        }
     }
 
     public func appendResource<R: Resource>(_ resource: R) {
@@ -83,20 +93,35 @@ public final class AssetDecodingContext {
 
 public extension Decoder {
     /// Returns instance of asset decoding context if exists.
-    var assetsDecodingContext: AssetDecodingContext? {
-        return self.userInfo[.assetsDecodingContext] as? AssetDecodingContext
+    /// - Warning: Only available if you save asset from ResourceManager
+    var assetsDecodingContext: AssetDecodingContext {
+        guard let context = self.userInfo[.assetsDecodingContext] as? AssetDecodingContext else {
+            fatalError("AssetDecodingContext info available if you save resouce from ResourceManager object.")
+        }
+        
+        return context
     }
     
     /// Returns instance of asset meta
-    var assetMetaInfo: AssetMeta? {
-        return self.userInfo[.assetMetaInfo] as? AssetMeta
+    /// - Warning: Only available if you save asset from ResourceManager
+    var assetMeta: AssetMeta {
+        guard let meta = self.userInfo[.assetMetaInfo] as? AssetMeta else {
+            fatalError("AssetMeta info available if you save resouce from ResourceManager object.")
+        }
+        
+        return meta
     }
 }
 
 public extension Encoder {
     
     /// Returns instance of asset meta
-    var assetMetaInfo: AssetMeta? {
-        return self.userInfo[.assetMetaInfo] as? AssetMeta
+    /// /// - Warning: Only available if you load asset from ResourceManager
+    var assetMeta: AssetMeta {
+        guard let meta = self.userInfo[.assetMetaInfo] as? AssetMeta else {
+            fatalError("AssetMeta info available if you load resouce from ResourceManager object.")
+        }
+        
+        return meta
     }
 }

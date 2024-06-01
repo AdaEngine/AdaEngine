@@ -21,7 +21,7 @@ public final class TextAssetDecoder: AssetDecoder {
 
         self.context = AssetDecodingContext()
 
-        self.yamlDecoder = YAMLDecoder(encoding: .utf16)
+        self.yamlDecoder = YAMLDecoder(encoding: .utf8)
     }
 
     public func decode<T: Decodable>(_ type: T.Type) throws -> T {
@@ -29,6 +29,9 @@ public final class TextAssetDecoder: AssetDecoder {
             return self.assetData as! T
         }
 
-        return try self.yamlDecoder.decode(T.self, from: self.assetData, userInfo: [.assetsDecodingContext: self.context])
+        return try self.yamlDecoder.decode(T.self, from: self.assetData, userInfo: [
+            .assetsDecodingContext: self.context,
+            .assetMetaInfo: self.assetMeta
+        ])
     }
 }

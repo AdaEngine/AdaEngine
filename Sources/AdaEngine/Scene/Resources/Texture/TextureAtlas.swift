@@ -36,35 +36,6 @@ public final class TextureAtlas: Texture2D {
         let margin: Size
     }
     
-    public required init(asset decoder: AssetDecoder) async throws {
-        guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
-            throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
-        }
-        
-        let atlas = try decoder.decode(TextureAtlasAssetRepresentation.self)
-        
-        self.margin = atlas.margin
-        self.spriteSize = atlas.spriteSize
-        
-        let image = try await ResourceManager.load(atlas.filePath) as Image
-
-        super.init(image: image)
-    }
-    
-    public override func encodeContents(with encoder: AssetEncoder) async throws {
-        guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
-            throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
-        }
-        
-        let atlas = TextureAtlasAssetRepresentation(
-            filePath: self.resourcePath,
-            spriteSize: self.spriteSize,
-            margin: self.margin
-        )
-        
-        try encoder.encode(atlas)
-    }
-    
     // MARK: - Codable
     
     enum CodingKeys: CodingKey {
@@ -163,14 +134,6 @@ public extension TextureAtlas {
             }
         }
         
-        public required init(asset decoder: AssetDecoder) async throws {
-            throw AssetError()
-        }
-        
-        public override func encodeContents(with encoder: AssetEncoder) async throws {
-            throw AssetError()
-        }
-        
         // MARK: - Codable
         
         enum CodingKeys: CodingKey {
@@ -181,6 +144,10 @@ public extension TextureAtlas {
         }
         
         public convenience required init(from decoder: Decoder) throws {
+            guard let context = decoder.assetsDecodingContext else {
+                throw AssetDecodingError.decodingProblem("Can't load Resource. Use ResourceManager object to load resource.")
+            }
+            
             let container = try decoder.container(keyedBy: CodingKeys.self)
             
             let path = try container.decode(String.self, forKey: .textureAtlasResource)
@@ -188,13 +155,7 @@ public extension TextureAtlas {
             let max = try container.decode(Vector2.self, forKey: .max)
             let size = try container.decode(Size.self, forKey: .size)
             
-            let textureAtlas: TextureAtlas
-
-            if let context = decoder.assetsDecodingContext, let atlas = context.getResource(at: path) as TextureAtlas? {
-                textureAtlas = atlas
-            } else {
-                textureAtlas = try ResourceManager.loadSync(path) as TextureAtlas
-            }
+            let textureAtlas = try context.getOrLoadResource(at: path) as TextureAtlas
 
             self.init(atlas: textureAtlas, min: min, max: max, size: size)
         }

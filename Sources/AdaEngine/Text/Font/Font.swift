@@ -39,9 +39,8 @@ public final class Font: Resource, Hashable {
     }
     
     public func encodeContents(with encoder: AssetEncoder) throws {
-        fatalError()
+        fatalErrorMethodNotImplemented()
     }
-    
 }
 
 public extension Font {

@@ -50,6 +50,18 @@ public protocol Resource: AnyObject {
     var resourceName: String { get set }
 }
 
+extension Resource where Self: Codable {
+
+    @ResourceActor public init(asset decoder: AssetDecoder) async throws {
+        fatalErrorMethodNotImplemented()
+//        self.init(from: decoder)
+    }
+
+    @ResourceActor public func encodeContents(with encoder: AssetEncoder) async throws {
+        try encoder.encode(self)
+    }
+}
+
 /// Contains resource type supported by AdaEngine.
 public enum ResourceType: String {
     case texture = "texres"

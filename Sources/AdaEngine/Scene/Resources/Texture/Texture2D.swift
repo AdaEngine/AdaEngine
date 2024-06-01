@@ -78,33 +78,6 @@ open class Texture2D: Texture {
         
         try container.encode(self.resourcePath)
     }
-    
-    // MARK: - Resource
-    
-    public required init(asset decoder: AssetDecoder) async throws {
-        let image = try Image(asset: decoder)
-        
-        let descriptor = TextureDescriptor(
-            width: image.width,
-            height: image.height,
-            pixelFormat: image.format.toPixelFormat,
-            textureUsage: [.read],
-            textureType: .texture2D,
-            image: image
-        )
-        
-        let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
-        let sampler = RenderEngine.shared.makeSampler(from: SamplerDescriptor())
-        
-        self.width = image.width
-        self.height = image.height
-        
-        super.init(gpuTexture: gpuTexture, sampler: sampler, textureType: .texture2D)
-    }
-    
-    public override func encodeContents(with encoder: AssetEncoder) async throws {
-
-    }
 }
 
 public extension Texture2D {
