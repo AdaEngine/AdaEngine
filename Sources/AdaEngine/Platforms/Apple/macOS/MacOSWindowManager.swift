@@ -31,7 +31,11 @@ final class MacOSWindowManager: WindowManager {
         /// Register view in engine
         let metalView = MetalView(windowId: window.id, frame: contentRect)
         
-        try? RenderEngine.shared.createWindow(window.id, for: metalView, size: size)
+        do {
+            try RenderEngine.shared.createWindow(window.id, for: metalView, size: size)
+        } catch {
+            fatalError("Failed to create render window \(error)")
+        }
         
         let systemWindow = NSWindow(
             contentRect: contentRect,

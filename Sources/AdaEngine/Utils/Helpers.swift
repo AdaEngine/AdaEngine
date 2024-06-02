@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/31/22.
 //
 
+// TODO: Think about it later. Maybe we should use some namespace
+
 /// Call fatal if method not implemented
 func fatalErrorMethodNotImplemented(
     functionName: String = #function,

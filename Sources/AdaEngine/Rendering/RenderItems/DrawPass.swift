@@ -6,7 +6,7 @@
 //
 
 /// The context with information required to run a ``DrawPass``.
-public struct RenderContext {
+public struct DrawPassRenderContext {
     public let device: RenderEngine
     public let entity: Entity
     public let world: World
@@ -25,7 +25,7 @@ public struct DrawPassId: Equatable, Hashable {
 public protocol DrawPass<Item> {
     
     associatedtype Item: RenderItem
-    typealias Context = RenderContext
+    typealias Context = DrawPassRenderContext
     
     func render(in context: Context, item: Item) throws
 }
@@ -34,21 +34,5 @@ public extension DrawPass {
     /// Return identifier of draw pass based on DrawPass.Type
     @inline(__always) static var identifier: DrawPassId {
         DrawPassId(id: Int(bitPattern: ObjectIdentifier(self)))
-    }
-}
-
-/// Type-erased draw pass.
-public struct AnyDrawPass<T: RenderItem>: DrawPass {
-    
-    private var render: (Context, Any) throws -> Void
-    
-    public init<Value: DrawPass>(_ base: Value) {
-        self.render = { context, item in
-            try base.render(in: context, item: item as! Value.Item)
-        }
-    }
-    
-    public func render(in context: Context, item: T) throws {
-        try render(context, item)
     }
 }
