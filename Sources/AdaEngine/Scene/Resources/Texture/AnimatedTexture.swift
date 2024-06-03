@@ -123,7 +123,13 @@ public final class AnimatedTexture: Texture2D {
         }
     }
     
-    public override func encodeContents(with encoder: AssetEncoder) async throws {
+    // MARK: - Codable
+    
+    public convenience required init(from decoder: Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public override func encode(to encoder: Encoder) throws {
         guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
         }
@@ -151,27 +157,8 @@ public final class AnimatedTexture: Texture2D {
             options: self.options
         )
         
-        try encoder.encode(asset)
-    }
-    
-    // MARK: - Codable
-    
-    public convenience required init(from decoder: Decoder) throws {
-//        let container = try decoder.singleValueContainer()
-//        let path = try container.decode(String.self)
-//        let texture = try ResourceManager.load(path) as AnimatedTexture
-//        
-//        self.init()
-//        
-//        self.frames = texture.frames
-//        self.framesPerSecond = texture.framesPerSecond
-
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public override func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        try container.encode(self.resourcePath)
+        try container.encode(asset)
     }
     
     // MARK: - Public methods
@@ -229,9 +216,9 @@ public final class AnimatedTexture: Texture2D {
             if self.currentFrame >= self.framesCount {
                 if !self.options.contains(.repeat) {
                     self.currentFrame = self.framesCount - 1
+                    self.isPaused = true
                 } else {
                     self.currentFrame = 0
-                    self.isPaused = true
                 }
             }
             

@@ -10,7 +10,7 @@ import Collections
 /// Contains information about relationship of entity.
 @Component
 public struct RelationshipComponent {
-    
+
     /// Identifier of parent entity.
     public var parent: Entity.ID?
     
@@ -51,12 +51,14 @@ public extension Entity {
     /// - Warning: Will throw assert error if entity contains that child.
     func addChild(_ entity: Entity) {
         assert(!self.children.contains { $0 === entity }, "Currently has entity in child")
-        
-        guard var relationship = self.components[RelationshipComponent.self] else {
-            return
-        }
-        
-        relationship.parent = entity.id
+        assert(self !== entity, "Could not add entity as its child")
+
+        var relationship = self.components[RelationshipComponent.self] ?? RelationshipComponent()
+
+        entity.components[RelationshipComponent.self]?.parent = self.id
+        _ = relationship.children.unordered.insert(entity.id)
+
+        self.components += relationship
     }
     
     /// Remove entity from children.
@@ -64,9 +66,11 @@ public extension Entity {
         guard var relationship = self.components[RelationshipComponent.self] else {
             return
         }
-        
+
         entity.components[RelationshipComponent.self]?.parent = nil
         relationship.children.remove(entity.id)
+        
+        self.components += relationship
     }
     
     /// Remove entity from parent

@@ -14,7 +14,7 @@ enum SceneSerializationError: Error {
 }
 
 /// A container that holds the collection of entities for render.
-public final class Scene: Resource, @unchecked Sendable {
+open class Scene: Resource, @unchecked Sendable {
 
     /// Current supported version for mapping scene from file.
     static var currentVersion: Version = "1.0.0"
@@ -26,8 +26,7 @@ public final class Scene: Resource, @unchecked Sendable {
     public internal(set) weak var window: Window?
     public internal(set) var viewport: Viewport = Viewport()
     
-    public var resourcePath: String = ""
-    public var resourceName: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
     
     private var plugins: [ScenePlugin] = []
     private(set) var world: World
@@ -44,19 +43,26 @@ public final class Scene: Resource, @unchecked Sendable {
     public var debugPhysicsColor: Color = .green
     
     /// Instance of scene manager which holds this scene.
-    public weak var sceneManager: SceneManager?
+    public internal(set) weak var sceneManager: SceneManager?
 
     /// Flag indicate that scene is updating right now.
     private(set) var isUpdating = false
+
+    /// Check the scene will not run earlier.
+    private(set) var isReady = false
+
+    private var instantiateDefaultPlugin: Bool = true
 
     // MARK: - Initialization -
     
     /// Create new scene instance.
     /// - Parameter name: Name of this scene. By default name is `Scene`.
-    public nonisolated init(name: String? = nil) {
+    /// - Parameter instantiateDefaultPlugin:
+    public nonisolated init(name: String? = nil, instantiateDefaultPlugin: Bool = true) {
         self.id = UUID()
         self.name = name ?? "Scene"
         self.world = World()
+        self.instantiateDefaultPlugin = instantiateDefaultPlugin
     }
     
     // MARK: - Resource -
@@ -83,7 +89,7 @@ public final class Scene: Resource, @unchecked Sendable {
 //        try encoder.encode(sceneData)
     }
     
-    nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
+    required nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
         guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
@@ -142,11 +148,20 @@ public final class Scene: Resource, @unchecked Sendable {
         self.plugins.append(plugin)
     }
 
+    // MARK: - Life Cycle
+
+    /// Tells you when the scene is presented.
+    ///
+    /// - Note: Scene is configured and you can't add new systems to the scene.
+    @MainActor open func sceneDidLoad() { }
+
+    /// Tells you when the scene is about to be removed from a view.
+    @MainActor open func sceneDidMove(to view: SceneView) { }
+
+    /// Tells you when the scene is about to be removed from a view.
+    @MainActor open func sceneWillMove(from view: SceneView) { }
+
     // MARK: - Internal methods
-    
-    // TODO: Looks like not a good solution here
-    /// Check the scene will not run earlier.
-    private(set) var isReady = false
 
     func readyIfNeeded() async {
         if self.isReady {
@@ -158,13 +173,17 @@ public final class Scene: Resource, @unchecked Sendable {
 
     func ready() async {
         // TODO: In the future we need minimal scene plugin for headless mode.
-        await self.addPlugin(DefaultScenePlugin())
+        if self.instantiateDefaultPlugin {
+            await self.addPlugin(DefaultScenePlugin())
+        }
 
         self.isReady = true
         
         self.systemGraph.linkSystems()
         self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
+
+        await self.sceneDidLoad()
     }
     
     /// Update scene world and systems by delta time.
@@ -230,10 +249,11 @@ public extension Scene {
     
     /// Remove entity from world.
     /// - Note: Entity will removed on next `update` call.
-    func removeEntity(_ entity: Entity) {
+    /// - Parameter recursively: also remove entity child.
+    func removeEntity(_ entity: Entity, recursively: Bool = false) {
         self.eventManager.send(SceneEvents.WillRemoveEntity(entity: entity), source: self)
         
-        self.world.removeEntityOnNextTick(entity)
+        self.world.removeEntityOnNextTick(entity, recursively: recursively)
     }
 }
 
@@ -272,7 +292,7 @@ extension Scene: EventSource {
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
     /// - Parameters completion: A closure to call with the event.
     /// - Returns: A cancellable object. You should store it in memory, to recieve events.
-    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> any Cancellable where E : Event {
+    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> Cancellable where E : Event {
         return self.eventManager.subscribe(to: event, on: eventSource ?? self, completion: completion)
     }
 }

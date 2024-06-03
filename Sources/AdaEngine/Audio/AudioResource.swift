@@ -11,19 +11,15 @@ import Foundation
 /// The AudioResource class stores audio data that you can play in your scene or entire app.
 public final class AudioResource: Resource {
     
-    public var resourceName: String = ""
-    public var resourcePath: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
+    
     private let sound: Sound
     
     public static var resourceType: ResourceType = .audio
     
     public required init(asset decoder: AssetDecoder) throws {
         if decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion {
-            guard let data = FileSystem.current.readFile(at: decoder.assetMeta.filePath) else {
-                throw AssetDecodingError.decodingProblem("Can't read file at path")
-            }
-            
-            self.sound = try AudioServer.shared.engine.makeSound(from: data)
+            self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetData)
         } else {
             self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetMeta.filePath)
         }

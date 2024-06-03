@@ -7,8 +7,28 @@
 
 // swiftlint:disable unused_setter_value
 
-/// Get components from entity if exists.
-/// Only works inside ``ScriptComponent`` class.
+/// Get required component from entity. 
+/// If components not exists returns fatal error.
+///
+/// - Note: Only works in objects that inheritance from ``ScriptableComponent`` class.
+///
+/// RequiredComponent very useful for scenario when you need components from entity
+/// and you are really sure that that components is exists.
+///
+/// ```swift
+///
+/// class PlayerMovementComponent: ScriptableComponent {
+///
+///     // Fetch HealthComponent component from entity where PlayerMovementComponent contains
+///     @RequiredComponent private var healthComponent: HealthComponent
+///
+///     // Logic code...
+/// }
+///
+/// let entity = Entity(name: "Player")
+/// entity.components += PlayerMovementComponent()
+/// entity.components += HealthComponent(health: 10)
+/// ```
 @propertyWrapper
 public struct RequiredComponent<T: Component> {
     
@@ -21,7 +41,7 @@ public struct RequiredComponent<T: Component> {
     public init() { }
     
     // Currently private method to get parent component 
-    public static subscript<EnclosingSelf: ScriptComponent>(
+    public static subscript<EnclosingSelf: ScriptableComponent>(
         _enclosingInstance object: EnclosingSelf,
         wrapped wrappedKeyPath: KeyPath<EnclosingSelf, T>,
         storage storageKeyPath: ReferenceWritableKeyPath<EnclosingSelf, RequiredComponent>

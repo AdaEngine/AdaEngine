@@ -57,8 +57,7 @@ public final class Shader: Resource {
     
     // MARK: Shader
 
-    public var resourceName: String = ""
-    public var resourcePath: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
     public static var resourceType: ResourceType = .material
 
     // TODO: Load from spir-v
@@ -82,7 +81,7 @@ public final class Shader: Resource {
     }
 
     public func encodeContents(with encoder: AssetEncoder) throws {
-        fatalError("TODO")
+        fatalErrorMethodNotImplemented()
     }
     
     static func make(from spirv: SpirvBinary, compiler: ShaderCompiler) throws -> Shader {

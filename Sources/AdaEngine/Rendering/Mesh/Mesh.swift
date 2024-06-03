@@ -60,8 +60,7 @@ public class Mesh: Resource {
     
     // MARK: - Resource
     
-    public var resourcePath: String = ""
-    public var resourceName: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
     public static var resourceType: ResourceType = .mesh
     
     public required init(asset decoder: AssetDecoder) throws {

@@ -7,6 +7,13 @@
 
 /// Restrict minimum possible value for property.
 /// If value less than min value, than we set min value
+///
+/// ```swift
+/// @Component
+/// struct PlayerHealthBar {
+///     @MinValue(0.0) var health: Float
+/// }
+/// ```
 @propertyWrapper
 public struct MinValue<T: Comparable & Codable>: Codable {
     

@@ -24,8 +24,7 @@ public final class Font: Resource, Hashable {
         self.handle = handle
     }
     
-    public var resourcePath: String = ""
-    public var resourceName: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
     
     public static var resourceType: ResourceType {
         return .font
@@ -39,9 +38,8 @@ public final class Font: Resource, Hashable {
     }
     
     public func encodeContents(with encoder: AssetEncoder) throws {
-        fatalError()
+        fatalErrorMethodNotImplemented()
     }
-    
 }
 
 public extension Font {
