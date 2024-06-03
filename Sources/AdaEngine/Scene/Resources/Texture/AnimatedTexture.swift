@@ -126,15 +126,6 @@ public final class AnimatedTexture: Texture2D {
     // MARK: - Codable
     
     public convenience required init(from decoder: Decoder) throws {
-//        let container = try decoder.singleValueContainer()
-//        let path = try container.decode(String.self)
-//        let texture = try ResourceManager.load(path) as AnimatedTexture
-//        
-//        self.init()
-//        
-//        self.frames = texture.frames
-//        self.framesPerSecond = texture.framesPerSecond
-
         fatalErrorMethodNotImplemented()
     }
     
@@ -166,7 +157,8 @@ public final class AnimatedTexture: Texture2D {
             options: self.options
         )
         
-        
+        var container = encoder.singleValueContainer()
+        try container.encode(asset)
     }
     
     // MARK: - Public methods

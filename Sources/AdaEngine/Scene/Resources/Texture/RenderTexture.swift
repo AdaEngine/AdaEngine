@@ -8,6 +8,8 @@
 // FIXME: (Vlad) should say that texture isn't use for rendering anymore
 // FIXME: (Vlad) I feel that we have a bug with deinitialization here
 
+import Math
+
 // A texture using as a render target.
 public class RenderTexture: Texture2D {
     
@@ -16,10 +18,10 @@ public class RenderTexture: Texture2D {
     
     public private(set) var isActive: Bool = true
     
-    public init(size: Size, scaleFactor: Float, format: PixelFormat) {
+    public init(size: SizeInt, scaleFactor: Float, format: PixelFormat) {
         let descriptor = TextureDescriptor(
-            width: Int(size.width),
-            height: Int(size.height),
+            width: size.width,
+            height: size.height,
             pixelFormat: format,
             textureUsage: [.renderTarget, .read],
             textureType: .texture2D

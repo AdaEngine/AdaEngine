@@ -57,6 +57,6 @@ public protocol Framebuffer: AnyObject {
     var attachments: [FramebufferAttachment] { get }
     var descriptor: FramebufferDescriptor { get }
     
-    func resize(to newSize: Size)
+    func resize(to newSize: SizeInt)
     func invalidate()
 }

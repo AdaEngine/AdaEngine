@@ -19,7 +19,7 @@ public final class EventManager {
         to: T.Type,
         on source: EventSource? = nil,
         completion: @escaping (T) -> Void
-    ) -> any Cancellable {
+    ) -> Cancellable {
         let subscriber = EventSubscriber(source: source, completion: completion)
         
         let key = ObjectIdentifier(T.self)
@@ -66,7 +66,7 @@ private class EventSubscriber: Cancellable {
 
 /// A type on which events can be published and subscribed.
 public protocol EventSource: AnyObject {
-    func subscribe<E: Event>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> any Cancellable
+    func subscribe<E: Event>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> Cancellable
 }
 
 public extension EventSource {
@@ -74,7 +74,7 @@ public extension EventSource {
         to event: E.Type,
         on source: EventSource? = nil,
         completion: @escaping (E) -> Void
-    ) -> any Cancellable {
+    ) -> Cancellable {
         return self.subscribe(to: event, on: source, completion: completion)
     }
 }

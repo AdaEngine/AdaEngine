@@ -97,7 +97,7 @@ extension LDtk {
 
                 switch layerInstance.__type {
                 case .autoLayer, .intGrid:
-                    let source = tileSet.sources[projectLayer.tilesetDefUid!] as! TileTextureAtlasSource
+                    let source = tileSet.sources[projectLayer.tilesetDefUid!] as! TextureAtlasTileSource
 
                     for tile in layerInstance.autoLayerTiles {
                         let atlasCoordinates = Utils.gridCoordinates(from: tile.source, gridSize: layerInstance.__gridSize)
@@ -131,7 +131,7 @@ extension LDtk {
                         )
                     }
                 case .tiles:
-                    let source = tileSet.sources[projectLayer.tilesetDefUid!] as! TileTextureAtlasSource
+                    let source = tileSet.sources[projectLayer.tilesetDefUid!] as! TextureAtlasTileSource
 
                     for tile in layerInstance.gridTiles {
                         let atlasCoordinates = Utils.gridCoordinates(from: tile.source, gridSize: layerInstance.__gridSize)
@@ -192,10 +192,10 @@ extension LDtk {
 
                     let image = try await ResourceManager.load(atlasPath.absoluteString) as Image
 
-                    let source = TileTextureAtlasSource(
+                    let source = TextureAtlasTileSource(
                         from: image,
-                        size: Size(width: Float(tileSource.tileGridSize), height: Float(tileSource.tileGridSize)),
-                        margin: Size(width: Float(tileSource.padding), height: Float(tileSource.padding))
+                        size: SizeInt(width: tileSource.tileGridSize, height: tileSource.tileGridSize),
+                        margin: SizeInt(width: tileSource.padding, height: tileSource.padding)
                     )
 
                     source.name = tileSource.identifier
@@ -258,7 +258,7 @@ extension LDtk {
         public func createTile(at atlasCoordinates: PointInt, entityInstance: LDtk.EntityInstance) {
             let entity = AdaEngine.Entity(name: entityInstance.identifier)
 
-            if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TileTextureAtlasSource {
+            if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TextureAtlasTileSource {
                 let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
                 
                 if !source.hasTile(at: tileCoordinate) {

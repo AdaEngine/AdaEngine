@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-final class GameScene2D: Scene {
+class GameScene2D: Scene {
 
     var disposeBag: Set<AnyCancellable> = []
 
@@ -28,10 +28,10 @@ final class GameScene2D: Scene {
         super.init()
     }
     
-    required nonisolated convenience init(asset decoder: AssetDecoder) async throws {
+    required nonisolated convenience init(asset decoder: any AssetDecoder) async throws {
         fatalError("init(asset:) has not been implemented")
     }
-
+    
     override func sceneDidMove(to view: SceneView) {
         //        let scene = try ResourceManager.load(scenePath) as Scene
 

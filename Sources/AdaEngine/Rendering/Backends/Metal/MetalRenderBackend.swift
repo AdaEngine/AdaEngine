@@ -14,6 +14,7 @@ import Metal
 import ModelIO
 import MetalKit
 import OrderedCollections
+import Math
 
 class MetalRenderBackend: RenderBackend {
     
@@ -30,12 +31,12 @@ class MetalRenderBackend: RenderBackend {
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
     }
     
-    func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
+    func createWindow(_ windowId: Window.ID, for view: RenderView, size: SizeInt) throws {
         let mtlView = (view as! MetalView)
         try self.context.createRenderWindow(with: windowId, view: mtlView, size: size)
     }
     
-    func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
+    func resizeWindow(_ windowId: Window.ID, newSize: SizeInt) throws {
         guard newSize.width > 0 && newSize.height > 0 else {
             return
         }

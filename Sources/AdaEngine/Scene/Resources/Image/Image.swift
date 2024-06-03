@@ -18,8 +18,7 @@ public final class Image {
     // TODO: Replace it to PixelFormat
     public private(set) var format: Format
     
-    public var resourceName: String = ""
-    public var resourcePath: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
     public var samplerDescription: SamplerDescriptor = SamplerDescriptor()
     
     /// Create an empty image.
@@ -141,12 +140,11 @@ public extension Image {
             format: image.format
         )
     }
-    
 }
 
 extension Image: Resource {
     
-    private struct ImageRepresentation: Decodable, Encodable {
+    private struct ImageRepresentation: Codable {
         let imageSize: Size
         let data: Data
         let colorFormat: Format
@@ -154,7 +152,6 @@ extension Image: Resource {
     }
     
     public convenience init(asset decoder: AssetDecoder) throws {
-        
         let pathExt = decoder.assetMeta.filePath.pathExtension
         
         if pathExt.isEmpty || pathExt == "res" {

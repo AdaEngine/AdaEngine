@@ -90,7 +90,7 @@ public struct TileMapSystem: System {
                 let tileEntity: Entity
 
                 switch source {
-                case let atlasSource as TileTextureAtlasSource:
+                case let atlasSource as TextureAtlasTileSource:
                     let texture = atlasSource.getTexture(at: tile.atlasCoordinates)
 
                     tileEntity = Entity()

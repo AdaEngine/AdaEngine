@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
+import Math
+
 public enum TriangleFillMode {
     case fill
     case lines
@@ -19,11 +21,11 @@ protocol RenderBackend: AnyObject {
     /// Register a new render window for render backend.
     /// Window in this case is entity that managed a drawables (aka swapchain).
     /// - Throws: Throw error if something went wrong.
-    func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws
+    func createWindow(_ windowId: Window.ID, for view: RenderView, size: SizeInt) throws
     
     /// Resize registred render window.
     /// - Throws: Throw error if window is not registred.
-    func resizeWindow(_ windowId: Window.ID, newSize: Size) throws
+    func resizeWindow(_ windowId: Window.ID, newSize: SizeInt) throws
     
     /// Destroy render window from render backend.
     /// - Throws: Throw error if window is not registred.
