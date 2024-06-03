@@ -7,7 +7,202 @@
 
 import AdaEngine
 
-class InputMapCallComponent: ScriptComponent {
+class GameScene2D: Scene {
+
+    var disposeBag: Set<AnyCancellable> = []
+
+    let textureAtlas: TextureAtlas
+    let characterAtlas: TextureAtlas
+
+    init() {
+        do {
+            let tiles = try ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
+            let charactersTiles = try ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
+
+            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
+            self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
+        } catch {
+            fatalError(error.localizedDescription)
+        }
+
+        super.init()
+    }
+    
+    required nonisolated convenience init(asset decoder: any AssetDecoder) async throws {
+        fatalError("init(asset:) has not been implemented")
+    }
+    
+    override func sceneDidMove(to view: SceneView) {
+        //        let scene = try ResourceManager.load(scenePath) as Scene
+
+        let cameraEntity = OrthographicCamera()
+        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
+        cameraEntity.camera.clearFlags = .solid
+        cameraEntity.camera.orthographicScale = 1.5
+
+        self.addEntity(cameraEntity)
+
+        let textTextEnt = Entity()
+        textTextEnt.components += Text2DComponent(text: AttributedText(""))
+        textTextEnt.components += InputMapCallComponent()
+        textTextEnt.components += NoFrustumCulling()
+        self.addEntity(textTextEnt)
+
+        // DEBUG
+        self.debugOptions = [.showPhysicsShapes]
+        //        scene.debugOptions = [.showBoundingBoxes]
+        self.debugPhysicsColor = .red
+        self.makePlayer()
+        self.makeGround()
+        try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
+        self.collisionHandler()
+        //        self.fpsCounter(for: scene)
+//        self.addText(to: scene)
+
+//        scene.addSystem(TubeMovementSystem.self)
+//        scene.addSystem(TubeSpawnerSystem.self)
+//        scene.addSystem(TubeDestroyerSystem.self)
+        self.addSystem(PlayerMovementSystem.self)
+
+        //        try ResourceManager.save(scene, at: scenePath)
+
+        // Change gravitation
+    }
+
+    override func sceneDidLoad() {
+        self.physicsWorld2D?.gravity = Vector2(0, -3.62)
+    }
+
+    private func collisionHandler() {
+        self.subscribe(to: CollisionEvents.Began.self) { event in
+            if event.entityA.name == "Player" && (event.entityB.name == "Tube") {
+                //                event.entityA.scene?.removeEntity(event.entityA)
+                //                print("collide with tube")
+                //                self.gameOver()
+            }
+        }
+        .store(in: &disposeBag)
+    }
+
+    private func makePlayer() {
+
+        var transform = Transform()
+        transform.scale = [0.2, 0.2, 0.2]
+
+        let playerTexture = AnimatedTexture()
+        playerTexture.framesPerSecond = 5
+        playerTexture.framesCount = 2
+        playerTexture[0] = self.characterAtlas[0, 0]
+        playerTexture[1] = self.characterAtlas[1, 0]
+
+        let playerEntity = Entity(name: "Player")
+        playerEntity.components += SpriteComponent(texture: playerTexture)
+        playerEntity.components += transform
+        playerEntity.components += PhysicsBody2DComponent(
+            shapes: [
+                .generateBox()
+            ],
+            mass: 1,
+            mode: .dynamic
+        )
+        playerEntity.components += PlayerComponent()
+        self.addEntity(playerEntity)
+    }
+
+    func makeCanvasItem(position: Vector3) throws {
+        let dogTexture = try ResourceManager.loadSync("Assets/dog.png", from: Bundle.editor) as Texture2D
+
+        @CustomMaterial var material = MyMaterial(color: .red, customTexture: dogTexture)
+
+        let mesh = Mesh2DComponent(
+            mesh: Mesh.generate(from: Quad()),
+            materials: [$material]
+        )
+
+        var transform = Transform()
+        transform.scale = Vector3(0.4)
+        transform.position.z = position.z
+        transform.position.x = position.x
+        transform.position.y = position.y
+
+        let entity = Entity(name: "custom_material")
+        entity.components += mesh
+        entity.components += transform
+        self.addEntity(entity)
+    }
+
+    private func makeGround() {
+        var transform = Transform()
+        transform.scale = [3, 0.19, 0.19]
+        transform.position.y = -1
+
+        let untexturedEntity = Entity(name: "Ground")
+        untexturedEntity.components += SpriteComponent(texture: self.textureAtlas[0, 0])
+        untexturedEntity.components += transform
+        untexturedEntity.components += Collision2DComponent(
+            shapes: [
+                .generateBox()
+            ]
+        )
+
+        self.addEntity(untexturedEntity)
+    }
+
+    private func gameOver() {
+        print("Game Over")
+    }
+
+    private func fpsCounter(for scene: Scene) {
+        EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { _ in
+            //            print("FPS", event.framesPerSecond)
+        })
+        .store(in: &disposeBag)
+    }
+}
+
+extension GameScene2D {
+    func addText(to scene: Scene) {
+        let entity = Entity()
+        var transform = Transform()
+        transform.scale = Vector3(0.3)
+        transform.position.x = -1
+        transform.position.z = -1
+        transform.position.y = 0
+        entity.components += transform
+        entity.components += NoFrustumCulling()
+
+        var attributes = TextAttributeContainer()
+        attributes.foregroundColor = .red
+        attributes.outlineColor = .black
+        attributes.font = Font.system(weight: .italic)
+
+        var text = AttributedText("Hello, Ada Engine!\n", attributes: attributes)
+
+        attributes.font = Font.system(weight: .regular)
+        attributes.foregroundColor = .purple
+        attributes.kern = -0.03
+
+        text += AttributedText("And my dear friends!", attributes: attributes)
+
+        attributes.foregroundColor = .brown
+        attributes.font = .system(weight: .heavy)
+
+        text.setAttributes(
+            attributes,
+            at: text.startIndex..<text.index(text.startIndex, offsetBy: 5)
+        )
+
+        entity.components += Text2DComponent(
+            text: text,
+            bounds: Rect(x: 0, y: 0, width: .infinity, height: .infinity),
+            lineBreakMode: .byWordWrapping
+        )
+
+        scene.addEntity(entity)
+    }
+}
+
+class InputMapCallComponent: ScriptableComponent {
 
     @RequiredComponent var textComponent: Text2DComponent
 
@@ -230,210 +425,6 @@ class TubeSpawnerSystem: System {
         )
 
         scene.addEntity(tube)
-    }
-}
-
-final class GameScene2D {
-
-    var disposeBag: Set<AnyCancellable> = []
-
-    let textureAtlas: TextureAtlas
-    let characterAtlas: TextureAtlas
-
-    init() {
-        do {
-            let tiles = try ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
-            let charactersTiles = try ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
-
-            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
-            self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
-        } catch {
-            fatalError(error.localizedDescription)
-        }
-    }
-
-    @MainActor
-    func makeScene() async throws -> Scene {
-        //        let scenePath = "@res:Scene/MyFirstScene"
-
-        let scene = Scene()
-        //        let scene = try ResourceManager.load(scenePath) as Scene
-
-        let cameraEntity = OrthographicCamera()
-        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
-        cameraEntity.camera.clearFlags = .solid
-        cameraEntity.camera.orthographicScale = 1.5
-
-        scene.addEntity(cameraEntity)
-
-        let textTextEnt = Entity()
-        textTextEnt.components += Text2DComponent(text: AttributedText(""))
-        textTextEnt.components += InputMapCallComponent()
-        textTextEnt.components += NoFrustumCulling()
-        scene.addEntity(textTextEnt)
-
-        // DEBUG
-        scene.debugOptions = [.showPhysicsShapes]
-        //        scene.debugOptions = [.showBoundingBoxes]
-        scene.debugPhysicsColor = .red
-        self.makePlayer(for: scene)
-        self.makeGround(for: scene)
-        try self.makeCanvasItem(for: scene, position: [-0.3, 0.4, -1])
-        self.collisionHandler(for: scene)
-        //        self.fpsCounter(for: scene)
-//        self.addText(to: scene)
-
-//        scene.addSystem(TubeMovementSystem.self)
-//        scene.addSystem(TubeSpawnerSystem.self)
-//        scene.addSystem(TubeDestroyerSystem.self)
-        scene.addSystem(PlayerMovementSystem.self)
-
-        //        try ResourceManager.save(scene, at: scenePath)
-
-        // Change gravitation
-        scene.subscribe(to: SceneEvents.OnReady.self, on: scene) { [weak self] event in
-            self?.sceneDidReady(event.scene)
-        }
-        .store(in: &disposeBag)
-
-        return scene
-    }
-
-    private func sceneDidReady(_ scene: Scene) {
-        scene.physicsWorld2D?.gravity = Vector2(0, -3.62)
-    }
-
-    private func collisionHandler(for scene: Scene) {
-        scene.subscribe(to: CollisionEvents.Began.self) { event in
-            if event.entityA.name == "Player" && (event.entityB.name == "Tube") {
-                //                event.entityA.scene?.removeEntity(event.entityA)
-                //                print("collide with tube")
-                //                self.gameOver()
-            }
-        }
-        .store(in: &disposeBag)
-    }
-
-    private func makePlayer(for scene: Scene) {
-
-        var transform = Transform()
-        transform.scale = [0.2, 0.2, 0.2]
-
-        let playerTexture = AnimatedTexture()
-        playerTexture.framesPerSecond = 5
-        playerTexture.framesCount = 2
-        playerTexture[0] = self.characterAtlas[0, 0]
-        playerTexture[1] = self.characterAtlas[1, 0]
-
-        let playerEntity = Entity(name: "Player")
-        playerEntity.components += SpriteComponent(texture: playerTexture)
-        playerEntity.components += transform
-        playerEntity.components += PhysicsBody2DComponent(
-            shapes: [
-                .generateBox()
-            ],
-            mass: 1,
-            mode: .dynamic
-        )
-        playerEntity.components += PlayerComponent()
-        scene.addEntity(playerEntity)
-    }
-
-    func makeCanvasItem(for scene: Scene, position: Vector3) throws {
-        let dogTexture = try ResourceManager.loadSync("Assets/dog.png", from: Bundle.editor) as Texture2D
-
-        let material = MyMaterial(
-            color: .red,
-            customTexture: dogTexture
-        )
-
-        let handle = CustomMaterial(material)
-
-        let mesh = Mesh2DComponent(
-            mesh: Mesh.generate(from: Quad()),
-            materials: [handle]
-        )
-
-        var transform = Transform()
-        transform.scale = Vector3(0.4)
-        transform.position.z = position.z
-        transform.position.x = position.x
-        transform.position.y = position.y
-
-        let entity = Entity(name: "custom_material")
-        entity.components += mesh
-        entity.components += transform
-        scene.addEntity(entity)
-    }
-
-    private func makeGround(for scene: Scene) {
-        var transform = Transform()
-        transform.scale = [3, 0.19, 0.19]
-        transform.position.y = -1
-
-        let untexturedEntity = Entity(name: "Ground")
-        untexturedEntity.components += SpriteComponent(texture: self.textureAtlas[0, 0])
-        untexturedEntity.components += transform
-        untexturedEntity.components += Collision2DComponent(
-            shapes: [
-                .generateBox()
-            ]
-        )
-
-        scene.addEntity(untexturedEntity)
-    }
-
-    private func gameOver() {
-        print("Game Over")
-    }
-
-    private func fpsCounter(for scene: Scene) {
-        EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { _ in
-            //            print("FPS", event.framesPerSecond)
-        })
-        .store(in: &disposeBag)
-    }
-}
-
-extension GameScene2D {
-    func addText(to scene: Scene) {
-        let entity = Entity()
-        var transform = Transform()
-        transform.scale = Vector3(0.3)
-        transform.position.x = -1
-        transform.position.z = -1
-        transform.position.y = 0
-        entity.components += transform
-        entity.components += NoFrustumCulling()
-
-        var attributes = TextAttributeContainer()
-        attributes.foregroundColor = .red
-        attributes.outlineColor = .black
-        attributes.font = Font.system(weight: .italic)
-
-        var text = AttributedText("Hello, Ada Engine!\n", attributes: attributes)
-
-        attributes.font = Font.system(weight: .regular)
-        attributes.foregroundColor = .purple
-        attributes.kern = -0.03
-
-        text += AttributedText("And my dear friends!", attributes: attributes)
-
-        attributes.foregroundColor = .brown
-        attributes.font = .system(weight: .heavy)
-
-        text.setAttributes(
-            attributes,
-            at: text.startIndex..<text.index(text.startIndex, offsetBy: 5)
-        )
-
-        entity.components += Text2DComponent(
-            text: text,
-            bounds: Rect(x: 0, y: 0, width: .infinity, height: .infinity),
-            lineBreakMode: .byWordWrapping
-        )
-
-        scene.addEntity(entity)
     }
 }
 

@@ -78,12 +78,23 @@ public extension Entity {
         public mutating func set<T>(_ component: T) where T : Component {
             lock.lock()
             defer { lock.unlock() }
-            
+
+            var isChanged = false
             let identifier = T.identifier
+            if self.buffer[identifier] != nil {
+                isChanged = true
+            }
+
             self.buffer[identifier] = component
-            (component as? ScriptComponent)?.entity = self.entity
+            (component as? ScriptableComponent)?.entity = self.entity
             self.bitset.insert(T.self)
-            if let ent = self.entity {
+            guard let ent = self.entity else {
+                return
+            }
+
+            if isChanged {
+                self.world?.entity(ent, didUpdateComponent: component, with: identifier)
+            } else {
                 self.world?.entity(ent, didAddComponent: component, with: identifier)
             }
         }
@@ -98,14 +109,31 @@ public extension Entity {
                 let componentType = type(of: component)
                 
                 let identifier = componentType.identifier
+
+                var isChanged = false
+                if self.buffer[identifier] != nil {
+                    isChanged = true
+                }
+
                 self.buffer[identifier] = component
-                (component as? ScriptComponent)?.entity = self.entity
+                (component as? ScriptableComponent)?.entity = self.entity
                 self.bitset.insert(identifier)
                 
-                if let ent = self.entity {
-                    self.world?.entity(ent, didAddComponent: component , with: identifier)
+                guard let ent = self.entity else {
+                    continue
+                }
+
+                if isChanged {
+                    self.world?.entity(ent, didUpdateComponent: component, with: identifier)
+                } else {
+                    self.world?.entity(ent, didAddComponent: component, with: identifier)
                 }
             }
+        }
+
+        /// Set the components of the specified type using ``ComponentsBuilder``.
+        public mutating func set(@ComponentsBuilder components: () -> [Component]) {
+            self.set(components())
         }
 
         /// Returns `true` if the collections contains a component of the specified type.
@@ -121,7 +149,7 @@ public extension Entity {
             defer { lock.unlock() }
             
             let identifier = componentType.identifier
-            (self.buffer[identifier] as? ScriptComponent)?.onDestroy()
+            (self.buffer[identifier] as? ScriptableComponent)?.onDestroy()
             self.buffer[identifier] = nil
             
             self.bitset.remove(componentType)
@@ -138,7 +166,7 @@ public extension Entity {
             
             for component in self.buffer.values.elements {
                 let componentType = type(of: component)
-                (component as? ScriptComponent)?.onDestroy()
+                (component as? ScriptableComponent)?.onDestroy()
 
                 if let ent = self.entity {
                     self.world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
@@ -158,6 +186,14 @@ public extension Entity {
         /// A Boolean value indicating whether the set is empty.
         public var isEmpty: Bool {
             return self.buffer.isEmpty
+        }
+
+        public func isComponentChanged<T: Component>(_ component: T) -> Bool {
+            guard let entity = self.entity else {
+                return false
+            }
+
+            return world?.isComponentChanged(T.identifier, for: entity) ?? false
         }
     }
 }

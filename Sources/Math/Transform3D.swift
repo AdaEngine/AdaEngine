@@ -118,6 +118,13 @@ public extension Transform3D {
 // MARK: - Affine
 
 public extension Transform3D {
+
+    /*
+     | a b 0 |      | a b 0 0 |
+     | d e 0 |  =>  | d e 0 0 |
+     | g h 1 |      | 0 0 1 0 |
+                    | g h 0 1 |
+     */
     // FIXME: (Vlad) Looks like it doesn't works
     @inline(__always)
     init(_ affineTransform: Transform2D) {

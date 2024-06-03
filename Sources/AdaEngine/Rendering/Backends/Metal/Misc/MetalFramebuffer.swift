@@ -7,6 +7,7 @@
 #if METAL
 
 import Metal
+import Math
 
 class MetalFramebuffer: Framebuffer {
     
@@ -14,22 +15,22 @@ class MetalFramebuffer: Framebuffer {
     private(set) var renderPassDescriptor: MTLRenderPassDescriptor!
     private(set) var descriptor: FramebufferDescriptor
     
-    private var size: Size = .zero
+    private var size: SizeInt = .zero
     
     init(descriptor: FramebufferDescriptor) {
         self.descriptor = descriptor
         self.attachments = []
 
-        let size = Size(
-            width: Float(descriptor.width),
-            height: Float(descriptor.width)
+        let size = SizeInt(
+            width: descriptor.width,
+            height: descriptor.width
         )
         
         self.size = size
         self.invalidate()
     }
     
-    func resize(to newSize: Size) {
+    func resize(to newSize: SizeInt) {
         guard newSize.width >= 0 && newSize.height >= 0 else {
             return
         }
@@ -46,9 +47,9 @@ class MetalFramebuffer: Framebuffer {
         
         self.attachments.removeAll(keepingCapacity: true)
         
-        let size = Size(
-            width: Float(self.size.width) * self.descriptor.scale,
-            height: Float(self.size.height) * self.descriptor.scale
+        let size = SizeInt(
+            width: Int(Float(self.size.width) * self.descriptor.scale),
+            height: Int(Float(self.size.height) * self.descriptor.scale)
         )
         
         for (index, attachmentDesc) in self.descriptor.attachments.enumerated() {
@@ -96,8 +97,8 @@ class MetalFramebuffer: Framebuffer {
             self.attachments.append(framebufferAttachment)
         }
         
-        renderPassDescriptor.renderTargetWidth = Int(size.width)
-        renderPassDescriptor.renderTargetHeight = Int(size.height)
+        renderPassDescriptor.renderTargetWidth = size.width
+        renderPassDescriptor.renderTargetHeight = size.height
         
         self.renderPassDescriptor = renderPassDescriptor
     }

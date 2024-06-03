@@ -7,7 +7,6 @@
 
 // TODO: (Vlad) Make a benchmark
 // FIXME: (Vlad) I think we should store components in ComponentTable and avoid storing them in ComponentSet. (Think about after benchmark)
-// TODO: (Vlad) Should we create entity with default components?
 
 import OrderedCollections
 
@@ -23,7 +22,11 @@ open class Entity: Identifiable, @unchecked Sendable {
     
     /// Contains components specific for current entity.
     public var components: ComponentSet
-    
+
+    /// A Boolean that indicates whether the entity is active.
+    /// - Note:  AdaEngine doesn’t simulate or render inactive entities.
+    public var isActive: Bool = true
+
     /// Contains reference for world where entity placed.
     public internal(set) weak var world: World?
     
@@ -47,7 +50,21 @@ open class Entity: Identifiable, @unchecked Sendable {
             self.components.entity = self
         }
     }
-    
+
+    /// Create a new entity and setup components on init.
+    ///
+    /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
+    /// - Note: If you want to use entity without any components use ``EmptyEntity``
+    /// - Parameter name: Name of entity. By default is `Entity`.
+    /// - Parameter components: Collection of components.
+    public convenience init(
+        name: String = "Entity",
+        @ComponentsBuilder components: () -> [Component]
+    ) {
+        self.init(name: name)
+        self.components.set(components())
+    }
+
     // MARK: - Codable
     
     /// Create entity from decoder.
@@ -71,8 +88,8 @@ open class Entity: Identifiable, @unchecked Sendable {
     
     /// Remove entity from scene.
     /// - Note: Entity will removed on next update tick.
-    public func removeFromScene() {
-        self.world?.removeEntityOnNextTick(self)
+    public func removeFromScene(recursively: Bool = false) {
+        self.world?.removeEntityOnNextTick(self, recursively: recursively)
     }
 }
 

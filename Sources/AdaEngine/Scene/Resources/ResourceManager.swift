@@ -71,7 +71,7 @@ public final class ResourceManager {
             throw ResourceError.notExistAtPath(processedPath.url.path)
         }
 
-        let resource: R = try await self.load(from: processedPath)
+        let resource: R = try await self.load(from: processedPath, originalPath: path, bundle: nil)
         self.loadedResources[key] = resource
 
         return resource
@@ -129,7 +129,11 @@ public final class ResourceManager {
             throw ResourceError.notExistAtPath(processedPath.url.relativeString)
         }
 
-        let resource: R = try await self.load(from: Path(url: uri, query: processedPath.query))
+        let resource: R = try await self.load(
+            from: Path(url: uri, query: processedPath.query),
+            originalPath: path,
+            bundle: bundle
+        )
         self.loadedResources[key] = resource
 
         return resource
@@ -195,11 +199,14 @@ public final class ResourceManager {
     @ResourceActor
     public static func save<R: Resource>(
         _ resource: R,
-        at path: String
+        at path: String,
+        name: String
     ) async throws {
         let fileSystem = FileSystem.current
         var processedPath = self.processPath(path)
 
+        processedPath.url.append(path: name)
+        
         if processedPath.url.pathExtension.isEmpty {
             processedPath.url.appendPathExtension(R.resourceType.fileExtenstion)
         }
@@ -271,7 +278,7 @@ public final class ResourceManager {
 
     // MARK: - Private
     @ResourceActor
-    private static func load<R: Resource>(from path: Path) async throws -> R {
+    private static func load<R: Resource>(from path: Path, originalPath: String, bundle: Bundle?) async throws -> R {
         guard let data = FileSystem.current.readFile(at: path.url) else {
             throw ResourceError.notExistAtPath(path.url.path)
         }
@@ -279,16 +286,32 @@ public final class ResourceManager {
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = TextAssetDecoder(meta: meta, data: data)
         let resource = try await R.init(asset: decoder)
-        resource.resourceName = path.url.lastPathComponent
-        resource.resourcePath = path.url.path
+        
+        resource.resourceMetaInfo = ResourceMetaInfo(
+            resourcePath: originalPath,
+            resourceName: path.url.lastPathComponent,
+            bundlePath: bundle?.bundleIdentifier
+        )
 
         return resource
     }
 
-    // TODO: (Vlad) looks very buggy
+    // TODO: (Vlad) looks very unstable
     private static func makeCacheKey<R: Resource>(resource: R.Type, path: String) -> Int {
         let cacheKey = path + "\(UInt(bitPattern: ObjectIdentifier(resource)))"
         return cacheKey.hashValue
+    }
+    
+    internal static func getFilePath(from meta: ResourceMetaInfo) -> Path {
+        let processedPath = self.processPath(meta.resourcePath)
+        
+        if let bundlePath = meta.bundlePath, let bundle = Bundle(path: bundlePath) {
+            if let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil) {
+                return Path(url: uri, query: processedPath.query)
+            }
+        }
+        
+        return processedPath
     }
 
     /// Replace tag `@res:` to relative path or create url from given path.
@@ -341,14 +364,14 @@ public final class ResourceManager {
         private var result: Result<T, Error>?
 
         init(priority: TaskPriority = .userInitiated, block: @escaping () async throws -> T) {
-            Task(priority: priority) {
+            Task.detached(priority: priority) {
                 do {
-                    result = .success(try await block())
+                    self.result = .success(try await block())
                 } catch {
-                    result = .failure(error)
+                    self.result = .failure(error)
                 }
 
-                semaphore.signal()
+                self.semaphore.signal()
             }
         }
 

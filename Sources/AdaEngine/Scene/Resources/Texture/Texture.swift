@@ -15,8 +15,7 @@ open class Texture: Resource, Codable {
     
     private(set) var textureType: TextureType
     
-    public var resourcePath: String = ""
-    public var resourceName: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
     
     init(gpuTexture: GPUTexture, sampler: Sampler, textureType: TextureType) {
         self.gpuTexture = gpuTexture
@@ -33,23 +32,23 @@ open class Texture: Resource, Codable {
         return Image()
     }
     
+    public required init(asset decoder: any AssetDecoder) async throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encodeContents(with encoder: any AssetEncoder) async throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
     public required init(from decoder: Decoder) throws {
-        fatalError()
+        fatalErrorMethodNotImplemented()
     }
     
     public func encode(to encoder: Encoder) throws {
-        fatalError()
+        fatalErrorMethodNotImplemented()
     }
     
     // MARK: - Resources
-    
-    public required init(asset decoder: AssetDecoder) async throws {
-        fatalError()
-    }
-    
-    public func encodeContents(with encoder: AssetEncoder) async throws {
-        fatalError()
-    }
     
     public static let resourceType: ResourceType = .texture
 }
@@ -106,5 +105,23 @@ public extension Texture {
         
         /// An option for rendering to the texture in a render pass.
         public static var renderTarget = Usage(rawValue: 1 << 2)
+    }
+}
+
+// MARK: - RuntimeRegistrable
+
+@_spi(Runtime)
+extension Texture: RuntimeRegistrable {
+    
+    static private(set) var types: [String: Texture.Type] = [:]
+    
+    static func registerTextureType() {
+        types[String(reflecting: type(of: self))] = Self.self
+    }
+    
+    public static func registerTypes() {
+        Texture2D.registerTextureType()
+        TextureAtlas.registerTextureType()
+        AnimatedTexture.registerTextureType()
     }
 }

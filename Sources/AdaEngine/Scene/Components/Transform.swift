@@ -58,7 +58,7 @@ public extension Transform {
     }
 }
 
-public extension ScriptComponent {
+public extension ScriptableComponent {
     
     /// Return transform component for current entity.
     var transform: Transform {

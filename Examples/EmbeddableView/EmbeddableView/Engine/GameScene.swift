@@ -42,7 +42,7 @@ import AppKit
 //    }
 //}
 
-final class PlayerComponent: ScriptComponent {
+final class PlayerComponent: ScriptableComponent {
     
     @RequiredComponent var body: PhysicsBody2DComponent
     

@@ -5,29 +5,26 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
-// TODO: (Vlad) Add hashable and equatable and resource
-// TODO: (Vlad) Looks like we should share resources in ECS world
-
 /// A representation of a shape.
 public final class Shape2DResource: Codable {
-    
-    struct CircleShape: Codable {
+
+    struct CircleShape: Codable, Hashable, Equatable {
         let radius: Float
         var offset: Vector2 = .zero
     }
     
-    struct BoxShape: Codable {
+    struct BoxShape: Codable, Hashable, Equatable {
         let halfWidth: Float
         let halfHeight: Float
         var offset: Vector2 = .zero
     }
     
-    struct PolygonShape: Codable {
+    struct PolygonShape: Codable, Hashable, Equatable {
         let verticies: [Vector2]
         var offset: Vector2 = .zero
     }
     
-    enum Fixture: Codable {
+    enum Fixture: Codable, Hashable, Equatable {
         case circle(CircleShape)
         case box(BoxShape)
         case polygon(PolygonShape)
@@ -76,5 +73,17 @@ public final class Shape2DResource: Codable {
             
             return Shape2DResource(fixture: .polygon(shape))
         }
+    }
+}
+
+// MARK: - Hashable & Equatable
+
+extension Shape2DResource: Hashable, Equatable {
+    public static func == (lhs: Shape2DResource, rhs: Shape2DResource) -> Bool {
+        return lhs.fixture == rhs.fixture
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(self.fixture)
     }
 }

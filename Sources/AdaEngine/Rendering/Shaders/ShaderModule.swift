@@ -35,8 +35,7 @@ public final class ShaderModule: Resource {
     
     // Resource
     
-    public var resourceName: String = ""
-    public var resourcePath: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
     public static var resourceType: ResourceType = .material
     
     // TODO: Add init from spir-v
@@ -45,8 +44,6 @@ public final class ShaderModule: Resource {
         let module = try ShaderCompiler(from: filePath).compileShaderModule()
         self.shaders = module.shaders
         self.reflectionData = module.reflectionData
-        self.resourceName = filePath.lastPathComponent
-        self.resourcePath = filePath.path
     }
     
     public func encodeContents(with encoder: AssetEncoder) throws {

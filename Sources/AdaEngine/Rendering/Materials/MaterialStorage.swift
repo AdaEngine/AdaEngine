@@ -61,8 +61,10 @@ final class MaterialStorage {
             frameIndex: RenderEngine.shared.currentFrameIndex
         )
         
-        var value = value
-        buffer?.setData(&value, byteCount: member.size, offset: member.offset)
+        withUnsafePointer(to: value) { pointer in
+            let dataPtr = UnsafeMutableRawPointer(mutating: UnsafeRawPointer(pointer))
+            buffer?.setData(dataPtr, byteCount: member.size, offset: member.offset)
+        }
     }
     
     func getValue<T: ShaderUniformValue>(for name: String, in material: Material) -> T? {

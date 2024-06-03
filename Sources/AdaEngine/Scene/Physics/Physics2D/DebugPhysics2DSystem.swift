@@ -53,14 +53,13 @@ public struct DebugPhysicsExctract2DSystem: System {
         self.colorMaterial.color = context.scene.debugPhysicsColor
         self.circleMaterial.color = context.scene.debugPhysicsColor
         
-        await context.scene.performQuery(Self.entities).concurrent.forEach { entity in
-
+        for entity in context.scene.performQuery(Self.entities) {
             if entity.components[Visibility.self]!.isVisible == false {
-                return
+                continue
             }
             
             guard let body = self.getRuntimeBody(from: entity) else {
-                return
+                continue
             }
             
             let fixtureList = body.getFixtureList()
@@ -80,7 +79,7 @@ public struct DebugPhysicsExctract2DSystem: System {
                 )
             case .polygon:
                 guard let mesh = body.debugMesh else {
-                    return
+                    continue
                 }
                 
                 emptyEntity.components += ExctractedPhysicsMesh2DDebug(
@@ -90,7 +89,7 @@ public struct DebugPhysicsExctract2DSystem: System {
                     transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(1))
                 )
             default:
-                return
+                continue
             }
 
             await Application.shared.renderWorld.addEntity(emptyEntity)
@@ -118,7 +117,7 @@ public struct Physics2DDebugDrawSystem: System {
     public func update(context: UpdateContext) async {
         let exctractedValues = context.scene.performQuery(Self.entities)
             
-        await context.scene.performQuery(Self.cameras).concurrent.forEach { entity in
+        context.scene.performQuery(Self.cameras).forEach { entity in
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
             

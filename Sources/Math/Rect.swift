@@ -26,38 +26,20 @@ public extension Rect {
 }
 
 public extension Rect {
-
-    // FIXME: Not work correctly in affine space
-    @available(*, unavailable, message: "Currently not works")
-    func applying(_ transform: Transform2D) -> Rect {
-//        let size = Vector2(size.width, size.height)
-        
-        let upLeft = self.origin.applying(transform)
-        let downLeft = Point(self.origin.y, self.maxY).applying(transform)
-//        let upRight = Point(self.origin.x, self.maxX).applying(transform)
-        let downRight = Point(self.maxX, self.maxY).applying(transform)
-        
-        return Rect(x: upLeft.x, y: upLeft.y, width: downLeft.x - downRight.x, height: downLeft.y - downRight.y)
-    }
     
-    func contains(point: Point) -> Bool {
-        point.x >= self.minX && point.x <= self.maxX &&
-        point.y >= self.minY && point.y <= self.maxY
-    }
-
     @inline(__always)
     var minX: Float {
         return self.origin.x
     }
     
     @inline(__always)
-    var maxX: Float {
-        return self.origin.x + self.size.width
+    var midX: Float {
+        return self.minX + self.width / 2
     }
     
     @inline(__always)
-    var midX: Float {
-        return self.size.width / 2 + self.origin.x
+    var maxX: Float {
+        return self.minX + self.width
     }
     
     @inline(__always)
@@ -66,12 +48,62 @@ public extension Rect {
     }
     
     @inline(__always)
-    var maxY: Float {
-        return self.origin.y + self.size.height
+    var midY: Float {
+        return self.minY + self.height / 2
     }
     
     @inline(__always)
-    var midY: Float {
-        return self.size.height / 2 + self.origin.y
+    var maxY: Float {
+        return self.minY + self.height
+    }
+    
+    @inline(__always)
+    var width: Float {
+        return self.size.width
+    }
+    
+    @inline(__always)
+    var height: Float {
+        return self.size.height
+    }
+
+}
+
+public extension Rect {
+    
+    func applying(_ transform: Transform2D) -> Rect {
+        if transform == .identity {
+            return self
+        }
+
+        let upLeft = Point(x: minX, y: minY).applying(transform)
+        let upRight = Point(x: maxX, y: minY).applying(transform)
+        let downLeft = Point(x: minX, y: maxY).applying(transform)
+        let downRight = Point(x: maxX, y: maxY).applying(transform)
+
+        let minX = min(upLeft.x, upRight.x, downLeft.x, downRight.x)
+        let maxX = max(upLeft.x, upRight.x, downLeft.x, downRight.x)
+
+        let minY = min(upLeft.y, upRight.y, downLeft.y, downRight.y)
+        let maxY = max(upLeft.y, upRight.y, downLeft.y, downRight.y)
+
+        return Rect(
+            x: minX,
+            y: minY,
+            width: maxX - minX, 
+            height: maxY - minY
+        )
+    }
+
+    func contains(point: Point) -> Bool {
+        point.x >= self.minX && point.x < self.maxX &&
+        point.y >= self.minY && point.y < self.maxY
+    }
+
+    func intersects(_ other: Rect) -> Bool {
+        if min(self.maxX, other.maxX) < max(self.minX, other.minX) { return false }
+        if min(self.maxY, other.maxY) < max(self.minY, other.minY) { return false }
+
+        return true
     }
 }

@@ -16,22 +16,23 @@ protocol MaterialValueDelegate: AnyObject {
 /// You can declare any materials and describe what kind of values can be used in your shader.
 /// Like example, we can define our custom canvas material.
 ///
-/// ```
+/// ```swift
 /// struct MyCanvasMaterial: CanvasMaterial {
 ///
+///     // Bind color with u_Color uniform value in shader
 ///     @Uniform(binding: 0, propertyName: "u_Color")
 ///     var color: Color = .blue
 ///
+///     // Path to glsl shader source
 ///     static func fragment() throws -> ShaderSource {
-///         try ResourceLoader.load("PATH_TO_FRAGMENT_SHADER.glsl")
+///         try ResourceLoader.loadSync("PATH_TO_FRAGMENT_SHADER.glsl")
 ///     }
 /// }
 /// ```
 ///
 /// After that, we should write our own fragment shader code:
 ///
-/// ```
-///
+/// ```c++
 /// #version 450 core
 /// #pragma stage : frag // Declare that this code can be used for fragment shading
 ///
@@ -49,18 +50,27 @@ protocol MaterialValueDelegate: AnyObject {
 /// }
 /// ```
 ///
-/// And than, you can pass our new material to anywhere you want.
+/// And than, you can pass our new material to anywhere you want. Also CustomMaterial supports @propertyWrapper magic
 ///
-/// ```
+/// ```swift
 /// let mesh = Mesh()
 /// let customMaterial = CustomMaterial(MyCanvasMaterial())
 /// let meshComponent = Mesh2DComponent(mesh: mesh, materials: [customMaterial])
 ///
 /// entity.components += meshComponent
+///
+/// // -- or --
+/// let mesh = Mesh()
+/// @CustomMaterial var customMaterial = MyCanvasMaterial()
+///
+/// // Send custom material using $ symbol. We should pass CustomMaterial<MyCanvasMaterial> instance
+/// let meshComponent = Mesh2DComponent(mesh: mesh, materials: [$customMaterial])
+///
+/// entity.components += meshComponent
 /// ```
 ///
 /// You can update material values with two different ways with reflection or string literals.
-/// ```
+/// ```swift
 /// let customMaterial = CustomMaterial(MyCanvasMaterial())
 ///
 /// // Pass new value into material using reflection.
@@ -70,15 +80,39 @@ protocol MaterialValueDelegate: AnyObject {
 /// // In this case we should think about correct name of uniform member.
 /// customMaterial.setValue(Color.blue, for: "u_Color")
 /// ```
+///
+@propertyWrapper
 @dynamicMemberLookup
 public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValueDelegate {
-    
+
+    public var wrappedValue: T {
+        get {
+            return material
+        }
+
+        set {
+            self.material = newValue
+        }
+    }
+
+    public var projectedValue: CustomMaterial<T> {
+        return self
+    }
+
     /// User material that can be updated.
-    public var material: T
-    
+    public var material: T {
+        didSet {
+            self.reflectMaterial(from: self.material)
+        }
+    }
+
     /// Contains all bindable properties founded in passed ``ReflectedMaterial``.
     private var bindableValues: [_ShaderBindProperty] = []
-    
+
+    public convenience init(wrappedValue: T) {
+        self.init(wrappedValue)
+    }
+
     /// Create a new CustomMaterial instance from user ``ReflectedMaterial``.
     public init(_ material: T) {
         self.material = material
@@ -148,6 +182,8 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
     
     /// Find and link shader bind properties.
     func reflectMaterial(from material: T) {
+        self.bindableValues.removeAll()
+
         let reflection = Mirror(reflecting: material)
         
         for child in reflection.children {

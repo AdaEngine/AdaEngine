@@ -8,6 +8,7 @@
 #if METAL
 import Metal
 import QuartzCore
+import Math
 
 extension MetalRenderBackend {
     
@@ -26,7 +27,7 @@ extension MetalRenderBackend {
         
         // MARK: - Methods
         
-        func createRenderWindow(with id: Window.ID, view: MetalView, size: Size) throws {
+        func createRenderWindow(with id: Window.ID, view: MetalView, size: SizeInt) throws {
             if self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
@@ -50,7 +51,7 @@ extension MetalRenderBackend {
             self.windows[id] = window
         }
         
-        func updateSizeForRenderWindow(_ windowId: Window.ID, size: Size) {
+        func updateSizeForRenderWindow(_ windowId: Window.ID, size: SizeInt) {
             guard let window = self.windows[windowId] else {
                 assertionFailure("Not found window by id \(windowId)")
                 return

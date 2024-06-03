@@ -27,16 +27,9 @@
             }
             
             @Step {
-                Let's create a game scene. To do this, let's create a file named `FirstScene.swift` and import AdaEngine. After that, create a class named `FirstScene` and add a method named `makeScene` which returns an ``Scene`` object.
-                In this method we will create and configure our scene later.
+                Let's create a game scene. To do this, let's create a file named `FirstScene.swift` and import AdaEngine. After that, create a class named `FirstScene` and add a method named `sceneDidMove(to view: SceneView)` where we will setup entities to our scene.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-1-2-scene.swift)
-            }
-            
-            @Step {
-                Create the ``Scene`` instance in your `FirstScene.swift` file and return it.
-                
-                @Code(name: "FirstScene.swift", file: CF2G-1-3-scene.swift)
             }
             
             @Step {
@@ -163,7 +156,7 @@
             }
             
             @Step {
-                In the `MovementSystem` add a static property named `playerQuery` and set a special `EntityQuery` object. This object will request a scene world with a special query and returns entities that conform to your predicate. In our case we will require two components in entity `PlayerComponent` and ``Transform``. 
+                In the `MovementSystem` add a static property named `playerQuery` and set a special ``EntityQuery`` object. This object will request a scene world with a special query and returns entities that conform to your predicate. In our case we will require two components in entity `PlayerComponent` and ``Transform``. 
                 
                 Also add a property named `speed` which will store our player speed value.
                 

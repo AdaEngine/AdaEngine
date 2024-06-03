@@ -1,7 +1,7 @@
 import AdaEngine
 
-class FirstScene {
-    func makeScene() throws -> Scene {
+class FirstScene: Scene {
+    override func sceneDidMove(to view: SceneView) {
         
     }
 }

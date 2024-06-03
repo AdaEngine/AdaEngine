@@ -20,8 +20,8 @@ public final class World {
 
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
     
-    let lock = NSLock()
-    
+    let lock = NSRecursiveLock()
+
     internal private(set) var removedEntities: Set<Entity.ID> = []
     internal private(set) var addedEntities: Set<Entity.ID> = []
     
@@ -29,9 +29,10 @@ public final class World {
     private var freeArchetypeIndices: [Int] = []
     
     private var updatedEntities: Set<Entity> = []
-    
+    private var updatedComponents: [Entity: Set<ComponentId>] = [:]
+
     /// FIXME: Not efficient, should refactor later
-    private(set) var scripts: SparseArray<ScriptComponent> = []
+    private(set) var scripts: SparseArray<ScriptableComponent> = []
     private(set) var scriptRecords: [Entity.ID: [ComponentId: Int]] = [:]
     private(set) var friedScriptsIndecies: [Int] = []
     
@@ -87,7 +88,7 @@ public final class World {
         defer { lock.unlock() }
 
         for (identifier, component) in entity.components.buffer {
-            if let script = component as? ScriptComponent {
+            if let script = component as? ScriptableComponent {
                 self.addScript(script, entity: entity.id, identifier: identifier)
             }
         }
@@ -105,14 +106,29 @@ public final class World {
         self.removeEntityRecord(entity.id)
     }
     
-    func removeEntityOnNextTick(_ entity: Entity) {
+    func removeEntityOnNextTick(_ entity: Entity, recursively: Bool = false) {
         lock.lock()
         defer { lock.unlock() }
         
-        guard self.records[entity.id] != nil else { return }
+        guard self.records[entity.id] != nil else { 
+            return
+        }
+
         self.removedEntities.insert(entity.id)
+
+        guard recursively && !entity.children.isEmpty else {
+            return
+        }
+
+        for child in entity.children {
+            self.removeEntityOnNextTick(child, recursively: recursively)
+        }
     }
-    
+
+    func isComponentChanged(_ component: ComponentId, for entity: Entity) -> Bool {
+        return self.updatedComponents[entity]?.contains(component) ?? false
+    }
+
     private func removeEntityRecord(_ entity: Entity.ID) {
         lock.lock()
         defer { lock.unlock() }
@@ -134,30 +150,6 @@ public final class World {
         }
     }
     
-    // MARK: - Components Delegate
-    
-    func entity(_ entity: Entity, didAddComponent component: Component, with identifier: ComponentId) {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        if let script = component as? ScriptComponent {
-            self.addScript(script, entity: entity.id, identifier: identifier)
-        }
-        
-        self.updatedEntities.insert(entity)
-    }
-    
-    func entity(_ entity: Entity, didRemoveComponent component: Component.Type, with identifier: ComponentId) {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        if component is ScriptComponent.Type {
-            self.removeScript(entity: entity.id, identifier: identifier)
-        }
-        
-        self.updatedEntities.insert(entity)
-    }
-    
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
     func tick() {
@@ -170,6 +162,7 @@ public final class World {
         // Should think about it
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
+        self.updatedComponents.removeAll(keepingCapacity: true)
     }
     
     /// Remove all data from world.
@@ -236,7 +229,7 @@ public final class World {
     }
     
     /// Add script component
-    private func addScript(_ component: ScriptComponent, entity: Entity.ID, identifier: ComponentId) {
+    private func addScript(_ component: ScriptableComponent, entity: Entity.ID, identifier: ComponentId) {
         if self.friedScriptsIndecies.isEmpty {
             self.scripts.append(component)
             self.scriptRecords[entity, default: [:]][identifier] = self.scripts.count - 1
@@ -253,6 +246,50 @@ public final class World {
             self.scripts[row] = nil
             friedScriptsIndecies.append(row)
         }
+    }
+
+    // MARK: - Components Delegate
+
+    func entity(_ entity: Entity, didAddComponent component: Component, with identifier: ComponentId) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let script = component as? ScriptableComponent {
+            self.addScript(script, entity: entity.id, identifier: identifier)
+        }
+
+        let componentType = type(of: component)
+        EventManager.default.send(ComponentEvents.DidAdd(componentType: componentType, entity: entity))
+
+        self.updatedEntities.insert(entity)
+    }
+
+    func entity(_ entity: Entity, didUpdateComponent component: Component, with identifier: ComponentId) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        if let script = component as? ScriptableComponent {
+            self.addScript(script, entity: entity.id, identifier: identifier)
+        }
+
+        let componentType = type(of: component)
+        EventManager.default.send(ComponentEvents.DidChange(componentType: componentType, entity: entity))
+
+        self.updatedEntities.insert(entity)
+        self.updatedComponents[entity, default: []].insert(identifier)
+    }
+
+    func entity(_ entity: Entity, didRemoveComponent component: Component.Type, with identifier: ComponentId) {
+        lock.lock()
+        defer { lock.unlock() }
+
+        EventManager.default.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
+
+        if component is ScriptableComponent.Type {
+            self.removeScript(entity: entity.id, identifier: identifier)
+        }
+
+        self.updatedEntities.insert(entity)
     }
 }
 

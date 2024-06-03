@@ -9,12 +9,10 @@ import AdaEngine
 
 @main
 struct AdaEditorApp: App {
-    
-    let gameScene = SpaceInvaders()
-    
+
     var scene: some AppScene {
         GameAppScene {
-            try await gameScene.makeScene()
+            TilemapScene()
         }
         .windowMode(.windowed)
         .windowTitle("AdaEngine")

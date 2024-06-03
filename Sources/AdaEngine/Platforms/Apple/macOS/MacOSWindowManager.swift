@@ -13,7 +13,9 @@ import Math
 final class MacOSWindowManager: WindowManager {
 
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)
-    
+
+    public nonisolated override init() { }
+
     override func createWindow(for window: Window) {
         
         let minSize = Window.defaultMinimumSize
@@ -31,7 +33,8 @@ final class MacOSWindowManager: WindowManager {
         /// Register view in engine
         let metalView = MetalView(windowId: window.id, frame: contentRect)
         
-        try? RenderEngine.shared.createWindow(window.id, for: metalView, size: size)
+        let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
+        try? RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
         
         let systemWindow = NSWindow(
             contentRect: contentRect,
@@ -328,8 +331,9 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
         if window.frame.size != nsWindow.size {
             window.frame = Rect(origin: .zero, size: size)
         }
-        
-        try? RenderEngine.shared.resizeWindow(window.id, newSize: size)
+    
+        let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
+        try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
     }
     
     func windowDidExitFullScreen(_ notification: Notification) {
