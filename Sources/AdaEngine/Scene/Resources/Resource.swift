@@ -13,20 +13,23 @@
 /// but you can create custom ``Codable`` structure or use different path to do that.
 ///
 /// ```swift
-/// final class MyResource: Resource {
+/// final class MapResource: Resource {
 ///
-///     let text: String
+///     let levelMap: [Int]
 ///
 ///     init(asset decoder: AssetDecoder) async throws {
-///         let text = try decoder.decode(String.self, from: data)
-///         self.text = text
+///         let map = try decoder.decode([Int].self, from: data)
+///         self.levelMap = map
 ///     }
 ///
 ///     func encodeContents(with encoder: AssetEncoder) async throws
-///         return try encoder.encode(self.text)
+///         return try encoder.encode(self.levelMap)
 ///     }
 /// }
 /// ```
+///
+/// Also, your resource can support ``Codable`` behaviour and for this scenario, you should implement only ``init(from decoder: Decoder)`` and ``func encode(to encoder: Encoder)`` methods. 
+/// Meta and other information will be available from userInfo. Use `Decoder.assetsDecodingContext`, `Decoder.assetMeta` and `Encoder.assetMeta` properties to get this info.
 public protocol Resource: AnyObject {
     
     /// When resource load from the disk, this method will be called.
@@ -43,22 +46,56 @@ public protocol Resource: AnyObject {
     /// Type of resource.
     static var resourceType: ResourceType { get }
 
-    /// If resource was initiated from resource, than property will return path to that file.
-    var resourcePath: String { get set }
-
-    /// If resource was initiated from resource, than property will return name of that file.
-    var resourceName: String { get set }
+    /// Return meta info
+    var resourceMetaInfo: ResourceMetaInfo? { get set }
 }
 
-extension Resource where Self: Codable {
-
-    @ResourceActor public init(asset decoder: AssetDecoder) async throws {
-        fatalErrorMethodNotImplemented()
-//        self.init(from: decoder)
+public extension Resource {
+    /// If resource was initiated from resource, than property will return path to that file.
+    /// /// - Warning: Do not override stored value.
+    var resourcePath: String {
+        self.resourceMetaInfo?.resourcePath ?? ""
     }
 
-    @ResourceActor public func encodeContents(with encoder: AssetEncoder) async throws {
-        try encoder.encode(self)
+    /// If resource was initiated from resource, than property will return name of that file.
+    /// - Warning: Do not override stored value.
+    var resourceName: String {
+        self.resourceMetaInfo?.resourceName ?? ""
+    }
+}
+
+public struct ResourceMetaInfo: Codable {
+    public let resourcePath: String
+    public let resourceName: String
+    public let bundlePath: String?
+    
+    public var fullFileURL: URL {
+        return ResourceManager.getFilePath(from: self).url
+    }
+    
+    enum CodingKeys: String, CodingKey {
+        case resourcePath = "resPath"
+        case bundlePath = "bundle"
+    }
+    
+    init(resourcePath: String, resourceName: String, bundlePath: String?) {
+        self.resourcePath = resourcePath
+        self.resourceName = resourceName
+        self.bundlePath = bundlePath
+    }
+    
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.resourcePath = try container.decode(String.self, forKey: .resourcePath)
+        self.bundlePath = try container.decodeIfPresent(String.self, forKey: .bundlePath)
+        self.resourceName = URL(string: resourcePath)?.lastPathComponent ?? ""
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        
+        try container.encode(self.resourcePath, forKey: .resourcePath)
+        try container.encodeIfPresent(self.bundlePath, forKey: .bundlePath)
     }
 }
 

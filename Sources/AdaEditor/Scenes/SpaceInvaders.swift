@@ -308,7 +308,7 @@ struct EnemyExplosionSystem: System {
     init(scene: Scene) {
         do {
             let image = try ResourceManager.loadSync("Assets/explosion.png", from: .editor) as Image
-            self.exposionAtlas = TextureAtlas(from: image, size: Size(width: 32, height: 32))
+            self.exposionAtlas = TextureAtlas(from: image, size: SizeInt(width: 32, height: 32))
 
             self.explosionAudio = try ResourceManager.loadSync("Assets/explosion-1.wav", from: .editor) as AudioResource
         } catch {

@@ -1,20 +1,21 @@
 //
-//  TileTextureAtlasSource.swift
+//  TextureAtlasTileSource.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 5/10/24.
 //
 
 import OrderedCollections
+import Math
 
-public class TileTextureAtlasSource: TileSource {
+public class TextureAtlasTileSource: TileSource {
 
     // key - atlas coordinates
     private var tiles: OrderedDictionary<PointInt, AtlasTileData> = [:]
 
     private let textureAtlas: TextureAtlas
 
-    public required init(from image: Image, size: Size, margin: Size = .zero) {
+    public required init(from image: Image, size: SizeInt, margin: SizeInt = .zero) {
         self.textureAtlas = TextureAtlas(from: image, size: size, margin: margin)
         super.init()
     }
@@ -31,8 +32,14 @@ public class TileTextureAtlasSource: TileSource {
     }
     
     struct TileCellData: Codable {
-        let xy: PointInt
-        let d: AtlasTileData
+        
+        enum CodingKeys: String, CodingKey {
+            case position = "xy"
+            case data = "ad"
+        }
+        
+        let position: [Int]
+        let data: AtlasTileData
     }
     
     public required init(from decoder: any Decoder) throws {
@@ -44,7 +51,7 @@ public class TileTextureAtlasSource: TileSource {
         self.name = try container.decode(String.self, forKey: .name)
         self.id = try container.decode(TileSource.ID.self, forKey: .id)
         try container.decode([TileCellData].self, forKey: .tiles).forEach { data in
-            self.tiles[data.xy] = data.d
+            self.tiles[PointInt(data.position)] = data.data
         }
     }
     
@@ -55,7 +62,7 @@ public class TileTextureAtlasSource: TileSource {
         try container.encode(self.textureAtlas, forKey: .textureAtlas)
         
         let tiles = self.tiles.elements.map { (position, data) in
-            TileCellData(xy: position, d: data)
+            TileCellData(position: [position.x, position.y], data: data)
         }
         
         try container.encode(tiles, forKey: .tiles)
@@ -118,14 +125,14 @@ public class TileTextureAtlasSource: TileSource {
     // Animation
 }
 
-extension TileTextureAtlasSource {
+extension TextureAtlasTileSource {
     public class AtlasTileData: Codable {
         
         enum CodingKeys: String, CodingKey {
             case animationFrameDuration = "anim_dur"
             case animationFrameColumns = "anim_fr_clm"
             case animationColumnsAlignment = "anim_alig"
-            case tileData = "d"
+            case tileData = "td"
         }
 
         public enum Alignment: UInt8, Codable {

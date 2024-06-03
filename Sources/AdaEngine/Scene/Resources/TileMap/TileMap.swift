@@ -17,8 +17,7 @@ public class TileMap: Resource {
 
     @Atomic public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
 
-    public var resourcePath: String = ""
-    public var resourceName: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
 
     internal private(set) var needsUpdate: Bool = false
 
@@ -27,7 +26,7 @@ public class TileMap: Resource {
     }
 
     public required init(asset decoder: AssetDecoder) async throws {
-        let fileContent = try decoder.decode(TileMapFileContent.self)
+        let fileContent = try decoder.decode(FileContent.self)
         self.tileSet = fileContent.tileSet
         
         for layer in fileContent.layers {
@@ -45,19 +44,23 @@ public class TileMap: Resource {
     }
 
     public func encodeContents(with encoder: AssetEncoder) async throws {
-        var layers = [TileMapFileContent.Layer]()
+        var layers = [FileContent.Layer]()
         
         for layer in self.layers {
             let tiles = layer.tileCells.elements.map { (position, data) in
-                TileMapFileContent.Tile(position: position, atlasPosition: data.atlasCoordinates, sourceId: data.sourceId)
+                FileContent.Tile(
+                    position: position,
+                    atlasPosition: data.atlasCoordinates,
+                    sourceId: data.sourceId
+                )
             }
             
             layers.append(
-                TileMapFileContent.Layer(name: layer.name, id: layer.id, tiles: tiles)
+                FileContent.Layer(name: layer.name, id: layer.id, tiles: tiles)
             )
         }
         
-        let content = TileMapFileContent(layers: layers, tileSet: self.tileSet)
+        let content = FileContent(layers: layers, tileSet: self.tileSet)
         try encoder.encode(content)
     }
 
@@ -125,28 +128,60 @@ public class TileMap: Resource {
     }
 }
 
+// MARK: - Codable
+
+extension TileMap {
+    struct FileContent: Codable {
+        
+        struct Layer: Codable {
+            let name: String
+            let id: Int
+            let tiles: [Tile]
+        }
+        
+        struct Tile: Codable {
+            
+            enum CodingKeys: String, CodingKey {
+                case position = "p"
+                case atlasPosition = "ap"
+                case sourceId = "sid"
+            }
+            
+            let position: PointInt
+            let atlasPosition: PointInt
+            let sourceId: TileSource.ID
+            
+            init(position: PointInt, atlasPosition: PointInt, sourceId: TileSource.ID) {
+                self.position = position
+                self.atlasPosition = atlasPosition
+                self.sourceId = sourceId
+            }
+            
+            init(from decoder: any Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.position = try PointInt(container.decode([Int].self, forKey: Tile.CodingKeys.position))
+                self.atlasPosition = try PointInt(container.decode([Int].self, forKey: Tile.CodingKeys.atlasPosition))
+                self.sourceId = try container.decode(TileSource.ID.self, forKey: Tile.CodingKeys.sourceId)
+            }
+            
+            func encode(to encoder: any Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(self.sourceId, forKey: .sourceId)
+                try container.encode([position.x, position.y], forKey: .position)
+                try container.encode([atlasPosition.x, atlasPosition.y], forKey: .atlasPosition)
+            }
+        }
+        
+        let layers: [Layer]
+        let tileSet: TileSet
+    }
+
+}
+
 @_spi(Runtime)
 extension TileMap: RuntimeRegistrable {
     public static func registerTypes() {
-        TileTextureAtlasSource.registerTileSource()
+        TextureAtlasTileSource.registerTileSource()
         TileEntityAtlasSource.registerTileSource()
     }
-}
-
-struct TileMapFileContent: Codable {
-    
-    struct Layer: Codable {
-        let name: String
-        let id: Int
-        let tiles: [Tile]
-    }
-    
-    struct Tile: Codable {
-        let position: PointInt
-        let atlasPosition: PointInt
-        let sourceId: TileSource.ID
-    }
-    
-    let layers: [Layer]
-    let tileSet: TileSet
 }

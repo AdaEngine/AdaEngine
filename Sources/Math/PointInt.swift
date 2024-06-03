@@ -1,6 +1,6 @@
 //
 //  PointInt.swift
-//  AdaEngine
+//  Math
 //
 //  Created by v.prusakov on 5/5/24.
 //
@@ -12,6 +12,12 @@ public struct PointInt: Codable, Equatable, Hashable {
     public init(x: Int, y: Int) {
         self.x = x
         self.y = y
+    }
+    
+    public init(_ elements: [Int]) {
+        assert(elements.count == 2)
+        self.x = elements[0]
+        self.y = elements[1]
     }
 }
 

@@ -21,68 +21,58 @@ public class TileSet: Resource, Codable {
     public private(set) var sources: OrderedDictionary<TileSource.ID, TileSource> = [:]
 
     public internal(set) weak var tileMap: TileMap?
-
-    // MARK: - Resource
-
-    public static var resourceType: ResourceType = .text
-
-    public var resourcePath: String = ""
-    public var resourceName: String = ""
-
-    public init() {}
-
-    public required init(asset decoder: AssetDecoder) async throws {
-        let tileSet = try decoder.decode(TileSet.self)
-        self.sources = tileSet.sources
-        self.physicsLayers = tileSet.physicsLayers
-        self.tileSize = tileSet.tileSize
-    }
-
-    public func encodeContents(with encoder: AssetEncoder) async throws {
-        try encoder.encode(self)
-    }
     
     // MARK: - Codable
     
     public required init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let file = try decoder.singleValueContainer().decode(FileContent.self)
+        self.tileSize = file.tileSize
         
-        self.tileSize = try container.decode(PointInt.self, forKey: .tileSize)
-        
-        var sourcesContainer = try container.nestedUnkeyedContainer(forKey: .sources)
-        while !sourcesContainer.isAtEnd {
-            let sourceContainer = try sourcesContainer.nestedContainer(keyedBy: SourceCodingKeys.self)
-            let sourceType = try sourceContainer.decode(String.self, forKey: .type)
-            
-            guard let value = TileSource.types[sourceType] else {
-                return
-            }
-            
-            let sourceDecoder = try sourceContainer.superDecoder(forKey: .data)
-            let tileSource = try value.init(from: sourceDecoder)
-            self.addTileSource(tileSource)
+        for source in file.sources.elements.values {
+            self.addTileSource(source)
         }
     }
     
     public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.tileSize, forKey: .tileSize)
+        var container = encoder.singleValueContainer()
+        try container.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
+    }
+
+    // MARK: - Resource
+    
+    public required init(asset decoder: AssetDecoder) async throws {
+        let file = try decoder.decode(FileContent.self)
+        self.tileSize = file.tileSize
         
-        var nestedContainer = container.nestedUnkeyedContainer(forKey: .sources)
-        for source in sources.elements.values {
-            var tileSource = nestedContainer.nestedContainer(keyedBy: SourceCodingKeys.self)
-            try tileSource.encode(String(reflecting: source), forKey: .type)
-            try tileSource.encode(source, forKey: .data)
+        for source in file.sources.elements.values {
+            self.addTileSource(source)
         }
     }
+    
+    public func encodeContents(with encoder: any AssetEncoder) async throws {
+        try encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
+    }
+
+    public static var resourceType: ResourceType = .text
+
+    public var resourceMetaInfo: ResourceMetaInfo?
+
+    public init() {}
 
     // MARK: - Public Methods
 
     // MARK: Tile Sources
+    
+    private var currentTileSourceId: Int = -1
+    
+    private func getTileSourceNextId() -> Int {
+        currentTileSourceId += 1
+        return currentTileSourceId
+    }
 
     @discardableResult
     public func addTileSource(_ source: TileSource) -> TileSource.ID {
-        let identifier = source.id != TileSource.invalidSource ? source.id : RID().id
+        let identifier = source.id != TileSource.invalidSource ? source.id : getTileSourceNextId()
         self.sources[identifier] = source
         source.tileSet = self
 
@@ -99,9 +89,52 @@ public class TileSet: Resource, Codable {
     
 }
 
-// MARK: - Codable & CodingKeys
+// MARK: - FileContent & CodingKeys
 
 extension TileSet {
+    
+    struct FileContent: Codable {
+        
+        let tileSize: PointInt
+        private(set) var sources: OrderedDictionary<TileSource.ID, TileSource> = [:]
+        
+        init(tileSize: PointInt, sources: OrderedDictionary<TileSource.ID, TileSource>) {
+            self.tileSize = tileSize
+            self.sources = sources
+        }
+        
+        init(from decoder: any Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            
+            self.tileSize = try container.decode(PointInt.self, forKey: .tileSize)
+            
+            var sourcesContainer = try container.nestedUnkeyedContainer(forKey: .sources)
+            while !sourcesContainer.isAtEnd {
+                let sourceContainer = try sourcesContainer.nestedContainer(keyedBy: SourceCodingKeys.self)
+                let sourceType = try sourceContainer.decode(String.self, forKey: .type)
+                
+                guard let value = TileSource.types[sourceType] else {
+                    continue
+                }
+                
+                let sourceDecoder = try sourceContainer.superDecoder(forKey: .data)
+                let tileSource = try value.init(from: sourceDecoder)
+                sources[tileSource.id] = tileSource
+            }
+        }
+        
+        func encode(to encoder: any Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(self.tileSize, forKey: .tileSize)
+            
+            var nestedContainer = container.nestedUnkeyedContainer(forKey: .sources)
+            for source in sources.elements.values {
+                var tileSource = nestedContainer.nestedContainer(keyedBy: SourceCodingKeys.self)
+                try tileSource.encode(String(reflecting: type(of: source)), forKey: .type)
+                try tileSource.encode(source, forKey: .data)
+            }
+        }
+    }
     
     enum CodingKeys: String, CodingKey {
         case sources

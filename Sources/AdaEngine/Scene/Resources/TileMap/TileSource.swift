@@ -7,7 +7,7 @@
 
 public class TileSource: Codable {
 
-    static let invalidSource: Int = Int.min
+    static let invalidSource: Int = -1
 
     public internal(set) weak var tileSet: TileSet?
 
@@ -49,6 +49,13 @@ public class TileSource: Codable {
 }
 
 struct TileData: Codable {
+    
+    enum CodingKeys: String, CodingKey {
+        case modulateColor = "mColor"
+        case flipH = "f_h"
+        case flipV = "f_v"
+    }
+    
     var modulateColor = Color(1.0, 1.0, 1.0, 1.0)
     var flipH: Bool = false
     var flipV: Bool = false

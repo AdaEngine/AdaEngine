@@ -15,8 +15,7 @@ open class Texture: Resource, Codable {
     
     private(set) var textureType: TextureType
     
-    public var resourcePath: String = ""
-    public var resourceName: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
     
     init(gpuTexture: GPUTexture, sampler: Sampler, textureType: TextureType) {
         self.gpuTexture = gpuTexture
@@ -33,18 +32,20 @@ open class Texture: Resource, Codable {
         return Image()
     }
     
+    public required init(asset decoder: any AssetDecoder) async throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encodeContents(with encoder: any AssetEncoder) async throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
     public required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: TextureCodingKeys.self)
-        self.textureType = try container.decode(TextureType.self, forKey: .textureType)
-        
         fatalErrorMethodNotImplemented()
     }
     
     public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: TextureCodingKeys.self)
-        
-        try container.encode(String(reflecting: Self.self), forKey: .classType)
-        try container.encode(self.textureType, forKey: .textureType)
+        fatalErrorMethodNotImplemented()
     }
     
     // MARK: - Resources
@@ -107,14 +108,7 @@ public extension Texture {
     }
 }
 
-private extension Texture {
-    
-    enum TextureCodingKeys: String, CodingKey {
-        case classType
-        case textureType
-    }
-    
-}
+// MARK: - RuntimeRegistrable
 
 @_spi(Runtime)
 extension Texture: RuntimeRegistrable {
@@ -122,11 +116,12 @@ extension Texture: RuntimeRegistrable {
     static private(set) var types: [String: Texture.Type] = [:]
     
     static func registerTextureType() {
-        types[String(reflecting: self)] = Self.self
+        types[String(reflecting: type(of: self))] = Self.self
     }
     
     public static func registerTypes() {
         Texture2D.registerTextureType()
         TextureAtlas.registerTextureType()
+        AnimatedTexture.registerTextureType()
     }
 }

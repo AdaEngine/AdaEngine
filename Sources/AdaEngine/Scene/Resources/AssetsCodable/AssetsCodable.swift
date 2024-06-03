@@ -42,6 +42,7 @@ public protocol AssetEncoder {
     var assetMeta: AssetMeta { get }
     
     /// Use this method to encode content from asset.
+    /// - Note: If you call this method more than once, than previous encode data will overwritten.
     func encode<T: Encodable>(_ value: T) throws
 }
 

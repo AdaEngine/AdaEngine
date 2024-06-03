@@ -6,6 +6,7 @@
 //
 
 import OrderedCollections
+import Math
 
 public enum GlobalBufferIndex {
     public static let viewUniform: Int = 1
@@ -49,11 +50,11 @@ public final class RenderEngine: RenderBackend {
         return self.renderBackend.currentFrameIndex
     }
     
-    public func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
+    public func createWindow(_ windowId: Window.ID, for view: RenderView, size: SizeInt) throws {
         try self.renderBackend.createWindow(windowId, for: view, size: size)
     }
     
-    public func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
+    public func resizeWindow(_ windowId: Window.ID, newSize: SizeInt) throws {
         try self.renderBackend.resizeWindow(windowId, newSize: newSize)
     }
     

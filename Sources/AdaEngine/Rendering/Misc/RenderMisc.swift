@@ -8,7 +8,7 @@
 // MARK: - Blending -
 
 /// The source and destination blend factors are often needed to complete specification of a blend operation.
-public enum BlendFactor: UInt {
+public enum BlendFactor: UInt, Codable {
     
     /// Blend factor of zero.
     ///
@@ -104,7 +104,7 @@ public enum BlendFactor: UInt {
 /// Some blend operations multiply the source values by a source blend factor (SBF), 
 /// multiply the destination values by a destination blend factor (DBF), and then combine the results using addition or subtraction.
 /// Other blend operations use either a minimum or maximum function to determine the result.
-public enum BlendOperation: UInt {
+public enum BlendOperation: UInt, Codable {
     
     /// Add portions of both source and destination pixel values.
     ///
@@ -145,7 +145,7 @@ public enum BlendOperation: UInt {
 // MARK: - Depth & Stencil -
 
 /// The operation performed on a currently stored stencil value when a comparison test passes or fails.
-public enum StencilOperation: UInt {
+public enum StencilOperation: UInt, Codable {
     
     /// Set the stencil value to zero.
     case zero
@@ -179,7 +179,7 @@ public enum StencilOperation: UInt {
 // MARK: - Others -
 
 /// The geometric primitive type for drawing commands.
-public enum IndexPrimitive: UInt8 {
+public enum IndexPrimitive: UInt8, Codable {
     
     /// For every separate set of three vertices, rasterize a triangle. If the number of vertices is not a multiple of three, either one or two vertices is ignored.
     case triangle
@@ -198,7 +198,7 @@ public enum IndexPrimitive: UInt8 {
 }
 
 /// Types of actions performed for an attachment at the start of a rendering pass.
-public enum AttachmentLoadAction {
+public enum AttachmentLoadAction: Codable {
     
     /// The GPU writes a value to every pixel in the attachment at the start of the render pass.
     case clear
@@ -211,7 +211,7 @@ public enum AttachmentLoadAction {
 }
 
 /// Types of actions performed for an attachment at the end of a rendering pass.
-public enum AttachmentStoreAction {
+public enum AttachmentStoreAction: Codable {
     
     /// The GPU stores the rendered contents to the texture.
     case store
@@ -221,7 +221,7 @@ public enum AttachmentStoreAction {
 }
 
 /// Options used to specify how a sample compare operation should be performed on a depth texture.
-public enum CompareOperation: UInt {
+public enum CompareOperation: UInt, Codable {
     
     /// A new value never passes the comparison test.
     case never
@@ -250,7 +250,7 @@ public enum CompareOperation: UInt {
 }
 
 /// The data formats that describe the organization and characteristics of individual pixels in a texture.
-public enum PixelFormat {
+public enum PixelFormat: Codable {
     
     /// You cannot create a texture with this value.
     case none

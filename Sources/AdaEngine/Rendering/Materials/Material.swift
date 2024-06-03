@@ -15,8 +15,8 @@
 /// or it may have several that define the look of different parts of the model.
 public class Material: Resource, Hashable {
     
-    public var resourceName: String = ""
-    public var resourcePath: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
+    
     public static var resourceType: ResourceType = .material
     
     let rid = RID()

@@ -132,8 +132,7 @@ public final class ShaderSource: Resource {
     
     // MARK: - Resource
     
-    public var resourceName: String = ""
-    public var resourcePath: String = ""
+    public var resourceMetaInfo: ResourceMetaInfo?
     
     public static var resourceType: ResourceType = .material
     
@@ -171,7 +170,7 @@ public final class ShaderSource: Resource {
     }
     
     public func encodeContents(with encoder: AssetEncoder) throws {
-        fatalError()
+        fatalErrorMethodNotImplemented()
     }
     
     private static func getEntryPoints(from sources: [ShaderStage : String]) -> [ShaderStage : String] {
