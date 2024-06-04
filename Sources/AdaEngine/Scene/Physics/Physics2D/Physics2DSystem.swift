@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/8/22.
 //
 
-@_implementationOnly import AdaBox2d
+import box2d
 import Math
 
 // - TODO: (Vlad) Runtime update shape resource
@@ -86,8 +86,8 @@ public final class Physics2DSystem: System {
                 for shapeResource in physicsBody.shapes {
                     let shape = self.makeShape(for: shapeResource, transform: transform)
 
-                    var fixtureDef = b2_fixture_def()
-                    fixtureDef.shape = UnsafeRawPointer(shape)
+                    var fixtureDef = b2FixtureDef()
+                    fixtureDef.shape = UnsafeRawPointer(shape).assumingMemoryBound(to: b2Shape.self).pointee
 
                     fixtureDef.density = physicsBody.material.density
                     fixtureDef.restitution = physicsBody.material.restitution
@@ -108,7 +108,7 @@ public final class Physics2DSystem: System {
                 if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
                      filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
 
-                    var filter = b2_filter()
+                    var filter = b2Filter()
                     filter.categoryBits = collisionFilter.categoryBitMask.rawValue
                     filter.maskBits = collisionFilter.collisionBitMask.rawValue
                     fixtureList.filterData = filter
@@ -141,8 +141,8 @@ public final class Physics2DSystem: System {
 
                 for shapeResource in collisionBody.shapes {
                     let shape = self.makeShape(for: shapeResource, transform: transform)
-                    var fixtureDef = b2_fixture_def()
-                    fixtureDef.shape = UnsafeRawPointer(shape)
+                    var fixtureDef = b2FixtureDef()
+                    fixtureDef.shape = UnsafeRawPointer(shape).assumingMemoryBound(to: b2Shape.self).pointee
 
                     if case .trigger = collisionBody.mode {
                         fixtureDef.isSensor = true
@@ -161,7 +161,7 @@ public final class Physics2DSystem: System {
                 if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
                      filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
 
-                    var filter = b2_filter()
+                    var filter = b2Filter()
                     filter.categoryBits = collisionFilter.categoryBitMask.rawValue
                     filter.maskBits = collisionFilter.collisionBitMask.rawValue
                     fixtureList.filterData = filter
@@ -183,26 +183,31 @@ public final class Physics2DSystem: System {
     private func makeShape(for shape: Shape2DResource, transform: Transform) -> OpaquePointer {
         switch shape.fixture {
         case .polygon(let shape):
-            let shapeRef = b2_create_polygon_shape()!
-            var points = unsafeBitCast(shape.verticies, to: [b2_vec2].self)
-            b2_polygon_shape_set(shapeRef, &points, Int32(shape.verticies.count))
-            return shapeRef
+            let shapeRef = UnsafeMutablePointer<b2PolygonShape>.allocate(capacity: 1)
+            shapeRef.initialize(to: b2PolygonShape.Create())
+            shape.verticies.withUnsafeBytes { ptr in
+                let baseAddress = ptr.assumingMemoryBound(to: b2Vec2.self).baseAddress
+                shapeRef.pointee.Set(baseAddress, int32(shape.verticies.count))
+            }
+            
+            return OpaquePointer(shapeRef)
         case .circle(let shape):
-            let shapeRef = b2_create_circle_shape()!
-            b2_shape_set_radius(shapeRef, shape.radius * transform.scale.x)
-            b2_circle_shape_set_position(shapeRef, shape.offset.b2Vec)
-            return shapeRef
+            let shapeRef = UnsafeMutablePointer<b2CircleShape>.allocate(capacity: 1)
+            shapeRef.initialize(to: b2CircleShape.Create())
+            shapeRef.pointee.m_radius = shape.radius * transform.scale.x
+            shapeRef.pointee.m_p = shape.offset.b2Vec
+            return OpaquePointer(shapeRef)
         case .box(let shape):
-            let shapeRef = b2_create_polygon_shape()!
-            b2_polygon_shape_set_as_box_with_center(
-                shapeRef,
+            let shapeRef = UnsafeMutablePointer<b2PolygonShape>.allocate(capacity: 1)
+            shapeRef.initialize(to: b2PolygonShape.Create())
+            shapeRef.pointee.SetAsBox(
                 transform.scale.x * shape.halfWidth, /* half width */
-                transform.scale.y * shape.halfHeight, /* half height */
+                transform.scale.y * shape.halfHeight,  /* half height */
                 shape.offset.b2Vec, /* center */
                 0 /* angle */
             )
             
-            return shapeRef
+            return OpaquePointer(shapeRef)
         }
     }
 }

@@ -115,7 +115,7 @@ ada_engine_deps = [
     "@libpng",
     "@SPIRV-Cross",
     ":SPIRVCompiler",
-    ":AdaBox2d",
+    "@swiftpkg_box2d_swift//:box2d",
     ":MiniAudioBindings"
 ]
 
@@ -132,13 +132,6 @@ cc_ada_library(
     name = "SPIRVCompiler",
     deps = [
         "@glslang",
-    ],
-)
-
-cc_ada_library(
-    name = "AdaBox2d",
-    deps = [
-        "@swiftpkg_box2d_swift//:box2d",
     ],
 )
 
@@ -229,7 +222,7 @@ macos_application(
     name = "AdaEditor-macos",
     bundle_id = "org.adaengine.AdaEditor-macos",
     infoplists = ["Sources/AdaEditor/Platforms/macOS/Info.plist"],
-    minimum_os_version = "13.0",
+    minimum_os_version = "14.0",
     deps = [
         ":AdaEditor",
     ]
@@ -242,7 +235,7 @@ ios_application(
        "iphone", "ipad",
     ],
     infoplists = ["Sources/AdaEditor/Platforms/iOS/Info.plist"],
-    minimum_os_version = "14.0",
+    minimum_os_version = "16.0",
     deps = [
         ":AdaEditor",
     ]

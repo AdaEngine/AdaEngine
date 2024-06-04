@@ -12,7 +12,7 @@ struct AdaEditorApp: App {
 
     var scene: some AppScene {
         GameAppScene {
-            TilemapScene()
+            SpaceInvaders()
         }
         .windowMode(.windowed)
         .windowTitle("AdaEngine")
