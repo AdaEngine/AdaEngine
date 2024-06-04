@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 7/18/22.
 //
 
-@_implementationOnly import AdaBox2d
 import Math
 
 public final class PhysicsJoint2DDescriptor: Codable {

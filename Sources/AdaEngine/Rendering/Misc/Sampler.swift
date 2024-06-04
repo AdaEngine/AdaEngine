@@ -6,7 +6,7 @@
 //
 
 /// Filtering options for determining which pixel value is returned within a mipmap level.
-public enum SamplerMinMagFilter: Codable {
+public enum SamplerMinMagFilter: String, Codable {
     
     /// Select the single pixel nearest to the sample point.
     case nearest
@@ -16,7 +16,7 @@ public enum SamplerMinMagFilter: Codable {
 }
 
 /// Filtering options for determining what pixel value is returned with multiple mipmap levels.
-public enum SamplerMipFilter: Codable {
+public enum SamplerMipFilter: String, Codable {
     
     /// The nearest mipmap level is selected.
     case nearest
