@@ -1,5 +1,0 @@
-module AdaBox2d {
-    umbrella header "box2d_swift.h"
-    
-    export *
-}
