@@ -154,7 +154,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "libpng",
     "SPIRV-Cross",
     "SPIRVCompiler",
-    "AdaBox2d",
+    .product(name: "box2d", package: "box2d-swift"),
     "AdaEngineMacros"
 //    "Vulkan"
 ]
@@ -236,13 +236,6 @@ targets += [
             "glslang"
         ],
         publicHeadersPath: "."
-    ),
-    .target(
-        name: "AdaBox2d",
-        dependencies: [
-            .product(name: "box2d", package: "box2d-swift")
-        ],
-        publicHeadersPath: "."
     )
 ]
 
@@ -269,8 +262,8 @@ let package = Package(
     name: "AdaEngine",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v14),
-        .macOS(.v13),
+        .iOS(.v16),
+        .macOS(.v14),
     ],
     products: products,
     dependencies: [],
