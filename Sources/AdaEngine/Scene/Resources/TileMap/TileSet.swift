@@ -73,6 +73,7 @@ public class TileSet: Resource, Codable {
     @discardableResult
     public func addTileSource(_ source: TileSource) -> TileSource.ID {
         let identifier = source.id != TileSource.invalidSource ? source.id : getTileSourceNextId()
+        source.id = identifier
         self.sources[identifier] = source
         source.tileSet = self
 

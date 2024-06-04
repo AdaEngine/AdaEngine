@@ -69,11 +69,11 @@ class TilemapScene: Scene {
     
     // swiftlint:disable:next function_body_length
     override func sceneDidMove(to view: SceneView) {
-        if FileSystem.current.itemExists(at: URL(filePath: "/Users/vprusakov/Downloads/tilemap.res")) {
-            loadIfNeeded()
-        } else {
+//        if FileSystem.current.itemExists(at: URL(filePath: "/Users/vprusakov/Downloads/tilemap.res")) {
+//            loadIfNeeded()
+//        } else {
             save()
-        }
+//        }
     }
     
     private func loadIfNeeded() {
