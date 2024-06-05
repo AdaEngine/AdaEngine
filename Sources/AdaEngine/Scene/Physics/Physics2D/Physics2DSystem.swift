@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/8/22.
 //
 
-import box2d
+@_implementationOnly import box2d
 import Math
 
 // - TODO: (Vlad) Runtime update shape resource

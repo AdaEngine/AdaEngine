@@ -194,7 +194,7 @@ final class MiniSound: Sound {
     
     private init(prototype: MiniSound) throws {
         self.sound = ada.ma_make_sound()
-        var engine = ada.ma_sound_get_engine(prototype.sound)
+        let engine = ada.ma_sound_get_engine(prototype.sound)
         let result = ada.ma_sound_init_copy(engine, prototype.sound, 0, nil, sound)
 
         if result != MA_SUCCESS {
