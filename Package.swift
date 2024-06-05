@@ -15,12 +15,6 @@ import Glibc
 import Darwin.C
 #endif
 
-#if (arch(arm64) || arch(arm))
-let useNeon = true
-#else
-let useNeon = false
-#endif
-
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 let isVulkanEnabled = false
 #else
@@ -98,10 +92,6 @@ var commonPlugins: [Target.PluginUsage] = []
 #if os(macOS)
 commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
 
-//if isVulkanEnabled {
-//    commonPlugins.append(.plugin(name: "SPIRVBuildPlugin"))
-//}
-
 #endif
 
 var swiftSettings: [SwiftSetting] = [
@@ -156,7 +146,6 @@ var adaEngineDependencies: [Target.Dependency] = [
     "SPIRVCompiler",
     .product(name: "box2d", package: "box2d-swift"),
     "AdaEngineMacros"
-//    "Vulkan"
 ]
 
 #if os(Linux)
@@ -234,8 +223,7 @@ targets += [
         name: "SPIRVCompiler",
         dependencies: [
             "glslang"
-        ],
-        publicHeadersPath: "."
+        ]
     )
 ]
 
@@ -300,11 +288,3 @@ if useLocalDeps {
         .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
     ]
 }
-
-// MARK: - Vulkan -
-//
-//// We turn on vulkan via build
-//if isVulkanEnabled {
-//    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
-//    package.dependencies.append(.package(path: "vendors/Vulkan"))
-//}

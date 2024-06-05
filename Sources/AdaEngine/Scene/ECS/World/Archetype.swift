@@ -17,7 +17,7 @@ struct EntityRecord {
     var row: Int
 }
 
-/// Types for defining [`Archetype`]s, collections of entities that have the same set of
+/// Types for defining Archetypes, collections of entities that have the same set of
 /// components.
 public final class Archetype: Hashable, Identifiable {
     
