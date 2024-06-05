@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/6/22.
 //
 
-import box2d
+@_implementationOnly import box2d
 import Math
 
 /// An object that holds and simulate all 2D physics bodies.

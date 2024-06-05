@@ -1,6 +1,0 @@
-module SPIRVCompiler {
-    header "spirv_compiler.hpp"
-    
-    export *
-}
-

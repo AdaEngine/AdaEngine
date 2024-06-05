@@ -27,7 +27,9 @@ build/
 /bazel-*
 /MODULE.bazel.lock
 
+# Documentation
 /docs
+.docs/
 
 Derived/
 

@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 3/11/23.
 //
 
-#include "spirv_compiler.hpp"
+#include "include/spirv_compiler.h"
 #include "glslang_resource_limits.hpp"
 
 #include "glslang/Include/Types.h"
