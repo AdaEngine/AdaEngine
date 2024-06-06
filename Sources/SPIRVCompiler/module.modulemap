@@ -1,0 +1,5 @@
+module SPIRVCompiler {
+    header "include/spirv_compiler.h"
+
+    export *
+}

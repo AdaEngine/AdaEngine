@@ -29,10 +29,10 @@ public struct SpriteRenderSystem: System {
 
     public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let extractedSprites = context.scene.performQuery(Self.extractedSprites)
 
-        await context.scene.performQuery(Self.cameras).concurrent.forEach { entity in
+        context.scene.performQuery(Self.cameras).forEach { entity in
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
 
@@ -221,7 +221,7 @@ public struct ExtractSpriteSystem: System {
 
     public static let dependencies: [SystemDependency] = [.after(VisibilitySystem.self)]
 
-    static let sprites = EntityQuery(where: .has(SpriteComponent.self) && .has(Transform.self) && .has(Visibility.self))
+    static let sprites = EntityQuery(where: .has(SpriteComponent.self) && .has(GlobalTransform.self) && .has(Transform.self) && .has(Visibility.self))
 
     public init(scene: Scene) { }
 
@@ -230,7 +230,7 @@ public struct ExtractSpriteSystem: System {
         var extractedSprites = ExtractedSprites(sprites: [])
 
         context.scene.performQuery(Self.sprites).forEach { entity in
-            let (sprite, transform, visible) = entity.components[SpriteComponent.self, Transform.self, Visibility.self]
+            let (sprite, globalTransform, transform, visible) = entity.components[SpriteComponent.self, GlobalTransform.self, Transform.self, Visibility.self]
 
             if !visible.isVisible {
                 return
@@ -242,7 +242,7 @@ public struct ExtractSpriteSystem: System {
                     texture: sprite.texture,
                     tintColor: sprite.tintColor,
                     transform: transform,
-                    worldTransform: transform.matrix
+                    worldTransform: globalTransform.matrix
                 )
             )
         }

@@ -54,11 +54,11 @@ public struct VisibilitySystem: System {
             var bounds: BoundingComponent.Bounds?
             
             if entity.components.has(SpriteComponent.self) || entity.components.has(Circle2DComponent.self) {
-                let transform = entity.components[Transform.self]!
-
-                if !entity.components.isComponentChanged(transform) && entity.components.has(BoundingComponent.self) {
+                if !entity.components.isComponentChanged(Transform.self) && entity.components.has(BoundingComponent.self) {
                     return
                 }
+                
+                let transform = entity.components[Transform.self]!
 
                 let position = transform.position
                 let scale = transform.scale
