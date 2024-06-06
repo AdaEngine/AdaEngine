@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
+import Math
+
 /// A component that defines the scale, rotation, and translation of an entity.
 @Component
 public struct Transform: Codable, Hashable {
@@ -37,27 +39,6 @@ public struct Transform: Codable, Hashable {
     }
 }
 
-public extension Transform {
-    
-    /// The transform represented as a Transform3D aka 4x4 matrix.
-    /// - Note: Getter of this property is compute. 
-    var matrix: Transform3D {
-        get {
-            Transform3D(
-                translation: self.position,
-                rotation: self.rotation,
-                scale: self.scale
-            )
-        }
-        
-        set {
-            self.scale = newValue.scale
-            self.rotation = newValue.rotation
-            self.position = newValue.origin
-        }
-    }
-}
-
 public extension ScriptableComponent {
     
     /// Return transform component for current entity.
@@ -69,5 +50,28 @@ public extension ScriptableComponent {
         set {
             return self.components[Transform.self] = newValue
         }
+    }
+    
+    /// Return global transform component for current entity.
+    var globalTransform: GlobalTransform {
+        return self.components[GlobalTransform.self]!
+    }
+}
+
+/// A component that describe global transform of an entity
+///
+/// - Note: To update position, scale or rotation of an entity, use ``Transform`` component.
+@Component
+public struct GlobalTransform {
+    public internal(set) var matrix: Transform3D
+}
+
+public extension GlobalTransform {
+    func getTransform() -> Transform {
+        Transform(
+            rotation: self.matrix.rotation,
+            scale: self.matrix.scale, 
+            position: self.matrix.origin
+        )
     }
 }

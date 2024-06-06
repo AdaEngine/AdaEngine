@@ -86,8 +86,8 @@ public class TextureAtlasTileSource: TileSource {
             let alignment = tileData.animationColumnsAlignment
 
             for index in 0..<tileData.animationFrameColumns {
-                let x = Float(atlasCoordinates.x + (alignment == .horizontal ? index : 0))
-                let y = Float(atlasCoordinates.y + (alignment == .vertical ? index : 0))
+                let x = atlasCoordinates.x + (alignment == .horizontal ? index : 0)
+                let y = atlasCoordinates.y + (alignment == .vertical ? index : 0)
 
                 let slice = self.textureAtlas.textureSlice(at: [x, y])
                 animatedTexture[index] = slice
@@ -96,7 +96,7 @@ public class TextureAtlasTileSource: TileSource {
             return animatedTexture
         }
 
-        return self.textureAtlas.textureSlice(at: Vector2(Float(atlasCoordinates.x), Float(atlasCoordinates.y)))
+        return self.textureAtlas.textureSlice(at: [atlasCoordinates.x, atlasCoordinates.y])
     }
 
     @discardableResult
