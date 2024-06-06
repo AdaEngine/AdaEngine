@@ -276,7 +276,7 @@ public extension Scene {
             transform = self.worldTransformMatrix(for: parent)
         }
         
-        guard let entityTransform = entity.components[Transform.self] else {
+        guard let entityTransform = entity.components[GlobalTransform.self] else {
             return transform
         }
         
