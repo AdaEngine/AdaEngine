@@ -253,11 +253,11 @@ struct CamMovementSystem: System {
     
     func update(context: UpdateContext) {
         let cameraEntity: Entity = context.scene.performQuery(Self.cameraQuery).first!
-        let tileEntity: Entity = context.scene.performQuery(Self.tileMap).first!
+//        let tileEntity: Entity = context.scene.performQuery(Self.tileMap).first!
         
-        if Input.isKeyPressed(.m) {
-            tileEntity.components[TileMapComponent.self]!.tileMap.layers[0].isEnabled.toggle()
-        }
+//        if Input.isKeyPressed(.m) {
+//            tileEntity.components[TileMapComponent.self]!.tileMap.layers[0].isEnabled.toggle()
+//        }
         
         var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]
         

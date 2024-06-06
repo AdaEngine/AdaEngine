@@ -83,20 +83,20 @@ public final class TextureAtlas: Texture2D {
     // MARK: - Slices
     
     /// Create a slice of the texture.
-    public subscript(x: Float, y: Float) -> Slice {
-        return self.textureSlice(at: Vector2(x: x, y: y))
+    public subscript(x: Int, y: Int) -> Slice {
+        return self.textureSlice(at: PointInt(x: x, y: y))
     }
     
     /// Create a slice of the texture.
-    public func textureSlice(at position: Vector2) -> Slice {
+    public func textureSlice(at position: PointInt) -> Slice {
         let min = Vector2(
-            (position.x * Float((spriteSize.width + margin.width))) / Float(self.width),
-            (position.y * Float((spriteSize.height + margin.height))) / Float(self.height)
+            (Float(position.x) * Float((spriteSize.width + margin.width))) / Float(self.width),
+            (Float(position.y) * Float((spriteSize.height + margin.height))) / Float(self.height)
         )
         
         let max = Vector2(
-            ((position.x + 1) * Float((spriteSize.width + margin.width))) / Float(self.width),
-            ((position.y + 1) * Float((spriteSize.height + margin.height))) / Float(self.height)
+            (Float(position.x + 1) * Float((spriteSize.width + margin.width))) / Float(self.width),
+            (Float(position.y + 1) * Float((spriteSize.height + margin.height))) / Float(self.height)
         )
         
         return Slice(

@@ -187,13 +187,17 @@ public extension Entity {
         public var isEmpty: Bool {
             return self.buffer.isEmpty
         }
-
-        public func isComponentChanged<T: Component>(_ component: T) -> Bool {
+        
+        public func isComponentChanged<T: Component>(_ componentType: T.Type) ->  Bool {
             guard let entity = self.entity else {
                 return false
             }
 
             return world?.isComponentChanged(T.identifier, for: entity) ?? false
+        }
+        
+        public func isComponentChanged<T: Component>(_ component: T) -> Bool {
+            return self.isComponentChanged(T.self)
         }
     }
 }
