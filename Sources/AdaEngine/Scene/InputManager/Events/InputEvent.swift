@@ -11,11 +11,11 @@
 /// Base class for all input events.
 public class InputEvent: Hashable, Identifiable {
     
-    public let window: Window.ID
+    public let window: UIWindow.ID
     public let time: TimeInterval
     public let eventId = RID()
     
-    internal init(window: Window.ID, time: TimeInterval) {
+    internal init(window: UIWindow.ID, time: TimeInterval) {
         self.window = window
         self.time = time
     }

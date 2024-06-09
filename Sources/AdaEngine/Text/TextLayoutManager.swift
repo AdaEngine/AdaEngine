@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 3/6/23.
 //
 
+import Math
+
 // FIXME: When text container updates each frame, than we have troubles with performance
 // TODO: Add line break mode by word
 
@@ -97,7 +99,7 @@ public final class TextLayoutManager {
             
             let kern = Double(attributes.kern)
             
-            let fontHandle = attributes.font.handle
+            let fontHandle = attributes.font.fontResource.handle
             let metrics = fontHandle.metrics
             let fontScale = 1 / (metrics.ascenderY - metrics.descenderY)
             
@@ -284,4 +286,96 @@ struct GlyphVertexData {
     let outlineColor: Color
     let textureCoordinate: Vector2
     let textureIndex: Int
+}
+
+
+public extension String {
+    
+    /// Calculates and returns the size.
+    func boundingSize(width: Float, height: Float, attributes: TextAttributeContainer? = nil) -> Size {
+        let attributes = attributes ?? TextAttributeContainer()
+        
+        var calculatedSize: Size = .zero
+        
+        var x: Double = 0
+        var y: Double = 0
+        
+        let lineHeightOffset: Double = 0
+        
+        for index in self.indices {
+            let char = self[index]
+            
+            let kern = Double(attributes.kern)
+            let font = attributes.font
+            
+            let fontHandle = font.fontResource.handle
+            let metrics = fontHandle.metrics
+            let fontScale = (1 / (metrics.ascenderY - metrics.descenderY)) * font.pointSize
+            
+            for scalarIndex in char.unicodeScalars.indices {
+                let scalar = char.unicodeScalars[scalarIndex]
+                var glyph = fontHandle.getGlyph(for: scalar.value)
+                
+                if glyph == nil {
+                    glyph = fontHandle.getGlyph(for: TextLayoutManager.Constants.questionMark.value)
+                }
+                
+                guard let glyph else {
+                    continue
+                }
+                
+                if char.isNewline {
+                    x = 0
+                    y -= fontScale * metrics.lineHeight + lineHeightOffset
+                    continue
+                }
+                
+                var l: Double = 0, b: Double = 0, r: Double = 0, t: Double = 0
+                glyph.getQuadAtlasBounds(&l, &b, &r, &t)
+                
+                var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
+                glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
+                
+                if Float((pr * fontScale) + x) > width {
+                    x = 0
+                    y -= fontScale * metrics.lineHeight + lineHeightOffset
+                }
+                
+                if abs(Float((pt * fontScale) + y)) > height {
+                    // TODO: Add
+                    return calculatedSize // available lines did end
+                }
+                
+                pl = (pl * fontScale) + x
+                pb = (pb * fontScale) + y
+                pr = (pr * fontScale) + x
+                pt = (pt * fontScale) + y
+                
+                let texelWidth = 1 / Double(fontHandle.atlasTexture.width)
+                let texelHeight = 1 / Double(fontHandle.atlasTexture.height)
+                l *= texelWidth
+                b *= texelHeight
+                r *= texelWidth
+                t *= texelHeight
+                
+                var advance = glyph.advance
+                let nextScalarIndex = char.unicodeScalars.index(after: scalarIndex)
+                
+                if char.unicodeScalars.indices.contains(nextScalarIndex) {
+                    let nextScalar = char.unicodeScalars[nextScalarIndex]
+                    fontHandle.getAdvance(&advance, scalar.value, nextScalar.value)
+                    x += fontScale * advance + kern
+                } else {
+                    x += fontScale * advance + kern
+                }
+            }
+        }
+        
+        return calculatedSize
+    }
+    
+    /// Returns the bounding box size the receiver occupies when drawn with the given attributes.
+    func size(with attributes: TextAttributeContainer? = nil) -> Size {
+        self.boundingSize(width: .infinity, height: .infinity, attributes: attributes)
+    }
 }

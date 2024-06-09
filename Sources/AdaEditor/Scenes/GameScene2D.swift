@@ -174,11 +174,11 @@ extension GameScene2D {
         var attributes = TextAttributeContainer()
         attributes.foregroundColor = .red
         attributes.outlineColor = .black
-        attributes.font = Font.system(weight: .italic)
+        attributes.font = FontResource.system(weight: .italic)
 
         var text = AttributedText("Hello, Ada Engine!\n", attributes: attributes)
 
-        attributes.font = Font.system(weight: .regular)
+        attributes.font = FontResource.system(weight: .regular)
         attributes.foregroundColor = .purple
         attributes.kern = -0.03
 

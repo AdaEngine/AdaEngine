@@ -17,7 +17,7 @@ public class SceneManager {
     
     // MARK: - Private
     
-    private weak var window: Window?
+    private weak var window: UIWindow?
     
     internal init() { }
     
@@ -37,7 +37,7 @@ public class SceneManager {
     }
     
     /// Set window for scene manager.
-    func setWindow(_ window: Window?) {
+    func setWindow(_ window: UIWindow?) {
         self.currentScene?.window = window
         self.window = window
     }

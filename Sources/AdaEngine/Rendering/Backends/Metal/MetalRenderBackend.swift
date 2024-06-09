@@ -31,12 +31,12 @@ class MetalRenderBackend: RenderBackend {
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
     }
     
-    func createWindow(_ windowId: Window.ID, for view: RenderView, size: SizeInt) throws {
+    func createWindow(_ windowId: UIWindow.ID, for view: RenderView, size: SizeInt) throws {
         let mtlView = (view as! MetalView)
         try self.context.createRenderWindow(with: windowId, view: mtlView, size: size)
     }
     
-    func resizeWindow(_ windowId: Window.ID, newSize: SizeInt) throws {
+    func resizeWindow(_ windowId: UIWindow.ID, newSize: SizeInt) throws {
         guard newSize.width > 0 && newSize.height > 0 else {
             return
         }
@@ -44,7 +44,7 @@ class MetalRenderBackend: RenderBackend {
         self.context.updateSizeForRenderWindow(windowId, size: newSize)
     }
     
-    func destroyWindow(_ windowId: Window.ID) throws {
+    func destroyWindow(_ windowId: UIWindow.ID) throws {
         guard self.context.windows[windowId] != nil else {
             return
         }
@@ -337,7 +337,7 @@ extension MetalRenderBackend {
 
 extension MetalRenderBackend {
     
-    func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList {
+    func beginDraw(for window: UIWindow.ID, clearColor: Color) -> DrawList {
         guard let window = self.context.windows[window] else {
             fatalError("Render Window not exists.")
         }

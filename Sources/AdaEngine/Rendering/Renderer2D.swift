@@ -244,7 +244,7 @@ class Renderer2D {
         )
     }
     
-    static func beginDrawContext(for window: Window, viewTransform: Transform3D) -> DrawContext {
+    static func beginDrawContext(for window: UIWindow, viewTransform: Transform3D) -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
