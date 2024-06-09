@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class EditorWindow: Window {
+class EditorWindow: UIWindow {
     override func windowDidReady() {
         self.title = "Ada Editor"
         

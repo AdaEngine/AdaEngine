@@ -18,7 +18,7 @@ public class KeyEvent: InputEvent {
     public let status: Status
     public var isRepeated: Bool
 
-    internal init(window: Window.ID, keyCode: KeyCode, modifiers: KeyModifier, status: Status, time: TimeInterval, isRepeated: Bool) {
+    internal init(window: UIWindow.ID, keyCode: KeyCode, modifiers: KeyModifier, status: Status, time: TimeInterval, isRepeated: Bool) {
         self.keyCode = keyCode
         self.modifiers = modifiers
         self.status = status

@@ -9,7 +9,7 @@
 /// Each window instance can be presented on the screen.
 /// - Tag: AdaEngine.Window
 @MainActor
-open class Window: View {
+open class UIWindow: UIView {
 
     public typealias ID = RID
     
@@ -25,7 +25,7 @@ open class Window: View {
     
     internal var systemWindow: SystemWindow?
     
-    public var windowManager: WindowManager {
+    public var windowManager: UIWindowManager {
         return Application.shared.windowManager
     }
     
@@ -72,7 +72,7 @@ open class Window: View {
     
     // MARK: - Public Methods
 
-    open func setWindowMode(_ mode: Window.Mode) {
+    open func setWindowMode(_ mode: UIWindow.Mode) {
         self.windowManager.setWindowMode(self, mode: mode)
     }
     
@@ -123,9 +123,8 @@ open class Window: View {
         super.draw(in: rect, with: context)
     }
     
-    public override func addSubview(_ view: View) {
-        
-        if view is Window {
+    public override func addSubview(_ view: UIView) {
+        if view is UIWindow {
             fatalError("You cannot add window as subview to another window")
         }
         
@@ -141,7 +140,7 @@ open class Window: View {
         super.addSubview(view)
     }
     
-    public override func removeSubview(_ view: View) {
+    public override func removeSubview(_ view: UIView) {
         if let window = view.window, window !== self {
             fatalError("You cant remove view from another window instance.")
         }
@@ -151,7 +150,7 @@ open class Window: View {
     }
 }
 
-public extension Window {
+public extension UIWindow {
     enum Mode: UInt64 {
         case windowed
         case fullscreen

@@ -21,7 +21,7 @@ public extension AppScene {
     }
 
     /// Set the window presentation mode.
-    func windowMode(_ mode: Window.Mode) -> some AppScene {
+    func windowMode(_ mode: UIWindow.Mode) -> some AppScene {
         return self.modifier(WindowModeSceneModifier(windowMode: mode))
     }
 

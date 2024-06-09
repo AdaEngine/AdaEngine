@@ -21,15 +21,15 @@ protocol RenderBackend: AnyObject {
     /// Register a new render window for render backend.
     /// Window in this case is entity that managed a drawables (aka swapchain).
     /// - Throws: Throw error if something went wrong.
-    func createWindow(_ windowId: Window.ID, for view: RenderView, size: SizeInt) throws
+    func createWindow(_ windowId: UIWindow.ID, for view: RenderView, size: SizeInt) throws
     
     /// Resize registred render window.
     /// - Throws: Throw error if window is not registred.
-    func resizeWindow(_ windowId: Window.ID, newSize: SizeInt) throws
+    func resizeWindow(_ windowId: UIWindow.ID, newSize: SizeInt) throws
     
     /// Destroy render window from render backend.
     /// - Throws: Throw error if window is not registred.
-    func destroyWindow(_ windowId: Window.ID) throws
+    func destroyWindow(_ windowId: UIWindow.ID) throws
     
     /// Begin rendering a frame for all windows.
     func beginFrame() throws
@@ -86,7 +86,7 @@ protocol RenderBackend: AnyObject {
     
     /// Begin draw for window.
     /// - Returns: ``DrawList`` which contains information about drawing.
-    func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList
+    func beginDraw(for window: UIWindow.ID, clearColor: Color) -> DrawList
     
     /// Begin draw to framebuffer.
     /// - Returns: ``DrawList`` which contains information about drawing.

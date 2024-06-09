@@ -12,11 +12,11 @@ public struct GUIAppScene: AppScene {
     
     public var scene: Never { fatalError() }
     
-    let window: () -> Window
+    let window: () -> UIWindow
     
     /// Create a new app scene for GUI application.
     /// - Parameters window: ``Window`` which will be presented on screen
-    public init(window: @escaping () -> Window) {
+    public init(window: @escaping () -> UIWindow) {
         self.window = window
     }
     
@@ -24,7 +24,7 @@ public struct GUIAppScene: AppScene {
 
 extension GUIAppScene: InternalAppScene {
     @MainActor
-    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window {
+    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> UIWindow {
         let window = window()
         
         if window.frame.size == .zero {

@@ -50,15 +50,15 @@ public final class RenderEngine: RenderBackend {
         return self.renderBackend.currentFrameIndex
     }
     
-    public func createWindow(_ windowId: Window.ID, for view: RenderView, size: SizeInt) throws {
+    public func createWindow(_ windowId: UIWindow.ID, for view: RenderView, size: SizeInt) throws {
         try self.renderBackend.createWindow(windowId, for: view, size: size)
     }
     
-    public func resizeWindow(_ windowId: Window.ID, newSize: SizeInt) throws {
+    public func resizeWindow(_ windowId: UIWindow.ID, newSize: SizeInt) throws {
         try self.renderBackend.resizeWindow(windowId, newSize: newSize)
     }
     
-    public func destroyWindow(_ windowId: Window.ID) throws {
+    public func destroyWindow(_ windowId: UIWindow.ID) throws {
         try self.renderBackend.destroyWindow(windowId)
     }
     
@@ -130,7 +130,7 @@ public final class RenderEngine: RenderBackend {
     
     // MARK: - Drawing -
     
-    func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList {
+    func beginDraw(for window: UIWindow.ID, clearColor: Color) -> DrawList {
         self.renderBackend.beginDraw(for: window, clearColor: clearColor)
     }
     

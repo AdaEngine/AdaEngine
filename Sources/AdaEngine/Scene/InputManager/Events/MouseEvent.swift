@@ -19,7 +19,7 @@ public final class MouseEvent: InputEvent {
     let mousePosition: Point
     let phase: Phase
     
-    init(window: Window.ID, button: MouseButton, mousePosition: Point, phase: Phase, time: TimeInterval) {
+    init(window: UIWindow.ID, button: MouseButton, mousePosition: Point, phase: Phase, time: TimeInterval) {
         self.button = button
         self.mousePosition = mousePosition
         self.phase = phase

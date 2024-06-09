@@ -14,7 +14,7 @@ extension MetalRenderBackend {
     
     final class Context {
         
-        private(set) var windows: [Window.ID: RenderWindow] = [:]
+        private(set) var windows: [UIWindow.ID: RenderWindow] = [:]
         
         let physicalDevice: MTLDevice
         
@@ -27,7 +27,7 @@ extension MetalRenderBackend {
         
         // MARK: - Methods
         
-        func createRenderWindow(with id: Window.ID, view: MetalView, size: SizeInt) throws {
+        func createRenderWindow(with id: UIWindow.ID, view: MetalView, size: SizeInt) throws {
             if self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
@@ -51,7 +51,7 @@ extension MetalRenderBackend {
             self.windows[id] = window
         }
         
-        func updateSizeForRenderWindow(_ windowId: Window.ID, size: SizeInt) {
+        func updateSizeForRenderWindow(_ windowId: UIWindow.ID, size: SizeInt) {
             guard let window = self.windows[windowId] else {
                 assertionFailure("Not found window by id \(windowId)")
                 return
@@ -60,7 +60,7 @@ extension MetalRenderBackend {
 //            window.view?.drawableSize = size.toCGSize
         }
         
-        func destroyWindow(by id: Window.ID) {
+        func destroyWindow(by id: UIWindow.ID) {
             guard self.windows[id] != nil else {
                 assertionFailure("Not found window by id \(id)")
                 return

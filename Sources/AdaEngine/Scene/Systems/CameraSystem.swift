@@ -40,7 +40,7 @@ public struct CameraSystem: System {
     }
 
     @MainActor
-    private func updateViewportSizeIfNeeded(for camera: inout Camera, window: Window?) {
+    private func updateViewportSizeIfNeeded(for camera: inout Camera, window: UIWindow?) {
         switch camera.renderTarget {
         case .window(let id):
 

@@ -11,8 +11,8 @@ import AdaEngine
 struct AdaEditorApp: App {
 
     var scene: some AppScene {
-        GameAppScene {
-            ManySpritesExampleScene()
+        WidgetGroup {
+            ContentWidget()
         }
         .windowMode(.windowed)
         .windowTitle("AdaEngine")

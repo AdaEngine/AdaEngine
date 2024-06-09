@@ -10,15 +10,15 @@ import AppKit
 import Math
 
 // swiftlint:disable cyclomatic_complexity
-final class MacOSWindowManager: WindowManager {
+final class MacOSWindowManager: UIWindowManager {
 
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)
 
     public nonisolated override init() { }
 
-    override func createWindow(for window: Window) {
+    override func createWindow(for window: UIWindow) {
         
-        let minSize = Window.defaultMinimumSize
+        let minSize = UIWindow.defaultMinimumSize
         
         let frame = window.frame
         let size = frame.size == .zero ? minSize : frame.size
@@ -57,7 +57,7 @@ final class MacOSWindowManager: WindowManager {
         super.createWindow(for: window)
     }
     
-    override func showWindow(_ window: Window, isFocused: Bool) {
+    override func showWindow(_ window: UIWindow, isFocused: Bool) {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
@@ -73,7 +73,7 @@ final class MacOSWindowManager: WindowManager {
         self.setActiveWindow(window)
     }
     
-    override func setWindowMode(_ window: Window, mode: Window.Mode) {
+    override func setWindowMode(_ window: UIWindow, mode: UIWindow.Mode) {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
@@ -86,7 +86,7 @@ final class MacOSWindowManager: WindowManager {
         }
     }
     
-    override func closeWindow(_ window: Window) {
+    override func closeWindow(_ window: UIWindow) {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
@@ -96,14 +96,14 @@ final class MacOSWindowManager: WindowManager {
         nsWindow.close()
     }
     
-    override func resizeWindow(_ window: Window, size: Size) {
+    override func resizeWindow(_ window: UIWindow, size: Size) {
         let nsWindow = window.systemWindow as? NSWindow
 
         let cgSize = CGSize(width: CGFloat(size.width), height: CGFloat(size.height))
         nsWindow?.setContentSize(cgSize)
     }
     
-    override func setMinimumSize(_ size: Size, for window: Window) {
+    override func setMinimumSize(_ size: Size, for window: UIWindow) {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
@@ -114,7 +114,7 @@ final class MacOSWindowManager: WindowManager {
         nsWindow.minSize = minSize
     }
     
-    override func getScreen(for window: Window) -> Screen? {
+    override func getScreen(for window: UIWindow) -> Screen? {
         guard let nsWindow = window.systemWindow as? NSWindow, let screen = nsWindow.screen else {
             return nil
         }
@@ -277,7 +277,7 @@ final class MacOSWindowManager: WindowManager {
         self.mouseMode
     }
     
-    func findWindow(for nsWindow: NSWindow) -> Window? {
+    func findWindow(for nsWindow: NSWindow) -> UIWindow? {
         return self.windows.first {
             ($0.systemWindow as? NSWindow) === nsWindow
         }

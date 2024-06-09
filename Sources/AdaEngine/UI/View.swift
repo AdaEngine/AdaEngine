@@ -25,7 +25,7 @@ import Math
 ///
 /// - Warning: Under development and currently doesn't work as expected.
 @MainActor
-open class View {
+open class UIView {
 
     // MARK: - Public Fields -
 
@@ -40,17 +40,19 @@ open class View {
     open var bounds: Rect = .zero
 
     /// Contains link to parent super view
-    public private(set) weak var superview: View?
+    public private(set) weak var superview: UIView?
 
-    public private(set) var subviews: [View] = []
+    public private(set) var subviews: [UIView] = []
 
     open var isInteractionEnabled: Bool = true
 
     open var isHidden: Bool = false
 
     open var zIndex: Int = 0
+    
+    private var needsLayout = true
 
-    public internal(set) weak var window: Window?
+    public internal(set) weak var window: UIWindow?
 
     /// Affine matrix to apply any transformation to current view
     public var affineTransform: Transform2D = .identity
@@ -73,6 +75,8 @@ open class View {
         self.bounds.size = frame.size
 
         self.frameDidChange()
+        
+        self.setNeedsLayout()
     }
 
     func frameDidChange() {
@@ -104,16 +108,35 @@ open class View {
 
         return self.affineTransform
     }
+    
+    // MARK: - Life Cycle
+    
+    public func setNeedsLayout() {
+        self.needsLayout = true
+    }
+    
+    public func layoutIfNeeded() {
+        if needsLayout {
+            self.layoutSubviews()
+            self.needsLayout = false
+        }
+    }
+    
+    open func layoutSubviews() {
+        for subview in subviews {
+            subview.layoutSubviews()
+        }
+    }
 
     // MARK: - Life cycle
 
     /// - Parameter superView: Return view instance if view attached to superview or nil if view deattached from superview.
     /// Also superview can be [Window](x-source-tag://AdaEngine.Window) instance.
-    open func viewDidMove(to superView: View?) { }
+    open func viewDidMove(to superView: UIView?) { }
 
     // MARK: - Interaction
 
-    open func hitTest(_ point: Point, with event: InputEvent) -> View? {
+    open func hitTest(_ point: Point, with event: InputEvent) -> UIView? {
         guard self.isInteractionEnabled && !self.isHidden else {
             return nil
         }
@@ -141,7 +164,7 @@ open class View {
         return self.bounds.contains(point: point)
     }
 
-    public func convert(_ point: Point, to view: View?) -> Point {
+    public func convert(_ point: Point, to view: UIView?) -> Point {
         guard let view, view !== self else {
             return point
         }
@@ -158,7 +181,7 @@ open class View {
         return point - (viewWorldTransform - currentWorldTransform)
     }
 
-    public func convert(_ point: Point, from view: View?) -> Point {
+    public func convert(_ point: Point, from view: UIView?) -> Point {
         return view?.convert(point, to: self) ?? point
     }
 
@@ -197,7 +220,7 @@ open class View {
 
     // MARK: - View Hierarchy
 
-    open func addSubview(_ view: View) {
+    open func addSubview(_ view: UIView) {
         if self === view {
             fatalError("Can't add self as subview")
         }
@@ -210,13 +233,15 @@ open class View {
         view.superview = self
 
         view.viewDidMove(to: self)
+        
+        self.setNeedsLayout()
     }
 
     open func removeFromSuperview() {
         self.superview?.removeSubview(self)
     }
 
-    open func removeSubview(_ view: View) {
+    open func removeSubview(_ view: UIView) {
         guard let index = self.subviews.firstIndex(where: { $0 === view }) else { return }
         let deletedView = self.subviews.remove(at: index)
         deletedView.superview = nil
@@ -225,6 +250,8 @@ open class View {
 
     /// Called each frame
     open func update(_ deltaTime: TimeInterval) async {
+        self.layoutIfNeeded()
+        
         for subview in self.subviews {
             await subview.update(deltaTime)
         }

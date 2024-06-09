@@ -17,9 +17,9 @@ final public class GUIRenderContext {
     private var currentTransform = Transform3D.identity
     
     /// Window Identifier related presented window.
-    private unowned let window: Window
+    private unowned let window: UIWindow
     
-    init(window: Window) {
+    init(window: UIWindow) {
         self.window = window
     }
     
