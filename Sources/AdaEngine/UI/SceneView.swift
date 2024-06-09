@@ -7,7 +7,7 @@
 
 /// This view contains game scene and viewport for rendering.
 @MainActor
-public class SceneView: View {
+public class SceneView: UIView {
 
     /// The scene manager that manage a scenes for this view.
     public let sceneManager: SceneManager
@@ -15,7 +15,7 @@ public class SceneView: View {
     /// A viewport that describe size and depth for rendering.
     public internal(set) var viewport: Viewport = Viewport()
     
-    public override var window: Window? {
+    public override var window: UIWindow? {
         didSet {
             self.sceneManager.setWindow(self.window)
         }

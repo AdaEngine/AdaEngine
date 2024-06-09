@@ -51,7 +51,7 @@ public struct Camera {
     public enum RenderTarget: Codable {
         
         /// Render camera to window.
-        case window(Window.ID)
+        case window(UIWindow.ID)
         
         /// Render camera to texture.
         case texture(RenderTexture)

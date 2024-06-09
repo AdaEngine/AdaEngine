@@ -9,8 +9,8 @@
 
 /// Describe default scene configuration settings for the app
 struct _AppSceneConfiguration {
-    var minimumSize: Size = Window.defaultMinimumSize
-    var windowMode: Window.Mode = .fullscreen
+    var minimumSize: Size = UIWindow.defaultMinimumSize
+    var windowMode: UIWindow.Mode = .fullscreen
     var isSingleWindow: Bool = false
     var title: String?
     var useDefaultRenderPlugins: Bool = true
@@ -24,7 +24,7 @@ protocol InternalAppScene {
     /// Create a window with given configuration.
     /// - Throws: Any error.
     /// - Returns: The configured window.
-    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window
+    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> UIWindow
     
     /// Collect all modification of default scene configuration.
     /// - NOTE: We use this method for ``SceneModifier`` interface.

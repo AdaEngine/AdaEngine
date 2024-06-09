@@ -23,7 +23,7 @@ open class Scene: Resource, @unchecked Sendable {
     public var name: String
     public private(set) var id: UUID
     
-    public internal(set) weak var window: Window?
+    public internal(set) weak var window: UIWindow?
     public internal(set) var viewport: Viewport = Viewport()
     
     public var resourceMetaInfo: ResourceMetaInfo?
