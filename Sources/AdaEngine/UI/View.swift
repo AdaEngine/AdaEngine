@@ -7,16 +7,13 @@
 
 import Math
 
-// - TODO: (Vlad) Ortho projection for each view instead of root
 // - TODO: (Vlad) Add transforms for drawing (translation/rotation/scale)
 // - TODO: (Vlad) Blending mode (cuz alpha doesn't work)
-// - TODO: (Vlad) z layers
 // - TODO: (Vlad) texturing the views
 // - TODO: (Vlad) draw lines
 // - TODO: (Vlad) draw rectangles
 // - TODO: (Vlad) create transperent API for 2D rendering
 // - TODO: (Vlad) Interaction (hit testing)
-// - TODO: (Vlad) Scaling problem (hit testing)
 // - TODO: (Vlad) Cropping
 
 /// An object that manages the content for a rectangular area on the screen.
@@ -35,6 +32,17 @@ open class UIView {
             self.setFrame(self.frame)
         }
     }
+    
+    var needsResortZPositionForChildren = false
+    var _zSortedChildren: [UIView] = []
+    var zSortedChildren: [UIView] {
+        if needsResortZPositionForChildren {
+            _zSortedChildren = self.subviews.sorted(by: { $0.zIndex > $1.zIndex })
+            needsResortZPositionForChildren = false
+        }
+        
+        return _zSortedChildren
+    }
 
     /// Contains size and position relative to self local coordinates.
     open var bounds: Rect = .zero
@@ -48,11 +56,29 @@ open class UIView {
 
     open var isHidden: Bool = false
 
-    open var zIndex: Int = 0
+    open var zIndex: Int = 0 {
+        didSet {
+            self.superview?.needsResortZPositionForChildren = true
+        }
+    }
     
     private var needsLayout = true
+    
+    public var backgroundColor: Color = .white
 
-    public internal(set) weak var window: UIWindow?
+    public var window: UIWindow? {
+        var superview = self.superview
+        
+        while superview != nil {
+            if let window = superview as? UIWindow {
+                return window
+            }
+            
+            superview = superview?.superview
+        }
+        
+        return nil
+    }
 
     /// Affine matrix to apply any transformation to current view
     public var affineTransform: Transform2D = .identity
@@ -71,7 +97,6 @@ open class UIView {
     // MARK: - Private
 
     func setFrame(_ frame: Rect) {
-        self.affineTransform = Transform2D(scale: Vector2(frame.size.width, frame.size.height)) * Transform2D(translation: frame.origin)
         self.bounds.size = frame.size
 
         self.frameDidChange()
@@ -91,14 +116,29 @@ open class UIView {
         if self.isHidden {
             return
         }
+        
+        context.drawRect(rect, color: self.backgroundColor)
 
-        for subview in self.subviews {
+        for subview in self.zSortedChildren {
             subview.draw(with: context)
         }
     }
 
     internal func draw(with context: GUIRenderContext) {
+        context.saveContext()
+        
+        if affineTransform != .identity {
+            context.multiply(Transform3D(from: affineTransform))
+        }
+        
+//        context.translateBy(x: self.frame.minX, y: self.frame.minY)
+        context.scaleBy(x: 1, y: 1)
+        
         self.draw(in: self.bounds, with: context)
+        
+//        context.translateBy(x: -self.frame.minX, y: -self.frame.minY)
+        
+        context.restoreContext()
     }
 
     private var worldTransform: Transform2D {
@@ -234,6 +274,8 @@ open class UIView {
 
         view.viewDidMove(to: self)
         
+        self.needsResortZPositionForChildren = true
+        
         self.setNeedsLayout()
     }
 
@@ -246,6 +288,8 @@ open class UIView {
         let deletedView = self.subviews.remove(at: index)
         deletedView.superview = nil
         view.viewDidMove(to: nil)
+        
+        self.needsResortZPositionForChildren = true
     }
 
     /// Called each frame

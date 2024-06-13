@@ -117,6 +117,10 @@ public struct Camera {
         self.renderTarget = .window(.empty)
     }
     
+    public init(window: UIWindow.ID) {
+        self.renderTarget = .window(window)
+    }
+    
     public var viewMatrix: Transform3D = .identity
 }
 

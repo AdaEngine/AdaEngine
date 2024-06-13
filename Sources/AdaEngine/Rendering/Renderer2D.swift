@@ -256,7 +256,7 @@ class Renderer2D {
         return context
     }
     
-    static func beginDrawContext(for camera: Camera, viewUniform: GlobalViewUniform, transform: Transform) -> DrawContext {
+    static func beginDrawContext(for camera: Camera, viewUniform: GlobalViewUniform) -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)

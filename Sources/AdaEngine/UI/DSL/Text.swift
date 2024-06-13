@@ -25,7 +25,7 @@ public struct Text: Widget, WidgetNodeBuilder {
         )
         
         node.text = text
-        node.font = context.widgetContext.font
+        //node.font = context.widgetContext.font
         
         return node
     }

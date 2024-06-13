@@ -288,7 +288,6 @@ struct GlyphVertexData {
     let textureIndex: Int
 }
 
-
 public extension String {
     
     /// Calculates and returns the size.
