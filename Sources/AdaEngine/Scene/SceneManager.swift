@@ -17,8 +17,6 @@ public class SceneManager {
     
     // MARK: - Private
     
-    private weak var window: UIWindow?
-    
     internal init() { }
     
     /// Update current scene by delta time.
@@ -39,7 +37,6 @@ public class SceneManager {
     /// Set window for scene manager.
     func setWindow(_ window: UIWindow?) {
         self.currentScene?.window = window
-        self.window = window
     }
     
     // MARK: - Public Methods
@@ -54,7 +51,7 @@ public class SceneManager {
         self.currentScene?.sceneWillMove(from: view)
 
         scene.sceneManager = self
-        scene.window = self.window
+        scene.window = view.window
         scene.viewport = self.sceneView?.viewport ?? Viewport()
 
         self.currentScene = scene
