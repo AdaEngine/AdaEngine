@@ -57,6 +57,7 @@ class MetalRenderBackend: RenderBackend {
 
         for (_, window) in self.context.windows {
             window.commandBuffer = self.commandQueue.makeCommandBuffer()
+//            window.drawable = window.view?.currentDrawable
             window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
         }
     }

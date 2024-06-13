@@ -174,18 +174,18 @@ extension GameScene2D {
         var attributes = TextAttributeContainer()
         attributes.foregroundColor = .red
         attributes.outlineColor = .black
-        attributes.font = FontResource.system(weight: .italic)
+        attributes.font = Font.system(size: 0, weight: .ultraLight)
 
         var text = AttributedText("Hello, Ada Engine!\n", attributes: attributes)
 
-        attributes.font = FontResource.system(weight: .regular)
+        attributes.font = Font.system(size: 0, weight: .regular)
         attributes.foregroundColor = .purple
         attributes.kern = -0.03
 
         text += AttributedText("And my dear friends!", attributes: attributes)
 
         attributes.foregroundColor = .brown
-        attributes.font = .system(weight: .heavy)
+        attributes.font = Font.system(size: 0, weight: .heavy)
 
         text.setAttributes(
             attributes,
@@ -209,7 +209,7 @@ class InputMapCallComponent: ScriptableComponent {
     var container = TextAttributeContainer()
 
     override func onReady() {
-        container.font = .system(weight: .bold)
+        container.font = .system(size: 0, weight: .bold)
         container.foregroundColor = .white
     }
 

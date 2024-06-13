@@ -127,7 +127,7 @@ public extension Transform3D {
      */
     // FIXME: (Vlad) Looks like it doesn't works
     @inline(__always)
-    init(_ affineTransform: Transform2D) {
+    init(from affineTransform: Transform2D) {
         let at = affineTransform
         
         self = Transform3D(columns: [

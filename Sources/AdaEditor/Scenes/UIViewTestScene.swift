@@ -38,3 +38,17 @@ struct CustomWidget: Widget {
         Text("Hello World")
     }
 }
+
+class UIViewTestScene: Scene {
+    
+    override func sceneDidMove(to view: SceneView) {
+        let view1 = UIView(frame: Rect(x: 0, y: 0, width: 50, height: 50))
+        view1.backgroundColor = .red
+        let view2 = UIView(frame: Rect(x: 70, y: 0, width: 50, height: 50))
+        view1.backgroundColor = .green
+        view.addSubview(view1)
+        
+        view.addSubview(view2)
+    }
+    
+}

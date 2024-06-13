@@ -30,7 +30,7 @@ open class UIWindow: UIView {
     }
     
     /// Flag indicates that window can draw itself content in method ``draw(in:with:)``.
-    open var canDraw: Bool = false
+    open var canDraw: Bool = true
     
     private var _minSize: Size = .zero
     public var minSize: Size {
@@ -113,12 +113,10 @@ open class UIWindow: UIView {
         super.frameDidChange()
     }
     
-    /// - Tag: AdaEngine.Window.drawWithContext
     override func draw(with context: GUIRenderContext) {
         super.draw(with: context)
     }
     
-    /// - Tag: AdaEngine.Window.drawInRectWithContext
     open override func draw(in rect: Rect, with context: GUIRenderContext) {
         super.draw(in: rect, with: context)
     }
@@ -136,7 +134,6 @@ open class UIWindow: UIView {
             }
         }
         
-        view.window = self
         super.addSubview(view)
     }
     
@@ -145,7 +142,6 @@ open class UIWindow: UIView {
             fatalError("You cant remove view from another window instance.")
         }
         
-        view.window = nil
         super.removeSubview(view)
     }
 }
