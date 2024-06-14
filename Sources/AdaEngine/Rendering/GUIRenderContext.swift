@@ -49,16 +49,14 @@ final public class GUIRenderContext {
         }
     }
     
-    private var screenRect: Rect = .zero
-    
     private var currentDrawContext: Renderer2D.DrawContext?
     
-    internal func beginDraw(in rect: Rect) {
+    internal func beginDraw(in size: Size, scaleFactor: Float) {
         let view = Transform3D.orthographic(
             left: 0,
-            right: screenRect.width,
+            right: size.width / scaleFactor,
             top: 0,
-            bottom: screenRect.height,
+            bottom: -size.height / scaleFactor,
             zNear: -1,
             zFar: 1
         )
@@ -104,8 +102,7 @@ final public class GUIRenderContext {
     
     /// Paints the area contained within the provided rectangle, using the passed color and texture.
     public func drawRect(_ rect: Rect, texture: Texture2D? = nil, color: Color) {
-        let modelMatrix = self.currentTransform
-        let transform = rect.toTransform3D
+        let transform = self.currentTransform * rect.toTransform3D
         self.currentDrawContext?.drawQuad(transform: transform, texture: texture, color: color)
     }
     
