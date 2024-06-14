@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/4/21.
 //
 
+import Math
+
 /// A representation of a color that adapts to a given context.
 public struct Color: Codable, Hashable {
     
@@ -67,7 +69,7 @@ public extension Color {
     
     static let clear = Color(red: 1, green: 1, blue: 1, alpha: 0)
     
-    func random() -> Color {
+    static func random() -> Color {
         Color(
             red: Float.random(in: 0...255) / 255,
             green: Float.random(in: 0...255) / 255,
