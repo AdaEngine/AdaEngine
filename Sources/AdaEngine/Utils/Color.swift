@@ -66,6 +66,15 @@ public extension Color {
     static let purple = Color(red: 175 / 255, green: 82 / 255, blue: 222 / 255, alpha: 1)
     
     static let clear = Color(red: 1, green: 1, blue: 1, alpha: 0)
+    
+    func random() -> Color {
+        Color(
+            red: Float.random(in: 0...255) / 255,
+            green: Float.random(in: 0...255) / 255,
+            blue: Float.random(in: 0...255) / 255,
+            alpha: Float.random(in: 0...1)
+        )
+    }
 }
 
 public extension Color {

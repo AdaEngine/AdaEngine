@@ -111,32 +111,32 @@ open class UIView {
     }
 
     // MARK: Rendering
-
-    open func draw(in rect: Rect, with context: GUIRenderContext) {
+    
+    open func draw(in rect: Rect, with context: GUIRenderContext) { }
+    
+    // TODO: 
+    /// Internal method for drawing
+    internal func draw(with context: GUIRenderContext) {
         if self.isHidden {
             return
         }
         
-        context.drawRect(rect, color: self.backgroundColor)
-
-        for subview in self.zSortedChildren {
-            subview.draw(with: context)
-        }
-    }
-
-    internal func draw(with context: GUIRenderContext) {
         context.saveContext()
         
         if affineTransform != .identity {
             context.multiply(Transform3D(from: affineTransform))
         }
         
-//        context.translateBy(x: self.frame.minX, y: self.frame.minY)
-        context.scaleBy(x: 1, y: 1)
+        context.translateBy(x: self.frame.midX, y: -self.frame.midY)
+        
+        /// Draw background
+        context.drawRect(self.bounds, color: self.backgroundColor)
         
         self.draw(in: self.bounds, with: context)
-        
-//        context.translateBy(x: -self.frame.minX, y: -self.frame.minY)
+
+        for subview in self.zSortedChildren {
+            subview.draw(with: context)
+        }
         
         context.restoreContext()
     }

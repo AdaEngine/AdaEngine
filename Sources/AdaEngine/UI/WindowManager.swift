@@ -40,7 +40,7 @@ open class UIWindowManager {
             if window.canDraw {
                 let context = GUIRenderContext(window: window)
                 
-                context.beginDraw(in: window.bounds)
+                context.beginDraw(in: window.bounds.size, scaleFactor: 1)
                 window.draw(with: context)
                 context.commitDraw()
             }

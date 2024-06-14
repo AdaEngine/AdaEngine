@@ -113,14 +113,6 @@ open class UIWindow: UIView {
         super.frameDidChange()
     }
     
-    override func draw(with context: GUIRenderContext) {
-        super.draw(with: context)
-    }
-    
-    open override func draw(in rect: Rect, with context: GUIRenderContext) {
-        super.draw(in: rect, with: context)
-    }
-    
     public override func addSubview(_ view: UIView) {
         if view is UIWindow {
             fatalError("You cannot add window as subview to another window")
