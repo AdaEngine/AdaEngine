@@ -56,5 +56,6 @@ use_repo(
     swift_deps,
     "swiftpkg_box2d_swift",
     "swiftpkg_swift_collections",
+    "swiftpkg_swift_log",
 )
 # swift_deps END
