@@ -6,6 +6,7 @@
 //
 
 import AdaEngine
+import Logging
 
 @main
 struct AdaEditorApp: App {

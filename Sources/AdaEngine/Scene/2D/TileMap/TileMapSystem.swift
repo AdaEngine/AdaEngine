@@ -5,9 +5,13 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
+import Logging
+
 // FIXME: a lot of sprites drop fps.
 
 public struct TileMapSystem: System {
+    
+    let logger = Logger(label: "tilemap")
 
     public static var dependencies: [SystemDependency] = [
         .after(VisibilitySystem.self)
@@ -100,7 +104,7 @@ public struct TileMapSystem: System {
                     tileEntity = entitySource.getEntity(at: tile.atlasCoordinates)
                     tileEntity.components += Transform(scale: scale, position: position)
                 default:
-                    print("TileSource isn't supported for id: \(tile.sourceId)")
+                    logger.warning("TileSource isn't supported for id: \(tile.sourceId)")
                     continue
                 }
 

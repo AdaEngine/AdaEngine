@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/11/24.
 //
 
+import Logging
+
 /// Namespace for LDtk
 public enum LDtk { }
 
@@ -161,7 +163,8 @@ extension LDtk {
                 do {
                     try await loadLdtkProject(from: data)
                 } catch {
-                    print("Failed to update ldtk file", error.localizedDescription)
+                    
+                    Logger(label: "LDtk").critical("Failed to update ldtk file \(error.localizedDescription)")
                 }
             }
         }
