@@ -30,10 +30,10 @@ public struct TextContainer: Hashable {
     
     public init(
         text: AttributedText,
-        bounds: Rect,
-        textAlignment: TextAlignment,
-        lineBreakMode: LineBreakMode,
-        lineSpacing: Float
+        bounds: Rect = Rect(x: 0, y: 0, width: .infinity, height: .infinity),
+        textAlignment: TextAlignment = .center,
+        lineBreakMode: LineBreakMode = .byCharWrapping,
+        lineSpacing: Float = 0
     ) {
         self.text = text
         self.bounds = bounds
@@ -41,7 +41,15 @@ public struct TextContainer: Hashable {
         self.lineBreakMode = lineBreakMode
         self.lineSpacing = lineSpacing
     }
-    
+
+    init() {
+        self.text = ""
+        self.bounds = Rect(x: 0, y: 0, width: .infinity, height: .infinity)
+        self.textAlignment = .center
+        self.lineBreakMode = .byCharWrapping
+        self.lineSpacing = 0
+    }
+
 }
 
 /// An object that coordinates the layout and display of text characters.
@@ -61,7 +69,9 @@ public final class TextLayoutManager {
         lineBreakMode: .byCharWrapping,
         lineSpacing: 0
     )
-    
+
+    var size: Size = .zero
+
     /// All glyphs for render in text contaner bounds
     private var glyphs: [Glyph] = []
     
@@ -82,6 +92,8 @@ public final class TextLayoutManager {
     
     /// Fit text to bounds and update rendered glyphs.
     public func invalidateDisplay(for bounds: Rect) {
+        self.size = .zero
+
         var x: Double = Double(bounds.origin.x)
         var y: Double = Double(bounds.origin.y)
         
@@ -93,6 +105,7 @@ public final class TextLayoutManager {
         var textures: [Texture2D?] = .init(repeating: nil, count: Constants.maxTexturesPerBatch)
         let attributedText = self.textContainer.text
         
+        indecies: 
         for index in attributedText.text.indices {
             let attributes = attributedText.attributes(at: index)
             let char = attributedText.text[index]
@@ -141,7 +154,7 @@ public final class TextLayoutManager {
                 
                 if abs(Float((pt * fontScale) + y)) > bounds.size.height {
                     // TODO: Add
-                    return // available lines did end
+                    break indecies // available lines did end
                 }
                 
                 pl = (pl * fontScale) + x
@@ -175,10 +188,19 @@ public final class TextLayoutManager {
                 }
             }
         }
+
+        self.size.width = Float(x)
+        self.size.height = Float(y)
     }
-    
-    /// Get or create glyphs vertex data relative to transform.
+
     func getGlyphVertexData(transform: Transform3D) -> GlyphRenderData {
+        var textures: [Texture2D] = .init(repeating: .whiteTexture, count: Constants.maxTexturesPerBatch)
+        var textureIndex: Int = -1
+        return getGlyphVertexData(transform: transform, textures: &textures, textureSlotIndex: &textureIndex)
+    }
+
+    /// Get or create glyphs vertex data relative to transform.
+    func getGlyphVertexData(transform: Transform3D, textures: inout [Texture2D], textureSlotIndex: inout Int) -> GlyphRenderData {
         if let glyphsToRender = glyphsToRender, glyphsToRender.transform == transform {
             return glyphsToRender
         }
@@ -187,7 +209,6 @@ public final class TextLayoutManager {
         var indeciesCount: Int = 0
         
         var textureIndex: Int = -1
-        var textures: [Texture2D?] = .init(repeating: nil, count: Constants.maxTexturesPerBatch)
         
         for glyph in self.glyphs {
             let texture = glyph.textureAtlas

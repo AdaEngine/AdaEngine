@@ -157,7 +157,8 @@ let adaEngineTarget: Target = .target(
     dependencies: adaEngineDependencies,
     resources: [
         .copy("Assets/Shaders"),
-        .copy("Assets/Fonts")
+        .copy("Assets/Fonts"),
+        .copy("Assets/Images")
     ],
     swiftSettings: adaEngineSwiftSettings,
     linkerSettings: [

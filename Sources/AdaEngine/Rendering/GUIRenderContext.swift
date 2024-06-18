@@ -69,11 +69,11 @@ final public class GUIRenderContext {
         )
     }
     
-    public func saveContext() {
+    public func pushTransform() {
         self.stack.append(.identity)
     }
     
-    public func restoreContext() {
+    public func popTransform() {
         self.stack.removeLast()
     }
     
@@ -108,10 +108,15 @@ final public class GUIRenderContext {
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
     public func drawEllipse(in rect: Rect, color: Color) {
-        let transform = rect.toTransform3D
+        let transform = self.currentTransform * rect.toTransform3D
         self.currentDrawContext?.drawCircle(transform: transform, thickness: 1, fade: 0.005, color: color)
     }
-    
+
+    public func drawText(in rect: Rect, from textLayout: TextLayoutManager) {
+        let transform = self.currentTransform * rect.toTransform3D
+        self.currentDrawContext?.drawText(textLayout, transform: transform)
+    }
+
     public func commitDraw() {
         self.currentDrawContext?.commitContext()
         
@@ -143,19 +148,9 @@ extension GUIRenderContext {
 extension Rect {
     var toTransform3D: Transform3D {
         Transform3D(
-            translation: [self.minX, self.minY, 0], 
+            translation: [self.midX, -self.midY, 0], 
             rotation: .identity,
             scale: [self.size.width, self.size.height, 1]
         )
     }
-}
-
-// model -> view -> projection
-// quad -> .identity -> ortho
-// quad -> ortho
-
-// position = ortho * quad
-
-class UILayer {
-    var texture: Texture2D?
 }

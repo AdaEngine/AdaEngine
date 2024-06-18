@@ -214,6 +214,13 @@ class Renderer2D {
         
         // Text
         
+        let textIndexBuffer = device.makeIndexBuffer(
+            format: .uInt32,
+            bytes: &quadIndices,
+            length: Self.maxIndecies
+        )
+        textIndexBuffer.label = "Renderer2D_TextIndexBuffer"
+
         piplineDesc.vertexDescriptor = VertexDescriptor()
         
         piplineDesc.debugName = "Text Pipeline"
@@ -230,15 +237,21 @@ class Renderer2D {
             .attribute(.int, name: "textureIndex")
         ])
         
+        let textVertexBuffer = device.makeVertexBuffer(
+            length: MemoryLayout<GlyphVertexData>.stride * Self.maxVerticies,
+            binding: 0
+        )
+        textVertexBuffer.label = "Renderer2D_QuadVertexBuffer"
+
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<GlyphVertexData>.stride
         
         let textPipeline = device.makeRenderPipeline(from: piplineDesc)
         
         self.textData = Data<GlyphVertexData>(
-            vertexBuffer: quadVertexBuffer,
+            vertexBuffer: textVertexBuffer,
             vertices: [],
             indeciesCount: 0,
-            indexBuffer: indexBuffer,
+            indexBuffer: textIndexBuffer,
             renderPipeline: textPipeline,
             textureSlots: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
         )
@@ -416,28 +429,26 @@ extension Renderer2D {
             if self.renderEngine.textData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()
             }
-            
-            let glyphs = textLayout.getGlyphVertexData(transform: transform)
-            self.renderEngine.textData.vertices.append(contentsOf: glyphs.verticies)
-            self.renderEngine.textData.indeciesCount += glyphs.indeciesCount
-            
+
             // Flush all data if textures count more than 16
             if self.renderEngine.textData.textureSlotIndex >= 15 {
                 self.nextBatch()
                 self.renderEngine.textData.textureSlots = [Texture2D].init(repeating: .whiteTexture, count: 16)
                 self.renderEngine.textData.textureSlotIndex = 0
             }
-            
-            // Fill textures to render
-            for texture in glyphs.textures {
-                if let texture = texture {
-                    if !self.renderEngine.textData.textureSlots.contains(where: { $0 === texture }) {
-                        self.renderEngine.textData.textureSlotIndex += 1
-                        self.renderEngine.textData.textureSlots[self.renderEngine.textData.textureSlotIndex] = texture
-                        
-                    }
-                }
-            }
+
+            var textureSlotIndex = self.renderEngine.textData.textureSlotIndex
+
+            let glyphs = textLayout.getGlyphVertexData(
+                transform: transform,
+                textures: &self.renderEngine.textData.textureSlots,
+                textureSlotIndex: &textureSlotIndex
+            )
+
+            self.renderEngine.textData.textureSlotIndex = textureSlotIndex
+
+            self.renderEngine.textData.vertices.append(contentsOf: glyphs.verticies)
+            self.renderEngine.textData.indeciesCount += glyphs.indeciesCount
         }
         
         public func drawLine(start: Vector3, end: Vector3, color: Color) {
@@ -488,6 +499,9 @@ extension Renderer2D {
             
             self.renderEngine.lineData.vertices.removeAll(keepingCapacity: true)
             self.renderEngine.lineData.indeciesCount = 0
+
+            self.renderEngine.textData.vertices.removeAll(keepingCapacity: true)
+            self.renderEngine.textData.indeciesCount = 0
         }
         
         public func flush() {
@@ -504,7 +518,18 @@ extension Renderer2D {
             self.flush(for: self.renderEngine.circleData, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.textData, currentDraw: currentDraw)
         }
-        
+
+        private func flushTextData() {
+            let buffer = self.renderEngine.uniformSet.getBuffer(
+                binding: GlobalBufferIndex.viewUniform,
+                set: 0,
+                frameIndex: self.frameIndex
+            )
+
+            self.currentDraw.appendUniformBuffer(buffer)
+            self.flush(for: self.renderEngine.textData, currentDraw: currentDraw)
+        }
+
         private func flush<D>(for data: Data<D>, indexPrimitive: IndexPrimitive = .triangle, currentDraw: DrawList) {
             if data.indeciesCount == 0 {
                 return

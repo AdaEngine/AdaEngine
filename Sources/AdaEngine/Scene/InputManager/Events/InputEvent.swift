@@ -9,7 +9,7 @@
 // TODO: (Vlad) Should we use protocol instead of inheritence the base class?
 
 /// Base class for all input events.
-public class InputEvent: Hashable, Identifiable {
+public class InputEvent: Hashable, Identifiable, Event {
     
     public let window: UIWindow.ID
     public let time: TimeInterval
