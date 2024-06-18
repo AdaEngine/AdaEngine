@@ -7,11 +7,9 @@
 
 import Math
 
-// - TODO: (Vlad) Add transforms for drawing (translation/rotation/scale)
 // - TODO: (Vlad) Blending mode (cuz alpha doesn't work)
 // - TODO: (Vlad) texturing the views
 // - TODO: (Vlad) draw lines
-// - TODO: (Vlad) draw rectangles
 // - TODO: (Vlad) create transperent API for 2D rendering
 // - TODO: (Vlad) Interaction (hit testing)
 // - TODO: (Vlad) Cropping
@@ -32,17 +30,6 @@ open class UIView {
             self.setFrame(self.frame)
         }
     }
-    
-    var needsResortZPositionForChildren = false
-    var _zSortedChildren: [UIView] = []
-    var zSortedChildren: [UIView] {
-        if needsResortZPositionForChildren {
-            _zSortedChildren = self.subviews.sorted(by: { $0.zIndex > $1.zIndex })
-            needsResortZPositionForChildren = false
-        }
-        
-        return _zSortedChildren
-    }
 
     /// Contains size and position relative to self local coordinates.
     open var bounds: Rect = .zero
@@ -62,9 +49,7 @@ open class UIView {
         }
     }
     
-    private var needsLayout = true
-    
-    public var backgroundColor: Color = .white
+    public var backgroundColor: Color = .clear
 
     public var window: UIWindow? {
         var superview = self.superview
@@ -84,6 +69,22 @@ open class UIView {
     public var affineTransform: Transform2D = .identity
 
     // MARK: - Private Fields -
+
+    private var needsLayout = true
+
+    var needsResortZPositionForChildren = false
+
+    private var _zSortedChildren: [UIView] = []
+    var zSortedChildren: [UIView] {
+        if needsResortZPositionForChildren {
+            _zSortedChildren = self.subviews.sorted(by: { $0.zIndex < $1.zIndex })
+            needsResortZPositionForChildren = false
+        }
+
+        return _zSortedChildren
+    }
+
+    // MARK: - Init
 
     public required init(frame: Rect) {
         self.frame = frame
@@ -113,22 +114,19 @@ open class UIView {
     // MARK: Rendering
     
     open func draw(in rect: Rect, with context: GUIRenderContext) { }
-    
-    // TODO: 
+
     /// Internal method for drawing
     internal func draw(with context: GUIRenderContext) {
         if self.isHidden {
             return
         }
         
-        context.saveContext()
-        
         if affineTransform != .identity {
             context.multiply(Transform3D(from: affineTransform))
         }
         
-        context.translateBy(x: self.frame.midX, y: -self.frame.midY)
-        
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+
         /// Draw background
         context.drawRect(self.bounds, color: self.backgroundColor)
         
@@ -137,8 +135,8 @@ open class UIView {
         for subview in self.zSortedChildren {
             subview.draw(with: context)
         }
-        
-        context.restoreContext()
+
+        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
     }
 
     private var worldTransform: Transform2D {
@@ -150,7 +148,11 @@ open class UIView {
     }
     
     // MARK: - Life Cycle
-    
+
+    open var intrinsicContentSize: Size {
+        return .zero
+    }
+
     public func setNeedsLayout() {
         self.needsLayout = true
     }
@@ -225,37 +227,57 @@ open class UIView {
         return view?.convert(point, to: self) ?? point
     }
 
-    func sendEvent(_ event: InputEvent) {
+    open func canRespondToAction(_ event: InputEvent) -> Bool {
+        return true
+    }
+
+    open func onTouchesEvent(_ touches: Set<TouchEvent>) {
+
+    }
+
+    open func onMouseEvent(_ event: MouseEvent) {
+
+    }
+
+    internal func onEvent(_ event: InputEvent) {
         switch event {
         case let event as MouseEvent:
-            self.handleMouseEvent(event)
-        case let event as TouchEvent:
-            self.handleTouchEvent(event)
-        case let event as KeyEvent:
-            self.handleKeyEvent(event)
+            self.onMouseEvent(event)
+        case is TouchEvent:
+            let window = self.window?.id
+            let touches = Input.shared.touches.filter({ $0.window == window })
+            self.onTouchesEvent(touches)
         default:
             return
         }
     }
 
-    internal func handleKeyEvent(_ event: KeyEvent) {
+    private var eventsDisposeBag: Set<AnyCancellable> = []
 
+    public func subscribe<Event: InputEvent>(to event: Event.Type, completion: @escaping (Event) -> Void) {
+        self.window?.eventManager.subscribe(to: event, completion: completion)
+            .store(in: &eventsDisposeBag)
     }
 
-    internal func handleMouseEvent(_ event: MouseEvent) {
-        // if user click on view, we should handle it
-        if event.button == .left || event.button == .right {
-            self.handleClick(event.mousePosition, with: event)
+    func findFirstResponder(for event: InputEvent) -> UIView? {
+        let responder: UIView?
+
+        switch event {
+        case let event as MouseEvent:
+            let point = event.mousePosition
+            responder = self.hitTest(point, with: event)
+        case let event as TouchEvent:
+            let point = event.location
+            responder = self.hitTest(point, with: event)
+        default:
+            return nil
         }
 
-    }
+        if responder?.canRespondToAction(event) == false {
+            return nil
+        }
 
-    internal func handleTouchEvent(_ event: TouchEvent) {
-
-    }
-
-    private func handleClick(_ position: Point, with event: InputEvent) {
-        guard self.isInteractionEnabled else { return }
+        return responder
     }
 
     // MARK: - View Hierarchy

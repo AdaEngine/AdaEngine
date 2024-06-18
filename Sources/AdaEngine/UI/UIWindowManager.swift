@@ -33,7 +33,7 @@ open class UIWindowManager {
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) async {
         for window in self.windows {
-            for event in Input.shared.eventsPool {
+            for event in Input.shared.eventsPool where event.window == window.id {
                 window.sendEvent(event)
             }
             

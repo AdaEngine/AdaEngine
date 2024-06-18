@@ -28,7 +28,9 @@ open class UIWindow: UIView {
     public var windowManager: UIWindowManager {
         return Application.shared.windowManager
     }
-    
+
+    internal let eventManager = EventManager()
+
     /// Flag indicates that window can draw itself content in method ``draw(in:with:)``.
     open var canDraw: Bool = true
     
@@ -105,7 +107,16 @@ open class UIWindow: UIView {
     open func windowShouldClose() -> Bool {
         return true
     }
-    
+
+    func sendEvent(_ event: InputEvent) {
+        guard self.canRespondToAction(event) else {
+            return
+        }
+
+        let responder = self.findFirstResponder(for: event) ?? self
+        responder.onEvent(event)
+    }
+
     // MARK: - Overriding
     
     override func frameDidChange() {

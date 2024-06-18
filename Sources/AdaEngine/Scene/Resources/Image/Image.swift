@@ -254,7 +254,7 @@ public extension Image.Format {
         case .rgba8:
             return .rgba8
         case .rgb8:
-            return .none
+            return .rgba8
         case .bgra8:
             return .bgra8
         case .bgra8_sRGB:
