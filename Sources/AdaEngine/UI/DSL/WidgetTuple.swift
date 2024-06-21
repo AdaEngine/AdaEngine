@@ -27,8 +27,6 @@ extension Never: Widget {
 extension WidgetTuple: WidgetNodeBuilder {
     func makeWidgetNode(context: Context) -> WidgetNode {
         let node = WidgetContainerNode(
-            parent: context.parent,
-            stackIndex: 0,
             content: self,
             buildNodesBlock: {
                 // swiftlint:disable:next syntactic_sugar
@@ -41,7 +39,6 @@ extension WidgetTuple: WidgetNodeBuilder {
         )
         
         node.storages = WidgetStorageReflection.findStorages(in: self, node: node)
-        
         return node
     }
 }

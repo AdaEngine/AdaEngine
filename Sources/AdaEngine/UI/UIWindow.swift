@@ -119,7 +119,7 @@ open class UIWindow: UIView {
 
     // MARK: - Overriding
     
-    override func frameDidChange() {
+    open override func frameDidChange() {
         self.windowManager.resizeWindow(self, size: self.frame.size)
         super.frameDidChange()
     }
@@ -136,7 +136,7 @@ open class UIWindow: UIView {
                 fatalError("You cannot add view as subview, because view holded by another window.")
             }
         }
-        
+
         super.addSubview(view)
     }
     

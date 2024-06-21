@@ -20,7 +20,7 @@ open class UILabel: UIView {
         }
     }
 
-    public var font: Font = .system(size: 1) {
+    public var font: Font = .system(size: 17) {
         didSet {
             updateTextLayoutManager()
         }

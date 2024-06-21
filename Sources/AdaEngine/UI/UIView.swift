@@ -34,8 +34,8 @@ open class UIView {
     /// Contains size and position relative to self local coordinates.
     open var bounds: Rect = .zero
 
-    /// Contains link to parent super view
-    public private(set) weak var superview: UIView?
+    /// Contains link to parent parent view
+    public private(set) weak var parentView: UIView?
 
     public private(set) var subviews: [UIView] = []
 
@@ -45,24 +45,19 @@ open class UIView {
 
     open var zIndex: Int = 0 {
         didSet {
-            self.superview?.needsResortZPositionForChildren = true
+            self.parentView?.needsResortZPositionForChildren = true
         }
     }
-    
+
     public var backgroundColor: Color = .clear
 
-    public var window: UIWindow? {
-        var superview = self.superview
-        
-        while superview != nil {
-            if let window = superview as? UIWindow {
-                return window
-            }
-            
-            superview = superview?.superview
+    public weak var window: UIWindow? {
+        willSet {
+            willMoveToWindow(newValue)
         }
-        
-        return nil
+        didSet {
+            didMoveToWindow(self.window)
+        }
     }
 
     /// Affine matrix to apply any transformation to current view
@@ -95,24 +90,8 @@ open class UIView {
         self.frame = .zero
     }
 
-    // MARK: - Private
-
-    func setFrame(_ frame: Rect) {
-        self.bounds.size = frame.size
-
-        self.frameDidChange()
-        
-        self.setNeedsLayout()
-    }
-
-    func frameDidChange() {
-        for view in subviews {
-            view.frameDidChange()
-        }
-    }
-
     // MARK: Rendering
-    
+
     open func draw(in rect: Rect, with context: GUIRenderContext) { }
 
     /// Internal method for drawing
@@ -120,16 +99,16 @@ open class UIView {
         if self.isHidden {
             return
         }
-        
+
         if affineTransform != .identity {
             context.multiply(Transform3D(from: affineTransform))
         }
-        
+
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
 
         /// Draw background
         context.drawRect(self.bounds, color: self.backgroundColor)
-        
+
         self.draw(in: self.bounds, with: context)
 
         for subview in self.zSortedChildren {
@@ -140,41 +119,119 @@ open class UIView {
     }
 
     private var worldTransform: Transform2D {
-        if let superView = self.superview {
-            return superView.affineTransform * self.affineTransform
+        if let parentView = self.parentView {
+            return parentView.affineTransform * self.affineTransform
         }
 
         return self.affineTransform
     }
-    
-    // MARK: - Life Cycle
 
-    open var intrinsicContentSize: Size {
-        return .zero
+    // MARK: - Layout
+
+    func setFrame(_ frame: Rect) {
+        self.bounds.size = frame.size
+
+        self.frameDidChange()
+        self.setNeedsLayout()
     }
+
+    open func frameDidChange() { }
 
     public func setNeedsLayout() {
         self.needsLayout = true
     }
-    
+
     public func layoutIfNeeded() {
         if needsLayout {
             self.layoutSubviews()
             self.needsLayout = false
         }
     }
-    
+
+    private func updateAutoresizingFrameIfNeeded() {
+        guard let parentView = self.parentView else {
+            return
+        }
+
+        if autoresizingRules.contains(.flexibleHeight) && self.frame.height != parentView.frame.height {
+            self.frame.size.height = parentView.frame.height
+            self.setNeedsLayout()
+        }
+
+        if autoresizingRules.contains(.flexibleWidth) && self.frame.width != parentView.frame.width {
+            self.frame.size.width = parentView.frame.width
+            self.setNeedsLayout()
+        }
+    }
+
     open func layoutSubviews() {
+        self.updateAutoresizingFrameIfNeeded()
+
         for subview in subviews {
             subview.layoutSubviews()
         }
     }
 
+    open var minimumContentSize: Size {
+        return .zero
+    }
+
+    public struct AutoresizingRule: OptionSet {
+
+        public var rawValue: UInt
+
+        public init(rawValue: UInt) {
+            self.rawValue = rawValue
+        }
+
+        public static let flexibleWidth = AutoresizingRule(rawValue: 1 << 0)
+        public static let flexibleHeight = AutoresizingRule(rawValue: 1 << 1)
+    }
+
+    public var autoresizingRules: AutoresizingRule = []
+
+    open func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        var newSize = self.bounds.size
+
+        if let width = proposal.width, width != .infinity {
+            newSize.width = width
+        }
+
+        if let height = proposal.height, height != .infinity {
+            newSize.height = height
+        }
+
+        return newSize
+    }
+
     // MARK: - Life cycle
 
-    /// - Parameter superView: Return view instance if view attached to superview or nil if view deattached from superview.
-    /// Also superview can be [Window](x-source-tag://AdaEngine.Window) instance.
-    open func viewDidMove(to superView: UIView?) { }
+    /// - Parameter parentView: Return view instance if view attached to parentview or nil if view deattached from parentView.
+    /// Also parent can be ``UIWindow`` instance.
+    open func viewWillMove(to parentView: UIView?) {
+        if parentView != nil {
+            updateAutoresizingFrameIfNeeded()
+        }
+    }
+
+    open func viewDidMoveToParentView() { }
+
+    open func viewDidMoveToWindow() { }
+
+    open func viewWillMove(to window: UIWindow?) { }
+
+    private func willMoveToWindow(_ window: UIWindow?) {
+        for subview in subviews {
+            subview.viewWillMove(to: window)
+        }
+    }
+
+    private func didMoveToWindow(_ window: UIWindow?) {
+        for subview in subviews {
+            subview.window = window
+            subview.viewWillMove(to: window)
+        }
+    }
 
     // MARK: - Interaction
 
@@ -211,9 +268,9 @@ open class UIView {
             return point
         }
 
-        if view.superview === self {
+        if view.parentView === self {
             return (point - view.frame.origin).applying(self.affineTransform.inverse) + view.bounds.origin
-        } else if let superview, superview === view {
+        } else if let parentView, parentView === view {
             return (point - bounds.origin).applying(self.affineTransform) + frame.origin
         }
 
@@ -287,43 +344,67 @@ open class UIView {
             fatalError("Can't add self as subview")
         }
 
-        if view.superview != nil {
+        if view.parentView != nil {
             fatalError("Can't add view if view attached to another view")
         }
 
+        view.viewWillMove(to: self)
         self.subviews.append(view)
-        view.superview = self
 
-        view.viewDidMove(to: self)
-        
+        // FIXME: Should fix?
+        if let window = self as? UIWindow {
+            view.window = window
+        } else {
+            view.window = self.window
+        }
+
+        view.parentView = self
+        view.viewDidMoveToParentView()
         self.needsResortZPositionForChildren = true
-        
         self.setNeedsLayout()
     }
 
-    open func removeFromSuperview() {
-        self.superview?.removeSubview(self)
+    open func removeFromParentView() {
+        self.parentView?.removeSubview(self)
     }
 
     open func removeSubview(_ view: UIView) {
         guard let index = self.subviews.firstIndex(where: { $0 === view }) else { return }
         let deletedView = self.subviews.remove(at: index)
-        deletedView.superview = nil
-        view.viewDidMove(to: nil)
-        
+        view.viewWillMove(to: nil)
+        view.window = nil
+        deletedView.parentView = nil
+
         self.needsResortZPositionForChildren = true
     }
 
-    /// Called each frame
-    open func update(_ deltaTime: TimeInterval) async {
+    func internalUpdate(_ deltaTime: TimeInterval) async {
         self.layoutIfNeeded()
-        
+
         for subview in self.subviews {
+            await subview.internalUpdate(deltaTime)
             await subview.update(deltaTime)
         }
     }
+
+    /// Called each frame
+    open func update(_ deltaTime: TimeInterval) async { }
 }
 
-// frame is a size and position view in scene, relative to parent.
-// If we set position or size, we should calculate new local coordinates relative to parent.
-// and also we should set that transform to the render context. If we want calculate position relative to screen space or another view space, we should calculate world transform matrix.
+/// During layout in AdaEngine UI, views choose their own size, but they do that in response to a size proposal from their parent view.
+public struct ProposedViewSize: Equatable {
+    /// The proposed horizontal size measured in points.
+    public let width: Float?
+
+    /// The proposed vertical size measured in points.
+    public let height: Float?
+
+    /// A size proposal that contains zero in both dimensions.
+    public static let zero = ProposedViewSize(width: 0, height: 0)
+
+    /// A size proposal that contains infinity in both dimensions.
+    public static let infinity = ProposedViewSize(width: .infinity, height: .infinity)
+
+    /// The proposed size with both dimensions left unspecified.
+    public static let unspecified = ProposedViewSize(width: .infinity, height: .infinity)
+}
