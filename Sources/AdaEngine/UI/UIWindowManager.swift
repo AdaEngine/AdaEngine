@@ -45,7 +45,7 @@ open class UIWindowManager {
                 context.commitDraw()
             }
             
-            await window.update(deltaTime)
+            await window.internalUpdate(deltaTime)
         }
     }
 

@@ -7,9 +7,11 @@
 
 public struct VStack<Content: Widget>: Widget, WidgetNodeBuilder {
     
+    let spacing: Float
     let content: Content
     
-    public init(@WidgetBuilder content: () -> Content) {
+    public init(spacing: Float = 0, @WidgetBuilder content: () -> Content) {
+        self.spacing = spacing
         self.content = content()
     }
     
@@ -20,6 +22,7 @@ public struct VStack<Content: Widget>: Widget, WidgetNodeBuilder {
     func makeWidgetNode(context: Context) -> WidgetNode {
         return WidgetStackContainerNode(
             axis: .vertical,
+            spacing: spacing,
             content: self,
             buildNodesBlock: {
                 let containerNode = (self.content as? WidgetNodeBuilder)?.makeWidgetNode(context: context) as? WidgetContainerNode

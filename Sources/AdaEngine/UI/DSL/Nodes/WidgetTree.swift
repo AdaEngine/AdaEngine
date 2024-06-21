@@ -20,15 +20,11 @@ class WidgetTree<Content: Widget> {
         
         let contentNode = Self.findFirstWidgetNodeBuilder(in: self.rootView, context: context)
         contentNode.storages = WidgetStorageReflection.findStorages(in: rootView, node: contentNode)
-        self.rootNode = contentNode
-    }
-    
-    func invalidate(rect: Rect) {
-        rootNode.invalidateContent()
+        self.rootNode = WidgetRootNode(contentNode: contentNode, content: rootView)
     }
     
     func renderGraph(renderContext: GUIRenderContext) {
-        self.rootNode.renderNode(context: renderContext)
+        self.rootNode.draw(with: renderContext)
     }
     
     private static func findFirstWidgetNodeBuilder<T: Widget>(in content: T, context: WidgetNodeBuilderContext) -> WidgetNode {
@@ -37,5 +33,23 @@ class WidgetTree<Content: Widget> {
         } else {
             return self.findFirstWidgetNodeBuilder(in: content.body, context: context)
         }
+    }
+}
+
+final class WidgetRootNode: WidgetNode {
+    let contentNode: WidgetNode
+
+    init(contentNode: WidgetNode, content: any Widget) {
+        self.contentNode = contentNode
+        super.init(content: content)
+    }
+
+    override func performLayout() {
+        self.contentNode.frame = self.frame
+        self.contentNode.performLayout()
+    }
+
+    override func draw(with context: GUIRenderContext) {
+        contentNode.draw(with: context)
     }
 }

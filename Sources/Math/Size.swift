@@ -39,3 +39,17 @@ extension Size {
         .init(width: Int(self.width), height: Int(self.height))
     }
 }
+
+public extension Size {
+    static func += (lhs: inout Size, rhs: Size) {
+        lhs = lhs + rhs
+    }
+
+    static func + (lhs: Size, rhs: Size) -> Size {
+        return Size(
+            width: lhs.width + rhs.width,
+            height: rhs.height + lhs.height
+        )
+    }
+}
+

@@ -21,7 +21,7 @@ struct FrameWidget<Content: Widget>: Widget, WidgetNodeBuilder {
     }
     
     func makeWidgetNode(context: Context) -> WidgetNode {
-        RectangleWidgetNode(rect: .zero, stackIndex: 0, content: content)
+        return FrameWidgetNode(frameRule: self.frame, content: self)
     }
 }
 
@@ -37,6 +37,16 @@ struct FrameWidgetModifier: WidgetModifier {
         FrameWidget(frame: frame, content: content)
     }
     
+}
+
+class FrameWidgetNode: WidgetNode {
+
+    let frameRule: FrameWidgetModifier.Frame
+
+    init(frameRule: FrameWidgetModifier.Frame, content: any Widget) {
+        self.frameRule = frameRule
+        super.init(content: content)
+    }
 }
 
 // MARK: - Visibility
@@ -66,7 +76,7 @@ struct OnAppearWidget<Content: Widget>: Widget, WidgetNodeBuilder {
     }
     
     func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetNodeVisibility(stackIndex: 0, content: content)
+        let node = WidgetNodeVisibility(content: content)
         node.onAppear = self.onAppear
         return node
     }
@@ -88,7 +98,7 @@ struct OnDisappearWidget<Content: Widget>: Widget, WidgetNodeBuilder {
     }
     
     func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetNodeVisibility(stackIndex: 0, content: content)
+        let node = WidgetNodeVisibility(content: content)
         node.onDisappear = self.onDisappear
         return node
     }
@@ -126,8 +136,28 @@ struct BackgroundWidget<Content: Widget>: Widget, WidgetNodeBuilder {
     }
     
     func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetNodeVisibility(stackIndex: 0, content: content)
-        return node
+        return WidgetNodeVisibility(content: content)
     }
-    
+
+}
+
+@MainActor
+class CanvasWidgetNode: WidgetNode {
+
+    typealias RenderBlock = (GUIRenderContext, Rect) -> Void
+
+    let drawBlock: RenderBlock
+
+    init(content: any Widget, drawBlock: @escaping RenderBlock) {
+        self.drawBlock = drawBlock
+        super.init(content: content)
+    }
+
+    override func draw(with context: GUIRenderContext) {
+        self.drawBlock(context, self.frame)
+    }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        return Size(width: proposal.width ?? 0, height: proposal.height ?? 0)
+    }
 }

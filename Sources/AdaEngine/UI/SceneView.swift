@@ -26,15 +26,15 @@ public class SceneView: UIView {
         self.sceneManager.presentScene(scene)
     }
     
-    override func frameDidChange() {
+    public override func frameDidChange() {
         super.frameDidChange()
         self.viewport.rect.size = self.frame.size
         
         self.sceneManager.setViewport(self.viewport)
     }
-    
-    public override func viewDidMove(to superView: UIView?) {
-        self.sceneManager.setWindow(superView?.window)
+
+    public override func viewWillMove(to window: UIWindow?) {
+        self.sceneManager.setWindow(window)
     }
 
     public override func update(_ deltaTime: TimeInterval) async {

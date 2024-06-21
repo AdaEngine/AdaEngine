@@ -8,13 +8,15 @@
 class TextWidgetNode: WidgetNode {
     
     var text: String = ""
-    var font: FontResource = .system()
-    
-    override func performLayout() {
-        
+    var font: Font = .system(size: 17)
+
+    init(text: String, font: Font, content: any Widget) {
+        self.text = text
+        self.font = font
+        super.init(content: content)
     }
-    
-    override func renderNode(context: GUIRenderContext) {
-        
+
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        return .zero
     }
 }

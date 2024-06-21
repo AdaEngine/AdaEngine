@@ -10,12 +10,8 @@ import AppKit
 import MetalKit
 
 final class MacApplication: Application {
-    
-    // Timer that synced with display refresh rate.
-    private let displayLink: DisplayLink
 
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        self.displayLink = DisplayLink(on: .main)!
         try super.init(argc: argc, argv: argv)
         self.windowManager = MacOSWindowManager()
 

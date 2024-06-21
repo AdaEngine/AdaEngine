@@ -163,6 +163,7 @@ open class Scene: Resource, @unchecked Sendable {
 
     // MARK: - Internal methods
 
+    @MainActor
     func readyIfNeeded() async {
         if self.isReady {
             return
@@ -171,6 +172,7 @@ open class Scene: Resource, @unchecked Sendable {
         await self.ready()
     }
 
+    @MainActor
     func ready() async {
         // TODO: In the future we need minimal scene plugin for headless mode.
         if self.instantiateDefaultPlugin {
@@ -187,6 +189,7 @@ open class Scene: Resource, @unchecked Sendable {
     }
     
     /// Update scene world and systems by delta time.
+    @MainActor
     func update(_ deltaTime: TimeInterval) async {
         if self.isUpdating {
             assertionFailure("Can't update scene twice")
