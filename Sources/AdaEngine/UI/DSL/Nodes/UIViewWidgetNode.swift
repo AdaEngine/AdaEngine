@@ -20,7 +20,7 @@ final class UIViewWidgetNode: WidgetNode {
         self.makeUIView = makeUIView
         self.updateUIView = updateUIView
         
-        super.init(stackIndex: 0, content: content)
+        super.init(content: content)
     }
     
     override func performLayout() {
@@ -34,7 +34,7 @@ final class UIViewWidgetNode: WidgetNode {
         super.invalidateContent()
     }
     
-    override func renderNode(context: GUIRenderContext) {
-//        view?.draw(in: self.rect, with: context)
+    override func draw(with context: GUIRenderContext) {
+        view?.draw(with: context)
     }
 }

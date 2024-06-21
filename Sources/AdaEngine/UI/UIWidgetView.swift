@@ -13,12 +13,15 @@ public class UIWidgetView<Content: Widget>: UIView {
         self.widgetTree = WidgetTree(rootView: rootView)
         
         super.init()
+
+        self.widgetTree.rootNode.invalidateContent()
     }
-    
+
     public override func layoutSubviews() {
-        widgetTree.invalidate(rect: self.frame)
+        super.layoutSubviews()
         
-        widgetTree.rootNode._printDebugNode()
+        widgetTree.rootNode.frame = self.frame
+        widgetTree.rootNode.performLayout()
     }
     
     public required init(frame: Rect) {
@@ -30,15 +33,11 @@ public class UIWidgetView<Content: Widget>: UIView {
             return self
         }
         
-        return nil
+        return self
     }
     
     public override func point(inside point: Point, with event: InputEvent) -> Bool {
         return self.widgetTree.rootNode.point(inside: point, with: event)
-    }
-    
-    override public func update(_ deltaTime: TimeInterval) async {
-        await super.update(deltaTime)
     }
     
     override public func draw(in rect: Rect, with context: GUIRenderContext) {

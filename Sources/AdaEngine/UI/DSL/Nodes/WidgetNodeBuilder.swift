@@ -6,7 +6,6 @@
 //
 
 struct WidgetNodeBuilderContext {
-    var parent: WidgetNode?
     var widgetContext: WidgetContextValues
 }
 

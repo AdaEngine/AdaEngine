@@ -52,6 +52,8 @@ public struct TextContainer: Hashable {
 
 }
 
+// TODO: Fix Font size
+
 /// An object that coordinates the layout and display of text characters.
 /// TextLayoutManager maps unicods characters codes to glyphs.
 public final class TextLayoutManager {
