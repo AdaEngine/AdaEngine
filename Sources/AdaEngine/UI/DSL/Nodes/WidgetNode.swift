@@ -5,12 +5,9 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-protocol Layout {
-    func sizeThatFits(_ proposal: ProposedViewSize) -> Size
-}
-
 @MainActor
 class WidgetNode {
+    
     weak var parent: WidgetNode?
 
     var content: any Widget
@@ -24,11 +21,28 @@ class WidgetNode {
     
     init(content: any Widget) {
         self.content = content
-        print("Create node \(type(of: content))")
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        return frame.size
+    func sizeThatFits(_ proposal: ProposedViewSize, usedByParent: Bool = false) -> Size {
+        var newSize = self.frame.size
+
+        if let width = proposal.width {
+            if width == .infinity {
+                newSize.width = self.parent?.frame.width ?? 0
+            } else {
+                newSize.width = width
+            }
+        }
+
+        if let height = proposal.height {
+            if height == .infinity {
+                newSize.height = self.parent?.frame.height ?? 0
+            } else {
+                newSize.height = height
+            }
+        }
+
+        return newSize
     }
     
     func performLayout() {
@@ -42,7 +56,7 @@ class WidgetNode {
     // MARK: - Debug
     
     func _printDebugNode() {
-        dump(self)
+        print(self.debugDescription(hierarchy: 0))
     }
     
     // MARK: - Interaction
@@ -52,140 +66,51 @@ class WidgetNode {
     }
 
     func hitTest(_ point: Point, with event: InputEvent) -> WidgetNode? {
+        if self.point(inside: point, with: event) {
+            return self
+        }
+
         return nil
     }
 
     /// - Returns: true if point is inside the receiver’s bounds; otherwise, false.
     func point(inside point: Point, with event: InputEvent) -> Bool {
-        return false
+        return self.frame.contains(point: point)
     }
 
-    func convert(_ point: Point, to view: WidgetNode?) -> Point {
-        return .zero
-    }
-
-    func convert(_ point: Point, from view: WidgetNode?) -> Point {
-        return view?.convert(point, to: self) ?? point
-    }
-}
-
-/// Used for tuple
-class WidgetContainerNode: WidgetNode {
-    
-    typealias BuildContentBlock = () -> [WidgetNode]
-    
-    var nodes: [WidgetNode] = []
-    let buildBlock: BuildContentBlock
-
-    init(
-        content: any Widget,
-        buildNodesBlock: @escaping BuildContentBlock
-    ) {
-        self.buildBlock = buildNodesBlock
-        super.init(content: content)
-
-        self.invalidateContent()
-    }
-
-    override func performLayout() {
-        for node in nodes {
-            node.performLayout()
+    func convert(_ point: Point, to node: WidgetNode?) -> Point {
+        guard let node, node !== self else {
+            return point
         }
-    }
 
-    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        var size: Size = .zero
+        if node.parent === self {
+            return (point - node.frame.origin)
+        } else if let parent, parent === node {
+            return point + frame.origin
+        }
         
-        for node in nodes {
-            let childSize = node.sizeThatFits(proposal)
-            size += childSize
-        }
-
-        return size
+        return point
     }
 
-    override func invalidateContent() {
-        self.nodes = self.buildBlock()
-        
-        for node in nodes {
-            node.parent = self
-        }
+    func convert(_ point: Point, from node: WidgetNode?) -> Point {
+        return node?.convert(point, to: self) ?? point
     }
 
-    override func draw(with context: GUIRenderContext) {
-        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+    open func onTouchesEvent(_ touches: Set<TouchEvent>) {
 
-        for node in self.nodes {
-            node.draw(with: context)
-        }
-
-        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
-    }
-}
-
-class WidgetStackContainerNode: WidgetContainerNode {
-    
-    enum StackAxis {
-        case horizontal
-        case vertical
-        case depth
-    }
-    
-    let axis: StackAxis
-    let spacing: Float
-
-    init(axis: StackAxis, spacing: Float, content: any Widget, buildNodesBlock: @escaping BuildContentBlock) {
-        self.axis = axis
-        self.spacing = spacing
-
-        super.init(content: content, buildNodesBlock: buildNodesBlock)
-    }
-    
-    override func performLayout() {
-        if frame == .zero { return }
-
-        let count = self.nodes.count
-        var origin: Point = .zero
-
-        for node in self.nodes {
-            var size: Size = .zero
-
-            switch axis {
-            case .horizontal, .vertical:
-                let proposalWidth = self.axis == .horizontal ? self.frame.width / Float(count) : self.frame.width
-                let proposalHeight = self.axis == .vertical ? self.frame.height / Float(count) : self.frame.height
-                let proposal = ProposedViewSize(
-                    width: proposalWidth,
-                    height: proposalHeight
-                )
-
-                size = node.sizeThatFits(proposal)
-            case .depth:
-                let proposal = ProposedViewSize(
-                    width: frame.width,
-                    height: frame.height
-                )
-                size = node.sizeThatFits(proposal)
-            }
-
-            node.frame.size = size
-            node.frame.origin = origin
-
-            node.performLayout()
-
-            switch axis {
-            case .horizontal:
-                origin.x += spacing + size.width
-            case .vertical:
-                origin.y += spacing + size.height
-            case .depth:
-                continue
-            }
-        }
     }
 
-    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        super.sizeThatFits(proposal)
+    open func onMouseEvent(_ event: MouseEvent) {
+
+    }
+
+    func debugDescription(hierarchy: Int = 0, identation: Int = 2) -> String {
+        let identation = String(repeating: " ", count: hierarchy * identation)
+        return """
+        \(identation)\(type(of: self)):
+        \(identation)\(identation)- frame: \(frame)
+        \(identation)\(identation)- content: \(type(of: self.content))
+        """
     }
 }
 

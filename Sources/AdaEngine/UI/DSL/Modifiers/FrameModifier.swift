@@ -21,7 +21,9 @@ struct FrameWidget<Content: Widget>: Widget, WidgetNodeBuilder {
     }
     
     func makeWidgetNode(context: Context) -> WidgetNode {
-        return FrameWidgetNode(frameRule: self.frame, content: self)
+        FrameWidgetNode(frameRule: frame, content: self) {
+            [context.makeNode(from: content)]
+        }
     }
 }
 
@@ -36,16 +38,45 @@ struct FrameWidgetModifier: WidgetModifier {
     func body(content: Content) -> some Widget {
         FrameWidget(frame: frame, content: content)
     }
-    
 }
 
-class FrameWidgetNode: WidgetNode {
+class ModifierWidgetNode: WidgetContainerNode {
+    override func performLayout() {
+        for node in self.nodes {
+            node.frame = self.frame
+            node.performLayout()
+        }
+    }
+}
+
+class FrameWidgetNode: ModifierWidgetNode {
 
     let frameRule: FrameWidgetModifier.Frame
 
-    init(frameRule: FrameWidgetModifier.Frame, content: any Widget) {
+    init(frameRule: FrameWidgetModifier.Frame, content: any Widget, buildNodesBlock: @escaping WidgetContainerNode.BuildContentBlock) {
         self.frameRule = frameRule
-        super.init(content: content)
+        super.init(content: content, buildNodesBlock: buildNodesBlock)
+    }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize, usedByParent: Bool = false) -> Size {
+        var newSize = Size.zero
+
+        switch frameRule {
+        case .size(let width, let height):
+            if let width, width > 0 {
+                newSize.width = min(width, proposal.width ?? 0)
+            } else {
+                newSize.width = proposal.width ?? 0
+            }
+
+            if let height, height > 0 {
+                newSize.height = min(height, proposal.height ?? 0)
+            } else {
+                newSize.height = proposal.height ?? 0
+            }
+        }
+
+        return newSize
     }
 }
 
@@ -138,7 +169,6 @@ struct BackgroundWidget<Content: Widget>: Widget, WidgetNodeBuilder {
     func makeWidgetNode(context: Context) -> WidgetNode {
         return WidgetNodeVisibility(content: content)
     }
-
 }
 
 @MainActor
@@ -156,8 +186,63 @@ class CanvasWidgetNode: WidgetNode {
     override func draw(with context: GUIRenderContext) {
         self.drawBlock(context, self.frame)
     }
+}
 
-    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        return Size(width: proposal.width ?? 0, height: proposal.height ?? 0)
+// MARK: - Modify Environment
+
+public extension Widget {
+    func transformWidgetContext<Value>(
+        _ keyPath: WritableKeyPath<WidgetContextValues, Value>,
+        block: @escaping (inout Value) -> Void
+    ) -> some Widget {
+        TransformWidgetContextModifier(
+            content: self,
+            keyPath: keyPath,
+            block: block
+        )
+    }
+}
+
+struct TransformWidgetContextModifier<Content: Widget, Value>: Widget, WidgetNodeBuilder {
+
+    let content: Content
+    let keyPath: WritableKeyPath<WidgetContextValues, Value>
+    let block: (inout Value) -> Void
+
+    var body: Never {
+        fatalError()
+    }
+
+    func makeWidgetNode(context: Context) -> WidgetNode {
+        var widgetContext = context.widgetContext
+        block(&widgetContext[keyPath: keyPath])
+
+        let newContext = Context(widgetContext: widgetContext)
+        if let node = WidgetNodeBuilderFinder.findBuilder(in: content)?.makeWidgetNode(context: newContext) {
+            return node
+        } else {
+            fatalError()
+        }
+    }
+}
+
+@MainActor
+enum WidgetNodeBuilderFinder {
+    static func findBuilder(in content: any Widget) -> WidgetNodeBuilder? {
+        var nodeBuilder: WidgetNodeBuilder? = (content as? WidgetNodeBuilder)
+
+        var body: any Widget = content
+        while nodeBuilder == nil {
+            let newBody = body.body
+
+            if let builder = newBody as? WidgetNodeBuilder {
+                nodeBuilder = builder
+                break
+            } else {
+                body = newBody
+            }
+        }
+
+        return nodeBuilder
     }
 }

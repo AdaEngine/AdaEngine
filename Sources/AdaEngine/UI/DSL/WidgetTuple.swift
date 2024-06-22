@@ -33,7 +33,22 @@ extension WidgetTuple: WidgetNodeBuilder {
                 let widgets = Array<any Widget>.fromTuple(value)
                 
                 return widgets.compactMap {
-                    ($0 as? WidgetNodeBuilder)?.makeWidgetNode(context: context)
+                    var nodeBuilder: WidgetNodeBuilder? = ($0 as? WidgetNodeBuilder)
+
+                    var body: (any Widget)? = $0
+                    while nodeBuilder == nil {
+                        let newBody = body?.body
+
+                        if let builder = newBody as? WidgetNodeBuilder {
+                            nodeBuilder = builder
+                            break
+                        } else {
+                            body = newBody
+                        }
+                    }
+
+
+                    return nodeBuilder?.makeWidgetNode(context: context)
                 }
             }
         )

@@ -33,7 +33,35 @@ final class UIViewWidgetNode: WidgetNode {
         
         super.invalidateContent()
     }
-    
+
+    override func hitTest(_ point: Point, with event: InputEvent) -> WidgetNode? {
+        if let view = self.view, view.hitTest(point, with: event) != nil {
+            return self
+        }
+
+        return super.hitTest(point, with: event)
+    }
+
+    override func point(inside point: Point, with event: InputEvent) -> Bool {
+        if let view = self.view, view.point(inside: point, with: event) {
+            return true
+        }
+
+        return super.point(inside: point, with: event)
+    }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize, usedByParent: Bool = false) -> Size {
+        guard let view else {
+            return .zero
+        }
+
+        if usedByParent {
+            return view.sizeThatFits(proposal)
+        } else {
+            return super.sizeThatFits(proposal)
+        }
+    }
+
     override func draw(with context: GUIRenderContext) {
         view?.draw(with: context)
     }

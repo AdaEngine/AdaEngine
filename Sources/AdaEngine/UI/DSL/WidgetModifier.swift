@@ -5,23 +5,11 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-public struct WidgetModifierContent: Widget, WidgetModifier {
-    
-    public func body(content: Content) -> Never {
-        fatalError()
-    }
-    
-    public var body: Never {
-        fatalError()
-    }
-}
-
 @MainActor
 public protocol WidgetModifier {
     associatedtype Body: Widget
-    
-    typealias Content = WidgetModifierContent
-    
+    typealias Content = AnyWidget
+
     @WidgetBuilder
     func body(content: Self.Content) -> Body
 }
@@ -53,10 +41,10 @@ public struct ModifiedContent<Content, Modifier> {
     }
 }
 
-extension ModifiedContent : Widget where Content : Widget, Modifier : WidgetModifier {
-    
+extension ModifiedContent : Widget where Modifier: WidgetModifier, Content : Widget {
+
     @MainActor public var body: Modifier.Body {
-        self.modifier.body(content: self.content as! Modifier.Content)
+        self.modifier.body(content: AnyWidget(self.content))
     }
     
 }
@@ -67,6 +55,29 @@ extension ModifiedContent : Widget where Content : Widget, Modifier : WidgetModi
 //    }
 //    
 //    public typealias Body = Never
-//    
-//    
 //}
+
+public struct AnyWidget: Widget, WidgetNodeBuilder {
+
+    let content: any Widget
+
+    public init<T: Widget>(_ widget: T) {
+        self.content = widget
+    }
+
+    public init(_ widget: any Widget) {
+        self.content = widget
+    }
+
+    public var body: Never {
+        fatalError()
+    }
+
+    func makeWidgetNode(context: Context) -> WidgetNode {
+        if let builder = WidgetNodeBuilderFinder.findBuilder(in: content) {
+            return builder.makeWidgetNode(context: context)
+        } else {
+            return WidgetNode(content: content)
+        }
+    }
+}
