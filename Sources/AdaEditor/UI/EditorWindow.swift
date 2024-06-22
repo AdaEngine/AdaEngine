@@ -10,26 +10,29 @@ import AdaEngine
 struct ContentView: Widget {
     var body: some Widget {
         HStack(spacing: 8) {
-
-            Color.red
-
             VStack {
+                Canvas { context, rect in
+                    context.drawRect(rect, color: .red)
+                }
+
+                Canvas { context, rect in
+                    context.drawRect(rect, color: .yellow)
+                }
+            }
+
+            VStack(spacing: 3) {
+                Color.green
+
+                Color.blue
+
+                Color.green
+            }
+
+            VStack(spacing: 3) {
                 Color.green
 
                 Color.blue
             }
-
-//            VStack(spacing: 8) {
-//                Color.yellow
-//
-//                Color.blue
-//            }
-
-//            VStack(spacing: 8) {
-//                Color.red
-//
-//                Color.green
-//            }
         }
     }
 }
@@ -100,7 +103,7 @@ class EditorWindow: UIWindow {
 //        label.text = "Hello World"
 //        self.addSubview(label)
     }
-    
+
     override func draw(in rect: Rect, with context: GUIRenderContext) {
 //        let size: Float = 100
 //
