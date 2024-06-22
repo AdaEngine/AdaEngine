@@ -15,8 +15,4 @@ class TextWidgetNode: WidgetNode {
         self.font = font
         super.init(content: content)
     }
-
-    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        return .zero
-    }
 }
