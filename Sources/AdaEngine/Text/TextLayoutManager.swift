@@ -72,7 +72,7 @@ public final class TextLayoutManager {
         lineSpacing: 0
     )
 
-    var size: Size = .zero
+    private(set) var size: Size = .zero
 
     /// All glyphs for render in text contaner bounds
     private var glyphs: [Glyph] = []
@@ -116,8 +116,8 @@ public final class TextLayoutManager {
             
             let fontHandle = attributes.font.fontResource.handle
             let metrics = fontHandle.metrics
-            let fontScale = 1 / (metrics.ascenderY - metrics.descenderY)
-            
+            let fontScale =  1 / attributes.font.pointSize
+
             if let index = textures.firstIndex(where: { fontHandle.atlasTexture === $0 }) {
                 textureIndex = index
             } else {
@@ -188,6 +188,10 @@ public final class TextLayoutManager {
                 } else {
                     x += fontScale * advance + kern
                 }
+            }
+
+            if y == 0 {
+                y += fontScale + lineHeightOffset
             }
         }
 
@@ -332,7 +336,7 @@ public extension String {
             
             let fontHandle = font.fontResource.handle
             let metrics = fontHandle.metrics
-            let fontScale = (1 / (metrics.ascenderY - metrics.descenderY)) * font.pointSize
+            let fontScale = (1 / (metrics.ascenderY - metrics.descenderY))
             
             for scalarIndex in char.unicodeScalars.indices {
                 let scalar = char.unicodeScalars[scalarIndex]
@@ -392,12 +396,16 @@ public extension String {
                 }
             }
         }
-        
+
+        calculatedSize.width = Float(x)
+        calculatedSize.height = Float(y)
+
         return calculatedSize
     }
     
     /// Returns the bounding box size the receiver occupies when drawn with the given attributes.
-    func size(with attributes: TextAttributeContainer? = nil) -> Size {
+    func size(with attributes: TextAttributeContainer? = nil
+    ) -> Size {
         self.boundingSize(width: .infinity, height: .infinity, attributes: attributes)
     }
 }

@@ -7,8 +7,9 @@
 
 import Math
 
-@MainActor
-class WidgetNode: Identifiable {
+/// Base node for all system widgets in AdaEngine.
+/// Node represents a view that can render, layout and interact with user.
+@MainActor class WidgetNode: Identifiable {
 
     nonisolated var id: ObjectIdentifier {
         ObjectIdentifier(self)
@@ -23,9 +24,15 @@ class WidgetNode: Identifiable {
 
     init<Content: Widget>(content: Content) {
         self.content = content
+
+        defer {
+            self.storages = WidgetNodeBuilderUtils.findPropertyStorages(in: content, node: self)
+        }
     }
 
     // MARK: Layout
+
+    func invalidateContent(in context: WidgetNodeBuilderContext) { }
 
     func updateLayoutProperties(_ props: LayoutProperties) {
         self.layoutProperties = props
