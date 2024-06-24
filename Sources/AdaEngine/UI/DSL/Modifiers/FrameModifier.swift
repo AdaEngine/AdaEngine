@@ -99,27 +99,6 @@ struct BackgroundWidget<Content: Widget>: Widget, WidgetNodeBuilder {
     }
 }
 
-@MainActor
-class CanvasWidgetNode: WidgetNode {
-
-    typealias RenderBlock = (GUIRenderContext, Size) -> Void
-
-    let drawBlock: RenderBlock
-
-    init<Content: Widget>(content: Content, drawBlock: @escaping RenderBlock) {
-        self.drawBlock = drawBlock
-        super.init(content: content)
-    }
-
-    override func draw(with context: GUIRenderContext) {
-        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-
-        self.drawBlock(context, self.frame.size)
-
-        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
-    }
-}
-
 // MARK: - Modify Environment
 
 public extension Widget {
