@@ -25,10 +25,12 @@ class WidgetContainerNode: WidgetNode {
     init<Content: Widget>(content: Content, context: WidgetNodeBuilderContext) {
         self.nodes = []
         super.init(content: content)
-        self.invalidateContent(in: context)
+        self.updateEnvironment(context.environment)
+        self.invalidateContent()
     }
 
-    override func invalidateContent(in context: WidgetNodeBuilderContext) {
+    override func invalidateContent() {
+        let context = WidgetNodeBuilderContext(environment: self.environment)
         guard let builder = WidgetNodeBuilderUtils.findNodeBuilder(in: self.content) else {
             fatalError("Can't find builder")
         }
@@ -48,6 +50,15 @@ class WidgetContainerNode: WidgetNode {
 
         for node in nodes {
             node.parent = self
+            node.updateEnvironment(self.environment)
+        }
+    }
+
+    override func updateEnvironment(_ environment: WidgetEnvironmentValues) {
+        super.updateEnvironment(environment)
+
+        for node in nodes {
+            node.updateEnvironment(environment)
         }
     }
 
