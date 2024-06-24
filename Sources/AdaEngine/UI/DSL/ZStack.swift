@@ -9,17 +9,17 @@ public struct ZStack<Content: Widget>: Widget, WidgetNodeBuilder {
 
     public typealias Body = Never
 
-    let spacing: Float
+    let anchor: AnchorPoint
     let content: Content
     
-    public init(spacing: Float = 0, @WidgetBuilder content: () -> Content) {
-        self.spacing = spacing
+    public init(anchor: AnchorPoint = .center, @WidgetBuilder content: () -> Content) {
+        self.anchor = anchor
         self.content = content()
     }
     
     func makeWidgetNode(context: Context) -> WidgetNode {
         LayoutWidgetContainerNode(
-            layout: ZStackLayout(),
+            layout: ZStackLayout(anchor: self.anchor),
             content: content,
             context: context
         )

@@ -37,16 +37,17 @@ extension UIViewRepresentable {
 }
 
 struct UIViewRepresentableWidget<View: UIViewRepresentable>: Widget, WidgetNodeBuilder {
-
     typealias Body = Never
-
     let repsentable: View
     
     func makeWidgetNode(context: Context) -> WidgetNode {
-        return UIViewWidgetNode(
+        let node = UIViewWidgetNode(
             representable: repsentable,
-            content: self,
-            environment: context.environment
+            content: self
         )
+        
+        node.updateEnvironment(context.environment)
+
+        return node
     }
 }

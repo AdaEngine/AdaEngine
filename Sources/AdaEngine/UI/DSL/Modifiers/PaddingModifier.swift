@@ -122,6 +122,40 @@ final class PaddingModifierWidgetNode: WidgetModifierNode {
         super.init(content: content, context: context)
     }
 
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        var vertical = Float.zero
+        var horizontal = Float.zero
+
+        if self.edges.contains(.leading) {
+            horizontal += insets.leading
+        }
+        if self.edges.contains(.trailing) {
+            horizontal += insets.trailing
+        }
+        if self.edges.contains(.top) {
+            vertical += insets.top
+        }
+        if self.edges.contains(.bottom) {
+            vertical += insets.bottom
+        }
+
+        var proposalSize = proposal
+        if let width = proposal.width {
+            proposalSize.width = max(width - horizontal, 0)
+        }
+
+        if let height = proposal.height {
+            proposalSize.height = max(height - vertical, 0)
+        }
+
+        let size = super.sizeThatFits(proposalSize)
+
+        return Size(
+            width: max(size.width + horizontal, 0),
+            height: max(size.height + vertical, 0)
+        )
+    }
+
     override func performLayout() {
         var minX = self.frame.minX
         var maxX = self.frame.maxX

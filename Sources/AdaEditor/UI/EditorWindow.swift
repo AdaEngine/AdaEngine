@@ -12,23 +12,14 @@ struct ContentView: Widget {
     @State private var color = Color.brown
 
     var body: some Widget {
-        VStack {
-            Color.red
-
-            HStack(spacing: 2) {
-                Color.blue
-
-                Text("Hello")
-                    .frame(width: 40)
-
-                Color.blue
+        ScrollView {
+            VStack {
+                ForEach(0..<30) { _ in
+                    Color.random()
+                }
             }
-            .padding(.all, 16)
-            .background(Color.yellow)
-
-            Color.red
+            .padding(16)
         }
-
     }
 }
 

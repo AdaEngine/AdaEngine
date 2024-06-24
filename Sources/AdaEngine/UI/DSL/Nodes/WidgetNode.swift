@@ -19,8 +19,9 @@ import Math
 
     var content: any Widget
     var storages: [UpdatablePropertyStorage] = []
+    private(set) var environment = WidgetEnvironmentValues()
     private(set) var frame: Rect = .zero
-    private(set) var layoutProperties: LayoutProperties = LayoutProperties()
+    private(set) var layoutProperties = LayoutProperties()
 
     init<Content: Widget>(content: Content) {
         self.content = content
@@ -32,7 +33,11 @@ import Math
 
     // MARK: Layout
 
-    func invalidateContent(in context: WidgetNodeBuilderContext) { }
+    func updateEnvironment(_ environment: WidgetEnvironmentValues) {
+        self.environment = environment
+    }
+
+    func invalidateContent() { }
 
     func updateLayoutProperties(_ props: LayoutProperties) {
         self.layoutProperties = props
@@ -64,9 +69,7 @@ import Math
     
     // MARK: - Interaction
     
-    func onReceiveEvent(_ event: InputEvent) {
-        
-    }
+    func onReceiveEvent(_ event: InputEvent) { }
 
     func hitTest(_ point: Point, with event: InputEvent) -> WidgetNode? {
         if self.point(inside: point, with: event) {

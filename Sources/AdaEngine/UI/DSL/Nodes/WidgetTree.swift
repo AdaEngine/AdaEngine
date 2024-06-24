@@ -42,10 +42,14 @@ final class WidgetRootNode: WidgetNode {
 
     let contentNode: WidgetNode
 
+    static let rootCoordinateSpace = NamedWidgetCoordinateSpace(UUID().uuidString)
+
     init<Root: Widget>(contentNode: WidgetNode, content: Root) {
         self.contentNode = contentNode
         super.init(content: content)
+        
         self.contentNode.parent = self
+        self.environment.coordinateSpaces.containers[Self.rootCoordinateSpace.name] = self
     }
 
     override func performLayout() {
@@ -74,5 +78,17 @@ final class WidgetRootNode: WidgetNode {
 
     override func point(inside point: Point, with event: InputEvent) -> Bool {
         contentNode.point(inside: point, with: event)
+    }
+
+    override func onMouseEvent(_ event: MouseEvent) {
+        contentNode.onMouseEvent(event)
+    }
+
+    override func onReceiveEvent(_ event: InputEvent) {
+        contentNode.onReceiveEvent(event)
+    }
+
+    override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+        contentNode.onTouchesEvent(touches)
     }
 }

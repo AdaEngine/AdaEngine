@@ -29,6 +29,7 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
         
         set {
             storage.value = newValue
+            self.update()
         }
     }
     
