@@ -5,59 +5,55 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
+import Math
+
 @MainActor
-class WidgetNode {
-    
+class WidgetNode: Identifiable {
+
+    nonisolated var id: ObjectIdentifier {
+        ObjectIdentifier(self)
+    }
+
     weak var parent: WidgetNode?
 
     var content: any Widget
     var storages: [UpdatablePropertyStorage] = []
-    var frame: Rect = .zero
+    private(set) var frame: Rect = .zero
+    private(set) var layoutProperties: LayoutProperties = LayoutProperties()
 
-    // MARK: Layout
-    
-    var needsInvalidateNodes: Bool = true
-    var needsLayout: Bool = false
-    
-    init(content: any Widget) {
+    init<Content: Widget>(content: Content) {
         self.content = content
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, usedByParent: Bool = false) -> Size {
-        var newSize = self.frame.size
+    // MARK: Layout
 
-        if let width = proposal.width {
-            if width == .infinity {
-                newSize.width = self.parent?.frame.width ?? 0
-            } else {
-                newSize.width = width
-            }
-        }
-
-        if let height = proposal.height {
-            if height == .infinity {
-                newSize.height = self.parent?.frame.height ?? 0
-            } else {
-                newSize.height = height
-            }
-        }
-
-        return newSize
+    func updateLayoutProperties(_ props: LayoutProperties) {
+        self.layoutProperties = props
     }
-    
-    func performLayout() {
-        
+
+    func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        return proposal.replacingUnspecifiedDimensions()
     }
-    
-    func invalidateContent() { }
+
+    func place(in origin: Point, anchor: AnchorPoint, proposal: ProposedViewSize) {
+        let size = self.sizeThatFits(proposal)
+        let offset = Point(
+            x: origin.x - size.width * anchor.x,
+            y: origin.y - size.height * anchor.y
+        )
+
+        self.frame = Rect(origin: offset, size: size)
+
+        self.performLayout()
+    }
+
+    func performLayout() { }
+
+    // MARK: - Other
+
+    func update(_ deltaTime: TimeInterval) { }
 
     func draw(with context: GUIRenderContext) { }
-
-    // MARK: - Debug
-    
-    func _printDebugNode() {
-        print(self.debugDescription(hierarchy: 0))
-    }
     
     // MARK: - Interaction
     
@@ -104,6 +100,12 @@ class WidgetNode {
 
     }
 
+    // MARK: - Debug
+
+    func _printDebugNode() {
+        print(self.debugDescription(hierarchy: 0))
+    }
+
     func debugDescription(hierarchy: Int = 0, identation: Int = 2) -> String {
         let identation = String(repeating: " ", count: hierarchy * identation)
         return """
@@ -114,15 +116,26 @@ class WidgetNode {
     }
 }
 
-class WidgetNodeVisibility: WidgetNode {
-    var onAppear: (() -> Void)?
-    var onDisappear: (() -> Void)?
+public struct AnchorPoint : Hashable, Sendable {
+    public var x: Float = 0
+    public var y: Float = 0
 
-    deinit {
-        self.onDisappear?()
+    public init() { }
+
+    public init(x: Float, y: Float) {
+        self.x = x
+        self.y = y
     }
 
-    override func performLayout() {
-        self.onAppear?()
-    }
+    public static let zero = AnchorPoint(x: 0.0, y: 0.0)
+    public static let center = AnchorPoint(x: 0.5, y: 0.5)
+    public static let leading = AnchorPoint(x: 0.0, y: 0.5)
+    public static let trailing = AnchorPoint(x: 1.0, y: 0.5)
+    public static let top = AnchorPoint(x: 0.5, y: 0.0)
+    public static let bottom = AnchorPoint(x: 0.5, y: 1.0)
+
+    public static let topLeading = AnchorPoint(x: 0.0, y: 0.0)
+    public static let topTrailing = AnchorPoint(x: 1.0, y: 0.0)
+    public static let bottomLeading = AnchorPoint(x: 0.0, y: 1.0)
+    public static let bottomTrailing = AnchorPoint(x: 1.0, y: 1.0)
 }

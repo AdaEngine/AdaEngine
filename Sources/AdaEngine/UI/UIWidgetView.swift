@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
+import Math
+
 public class UIWidgetView<Content: Widget>: UIView {
     
     private let widgetTree: WidgetTree<Content>
@@ -13,15 +15,12 @@ public class UIWidgetView<Content: Widget>: UIView {
         self.widgetTree = WidgetTree(rootView: rootView)
         
         super.init()
-
-        self.widgetTree.rootNode.invalidateContent()
     }
 
     public override func layoutSubviews() {
         super.layoutSubviews()
 
-        widgetTree.rootNode.frame = self.frame
-        widgetTree.rootNode.performLayout()
+        widgetTree.rootNode.place(in: .zero, anchor: .zero, proposal: ProposedViewSize(self.frame.size))
     }
     
     public required init(frame: Rect) {
@@ -57,5 +56,11 @@ public class UIWidgetView<Content: Widget>: UIView {
     
     override public func draw(in rect: Rect, with context: GUIRenderContext) {
         widgetTree.renderGraph(renderContext: context)
+    }
+
+    public override func update(_ deltaTime: TimeInterval) async {
+        await super.update(deltaTime)
+
+        self.widgetTree.rootNode.update(deltaTime)
     }
 }

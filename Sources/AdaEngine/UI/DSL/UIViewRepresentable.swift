@@ -6,7 +6,7 @@
 //
 
 public struct UIViewRepresentableContext<View: UIViewRepresentable> {
-    public internal(set) var widgetContext: WidgetContextValues
+    public internal(set) var environment: WidgetEnvironmentValues
     public internal(set) var coordinator: View.Coordinator
 }
 
@@ -37,30 +37,16 @@ extension UIViewRepresentable {
 }
 
 struct UIViewRepresentableWidget<View: UIViewRepresentable>: Widget, WidgetNodeBuilder {
-    
+
+    typealias Body = Never
+
     let repsentable: View
     
-    var body: some Widget {
-        fatalError()
-    }
-    
     func makeWidgetNode(context: Context) -> WidgetNode {
-        let coordinator = repsentable.makeCoordinator()
-        
-       return UIViewWidgetNode(makeUIView: {
-           let context = UIViewRepresentableContext<View>(
-                widgetContext: context.widgetContext,
-                coordinator: coordinator
-            )
-            
-            return repsentable.makeUIView(in: context)
-       }, updateUIView: { view in
-           let context = UIViewRepresentableContext<View>(
-            widgetContext: context.widgetContext,
-            coordinator: coordinator
-           )
-           repsentable.updateUIView(view as! View.ViewType, in: context)
-       }, content: self
-       )
+        return UIViewWidgetNode(
+            representable: repsentable,
+            content: self,
+            environment: context.environment
+        )
     }
 }

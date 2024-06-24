@@ -6,33 +6,28 @@
 //
 
 public struct VStack<Content: Widget>: Widget, WidgetNodeBuilder {
-    
-    let spacing: Float
+
+    public typealias Body = Never
+
+    let alignment: HorizontalAlignment
+    let spacing: Float?
     let content: Content
-    
-    public init(spacing: Float = 0, @WidgetBuilder content: () -> Content) {
+
+    public init(
+        alignment: HorizontalAlignment = .center,
+        spacing: Float? = nil,
+        @WidgetBuilder content: () -> Content
+    ) {
+        self.alignment = alignment
         self.spacing = spacing
         self.content = content()
     }
-    
-    public var body: Never {
-        fatalError()
-    }
-    
+
     func makeWidgetNode(context: Context) -> WidgetNode {
-        return WidgetStackContainerNode(
-            axis: .vertical,
-            spacing: spacing,
-            content: self,
-            buildNodesBlock: {
-                let containerNode = (self.content as? WidgetNodeBuilder)?.makeWidgetNode(context: context) as? WidgetContainerNode
-                
-                guard let containerNode else {
-                    return []
-                }
-                
-                return containerNode.nodes
-            }
+        LayoutWidgetContainerNode(
+            layout: VStackLayout(alignment: self.alignment, spacing: self.spacing),
+            content: content,
+            context: context
         )
     }
 }

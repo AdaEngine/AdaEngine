@@ -12,19 +12,3 @@ public protocol Widget {
     @WidgetBuilder
     var body: Self.Body { get }
 }
-
-// TODO: Move
-
-extension Color: Widget, WidgetNodeBuilder {
-    
-    public var body: Never {
-        fatalError()
-    }
-
-    @MainActor
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        return CanvasWidgetNode(content: self, drawBlock: { context, rect in
-            context.drawRect(rect, color: self)
-        })
-    }
-}

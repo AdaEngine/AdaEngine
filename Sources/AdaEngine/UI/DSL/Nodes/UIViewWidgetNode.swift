@@ -5,33 +5,32 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-final class UIViewWidgetNode: WidgetNode {
-    
-    private let makeUIView: () -> UIView
-    private let updateUIView: (UIView) -> Void
-    
-    private var view: UIView?
-    
-    init(
-        makeUIView: @escaping () -> UIView,
-        updateUIView: @escaping (UIView) -> Void,
-        content: any Widget
+final class UIViewWidgetNode<Representable: UIViewRepresentable>: WidgetNode {
+
+    private var view: Representable.ViewType?
+    private var coordinator: Representable.Coordinator
+    let representable: Representable
+    let environment: WidgetEnvironmentValues
+
+    init<Content: Widget>(
+        representable: Representable,
+        content: Content,
+        environment: WidgetEnvironmentValues
     ) {
-        self.makeUIView = makeUIView
-        self.updateUIView = updateUIView
-        
+        self.representable = representable
+        self.environment = environment
+        self.coordinator = representable.makeCoordinator()
         super.init(content: content)
     }
     
     override func performLayout() {
-        precondition(self.view != nil)
-        self.updateUIView(self.view!)
-    }
-    
-    override func invalidateContent() {
-        self.view = self.makeUIView()
-        
-        super.invalidateContent()
+        let context = Representable.Context(environment: self.environment, coordinator: coordinator)
+
+        if view == nil {
+            self.view = representable.makeUIView(in: context)
+        }
+
+        self.representable.updateUIView(view!, in: context)
     }
 
     override func hitTest(_ point: Point, with event: InputEvent) -> WidgetNode? {
@@ -50,16 +49,12 @@ final class UIViewWidgetNode: WidgetNode {
         return super.point(inside: point, with: event)
     }
 
-    override func sizeThatFits(_ proposal: ProposedViewSize, usedByParent: Bool = false) -> Size {
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         guard let view else {
-            return .zero
+            return proposal.replacingUnspecifiedDimensions()
         }
 
-        if usedByParent {
-            return view.sizeThatFits(proposal)
-        } else {
-            return super.sizeThatFits(proposal)
-        }
+        return view.sizeThatFits(proposal)
     }
 
     override func draw(with context: GUIRenderContext) {
