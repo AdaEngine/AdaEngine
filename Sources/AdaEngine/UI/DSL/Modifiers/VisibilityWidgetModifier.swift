@@ -53,7 +53,7 @@ struct OnDisappearWidget<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
     }
 }
 
-class WidgetNodeVisibility: WidgetContainerNode {
+final class WidgetNodeVisibility: WidgetContainerNode {
     var onAppear: (() -> Void)?
     var onDisappear: (() -> Void)?
 

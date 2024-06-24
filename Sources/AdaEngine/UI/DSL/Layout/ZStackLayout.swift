@@ -17,9 +17,24 @@ public struct ZStackLayout: Layout {
     }
 
     public func updateCache(_ cache: inout StackLayoutCache, subviews: Subviews) {
-        subviews.forEach { subview in
-            cache.minSizes.append(subview.sizeThatFits(.zero))
-            cache.maxSizes.append(subview.sizeThatFits(.infinity))
+        cache = StackLayoutCache()
+
+        for (index, subview) in subviews.enumerated() {
+            let minSize = subview.sizeThatFits(.zero)
+            let maxSize = subview.sizeThatFits(.infinity)
+
+            cache.minSizes.append(minSize)
+            cache.minSize += minSize
+            cache.maxSizes.append(maxSize)
+            cache.maxSize += maxSize
+
+            if index != subviews.startIndex && index != subviews.endIndex {
+                let space = self.spacing ?? 8
+                cache.totalSubviewSpacing += space
+                cache.subviewSpacings.append(space)
+            } else {
+                cache.subviewSpacings.append(0)
+            }
         }
     }
 

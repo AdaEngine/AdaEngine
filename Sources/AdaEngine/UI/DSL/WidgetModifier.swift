@@ -93,3 +93,11 @@ extension ModifiedContent: Widget, WidgetNodeBuilder where Modifier: WidgetModif
 //    
 //    public typealias Body = Never
 //}
+
+class WidgetModifierNode: WidgetContainerNode {
+    override func performLayout() {
+        for node in nodes {
+            node.place(in: .zero, anchor: .zero, proposal: ProposedViewSize(self.frame.size))
+        }
+    }
+}

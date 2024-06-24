@@ -9,15 +9,22 @@ import AdaEngine
 
 struct ContentView: Widget {
 
+    @State private var color = Color.brown
+
     var body: some Widget {
         VStack {
             Color.red
 
             HStack(spacing: 2) {
                 Color.blue
-                Color.brown
+
+                Text("Hello")
+                    .frame(width: 40)
+
                 Color.blue
             }
+            .padding(.all, 16)
+            .background(Color.yellow)
 
             Color.red
         }
@@ -44,18 +51,5 @@ class EditorWindow: UIWindow {
 //        label.textColor = .black
 //        label.text = "Hello World"
 //        self.addSubview(label)
-    }
-
-    override func draw(in rect: Rect, with context: GUIRenderContext) {
-//        let size: Float = 100
-//
-//        let count = Int(rect.width / size)
-//
-//        var x: Float = rect.minX
-//
-//        for _ in 0 ..< count {
-//            context.drawRect(.init(x: x, y: 50, width: size, height: size), color: Color.random())
-//            x += size
-//        }
     }
 }
