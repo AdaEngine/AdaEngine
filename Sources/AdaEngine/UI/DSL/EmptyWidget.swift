@@ -5,10 +5,10 @@
 //  Created by Vladislav Prusakov on 22.06.2024.
 //
 
+import Math
+
 public struct EmptyWidget: Widget, WidgetNodeBuilder {
-    public var body: Never {
-        fatalError()
-    }
+    public typealias Body = Never
 
     func makeWidgetNode(context: Context) -> WidgetNode {
         WidgetNode(content: self)
@@ -17,30 +17,45 @@ public struct EmptyWidget: Widget, WidgetNodeBuilder {
 
 public struct Spacer: Widget, WidgetNodeBuilder {
 
-    let minSpace: Float
+    public typealias Body = Never
 
-    public init(minSpace: Float = 0) {
-        self.minSpace = minSpace
-    }
+    let minLength: Float?
 
-    public var body: Never {
-        fatalError()
+    public init(minLength: Float?) {
+        self.minLength = minLength
     }
 
     func makeWidgetNode(context: Context) -> WidgetNode {
-        SpacerWidgetNode(minSpace: minSpace, content: self)
+        SpacerWidgetNode(minLength: minLength, content: self)
     }
 }
 
 class SpacerWidgetNode: WidgetNode {
-    let minSpace: Float
+    let minLength: Float?
 
-    init(minSpace: Float, content: any Widget) {
-        self.minSpace = minSpace
+    init(minLength: Float?, content: Spacer) {
+        self.minLength = minLength
         super.init(content: content)
     }
 
-    override func sizeThatFits(_ proposal: ProposedViewSize, usedByParent: Bool = false) -> Size {
-        super.sizeThatFits(proposal, usedByParent: usedByParent)
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        if proposal == .zero {
+            return .zero
+        }
+        
+        var size = proposal.replacingUnspecifiedDimensions()
+        if let minLength {
+            size = proposal.replacingUnspecifiedDimensions(by: Size(width: minLength, height: minLength))
+            size.width = max(size.width, minLength)
+            size.height = max(size.height, minLength)
+        }
+
+        if layoutProperties.stackOrientation == .horizontal {
+            size.height = 0
+        } else if layoutProperties.stackOrientation == .vertical {
+            size.width = 0
+        }
+
+        return size
     }
 }

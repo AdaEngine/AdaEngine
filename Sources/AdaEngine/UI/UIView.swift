@@ -406,5 +406,21 @@ public struct ProposedViewSize: Equatable {
     public static let infinity = ProposedViewSize(width: .infinity, height: .infinity)
 
     /// The proposed size with both dimensions left unspecified.
-    public static let unspecified = ProposedViewSize(width: .infinity, height: .infinity)
+    public static let unspecified = ProposedViewSize(width: nil, height: nil)
+
+    /// Creates a new proposal that replaces unspecified dimensions in this proposal with the corresponding dimension of the specified size.
+    public func replacingUnspecifiedDimensions(by size: Size = Size(width: 10, height: 10)) -> Size {
+        return Size(width: self.width ?? size.width, height: self.height ?? size.height)
+    }
+
+    init(width: Float? = nil, height: Float? = nil) {
+        self.width = width
+        self.height = height
+    }
+
+    init(_ size: Size) {
+        self.width = size.width
+        self.height = size.height
+    }
+
 }

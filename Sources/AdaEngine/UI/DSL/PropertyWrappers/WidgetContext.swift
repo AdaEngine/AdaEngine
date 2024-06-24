@@ -1,40 +1,40 @@
 //
-//  WidgetContext.swift
+//  WidgetEnvironment.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-public protocol WidgetContextKey {
+public protocol WidgetEnvironmentKey {
     associatedtype Value
     
     static var defaultValue: Value { get }
 }
 
-class WidgetContextStorage {
-    var values: WidgetContextValues = WidgetContextValues()
+final class WidgetContextStorage {
+    var values: WidgetEnvironmentValues = WidgetEnvironmentValues()
 }
 
 @propertyWrapper
-public struct WidgetContext<Value> {
-    
-    let keyPath: KeyPath<WidgetContextValues, Value>
+public struct WidgetEnvironment<Value> {
+
+    let keyPath: KeyPath<WidgetEnvironmentValues, Value>
     let container = WidgetContextStorage()
     
     public var wrappedValue: Value {
         container.values[keyPath: keyPath]
     }
     
-    public init(_ keyPath: KeyPath<WidgetContextValues, Value>) {
+    public init(_ keyPath: KeyPath<WidgetEnvironmentValues, Value>) {
         self.keyPath = keyPath
     }
 }
 
-public struct WidgetContextValues {
-    
+public struct WidgetEnvironmentValues {
+
     var values: [ObjectIdentifier: Any] = [:]
     
-    public subscript<K: WidgetContextKey>(_ type: K.Type) -> K.Value {
+    public subscript<K: WidgetEnvironmentKey>(_ type: K.Type) -> K.Value {
         get {
             (self.values[ObjectIdentifier(type)] as? K.Value) ?? K.defaultValue
         }
@@ -45,21 +45,20 @@ public struct WidgetContextValues {
     }
 }
 
-struct FontWidgetContextKey: WidgetContextKey {
+struct FontWidgetEnvironmentKey: WidgetEnvironmentKey {
     static var defaultValue: Font = Font(
         fontResource: .system(),
         pointSize: 17
     )
 }
 
-public extension WidgetContextValues {
+public extension WidgetEnvironmentValues {
     var font: Font {
         get {
-            self[FontWidgetContextKey.self]
+            self[FontWidgetEnvironmentKey.self]
         }
-        
         set {
-            self[FontWidgetContextKey.self] = newValue
+            self[FontWidgetEnvironmentKey.self] = newValue
         }
     }
 }

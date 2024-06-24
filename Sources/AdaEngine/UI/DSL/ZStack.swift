@@ -6,7 +6,9 @@
 //
 
 public struct ZStack<Content: Widget>: Widget, WidgetNodeBuilder {
-    
+
+    public typealias Body = Never
+
     let spacing: Float
     let content: Content
     
@@ -15,24 +17,11 @@ public struct ZStack<Content: Widget>: Widget, WidgetNodeBuilder {
         self.content = content()
     }
     
-    public var body: Never {
-        fatalError()
-    }
-    
     func makeWidgetNode(context: Context) -> WidgetNode {
-        return WidgetStackContainerNode(
-            axis: .depth,
-            spacing: spacing,
-            content: self,
-            buildNodesBlock: {
-                let containerNode = (self.content as? WidgetNodeBuilder)?.makeWidgetNode(context: context) as? WidgetContainerNode
-                
-                guard let containerNode else {
-                    return []
-                }
-                
-                return containerNode.nodes
-            }
+        LayoutWidgetContainerNode(
+            layout: ZStackLayout(),
+            content: content,
+            context: context
         )
     }
 }

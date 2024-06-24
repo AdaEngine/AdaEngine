@@ -9,7 +9,7 @@ import AdaEngine
 
 struct ContentWidget: Widget {
     
-    @WidgetContext(\.font) private var font
+    @WidgetEnvironment(\.font) private var font
     
     @State private var int = 0
     @State private var double = 0.0

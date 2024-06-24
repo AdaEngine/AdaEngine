@@ -20,12 +20,10 @@ public struct ForEach<Item, Content: Widget>: Widget, WidgetNodeBuilder {
     }
 
     func makeWidgetNode(context: Context) -> WidgetNode {
-        WidgetContainerNode(content: self, buildNodesBlock: {
-            let nodes = data.compactMap { item in
-                (content(item) as? WidgetNodeBuilder)?.makeWidgetNode(context: context)
-            }
-            
-            return nodes
-        })
+        let nodes = data.compactMap { item in
+            (content(item) as? WidgetNodeBuilder)?.makeWidgetNode(context: context)
+        }
+
+        return WidgetContainerNode(content: self, nodes: nodes)
     }
 }
