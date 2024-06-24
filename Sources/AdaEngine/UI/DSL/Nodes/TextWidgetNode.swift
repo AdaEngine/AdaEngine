@@ -5,14 +5,46 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-class TextWidgetNode: WidgetNode {
-    
-    var text: String = ""
-    var font: Font = .system(size: 17)
+import Math
 
-    init(text: String, font: Font, content: Text) {
-        self.text = text
-        self.font = font
+final class TextWidgetNode: WidgetNode {
+
+    let textLayoutManager: TextLayoutManager
+    private var textContainer: TextContainer {
+        didSet {
+            self.textLayoutManager.setTextContainer(self.textContainer)
+        }
+    }
+
+    init(context: WidgetNodeBuilderContext, content: Text) {
+        let text = content.storage.applyingEnvironment(context.environment)
+        self.textContainer = TextContainer(text: text)
+        self.textLayoutManager = TextLayoutManager()
+        self.textLayoutManager.setTextContainer(self.textContainer)
         super.init(content: content)
+    }
+
+    override func performLayout() {
+        self.textContainer.bounds = Rect(origin: .zero, size: self.frame.size)
+    }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        if proposal == .zero || proposal == .infinity {
+            return textLayoutManager.size
+        }
+
+        if let width = proposal.width, width > 0 {
+
+        }
+
+        if let height = proposal.height, height > 0 {
+            
+        }
+
+        return proposal.replacingUnspecifiedDimensions()
+    }
+
+    override func draw(with context: GUIRenderContext) {
+        context.drawText(in: self.frame, from: self.textLayoutManager)
     }
 }

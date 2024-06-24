@@ -7,7 +7,8 @@
 
 import Math
 
-/// Used for tuple and other containers
+/// Base container for children nodes.
+/// Most used for tuple, layout stacks and other containers.
 class WidgetContainerNode: WidgetNode {
     
     var nodes: [WidgetNode]
@@ -16,15 +17,19 @@ class WidgetContainerNode: WidgetNode {
         self.nodes = nodes
         super.init(content: content)
 
-        self.storages = WidgetNodeBuilderUtils.findPropertyStorages(in: content, node: self)
-
         for node in nodes {
             node.parent = self
         }
     }
 
     init<Content: Widget>(content: Content, context: WidgetNodeBuilderContext) {
-        guard let builder = WidgetNodeBuilderUtils.findNodeBuilder(in: content) else {
+        self.nodes = []
+        super.init(content: content)
+        self.invalidateContent(in: context)
+    }
+
+    override func invalidateContent(in context: WidgetNodeBuilderContext) {
+        guard let builder = WidgetNodeBuilderUtils.findNodeBuilder(in: self.content) else {
             fatalError("Can't find builder")
         }
 
@@ -39,9 +44,7 @@ class WidgetContainerNode: WidgetNode {
         }
 
         self.nodes = nodes
-        super.init(content: content)
 
-        self.storages = WidgetNodeBuilderUtils.findPropertyStorages(in: content, node: self)
 
         for node in nodes {
             node.parent = self

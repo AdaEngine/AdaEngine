@@ -7,7 +7,7 @@
 
 import Math
 
-private enum _ImageViewStorage {
+enum _ImageViewStorage {
     case image(Image)
     case texture(Texture2D)
 }

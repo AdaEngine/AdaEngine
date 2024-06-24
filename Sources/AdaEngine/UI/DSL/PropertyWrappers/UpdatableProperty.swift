@@ -21,6 +21,7 @@ class UpdatablePropertyStorage {
     weak var widgetNode: WidgetNode?
     
     func update() {
+        
 //        self.widgetNode?.invalidateContent()
     }
 }

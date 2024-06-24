@@ -45,20 +45,4 @@ public struct WidgetEnvironmentValues {
     }
 }
 
-struct FontWidgetEnvironmentKey: WidgetEnvironmentKey {
-    static var defaultValue: Font = Font(
-        fontResource: .system(),
-        pointSize: 17
-    )
-}
 
-public extension WidgetEnvironmentValues {
-    var font: Font {
-        get {
-            self[FontWidgetEnvironmentKey.self]
-        }
-        set {
-            self[FontWidgetEnvironmentKey.self] = newValue
-        }
-    }
-}
