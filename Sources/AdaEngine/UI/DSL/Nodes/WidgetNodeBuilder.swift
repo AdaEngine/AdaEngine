@@ -14,10 +14,10 @@ protocol WidgetNodeBuilder {
 
 @MainActor
 struct WidgetNodeBuilderContext {
-    var widgetContext: WidgetContextValues
+    var environment: WidgetEnvironmentValues
 
     func makeNode<T: Widget>(from content: T) -> WidgetNode {
-        guard let builder = WidgetNodeBuilderFinder.findBuilder(in: content) else {
+        guard let builder = WidgetNodeBuilderUtils.findNodeBuilder(in: content) else {
             fatalError()
         }
 

@@ -7,131 +7,61 @@
 
 public extension Widget {
     func frame(width: Float? = nil, height: Float? = nil) -> some Widget {
-        self.modifier(FrameWidgetModifier(frame: .size(width: width, height: height)))
+        self.modifier(
+            FrameWidgetModifier(
+                content: self,
+                frame: .size(width: width, height: height)
+            )
+        )
     }
 }
 
-struct FrameWidget<Content: Widget>: Widget, WidgetNodeBuilder {
-    
-    let frame: FrameWidgetModifier.Frame
+struct FrameWidgetModifier<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
+
+    typealias Body = Never
     let content: Content
-    
-    var body: Never {
-        fatalError()
-    }
-    
+
+    let frame: FrameWidgetNode.Frame
+
     func makeWidgetNode(context: Context) -> WidgetNode {
-        FrameWidgetNode(frameRule: frame, content: self) {
-            [context.makeNode(from: content)]
-        }
+        FrameWidgetNode(frameRule: frame, content: content, context: context)
     }
 }
 
-struct FrameWidgetModifier: WidgetModifier {
-    
+final class FrameWidgetNode: WidgetContainerNode {
+
     enum Frame {
         case size(width: Float?, height: Float?)
     }
-    
-    let frame: Frame
-    
-    func body(content: Content) -> some Widget {
-        FrameWidget(frame: frame, content: content)
-    }
-}
 
-class ModifierWidgetNode: WidgetContainerNode {
-    override func performLayout() {
-        for node in self.nodes {
-            node.frame = self.frame
-            node.performLayout()
-        }
-    }
-}
+    let frameRule: Frame
 
-class FrameWidgetNode: ModifierWidgetNode {
-
-    let frameRule: FrameWidgetModifier.Frame
-
-    init(frameRule: FrameWidgetModifier.Frame, content: any Widget, buildNodesBlock: @escaping WidgetContainerNode.BuildContentBlock) {
+    init<Content: Widget>(frameRule: Frame, content: Content, context: WidgetNodeBuilderContext) {
         self.frameRule = frameRule
-        super.init(content: content, buildNodesBlock: buildNodesBlock)
+        super.init(content: content, context: context)
     }
 
-    override func sizeThatFits(_ proposal: ProposedViewSize, usedByParent: Bool = false) -> Size {
-        var newSize = Size.zero
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        var newSize = super.sizeThatFits(proposal)
 
         switch frameRule {
         case .size(let width, let height):
-            if let width, width > 0 {
-                newSize.width = min(width, proposal.width ?? 0)
-            } else {
-                newSize.width = proposal.width ?? 0
+            if let width {
+                newSize.width = width
             }
 
-            if let height, height > 0 {
-                newSize.height = min(height, proposal.height ?? 0)
-            } else {
-                newSize.height = proposal.height ?? 0
+            if let height {
+                newSize.height = height
             }
         }
 
         return newSize
     }
-}
 
-// MARK: - Visibility
-
-public extension Widget {
-    func onAppear(perform: @escaping () -> Void) -> some Widget {
-        OnAppearWidget(content: self, onAppear: perform)
-    }
-    
-    func onDisappear(perform: @escaping () -> Void) -> some Widget {
-        OnDisappearWidget(content: self, onDisappear: perform)
-    }
-}
-
-struct OnAppearWidget<Content: Widget>: Widget, WidgetNodeBuilder {
-    
-    let content: Content
-    let onAppear: () -> Void
-    
-    init(content: Content, onAppear: @escaping () -> Void) {
-        self.content = content
-        self.onAppear = onAppear
-    }
-    
-    var body: Never {
-        fatalError()
-    }
-    
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetNodeVisibility(content: content)
-        node.onAppear = self.onAppear
-        return node
-    }
-    
-}
-
-struct OnDisappearWidget<Content: Widget>: Widget, WidgetNodeBuilder {
-    
-    let content: Content
-    let onDisappear: () -> Void
-    
-    init(content: Content, onDisappear: @escaping () -> Void) {
-        self.content = content
-        self.onDisappear = onDisappear
-    }
-    
-    var body: Never {
-        fatalError()
-    }
-    
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetNodeVisibility(content: content)
-        node.onDisappear = self.onDisappear
-        return node
+    override func performLayout() {
+        for node in nodes {
+            node.place(in: .zero, anchor: .zero, proposal: ProposedViewSize(self.frame.size))
+        }
     }
 }
 
@@ -153,7 +83,9 @@ enum WidgetBackgroundContent {
 }
 
 struct BackgroundWidget<Content: Widget>: Widget, WidgetNodeBuilder {
-    
+
+    typealias Body = Never
+
     let content: Content
     let backgroundContent: WidgetBackgroundContent
     
@@ -162,29 +94,25 @@ struct BackgroundWidget<Content: Widget>: Widget, WidgetNodeBuilder {
         self.backgroundContent = backgroundContent
     }
     
-    var body: Never {
-        fatalError()
-    }
-    
     func makeWidgetNode(context: Context) -> WidgetNode {
-        return WidgetNodeVisibility(content: content)
+        return WidgetNodeVisibility(content: content, context: context)
     }
 }
 
 @MainActor
 class CanvasWidgetNode: WidgetNode {
 
-    typealias RenderBlock = (GUIRenderContext, Rect) -> Void
+    typealias RenderBlock = (GUIRenderContext, Size) -> Void
 
     let drawBlock: RenderBlock
 
-    init(content: any Widget, drawBlock: @escaping RenderBlock) {
+    init<Content: Widget>(content: Content, drawBlock: @escaping RenderBlock) {
         self.drawBlock = drawBlock
         super.init(content: content)
     }
 
     override func draw(with context: GUIRenderContext) {
-        self.drawBlock(context, self.frame)
+        self.drawBlock(context, self.frame.size)
     }
 }
 
@@ -192,7 +120,7 @@ class CanvasWidgetNode: WidgetNode {
 
 public extension Widget {
     func transformWidgetContext<Value>(
-        _ keyPath: WritableKeyPath<WidgetContextValues, Value>,
+        _ keyPath: WritableKeyPath<WidgetEnvironmentValues, Value>,
         block: @escaping (inout Value) -> Void
     ) -> some Widget {
         TransformWidgetContextModifier(
@@ -205,44 +133,21 @@ public extension Widget {
 
 struct TransformWidgetContextModifier<Content: Widget, Value>: Widget, WidgetNodeBuilder {
 
+    typealias Body = Never
+
     let content: Content
-    let keyPath: WritableKeyPath<WidgetContextValues, Value>
+    let keyPath: WritableKeyPath<WidgetEnvironmentValues, Value>
     let block: (inout Value) -> Void
 
-    var body: Never {
-        fatalError()
-    }
-
     func makeWidgetNode(context: Context) -> WidgetNode {
-        var widgetContext = context.widgetContext
-        block(&widgetContext[keyPath: keyPath])
+        var environment = context.environment
+        block(&environment[keyPath: keyPath])
 
-        let newContext = Context(widgetContext: widgetContext)
-        if let node = WidgetNodeBuilderFinder.findBuilder(in: content)?.makeWidgetNode(context: newContext) {
+        let newContext = Context(environment: environment)
+        if let node = WidgetNodeBuilderUtils.findNodeBuilder(in: content)?.makeWidgetNode(context: newContext) {
             return node
         } else {
-            fatalError()
+            fatalError("Fail to find builder")
         }
-    }
-}
-
-@MainActor
-enum WidgetNodeBuilderFinder {
-    static func findBuilder(in content: any Widget) -> WidgetNodeBuilder? {
-        var nodeBuilder: WidgetNodeBuilder? = (content as? WidgetNodeBuilder)
-
-        var body: any Widget = content
-        while nodeBuilder == nil {
-            let newBody = body.body
-
-            if let builder = newBody as? WidgetNodeBuilder {
-                nodeBuilder = builder
-                break
-            } else {
-                body = newBody
-            }
-        }
-
-        return nodeBuilder
     }
 }

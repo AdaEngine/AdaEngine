@@ -8,32 +8,25 @@
 import AdaEngine
 
 struct ContentView: Widget {
+
+    @State private var color: Color = Color.brown
+
     var body: some Widget {
         HStack(spacing: 8) {
-            VStack {
-                Canvas { context, rect in
-                    context.drawRect(rect, color: .red)
-                }
+            Color.red
 
-                Canvas { context, rect in
-                    context.drawRect(rect, color: .yellow)
-                }
-            }
+//            VStack {
+//                Color.blue
+//                Color.brown
+//                Color.blue
+//            }
 
-            VStack(spacing: 3) {
-                Color.green
-
-                Color.blue
-
-                Color.green
-            }
-
-            VStack(spacing: 3) {
-                Color.green
-
-                Color.blue
-            }
+            Color.green
+//            Canvas { context, size in
+//                context.drawRect(Rect(origin: .zero, size: size), color: .yellow)
+//            }
         }
+
     }
 }
 
@@ -44,52 +37,6 @@ class EditorWindow: UIWindow {
         let view = UIWidgetView(rootView: ContentView())
         view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
         self.addSubview(view)
-
-//        let blueView = UIView(frame: Rect(origin: Point(x: 0, y: 0), size: Size(width: 50, height: 50)))
-//        blueView.backgroundColor = .blue
-//
-//        let redView = UIView(frame: Rect(origin: Point(x: 25, y: 25), size: Size(width: 50, height: 50)))
-//        redView.backgroundColor = .red
-//
-//        let redView1 = UIView(frame: Rect(origin: Point(x: 0, y: 0), size: Size(width: 10, height: 10)))
-//        redView1.backgroundColor = .green
-
-//        self.addSubview(blueView)
-//        self.addSubview(redView)
-//
-//        redView.addSubview(redView1)
-//
-//        let control = UIButton(frame: Rect(origin: Point(x: 20, y: 20), size: Size(width: 50, height: 50)))
-//        control.addAction(UIEventAction {
-//            print("Pressed")
-//        }, for: .touchDown)
-//
-//        control.setBackgroundColor(.red.opacity(0.5), for: .selected)
-//        control.setBackgroundColor(.red, for: .normal)
-//
-//        self.addSubview(control)
-
-//        let greenView = UIView()
-//        greenView.backgroundColor = .orange
-//
-//        let nestedStack = UIStackView(.vertical, children: [
-//            redView,
-//            greenView
-//        ])
-//
-//        nestedStack.spacing = 8
-//
-//        let stack = UIStackView(.horizontal, children: [
-//            blueView,
-//            nestedStack
-//        ])
-//
-//        stack.spacing = 8
-//
-//        stack.backgroundColor = .green.opacity(0.3)
-//        stack.autoresizingRules = [.flexibleWidth, .flexibleHeight]
-//
-//        self.addSubview(stack)
 
         // FIXME: SceneView doesnt render when UI does
 //        let scene = TilemapScene()

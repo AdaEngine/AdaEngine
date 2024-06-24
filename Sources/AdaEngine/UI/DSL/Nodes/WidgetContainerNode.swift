@@ -5,53 +5,77 @@
 //  Created by Vladislav Prusakov on 22.06.2024.
 //
 
+import Math
+
 /// Used for tuple and other containers
 class WidgetContainerNode: WidgetNode {
-
-    typealias BuildContentBlock = () -> [WidgetNode]
     
-    var nodes: [WidgetNode] = []
-    let buildBlock: BuildContentBlock
+    var nodes: [WidgetNode]
 
-    init(
-        content: any Widget,
-        buildNodesBlock: @escaping BuildContentBlock
-    ) {
-        self.buildBlock = buildNodesBlock
+    init<Content: Widget>(content: Content, nodes: [WidgetNode]) {
+        self.nodes = nodes
         super.init(content: content)
 
-        self.invalidateContent()
-    }
-
-    override func performLayout() {
-        for node in nodes {
-            node.performLayout()
-        }
-    }
-
-    override func sizeThatFits(_ proposal: ProposedViewSize, usedByParent: Bool = false) -> Size {
-        var size: Size = .zero
-
-        for node in nodes {
-            let childSize = node.sizeThatFits(proposal, usedByParent: usedByParent)
-            size += childSize
-        }
-
-        if usedByParent {
-            return size
-        } else {
-            return Size(
-                width: min(size.width, proposal.width ?? 0),
-                height: min(size.height, proposal.height ?? 0)
-            )
-        }
-    }
-
-    override func invalidateContent() {
-        self.nodes = self.buildBlock()
+        self.storages = WidgetNodeBuilderUtils.findPropertyStorages(in: content, node: self)
 
         for node in nodes {
             node.parent = self
+        }
+    }
+
+    init<Content: Widget>(content: Content, context: WidgetNodeBuilderContext) {
+        guard let builder = WidgetNodeBuilderUtils.findNodeBuilder(in: content) else {
+            fatalError("Can't find builder")
+        }
+
+        let node = builder.makeWidgetNode(context: context)
+
+        let nodes: [WidgetNode]
+
+        if let container = node as? WidgetTransportContainerNode {
+            nodes = container.nodes
+        } else {
+            nodes = [node]
+        }
+
+        self.nodes = nodes
+        super.init(content: content)
+
+        self.storages = WidgetNodeBuilderUtils.findPropertyStorages(in: content, node: self)
+
+        for node in nodes {
+            node.parent = self
+        }
+    }
+
+    override func updateLayoutProperties(_ props: LayoutProperties) {
+        super.updateLayoutProperties(props)
+
+        for node in nodes {
+            node.updateLayoutProperties(props)
+        }
+    }
+
+    override func performLayout() {
+        let center = Point(x: frame.midX, y: frame.midY)
+        let proposal = ProposedViewSize(frame.size)
+
+        for node in nodes {
+            node.place(in: center, anchor: .center, proposal: proposal)
+        }
+    }
+
+    override func update(_ deltaTime: TimeInterval) {
+        for node in nodes {
+            node.update(deltaTime)
+        }
+    }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        let size = proposal.replacingUnspecifiedDimensions()
+        return nodes.reduce(size) { result, node in
+            let size = node.sizeThatFits(proposal)
+            return Size(width: max(result.width, size.width), height: max(result.height, size.height))
         }
     }
 
@@ -69,7 +93,7 @@ class WidgetContainerNode: WidgetNode {
     override func draw(with context: GUIRenderContext) {
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
 
-        for node in self.nodes {
+        for node in self.nodes where node.frame.intersects(self.frame) {
             node.draw(with: context)
         }
 

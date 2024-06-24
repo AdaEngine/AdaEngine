@@ -18,6 +18,12 @@ public struct WidgetTuple<Content>: Widget {
     }
 }
 
+extension Widget where Body == Never {
+    public var body: Never {
+        fatalError()
+    }
+}
+
 extension Never: Widget {
     public var body: Never {
         fatalError()
@@ -26,37 +32,19 @@ extension Never: Widget {
 
 extension WidgetTuple: WidgetNodeBuilder {
     func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetContainerNode(
+        // swiftlint:disable:next syntactic_sugar
+        let widgets = Array<any Widget>.fromTuple(value)
+        let nodes = widgets.compactMap { WidgetNodeBuilderUtils.findNodeBuilder(in: $0)?.makeWidgetNode(context: context) }
+
+        return WidgetTransportContainerNode(
             content: self,
-            buildNodesBlock: {
-                // swiftlint:disable:next syntactic_sugar
-                let widgets = Array<any Widget>.fromTuple(value)
-                
-                return widgets.compactMap {
-                    var nodeBuilder: WidgetNodeBuilder? = ($0 as? WidgetNodeBuilder)
-
-                    var body: (any Widget)? = $0
-                    while nodeBuilder == nil {
-                        let newBody = body?.body
-
-                        if let builder = newBody as? WidgetNodeBuilder {
-                            nodeBuilder = builder
-                            break
-                        } else {
-                            body = newBody
-                        }
-                    }
-
-
-                    return nodeBuilder?.makeWidgetNode(context: context)
-                }
-            }
+            nodes: nodes
         )
-        
-        node.storages = WidgetStorageReflection.findStorages(in: self, node: node)
-        return node
     }
 }
+
+/// Indicates that this container just move nodes from one container to another
+final class WidgetTransportContainerNode: WidgetContainerNode { }
 
 extension Array {
     static func fromTuple<Tuple>(_ tuple: Tuple) -> [Element] {
@@ -65,8 +53,26 @@ extension Array {
 }
 
 @MainActor
-enum WidgetStorageReflection {
-    static func findStorages<T>(in value: T, node: WidgetNode) -> [UpdatablePropertyStorage] {
+enum WidgetNodeBuilderUtils {
+    static func findNodeBuilder(in content: any Widget) -> WidgetNodeBuilder? {
+        var nodeBuilder: WidgetNodeBuilder? = (content as? WidgetNodeBuilder)
+        
+        var body: any Widget = content
+        while nodeBuilder == nil {
+            let newBody = body.body
+            
+            if let builder = newBody as? WidgetNodeBuilder {
+                nodeBuilder = builder
+                break
+            } else {
+                body = newBody
+            }
+        }
+        
+        return nodeBuilder
+    }
+    
+    static func findPropertyStorages<T>(in value: T, node: WidgetNode) -> [UpdatablePropertyStorage] {
         let mirror = Mirror(reflecting: value)
         
         return mirror.children.compactMap { label, property in

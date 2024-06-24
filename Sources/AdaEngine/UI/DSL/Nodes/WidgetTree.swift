@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
+import Math
+
 @MainActor
 class WidgetTree<Content: Widget> {
     
@@ -15,11 +17,11 @@ class WidgetTree<Content: Widget> {
         self.rootView = rootView
         
         let context = WidgetNodeBuilderContext(
-            widgetContext: WidgetContextValues()
+            environment: WidgetEnvironmentValues()
         )
         
         let contentNode = Self.findFirstWidgetNodeBuilder(in: self.rootView, context: context)
-        contentNode.storages = WidgetStorageReflection.findStorages(in: rootView, node: contentNode)
+        contentNode.storages = WidgetNodeBuilderUtils.findPropertyStorages(in: rootView, node: contentNode)
         self.rootNode = WidgetRootNode(contentNode: contentNode, content: rootView)
     }
     
@@ -40,18 +42,26 @@ final class WidgetRootNode: WidgetNode {
 
     let contentNode: WidgetNode
 
-    init(contentNode: WidgetNode, content: any Widget) {
+    init<Root: Widget>(contentNode: WidgetNode, content: Root) {
         self.contentNode = contentNode
         super.init(content: content)
+        self.contentNode.parent = self
     }
 
     override func performLayout() {
-        let size = self.contentNode.sizeThatFits(ProposedViewSize(width: self.frame.width, height: self.frame.height), usedByParent: true)
-        self.contentNode.frame.size.width = min(self.frame.width, size.width)
-        self.contentNode.frame.size.height = min(self.frame.height, size.height)
-        self.contentNode.performLayout()
+        let proposal = ProposedViewSize(width: self.frame.width, height: self.frame.height)
+
+        self.contentNode.place(
+            in: Point(self.frame.midX, self.frame.midY),
+            anchor: .center,
+            proposal: proposal
+        )
 
         self.contentNode._printDebugNode()
+    }
+
+    override func update(_ deltaTime: TimeInterval) {
+        contentNode.update(deltaTime)
     }
 
     override func draw(with context: GUIRenderContext) {

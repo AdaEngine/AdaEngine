@@ -5,16 +5,15 @@
 //  Created by Vladislav Prusakov on 21.06.2024.
 //
 
+/// A view type that supports immediate mode drawing.
 public struct Canvas: Widget, WidgetNodeBuilder {
 
-    let drawBlock: (GUIRenderContext, Rect) -> Void
+    public typealias Body = Never
 
-    public init(drawBlock: @escaping (GUIRenderContext, Rect) -> Void) {
+    let drawBlock: (GUIRenderContext, Size) -> Void
+
+    public init(drawBlock: @escaping (GUIRenderContext, Size) -> Void) {
         self.drawBlock = drawBlock
-    }
-
-    public var body: Never {
-        fatalError()
     }
 
     func makeWidgetNode(context: Context) -> WidgetNode {

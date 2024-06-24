@@ -18,6 +18,10 @@ public struct Text: Widget, WidgetNodeBuilder {
     }
     
     func makeWidgetNode(context: Context) -> WidgetNode {
-        return TextWidgetNode(text: text, font: context.widgetContext.font, content: self)
+        TextWidgetNode(
+            text: text,
+            font: context.environment.font,
+            content: self
+        )
     }
 }
