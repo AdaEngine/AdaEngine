@@ -112,7 +112,11 @@ class CanvasWidgetNode: WidgetNode {
     }
 
     override func draw(with context: GUIRenderContext) {
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+
         self.drawBlock(context, self.frame.size)
+
+        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
     }
 }
 
