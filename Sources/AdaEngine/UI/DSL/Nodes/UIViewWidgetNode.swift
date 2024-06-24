@@ -10,15 +10,12 @@ final class UIViewWidgetNode<Representable: UIViewRepresentable>: WidgetNode {
     private var view: Representable.ViewType?
     private var coordinator: Representable.Coordinator
     let representable: Representable
-    let environment: WidgetEnvironmentValues
 
     init<Content: Widget>(
         representable: Representable,
-        content: Content,
-        environment: WidgetEnvironmentValues
+        content: Content
     ) {
         self.representable = representable
-        self.environment = environment
         self.coordinator = representable.makeCoordinator()
         super.init(content: content)
     }

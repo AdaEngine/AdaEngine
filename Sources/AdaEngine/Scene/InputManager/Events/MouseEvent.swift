@@ -17,9 +17,11 @@ public final class MouseEvent: InputEvent {
     
     let button: MouseButton
     let mousePosition: Point
+    let scrollDelta: Point
     let phase: Phase
     
-    init(window: UIWindow.ID, button: MouseButton, mousePosition: Point, phase: Phase, time: TimeInterval) {
+    init(window: UIWindow.ID, button: MouseButton, scrollDelta: Point = .zero, mousePosition: Point, phase: Phase, time: TimeInterval) {
+        self.scrollDelta = scrollDelta
         self.button = button
         self.mousePosition = mousePosition
         self.phase = phase

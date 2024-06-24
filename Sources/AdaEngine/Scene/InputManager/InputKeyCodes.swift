@@ -388,10 +388,7 @@ public enum MouseButton: UInt8, Hashable {
     case right
     case middle
     
-    case wheelUp
-    case wheelDown
-    case wheelLeft
-    case wheelRight
+    case scrollWheel
 }
 
 // swiftlint:enable all
