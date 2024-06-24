@@ -9,24 +9,17 @@ import AdaEngine
 
 struct ContentView: Widget {
 
-    @State private var color: Color = Color.brown
-
     var body: some Widget {
-        HStack {
+        VStack {
             Color.red
 
-//            VStack {
-//                Color.blue
-//                Color.brown
-//                Color.blue
-//            }
+            HStack(spacing: 2) {
+                Color.blue
+                Color.brown
+                Color.blue
+            }
 
-            Color.green
-            
             Color.red
-//            Canvas { context, size in
-//                context.drawRect(Rect(origin: .zero, size: size), color: .yellow)
-//            }
         }
 
     }

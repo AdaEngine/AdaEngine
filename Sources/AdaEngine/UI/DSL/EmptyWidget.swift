@@ -21,7 +21,7 @@ public struct Spacer: Widget, WidgetNodeBuilder {
 
     let minLength: Float?
 
-    public init(minLength: Float?) {
+    public init(minLength: Float? = nil) {
         self.minLength = minLength
     }
 

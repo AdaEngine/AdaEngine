@@ -93,7 +93,7 @@ class WidgetContainerNode: WidgetNode {
     override func draw(with context: GUIRenderContext) {
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
 
-        for node in self.nodes where node.frame.intersects(self.frame) {
+        for node in self.nodes {
             node.draw(with: context)
         }
 
