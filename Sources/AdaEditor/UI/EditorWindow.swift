@@ -12,7 +12,7 @@ struct ContentView: Widget {
     @State private var color: Color = Color.brown
 
     var body: some Widget {
-        HStack(spacing: 8) {
+        HStack {
             Color.red
 
 //            VStack {
@@ -22,6 +22,8 @@ struct ContentView: Widget {
 //            }
 
             Color.green
+            
+            Color.red
 //            Canvas { context, size in
 //                context.drawRect(Rect(origin: .zero, size: size), color: .yellow)
 //            }
