@@ -23,6 +23,7 @@ extension WidgetGroup: InternalAppScene {
         let window = UIWindow(frame: frame)
         
         let gameSceneView = UIWidgetView(rootView: self.content)
+        gameSceneView.autoresizingRules = [.flexibleWidth, .flexibleHeight]
         window.addSubview(gameSceneView)
         
         window.setWindowMode(configuration.windowMode)

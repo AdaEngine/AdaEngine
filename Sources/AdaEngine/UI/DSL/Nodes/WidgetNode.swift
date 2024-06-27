@@ -18,17 +18,12 @@ import Math
     weak var parent: WidgetNode?
 
     var content: any Widget
-    var storages: [UpdatablePropertyStorage] = []
     private(set) var environment = WidgetEnvironmentValues()
     private(set) var frame: Rect = .zero
     private(set) var layoutProperties = LayoutProperties()
 
     init<Content: Widget>(content: Content) {
         self.content = content
-
-        defer {
-            self.storages = WidgetNodeBuilderUtils.findPropertyStorages(in: content, node: self)
-        }
     }
 
     // MARK: Layout
@@ -123,6 +118,12 @@ import Math
         \(identation)\(identation)- frame: \(frame)
         \(identation)\(identation)- content: \(type(of: self.content))
         """
+    }
+}
+
+extension WidgetNode: Equatable {
+    static func == (lhs: WidgetNode, rhs: WidgetNode) -> Bool {
+        _WidgetGraphNode(value: lhs.content) == _WidgetGraphNode(value: rhs.content)
     }
 }
 

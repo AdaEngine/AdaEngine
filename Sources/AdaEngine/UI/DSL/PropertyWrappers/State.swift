@@ -27,7 +27,7 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
             return storage.value
         }
         
-        set {
+        nonmutating set {
             storage.value = newValue
             self.update()
         }

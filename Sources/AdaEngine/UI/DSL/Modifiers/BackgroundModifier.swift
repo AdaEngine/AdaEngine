@@ -22,7 +22,7 @@ struct BackgroundWidget<Content: Widget, BackgroundContent: Widget>: WidgetModif
     typealias Body = Never
 
     let content: Content
-    let backgroundContent: any Widget
+    let backgroundContent: BackgroundContent
 
     init(content: Content, backgroundContent: BackgroundContent) {
         self.content = content
@@ -34,7 +34,7 @@ struct BackgroundWidget<Content: Widget, BackgroundContent: Widget>: WidgetModif
         return BackgroundWidgetNode(
             backgroundNode: backgroundNode,
             content: content,
-            context: context
+            inputs: _WidgetListInputs(input: context)
         )
     }
 }
@@ -45,10 +45,10 @@ class BackgroundWidgetNode: WidgetModifierNode {
     init<Content>(
         backgroundNode: WidgetNode,
         content: Content,
-        context: WidgetNodeBuilderContext
+        inputs: _WidgetListInputs
     ) where Content : Widget {
         self.backgroundNode = backgroundNode
-        super.init(content: content, context: context)
+        super.init(content: content, inputs: inputs)
     }
 
     override func draw(with context: GUIRenderContext) {

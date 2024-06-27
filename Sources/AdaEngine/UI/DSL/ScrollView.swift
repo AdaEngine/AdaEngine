@@ -20,7 +20,7 @@ public struct ScrollView<Content: Widget>: Widget, WidgetNodeBuilder {
     }
 
     func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = ScrollViewWidgetNode(content: content, context: context)
+        let node = ScrollViewWidgetNode(content: content, inputs: _WidgetListInputs(input: context))
         node.axis = axis
         return node
     }

@@ -7,20 +7,7 @@
 
 @MainActor
 protocol WidgetNodeBuilder {
-    typealias Context = WidgetNodeBuilderContext
+    typealias Context = _WidgetInputs
 
     func makeWidgetNode(context: Context) -> WidgetNode
-}
-
-@MainActor
-struct WidgetNodeBuilderContext {
-    var environment: WidgetEnvironmentValues
-
-    func makeNode<T: Widget>(from content: T) -> WidgetNode {
-        guard let builder = WidgetNodeBuilderUtils.findNodeBuilder(in: content) else {
-            fatalError()
-        }
-
-        return builder.makeWidgetNode(context: self)
-    }
 }

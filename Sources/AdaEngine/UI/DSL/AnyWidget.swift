@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
-public struct AnyWidget: Widget, WidgetNodeBuilder {
+public struct AnyWidget: Widget {
 
     public typealias Body = Never
 
@@ -19,11 +19,21 @@ public struct AnyWidget: Widget, WidgetNodeBuilder {
         self.content = widget
     }
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        if let builder = WidgetNodeBuilderUtils.findNodeBuilder(in: content) {
-            return builder.makeWidgetNode(context: context)
-        } else {
-            return WidgetNode(content: content)
-        }
+    public static func _makeView(_ view: _WidgetGraphNode<Self>, inputs: _WidgetInputs) -> _WidgetOutputs {
+        let content = view[\.content].value
+        return self.makeView(content, inputs: inputs)
+    }
+
+    public static func _makeListView(_ view: _WidgetGraphNode<Self>, inputs: _WidgetListInputs) -> _WidgetListOutputs {
+        let content = view[\.content].value
+        return self.makeListView(content, inputs: inputs)
+    }
+
+    private static func makeView<T: Widget>(_ view: T, inputs: _WidgetInputs) -> _WidgetOutputs {
+        T._makeView(_WidgetGraphNode(value: view), inputs: inputs)
+    }
+
+    private static func makeListView<T: Widget>(_ view: T, inputs: _WidgetListInputs) -> _WidgetListOutputs {
+        T._makeListView(_WidgetGraphNode(value: view), inputs: inputs)
     }
 }

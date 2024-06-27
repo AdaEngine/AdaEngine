@@ -16,8 +16,8 @@ final class TextWidgetNode: WidgetNode {
         }
     }
 
-    init(context: WidgetNodeBuilderContext, content: Text) {
-        let text = content.storage.applyingEnvironment(context.environment)
+    init(inputs: _WidgetInputs, content: Text) {
+        let text = content.storage.applyingEnvironment(inputs.environment)
         self.textContainer = TextContainer(text: text)
         self.textLayoutManager = TextLayoutManager()
         self.textLayoutManager.setTextContainer(self.textContainer)

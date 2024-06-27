@@ -28,7 +28,7 @@ struct OnAppearWidget<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
     }
 
     func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetNodeVisibility(content: content, context: context)
+        let node = WidgetNodeVisibility(content: content, inputs: _WidgetListInputs(input: context))
         node.onAppear = self.onAppear
         return node
     }
@@ -47,7 +47,7 @@ struct OnDisappearWidget<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
     }
 
     func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetNodeVisibility(content: content, context: context)
+        let node = WidgetNodeVisibility(content: content, inputs: _WidgetListInputs(input: context))
         node.onDisappear = self.onDisappear
         return node
     }

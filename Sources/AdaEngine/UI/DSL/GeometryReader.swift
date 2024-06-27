@@ -121,19 +121,20 @@ class GeometryReaderWidgetNode<Content: Widget>: WidgetContainerNode {
     }
 
     override func invalidateContent() {
-        let context = WidgetNodeBuilderContext(environment: self.environment)
+        let context = _WidgetInputs(environment: self.environment)
         let proxy = GeometryProxy(
             namedCoordinateSpaceContainer: self.environment.coordinateSpaces,
             localFrame: self.frame
         )
         let content = self.contentProxy(proxy)
-        guard let node = WidgetNodeBuilderUtils.findNodeBuilder(in: content) else {
-            fatalError()
+        let outputs = Content._makeListView(_WidgetGraphNode(value: content), inputs: _WidgetListInputs(input: context)).outputs
+        let nodes = outputs.map { $0.node }
+
+        for node in nodes {
+            node.parent = self
         }
 
-        let contentNode = node.makeWidgetNode(context: context)
-        contentNode.parent = self
-        self.nodes = [contentNode]
+        self.nodes = nodes
     }
 }
 
@@ -179,7 +180,7 @@ class CoordinateSpaceWidgetNode: WidgetModifierNode {
     init<Content>(
         named: NamedWidgetCoordinateSpace,
         content: Content,
-        context: WidgetNodeBuilderContext
+        context: _WidgetInputs
     ) where Content : Widget {
         super.init(content: content, nodes: [])
         context.environment.coordinateSpaces.containers[named.name] = self

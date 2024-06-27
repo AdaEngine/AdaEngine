@@ -18,10 +18,12 @@ public struct ZStack<Content: Widget>: Widget, WidgetNodeBuilder {
     }
     
     func makeWidgetNode(context: Context) -> WidgetNode {
-        LayoutWidgetContainerNode(
+        let outputs = Content._makeListView(_WidgetGraphNode(value: content), inputs: _WidgetListInputs(input: context)).outputs
+
+        return LayoutWidgetContainerNode(
             layout: ZStackLayout(anchor: self.anchor),
             content: content,
-            context: context
+            nodes: outputs.map { $0.node }
         )
     }
 }

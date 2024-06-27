@@ -73,20 +73,26 @@ struct CustomLayoutContainer<T: Layout, Content: Widget>: Widget, WidgetNodeBuil
     let content: Content
 
     func makeWidgetNode(context: Context) -> WidgetNode {
-        LayoutWidgetContainerNode(layout: layout, content: content, context: context)
+        let outputs = Content._makeListView(_WidgetGraphNode(value: content), inputs: _WidgetListInputs(input: context)).outputs
+
+        return LayoutWidgetContainerNode(
+            layout: context.layout,
+            content: content,
+            nodes: outputs.map { $0.node }
+        )
     }
 }
 
-final class LayoutWidgetContainerNode<T: Layout>: WidgetContainerNode {
-    let layout: T
-    private var cache: T.Cache?
+final class LayoutWidgetContainerNode: WidgetContainerNode {
+    let layout: AnyLayout
+    private var cache: AnyLayout.Cache?
     private var subviews: LayoutSubviews = LayoutSubviews([])
 
-    init<Content: Widget>(layout: T, content: Content, context: WidgetNodeBuilderContext) {
-        self.layout = layout
-        super.init(content: content, context: context)
+    init<L: Layout, Content: Widget>(layout: L, content: Content, nodes: [WidgetNode]) {
+        self.layout = AnyLayout(layout)
+        super.init(content: content, nodes: nodes)
 
-        self.updateLayoutProperties(T.layoutProperties)
+        self.updateLayoutProperties(L.layoutProperties)
         self.subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
     }
 
