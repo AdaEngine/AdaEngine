@@ -160,7 +160,7 @@
             }
             
             @Step {
-                Finally, you can run your first project and you will see a black screen. That's ok for a empty scene.
+                Finally, you can run your first project and you will see a black screen. That's ok for an empty scene.
                 
                 @Image(source: "CP-2-9.png", alt: "Your first application window")
             }
