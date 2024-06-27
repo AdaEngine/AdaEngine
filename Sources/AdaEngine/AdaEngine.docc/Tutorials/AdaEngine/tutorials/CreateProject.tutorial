@@ -87,7 +87,7 @@
     
     @Section(title: "Create project using Xcode.") {
         @ContentAndMedia {
-            Xcode project can give you access to build your game on all Apple devices like iOS, macOS and tvOS.
+            Xcode projects can give you access to build your game on all Apple devices like iOS, macOS and tvOS.
             
 <!--            @Image(source: "CreateProject/1.png", alt: "No one"-->
         }
@@ -100,13 +100,13 @@
             }
             
             @Step {
-                Xcode will open a new popup window where you should select **Multiplatfrom** tab and then select **App** project. After that give the name for your project and choose location where your project should be created.
+                Xcode will open a new pop-up window where you should select the **Multiplatfrom** tab and then select **App** project. After that give a name for your project and choose a location where your project should be created.
                 
                 @Image(source: "CP-2-2.png", alt: "Popup when you choose project template")
             }
             
             @Step {
-                Now you can see a new Xcode project where you can configure your game targets, dependencies and supported platfroms. Currently it use SwiftUI, but we will change it later.
+                Now you can see a new Xcode project where you can configure your game targets, dependencies and supported platfroms. Currently it uses SwiftUI, but we will change it later.
                 
                 @Image(source: "CP-2-3.png", alt: "You can see an Xcode project for SwiftUI")
             }
@@ -114,53 +114,53 @@
             Let's configure our xcode project file. 
             
             @Step {
-                For the first, we should add AdaEngine as dependency to our project. Select your Xcode project file, and move to `Package Dependencies`. 
+                First, we should add AdaEngine as a dependency to our project. Select your Xcode project file, and move to `Package Dependencies`. 
                 
                 @Image(source: "CP-2-4.png", alt: "You can see package dependencies tab in Xcode")
             }
             
-            AdaEngine use a lot of C++ libraries and we should tell the compiler, that we want to add C++ to our app.
+            AdaEngine uses a lot of C++ libraries and we should tell the compiler that we want to add C++ interoperanility to our app.
             
             @Step {
-                We should add C++ interop to your project. Add `-enable-experimental-cxx-interop` value to your `OTHER_SWIFT_FLAGS`.
+                We should add C++ interop to the project. Add `-cxx-interoperability-mode=default` value to your `OTHER_SWIFT_FLAGS`.
                 
                 @Image(source: "CP-2-7.png", alt: "We add experimental-cxx-interop to project.")
             }
             
             @Step {
-                To run you project on macOS, remove `App Sandbox` from `Capabilities` tab.
+                To run your project on macOS, remove `App Sandbox` from the `Capabilities` tab.
                 
                 @Image(source: "CP-2-8.png", alt: "App Sanbox")
             }
             
-            Let's change SwiftUI project to AdaEngine project.
+            Let's change the SwiftUI project to AdaEngine project.
             
             @Step {
-                Move to `FirstPackageApp.swift` and you can see next swift code.
+                Open the `FirstPackageApp.swift` file and you can see the swift code.
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-1-app.swift)
             }
             
             @Step {
-                Change `import SwiftUI` to `import AdaEngine` and remove `body` property.
+                Change `import SwiftUI` to `import AdaEngine` and remove the `body` property.
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-2-app.swift)
             }
             
             @Step {
-                ``App`` protocol requires us to implement `scene` property where we should pass our ``AppScene`` instance. ``AppScene`` tell the AdaEngine how to configure application and how to show app windows. 
+                ``App`` protocol requires us to implement a `scene` property where we should pass our ``AppScene`` instance. ``AppScene`` tells the AdaEngine how to configure the application and how to show app windows. 
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-3-app.swift)
             }
             
             @Step {
-                Now add modification for your ``AppScene``. `windowTitle` modifier add custom window title for your window. `windowMode` modifier change window presentation from fullscreen to windowed.
+                Now modify the ``AppScene``. Add the `windowTitle` modifier to add a custom window title for your window. Add the `windowMode` modifier to change the window presentation from fullscreen to windowed.
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-4-app.swift)
             }
             
             @Step {
-                Finally, you can run you first project and you will see a black screen. That's ok for empty scene.
+                Finally, you can run your first project and you will see a black screen. That's ok for a empty scene.
                 
                 @Image(source: "CP-2-9.png", alt: "Your first application window")
             }
