@@ -102,11 +102,12 @@ struct PaddingWidgetModifier<Content: Widget>: WidgetModifier, WidgetNodeBuilder
     let content: Content
 
     func makeWidgetNode(context: Context) -> WidgetNode {
-        PaddingModifierWidgetNode(
+        let view = Content._makeView(_WidgetGraphNode(value: content), inputs: context)
+        return PaddingModifierWidgetNode(
             edges: edges,
             insets: insets,
             content: content,
-            context: context
+            node: view.node
         )
     }
 }
@@ -116,10 +117,10 @@ final class PaddingModifierWidgetNode: WidgetModifierNode {
     let edges: Edge.Set
     let insets: EdgeInsets
 
-    init<Content>(edges: Edge.Set, insets: EdgeInsets, content: Content, context: WidgetNodeBuilderContext) where Content : Widget {
+    init<Content>(edges: Edge.Set, insets: EdgeInsets, content: Content, node: WidgetNode) where Content : Widget {
         self.edges = edges
         self.insets = insets
-        super.init(content: content, context: context)
+        super.init(content: content, nodes: [node])
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {

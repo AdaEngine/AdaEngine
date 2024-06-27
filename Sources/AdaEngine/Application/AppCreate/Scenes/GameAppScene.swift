@@ -32,6 +32,7 @@ extension GameAppScene: InternalAppScene {
         let window = UIWindow(frame: frame)
         
         let gameSceneView = SceneView(scene: scene, frame: frame)
+        gameSceneView.autoresizingRules = [.flexibleWidth, .flexibleHeight]
         window.addSubview(gameSceneView)
         
         window.setWindowMode(configuration.windowMode)

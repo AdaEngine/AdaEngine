@@ -16,25 +16,16 @@ class WidgetTree<Content: Widget> {
     init(rootView: Content) {
         self.rootView = rootView
         
-        let context = WidgetNodeBuilderContext(
+        let inputs = _WidgetInputs(
             environment: WidgetEnvironmentValues()
         )
         
-        let contentNode = Self.findFirstWidgetNodeBuilder(in: self.rootView, context: context)
-        contentNode.storages = WidgetNodeBuilderUtils.findPropertyStorages(in: rootView, node: contentNode)
-        self.rootNode = WidgetRootNode(contentNode: contentNode, content: rootView)
+        let contentNode = Content._makeView(_WidgetGraphNode(value: rootView), inputs: inputs)
+        self.rootNode = WidgetRootNode(contentNode: contentNode.node, content: rootView)
     }
     
     func renderGraph(renderContext: GUIRenderContext) {
         self.rootNode.draw(with: renderContext)
-    }
-    
-    private static func findFirstWidgetNodeBuilder<T: Widget>(in content: T, context: WidgetNodeBuilderContext) -> WidgetNode {
-        if let builder = content.body as? WidgetNodeBuilder {
-            return builder.makeWidgetNode(context: context)
-        } else {
-            return self.findFirstWidgetNodeBuilder(in: content.body, context: context)
-        }
     }
 }
 

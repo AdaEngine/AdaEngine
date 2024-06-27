@@ -155,5 +155,5 @@ public extension UIWindow {
         case fullscreen
     }
     
-    static let defaultMinimumSize = Size(width: 800, height: 600)
+    nonisolated static let defaultMinimumSize = Size(width: 800, height: 600)
 }
