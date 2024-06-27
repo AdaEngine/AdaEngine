@@ -17,17 +17,16 @@ public struct AnyLayout: Layout {
         var value: Any
     }
 
-    public init(layout: any Layout) {
+    public init(erased layout: any Layout) {
         self.layout = layout
     }
 
-    public init<L: Layout>(layout: L) {
+    public init<L: Layout>(_ layout: L) {
         self.layout = layout
     }
 
     public func makeCache(subviews: Subviews) -> Cache {
-        let cache = layout.makeCache(subviews: subviews)
-        return AnyCache(value: cache)
+        return Cache(value: self.layout.makeCache(subviews: subviews))
     }
 
     public func updateCache(_ cache: inout Cache, subviews: Subviews) {
@@ -39,7 +38,7 @@ public struct AnyLayout: Layout {
     }
 
     public func placeSubviews(in bounds: Math.Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
-        _placeSubviews(in: bounds, proposal: proposal, subviews: subviews, cache: &cache)
+        layout._placeSubviews(in: bounds, proposal: proposal, subviews: subviews, cache: &cache)
     }
 }
 

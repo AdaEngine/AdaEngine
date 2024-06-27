@@ -24,7 +24,7 @@ struct FrameWidgetModifier<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
     let frame: FrameWidgetNode.Frame
 
     func makeWidgetNode(context: Context) -> WidgetNode {
-        FrameWidgetNode(frameRule: frame, content: content, context: context)
+        FrameWidgetNode(frameRule: frame, content: content, inputs: _WidgetListInputs(input: context))
     }
 }
 
@@ -36,9 +36,9 @@ final class FrameWidgetNode: WidgetModifierNode {
 
     let frameRule: Frame
 
-    init<Content: Widget>(frameRule: Frame, content: Content, context: WidgetNodeBuilderContext) {
+    init<Content: Widget>(frameRule: Frame, content: Content, inputs: _WidgetListInputs) {
         self.frameRule = frameRule
-        super.init(content: content, context: context)
+        super.init(content: content, inputs: inputs)
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {

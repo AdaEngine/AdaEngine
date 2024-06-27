@@ -44,10 +44,6 @@ struct TransformWidgetEnvironmentModifier<Content: Widget, Value>: Widget, Widge
         block(&environment[keyPath: keyPath])
 
         let newContext = Context(environment: environment)
-        if let node = WidgetNodeBuilderUtils.findNodeBuilder(in: content)?.makeWidgetNode(context: newContext) {
-            return node
-        } else {
-            fatalError("Fail to find builder")
-        }
+        return Content._makeView(_WidgetGraphNode(value: content), inputs: newContext).node
     }
 }

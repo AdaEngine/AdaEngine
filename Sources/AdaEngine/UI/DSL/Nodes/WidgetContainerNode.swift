@@ -22,36 +22,39 @@ class WidgetContainerNode: WidgetNode {
         }
     }
 
-    init<Content: Widget>(content: Content, context: WidgetNodeBuilderContext) {
-        self.nodes = []
-        super.init(content: content)
-        self.updateEnvironment(context.environment)
-        self.invalidateContent()
-    }
-
-    override func invalidateContent() {
-        let context = WidgetNodeBuilderContext(environment: self.environment)
-        guard let builder = WidgetNodeBuilderUtils.findNodeBuilder(in: self.content) else {
-            fatalError("Can't find builder")
-        }
-
-        let node = builder.makeWidgetNode(context: context)
-
-        let nodes: [WidgetNode]
-
-        if let container = node as? WidgetTransportContainerNode {
-            nodes = container.nodes
-        } else {
-            nodes = [node]
-        }
-
+    init<Content: Widget>(content: Content, inputs: _WidgetListInputs) {
+        let nodes = Content._makeListView(_WidgetGraphNode(value: content), inputs: inputs).outputs.map { $0.node }
         self.nodes = nodes
-
+        super.init(content: content)
 
         for node in nodes {
             node.parent = self
-            node.updateEnvironment(self.environment)
         }
+    }
+
+    override init<Content>(content: Content) where Content : Widget {
+        self.nodes = []
+        super.init(content: content)
+    }
+
+    override func invalidateContent() {
+//        let context = _WidgetInputs(environment: self.environment)
+//
+//        let node = builder.makeWidgetNode(context: context)
+//
+//        let nodes: [WidgetNode]
+//
+//        if let container = node as? WidgetTransportContainerNode {
+//            nodes = container.nodes
+//        } else {
+//            nodes = [node]
+//        }
+//        self.nodes = nodes
+//
+//        for node in nodes {
+//            node.parent = self
+//            node.updateEnvironment(self.environment)
+//        }
     }
 
     override func updateEnvironment(_ environment: WidgetEnvironmentValues) {

@@ -55,7 +55,7 @@ public struct Text: Widget, WidgetNodeBuilder {
     }
 
     func makeWidgetNode(context: Context) -> WidgetNode {
-        return TextWidgetNode(context: context, content: self)
+        TextWidgetNode(inputs: context, content: self)
     }
 }
 
