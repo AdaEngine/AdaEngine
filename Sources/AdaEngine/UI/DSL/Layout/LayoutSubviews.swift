@@ -9,7 +9,7 @@ import Math
 
 public struct LayoutSubview: Equatable {
 
-    let node: WidgetNode
+    let node: ViewNode
 
     public static func == (lhs: LayoutSubview, rhs: LayoutSubview) -> Bool {
         return lhs.node.id == rhs.node.id

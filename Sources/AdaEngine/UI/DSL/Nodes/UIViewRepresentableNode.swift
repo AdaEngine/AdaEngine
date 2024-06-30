@@ -1,17 +1,17 @@
 //
-//  UIViewWidgetNode.swift
+//  UIViewRepresentableNode.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-final class UIViewWidgetNode<Representable: UIViewRepresentable>: WidgetNode {
+final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNode {
 
     private var view: Representable.ViewType?
     private var coordinator: Representable.Coordinator
     let representable: Representable
 
-    init<Content: Widget>(
+    init<Content: View>(
         representable: Representable,
         content: Content
     ) {
@@ -30,7 +30,7 @@ final class UIViewWidgetNode<Representable: UIViewRepresentable>: WidgetNode {
         self.representable.updateUIView(view!, in: context)
     }
 
-    override func hitTest(_ point: Point, with event: InputEvent) -> WidgetNode? {
+    override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
         if let view = self.view, view.hitTest(point, with: event) != nil {
             return self
         }
@@ -51,7 +51,8 @@ final class UIViewWidgetNode<Representable: UIViewRepresentable>: WidgetNode {
             return proposal.replacingUnspecifiedDimensions()
         }
 
-        return view.sizeThatFits(proposal)
+        let context = Representable.Context(environment: self.environment, coordinator: coordinator)
+        return representable.sizeThatFits(proposal, view: view, context: context)
     }
 
     override func draw(with context: GUIRenderContext) {

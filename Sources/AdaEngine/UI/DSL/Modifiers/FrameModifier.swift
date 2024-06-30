@@ -5,10 +5,10 @@
 //  Created by Vladislav Prusakov on 08.06.2024.
 //
 
-public extension Widget {
-    func frame(width: Float? = nil, height: Float? = nil) -> some Widget {
+public extension View {
+    func frame(width: Float? = nil, height: Float? = nil) -> some View {
         self.modifier(
-            FrameWidgetModifier(
+            FrameViewModifier(
                 content: self,
                 frame: .size(width: width, height: height)
             )
@@ -16,19 +16,23 @@ public extension Widget {
     }
 }
 
-struct FrameWidgetModifier<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
+struct FrameViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
 
     typealias Body = Never
     let content: Content
 
-    let frame: FrameWidgetNode.Frame
+    let frame: FrameViewNode.Frame
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        FrameWidgetNode(frameRule: frame, content: content, inputs: _WidgetListInputs(input: context))
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        FrameViewNode(
+            frameRule: frame,
+            content: content,
+            contentNode: inputs.makeNode(from: content)
+        )
     }
 }
 
-final class FrameWidgetNode: WidgetModifierNode {
+final class FrameViewNode: ViewModifierNode {
 
     enum Frame {
         case size(width: Float?, height: Float?)
@@ -36,9 +40,9 @@ final class FrameWidgetNode: WidgetModifierNode {
 
     let frameRule: Frame
 
-    init<Content: Widget>(frameRule: Frame, content: Content, inputs: _WidgetListInputs) {
+    init<Content: View>(frameRule: Frame, content: Content, contentNode: ViewNode) {
         self.frameRule = frameRule
-        super.init(content: content, inputs: inputs)
+        super.init(contentNode: contentNode, content: content)
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {

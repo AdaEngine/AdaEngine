@@ -7,7 +7,7 @@
 
 import Math
 
-public struct Spacer: Widget, WidgetNodeBuilder {
+public struct Spacer: View, ViewNodeBuilder {
 
     public typealias Body = Never
 
@@ -17,12 +17,12 @@ public struct Spacer: Widget, WidgetNodeBuilder {
         self.minLength = minLength
     }
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        SpacerWidgetNode(minLength: minLength, content: self)
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        SpacerViewNode(minLength: minLength, content: self)
     }
 }
 
-class SpacerWidgetNode: WidgetNode {
+class SpacerViewNode: ViewNode {
     let minLength: Float?
 
     init(minLength: Float?, content: Spacer) {

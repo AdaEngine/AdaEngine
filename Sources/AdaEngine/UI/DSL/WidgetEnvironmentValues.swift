@@ -1,25 +1,25 @@
 //
-//  WidgetEnvironmentValues.swift
+//  ViewEnvironmentValues.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
-struct FontWidgetEnvironmentKey: WidgetEnvironmentKey {
+struct FontViewEnvironmentKey: ViewEnvironmentKey {
     static var defaultValue: Font?
 }
 
-struct ForegroundColorEnvironmentKey: WidgetEnvironmentKey {
+struct ForegroundColorEnvironmentKey: ViewEnvironmentKey {
     static var defaultValue: Color = Color.black
 }
 
-public extension WidgetEnvironmentValues {
+public extension ViewEnvironmentValues {
     var font: Font? {
         get {
-            self[FontWidgetEnvironmentKey.self]
+            self[FontViewEnvironmentKey.self]
         }
         set {
-            self[FontWidgetEnvironmentKey.self] = newValue
+            self[FontViewEnvironmentKey.self] = newValue
         }
     }
 

@@ -28,17 +28,20 @@ public struct LayoutProperties {
     }
 }
 
-@MainActor
 public protocol Layout {
     associatedtype Cache = Void
     typealias Subviews = LayoutSubviews
 
+    @MainActor(unsafe)
     func sizeThatFits(_ proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> Size
 
+    @MainActor(unsafe)
     func placeSubviews(in bounds: Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache)
 
+    @MainActor(unsafe)
     func updateCache(_ cache: inout Cache, subviews: Subviews)
 
+    @MainActor(unsafe)
     func makeCache(subviews: Subviews) -> Cache
 
     /// Properties of a layout container.
@@ -58,45 +61,47 @@ public extension Layout where Cache == Void {
 }
 
 extension Layout {
-    public func callAsFunction<Content: Widget>(@WidgetBuilder _ content: @escaping () -> Content) -> some Widget {
+    public func callAsFunction<Content: View>(@ViewBuilder _ content: @escaping () -> Content) -> some View {
         CustomLayoutContainer(layout: self, content: content())
     }
 }
 
 // MARK: - Internal
 
-struct CustomLayoutContainer<T: Layout, Content: Widget>: Widget, WidgetNodeBuilder {
+struct CustomLayoutContainer<T: Layout, Content: View>: View, ViewNodeBuilder {
 
     typealias Body = Never
 
     let layout: T
     let content: Content
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        let outputs = Content._makeListView(_WidgetGraphNode(value: content), inputs: _WidgetListInputs(input: context)).outputs
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        let outputs = Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: inputs)).outputs
 
-        return LayoutWidgetContainerNode(
-            layout: context.layout,
+        let node = LayoutViewContainerNode(
+            layout: inputs.layout,
             content: content,
             nodes: outputs.map { $0.node }
         )
+        inputs.registerNodeForStorages(node)
+        return node
     }
 }
 
-final class LayoutWidgetContainerNode: WidgetContainerNode {
+final class LayoutViewContainerNode: ViewContainerNode {
     let layout: AnyLayout
     private var cache: AnyLayout.Cache?
-    private var subviews: LayoutSubviews = LayoutSubviews([])
 
-    init<L: Layout, Content: Widget>(layout: L, content: Content, nodes: [WidgetNode]) {
+    init<L: Layout, Content: View>(layout: L, content: Content, nodes: [ViewNode]) {
         self.layout = AnyLayout(layout)
         super.init(content: content, nodes: nodes)
 
         self.updateLayoutProperties(L.layoutProperties)
-        self.subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
     }
 
     override func performLayout() {
+        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
+
         if var cache = self.cache {
             layout.updateCache(&cache, subviews: subviews)
             self.cache = cache
@@ -119,6 +124,7 @@ final class LayoutWidgetContainerNode: WidgetContainerNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
         if var cache = self.cache {
             layout.updateCache(&cache, subviews: subviews)
             self.cache = cache
@@ -130,6 +136,6 @@ final class LayoutWidgetContainerNode: WidgetContainerNode {
             return proposal.replacingUnspecifiedDimensions()
         }
 
-        return layout.sizeThatFits(proposal, subviews: self.subviews, cache: &cache)
+        return layout.sizeThatFits(proposal, subviews: subviews, cache: &cache)
     }
 }

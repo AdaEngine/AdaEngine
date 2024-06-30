@@ -68,10 +68,10 @@ public struct EdgeInsets: Equatable, Hashable {
 
 }
 
-public extension Widget {
-    func padding(_ edges: Edge.Set = .all, _ length: Float?) -> some Widget {
+public extension View {
+    func padding(_ edges: Edge.Set = .all, _ length: Float?) -> some View {
         self.modifier(
-            PaddingWidgetModifier(
+            PaddingViewModifier(
                 edges: edges,
                 insets: length.map { EdgeInsets(top: $0, leading: $0, bottom: $0, trailing: $0) } ?? EdgeInsets(),
                 content: self
@@ -79,13 +79,13 @@ public extension Widget {
         )
     }
 
-    func padding(_ insets: EdgeInsets) -> some Widget {
-        self.modifier(PaddingWidgetModifier(edges: .all, insets: insets, content: self))
+    func padding(_ insets: EdgeInsets) -> some View {
+        self.modifier(PaddingViewModifier(edges: .all, insets: insets, content: self))
     }
 
-    func padding(_ length: Float) -> some Widget {
+    func padding(_ length: Float) -> some View {
         self.modifier(
-            PaddingWidgetModifier(
+            PaddingViewModifier(
                 edges: .all,
                 insets: EdgeInsets(top: length, leading: length, bottom: length, trailing: length),
                 content: self
@@ -94,33 +94,32 @@ public extension Widget {
     }
 }
 
-struct PaddingWidgetModifier<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
+struct PaddingViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
     typealias Body = Never
     
     let edges: Edge.Set
     let insets: EdgeInsets
     let content: Content
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        let view = Content._makeView(_WidgetGraphNode(value: content), inputs: context)
-        return PaddingModifierWidgetNode(
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        PaddingModifierViewNode(
             edges: edges,
             insets: insets,
             content: content,
-            node: view.node
+            node: inputs.makeNode(from: content)
         )
     }
 }
 
-final class PaddingModifierWidgetNode: WidgetModifierNode {
+final class PaddingModifierViewNode: ViewModifierNode {
 
     let edges: Edge.Set
     let insets: EdgeInsets
 
-    init<Content>(edges: Edge.Set, insets: EdgeInsets, content: Content, node: WidgetNode) where Content : Widget {
+    init<Content>(edges: Edge.Set, insets: EdgeInsets, content: Content, node: ViewNode) where Content : View {
         self.edges = edges
         self.insets = insets
-        super.init(content: content, nodes: [node])
+        super.init(contentNode: node, content: content)
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
@@ -181,14 +180,10 @@ final class PaddingModifierWidgetNode: WidgetModifierNode {
         let height = max(maxY - minY, 0)
 
         let proposal = ProposedViewSize(width: width, height: height)
-
-        for node in self.nodes {
-            node.place(
-                in: origin,
-                anchor: .topLeading,
-                proposal: proposal
-            )
-        }
-
+        contentNode.place(
+            in: origin,
+            anchor: .topLeading,
+            proposal: proposal
+        )
     }
 }
