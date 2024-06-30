@@ -9,57 +9,57 @@ import Math
 
 // MARK: - Coordinate Space
 
-public enum WidgetCoordinateSpace {
+public enum ViewCoordinateSpace {
     case local
     case global
     case named(AnyHashable)
 }
 
-public protocol WidgetCoordinateSpaceProtocol {
-    var coordinateSpace: WidgetCoordinateSpace { get }
+public protocol ViewCoordinateSpaceProtocol {
+    var coordinateSpace: ViewCoordinateSpace { get }
 }
 
-public struct GlobalWidgetCoordinateSpace: WidgetCoordinateSpaceProtocol {
-    public let coordinateSpace: WidgetCoordinateSpace = .global
+public struct GlobalViewCoordinateSpace: ViewCoordinateSpaceProtocol {
+    public let coordinateSpace: ViewCoordinateSpace = .global
 }
 
-public struct LocalWidgetCoordinateSpace: WidgetCoordinateSpaceProtocol {
-    public let coordinateSpace: WidgetCoordinateSpace = .local
+public struct LocalViewCoordinateSpace: ViewCoordinateSpaceProtocol {
+    public let coordinateSpace: ViewCoordinateSpace = .local
 }
 
-extension WidgetCoordinateSpaceProtocol where Self == GlobalWidgetCoordinateSpace {
-    public static var global: GlobalWidgetCoordinateSpace {
-        GlobalWidgetCoordinateSpace()
+extension ViewCoordinateSpaceProtocol where Self == GlobalViewCoordinateSpace {
+    public static var global: GlobalViewCoordinateSpace {
+        GlobalViewCoordinateSpace()
     }
 }
 
-extension WidgetCoordinateSpaceProtocol where Self == LocalWidgetCoordinateSpace {
-    public static var local: LocalWidgetCoordinateSpace {
-        LocalWidgetCoordinateSpace()
+extension ViewCoordinateSpaceProtocol where Self == LocalViewCoordinateSpace {
+    public static var local: LocalViewCoordinateSpace {
+        LocalViewCoordinateSpace()
     }
 }
 
-extension WidgetCoordinateSpaceProtocol where Self == LocalWidgetCoordinateSpace {
-    public static func named<H: Hashable>(_ name: H) -> NamedWidgetCoordinateSpace {
-        NamedWidgetCoordinateSpace(name)
+extension ViewCoordinateSpaceProtocol where Self == LocalViewCoordinateSpace {
+    public static func named<H: Hashable>(_ name: H) -> NamedViewCoordinateSpace {
+        NamedViewCoordinateSpace(name)
     }
 }
 
-public struct NamedWidgetCoordinateSpace: Equatable, WidgetCoordinateSpaceProtocol {
+public struct NamedViewCoordinateSpace: Equatable, ViewCoordinateSpaceProtocol {
     let name: AnyHashable
-    public let coordinateSpace: WidgetCoordinateSpace
+    public let coordinateSpace: ViewCoordinateSpace
 
     init<H: Hashable>(_ name: H) {
         self.name = name
         self.coordinateSpace = .named(AnyHashable(name))
     }
 
-    public static func == (lhs: NamedWidgetCoordinateSpace, rhs: NamedWidgetCoordinateSpace) -> Bool {
+    public static func == (lhs: NamedViewCoordinateSpace, rhs: NamedViewCoordinateSpace) -> Bool {
         return lhs.name == rhs.name
     }
 
-    public static func named<H: Hashable>(_ name: H) -> NamedWidgetCoordinateSpace {
-        NamedWidgetCoordinateSpace(name)
+    public static func named<H: Hashable>(_ name: H) -> NamedViewCoordinateSpace {
+        NamedViewCoordinateSpace(name)
     }
 }
 
@@ -68,44 +68,44 @@ public struct NamedWidgetCoordinateSpace: Equatable, WidgetCoordinateSpaceProtoc
 @MainActor
 public struct GeometryProxy {
 
-    let namedCoordinateSpaceContainer: NamedWidgetCoordinateSpaceContainer
+    let namedCoordinateSpaceContainer: NamedViewCoordinateSpaceContainer
     let localFrame: Rect
 
     public var size: Size {
         return localFrame.size
     }
 
-    public func frame(in coordinateSpace: WidgetCoordinateSpaceProtocol) -> Rect {
+    public func frame(in coordinateSpace: ViewCoordinateSpaceProtocol) -> Rect {
         switch coordinateSpace.coordinateSpace {
         case .local:
             return self.localFrame
         case .global:
-            return namedCoordinateSpaceContainer.containers[WidgetRootNode.rootCoordinateSpace.name]?.frame ?? .zero
+            return namedCoordinateSpaceContainer.containers[ViewRootNode.rootCoordinateSpace.name]?.frame ?? .zero
         case .named(let value):
             return namedCoordinateSpaceContainer.containers[value]?.frame ?? .zero
         }
     }
 }
 
-public struct GeometryReader<Content: Widget>: Widget, WidgetNodeBuilder {
+public struct GeometryReader<Content: View>: View, ViewNodeBuilder {
 
     public typealias Body = Never
 
     let content: (GeometryProxy) -> Content
 
-    public init(@WidgetBuilder content: @escaping (GeometryProxy) -> Content) {
+    public init(@ViewBuilder content: @escaping (GeometryProxy) -> Content) {
         self.content = content
     }
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        GeometryReaderWidgetNode(contentProxy: content, content: self)
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        GeometryReaderViewNode(contentProxy: content, content: self)
     }
 }
 
-class GeometryReaderWidgetNode<Content: Widget>: WidgetContainerNode {
+class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     let contentProxy: (GeometryProxy) -> Content
 
-    init<Root: Widget>(contentProxy: @escaping (GeometryProxy) -> Content, content: Root) {
+    init<Root: View>(contentProxy: @escaping (GeometryProxy) -> Content, content: Root) {
         self.contentProxy = contentProxy
         super.init(content: content, nodes: [])
     }
@@ -121,13 +121,13 @@ class GeometryReaderWidgetNode<Content: Widget>: WidgetContainerNode {
     }
 
     override func invalidateContent() {
-        let context = _WidgetInputs(environment: self.environment)
+        let context = _ViewInputs(environment: self.environment)
         let proxy = GeometryProxy(
             namedCoordinateSpaceContainer: self.environment.coordinateSpaces,
             localFrame: self.frame
         )
         let content = self.contentProxy(proxy)
-        let outputs = Content._makeListView(_WidgetGraphNode(value: content), inputs: _WidgetListInputs(input: context)).outputs
+        let outputs = Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: context)).outputs
         let nodes = outputs.map { $0.node }
 
         for node in nodes {
@@ -140,16 +140,16 @@ class GeometryReaderWidgetNode<Content: Widget>: WidgetContainerNode {
 
 // MARK: - Environment
 
-class NamedWidgetCoordinateSpaceContainer {
-    var containers: [AnyHashable: WidgetNode] = [:]
+class NamedViewCoordinateSpaceContainer {
+    var containers: [AnyHashable: ViewNode] = [:]
 }
 
-struct GeometryReaderNameEnvironmentKey: WidgetEnvironmentKey {
-    static var defaultValue = NamedWidgetCoordinateSpaceContainer()
+struct GeometryReaderNameEnvironmentKey: ViewEnvironmentKey {
+    static var defaultValue = NamedViewCoordinateSpaceContainer()
 }
 
-extension WidgetEnvironmentValues {
-    var coordinateSpaces: NamedWidgetCoordinateSpaceContainer {
+extension ViewEnvironmentValues {
+    var coordinateSpaces: NamedViewCoordinateSpaceContainer {
         get {
             self[GeometryReaderNameEnvironmentKey.self]
         }
@@ -159,32 +159,33 @@ extension WidgetEnvironmentValues {
     }
 }
 
-public extension Widget {
-    func coordinateSpace(_ named: NamedWidgetCoordinateSpace) -> some Widget {
-        self.modifier(CoordinateSpaceWidgetModifier(named: named, content: self))
+public extension View {
+    func coordinateSpace(_ named: NamedViewCoordinateSpace) -> some View {
+        self.modifier(CoordinateSpaceViewModifier(named: named, content: self))
     }
 }
 
-struct CoordinateSpaceWidgetModifier<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
+struct CoordinateSpaceViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
     typealias Body = Never
 
-    let named: NamedWidgetCoordinateSpace
+    let named: NamedViewCoordinateSpace
     let content: Content
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        CoordinateSpaceWidgetNode(named: named, content: content, context: context)
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        let node = inputs.makeNode(from: content)
+        return CoordinateSpaceViewNode(named: named, content: content, contentNode: node)
     }
 }
 
-class CoordinateSpaceWidgetNode: WidgetModifierNode {
+class CoordinateSpaceViewNode: ViewModifierNode {
     init<Content>(
-        named: NamedWidgetCoordinateSpace,
+        named: NamedViewCoordinateSpace,
         content: Content,
-        context: _WidgetInputs
-    ) where Content : Widget {
-        super.init(content: content, nodes: [])
-        context.environment.coordinateSpaces.containers[named.name] = self
-        self.updateEnvironment(context.environment)
+        contentNode: ViewNode
+    ) where Content : View {
+        super.init(contentNode: contentNode, content: content)
+//        context.environment.coordinateSpaces.containers[named.name] = self
+//        self.updateEnvironment(context.environment)
         self.invalidateContent()
     }
 }

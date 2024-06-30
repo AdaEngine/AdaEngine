@@ -7,26 +7,61 @@
 
 import AdaEngine
 
-struct NestedContent: Widget {
-    var body: some Widget {
-        HStack {
-            Color.red
+struct NestedContent: View {
+
+    @Binding var color: Color
+
+    var body: some View {
+        Self.printChanges()
+
+        return HStack {
+            color
             Color.green
+        }
+        .onAppear {
+            print(Self.self, "onAppear")
+            Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+                color = .random()
+            }
         }
     }
 }
 
-struct ContentView: Widget {
+struct ContentView: View {
 
     @State private var color = Color.brown
+    @State private var isShown = false
 
-    var body: some Widget {
-        VStack {
-            NestedContent()
-            Color.green
+    var body: some View {
+        Self.printChanges()
+
+        return VStack {
+            NestedContent(color: $color)
+            
+//            if isShown {
+//                Color.red
+//            }
+
+            Color.blue
         }
         .padding(16)
-        .background(.blue)
+        .background(self.color)
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
+                isShown.toggle()
+            }
+        }
+
+
+
+
+//        VStack {
+//            NestedContent()
+
+//        }
+//        .padding(16)
+//
+
 //        VStack {
 //            HStack {
 //                VStack {
@@ -85,7 +120,7 @@ struct ContentView: Widget {
 //        //        }
     }
 
-    var button: some Widget {
+    var button: some View {
         Color.black
             .opacity(0.7)
             .frame(width: 40, height: 40)
@@ -96,7 +131,7 @@ class EditorWindow: UIWindow {
     override func windowDidReady() {
         self.backgroundColor = .white
 
-        let view = UIWidgetView(rootView: ContentView())
+        let view = UIContainerView(rootView: ContentView())
         view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
         self.addSubview(view)
 

@@ -1,39 +1,42 @@
 //
-//  AnyWidget.swift
+//  AnyView.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
-public struct AnyWidget: Widget {
+@frozen
+public struct AnyView: View {
 
     public typealias Body = Never
 
-    let content: any Widget
+    let content: any View
 
-    public init<T: Widget>(_ widget: T) {
-        self.content = widget
+    public init<T: View>(_ view: T) {
+        self.content = view
     }
 
-    public init(_ widget: any Widget) {
-        self.content = widget
+    public init<V: View>(erasing view: V) {
+        self.content = view
     }
 
-    public static func _makeView(_ view: _WidgetGraphNode<Self>, inputs: _WidgetInputs) -> _WidgetOutputs {
+    @MainActor(unsafe)
+    public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
         let content = view[\.content].value
         return self.makeView(content, inputs: inputs)
     }
 
-    public static func _makeListView(_ view: _WidgetGraphNode<Self>, inputs: _WidgetListInputs) -> _WidgetListOutputs {
+    @MainActor(unsafe)
+    public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
         let content = view[\.content].value
         return self.makeListView(content, inputs: inputs)
     }
 
-    private static func makeView<T: Widget>(_ view: T, inputs: _WidgetInputs) -> _WidgetOutputs {
-        T._makeView(_WidgetGraphNode(value: view), inputs: inputs)
+    private static func makeView<T: View>(_ view: T, inputs: _ViewInputs) -> _ViewOutputs {
+        T._makeView(_ViewGraphNode(value: view), inputs: inputs)
     }
 
-    private static func makeListView<T: Widget>(_ view: T, inputs: _WidgetListInputs) -> _WidgetListOutputs {
-        T._makeListView(_WidgetGraphNode(value: view), inputs: inputs)
+    private static func makeListView<T: View>(_ view: T, inputs: _ViewListInputs) -> _ViewListOutputs {
+        T._makeListView(_ViewGraphNode(value: view), inputs: inputs)
     }
 }

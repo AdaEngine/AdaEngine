@@ -8,7 +8,7 @@
 import Math
 
 /// A view type that supports immediate mode drawing.
-public struct Canvas: Widget, WidgetNodeBuilder {
+public struct Canvas: View, ViewNodeBuilder {
 
     public typealias RenderBlock = (GUIRenderContext, Size) -> Void
 
@@ -20,17 +20,17 @@ public struct Canvas: Widget, WidgetNodeBuilder {
         self.render = render
     }
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        return CanvasWidgetNode(content: self, drawBlock: self.render)
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        return CanvasViewNode(content: self, drawBlock: self.render)
     }
 }
 
 @MainActor
-class CanvasWidgetNode: WidgetNode {
+fileprivate class CanvasViewNode: ViewNode {
 
-    let drawBlock: Canvas.RenderBlock
+    private(set) var drawBlock: Canvas.RenderBlock
 
-    init<Content: Widget>(content: Content, drawBlock: @escaping Canvas.RenderBlock) {
+    init<Content: View>(content: Content, drawBlock: @escaping Canvas.RenderBlock) {
         self.drawBlock = drawBlock
         super.init(content: content)
     }
@@ -41,5 +41,13 @@ class CanvasWidgetNode: WidgetNode {
         self.drawBlock(context, self.frame.size)
 
         context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
+    }
+
+    override func merge(_ otherNode: ViewNode) {
+        guard let otherNode = otherNode as? CanvasViewNode else {
+            return
+        }
+        
+        self.drawBlock = otherNode.drawBlock
     }
 }

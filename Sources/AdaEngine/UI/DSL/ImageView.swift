@@ -7,16 +7,17 @@
 
 import Math
 
-enum _ImageViewStorage {
-    case image(Image)
-    case texture(Texture2D)
-}
 
-public struct ImageView: Widget, WidgetNodeBuilder {
+public struct ImageView: View, ViewNodeBuilder {
+
+    public enum _Storage {
+        case image(Image)
+        case texture(Texture2D)
+    }
 
     public typealias Body = Never
 
-    let storage: _ImageViewStorage
+    let storage: _Storage
     var isResizable: Bool = false
 
     public init(_ image: Image) {
@@ -27,8 +28,8 @@ public struct ImageView: Widget, WidgetNodeBuilder {
         self.storage = .texture(texture)
     }
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        ImageViewWidgetNode(storage: self.storage, isResizable: self.isResizable, content: self)
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        ImageViewNode(storage: self.storage, isResizable: self.isResizable, content: self)
     }
 }
 
@@ -40,12 +41,12 @@ public extension ImageView {
     }
 }
 
-class ImageViewWidgetNode: WidgetNode {
+class ImageViewNode: ViewNode {
 
     let texture: Texture2D
     let isResizable: Bool
 
-    init<Content: Widget>(storage: _ImageViewStorage, isResizable: Bool, content: Content) {
+    init<Content: View>(storage: ImageView._Storage, isResizable: Bool, content: Content) {
         switch storage {
         case .image(let image):
             self.texture = Texture2D(image: image)

@@ -185,7 +185,7 @@ open class Scene: Resource, @unchecked Sendable {
         self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
 
-        await self.sceneDidLoad()
+        self.sceneDidLoad()
     }
     
     /// Update scene world and systems by delta time.

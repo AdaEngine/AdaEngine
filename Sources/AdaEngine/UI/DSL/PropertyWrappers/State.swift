@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 08.06.2024.
 //
 
-class StateStorage<Value>: UpdatablePropertyStorage {
+final class StateStorage<Value>: UpdatablePropertyStorage {
     var value: Value
     
     init(value: Value) {
@@ -13,36 +13,44 @@ class StateStorage<Value>: UpdatablePropertyStorage {
     }
 }
 
-@propertyWrapper @MainActor
+@MainActor
+@propertyWrapper
 public struct State<Value>: UpdatableProperty, PropertyStoragable {
     
-    var _storage: UpdatablePropertyStorage {
-        self.storage
+    var storage: UpdatablePropertyStorage {
+        self._storage
     }
     
-    let storage: StateStorage<Value>
-    
+    let _storage: StateStorage<Value>
+
     public var wrappedValue: Value {
         get {
-            return storage.value
+            return _storage.value
         }
-        
         nonmutating set {
-            storage.value = newValue
+            _storage.value = newValue
             self.update()
         }
     }
-    
+
+    public var projectedValue: Binding<Value> {
+        Binding<Value> {
+            self.wrappedValue
+        } set: { newValue in
+            self.wrappedValue = newValue
+        }
+    }
+
     public init(wrappedValue: Value) {
-        self.storage = StateStorage(value: wrappedValue)
+        self._storage = StateStorage(value: wrappedValue)
     }
     
     public init(initialValue: Value) {
-        self.storage = StateStorage(value: initialValue)
+        self._storage = StateStorage(value: initialValue)
     }
     
     public func update() {
-        self.storage.update()
+        self._storage.update()
     }
     
 }
