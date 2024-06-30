@@ -19,7 +19,7 @@ struct NestedContent: View {
             Color.green
         }
         .onAppear {
-            print(Self.self, "onAppear")
+//            print(Self.self, "onAppear")
             Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
                 color = .random()
             }
@@ -38,11 +38,13 @@ struct ContentView: View {
         return VStack {
             NestedContent(color: $color)
             
-//            if isShown {
-//                Color.red
-//            }
-
-            Color.blue
+            if isShown {
+                Color.red
+            } else {
+                Color.blue
+                Color.red
+            }
+            
         }
         .padding(16)
         .background(self.color)
