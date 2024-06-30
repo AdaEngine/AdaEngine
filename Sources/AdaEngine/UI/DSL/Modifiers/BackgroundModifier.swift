@@ -7,17 +7,17 @@
 
 import Math
 
-public extension Widget {
-    func background(_ color: Color) -> some Widget {
-        self.modifier(BackgroundWidget(content: self, backgroundContent: color))
+public extension View {
+    func background(_ color: Color) -> some View {
+        self.modifier(BackgroundView(content: self, backgroundContent: color))
     }
 
-    func background<Content: Widget>(@WidgetBuilder _ content: () -> Content) -> some Widget {
-        self.modifier(BackgroundWidget(content: self, backgroundContent: content()))
+    func background<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        self.modifier(BackgroundView(content: self, backgroundContent: content()))
     }
 }
 
-struct BackgroundWidget<Content: Widget, BackgroundContent: Widget>: WidgetModifier, WidgetNodeBuilder {
+struct BackgroundView<Content: View, BackgroundContent: View>: ViewModifier, ViewNodeBuilder {
 
     typealias Body = Never
 
@@ -29,26 +29,27 @@ struct BackgroundWidget<Content: Widget, BackgroundContent: Widget>: WidgetModif
         self.backgroundContent = backgroundContent
     }
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        let backgroundNode = context.makeNode(from: self.backgroundContent)
-        return BackgroundWidgetNode(
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        let backgroundNode = inputs.makeNode(from: self.backgroundContent)
+        let contentNode = inputs.makeNode(from: self.content)
+        return BackgroundViewNode(
             backgroundNode: backgroundNode,
             content: content,
-            inputs: _WidgetListInputs(input: context)
+            contentNode: contentNode
         )
     }
 }
 
-class BackgroundWidgetNode: WidgetModifierNode {
-    let backgroundNode: WidgetNode
+class BackgroundViewNode: ViewModifierNode {
+    let backgroundNode: ViewNode
 
     init<Content>(
-        backgroundNode: WidgetNode,
+        backgroundNode: ViewNode,
         content: Content,
-        inputs: _WidgetListInputs
-    ) where Content : Widget {
+        contentNode: ViewNode
+    ) where Content : View {
         self.backgroundNode = backgroundNode
-        super.init(content: content, inputs: inputs)
+        super.init(contentNode: contentNode, content: content)
     }
 
     override func draw(with context: GUIRenderContext) {

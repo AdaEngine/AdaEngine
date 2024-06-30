@@ -74,7 +74,7 @@ public extension Color {
             red: Float.random(in: 0...255) / 255,
             green: Float.random(in: 0...255) / 255,
             blue: Float.random(in: 0...255) / 255,
-            alpha: Float.random(in: 0...1)
+            alpha: 1
         )
     }
 }

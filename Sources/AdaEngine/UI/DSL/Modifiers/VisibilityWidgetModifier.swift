@@ -1,21 +1,21 @@
 //
-//  VisibilityWidgetModifier.swift
+//  VisibilityViewModifier.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
-public extension Widget {
-    func onAppear(perform: (() -> Void)? = nil) -> some Widget {
-        self.modifier(OnAppearWidget(content: self, onAppear: perform))
+public extension View {
+    func onAppear(perform: (() -> Void)? = nil) -> some View {
+        self.modifier(OnAppearView(content: self, onAppear: perform))
     }
 
-    func onDisappear(perform: (() -> Void)? = nil) -> some Widget {
-        self.modifier(OnDisappearWidget(content: self, onDisappear: perform))
+    func onDisappear(perform: (() -> Void)? = nil) -> some View {
+        self.modifier(OnDisappearView(content: self, onDisappear: perform))
     }
 }
 
-struct OnAppearWidget<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
+struct OnAppearView<Content: View>: ViewModifier, ViewNodeBuilder {
 
     typealias Body = Never
 
@@ -27,14 +27,17 @@ struct OnAppearWidget<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
         self.onAppear = onAppear
     }
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetNodeVisibility(content: content, inputs: _WidgetListInputs(input: context))
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        let node = VisibilityViewNode(
+            contentNode: inputs.makeNode(from: content),
+            content: content
+        )
         node.onAppear = self.onAppear
         return node
     }
 }
 
-struct OnDisappearWidget<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
+struct OnDisappearView<Content: View>: ViewModifier, ViewNodeBuilder {
 
     typealias Body = Never
 
@@ -46,14 +49,17 @@ struct OnDisappearWidget<Content: Widget>: WidgetModifier, WidgetNodeBuilder {
         self.onDisappear = onDisappear
     }
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        let node = WidgetNodeVisibility(content: content, inputs: _WidgetListInputs(input: context))
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        let node = VisibilityViewNode(
+            contentNode: inputs.makeNode(from: content),
+            content: content
+        )
         node.onDisappear = self.onDisappear
         return node
     }
 }
 
-final class WidgetNodeVisibility: WidgetContainerNode {
+final class VisibilityViewNode: ViewModifierNode {
     var onAppear: (() -> Void)?
     var onDisappear: (() -> Void)?
 
@@ -67,11 +73,42 @@ final class WidgetNodeVisibility: WidgetContainerNode {
         guard let parent else {
             return
         }
+        
+        let parentId = parent.id
+        var isAppeared = parent.environment.nodeVisibilityHolder.isAppeared[parentId] ?? false
 
         if parent.frame.intersects(self.frame) {
-            self.onAppear?()
+            if !isAppeared {
+                isAppeared = true
+                onAppear?()
+            }
         } else {
-            self.onDisappear?()
+            if isAppeared {
+                isAppeared = false
+                onDisappear?()
+            }
+        }
+
+        parent.environment.nodeVisibilityHolder.isAppeared[parentId] = isAppeared
+        self.updateEnvironment(parent.environment)
+    }
+}
+
+class ViewNodeVisibilityHolder {
+    var isAppeared: [ObjectIdentifier: Bool] = [:]
+}
+
+struct ViewNodeVisibilityKey: ViewEnvironmentKey {
+    static var defaultValue: ViewNodeVisibilityHolder = ViewNodeVisibilityHolder()
+}
+
+fileprivate extension ViewEnvironmentValues {
+    var nodeVisibilityHolder: ViewNodeVisibilityHolder {
+        get {
+            self[ViewNodeVisibilityKey.self]
+        }
+        set {
+            self[ViewNodeVisibilityKey.self] = newValue
         }
     }
 }

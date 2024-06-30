@@ -1,5 +1,5 @@
 //
-//  TextWidgetNode.swift
+//  TextViewNode.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 07.06.2024.
@@ -7,7 +7,7 @@
 
 import Math
 
-final class TextWidgetNode: WidgetNode {
+final class TextViewNode: ViewNode {
 
     let textLayoutManager: TextLayoutManager
     private var textContainer: TextContainer {
@@ -16,7 +16,7 @@ final class TextWidgetNode: WidgetNode {
         }
     }
 
-    init(inputs: _WidgetInputs, content: Text) {
+    init(inputs: _ViewInputs, content: Text) {
         let text = content.storage.applyingEnvironment(inputs.environment)
         self.textContainer = TextContainer(text: text)
         self.textLayoutManager = TextLayoutManager()

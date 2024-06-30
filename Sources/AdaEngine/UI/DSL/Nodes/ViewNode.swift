@@ -1,5 +1,5 @@
 //
-//  WidgetNode.swift
+//  ViewNode.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 07.06.2024.
@@ -7,28 +7,31 @@
 
 import Math
 
-/// Base node for all system widgets in AdaEngine.
+/// Base node for all system Views in AdaEngine.
 /// Node represents a view that can render, layout and interact with user.
-@MainActor class WidgetNode: Identifiable {
+@MainActor 
+class ViewNode: Identifiable {
 
     nonisolated var id: ObjectIdentifier {
         ObjectIdentifier(self)
     }
 
-    weak var parent: WidgetNode?
+    weak var parent: ViewNode?
 
-    var content: any Widget
-    private(set) var environment = WidgetEnvironmentValues()
+    let shouldNotifyAboutChanges: Bool
+    let content: any View
+    private(set) var environment = ViewEnvironmentValues()
     private(set) var frame: Rect = .zero
     private(set) var layoutProperties = LayoutProperties()
 
-    init<Content: Widget>(content: Content) {
+    init<Content: View>(content: Content) {
         self.content = content
+        self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(content)
     }
 
     // MARK: Layout
 
-    func updateEnvironment(_ environment: WidgetEnvironmentValues) {
+    func updateEnvironment(_ environment: ViewEnvironmentValues) {
         self.environment = environment
     }
 
@@ -56,6 +59,19 @@ import Math
 
     func performLayout() { }
 
+    func isEquals(_ otherNode: ViewNode) -> Bool {
+        // Compare content of POD or Equals
+        if _ViewGraphNode(value: self.content) == _ViewGraphNode(value: otherNode.content) {
+            return true
+        }
+
+        return false
+    }
+
+    func merge(_ otherNode: ViewNode) {
+        self.environment = otherNode.environment
+    }
+
     // MARK: - Other
 
     func update(_ deltaTime: TimeInterval) { }
@@ -66,7 +82,7 @@ import Math
     
     func onReceiveEvent(_ event: InputEvent) { }
 
-    func hitTest(_ point: Point, with event: InputEvent) -> WidgetNode? {
+    func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
         if self.point(inside: point, with: event) {
             return self
         }
@@ -79,7 +95,7 @@ import Math
         return self.frame.contains(point: point)
     }
 
-    func convert(_ point: Point, to node: WidgetNode?) -> Point {
+    func convert(_ point: Point, to node: ViewNode?) -> Point {
         guard let node, node !== self else {
             return point
         }
@@ -93,7 +109,7 @@ import Math
         return point
     }
 
-    func convert(_ point: Point, from node: WidgetNode?) -> Point {
+    func convert(_ point: Point, from node: ViewNode?) -> Point {
         return node?.convert(point, to: self) ?? point
     }
 
@@ -108,7 +124,7 @@ import Math
     // MARK: - Debug
 
     func _printDebugNode() {
-        print(self.debugDescription(hierarchy: 0))
+//        print(self.debugDescription(hierarchy: 0))
     }
 
     func debugDescription(hierarchy: Int = 0, identation: Int = 2) -> String {
@@ -121,9 +137,9 @@ import Math
     }
 }
 
-extension WidgetNode: Equatable {
-    static func == (lhs: WidgetNode, rhs: WidgetNode) -> Bool {
-        _WidgetGraphNode(value: lhs.content) == _WidgetGraphNode(value: rhs.content)
+extension ViewNode: Equatable {
+    static func == (lhs: ViewNode, rhs: ViewNode) -> Bool {
+        return lhs.isEquals(rhs)
     }
 }
 

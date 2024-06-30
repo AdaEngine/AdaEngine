@@ -1,5 +1,5 @@
 //
-//  WidgetTree.swift
+//  ViewTree.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 07.06.2024.
@@ -8,20 +8,20 @@
 import Math
 
 @MainActor
-class WidgetTree<Content: Widget> {
+class ViewTree<Content: View> {
     
     let rootView: Content
-    private(set) var rootNode: WidgetRootNode
+    private(set) var rootNode: ViewRootNode
 
     init(rootView: Content) {
         self.rootView = rootView
         
-        let inputs = _WidgetInputs(
-            environment: WidgetEnvironmentValues()
+        let inputs = _ViewInputs(
+            environment: ViewEnvironmentValues()
         )
         
-        let contentNode = Content._makeView(_WidgetGraphNode(value: rootView), inputs: inputs)
-        self.rootNode = WidgetRootNode(contentNode: contentNode.node, content: rootView)
+        let contentNode = Content._makeView(_ViewGraphNode(value: rootView), inputs: inputs)
+        self.rootNode = ViewRootNode(contentNode: contentNode.node, content: rootView)
     }
     
     func renderGraph(renderContext: GUIRenderContext) {
@@ -29,13 +29,13 @@ class WidgetTree<Content: Widget> {
     }
 }
 
-final class WidgetRootNode: WidgetNode {
+final class ViewRootNode: ViewNode {
 
-    let contentNode: WidgetNode
+    let contentNode: ViewNode
 
-    static let rootCoordinateSpace = NamedWidgetCoordinateSpace(UUID().uuidString)
+    static let rootCoordinateSpace = NamedViewCoordinateSpace(UUID().uuidString)
 
-    init<Root: Widget>(contentNode: WidgetNode, content: Root) {
+    init<Root: View>(contentNode: ViewNode, content: Root) {
         self.contentNode = contentNode
         super.init(content: content)
         
@@ -51,8 +51,6 @@ final class WidgetRootNode: WidgetNode {
             anchor: .center,
             proposal: proposal
         )
-
-        self.contentNode._printDebugNode()
     }
 
     override func update(_ deltaTime: TimeInterval) {
@@ -63,7 +61,7 @@ final class WidgetRootNode: WidgetNode {
         contentNode.draw(with: context)
     }
 
-    override func hitTest(_ point: Point, with event: InputEvent) -> WidgetNode? {
+    override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
         contentNode.hitTest(point, with: event)
     }
 

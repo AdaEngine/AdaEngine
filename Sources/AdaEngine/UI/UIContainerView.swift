@@ -1,5 +1,5 @@
 //
-//  UIWidgetView.swift
+//  UIContainerView.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 07.06.2024.
@@ -7,31 +7,31 @@
 
 import Math
 
-public class UIWidgetView<Content: Widget>: UIView {
-    
-    private let widgetTree: WidgetTree<Content>
-    
+public class UIContainerView<Content: View>: UIView {
+
+    private let viewTree: ViewTree<Content>
+
     public init(rootView: Content) {
-        self.widgetTree = WidgetTree(rootView: rootView)
-        
+        self.viewTree = ViewTree(rootView: rootView)
+
         super.init()
     }
 
     public override func layoutSubviews() {
         super.layoutSubviews()
 
-        widgetTree.rootNode.place(in: .zero, anchor: .zero, proposal: ProposedViewSize(self.frame.size))
+        viewTree.rootNode.place(in: .zero, anchor: .zero, proposal: ProposedViewSize(self.frame.size))
     }
     
     public required init(frame: Rect) {
         fatalError("init(frame:) has not been implemented")
     }
 
-    private var lastHittestedNode: WidgetNode?
+    private var lastHittestedNode: ViewNode?
 
     public override func hitTest(_ point: Point, with event: InputEvent) -> UIView? {
-        if let widgetNode = self.widgetTree.rootNode.hitTest(point, with: event) {
-            self.lastHittestedNode = widgetNode
+        if let viewNode = self.viewTree.rootNode.hitTest(point, with: event) {
+            self.lastHittestedNode = viewNode
             return self
         }
 
@@ -51,16 +51,16 @@ public class UIWidgetView<Content: Widget>: UIView {
     }
 
     public override func point(inside point: Point, with event: InputEvent) -> Bool {
-        return self.widgetTree.rootNode.point(inside: point, with: event)
+        return self.viewTree.rootNode.point(inside: point, with: event)
     }
     
     override public func draw(in rect: Rect, with context: GUIRenderContext) {
-        widgetTree.renderGraph(renderContext: context)
+        viewTree.renderGraph(renderContext: context)
     }
 
     public override func update(_ deltaTime: TimeInterval) async {
         await super.update(deltaTime)
 
-        self.widgetTree.rootNode.update(deltaTime)
+        self.viewTree.rootNode.update(deltaTime)
     }
 }

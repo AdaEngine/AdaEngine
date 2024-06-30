@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-public struct Text: Widget, WidgetNodeBuilder {
+public struct Text: View, ViewNodeBuilder {
 
     public typealias Body = Never
 
@@ -27,7 +27,7 @@ public struct Text: Widget, WidgetNodeBuilder {
             return Storage(attributedText: newText)
         }
 
-        func applyingEnvironment(_ environment: WidgetEnvironmentValues) -> AttributedText {
+        func applyingEnvironment(_ environment: ViewEnvironmentValues) -> AttributedText {
             if let font = environment.font {
                 self.text.font = font
             }
@@ -54,8 +54,8 @@ public struct Text: Widget, WidgetNodeBuilder {
         self.storage = storage
     }
 
-    func makeWidgetNode(context: Context) -> WidgetNode {
-        TextWidgetNode(inputs: context, content: self)
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        TextViewNode(inputs: inputs, content: self)
     }
 }
 
@@ -78,12 +78,12 @@ public extension Text {
     }
 }
 
-public extension Widget {
-    func font(_ font: Font?) -> some Widget {
+public extension View {
+    func font(_ font: Font?) -> some View {
         return self.environment(\.font, font)
     }
 
-    func foregroundColor(_ color: Color) -> some Widget {
+    func foregroundColor(_ color: Color) -> some View {
         return self.environment(\.foregroundColor, color)
     }
 }
