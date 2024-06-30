@@ -81,10 +81,17 @@ class ViewContainerNode: ViewNode {
 
         super.merge(container)
 
+        var needsLayout = false
+
         // We have same this, merge new nodes into old
         if self.nodes.count == container.nodes.count {
-            for (oldNode, newNode) in zip(self.nodes, container.nodes) {
-                oldNode.merge(newNode)
+            for (index, (oldNode, newNode)) in zip(self.nodes, container.nodes).enumerated() {
+                if type(of: oldNode) == type(of: newNode) {
+                    oldNode.merge(newNode)
+                } else {
+                    self.nodes[index] = newNode
+                    needsLayout = true
+                }
             }
         } else {
             // has different sizes.
@@ -100,6 +107,10 @@ class ViewContainerNode: ViewNode {
                 }
             }
 
+            needsLayout = true
+        }
+        
+        if needsLayout {
             self.performLayout()
         }
     }
