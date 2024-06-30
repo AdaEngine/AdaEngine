@@ -26,7 +26,7 @@ public struct Canvas: View, ViewNodeBuilder {
 }
 
 @MainActor
-fileprivate class CanvasViewNode: ViewNode {
+class CanvasViewNode: ViewNode {
 
     private(set) var drawBlock: Canvas.RenderBlock
 
@@ -37,9 +37,7 @@ fileprivate class CanvasViewNode: ViewNode {
 
     override func draw(with context: GUIRenderContext) {
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-
         self.drawBlock(context, self.frame.size)
-
         context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
     }
 
