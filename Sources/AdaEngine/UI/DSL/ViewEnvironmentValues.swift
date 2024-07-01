@@ -10,7 +10,7 @@ struct FontViewEnvironmentKey: ViewEnvironmentKey {
 }
 
 struct ForegroundColorEnvironmentKey: ViewEnvironmentKey {
-    static var defaultValue: Color = Color.black
+    static var defaultValue: Color?
 }
 
 public extension ViewEnvironmentValues {
@@ -23,7 +23,7 @@ public extension ViewEnvironmentValues {
         }
     }
 
-    var foregroundColor: Color {
+    var foregroundColor: Color? {
         get {
             self[ForegroundColorEnvironmentKey.self]
         }

@@ -5,6 +5,11 @@
 //  Created by Vladislav Prusakov on 20.06.2024.
 //
 
+public enum ImageRenderMode {
+    case original
+    case template
+}
+
 public class UIImageView: UIView {
 
     public var image: Image? {

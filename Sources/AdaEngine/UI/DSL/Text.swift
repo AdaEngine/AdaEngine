@@ -33,7 +33,7 @@ public struct Text: View, ViewNodeBuilder {
             }
             
             if self.foregroundColor == nil {
-                self.text.foregroundColor = environment.foregroundColor
+                self.text.foregroundColor = environment.foregroundColor ?? .black
             }
             
             return self.text
