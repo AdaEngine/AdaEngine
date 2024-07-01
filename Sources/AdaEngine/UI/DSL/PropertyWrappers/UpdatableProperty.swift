@@ -8,8 +8,7 @@
 import Logging
 
 public protocol UpdatableProperty {
-    @MainActor
-    func update()
+    @MainActor func update()
 }
 
 protocol PropertyStoragable {

@@ -7,7 +7,7 @@
 
 class ViewModifierNode: ViewNode {
 
-    let contentNode: ViewNode
+    var contentNode: ViewNode
 
     init<Content: View>(contentNode: ViewNode, content: Content) {
         self.contentNode = contentNode
