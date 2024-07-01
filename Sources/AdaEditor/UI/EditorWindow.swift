@@ -13,7 +13,7 @@ struct NestedContent: View {
     @State var innerColor: Color = .random()
 
     var body: some View {
-        Self.printChanges()
+//        Self.printChanges()
 
         return HStack {
             innerColor
@@ -34,25 +34,30 @@ struct ContentView: View {
     @State private var isShown = false
 
     var body: some View {
-        Self.printChanges()
+//        Self.printChanges()
 
         return VStack {
             NestedContent(color: $color)
-            
+
             if isShown {
                 Color.red
             } else {
                 EmptyView()
             }
 
-            Color.blue
+            Button {
+                print("Pressed")
+            } label: {
+                Color.green
+            }
+
 
         }
         .padding(16)
         .background(self.color)
         .onAppear {
             Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
-                isShown.toggle()
+//                isShown.toggle()
             }
         }
 

@@ -113,12 +113,29 @@ class ViewNode: Identifiable {
         return node?.convert(point, to: self) ?? point
     }
 
-    open func onTouchesEvent(_ touches: Set<TouchEvent>) {
+    func onTouchesEvent(_ touches: Set<TouchEvent>) {
 
     }
 
-    open func onMouseEvent(_ event: MouseEvent) {
+    func onMouseEvent(_ event: MouseEvent) {
 
+    }
+
+    func findFirstResponder(for event: InputEvent) -> ViewNode? {
+        let responder: ViewNode?
+
+        switch event {
+        case let event as MouseEvent:
+            let point = event.mousePosition
+            responder = self.hitTest(point, with: event)
+        case let event as TouchEvent:
+            let point = event.location
+            responder = self.hitTest(point, with: event)
+        default:
+            return nil
+        }
+
+        return responder
     }
 
     // MARK: - Debug

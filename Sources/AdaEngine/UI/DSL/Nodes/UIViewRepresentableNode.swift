@@ -7,7 +7,7 @@
 
 final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNode {
 
-    private var view: Representable.ViewType?
+    private(set) var view: Representable.ViewType?
     private var coordinator: Representable.Coordinator
     let representable: Representable
 
