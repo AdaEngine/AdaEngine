@@ -10,7 +10,15 @@ import Math
 public struct EmptyView: View, ViewNodeBuilder {
     public typealias Body = Never
 
+    public init() {}
+
     func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        ViewNode(content: self)
+        EmptyViewNode(content: self)
+    }
+}
+
+final class EmptyViewNode: ViewNode {
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        return .zero
     }
 }

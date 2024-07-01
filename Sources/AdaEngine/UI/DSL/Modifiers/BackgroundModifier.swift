@@ -52,6 +52,16 @@ class BackgroundViewNode: ViewModifierNode {
         super.init(contentNode: contentNode, content: content)
     }
 
+    override func merge(_ otherNode: ViewNode) {
+        guard let otherNode = otherNode as? BackgroundViewNode else {
+            return
+        }
+
+        super.merge(otherNode)
+        self.contentNode.merge(otherNode.contentNode)
+        self.backgroundNode.merge(otherNode.backgroundNode)
+    }
+
     override func draw(with context: GUIRenderContext) {
         self.backgroundNode.draw(with: context)
         super.draw(with: context)

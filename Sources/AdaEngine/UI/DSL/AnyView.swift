@@ -5,8 +5,7 @@
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
-@frozen
-public struct AnyView: View {
+@frozen public struct AnyView: View {
 
     public typealias Body = Never
 

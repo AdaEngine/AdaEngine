@@ -5,14 +5,6 @@
 //  Created by Vladislav Prusakov on 08.06.2024.
 //
 
-final class StateStorage<Value>: UpdatablePropertyStorage {
-    var value: Value
-    
-    init(value: Value) {
-        self.value = value
-    }
-}
-
 @MainActor
 @propertyWrapper
 public struct State<Value>: UpdatableProperty, PropertyStoragable {
@@ -53,4 +45,12 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
         self._storage.update()
     }
     
+}
+
+final class StateStorage<Value>: UpdatablePropertyStorage {
+    var value: Value
+
+    init(value: Value) {
+        self.value = value
+    }
 }

@@ -59,6 +59,7 @@ struct OnDisappearView<Content: View>: ViewModifier, ViewNodeBuilder {
     }
 }
 
+// FIXME: Should use smth like hierarchy ID, because parent id isn't source of truth
 final class VisibilityViewNode: ViewModifierNode {
     var onAppear: (() -> Void)?
     var onDisappear: (() -> Void)?

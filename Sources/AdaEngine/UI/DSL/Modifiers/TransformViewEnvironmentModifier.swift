@@ -10,10 +10,12 @@ public extension View {
         _ keyPath: WritableKeyPath<ViewEnvironmentValues, Value>,
         block: @escaping (inout Value) -> Void
     ) -> some View {
-        TransformViewEnvironmentModifier(
-            content: self,
-            keyPath: keyPath,
-            block: block
+        self.modifier(
+            TransformViewEnvironmentModifier(
+                content: self,
+                keyPath: keyPath,
+                block: block
+            )
         )
     }
 
@@ -21,29 +23,31 @@ public extension View {
         _ keyPath: WritableKeyPath<ViewEnvironmentValues, Value>,
         _ newValue: Value
     ) -> some View {
-        TransformViewEnvironmentModifier(
-            content: self,
-            keyPath: keyPath,
-            block: { value in
-                value = newValue
-            }
+        self.modifier(
+            TransformViewEnvironmentModifier(
+                content: self,
+                keyPath: keyPath,
+                block: { value in
+                    value = newValue
+                }
+            )
         )
     }
 }
 
-struct TransformViewEnvironmentModifier<Content: View, Value>: View, ViewNodeBuilder {
+struct TransformViewEnvironmentModifier<WrappedView: View, Value>: ViewModifier, _ViewInputsViewModifier {
 
-    typealias Body = Never
-
-    let content: Content
+    let content: WrappedView
     let keyPath: WritableKeyPath<ViewEnvironmentValues, Value>
     let block: (inout Value) -> Void
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        var environment = inputs.environment
-        block(&environment[keyPath: keyPath])
+    func body(content: Content) -> some View {
+        return content
+    }
 
-        let newContext = _ViewInputs(environment: environment)
-        return Content._makeView(_ViewGraphNode(value: content), inputs: newContext).node
+    static func _makeModifier(_ modifier: _ViewGraphNode<Self>, inputs: inout _ViewInputs) {
+        var environment = inputs.environment
+        modifier.value.block(&environment[keyPath: modifier.value.keyPath])
+        inputs.environment = environment
     }
 }
