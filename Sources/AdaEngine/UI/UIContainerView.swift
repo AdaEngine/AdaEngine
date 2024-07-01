@@ -13,7 +13,6 @@ public class UIContainerView<Content: View>: UIView {
 
     public init(rootView: Content) {
         self.viewTree = ViewTree(rootView: rootView)
-
         super.init()
     }
 

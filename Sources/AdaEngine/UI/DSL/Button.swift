@@ -102,12 +102,6 @@ final class ButtonViewNode: ViewModifierNode {
         super.merge(otherNode)
     }
 
-    override func draw(with context: GUIRenderContext) {
-        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-        contentNode.draw(with: context)
-        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
-    }
-
     // MARK: - Interaction
 
     override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {

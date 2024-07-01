@@ -13,7 +13,7 @@ struct NestedContent: View {
     @State var innerColor: Color = .random()
 
     var body: some View {
-//        Self.printChanges()
+        Self.printChanges()
 
         return HStack {
             innerColor
@@ -34,21 +34,17 @@ struct ContentView: View {
     @State private var isShown = false
 
     var body: some View {
-//        Self.printChanges()
+        Self.printChanges()
 
         return VStack {
             NestedContent(color: $color)
 
-            if isShown {
-                Color.red
-            } else {
-                EmptyView()
-            }
-
             Button {
                 print("Pressed")
             } label: {
-                Color.green
+                ImageView("Assets/dog.png", bundle: Bundle.editor)
+                    .resizable()
+                    .frame(width: 300, height: 120)
             }
 
 
@@ -57,7 +53,7 @@ struct ContentView: View {
         .background(self.color)
         .onAppear {
             Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
-//                isShown.toggle()
+                isShown.toggle()
             }
         }
 
