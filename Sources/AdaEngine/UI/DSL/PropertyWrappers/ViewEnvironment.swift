@@ -11,10 +11,6 @@ public protocol ViewEnvironmentKey {
     static var defaultValue: Value { get }
 }
 
-final class ViewContextStorage: UpdatablePropertyStorage {
-    var values: ViewEnvironmentValues = ViewEnvironmentValues()
-}
-
 @propertyWrapper
 public struct ViewEnvironment<Value>: PropertyStoragable, UpdatableProperty {
 
@@ -35,6 +31,10 @@ public struct ViewEnvironment<Value>: PropertyStoragable, UpdatableProperty {
     public func update() {
         self.storage.update()
     }
+}
+
+final class ViewContextStorage: UpdatablePropertyStorage {
+    var values: ViewEnvironmentValues = ViewEnvironmentValues()
 }
 
 public struct ViewEnvironmentValues {

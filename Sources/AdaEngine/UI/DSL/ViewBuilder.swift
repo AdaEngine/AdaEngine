@@ -8,33 +8,39 @@
 @MainActor
 @resultBuilder public enum ViewBuilder {
 
+    @_alwaysEmitIntoClient
     public static func buildBlock() -> EmptyView {
         return EmptyView()
     }
 
+    @_alwaysEmitIntoClient
     public static func buildBlock<Content>(_ content: Content) -> Content where Content : View {
         return content
     }
 
+    @_alwaysEmitIntoClient
     public static func buildBlock<each Content>(_ content: repeat each Content) -> ViewTuple<(repeat each Content)> where repeat each Content : View {
         return ViewTuple(value: (repeat each content))
     }
 
+    @_alwaysEmitIntoClient
     public static func buildExpression<Content>(_ content: Content) -> Content where Content: View {
         content
     }
-
 }
 
 extension ViewBuilder {
+    @_alwaysEmitIntoClient
     public static func buildIf<Content>(_ content: Content?) -> Content? where Content: View {
         content
     }
 
+    @_alwaysEmitIntoClient
     public static func buildEither<TrueContent, FalseContent>(first: TrueContent) -> _ConditionalContent<TrueContent, FalseContent> where TrueContent: View, FalseContent: View {
         _ConditionalContent(storage: .trueContent(first))
     }
 
+    @_alwaysEmitIntoClient
     public static func buildEither<TrueContent, FalseContent>(second: FalseContent) -> _ConditionalContent<TrueContent, FalseContent> where TrueContent: View, FalseContent: View {
         _ConditionalContent(storage: .falseContent(second))
     }
@@ -51,14 +57,14 @@ extension ViewBuilder {
 
 public struct _ConditionalContent<TrueContent, FalseContent> {
 
-    enum Storage {
+    public enum Storage {
         case trueContent(TrueContent)
         case falseContent(FalseContent)
     }
 
     let storage: _ConditionalContent<TrueContent, FalseContent>.Storage
 
-    init(storage: Storage) {
+    public init(storage: Storage) {
         self.storage = storage
     }
 }
