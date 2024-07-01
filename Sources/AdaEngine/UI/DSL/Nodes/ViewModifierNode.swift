@@ -50,7 +50,9 @@ class ViewModifierNode: ViewNode {
     }
 
     override func draw(with context: GUIRenderContext) {
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         contentNode.draw(with: context)
+        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
