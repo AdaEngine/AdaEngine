@@ -21,6 +21,7 @@ extension View {
     @MainActor(unsafe)
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
         let resolvedInputs = inputs.resolveStorages(in: view.value)
+
         if let builder = view.value as? ViewNodeBuilder {
             let node = builder.makeViewNode(inputs: inputs)
             return _ViewOutputs(node: node)
@@ -29,6 +30,7 @@ extension View {
         let body = view[\.body]
         if let builder = body.value as? ViewNodeBuilder {
             let node = builder.makeViewNode(inputs: inputs)
+            resolvedInputs.registerNodeForStorages(node)
             return _ViewOutputs(node: node)
         } else {
             let bodyNode = Self.Body._makeView(body, inputs: inputs).node

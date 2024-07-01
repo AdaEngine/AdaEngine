@@ -182,3 +182,27 @@ extension ModifiedContent : ViewModifier where Content : ViewModifier, Modifier 
         }
     }
 }
+
+protocol _ViewInputsViewModifier {
+    static func _makeModifier(_ modifier: _ViewGraphNode<Self>, inputs: inout _ViewInputs)
+}
+
+extension ViewModifier where Self: _ViewInputsViewModifier {
+    @MainActor
+    static func _makeView(
+        for modifier: _ViewGraphNode<Self>,
+        inputs: _ViewInputs,
+        body: @escaping (_ViewInputs) -> _ViewOutputs
+    ) -> _ViewOutputs {
+        var inputs = inputs
+        Self._makeModifier(modifier, inputs: &inputs)
+
+        if let builder = modifier.value as? ViewNodeBuilder {
+            let node = builder.makeViewNode(inputs: inputs)
+            return _ViewOutputs(node: node)
+        }
+        
+        let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeView(body)))
+        return Self.Body._makeView(_ViewGraphNode(value: newBody), inputs: inputs)
+    }
+}

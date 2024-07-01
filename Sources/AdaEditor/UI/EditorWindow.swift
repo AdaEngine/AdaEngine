@@ -10,18 +10,19 @@ import AdaEngine
 struct NestedContent: View {
 
     @Binding var color: Color
+    @State var innerColor: Color = .random()
 
     var body: some View {
         Self.printChanges()
 
         return HStack {
-            color
+            innerColor
             Color.green
         }
         .onAppear {
-//            print(Self.self, "onAppear")
             Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
                 color = .random()
+                innerColor = .random()
             }
         }
     }
@@ -41,10 +42,11 @@ struct ContentView: View {
             if isShown {
                 Color.red
             } else {
-                Color.blue
-                Color.red
+                EmptyView()
             }
-            
+
+            Color.blue
+
         }
         .padding(16)
         .background(self.color)
@@ -53,8 +55,6 @@ struct ContentView: View {
                 isShown.toggle()
             }
         }
-
-
 
 
 //        VStack {
