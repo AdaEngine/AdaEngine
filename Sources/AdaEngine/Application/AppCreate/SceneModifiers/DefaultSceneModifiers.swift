@@ -18,7 +18,7 @@ struct MinimumWindowSizeSceneModifier: SceneModifier {
 /// Set the window mode.
 struct WindowModeSceneModifier: SceneModifier {
     
-    let windowMode: Window.Mode
+    let windowMode: UIWindow.Mode
     
     func modify(_ configuration: inout _AppSceneConfiguration) {
         configuration.windowMode = self.windowMode

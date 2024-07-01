@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 4/30/24.
 //
 
+import Logging
+
 final class AppContext<T: App> {
 
     private var app: T
@@ -37,11 +39,15 @@ final class AppContext<T: App> {
         try ResourceManager.initialize()
         try AudioServer.initialize()
         
+        
+        
         RuntimeTypeLoader.loadTypes()
 
         guard let appScene = app.scene as? InternalAppScene else {
             fatalError("Incorrect object of App Scene")
         }
+        
+        LoggingSystem.bootstrap(StreamLogHandler.standardError)
 
         Task { @MainActor in
             var configuration = _AppSceneConfiguration()

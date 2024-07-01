@@ -11,13 +11,13 @@ import MetalKit
 
 open class MetalView: MTKView {
     
-    let windowID: Window.ID
+    let windowID: UIWindow.ID
     
     #if MACOS
     var currentTrackingArea: NSTrackingArea?
     #endif
     
-    public init(windowId: Window.ID, frame: CGRect) {
+    public init(windowId: UIWindow.ID, frame: CGRect) {
         self.windowID = windowId
         super.init(frame: frame, device: nil)
     }

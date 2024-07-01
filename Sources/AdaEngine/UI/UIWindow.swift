@@ -9,7 +9,7 @@
 /// Each window instance can be presented on the screen.
 /// - Tag: AdaEngine.Window
 @MainActor
-open class Window: View {
+open class UIWindow: UIView {
 
     public typealias ID = RID
     
@@ -25,12 +25,14 @@ open class Window: View {
     
     internal var systemWindow: SystemWindow?
     
-    public var windowManager: WindowManager {
+    public var windowManager: UIWindowManager {
         return Application.shared.windowManager
     }
-    
+
+    internal let eventManager = EventManager()
+
     /// Flag indicates that window can draw itself content in method ``draw(in:with:)``.
-    open var canDraw: Bool = false
+    open var canDraw: Bool = true
     
     private var _minSize: Size = .zero
     public var minSize: Size {
@@ -72,7 +74,7 @@ open class Window: View {
     
     // MARK: - Public Methods
 
-    open func setWindowMode(_ mode: Window.Mode) {
+    open func setWindowMode(_ mode: UIWindow.Mode) {
         self.windowManager.setWindowMode(self, mode: mode)
     }
     
@@ -105,27 +107,25 @@ open class Window: View {
     open func windowShouldClose() -> Bool {
         return true
     }
-    
+
+    func sendEvent(_ event: InputEvent) {
+        guard self.canRespondToAction(event) else {
+            return
+        }
+
+        let responder = self.findFirstResponder(for: event) ?? self
+        responder.onEvent(event)
+    }
+
     // MARK: - Overriding
     
-    override func frameDidChange() {
+    open override func frameDidChange() {
         self.windowManager.resizeWindow(self, size: self.frame.size)
         super.frameDidChange()
     }
     
-    /// - Tag: AdaEngine.Window.drawWithContext
-    override func draw(with context: GUIRenderContext) {
-        super.draw(with: context)
-    }
-    
-    /// - Tag: AdaEngine.Window.drawInRectWithContext
-    open override func draw(in rect: Rect, with context: GUIRenderContext) {
-        super.draw(in: rect, with: context)
-    }
-    
-    public override func addSubview(_ view: View) {
-        
-        if view is Window {
+    public override func addSubview(_ view: UIView) {
+        if view is UIWindow {
             fatalError("You cannot add window as subview to another window")
         }
         
@@ -136,26 +136,24 @@ open class Window: View {
                 fatalError("You cannot add view as subview, because view holded by another window.")
             }
         }
-        
-        view.window = self
+
         super.addSubview(view)
     }
     
-    public override func removeSubview(_ view: View) {
+    public override func removeSubview(_ view: UIView) {
         if let window = view.window, window !== self {
             fatalError("You cant remove view from another window instance.")
         }
         
-        view.window = nil
         super.removeSubview(view)
     }
 }
 
-public extension Window {
+public extension UIWindow {
     enum Mode: UInt64 {
         case windowed
         case fullscreen
     }
     
-    static let defaultMinimumSize = Size(width: 800, height: 600)
+    nonisolated static let defaultMinimumSize = Size(width: 800, height: 600)
 }

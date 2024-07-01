@@ -27,7 +27,7 @@ public final class TouchEvent: InputEvent {
     /// Describe the phase of a finger touch
     public let phase: Phase
     
-    internal init(window: Window.ID, location: Point, phase: Phase, time: TimeInterval) {
+    internal init(window: UIWindow.ID, location: Point, phase: Phase, time: TimeInterval) {
         self.location = location
         self.phase = phase
         super.init(window: window, time: time)

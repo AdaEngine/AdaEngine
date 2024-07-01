@@ -4,7 +4,6 @@
 //
 //  Created by v.prusakov on 11/2/21.
 //
-//
 
 import Math
 
@@ -51,7 +50,7 @@ public struct Camera {
     public enum RenderTarget: Codable {
         
         /// Render camera to window.
-        case window(Window.ID)
+        case window(UIWindow.ID)
         
         /// Render camera to texture.
         case texture(RenderTexture)
@@ -115,6 +114,10 @@ public struct Camera {
     /// Create a new camera component. By default render target is window.
     public init() {
         self.renderTarget = .window(.empty)
+    }
+    
+    public init(window: UIWindow.ID) {
+        self.renderTarget = .window(window)
     }
     
     public var viewMatrix: Transform3D = .identity

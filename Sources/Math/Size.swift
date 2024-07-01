@@ -33,3 +33,17 @@ extension Size: ExpressibleByArrayLiteral {
         self.init(width: elements[0], height: elements[1])
     }
 }
+
+public extension Size {
+    static func += (lhs: inout Size, rhs: Size) {
+        lhs = lhs + rhs
+    }
+
+    static func + (lhs: Size, rhs: Size) -> Size {
+        return Size(
+            width: lhs.width + rhs.width,
+            height: rhs.height + lhs.height
+        )
+    }
+}
+
