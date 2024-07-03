@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 08.06.2024.
 //
 
-public struct ZStack<Content: View>: View, ViewNodeBuilder {
+public struct ZStack<Content: View>: View {
 
     public typealias Body = Never
 
@@ -16,14 +16,18 @@ public struct ZStack<Content: View>: View, ViewNodeBuilder {
         self.anchor = anchor
         self.content = content()
     }
-    
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        let outputs = Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: inputs)).outputs
 
-        return LayoutViewContainerNode(
-            layout: ZStackLayout(anchor: self.anchor),
-            content: content,
-            nodes: outputs.map { $0.node }
+    public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
+        let content = view[\.content]
+        let stack = view.value
+
+        let nodes = Content._makeListView(content, inputs: _ViewListInputs(input: inputs)).outputs.map { $0.node }
+        let node = LayoutViewContainerNode(
+            layout: ZStackLayout(anchor: stack.anchor),
+            content: view.value,
+            nodes: nodes
         )
+
+        return _ViewOutputs(node: node)
     }
 }

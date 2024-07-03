@@ -14,10 +14,7 @@ public protocol TextAttributeKey {
 
 public struct FontTextAttribute: TextAttributeKey {
     public typealias Value = Font
-    public static var defaultValue: Font = Font(
-        fontResource: .system(),
-        pointSize: 0
-    )
+    public static var defaultValue: Font = Font(fontResource: .system(emFontScale: 1))
 }
 
 public struct ForegroundColorTextAttribute: TextAttributeKey {

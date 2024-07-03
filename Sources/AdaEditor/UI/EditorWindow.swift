@@ -34,93 +34,56 @@ struct ContentView: View {
     @State private var isShown = false
 
     var body: some View {
-        Self.printChanges()
 
-        return VStack {
-            NestedContent(color: $color)
+        VStack {
+            Text("Hello")
 
-            Button {
-                print("Pressed")
-            } label: {
-                ImageView("Assets/dog.png", bundle: Bundle.editor)
-                    .resizable()
-                    .frame(width: 300, height: 120)
-            }
+            Color.blue
+                .frame(height: 140)
 
-
+            Text("World")
         }
-        .padding(16)
-        .background(self.color)
-        .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
-                isShown.toggle()
-            }
-        }
+        .background(.red)
+        .frame(width: 140)
 
+//        ScrollView {
+//            VStack {
+//                ForEach(0..<30) { _ in
+//                    Color.random()
+//                        .cursorShape(.pointingHand)
+//                }
+//            }
+//            .padding(16)
+//        }
+//        .background(
+//            Color.gray
+//        )
+//        .onTap {
+//            print("kek")
+//        }
 
-//        VStack {
-//            NestedContent()
-
+//        Self.printChanges()
+//
+//        return VStack {
+//            NestedContent(color: $color)
+//
+//            Button {
+//                print("Pressed")
+//            } label: {
+//                ImageView("Assets/dog.png", bundle: Bundle.editor)
+//                    .resizable()
+//                    .frame(width: 300, height: 120)
+//            }
 //        }
 //        .padding(16)
-//
-
-//        VStack {
-//            HStack {
-//                VStack {
-//                    ForEach(0..<4) { _ in
-//                        button
-//                    }
-//                }
-//                .frame(height: 40)
-//                .background(.red)
-//
-//                Color.black
-//
-//                VStack {
-//                    ForEach(0..<4) { _ in
-//                        button
-//                    }
-//                }
-//                .frame(height: 40)
-//                .background(.red)
-//
-//                Spacer()
-//                    .background(.red)
+//        .background(self.color)
+//        .onAppear {
+//            Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
+//                isShown.toggle()
 //            }
-//
-//            ForEach(0..<3) { _ in
-//                HStack {
-//                    ForEach(0..<9) { _ in
-//                        button
-//                    }
-//                    .background(.yellow)
-//                }
-//                .background(.yellow)
-//            }
-//            .background(.yellow)
-//
-//            HStack {
-//                ForEach(0..<9) { _ in
-//                    button
-//                }
-//                .background(.yellow)
-//            }
-//            .background(.yellow)
 //        }
-//        .padding(10)
-//        .background(Color.gray)
-//        //        ScrollView {
-//        //            VStack {
-//        //                ForEach(0..<30) { _ in
-//        //                    Color.random()
-//        //                }
-//        //            }
-//        //            .padding(16)
-//        //            .onAppear {
-//        //                self.color = .red
-//        //            }
-//        //        }
+
+
     }
 
     var button: some View {

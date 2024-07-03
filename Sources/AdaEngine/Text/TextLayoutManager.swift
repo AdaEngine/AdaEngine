@@ -116,7 +116,7 @@ public final class TextLayoutManager {
             
             let fontHandle = attributes.font.fontResource.handle
             let metrics = fontHandle.metrics
-            let fontScale =  1 / attributes.font.pointSize
+            let fontScale =  attributes.font.fontResource.fontEmSize
 
             if let index = textures.firstIndex(where: { fontHandle.atlasTexture === $0 }) {
                 textureIndex = index

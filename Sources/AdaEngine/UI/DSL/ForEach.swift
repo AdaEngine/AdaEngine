@@ -7,15 +7,28 @@
 
 /// A structure that computes Views on demand from an underlying collection of
 /// identified data.
-public struct ForEach<Data: RandomAccessCollection, ID: Hashable, Content>: View {
+public struct ForEach<Data: RandomAccessCollection, ID: Hashable, Content: View>: View {
 
     public typealias Body = Never
 
     let data: Data
     var content: (Data.Element) -> Content
+
+    @MainActor(unsafe)
+    public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
+        let data = view[\.data].value
+        let contentBlock = view[\.content].value
+
+        let outputs = data.map { item in
+            let content = contentBlock(item)
+            return Content._makeView(_ViewGraphNode(value: content), inputs: inputs.input)
+        }
+
+        return _ViewListOutputs(outputs: outputs)
+    }
 }
 
-extension ForEach where ID == Data.Element.ID, Content : View, Data.Element : Identifiable {
+extension ForEach where ID == Data.Element.ID, Data.Element : Identifiable {
 
     /// Creates an instance that uniquely identifies and creates views across
     /// updates based on the identity of the underlying data.
@@ -35,7 +48,7 @@ extension ForEach where ID == Data.Element.ID, Content : View, Data.Element : Id
     }
 }
 
-extension ForEach where Content: View {
+extension ForEach {
 
     /// Creates an instance that uniquely identifies and creates widegts across
     /// updates based on the provided key path to the underlying data's
@@ -56,21 +69,9 @@ extension ForEach where Content: View {
         self.data = data
         self.content = content
     }
-
-    static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
-        let data = view[\.data].value
-        let contentBlock = view[\.content].value
-
-        let outputs = data.map { item in
-            let content = contentBlock(item)
-            return Content._makeView(_ViewGraphNode(value: content), inputs: inputs.input)
-        }
-
-        return _ViewListOutputs(outputs: outputs)
-    }
 }
 
-extension ForEach where Data == Range<Int>, ID == Int, Content : View {
+extension ForEach where Data == Range<Int>, ID == Int {
 
     /// Creates an instance that computes Viewss on demand over a given constant
     /// range.

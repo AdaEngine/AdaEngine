@@ -9,7 +9,7 @@
 import Foundation
 
 public struct FontDescriptor {
-    public var fontSize: Float = 1.0
+    public var emFontScale: Double
 }
 
 /// Generate MTSDF atlas texture from font.
@@ -27,7 +27,7 @@ final class FontAtlasGenerator {
         atlasFontDescriptor.coloringSeed = 3
         atlasFontDescriptor.threads = 8
         atlasFontDescriptor.expensiveColoring = true
-        atlasFontDescriptor.fontScale = 52
+        atlasFontDescriptor.emFontScale = fontDescriptor.emFontScale
         atlasFontDescriptor.atlasImageType = AFG_IMAGE_TYPE_MTSDF
         atlasFontDescriptor.miterLimit = 1.0
         
@@ -45,8 +45,8 @@ final class FontAtlasGenerator {
         }
         
         let fontData = font_atlas_generator_get_font_data(generator)!
-        let fileName = "\(fontName)-\(atlasFontDescriptor.fontScale.rounded()).fontbin"
-        
+        let fileName = "\(fontName)-\(atlasFontDescriptor.emFontScale.rounded()).fontbin"
+
         if let (atlasHeader, data) = self.getAtlas(by: fileName) {
             let texture = self.makeTextureAtlas(from: data, width: atlasHeader.width, height: atlasHeader.height)
             return FontHandle(atlasTexture: texture, fontData: fontData)
