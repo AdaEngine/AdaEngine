@@ -90,7 +90,7 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     atlasPacker.setDimensionsConstraint(TightAtlasPacker::DimensionsConstraint::MULTIPLE_OF_FOUR_SQUARE);
     atlasPacker.setPadding(fontDescriptor.atlasImageType == AFG_ImageType::AFG_IMAGE_TYPE_MSDF || fontDescriptor.atlasImageType == AFG_ImageType::AFG_IMAGE_TYPE_MTSDF ? 0 : -1);
     
-    atlasPacker.setScale(fontDescriptor.fontScale);
+    atlasPacker.setScale(fontDescriptor.emFontScale);
     atlasPacker.setPixelRange(fontDescriptor.atlasPixelRange);
     atlasPacker.setMiterLimit(fontDescriptor.miterLimit);
     

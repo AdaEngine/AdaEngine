@@ -22,6 +22,7 @@ public struct _ViewInputs {
     var layout: any Layout = VStackLayout()
     var environment: ViewEnvironmentValues
     var propertyStorages: [PropertyStoragable] = []
+    var gestures: [_Gesture] = []
 
     func makeNode<T: View>(from content: T) -> ViewNode {
         T._makeView(_ViewGraphNode(value: content), inputs: self).node

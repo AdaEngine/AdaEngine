@@ -9,18 +9,18 @@ import Math
 
 final class TextViewNode: ViewNode {
 
-    let textLayoutManager: TextLayoutManager
+    let layoutManager: TextLayoutManager
     private var textContainer: TextContainer {
         didSet {
-            self.textLayoutManager.setTextContainer(self.textContainer)
+            self.layoutManager.setTextContainer(self.textContainer)
         }
     }
 
     init(inputs: _ViewInputs, content: Text) {
         let text = content.storage.applyingEnvironment(inputs.environment)
         self.textContainer = TextContainer(text: text)
-        self.textLayoutManager = TextLayoutManager()
-        self.textLayoutManager.setTextContainer(self.textContainer)
+        self.layoutManager = TextLayoutManager()
+        self.layoutManager.setTextContainer(self.textContainer)
         super.init(content: content)
     }
 
@@ -30,21 +30,23 @@ final class TextViewNode: ViewNode {
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         if proposal == .zero || proposal == .infinity {
-            return textLayoutManager.size
+            return layoutManager.size
         }
 
-        if let width = proposal.width, width > 0 {
+        var idealWidth: Float = 0
+        var idealHeight: Float = 0
+        if let width = proposal.width, width != .infinity {
 
         }
 
-        if let height = proposal.height, height > 0 {
-            
+        if let height = proposal.height, height != .infinity {
+
         }
 
         return proposal.replacingUnspecifiedDimensions()
     }
 
     override func draw(with context: GUIRenderContext) {
-        context.drawText(in: self.frame, from: self.textLayoutManager)
+        context.drawText(in: self.frame, from: self.layoutManager)
     }
 }

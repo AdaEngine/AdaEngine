@@ -13,6 +13,10 @@ struct ForegroundColorEnvironmentKey: ViewEnvironmentKey {
     static var defaultValue: Color?
 }
 
+struct ScaleFactorEnvironmentKey: ViewEnvironmentKey {
+    static var defaultValue: Float? = Screen.main?.scale
+}
+
 public extension ViewEnvironmentValues {
     var font: Font? {
         get {
@@ -29,6 +33,15 @@ public extension ViewEnvironmentValues {
         }
         set {
             self[ForegroundColorEnvironmentKey.self] = newValue
+        }
+    }
+
+    var scaleFactor: Float {
+        get {
+            return self[ScaleFactorEnvironmentKey.self] ?? 1
+        }
+        set {
+            self[ScaleFactorEnvironmentKey.self] = newValue
         }
     }
 }

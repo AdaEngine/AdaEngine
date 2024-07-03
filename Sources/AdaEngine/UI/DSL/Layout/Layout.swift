@@ -7,17 +7,6 @@
 
 import Math
 
-public struct Axis: OptionSet {
-    public var rawValue: UInt8
-
-    public init(rawValue: UInt8) {
-        self.rawValue = rawValue
-    }
-
-    public static let horizontal = Axis(rawValue: 1 << 0)
-    public static let vertical = Axis(rawValue: 1 << 1)
-}
-
 /// Layout-specific properties of a layout container.
 public struct LayoutProperties {
     /// The orientation of the containing stack-like container.
@@ -68,74 +57,28 @@ extension Layout {
 
 // MARK: - Internal
 
-struct CustomLayoutContainer<T: Layout, Content: View>: View, ViewNodeBuilder {
+struct CustomLayoutContainer<T: Layout, Content: View>: View {
 
     typealias Body = Never
 
     let layout: T
     let content: Content
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        let outputs = Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: inputs)).outputs
+    public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
+        let content = view[\.content]
+        let layout = AnyLayout(view[\.layout].value)
+
+        var inputs = inputs
+        inputs.layout = layout
+
+        let nodes = Content._makeListView(content, inputs: _ViewListInputs(input: inputs)).outputs.map { $0.node }
 
         let node = LayoutViewContainerNode(
-            layout: inputs.layout,
-            content: content,
-            nodes: outputs.map { $0.node }
-        )
-        inputs.registerNodeForStorages(node)
-        return node
-    }
-}
-
-final class LayoutViewContainerNode: ViewContainerNode {
-    let layout: AnyLayout
-    private var cache: AnyLayout.Cache?
-
-    init<L: Layout, Content: View>(layout: L, content: Content, nodes: [ViewNode]) {
-        self.layout = AnyLayout(layout)
-        super.init(content: content, nodes: nodes)
-
-        self.updateLayoutProperties(L.layoutProperties)
-    }
-
-    override func performLayout() {
-        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
-
-        if var cache = self.cache {
-            layout.updateCache(&cache, subviews: subviews)
-            self.cache = cache
-        } else {
-            self.cache = layout.makeCache(subviews: subviews)
-        }
-
-        guard var cache else {
-            return
-        }
-
-        layout.placeSubviews(
-            in: Rect(origin: .zero, size: self.frame.size),
-            proposal: ProposedViewSize(width: self.frame.width, height: self.frame.height),
-            subviews: subviews,
-            cache: &cache
+            layout: layout,
+            content: view.value,
+            nodes: nodes
         )
 
-        self.cache = cache
-    }
-
-    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
-        if var cache = self.cache {
-            layout.updateCache(&cache, subviews: subviews)
-            self.cache = cache
-        } else {
-            self.cache = layout.makeCache(subviews: subviews)
-        }
-
-        guard var cache else {
-            return proposal.replacingUnspecifiedDimensions()
-        }
-
-        return layout.sizeThatFits(proposal, subviews: subviews, cache: &cache)
+        return _ViewOutputs(node: node)
     }
 }

@@ -14,8 +14,8 @@ public struct Font: Hashable, Equatable {
     
     let fontResource: FontResource
     
-    internal init(fontResource: FontResource, pointSize: Double) {
-        self.pointSize = pointSize
+    internal init(fontResource: FontResource) {
+        self.pointSize = fontResource.fontEmSize
         self.fontResource = fontResource
         self.name = fontResource.handle.fontName
         
@@ -25,8 +25,8 @@ public struct Font: Hashable, Equatable {
 
 public extension Font {
     static func system(size: Double, weight: Weight? = nil) -> Font {
-        let resource = FontResource.system(weight: FontWeight.regular)
-        return Font(fontResource: resource, pointSize: size)
+        let resource = FontResource.system(weight: FontWeight.regular, emFontScale: size)
+        return Font(fontResource: resource)
     }
 }
 

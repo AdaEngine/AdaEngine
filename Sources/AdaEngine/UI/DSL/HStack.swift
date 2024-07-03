@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-public struct HStack<Content: View>: View, ViewNodeBuilder {
+public struct HStack<Content: View>: View {
 
     public typealias Body = Never
 
@@ -23,13 +23,17 @@ public struct HStack<Content: View>: View, ViewNodeBuilder {
         self.content = content()
     }
     
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        let outputs = Content._makeListView(_ViewGraphNode(value: content), inputs: _ViewListInputs(input: inputs)).outputs
+    public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
+        let content = view[\.content]
+        let stack = view.value
 
-        return LayoutViewContainerNode(
-            layout: HStackLayout(alignment: self.alignment, spacing: self.spacing),
-            content: content,
-            nodes: outputs.map { $0.node }
+        let nodes = Content._makeListView(content, inputs: _ViewListInputs(input: inputs)).outputs.map { $0.node }
+        let node = LayoutViewContainerNode(
+            layout: HStackLayout(alignment: stack.alignment, spacing: stack.spacing),
+            content: view.value,
+            nodes: nodes
         )
+
+        return _ViewOutputs(node: node)
     }
 }

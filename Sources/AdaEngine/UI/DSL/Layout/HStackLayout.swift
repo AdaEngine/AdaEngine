@@ -7,18 +7,6 @@
 
 import Math
 
-public enum HorizontalAlignment {
-    case leading
-    case trailing
-    case center
-}
-
-public enum VerticalAlignment {
-    case top
-    case bottom
-    case center
-}
-
 public struct StackLayoutCache {
     var minSizes: [Size] = []
     var maxSizes: [Size] = []

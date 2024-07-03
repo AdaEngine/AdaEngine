@@ -85,11 +85,17 @@ extension MetalView {
     public override func mouseMoved(with event: NSEvent) {
         let position = self.mousePosition(for: event)
         Input.shared.mousePosition = position
+
+        let event = MouseEvent(window: self.windowID, button: .none, mousePosition: position, phase: .changed, time: TimeInterval(event.timestamp))
+        Input.shared.receiveEvent(event)
     }
     
     open override func mouseDragged(with event: NSEvent) {
         let position = self.mousePosition(for: event)
         Input.shared.mousePosition = position
+
+        let event = MouseEvent(window: self.windowID, button: .none, mousePosition: position, phase: .changed, time: TimeInterval(event.timestamp))
+        Input.shared.receiveEvent(event)
     }
     
     public override func scrollWheel(with event: NSEvent) {

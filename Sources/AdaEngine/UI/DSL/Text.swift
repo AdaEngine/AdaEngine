@@ -9,37 +9,6 @@ public struct Text: View, ViewNodeBuilder {
 
     public typealias Body = Never
 
-    final class Storage {
-        fileprivate(set) var text: AttributedText
-        var foregroundColor: Color?
-
-        init(string: String) {
-            self.text = AttributedText(string)
-        }
-
-        init(attributedText: AttributedText) {
-            self.text = attributedText
-        }
-
-        func concatinating(other: Storage) -> Storage {
-            var newText = self.text
-            newText.append(other.text)
-            return Storage(attributedText: newText)
-        }
-
-        func applyingEnvironment(_ environment: ViewEnvironmentValues) -> AttributedText {
-            if let font = environment.font {
-                self.text.font = font
-            }
-            
-            if self.foregroundColor == nil {
-                self.text.foregroundColor = environment.foregroundColor ?? .black
-            }
-            
-            return self.text
-        }
-    }
-
     let storage: Storage
 
     public init(_ text: String) {
@@ -85,5 +54,38 @@ public extension View {
 
     func foregroundColor(_ color: Color) -> some View {
         return self.environment(\.foregroundColor, color)
+    }
+}
+
+extension Text {
+    final class Storage {
+        fileprivate(set) var text: AttributedText
+        var foregroundColor: Color?
+
+        init(string: String) {
+            self.text = AttributedText(string)
+        }
+
+        init(attributedText: AttributedText) {
+            self.text = attributedText
+        }
+
+        func concatinating(other: Storage) -> Storage {
+            var newText = self.text
+            newText.append(other.text)
+            return Storage(attributedText: newText)
+        }
+
+        func applyingEnvironment(_ environment: ViewEnvironmentValues) -> AttributedText {
+            if let font = environment.font {
+                self.text.font = font
+            }
+
+            if self.foregroundColor == nil {
+                self.text.foregroundColor = environment.foregroundColor ?? .black
+            }
+
+            return self.text
+        }
     }
 }
