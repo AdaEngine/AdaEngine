@@ -46,18 +46,18 @@ public final class FontResource: Resource, Hashable {
 
 public extension FontResource {
     /// The top y-coordinate, offset from the baseline, of the font’s longest ascender.
-    var ascender: Float {
-        Float(self.handle.metrics.ascenderY)
+    var ascender: Double {
+        self.handle.metrics.ascenderY
     }
     
     /// The bottom y-coordinate, offset from the baseline, of the font’s longest descender.
-    var descender: Float {
-        Float(self.handle.metrics.descenderY)
+    var descender: Double {
+        self.handle.metrics.descenderY
     }
     
     /// The height, in points, of text lines.
-    var lineHeight: Float {
-        Float(self.handle.metrics.lineHeight)
+    var lineHeight: Double {
+        self.handle.metrics.lineHeight
     }
 
     // The size of one EM.
@@ -106,7 +106,7 @@ public extension FontResource {
             var path = "Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf"
 
             if let scale = emFontScale {
-                path.append("#emSize=\(emFontScale)")
+                path.append("#emSize=\(scale)")
             }
 
             return try ResourceManager.loadSync(path, from: .engineBundle) as FontResource

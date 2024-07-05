@@ -424,7 +424,80 @@ extension Renderer2D {
             
             self.renderEngine.circleData.indeciesCount += 6
         }
-        
+
+        public func drawGlyph(_ glyph: Glyph, transform: Transform3D) {
+            if self.renderEngine.textData.indeciesCount >= Renderer2D.maxIndecies {
+                self.nextBatch()
+            }
+
+            // Flush all data if textures count more than 16
+            if self.renderEngine.textData.textureSlotIndex >= 15 {
+                self.nextBatch()
+                self.renderEngine.textData.textureSlots = [Texture2D].init(repeating: .whiteTexture, count: 16)
+                self.renderEngine.textData.textureSlotIndex = 0
+            }
+
+            var textureSlotIndex = self.renderEngine.textData.textureSlotIndex
+
+            let texture = glyph.textureAtlas
+            let foregroundColor = glyph.attributes.foregroundColor
+            let outlineColor = glyph.attributes.outlineColor
+            let textureCoordinate = glyph.textureCoordinates
+
+            if let index = self.renderEngine.textData.textureSlots.firstIndex(where: { $0 === texture }) {
+                textureSlotIndex = index
+            } else {
+                textureSlotIndex += 1
+                self.renderEngine.textData.textureSlots[textureSlotIndex] = texture
+                self.renderEngine.textData.textureSlotIndex = textureSlotIndex
+            }
+
+            var verticies = [GlyphVertexData]()
+
+            verticies.append(
+                GlyphVertexData(
+                    position: transform * Vector4(x: glyph.position.z, y: glyph.position.y, z: 0, w: 1),
+                    foregroundColor: foregroundColor,
+                    outlineColor: outlineColor,
+                    textureCoordinate: [ textureCoordinate.z, textureCoordinate.y ],
+                    textureIndex: textureSlotIndex
+                )
+            )
+
+            verticies.append(
+                GlyphVertexData(
+                    position: transform * Vector4(x: glyph.position.z, y: glyph.position.w, z: 0, w: 1),
+                    foregroundColor: foregroundColor,
+                    outlineColor: outlineColor,
+                    textureCoordinate: [ textureCoordinate.z, textureCoordinate.w ],
+                    textureIndex: textureSlotIndex
+                )
+            )
+
+            verticies.append(
+                GlyphVertexData(
+                    position: transform * Vector4(x: glyph.position.x, y: glyph.position.w, z: 0, w: 1),
+                    foregroundColor: foregroundColor,
+                    outlineColor: outlineColor,
+                    textureCoordinate: [ textureCoordinate.x, textureCoordinate.w ],
+                    textureIndex: textureSlotIndex
+                )
+            )
+
+            verticies.append(
+                GlyphVertexData(
+                    position: transform * Vector4(x: glyph.position.x, y: glyph.position.y, z: 0, w: 1),
+                    foregroundColor: foregroundColor,
+                    outlineColor: outlineColor,
+                    textureCoordinate: [ textureCoordinate.x, textureCoordinate.y ],
+                    textureIndex: textureSlotIndex
+                )
+            )
+
+            self.renderEngine.textData.indeciesCount += 6
+            self.renderEngine.textData.vertices.append(contentsOf: verticies)
+        }
+
         public func drawText(_ textLayout: TextLayoutManager, transform: Transform3D) {
             if self.renderEngine.textData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()

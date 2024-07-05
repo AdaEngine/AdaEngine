@@ -7,13 +7,13 @@
 
 import Math
 
+// TODO: Clip Mask
+// TODO: Layers
+
 /// Special object to render user interface on the screen.
 /// Context use orthogonal projection.
-@MainActor
-final public class GUIRenderContext {
-    
-    private var strokeColor: Color = .black
-    
+public struct GUIRenderContext {
+
     /// Window Identifier related presented window.
     private let camera: Camera
     
@@ -33,7 +33,7 @@ final public class GUIRenderContext {
         self.camera = camera
     }
     
-    public func multiply(_ transform: Transform3D) {
+    public mutating func multiply(_ transform: Transform3D) {
         self.currentTransform = self.currentTransform * transform
     }
     
@@ -49,9 +49,9 @@ final public class GUIRenderContext {
         }
     }
     
-    private var currentDrawContext: Renderer2D.DrawContext?
+    private(set) var currentDrawContext: Renderer2D.DrawContext?
     
-    internal func beginDraw(in size: Size, scaleFactor: Float) {
+    internal mutating func beginDraw(in size: Size, scaleFactor: Float) {
         let view = Transform3D.orthographic(
             left: 0,
             right: size.width / scaleFactor,
@@ -69,28 +69,24 @@ final public class GUIRenderContext {
         )
     }
     
-    public func pushTransform() {
+    mutating func pushTransform() {
         self.stack.append(.identity)
     }
     
-    public func popTransform() {
+    mutating func popTransform() {
         self.stack.removeLast()
     }
     
-    public func setStrokeColor(_ color: Color) {
-        self.strokeColor = color
-    }
-    
-    public func translateBy(x: Float, y: Float) {
+    public mutating func translateBy(x: Float, y: Float) {
         let translationMatrix = Transform3D(translation: [x, y, 0])
         self.currentTransform = translationMatrix * currentTransform
     }
     
-    public func concat(_ transform: Transform3D) {
+    public mutating func concat(_ transform: Transform3D) {
         self.currentTransform = transform * currentTransform
     }
     
-    func scaleBy(x: Float, y: Float) {
+    public mutating func scaleBy(x: Float, y: Float) {
         let scaleMatrix = Transform3D(translation: [x, y, 1])
         self.currentTransform = scaleMatrix * self.currentTransform
     }
@@ -117,7 +113,17 @@ final public class GUIRenderContext {
         self.currentDrawContext?.drawText(textLayout, transform: transform)
     }
 
-    public func commitDraw() {
+    func drawGlyph(_ glyph: Glyph, at point: Point) {
+        let rect = Rect(
+            origin: Point(x: glyph.position.x, y: glyph.position.y),
+            size: glyph.size
+        )
+        print(rect)
+        let transform = self.currentTransform * rect.toTransform3D
+        self.currentDrawContext?.drawGlyph(glyph, transform: transform)
+    }
+
+    public mutating func commitDraw() {
         self.currentDrawContext?.commitContext()
         
         self.clear()
@@ -125,8 +131,7 @@ final public class GUIRenderContext {
     
     // MARK: - Private
     
-    private func clear() {
-        self.strokeColor = .black
+    private mutating func clear() {
         self.currentTransform = .identity
     }
 }
