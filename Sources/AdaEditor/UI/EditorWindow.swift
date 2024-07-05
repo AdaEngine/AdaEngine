@@ -37,11 +37,15 @@ struct ContentView: View {
 
         VStack {
             Text("Hello")
+                .frame(width: 100, height: 23)
+                .background(Color.mint)
 
             Color.blue
                 .frame(height: 140)
 
             Text("World")
+                .frame(width: 100, height: 23)
+                .background(Color.green)
         }
         .background(.red)
         .frame(width: 140)

@@ -24,8 +24,8 @@ class ViewTree<Content: View> {
         self.rootNode = ViewRootNode(contentNode: contentNode.node, content: rootView)
     }
     
-    func renderGraph(renderContext: GUIRenderContext) {
-        self.rootNode.draw(with: renderContext)
+    func renderGraph(renderContext: inout GUIRenderContext) {
+        self.rootNode.draw(with: &renderContext)
     }
 }
 
@@ -57,8 +57,8 @@ final class ViewRootNode: ViewNode {
         contentNode.update(deltaTime)
     }
 
-    override func draw(with context: GUIRenderContext) {
-        contentNode.draw(with: context)
+    override func draw(with context: inout GUIRenderContext) {
+        contentNode.draw(with: &context)
     }
 
     override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {

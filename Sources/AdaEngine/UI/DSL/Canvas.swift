@@ -10,7 +10,7 @@ import Math
 /// A view type that supports immediate mode drawing.
 public struct Canvas: View, ViewNodeBuilder {
 
-    public typealias RenderBlock = (GUIRenderContext, Size) -> Void
+    public typealias RenderBlock = (inout GUIRenderContext, Size) -> Void
 
     public typealias Body = Never
 
@@ -35,9 +35,9 @@ class CanvasViewNode: ViewNode {
         super.init(content: content)
     }
 
-    override func draw(with context: GUIRenderContext) {
+    override func draw(with context: inout GUIRenderContext) {
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-        self.drawBlock(context, self.frame.size)
+        self.drawBlock(&context, self.frame.size)
         context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
     }
 

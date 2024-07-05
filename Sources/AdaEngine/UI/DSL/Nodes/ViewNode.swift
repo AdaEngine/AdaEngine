@@ -78,7 +78,7 @@ class ViewNode: Identifiable {
 
     func update(_ deltaTime: TimeInterval) { }
 
-    func draw(with context: GUIRenderContext) { }
+    func draw(with context: inout GUIRenderContext) { }
     
     // MARK: - Interaction
     

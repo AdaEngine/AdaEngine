@@ -9,13 +9,12 @@ public struct Font: Hashable, Equatable {
     
     public let name: String
     public let familyFont: String
-    
     public let pointSize: Double
     
     let fontResource: FontResource
     
-    internal init(fontResource: FontResource) {
-        self.pointSize = fontResource.fontEmSize
+    internal init(fontResource: FontResource, pointSize: Double) {
+        self.pointSize = pointSize
         self.fontResource = fontResource
         self.name = fontResource.handle.fontName
         
@@ -25,25 +24,25 @@ public struct Font: Hashable, Equatable {
 
 public extension Font {
     static func system(size: Double, weight: Weight? = nil) -> Font {
-        let resource = FontResource.system(weight: FontWeight.regular, emFontScale: size)
-        return Font(fontResource: resource)
+        let resource = FontResource.system(weight: FontWeight.regular, emFontScale: 52)
+        return Font(fontResource: resource, pointSize: size)
     }
 }
 
 public extension Font {
     /// The top y-coordinate, offset from the baseline, of the font’s longest ascender.
-    var ascender: Float {
-        return self.fontResource.ascender
+    var ascender: Double {
+        return self.fontResource.ascender * pointSize / self.fontResource.fontEmSize
     }
     
     /// The bottom y-coordinate, offset from the baseline, of the font’s longest descender.
-    var descender: Float {
-        return self.fontResource.descender
+    var descender: Double {
+        return self.fontResource.descender * pointSize / self.fontResource.fontEmSize
     }
     
     /// The height, in points, of text lines.
-    var lineHeight: Float {
-        return self.fontResource.lineHeight
+    var lineHeight: Double {
+        return self.fontResource.lineHeight * pointSize / self.fontResource.fontEmSize
     }
 }
 

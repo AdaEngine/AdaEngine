@@ -92,10 +92,10 @@ open class UIView {
 
     // MARK: Rendering
 
-    open func draw(in rect: Rect, with context: GUIRenderContext) { }
+    open func draw(in rect: Rect, with context: inout GUIRenderContext) { }
 
     /// Internal method for drawing
-    internal func draw(with context: GUIRenderContext) {
+    internal func draw(with context: inout GUIRenderContext) {
         if self.isHidden {
             return
         }
@@ -109,10 +109,10 @@ open class UIView {
         /// Draw background
         context.drawRect(self.bounds, color: self.backgroundColor)
 
-        self.draw(in: self.bounds, with: context)
+        self.draw(in: self.bounds, with: &context)
 
         for subview in self.zSortedChildren {
-            subview.draw(with: context)
+            subview.draw(with: &context)
         }
 
         context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
