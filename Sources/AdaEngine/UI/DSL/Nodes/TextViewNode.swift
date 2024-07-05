@@ -25,28 +25,38 @@ final class TextViewNode: ViewNode {
     }
 
     override func performLayout() {
-        self.textContainer.bounds = Rect(origin: .zero, size: self.frame.size)
+        if self.textContainer.bounds.size != self.frame.size {
+            self.textContainer.bounds = Rect(origin: .zero, size: self.frame.size)
+        }
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         if proposal == .zero || proposal == .infinity {
-            return layoutManager.size
+            let size = self.layoutManager.boundingSize(width: .infinity, height: .infinity)
+            print("calculated text \(self.textContainer.text.text) size for infinty prop:", size)
+            return size
         }
 
-        var idealWidth: Float = 0
-        var idealHeight: Float = 0
-        if let width = proposal.width, width != .infinity {
+        var idealWidth: Float = .infinity
+        var idealHeight: Float = .infinity
 
+        if let width = proposal.width, width != .infinity {
+            idealWidth = width
         }
 
         if let height = proposal.height, height != .infinity {
-
+            idealHeight = height
         }
 
-        return proposal.replacingUnspecifiedDimensions()
+        let size = self.layoutManager.boundingSize(width: idealWidth, height: idealHeight)
+        print("calculated text \(self.textContainer.text.text) size for w:\(idealWidth) h:\(idealHeight):", size)
+        return size
     }
 
-    override func draw(with context: GUIRenderContext) {
-        context.drawText(in: self.frame, from: self.layoutManager)
+    override func draw(with context: inout GUIRenderContext) {
+//        context.drawText(in: Rect(origin: .zero, size: self.frame.size), from: self.layoutManager)
+        for textLine in self.layoutManager.textLines {
+            textLine.draw(at: .zero, context: &context)
+        }
     }
 }

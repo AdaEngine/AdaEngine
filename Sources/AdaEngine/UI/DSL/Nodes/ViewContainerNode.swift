@@ -165,11 +165,11 @@ class ViewContainerNode: ViewNode {
         return super.hitTest(point, with: event)
     }
 
-    override func draw(with context: GUIRenderContext) {
+    override func draw(with context: inout GUIRenderContext) {
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
 
         for node in self.nodes {
-            node.draw(with: context)
+            node.draw(with: &context)
         }
 
         context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
