@@ -85,29 +85,38 @@ extension MetalView {
     public override func mouseMoved(with event: NSEvent) {
         let position = self.mousePosition(for: event)
         Input.shared.mousePosition = position
+
+        let event = MouseEvent(window: self.windowID, button: .none, mousePosition: position, phase: .changed, time: TimeInterval(event.timestamp))
+        Input.shared.receiveEvent(event)
     }
     
     open override func mouseDragged(with event: NSEvent) {
         let position = self.mousePosition(for: event)
         Input.shared.mousePosition = position
+
+        let event = MouseEvent(window: self.windowID, button: .none, mousePosition: position, phase: .changed, time: TimeInterval(event.timestamp))
+        Input.shared.receiveEvent(event)
     }
     
     public override func scrollWheel(with event: NSEvent) {
-        
-        var deltaY: CGFloat = event.scrollingDeltaY
-        
+        var deltaY = Float(event.scrollingDeltaY)
+        var deltaX = Float(event.scrollingDeltaY)
+
         if event.hasPreciseScrollingDeltas {
+            deltaX += 0.03
             deltaY *= 0.03
         }
-//
-//        let mouseEvent = Input.MouseEvent(
-//            button: deltaY > 0 ? .wheelUp : .wheelDown,
-//            mousePosition: self.mousePosition(for: event),
-//            phase: self.inputPhase(from: event.phase),
-//            time: TimeInterval(event.timestamp)
-//        )
+
+        let mouseEvent = MouseEvent(
+            window: self.windowID,
+            button: .scrollWheel,
+            scrollDelta: Point(x: deltaX, y: deltaY),
+            mousePosition: self.mousePosition(for: event),
+            phase: self.inputPhase(from: event.phase),
+            time: TimeInterval(event.timestamp)
+        )
         
-//        Input.shared.receiveEvent(mouseEvent)
+        Input.shared.receiveEvent(mouseEvent)
     }
     
     public override func keyUp(with event: NSEvent) {

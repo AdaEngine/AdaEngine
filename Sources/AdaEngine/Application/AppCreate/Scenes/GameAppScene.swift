@@ -25,13 +25,14 @@ public struct GameAppScene: AppScene {
 
 extension GameAppScene: InternalAppScene {
     @MainActor
-    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Window {
+    func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> UIWindow {
         let scene = try await self.gameScene()
         
         let frame = Rect(origin: .zero, size: configuration.minimumSize)
-        let window = Window(frame: frame)
+        let window = UIWindow(frame: frame)
         
         let gameSceneView = SceneView(scene: scene, frame: frame)
+        gameSceneView.autoresizingRules = [.flexibleWidth, .flexibleHeight]
         window.addSubview(gameSceneView)
         
         window.setWindowMode(configuration.windowMode)

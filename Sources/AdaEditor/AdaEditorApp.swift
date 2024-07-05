@@ -6,13 +6,14 @@
 //
 
 import AdaEngine
+import Logging
 
 @main
 struct AdaEditorApp: App {
 
     var scene: some AppScene {
-        GameAppScene {
-            ManySpritesExampleScene()
+        GUIAppScene {
+            EditorWindow()
         }
         .windowMode(.windowed)
         .windowTitle("AdaEngine")
