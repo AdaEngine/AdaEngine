@@ -9,6 +9,7 @@ import AdaEngine
 /// The view for rendering AdaEngine scenes and views.
 /// You can insert this view in your application and just pass scene or view to constructor.
 /// This view will perfectly fit for any sizes.
+@MainActor
 public final class AEView: MetalView {
     
     /// Contains view where all render happens.
@@ -41,7 +42,7 @@ public final class AEView: MetalView {
         
         do {
             // Register view in the engine.
-            try RenderEngine.shared.createWindow(window.id, for: self, size: rect.size)
+            try RenderEngine.shared.createWindow(window.id, for: self, size: rect.size.toSizeInt())
         } catch {
             print("[AEView Error]", error.localizedDescription)
         }
@@ -63,17 +64,19 @@ extension AEView: MTKViewDelegate {
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         do {
             self.engineWindow.frame.size = size.toEngineSize
-            try RenderEngine.shared.resizeWindow(self.engineWindow.id, newSize: size.toEngineSize)
+            try RenderEngine.shared.resizeWindow(self.engineWindow.id, newSize: size.toEngineSize.toSizeInt())
         } catch {
             print("[AEView Error]", error.localizedDescription)
         }
     }
     
     public func draw(in view: MTKView) {
-        do {
-            try GameLoop.current.iterate()
-        } catch {
-            print("[AEView Error]", error.localizedDescription)
+        Task {
+            do {
+                try await GameLoop.current.iterate()
+            } catch {
+                print("[AEView Error]", error.localizedDescription)
+            }
         }
     }
 }

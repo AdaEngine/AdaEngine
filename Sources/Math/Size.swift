@@ -33,3 +33,9 @@ extension Size: ExpressibleByArrayLiteral {
         self.init(width: elements[0], height: elements[1])
     }
 }
+
+extension Size {
+    public func toSizeInt() -> SizeInt {
+        .init(width: Int(self.width), height: Int(self.height))
+    }
+}
