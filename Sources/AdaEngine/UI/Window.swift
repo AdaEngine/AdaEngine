@@ -16,7 +16,7 @@ open class Window: View {
     // TODO: (Vlad) Maybe, we should use unique ID without RID
     /// Identifier using to register window in the render engine.
     /// We use this id to start drawing.
-    public let id: ID = RID()
+    nonisolated public let id: ID = RID()
     
     public var title: String {
         get { self.systemWindow?.title ?? "" }
