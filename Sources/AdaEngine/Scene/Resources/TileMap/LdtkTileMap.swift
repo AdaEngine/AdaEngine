@@ -19,7 +19,7 @@ extension LDtk {
     /// ```
     public final class TileMap: AdaEngine.TileMap {
 
-        public weak var delegate: LDtk.TileMapDelegate? {
+        public weak var delegate: TileMapDelegate? {
             didSet {
                 tileSet.sources.forEach { (_, value) in
                     (value as? LDtk.EntityTileSource)?.delegate = self.delegate
@@ -237,7 +237,7 @@ extension LDtk {
     
     public class EntityTileSource: TileEntityAtlasSource {
 
-        weak var delegate: LDtk.TileMapDelegate?
+        weak var delegate: TileMapDelegate?
         
         public override init() {
             super.init()
@@ -277,21 +277,20 @@ extension LDtk {
             self.createTile(at: atlasCoordinates, for: entity)
         }
     }
-    
-    /// Delegate that help configure LDtk TileMap.
-    public protocol TileMapDelegate: AnyObject {
-        
-        /// Configure entity from LDtk project. By default entity has ``Transform`` and ``SpriteComponent``
-        ///
-        /// - Parameter tileMap: Instance of TileMap.
-        /// - Parameter entity: AdaEngine entity which will store in TileSource.
-        /// - Parameter instance: Entity Instance from LDtk project. Use this object to get info about entity
-        /// - Parameter tileSource: Instance of TileSource where entity will store.
-        func tileMap(_ tileMap: LDtk.TileMap, needsUpdate entity: AdaEngine.Entity,
-                     from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource)
-    }
 }
 
+/// Delegate that help configure LDtk TileMap.
+public protocol TileMapDelegate: AnyObject {
+    
+    /// Configure entity from LDtk project. By default entity has ``Transform`` and ``SpriteComponent``
+    ///
+    /// - Parameter tileMap: Instance of TileMap.
+    /// - Parameter entity: AdaEngine entity which will store in TileSource.
+    /// - Parameter instance: Entity Instance from LDtk project. Use this object to get info about entity
+    /// - Parameter tileSource: Instance of TileSource where entity will store.
+    func tileMap(_ tileMap: LDtk.TileMap, needsUpdate entity: AdaEngine.Entity,
+                 from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource)
+}
 
 // MARK: - JSON Data
 
