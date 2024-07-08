@@ -13,7 +13,7 @@ final class ViewGraph {
         ViewsTypeToDebug.insert(ObjectIdentifier(V.self))
     }
 
-    static func shouldNotifyAboutChanges<V: View>(_ content: V) -> Bool {
+    static func shouldNotifyAboutChanges<V: View>(_ content: V.Type) -> Bool {
         ViewsTypeToDebug.contains(ObjectIdentifier(V.self))
     }
 }

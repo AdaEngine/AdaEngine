@@ -6,6 +6,10 @@
 //
 
 public extension View {
+    /// Positions this view within an invisible frame with the specified size.
+    /// - Parameter width: A fixed width for the resulting view. If width is nil, the resulting view assumes this view’s sizing behavior.
+    /// - Parameter height: A fixed height for the resulting view. If height is nil, the resulting view assumes this view’s sizing behavior.
+    /// - Returns: A view with fixed dimensions of width and height, for the parameters that are non-nil.
     func frame(width: Float? = nil, height: Float? = nil) -> some View {
         self.modifier(
             FrameViewModifier(

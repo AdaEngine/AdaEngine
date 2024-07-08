@@ -49,10 +49,10 @@ class ViewModifierNode: ViewNode {
         super.updateEnvironment(environment)
     }
 
-    override func draw(with context: inout GUIRenderContext) {
+    override func draw(with context: GUIRenderContext) {
+        var context = context
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-        contentNode.draw(with: &context)
-        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
+        contentNode.draw(with: context)
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {

@@ -7,11 +7,14 @@
 
 import Math
 
+/// A flexible space that expands along the major axis of its containing stack layout,
+/// or on both axes if not contained in a stack.
 public struct Spacer: View, ViewNodeBuilder {
 
     public typealias Body = Never
 
-    let minLength: Float?
+    /// The minimum length this spacer can be shrunk to, along the axis or axes of expansion.
+    public var minLength: Float?
 
     public init(minLength: Float? = nil) {
         self.minLength = minLength

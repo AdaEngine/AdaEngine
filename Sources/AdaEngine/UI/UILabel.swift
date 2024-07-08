@@ -35,7 +35,7 @@ open class UILabel: UIView {
     private var textContainer = TextContainer()
     private var textLayout = TextLayoutManager()
 
-    open override func draw(in rect: Rect, with context: inout GUIRenderContext) {
+    open override func draw(in rect: Rect, with context: GUIRenderContext) {
         context.drawText(in: rect, from: self.textLayout)
     }
 

@@ -5,28 +5,34 @@
 //  Created by Vladislav Prusakov on 08.06.2024.
 //
 
+/// A view that overlays its subviews, aligning them in both axes.
+/// The ZStack assigns each successive subview a higher z-axis value than the one before it, meaning later subviews appear “on top” of earlier ones.
 public struct ZStack<Content: View>: View {
 
     public typealias Body = Never
 
     let anchor: AnchorPoint
-    let content: Content
-    
-    public init(anchor: AnchorPoint = .center, @ViewBuilder content: () -> Content) {
+    let content: () -> Content
+
+    /// Creates an instance with the given alignment.
+    /// - Parameter anchpr: The guide for aligning the subviews in this stack on both the x- and y-axes.
+    /// - Parameter content: A view builder that creates the content of this stack.
+    public init(anchor: AnchorPoint = .center, @ViewBuilder content: @escaping () -> Content) {
         self.anchor = anchor
-        self.content = content()
+        self.content = content
     }
 
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
         let content = view[\.content]
         let stack = view.value
 
-        let nodes = Content._makeListView(content, inputs: _ViewListInputs(input: inputs)).outputs.map { $0.node }
         let node = LayoutViewContainerNode(
             layout: ZStackLayout(anchor: stack.anchor),
-            content: view.value,
-            nodes: nodes
+            content: content.value
         )
+
+        node.updateEnvironment(inputs.environment)
+        node.invalidateContent(with: _ViewListInputs(input: inputs))
 
         return _ViewOutputs(node: node)
     }

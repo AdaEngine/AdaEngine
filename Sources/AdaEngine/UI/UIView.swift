@@ -92,16 +92,18 @@ open class UIView {
 
     // MARK: Rendering
 
-    open func draw(in rect: Rect, with context: inout GUIRenderContext) { }
+    open func draw(in rect: Rect, with context: GUIRenderContext) { }
 
     /// Internal method for drawing
-    internal func draw(with context: inout GUIRenderContext) {
+    internal func draw(with context: GUIRenderContext) {
         if self.isHidden {
             return
         }
+        
+        var context = context
 
         if affineTransform != .identity {
-            context.multiply(Transform3D(from: affineTransform))
+            context.concatenate(Transform3D(from: affineTransform))
         }
 
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
@@ -109,13 +111,11 @@ open class UIView {
         /// Draw background
         context.drawRect(self.bounds, color: self.backgroundColor)
 
-        self.draw(in: self.bounds, with: &context)
+        self.draw(in: self.bounds, with: context)
 
         for subview in self.zSortedChildren {
-            subview.draw(with: &context)
+            subview.draw(with: context)
         }
-
-        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
     }
 
     private var worldTransform: Transform2D {
