@@ -69,7 +69,11 @@ public struct EdgeInsets: Equatable, Hashable {
 }
 
 public extension View {
-    func padding(_ edges: Edge.Set = .all, _ length: Float?) -> some View {
+    /// Adds an equal padding amount to specific edges of this view.
+    /// - Parameter edges: The set of edges to pad for this view. The default is all.
+    /// - Parameter length: An amount, given in points, to pad this view on the specified edges. The default value of this parameter is nil.
+    /// - Returns: A view that’s padded by the specified amount on the specified edges.
+    func padding(_ edges: Edge.Set = .all, _ length: Float? = nil) -> some View {
         self.modifier(
             PaddingViewModifier(
                 edges: edges,
@@ -79,10 +83,16 @@ public extension View {
         )
     }
 
+    /// Adds an equal padding amount to specific edges of this view.
+    /// - Parameter insets: An ``EdgeInsets`` instance that contains padding amounts for each edge.
+    /// - Returns: A view that’s padded by the specified amount on the specified edges.
     func padding(_ insets: EdgeInsets) -> some View {
         self.modifier(PaddingViewModifier(edges: .all, insets: insets, content: self))
     }
 
+    /// Adds an equal padding amount to specific edges of this view.
+    /// - Parameter length: The amount, given in points, to pad this view on all edges.
+    /// - Returns: A view that’s padded by the specified amount on the specified edges.
     func padding(_ length: Float) -> some View {
         self.modifier(
             PaddingViewModifier(

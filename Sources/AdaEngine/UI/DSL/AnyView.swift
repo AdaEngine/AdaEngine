@@ -5,16 +5,21 @@
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
+/// A type-erased view.
+///
+/// An ``AnyView`` allows changing the type of view used in a given view hierarchy. Whenever the type of view used with an AnyView changes, the old hierarchy is destroyed and a new hierarchy is created for the new type.
 @frozen public struct AnyView: View {
 
     public typealias Body = Never
 
     let content: any View
 
+    /// Create an instance that type-erases view.
     public init<T: View>(_ view: T) {
         self.content = view
     }
 
+    /// Create an instance that type-erases view.
     public init<V: View>(erasing view: V) {
         self.content = view
     }

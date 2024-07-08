@@ -1,6 +1,6 @@
 //
 //  AdaEngineMacrosPlugin.swift
-//
+//  AdaEngineMacros
 //
 //  Created by v.prusakov on 2/14/24.
 //

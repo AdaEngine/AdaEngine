@@ -6,12 +6,16 @@
 //
 
 public extension View {
-    func onAppear(perform: (() -> Void)? = nil) -> some View {
-        self.modifier(OnAppearView(content: self, onAppear: perform))
+    /// Adds an action to perform before this view appears.
+    /// - Parameter action: The action to perform. If action is nil, the call has no effect.
+    func onAppear(perform action: (() -> Void)? = nil) -> some View {
+        self.modifier(OnAppearView(content: self, onAppear: action))
     }
 
-    func onDisappear(perform: (() -> Void)? = nil) -> some View {
-        self.modifier(OnDisappearView(content: self, onDisappear: perform))
+    /// Adds an action to perform after this view disappears.
+    /// - Parameter action: The action to perform. If action is nil, the call has no effect.
+    func onDisappear(perform action: (() -> Void)? = nil) -> some View {
+        self.modifier(OnDisappearView(content: self, onDisappear: action))
     }
 }
 

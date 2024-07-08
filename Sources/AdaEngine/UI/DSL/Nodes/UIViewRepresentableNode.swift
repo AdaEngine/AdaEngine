@@ -55,7 +55,7 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
         return representable.sizeThatFits(proposal, view: view, context: context)
     }
 
-    override func draw(with context: inout GUIRenderContext) {
-        view?.draw(with: &context)
+    override func draw(with context: GUIRenderContext) {
+        view?.draw(with: context)
     }
 }

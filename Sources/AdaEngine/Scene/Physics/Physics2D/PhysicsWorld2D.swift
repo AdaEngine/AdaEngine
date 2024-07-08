@@ -321,7 +321,7 @@ final class _Physics2DContactListener {
         let userDataBPtr = OpaquePointer(bitPattern: userDataB.pointee.pointer)!
         
         // FIXME: We should get correct impulse of contact
-        let manifold = contact.GetManifold()
+//        let manifold = contact.GetManifold()
 
         let bodyA = Unmanaged<Body2D>.fromOpaque(UnsafeRawPointer(userDataAPtr)).takeUnretainedValue()
         let bodyB = Unmanaged<Body2D>.fromOpaque(UnsafeRawPointer(userDataBPtr)).takeUnretainedValue()

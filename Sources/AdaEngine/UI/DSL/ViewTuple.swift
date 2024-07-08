@@ -5,6 +5,9 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
+/// A View created from a swift tuple of View values.
+@MainActor
+@frozen @preconcurrency
 public struct ViewTuple<Content>: View {
 
     public typealias Body = Never

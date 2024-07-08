@@ -93,13 +93,12 @@ class ImageViewNode: ViewNode {
         return proposal.replacingUnspecifiedDimensions()
     }
 
-    override func draw(with context: inout GUIRenderContext) {
+    override func draw(with context: GUIRenderContext) {
+        var context = context
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
 
         let tintColor = renderMode == .original ? .white : tintColor ?? .white
         context.drawRect(self.frame, texture: self.texture, color: tintColor)
-
-        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
     }
 }
 

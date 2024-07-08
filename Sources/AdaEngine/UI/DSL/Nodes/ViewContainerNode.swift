@@ -5,14 +5,17 @@
 //  Created by Vladislav Prusakov on 22.06.2024.
 //
 
+import Observation
 import Math
+
+// TODO: Add observation support for nodes
 
 /// Base container for children nodes.
 /// Most used for tuple, layout stacks and other containers.
 class ViewContainerNode: ViewNode {
 
     var nodes: [ViewNode]
-    let body: (_ViewListInputs) -> _ViewListOutputs
+    private var body: ((_ViewListInputs) -> _ViewListOutputs)?
 
     init<Content: View>(content: Content, nodes: [ViewNode]) {
         self.nodes = nodes
@@ -24,27 +27,32 @@ class ViewContainerNode: ViewNode {
         }
     }
 
-    init<Content: View>(content: Content, inputs: _ViewListInputs) {
-        self.body = { inputs in return Content._makeListView(_ViewGraphNode(value: content), inputs: inputs) }
+    /// Supports observation
+    init<Content: View>(content: @escaping () -> Content) {
         self.nodes = []
+        super.init(content: EmptyView())
+        self.body = { inputs in
+            let content = withObservationTracking(content) {
+                Task { @MainActor in
+                    self.invalidateContent()
+                }
+            }
+            return Content._makeListView(_ViewGraphNode(value: content), inputs: inputs)
+        }
+    }
+
+    init<Content>(content: Content, body: @escaping (_ViewListInputs) -> _ViewListOutputs) where Content : View {
+        self.nodes = []
+        self.body = body
         super.init(content: content)
-        self.updateEnvironment(inputs.input.environment)
+
         self.invalidateContent()
     }
 
-    override init<Content>(content: Content) where Content : View {
-        self.nodes = []
-        self.body = { inputs in return Content._makeListView(_ViewGraphNode(value: content), inputs: inputs) }
-        super.init(content: content)
-
-        self.invalidateContent()
-    }
-
-    override func invalidateContent() {
-        let inputs = _ViewInputs(environment: self.environment)
-        let listInputs = _ViewListInputs(input: inputs)
-        let outputs = body(listInputs)
-
+    func invalidateContent(with inputs: _ViewListInputs) {
+        guard let outputs = body?(inputs) else {
+            return
+        }
         let outputNodes = outputs.outputs.map { $0.node }
 
         // We have same this, merge new nodes into old
@@ -58,7 +66,7 @@ class ViewContainerNode: ViewNode {
 
             for change in difference {
                 switch change {
-                case let .remove(index, _, oldIndex):
+                case let .remove(index, _, _):
                     self.nodes.remove(at: index)
                 case let .insert(index, newElement, _):
                     newElement.parent = self
@@ -72,6 +80,12 @@ class ViewContainerNode: ViewNode {
         if shouldNotifyAboutChanges {
             self._printDebugNode()
         }
+    }
+
+    override func invalidateContent() {
+        let inputs = _ViewInputs(environment: self.environment)
+        let listInputs = _ViewListInputs(input: inputs)
+        self.invalidateContent(with: listInputs)
     }
 
     override func merge(_ otherNode: ViewNode) {
@@ -99,7 +113,7 @@ class ViewContainerNode: ViewNode {
 
             for change in difference {
                 switch change {
-                case let .remove(index, _, oldIndex):
+                case let .remove(index, _, _):
                     self.nodes.remove(at: index)
                 case let .insert(index, newElement, _):
                     newElement.parent = self
@@ -165,14 +179,13 @@ class ViewContainerNode: ViewNode {
         return super.hitTest(point, with: event)
     }
 
-    override func draw(with context: inout GUIRenderContext) {
+    override func draw(with context: GUIRenderContext) {
+        var context = context
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
 
         for node in self.nodes {
-            node.draw(with: &context)
+            node.draw(with: context)
         }
-
-        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
     }
 
     override func debugDescription(hierarchy: Int = 0, identation: Int = 2) -> String {

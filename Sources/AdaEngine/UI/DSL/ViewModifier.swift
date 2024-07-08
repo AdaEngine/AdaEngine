@@ -5,49 +5,19 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-public struct _ModifiedContent<Content: ViewModifier>: View {
-
-    public typealias Body = Never
-
-    enum Storage {
-        case makeView((_ViewInputs) -> _ViewOutputs)
-        case makeViewList((_ViewListInputs) -> _ViewListOutputs)
-    }
-
-    let storage: Storage
-
-    public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
-        let storage = view[\.storage].value
-        switch storage {
-        case .makeView(let block):
-            return block(inputs)
-        case .makeViewList(let block):
-            let nodes = block(_ViewListInputs(input: inputs)).outputs.map { $0.node }
-            let node = LayoutViewContainerNode(
-                layout: AnyLayout(inputs.layout),
-                content: view.value,
-                nodes: nodes
-            )
-            inputs.registerNodeForStorages(node)
-            return _ViewOutputs(node: node)
-        }
-    }
-
-    public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
-        let storage = view[\.storage].value
-        switch storage {
-        case .makeViewList(let block):
-            return block(inputs)
-        default:
-            fatalError()
-        }
-    }
-}
-
+/// A modifier that you apply to a view or another view modifier, producing a different version of the original value.
+///
+/// Adopt the ``ViewModifier`` protocol when you want to create a reusable modifier that you can apply to any view.
+/// You can apply ``View/modifier(_:)`` directly to a view, but a more common and idiomatic approach uses ``View/modifier(_:)`` to define an extension to View itself that incorporates the view modifier:
+@MainActor
+@preconcurrency
 public protocol ViewModifier {
+    /// The type of view representing the body.
     associatedtype Body: View
+    /// The content view type passed to body().
     typealias Content = _ModifiedContent<Self>
 
+    /// Gets the current body of the caller.
     @MainActor
     @ViewBuilder
     func body(content: Self.Content) -> Body
@@ -106,6 +76,8 @@ extension ViewModifier {
 }
 
 public extension View {
+    /// Applies a modifier to a view and returns a new view.
+    /// - Parameter modifier: The modifier to apply to this view.
     func modifier<T>(_ modifier: T) -> ModifiedContent<Self, T> {
         return ModifiedContent(content: self, modifier: modifier)
     }
@@ -128,6 +100,47 @@ public extension ViewModifier where Body == Never {
         fatalError("We should call body when Body is Never type.")
     }
 }
+
+public struct _ModifiedContent<Content: ViewModifier>: View {
+
+    public typealias Body = Never
+
+    enum Storage {
+        case makeView((_ViewInputs) -> _ViewOutputs)
+        case makeViewList((_ViewListInputs) -> _ViewListOutputs)
+    }
+
+    let storage: Storage
+
+    public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
+        let storage = view[\.storage].value
+        switch storage {
+        case .makeView(let block):
+            return block(inputs)
+        case .makeViewList(let block):
+            let nodes = block(_ViewListInputs(input: inputs)).outputs.map { $0.node }
+            let node = LayoutViewContainerNode(
+                layout: AnyLayout(inputs.layout),
+                content: view.value,
+                nodes: nodes
+            )
+            inputs.registerNodeForStorages(node)
+            return _ViewOutputs(node: node)
+        }
+    }
+
+    public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
+        let storage = view[\.storage].value
+        switch storage {
+        case .makeViewList(let block):
+            return block(inputs)
+        default:
+            fatalError()
+        }
+    }
+}
+
+// MARK: - Internal
 
 extension ModifiedContent: View where Modifier: ViewModifier, Content: View {
 

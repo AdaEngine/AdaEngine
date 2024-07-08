@@ -379,7 +379,7 @@ struct TextLine {
     }
 
     @MainActor
-    func draw(at point: Point, context: inout GUIRenderContext) {
+    func draw(at point: Point, context: GUIRenderContext) {
         for glyph in glyphs {
             context.drawGlyph(glyph, at: point)
         }

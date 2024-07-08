@@ -8,67 +8,29 @@
 import Math
 
 public extension View {
+    /// Layers the color view that you specify behind this view.
+    /// - Parameter color: A ``Color`` that you use to declare the views to draw behind this view.
     func background(_ color: Color) -> some View {
-        self.modifier(BackgroundView(content: self, backgroundContent: color))
+        self.modifier(BackgroundViewModifier(anchor: .center, backgroundContent: color))
     }
 
-    func background<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        self.modifier(BackgroundView(content: self, backgroundContent: content()))
+    /// Layers the views that you specify behind this view.
+    /// - Parameter anchor: The alignment that the modifier uses to position the implicit ``ZStack`` that groups the background views. The default is center.
+    /// - Parameter content: A ``ViewBuilder`` that you use to declare the views to draw behind this view, stacked in a cascading order from bottom to top. The last view that you list appears at the front of the stack.
+    func background<Content: View>(anchor: AnchorPoint = .center, @ViewBuilder content: () -> Content) -> some View {
+        self.modifier(BackgroundViewModifier(anchor: anchor, backgroundContent: content()))
     }
 }
 
-struct BackgroundView<Content: View, BackgroundContent: View>: ViewModifier, ViewNodeBuilder {
+struct BackgroundViewModifier<BackgroundContent: View>: ViewModifier {
 
-    typealias Body = Never
-
-    let content: Content
+    let anchor: AnchorPoint
     let backgroundContent: BackgroundContent
 
-    init(content: Content, backgroundContent: BackgroundContent) {
-        self.content = content
-        self.backgroundContent = backgroundContent
-    }
-
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        let backgroundNode = inputs.makeNode(from: self.backgroundContent)
-        let contentNode = inputs.makeNode(from: self.content)
-        return BackgroundViewNode(
-            backgroundNode: backgroundNode,
-            content: content,
-            contentNode: contentNode
-        )
-    }
-}
-
-class BackgroundViewNode: ViewModifierNode {
-    let backgroundNode: ViewNode
-
-    init<Content>(
-        backgroundNode: ViewNode,
-        content: Content,
-        contentNode: ViewNode
-    ) where Content : View {
-        self.backgroundNode = backgroundNode
-        super.init(contentNode: contentNode, content: content)
-    }
-
-    override func merge(_ otherNode: ViewNode) {
-        guard let otherNode = otherNode as? BackgroundViewNode else {
-            return
+    func body(content: Content) -> some View {
+        ZStack(anchor: self.anchor) {
+            self.backgroundContent
+            content
         }
-
-        super.merge(otherNode)
-        self.contentNode.merge(otherNode.contentNode)
-        self.backgroundNode.merge(otherNode.backgroundNode)
-    }
-
-    override func draw(with context: inout GUIRenderContext) {
-        self.backgroundNode.draw(with: &context)
-        super.draw(with: &context)
-    }
-
-    override func performLayout() {
-        self.backgroundNode.place(in: self.frame.origin, anchor: .zero, proposal: ProposedViewSize(self.frame.size))
-        super.performLayout()
     }
 }

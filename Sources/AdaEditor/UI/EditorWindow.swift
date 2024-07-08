@@ -6,23 +6,30 @@
 //
 
 import AdaEngine
+import Observation
+
+@Observable
+class ViewModel {
+    var color = Color.blue
+    var isShown = false
+}
 
 struct NestedContent: View {
 
-    @Binding var color: Color
-    @State var innerColor: Color = .random()
+    @State var innerColor: Color = .red
+    @Environment(ViewModel.self) private var viewModel
 
     var body: some View {
         Self.printChanges()
 
         return HStack {
+            viewModel.color
             innerColor
             Color.green
         }
         .onAppear {
             Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                color = .random()
-                innerColor = .random()
+                viewModel.color = .random()
             }
         }
     }
@@ -32,6 +39,7 @@ struct ContentView: View {
 
     @State private var color = Color.brown
     @State private var isShown = false
+    @State private var viewModel = ViewModel()
 
     var body: some View {
 
@@ -40,7 +48,10 @@ struct ContentView: View {
                 .frame(width: 100, height: 23)
                 .background(Color.mint)
 
-            Color.blue
+            viewModel.color
+                .frame(height: 140)
+
+            NestedContent()
                 .frame(height: 140)
 
             Text("World")
@@ -49,6 +60,7 @@ struct ContentView: View {
         }
         .background(.red)
         .frame(width: 140)
+        .environment(viewModel)
 
 //        ScrollView {
 //            VStack {
