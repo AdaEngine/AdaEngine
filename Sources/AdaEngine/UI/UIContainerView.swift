@@ -55,8 +55,8 @@ public class UIContainerView<Content: View>: UIView {
         return self.viewTree.rootNode.point(inside: point, with: event)
     }
     
-    override public func draw(in rect: Rect, with context: inout GUIRenderContext) {
-        viewTree.renderGraph(renderContext: &context)
+    override public func draw(in rect: Rect, with context: GUIRenderContext) {
+        viewTree.renderGraph(renderContext: context)
     }
 
     public override func update(_ deltaTime: TimeInterval) async {

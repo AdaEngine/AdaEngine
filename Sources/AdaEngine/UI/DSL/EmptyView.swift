@@ -7,9 +7,11 @@
 
 import Math
 
+/// A view that doesn’t contain any content.
 public struct EmptyView: View, ViewNodeBuilder {
     public typealias Body = Never
 
+    /// Creates an empty view.
     public init() {}
 
     func makeViewNode(inputs: _ViewInputs) -> ViewNode {

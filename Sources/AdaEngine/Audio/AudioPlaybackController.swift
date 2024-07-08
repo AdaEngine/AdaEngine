@@ -9,8 +9,8 @@
 ///
 /// You receive an audio playback controller by calling an entity’s ``Entity/prepareAudio(_:)`` method.
 /// You typically pass an ``AudioResource`` instance to this call that tells the playback controller how to stream the contents of an audio file.
-public class AudioPlaybackController {
-    
+public class AudioPlaybackController: @unchecked Sendable {
+
     /// The resource that provides the audio stream.
     public let resource: AudioResource
     

@@ -1,31 +1,26 @@
 //
-//  ViewEnvironment.swift
+//  Environment.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-public protocol ViewEnvironmentKey {
-    associatedtype Value
-    
-    static var defaultValue: Value { get }
-}
-
 @propertyWrapper
-public struct ViewEnvironment<Value>: PropertyStoragable, UpdatableProperty {
+public struct Environment<Value>: PropertyStoragable, UpdatableProperty {
 
-    let keyPath: KeyPath<ViewEnvironmentValues, Value>
     let container = ViewContextStorage()
     var storage: UpdatablePropertyStorage {
         return self.container
     }
 
+    var readValue: (ViewContextStorage) -> Value
+
     public var wrappedValue: Value {
-        container.values[keyPath: keyPath]
+        return readValue(container)
     }
     
     public init(_ keyPath: KeyPath<ViewEnvironmentValues, Value>) {
-        self.keyPath = keyPath
+        self.readValue = { $0.values[keyPath: keyPath] }
     }
 
     public func update() {
@@ -33,8 +28,34 @@ public struct ViewEnvironment<Value>: PropertyStoragable, UpdatableProperty {
     }
 }
 
+#if canImport(Observation)
+import Observation
+
+extension Environment where Value: Observable & AnyObject {
+    public init(_ observable: Value.Type) where Value: Observable & AnyObject {
+        self.readValue = { container in
+            let value = container.values.observableStorage.getValue(observable)
+
+            return withObservationTracking {
+                value
+            } onChange: {
+                Task { @MainActor in
+                    container.update()
+                }
+            }
+        }
+    }
+}
+#endif
+
 final class ViewContextStorage: UpdatablePropertyStorage {
     var values: ViewEnvironmentValues = ViewEnvironmentValues()
+}
+
+public protocol ViewEnvironmentKey {
+    associatedtype Value
+
+    static var defaultValue: Value { get }
 }
 
 public struct ViewEnvironmentValues {
@@ -51,5 +72,3 @@ public struct ViewEnvironmentValues {
         }
     }
 }
-
-

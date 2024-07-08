@@ -69,3 +69,14 @@ extension View {
         ViewGraph.registerViewToDebugUpdate(self)
     }
 }
+
+extension Optional: View where Wrapped: View {
+    public var body: some View {
+        switch self {
+        case .none:
+            EmptyView()
+        case .some(let wrapped):
+            wrapped
+        }
+    }
+}

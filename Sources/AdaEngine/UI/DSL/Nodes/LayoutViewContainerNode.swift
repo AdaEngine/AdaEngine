@@ -16,6 +16,18 @@ final class LayoutViewContainerNode: ViewContainerNode {
         self.updateLayoutProperties(L.layoutProperties)
     }
 
+    init<L: Layout, Content: View>(layout: L, content: @escaping () -> Content) {
+        self.layout = AnyLayout(layout)
+        super.init(content: content)
+        self.updateLayoutProperties(L.layoutProperties)
+    }
+
+    init<L: Layout, Content: View>(layout: L, content: Content, body: @escaping (_ViewListInputs) -> _ViewListOutputs) {
+        self.layout = AnyLayout(layout)
+        super.init(content: content, body: body)
+        self.updateLayoutProperties(L.layoutProperties)
+    }
+
     override func performLayout() {
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
 

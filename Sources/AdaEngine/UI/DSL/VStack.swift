@@ -5,34 +5,40 @@
 //  Created by Vladislav Prusakov on 08.06.2024.
 //
 
+/// A view that arranges its subviews in a vertical line.
 public struct VStack<Content: View>: View {
 
     public typealias Body = Never
 
     let alignment: HorizontalAlignment
     let spacing: Float?
-    let content: Content
+    let content: () -> Content
 
+    /// Creates a vertical stack with the given spacing and horizontal alignment.
+    /// - Parameter alignment: The guide for aligning the subviews in this stack. This guide has the same horizontal screen coordinate for every subview.
+    /// - Parameter spacing: The distance between adjacent subviews, or nil if you want the stack to choose a default distance for each pair of subviews.
+    /// - Parameter content: A view builder that creates the content of this stack.
     public init(
         alignment: HorizontalAlignment = .center,
         spacing: Float? = nil,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: @escaping () -> Content
     ) {
         self.alignment = alignment
         self.spacing = spacing
-        self.content = content()
+        self.content = content
     }
 
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
         let content = view[\.content]
         let stack = view.value
 
-        let nodes = Content._makeListView(content, inputs: _ViewListInputs(input: inputs)).outputs.map { $0.node }
         let node = LayoutViewContainerNode(
             layout: VStackLayout(alignment: stack.alignment, spacing: stack.spacing),
-            content: view.value,
-            nodes: nodes
+            content: content.value
         )
+
+        node.updateEnvironment(inputs.environment)
+        node.invalidateContent(with: _ViewListInputs(input: inputs))
 
         return _ViewOutputs(node: node)
     }

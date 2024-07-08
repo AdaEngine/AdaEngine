@@ -35,10 +35,10 @@ class CanvasViewNode: ViewNode {
         super.init(content: content)
     }
 
-    override func draw(with context: inout GUIRenderContext) {
+    override func draw(with context: GUIRenderContext) {
+        var context = context
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         self.drawBlock(&context, self.frame.size)
-        context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
     }
 
     override func merge(_ otherNode: ViewNode) {

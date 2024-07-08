@@ -53,10 +53,10 @@ final class TextViewNode: ViewNode {
         return size
     }
 
-    override func draw(with context: inout GUIRenderContext) {
+    override func draw(with context: GUIRenderContext) {
 //        context.drawText(in: Rect(origin: .zero, size: self.frame.size), from: self.layoutManager)
         for textLine in self.layoutManager.textLines {
-            textLine.draw(at: .zero, context: &context)
+            textLine.draw(at: .zero, context: context)
         }
     }
 }

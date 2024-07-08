@@ -107,7 +107,7 @@ class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 
     init<Root: View>(contentProxy: @escaping (GeometryProxy) -> Content, content: Root) {
         self.contentProxy = contentProxy
-        super.init(content: content, nodes: [])
+        super.init(content: content, body: { _ in fatalError() })
     }
 
     override func performLayout() {

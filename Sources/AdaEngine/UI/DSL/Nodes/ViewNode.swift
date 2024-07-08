@@ -5,6 +5,7 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
+import Observation
 import Math
 
 /// Base node for all system Views in AdaEngine.
@@ -18,8 +19,8 @@ class ViewNode: Identifiable {
 
     weak var parent: ViewNode?
 
-    let shouldNotifyAboutChanges: Bool
-    let content: any View
+    private(set) var shouldNotifyAboutChanges: Bool
+    private(set) var content: any View
     private(set) var environment = ViewEnvironmentValues()
     private(set) var frame: Rect = .zero
     private(set) var layoutProperties = LayoutProperties()
@@ -27,7 +28,12 @@ class ViewNode: Identifiable {
 
     init<Content: View>(content: Content) {
         self.content = content
-        self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(content)
+        self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(Content.self)
+    }
+
+    func setContent<Content: View>(_ content: Content) {
+        self.content = content
+        self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(Content.self)
     }
 
     // MARK: Layout
@@ -78,7 +84,7 @@ class ViewNode: Identifiable {
 
     func update(_ deltaTime: TimeInterval) { }
 
-    func draw(with context: inout GUIRenderContext) { }
+    func draw(with context: GUIRenderContext) { }
     
     // MARK: - Interaction
     

@@ -51,7 +51,7 @@ public extension Layout where Cache == Void {
 
 extension Layout {
     public func callAsFunction<Content: View>(@ViewBuilder _ content: @escaping () -> Content) -> some View {
-        CustomLayoutContainer(layout: self, content: content())
+        CustomLayoutContainer(layout: self, content: content)
     }
 }
 
@@ -62,7 +62,7 @@ struct CustomLayoutContainer<T: Layout, Content: View>: View {
     typealias Body = Never
 
     let layout: T
-    let content: Content
+    let content: () -> Content
 
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
         let content = view[\.content]
@@ -70,14 +70,7 @@ struct CustomLayoutContainer<T: Layout, Content: View>: View {
 
         var inputs = inputs
         inputs.layout = layout
-
-        let nodes = Content._makeListView(content, inputs: _ViewListInputs(input: inputs)).outputs.map { $0.node }
-
-        let node = LayoutViewContainerNode(
-            layout: layout,
-            content: view.value,
-            nodes: nodes
-        )
+        let node = LayoutViewContainerNode(layout: layout, content: content.value)
 
         return _ViewOutputs(node: node)
     }

@@ -18,6 +18,7 @@ struct ScaleFactorEnvironmentKey: ViewEnvironmentKey {
 }
 
 public extension ViewEnvironmentValues {
+    /// The default font of this environment.
     var font: Font? {
         get {
             self[FontViewEnvironmentKey.self]
@@ -27,6 +28,7 @@ public extension ViewEnvironmentValues {
         }
     }
 
+    /// The default foreground color of this environment.
     var foregroundColor: Color? {
         get {
             self[ForegroundColorEnvironmentKey.self]
@@ -36,6 +38,7 @@ public extension ViewEnvironmentValues {
         }
     }
 
+    /// Current scale factor of the screen.
     var scaleFactor: Float {
         get {
             return self[ScaleFactorEnvironmentKey.self] ?? 1

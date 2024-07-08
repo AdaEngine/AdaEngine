@@ -52,10 +52,10 @@ extension MetalRenderBackend {
         }
         
         func updateSizeForRenderWindow(_ windowId: UIWindow.ID, size: SizeInt) {
-            guard let window = self.windows[windowId] else {
-                assertionFailure("Not found window by id \(windowId)")
-                return
-            }
+//            guard let window = self.windows[windowId] else {
+//                assertionFailure("Not found window by id \(windowId)")
+//                return
+//            }
             
 //            window.view?.drawableSize = size.toCGSize
         }
@@ -76,13 +76,8 @@ extension MetalRenderBackend {
             // For ios/tvOS/ipadOS we have only one device
             return MTLCreateSystemDefaultDevice()!
             #endif
-            
-//            let allDevices = MTLCopyAllDevices()
-            
             // TODO: (Vlad) Make picking preffered device, currently we picked descrete GPU
-            var prefferedDevice: MTLDevice?
-            
-            return prefferedDevice ?? MTLCreateSystemDefaultDevice()!
+            return MTLCreateSystemDefaultDevice()!
         }
         
         enum ContextError: LocalizedError {

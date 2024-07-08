@@ -20,13 +20,14 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
     }
 
     func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        let node = ScrollViewViewNode(
-            content: content,
-            inputs: _ViewListInputs(input: inputs)
-        )
-        
-        node.axis = axis
-        return node
+        fatalError()
+//        let node = ScrollViewViewNode(
+//            content: content,
+//            inputs: _ViewListInputs(input: inputs)
+//        )
+//        
+//        node.axis = axis
+//        return node
     }
 }
 

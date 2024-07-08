@@ -5,11 +5,15 @@
 //  Created by Vladislav Prusakov on 08.06.2024.
 //
 
+#if canImport(Observation)
+import Observation
+#endif
+
 @MainActor
 @propertyWrapper
 public struct State<Value>: UpdatableProperty, PropertyStoragable {
     
-    var storage: UpdatablePropertyStorage {
+    nonisolated var storage: UpdatablePropertyStorage {
         self._storage
     }
     
@@ -36,15 +40,14 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
     public init(wrappedValue: Value) {
         self._storage = StateStorage(value: wrappedValue)
     }
-    
+
     public init(initialValue: Value) {
         self._storage = StateStorage(value: initialValue)
     }
-    
+
     public func update() {
         self._storage.update()
     }
-    
 }
 
 final class StateStorage<Value>: UpdatablePropertyStorage {

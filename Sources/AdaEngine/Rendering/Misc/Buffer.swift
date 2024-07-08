@@ -40,8 +40,9 @@ public extension Buffer {
     func setData<T>(_ value: T) {
         let size = MemoryLayout<T>.stride
         
-        var value = value
-        self.setData(&value, byteCount: size)
+        withUnsafePointer(to: value) { ptr in
+            self.setData(UnsafeMutableRawPointer(mutating: ptr), byteCount: size)
+        }
     }
 }
 
