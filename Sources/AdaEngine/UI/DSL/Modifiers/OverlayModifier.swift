@@ -17,7 +17,7 @@ public extension View {
     }
 }
 
-struct OverlayViewModifier<OverlayContent: View>: ViewModifier {
+private struct OverlayViewModifier<OverlayContent: View>: ViewModifier {
 
     let anchor: AnchorPoint
     let overlayContent: OverlayContent

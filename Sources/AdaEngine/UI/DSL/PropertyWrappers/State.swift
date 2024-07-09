@@ -5,9 +5,7 @@
 //  Created by Vladislav Prusakov on 08.06.2024.
 //
 
-#if canImport(Observation)
 import Observation
-#endif
 
 @MainActor
 @propertyWrapper

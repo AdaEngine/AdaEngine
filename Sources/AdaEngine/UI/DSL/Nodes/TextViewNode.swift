@@ -33,7 +33,6 @@ final class TextViewNode: ViewNode {
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         if proposal == .zero || proposal == .infinity {
             let size = self.layoutManager.boundingSize(width: .infinity, height: .infinity)
-            print("calculated text \(self.textContainer.text.text) size for infinty prop:", size)
             return size
         }
 
@@ -54,7 +53,6 @@ final class TextViewNode: ViewNode {
     }
 
     override func draw(with context: GUIRenderContext) {
-//        context.drawText(in: Rect(origin: .zero, size: self.frame.size), from: self.layoutManager)
         for textLine in self.layoutManager.textLines {
             textLine.draw(at: .zero, context: context)
         }

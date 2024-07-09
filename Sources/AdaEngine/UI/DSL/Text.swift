@@ -29,6 +29,7 @@ public struct Text: View, ViewNodeBuilder {
 }
 
 public extension Text {
+    /// Sets the default font for text in this view.
     func font(_ font: Font?) -> Text {
         if let font = font {
             self.storage.text.font = font
@@ -48,6 +49,7 @@ public extension Text {
 }
 
 public extension View {
+    /// Sets the default font for text in this view.
     func font(_ font: Font?) -> some View {
         return self.environment(\.font, font)
     }

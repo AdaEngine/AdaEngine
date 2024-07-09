@@ -61,7 +61,6 @@ public class UIContainerView<Content: View>: UIView {
 
     public override func update(_ deltaTime: TimeInterval) async {
         await super.update(deltaTime)
-
-        self.viewTree.rootNode.update(deltaTime)
+        await self.viewTree.rootNode.update(deltaTime)
     }
 }

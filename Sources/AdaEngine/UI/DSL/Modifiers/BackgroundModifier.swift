@@ -22,7 +22,7 @@ public extension View {
     }
 }
 
-struct BackgroundViewModifier<BackgroundContent: View>: ViewModifier {
+private struct BackgroundViewModifier<BackgroundContent: View>: ViewModifier {
 
     let anchor: AnchorPoint
     let backgroundContent: BackgroundContent

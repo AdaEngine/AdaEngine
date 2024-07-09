@@ -5,7 +5,6 @@
 //  Created by Vladislav Prusakov on 06.07.2024.
 //
 
-#if canImport(Observation)
 import Observation
 
 public extension View {
@@ -55,5 +54,3 @@ extension ViewEnvironmentValues {
         }
     }
 }
-
-#endif

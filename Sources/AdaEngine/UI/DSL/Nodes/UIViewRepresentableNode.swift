@@ -58,4 +58,8 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
     override func draw(with context: GUIRenderContext) {
         view?.draw(with: context)
     }
+
+    override func update(_ deltaTime: TimeInterval) async {
+        await view?.update(deltaTime)
+    }
 }

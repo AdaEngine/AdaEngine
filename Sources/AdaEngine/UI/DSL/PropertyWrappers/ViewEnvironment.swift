@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
+import Observation
+
 @propertyWrapper
 public struct Environment<Value>: PropertyStoragable, UpdatableProperty {
 
@@ -28,9 +30,6 @@ public struct Environment<Value>: PropertyStoragable, UpdatableProperty {
     }
 }
 
-#if canImport(Observation)
-import Observation
-
 extension Environment where Value: Observable & AnyObject {
     public init(_ observable: Value.Type) where Value: Observable & AnyObject {
         self.readValue = { container in
@@ -46,7 +45,6 @@ extension Environment where Value: Observable & AnyObject {
         }
     }
 }
-#endif
 
 final class ViewContextStorage: UpdatablePropertyStorage {
     var values: ViewEnvironmentValues = ViewEnvironmentValues()

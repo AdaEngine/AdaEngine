@@ -25,7 +25,7 @@ public struct Spacer: View, ViewNodeBuilder {
     }
 }
 
-class SpacerViewNode: ViewNode {
+final class SpacerViewNode: ViewNode {
     let minLength: Float?
 
     init(minLength: Float?, content: Spacer) {

@@ -42,16 +42,12 @@ struct ContentView: View {
     @State private var viewModel = ViewModel()
 
     var body: some View {
-
         VStack {
             Text("Hello")
                 .frame(width: 100, height: 23)
                 .background(Color.mint)
 
             viewModel.color
-                .frame(height: 140)
-
-            NestedContent()
                 .frame(height: 140)
 
             Text("World")
