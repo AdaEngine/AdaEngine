@@ -5,12 +5,14 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
+/// A type that represents part of your user interface and provides modifiers that you use to configure views.
 @_typeEraser(AnyView)
 public protocol View {
+    /// The type of view representing the body of this view.
     associatedtype Body: View
 
-    @ViewBuilder
-    @MainActor(unsafe)
+    /// The content and behavior of the view.
+    @ViewBuilder @MainActor(unsafe)
     var body: Self.Body { get }
 
     @MainActor(unsafe) static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs
@@ -62,14 +64,6 @@ extension View {
     }
 }
 
-// MARK: - Debug
-
-extension View {
-    public static func printChanges() {
-        ViewGraph.registerViewToDebugUpdate(self)
-    }
-}
-
 extension Optional: View where Wrapped: View {
     public var body: some View {
         switch self {
@@ -78,5 +72,14 @@ extension Optional: View where Wrapped: View {
         case .some(let wrapped):
             wrapped
         }
+    }
+}
+
+
+// MARK: - Debug
+
+extension View {
+    public static func printChanges() {
+        ViewGraph.registerViewToDebugUpdate(self)
     }
 }

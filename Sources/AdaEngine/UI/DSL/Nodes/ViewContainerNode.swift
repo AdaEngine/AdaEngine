@@ -30,7 +30,7 @@ class ViewContainerNode: ViewNode {
     /// Supports observation
     init<Content: View>(content: @escaping () -> Content) {
         self.nodes = []
-        super.init(content: EmptyView())
+        super.init(content: content())
         self.body = { inputs in
             let content = withObservationTracking(content) {
                 Task { @MainActor in
@@ -154,9 +154,9 @@ class ViewContainerNode: ViewNode {
         }
     }
 
-    override func update(_ deltaTime: TimeInterval) {
+    override func update(_ deltaTime: TimeInterval) async {
         for node in nodes {
-            node.update(deltaTime)
+            await node.update(deltaTime)
         }
     }
 

@@ -53,8 +53,8 @@ final class ViewRootNode: ViewNode {
         )
     }
 
-    override func update(_ deltaTime: TimeInterval) {
-        contentNode.update(deltaTime)
+    override func update(_ deltaTime: TimeInterval) async {
+        await contentNode.update(deltaTime)
     }
 
     override func draw(with context: GUIRenderContext) {

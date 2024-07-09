@@ -58,7 +58,7 @@ public extension ImageView {
     }
 }
 
-class ImageViewNode: ViewNode {
+final class ImageViewNode: ViewNode {
 
     let texture: Texture2D
     let isResizable: Bool
