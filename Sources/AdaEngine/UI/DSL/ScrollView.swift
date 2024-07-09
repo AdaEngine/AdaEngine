@@ -12,22 +12,20 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
     public typealias Body = Never
 
     let axis: Axis
-    let content: Content
+    let content: () -> Content
 
-    public init(_ axis: Axis = .vertical, @ViewBuilder content: () -> Content) {
+    public init(_ axis: Axis = .vertical, @ViewBuilder content: @escaping () -> Content) {
         self.axis = axis
-        self.content = content()
+        self.content = content
     }
 
     func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        fatalError()
-//        let node = ScrollViewViewNode(
-//            content: content,
-//            inputs: _ViewListInputs(input: inputs)
-//        )
-//        
-//        node.axis = axis
-//        return node
+        let node = ScrollViewViewNode(content: content)
+        node.axis = self.axis
+        node.updateEnvironment(inputs.environment)
+        node.invalidateContent(with: _ViewListInputs(input: inputs))
+
+        return node
     }
 }
 

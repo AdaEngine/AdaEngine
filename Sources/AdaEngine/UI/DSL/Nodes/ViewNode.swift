@@ -10,7 +10,7 @@ import Math
 
 /// Base node for all system Views in AdaEngine.
 /// Node represents a view that can render, layout and interact with user.
-@MainActor 
+@MainActor
 class ViewNode: Identifiable {
 
     nonisolated var id: ObjectIdentifier {
@@ -48,6 +48,7 @@ class ViewNode: Identifiable {
         self.layoutProperties = props
     }
 
+    
     func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         return proposal.replacingUnspecifiedDimensions()
     }
@@ -82,7 +83,7 @@ class ViewNode: Identifiable {
 
     // MARK: - Other
 
-    func update(_ deltaTime: TimeInterval) { }
+    func update(_ deltaTime: TimeInterval) async { }
 
     func draw(with context: GUIRenderContext) { }
     
