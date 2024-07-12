@@ -126,7 +126,6 @@ final class FontAtlasGenerator {
         
         do {
             let file = try self.getCacheDirectory().appendingPathComponent(fileName)
-            
             guard !FileSystem.current.itemExists(at: file) else {
                 return
             }
