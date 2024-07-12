@@ -48,4 +48,8 @@ class CanvasViewNode: ViewNode {
         
         self.drawBlock = otherNode.drawBlock
     }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        return proposal.replacingUnspecifiedDimensions()
+    }
 }

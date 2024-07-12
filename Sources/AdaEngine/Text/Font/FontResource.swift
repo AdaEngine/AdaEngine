@@ -45,6 +45,12 @@ public final class FontResource: Resource, Hashable {
 }
 
 public extension FontResource {
+
+    /// Returns font scale for font size.
+    func getFontScale(for size: Double) -> Double {
+        return size / self.fontEmSize
+    }
+
     /// The top y-coordinate, offset from the baseline, of the font’s longest ascender.
     var ascender: Double {
         self.handle.metrics.ascenderY

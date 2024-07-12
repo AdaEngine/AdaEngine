@@ -77,7 +77,6 @@ public final class TextLayoutManager {
     )
 
     private(set) var size: Size = .zero
-
     private(set) var textLines: [TextLine] = []
 
     /// All glyphs for render in text contaner bounds
@@ -129,10 +128,9 @@ public final class TextLayoutManager {
                 let font = attributes.font
                 let fontHandle = font.fontResource.handle
                 let metrics = fontHandle.metrics
-                let fontScale = (metrics.ascenderY - metrics.descenderY) * font.pointSize
-
+                let fontScale = font.fontResource.getFontScale(for: font.pointSize)
                 maxLineHeight = max(maxLineHeight, metrics.lineHeight * font.pointSize)
-
+                
                 for scalarIndex in char.unicodeScalars.indices {
                     let scalar = char.unicodeScalars[scalarIndex]
                     var glyph = fontHandle.getGlyph(for: scalar.value)

@@ -91,6 +91,7 @@ FontAtlasGenerator::FontAtlasGenerator(const char* filePath, const char* fontNam
     atlasPacker.setPadding(fontDescriptor.atlasImageType == AFG_ImageType::AFG_IMAGE_TYPE_MSDF || fontDescriptor.atlasImageType == AFG_ImageType::AFG_IMAGE_TYPE_MTSDF ? 0 : -1);
     
     atlasPacker.setScale(fontDescriptor.emFontScale);
+    atlasPacker.setMinimumScale(12);
     atlasPacker.setPixelRange(fontDescriptor.atlasPixelRange);
     atlasPacker.setMiterLimit(fontDescriptor.miterLimit);
     
