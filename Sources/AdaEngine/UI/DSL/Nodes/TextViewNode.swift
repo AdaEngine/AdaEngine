@@ -48,7 +48,6 @@ final class TextViewNode: ViewNode {
         }
 
         let size = self.layoutManager.boundingSize(width: idealWidth, height: idealHeight)
-        print("calculated text \(self.textContainer.text.text) size for w:\(idealWidth) h:\(idealHeight):", size)
         return size
     }
 
