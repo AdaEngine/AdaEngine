@@ -128,7 +128,8 @@ public final class TextLayoutManager {
                 let font = attributes.font
                 let fontHandle = font.fontResource.handle
                 let metrics = fontHandle.metrics
-                let fontScale = font.fontResource.getFontScale(for: font.pointSize)
+                let fontScale: Double = 1.0
+                let fontSize = font.fontResource.getFontScale(for: font.pointSize)
                 maxLineHeight = max(maxLineHeight, metrics.lineHeight * font.pointSize)
                 
                 for scalarIndex in char.unicodeScalars.indices {
@@ -177,7 +178,7 @@ public final class TextLayoutManager {
                             textureCoordinates: [Float(l), Float(b), Float(r), Float(t)],
                             attributes: attributes,
                             position: [Float(pl), Float(pb), Float(pr), Float(pt)],
-                            size: Size(width: Float(fontScale), height: Float(fontScale))
+                            size: Size(width: Float(fontSize), height: Float(fontSize))
                         )
                     )
 

@@ -54,10 +54,10 @@ struct ContentView: View {
                 .frame(width: 100, height: 23)
                 .background(Color.green)
         }
+        .font(.system(size: 17))
         .background(.red)
         .frame(width: 140)
         .environment(viewModel)
-
 //        ScrollView {
 //            VStack {
 //                ForEach(0..<30) { _ in
