@@ -14,4 +14,7 @@ public extension EnvironmentValues {
 
     /// Current scale factor of the screen.
     @Entry var scaleFactor: Float = Screen.main?.scale ?? 1
+
+    /// The maximum number of lines that text can occupy in a view.
+    @Entry var lineLimit: Int?
 }

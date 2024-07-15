@@ -46,6 +46,11 @@ public extension Text {
         return self
     }
 
+    func lineLimit(_ number: Int?) -> Text {
+        self.storage.lineLimit = number
+        return self
+    }
+
     static func + (lhs: Text, rhs: Text) -> Text {
         let newStorage = lhs.storage.concatinating(other: rhs.storage)
         return Text(newStorage)
@@ -61,12 +66,17 @@ public extension View {
     func foregroundColor(_ color: Color) -> some View {
         return self.environment(\.foregroundColor, color)
     }
+
+    func lineLimit(_ number: Int?) -> some View {
+        return self.environment(\.lineLimit, number)
+    }
 }
 
 extension Text {
     final class Storage {
         fileprivate(set) var text: AttributedText
         var foregroundColor: Color?
+        var lineLimit: Int?
 
         init(string: String) {
             self.text = AttributedText(string)
@@ -85,6 +95,10 @@ extension Text {
         func applyingEnvironment(_ environment: EnvironmentValues) -> AttributedText {
             if let font = environment.font {
                 self.text.font = font
+            }
+
+            if lineLimit == nil {
+                self.lineLimit = environment.lineLimit
             }
 
             if self.foregroundColor == nil {

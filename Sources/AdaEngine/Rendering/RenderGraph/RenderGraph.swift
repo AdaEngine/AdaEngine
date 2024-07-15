@@ -300,7 +300,7 @@ public final class RenderGraph {
     
 }
 
-extension RenderGraph: @preconcurrency CustomDebugStringConvertible {
+extension RenderGraph: CustomDebugStringConvertible {
     public var debugDescription: String {
         var string = ""
         for node in self.nodes.values {
