@@ -11,4 +11,8 @@
 @attached(extension, conformances: Component)
 public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "ComponentMacro")
 
+@attached(accessor)
+@attached(peer, names: prefixed(__Key_))
+public macro Entry() = #externalMacro(module: "AdaEngineMacros", type: "EntryMacro")
+
 #endif

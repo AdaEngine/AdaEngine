@@ -35,7 +35,7 @@ open class UIButton: UIControl {
         self.styles[state, default: ButtonStyle()].textContainer.text = text
     }
 
-    open override func draw(in rect: Rect, with context: GUIRenderContext) {
+    open override func draw(in rect: Rect, with context: UIGraphicsContext) {
         let style = self.styles[self.state]
         let color = style?.backgroundColor ?? self.backgroundColor
         context.drawRect(rect, color: color)

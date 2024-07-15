@@ -29,7 +29,7 @@ open class ScriptableComponent: Component {
     open func onUpdate(_ deltaTime: TimeInterval) { }
     
     /// Called each frame to update gui.
-    open func onUpdateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {
+    open func onUpdateGUI(_ deltaTime: TimeInterval, context: UIGraphicsContext) {
         
     }
     

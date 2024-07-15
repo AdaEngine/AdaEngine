@@ -103,17 +103,6 @@ class ViewNodeVisibilityHolder {
     var isAppeared: [ObjectIdentifier: Bool] = [:]
 }
 
-struct ViewNodeVisibilityKey: ViewEnvironmentKey {
-    static var defaultValue: ViewNodeVisibilityHolder = ViewNodeVisibilityHolder()
-}
-
-fileprivate extension ViewEnvironmentValues {
-    var nodeVisibilityHolder: ViewNodeVisibilityHolder {
-        get {
-            self[ViewNodeVisibilityKey.self]
-        }
-        set {
-            self[ViewNodeVisibilityKey.self] = newValue
-        }
-    }
+fileprivate extension EnvironmentValues {
+    @Entry var nodeVisibilityHolder: ViewNodeVisibilityHolder = ViewNodeVisibilityHolder()
 }

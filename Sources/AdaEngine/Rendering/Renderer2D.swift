@@ -7,6 +7,8 @@
 
 import Math
 
+// swiftlint:disable file_length
+
 // TODO: Should we use separete renderer? Maybe switch to render graph???
 // TODO: Needs optimizations
 

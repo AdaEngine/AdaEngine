@@ -67,7 +67,6 @@ class TilemapScene: Scene {
         static let riverEnd: PointInt = [14, 3]
     }
     
-    // swiftlint:disable:next function_body_length
     override func sceneDidMove(to view: SceneView) {
 //        if FileSystem.current.itemExists(at: URL(filePath: "/Users/vprusakov/Downloads/tilemap.res")) {
 //            loadIfNeeded()

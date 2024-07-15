@@ -202,6 +202,7 @@ public final class TextLayoutManager {
             boundingBox.size.height = Float(height + maxLineHeight)
 
             textLine.boundingBox = boundingBox
+            print("TextLine box", boundingBox)
 
             self.textLines.append(textLine)
         }
@@ -378,7 +379,7 @@ struct TextLine {
     }
 
     @MainActor
-    func draw(at point: Point, context: GUIRenderContext) {
+    func draw(at point: Point, context: UIGraphicsContext) {
         for glyph in glyphs {
             context.drawGlyph(glyph, at: point)
         }

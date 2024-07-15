@@ -52,4 +52,3 @@ public extension Size {
         )
     }
 }
-

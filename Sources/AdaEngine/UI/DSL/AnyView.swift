@@ -7,7 +7,9 @@
 
 /// A type-erased view.
 ///
-/// An ``AnyView`` allows changing the type of view used in a given view hierarchy. Whenever the type of view used with an AnyView changes, the old hierarchy is destroyed and a new hierarchy is created for the new type.
+/// An ``AnyView`` allows changing the type of view used in a given view hierarchy. 
+/// Whenever the type of view used with an AnyView changes, the old hierarchy is destroyed
+/// and a new hierarchy is created for the new type.
 @frozen public struct AnyView: View {
 
     public typealias Body = Never
@@ -24,13 +26,13 @@
         self.content = view
     }
 
-    @MainActor(unsafe)
+    @MainActor @preconcurrency
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
         let content = view[\.content].value
         return self.makeView(content, inputs: inputs)
     }
 
-    @MainActor(unsafe)
+    @MainActor @preconcurrency
     public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
         let content = view[\.content].value
         return self.makeListView(content, inputs: inputs)

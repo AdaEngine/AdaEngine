@@ -38,7 +38,7 @@ public class UIImageView: UIView {
         self.texture = Texture2D(image: image)
     }
 
-    public override func draw(in rect: Rect, with context: GUIRenderContext) {
+    public override func draw(in rect: Rect, with context: UIGraphicsContext) {
         context.drawRect(rect, texture: self.texture, color: self.tintColor)
     }
 

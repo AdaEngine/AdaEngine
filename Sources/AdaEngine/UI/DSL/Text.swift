@@ -5,9 +5,7 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-public struct Text: View, ViewNodeBuilder {
-
-    public typealias Body = Never
+public struct Text {
 
     let storage: Storage
 
@@ -15,7 +13,7 @@ public struct Text: View, ViewNodeBuilder {
         self.storage = Storage(string: text)
     }
 
-    public init(attributedText: AttributedText) {
+    public init(_ attributedText: AttributedText) {
         self.storage = Storage(attributedText: attributedText)
     }
 
@@ -23,6 +21,12 @@ public struct Text: View, ViewNodeBuilder {
         self.storage = storage
     }
 
+}
+
+extension Text: View, ViewNodeBuilder {
+    
+    public typealias Body = Never
+    
     func makeViewNode(inputs: _ViewInputs) -> ViewNode {
         TextViewNode(inputs: inputs, content: self)
     }
@@ -78,7 +82,7 @@ extension Text {
             return Storage(attributedText: newText)
         }
 
-        func applyingEnvironment(_ environment: ViewEnvironmentValues) -> AttributedText {
+        func applyingEnvironment(_ environment: EnvironmentValues) -> AttributedText {
             if let font = environment.font {
                 self.text.font = font
             }

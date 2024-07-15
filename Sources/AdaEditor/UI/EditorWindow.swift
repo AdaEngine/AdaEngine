@@ -44,15 +44,15 @@ struct ContentView: View {
     var body: some View {
         VStack {
             Text("Hello")
-                .frame(width: 100, height: 23)
-                .background(Color.mint)
+//                .frame(width: 100, height: 23)
+//                .background(Color.mint)
 
             viewModel.color
                 .frame(height: 140)
 
             Text("World")
-                .frame(width: 100, height: 23)
-                .background(Color.green)
+//                .frame(width: 100, height: 23)
+//                .background(Color.green)
         }
         .font(.system(size: 17))
         .background(.red)
@@ -94,8 +94,6 @@ struct ContentView: View {
 //                isShown.toggle()
 //            }
 //        }
-
-
     }
 
     var button: some View {

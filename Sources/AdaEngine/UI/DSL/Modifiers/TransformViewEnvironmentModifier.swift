@@ -11,7 +11,7 @@ public extension View {
     /// - Parameter transform: The transform block witch update value to set for the item specified by keyPath.
     /// - Returns: A view that has the given value set in its environment.
     func transformEnvironment<Value>(
-        _ keyPath: WritableKeyPath<ViewEnvironmentValues, Value>,
+        _ keyPath: WritableKeyPath<EnvironmentValues, Value>,
         transform: @escaping (inout Value) -> Void
     ) -> some View {
         self.modifier(
@@ -28,7 +28,7 @@ public extension View {
     /// - Parameter value: The new value to set for the item specified by keyPath.
     /// - Returns: A view that has the given value set in its environment.
     func environment<Value>(
-        _ keyPath: WritableKeyPath<ViewEnvironmentValues, Value>,
+        _ keyPath: WritableKeyPath<EnvironmentValues, Value>,
         _ newValue: Value
     ) -> some View {
         self.modifier(
@@ -46,7 +46,7 @@ public extension View {
 struct TransformViewEnvironmentModifier<WrappedView: View, Value>: ViewModifier, _ViewInputsViewModifier {
 
     let content: WrappedView
-    let keyPath: WritableKeyPath<ViewEnvironmentValues, Value>
+    let keyPath: WritableKeyPath<EnvironmentValues, Value>
     let block: (inout Value) -> Void
 
     func body(content: Content) -> some View {

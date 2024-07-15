@@ -64,11 +64,11 @@ public struct PlainButtonStyle: ButtonStyle {
     }
 }
 
-struct ButtonEnvironmentKey: ViewEnvironmentKey {
+struct ButtonEnvironmentKey: EnvironmentKey {
     static var defaultValue: any ButtonStyle = PlainButtonStyle()
 }
 
-extension ViewEnvironmentValues {
+extension EnvironmentValues {
     var buttonStyle: any ButtonStyle {
         get { return self[ButtonEnvironmentKey.self] }
         set { self[ButtonEnvironmentKey.self] = newValue }

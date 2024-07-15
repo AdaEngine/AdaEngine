@@ -21,7 +21,7 @@ class ViewNode: Identifiable {
 
     private(set) var shouldNotifyAboutChanges: Bool
     private(set) var content: any View
-    private(set) var environment = ViewEnvironmentValues()
+    private(set) var environment = EnvironmentValues()
     private(set) var frame: Rect = .zero
     private(set) var layoutProperties = LayoutProperties()
     private(set) var gestures: [_Gesture] = []
@@ -38,7 +38,7 @@ class ViewNode: Identifiable {
 
     // MARK: Layout
 
-    func updateEnvironment(_ environment: ViewEnvironmentValues) {
+    func updateEnvironment(_ environment: EnvironmentValues) {
         self.environment = environment
     }
 
@@ -48,7 +48,6 @@ class ViewNode: Identifiable {
         self.layoutProperties = props
     }
 
-    
     func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         return proposal.replacingUnspecifiedDimensions()
     }
@@ -85,7 +84,7 @@ class ViewNode: Identifiable {
 
     func update(_ deltaTime: TimeInterval) async { }
 
-    func draw(with context: GUIRenderContext) { }
+    func draw(with context: UIGraphicsContext) { }
     
     // MARK: - Interaction
     

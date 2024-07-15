@@ -23,7 +23,7 @@ final class TextViewNode: ViewNode {
         self.layoutManager.setTextContainer(self.textContainer)
         super.init(content: content)
     }
-
+    
     override func performLayout() {
         if self.textContainer.bounds.size != self.frame.size {
             self.textContainer.bounds = Rect(origin: .zero, size: self.frame.size)
@@ -51,9 +51,9 @@ final class TextViewNode: ViewNode {
         return size
     }
 
-    override func draw(with context: GUIRenderContext) {
+    override func draw(with context: UIGraphicsContext) {
         for textLine in self.layoutManager.textLines {
-            textLine.draw(at: .zero, context: context)
+            textLine.draw(at: self.frame.origin, context: context)
         }
     }
 }

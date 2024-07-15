@@ -11,6 +11,7 @@ import SwiftSyntaxMacros
 @main
 struct AdaEngineMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
-        ComponentMacro.self
+        ComponentMacro.self,
+        EntryMacro.self
     ]
 }
