@@ -69,7 +69,7 @@ struct CustomLayoutContainer<T: Layout, Content: View>: View {
         var inputs = inputs
         inputs.layout = layout
         let node = LayoutViewContainerNode(layout: layout, content: content.value)
-
+        node.updateEnvironment(inputs.environment)
         return _ViewOutputs(node: node)
     }
 }

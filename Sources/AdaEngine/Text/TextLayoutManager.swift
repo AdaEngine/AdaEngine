@@ -116,7 +116,7 @@ public final class TextLayoutManager {
             return
         }
 
-        for line in lines[..<numberOfLines] {
+        for line in lines[..<min(numberOfLines, lines.count)] {
             var textLine = TextLine(attributedText: attributedText, range: line.startIndex..<line.endIndex)
             var boundingBox = Rect(
                 origin: Point(x: Float(x), y: Float(y)),

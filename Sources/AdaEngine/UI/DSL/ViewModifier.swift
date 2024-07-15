@@ -125,6 +125,7 @@ public struct _ModifiedContent<Content: ViewModifier>: View {
                 content: view.value,
                 nodes: nodes
             )
+            node.updateEnvironment(inputs.environment)
             inputs.registerNodeForStorages(node)
             return _ViewOutputs(node: node)
         }
