@@ -129,7 +129,7 @@ class ViewContainerNode: ViewNode {
         }
     }
 
-    override func updateEnvironment(_ environment: ViewEnvironmentValues) {
+    override func updateEnvironment(_ environment: EnvironmentValues) {
         super.updateEnvironment(environment)
 
         for node in nodes {
@@ -179,8 +179,9 @@ class ViewContainerNode: ViewNode {
         return super.hitTest(point, with: event)
     }
 
-    override func draw(with context: GUIRenderContext) {
+    override func draw(with context: UIGraphicsContext) {
         var context = context
+        context.environment = environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
 
         for node in self.nodes {

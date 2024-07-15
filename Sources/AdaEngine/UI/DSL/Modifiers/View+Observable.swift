@@ -39,18 +39,6 @@ struct ObservableStorageEnvironment {
     }
 }
 
-struct ObservableStorageEnvironmentKey: ViewEnvironmentKey {
-    static var defaultValue = ObservableStorageEnvironment()
-}
-
-extension ViewEnvironmentValues {
-    var observableStorage: ObservableStorageEnvironment {
-        get {
-            self[ObservableStorageEnvironmentKey.self]
-        }
-
-        set {
-            self[ObservableStorageEnvironmentKey.self] = newValue
-        }
-    }
+extension EnvironmentValues {
+    @Entry var observableStorage: ObservableStorageEnvironment = ObservableStorageEnvironment()
 }

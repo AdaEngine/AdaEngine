@@ -17,14 +17,14 @@ class ViewTree<Content: View> {
         self.rootView = rootView
         
         let inputs = _ViewInputs(
-            environment: ViewEnvironmentValues()
+            environment: EnvironmentValues()
         )
         
         let contentNode = Content._makeView(_ViewGraphNode(value: rootView), inputs: inputs)
         self.rootNode = ViewRootNode(contentNode: contentNode.node, content: rootView)
     }
     
-    func renderGraph(renderContext: GUIRenderContext) {
+    func renderGraph(renderContext: UIGraphicsContext) {
         self.rootNode.draw(with: renderContext)
     }
 }
@@ -57,7 +57,7 @@ final class ViewRootNode: ViewNode {
         await contentNode.update(deltaTime)
     }
 
-    override func draw(with context: GUIRenderContext) {
+    override func draw(with context: UIGraphicsContext) {
         contentNode.draw(with: context)
     }
 

@@ -92,10 +92,10 @@ open class UIView {
 
     // MARK: Rendering
 
-    open func draw(in rect: Rect, with context: GUIRenderContext) { }
+    open func draw(in rect: Rect, with context: UIGraphicsContext) { }
 
     /// Internal method for drawing
-    internal func draw(with context: GUIRenderContext) {
+    internal func draw(with context: UIGraphicsContext) {
         if self.isHidden {
             return
         }

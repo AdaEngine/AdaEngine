@@ -8,7 +8,8 @@
 /// A modifier that you apply to a view or another view modifier, producing a different version of the original value.
 ///
 /// Adopt the ``ViewModifier`` protocol when you want to create a reusable modifier that you can apply to any view.
-/// You can apply ``View/modifier(_:)`` directly to a view, but a more common and idiomatic approach uses ``View/modifier(_:)`` to define an extension to View itself that incorporates the view modifier:
+/// You can apply ``View/modifier(_:)`` directly to a view, but a more common and idiomatic approach 
+/// uses ``View/modifier(_:)`` to define an extension to View itself that incorporates the view modifier:
 @MainActor
 @preconcurrency
 public protocol ViewModifier {

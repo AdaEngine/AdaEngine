@@ -20,7 +20,7 @@ final class ViewGraph {
 
 public struct _ViewInputs {
     var layout: any Layout = VStackLayout()
-    var environment: ViewEnvironmentValues
+    var environment: EnvironmentValues
     var propertyStorages: [PropertyStoragable] = []
     var gestures: [_Gesture] = []
 

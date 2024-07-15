@@ -36,7 +36,7 @@ public struct ZStackLayout: Layout {
     public func sizeThatFits(_ proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> Size {
         let size = proposal.replacingUnspecifiedDimensions()
 
-        let idealSize = subviews.reduce(Size.zero) { partialResult, subview in
+        let idealSize = subviews.reduce(Size.zero) { partialResult, _ in
             var newSize = partialResult
             newSize.width = max(partialResult.width, size.width)
             newSize.height = max(partialResult.height, size.height)

@@ -6,7 +6,7 @@
 //
 
 public struct UIViewRepresentableContext<View: UIViewRepresentable> {
-    public internal(set) var environment: ViewEnvironmentValues
+    public internal(set) var environment: EnvironmentValues
     public internal(set) var coordinator: View.Coordinator
 }
 

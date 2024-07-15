@@ -6,7 +6,7 @@
 //
 
 /// An object that contains information about keyboard event.
-public class KeyEvent: InputEvent {
+public class KeyEvent: InputEvent, @unchecked Sendable {
     
     public enum Status: UInt8, Hashable {
         case up

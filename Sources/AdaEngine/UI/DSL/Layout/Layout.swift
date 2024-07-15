@@ -17,20 +17,18 @@ public struct LayoutProperties {
     }
 }
 
+@MainActor
+@preconcurrency
 public protocol Layout {
     associatedtype Cache = Void
     typealias Subviews = LayoutSubviews
 
-    @MainActor(unsafe)
     func sizeThatFits(_ proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> Size
 
-    @MainActor(unsafe)
     func placeSubviews(in bounds: Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache)
 
-    @MainActor(unsafe)
     func updateCache(_ cache: inout Cache, subviews: Subviews)
 
-    @MainActor(unsafe)
     func makeCache(subviews: Subviews) -> Cache
 
     /// Properties of a layout container.

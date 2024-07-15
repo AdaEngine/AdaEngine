@@ -21,7 +21,7 @@ public struct Environment<Value>: PropertyStoragable, UpdatableProperty {
         return readValue(container)
     }
     
-    public init(_ keyPath: KeyPath<ViewEnvironmentValues, Value>) {
+    public init(_ keyPath: KeyPath<EnvironmentValues, Value>) {
         self.readValue = { $0.values[keyPath: keyPath] }
     }
 
@@ -47,20 +47,20 @@ extension Environment where Value: Observable & AnyObject {
 }
 
 final class ViewContextStorage: UpdatablePropertyStorage {
-    var values: ViewEnvironmentValues = ViewEnvironmentValues()
+    var values: EnvironmentValues = EnvironmentValues()
 }
 
-public protocol ViewEnvironmentKey {
+public protocol EnvironmentKey {
     associatedtype Value
 
     static var defaultValue: Value { get }
 }
 
-public struct ViewEnvironmentValues {
+public struct EnvironmentValues {
 
     var values: [ObjectIdentifier: Any] = [:]
     
-    public subscript<K: ViewEnvironmentKey>(_ type: K.Type) -> K.Value {
+    public subscript<K: EnvironmentKey>(_ type: K.Type) -> K.Value {
         get {
             (self.values[ObjectIdentifier(type)] as? K.Value) ?? K.defaultValue
         }

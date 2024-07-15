@@ -144,19 +144,8 @@ class NamedViewCoordinateSpaceContainer {
     var containers: [AnyHashable: ViewNode] = [:]
 }
 
-struct GeometryReaderNameEnvironmentKey: ViewEnvironmentKey {
-    static var defaultValue = NamedViewCoordinateSpaceContainer()
-}
-
-extension ViewEnvironmentValues {
-    var coordinateSpaces: NamedViewCoordinateSpaceContainer {
-        get {
-            self[GeometryReaderNameEnvironmentKey.self]
-        }
-        set {
-            self[GeometryReaderNameEnvironmentKey.self] = newValue
-        }
-    }
+extension EnvironmentValues {
+    @Entry var coordinateSpaces: NamedViewCoordinateSpaceContainer = NamedViewCoordinateSpaceContainer()
 }
 
 public extension View {
