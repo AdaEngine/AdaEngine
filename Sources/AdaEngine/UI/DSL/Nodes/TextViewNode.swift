@@ -19,6 +19,7 @@ final class TextViewNode: ViewNode {
     init(inputs: _ViewInputs, content: Text) {
         let text = content.storage.applyingEnvironment(inputs.environment)
         self.textContainer = TextContainer(text: text)
+        self.textContainer.numberOfLines = content.storage.lineLimit
         self.layoutManager = TextLayoutManager()
         self.layoutManager.setTextContainer(self.textContainer)
         super.init(content: content)
@@ -32,7 +33,7 @@ final class TextViewNode: ViewNode {
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         if proposal == .zero || proposal == .infinity {
-            let size = self.layoutManager.boundingSize(width: .infinity, height: .infinity)
+            let size = self.layoutManager.boundingSize()
             return size
         }
 
@@ -47,8 +48,11 @@ final class TextViewNode: ViewNode {
             idealHeight = height
         }
 
-        let size = self.layoutManager.boundingSize(width: idealWidth, height: idealHeight)
-        return size
+        let size = self.layoutManager.boundingSize()
+        return Size(
+            width: min(idealWidth, size.width),
+            height: min(idealHeight, size.height)
+        )
     }
 
     override func draw(with context: UIGraphicsContext) {

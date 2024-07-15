@@ -31,7 +31,10 @@ public struct TextContainer: Hashable {
     
     /// The spacing between lines.
     public var lineSpacing: Float
-    
+
+    /// The maximum number of lines for rendering text.
+    public var numberOfLines: Int?
+
     public init(
         text: AttributedText,
         bounds: Rect = Rect(x: 0, y: 0, width: .infinity, height: .infinity),
@@ -106,15 +109,25 @@ public final class TextLayoutManager {
         let lines = attributedText.text.components(separatedBy: .newlines)
         self.textLines = []
 
-        var width: Double = 0
-        var height: Double = 0
+        let numberOfLines = self.textContainer.numberOfLines ?? lines.count
 
-        for line in lines {
+        if numberOfLines < 0 {
+            print("Line limit can't be less than zero.")
+            return
+        }
+
+        for line in lines[..<numberOfLines] {
             var textLine = TextLine(attributedText: attributedText, range: line.startIndex..<line.endIndex)
             var boundingBox = Rect(
-                origin: bounds.origin,
+                origin: Point(x: Float(x), y: Float(y)),
                 size: .zero
             )
+
+            x = 0
+            y = 0
+
+            var width: Double = 0
+            var height: Double = 0
 
             var maxLineHeight: Double = 0
 
@@ -152,11 +165,10 @@ public final class TextLayoutManager {
 
                     if Float((pr * fontScale) + x) > bounds.size.width {
                         x = 0
-                        y -= fontScale * metrics.lineHeight + lineHeightOffset
+                        y -= fontScale * metrics.lineHeight + lineHeightOffset + fontSize
                     }
 
                     if abs(Float((pt * fontScale) + y)) > bounds.size.height {
-                        // TODO: Add
                         break indecies // available lines did end
                     }
 
@@ -194,12 +206,15 @@ public final class TextLayoutManager {
                     }
                 }
 
-                width += x
+                width += fontSize
                 height += y
             }
 
-            boundingBox.size.width = Float(width + 4)
-            boundingBox.size.height = Float(height + maxLineHeight)
+            x = Double(bounds.origin.x)
+            y = maxLineHeight.rounded(.up)
+
+            boundingBox.size.width = Float(width).rounded(.up)
+            boundingBox.size.height = Float(height + maxLineHeight).rounded(.up)
 
             textLine.boundingBox = boundingBox
             print("TextLine box", boundingBox)
@@ -296,14 +311,14 @@ public final class TextLayoutManager {
     }
 
     /// Calculates and returns the size.
-    func boundingSize(width: Float, height: Float) -> Size {
+    func boundingSize() -> Size {
         if self.textLines.isEmpty {
             return .zero
         }
 
         let result = self.textLines.reduce(Size.zero) { result, line in
             return Size(
-                width: max(width, result.width + line.boundingBox.width),
+                width: result.width + line.boundingBox.width,
                 height: result.height + line.boundingBox.height
             )
         }
@@ -355,7 +370,7 @@ public extension String {
             )
         )
 
-        return manager.boundingSize(width: width, height: height)
+        return manager.boundingSize()
     }
     
     /// Returns the bounding box size the receiver occupies when drawn with the given attributes.
@@ -381,7 +396,7 @@ struct TextLine {
     @MainActor
     func draw(at point: Point, context: UIGraphicsContext) {
         for glyph in glyphs {
-            context.drawGlyph(glyph, at: point)
+            context.drawGlyph(glyph, at: self.boundingBox.origin + point)
         }
     }
 }

@@ -42,66 +42,65 @@ struct ContentView: View {
     @State private var viewModel = ViewModel()
 
     var body: some View {
-        VStack {
-            Text("Hello")
-//                .frame(width: 100, height: 23)
-//                .background(Color.mint)
+        Text("Hello, World")
+            .background(.red)
+            .frame(width: 204, height: 24)
 
-            viewModel.color
-                .frame(height: 140)
-
-            Text("World")
-//                .frame(width: 100, height: 23)
-//                .background(Color.green)
-        }
-        .font(.system(size: 17))
-        .background(.red)
-        .frame(width: 140)
-        .environment(viewModel)
-//        ScrollView {
-//            VStack {
-//                ForEach(0..<30) { _ in
-//                    Color.random()
-//                        .cursorShape(.pointingHand)
-//                }
-//            }
-//            .padding(16)
-//        }
-//        .background(
-//            Color.gray
-//        )
-//        .onTap {
-//            print("kek")
-//        }
-
-//        Self.printChanges()
+//        VStack {
+//            Text("Hello")
+////                .frame(width: 100, height: 23)
+////                .background(Color.mint)
 //
-//        return VStack {
-//            NestedContent(color: $color)
+//            viewModel.color
+//                .frame(height: 140)
 //
-//            Button {
-//                print("Pressed")
-//            } label: {
-//                ImageView("Assets/dog.png", bundle: Bundle.editor)
-//                    .resizable()
-//                    .frame(width: 300, height: 120)
-//            }
+//            Text("World")
+////                .frame(width: 100, height: 23)
+////                .background(Color.green)
 //        }
-//        .padding(16)
-//        .background(self.color)
-//        .onAppear {
-//            Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
-//                isShown.toggle()
-//            }
-//        }
-    }
-
-    var button: some View {
-        Color.black
-            .opacity(0.7)
-            .frame(width: 40, height: 40)
+//        .font(.system(size: 17))
+//        .background(.red)
+//        .frame(width: 140)
+//        .environment(viewModel)
     }
 }
+//
+//ScrollView {
+//    VStack {
+//        ForEach(0..<30) { _ in
+//            Color.random()
+//                .cursorShape(.pointingHand)
+//        }
+//    }
+//    .padding(16)
+//}
+//.background(
+//    Color.gray
+//)
+//.onTap {
+//    print("kek")
+//}
+//
+//Self.printChanges()
+//
+//return VStack {
+//    NestedContent(color: $color)
+//
+//    Button {
+//        print("Pressed")
+//    } label: {
+//        ImageView("Assets/dog.png", bundle: Bundle.editor)
+//            .resizable()
+//            .frame(width: 300, height: 120)
+//    }
+//}
+//.padding(16)
+//.background(self.color)
+//.onAppear {
+//    Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
+//        isShown.toggle()
+//    }
+//}
 
 class EditorWindow: UIWindow {
     override func windowDidReady() {
