@@ -77,6 +77,10 @@ class ViewContainerNode: ViewNode {
             self.performLayout()
         }
 
+        for node in nodes {
+            node.updateEnvironment(environment)
+        }
+
         if shouldNotifyAboutChanges {
             self._printDebugNode()
         }

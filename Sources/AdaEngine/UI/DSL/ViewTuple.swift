@@ -28,6 +28,7 @@ public struct ViewTuple<Content>: View {
             content: view.value,
             nodes: outputs.outputs.map { $0.node }
         )
+        node.updateEnvironment(inputs.environment)
         inputs.registerNodeForStorages(node)
         return _ViewOutputs(node: node)
     }

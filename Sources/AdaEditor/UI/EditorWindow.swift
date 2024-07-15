@@ -48,20 +48,21 @@ struct ContentView: View {
 
 //        VStack {
 //            Text("Hello")
-////                .frame(width: 100, height: 23)
-////                .background(Color.mint)
+//                .frame(width: 100, height: 23)
+//                .background(Color.mint)
 //
 //            viewModel.color
 //                .frame(height: 140)
 //
 //            Text("World")
-////                .frame(width: 100, height: 23)
-////                .background(Color.green)
+//                .frame(width: 100, height: 23)
+//                .background(Color.green)
 //        }
 //        .font(.system(size: 17))
 //        .background(.red)
 //        .frame(width: 140)
 //        .environment(viewModel)
+//        .lineLimit(2)
     }
 }
 //
