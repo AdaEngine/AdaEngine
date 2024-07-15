@@ -295,7 +295,6 @@ extension LDtk {
     }
 }
 
-
 // MARK: - JSON Data
 
 extension LDtk {

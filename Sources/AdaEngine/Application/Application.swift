@@ -36,7 +36,7 @@ open class Application {
         #endif
     }
     
-    @MainActor(unsafe) public internal(set) var windowManager: UIWindowManager = UIWindowManager()
+    @MainActor @preconcurrency public internal(set) var windowManager: UIWindowManager = UIWindowManager()
 
     /// Contains world which can render on screen.
     @RenderGraphActor public let renderWorld = RenderWorld()

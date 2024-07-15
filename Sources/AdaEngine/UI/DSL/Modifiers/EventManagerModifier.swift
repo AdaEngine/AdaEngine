@@ -41,11 +41,11 @@ private final class EventManagerNode<E: Event>: ViewModifierNode {
     }
 }
 
-struct EventManagerEnvironmentKey: ViewEnvironmentKey {
+struct EventManagerEnvironmentKey: EnvironmentKey {
     static var defaultValue = EventManager.default
 }
 
-public extension ViewEnvironmentValues {
+public extension EnvironmentValues {
     var eventManager: EventManager {
         get { self[EventManagerEnvironmentKey.self] }
         set { self[EventManagerEnvironmentKey.self] = newValue }

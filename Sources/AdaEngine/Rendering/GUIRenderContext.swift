@@ -1,5 +1,5 @@
 //
-//  GUIRenderContext.swift
+//  UIGraphicsContext.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 5/16/22.
@@ -12,13 +12,17 @@ import Math
 
 /// Special object to render user interface on the screen.
 /// Context use orthogonal projection.
-public struct GUIRenderContext {
+public struct UIGraphicsContext {
 
     /// Window Identifier related presented window.
     private let camera: Camera
     private var transform: Transform3D = .identity
     private(set) var currentDrawContext: Renderer2D.DrawContext?
+    
+    public internal(set) var environment: EnvironmentValues = EnvironmentValues()
 
+    @MainActor
+    @preconcurrency
     init(window: UIWindow) {
         let camera = Camera(window: window.id)
         camera.isActive = true
@@ -115,7 +119,7 @@ public struct GUIRenderContext {
     }
 }
 
-extension GUIRenderContext {
+extension UIGraphicsContext {
     
     func makeCanvasTransform3D(from affineTransform: Transform2D) -> Transform3D {
         // swiftlint:disable:next identifier_name
