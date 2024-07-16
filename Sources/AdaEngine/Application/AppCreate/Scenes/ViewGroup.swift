@@ -1,12 +1,12 @@
 //
-//  ViewGroup.swift
+//  WindowGroup.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 08.06.2024.
 //
 
-public struct ViewGroup<Content: View>: AppScene {
-    
+public struct WindowGroup<Content: View>: AppScene {
+
     public var scene: Never { fatalError() }
     
     let content: Content
@@ -16,7 +16,7 @@ public struct ViewGroup<Content: View>: AppScene {
     }
 }
 
-extension ViewGroup: InternalAppScene {
+extension WindowGroup: InternalAppScene {
     @MainActor
     func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> UIWindow {
         let frame = Rect(origin: .zero, size: configuration.minimumSize)

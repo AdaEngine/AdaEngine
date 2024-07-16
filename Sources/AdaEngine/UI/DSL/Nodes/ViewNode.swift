@@ -17,7 +17,14 @@ class ViewNode: Identifiable {
         ObjectIdentifier(self)
     }
 
-    weak var parent: ViewNode?
+    weak var parent: ViewNode? {
+        willSet {
+            willMove(to: newValue)
+        }
+        didSet {
+            didMove(to: self.parent)
+        }
+    }
 
     private(set) var shouldNotifyAboutChanges: Bool
     private(set) var content: any View
@@ -25,6 +32,7 @@ class ViewNode: Identifiable {
     private(set) var frame: Rect = .zero
     private(set) var layoutProperties = LayoutProperties()
     private(set) var gestures: [_Gesture] = []
+    private(set) var preferences = PreferenceValues()
 
     init<Content: View>(content: Content) {
         self.content = content
@@ -38,11 +46,14 @@ class ViewNode: Identifiable {
 
     // MARK: Layout
 
+    func updatePreference<K: PreferenceKey>(key: K.Type, value: K.Value) {
+        let updatedValue = parent?.preferences[K.self] ?? K.defaultValue
+        self.parent?.updatePreference(key: K.self, value: updatedValue)
+    }
+
     func updateEnvironment(_ environment: EnvironmentValues) {
         self.environment = environment
     }
-
-    func invalidateContent() { }
 
     func updateLayoutProperties(_ props: LayoutProperties) {
         self.layoutProperties = props
@@ -79,6 +90,12 @@ class ViewNode: Identifiable {
     func merge(_ otherNode: ViewNode) {
         self.environment = otherNode.environment
     }
+
+    func invalidateContent() { }
+
+    func willMove(to parent: ViewNode?) { }
+
+    func didMove(to parent: ViewNode?) { }
 
     // MARK: - Other
 

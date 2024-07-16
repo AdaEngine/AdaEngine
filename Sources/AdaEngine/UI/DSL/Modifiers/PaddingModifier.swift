@@ -46,12 +46,14 @@ extension Edge {
     }
 }
 
-public struct EdgeInsets: Equatable, Hashable {
+/// The inset distances for the sides of a rectangle.
+public struct EdgeInsets: Equatable, Hashable, Sendable {
     public var top: Float
     public var leading: Float
     public var bottom: Float
     public var trailing: Float
 
+    /// Returns new instance where all values is zero.
     public init() {
         self.top = 0
         self.leading = 0
@@ -66,6 +68,15 @@ public struct EdgeInsets: Equatable, Hashable {
         self.trailing = trailing
     }
 
+    public init(_ length: Float) {
+        self.top = length
+        self.leading = length
+        self.bottom = length
+        self.trailing = length
+    }
+
+    /// Returns new instance where all values is zero.
+    static let zero = EdgeInsets(0)
 }
 
 public extension View {

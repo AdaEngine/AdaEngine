@@ -9,6 +9,7 @@ import Math
 
 public struct ZStackLayout: Layout {
     public typealias Cache = StackLayoutCache
+    public typealias AnimatableData = EmptyAnimatableData
 
     let anchor: AnchorPoint
 
@@ -36,10 +37,11 @@ public struct ZStackLayout: Layout {
     public func sizeThatFits(_ proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> Size {
         let size = proposal.replacingUnspecifiedDimensions()
 
-        let idealSize = subviews.reduce(Size.zero) { partialResult, _ in
+        let idealSize = subviews.reduce(Size.zero) { partialResult, subview in
+            let idealSize = subview.sizeThatFits(proposal)
             var newSize = partialResult
-            newSize.width = max(partialResult.width, size.width)
-            newSize.height = max(partialResult.height, size.height)
+            newSize.width = max(partialResult.width, idealSize.width)
+            newSize.height = max(partialResult.height, idealSize.height)
             return newSize
         }
 

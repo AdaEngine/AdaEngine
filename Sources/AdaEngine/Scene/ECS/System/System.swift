@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
+// TODO: Add Job Scheduler instead of System.update(_:) async
+
 /// Contains information about current scene update.
 public struct SceneUpdateContext: Sendable {
     /// The updating scene.

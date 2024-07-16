@@ -109,3 +109,180 @@ extension Text {
         }
     }
 }
+
+extension Text {
+    public struct Layout: Collection, Equatable, Sequence {
+        public typealias Index = Int
+        public typealias Element = TextLine
+
+        private let lines: [TextLine]
+
+        init(lines: [TextLine]) {
+            self.lines = lines
+        }
+
+        public subscript(position: Int) -> TextLine {
+            _read {
+                yield self.lines[position]
+            }
+        }
+
+        public var startIndex: Int {
+            self.lines.startIndex
+        }
+        public var endIndex: Int {
+            self.lines.endIndex
+        }
+
+        public func index(before i: Int) -> Int {
+            self.lines.index(before: i)
+        }
+
+        public func index(after i: Int) -> Int {
+            return self.lines.index(after: i)
+        }
+    }
+}
+
+extension Text {
+
+    public struct Proxy {
+        let layoutManager: TextLayoutManager
+
+        public func sizeThatFits(proposal: ProposedViewSize) -> Size {
+            if proposal == .zero || proposal == .infinity {
+                let size = self.layoutManager.boundingSize()
+                return size
+            }
+
+            var idealWidth: Float = .infinity
+            var idealHeight: Float = .infinity
+
+            if let width = proposal.width, width != .infinity {
+                idealWidth = width
+            }
+
+            if let height = proposal.height, height != .infinity {
+                idealHeight = height
+            }
+
+            let size = self.layoutManager.boundingSize()
+            return Size(
+                width: min(idealWidth, size.width),
+                height: min(idealHeight, size.height)
+            )
+        }
+    }
+}
+
+/// A value that can replace the default text view rendering behavior.
+public protocol TextRenderer: Animatable {
+
+    /// Draws layout into context.
+    func draw(layout: Text.Layout, in context: inout UIGraphicsContext)
+
+    /// Returns the size of the text in proposal. The provided text proxy value may be used to query the sizing behavior of the underlying text layout.
+    func sizeThatFits(proposal: ProposedViewSize, text: Text.Proxy) -> Size
+}
+
+public extension TextRenderer {
+
+  var animatableData: EmptyAnimatableData {
+      get { EmptyAnimatableData() }
+      // swiftlint:disable:next unused_setter_value
+      set { }
+  }
+
+    func sizeThatFits(proposal: ProposedViewSize, text: Text.Proxy) -> Size {
+        text.sizeThatFits(proposal: proposal)
+    }
+}
+
+public extension View {
+    /// Returns a new view such that any text views within it will use renderer to draw themselves.
+    /// - Parameter renderer: The renderer value.
+    /// - Returns: A new view that will use renderer to draw its text views.
+    func textRendered<T: TextRenderer>(_ renderer: T) -> some View {
+        self.environment(\.textRenderer, renderer)
+    }
+}
+
+extension EnvironmentValues {
+    /// Contains instance that can render text. If nil, will use default implementation ``DefaultRichTextRenderer``
+  var textRenderer: (any TextRenderer)? {
+    get {
+      self[TextRendererKey.self]
+    }
+    set {
+      self[TextRendererKey.self] = newValue
+    }
+  }
+
+  private struct TextRendererKey: EnvironmentKey {
+    static let defaultValue: (any TextRenderer)? = nil
+  }
+}
+
+public protocol VectorArithmetic : AdditiveArithmetic {
+
+    /// Multiplies each component of this value by the given value.
+    mutating func scale(by rhs: Double)
+
+    /// Returns the dot-product of this vector arithmetic instance with itself.
+    var magnitudeSquared: Double { get }
+}
+
+public protocol Animatable {
+    /// The type defining the data to animate.
+    associatedtype AnimatableData: VectorArithmetic
+
+    /// The data to animate.
+    var animatableData: AnimatableData { get set }
+}
+
+public extension Animatable where Self : VectorArithmetic {
+
+    /// The data to animate.
+    var animatableData: Self {
+        get { self }
+        set { self = newValue }
+    }
+}
+
+public extension Animatable where Self.AnimatableData == EmptyAnimatableData {
+
+    /// The data to animate.
+    var animatableData: EmptyAnimatableData {
+        get { EmptyAnimatableData() }
+        // swiftlint:disable:next unused_setter_value
+        set { }
+    }
+}
+
+public struct EmptyAnimatableData: VectorArithmetic {
+    public static func - (lhs: EmptyAnimatableData, rhs: EmptyAnimatableData) -> EmptyAnimatableData {
+        EmptyAnimatableData(value: lhs.value - rhs.value)
+    }
+
+    public static func + (lhs: EmptyAnimatableData, rhs: EmptyAnimatableData) -> EmptyAnimatableData {
+        EmptyAnimatableData(value: lhs.value + rhs.value)
+    }
+
+    public static var zero: EmptyAnimatableData = EmptyAnimatableData(value: 0)
+
+    var value: Double
+
+    init(value: Double) {
+        self.value = value
+    }
+
+    public init() {
+        self.value = 0
+    }
+
+    public mutating func scale(by rhs: Double) {
+        value = value * rhs
+    }
+
+    public var magnitudeSquared: Double { return 0 }
+}

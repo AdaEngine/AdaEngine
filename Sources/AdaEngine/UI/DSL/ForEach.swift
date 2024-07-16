@@ -14,7 +14,7 @@ public struct ForEach<Data: RandomAccessCollection, ID: Hashable, Content: View>
     let data: Data
     var content: (Data.Element) -> Content
 
-    @MainActor(unsafe)
+    @MainActor @preconcurrency
     public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
         let data = view[\.data].value
         let contentBlock = view[\.content].value
@@ -73,7 +73,7 @@ extension ForEach {
 
 extension ForEach where Data == Range<Int>, ID == Int {
 
-    /// Creates an instance that computes Viewss on demand over a given constant
+    /// Creates an instance that computes Views on demand over a given constant
     /// range.
     ///
     /// The instance only reads the initial value of the provided `data` and
