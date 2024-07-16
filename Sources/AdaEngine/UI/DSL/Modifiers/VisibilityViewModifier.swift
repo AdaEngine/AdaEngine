@@ -68,8 +68,22 @@ final class VisibilityViewNode: ViewModifierNode {
     var onAppear: (() -> Void)?
     var onDisappear: (() -> Void)?
 
+    private var identifier = UUID()
+
     deinit {
         self.onDisappear?()
+    }
+
+    var isAppeared = false
+
+    override func merge(_ otherNode: ViewNode) {
+        super.merge(otherNode)
+
+        guard let node = otherNode as? VisibilityViewNode else {
+            return
+        }
+
+        isAppeared = node.isAppeared
     }
 
     override func performLayout() {
@@ -78,9 +92,6 @@ final class VisibilityViewNode: ViewModifierNode {
         guard let parent else {
             return
         }
-        
-        let parentId = parent.id
-        var isAppeared = parent.environment.nodeVisibilityHolder.isAppeared[parentId] ?? false
 
         if parent.frame.intersects(self.frame) {
             if !isAppeared {
@@ -93,16 +104,5 @@ final class VisibilityViewNode: ViewModifierNode {
                 onDisappear?()
             }
         }
-
-        parent.environment.nodeVisibilityHolder.isAppeared[parentId] = isAppeared
-        self.updateEnvironment(parent.environment)
     }
-}
-
-class ViewNodeVisibilityHolder {
-    var isAppeared: [ObjectIdentifier: Bool] = [:]
-}
-
-fileprivate extension EnvironmentValues {
-    @Entry var nodeVisibilityHolder: ViewNodeVisibilityHolder = ViewNodeVisibilityHolder()
 }

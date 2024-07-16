@@ -9,6 +9,8 @@ import Math
 
 public struct VStackLayout: Layout {
 
+    public typealias AnimatableData = EmptyAnimatableData
+
     let alignment: HorizontalAlignment
     let spacing: Float?
 

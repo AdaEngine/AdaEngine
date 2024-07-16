@@ -54,4 +54,3 @@ final class SpacerViewNode: ViewNode {
         return size
     }
 }
-

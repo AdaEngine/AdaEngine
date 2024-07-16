@@ -12,6 +12,7 @@ class ViewModifierNode: ViewNode {
     init<Content: View>(contentNode: ViewNode, content: Content) {
         self.contentNode = contentNode
         super.init(content: content)
+        self.contentNode.parent = self
     }
 
     override func merge(_ otherNode: ViewNode) {

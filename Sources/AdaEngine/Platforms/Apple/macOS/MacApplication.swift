@@ -29,7 +29,7 @@ final class MacApplication: Application {
         app.activate(ignoringOtherApps: true)
     }
 
-    private let scheduler = Scheduler()
+    private let scheduler = MainLoopScheduler()
 
     override func run() throws {
         scheduler.run { @MainActor [weak self] in
@@ -113,7 +113,7 @@ final class MacApplication: Application {
     }
 }
 
-class Scheduler {
+class MainLoopScheduler {
 
     private var task: Task<Void, Error>?
 

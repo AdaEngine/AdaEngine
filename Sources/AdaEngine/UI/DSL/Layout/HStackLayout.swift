@@ -20,6 +20,8 @@ public struct StackLayoutCache {
 
 public struct HStackLayout: Layout {
 
+    public typealias AnimatableData = EmptyAnimatableData
+
     let alignment: VerticalAlignment
     let spacing: Float?
 

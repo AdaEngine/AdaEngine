@@ -31,7 +31,11 @@ class ViewContainerNode: ViewNode {
     init<Content: View>(content: @escaping () -> Content) {
         self.nodes = []
         super.init(content: content())
-        self.body = { inputs in
+        self.body = { [weak self] inputs in
+            guard let self else {
+                return _ViewListOutputs(outputs: [])
+            }
+
             let content = withObservationTracking(content) {
                 Task { @MainActor in
                     self.invalidateContent()
@@ -53,6 +57,7 @@ class ViewContainerNode: ViewNode {
         guard let outputs = body?(inputs) else {
             return
         }
+
         let outputNodes = outputs.outputs.map { $0.node }
 
         // We have same this, merge new nodes into old
@@ -93,11 +98,11 @@ class ViewContainerNode: ViewNode {
     }
 
     override func merge(_ otherNode: ViewNode) {
+        super.merge(otherNode)
+
         guard let container = otherNode as? ViewContainerNode else {
             return
         }
-
-        super.merge(container)
 
         var needsLayout = false
 
@@ -127,7 +132,7 @@ class ViewContainerNode: ViewNode {
 
             needsLayout = true
         }
-        
+
         if needsLayout {
             self.performLayout()
         }

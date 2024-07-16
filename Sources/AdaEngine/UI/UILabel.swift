@@ -42,9 +42,8 @@ open class UILabel: UIView {
     open override func layoutSubviews() {
         super.layoutSubviews()
 
-        self.textContainer.bounds = self.bounds
         self.textLayout.setTextContainer(self.textContainer)
-        self.textLayout.invalidateLayout(for: self.bounds)
+        self.textLayout.fitToSize(self.frame.size)
     }
 
     private func updateTextLayoutManager() {
@@ -58,8 +57,8 @@ open class UILabel: UIView {
             self.textContainer.text = attributedString
         }
 
-        self.textContainer.bounds = self.bounds
         self.textLayout.setTextContainer(self.textContainer)
+        self.textLayout.invalidateLayout()
     }
 
 }

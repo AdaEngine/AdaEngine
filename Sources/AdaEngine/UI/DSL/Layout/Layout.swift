@@ -19,7 +19,8 @@ public struct LayoutProperties {
 
 @MainActor
 @preconcurrency
-public protocol Layout {
+public protocol Layout: Animatable {
+    
     associatedtype Cache = Void
     typealias Subviews = LayoutSubviews
 

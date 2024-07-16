@@ -9,9 +9,6 @@ import Math
 
 // FIXME: When text container updates each frame, than we have troubles with performance
 // TODO: Add line break mode by word
-// TODO: we should fit text to specific bounds in different method
-// TODO: Replace invalidateLayout(in bounds) to invalidateLayout(in range: Range<String.Index>)
-// TODO: Think about text container bounds property
 // TODO: Add background thread for calculating all
 
 /// A region where text layout occurs.
@@ -19,9 +16,6 @@ public struct TextContainer: Hashable {
     
     /// The text for rendering.
     public var text: AttributedText
-    
-    /// The size of the text container’s bounding rectangle.
-    public var bounds: Rect
     
     /// The alignment of text in the box.
     public var textAlignment: TextAlignment
@@ -37,13 +31,11 @@ public struct TextContainer: Hashable {
 
     public init(
         text: AttributedText,
-        bounds: Rect = Rect(x: 0, y: 0, width: .infinity, height: .infinity),
         textAlignment: TextAlignment = .center,
         lineBreakMode: LineBreakMode = .byCharWrapping,
         lineSpacing: Float = 0
     ) {
         self.text = text
-        self.bounds = bounds
         self.textAlignment = textAlignment
         self.lineBreakMode = lineBreakMode
         self.lineSpacing = lineSpacing
@@ -51,15 +43,12 @@ public struct TextContainer: Hashable {
 
     init() {
         self.text = ""
-        self.bounds = Rect(x: 0, y: 0, width: .infinity, height: .infinity)
         self.textAlignment = .center
         self.lineBreakMode = .byCharWrapping
         self.lineSpacing = 0
     }
 
 }
-
-// TODO: Fix Font size
 
 /// An object that coordinates the layout and display of text characters.
 /// TextLayoutManager maps unicods characters codes to glyphs.
@@ -73,7 +62,6 @@ public final class TextLayoutManager {
 
     private var textContainer: TextContainer = TextContainer(
         text: "",
-        bounds: .init(x: 0, y: 0, width: .infinity, height: .infinity),
         textAlignment: .center,
         lineBreakMode: .byCharWrapping,
         lineSpacing: 0
@@ -86,22 +74,27 @@ public final class TextLayoutManager {
     private var glyphs: [Glyph] = []
     private var glyphsToRender: GlyphRenderData?
 
+    private var availableSize: Size = Size(width: .infinity, height: .infinity)
+
     init() {}
-    
+
     public func setTextContainer(_ textContainer: TextContainer) {
         if self.textContainer != textContainer {
             self.textContainer = textContainer
             self.glyphsToRender = nil
-            
-            self.invalidateLayout(for: textContainer.bounds)
         }
     }
-    
+
+    public func fitToSize(_ size: Size) {
+        self.availableSize = size
+        self.invalidateLayout()
+    }
+
     // swiftlint:disable function_body_length
 
-    public func invalidateLayout(for bounds: Rect) {
-        var x: Double = Double(bounds.origin.x)
-        var y: Double = Double(bounds.origin.y)
+    public func invalidateLayout() {
+        var x: Double = 0
+        var y: Double = 0
 
         let lineHeightOffset = Double(self.textContainer.lineSpacing)
         let attributedText = self.textContainer.text
@@ -118,6 +111,7 @@ public final class TextLayoutManager {
 
         for line in lines[..<min(numberOfLines, lines.count)] {
             var textLine = TextLine(attributedText: attributedText, range: line.startIndex..<line.endIndex)
+            var textRun = TextRun()
             var boundingBox = Rect(
                 origin: Point(x: Float(x), y: Float(y)),
                 size: .zero
@@ -128,6 +122,9 @@ public final class TextLayoutManager {
 
             var width: Double = 0
             var height: Double = 0
+
+            var ascent: Double = 0
+            var descent: Double = 0
 
             var maxLineHeight: Double = 0
 
@@ -144,7 +141,9 @@ public final class TextLayoutManager {
                 let fontScale: Double = 1.0
                 let fontSize = font.fontResource.getFontScale(for: font.pointSize)
                 maxLineHeight = max(maxLineHeight, metrics.lineHeight * font.pointSize)
-                
+                ascent = max(metrics.ascenderY, ascent)
+                descent = max(metrics.descenderY, descent)
+
                 for scalarIndex in char.unicodeScalars.indices {
                     let scalar = char.unicodeScalars[scalarIndex]
                     var glyph = fontHandle.getGlyph(for: scalar.value)
@@ -163,12 +162,15 @@ public final class TextLayoutManager {
                     var pl: Double = 0, pb: Double = 0, pr: Double = 0, pt: Double = 0
                     glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
 
-                    if Float((pr * fontScale) + x) > bounds.size.width {
+                    if Float((pr * fontScale) + x) > availableSize.width {
                         x = 0
                         y -= fontScale * metrics.lineHeight + lineHeightOffset + fontSize
+
+                        textLine.runs.append(textRun)
+                        textRun = TextRun()
                     }
 
-                    if abs(Float((pt * fontScale) + y)) > bounds.size.height {
+                    if abs(Float((pt * fontScale) + y)) > availableSize.height {
                         break indecies // available lines did end
                     }
 
@@ -184,7 +186,7 @@ public final class TextLayoutManager {
                     r *= texelWidth
                     t *= texelHeight
 
-                    textLine.glyphs.append(
+                    textRun.glyphs.append(
                         Glyph(
                             textureAtlas: fontHandle.atlasTexture,
                             textureCoordinates: [Float(l), Float(b), Float(r), Float(t)],
@@ -210,14 +212,17 @@ public final class TextLayoutManager {
                 height += y
             }
 
-            x = Double(bounds.origin.x)
+            textLine.runs.append(textRun)
+
+            x = 0
             y = maxLineHeight.rounded(.up)
 
             boundingBox.size.width = Float(width).rounded(.up)
             boundingBox.size.height = Float(height + maxLineHeight).rounded(.up)
 
-            textLine.boundingBox = boundingBox
-            print("TextLine box", boundingBox)
+            textLine.typographicBounds.ascent = ascent
+            textLine.typographicBounds.descent = descent
+            textLine.typographicBounds.rect = boundingBox
 
             self.textLines.append(textLine)
         }
@@ -241,60 +246,62 @@ public final class TextLayoutManager {
         var textureIndex: Int = -1
 
         for textLine in textLines {
-            for glyph in textLine.glyphs {
-                let texture = glyph.textureAtlas
-                let foregroundColor = glyph.attributes.foregroundColor
-                let outlineColor = glyph.attributes.outlineColor
-                let textureCoordinate = glyph.textureCoordinates
+            for run in textLine {
+                for glyph in run {
+                    let texture = glyph.textureAtlas
+                    let foregroundColor = glyph.attributes.foregroundColor
+                    let outlineColor = glyph.attributes.outlineColor
+                    let textureCoordinate = glyph.textureCoordinates
 
-                if let index = textures.firstIndex(where: { $0 === texture }) {
-                    textureIndex = index
-                } else {
-                    textureIndex += 1
-                    textures[textureIndex] = texture
+                    if let index = textures.firstIndex(where: { $0 === texture }) {
+                        textureIndex = index
+                    } else {
+                        textureIndex += 1
+                        textures[textureIndex] = texture
+                    }
+
+                    verticies.append(
+                        GlyphVertexData(
+                            position: transform * Vector4(x: glyph.position.z, y: glyph.position.y, z: 0, w: 1),
+                            foregroundColor: foregroundColor,
+                            outlineColor: outlineColor,
+                            textureCoordinate: [ textureCoordinate.z, textureCoordinate.y ],
+                            textureIndex: textureIndex
+                        )
+                    )
+
+                    verticies.append(
+                        GlyphVertexData(
+                            position: transform * Vector4(x: glyph.position.z, y: glyph.position.w, z: 0, w: 1),
+                            foregroundColor: foregroundColor,
+                            outlineColor: outlineColor,
+                            textureCoordinate: [ textureCoordinate.z, textureCoordinate.w ],
+                            textureIndex: textureIndex
+                        )
+                    )
+
+                    verticies.append(
+                        GlyphVertexData(
+                            position: transform * Vector4(x: glyph.position.x, y: glyph.position.w, z: 0, w: 1),
+                            foregroundColor: foregroundColor,
+                            outlineColor: outlineColor,
+                            textureCoordinate: [ textureCoordinate.x, textureCoordinate.w ],
+                            textureIndex: textureIndex
+                        )
+                    )
+
+                    verticies.append(
+                        GlyphVertexData(
+                            position: transform * Vector4(x: glyph.position.x, y: glyph.position.y, z: 0, w: 1),
+                            foregroundColor: foregroundColor,
+                            outlineColor: outlineColor,
+                            textureCoordinate: [ textureCoordinate.x, textureCoordinate.y ],
+                            textureIndex: textureIndex
+                        )
+                    )
+
+                    indeciesCount += 6
                 }
-
-                verticies.append(
-                    GlyphVertexData(
-                        position: transform * Vector4(x: glyph.position.z, y: glyph.position.y, z: 0, w: 1),
-                        foregroundColor: foregroundColor,
-                        outlineColor: outlineColor,
-                        textureCoordinate: [ textureCoordinate.z, textureCoordinate.y ],
-                        textureIndex: textureIndex
-                    )
-                )
-
-                verticies.append(
-                    GlyphVertexData(
-                        position: transform * Vector4(x: glyph.position.z, y: glyph.position.w, z: 0, w: 1),
-                        foregroundColor: foregroundColor,
-                        outlineColor: outlineColor,
-                        textureCoordinate: [ textureCoordinate.z, textureCoordinate.w ],
-                        textureIndex: textureIndex
-                    )
-                )
-
-                verticies.append(
-                    GlyphVertexData(
-                        position: transform * Vector4(x: glyph.position.x, y: glyph.position.w, z: 0, w: 1),
-                        foregroundColor: foregroundColor,
-                        outlineColor: outlineColor,
-                        textureCoordinate: [ textureCoordinate.x, textureCoordinate.w ],
-                        textureIndex: textureIndex
-                    )
-                )
-
-                verticies.append(
-                    GlyphVertexData(
-                        position: transform * Vector4(x: glyph.position.x, y: glyph.position.y, z: 0, w: 1),
-                        foregroundColor: foregroundColor,
-                        outlineColor: outlineColor,
-                        textureCoordinate: [ textureCoordinate.x, textureCoordinate.y ],
-                        textureIndex: textureIndex
-                    )
-                )
-
-                indeciesCount += 6
             }
         }
         
@@ -318,8 +325,8 @@ public final class TextLayoutManager {
 
         let result = self.textLines.reduce(Size.zero) { result, line in
             return Size(
-                width: result.width + line.boundingBox.width,
-                height: result.height + line.boundingBox.height
+                width: result.width + line.typographicBounds.rect.width,
+                height: result.height + line.typographicBounds.rect.height
             )
         }
 
@@ -329,7 +336,11 @@ public final class TextLayoutManager {
     // swiftlint:enable function_body_length
 }
 
-struct Glyph {
+public struct Glyph: Equatable {
+    public static func == (lhs: Glyph, rhs: Glyph) -> Bool {
+        lhs.size == rhs.size && lhs.position == rhs.position && lhs.textureCoordinates == rhs.textureCoordinates
+    }
+
     let textureAtlas: Texture2D
 
     /// Coordinates of texturue [x: l, y: b, z: r, w: t]
@@ -365,10 +376,10 @@ public extension String {
         let manager = TextLayoutManager()
         manager.setTextContainer(
             TextContainer(
-                text: AttributedText(self, attributes: attributes),
-                bounds: Rect(origin: .zero, size: Size(width: width, height: height))
+                text: AttributedText(self, attributes: attributes)
             )
         )
+        manager.fitToSize(Size(width: width, height: height))
 
         return manager.boundingSize()
     }
@@ -379,24 +390,98 @@ public extension String {
     }
 }
 
-struct TextLine {
+/// A single line in a text layout: a collection of runs of placed glyphs.
+public struct TextLine: Equatable {
 
     let attributedText: Slice<AttributedText>
     let characterRange: Range<String.Index>
 
     /// All glyphs for render in text contaner bounds
-    var glyphs: [Glyph] = []
-    var boundingBox: Rect = .zero
+    var runs: [TextRun] = []
+    public internal(set) var typographicBounds: TypographicBounds = TypographicBounds()
 
     init(attributedText: AttributedText, range: Range<String.Index>) {
         self.attributedText = attributedText[range]
         self.characterRange = range
     }
 
-    @MainActor
-    func draw(at point: Point, context: UIGraphicsContext) {
-        for glyph in glyphs {
-            context.drawGlyph(glyph, at: self.boundingBox.origin + point)
+    public static func == (lhs: TextLine, rhs: TextLine) -> Bool {
+        lhs.runs == rhs.runs && lhs.typographicBounds == rhs.typographicBounds && lhs.characterRange == rhs.characterRange
+    }
+}
+
+/// The typographic bounds of an element in a text layout.
+public struct TypographicBounds: Equatable {
+    /// The ascent of the element.
+    public internal(set) var ascent: Double = .zero
+
+    /// The descent of the element.
+    public internal(set) var descent: Double = .zero
+
+    /// The position of the left edge of the element’s baseline, relative to the text view.
+    public var origin: Point {
+        rect.origin
+    }
+
+    /// Returns a rectangle encapsulating the bounds.
+    public internal(set) var rect: Rect
+
+    init() {
+        self.rect = .zero
+    }
+}
+
+extension TextLine: Collection, Sequence {
+
+    public typealias Element = TextRun
+    public typealias Index = Int
+
+    public var startIndex: Int {
+        self.runs.startIndex
+    }
+
+    public var endIndex: Int {
+        self.runs.endIndex
+    }
+
+    public subscript(position: Int) -> TextRun {
+        _read {
+            yield self.runs[position]
         }
+    }
+
+    public func index(after i: Int) -> Int {
+        self.runs.index(after: i)
+    }
+}
+
+/// A run of placed glyphs in a text layout.
+public struct TextRun: Equatable {
+    /// All glyphs for render in text contaner bounds
+    var glyphs: [Glyph] = []
+
+    public internal(set) var typographicBounds: TypographicBounds = TypographicBounds()
+}
+
+extension TextRun: Collection, Sequence {
+    public typealias Element = Glyph
+    public typealias Index = Int
+
+    public var startIndex: Int {
+        self.glyphs.startIndex
+    }
+    
+    public var endIndex: Int {
+        self.glyphs.endIndex
+    }
+
+    public subscript(position: Int) -> Glyph {
+        _read {
+            yield self.glyphs[position]
+        }
+    }
+
+    public func index(after i: Int) -> Int {
+        self.glyphs.index(after: i)
     }
 }

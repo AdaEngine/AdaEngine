@@ -346,7 +346,7 @@ extension MetalRenderBackend {
         let mtlRenderPass = window.getRenderPass()
         mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
         
-        guard let mtlCommandBuffer = window.commandQueue.makeCommandBuffer() else {
+        guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
             fatalError("Command Buffer not exists")
         }
         

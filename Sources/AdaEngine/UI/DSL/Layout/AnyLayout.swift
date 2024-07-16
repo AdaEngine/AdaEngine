@@ -10,6 +10,7 @@ import Math
 public struct AnyLayout: Layout {
 
     public typealias Cache = AnyCache
+    public typealias AnimatableData = EmptyAnimatableData
 
     let layout: any Layout
 

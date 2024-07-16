@@ -6,6 +6,7 @@
 //
 
 extension View {
+    /// Subscribe to EventManager events.
     func onEvent<E: Event>(_ event: E.Type, completion: @escaping (E) -> Void) -> some View {
         self.modifier(
             EventManagerModifier(

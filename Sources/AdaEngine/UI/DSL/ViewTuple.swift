@@ -35,6 +35,7 @@ public struct ViewTuple<Content>: View {
 
     @MainActor
     public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
+        // swiftlint:disable:next syntactic_sugar
         let outputs = Array<any View>.fromTuple(view.value.value).map {
             Self.makeView($0, inputs: inputs.input)
         }

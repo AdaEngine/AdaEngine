@@ -32,7 +32,7 @@ struct ObservableStorageEnvironment {
 
     func getValue<T: Observable & AnyObject>(_ type: T.Type) -> T {
         guard let value = storedValues[ObjectIdentifier(T.self)] else {
-            fatalError("Can't find object in view environment ny type \(type)")
+            fatalError("Can't find object in view environment with type \(type)")
         }
 
         return value as! T
