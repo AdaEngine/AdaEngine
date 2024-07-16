@@ -18,7 +18,8 @@ public struct UIGraphicsContext {
     private let camera: Camera
     private var transform: Transform3D = .identity
     private(set) var currentDrawContext: Renderer2D.DrawContext?
-    
+    private var clipPath: Path?
+
     public internal(set) var environment: EnvironmentValues = EnvironmentValues()
 
     @MainActor
@@ -94,14 +95,28 @@ public struct UIGraphicsContext {
         self.currentDrawContext?.drawCircle(transform: transform, thickness: 1, fade: 0.005, color: color)
     }
 
+    // MARK: - Text Drawing
+
     public func drawText(in rect: Rect, from textLayout: TextLayoutManager) {
         let transform = self.transform * rect.toTransform3D
         self.currentDrawContext?.drawText(textLayout, transform: transform)
     }
 
-    func drawGlyph(_ glyph: Glyph, at point: Point) {
+    public func draw(_ line: TextLine) {
+        for run in line {
+            self.draw(run)
+        }
+    }
+
+    public func draw(_ run: TextRun) {
+        for glyph in run {
+            self.draw(glyph)
+        }
+    }
+
+    public func draw(_ glyph: Glyph) {
         let rect = Rect(
-            origin: Point(x: point.x, y: point.y),
+            origin: .zero,
             size: glyph.size
         )
         let transform = self.transform * rect.toTransform3D
@@ -110,26 +125,6 @@ public struct UIGraphicsContext {
 
     public mutating func commitDraw() {
         self.currentDrawContext?.commitContext()
-    }
-    
-    // MARK: - Private
-    
-    private mutating func clear() {
-        self.transform = .identity
-    }
-}
-
-extension UIGraphicsContext {
-    
-    func makeCanvasTransform3D(from affineTransform: Transform2D) -> Transform3D {
-        // swiftlint:disable:next identifier_name
-        let m = affineTransform
-        return Transform3D(
-            [m[0, 0], m[0, 1], 0, m[0, 2]],
-            [m[1, 0], m[1, 1], 0, m[1, 2]],
-            [0,       0,       1, 0      ],
-            [m[2, 0], -m[2, 1], 0, m[2, 2]]
-        )
     }
 }
 

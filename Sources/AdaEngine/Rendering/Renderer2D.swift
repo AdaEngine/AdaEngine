@@ -15,10 +15,6 @@ import Math
 /// A first implementation for 2D rendering.
 // Currently we don't use it in code base
 class Renderer2D {
-    
-    static var minimumZIndex = -4096
-
-    static var maximumZIndex = 4096
 
     public static let shared = Renderer2D()
 
@@ -313,8 +309,6 @@ extension Renderer2D {
         
         let currentDraw: DrawList
         
-        private var fillColor: Color = .clear
-        
         private var lineWidth: Float = 1
         
         private let renderEngine: Renderer2D
@@ -332,7 +326,6 @@ extension Renderer2D {
         }
         
         public func drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color) {
-            
             if self.renderEngine.quadData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()
             }
@@ -657,3 +650,6 @@ fileprivate extension Renderer2D {
         let lineWidth: Float
     }
 }
+
+
+// TODO: Move it later

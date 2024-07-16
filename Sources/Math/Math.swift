@@ -5,15 +5,16 @@
 //  Created by v.prusakov on 11/12/21.
 //
 
-#if os(Linux)
+#if canImport(Glibc)
 import Glibc
-#else
+#endif
+
+#if canImport(Darwin)
 import Darwin.C
 #endif
 
 // swiftlint:disable identifier_name
 
-// TODO: (Vlad) Replace to Foundation realization instead?
 // TODO: Suppors Windows/Android/Web?
 
 @inlinable

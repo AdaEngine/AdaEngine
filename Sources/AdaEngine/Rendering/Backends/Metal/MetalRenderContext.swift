@@ -32,14 +32,7 @@ extension MetalRenderBackend {
                 throw ContextError.creationWindowAlreadyExists
             }
             
-            guard let commandQueue = physicalDevice.makeCommandQueue() else {
-                throw ContextError.commandQueueCreationFailed
-            }
-            
-            let window = RenderWindow(
-                view: view,
-                commandQueue: commandQueue
-            )
+            let window = RenderWindow(view: view)
             
             // TODO: (Vlad) We should setup it in different place?
             view.colorPixelFormat = .bgra8Unorm
@@ -98,17 +91,14 @@ extension MetalRenderBackend {
     final class RenderWindow {
         
         private(set) weak var view: MetalView?
-        let commandQueue: MTLCommandQueue
         var drawable: CAMetalDrawable?
         var commandBuffer: MTLCommandBuffer?
         
         internal init(
             view: MetalView? = nil,
-            commandQueue: MTLCommandQueue,
             commandBuffer: MTLCommandBuffer? = nil
         ) {
             self.view = view
-            self.commandQueue = commandQueue
             self.commandBuffer = commandBuffer
         }
         
