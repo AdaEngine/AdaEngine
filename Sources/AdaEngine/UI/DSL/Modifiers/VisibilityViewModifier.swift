@@ -63,28 +63,15 @@ struct OnDisappearView<Content: View>: ViewModifier, ViewNodeBuilder {
     }
 }
 
-// FIXME: Should use smth like hierarchy ID, because parent id isn't source of truth
 final class VisibilityViewNode: ViewModifierNode {
     var onAppear: (() -> Void)?
     var onDisappear: (() -> Void)?
-
-    private var identifier = UUID()
 
     deinit {
         self.onDisappear?()
     }
 
-    var isAppeared = false
-
-    override func merge(_ otherNode: ViewNode) {
-        super.merge(otherNode)
-
-        guard let node = otherNode as? VisibilityViewNode else {
-            return
-        }
-
-        isAppeared = node.isAppeared
-    }
+    private var isAppeared = false
 
     override func performLayout() {
         super.performLayout()
