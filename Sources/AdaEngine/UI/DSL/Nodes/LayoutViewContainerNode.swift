@@ -5,7 +5,9 @@
 //  Created by Vladislav Prusakov on 02.07.2024.
 //
 
+/// The container that can layout it childs with specific ``Layout``.
 final class LayoutViewContainerNode: ViewContainerNode {
+    
     let layout: AnyLayout
     private var cache: AnyLayout.Cache?
 
