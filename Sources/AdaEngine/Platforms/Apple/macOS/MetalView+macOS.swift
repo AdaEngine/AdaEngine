@@ -62,7 +62,7 @@ extension MetalView {
     }
     
     open override func cursorUpdate(with event: NSEvent) {
-        Application.shared.windowManager.updateCursor()
+        MacApplication.shared.windowManager.updateCursor()
     }
     
     public override func mouseDown(with event: NSEvent) {
