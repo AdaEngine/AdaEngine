@@ -8,8 +8,8 @@
 import Math
 
 @MainActor
-class ViewTree<Content: View> {
-    
+final class ViewTree<Content: View> {
+
     let rootView: Content
     private(set) var rootNode: ViewRootNode
 
@@ -29,6 +29,7 @@ class ViewTree<Content: View> {
     }
 }
 
+/// The root node that holds user view.
 final class ViewRootNode: ViewNode {
 
     let contentNode: ViewNode

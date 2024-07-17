@@ -8,13 +8,15 @@
 import Observation
 import Math
 
-// TODO: Add observation support for nodes
-
-/// Base container for children nodes.
+/// View node that can store children.
 /// Most used for tuple, layout stacks and other containers.
+///
+/// When view did notify about changes, this container calls ``invalidateContent`` method to update it child and merge them if exists.
 class ViewContainerNode: ViewNode {
 
-    var nodes: [ViewNode]
+     var nodes: [ViewNode]
+
+    /// Builder method returns a new children.
     private var body: ((_ViewListInputs) -> _ViewListOutputs)?
 
     init<Content: View>(content: Content, nodes: [ViewNode]) {

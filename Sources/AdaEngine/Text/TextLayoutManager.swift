@@ -8,6 +8,7 @@
 import Math
 
 // FIXME: When text container updates each frame, than we have troubles with performance
+// FIXME: Fix TextRun, that should equals AttributedString.Run
 // TODO: Add line break mode by word
 // TODO: Add background thread for calculating all
 
@@ -16,11 +17,15 @@ public struct TextContainer: Hashable {
     
     /// The text for rendering.
     public var text: AttributedText
-    
+
+    // FIXME: Fix text alignment for multiline text.
     /// The alignment of text in the box.
+    /// - Warning: Under development.
     public var textAlignment: TextAlignment
     
+    // FIXME: Break mode doesn't work currently
     /// The behavior of the last line inside the text container.
+    /// - Warning: Under development.
     public var lineBreakMode: LineBreakMode
     
     /// The spacing between lines.
@@ -78,23 +83,29 @@ public final class TextLayoutManager {
 
     init() {}
 
+    /// Set new text container to text layout.
+    /// - Note: This method doesn't call ``invalidateLayout()`` method.
     public func setTextContainer(_ textContainer: TextContainer) {
         if self.textContainer != textContainer {
             self.textContainer = textContainer
-            self.glyphsToRender = nil
         }
     }
 
+    /// Set new constraints for size rendering.
     public func fitToSize(_ size: Size) {
         self.availableSize = size
+        self.glyphsToRender = nil
         self.invalidateLayout()
     }
 
     // swiftlint:disable function_body_length
-
+    
+    /// Invalidate text layout, update text lines and glyphs.
     public func invalidateLayout() {
         var x: Double = 0
         var y: Double = 0
+
+        self.glyphsToRender = nil
 
         let lineHeightOffset = Double(self.textContainer.lineSpacing)
         let attributedText = self.textContainer.text
@@ -144,6 +155,7 @@ public final class TextLayoutManager {
                 ascent = max(metrics.ascenderY, ascent)
                 descent = max(metrics.descenderY, descent)
 
+                // I'm not really think that we should for each loop here.
                 for scalarIndex in char.unicodeScalars.indices {
                     let scalar = char.unicodeScalars[scalarIndex]
                     var glyph = fontHandle.getGlyph(for: scalar.value)
@@ -163,11 +175,9 @@ public final class TextLayoutManager {
                     glyph.getQuadPlaneBounds(&pl, &pb, &pr, &pt)
 
                     if Float((pr * fontScale) + x) > availableSize.width {
+                        // Move to the next line
                         x = 0
                         y -= fontScale * metrics.lineHeight + lineHeightOffset + fontSize
-
-                        textLine.runs.append(textRun)
-                        textRun = TextRun()
                     }
 
                     if abs(Float((pt * fontScale) + y)) > availableSize.height {
@@ -227,7 +237,8 @@ public final class TextLayoutManager {
             self.textLines.append(textLine)
         }
     }
-
+    
+    /// Get or create glyphs vertex data relative to transform.
     func getGlyphVertexData(transform: Transform3D) -> GlyphRenderData {
         var textures: [Texture2D] = .init(repeating: .whiteTexture, count: Constants.maxTexturesPerBatch)
         var textureIndex: Int = -1
@@ -337,20 +348,21 @@ public final class TextLayoutManager {
 }
 
 public struct Glyph: Equatable {
-    public static func == (lhs: Glyph, rhs: Glyph) -> Bool {
-        lhs.size == rhs.size && lhs.position == rhs.position && lhs.textureCoordinates == rhs.textureCoordinates
-    }
-
     let textureAtlas: Texture2D
 
     /// Coordinates of texturue [x: l, y: b, z: r, w: t]
     let textureCoordinates: Vector4
     let attributes: TextAttributeContainer
 
-    /// position on plane [x: pl, y: pb, z: pr, w: pt]
+    /// Position on plane [x: pl, y: pb, z: pr, w: pt]
     let position: Vector4
 
+    /// Size of glyph.
     let size: Size
+
+    public static func == (lhs: Glyph, rhs: Glyph) -> Bool {
+        lhs.size == rhs.size && lhs.position == rhs.position && lhs.textureCoordinates == rhs.textureCoordinates
+    }
 }
 
 struct GlyphRenderData {

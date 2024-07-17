@@ -5,13 +5,13 @@
 //  Created by Vladislav Prusakov on 02.07.2024.
 //
 
-extension View {
+public extension View {
     /// Subscribe to EventManager events.
-    func onEvent<E: Event>(_ event: E.Type, completion: @escaping (E) -> Void) -> some View {
+    func onEvent<E: Event>(_ event: E.Type, perform action: @escaping (E) -> Void) -> some View {
         self.modifier(
             EventManagerModifier(
                 content: self,
-                completion: completion
+                completion: action
             )
         )
     }

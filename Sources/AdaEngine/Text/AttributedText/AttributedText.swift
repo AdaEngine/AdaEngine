@@ -7,6 +7,8 @@
 
 import OrderedCollections
 
+// TODO: Move to Swift-Foundation and use AttributedString instead of our version.
+
 /// A value type for a string with associated attributes for portions of its text.
 @dynamicMemberLookup
 public struct AttributedText: Hashable {

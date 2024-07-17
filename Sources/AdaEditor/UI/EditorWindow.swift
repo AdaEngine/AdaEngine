@@ -105,18 +105,21 @@ struct ContentView: View {
 //        }
 
         Text("H e l l o, W o r l d")
-//            .textRendered(AnimatedSineWaveOffsetRender(timeOffset: offset))
-//            .onAppear {
-//                print("On Appear")
-//                Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-//                    if offset > 1_000_000_000_000 {
-//                      offset = 0 // Reset the time offset
-//                    }
-//                    offset += 10
-//                }
-//            }
+            .textRendered(AnimatedSineWaveOffsetRender(timeOffset: offset))
             .background(.red)
             .frame(width: 204, height: 24)
+            .onChange(self.offset, perform: { oldValue, newValue in
+                print(oldValue, newValue)
+            })
+            .onAppear {
+                print("On Appear")
+                Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                    if offset > 1_000_000_000_000 {
+                      offset = 0 // Reset the time offset
+                    }
+                    offset += 10
+                }
+            }
 
         //        VStack {
         //            Text("Hello")
