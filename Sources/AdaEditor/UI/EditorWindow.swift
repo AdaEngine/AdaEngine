@@ -92,7 +92,8 @@ struct SomeKey: PreferenceKey {
 
 struct ContentView: View {
 
-    @State private var offset: Double = 0
+//    @State private var offset: Double = 0
+    @State private var isAnimated: Bool = false
 
     var body: some View {
 //
@@ -105,21 +106,24 @@ struct ContentView: View {
 //        }
 
         Text("H e l l o, W o r l d")
-            .textRendered(AnimatedSineWaveOffsetRender(timeOffset: offset))
+//            .textRendered(AnimatedSineWaveOffsetRender(timeOffset: offset))
             .background(.red)
-            .frame(width: 204, height: 24)
-            .onChange(self.offset, perform: { oldValue, newValue in
-                print(oldValue, newValue)
-            })
+            .frame(width: !isAnimated ? 204 : 100, height: 24)
+            .animation(.linear(duration: 2), value: self.isAnimated)
             .onAppear {
                 print("On Appear")
-                Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-                    if offset > 1_000_000_000_000 {
-                      offset = 0 // Reset the time offset
-                    }
-                    offset += 10
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    self.isAnimated.toggle()
                 }
             }
+//            .background(.red)
+
+        //                Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+        //                    if offset > 1_000_000_000_000 {
+        //                      offset = 0 // Reset the time offset
+        //                    }
+        //                    offset += 10
+        //                }
 
         //        VStack {
         //            Text("Hello")
