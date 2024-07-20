@@ -26,9 +26,7 @@ public struct Environment<Value>: PropertyStoragable, UpdatableProperty {
         self.readValue = { $0.values[keyPath: keyPath] }
     }
 
-    public func update() {
-        self.storage.update()
-    }
+    public func update() { }
 }
 
 extension Environment where Value: Observable & AnyObject {
@@ -64,22 +62,22 @@ final class ViewContextStorage: UpdatablePropertyStorage {
 /// 
 /// Then use the key to define a new environment value property:
 /// ```swift
-///extension EnvironmentValues {
+/// extension EnvironmentValues {
 ///     var myCustomValue: String {
 ///         get { self[MyEnvironmentKey.self] }
 ///         set { self[MyEnvironmentKey.self] = newValue }
 ///     }
-///}
+/// }
 /// ```
 ///
 /// Clients of your environment value never use the key directly. Instead, they use the key path of your
 /// custom environment value property. To set the environment value for a view and all its subviews, 
 /// add the ``View/environment(_:_:)`` view modifier to that view:
 ///
-///```swift
+/// ```swift
 /// MyView()
 ///    .environment(\.myCustomValue, "Another string")
-///```
+/// ```
 ///
 /// To read the value from inside MyView or one of its descendants, use the ``Environment`` property wrapper:
 ///

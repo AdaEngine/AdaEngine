@@ -23,7 +23,7 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
         }
         nonmutating set {
             _storage.value = newValue
-            self.update()
+            _storage.update()
         }
     }
 
@@ -43,9 +43,7 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
         self._storage = StateStorage(value: initialValue)
     }
 
-    public func update() {
-        self._storage.update()
-    }
+    public func update() { }
 }
 
 final class StateStorage<Value>: UpdatablePropertyStorage {
