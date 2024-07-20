@@ -45,7 +45,9 @@ public final class GameLoop {
         }
 
         EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
-        
+
+        TransactionController.shared.update(deltaTime)
+
         try RenderEngine.shared.beginFrame()
 
         try await Application.shared.renderWorld.update(deltaTime)

@@ -80,16 +80,16 @@ final class VisibilityViewNode: ViewModifierNode {
             return
         }
 
-        if parent.frame.intersects(self.frame) {
+//        if parent.frame.intersects(self.frame) {
             if !isAppeared {
                 isAppeared = true
                 onAppear?()
             }
-        } else {
-            if isAppeared {
-                isAppeared = false
-                onDisappear?()
-            }
-        }
+//        } else {
+//            if isAppeared {
+//                isAppeared = false
+//                onDisappear?()
+//            }
+//        }
     }
 }
