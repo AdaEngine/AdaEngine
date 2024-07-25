@@ -109,11 +109,6 @@ class ViewNode: Identifiable {
     /// and if view exists in tree, we should update exsiting view using ``merge(_:)`` method.
     func merge(_ otherNode: ViewNode) {
         self.environment = otherNode.environment
-
-        if let animatable = self.content as? any Animatable {
-            var data = animatable.animatableData
-            
-        }
     }
 
     /// This method invalidate all stored views and create a new one.
