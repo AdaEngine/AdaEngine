@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
-public struct PointInt: Codable, Equatable, Hashable {
+public struct PointInt: Codable, Equatable, Hashable, Comparable {
     public var x: Int
     public var y: Int
 
@@ -18,6 +18,10 @@ public struct PointInt: Codable, Equatable, Hashable {
         assert(elements.count == 2)
         self.x = elements[0]
         self.y = elements[1]
+    }
+
+    public static func < (lhs: PointInt, rhs: PointInt) -> Bool {
+        lhs.x < rhs.x && lhs.y < rhs.y
     }
 }
 

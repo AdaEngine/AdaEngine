@@ -14,6 +14,7 @@ final class TextViewNode: ViewNode {
         didSet {
             self.layoutManager.setTextContainer(self.textContainer)
             self.layoutManager.invalidateLayout()
+            self.sizeCache = [:]
         }
     }
 
@@ -32,14 +33,21 @@ final class TextViewNode: ViewNode {
         self.updateEnvironment(inputs.environment)
     }
 
+    /// Cache the sizes while layoutmanager is consistent.
+    /// If layout manager did change, we should drop cache sizes.
+    private var sizeCache: [ProposedViewSize: Size] = [:]
+
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        if let size = sizeCache[proposal] {
+            return size
+        }
+
         let size = self.textRenderer.sizeThatFits(
             proposal: proposal,
             text: Text.Proxy(layoutManager: self.layoutManager)
         )
 
-        print("Calculeted size", size)
-
+        self.sizeCache[proposal] = size
         return size
     }
 

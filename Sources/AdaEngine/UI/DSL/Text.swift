@@ -149,7 +149,7 @@ extension Text {
     public struct Proxy {
         let layoutManager: TextLayoutManager
 
-        public func sizeThatFits(proposal: ProposedViewSize) -> Size {
+        public func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
             if proposal == .zero || proposal == .infinity {
                 let size = self.layoutManager.boundingSize()
                 return size
@@ -194,7 +194,7 @@ public extension TextRenderer {
   }
 
     func sizeThatFits(proposal: ProposedViewSize, text: Text.Proxy) -> Size {
-        text.sizeThatFits(proposal: proposal)
+        text.sizeThatFits(proposal)
     }
 }
 

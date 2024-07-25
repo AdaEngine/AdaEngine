@@ -36,4 +36,10 @@ public struct ZStack<Content: View>: View {
 
         return _ViewOutputs(node: node)
     }
+
+    @MainActor @preconcurrency
+    public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
+        let node = Self._makeView(view, inputs: inputs.input)
+        return _ViewListOutputs(outputs: [node])
+    }
 }
