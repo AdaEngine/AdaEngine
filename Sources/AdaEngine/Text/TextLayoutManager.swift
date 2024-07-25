@@ -151,7 +151,7 @@ public final class TextLayoutManager {
                 let metrics = fontHandle.metrics
                 let fontScale: Double = 1.0
                 let fontSize = font.fontResource.getFontScale(for: font.pointSize)
-                maxLineHeight = max(maxLineHeight, metrics.lineHeight * font.pointSize)
+                maxLineHeight = max(fontSize, metrics.lineHeight + font.pointSize)
                 ascent = max(metrics.ascenderY, ascent)
                 descent = max(metrics.descenderY, descent)
 
@@ -202,24 +202,26 @@ public final class TextLayoutManager {
                             textureCoordinates: [Float(l), Float(b), Float(r), Float(t)],
                             attributes: attributes,
                             position: [Float(pl), Float(pb), Float(pr), Float(pt)],
+                            origin: Point(x: -Float(fontSize) / 2, y: Float(fontSize) / 2),
                             size: Size(width: Float(fontSize), height: Float(fontSize))
                         )
                     )
 
                     var advance = glyph.advance
-                    let nextScalarIndex = char.unicodeScalars.index(after: scalarIndex)
+                    let nextIndex = line.index(after: index)
 
-                    if char.unicodeScalars.indices.contains(nextScalarIndex) {
-                        let nextScalar = char.unicodeScalars[nextScalarIndex]
-                        fontHandle.getAdvance(&advance, scalar.value, nextScalar.value)
-                        x += fontScale * advance + kern
+                    if line.indices.contains(nextIndex) {
+                        if let nextScalar = line[nextIndex].unicodeScalars.first {
+                            fontHandle.getAdvance(&advance, scalar.value, nextScalar.value)
+                            x += fontScale * advance + kern
+                        }
                     } else {
                         x += fontScale * advance + kern
                     }
-                }
 
-                width += fontSize
-                height += y
+                    width += fontSize / 2
+                    height += y
+                }
             }
 
             textLine.runs.append(textRun)
@@ -356,6 +358,8 @@ public struct Glyph: Equatable {
 
     /// Position on plane [x: pl, y: pb, z: pr, w: pt]
     let position: Vector4
+
+    let origin: Point
 
     /// Size of glyph.
     let size: Size

@@ -105,18 +105,17 @@ struct ContentView: View {
 //            print(string)
 //        }
 
-        Text("H e l l o, W o r l d")
+        Text("Hello, World")
 //            .textRendered(AnimatedSineWaveOffsetRender(timeOffset: offset))
-            .background(.red)
-            .frame(width: !isAnimated ? 204 : 100, height: 24)
-            .animation(.linear(duration: 2), value: self.isAnimated)
-            .onAppear {
-                print("On Appear")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    self.isAnimated.toggle()
-                }
-            }
 //            .background(.red)
+//            .animation(.linear(duration: 2), value: self.isAnimated)
+            .onAppear {
+//                print("On Appear")
+//                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+//                    self.isAnimated.toggle()
+//                }
+            }
+            .background(.red)
 
         //                Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
         //                    if offset > 1_000_000_000_000 {

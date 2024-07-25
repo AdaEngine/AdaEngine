@@ -33,10 +33,14 @@ final class TextViewNode: ViewNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        self.textRenderer.sizeThatFits(
+        let size = self.textRenderer.sizeThatFits(
             proposal: proposal,
             text: Text.Proxy(layoutManager: self.layoutManager)
         )
+
+        print("Calculeted size", size)
+
+        return size
     }
 
     override func merge(_ otherNode: ViewNode) {

@@ -116,7 +116,7 @@ public struct UIGraphicsContext {
 
     public func draw(_ glyph: Glyph) {
         let rect = Rect(
-            origin: .zero,
+            origin: glyph.origin,
             size: glyph.size
         )
         let transform = self.transform * rect.toTransform3D
