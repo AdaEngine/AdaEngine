@@ -82,12 +82,23 @@ extension _ConditionalContent: View where TrueContent: View, FalseContent: View 
 
     public typealias Body = Never
 
+    @MainActor @preconcurrency
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
         switch view[\.storage].value {
         case .trueContent(let trueContent):
             return TrueContent._makeView(_ViewGraphNode(value: trueContent), inputs: inputs)
         case .falseContent(let falseContent):
             return FalseContent._makeView(_ViewGraphNode(value: falseContent), inputs: inputs)
+        }
+    }
+
+    @MainActor @preconcurrency
+    public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
+        switch view[\.storage].value {
+        case .trueContent(let trueContent):
+            return TrueContent._makeListView(_ViewGraphNode(value: trueContent), inputs: inputs)
+        case .falseContent(let falseContent):
+            return FalseContent._makeListView(_ViewGraphNode(value: falseContent), inputs: inputs)
         }
     }
 }

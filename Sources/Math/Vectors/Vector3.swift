@@ -99,6 +99,12 @@ extension Vector3 {
     }
 }
 
+extension Vector3: Comparable {
+    public static func < (lhs: Vector3, rhs: Vector3) -> Bool {
+        lhs.x < rhs.x && lhs.y < rhs.y && lhs.z < rhs.z
+    }
+}
+
 public extension Vector3 {
     @inlinable
     @inline(__always)

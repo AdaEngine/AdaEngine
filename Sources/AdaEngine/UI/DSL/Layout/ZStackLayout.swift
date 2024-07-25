@@ -30,7 +30,7 @@ public struct ZStackLayout: Layout {
             let minSize = subview.sizeThatFits(.unspecified)
 
             cache.minSizes.append(minSize)
-            cache.minSize += minSize
+            cache.minSize = max(minSize, cache.minSize)
         }
     }
     
@@ -38,7 +38,7 @@ public struct ZStackLayout: Layout {
         let idealSize = subviews.reduce(Size.zero) { partialResult, subview in
             let idealSize = subview.sizeThatFits(proposal)
 
-            if idealSize.width == proposal.width && idealSize.height == proposal.height {
+            if idealSize.width == proposal.width && idealSize.height == proposal.height && proposal != .zero {
                 return partialResult
             }
 
@@ -48,10 +48,7 @@ public struct ZStackLayout: Layout {
             return newSize
         }
 
-        return Size(
-            width: idealSize.width,
-            height: idealSize.height
-        )
+        return max(idealSize, cache.minSize)
     }
 
     public func placeSubviews(in bounds: Math.Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {

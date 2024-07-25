@@ -110,6 +110,12 @@ extension Vector4 {
     }
 }
 
+extension Vector4: Comparable {
+    public static func < (lhs: Vector4, rhs: Vector4) -> Bool {
+        lhs.x < rhs.x && lhs.y < rhs.y && lhs.z < rhs.z && lhs.w < rhs.w
+    }
+}
+
 // MARK: Math Operations
 
 public extension Vector4 {

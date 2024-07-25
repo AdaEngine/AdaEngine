@@ -5,13 +5,17 @@
 //  Created by v.prusakov on 5/16/22.
 //
 
-public struct Size: Equatable, Codable, Hashable {
+public struct Size: Equatable, Codable, Hashable, Comparable {
     public var width: Float
     public var height: Float
     
     public init(width: Float, height: Float) {
         self.width = width
         self.height = height
+    }
+
+    public static func < (lhs: Size, rhs: Size) -> Bool {
+        lhs.width < rhs.width && lhs.height < rhs.height
     }
 }
 

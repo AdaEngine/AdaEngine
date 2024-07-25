@@ -392,7 +392,7 @@ open class UIView {
 }
 
 /// During layout in AdaEngine UI, views choose their own size, but they do that in response to a size proposal from their parent view.
-public struct ProposedViewSize: Equatable {
+public struct ProposedViewSize: Hashable, Equatable {
     /// The proposed horizontal size measured in points.
     public var width: Float?
 

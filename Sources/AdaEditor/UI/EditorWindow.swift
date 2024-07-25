@@ -92,94 +92,21 @@ struct SomeKey: PreferenceKey {
 
 struct ContentView: View {
 
-//    @State private var offset: Double = 0
-    @State private var isAnimated: Bool = false
+    @State private var offset: Double = 0
 
     var body: some View {
-//
-//        VStack {
-//            NestedContent()
-//            Color.red
-//        }
-//        .onPreferenceChange(SomeKey.self) { string in
-//            print(string)
-//        }
-
-        Text("Hello, World")
-//            .textRendered(AnimatedSineWaveOffsetRender(timeOffset: offset))
-//            .background(.red)
-//            .animation(.linear(duration: 2), value: self.isAnimated)
-            .onAppear {
-//                print("On Appear")
-//                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-//                    self.isAnimated.toggle()
-//                }
+        ScrollView {
+            VStack {
+                ForEach(0..<30) { index in
+                    Text("Row by index: \(index)")
+                        .background(.random())
+                        .cursorShape(.pointingHand)
+                }
             }
-            .background(.red)
-
-        //                Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
-        //                    if offset > 1_000_000_000_000 {
-        //                      offset = 0 // Reset the time offset
-        //                    }
-        //                    offset += 10
-        //                }
-
-        //        VStack {
-        //            Text("Hello")
-        //                .frame(width: 100, height: 23)
-        //                .background(Color.mint)
-        //
-        //            viewModel.color
-        //                .frame(height: 140)
-        //
-        //            Text("World")
-        //                .frame(width: 100, height: 23)
-        //                .background(Color.green)
-        //        }
-        //        .font(.system(size: 17))
-        //        .background(.red)
-        //        .frame(width: 140)
-        //        .environment(viewModel)
-        //        .lineLimit(2)
+            .padding(16)
+        }
     }
 }
-//
-//ScrollView {
-//    VStack {
-//        ForEach(0..<30) { _ in
-//            Color.random()
-//                .cursorShape(.pointingHand)
-//        }
-//    }
-//    .padding(16)
-//}
-//.background(
-//    Color.gray
-//)
-//.onTap {
-//    print("kek")
-//}
-//
-//Self.printChanges()
-//
-//return VStack {
-//    NestedContent(color: $color)
-//
-//    Button {
-//        print("Pressed")
-//    } label: {
-//        ImageView("Assets/dog.png", bundle: Bundle.editor)
-//            .resizable()
-//            .frame(width: 300, height: 120)
-//    }
-//}
-//.padding(16)
-//.background(self.color)
-//.onAppear {
-//    Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { _ in
-//        isShown.toggle()
-//    }
-//}
 
 class EditorWindow: UIWindow {
     override func windowDidReady() {
@@ -194,11 +121,5 @@ class EditorWindow: UIWindow {
         //        let sceneView = SceneView(scene: scene, frame: Rect(origin: Point(x: 60, y: 60), size: Size(width: 250, height: 250)))
         //        sceneView.backgroundColor = .red
         //        self.addSubview(sceneView)
-
-        //        let label = UILabel(frame: Rect(origin: Point(x: 20, y: 20), size: Size(width: 20, height: 20)))
-        //        label.backgroundColor = .red
-        //        label.textColor = .black
-        //        label.text = "Hello World"
-        //        self.addSubview(label)
     }
 }
