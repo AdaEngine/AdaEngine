@@ -20,7 +20,7 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
     }
 
     func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        let node = ScrollViewViewNode(content: content)
+        let node = ScrollViewNode(content: content)
         node.axis = self.axis
         node.updateEnvironment(inputs.environment)
         node.invalidateContent(with: _ViewListInputs(input: inputs))
@@ -29,13 +29,25 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
     }
 }
 
-final class ScrollViewViewNode: ViewContainerNode {
+final class ScrollViewNode: ViewContainerNode {
     var axis: Axis = .vertical
     private var bounds: Rect = .zero
 
-    override func onMouseEvent(_ event: MouseEvent) {
-        print("Mouse wheel")
+    override func performLayout() {
+        let center = Point(x: bounds.midX, y: bounds.midY)
+        let proposal = ProposedViewSize(frame.size)
 
+        for node in nodes {
+            node.place(in: center, anchor: .top, proposal: proposal)
+        }
+    }
+
+    override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        let size = super.sizeThatFits(proposal)
+        return size
+    }
+
+    override func onMouseEvent(_ event: MouseEvent) {
         if axis == .vertical {
 
         } else {

@@ -63,33 +63,26 @@ struct OnDisappearView<Content: View>: ViewModifier, ViewNodeBuilder {
     }
 }
 
+/// Handle visibility view on the screen.
 final class VisibilityViewNode: ViewModifierNode {
     var onAppear: (() -> Void)?
     var onDisappear: (() -> Void)?
 
-    deinit {
-        self.onDisappear?()
-    }
-
     private var isAppeared = false
 
-    override func performLayout() {
-        super.performLayout()
-
-        guard let parent else {
-            return
+    override func draw(with context: UIGraphicsContext) {
+        if self.parent?.frame.intersects(self.frame) == true {
+            if !isAppeared {
+                self.isAppeared = true
+                self.onAppear?()
+            }
+        } else {
+            if isAppeared {
+                self.isAppeared = false
+                self.onDisappear?()
+            }
         }
 
-//        if parent.frame.intersects(self.frame) {
-            if !isAppeared {
-                isAppeared = true
-                onAppear?()
-            }
-//        } else {
-//            if isAppeared {
-//                isAppeared = false
-//                onDisappear?()
-//            }
-//        }
+        super.draw(with: context)
     }
 }

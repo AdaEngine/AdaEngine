@@ -63,7 +63,8 @@ class ViewContainerNode: ViewNode {
         let outputNodes = outputs.outputs.map { $0.node }
 
         // We have same this, merge new nodes into old
-        if self.nodes.count == outputNodes.count {
+
+        if self.nodes == outputNodes {
             for (oldNode, newNode) in zip(self.nodes, outputNodes) {
                 oldNode.merge(newNode)
             }
@@ -80,8 +81,6 @@ class ViewContainerNode: ViewNode {
                     self.nodes.insert(newElement, at: index)
                 }
             }
-
-            self.performLayout()
         }
 
         for node in nodes {
@@ -91,6 +90,16 @@ class ViewContainerNode: ViewNode {
         if shouldNotifyAboutChanges {
             self._printDebugNode()
         }
+
+        self.performLayout()
+    }
+
+    override func isEquals(_ otherNode: ViewNode) -> Bool {
+        guard let containerNode = otherNode as? ViewContainerNode else {
+            return super.isEquals(otherNode)
+        }
+
+        return self.nodes == containerNode.nodes
     }
 
     override func invalidateContent() {
