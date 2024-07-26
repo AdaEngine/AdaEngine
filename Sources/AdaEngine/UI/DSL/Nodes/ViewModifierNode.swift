@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 29.06.2024.
 //
 
+import Math
+
 class ViewModifierNode: ViewNode {
 
     var contentNode: ViewNode
@@ -31,6 +33,10 @@ class ViewModifierNode: ViewNode {
             anchor: .zero,
             proposal: proposal
         )
+    }
+
+    override func findNodeById(_ id: AnyHashable) -> ViewNode? {
+        return contentNode.findNodeById(id)
     }
 
     override func invalidateContent() {

@@ -8,7 +8,6 @@
 public protocol Gesture<Value> {
 
     associatedtype Value
-
     associatedtype Body: Gesture
 
     var body: Body { get }
