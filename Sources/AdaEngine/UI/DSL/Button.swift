@@ -105,6 +105,10 @@ final class ButtonViewNode: ViewModifierNode {
     // MARK: - Interaction
 
     override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
+        guard self.point(inside: point, with: event) else {
+            return nil
+        }
+
         if contentNode.hitTest(point, with: event) != nil {
             return self
         }
@@ -125,7 +129,7 @@ final class ButtonViewNode: ViewModifierNode {
             case .left:
                 state.insert(.selected)
             default:
-                return
+                break
             }
         case .ended, .cancelled:
             state.remove(.selected)

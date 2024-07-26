@@ -46,7 +46,12 @@ class ViewNode: Identifiable {
         self.content = content
         self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(Content.self)
     }
-    
+
+    /// Search view recursevly by id. It usable only for ``IDViewNodeModifier``.
+    func findNodeById(_ id: AnyHashable) -> ViewNode? {
+        return nil
+    }
+
     /// Set a new content for view node.
     /// - Note: This method don't call ``invalidateContent()`` method
     func setContent<Content: View>(_ content: Content) {
@@ -151,10 +156,12 @@ class ViewNode: Identifiable {
 
         if node.parent === self {
             return (point - node.frame.origin)
-        } else if let parent, parent === node {
+        } else if let parent = self.parent, parent === node {
             return point + frame.origin
+        } else if let parent = self.parent {
+            return convert(point + parent.frame.origin, to: parent)
         }
-        
+
         return point
     }
 

@@ -10,7 +10,7 @@ public extension View {
     /// - Parameter value: The value to check against when determining whether to run the closure.
     /// - Parameter action: A closure to run when the value changes.
     func onChange<T: Equatable>(
-        _ value: T,
+        of value: T,
         perform action: @escaping (T, T) -> Void
     ) -> some View {
         modifier(OnChangeViewModifier(content: self, value: value, action: action))

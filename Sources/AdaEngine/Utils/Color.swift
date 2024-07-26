@@ -13,7 +13,6 @@ public struct Color: Codable, Hashable {
     public private(set) var red: Float
     public private(set) var green: Float
     public private(set) var blue: Float
-    
     public private(set) var alpha: Float
     
     public init(red: Float, green: Float, blue: Float, alpha: Float) {
@@ -22,7 +21,14 @@ public struct Color: Codable, Hashable {
         self.blue = blue
         self.alpha = alpha
     }
-    
+
+    public init(red: Float, green: Float, blue: Float) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.alpha = 1
+    }
+
     // MARK: - Public Methods
     
     /// Set the opacity of the color by the given amount.

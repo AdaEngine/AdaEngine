@@ -38,7 +38,7 @@ public struct VStack<Content: View>: View {
         )
 
         node.updateEnvironment(inputs.environment)
-        node.invalidateContent(with: _ViewListInputs(input: inputs))
+        node.invalidateContent()
 
         return _ViewOutputs(node: node)
     }
