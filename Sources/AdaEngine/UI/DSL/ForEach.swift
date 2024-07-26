@@ -14,6 +14,23 @@ public struct ForEach<Data: RandomAccessCollection, ID: Hashable, Content: View>
     let data: Data
     var content: (Data.Element) -> Content
 
+    @MainActor @preconcurrency 
+    public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
+        let data = view[\.data].value
+        let contentBlock = view[\.content].value
+
+        let node = LayoutViewContainerNode(layout: inputs.layout, content: view.value) { listInputs in
+            let outputs = data.map { item in
+                let content = contentBlock(item)
+                return Content._makeView(_ViewGraphNode(value: content), inputs: listInputs.input)
+            }
+
+            return _ViewListOutputs(outputs: outputs)
+        }
+
+        return _ViewOutputs(node: node)
+    }
+
     @MainActor @preconcurrency
     public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
         let data = view[\.data].value

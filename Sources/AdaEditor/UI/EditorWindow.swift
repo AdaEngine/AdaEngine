@@ -25,11 +25,6 @@ struct NestedContent: View {
             Color.green
                 .preference(key: SomeKey.self, value: "kek")
         }
-//        .onAppear {
-//            Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-//                viewModel.color = .random()
-//            }
-//        }
     }
 }
 
@@ -90,21 +85,82 @@ struct SomeKey: PreferenceKey {
     }
 }
 
+struct CustomButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration
+            .label
+            .background(configuration.state.isSelected ? .blue : .red)
+    }
+}
+
 struct ContentView: View {
 
+    let topID = "1"
+    let bottomID = "2"
     @State private var offset: Double = 0
 
     var body: some View {
-        ScrollView {
-            VStack {
-                ForEach(0..<30) { index in
-                    Text("Row by index: \(index)")
-                        .background(.random())
-                        .cursorShape(.pointingHand)
+        ScrollViewReader { proxy in
+            ScrollView {
+                Button(action: {
+                    proxy.scrollTo(bottomID)
+                }, label: {
+                    Text("Scroll to Bottom")
+                        .padding(16)
+                })
+                .id(topID)
+
+                VStack(spacing: 0) {
+                    ForEach(0..<100) { i in
+                        color(fraction: Float(i) / 100)
+                            .frame(height: 32)
+                    }
                 }
+
+
+                Button {
+                    proxy.scrollTo(topID)
+                } label: {
+                    Text("Top")
+                }
+                .id(bottomID)
+                .frame(height: 60)
             }
-            .padding(16)
         }
+        .buttonStyle(CustomButtonStyle())
+//        HStack {
+//            ScrollView {
+//                VStack {
+//                    ForEach(0..<30) { index in
+//                        Text("Row by index: \(index)")
+//                            .background(.random())
+//                            .cursorShape(.pointingHand)
+//                    }
+//                }
+//                .padding(16)
+//            }
+//            .frame(width: 200)
+//            .background(.red)
+//
+//            Spacer()
+//
+//            ScrollView {
+//                VStack {
+//                    ForEach(0..<30) { index in
+//                        Text("Row by index: \(index)")
+//                            .background(.random())
+//                            .cursorShape(.pointingHand)
+//                    }
+//                }
+//                .padding(16)
+//            }
+//            .frame(width: 200)
+//            .background(.gray)
+//        }
+    }
+
+    func color(fraction: Float) -> Color {
+        Color(red: fraction, green: 1 - fraction, blue: 0.5)
     }
 }
 

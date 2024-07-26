@@ -97,6 +97,14 @@ public extension Vector2 {
     func dot(_ vector: Vector2) -> Float {
         return x * vector.x + y * vector.y
     }
+
+    @inlinable
+    @inline(__always)
+    func clamped(to rect: Rect) -> Point {
+        let x = clamp(self.x, rect.minX, rect.maxX)
+        let y = clamp(self.y, rect.minY, rect.maxY)
+        return Point(x: x, y: y)
+    }
 }
 
 extension Vector2: Comparable {

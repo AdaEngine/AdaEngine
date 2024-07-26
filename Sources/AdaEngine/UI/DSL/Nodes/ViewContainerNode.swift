@@ -157,6 +157,16 @@ class ViewContainerNode: ViewNode {
         }
     }
 
+    override func findNodeById(_ id: AnyHashable) -> ViewNode? {
+        for node in self.nodes {
+            if let foundNode = node.findNodeById(id) {
+                return foundNode
+            }
+        }
+
+        return nil
+    }
+
     override func updateLayoutProperties(_ props: LayoutProperties) {
         super.updateLayoutProperties(props)
 

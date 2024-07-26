@@ -6,7 +6,7 @@
 //
 
 /// The container that can layout it childs with specific ``Layout``.
-final class LayoutViewContainerNode: ViewContainerNode {
+class LayoutViewContainerNode: ViewContainerNode {
     
     let layout: AnyLayout
     private var cache: AnyLayout.Cache?
@@ -52,6 +52,13 @@ final class LayoutViewContainerNode: ViewContainerNode {
         )
 
         self.cache = cache
+    }
+
+    override func invalidateContent() {
+        var inputs = _ViewInputs(environment: self.environment)
+        inputs.layout = self.layout
+        let listInputs = _ViewListInputs(input: inputs)
+        self.invalidateContent(with: listInputs)
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {

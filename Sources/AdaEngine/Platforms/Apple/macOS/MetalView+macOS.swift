@@ -99,11 +99,11 @@ extension MetalView {
     }
     
     public override func scrollWheel(with event: NSEvent) {
+        var deltaX = Float(event.scrollingDeltaX)
         var deltaY = Float(event.scrollingDeltaY)
-        var deltaX = Float(event.scrollingDeltaY)
 
         if event.hasPreciseScrollingDeltas {
-            deltaX += 0.03
+            deltaX *= 0.03
             deltaY *= 0.03
         }
 
