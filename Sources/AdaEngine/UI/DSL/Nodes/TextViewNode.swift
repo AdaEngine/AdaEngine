@@ -51,10 +51,10 @@ final class TextViewNode: ViewNode {
         return size
     }
 
-    override func merge(_ otherNode: ViewNode) {
-        super.merge(otherNode)
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
 
-        guard let textNode = otherNode as? TextViewNode else {
+        guard let textNode = newNode as? TextViewNode else {
             return
         }
 

@@ -8,7 +8,7 @@
 public extension View {
 
     func gesture<G: Gesture>(_ gesture: G) -> some View {
-        self.modifier(GestureViewModifier(gesture: gesture))
+        self.modifier(GestureViewModifier(gesture: gesture, content: self))
     }
 
     func onTap(count: Int = 1, perform: @escaping () -> Void) -> some View {

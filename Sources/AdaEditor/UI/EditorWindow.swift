@@ -102,13 +102,14 @@ struct ContentView: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                Button(action: {
-                    proxy.scrollTo(bottomID)
-                }, label: {
+//                Button(action: {
+//                    proxy.scrollTo(bottomID)
+//                }, label: {
                     Text("Scroll to Bottom")
                         .padding(16)
-                })
-                .id(topID)
+                        .id(topID)
+//                })
+//                .id(topID)
 
                 VStack(spacing: 0) {
                     ForEach(0..<100) { i in
@@ -116,7 +117,6 @@ struct ContentView: View {
                             .frame(height: 32)
                     }
                 }
-
 
                 Button {
                     proxy.scrollTo(topID)

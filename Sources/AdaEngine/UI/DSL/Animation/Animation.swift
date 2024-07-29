@@ -179,10 +179,10 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
         super.init(contentNode: contentNode, content: content)
     }
 
-    override func merge(_ otherNode: ViewNode) {
-        super.merge(otherNode)
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
 
-        guard let node = otherNode as? Self else {
+        guard let node = newNode as? Self else {
             return
         }
 
