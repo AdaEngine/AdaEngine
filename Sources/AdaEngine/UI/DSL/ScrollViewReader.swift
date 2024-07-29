@@ -24,6 +24,13 @@ public struct ScrollViewProxy {
             node.scrollToViewNodeIfFoundIt(id, anchor: anchor)
         }
     }
+
+    // FIXME: Should trigger when content offset did change.
+    func scrollOffset(in coordinateSpace: NamedViewCoordinateSpace? = nil) -> Point {
+        _proxy.subscribedScrollViewNodes.first(where: {
+            $0.environment.coordinateSpaces.containers[coordinateSpace?.name ?? AnyHashable(ViewCoordinateSpace.scrollViewId)] != nil
+        })?.contentOffset ?? .zero
+    }
 }
 
 /// A view that provides programmatic scrolling, by working with a proxy to scroll to known child views.
@@ -47,6 +54,7 @@ public struct ScrollViewReader<Content: View>: View {
     }
 }
 
+@MainActor @Observable
 final class _ScrollViewProxy {
     var subscribedScrollViewNodes: WeakSet<ScrollViewNode> = []
 

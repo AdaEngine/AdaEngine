@@ -39,8 +39,6 @@ class ViewNode: Identifiable {
 
     private(set) var frame: Rect = .zero
     private(set) var layoutProperties = LayoutProperties()
-    private(set) var gestures: [_Gesture] = []
-    private(set) var preferences = PreferenceValues()
 
     init<Content: View>(content: Content) {
         self.content = content
@@ -62,8 +60,7 @@ class ViewNode: Identifiable {
     // MARK: Layout
 
     func updatePreference<K: PreferenceKey>(key: K.Type, value: K.Value) {
-        let updatedValue = parent?.preferences[K.self] ?? K.defaultValue
-        self.parent?.updatePreference(key: K.self, value: updatedValue)
+        self.parent?.updatePreference(key: K.self, value: value)
     }
 
     /// Updates stored environment.
@@ -101,6 +98,10 @@ class ViewNode: Identifiable {
     /// Updates view layout. Called when needs update UI layout.
     func performLayout() { }
 
+    func canUpdate(_ node: ViewNode) -> Bool {
+        return self.isEquals(node) && self.id != node.id
+    }
+
     func isEquals(_ otherNode: ViewNode) -> Bool {
         // Compare content of POD or Equals
         if _ViewGraphNode(value: self.content) == _ViewGraphNode(value: otherNode.content) {
@@ -110,10 +111,10 @@ class ViewNode: Identifiable {
         return false
     }
 
-    /// Merge two views into one. This method called after ``invalidationContent()`` method
-    /// and if view exists in tree, we should update exsiting view using ``merge(_:)`` method.
-    func merge(_ otherNode: ViewNode) {
-        self.environment = otherNode.environment
+    /// Update current node with a new. This method called after ``invalidationContent()`` method
+    /// and if view exists in tree, we should update exsiting view using ``ViewNode/update(_:)`` method.
+    func update(from newNode: ViewNode) {
+        self.environment = newNode.environment
     }
 
     /// This method invalidate all stored views and create a new one.
@@ -169,13 +170,9 @@ class ViewNode: Identifiable {
         return node?.convert(point, to: self) ?? point
     }
 
-    func onTouchesEvent(_ touches: Set<TouchEvent>) {
+    func onTouchesEvent(_ touches: Set<TouchEvent>) { }
 
-    }
-
-    func onMouseEvent(_ event: MouseEvent) {
-
-    }
+    func onMouseEvent(_ event: MouseEvent) { }
 
     func findFirstResponder(for event: InputEvent) -> ViewNode? {
         let responder: ViewNode?
@@ -210,8 +207,12 @@ class ViewNode: Identifiable {
     }
 }
 
-extension ViewNode: Equatable {
+extension ViewNode: Equatable, Hashable {
     static func == (lhs: ViewNode, rhs: ViewNode) -> Bool {
         return lhs.isEquals(rhs)
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(self.id)
     }
 }

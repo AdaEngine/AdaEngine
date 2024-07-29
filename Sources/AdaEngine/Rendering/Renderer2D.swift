@@ -519,7 +519,7 @@ extension Renderer2D {
             self.renderEngine.textData.indeciesCount += glyphs.indeciesCount
         }
         
-        public func drawLine(start: Vector3, end: Vector3, color: Color) {
+        public func drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color) {
             if self.renderEngine.lineData.indeciesCount >= Renderer2D.maxLineIndices {
                 self.nextBatch()
             }
@@ -580,7 +580,7 @@ extension Renderer2D {
             )
             
             self.currentDraw.appendUniformBuffer(buffer)
-            
+
             self.flush(for: self.renderEngine.quadData, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.lineData, indexPrimitive: .line, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.circleData, currentDraw: currentDraw)
