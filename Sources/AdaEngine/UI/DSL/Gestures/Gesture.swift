@@ -21,23 +21,19 @@ extension Gesture {
     }
 }
 
-struct GestureViewModifier<G: Gesture>: ViewModifier, _ViewInputsViewModifier {
+struct GestureViewModifier<G: Gesture, Content: View>: ViewModifier, ViewNodeBuilder {
     typealias Body = Never
 
     let gesture: G
+    let content: Content
 
-    static func _makeModifier(_ modifier: _ViewGraphNode<GestureViewModifier<G>>, inputs: inout _ViewInputs) {
-        let gesture = modifier[\.gesture]
-        let uiGesture = G._makeGesture(gesture: gesture, inputs: inputs)
-        inputs.gestures.append(uiGesture)
+    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+        GestureAreaViewNode(contentNode: inputs.makeNode(from: content), content: content)
     }
 }
 
 @MainActor
 public class _Gesture {
-
-//    var onChanged: ((Value) -> Void)?
-//    var onEnded: ((Value) -> Void)?
 
     weak var node: ViewNode?
 
@@ -49,18 +45,6 @@ public class _Gesture {
         
     }
 
-    func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
-        if self.point(inside: point, with: event) {
-            return self.node
-        }
-
-        return nil
-    }
-
-    /// - Returns: true if point is inside the receiver’s bounds; otherwise, false.
-    func point(inside point: Point, with event: InputEvent) -> Bool {
-        return self.node?.frame.contains(point: point) ?? false
-    }
 }
 
 extension Never: Gesture {
@@ -104,4 +88,29 @@ public struct GestureStateGesture<G: Gesture, State>: Gesture {
 
     let action: (G.Value, inout State) -> Void
     let gesture: G
+}
+
+class GestureRecognizer {
+    
+}
+
+class GestureAreaViewNode: ViewModifierNode {
+
+    var gestures: [GestureRecognizer] = []
+
+    override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
+        return contentNode
+    }
+
+    override func onMouseEvent(_ event: MouseEvent) {
+
+    }
+
+    override func onTouchesEvent(_ touches: Set<TouchEvent>) {
+
+    }
+
+    override func onReceiveEvent(_ event: InputEvent) {
+
+    }
 }

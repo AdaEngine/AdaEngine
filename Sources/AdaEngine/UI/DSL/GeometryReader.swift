@@ -12,7 +12,10 @@ import Math
 public enum ViewCoordinateSpace {
     case local
     case global
+    case scrollView
     case named(AnyHashable)
+
+    internal static let scrollViewId = "_ScrollView"
 }
 
 public protocol ViewCoordinateSpaceProtocol {
@@ -81,6 +84,8 @@ public struct GeometryProxy {
             return self.localFrame
         case .global:
             return namedCoordinateSpaceContainer.containers[ViewRootNode.rootCoordinateSpace.name]?.frame ?? .zero
+        case .scrollView:
+            return namedCoordinateSpaceContainer.containers[ViewCoordinateSpace.scrollViewId]?.frame ?? .zero
         case .named(let value):
             return namedCoordinateSpaceContainer.containers[value]?.frame ?? .zero
         }
@@ -162,19 +167,12 @@ struct CoordinateSpaceViewModifier<Content: View>: ViewModifier, ViewNodeBuilder
 
     func makeViewNode(inputs: _ViewInputs) -> ViewNode {
         let node = inputs.makeNode(from: content)
-        return CoordinateSpaceViewNode(named: named, content: content, contentNode: node)
-    }
-}
 
-class CoordinateSpaceViewNode: ViewModifierNode {
-    init<Content>(
-        named: NamedViewCoordinateSpace,
-        content: Content,
-        contentNode: ViewNode
-    ) where Content : View {
-        super.init(contentNode: contentNode, content: content)
-//        context.environment.coordinateSpaces.containers[named.name] = self
-//        self.updateEnvironment(context.environment)
-        self.invalidateContent()
+        if node is ScrollViewNode {
+            inputs.environment.coordinateSpaces.containers[ViewCoordinateSpace.scrollViewId] = node
+        }
+
+        inputs.environment.coordinateSpaces.containers[named.name] = node
+        return ViewModifierNode(contentNode: node, content: content)
     }
 }

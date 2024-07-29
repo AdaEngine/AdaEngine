@@ -54,10 +54,10 @@ final class PreferenceChangeViewNode<Key: PreferenceKey>: ViewModifierNode {
         super.init(contentNode: contentNode, content: content)
     }
 
-    override func merge(_ otherNode: ViewNode) {
-        super.merge(otherNode)
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
 
-        guard let node = otherNode as? Self else {
+        guard let node = newNode as? Self else {
             return
         }
 
@@ -89,33 +89,33 @@ struct TransformPreference<V: View, K: PreferenceKey>: ViewModifier, ViewNodeBui
 
 final class TransformPreferenceViewNode<K: PreferenceKey>: ViewModifierNode {
 
-    var block: (inout K.Value) -> Void
+    private(set) var block: (inout K.Value) -> Void
+    private(set) var preferences = PreferenceValues()
 
     init<Content>(contentNode: ViewNode, content: Content, block: @escaping (inout K.Value) -> Void) where Content : View {
         self.block = block
         super.init(contentNode: contentNode, content: content)
     }
 
-    override func merge(_ otherNode: ViewNode) {
-        super.merge(otherNode)
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
 
-        guard let node = otherNode as? Self else {
+        guard let node = newNode as? Self else {
             return
         }
 
         block = node.block
-
-        performChangeBlock()
+        self.performChangeBlock()
     }
 
     private func performChangeBlock() {
-        var value = contentNode.preferences[K.self]
-        block(&value)
-        contentNode.updatePreference(key: K.self, value: value)
+        var value = self.preferences[K.self] ?? K.defaultValue
+        self.block(&value)
+        self.contentNode.updatePreference(key: K.self, value: value)
     }
 
     override func didMove(to parent: ViewNode?) {
-        performChangeBlock()
+        self.performChangeBlock()
     }
 
 }

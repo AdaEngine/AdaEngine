@@ -42,8 +42,10 @@ class CanvasViewNode: ViewNode {
         self.drawBlock(&context, self.frame.size)
     }
 
-    override func merge(_ otherNode: ViewNode) {
-        guard let otherNode = otherNode as? CanvasViewNode else {
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+
+        guard let otherNode = newNode as? CanvasViewNode else {
             return
         }
         

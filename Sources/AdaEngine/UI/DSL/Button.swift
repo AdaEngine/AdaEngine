@@ -93,13 +93,13 @@ final class ButtonViewNode: ViewModifierNode {
         self.performLayout()
     }
 
-    override func merge(_ otherNode: ViewNode) {
-        guard let otherNode = otherNode as? ButtonViewNode else {
+    override func update(from newNode: ViewNode) {
+        guard let otherNode = newNode as? ButtonViewNode else {
             return
         }
 
         self.action = otherNode.action
-        super.merge(otherNode)
+        super.update(from: otherNode)
     }
 
     // MARK: - Interaction

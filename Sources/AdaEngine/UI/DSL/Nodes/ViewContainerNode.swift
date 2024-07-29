@@ -8,13 +8,16 @@
 import Observation
 import Math
 
+// FIXME: Check that container will handle ObservationTracking
+// FIXME: Merging trees after rebuild can be broken
+
 /// View node that can store children.
 /// Most used for tuple, layout stacks and other containers.
 ///
 /// When view did notify about changes, this container calls ``invalidateContent`` method to update it child and merge them if exists.
 class ViewContainerNode: ViewNode {
 
-     var nodes: [ViewNode]
+    var nodes: [ViewNode]
 
     /// Builder method returns a new children.
     private var body: ((_ViewListInputs) -> _ViewListOutputs)?
@@ -62,11 +65,10 @@ class ViewContainerNode: ViewNode {
 
         let outputNodes = outputs.outputs.map { $0.node }
 
-        // We have same this, merge new nodes into old
-
+        // We have same this, update old node with new one.
         if self.nodes == outputNodes {
             for (oldNode, newNode) in zip(self.nodes, outputNodes) {
-                oldNode.merge(newNode)
+                oldNode.update(from: newNode)
             }
         } else {
             // has different sizes.
@@ -108,10 +110,10 @@ class ViewContainerNode: ViewNode {
         self.invalidateContent(with: listInputs)
     }
 
-    override func merge(_ otherNode: ViewNode) {
-        super.merge(otherNode)
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
 
-        guard let container = otherNode as? ViewContainerNode else {
+        guard let container = newNode as? ViewContainerNode else {
             return
         }
 
@@ -120,8 +122,8 @@ class ViewContainerNode: ViewNode {
         // We have same this, merge new nodes into old
         if self.nodes.count == container.nodes.count {
             for (index, (oldNode, newNode)) in zip(self.nodes, container.nodes).enumerated() {
-                if type(of: oldNode) == type(of: newNode) {
-                    oldNode.merge(newNode)
+                if newNode.canUpdate(oldNode) {
+                    oldNode.update(from: newNode)
                 } else {
                     self.nodes[index] = newNode
                     needsLayout = true

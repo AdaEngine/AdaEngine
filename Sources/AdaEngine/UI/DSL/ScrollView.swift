@@ -7,6 +7,7 @@
 
 import Math
 
+/// A scrollable view.
 @MainActor @preconcurrency
 public struct ScrollView<Content: View>: View, ViewNodeBuilder {
 
@@ -15,7 +16,10 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
     let axis: Axis
     let content: () -> Content
 
-    public init(_ axis: Axis = .vertical, @ViewBuilder content: @escaping () -> Content) {
+    public init(
+        _ axis: Axis = .vertical,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
         self.axis = axis
         self.content = content
     }
@@ -31,14 +35,21 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
     }
 }
 
+// FIXME: Hit test doesn't work correctly on bottom
+
 final class ScrollViewNode: LayoutViewContainerNode {
     var axis: Axis = .vertical
-    private var contentOffset: Point = .zero
+
+    private(set) var contentOffset: Point = .zero
     private var contentSize: Size = .zero
 
     override func performLayout() {
         let proposal = ProposedViewSize(frame.size)
         self.contentSize = super.sizeThatFits(proposal)
+
+        let width = contentSize.width - frame.width
+        let height = contentSize.height - frame.height
+        self.contentOffsetBounds = Rect(x: 0, y: 0, width: width, height: height)
 
         super.performLayout()
     }
@@ -69,25 +80,35 @@ final class ScrollViewNode: LayoutViewContainerNode {
 
     static let normalDecelerationRate: Float = 0.998
     static let fastDecelerationRate: Float = 0.99
+    static let scrollTimeout: Float = 0.05
+
+    private var lastScrollEvent: TimeInterval?
 
     override func onMouseEvent(_ event: MouseEvent) {
         guard event.button == .scrollWheel else {
             return
         }
 
-        switch event.phase {
-        case .began:
+        /// That a new scroll phase
+        if let lastScrollEvent, event.time > lastScrollEvent + Self.scrollTimeout {
+            self.lastScrollEvent = nil
+            self.state = .idle
+        }
+
+        if self.lastScrollEvent == nil {
+            /// If we don't have scroll time, that new scroll phase is began
             accumulativePoint = .zero
             state = .dragging(initialOffset: self.contentOffset)
-        case .changed:
-            self.accumulativePoint.x += event.scrollDelta.x * 100
-            self.accumulativePoint.y += event.scrollDelta.y * 100
-            if case .dragging(let initialOffset) = state {
-                print("initial:", initialOffset, "point:", accumulativePoint, "res:", initialOffset - accumulativePoint)
-                contentOffset = clampOffset(initialOffset - accumulativePoint)
-            }
-        case .ended, .cancelled:
-            state = .idle
+            lastScrollEvent = event.time
+            return
+        }
+
+        /// Scroll phase did update
+        self.accumulativePoint.x += event.scrollDelta.x * 100
+        self.accumulativePoint.y += event.scrollDelta.y * 100
+        if case .dragging(let initialOffset) = state {
+//            print("initial:", initialOffset, "point:", accumulativePoint, "res:", initialOffset - accumulativePoint)
+            contentOffset = clampOffset(initialOffset - accumulativePoint)
         }
     }
 
@@ -95,11 +116,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
         return (initialVelocity / 1000.0) * decelerationRate / (1.0 - decelerationRate)
     }
 
-    var contentOffsetBounds: Rect {
-        let width = contentSize.width - frame.width
-        let height = contentSize.height - frame.height
-        return Rect(x: 0, y: 0, width: width, height: height)
-    }
+    private var contentOffsetBounds: Rect = .zero
 
     private func clampOffset(_ offset: Point) -> Point {
         return offset.clamped(to: contentOffsetBounds)

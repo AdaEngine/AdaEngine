@@ -17,13 +17,13 @@ class ViewModifierNode: ViewNode {
         self.contentNode.parent = self
     }
 
-    override func merge(_ otherNode: ViewNode) {
-        guard let otherNode = otherNode as? ViewModifierNode else {
+    override func update(from newNode: ViewNode) {
+        guard let otherNode = newNode as? ViewModifierNode else {
             return
         }
 
-        super.merge(otherNode)
-        self.contentNode.merge(otherNode.contentNode)
+        super.update(from: otherNode)
+        self.contentNode.update(from: otherNode.contentNode)
     }
 
     override func performLayout() {
