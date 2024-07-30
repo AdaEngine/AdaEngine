@@ -19,6 +19,7 @@ public struct ButtonStyleConfiguration {
 
     public struct Label: View {
         public typealias Body = Never
+        public var body: Never { fatalError() }
 
         enum Storage {
             case makeView((_ViewInputs) -> _ViewOutputs)
@@ -47,6 +48,16 @@ public struct ButtonStyleConfiguration {
 
     public let label: Label
     public let state: Button.State
+
+    /// A Boolean value indicating whether the control is in the selected state.
+    public var isSelected: Bool {
+        state.contains(.selected)
+    }
+
+    /// A Boolean value indicating whether the control draws a highlight.
+    public var isHighlighted: Bool {
+        state.contains(.highlighted)
+    }
 }
 
 extension View {
@@ -55,7 +66,8 @@ extension View {
     }
 }
 
-public struct PlainButtonStyle: ButtonStyle {
+/// The default button style, based on the button’s context.
+public struct DefaultButtonStyle: ButtonStyle {
 
     public nonisolated init() {}
 
@@ -65,7 +77,7 @@ public struct PlainButtonStyle: ButtonStyle {
 }
 
 struct ButtonEnvironmentKey: EnvironmentKey {
-    static var defaultValue: any ButtonStyle = PlainButtonStyle()
+    static var defaultValue: any ButtonStyle = DefaultButtonStyle()
 }
 
 extension EnvironmentValues {

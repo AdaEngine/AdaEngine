@@ -31,9 +31,9 @@ struct OffsetViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
     let y: Float
     let content: Content
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         let node = OffsetViewNodeModifier(
-            contentNode: inputs.makeNode(from: content),
+            contentNode: context.makeNode(from: content),
             content: content
         )
         node.offsetByX = x

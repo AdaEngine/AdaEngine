@@ -28,9 +28,11 @@ class ViewModifierNode: ViewNode {
 
     override func performLayout() {
         let proposal = ProposedViewSize(self.frame.size)
+        let origin = Point(x: self.frame.midX, y: self.frame.midY)
+
         self.contentNode.place(
-            in: .zero,
-            anchor: .zero,
+            in: origin,
+            anchor: .center,
             proposal: proposal
         )
     }

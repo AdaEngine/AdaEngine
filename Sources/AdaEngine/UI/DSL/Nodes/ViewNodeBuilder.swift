@@ -6,6 +6,9 @@
 //
 
 protocol ViewNodeBuilder {
+
+    typealias BuildContext = _ViewInputs
+
     @MainActor(unsafe)
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode
+    func buildViewNode(in context: BuildContext) -> ViewNode
 }

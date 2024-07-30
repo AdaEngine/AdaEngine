@@ -27,8 +27,8 @@ struct GestureViewModifier<G: Gesture, Content: View>: ViewModifier, ViewNodeBui
     let gesture: G
     let content: Content
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        GestureAreaViewNode(contentNode: inputs.makeNode(from: content), content: content)
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        GestureAreaViewNode(contentNode: context.makeNode(from: content), content: content)
     }
 }
 

@@ -10,11 +10,12 @@ import Math
 /// A view that doesn’t contain any content.
 public struct EmptyView: View, ViewNodeBuilder {
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     /// Creates an empty view.
     public init() {}
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         EmptyViewNode(content: self)
     }
 }

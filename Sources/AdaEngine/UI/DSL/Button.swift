@@ -7,6 +7,7 @@
 
 import Math
 
+/// A control that initiates an action.
 public struct Button: View, ViewNodeBuilder {
 
     public struct State: OptionSet, Hashable {
@@ -39,6 +40,7 @@ public struct Button: View, ViewNodeBuilder {
     }
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     let action: () -> Void
     let label: ButtonStyleConfiguration.Label.Storage
@@ -56,11 +58,11 @@ public struct Button: View, ViewNodeBuilder {
 
     // MARK: - ViewNodeBuilder
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         ButtonViewNode(
             content: self,
             label: label,
-            viewInputs: inputs,
+            viewInputs: context,
             action: self.action
         )
     }
@@ -69,28 +71,44 @@ public struct Button: View, ViewNodeBuilder {
 final class ButtonViewNode: ViewModifierNode {
 
     private(set) var action: () -> Void
-    private var body: (Button.State) -> ViewNode
+    private var body: (Button.State, EnvironmentValues) -> ViewNode
 
     private var state: Button.State = .normal
 
     init<Content: View>(content: Content, label: ButtonStyleConfiguration.Label.Storage, viewInputs: _ViewInputs, action: @escaping () -> Void) {
         self.action = action
-        self.body = { state in
+        self.body = { state, environment in
             let configuration = ButtonStyleConfiguration(
                 label: ButtonStyleConfiguration.Label(storage: label),
                 state: state
             )
-            let body = AnyView(viewInputs.environment.buttonStyle.makeBody(configuration: configuration))
-            return AnyButtonStyle.Body._makeView(_ViewGraphNode(value: body), inputs: viewInputs).node
+
+            var viewInputs = viewInputs
+            viewInputs.environment = environment
+            let inputs = viewInputs.resolveStorages(in: environment.buttonStyle)
+            let body = AnyView(environment.buttonStyle.makeBody(configuration: configuration))
+            return AnyButtonStyle.Body._makeView(_ViewGraphNode(value: body), inputs: inputs).node
         }
 
-        super.init(contentNode: body(.normal), content: content)
+        super.init(contentNode: body(.normal, viewInputs.environment), content: content)
+        self.updateEnvironment(viewInputs.environment)
     }
 
     override func invalidateContent() {
-        let body = self.body(self.state)
+        let body = self.body(self.state, self.environment)
         self.contentNode = body
+        self.contentNode.parent = self
         self.performLayout()
+    }
+
+    override func performLayout() {
+        let proposal = ProposedViewSize(self.frame.size)
+
+        self.contentNode.place(
+            in: .zero,
+            anchor: .zero,
+            proposal: proposal
+        )
     }
 
     override func update(from newNode: ViewNode) {
@@ -117,17 +135,18 @@ final class ButtonViewNode: ViewModifierNode {
     }
 
     override func onMouseEvent(_ event: MouseEvent) {
-        if !self.state.isEnabled {
+        if !self.state.isEnabled || !self.environment.isEnabled {
             return
         }
 
         switch event.phase {
         case .began, .changed:
+            state.insert(.highlighted)
+
             switch event.button {
-            case .none:
-                state.insert(.highlighted)
             case .left:
                 state.insert(.selected)
+                state.remove(.highlighted)
             default:
                 break
             }
@@ -140,5 +159,9 @@ final class ButtonViewNode: ViewModifierNode {
         }
 
         self.invalidateContent()
+    }
+
+    override func onMouseLeave() {
+        state = .normal
     }
 }

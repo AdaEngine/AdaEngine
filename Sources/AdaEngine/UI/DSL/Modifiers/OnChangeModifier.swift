@@ -24,8 +24,8 @@ struct OnChangeViewModifier<Content: View, T: Equatable>: ViewModifier, ViewNode
     let value: T
     let action: (T, T) -> Void
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        OnChangeModifierViewNode(contentNode: inputs.makeNode(from: content), content: content, currentStoredValue: value, onChangeAction: action)
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        OnChangeModifierViewNode(contentNode: context.makeNode(from: content), content: content, currentStoredValue: value, onChangeAction: action)
     }
 }
 

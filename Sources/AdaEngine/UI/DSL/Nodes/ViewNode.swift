@@ -18,7 +18,8 @@ class ViewNode: Identifiable {
     nonisolated var id: ObjectIdentifier {
         ObjectIdentifier(self)
     }
-
+    
+    /// Contains ref to parent view
     weak var parent: ViewNode? {
         willSet {
             willMove(to: newValue)
@@ -37,6 +38,7 @@ class ViewNode: Identifiable {
     /// Contains current environment values.
     private(set) var environment = EnvironmentValues()
 
+    /// Contains position and size relative to parent view.
     private(set) var frame: Rect = .zero
     private(set) var layoutProperties = LayoutProperties()
 
@@ -159,8 +161,6 @@ class ViewNode: Identifiable {
             return (point - node.frame.origin)
         } else if let parent = self.parent, parent === node {
             return point + frame.origin
-        } else if let parent = self.parent {
-            return convert(point + parent.frame.origin, to: parent)
         }
 
         return point
@@ -173,6 +173,8 @@ class ViewNode: Identifiable {
     func onTouchesEvent(_ touches: Set<TouchEvent>) { }
 
     func onMouseEvent(_ event: MouseEvent) { }
+
+    func onMouseLeave() { }
 
     func findFirstResponder(for event: InputEvent) -> ViewNode? {
         let responder: ViewNode?

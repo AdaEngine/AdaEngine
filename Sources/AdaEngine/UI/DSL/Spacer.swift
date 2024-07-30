@@ -12,6 +12,7 @@ import Math
 public struct Spacer: View, ViewNodeBuilder {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     /// The minimum length this spacer can be shrunk to, along the axis or axes of expansion.
     public var minLength: Float?
@@ -20,7 +21,7 @@ public struct Spacer: View, ViewNodeBuilder {
         self.minLength = minLength
     }
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         SpacerViewNode(minLength: minLength, content: self)
     }
 }

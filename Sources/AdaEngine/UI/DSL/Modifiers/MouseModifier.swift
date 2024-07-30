@@ -21,10 +21,10 @@ struct CursorShapeModifier<Content: View>: View, ViewNodeBuilder {
     let shape: Input.CursorShape
     let content: Content
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         CursorShapeModifierNode(
             shape: self.shape,
-            contentNode: inputs.makeNode(from: content),
+            contentNode: context.makeNode(from: content),
             content: content
         )
     }

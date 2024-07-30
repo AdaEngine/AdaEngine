@@ -12,6 +12,7 @@ import Math
 public struct ScrollView<Content: View>: View, ViewNodeBuilder {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     let axis: Axis
     let content: () -> Content
@@ -24,11 +25,11 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
         self.content = content
     }
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        let node = ScrollViewNode(layout: inputs.layout, content: content)
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        let node = ScrollViewNode(layout: context.layout, content: content)
         node.axis = self.axis
-        node.updateEnvironment(inputs.environment)
-        inputs.environment.scrollViewProxy?.subsribe(node)
+        node.updateEnvironment(context.environment)
+        context.environment.scrollViewProxy?.subsribe(node)
         node.invalidateContent()
 
         return node

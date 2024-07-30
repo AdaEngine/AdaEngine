@@ -44,7 +44,7 @@ extension ViewModifier {
         body: @escaping (_ViewInputs) -> _ViewOutputs
     ) -> _ViewOutputs {
         if let builder = modifier.value as? ViewNodeBuilder {
-            let node = builder.makeViewNode(inputs: inputs)
+            let node = builder.buildViewNode(in: inputs)
             return _ViewOutputs(node: node)
         }
         let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeView(body)))
@@ -58,7 +58,7 @@ extension ViewModifier {
         body: @escaping (_ViewListInputs) -> _ViewListOutputs
     ) -> _ViewListOutputs {
         if let builder = modifier.value as? ViewNodeBuilder {
-            let node = builder.makeViewNode(inputs: inputs.input)
+            let node = builder.buildViewNode(in: inputs.input)
             let output = _ViewOutputs(node: node)
             return _ViewListOutputs(outputs: [output])
         }
@@ -105,6 +105,7 @@ public extension ViewModifier where Body == Never {
 public struct _ModifiedContent<Content: ViewModifier>: View {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     enum Storage {
         case makeView((_ViewInputs) -> _ViewOutputs)
@@ -162,7 +163,7 @@ extension ModifiedContent: View where Modifier: ViewModifier, Content: View {
         return Modifier._makeListView(for: view[\.modifier], inputs: inputs) { inputs in
             let content = view[\.content]
             if let builder = content.value as? ViewNodeBuilder {
-                let node = builder.makeViewNode(inputs: inputs.input)
+                let node = builder.buildViewNode(in: inputs.input)
                 let output = _ViewOutputs(node: node)
                 return _ViewListOutputs(outputs: [output])
             }
@@ -214,7 +215,7 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
         Self._makeModifier(modifier, inputs: &inputs)
 
         if let builder = modifier.value as? ViewNodeBuilder {
-            let node = builder.makeViewNode(inputs: inputs)
+            let node = builder.buildViewNode(in: inputs)
             return _ViewOutputs(node: node)
         }
         

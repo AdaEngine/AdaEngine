@@ -28,8 +28,8 @@ struct IDView<V: View>: View, ViewNodeBuilder {
     let id: AnyHashable
     let content: V
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        let node = IDViewNodeModifier(contentNode: inputs.makeNode(from: content), content: content)
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        let node = IDViewNodeModifier(contentNode: context.makeNode(from: content), content: content)
         node.identifier = id
         return node
     }

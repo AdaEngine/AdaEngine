@@ -7,8 +7,6 @@
 
 /// A type that represents part of your user interface and provides modifiers that you use to configure views.
 @_typeEraser(AnyView)
-@MainActor
-@preconcurrency
 public protocol View {
     /// The type of view representing the body of this view.
     associatedtype Body: View
@@ -27,13 +25,13 @@ extension View {
         let resolvedInputs = inputs.resolveStorages(in: view.value)
 
         if let builder = view.value as? ViewNodeBuilder {
-            let node = builder.makeViewNode(inputs: inputs)
+            let node = builder.buildViewNode(in: inputs)
             return _ViewOutputs(node: node)
         }
 
         let body = view[\.body]
         if let builder = body.value as? ViewNodeBuilder {
-            let node = builder.makeViewNode(inputs: inputs)
+            let node = builder.buildViewNode(in: inputs)
             resolvedInputs.registerNodeForStorages(node)
             return _ViewOutputs(node: node)
         } else {
@@ -51,13 +49,13 @@ extension View {
     @MainActor @preconcurrency
     public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
         if let builder = view.value as? ViewNodeBuilder {
-            let node = builder.makeViewNode(inputs: inputs.input)
+            let node = builder.buildViewNode(in: inputs.input)
             return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
         }
         
         let body = view[\.body]
         if let builder = body.value as? ViewNodeBuilder {
-            let node = builder.makeViewNode(inputs: inputs.input)
+            let node = builder.buildViewNode(in: inputs.input)
             return _ViewListOutputs(outputs: [_ViewOutputs(node: node)])
         }
 
@@ -65,6 +63,22 @@ extension View {
         return Self.Body._makeListView(body, inputs: _ViewListInputs(input: inputs))
     }
 }
+
+extension View where Body == Never {
+    var body: Never {
+        fatalError()
+    }
+}
+
+public extension Never {
+    typealias Body = Never
+
+    var body: Never {
+        fatalError()
+    }
+}
+
+extension Never: View { }
 
 extension Optional: View where Wrapped: View {
     public var body: some View {

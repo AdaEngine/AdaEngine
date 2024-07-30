@@ -22,11 +22,11 @@ struct EventManagerModifier<Content: View, E: Event>: ViewModifier, ViewNodeBuil
     let content: Content
     let completion: (E) -> Void
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         EventManagerNode(
             content: content,
-            contentNode: inputs.makeNode(from: content),
-            manager: inputs.environment.eventManager,
+            contentNode: context.makeNode(from: content),
+            manager: context.environment.eventManager,
             completion: completion
         )
     }

@@ -11,6 +11,7 @@ import Observation
 public struct HStack<Content: View>: View {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     let alignment: VerticalAlignment
     let spacing: Float?

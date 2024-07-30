@@ -31,9 +31,9 @@ struct OnAppearView<Content: View>: ViewModifier, ViewNodeBuilder {
         self.onAppear = onAppear
     }
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         let node = VisibilityViewNode(
-            contentNode: inputs.makeNode(from: content),
+            contentNode: context.makeNode(from: content),
             content: content
         )
         node.onAppear = self.onAppear
@@ -53,9 +53,9 @@ struct OnDisappearView<Content: View>: ViewModifier, ViewNodeBuilder {
         self.onDisappear = onDisappear
     }
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         let node = VisibilityViewNode(
-            contentNode: inputs.makeNode(from: content),
+            contentNode: context.makeNode(from: content),
             content: content
         )
         node.onDisappear = self.onDisappear

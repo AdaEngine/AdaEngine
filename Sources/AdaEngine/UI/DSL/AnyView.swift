@@ -13,6 +13,7 @@
 @frozen public struct AnyView: View {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     let content: any View
 
