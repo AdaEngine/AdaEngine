@@ -26,9 +26,10 @@ public struct Text {
 extension Text: View, ViewNodeBuilder {
     
     public typealias Body = Never
-    
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        TextViewNode(inputs: inputs, content: self)
+    public var body: Never { fatalError() }
+
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        TextViewNode(inputs: context, content: self)
     }
 }
 

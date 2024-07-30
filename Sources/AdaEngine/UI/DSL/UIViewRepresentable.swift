@@ -57,13 +57,13 @@ struct UIViewRepresentableView<Representable: UIViewRepresentable>: View, ViewNo
     typealias Body = Never
     let repsentable: Representable
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         let node = UIViewRepresentableNode(
             representable: repsentable,
             content: self
         )
 
-        node.updateEnvironment(inputs.environment)
+        node.updateEnvironment(context.environment)
 
         return node
     }

@@ -7,8 +7,8 @@
 
 import Math
 
-public struct Quad: Shape {
-    
+public struct Quad: GeometryShape {
+
     public let size: Vector2
     
     public init(size: Vector2 = .one) {

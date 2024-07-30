@@ -95,6 +95,7 @@ public struct GeometryProxy {
 public struct GeometryReader<Content: View>: View, ViewNodeBuilder {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     let content: (GeometryProxy) -> Content
 
@@ -102,7 +103,7 @@ public struct GeometryReader<Content: View>: View, ViewNodeBuilder {
         self.content = content
     }
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         GeometryReaderViewNode(contentProxy: content, content: self)
     }
 }
@@ -165,14 +166,14 @@ struct CoordinateSpaceViewModifier<Content: View>: ViewModifier, ViewNodeBuilder
     let named: NamedViewCoordinateSpace
     let content: Content
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        let node = inputs.makeNode(from: content)
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        let node = context.makeNode(from: content)
 
         if node is ScrollViewNode {
-            inputs.environment.coordinateSpaces.containers[ViewCoordinateSpace.scrollViewId] = node
+            context.environment.coordinateSpaces.containers[ViewCoordinateSpace.scrollViewId] = node
         }
 
-        inputs.environment.coordinateSpaces.containers[named.name] = node
+        context.environment.coordinateSpaces.containers[named.name] = node
         return ViewModifierNode(contentNode: node, content: content)
     }
 }

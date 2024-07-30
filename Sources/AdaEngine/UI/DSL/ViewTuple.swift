@@ -11,6 +11,7 @@
 public struct ViewTuple<Content>: View {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     public let value: Content
     
@@ -46,18 +47,6 @@ public struct ViewTuple<Content>: View {
     private static func makeView<V: View>(_ view: V, inputs: _ViewInputs) -> _ViewOutputs {
         let inputs = inputs.resolveStorages(in: view)
         return V._makeView(_ViewGraphNode(value: view), inputs: inputs)
-    }
-}
-
-extension View where Body == Never {
-    public var body: Never {
-        fatalError()
-    }
-}
-
-extension Never: View {
-    public var body: Never {
-        fatalError()
     }
 }
 

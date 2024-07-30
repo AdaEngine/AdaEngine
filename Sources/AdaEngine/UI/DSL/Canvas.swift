@@ -13,6 +13,7 @@ public struct Canvas: View, ViewNodeBuilder {
     public typealias RenderBlock = (inout UIGraphicsContext, Size) -> Void
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     let render: RenderBlock
 
@@ -20,7 +21,7 @@ public struct Canvas: View, ViewNodeBuilder {
         self.render = render
     }
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         return CanvasViewNode(content: self, drawBlock: self.render)
     }
 }

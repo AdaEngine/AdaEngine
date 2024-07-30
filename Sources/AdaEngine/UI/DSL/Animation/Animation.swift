@@ -153,9 +153,9 @@ struct AnimatedView<Content: View, Value: Equatable>: View, ViewNodeBuilder {
     let animation: Animation
     let value: Value
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         AnimatedViewNode(
-            contentNode: inputs.makeNode(from: content),
+            contentNode: context.makeNode(from: content),
             content: content,
             value: self.value,
             animation: animation

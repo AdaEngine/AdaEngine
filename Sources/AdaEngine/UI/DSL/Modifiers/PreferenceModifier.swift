@@ -40,8 +40,8 @@ struct PreferenceChangeModifier<V: View, K: PreferenceKey>: ViewModifier, ViewNo
 
     typealias Body = Never
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        PreferenceChangeViewNode<K>(contentNode: inputs.makeNode(from: content), content: content, action: action)
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        PreferenceChangeViewNode<K>(contentNode: context.makeNode(from: content), content: content, action: action)
     }
 }
 
@@ -82,8 +82,8 @@ struct TransformPreference<V: View, K: PreferenceKey>: ViewModifier, ViewNodeBui
 
     typealias Body = Never
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
-        TransformPreferenceViewNode<K>(contentNode: inputs.makeNode(from: content), content: content, block: block)
+    func buildViewNode(in context: BuildContext) -> ViewNode {
+        TransformPreferenceViewNode<K>(contentNode: context.makeNode(from: content), content: content, block: block)
     }
 }
 
