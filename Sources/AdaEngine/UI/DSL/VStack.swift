@@ -9,6 +9,7 @@
 public struct VStack<Content: View>: View {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     let alignment: HorizontalAlignment
     let spacing: Float?

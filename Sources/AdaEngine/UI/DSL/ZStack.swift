@@ -10,6 +10,7 @@
 public struct ZStack<Content: View>: View {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     let anchor: AnchorPoint
     let content: () -> Content

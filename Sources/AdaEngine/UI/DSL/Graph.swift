@@ -7,14 +7,14 @@
 
 final class ViewGraph {
 
-    static var ViewsTypeToDebug: Set<ObjectIdentifier> = []
+    private static var viewsTypeToDebug: Set<ObjectIdentifier> = []
 
     static func registerViewToDebugUpdate<V: View>(_ type: V.Type) {
-        ViewsTypeToDebug.insert(ObjectIdentifier(V.self))
+        viewsTypeToDebug.insert(ObjectIdentifier(V.self))
     }
 
     static func shouldNotifyAboutChanges<V: View>(_ content: V.Type) -> Bool {
-        ViewsTypeToDebug.contains(ObjectIdentifier(V.self))
+        viewsTypeToDebug.contains(ObjectIdentifier(V.self))
     }
 }
 
@@ -28,7 +28,9 @@ public struct _ViewInputs {
         T._makeView(_ViewGraphNode(value: content), inputs: self).node
     }
 
-    func resolveStorages<T: View>(in content: T) -> _ViewInputs {
+    /// Method can find and register ``State``, ``Binding``, ``Environment`` property wrappers
+    /// in new _ViewInputs value.
+    func resolveStorages<T>(in content: T) -> _ViewInputs {
         var newSelf = self
         let mirror = Mirror(reflecting: content)
 
@@ -49,6 +51,7 @@ public struct _ViewInputs {
         return newSelf
     }
 
+    /// Inflate all found storages to view node.
     func registerNodeForStorages(_ node: ViewNode) {
         for storage in propertyStorages {
             storage.storage.registerNodeToUpdate(node)
@@ -56,15 +59,18 @@ public struct _ViewInputs {
     }
 }
 
+/// Contains resolved view node.
 @MainActor
 public struct _ViewOutputs {
     let node: ViewNode
 }
 
+/// Contains information for make list of views.
 public struct _ViewListInputs {
     let input: _ViewInputs
 }
 
+/// Contains list of resolved view nodes.
 public struct _ViewListOutputs {
     var outputs: [_ViewOutputs]
 }

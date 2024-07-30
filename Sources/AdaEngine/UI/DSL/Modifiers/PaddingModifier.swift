@@ -122,12 +122,12 @@ struct PaddingViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
     let insets: EdgeInsets
     let content: Content
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         PaddingModifierViewNode(
             edges: edges,
             insets: insets,
             content: content,
-            node: inputs.makeNode(from: content)
+            node: context.makeNode(from: content)
         )
     }
 }

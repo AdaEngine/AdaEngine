@@ -16,6 +16,7 @@ public struct ImageView: View, ViewNodeBuilder {
     }
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     let storage: _Storage
     var isResizable: Bool = false
@@ -33,12 +34,12 @@ public struct ImageView: View, ViewNodeBuilder {
         self.storage = .texture(texture)
     }
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         ImageViewNode(
             storage: self.storage,
             isResizable: self.isResizable,
             renderMode: self.renderMode,
-            tintColor: inputs.environment.foregroundColor,
+            tintColor: context.environment.foregroundColor,
             content: self
         )
     }

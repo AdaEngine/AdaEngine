@@ -10,7 +10,8 @@
 public struct ForEach<Data: RandomAccessCollection, ID: Hashable, Content: View>: View {
 
     public typealias Body = Never
-
+    public var body: Never { fatalError() }
+    
     let data: Data
     var content: (Data.Element) -> Content
 

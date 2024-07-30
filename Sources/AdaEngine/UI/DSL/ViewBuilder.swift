@@ -81,6 +81,7 @@ public struct _ConditionalContent<TrueContent, FalseContent> {
 extension _ConditionalContent: View where TrueContent: View, FalseContent: View {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     @MainActor @preconcurrency
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {

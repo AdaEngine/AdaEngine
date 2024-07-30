@@ -109,6 +109,10 @@ public struct UIGraphicsContext {
         self.currentDrawContext?.drawText(textLayout, transform: transform)
     }
 
+    public func draw(_ path: Path) {
+        
+    }
+
     public func draw(_ line: TextLine) {
         for run in line {
             self.draw(run)

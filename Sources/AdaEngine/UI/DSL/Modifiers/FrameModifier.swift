@@ -27,11 +27,11 @@ struct FrameViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
 
     let frame: FrameViewNode.Frame
 
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         FrameViewNode(
             frameRule: frame,
             content: content,
-            contentNode: inputs.makeNode(from: content)
+            contentNode: context.makeNode(from: content)
         )
     }
 }

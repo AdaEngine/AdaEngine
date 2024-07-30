@@ -10,9 +10,10 @@ import Math
 extension Color: View, ViewNodeBuilder {
 
     public typealias Body = Never
+    public var body: Never { fatalError() }
 
     @MainActor
-    func makeViewNode(inputs: _ViewInputs) -> ViewNode {
+    func buildViewNode(in context: BuildContext) -> ViewNode {
         return CanvasViewNode(content: self, drawBlock: { context, size in
             context.drawRect(Rect(origin: .zero, size: size), color: self)
         })

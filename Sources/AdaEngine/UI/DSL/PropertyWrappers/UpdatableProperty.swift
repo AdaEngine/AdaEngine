@@ -16,7 +16,7 @@ protocol PropertyStoragable {
 }
 
 class UpdatablePropertyStorage {
-    var nodes: WeakSet<ViewNode> = []
+    private(set) var nodes: WeakSet<ViewNode> = []
     var propertyName: String = ""
 
     @MainActor
