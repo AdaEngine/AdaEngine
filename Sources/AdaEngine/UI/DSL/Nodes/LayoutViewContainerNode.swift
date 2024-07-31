@@ -52,6 +52,7 @@ class LayoutViewContainerNode: ViewContainerNode {
         )
 
         self.cache = cache
+        self.invalidateLayerIfNeeded()
     }
 
     override func invalidateContent() {

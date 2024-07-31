@@ -127,6 +127,8 @@ final class ButtonViewNode: ViewModifierNode {
             return nil
         }
 
+        print("KEK", point)
+
         if contentNode.hitTest(point, with: event) != nil {
             return self
         }

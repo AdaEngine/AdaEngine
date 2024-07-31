@@ -28,7 +28,10 @@ public struct TextureDescriptor {
     
     /// The data from we can create a texture.
     public var image: Image?
-    
+
+    /// The label marked texture for debug reason.
+    public var debugLabel: String?
+
     /// The sampler that describe how to render a texture.
     public var samplerDescription: SamplerDescriptor
     
@@ -40,6 +43,7 @@ public struct TextureDescriptor {
         textureType: Texture.TextureType,
         mipmapLevel: Int = 0,
         image: Image? = nil,
+        debugLabel: String? = nil,
         samplerDescription: SamplerDescriptor = SamplerDescriptor()
     ) {
         self.width = width
@@ -48,6 +52,7 @@ public struct TextureDescriptor {
         self.textureUsage = textureUsage
         self.textureType = textureType
         self.mipmapLevel = mipmapLevel
+        self.debugLabel = debugLabel
         self.image = image
         self.samplerDescription = samplerDescription
     }

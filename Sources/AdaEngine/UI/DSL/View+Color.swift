@@ -15,6 +15,9 @@ extension Color: View, ViewNodeBuilder {
     @MainActor
     func buildViewNode(in context: BuildContext) -> ViewNode {
         return CanvasViewNode(content: self, drawBlock: { context, size in
+            if context.opacity == 1 {
+                context.opacity = self.alpha
+            }
             context.drawRect(Rect(origin: .zero, size: size), color: self)
         })
     }

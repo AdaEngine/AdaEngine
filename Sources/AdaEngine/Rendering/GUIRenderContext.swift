@@ -16,9 +16,11 @@ public struct UIGraphicsContext {
 
     /// Window Identifier related presented window.
     private let camera: Camera
-    private var transform: Transform3D = .identity
+    private(set) var transform: Transform3D = .identity
     private(set) var currentDrawContext: Renderer2D.DrawContext?
     private var clipPath: Path?
+
+    public var opacity: Float = 1
 
     public internal(set) var environment: EnvironmentValues = EnvironmentValues()
 
@@ -68,7 +70,7 @@ public struct UIGraphicsContext {
     }
     
     public mutating func scaleBy(x: Float, y: Float) {
-        let scaleMatrix = Transform3D(translation: [x, y, 1])
+        let scaleMatrix = Transform3D(scale: [x, y, 1])
         self.transform = scaleMatrix * self.transform
     }
 
@@ -76,30 +78,34 @@ public struct UIGraphicsContext {
         self.transform = self.transform.rotate(angle: angle, axis: .up)
     }
 
+    public mutating func clear() {
+        self.transform = .identity
+    }
+
     // MARK: - Drawing
 
     /// Paints the area contained within the provided rectangle, using the passed color.
     public func drawRect(_ rect: Rect, color: Color) {
-        self.drawRect(rect, texture: nil, color: color)
+        self.drawRect(rect, texture: nil, color: color.opacity(self.opacity))
     }
     
     /// Paints the area contained within the provided rectangle, using the passed color and texture.
     public func drawRect(_ rect: Rect, texture: Texture2D? = nil, color: Color) {
         let transform = self.transform * rect.toTransform3D
-        self.currentDrawContext?.drawQuad(transform: transform, texture: texture, color: color)
+        self.currentDrawContext?.drawQuad(transform: transform, texture: texture, color: color.opacity(self.opacity))
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
     public func drawEllipse(in rect: Rect, color: Color) {
         let transform = self.transform * rect.toTransform3D
-        self.currentDrawContext?.drawCircle(transform: transform, thickness: 1, fade: 0.005, color: color)
+        self.currentDrawContext?.drawCircle(transform: transform, thickness: 1, fade: 0.005, color: color.opacity(self.opacity))
     }
 
     public func drawLine(start: Vector2, end: Vector2, lineWidth: Float, color: Color) {
         let start = (transform * Vector4(start.x, start.y, 0, 1))
         let end = (transform * Vector4(end.x, end.y, 0, 1))
 
-        self.currentDrawContext?.drawLine(start: start.xyz, end: end.xyz, lineWidth: lineWidth, color: color)
+        self.currentDrawContext?.drawLine(start: start.xyz, end: end.xyz, lineWidth: lineWidth, color: color.opacity(self.opacity))
     }
 
     // MARK: - Text Drawing
@@ -136,6 +142,10 @@ public struct UIGraphicsContext {
 
     public mutating func commitDraw() {
         self.currentDrawContext?.commitContext()
+    }
+
+    func flush() {
+        self.currentDrawContext?.flush()
     }
 }
 
