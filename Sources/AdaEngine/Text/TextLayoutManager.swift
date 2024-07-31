@@ -149,7 +149,7 @@ public final class TextLayoutManager {
                 let font = attributes.font
                 let fontHandle = font.fontResource.handle
                 let metrics = fontHandle.metrics
-                let fontScale: Double = 1.0
+                let fontScale: Double = 1.5
                 let fontSize = font.fontResource.getFontScale(for: font.pointSize)
                 maxLineHeight = max(fontSize, metrics.lineHeight + font.pointSize)
                 ascent = max(metrics.ascenderY, ascent)
@@ -219,7 +219,7 @@ public final class TextLayoutManager {
                         x += fontScale * advance + kern
                     }
 
-                    width += fontSize / 2
+                    width += fontSize
                     height += y
                 }
             }

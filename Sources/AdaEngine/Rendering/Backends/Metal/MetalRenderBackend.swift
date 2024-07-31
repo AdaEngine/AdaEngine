@@ -266,11 +266,13 @@ extension MetalRenderBackend {
         textureDesc.width = descriptor.width
         textureDesc.height = descriptor.height
         textureDesc.pixelFormat = descriptor.pixelFormat.toMetal
-        
+
         guard let texture = self.context.physicalDevice.makeTexture(descriptor: textureDesc) else {
             fatalError("Cannot create texture")
         }
         
+        texture.label = descriptor.debugLabel
+
         if let image = descriptor.image {
             let region = MTLRegion(
                 origin: MTLOrigin(x: 0, y: 0, z: 0),
@@ -503,7 +505,6 @@ extension MetalRenderBackend {
         }
         
         commandBuffer.encoder.endEncoding()
-        
         commandBuffer.commandBuffer.commit()
     }
 }

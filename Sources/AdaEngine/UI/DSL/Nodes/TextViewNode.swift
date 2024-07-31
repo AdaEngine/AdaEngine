@@ -59,14 +59,27 @@ final class TextViewNode: ViewNode {
         }
 
         self.textRenderer = textNode.textRenderer
+        self.invalidateLayerIfNeeded()
     }
 
     override func draw(with context: UIGraphicsContext) {
-        var context = context
-        context.environment = self.environment
+        if let layer = layer {
+            var context = context
+            context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+            layer.drawLayer(in: context)
+        }
+    }
 
-        let layout = Text.Layout(lines: self.layoutManager.textLines)
-        self.textRenderer.draw(layout: layout, in: &context)
+    override func createLayer() -> UILayer? {
+        let layer = UILayer(frame: self.frame, drawBlock: { [weak self] context, size in
+            guard let self else {
+                return
+            }
+            let layout = Text.Layout(lines: self.layoutManager.textLines)
+            self.textRenderer.draw(layout: layout, in: &context)
+        })
+        layer.debugLabel = self.textContainer.text.text
+        return layer
     }
 }
 

@@ -331,7 +331,7 @@ extension Renderer2D {
             }
             
             // Flush all data if textures count more than 16
-            if self.renderEngine.quadData.textureSlotIndex >= Renderer2D.maxTexturesPerBatch {
+            if self.renderEngine.quadData.textureSlotIndex >= Renderer2D.maxTexturesPerBatch - 1 {
                 self.nextBatch()
                 self.renderEngine.quadData.textureSlots = [Texture2D].init(repeating: .whiteTexture, count: Renderer2D.maxTexturesPerBatch)
                 self.renderEngine.quadData.textureSlotIndex = 0

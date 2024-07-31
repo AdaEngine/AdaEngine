@@ -87,6 +87,10 @@ class ViewContainerNode: ViewNode {
 
         for node in nodes {
             node.updateEnvironment(environment)
+
+            if let owner = node.owner {
+                node.updateViewOwner(owner)
+            }
         }
 
         if shouldNotifyAboutChanges {
@@ -144,6 +148,14 @@ class ViewContainerNode: ViewNode {
             }
 
             needsLayout = true
+        }
+
+        for node in nodes {
+            node.updateEnvironment(environment)
+
+            if let owner = node.owner {
+                node.updateViewOwner(owner)
+            }
         }
 
         if needsLayout {
@@ -209,6 +221,14 @@ class ViewContainerNode: ViewNode {
         }
 
         return super.hitTest(point, with: event)
+    }
+
+    override func updateViewOwner(_ owner: ViewOwner) {
+        super.updateViewOwner(owner)
+        
+        for node in nodes {
+            node.updateViewOwner(owner)
+        }
     }
 
     override func draw(with context: UIGraphicsContext) {

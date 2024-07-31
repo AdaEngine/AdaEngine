@@ -70,11 +70,26 @@ class ViewModifierNode: ViewNode {
     }
 
     override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
-        contentNode.hitTest(point, with: event)
+        if super.point(inside: point, with: event) {
+            let newPoint = contentNode.convert(point, from: self)
+            return contentNode.hitTest(newPoint, with: event)
+        }
+
+        return nil
+    }
+
+    override func updateViewOwner(_ owner: ViewOwner) {
+        super.updateViewOwner(owner)
+        contentNode.updateViewOwner(owner)
     }
 
     override func point(inside point: Point, with event: InputEvent) -> Bool {
-        contentNode.point(inside: point, with: event)
+        if super.point(inside: point, with: event) {
+            let newPoint = contentNode.convert(point, from: self)
+            return contentNode.point(inside: newPoint, with: event)
+        }
+        
+        return false
     }
 
     override func onMouseEvent(_ event: MouseEvent) {

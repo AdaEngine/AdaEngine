@@ -18,15 +18,16 @@ public class RenderTexture: Texture2D {
     
     public private(set) var isActive: Bool = true
     
-    public init(size: SizeInt, scaleFactor: Float, format: PixelFormat) {
+    public init(size: SizeInt, scaleFactor: Float, format: PixelFormat, debugLabel: String? = nil) {
         let descriptor = TextureDescriptor(
             width: size.width,
             height: size.height,
             pixelFormat: format,
             textureUsage: [.renderTarget, .read],
-            textureType: .texture2D
+            textureType: .texture2D,
+            debugLabel: debugLabel
         )
-        
+
         self.pixelFormat = format
         self.scaleFactor = scaleFactor
         
@@ -35,7 +36,11 @@ public class RenderTexture: Texture2D {
         
         super.init(gpuTexture: gpuTexture, sampler: sampler, size: size)
     }
-    
+
+    deinit {
+        print("Deinited")
+    }
+
     public required init(asset decoder: AssetDecoder) throws {
         fatalError("init(asset:) has not been implemented")
     }

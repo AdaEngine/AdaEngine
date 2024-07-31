@@ -31,8 +31,6 @@ open class UIWindow: UIView {
         return Application.shared.windowManager
     }
 
-    private(set) var renderTarget: RenderTexture?
-
     internal let eventManager = EventManager()
 
     /// Flag indicates that window can draw itself content in method ``draw(in:with:)``.
@@ -125,14 +123,6 @@ open class UIWindow: UIView {
     
     open override func frameDidChange() {
         self.windowManager.resizeWindow(self, size: self.frame.size)
-        self.renderTarget = RenderTexture(
-            size: SizeInt(
-                width: Int(self.frame.size.width),
-                height: Int(self.frame.size.height)
-            ),
-            scaleFactor: screen?.scale ?? 1,
-            format: .bgra8
-        )
         super.frameDidChange()
     }
     

@@ -35,6 +35,13 @@ class ViewNode: Identifiable {
     /// Content relative a view node. We use this copy of content to compare views.
     private(set) var content: any View
 
+    var layer: UILayer?
+    private(set) weak var owner: ViewOwner?
+
+    private var isAttached: Bool {
+        return owner != nil
+    }
+
     /// Contains current environment values.
     private(set) var environment = EnvironmentValues()
 
@@ -98,7 +105,9 @@ class ViewNode: Identifiable {
     }
 
     /// Updates view layout. Called when needs update UI layout.
-    func performLayout() { }
+    func performLayout() { 
+        invalidateLayerIfNeeded()
+    }
 
     func canUpdate(_ node: ViewNode) -> Bool {
         return self.isEquals(node) && self.id != node.id
@@ -122,18 +131,43 @@ class ViewNode: Identifiable {
     /// This method invalidate all stored views and create a new one.
     func invalidateContent() { }
 
+    func invalidateLayerIfNeeded() {
+        if let layer = self.layer {
+            if layer.frame.size != self.frame.size {
+                layer.setFrame(self.frame)
+            }
+
+            layer.invalidate()
+        } else if self.isAttached {
+            self.layer = self.createLayer()
+            self.layer?.parent = self.parent?.layer
+        }
+    }
+
+    func createLayer() -> UILayer? { return nil }
+
     /// Notify view, that view will move to parent view.
     func willMove(to parent: ViewNode?) { }
 
     /// Notify view, that view did move to parent view.
-    func didMove(to parent: ViewNode?) { }
+    func didMove(to parent: ViewNode?) { 
+        layer?.parent = parent?.layer
+    }
+
+    func updateViewOwner(_ owner: ViewOwner) {
+        self.owner = owner
+    }
 
     // MARK: - Other
 
     func update(_ deltaTime: TimeInterval) async { }
 
     /// Perform draw view on the screen.
-    func draw(with context: UIGraphicsContext) { }
+    func draw(with context: UIGraphicsContext) {
+        if let layer = layer {
+            layer.drawLayer(in: context)
+        }
+    }
     
     // MARK: - Interaction
     
@@ -217,4 +251,8 @@ extension ViewNode: Equatable, Hashable {
     func hash(into hasher: inout Hasher) {
         hasher.combine(self.id)
     }
+}
+
+class ViewOwner {
+
 }

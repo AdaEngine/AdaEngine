@@ -83,7 +83,7 @@ public struct Camera {
     
     /// Fill color for unused pixel.
     @Export
-    public var backgroundColor: Color = .gray
+    public var backgroundColor: Color = .clear
     
     /// Contains information about clear flags.
     /// By default contains ``CameraClearFlags/solid`` flag which fill clear color by ``Camera/backgroundColor``.
