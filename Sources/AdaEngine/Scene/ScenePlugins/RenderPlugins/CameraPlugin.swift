@@ -35,6 +35,8 @@ struct CameraRenderNode: RenderNode {
             await context.runSubgraph(by: UIRenderPlugin.renderGraph, inputs: [
                 RenderSlotValue(name: UIRenderPlugin.InputNode.view, value: .entity(entity))
             ])
+
+            // TODO: blit to window
         }
 
         return []

@@ -13,15 +13,18 @@ final class ViewTree<Content: View> {
     let rootView: Content
     private(set) var rootNode: ViewRootNode
 
+    let viewOwner = ViewOwner()
+
     init(rootView: Content) {
         self.rootView = rootView
         
         let inputs = _ViewInputs(
             environment: EnvironmentValues()
         )
-        
+
         let contentNode = Content._makeView(_ViewGraphNode(value: rootView), inputs: inputs)
         self.rootNode = ViewRootNode(contentNode: contentNode.node, content: rootView)
+        rootNode.updateViewOwner(viewOwner)
     }
     
     func renderGraph(renderContext: UIGraphicsContext) {
@@ -72,6 +75,10 @@ final class ViewRootNode: ViewNode {
 
     override func onMouseEvent(_ event: MouseEvent) {
         contentNode.onMouseEvent(event)
+    }
+
+    override func updateViewOwner(_ owner: ViewOwner) {
+        contentNode.updateViewOwner(owner)
     }
 
     override func onReceiveEvent(_ event: InputEvent) {

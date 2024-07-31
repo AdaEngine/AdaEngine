@@ -109,6 +109,14 @@ struct CustomButtonStyle: ButtonStyle {
 
 struct ContentView: View {
     var body: some View {
+        ZStack {
+            Color.red
+                .frame(width: 100, height: 100)
+
+            Text("Kek")
+                .opacity(0.1)
+        }
+        .border(.green)
 //        Text("Kek")
 //            .border(.red)
 //            .foregroundColor(.white)
@@ -116,13 +124,16 @@ struct ContentView: View {
 //            .font(Font.system(size: 18, weight: .bold))
 //            .background(Color(red: 18 / 255, green: 38 / 255, blue: 58 / 255))
 //            .border(.black)
-        Button(action: {
-            
-        }, label: {
-            Text("Kek")
-              .border(.red)
-        })
-        .buttonStyle(CustomButtonStyle())
+//        Button(action: {
+//            
+//        }, label: {
+//            Text("Kek")
+//              .border(.red)
+//        })
+//        .buttonStyle(CustomButtonStyle())
+
+//        .frame(width: 400, height: 400)
+//        .border(.red)
     }
 }
 
