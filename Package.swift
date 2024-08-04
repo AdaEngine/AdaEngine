@@ -16,7 +16,7 @@ import Darwin.C
 #endif
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-let isVulkanEnabled = false
+let isVulkanEnabled = true
 #else
 let isVulkanEnabled = true
 #endif
