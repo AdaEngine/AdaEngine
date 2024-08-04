@@ -385,7 +385,7 @@ extension MetalRenderBackend {
     // MARK: - Uniforms -
     
     func makeUniformBufferSet() -> UniformBufferSet {
-        return MetalUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, device: self)
+        return GenericUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, backend: self)
     }
     
     func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {

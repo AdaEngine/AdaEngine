@@ -16,7 +16,7 @@ import Darwin.C
 #endif
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-let isVulkanEnabled = false
+let isVulkanEnabled = true
 #else
 let isVulkanEnabled = true
 #endif
@@ -152,6 +152,10 @@ var adaEngineDependencies: [Target.Dependency] = [
 adaEngineDependencies += ["X11"]
 #endif
 
+if isVulkanEnabled {
+    adaEngineDependencies += [.product(name: "Vulkan", package: "Vulkan")]
+}
+
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
@@ -169,9 +173,8 @@ let adaEngineTarget: Target = .target(
 let adaEngineEmbeddable: Target = .target(
     name: "AdaEngineEmbeddable",
     dependencies: ["AdaEngine"],
-    swiftSettings: [.interoperabilityMode(.Cxx)],
-    linkerSettings: [
-        .linkedLibrary("c++")
+    swiftSettings: [
+        .interoperabilityMode(.Cxx)
     ]
 )
 
@@ -289,6 +292,13 @@ if useLocalDeps {
         .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
         .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
         .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
-        .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
+        .package(url: "https://github.com/AdaEngine/libpng", branch: "main")
     ]
+}
+
+// MARK: - Vulkan -
+
+// We turn on vulkan via build
+if isVulkanEnabled {
+    package.dependencies.append(.package(path: "Modules/Vulkan"))
 }

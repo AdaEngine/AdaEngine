@@ -13,14 +13,15 @@ public enum DrawPassStorage {
     private static let lock: NSLock = NSLock()
     
     /// Get draw pass for render item.
-    public static func getDrawPass<I: RenderItem>(for item: I) -> AnyDrawPass<I>? {
+    public static func getDrawPass<I: RenderItem>(for item: I) -> (any DrawPass<I>)? {
         lock.lock()
         defer { lock.unlock() }
-        guard let drawPass = draws[item.drawPassId] else {
+        
+        guard let drawPass = draws[item.drawPassId] as? (any DrawPass<I>) else {
             return nil
         }
         
-        return AnyDrawPass(drawPass)
+        return drawPass
     }
     
     /// Store draw pass.
