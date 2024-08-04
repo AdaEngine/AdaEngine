@@ -109,14 +109,31 @@ struct CustomButtonStyle: ButtonStyle {
 
 struct ContentView: View {
     var body: some View {
-        ZStack {
-            Color.red
-                .frame(width: 100, height: 100)
+        VStack(spacing: 16) {
+            HStack(spacing: 32) {
+                ZStack {
+                    Color.green
+                        .frame(width: 100, height: 100)
 
-            Text("Kek")
-                .opacity(0.1)
+                    ImageView("Assets/dog.png", bundle: .editor)
+                        .resizable()
+                        .frame(width: 50, height: 50)
+                }
+
+                ZStack {
+                    Color.green
+                        .frame(width: 100, height: 100)
+
+                    ImageView("Assets/dog.png", bundle: .editor)
+                        .resizable()
+                        .frame(width: 50, height: 50)
+                }
+                .drawingGroup()
+            }
+
+            Text("Some sort of text")
+                .border(.red)
         }
-        .border(.green)
 //        Text("Kek")
 //            .border(.red)
 //            .foregroundColor(.white)

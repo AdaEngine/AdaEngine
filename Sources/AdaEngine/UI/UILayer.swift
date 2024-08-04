@@ -41,7 +41,7 @@ class UILayer {
         }
 
         if let texture = texture {
-            context.drawRect(frame, texture: texture, color: .white)
+            context.drawRect(Rect(origin: .zero, size: frame.size), texture: texture, color: .white)
         } else {
             self.texture = context.createLayer(from: self, drawBlock: { [weak self] context in
                 guard let self = self else {

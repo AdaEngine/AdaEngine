@@ -61,7 +61,6 @@ class ViewModifierNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = environment
-        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         contentNode.draw(with: context)
     }
 
