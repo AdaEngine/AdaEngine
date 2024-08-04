@@ -35,7 +35,7 @@ final class MacOSWindowManager: WindowManager {
         
         do {
             let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-            try RenderEngine.shared.createWindow(window.id, for: metalView, size: size)
+            try RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
         } catch {
             fatalError("Failed to create render window \(error)")
         }
