@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/31/22.
 //
 
-import AdaEngine
+@_spi(AdaEngineEditor) import AdaEngine
 import Observation
 
 @Observable
@@ -128,11 +128,12 @@ struct ContentView: View {
                         .resizable()
                         .frame(width: 50, height: 50)
                 }
-                .drawingGroup()
+//                .drawingGroup()
             }
 
             Text("Some sort of text")
-                .border(.red)
+
+            Spacer()
         }
 //        Text("Kek")
 //            .border(.red)
@@ -228,17 +229,148 @@ struct ContentView: View {
 //}
 
 class EditorWindow: UIWindow {
+
+    weak var inspectableView: LayoutInspectableView?
+
     override func windowDidReady() {
-        self.backgroundColor = .white
+        self.backgroundColor = .gray
+
+        let inspectableView = LayoutInspectableView()
+        inspectableView.backgroundColor = .white
+        inspectableView.autoresizingRules = [.flexibleWidth, .flexibleHeight]
+        self.addSubview(inspectableView)
+        self.inspectableView = inspectableView
 
         let view = UIContainerView(rootView: ContentView())
         view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
-        self.addSubview(view)
+        inspectableView.addSubview(view)
 
         // FIXME: SceneView doesnt render when UI does
         //        let scene = TilemapScene()
         //        let sceneView = SceneView(scene: scene, frame: Rect(origin: Point(x: 60, y: 60), size: Size(width: 250, height: 250)))
         //        sceneView.backgroundColor = .red
         //        self.addSubview(sceneView)
+    }
+
+    override func buildMenu(with builder: UIMenuBuilder) {
+        let menu = UIMenu(title: "Debug")
+        menu.add(MenuItem(
+            title: "Layout Inspector",
+            action: UIEventAction { [weak self] in
+                self?.inspectableView?.inspectLayout.toggle()
+            },
+            keyEquivalent: .l,
+            keyEquivalentModifierMask: .main
+        ))
+        menu.add(MenuItem(
+            title: "Draw debug borders Inspector",
+            action: UIEventAction { [weak self] in
+                self?.inspectableView?.drawDebugBorders.toggle()
+            },
+            keyEquivalent: .d,
+            keyEquivalentModifierMask: .main
+        ))
+
+        builder.insert(menu)
+    }
+}
+
+class LayoutInspectableView: UIView {
+
+    var speed: Float = 20
+    var pitch: Angle = Angle.radians(0)
+    var yaw: Angle = Angle.radians(-90)
+    let sensitivity: Float = 0.1
+
+    private var cameraUp: Vector3 = Vector3(0, 1, 0)
+    private var cameraFront: Vector3 = Vector3(0, 0, -1)
+
+    var lastMousePosition: Point = .zero
+    var inspectLayout = true
+    var drawDebugBorders = false
+
+    override func hitTest(_ point: Point, with event: InputEvent) -> UIView? {
+        if let event = (event as? MouseEvent), inspectLayout {
+            if event.button == .scrollWheel && event.modifierKeys.contains(.main) {
+                return self
+            }
+        }
+
+        return super.hitTest(point, with: event)
+    }
+
+    override func update(_ deltaTime: TimeInterval) async {
+        if !inspectLayout {
+            self.transform3D = .identity
+            self.zoom = 1
+            return
+        }
+
+        if isViewMatrixDirty {
+            self.transform3D = Transform3D.lookAt(
+                eye: transform3D.origin,
+                center: transform3D.origin + self.cameraFront,
+                up: self.cameraUp
+            )
+            .scaledBy(Vector3(zoom))
+
+            self.affineTransform = Transform2D(affineTransformFrom: self.transform3D)
+
+            isViewMatrixDirty = false
+        }
+
+        self.handleView()
+    }
+
+    override func draw(with context: UIGraphicsContext) {
+        var context = context
+        context._environment.drawDebugOutlines = drawDebugBorders
+        super.draw(with: context)
+    }
+
+    private var zoom: Float = 1
+    private var isViewMatrixDirty = true
+
+    override func onMouseEvent(_ event: MouseEvent) {
+        guard event.button == .scrollWheel, event.modifierKeys.contains(.main) else {
+            return
+        }
+
+        self.zoom += event.scrollDelta.y * sensitivity
+        print(zoom)
+        self.isViewMatrixDirty = true
+    }
+
+    private func handleView() {
+        guard Input.isMouseButtonPressed(.left) else {
+            return
+        }
+
+        let position = Input.getMousePosition()
+        var xoffset = position.x - self.lastMousePosition.x
+        var yoffset = self.lastMousePosition.y - position.y
+        self.lastMousePosition = position
+
+        let sensitivity: Float = 0.1
+        xoffset *= sensitivity
+        yoffset *= sensitivity
+
+        yaw   += xoffset
+        pitch += yoffset
+
+        if pitch.radians > 89.0 {
+            pitch = 89.0
+        } else if(pitch.radians < -89.0) {
+           pitch = -89.0
+        }
+
+        var direction = Vector3()
+        direction.x = Math.cos(yaw.radians) * Math.cos(pitch.radians)
+        direction.y = Math.sin(pitch.radians)
+        direction.z = Math.sin(yaw.radians) * Math.cos(pitch.radians)
+
+        self.cameraFront = direction.normalized
+
+        self.isViewMatrixDirty = true
     }
 }

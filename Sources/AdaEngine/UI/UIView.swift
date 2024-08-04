@@ -50,6 +50,7 @@ open class UIView {
     }
 
     public var backgroundColor: Color = .clear
+    private let debugViewColor = Color.random()
 
     public weak var window: UIWindow? {
         willSet {
@@ -61,7 +62,15 @@ open class UIView {
     }
 
     /// Affine matrix to apply any transformation to current view
-    public var affineTransform: Transform2D = .identity
+    public var affineTransform: Transform2D {
+        get {
+            return Transform2D(affineTransformFrom: self.transform3D)
+        }
+        set {
+            self.transform3D = Transform3D(fromAffineTransform: newValue)
+        }
+    }
+    public var transform3D: Transform3D = .identity
 
     // MARK: - Private Fields -
 
@@ -95,7 +104,8 @@ open class UIView {
     open func draw(in rect: Rect, with context: UIGraphicsContext) { }
 
     /// Internal method for drawing
-    internal func draw(with context: UIGraphicsContext) {
+    @_spi(AdaEngineEditor)
+    open func draw(with context: UIGraphicsContext) {
         if self.isHidden {
             return
         }
@@ -103,7 +113,7 @@ open class UIView {
         var context = context
 
         if affineTransform != .identity {
-            context.concatenate(Transform3D(from: affineTransform))
+            context.concatenate(Transform3D(fromAffineTransform: affineTransform))
         }
 
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
@@ -112,6 +122,10 @@ open class UIView {
         context.drawRect(self.bounds, color: self.backgroundColor)
 
         self.draw(in: self.bounds, with: context)
+
+        if context._environment.drawDebugOutlines {
+            context.drawDebugBorders(frame.size, color: debugViewColor)
+        }
 
         for subview in self.zSortedChildren {
             subview.draw(with: context)
@@ -161,6 +175,14 @@ open class UIView {
         if autoresizingRules.contains(.flexibleWidth) && self.frame.width != parentView.frame.width {
             self.frame.size.width = parentView.frame.width
             self.setNeedsLayout()
+        }
+    }
+    
+    func _buildMenu(with builder: UIMenuBuilder) {
+        self.buildMenu(with: builder)
+
+        for subview in subviews {
+            subview.buildMenu(with: builder)
         }
     }
 
@@ -290,13 +312,9 @@ open class UIView {
         return true
     }
 
-    open func onTouchesEvent(_ touches: Set<TouchEvent>) {
+    open func onTouchesEvent(_ touches: Set<TouchEvent>) { }
 
-    }
-
-    open func onMouseEvent(_ event: MouseEvent) {
-
-    }
+    open func onMouseEvent(_ event: MouseEvent) { }
 
     internal func onEvent(_ event: InputEvent) {
         switch event {
@@ -382,6 +400,7 @@ open class UIView {
 
     func internalUpdate(_ deltaTime: TimeInterval) async {
         self.layoutIfNeeded()
+        await self.update(deltaTime)
 
         for subview in self.subviews {
             await subview.internalUpdate(deltaTime)

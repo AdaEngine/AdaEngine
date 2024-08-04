@@ -7,13 +7,18 @@
 
 import Math
 
-public class UIContainerView<Content: View>: UIView {
+public class UIContainerView<Content: View>: UIView, ViewOwner {
+
+    var containerView: UIView? {
+        return self
+    }
 
     private let viewTree: ViewTree<Content>
 
     public init(rootView: Content) {
         self.viewTree = ViewTree(rootView: rootView)
         super.init()
+        viewTree.setViewOwner(self)
     }
 
     public override func layoutSubviews() {
@@ -21,7 +26,11 @@ public class UIContainerView<Content: View>: UIView {
 
         viewTree.rootNode.place(in: .zero, anchor: .zero, proposal: ProposedViewSize(self.frame.size))
     }
-    
+
+    public override func buildMenu(with builder: any UIMenuBuilder) {
+        viewTree.rootNode.buildMenu(with: builder)
+    }
+
     public required init(frame: Rect) {
         fatalError("init(frame:) has not been implemented")
     }

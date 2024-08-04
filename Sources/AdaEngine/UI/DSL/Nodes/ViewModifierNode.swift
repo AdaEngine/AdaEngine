@@ -45,6 +45,10 @@ class ViewModifierNode: ViewNode {
         contentNode.invalidateContent()
     }
 
+    override func buildMenu(with builder: any UIMenuBuilder) {
+       contentNode.buildMenu(with: builder)
+    }
+
     override func update(_ deltaTime: TimeInterval) async {
         await contentNode.update(deltaTime)
     }

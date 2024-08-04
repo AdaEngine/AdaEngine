@@ -18,3 +18,8 @@ public extension EnvironmentValues {
     /// The maximum number of lines that text can occupy in a view.
     @Entry var lineLimit: Int?
 }
+
+@_spi(AdaEngineEditor)
+public extension EnvironmentValues {
+    @Entry var drawDebugOutlines: Bool = false
+}

@@ -270,7 +270,7 @@ public extension Transform2D {
 }
 
 public extension Transform2D {
-    init(transform t: Transform3D) {
+    init(affineTransformFrom t: Transform3D) {
         let pos = t.origin
         self = Transform2D(
             [t[0, 0], t[1, 0], 0],

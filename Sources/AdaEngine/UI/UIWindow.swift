@@ -19,7 +19,7 @@ open class UIWindow: UIView {
     /// Identifier using to register window in the render engine.
     /// We use this id to start drawing.
     public let id: ID = RID()
-    
+
     public var title: String {
         get { self.systemWindow?.title ?? "" }
         set { self.systemWindow?.title = newValue }

@@ -16,8 +16,9 @@ final class MacOSWindowManager: UIWindowManager {
 
     public nonisolated override init() { }
 
+    private var menus: [UIWindow.ID: MacOSUIMenuBuilder] = [:]
+
     override func createWindow(for window: UIWindow) {
-        
         let minSize = UIWindow.defaultMinimumSize
         
         let frame = window.frame
@@ -42,7 +43,7 @@ final class MacOSWindowManager: UIWindowManager {
             backing: .buffered,
             defer: false
         )
-        
+
         systemWindow.contentView = metalView
         systemWindow.collectionBehavior = .fullScreenPrimary
         systemWindow.center()
@@ -56,7 +57,17 @@ final class MacOSWindowManager: UIWindowManager {
         
         super.createWindow(for: window)
     }
-    
+
+    override func menuBuilder(for window: UIWindow) -> (any UIMenuBuilder)? {
+        if let builder = self.menus[window.id] {
+            return builder
+        } else {
+            let builder = MacOSUIMenuBuilder(window: window)
+            self.menus[window.id] = builder
+            return builder
+        }
+    }
+
     override func showWindow(_ window: UIWindow, isFocused: Bool) {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
@@ -389,6 +400,112 @@ extension NSWindow: SystemWindow {
         set {
             self.setContentSize(NSSize(width: CGFloat(newValue.width), height: CGFloat(newValue.height)))
         }
+    }
+}
+
+final class MacOSUIMenuBuilder: UIMenuBuilder {
+
+    private weak var window: UIWindow?
+    private var isNeedsUpdate = true
+
+    private var menu: NSMenu? {
+        return (window?.systemWindow as? NSWindow)?.menu
+    }
+
+    init(window: UIWindow) {
+        self.window = window
+    }
+
+    func insert(_ menu: UIMenu) {
+        let nsMenu = makeNSMenu(from: menu)
+
+        let menuItem = NSMenuItem()
+        menuItem.title = menu.title
+        self.menu?.addItem(menuItem)
+        self.menu?.setSubmenu(nsMenu, for: menuItem)
+    }
+
+    func remove(_ menu: UIMenu.ID) {
+
+    }
+
+    func setNeedsUpdate() {
+        self.isNeedsUpdate = true
+    }
+
+    func updateIfNeeded() {
+        guard isNeedsUpdate else {
+            return
+        }
+
+        self.window?._buildMenu(with: self)
+        self.isNeedsUpdate = false
+    }
+
+    private func makeNSMenu(from menu: UIMenu) -> NSMenu {
+        let nsMenu = NSMenu(title: menu.title)
+        let items = menu.items.map(makeNSMenuItem(from:))
+
+        for item in items {
+            nsMenu.addItem(item)
+        }
+
+        return nsMenu
+    }
+
+    private func makeNSMenuItem(from item: MenuItem) -> NSMenuItem {
+        if item.isSeparator {
+            return .separator()
+        }
+
+        let nsItem = NSMenuItem()
+        nsItem.title = item.title
+        nsItem.target = self
+        nsItem.action = #selector(onActionPressed)
+        nsItem.submenu = item.submenu.flatMap { self.makeNSMenu(from: $0) }
+        nsItem.representedObject = item
+        if let key = item.keyEquivalent?.rawValue {
+            nsItem.keyEquivalent = key
+        }
+        if let modifier = item.keyEquivalentModifierMask {
+            nsItem.keyEquivalentModifierMask = makeKeyModifierMask(from: modifier)
+        }
+
+        return nsItem
+    }
+
+    private func makeKeyModifierMask(from modifier: KeyModifier) -> NSEvent.ModifierFlags {
+        var keyModifiers = NSEvent.ModifierFlags()
+
+        if modifier.contains(.alt) {
+            keyModifiers.insert(.option)
+        }
+
+        if modifier.contains(.main) {
+            keyModifiers.insert(.command)
+        }
+
+        if modifier.contains(.control) {
+            keyModifiers.insert(.control)
+        }
+
+        if modifier.contains(.shift) {
+            keyModifiers.insert(.shift)
+        }
+
+        if modifier.contains(.capsLock) {
+            keyModifiers.insert(.capsLock)
+        }
+
+        return keyModifiers
+    }
+
+    @objc func onActionPressed(_ nsItem: NSMenuItem) {
+        guard let item = nsItem.representedObject as? MenuItem else {
+            return
+        }
+
+        item.action?()
     }
 }
 
