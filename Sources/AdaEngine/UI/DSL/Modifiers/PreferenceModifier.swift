@@ -109,7 +109,7 @@ final class TransformPreferenceViewNode<K: PreferenceKey>: ViewModifierNode {
     }
 
     private func performChangeBlock() {
-        var value = self.preferences[K.self] ?? K.defaultValue
+        var value = self.preferences[K.self]
         self.block(&value)
         self.contentNode.updatePreference(key: K.self, value: value)
     }

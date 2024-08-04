@@ -87,7 +87,6 @@ public extension View {
 public struct ModifiedContent<Content, Modifier> {
     
     public var content: Content
-    
     public var modifier: Modifier
     
     @inlinable public init(content: Content, modifier: Modifier) {
@@ -122,7 +121,7 @@ public struct _ModifiedContent<Content: ViewModifier>: View {
         case .makeViewList(let block):
             let nodes = block(_ViewListInputs(input: inputs)).outputs.map { $0.node }
             let node = LayoutViewContainerNode(
-                layout: AnyLayout(inputs.layout),
+                layout: inputs.layout,
                 content: view.value,
                 nodes: nodes
             )

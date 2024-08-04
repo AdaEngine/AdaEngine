@@ -164,6 +164,8 @@ open class UIView {
         }
     }
 
+    open func buildMenu(with builder: UIMenuBuilder) { }
+
     open func layoutSubviews() {
         self.updateAutoresizingFrameIfNeeded()
 

@@ -19,6 +19,7 @@ final class ViewTree<Content: View> {
         self.rootView = rootView
         
         let inputs = _ViewInputs(
+            parentNode: nil,
             environment: EnvironmentValues()
         )
 

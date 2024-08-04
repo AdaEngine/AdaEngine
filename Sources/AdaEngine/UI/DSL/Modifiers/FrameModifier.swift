@@ -12,7 +12,7 @@ public extension View {
     /// - Returns: A view with fixed dimensions of width and height, for the parameters that are non-nil.
     func frame(width: Float? = nil, height: Float? = nil) -> some View {
         self.modifier(
-            FrameViewModifier(
+            _FrameViewModifier(
                 content: self,
                 frame: .size(width: width, height: height)
             )
@@ -20,7 +20,7 @@ public extension View {
     }
 }
 
-struct FrameViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
+struct _FrameViewModifier<Content: View>: ViewModifier, ViewNodeBuilder {
 
     typealias Body = Never
     let content: Content

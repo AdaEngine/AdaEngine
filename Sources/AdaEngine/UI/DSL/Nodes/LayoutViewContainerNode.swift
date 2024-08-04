@@ -14,7 +14,6 @@ class LayoutViewContainerNode: ViewContainerNode {
     init<L: Layout, Content: View>(layout: L, content: Content, nodes: [ViewNode]) {
         self.layout = AnyLayout(layout)
         super.init(content: content, nodes: nodes)
-
         self.updateLayoutProperties(L.layoutProperties)
     }
 
@@ -56,7 +55,7 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func invalidateContent() {
-        var inputs = _ViewInputs(environment: self.environment)
+        var inputs = _ViewInputs(parentNode: self, environment: self.environment)
         inputs.layout = self.layout
         let listInputs = _ViewListInputs(input: inputs)
         self.invalidateContent(with: listInputs)
