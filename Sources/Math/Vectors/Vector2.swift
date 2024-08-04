@@ -21,6 +21,13 @@ public struct Vector2: Hashable, Equatable, Codable {
         self.x = x
         self.y = y
     }
+
+    @inlinable
+    @inline(__always)
+    public init() {
+        self.x = 0
+        self.y = 0
+    }
 }
 
 public extension Vector2 {

@@ -22,7 +22,11 @@ public struct UIGraphicsContext {
 
     public var opacity: Float = 1
 
-    public internal(set) var environment: EnvironmentValues = EnvironmentValues()
+    public var environment: EnvironmentValues = EnvironmentValues()
+
+    // Used for internal and debug values.
+    @_spi(AdaEngineEditor)
+    public var _environment: EnvironmentValues = EnvironmentValues()
 
     @MainActor
     @preconcurrency

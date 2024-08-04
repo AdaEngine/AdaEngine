@@ -54,6 +54,7 @@ extension MetalView {
             button: .left,
             mousePosition: position,
             phase: .ended,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
             time: TimeInterval(event.timestamp)
         )
         
@@ -75,6 +76,7 @@ extension MetalView {
             button: .left,
             mousePosition: position,
             phase: isContinious ? .changed : .began,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
             time: TimeInterval(event.timestamp)
         )
         
@@ -86,7 +88,14 @@ extension MetalView {
         let position = self.mousePosition(for: event)
         Input.shared.mousePosition = position
 
-        let event = MouseEvent(window: self.windowID, button: .none, mousePosition: position, phase: .changed, time: TimeInterval(event.timestamp))
+        let event = MouseEvent(
+            window: self.windowID,
+            button: .none,
+            mousePosition: position,
+            phase: .changed,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
+            time: TimeInterval(event.timestamp)
+        )
         Input.shared.receiveEvent(event)
     }
 
@@ -94,7 +103,14 @@ extension MetalView {
         let position = self.mousePosition(for: event)
         Input.shared.mousePosition = position
 
-        let event = MouseEvent(window: self.windowID, button: .none, mousePosition: position, phase: .changed, time: TimeInterval(event.timestamp))
+        let event = MouseEvent(
+            window: self.windowID,
+            button: .none,
+            mousePosition: position,
+            phase: .changed,
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
+            time: TimeInterval(event.timestamp)
+        )
         Input.shared.receiveEvent(event)
     }
     
@@ -113,15 +129,15 @@ extension MetalView {
             scrollDelta: Point(x: deltaX, y: deltaY),
             mousePosition: self.mousePosition(for: event),
             phase: self.inputPhase(from: event.phase),
+            modifierKeys: KeyModifier(modifiers: event.modifierFlags),
             time: TimeInterval(event.timestamp)
         )
-        
+
         Input.shared.receiveEvent(mouseEvent)
     }
     
     public override func keyUp(with event: NSEvent) {
         let keyCode = MacOSKeyboard.shared.translateKey(from: event.keyCode)
-
         let modifers = KeyModifier(modifiers: event.modifierFlags)
         
         let keyEvent = KeyEvent(
