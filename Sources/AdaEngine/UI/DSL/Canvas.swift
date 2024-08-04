@@ -39,6 +39,7 @@ class CanvasViewNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = self.environment
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         self.drawBlock(&context, self.frame.size)
     }
 

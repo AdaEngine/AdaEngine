@@ -7,7 +7,6 @@
 
 import Math
 
-
 public struct ImageView: View, ViewNodeBuilder {
 
     public enum _Storage {
@@ -27,7 +26,7 @@ public struct ImageView: View, ViewNodeBuilder {
     }
 
     public init(_ path: String, bundle: Bundle) {
-        self.storage = .image(try! ResourceManager.loadSync(path, from: bundle))
+        self.storage = .texture(try! ResourceManager.loadSync(path, from: bundle))
     }
 
     public init(_ texture: Texture2D) {
@@ -95,9 +94,6 @@ final class ImageViewNode: ViewNode {
     }
 
     override func draw(with context: UIGraphicsContext) {
-        var context = context
-        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-
         let tintColor = renderMode == .original ? .white : tintColor ?? .white
         context.drawRect(self.frame, texture: self.texture, color: tintColor)
     }

@@ -68,12 +68,17 @@ open class Texture2D: Texture {
         case filePath = "file"
     }
     
-    public required init(asset decoder: any AssetDecoder) async throws {
-        let texture = try decoder.decode(Self.self)
-        self.width = texture.width
-        self.height = texture.height
-        
-        super.init(gpuTexture: texture.gpuTexture, sampler: texture.sampler, textureType: texture.textureType)
+    public convenience required init(asset decoder: any AssetDecoder) async throws {
+        if let texture = try? decoder.decode(Self.self) {
+            self.init(
+                gpuTexture: texture.gpuTexture,
+                sampler: texture.sampler,
+                size: SizeInt(width: texture.width, height: texture.height)
+            )
+        } else {
+            let image = try Image(asset: decoder)
+            self.init(image: image)
+        }
     }
     
     public convenience required init(from decoder: Decoder) throws {

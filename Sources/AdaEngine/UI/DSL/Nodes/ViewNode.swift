@@ -236,9 +236,9 @@ class ViewNode: Identifiable {
     func debugDescription(hierarchy: Int = 0, identation: Int = 2) -> String {
         let identation = String(repeating: " ", count: hierarchy * identation)
         return """
-        \(identation)\(type(of: self)):
-        \(identation)\(identation)- frame: \(frame)
-        \(identation)\(identation)- content: \(type(of: self.content))
+        \(identation)>\(type(of: self)):
+        \(identation) > frame: \(frame)
+        \(identation) > content: \(type(of: self.content))
         """
     }
 }

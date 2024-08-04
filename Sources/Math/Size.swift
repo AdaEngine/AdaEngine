@@ -28,6 +28,9 @@ public extension Size {
 public extension Size {
     @inline(__always)
     static let zero = Size(width: 0, height: 0)
+
+    @inline(__always)
+    static let infinity = Size(width: .infinity, height: .infinity)
 }
 
 extension Size: ExpressibleByArrayLiteral {

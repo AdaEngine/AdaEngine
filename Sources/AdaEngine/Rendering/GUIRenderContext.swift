@@ -78,7 +78,7 @@ public struct UIGraphicsContext {
         self.transform = self.transform.rotate(angle: angle, axis: .up)
     }
 
-    public mutating func clear() {
+    public mutating func clearTransform() {
         self.transform = .identity
     }
 

@@ -127,7 +127,7 @@ class GeometryReaderViewNode<Content: View>: ViewContainerNode {
     }
 
     override func invalidateContent() {
-        let context = _ViewInputs(environment: self.environment)
+        let context = _ViewInputs(parentNode: self, environment: self.environment)
         let proxy = GeometryProxy(
             namedCoordinateSpaceContainer: self.environment.coordinateSpaces,
             localFrame: self.frame

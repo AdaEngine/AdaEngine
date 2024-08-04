@@ -89,7 +89,7 @@ extension MetalView {
         let event = MouseEvent(window: self.windowID, button: .none, mousePosition: position, phase: .changed, time: TimeInterval(event.timestamp))
         Input.shared.receiveEvent(event)
     }
-    
+
     open override func mouseDragged(with event: NSEvent) {
         let position = self.mousePosition(for: event)
         Input.shared.mousePosition = position

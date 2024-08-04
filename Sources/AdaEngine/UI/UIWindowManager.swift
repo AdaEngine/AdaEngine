@@ -27,7 +27,7 @@ open class UIWindowManager {
     
     /// Contains active window if available.
     public private(set) var activeWindow: UIWindow?
-    
+
     public nonisolated init() { }
     
     /// Called each frame to update windows.

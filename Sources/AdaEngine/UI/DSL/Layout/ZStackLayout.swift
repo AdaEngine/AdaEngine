@@ -9,8 +9,14 @@ import Math
 
 // FIXME: Incorrect calculation of size
 
+public struct ZStackLayoutCache {
+    var minSizes: [Size] = []
+    var minSize: Size = .zero
+    var onlyContainsInfiniteViews = false
+}
+
 public struct ZStackLayout: Layout {
-    public typealias Cache = StackLayoutCache
+    public typealias Cache = ZStackLayoutCache
     public typealias AnimatableData = EmptyAnimatableData
 
     let anchor: AnchorPoint
@@ -20,13 +26,13 @@ public struct ZStackLayout: Layout {
     }
 
     public func makeCache(subviews: Subviews) -> Cache {
-        var cache = StackLayoutCache()
+        var cache = ZStackLayoutCache()
         self.updateCache(&cache, subviews: subviews)
         return cache
     }
 
-    public func updateCache(_ cache: inout StackLayoutCache, subviews: Subviews) {
-        cache = StackLayoutCache()
+    public func updateCache(_ cache: inout ZStackLayoutCache, subviews: Subviews) {
+        cache = ZStackLayoutCache()
 
         for subview in subviews {
             let minSize = subview.sizeThatFits(.unspecified)

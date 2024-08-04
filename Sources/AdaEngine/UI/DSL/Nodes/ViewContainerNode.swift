@@ -19,6 +19,9 @@ class ViewContainerNode: ViewNode {
 
     var nodes: [ViewNode]
 
+    /// Virtual container nodes used to move their child from this nodes to another.
+    var isVirtual: Bool = false
+
     /// Builder method returns a new children.
     private var body: ((_ViewListInputs) -> _ViewListOutputs)?
 
@@ -40,7 +43,6 @@ class ViewContainerNode: ViewNode {
             guard let self else {
                 return _ViewListOutputs(outputs: [])
             }
-
             let content = withObservationTracking(content) {
                 Task { @MainActor in
                     self.invalidateContent()
@@ -58,46 +60,14 @@ class ViewContainerNode: ViewNode {
         self.invalidateContent()
     }
 
+    /// Invalidate content with specific context.
     func invalidateContent(with inputs: _ViewListInputs) {
         guard let outputs = body?(inputs) else {
             return
         }
 
         let outputNodes = outputs.outputs.map { $0.node }
-
-        // We have same this, update old node with new one.
-        if self.nodes == outputNodes {
-            for (oldNode, newNode) in zip(self.nodes, outputNodes) {
-                oldNode.update(from: newNode)
-            }
-        } else {
-            // has different sizes.
-            let difference = outputNodes.difference(from: self.nodes)
-
-            for change in difference {
-                switch change {
-                case let .remove(index, _, _):
-                    self.nodes.remove(at: index)
-                case let .insert(index, newElement, _):
-                    newElement.parent = self
-                    self.nodes.insert(newElement, at: index)
-                }
-            }
-        }
-
-        for node in nodes {
-            node.updateEnvironment(environment)
-
-            if let owner = node.owner {
-                node.updateViewOwner(owner)
-            }
-        }
-
-        if shouldNotifyAboutChanges {
-            self._printDebugNode()
-        }
-
-        self.performLayout()
+        self.updateChildNodes(from: outputNodes)
     }
 
     override func isEquals(_ otherNode: ViewNode) -> Bool {
@@ -109,23 +79,33 @@ class ViewContainerNode: ViewNode {
     }
 
     override func invalidateContent() {
-        let inputs = _ViewInputs(environment: self.environment)
+        let inputs = _ViewInputs(
+            parentNode: self,
+            environment: self.environment
+        )
         let listInputs = _ViewListInputs(input: inputs)
         self.invalidateContent(with: listInputs)
     }
 
-    override func update(from newNode: ViewNode) {
-        super.update(from: newNode)
+    /// Compare and update old child nodes with a new nodes.
+    private func updateChildNodes(from newNodes: [ViewNode]) {
+        var needsLayout = false
+        var allNewNodes = [ViewNode]()
 
-        guard let container = newNode as? ViewContainerNode else {
-            return
+        // Unfold new nodes if needed
+        for node in newNodes {
+            if let container = node as? ViewContainerNode, container.isVirtual {
+                allNewNodes.append(contentsOf: container.nodes)
+
+                continue
+            }
+
+            allNewNodes.append(node)
         }
 
-        var needsLayout = false
-
         // We have same this, merge new nodes into old
-        if self.nodes.count == container.nodes.count {
-            for (index, (oldNode, newNode)) in zip(self.nodes, container.nodes).enumerated() {
+        if self.nodes.count == allNewNodes.count {
+            for (index, (oldNode, newNode)) in zip(self.nodes, allNewNodes).enumerated() {
                 if newNode.canUpdate(oldNode) {
                     oldNode.update(from: newNode)
                 } else {
@@ -135,8 +115,7 @@ class ViewContainerNode: ViewNode {
             }
         } else {
             // has different sizes.
-            let difference = container.nodes.difference(from: self.nodes)
-
+            let difference = allNewNodes.difference(from: self.nodes)
             for change in difference {
                 switch change {
                 case let .remove(index, _, _):
@@ -158,9 +137,23 @@ class ViewContainerNode: ViewNode {
             }
         }
 
+        if shouldNotifyAboutChanges {
+            self._printDebugNode()
+        }
+
         if needsLayout {
             self.performLayout()
         }
+    }
+
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+
+        guard let container = newNode as? ViewContainerNode else {
+            return
+        }
+
+        self.updateChildNodes(from: container.nodes)
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
@@ -235,7 +228,6 @@ class ViewContainerNode: ViewNode {
         var context = context
         context.environment = environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-
         for node in self.nodes {
             node.draw(with: context)
         }
@@ -247,7 +239,7 @@ class ViewContainerNode: ViewNode {
         let newValue = self.nodes.reduce(into: indent, { partialResult, node in
             partialResult += "\n" + node.debugDescription(hierarchy: hierarchy + 1, identation: identation)
         })
-        string.append("\n\(indent)- nodes:")
+        string.append("\n\(indent)> nodes:")
         string.append(newValue)
         return string
     }
