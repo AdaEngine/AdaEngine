@@ -29,10 +29,14 @@ open class UIWindowManager {
     public private(set) var activeWindow: UIWindow?
 
     public nonisolated init() { }
-    
+
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) async {
         for window in self.windows {
+
+            let menuBuilder = self.menuBuilder(for: window)
+            menuBuilder?.updateIfNeeded()
+
             for event in Input.shared.eventsPool where event.window == window.id {
                 window.sendEvent(event)
             }
@@ -46,6 +50,10 @@ open class UIWindowManager {
             
             await window.internalUpdate(deltaTime)
         }
+    }
+
+    open func menuBuilder(for window: UIWindow) -> UIMenuBuilder? {
+        return nil
     }
 
     /// Create platform window and register app window inside the manager.

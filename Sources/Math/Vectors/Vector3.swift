@@ -19,6 +19,14 @@ public struct Vector3: Hashable, Equatable, Codable {
         self.y = y
         self.z = z
     }
+
+    @inlinable
+    @inline(__always)
+    public init() {
+        self.x = 0
+        self.y = 0
+        self.z = 0
+    }
 }
 
 public extension Vector3 {

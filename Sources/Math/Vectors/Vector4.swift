@@ -21,6 +21,15 @@ public struct Vector4: Hashable, Equatable, Codable {
         self.z = z
         self.w = w
     }
+
+    @inlinable
+    @inline(__always)
+    public init() {
+        self.x = 0
+        self.y = 0
+        self.z = 0
+        self.w = 0
+    }
 }
 
 public extension Vector4 {

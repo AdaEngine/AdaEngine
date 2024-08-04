@@ -158,14 +158,25 @@ class ViewNode: Identifiable {
         self.owner = owner
     }
 
+    func buildMenu(with builder: UIMenuBuilder) { }
+
     // MARK: - Other
 
     func update(_ deltaTime: TimeInterval) async { }
 
+    private let debugNodeColor = Color.random()
+
     /// Perform draw view on the screen.
     func draw(with context: UIGraphicsContext) {
+        var context = context
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        
         if let layer = layer {
             layer.drawLayer(in: context)
+        }
+
+        if context._environment.drawDebugOutlines {
+            context.drawDebugBorders(frame.size, color: debugNodeColor)
         }
     }
     
@@ -253,6 +264,18 @@ extension ViewNode: Equatable, Hashable {
     }
 }
 
-class ViewOwner {
+protocol ViewOwner: AnyObject {
+    var window: UIWindow? { get }
+    var containerView: UIView? { get }
+}
 
+
+extension UIGraphicsContext {
+    func drawDebugBorders(_ size: Size, lineWidth: Float = 1, color: Color = .random()) {
+        let lineWidth: Float = 1
+        self.drawLine(start: Vector2(0, 0), end: Vector2(size.width, 0), lineWidth: lineWidth, color: color)
+        self.drawLine(start: Vector2(0, 0), end: Vector2(0, -size.height), lineWidth: lineWidth, color: color)
+        self.drawLine(start: Vector2(size.width, 0), end: Vector2(size.width, -size.height), lineWidth: lineWidth, color: color)
+        self.drawLine(start: Vector2(0, -size.height), end: Vector2(size.width, -size.height), lineWidth: lineWidth, color: color)
+    }
 }

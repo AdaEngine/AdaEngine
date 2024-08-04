@@ -13,8 +13,6 @@ final class ViewTree<Content: View> {
     let rootView: Content
     private(set) var rootNode: ViewRootNode
 
-    let viewOwner = ViewOwner()
-
     init(rootView: Content) {
         self.rootView = rootView
         
@@ -25,9 +23,12 @@ final class ViewTree<Content: View> {
 
         let contentNode = Content._makeView(_ViewGraphNode(value: rootView), inputs: inputs)
         self.rootNode = ViewRootNode(contentNode: contentNode.node, content: rootView)
-        rootNode.updateViewOwner(viewOwner)
     }
-    
+
+    func setViewOwner(_ owner: ViewOwner) {
+        self.rootNode.updateViewOwner(owner)
+    }
+
     func renderGraph(renderContext: UIGraphicsContext) {
         self.rootNode.draw(with: renderContext)
     }

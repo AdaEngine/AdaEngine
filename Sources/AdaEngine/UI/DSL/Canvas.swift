@@ -41,6 +41,8 @@ class CanvasViewNode: ViewNode {
         context.environment = self.environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         self.drawBlock(&context, self.frame.size)
+
+        super.draw(with: context)
     }
 
     override func update(from newNode: ViewNode) {

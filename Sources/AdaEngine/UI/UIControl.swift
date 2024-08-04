@@ -17,6 +17,10 @@ public final class UIEventAction: Hashable, Identifiable {
         self.callback = block
     }
 
+    public func callAsFunction() {
+        self.callback()
+    }
+
     // MARK: - Hashable
 
     public func hash(into hasher: inout Hasher) {
