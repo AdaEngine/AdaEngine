@@ -96,5 +96,6 @@ final class ImageViewNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         let tintColor = renderMode == .original ? .white : tintColor ?? .white
         context.drawRect(self.frame, texture: self.texture, color: tintColor)
+        super.draw(with: context)
     }
 }

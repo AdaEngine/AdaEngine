@@ -302,6 +302,12 @@ class Renderer2D {
         
         return context
     }
+
+    func setUniformBuffer(_ viewUniform: GlobalViewUniform) {
+        let frameIndex = RenderEngine.shared.currentFrameIndex
+        let buffer = self.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
+        buffer.setData(viewUniform)
+    }
 }
 
 extension Renderer2D {

@@ -18,7 +18,7 @@ class ViewModifierNode: ViewNode {
     }
 
     override func update(from newNode: ViewNode) {
-        guard let otherNode = newNode as? ViewModifierNode else {
+        guard let otherNode = newNode as? Self else {
             return
         }
 

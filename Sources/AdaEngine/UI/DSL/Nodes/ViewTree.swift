@@ -87,6 +87,10 @@ final class ViewRootNode: ViewNode {
         contentNode.onReceiveEvent(event)
     }
 
+    override func buildMenu(with builder: any UIMenuBuilder) {
+        contentNode.buildMenu(with: builder)
+    }
+
     override func onTouchesEvent(_ touches: Set<TouchEvent>) {
         contentNode.onTouchesEvent(touches)
     }

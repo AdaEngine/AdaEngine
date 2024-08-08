@@ -173,7 +173,7 @@ class ViewContainerNode: ViewNode {
 
         return nil
     }
-
+    
     override func buildMenu(with builder: any UIMenuBuilder) {
         for node in nodes {
             node.buildMenu(with: builder)

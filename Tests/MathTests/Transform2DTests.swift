@@ -33,7 +33,7 @@ class Transform2DTests: XCTestCase {
         
         // when
         let cgAffine = CATransform3DGetAffineTransform(caTransform)
-        let myAffine = Transform2D(transform: myTransform)
+        let myAffine = Transform2D(affineTransformFrom: myTransform)
         
         // then
         TestUtils.assertEqual(cgAffine, myAffine)

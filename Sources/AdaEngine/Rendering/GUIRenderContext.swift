@@ -16,17 +16,20 @@ public struct UIGraphicsContext {
 
     /// Window Identifier related presented window.
     private let camera: Camera
-    private(set) var transform: Transform3D = .identity
+    /// Returns current transform.
+    public private(set) var transform: Transform3D = .identity
     private(set) var currentDrawContext: Renderer2D.DrawContext?
     private var clipPath: Path?
 
     public var opacity: Float = 1
 
+    /// Values passed for render context.
     public var environment: EnvironmentValues = EnvironmentValues()
 
     // Used for internal and debug values.
-    @_spi(AdaEngineEditor)
-    public var _environment: EnvironmentValues = EnvironmentValues()
+    @_spi(AdaEngineEditor) public var _environment: EnvironmentValues = EnvironmentValues()
+
+    private var viewMatrix: Transform3D = .identity
 
     @MainActor
     @preconcurrency
@@ -55,11 +58,21 @@ public struct UIGraphicsContext {
             zNear: -1,
             zFar: 1
         )
+        self.viewMatrix = view
 
         self.currentDrawContext = Renderer2D.beginDrawContext(
             for: self.camera,
             viewUniform: GlobalViewUniform(
                 viewProjectionMatrix: view
+            )
+        )
+    }
+
+    @_spi(AdaEngineEditor)
+    public func _setViewMatrix(_ viewMatrix: Transform3D) {
+        Renderer2D.shared.setUniformBuffer(
+            GlobalViewUniform(
+                viewProjectionMatrix: viewMatrix * self.viewMatrix
             )
         )
     }
@@ -79,7 +92,7 @@ public struct UIGraphicsContext {
     }
 
     public mutating func rotate(by angle: Angle) {
-        self.transform = self.transform.rotate(angle: angle, axis: .up)
+        self.transform = Transform3D(quat: Quat(axis: Vector3(0, 0, 1), angle: angle.radians)) * self.transform
     }
 
     public mutating func clearTransform() {

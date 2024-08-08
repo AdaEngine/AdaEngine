@@ -47,6 +47,7 @@ class ViewNode: Identifiable {
 
     /// Contains position and size relative to parent view.
     private(set) var frame: Rect = .zero
+    var transform: Transform3D = .identity
     private(set) var layoutProperties = LayoutProperties()
 
     init<Content: View>(content: Content) {
@@ -119,7 +120,8 @@ class ViewNode: Identifiable {
             return true
         }
 
-        return false
+        /// Check that runtime type is equals.
+        return type(of: otherNode.content) == type(of: self.content)
     }
 
     /// Update current node with a new. This method called after ``invalidationContent()`` method
@@ -129,7 +131,7 @@ class ViewNode: Identifiable {
     }
 
     /// This method invalidate all stored views and create a new one.
-    func invalidateContent() { }
+    func invalidateContent() {}
 
     func invalidateLayerIfNeeded() {
         if let layer = self.layer {
@@ -164,7 +166,7 @@ class ViewNode: Identifiable {
 
     func update(_ deltaTime: TimeInterval) async { }
 
-    private let debugNodeColor = Color.random()
+    let debugNodeColor = Color.random()
 
     /// Perform draw view on the screen.
     func draw(with context: UIGraphicsContext) {
