@@ -94,6 +94,12 @@ final class ButtonViewNode: ViewModifierNode {
         self.updateEnvironment(viewInputs.environment)
     }
 
+    override func draw(with context: UIGraphicsContext) {
+        var context = context
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        super.draw(with: context)
+    }
+
     override func invalidateContent() {
         let body = self.body(self.state, self.environment)
         self.contentNode = body
@@ -126,8 +132,6 @@ final class ButtonViewNode: ViewModifierNode {
         guard self.point(inside: point, with: event) else {
             return nil
         }
-
-        print("KEK", point)
 
         if contentNode.hitTest(point, with: event) != nil {
             return self

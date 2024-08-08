@@ -60,8 +60,8 @@ public struct ButtonStyleConfiguration {
     }
 }
 
-extension View {
-    public func buttonStyle<S: ButtonStyle>(_ style: S) -> some View {
+public extension View {
+    func buttonStyle<S: ButtonStyle>(_ style: S) -> some View {
         self.environment(\.buttonStyle, style)
     }
 }
