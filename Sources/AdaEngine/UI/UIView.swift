@@ -341,7 +341,7 @@ open class UIView {
 
         switch event {
         case let event as MouseEvent:
-            let point = event.mousePosition
+            let point = convert(event.mousePosition, to: self)
             responder = self.hitTest(point, with: event)
         case let event as TouchEvent:
             let point = event.location

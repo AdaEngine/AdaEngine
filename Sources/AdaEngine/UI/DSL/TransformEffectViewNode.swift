@@ -13,9 +13,9 @@ public extension View {
     func scaleEffect(_ scale: Vector2, anchor: AnchorPoint = .center) -> some View {
         modifier(
             TransformViewModifier(
-                value: Vector3(scale, 1),
+                value: scale,
                 mapTransform: { transform, value in
-                    transform = Transform3D(scale: value)
+                    transform = Transform3D(scale: Vector3(value, 1))
                 },
                 anchor: anchor,
                 content: self
@@ -75,6 +75,8 @@ final class TransformEffectViewNode<Value: VectorArithmetic>: ViewModifierNode {
         self.updateTransform(value)
     }
 
+    private var localTransform = Transform3D.identity
+
     override func update(from newNode: ViewNode) {
         super.update(from: newNode)
 
@@ -82,26 +84,33 @@ final class TransformEffectViewNode<Value: VectorArithmetic>: ViewModifierNode {
             return
         }
 
-        self.environment.animationController?.addTweenAnimation(
-            from: TweenValue(animatableData: self.value),
-            to: TweenValue(animatableData: newNode.value),
-            label: self.id,
-            environment: self.environment,
-            updateBlock: self.updateTransform
-        )
+        if let animationController = self.environment.animationController {
+            animationController.addTweenAnimation(
+                from: TweenValue(animatableData: self.value),
+                to: TweenValue(animatableData: newNode.value),
+                label: self.id,
+                environment: self.environment,
+                updateBlock: { [weak self] value in
+                    self?.updateTransform(value.animatableData)
+                }
+            )
+
+            self.value = newNode.value
+        } else {
+            self.value = newNode.value
+            updateTransform(self.value)
+        }
     }
 
     private func updateTransform(_ value: Value) {
-        var transform = Transform3D.identity
-        print("Update rotation transform", value)
-        mapTransform(&transform, self.value)
-
-        self.transform = transform * self.transform
+        var transform = localTransform
+        mapTransform(&transform, value)
+        self.localTransform = transform
     }
 
     override func draw(with context: UIGraphicsContext) {
         var context = context
-        context.concatenate(self.transform.translatedBy(Vector3(anchor.x * self.frame.width, anchor.y * self.frame.height, 1)))
+        context.concatenate(self.localTransform)
         contentNode.draw(with: context)
     }
 }
