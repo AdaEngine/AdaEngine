@@ -22,10 +22,14 @@ struct DrawingGroupModifier<Content: View>: ViewModifier, ViewNodeBuilder {
 
 class DrawingGroupViewNode: ViewModifierNode {
     override func draw(with context: UIGraphicsContext) {
+        var context = context
+        context.translateBy(x: frame.origin.x, y: -frame.origin.y)
+
         if let layer = layer {
-            var context = context
-            context.translateBy(x: frame.origin.x, y: -frame.origin.y)
             layer.drawLayer(in: context)
+        }
+        if context._environment.drawDebugOutlines {
+            context.drawDebugBorders(frame.size, color: debugNodeColor)
         }
     }
 
@@ -41,7 +45,7 @@ class DrawingGroupViewNode: ViewModifierNode {
             }
             
             var context = context
-//            context.translateBy(x: -self.frame.origin.x, y: self.frame.origin.y)
+            context.translateBy(x: self.frame.origin.x, y: 0)
             self.contentNode.draw(with: context)
         }
         layer.debugLabel = "Drawing Group"

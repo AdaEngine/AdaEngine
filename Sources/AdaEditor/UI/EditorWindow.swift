@@ -108,33 +108,49 @@ struct CustomButtonStyle: ButtonStyle {
 }
 
 struct ContentView: View {
+
+    @State private var value: Float = 0
+
     var body: some View {
-        VStack(spacing: 16) {
-            HStack(spacing: 32) {
-                ZStack {
-                    Color.green
-                        .frame(width: 100, height: 100)
-
-                    ImageView("Assets/dog.png", bundle: .editor)
-                        .resizable()
-                        .frame(width: 50, height: 50)
+        Color.red
+            .frame(width: 40, height: 40)
+            .rotationEffect(.degrees(value))
+            .animation(.linear(duration: 10), value: value)
+            .border(.red)
+            .onAppear {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    value = 45
                 }
-
-                ZStack {
-                    Color.green
-                        .frame(width: 100, height: 100)
-
-                    ImageView("Assets/dog.png", bundle: .editor)
-                        .resizable()
-                        .frame(width: 50, height: 50)
-                }
-//                .drawingGroup()
             }
-
-            Text("Some sort of text")
-
-            Spacer()
-        }
+//        VStack(spacing: 16) {
+//            HStack(spacing: 32) {
+//                ZStack {
+//                    Color.green
+//                        .frame(width: 100, height: 100)
+//
+//                    ImageView("Assets/dog.png", bundle: .editor)
+//                        .resizable()
+//                        .frame(width: 50, height: 50)
+//                }
+//                .rotationEffect(.degrees(45))
+////                .scaleEffect([0.9, 1.3], anchor: .center)
+//                .border(.red)
+//
+//                ZStack {
+//                    Color.green
+//                        .frame(width: 100, height: 100)
+//
+//                    ImageView("Assets/dog.png", bundle: .editor)
+//                        .resizable()
+//                        .frame(width: 50, height: 50)
+//                }
+//                .drawingGroup()
+//            }
+//
+//            Text("Some sort of text")
+//
+//            Spacer()
+//        }
 //        Text("Kek")
 //            .border(.red)
 //            .foregroundColor(.white)
@@ -277,16 +293,18 @@ class EditorWindow: UIWindow {
 
 class LayoutInspectableView: UIView {
 
-    var speed: Float = 20
+    var speed: Float = 0.2
     var pitch: Angle = Angle.radians(0)
     var yaw: Angle = Angle.radians(-90)
     let sensitivity: Float = 0.1
 
+    private var cameraTransform = Transform3D.identity
     private var cameraUp: Vector3 = Vector3(0, 1, 0)
     private var cameraFront: Vector3 = Vector3(0, 0, -1)
+    private var viewMatrix: Transform3D = .identity
 
     var lastMousePosition: Point = .zero
-    var inspectLayout = true
+    var inspectLayout = false
     var drawDebugBorders = false
 
     override func hitTest(_ point: Point, with event: InputEvent) -> UIView? {
@@ -301,29 +319,30 @@ class LayoutInspectableView: UIView {
 
     override func update(_ deltaTime: TimeInterval) async {
         if !inspectLayout {
-            self.transform3D = .identity
-            self.zoom = 1
+            self.viewMatrix = .identity
+            self.cameraTransform = .identity
+            self.cameraFront = Vector3(0, 0, -1)
             return
         }
 
         if isViewMatrixDirty {
-            self.transform3D = Transform3D.lookAt(
-                eye: transform3D.origin,
-                center: transform3D.origin + self.cameraFront,
+            self.viewMatrix = Transform3D.lookAt(
+                eye: cameraTransform.origin,
+                center: cameraTransform.origin + self.cameraFront,
                 up: self.cameraUp
             )
-            .scaledBy(Vector3(zoom))
-
-            self.affineTransform = Transform2D(affineTransformFrom: self.transform3D)
 
             isViewMatrixDirty = false
         }
 
-        self.handleView()
+        self.handleView(deltaTime)
     }
 
     override func draw(with context: UIGraphicsContext) {
         var context = context
+        if viewMatrix != .identity {
+            context.concatenate(viewMatrix)
+        }
         context._environment.drawDebugOutlines = drawDebugBorders
         super.draw(with: context)
     }
@@ -336,12 +355,32 @@ class LayoutInspectableView: UIView {
             return
         }
 
-        self.zoom += event.scrollDelta.y * sensitivity
-        print(zoom)
+        self.cameraTransform.origin += event.scrollDelta.y * sensitivity * speed * cameraFront
         self.isViewMatrixDirty = true
     }
 
-    private func handleView() {
+    private func handleView(_ deltaTime: TimeInterval) {
+
+        if Input.isKeyPressed(.w) {
+            cameraTransform.origin += speed * cameraFront * deltaTime
+            self.isViewMatrixDirty = true
+        }
+
+        if Input.isKeyPressed(.a) {
+            cameraTransform.origin -= cross(cameraFront, cameraUp).normalized * speed * deltaTime
+            self.isViewMatrixDirty = true
+        }
+
+        if Input.isKeyPressed(.d) {
+            cameraTransform.origin += cross(cameraFront, cameraUp).normalized * speed * deltaTime
+            self.isViewMatrixDirty = true
+        }
+
+        if Input.isKeyPressed(.s) {
+            cameraTransform.origin -= speed * cameraFront * deltaTime
+            self.isViewMatrixDirty = true
+        }
+
         guard Input.isMouseButtonPressed(.left) else {
             return
         }

@@ -25,6 +25,12 @@ public extension Size {
     }
 }
 
+public extension Vector2 {
+    var asSize: Size {
+        unsafeBitCast(self, to: Size.self)
+    }
+}
+
 public extension Size {
     @inline(__always)
     static let zero = Size(width: 0, height: 0)

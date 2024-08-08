@@ -182,7 +182,7 @@ open class UIView {
         self.buildMenu(with: builder)
 
         for subview in subviews {
-            subview.buildMenu(with: builder)
+            subview._buildMenu(with: builder)
         }
     }
 
