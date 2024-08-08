@@ -90,7 +90,6 @@ struct CustomButtonStyle: ButtonStyle {
         configuration
             .label
             .foregroundColor(.white)
-            .frame(width: 100, height: 100)
             .font(Font.system(size: 18, weight: .bold))
             .background(self.background(in: configuration))
             .border(.black)
@@ -109,19 +108,24 @@ struct CustomButtonStyle: ButtonStyle {
 
 struct ContentView: View {
 
-    @State private var value: Float = 0
+    @State private var isAnimated: Bool = false
 
     var body: some View {
-        Color.red
-            .frame(width: 40, height: 40)
-            .rotationEffect(.degrees(value))
-            .animation(.linear(duration: 10), value: value)
-            .border(.red)
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    value = 45
-                }
+        VStack {
+            Color.red
+                .frame(width: 40, height: 40)
+                .scaleEffect(isAnimated ? Vector2(1.3, 1.3) : Vector2.one)
+                .rotationEffect(.degrees(isAnimated ? -23 : 0))
+                .animation(.linear(duration: 3), value: isAnimated)
+                .border(.red)
+
+            Button {
+                isAnimated.toggle()
+            } label: {
+                Text("Animate")
             }
+            .buttonStyle(CustomButtonStyle())
+        }
 //        VStack(spacing: 16) {
 //            HStack(spacing: 32) {
 //                ZStack {

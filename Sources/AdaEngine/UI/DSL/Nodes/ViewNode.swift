@@ -100,7 +100,21 @@ class ViewNode: Identifiable {
             y: origin.y - size.height * anchor.y
         )
 
-        self.frame = Rect(origin: offset, size: size)
+        let newFrame = Rect(origin: offset, size: size)
+
+//        if let animationController = environment.animationController, newFrame != self.frame {
+//            animationController.addTweenAnimation(
+//                from: self.frame,
+//                to: newFrame,
+//                label: "Position Animation \(self.id.hashValue)",
+//                environment: self.environment
+//            ) { newValue in
+//                    self.frame = newValue
+//                    print("set new frame", newValue, "Expected" , newFrame)
+//                }
+//        } else {
+            self.frame = newFrame
+//        }
 
         self.performLayout()
     }
@@ -196,7 +210,7 @@ class ViewNode: Identifiable {
 
     /// - Returns: true if point is inside the receiver’s bounds; otherwise, false.
     func point(inside point: Point, with event: InputEvent) -> Bool {
-        return self.frame.contains(point: point)
+        return point.x >= 0 && point.y >= 0 && point.x <= frame.width && point.y <= frame.height
     }
 
     func convert(_ point: Point, to node: ViewNode?) -> Point {

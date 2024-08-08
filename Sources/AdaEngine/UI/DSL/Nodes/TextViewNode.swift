@@ -51,28 +51,38 @@ final class TextViewNode: ViewNode {
         return size
     }
 
-    override func update(from newNode: ViewNode) {
-        super.update(from: newNode)
+    override func draw(with context: UIGraphicsContext) {
+        var context = context
+        context.environment = environment
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        let layout = Text.Layout(lines: self.layoutManager.textLines)
+        self.textRenderer.draw(layout: layout, in: &context)
 
-        guard let textNode = newNode as? TextViewNode else {
-            return
-        }
-
-        self.textRenderer = textNode.textRenderer
-        self.invalidateLayerIfNeeded()
+        super.draw(with: context)
     }
 
-    override func createLayer() -> UILayer? {
-        let layer = UILayer(frame: self.frame, drawBlock: { [weak self] context, size in
-            guard let self else {
-                return
-            }
-            let layout = Text.Layout(lines: self.layoutManager.textLines)
-            self.textRenderer.draw(layout: layout, in: &context)
-        })
-        layer.debugLabel = self.textContainer.text.text
-        return layer
-    }
+//    override func update(from newNode: ViewNode) {
+//        super.update(from: newNode)
+//
+//        guard let textNode = newNode as? TextViewNode else {
+//            return
+//        }
+//
+//        self.textRenderer = textNode.textRenderer
+//        self.invalidateLayerIfNeeded()
+//    }
+
+//    override func createLayer() -> UILayer? {
+//        let layer = UILayer(frame: self.frame, drawBlock: { [weak self] context, size in
+//            guard let self else {
+//                return
+//            }
+//            let layout = Text.Layout(lines: self.layoutManager.textLines)
+//            self.textRenderer.draw(layout: layout, in: &context)
+//        })
+//        layer.debugLabel = self.textContainer.text.text
+//        return layer
+//    }
 }
 
 struct DefaultRichTextRenderer: TextRenderer {

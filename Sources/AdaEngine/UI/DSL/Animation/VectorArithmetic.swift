@@ -44,7 +44,7 @@ extension Double: VectorArithmetic {
     }
 
     public mutating func scale(by rhs: Double) {
-        self *= self
+        self *= rhs
     }
 }
 
@@ -54,7 +54,7 @@ extension Float: VectorArithmetic {
     }
 
     public mutating func scale(by rhs: Double) {
-        self *= Float(self)
+        self *= Float(rhs)
     }
 }
 
@@ -91,5 +91,21 @@ extension Math.Vector4: VectorArithmetic {
         self.y.scale(by: rhs)
         self.z.scale(by: rhs)
         self.w.scale(by: rhs)
+    }
+}
+
+extension Rect: Animatable {
+    public var animatableData: AnimatablePair<Vector2, Vector2> {
+        get {
+            return AnimatablePair(
+                self.origin,
+                self.size.asVector2
+            )
+        }
+
+        set {
+            self.origin = newValue.first
+            self.size = Size(width: newValue.second.x, height: newValue.second.y)
+        }
     }
 }

@@ -29,13 +29,15 @@ final class UIAnimationController {
         var label: AnyHashable
         var fromValue: T
         var toValue: T
-        let updateBlock: (T.AnimatableData) -> Void
+        var currentValue: T!
+        let updateBlock: (T) -> Void
         var currentDuration: TimeInterval = 0
-        var animationContext: AnimationContext<Float>
+        var animationContext: AnimationContext<T.AnimatableData>
 
         mutating func updateAnimation(_ deltaTime: TimeInterval) {
             if state == .idle {
                 state = .playing
+                currentValue = fromValue
             }
 
             if state == .done {
@@ -43,9 +45,12 @@ final class UIAnimationController {
             }
 
             self.currentDuration += deltaTime
-            if let value = self.animation.base.animate(self.fromValue.animatableData, time: self.currentDuration, context: &animationContext) {
-                self.updateBlock(newValue)
+            if let value = self.animation.base.animate(fromValue.animatableData - toValue.animatableData, time: self.currentDuration, context: &animationContext) {
+                currentValue.animatableData = fromValue.animatableData - value
+                self.updateBlock(currentValue)
                 return
+            } else {
+                self.updateBlock(toValue)
             }
 
             self.state = .done
@@ -64,10 +69,11 @@ final class UIAnimationController {
         to endValue: T,
         label: AnyHashable,
         environment: EnvironmentValues,
-        updateBlock: @escaping (T.AnimatableData) -> Void
+        updateBlock: @escaping (T) -> Void
     ) {
-        if self.transactions.contains(where: { $0.label == label }) {
-            return
+        if let index = self.transactions.firstIndex(where: { $0.label == label }) {
+            // If we add same animation -> remove previous and add a new one.
+            self.transactions.remove(at: index)
         }
         self.transactions.append(
             TweenAnimation(
@@ -94,16 +100,13 @@ final class UIAnimationController {
             return
         }
 
-        for index in transactions.indices {
-            var transaction = transactions[index]
+        for (index, transaction) in transactions.enumerated() {
+            var transaction = transaction
             transaction.updateAnimation(deltaTime)
             transactions[index] = transaction
-
-            if transaction.state == .done {
-                print("animation finished")
-                transactions.remove(at: index)
-            }
         }
+
+        transactions.removeAll(where: { $0.state == .done })
 
         if transactions.isEmpty {
             self.isPlaying = false

@@ -61,3 +61,32 @@ public struct EmptyAnimatableData: VectorArithmetic {
 
     public var magnitudeSquared: Double { return 0 }
 }
+
+public struct AnimatablePair<First: VectorArithmetic, Second: VectorArithmetic>: VectorArithmetic {
+    public var first: First
+    public var second: Second
+
+    public init(_ first: First, _ second: Second) {
+        self.first = first
+        self.second = second
+    }
+
+    public mutating func scale(by rhs: Double) {
+        self.first.scale(by: rhs)
+        self.second.scale(by: rhs)
+    }
+
+    public var magnitudeSquared: Double {
+        self.first.magnitudeSquared * self.second.magnitudeSquared
+    }
+
+    public static func - (lhs: Self, rhs: Self) -> Self {
+        AnimatablePair(lhs.first - rhs.first, lhs.second - rhs.second)
+    }
+
+    public static func + (lhs: Self, rhs: Self) -> Self {
+        AnimatablePair(lhs.first + rhs.first, lhs.second + rhs.second)
+    }
+
+    public static var zero: AnimatablePair<First, Second> { return AnimatablePair(First.zero, Second.zero) }
+}

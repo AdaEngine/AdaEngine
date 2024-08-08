@@ -65,10 +65,12 @@ final class ViewRootNode: ViewNode {
 
     override func draw(with context: UIGraphicsContext) {
         contentNode.draw(with: context)
+        super.draw(with: context)
     }
 
     override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
-        contentNode.hitTest(point, with: event)
+        let newPoint = contentNode.convert(point, from: self)
+        return contentNode.hitTest(newPoint, with: event)
     }
 
     override func point(inside point: Point, with event: InputEvent) -> Bool {

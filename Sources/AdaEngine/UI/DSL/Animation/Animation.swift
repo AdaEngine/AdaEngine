@@ -33,7 +33,7 @@ struct LinearAnimation: CustomAnimation {
         guard time < duration else {
             return nil
         }
-
+        
         return value.scaled(by: Double(time/duration))
     }
 
@@ -65,8 +65,8 @@ public extension Animation {
     }
 
     func delay(_ duration: TimeInterval) -> Animation {
-        let delay = DelayAnimation(duration: duration)
-        return Animation(CombineAnimation(left: duration, right: self))
+        let delay = Animation(DelayAnimation(duration: duration))
+        return Animation(CombineAnimation(left: delay, right: self))
     }
 }
 
@@ -92,5 +92,10 @@ struct CombineAnimation: CustomAnimation {
         }
 
         return right.base.animate(value, time: time, context: &context)
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(left.base)
+        hasher.combine(right.base)
     }
 }
