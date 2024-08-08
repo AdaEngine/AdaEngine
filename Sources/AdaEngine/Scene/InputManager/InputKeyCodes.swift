@@ -36,7 +36,8 @@ public enum KeyCode: String, Hashable, CaseIterable {
     case capslock
     case ctrl
     case alt
-    case meta // "Command" button for macOS/iOS and "Windows" button for Windows/Linux
+    /// "Command" button for macOS/iOS and "Windows" button for Windows/Linux
+    case meta
 
     case home
     case pageUp
