@@ -19,10 +19,19 @@ public protocol RenderNode {
     
     /// Specifies the produced output slots for this node.
     var outputResources: [RenderSlot] { get }
-    
+
+    /// Runtime key for link slot and node together.
+    static var name: String { get }
+
     /// Execute the graph node logic, issues draw calls, updates the output slots and optionally queues up subgraphs for execution. The graph data, input and output values are
     /// passed via the ``RenderGraphContext``.
     func execute(context: Context) async throws -> [RenderSlotValue]
+}
+
+public extension RenderNode {
+    static var name: String {
+        String(describing: self)
+    }
 }
 
 public extension RenderNode {
@@ -31,6 +40,12 @@ public extension RenderNode {
     }
     
     var outputResources: [RenderSlot] {
+        return []
+    }
+}
+
+public struct EmptyRenderNode: RenderNode {
+    public func execute(context: Context) async throws -> [RenderSlotValue] {
         return []
     }
 }

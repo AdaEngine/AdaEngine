@@ -19,6 +19,14 @@ public extension EnvironmentValues {
     @Entry var lineLimit: Int?
 }
 
+public extension EnvironmentValues {
+    /// The game scene where view attached.
+    @Entry internal(set) var scene: Scene?
+
+    /// The entity that contains the attched view.
+    @Entry internal(set) var entity: Entity?
+}
+
 @_spi(AdaEngineEditor)
 public extension EnvironmentValues {
     @Entry var drawDebugOutlines: Bool = false

@@ -68,15 +68,6 @@ public struct UIGraphicsContext {
         )
     }
 
-    @_spi(AdaEngineEditor)
-    public func _setViewMatrix(_ viewMatrix: Transform3D) {
-        Renderer2D.shared.setUniformBuffer(
-            GlobalViewUniform(
-                viewProjectionMatrix: viewMatrix * self.viewMatrix
-            )
-        )
-    }
-
     public mutating func concatenate(_ transform: Transform3D) {
         self.transform = transform * self.transform
     }

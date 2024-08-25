@@ -69,7 +69,7 @@ final class VisibilityViewNode: ViewModifierNode {
     var onDisappear: (() -> Void)?
 
     private var isAppeared = false
-
+    
     override func draw(with context: UIGraphicsContext) {
         if self.parent?.frame.intersects(self.frame) == true {
             if !isAppeared {

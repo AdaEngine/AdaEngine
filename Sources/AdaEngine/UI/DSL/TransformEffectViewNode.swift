@@ -23,6 +23,7 @@ public extension View {
         )
     }
 
+    /// Rotates a view’s rendered output in two dimensions around the specified point.
     func rotationEffect(_ angle: Angle) -> some View {
         modifier(
             TransformViewModifier(

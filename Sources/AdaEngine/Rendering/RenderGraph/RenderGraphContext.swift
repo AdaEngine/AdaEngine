@@ -26,15 +26,18 @@ public final class RenderGraphContext {
 
 public extension RenderGraphContext {
     
+    // FIXME: Should throws error!
     @RenderGraphActor
     func runSubgraph(by name: String, inputs: [RenderSlotValue]) async {
-        guard let graph = self.graph.subGraphs[name], let inputResources = graph.entryNode?.node.inputResources else {
+        guard let graph = self.graph.subGraphs[name] else {
             return
         }
-        
-        for (index, inputResource) in inputResources.enumerated() {
-            if inputs[index].value.resourceKind != inputResource.kind {
-                return
+
+        if let inputResources = graph.entryNode?.node.inputResources {
+            for (index, inputResource) in inputResources.enumerated() {
+                if inputs[index].value.resourceKind != inputResource.kind {
+                    return
+                }
             }
         }
         

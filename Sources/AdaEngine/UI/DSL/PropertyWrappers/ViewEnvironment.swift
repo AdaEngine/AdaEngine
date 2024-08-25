@@ -137,7 +137,7 @@ public struct EnvironmentValues {
     
     /// Creates an environment values instance.
     public init() { }
-    
+
     /// Accesses the environment value associated with a custom key.
     public subscript<K: EnvironmentKey>(_ type: K.Type) -> K.Value {
         get {
@@ -146,5 +146,9 @@ public struct EnvironmentValues {
         set {
             self.values[ObjectIdentifier(type)] = newValue
         }
+    }
+
+    mutating func merge(_ newValue: EnvironmentValues) {
+        self.values.merge(newValue.values, uniquingKeysWith: { $1 })
     }
 }

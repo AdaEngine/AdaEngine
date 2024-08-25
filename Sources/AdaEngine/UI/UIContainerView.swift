@@ -13,7 +13,7 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
         return self
     }
 
-    private let viewTree: ViewTree<Content>
+    let viewTree: ViewTree<Content>
 
     public init(rootView: Content) {
         self.viewTree = ViewTree(rootView: rootView)
@@ -43,9 +43,15 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
         return self
     }
 
+    private var lastOnMouseEventNode: ViewNode?
     public override func onMouseEvent(_ event: MouseEvent) {
         if let viewNode = self.viewTree.rootNode.hitTest(event.mousePosition, with: event) {
             viewNode.onMouseEvent(event)
+
+            if lastOnMouseEventNode !== viewNode {
+                lastOnMouseEventNode?.onMouseLeave()
+                lastOnMouseEventNode = viewNode
+            }
         }
     }
 

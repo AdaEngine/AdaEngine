@@ -41,6 +41,14 @@ class ViewModifierNode: ViewNode {
         return contentNode.findNodeById(id)
     }
 
+    override func findNodyByAccessibilityIdentifier(_ identifier: String) -> ViewNode? {
+        if let node = super.findNodyByAccessibilityIdentifier(identifier) {
+            return node
+        }
+
+        return contentNode.findNodyByAccessibilityIdentifier(identifier)
+    }
+
     override func invalidateContent() {
         contentNode.invalidateContent()
     }

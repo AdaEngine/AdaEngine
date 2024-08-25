@@ -17,11 +17,23 @@ public protocol CustomAnimation: Hashable {
 
     /// The default implementation of this method returns nil.
     func velocity<V: VectorArithmetic>(_ value: V, time: TimeInterval, context: inout AnimationContext<V>) -> V?
+
+    /// Determines whether an instance of the animation can merge with other instance of the same type.
+    func shouldMerge<V>(
+        previous: Animation,
+        value: V,
+        time: TimeInterval,
+        context: inout AnimationContext<V>
+    ) -> Bool where V : VectorArithmetic
 }
 
 public extension CustomAnimation {
     func velocity<V>(_ value: V, time: TimeInterval, context: inout AnimationContext<V>) -> V? where V : VectorArithmetic {
         return nil
+    }
+
+    func shouldMerge<V>(previous: Animation, value: V, time: TimeInterval, context: inout AnimationContext<V>) -> Bool where V : VectorArithmetic {
+        return false
     }
 }
 

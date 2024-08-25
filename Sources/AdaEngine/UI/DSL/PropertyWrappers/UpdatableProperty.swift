@@ -30,7 +30,9 @@ class UpdatablePropertyStorage {
         }
     }
 
-    func registerNodeToUpdate(_ ViewNode: ViewNode) {
-        nodes.insert(ViewNode)
+    @MainActor
+    func registerNodeToUpdate(_ viewNode: ViewNode) {
+        nodes.insert(viewNode)
+        viewNode.storages.insert(self)
     }
 }

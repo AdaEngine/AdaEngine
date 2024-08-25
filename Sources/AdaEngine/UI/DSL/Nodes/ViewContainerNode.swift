@@ -173,7 +173,21 @@ class ViewContainerNode: ViewNode {
 
         return nil
     }
-    
+
+    override func findNodyByAccessibilityIdentifier(_ identifier: String) -> ViewNode? {
+        if let node = super.findNodyByAccessibilityIdentifier(identifier) {
+            return node
+        }
+        
+        for node in self.nodes {
+            if let foundNode = node.findNodyByAccessibilityIdentifier(identifier) {
+                return foundNode
+            }
+        }
+
+        return nil
+    }
+
     override func buildMenu(with builder: any UIMenuBuilder) {
         for node in nodes {
             node.buildMenu(with: builder)

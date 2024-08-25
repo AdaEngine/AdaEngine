@@ -24,13 +24,13 @@ public struct Scene2DPlugin: ScenePlugin {
         scene.addSystem(BatchTransparent2DItemsSystem.self)
 
         // Add Render graph
-        let graph = RenderGraph()
+        let graph = RenderGraph(label: "Scene2D")
 
         let entryNode = graph.addEntryNode(inputs: [
             RenderSlot(name: InputNode.view, kind: .entity)
         ])
 
-        graph.addNode(with: Main2DRenderNode.name, node: Main2DRenderNode())
+        graph.addNode(Main2DRenderNode())
         graph.addSlotEdge(
             fromNode: entryNode,
             outputSlot: InputNode.view,
@@ -44,8 +44,6 @@ public struct Scene2DPlugin: ScenePlugin {
 
 /// This render node responsible for rendering ``Transparent2DRenderItem``.
 public struct Main2DRenderNode: RenderNode {
-    
-    public static let name: String = "main_pass_2d"
     
     /// Input slots of render node.
     public enum InputNode {
@@ -64,7 +62,6 @@ public struct Main2DRenderNode: RenderNode {
         }
         
         let (camera, renderItems) = entity.components[Camera.self, RenderItems<Transparent2DRenderItem>.self]
-        
         if case .window(let id) = camera.renderTarget, id == .empty {
             return []
         }
@@ -73,7 +70,6 @@ public struct Main2DRenderNode: RenderNode {
         let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .gray
         
         let drawList: DrawList
-        
         switch camera.renderTarget {
         case .window(let windowId):
             drawList = RenderEngine.shared.beginDraw(for: windowId, clearColor: clearColor)
@@ -101,9 +97,7 @@ public struct Main2DRenderNode: RenderNode {
         }
         
         try sortedRenderItems.render(drawList, world: context.world, view: entity)
-        
         RenderEngine.shared.endDrawList(drawList)
-        
         return []
     }
 }

@@ -37,10 +37,14 @@ class ViewNode: Identifiable {
 
     var layer: UILayer?
     private(set) weak var owner: ViewOwner?
+    /// hold storages that can invalidate that view node.
+    var storages: WeakSet<UpdatablePropertyStorage> = []
 
     private var isAttached: Bool {
         return owner != nil
     }
+
+    var accessibilityIdentifier: String?
 
     /// Contains current environment values.
     private(set) var environment = EnvironmentValues()
@@ -60,6 +64,10 @@ class ViewNode: Identifiable {
         return nil
     }
 
+    func findNodyByAccessibilityIdentifier(_ identifier: String) -> ViewNode? {
+        return identifier == self.accessibilityIdentifier ? self : nil
+    }
+
     /// Set a new content for view node.
     /// - Note: This method don't call ``invalidateContent()`` method
     func setContent<Content: View>(_ content: Content) {
@@ -76,7 +84,7 @@ class ViewNode: Identifiable {
     /// Updates stored environment.
     /// Called each time, when environment values did change.
     func updateEnvironment(_ environment: EnvironmentValues) {
-        self.environment = environment
+        self.environment.merge(environment)
     }
 
     /// Update layout properties for view. 

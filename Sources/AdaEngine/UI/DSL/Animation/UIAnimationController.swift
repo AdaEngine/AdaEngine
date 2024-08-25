@@ -25,7 +25,7 @@ final class UIAnimationController {
 
     struct TweenAnimation<T: Animatable>: _AnimationTransaction {
         var state: _AnimationState = .idle
-        let animation: Animation
+        var animation: Animation
         var label: AnyHashable
         var fromValue: T
         var toValue: T
@@ -55,6 +55,22 @@ final class UIAnimationController {
 
             self.state = .done
         }
+
+        mutating func shouldMerge(_ tween: TweenAnimation<T>) -> Bool {
+            return tween.animation.base.shouldMerge(
+                previous: self.animation,
+                value: fromValue.animatableData - toValue.animatableData,
+                time: self.currentDuration,
+                context: &animationContext
+            )
+        }
+
+        mutating func updateTween(_ tween: TweenAnimation<T>) {
+            self.animation = tween.animation
+            self.fromValue = tween.fromValue
+            self.currentValue = tween.fromValue
+            self.toValue = tween.toValue
+        }
     }
 
     let animation: Animation
@@ -71,20 +87,30 @@ final class UIAnimationController {
         environment: EnvironmentValues,
         updateBlock: @escaping (T) -> Void
     ) {
-        if let index = self.transactions.firstIndex(where: { $0.label == label }) {
-            // If we add same animation -> remove previous and add a new one.
-            self.transactions.remove(at: index)
-        }
-        self.transactions.append(
-            TweenAnimation(
-                animation: self.animation,
-                label: label,
-                fromValue: beginValue,
-                toValue: endValue,
-                updateBlock: updateBlock,
-                animationContext: AnimationContext(environment: environment)
-            )
+        let tween = TweenAnimation(
+            animation: self.animation,
+            label: label,
+            fromValue: beginValue,
+            toValue: endValue,
+            updateBlock: updateBlock,
+            animationContext: AnimationContext(environment: environment)
         )
+
+        if let index = self.transactions.firstIndex(where: { $0.label == label }) {
+            if var transaction = self.transactions[index] as? TweenAnimation<T> {
+                if !transaction.shouldMerge(tween) {
+                    return
+                }
+
+                transaction.updateTween(tween)
+                transactions[index] = transaction
+            } else {
+                // If we add same animation -> remove previous and add a new one.
+                self.transactions.remove(at: index)
+            }
+        } else {
+            self.transactions.append(tween)
+        }
     }
 
     func playAnimation() {

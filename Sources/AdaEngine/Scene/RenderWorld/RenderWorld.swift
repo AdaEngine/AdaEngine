@@ -11,7 +11,7 @@ public final class RenderWorld {
     
     let renderGraphExecutor = RenderGraphExecutor()
     
-    public let renderGraph: RenderGraph = RenderGraph()
+    public let renderGraph: RenderGraph = RenderGraph(label: "RenderWorld")
 
     private let scene: Scene = Scene(name: "RenderWorld")
 

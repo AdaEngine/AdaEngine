@@ -71,6 +71,10 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
     }
 
     override func update(from newNode: ViewNode) {
+        var env = newNode.environment
+        env.animationController = self.animationController
+        newNode.updateEnvironment(env)
+        
         super.update(from: newNode)
 
         guard let node = newNode as? Self else {

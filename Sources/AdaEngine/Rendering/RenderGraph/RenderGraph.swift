@@ -24,7 +24,6 @@ struct EmptyNode: RenderNode {
 }
 
 struct GraphEntryNode: RenderNode {
-    
     var inputResources: [RenderSlot]
     var outputResources: [RenderSlot]
     
@@ -37,6 +36,20 @@ struct GraphEntryNode: RenderNode {
         return context.inputResources
     }
 }
+
+public struct RunGraphNode: RenderNode {
+    public let graphName: String
+
+    public init(graphName: String) {
+        self.graphName = graphName
+    }
+
+    public func execute(context: Context) async throws -> [RenderSlotValue] {
+        await context.runSubgraph(by: graphName, inputs: context.inputResources)
+        return []
+    }
+}
+
 
 // Inspired by Bevy Render Graph
 
@@ -85,7 +98,11 @@ public final class RenderGraph {
         var outputEdges: [Edge] = []
     }
 
-    public nonisolated init() { }
+    public init(label: String? = nil) {
+        self.label = label
+    }
+
+    private(set) var label: String?
 
     internal private(set) var nodes: [Node.ID: Node] = [:]
     internal private(set) var subGraphs: [String: RenderGraph] = [:]
@@ -101,10 +118,30 @@ public final class RenderGraph {
         return Self.entryNodeName
     }
     
-    public func addNode(with name: String, node: RenderNode) {
+    @inline(__always)
+    public func addNode<T: RenderNode>(_ node: T) {
+        self.addNode(node, by: T.name)
+    }
+
+    public func addNode(_ node: RenderNode, by name: String) {
         self.nodes[name] = Node(name: name, node: node)
     }
-    
+
+    @inline(__always)
+    public func addSlotEdge<From: RenderNode, To: RenderNode>(
+        from: From.Type,
+        outputSlot: String,
+        to: To.Type,
+        inputSlot: String
+    ) {
+        self.addSlotEdge(
+            fromNode: From.name,
+            outputSlot: outputSlot,
+            toNode: To.name,
+            inputSlot: inputSlot
+        )
+    }
+
     public func addSlotEdge(
         fromNode outputNodeName: String,
         outputSlot: String,
@@ -141,7 +178,12 @@ public final class RenderGraph {
         self.nodes[outputNodeName] = oNode
         self.nodes[inputNodeName] = iNode
     }
-    
+
+    @inline(__always)
+    public func addNodeEdge<From: RenderNode, To: RenderNode>(from: From.Type, to: To.Type) {
+        self.addNodeEdge(from: From.name, to: To.name)
+    }
+
     public func addNodeEdge(from outputNodeName: String, to inputNodeName: String) {
         let oNode = self.nodes[outputNodeName]
         let iNode = self.nodes[inputNodeName]
@@ -159,7 +201,12 @@ public final class RenderGraph {
         self.nodes[outputNodeName] = oNode
         self.nodes[inputNodeName] = iNode
     }
-    
+
+    @inline(__always)
+    public func removeNode<T: RenderNode>(by type: T.Type) -> Bool {
+        self.removeNode(by: T.name)
+    }
+
     public func removeNode(by name: String) -> Bool {
         guard let node = self.nodes.removeValue(forKey: name) else {
             // Node not exists
@@ -175,6 +222,16 @@ public final class RenderGraph {
         }
         
         return true
+    }
+
+    @inline(__always)
+    public func removeSlotEdge<From: RenderNode, To: RenderNode>(
+        from: From.Type,
+        outputSlot: String,
+        to: To.Type,
+        inputSlot: String
+    ) -> Bool {
+        self.removeSlotEdge(fromNode: From.name, outputSlot: outputSlot, toNode: To.name, inputSlot: inputSlot)
     }
 
     public func removeSlotEdge(
@@ -210,7 +267,11 @@ public final class RenderGraph {
     public func addSubgraph(_ graph: RenderGraph, name: String) {
         self.subGraphs[name] = graph
     }
-    
+
+    public func getSubgraph(by name: String) -> RenderGraph? {
+        return self.subGraphs[name]
+    }
+
     // MARK: Private
     
     internal func getOutputNodes(for node: Node.ID) -> [(Edge, Node)] {
@@ -302,11 +363,11 @@ public final class RenderGraph {
 
 extension RenderGraph: CustomDebugStringConvertible {
     public var debugDescription: String {
-        var string = ""
+        var string = "\(label ?? "RenderGraph"):\n"
         for node in self.nodes.values {
-            string = "\(node.name)\n"
-            string = " in: \(node.inputEdges.debugDescription)\n"
-            string = " out: \(node.outputEdges.debugDescription)\n\n"
+            string += "-\(node.name)\n"
+            string += " in: \(node.inputEdges.debugDescription)\n"
+            string += " out: \(node.outputEdges.debugDescription)\n\n"
         }
         
         return string
