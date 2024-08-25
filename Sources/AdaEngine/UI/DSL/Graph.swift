@@ -53,6 +53,7 @@ public struct _ViewInputs {
     }
 
     /// Inflate all found storages to view node.
+    @MainActor 
     func registerNodeForStorages(_ node: ViewNode) {
         for storage in propertyStorages {
             storage.storage.registerNodeToUpdate(node)
@@ -107,4 +108,3 @@ public struct _ViewGraphNode<Value>: Equatable {
         }
     }
 }
-

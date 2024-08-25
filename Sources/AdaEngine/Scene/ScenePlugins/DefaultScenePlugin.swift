@@ -20,6 +20,7 @@ struct DefaultScenePlugin: ScenePlugin {
         await scene.addPlugin(Mesh2DPlugin())
         await scene.addPlugin(Text2DPlugin())
         await scene.addPlugin(AudioPlugin())
+        await scene.addPlugin(UIPlugin())
 
         // Setup Physics
         await scene.addPlugin(Physics2DPlugin())

@@ -7,8 +7,8 @@
 
 public struct UIRenderPlugin: ScenePlugin {
     
-    public static let renderGraph = "render_ui_2d"
-    
+    public static let renderGraph = "ui_render_graph"
+
     /// Input slots of render graph.
     public enum InputNode {
         public static let view = "view"
@@ -18,85 +18,41 @@ public struct UIRenderPlugin: ScenePlugin {
     
     @RenderGraphActor
     public func setup(in scene: Scene) async {
-        // Add Render graph
-        let graph = RenderGraph()
+        let ui2d = getUIGraph()
+        if let core2d = Application.shared.renderWorld.renderGraph.getSubgraph(by: Scene2DPlugin.renderGraph) {
+            core2d.addSubgraph(ui2d, name: Self.renderGraph)
+            core2d.addNode(RunGraphNode(graphName: Self.renderGraph), by: UIRenderNode.name)
+            core2d.addNodeEdge(from: Main2DRenderNode.self, to: UIRenderNode.self)
+        }
+    }
 
-        let entryNode = graph.addEntryNode(inputs: [
-            RenderSlot(name: InputNode.view, kind: .entity)
-        ])
-
-        graph.addNode(with: UI2DRenderNode.name, node: UI2DRenderNode())
-        graph.addSlotEdge(
-            fromNode: entryNode,
-            outputSlot: InputNode.view,
-            toNode: UI2DRenderNode.name,
-            inputSlot: UI2DRenderNode.InputNode.view
-        )
-
-        Application.shared.renderWorld.renderGraph.addSubgraph(graph, name: Self.renderGraph)
+    @RenderGraphActor
+    private func getUIGraph() -> RenderGraph {
+        let graph = RenderGraph(label: "UIRender")
+        graph.addNode(UIRenderNode())
+        return graph
     }
 }
 
-public struct UI2DRenderNode: RenderNode {
+public struct UIRenderNode: RenderNode {
     
     /// Input slots of render node.
     public enum InputNode {
         public static let view = "view"
     }
     
-    public static let name: String = "ui_pass_2d"
-    
+    public static let name: String = "UIRenderNode"
+
+    static let query = EntityQuery(where: .has(UIRenderTextureComponent.self))
+
     public func execute(context: Context) async throws -> [RenderSlotValue] {
-        guard let entity = await context.entityResource(by: InputNode.view) else {
-            return []
+        let uiEntities = context.world.performQuery(Self.query)
+        for entity in uiEntities {
+            
         }
-        
-        let (camera, renderItems) = entity.components[Camera.self, RenderItems<TransparentUIRenderItem>.self]
-        
-        if case .window(let id) = camera.renderTarget, id == .empty {
-            return []
-        }
-        
-        let sortedRenderItems = renderItems.sorted()
-        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .gray
-        
-        let drawList: DrawList
-        
-        switch camera.renderTarget {
-        case .window(let windowId):
-            drawList = RenderEngine.shared.beginDraw(for: windowId, clearColor: clearColor)
-        case .texture(let texture):
-            let desc = FramebufferDescriptor(
-                scale: texture.scaleFactor,
-                width: texture.width,
-                height: texture.height,
-                attachments: [
-                    FramebufferAttachmentDescriptor(
-                        format: texture.pixelFormat,
-                        texture: texture,
-                        clearColor: clearColor,
-                        loadAction: .clear,
-                        storeAction: .store
-                    )
-                ]
-            )
-            let framebuffer = RenderEngine.shared.makeFramebuffer(from: desc)
-            drawList = RenderEngine.shared.beginDraw(to: framebuffer, clearColors: [])
-        }
-        
-        if let viewport = camera.viewport {
-            drawList.setViewport(viewport)
-        }
-        
-        try sortedRenderItems.render(drawList, world: context.world, view: entity)
-        
-        RenderEngine.shared.endDrawList(drawList)
-        
         return []
     }
-    
 }
-
 
 /// An object describe 2D render item.
 public struct TransparentUIRenderItem: RenderItem {
@@ -118,4 +74,9 @@ public struct TransparentUIRenderItem: RenderItem {
     
     /// If item support batch rendering, pass range of indecies.
     public var batchRange: Range<Int32>?
+}
+
+@Component
+struct UIRenderTextureComponent {
+    var renderTexture: RenderTexture
 }

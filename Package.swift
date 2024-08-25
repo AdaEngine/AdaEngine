@@ -238,7 +238,10 @@ targets += [
 targets += [
     .testTarget(
         name: "AdaEngineTests",
-        dependencies: ["AdaEngine"]
+        dependencies: ["AdaEngine"],
+        swiftSettings: [
+            .interoperabilityMode(.Cxx)
+        ]
     ),
     .testTarget(
         name: "MathTests",

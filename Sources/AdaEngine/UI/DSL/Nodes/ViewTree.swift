@@ -62,7 +62,7 @@ final class ViewRootNode: ViewNode {
     override func update(_ deltaTime: TimeInterval) async {
         await contentNode.update(deltaTime)
     }
-
+    
     override func draw(with context: UIGraphicsContext) {
         contentNode.draw(with: context)
         super.draw(with: context)
@@ -87,6 +87,14 @@ final class ViewRootNode: ViewNode {
 
     override func onReceiveEvent(_ event: InputEvent) {
         contentNode.onReceiveEvent(event)
+    }
+
+    override func findNodyByAccessibilityIdentifier(_ identifier: String) -> ViewNode? {
+        self.contentNode.findNodyByAccessibilityIdentifier(identifier)
+    }
+
+    override func findNodeById(_ id: AnyHashable) -> ViewNode? {
+        self.contentNode.findNodeById(id)
     }
 
     override func buildMenu(with builder: any UIMenuBuilder) {

@@ -222,3 +222,25 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
         return Self.Body._makeView(_ViewGraphNode(value: newBody), inputs: inputs)
     }
 }
+
+protocol _ViewOutputsViewModifier {
+    static func _makeModifier(_ modifier: _ViewGraphNode<Self>, outputs: inout _ViewOutputs)
+}
+
+extension ViewModifier where Self: _ViewOutputsViewModifier {
+    @MainActor
+    static func _makeView(
+        for modifier: _ViewGraphNode<Self>,
+        inputs: _ViewInputs,
+        body: @escaping (_ViewInputs) -> _ViewOutputs
+    ) -> _ViewOutputs {
+        if let builder = modifier.value as? ViewNodeBuilder {
+            let node = builder.buildViewNode(in: inputs)
+            return _ViewOutputs(node: node)
+        }
+        let newBody = modifier.value.body(content: _ModifiedContent(storage: .makeView(body)))
+        var outputs = Self.Body._makeView(_ViewGraphNode(value: newBody), inputs: inputs)
+        self._makeModifier(modifier, outputs: &outputs)
+        return outputs
+    }
+}

@@ -90,7 +90,7 @@ struct CustomButtonStyle: ButtonStyle {
         configuration
             .label
             .foregroundColor(.white)
-            .font(Font.system(size: 18, weight: .bold))
+            .font(Font.system(size: 13, weight: .bold))
             .background(self.background(in: configuration))
             .border(.black)
     }
@@ -115,7 +115,6 @@ struct ContentView: View {
             Color.red
                 .frame(width: 40, height: 40)
                 .scaleEffect(isAnimated ? Vector2(1.3, 1.3) : Vector2.one)
-                .rotationEffect(.degrees(isAnimated ? -23 : 0))
                 .animation(.linear(duration: 3), value: isAnimated)
                 .border(.red)
 
@@ -126,6 +125,7 @@ struct ContentView: View {
             }
             .buttonStyle(CustomButtonStyle())
         }
+        .accessibilityIdentifier("kek")
 //        VStack(spacing: 16) {
 //            HStack(spacing: 32) {
 //                ZStack {

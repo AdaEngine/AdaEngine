@@ -41,14 +41,19 @@ open class UIWindowManager {
                 window.sendEvent(event)
             }
             
-            if window.canDraw {
-                var context = UIGraphicsContext(window: window)
+            await window.internalUpdate(deltaTime)
+
+            if let renderTexture = window.renderTexture, window.canDraw {
+                var context = UIGraphicsContext(texture: renderTexture)
                 context.beginDraw(in: window.bounds.size, scaleFactor: 1)
                 window.draw(with: context)
                 context.commitDraw()
+
+                let entity = EmptyEntity {
+                    UIRenderTextureComponent(renderTexture: renderTexture)
+                }
+                await Application.shared.renderWorld.addEntity(entity)
             }
-            
-            await window.internalUpdate(deltaTime)
         }
     }
 

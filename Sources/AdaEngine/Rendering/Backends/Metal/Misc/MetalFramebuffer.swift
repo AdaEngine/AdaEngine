@@ -23,7 +23,7 @@ class MetalFramebuffer: Framebuffer {
 
         let size = SizeInt(
             width: descriptor.width,
-            height: descriptor.width
+            height: descriptor.height
         )
         
         self.size = size
