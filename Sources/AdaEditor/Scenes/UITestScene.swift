@@ -26,7 +26,7 @@ class UITestScene: Scene {
 
         let entity = Entity {
             SpriteComponent(tintColor: .red)
-            Transform(scale: Vector3(0.5), position: [0, 0, 0])
+            Transform(scale: Vector3(1), position: [0, 0, 0])
         }
 
         self.addEntity(entity)

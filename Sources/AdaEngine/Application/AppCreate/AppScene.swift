@@ -35,10 +35,12 @@ public extension AppScene {
         self.modifier(WindowTitleSceneModifier(title: title))
     }
     
-    func renderPlugin<T: ScenePlugin>(_ plugin: T) -> some AppScene {
-        self.modifier(RenderWorldPlugin(plugin: plugin))
+    /// Add new specific ``RenderWorldPlugin`` to the app.
+    func renderPlugin<T: RenderWorldPlugin>(_ plugin: T) -> some AppScene {
+        self.modifier(RenderWorldPluginSceneModifier(plugin: plugin))
     }
     
+    /// Disable all default render plugins from app.
     func disableDefaultRenderPlugins(_ isDisable: Bool) -> some AppScene {
         self.modifier(UseDefaultRenderPlugins(isEnabled: !isDisable))
     }

@@ -12,9 +12,9 @@ struct CameraPlugin: ScenePlugin {
     }
 }
 
-struct CameraRenderPlugin: ScenePlugin {
-    func setup(in scene: Scene) async {
-        await Application.shared.renderWorld.renderGraph.addNode(CameraRenderNode())
+struct CameraRenderPlugin: RenderWorldPlugin {
+    func setup(in world: RenderWorld) {
+        world.renderGraph.addNode(CameraRenderNode())
     }
 }
 
@@ -28,9 +28,9 @@ struct CameraRenderNode: RenderNode {
                 return
             }
 
-            await context.runSubgraph(by: Scene2DPlugin.renderGraph, inputs: [
+            context.runSubgraph(by: Scene2DPlugin.renderGraph, inputs: [
                 RenderSlotValue(name: Scene2DPlugin.InputNode.view, value: .entity(entity))
-            ])
+            ], viewEntity: entity)
 
             // TODO: blit to window
         }

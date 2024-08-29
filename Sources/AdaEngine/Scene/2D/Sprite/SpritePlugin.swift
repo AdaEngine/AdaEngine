@@ -16,12 +16,12 @@ public struct SpritePlugin: ScenePlugin {
 }
 
 /// Plugin for RenderWorld to render sprites.
-public struct SpriteRenderPlugin: ScenePlugin {
-    
+public struct SpriteRenderPlugin: RenderWorldPlugin {
+
     public init() {}
-    
-    public func setup(in scene: Scene) async {
-        scene.addSystem(SpriteRenderSystem.self)
+
+    public func setup(in world: RenderWorld) {
+        world.addSystem(SpriteRenderSystem.self)
 
         let spriteDraw = SpriteDrawPass()
         DrawPassStorage.setDrawPass(spriteDraw)

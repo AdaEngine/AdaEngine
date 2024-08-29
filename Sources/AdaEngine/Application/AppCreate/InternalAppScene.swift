@@ -14,7 +14,7 @@ struct _AppSceneConfiguration {
     var isSingleWindow: Bool = false
     var title: String?
     var useDefaultRenderPlugins: Bool = true
-    var plugins: [ScenePlugin] = []
+    var renderPlugins: [RenderWorldPlugin] = []
 }
 
 /// Helper interface for creating window from scene.

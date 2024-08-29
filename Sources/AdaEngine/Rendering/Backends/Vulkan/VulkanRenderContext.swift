@@ -37,7 +37,7 @@ extension VulkanRenderBackend {
             self.instance = try! VulkanInstance(info: createInfo)
         }
         
-        func createRenderWindow(with id: Window.ID, view: RenderView, size: Size) throws {
+        func createRenderWindow(with id: Window.ID, surface: RenderSurface, size: Size) throws {
             if self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }

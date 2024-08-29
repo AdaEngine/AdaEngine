@@ -7,7 +7,7 @@
 
 /// The context with information required to run a ``DrawPass``.
 public struct RenderContext {
-    public let device: RenderEngine
+    public let device: RenderDevice
     public let entity: Entity
     public let world: World
     public let view: Entity
@@ -23,7 +23,6 @@ public struct DrawPassId: Equatable, Hashable {
 /// For example, you can create render pass for rendering ``Transparent2DRenderItem`` and configure rendering whatever you want. 
 /// Pass additional render data as components to ``Entity`` and pass that entity to ``Transparent2DRenderItem/entity`` property.
 public protocol DrawPass<Item> {
-    
     associatedtype Item: RenderItem
     typealias Context = RenderContext
     
@@ -39,16 +38,19 @@ public extension DrawPass {
 
 /// Type-erased draw pass.
 public struct AnyDrawPass<T: RenderItem>: DrawPass {
-    
-    private var render: (Context, Any) throws -> Void
+    let base: any DrawPass
     
     public init<Value: DrawPass>(_ base: Value) {
-        self.render = { context, item in
-            try base.render(in: context, item: item as! Value.Item)
-        }
+        self.base = base
     }
     
     public func render(in context: Context, item: T) throws {
-        try render(context, item)
+        try base._render(in: context, item: item)
+    }
+}
+
+private extension DrawPass {
+    func _render(in context: Context, item: Any) throws {
+        try self.render(in: context, item: item as! Self.Item)
     }
 }

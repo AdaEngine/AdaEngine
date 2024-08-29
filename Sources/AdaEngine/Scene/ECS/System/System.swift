@@ -73,3 +73,6 @@ public extension System {
         return []
     }
 }
+
+/// The system that will used in Render World.
+public protocol RenderSystem: System { }

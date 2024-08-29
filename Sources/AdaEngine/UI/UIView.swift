@@ -245,6 +245,8 @@ open class UIView {
     open func viewWillMove(to window: UIWindow?) { }
 
     private func willMoveToWindow(_ window: UIWindow?) {
+        self.viewWillMove(to: window)
+
         for subview in subviews {
             subview.viewWillMove(to: window)
         }

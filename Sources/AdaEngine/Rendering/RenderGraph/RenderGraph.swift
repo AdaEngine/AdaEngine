@@ -45,7 +45,7 @@ public struct RunGraphNode: RenderNode {
     }
 
     public func execute(context: Context) async throws -> [RenderSlotValue] {
-        await context.runSubgraph(by: graphName, inputs: context.inputResources)
+        context.runSubgraph(by: graphName, inputs: context.inputResources, viewEntity: context.viewEntity)
         return []
     }
 }
