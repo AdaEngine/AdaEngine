@@ -8,11 +8,8 @@
 /// RenderWorld that store entities for rendering. Each update tick entities removed from RenderWorld.
 @RenderGraphActor
 public final class RenderWorld {
-    
     let renderGraphExecutor = RenderGraphExecutor()
-    
     public let renderGraph: RenderGraph = RenderGraph(label: "RenderWorld")
-
     private let scene: Scene = Scene(name: "RenderWorld")
 
     public var world: World {
@@ -20,13 +17,13 @@ public final class RenderWorld {
     }
     
     /// Add a new system to the scene.
-    public func addSystem<T: System>(_ systemType: T.Type) {
+    public func addSystem<T: RenderSystem>(_ systemType: T.Type) {
         scene.addSystem(systemType)
     }
     
     /// Add a new scene plugin to the scene.
-    public func addPlugin<T: ScenePlugin>(_ plugin: T) async {
-        await self.scene.addPlugin(plugin)
+    public func addPlugin<T: RenderWorldPlugin>(_ plugin: T) {
+        plugin.setup(in: self)
     }
     
     /// Add a new entity to render world.

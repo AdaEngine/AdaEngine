@@ -1,6 +1,6 @@
 //
 //  AppContext.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 4/30/24.
 //
@@ -38,9 +38,6 @@ final class AppContext<T: App> {
     func setup() throws {
         try ResourceManager.initialize()
         try AudioServer.initialize()
-        
-        
-        
         RuntimeTypeLoader.loadTypes()
 
         guard let appScene = app.scene as? InternalAppScene else {
@@ -58,7 +55,7 @@ final class AppContext<T: App> {
                 await self.application.renderWorld.addPlugin(DefaultRenderPlugin())
             }
 
-            for plugin in configuration.plugins {
+            for plugin in configuration.renderPlugins {
                 await self.application.renderWorld.addPlugin(plugin)
             }
 
@@ -68,9 +65,7 @@ final class AppContext<T: App> {
 
     func runApplication() throws {
         try AudioServer.shared.start()
-
         try application.run()
-
         try AudioServer.shared.stop()
     }
 }

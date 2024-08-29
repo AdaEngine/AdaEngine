@@ -10,25 +10,26 @@
 @RenderGraphActor
 public final class RenderGraphContext {
     public let graph: RenderGraph
-    public let device: RenderEngine
+    public let device: RenderDevice
     public let world: World
     public internal(set) var inputResources: [RenderSlotValue]
-    
-    init(graph: RenderGraph, world: World, device: RenderEngine, inputResources: [RenderSlotValue]) {
+    public let viewEntity: Entity?
+
+    init(graph: RenderGraph, world: World, device: RenderDevice, inputResources: [RenderSlotValue], viewEntity: Entity?) {
         self.graph = graph
         self.device = device
         self.world = world
         self.inputResources = inputResources
+        self.viewEntity = viewEntity
     }
     
-    internal var pendingSubgraphs: [(RenderGraph, [RenderSlotValue])] = []
+    internal var pendingSubgraphs: [(renderGraph: RenderGraph, inputs: [RenderSlotValue], viewEntity: Entity?)] = []
 }
 
 public extension RenderGraphContext {
     
     // FIXME: Should throws error!
-    @RenderGraphActor
-    func runSubgraph(by name: String, inputs: [RenderSlotValue]) async {
+    func runSubgraph(by name: String, inputs: [RenderSlotValue], viewEntity: Entity? = nil) {
         guard let graph = self.graph.subGraphs[name] else {
             return
         }
@@ -41,26 +42,22 @@ public extension RenderGraphContext {
             }
         }
         
-        self.pendingSubgraphs.append((graph, inputs))
+        self.pendingSubgraphs.append((graph, inputs, viewEntity))
     }
-    
-    @RenderGraphActor
-    func entityResource(by name: String) async -> Entity? {
+
+    func entityResource(by name: String) -> Entity? {
         self.inputResources.first(where: { $0.name == name })?.value.entity
     }
-    
-    @RenderGraphActor
-    func textureResource(by name: String) async-> Texture? {
+
+    func textureResource(by name: String)-> Texture? {
         self.inputResources.first(where: { $0.name == name })?.value.texture
     }
-    
-    @RenderGraphActor
-    func bufferResource(by name: String) async -> Buffer? {
+
+    func bufferResource(by name: String) -> Buffer? {
         self.inputResources.first(where: { $0.name == name })?.value.buffer
     }
-    
-    @RenderGraphActor
-    func samplerResource(by name: String) async -> Sampler? {
+
+    func samplerResource(by name: String) -> Sampler? {
         self.inputResources.first(where: { $0.name == name })?.value.sampler
     }
 }

@@ -21,3 +21,11 @@ public protocol ScenePlugin {
 }
 
 // swiftlint:enable line_length
+
+@RenderGraphActor
+public protocol RenderWorldPlugin {
+
+    init()
+
+    func setup(in world: RenderWorld)
+}

@@ -17,11 +17,11 @@ public class RenderGraphExecutor {
 
     /// Execute ``RenderGraph`` for specific ``World``.
     public func execute(_ graph: RenderGraph, in world: World) async throws {
-        try await self.executeGraph(graph, world: world, inputResources: [])
+        try await self.executeGraph(graph, world: world, inputResources: [], viewEntity: nil)
     }
     
     // swiftlint:disable:next cyclomatic_complexity
-    private func executeGraph(_ graph: RenderGraph, world: World, inputResources: [RenderSlotValue]) async throws {
+    private func executeGraph(_ graph: RenderGraph, world: World, inputResources: [RenderSlotValue], viewEntity: Entity?) async throws {
         var writtenResources = [RenderGraph.Node.ID: [RenderSlotValue]]()
         
         /// Should execute firsts
@@ -74,17 +74,21 @@ public class RenderGraphExecutor {
                 }
             }
             let inputs = inputSlots.sorted(by: { $0.0 > $1.0 }).map { $0.1 }
-            let context = RenderGraphContext(graph: graph, world: world, device: RenderEngine.shared, inputResources: inputs)
+            let context = RenderGraphContext(
+                graph: graph,
+                world: world,
+                device: RenderEngine.shared.renderDevice,
+                inputResources: inputs,
+                viewEntity: viewEntity
+            )
             let outputs = try await currentNode.node.execute(context: context)
-
-            for (subGraph, inputValues) in context.pendingSubgraphs {
-                try await self.executeGraph(subGraph, world: world, inputResources: inputValues)
+            for (subGraph, inputValues, viewEntity) in context.pendingSubgraphs {
+                try await self.executeGraph(subGraph, world: world, inputResources: inputValues, viewEntity: viewEntity)
             }
-            
+
             precondition(outputs.count == currentNode.node.outputResources.count)
-            
             writtenResources[currentNode.name] = outputs
-            
+
             for (_, outputNode) in graph.getOutputNodes(for: currentNode.name) {
                 nodes.prepend(outputNode)
             }

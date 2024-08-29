@@ -20,7 +20,6 @@ extension MetalRenderBackend {
         
         init() {
             self.physicalDevice = Self.prefferedDevice()
-            
             let needsShowDebugHUD = ProcessInfo.processInfo.environment["METAL_HUD_DEBUG"] != nil
             UserDefaults.standard.set(needsShowDebugHUD, forKey: "MetalForceHudEnabled")
         }

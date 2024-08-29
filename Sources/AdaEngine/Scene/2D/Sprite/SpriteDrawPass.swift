@@ -16,7 +16,6 @@ struct SpriteVertexData {
 
 /// Render draw pass for rendering sprites. Support batching.
 public struct SpriteDrawPass: DrawPass {
-    
     public func render(in context: Context, item: Transparent2DRenderItem) throws {
         guard let spriteData = context.entity.components[SpriteDataComponent.self] else {
             return
@@ -31,7 +30,7 @@ public struct SpriteDrawPass: DrawPass {
         let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,
-            frameIndex: context.device.currentFrameIndex
+            frameIndex: RenderEngine.shared.currentFrameIndex
         )
         
         if let batchSprite = item.batchEntity.components[BatchComponent.self] {
@@ -41,11 +40,9 @@ public struct SpriteDrawPass: DrawPass {
         }
         
         context.drawList.appendUniformBuffer(uniformBuffer)
-
         context.drawList.appendVertexBuffer(spriteData.vertexBuffer)
         context.drawList.bindIndexBuffer(spriteData.indexBuffer)
         context.drawList.bindRenderPipeline(item.renderPipeline)
-        
         context.drawList.drawIndexed(
             indexCount: item.batchRange?.count ?? 6, // indicies count per quad
             indexBufferOffset: Int(item.batchRange?.lowerBound ?? 0) * 4, // start position must be multiple by 4

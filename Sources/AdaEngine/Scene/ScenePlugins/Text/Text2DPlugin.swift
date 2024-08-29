@@ -16,11 +16,11 @@ public struct Text2DPlugin: ScenePlugin {
     }
 }
 
-public struct Text2DRenderPlugin: ScenePlugin {
-    
+public struct Text2DRenderPlugin: RenderWorldPlugin {
+
     public init() {}
-    
-    public func setup(in scene: Scene) async {
-        scene.addSystem(Text2DRenderSystem.self)
+
+    public func setup(in world: RenderWorld) {
+        world.addSystem(Text2DRenderSystem.self)
     }
 }

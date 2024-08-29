@@ -8,7 +8,7 @@
 // FIXME: Should works with frustum culling
 
 // FIXME: WE SHOULD USE SAME SPRITE RENDERER!!!!!!
-public struct Text2DRenderSystem: System {
+public struct Text2DRenderSystem: RenderSystem {
 
     public static var dependencies: [SystemDependency] = [
         .after(VisibilitySystem.self),
@@ -34,7 +34,7 @@ public struct Text2DRenderSystem: System {
     let textRenderPipeline: RenderPipeline
 
     public init(scene: Scene) {
-        let device = RenderEngine.shared
+        let device = RenderEngine.shared.renderDevice
 
         let textShader = try! ResourceManager.loadSync("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
         var piplineDesc = RenderPipelineDescriptor()
@@ -54,7 +54,7 @@ public struct Text2DRenderSystem: System {
 
         piplineDesc.colorAttachments = [ColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
 
-        let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
+        let quadPipeline = device.createRenderPipeline(from: piplineDesc)
         self.textRenderPipeline = quadPipeline
     }
 
@@ -125,8 +125,8 @@ public struct Text2DRenderSystem: System {
                 )
             )
 
-            let device = RenderEngine.shared
-            let vertexBuffer = device.makeVertexBuffer(
+            let device = RenderEngine.shared.renderDevice
+            let vertexBuffer = device.createVertexBuffer(
                 length: spriteVerticies.count * MemoryLayout<GlyphVertexData>.stride,
                 binding: 0
             )
@@ -151,7 +151,7 @@ public struct Text2DRenderSystem: System {
 
             vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<GlyphVertexData>.stride)
 
-            let quadIndexBuffer = device.makeIndexBuffer(
+            let quadIndexBuffer = device.createIndexBuffer(
                 format: .uInt32,
                 bytes: &quadIndices,
                 length: indicies

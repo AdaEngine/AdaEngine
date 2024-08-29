@@ -6,8 +6,8 @@
 //
 
 /// Plugin for RenderWorld added 2D render capatibilites.
-public struct Scene2DPlugin: ScenePlugin {
-    
+public struct Scene2DPlugin: RenderWorldPlugin {
+
     /// Render graph name.
     public static let renderGraph = "render_graph_2d"
     
@@ -17,11 +17,10 @@ public struct Scene2DPlugin: ScenePlugin {
     public enum InputNode {
         public static let view = "view"
     }
-    
-    @RenderGraphActor
-    public func setup(in scene: Scene) async {
+
+    public func setup(in world: RenderWorld) {
         // Add Systems
-        scene.addSystem(BatchTransparent2DItemsSystem.self)
+        world.addSystem(BatchTransparent2DItemsSystem.self)
 
         // Add Render graph
         let graph = RenderGraph(label: "Scene2D")
@@ -38,7 +37,7 @@ public struct Scene2DPlugin: ScenePlugin {
             inputSlot: Main2DRenderNode.InputNode.view
         )
 
-        Application.shared.renderWorld.renderGraph.addSubgraph(graph, name: Self.renderGraph)
+        world.renderGraph.addSubgraph(graph, name: Self.renderGraph)
     }
 }
 
@@ -57,7 +56,7 @@ public struct Main2DRenderNode: RenderNode {
     ]
     
     public func execute(context: Context) async throws -> [RenderSlotValue] {
-        guard let entity = await context.entityResource(by: InputNode.view) else {
+        guard let entity = context.entityResource(by: InputNode.view) else {
             return []
         }
         
@@ -72,7 +71,7 @@ public struct Main2DRenderNode: RenderNode {
         let drawList: DrawList
         switch camera.renderTarget {
         case .window(let windowId):
-            drawList = RenderEngine.shared.beginDraw(for: windowId, clearColor: clearColor)
+            drawList = try context.device.beginDraw(for: windowId, clearColor: clearColor)
         case .texture(let texture):
             let desc = FramebufferDescriptor(
                 scale: texture.scaleFactor,
@@ -88,8 +87,8 @@ public struct Main2DRenderNode: RenderNode {
                     )
                 ]
             )
-            let framebuffer = RenderEngine.shared.makeFramebuffer(from: desc)
-            drawList = RenderEngine.shared.beginDraw(to: framebuffer, clearColors: [])
+            let framebuffer = context.device.createFramebuffer(from: desc)
+            drawList = context.device.beginDraw(to: framebuffer, clearColors: [])
         }
         
         if let viewport = camera.viewport {
@@ -97,7 +96,7 @@ public struct Main2DRenderNode: RenderNode {
         }
         
         try sortedRenderItems.render(drawList, world: context.world, view: entity)
-        RenderEngine.shared.endDrawList(drawList)
+        context.device.endDrawList(drawList)
         return []
     }
 }

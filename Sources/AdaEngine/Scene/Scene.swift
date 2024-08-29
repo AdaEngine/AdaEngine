@@ -195,19 +195,15 @@ open class Scene: Resource, @unchecked Sendable {
             assertionFailure("Can't update scene twice")
             return
         }
-
         self.eventManager.send(SceneEvents.Update(scene: self, deltaTime: deltaTime), source: self)
-
         self.isUpdating = true
         defer { self.isUpdating = false }
 
         self.world.tick()
-        
         let context = SceneUpdateContext(
             scene: self,
             deltaTime: deltaTime
         )
-        
         await self.systemGraphExecutor.execute(self.systemGraph, context: context)
     }
 }

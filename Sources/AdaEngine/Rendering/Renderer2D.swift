@@ -50,9 +50,9 @@ class Renderer2D {
     // TODO: (Vlad) Maybe we should split this code
     // swiftlint:disable:next function_body_length
     private init() {
-        let device = RenderEngine.shared
+        let device = RenderEngine.shared.renderDevice
         
-        self.uniformSet = device.makeUniformBufferSet()
+        self.uniformSet = device.createUniformBufferSet()
         self.uniformSet.label = "Renderer2D_ViewUniform"
         self.uniformSet.initBuffers(for: GlobalViewUniform.self, binding: GlobalBufferIndex.viewUniform, set: 0)
 
@@ -78,7 +78,7 @@ class Renderer2D {
             offset += 4
         }
         
-        let quadIndexBuffer = device.makeIndexBuffer(
+        let quadIndexBuffer = device.createIndexBuffer(
             format: .uInt32,
             bytes: &quadIndices,
             length: Self.maxIndecies
@@ -109,9 +109,9 @@ class Renderer2D {
         
         piplineDesc.colorAttachments = [attachment]
         
-        let circlePipeline = device.makeRenderPipeline(from: piplineDesc)
+        let circlePipeline = device.createRenderPipeline(from: piplineDesc)
         
-        let circleVertexBuffer = device.makeVertexBuffer(
+        let circleVertexBuffer = device.createVertexBuffer(
             length: MemoryLayout<CircleVertexData>.stride * Self.maxVerticies,
             binding: 0
         )
@@ -145,9 +145,9 @@ class Renderer2D {
 
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
         
-        let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
+        let quadPipeline = device.createRenderPipeline(from: piplineDesc)
         
-        let quadVertexBuffer = device.makeVertexBuffer(
+        let quadVertexBuffer = device.createVertexBuffer(
             length: MemoryLayout<QuadVertexData>.stride * Self.maxVerticies,
             binding: 0
         )
@@ -180,9 +180,9 @@ class Renderer2D {
         
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<LineVertexData>.stride
         
-        let linesPipeline = device.makeRenderPipeline(from: piplineDesc)
+        let linesPipeline = device.createRenderPipeline(from: piplineDesc)
         
-        let linesVertexBuffer = device.makeVertexBuffer(
+        let linesVertexBuffer = device.createVertexBuffer(
             length: MemoryLayout<LineVertexData>.stride * Self.maxLineVertices,
             binding: 0
         )
@@ -194,7 +194,7 @@ class Renderer2D {
             buffer[i] = Int32(i)
         }
         
-        let indexBuffer = device.makeIndexBuffer(
+        let indexBuffer = device.createIndexBuffer(
             format: .uInt32,
             bytes: &buffer,
             length: Self.maxLineIndices
@@ -212,7 +212,7 @@ class Renderer2D {
         
         // Text
         
-        let textIndexBuffer = device.makeIndexBuffer(
+        let textIndexBuffer = device.createIndexBuffer(
             format: .uInt32,
             bytes: &quadIndices,
             length: Self.maxIndecies
@@ -235,7 +235,7 @@ class Renderer2D {
             .attribute(.int, name: "textureIndex")
         ])
         
-        let textVertexBuffer = device.makeVertexBuffer(
+        let textVertexBuffer = device.createVertexBuffer(
             length: MemoryLayout<GlyphVertexData>.stride * Self.maxVerticies,
             binding: 0
         )
@@ -243,7 +243,7 @@ class Renderer2D {
 
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<GlyphVertexData>.stride
         
-        let textPipeline = device.makeRenderPipeline(from: piplineDesc)
+        let textPipeline = device.createRenderPipeline(from: piplineDesc)
         
         self.textData = Data<GlyphVertexData>(
             vertexBuffer: textVertexBuffer,
@@ -261,7 +261,7 @@ class Renderer2D {
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(GlobalViewUniform(projectionMatrix: .identity, viewProjectionMatrix: .identity, viewMatrix: viewTransform))
 
-        let currentDraw = RenderEngine.shared.beginDraw(for: window.id, clearColor: .black)
+        let currentDraw = try! RenderEngine.shared.renderDevice.beginDraw(for: window.id, clearColor: .black)
         let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared, frameIndex: frameIndex)
         context.startBatch()
         return context
@@ -269,7 +269,8 @@ class Renderer2D {
     
     static func beginDrawContext(for camera: Camera, viewUniform: GlobalViewUniform) -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
-        
+        let device = RenderEngine.shared.renderDevice
+
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(viewUniform)
 
@@ -279,7 +280,7 @@ class Renderer2D {
         
         switch camera.renderTarget {
         case .window(let windowId):
-            currentDraw = RenderEngine.shared.beginDraw(for: windowId, clearColor: clearColor)
+            currentDraw = try! device.beginDraw(for: windowId, clearColor: clearColor)
         case .texture(let texture):
             let desc = FramebufferDescriptor(
                 scale: texture.scaleFactor,
@@ -293,8 +294,8 @@ class Renderer2D {
                     )
                 ]
             )
-            let framebuffer = RenderEngine.shared.makeFramebuffer(from: desc)
-            currentDraw = RenderEngine.shared.beginDraw(to: framebuffer, clearColors: [])
+            let framebuffer = device.createFramebuffer(from: desc)
+            currentDraw = device.beginDraw(to: framebuffer, clearColors: [])
         }
         
         let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared, frameIndex: frameIndex)
@@ -552,7 +553,7 @@ extension Renderer2D {
         public func commitContext() {
             self.flush()
             
-            RenderEngine.shared.endDrawList(self.currentDraw)
+            RenderEngine.shared.renderDevice.endDrawList(self.currentDraw)
         }
         
         public func setTriangleFillMode(_ mode: TriangleFillMode) {
@@ -625,7 +626,7 @@ extension Renderer2D {
             currentDraw.bindIndexBuffer(data.indexBuffer)
             currentDraw.bindIndexPrimitive(indexPrimitive)
             
-            RenderEngine.shared.draw(currentDraw, indexCount: data.indeciesCount, indexBufferOffset: 0, instanceCount: 1)
+            RenderEngine.shared.renderDevice.draw(currentDraw, indexCount: data.indeciesCount, indexBufferOffset: 0, instanceCount: 1)
         }
         
     }

@@ -11,7 +11,5 @@ public struct UIPlugin: ScenePlugin {
 
     public func setup(in scene: Scene) async {
         scene.addSystem(UISystem.self)
-
-        await Application.shared.renderWorld.addPlugin(UIRenderPlugin())
     }
 }

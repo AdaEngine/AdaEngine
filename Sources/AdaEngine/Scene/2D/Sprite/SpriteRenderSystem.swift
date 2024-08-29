@@ -8,7 +8,7 @@
 // TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
 
 /// System in RenderWorld for render sprites from exctracted sprites.
-public struct SpriteRenderSystem: System {
+public struct SpriteRenderSystem: RenderSystem {
 
     public static var dependencies: [SystemDependency] = [
         .before(BatchTransparent2DItemsSystem.self)
@@ -58,8 +58,6 @@ public struct SpriteRenderSystem: System {
         visibleEntities: VisibleEntities,
         renderItems: inout RenderItems<Transparent2DRenderItem>
     ) {
-        let spriteDraw = SpriteDrawPass.identifier
-
         let spriteData = EmptyEntity(name: "sprite_data")
 
         let sprites = extractedSprites
@@ -131,7 +129,7 @@ public struct SpriteRenderSystem: System {
                 Transparent2DRenderItem(
                     entity: spriteData,
                     batchEntity: currentBatchEntity,
-                    drawPassId: spriteDraw,
+                    drawPassId: .sprite,
                     renderPipeline: SpriteRenderPipeline.default.renderPipeline,
                     sortKey: sprite.transform.position.z,
                     batchRange: itemStart..<itemEnd
@@ -145,8 +143,8 @@ public struct SpriteRenderSystem: System {
             return
         }
 
-        let device = RenderEngine.shared
-        let vertexBuffer = device.makeVertexBuffer(
+        let device = RenderEngine.shared.renderDevice
+        let vertexBuffer = device.createVertexBuffer(
             length: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride,
             binding: 0
         )
@@ -171,7 +169,7 @@ public struct SpriteRenderSystem: System {
 
         vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride)
 
-        let quadIndexBuffer = device.makeIndexBuffer(
+        let quadIndexBuffer = device.createIndexBuffer(
             format: .uInt32,
             bytes: &quadIndices,
             length: indicies
@@ -248,7 +246,6 @@ public struct ExtractSpriteSystem: System {
         }
 
         extractedEntity.components += extractedSprites
-
         await Application.shared.renderWorld.addEntity(extractedEntity)
     }
 }

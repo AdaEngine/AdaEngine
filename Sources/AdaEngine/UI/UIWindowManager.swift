@@ -33,7 +33,6 @@ open class UIWindowManager {
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) async {
         for window in self.windows {
-
             let menuBuilder = self.menuBuilder(for: window)
             menuBuilder?.updateIfNeeded()
 
@@ -48,11 +47,6 @@ open class UIWindowManager {
                 context.beginDraw(in: window.bounds.size, scaleFactor: 1)
                 window.draw(with: context)
                 context.commitDraw()
-
-                let entity = EmptyEntity {
-                    UIRenderTextureComponent(renderTexture: renderTexture)
-                }
-                await Application.shared.renderWorld.addEntity(entity)
             }
         }
     }

@@ -31,14 +31,11 @@ public class RenderTexture: Texture2D {
         self.pixelFormat = format
         self.scaleFactor = scaleFactor
         
-        let gpuTexture = RenderEngine.shared.makeTexture(from: descriptor)
-        let sampler = RenderEngine.shared.makeSampler(from: descriptor.samplerDescription)
+        let device = RenderEngine.shared.renderDevice
+        let gpuTexture = device.createTexture(from: descriptor)
+        let sampler = device.createSampler(from: descriptor.samplerDescription)
         
         super.init(gpuTexture: gpuTexture, sampler: sampler, size: size)
-    }
-
-    deinit {
-        print("Deinited")
     }
 
     public required init(asset decoder: AssetDecoder) throws {
