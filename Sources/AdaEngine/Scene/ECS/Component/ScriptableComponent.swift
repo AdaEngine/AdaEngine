@@ -27,10 +27,10 @@ open class ScriptableComponent: Component {
 
     /// Called each frame.
     open func onUpdate(_ deltaTime: TimeInterval) { }
-
-    // TODO: Fix that
+    
     /// Called each frame to update gui.
-    open func onUpdateGUI(_ deltaTime: TimeInterval, context: GUIRenderContext) {
+    @MainActor
+    open func onUpdateGUI(_ deltaTime: TimeInterval, context: UIGraphicsContext) {
 
     }
     

@@ -5,13 +5,14 @@
 //  Created by v.prusakov on 11/4/21.
 //
 
+import Math
+
 /// A representation of a color that adapts to a given context.
 public struct Color: Codable, Hashable {
     
     public private(set) var red: Float
     public private(set) var green: Float
     public private(set) var blue: Float
-    
     public private(set) var alpha: Float
     
     public init(red: Float, green: Float, blue: Float, alpha: Float) {
@@ -20,7 +21,14 @@ public struct Color: Codable, Hashable {
         self.blue = blue
         self.alpha = alpha
     }
-    
+
+    public init(red: Float, green: Float, blue: Float) {
+        self.red = red
+        self.green = green
+        self.blue = blue
+        self.alpha = 1
+    }
+
     // MARK: - Public Methods
     
     /// Set the opacity of the color by the given amount.
@@ -66,6 +74,17 @@ public extension Color {
     static let purple = Color(red: 175 / 255, green: 82 / 255, blue: 222 / 255, alpha: 1)
     
     static let clear = Color(red: 1, green: 1, blue: 1, alpha: 0)
+
+    static let surfaceClearColor = Color(red: 43 / 255, green: 44 / 255, blue: 47 / 255, alpha: 1)
+
+    static func random() -> Color {
+        Color(
+            red: Float.random(in: 0...255) / 255,
+            green: Float.random(in: 0...255) / 255,
+            blue: Float.random(in: 0...255) / 255,
+            alpha: 1
+        )
+    }
 }
 
 public extension Color {

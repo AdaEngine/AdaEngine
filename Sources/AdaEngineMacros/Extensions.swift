@@ -1,6 +1,6 @@
 //
 //  Extensions.swift
-//  
+//  AdaEngineMacros
 //
 //  Created by v.prusakov on 2/14/24.
 //
@@ -129,5 +129,17 @@ extension TypeSyntax {
             }
         }
         return nil
+    }
+}
+
+extension FreestandingMacroExpansionSyntax {
+    func argument(for label: String) -> ExprSyntax? {
+        arguments.filter({ $0.label?.text == label }).first?.expression
+    }
+}
+
+extension AttributeSyntax {
+    func argument(for label: String) -> ExprSyntax? {
+        arguments?.as(LabeledExprListSyntax.self)?.filter({ $0.label?.text == label }).first?.expression
     }
 }

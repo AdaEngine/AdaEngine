@@ -32,14 +32,14 @@ public struct Text2DLayoutSystem: System {
             
             let textContainer = TextContainer(
                 text: text.text,
-                bounds: text.bounds,
                 textAlignment: text.textAlignment,
                 lineBreakMode: text.lineBreakMode,
                 lineSpacing: text.lineSpacing
             )
-            
+
             textLayout.textLayout.setTextContainer(textContainer)
-            
+            textLayout.textLayout.fitToSize(text.bounds.size)
+
             entity.components += textLayout
         }
     }

@@ -10,15 +10,16 @@ import AppKit
 import Math
 
 // swiftlint:disable cyclomatic_complexity
-final class MacOSWindowManager: WindowManager {
+final class MacOSWindowManager: UIWindowManager {
 
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)
 
     public nonisolated override init() { }
 
-    override func createWindow(for window: Window) {
-        
-        let minSize = Window.defaultMinimumSize
+    private var menus: [UIWindow.ID: MacOSUIMenuBuilder] = [:]
+
+    override func createWindow(for window: UIWindow) {
+        let minSize = UIWindow.defaultMinimumSize
         
         let frame = window.frame
         let size = frame.size == .zero ? minSize : frame.size
@@ -42,7 +43,7 @@ final class MacOSWindowManager: WindowManager {
             backing: .buffered,
             defer: false
         )
-        
+
         systemWindow.contentView = metalView
         systemWindow.collectionBehavior = .fullScreenPrimary
         systemWindow.center()
@@ -56,8 +57,18 @@ final class MacOSWindowManager: WindowManager {
         
         super.createWindow(for: window)
     }
-    
-    override func showWindow(_ window: Window, isFocused: Bool) {
+
+    override func menuBuilder(for window: UIWindow) -> (any UIMenuBuilder)? {
+        if let builder = self.menus[window.id] {
+            return builder
+        } else {
+            let builder = MacOSUIMenuBuilder(window: window)
+            self.menus[window.id] = builder
+            return builder
+        }
+    }
+
+    override func showWindow(_ window: UIWindow, isFocused: Bool) {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
@@ -73,7 +84,7 @@ final class MacOSWindowManager: WindowManager {
         self.setActiveWindow(window)
     }
     
-    override func setWindowMode(_ window: Window, mode: Window.Mode) {
+    override func setWindowMode(_ window: UIWindow, mode: UIWindow.Mode) {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
@@ -86,7 +97,7 @@ final class MacOSWindowManager: WindowManager {
         }
     }
     
-    override func closeWindow(_ window: Window) {
+    override func closeWindow(_ window: UIWindow) {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
@@ -96,14 +107,14 @@ final class MacOSWindowManager: WindowManager {
         nsWindow.close()
     }
     
-    override func resizeWindow(_ window: Window, size: Size) {
+    override func resizeWindow(_ window: UIWindow, size: Size) {
         let nsWindow = window.systemWindow as? NSWindow
 
         let cgSize = CGSize(width: CGFloat(size.width), height: CGFloat(size.height))
         nsWindow?.setContentSize(cgSize)
     }
     
-    override func setMinimumSize(_ size: Size, for window: Window) {
+    override func setMinimumSize(_ size: Size, for window: UIWindow) {
         guard let nsWindow = window.systemWindow as? NSWindow else {
             fatalError("System window not exist.")
         }
@@ -114,7 +125,7 @@ final class MacOSWindowManager: WindowManager {
         nsWindow.minSize = minSize
     }
     
-    override func getScreen(for window: Window) -> Screen? {
+    override func getScreen(for window: UIWindow) -> Screen? {
         guard let nsWindow = window.systemWindow as? NSWindow, let screen = nsWindow.screen else {
             return nil
         }
@@ -277,7 +288,7 @@ final class MacOSWindowManager: WindowManager {
         self.mouseMode
     }
     
-    func findWindow(for nsWindow: NSWindow) -> Window? {
+    func findWindow(for nsWindow: NSWindow) -> UIWindow? {
         return self.windows.first {
             ($0.systemWindow as? NSWindow) === nsWindow
         }
@@ -389,6 +400,112 @@ extension NSWindow: SystemWindow {
         set {
             self.setContentSize(NSSize(width: CGFloat(newValue.width), height: CGFloat(newValue.height)))
         }
+    }
+}
+
+final class MacOSUIMenuBuilder: UIMenuBuilder {
+
+    private weak var window: UIWindow?
+    private var isNeedsUpdate = true
+
+    private var menu: NSMenu? {
+        return (window?.systemWindow as? NSWindow)?.menu
+    }
+
+    init(window: UIWindow) {
+        self.window = window
+    }
+
+    func insert(_ menu: UIMenu) {
+        let nsMenu = makeNSMenu(from: menu)
+
+        let menuItem = NSMenuItem()
+        menuItem.title = menu.title
+        self.menu?.addItem(menuItem)
+        self.menu?.setSubmenu(nsMenu, for: menuItem)
+    }
+
+    func remove(_ menu: UIMenu.ID) {
+
+    }
+
+    func setNeedsUpdate() {
+        self.isNeedsUpdate = true
+    }
+
+    func updateIfNeeded() {
+        guard isNeedsUpdate else {
+            return
+        }
+
+        self.window?._buildMenu(with: self)
+        self.isNeedsUpdate = false
+    }
+
+    private func makeNSMenu(from menu: UIMenu) -> NSMenu {
+        let nsMenu = NSMenu(title: menu.title)
+        let items = menu.items.map(makeNSMenuItem(from:))
+
+        for item in items {
+            nsMenu.addItem(item)
+        }
+
+        return nsMenu
+    }
+
+    private func makeNSMenuItem(from item: MenuItem) -> NSMenuItem {
+        if item.isSeparator {
+            return .separator()
+        }
+
+        let nsItem = NSMenuItem()
+        nsItem.title = item.title
+        nsItem.target = self
+        nsItem.action = #selector(onActionPressed)
+        nsItem.submenu = item.submenu.flatMap { self.makeNSMenu(from: $0) }
+        nsItem.representedObject = item
+        if let key = item.keyEquivalent?.rawValue {
+            nsItem.keyEquivalent = key
+        }
+        if let modifier = item.keyEquivalentModifierMask {
+            nsItem.keyEquivalentModifierMask = makeKeyModifierMask(from: modifier)
+        }
+
+        return nsItem
+    }
+
+    private func makeKeyModifierMask(from modifier: KeyModifier) -> NSEvent.ModifierFlags {
+        var keyModifiers = NSEvent.ModifierFlags()
+
+        if modifier.contains(.alt) {
+            keyModifiers.insert(.option)
+        }
+
+        if modifier.contains(.main) {
+            keyModifiers.insert(.command)
+        }
+
+        if modifier.contains(.control) {
+            keyModifiers.insert(.control)
+        }
+
+        if modifier.contains(.shift) {
+            keyModifiers.insert(.shift)
+        }
+
+        if modifier.contains(.capsLock) {
+            keyModifiers.insert(.capsLock)
+        }
+
+        return keyModifiers
+    }
+
+    @objc func onActionPressed(_ nsItem: NSMenuItem) {
+        guard let item = nsItem.representedObject as? MenuItem else {
+            return
+        }
+
+        item.action?()
     }
 }
 

@@ -22,8 +22,8 @@ final class VulkanRenderBackend: RenderBackend {
     
     var currentFrameIndex: Int = 0
     
-    func createWindow(_ windowId: Window.ID, for view: RenderView, size: Size) throws {
-        try self.context.createRenderWindow(with: windowId, view: view, size: size)
+    func createWindow(_ windowId: Window.ID, for surface: RenderSurface, size: Size) throws {
+        try self.context.createRenderWindow(with: windowId, surface: surface, size: size)
     }
     
     func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
@@ -42,19 +42,19 @@ final class VulkanRenderBackend: RenderBackend {
         
     }
     
-    func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
+    func createBuffer(length: Int, options: ResourceOptions) -> Buffer {
         fatalError("Kek")
     }
     
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
+    func createBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
         fatalError("Kek")
     }
     
-    func makeIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+    func createIndexBuffer(index: Int, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         fatalError("Kek")
     }
     
-    func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
+    func createVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
         fatalError("Kek")
     }
     
@@ -62,11 +62,11 @@ final class VulkanRenderBackend: RenderBackend {
         fatalError("Kek")
     }
     
-    func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
+    func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
         fatalError("Kek")
     }
     
-    func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
+    func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
         fatalError("Kek")
     }
     

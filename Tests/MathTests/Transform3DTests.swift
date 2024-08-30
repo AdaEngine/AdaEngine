@@ -304,7 +304,7 @@ class Transform3DTests: XCTestCase {
         
         // when
         let caTransform3D = CATransform3DMakeAffineTransform(cgAffine)
-        let myTransform3D = Transform3D(myAffine)
+        let myTransform3D = Transform3D(fromAffineTransform: myAffine)
         
         // then
         TestUtils.assertEqual(cgAffine, myAffine)

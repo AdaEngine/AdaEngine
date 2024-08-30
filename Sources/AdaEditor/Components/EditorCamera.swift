@@ -74,31 +74,31 @@ class EditorCameraSystem: System {
     }
 
     func mouseEvent(for editorComponent: inout EditorCameraComponent) {
-        //        let position = Input.getMousePosition()
-        //        var xoffset = position.x - self.lastMousePosition.x
-        //        var yoffset = self.lastMousePosition.y - position.y
-        //        self.lastMousePosition = position
-        //
-        //        let sensitivity: Float = 0.1
-        //        xoffset *= sensitivity
-        //        yoffset *= sensitivity
-        //
-        //        editorComponent.yaw   += xoffset
-        //        editorComponent.pitch += yoffset
-        //
-        //        if editorComponent.pitch.radians > 89.0 {
-        //            editorComponent.pitch = 89.0
-        //        } else if(editorComponent.pitch.radians < -89.0) {
-        //            editorComponent.pitch = -89.0
-        //        }
-        //
-        //        var direction = Vector3()
-        //        direction.x = Math.cos(editorComponent.yaw.radians) * Math.cos(editorComponent.pitch.radians)
-        //        direction.y = Math.sin(editorComponent.pitch.radians)
-        //        direction.z = Math.sin(editorComponent.yaw.radians) * Math.cos(editorComponent.pitch.radians)
-        //
-        //        self.cameraFront = direction.normalized
-        //        self.isViewMatrixDirty = true
+//                let position = Input.getMousePosition()
+//                var xoffset = position.x - self.lastMousePosition.x
+//                var yoffset = self.lastMousePosition.y - position.y
+//                self.lastMousePosition = position
+//        
+//                let sensitivity: Float = 0.1
+//                xoffset *= sensitivity
+//                yoffset *= sensitivity
+//        
+//                editorComponent.yaw   += xoffset
+//                editorComponent.pitch += yoffset
+//        
+//                if editorComponent.pitch.radians > 89.0 {
+//                    editorComponent.pitch = 89.0
+//                } else if(editorComponent.pitch.radians < -89.0) {
+//                    editorComponent.pitch = -89.0
+//                }
+//        
+//                var direction = Vector3()
+//                direction.x = Math.cos(editorComponent.yaw.radians) * Math.cos(editorComponent.pitch.radians)
+//                direction.y = Math.sin(editorComponent.pitch.radians)
+//                direction.z = Math.sin(editorComponent.yaw.radians) * Math.cos(editorComponent.pitch.radians)
+//        
+//                self.cameraFront = direction.normalized
+//                self.isViewMatrixDirty = true
     }
 }
 

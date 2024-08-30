@@ -127,9 +127,7 @@ public extension Transform3D {
      */
     // FIXME: (Vlad) Looks like it doesn't works
     @inline(__always)
-    init(_ affineTransform: Transform2D) {
-        let at = affineTransform
-        
+    init(fromAffineTransform at: Transform2D) {
         self = Transform3D(columns: [
             [at[0, 0], at[1, 0], 0, at[2, 0]],
             [at[0, 1], at[1, 1], 0, at[2, 1]],
@@ -374,7 +372,7 @@ public extension Transform3D {
             [rotate30, rotate31, rotate32, 1]
         ])
     }
-    
+
     /// Create a left-handed perspective projection
     static func perspective(
         fieldOfView: Angle,
@@ -456,7 +454,15 @@ public extension Transform3D {
             [0,   0,   0,   1]
         ])
     }
-    
+
+    func scaledBy(_ vector: Vector3) -> Transform3D {
+        Transform3D(scale: vector) * self
+    }
+
+    func translatedBy(_ vector: Vector3) -> Transform3D {
+        Transform3D(translation: vector) * self
+    }
+
     var transpose: Transform3D {
         return Transform3D(rows: [
             [self.x.x, self.y.x, self.z.x, self.w.x],

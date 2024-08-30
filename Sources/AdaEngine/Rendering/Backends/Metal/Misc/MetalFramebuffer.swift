@@ -23,7 +23,7 @@ class MetalFramebuffer: Framebuffer {
 
         let size = SizeInt(
             width: descriptor.width,
-            height: descriptor.width
+            height: descriptor.height
         )
         
         self.size = size
@@ -56,12 +56,12 @@ class MetalFramebuffer: Framebuffer {
             
             let framebufferAttachment: FramebufferAttachment
             
-            let texture = RenderTexture(
+            let texture = attachmentDesc.texture ?? RenderTexture(
                 size: size,
                 scaleFactor: self.descriptor.scale,
                 format: attachmentDesc.format
             )
-            
+
             var usage: FramebufferAttachmentUsage = []
             
             if attachmentDesc.format.isDepthFormat {

@@ -1,6 +1,6 @@
 //
 //  AdaEngineMacrosPlugin.swift
-//
+//  AdaEngineMacros
 //
 //  Created by v.prusakov on 2/14/24.
 //
@@ -11,6 +11,7 @@ import SwiftSyntaxMacros
 @main
 struct AdaEngineMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
-        ComponentMacro.self
+        ComponentMacro.self,
+        EntryMacro.self
     ]
 }

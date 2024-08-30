@@ -31,22 +31,19 @@ public struct RenderItems<T: RenderItem> {
             }
             
             let context = RenderContext(
-                device: .shared,
+                device: drawList.renderDevice,
                 entity: item.entity,
                 world: world,
                 view: view,
                 drawList: drawList
             )
-            
             try drawPass.render(in: context, item: item)
-            
             drawList.clear()
         }
     }
 }
 
 public protocol RenderItem {
-    
     associatedtype SortKey: Comparable
     
     var entity: Entity { get }

@@ -23,7 +23,7 @@ open class Scene: Resource, @unchecked Sendable {
     public var name: String
     public private(set) var id: UUID
     
-    public internal(set) weak var window: Window?
+    public internal(set) weak var window: UIWindow?
     public internal(set) var viewport: Viewport = Viewport()
     
     public var resourceMetaInfo: ResourceMetaInfo?
@@ -163,6 +163,7 @@ open class Scene: Resource, @unchecked Sendable {
 
     // MARK: - Internal methods
 
+    @MainActor
     func readyIfNeeded() async {
         if self.isReady {
             return
@@ -171,6 +172,7 @@ open class Scene: Resource, @unchecked Sendable {
         await self.ready()
     }
 
+    @MainActor
     func ready() async {
         // TODO: In the future we need minimal scene plugin for headless mode.
         if self.instantiateDefaultPlugin {
@@ -183,28 +185,25 @@ open class Scene: Resource, @unchecked Sendable {
         self.world.tick() // prepare all values
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
 
-        await self.sceneDidLoad()
+        self.sceneDidLoad()
     }
     
     /// Update scene world and systems by delta time.
+    @MainActor
     func update(_ deltaTime: TimeInterval) async {
         if self.isUpdating {
             assertionFailure("Can't update scene twice")
             return
         }
-
         self.eventManager.send(SceneEvents.Update(scene: self, deltaTime: deltaTime), source: self)
-
         self.isUpdating = true
         defer { self.isUpdating = false }
 
         self.world.tick()
-        
         let context = SceneUpdateContext(
             scene: self,
             deltaTime: deltaTime
         )
-        
         await self.systemGraphExecutor.execute(self.systemGraph, context: context)
     }
 }

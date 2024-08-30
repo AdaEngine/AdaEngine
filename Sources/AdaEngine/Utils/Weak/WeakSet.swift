@@ -7,14 +7,16 @@
 
 /// A set of weak references.
 public struct WeakSet<T: AnyObject>: Sequence {
-    
     public typealias Element = T
     public typealias Iterator = WeakIterator
     
     var buffer: Set<WeakBox<T>>
-    
+
+    public var count: Int {
+        return self.buffer.count
+    }
+
     public final class WeakIterator: IteratorProtocol {
-        
         let buffer: [WeakBox<T>]
         let currentIndex: UnsafeMutablePointer<Int>
         
@@ -29,16 +31,13 @@ public struct WeakSet<T: AnyObject>: Sequence {
         }
         
         public func next() -> Element? {
-            
             self.currentIndex.pointee += 1
-            
             if buffer.endIndex == self.currentIndex.pointee {
                 return nil
             }
             
             return buffer[self.currentIndex.pointee].value
         }
-        
     }
     
     public func makeIterator() -> Iterator {

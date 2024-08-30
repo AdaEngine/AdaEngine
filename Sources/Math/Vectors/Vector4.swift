@@ -21,6 +21,15 @@ public struct Vector4: Hashable, Equatable, Codable {
         self.z = z
         self.w = w
     }
+
+    @inlinable
+    @inline(__always)
+    public init() {
+        self.x = 0
+        self.y = 0
+        self.z = 0
+        self.w = 0
+    }
 }
 
 public extension Vector4 {
@@ -107,6 +116,12 @@ public extension Vector4 {
 extension Vector4 {
     public var description: String {
         return String(describing: type(of: self)) + "(\(x), \(y), \(z), \(w))"
+    }
+}
+
+extension Vector4: Comparable {
+    public static func < (lhs: Vector4, rhs: Vector4) -> Bool {
+        lhs.x < rhs.x && lhs.y < rhs.y && lhs.z < rhs.z && lhs.w < rhs.w
     }
 }
 

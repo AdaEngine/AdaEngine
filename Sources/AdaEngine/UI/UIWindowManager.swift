@@ -20,73 +20,79 @@ public protocol SystemWindow {
 /// Base class using to manage windows in application. All created window should be registred there.
 /// Application has only one window manager per instance.
 @MainActor
-open class WindowManager {
+open class UIWindowManager {
 
     /// Returns all windows registred in current process.
-    public internal(set) var windows: [Window] = []
+    public internal(set) var windows: [UIWindow] = []
     
     /// Contains active window if available.
-    public private(set) var activeWindow: Window?
-    
+    public private(set) var activeWindow: UIWindow?
+
     public nonisolated init() { }
-    
+
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) async {
         for window in self.windows {
-            for event in Input.shared.eventsPool {
+            let menuBuilder = self.menuBuilder(for: window)
+            menuBuilder?.updateIfNeeded()
+
+            for event in Input.shared.eventsPool where event.window == window.id {
                 window.sendEvent(event)
             }
             
+            await window.internalUpdate(deltaTime)
+
             if window.canDraw {
-                let context = GUIRenderContext(window: window)
-                
-                context.beginDraw(in: window.bounds)
+                var context = UIGraphicsContext(window: window)
+                context.beginDraw(in: window.frame.size, scaleFactor: 1)
                 window.draw(with: context)
                 context.commitDraw()
             }
-            
-            await window.update(deltaTime)
         }
+    }
+
+    open func menuBuilder(for window: UIWindow) -> UIMenuBuilder? {
+        return nil
     }
 
     /// Create platform window and register app window inside the manager.
     /// - Warning: You should call this method when override this method!
-    open func createWindow(for window: Window) {
+    open func createWindow(for window: UIWindow) {
         self.windows.append(window)
         window.windowDidReady()
     }
     
     /// Show window and make it focused.
-    open func showWindow(_ window: Window, isFocused: Bool) {
+    open func showWindow(_ window: UIWindow, isFocused: Bool) {
         fatalErrorMethodNotImplemented()
     }
     
     /// Close window.
-    open func closeWindow(_ window: Window) {
+    open func closeWindow(_ window: UIWindow) {
         fatalErrorMethodNotImplemented()
     }
     
     /// Set window mode for window.
-    open func setWindowMode(_ window: Window, mode: Window.Mode) {
+    open func setWindowMode(_ window: UIWindow, mode: UIWindow.Mode) {
         fatalErrorMethodNotImplemented()
     }
     
     /// Set minimum size for window.
-    open func setMinimumSize(_ size: Size, for window: Window) {
+    open func setMinimumSize(_ size: Size, for window: UIWindow) {
         fatalErrorMethodNotImplemented()
     }
     
     /// Resize window.
-    open func resizeWindow(_ window: Window, size: Size) {
+    open func resizeWindow(_ window: UIWindow, size: Size) {
         fatalErrorMethodNotImplemented()
     }
     
     /// Get screen instance for window.
-    open func getScreen(for window: Window) -> Screen? {
+    open func getScreen(for window: UIWindow) -> Screen? {
         fatalErrorMethodNotImplemented()
     }
     
-    internal func setActiveWindow(_ window: Window) {
+    internal func setActiveWindow(_ window: UIWindow) {
         self.activeWindow?.isActive = false
         
         self.activeWindow?.windowDidResignActive()
@@ -120,7 +126,7 @@ open class WindowManager {
         fatalErrorMethodNotImplemented()
     }
     
-    public final func removeWindow(_ window: Window, setActiveAnotherIfNeeded: Bool = true) {
+    public final func removeWindow(_ window: UIWindow, setActiveAnotherIfNeeded: Bool = true) {
         guard let index = self.windows.firstIndex(where: { $0 === window }) else {
             assertionFailure("We don't have window in windows stack. That strange problem.")
             return
@@ -141,8 +147,8 @@ open class WindowManager {
         if setActiveAnotherIfNeeded {
             // Set last window as active
             // TODO: (Vlad) I think we should have any order
-            let newWindow = self.windows.last!
-            self.setActiveWindow(newWindow)
+            let newUIWindow = self.windows.last!
+            self.setActiveWindow(newUIWindow)
         }
     }
 }

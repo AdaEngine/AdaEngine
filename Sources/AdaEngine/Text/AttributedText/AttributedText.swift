@@ -7,7 +7,10 @@
 
 import OrderedCollections
 
+// TODO: Move to Swift-Foundation and use AttributedString instead of our version.
+
 /// A value type for a string with associated attributes for portions of its text.
+@dynamicMemberLookup
 public struct AttributedText: Hashable {
     
     public enum AttributeMergePolicy {
@@ -25,6 +28,22 @@ public struct AttributedText: Hashable {
         
         for index in text.indices {
             self.attributes[index] = attributes
+        }
+    }
+
+    subscript<T>(dynamicMember keyPath: WritableKeyPath<TextAttributeContainer, T>) -> T {
+        get {
+            self.attributes(at: self.startIndex)[keyPath: keyPath]
+        }
+
+        set {
+            let range = self.text.startIndex ..< self.text.endIndex
+
+            for index in self.text[range].indices {
+                var container = self.attributes(at: index)
+                container[keyPath: keyPath] = newValue
+                self.setAttributes(container, at: index)
+            }
         }
     }
 }
@@ -59,7 +78,17 @@ public extension AttributedText {
             self.attributes[index] = container
         }
     }
-    
+
+    mutating func mergeAttributes(_ attributes: TextAttributeContainer, mergePolicy: AttributedText.AttributeMergePolicy = .keepNew) {
+        let range = startIndex ..< endIndex
+
+        for index in text[range].indices {
+            var container = self.attributes(at: index)
+            container.merge(attributes, mergePolicy: mergePolicy)
+            self.setAttributes(container, at: index)
+        }
+    }
+
     mutating func setAttributes(
         _ container: TextAttributeContainer,
         at range: Range<String.Index>
@@ -67,6 +96,13 @@ public extension AttributedText {
         for index in self.text[range].indices {
             self.attributes[index] = container
         }
+    }
+
+    mutating func setAttributes(
+        _ container: TextAttributeContainer,
+        at index: String.Index
+    ) {
+        self.attributes[index] = container
     }
 }
 

@@ -12,8 +12,8 @@ class MetalUniformBufferSet: UniformBufferSet {
     
     /// Max frames in flight.
     let frames: Int
-    let device: RenderBackend
-    
+    let device: MetalRenderDevice
+
     public var label: String?
     
     typealias FrameIndex = Int
@@ -22,14 +22,14 @@ class MetalUniformBufferSet: UniformBufferSet {
     
     private var uniformBuffers: [FrameIndex : [Set : [ Binding : UniformBuffer] ] ] = [:]
     
-    init(frames: Int, device: RenderBackend) {
+    init(frames: Int, device: MetalRenderDevice) {
         self.frames = frames
         self.device = device
     }
     
     func initBuffers(length: Int, binding: Int, set: Int) {
         for frame in 0 ..< frames {
-            let buffer = self.device.makeUniformBuffer(length: length, binding: binding)
+            let buffer = self.device.createUniformBuffer(length: length, binding: binding)
             buffer.label = self.label
             self.setBuffer(buffer, set: set, frameIndex: frame)
         }

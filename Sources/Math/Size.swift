@@ -5,13 +5,17 @@
 //  Created by v.prusakov on 5/16/22.
 //
 
-public struct Size: Equatable, Codable, Hashable {
+public struct Size: Equatable, Codable, Hashable, Comparable {
     public var width: Float
     public var height: Float
     
     public init(width: Float, height: Float) {
         self.width = width
         self.height = height
+    }
+
+    public static func < (lhs: Size, rhs: Size) -> Bool {
+        lhs.width < rhs.width && lhs.height < rhs.height
     }
 }
 
@@ -21,9 +25,18 @@ public extension Size {
     }
 }
 
+public extension Vector2 {
+    var asSize: Size {
+        unsafeBitCast(self, to: Size.self)
+    }
+}
+
 public extension Size {
     @inline(__always)
     static let zero = Size(width: 0, height: 0)
+
+    @inline(__always)
+    static let infinity = Size(width: .infinity, height: .infinity)
 }
 
 extension Size: ExpressibleByArrayLiteral {
@@ -37,5 +50,18 @@ extension Size: ExpressibleByArrayLiteral {
 extension Size {
     public func toSizeInt() -> SizeInt {
         .init(width: Int(self.width), height: Int(self.height))
+    }
+}
+
+public extension Size {
+    static func += (lhs: inout Size, rhs: Size) {
+        lhs = lhs + rhs
+    }
+
+    static func + (lhs: Size, rhs: Size) -> Size {
+        return Size(
+            width: lhs.width + rhs.width,
+            height: rhs.height + lhs.height
+        )
     }
 }

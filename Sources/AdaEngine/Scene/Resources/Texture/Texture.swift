@@ -25,7 +25,7 @@ open class Texture: Resource, Codable {
     
     /// Returns an ``Image`` instance.
     public var image: Image {
-        if let image = RenderEngine.shared.getImage(from: self) {
+        if let image = RenderEngine.shared.renderDevice.getImage(from: self) {
             return image
         }
         

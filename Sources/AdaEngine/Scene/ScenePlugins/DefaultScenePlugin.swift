@@ -20,6 +20,7 @@ struct DefaultScenePlugin: ScenePlugin {
         await scene.addPlugin(Mesh2DPlugin())
         await scene.addPlugin(Text2DPlugin())
         await scene.addPlugin(AudioPlugin())
+        await scene.addPlugin(UIPlugin())
 
         // Setup Physics
         await scene.addPlugin(Physics2DPlugin())
@@ -31,13 +32,12 @@ struct DefaultScenePlugin: ScenePlugin {
 
 /// Contains base configurations for render world.
 /// This plugins will applied for entire Ada application and should be passed once per run.
-struct DefaultRenderPlugin: ScenePlugin {
-    func setup(in scene: Scene) async {
-        await scene.addPlugin(CameraRenderPlugin())
-
-        await scene.addPlugin(Scene2DPlugin())
-        await scene.addPlugin(Mesh2DRenderPlugin())
-        await scene.addPlugin(SpriteRenderPlugin())
-        await scene.addPlugin(Text2DRenderPlugin())
+struct DefaultRenderPlugin: RenderWorldPlugin {
+    func setup(in world: RenderWorld) {
+        world.addPlugin(CameraRenderPlugin())
+        world.addPlugin(Scene2DPlugin())
+        world.addPlugin(Mesh2DRenderPlugin())
+        world.addPlugin(SpriteRenderPlugin())
+        world.addPlugin(Text2DRenderPlugin())
     }
 }

@@ -15,9 +15,9 @@ import Darwin.C
 
 /// An object that contains inputs from keyboards, mouse, touch screens and etc.
 public final class Input {
-    
+
     internal static let shared = Input()
-    
+
     internal var mousePosition: Point = .zero
 
     private static let lock = NSLock()
@@ -32,12 +32,12 @@ public final class Input {
     private init() {}
 
     // MARK: - Public Methods
-    
+
     /// Returns set of touches on screens.
     public static func getTouches() -> Set<TouchEvent> {
         lock.lock()
         defer { lock.unlock() }
-        
+
         return self.shared.touches
     }
 
@@ -52,10 +52,10 @@ public final class Input {
     public static func isKeyPressed(_ keyCode: KeyCode) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        
+
         return self.shared.keyEvents.contains(keyCode)
     }
-    
+
     /// Returns true if you are pressing the mouse button specified with MouseButton.
     public static func isMouseButtonPressed(_ button: MouseButton) -> Bool {
         lock.lock()
@@ -64,10 +64,10 @@ public final class Input {
         guard let phase = self.shared.mouseEvents[button]?.phase else {
             return false
         }
-        
+
         return phase == .began || phase == .changed
     }
-    
+
     /// Returns `true` if you are released the mouse button.
     public static func isMouseButtonRelease(_ button: MouseButton) -> Bool {
         lock.lock()
@@ -75,7 +75,7 @@ public final class Input {
 
         return self.shared.mouseEvents[button]?.phase == .ended
     }
-    
+
     /// Get mouse position on window.
     public static func getMousePosition() -> Vector2 {
         lock.lock()
@@ -83,25 +83,44 @@ public final class Input {
 
         return self.shared.mousePosition
     }
-    
+
     /// Get mouse mode for active window.
     @MainActor
     public static func getMouseMode() -> MouseMode {
         Application.shared.windowManager.getMouseMode()
     }
-    
+
     /// Set mouse mode for active window.
     @MainActor
     public static func setMouseMode(_ mode: MouseMode) {
         Application.shared.windowManager.setMouseMode(mode)
     }
-    
+
     /// Set current cursor shape.
     @MainActor
     public static func setCursorShape(_ shape: CursorShape) {
+        self.shared.cursorStates = [shape]
         Application.shared.windowManager.setCursorShape(shape)
     }
-    
+
+    var cursorStates: [CursorShape] = [.arrow]
+
+    @MainActor
+    public static func pushCursorShape(_ shape: CursorShape) {
+        self.shared.cursorStates.append(shape)
+        Application.shared.windowManager.setCursorShape(shape)
+    }
+
+    @MainActor
+    public static func popCursorShape() {
+        if self.shared.cursorStates.count > 2 {
+            self.shared.cursorStates.removeLast()
+        }
+
+        let shape = self.shared.cursorStates.last!
+        Application.shared.windowManager.setCursorShape(shape)
+    }
+
     /// Set custom image for cursor.
     /// - Parameter shape: What cursor shape will update the texture.
     /// - Parameter texture: Texture for cursor, also available ``TextureAtlas``. If you pass nil, then we remove saved image.

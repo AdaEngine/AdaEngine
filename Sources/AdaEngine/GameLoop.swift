@@ -44,10 +44,8 @@ public final class GameLoop {
             return
         }
 
-        let physicsTime = self.fixedTimestep.advance(with: deltaTime)
-
         EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
-        
+
         try RenderEngine.shared.beginFrame()
 
         try await Application.shared.renderWorld.update(deltaTime)

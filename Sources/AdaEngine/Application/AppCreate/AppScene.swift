@@ -6,7 +6,7 @@
 //
 
 /// Describe which kind of scene will present on start.
-@MainActor(unsafe)
+@MainActor @preconcurrency
 public protocol AppScene {
     associatedtype Body: AppScene
     var scene: Body { get }
@@ -21,7 +21,7 @@ public extension AppScene {
     }
 
     /// Set the window presentation mode.
-    func windowMode(_ mode: Window.Mode) -> some AppScene {
+    func windowMode(_ mode: UIWindow.Mode) -> some AppScene {
         return self.modifier(WindowModeSceneModifier(windowMode: mode))
     }
 
@@ -35,10 +35,12 @@ public extension AppScene {
         self.modifier(WindowTitleSceneModifier(title: title))
     }
     
-    func renderPlugin<T: ScenePlugin>(_ plugin: T) -> some AppScene {
-        self.modifier(RenderWorldPlugin(plugin: plugin))
+    /// Add new specific ``RenderWorldPlugin`` to the app.
+    func renderPlugin<T: RenderWorldPlugin>(_ plugin: T) -> some AppScene {
+        self.modifier(RenderWorldPluginSceneModifier(plugin: plugin))
     }
     
+    /// Disable all default render plugins from app.
     func disableDefaultRenderPlugins(_ isDisable: Bool) -> some AppScene {
         self.modifier(UseDefaultRenderPlugins(isEnabled: !isDisable))
     }

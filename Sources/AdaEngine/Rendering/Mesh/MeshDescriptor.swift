@@ -236,7 +236,7 @@ public extension MeshDescriptor {
     
     func getIndexBuffer() -> IndexBuffer {
         var indicies = self.indicies
-        let indexBuffer = RenderEngine.shared.makeIndexBuffer(
+        let indexBuffer = RenderEngine.shared.renderDevice.createIndexBuffer(
             format: .uInt32,
             bytes: &indicies,
             length: indicies.count * MemoryLayout<UInt32>.size
@@ -252,7 +252,7 @@ public extension MeshDescriptor {
             vertexSize += buffer.buffer.elementSize
         }
         
-        let vertexBuffer = RenderEngine.shared.makeVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
+        let vertexBuffer = RenderEngine.shared.renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
         let vertexBufferContents = vertexBuffer.contents()
         
         var attributeOffset: Int = 0
