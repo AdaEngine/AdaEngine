@@ -13,12 +13,14 @@ enum _AnimationState {
     case done
 }
 
+@MainActor
 protocol _AnimationTransaction {
     var state: _AnimationState { get }
     var label: AnyHashable { get }
     mutating func updateAnimation(_ deltaTime: TimeInterval)
 }
 
+@MainActor
 final class UIAnimationController {
 
     private(set) var isPlaying: Bool = false

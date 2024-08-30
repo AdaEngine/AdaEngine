@@ -7,6 +7,7 @@
 
 // Inspired by Bevy https://github.com/bevyengine/bevy/tree/main/crates/bevy_render/src/render_graph
 
+import Logging
 import Collections
 
 /// Execute ``RenderGraph`` objects.
@@ -22,6 +23,9 @@ public class RenderGraphExecutor {
     
     // swiftlint:disable:next cyclomatic_complexity
     private func executeGraph(_ graph: RenderGraph, world: World, inputResources: [RenderSlotValue], viewEntity: Entity?) async throws {
+        let tracer = Logger(label: "RenderGraph")
+        tracer.trace("Begin Render Graph Frame")
+
         var writtenResources = [RenderGraph.Node.ID: [RenderSlotValue]]()
         
         /// Should execute firsts
@@ -42,7 +46,6 @@ public class RenderGraphExecutor {
                 nodes.prepend(node)
             }
         }
-        
     nextNode:
         while let currentNode = nodes.popLast() {
             // if we has a outputs for node we should skip it
@@ -79,6 +82,7 @@ public class RenderGraphExecutor {
                 world: world,
                 device: RenderEngine.shared.renderDevice,
                 inputResources: inputs,
+                tracer: tracer,
                 viewEntity: viewEntity
             )
             let outputs = try await currentNode.node.execute(context: context)
@@ -93,5 +97,7 @@ public class RenderGraphExecutor {
                 nodes.prepend(outputNode)
             }
         }
+
+        tracer.trace("End Render Graph Frame")
     }
 }

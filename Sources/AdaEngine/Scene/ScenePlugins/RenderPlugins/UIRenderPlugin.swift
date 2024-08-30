@@ -54,114 +54,114 @@ public struct UIRenderNode: RenderNode {
     ]
 
     public func execute(context: Context) async throws -> [RenderSlotValue] {
-        guard let view = context.viewEntity else {
-            return []
-        }
-
-        guard let camera = view.components[Camera.self] else {
-            return []
-        }
-
-        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .gray
-        let uiEntities = context.world.performQuery(Self.query)
-
-        let drawList: DrawList
-        switch camera.renderTarget {
-        case .window(let windowId):
-            if windowId == .empty {
-                return []
-            }
-
-            drawList = try context.device.beginDraw(for: windowId, clearColor: clearColor)
-        case .texture(let texture):
-            let desc = FramebufferDescriptor(
-                scale: texture.scaleFactor,
-                width: texture.width,
-                height: texture.height,
-                attachments: [
-                    FramebufferAttachmentDescriptor(
-                        format: texture.pixelFormat,
-                        texture: texture,
-                        clearColor: clearColor,
-                        loadAction: .clear,
-                        storeAction: .store
-                    )
-                ]
-            )
-            let framebuffer = context.device.createFramebuffer(from: desc)
-            drawList = context.device.beginDraw(to: framebuffer, clearColors: [])
-        }
-
-        if let viewport = camera.viewport {
-            drawList.setViewport(viewport)
-        }
-
-        var items = RenderItems<TransparentUIRenderItem>(items: [])
-        for entity in uiEntities {
-            let (renderComponent, camera) = entity.components[UIRenderTextureComponent.self, Camera.self]
-
-            var spriteVerticies: [SpriteVertexData] = []
-
-            for index in 0 ..< Self.quadPosition.count {
-                let data = SpriteVertexData(
-                    position: Transform3D.identity * Self.quadPosition[index],
-                    color: .clear,
-                    textureCoordinate: renderComponent.renderTexture.textureCoordinates[index],
-                    textureIndex: 0
-                )
-                spriteVerticies.append(data)
-            }
-
-            let vertexBuffer = context.device.createVertexBuffer(
-                length: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride,
-                binding: 0
-            )
-            vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride)
-
-            let indeciesCount = 6
-            let indicies = Int(indeciesCount * 4)
-
-            var quadIndices = [UInt32].init(repeating: 0, count: indicies)
-
-            var offset: UInt32 = 0
-            for index in stride(from: 0, to: indicies, by: 6) {
-                quadIndices[index + 0] = offset + 0
-                quadIndices[index + 1] = offset + 1
-                quadIndices[index + 2] = offset + 2
-
-                quadIndices[index + 3] = offset + 2
-                quadIndices[index + 4] = offset + 3
-                quadIndices[index + 5] = offset + 0
-
-                offset += 4
-            }
-
-            let indexBuffer = context.device.createIndexBuffer(
-                format: .uInt32,
-                bytes: &quadIndices,
-                length: indicies
-            )
-
-            let renderData = UIRenderData(
-                vertexBuffer: vertexBuffer,
-                indexBuffer: indexBuffer,
-                textures: .init(repeating: renderComponent.renderTexture, count: 16)
-            )
-
-            items.items.append(TransparentUIRenderItem(
-                entity: EmptyEntity {
-                    renderData
-                    camera
-                },
-                batchEntity: EmptyEntity(),
-                drawPassId: UIDrawPass.identifier,
-                renderPipeline: SpriteRenderPipeline.default.renderPipeline,
-                sortKey: 0
-            ))
-        }
-
-        try items.render(drawList, world: context.world, view: view)
-        context.device.endDrawList(drawList)
+//        guard let view = context.viewEntity else {
+//            return []
+//        }
+//
+//        guard let camera = view.components[Camera.self] else {
+//            return []
+//        }
+//
+//        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
+//        let uiEntities = context.world.performQuery(Self.query)
+//
+//        let drawList: DrawList
+//        switch camera.renderTarget {
+//        case .window(let windowId):
+//            if windowId == .empty {
+//                return []
+//            }
+//
+//            drawList = try context.device.beginDraw(for: windowId, clearColor: clearColor)
+//        case .texture(let texture):
+//            let desc = FramebufferDescriptor(
+//                scale: texture.scaleFactor,
+//                width: texture.width,
+//                height: texture.height,
+//                attachments: [
+//                    FramebufferAttachmentDescriptor(
+//                        format: texture.pixelFormat,
+//                        texture: texture,
+//                        clearColor: clearColor,
+//                        loadAction: .clear,
+//                        storeAction: .store
+//                    )
+//                ]
+//            )
+//            let framebuffer = context.device.createFramebuffer(from: desc)
+//            drawList = try context.device.beginDraw(to: framebuffer, clearColors: [])
+//        }
+//
+//        if let viewport = camera.viewport {
+//            drawList.setViewport(viewport)
+//        }
+//
+//        var items = RenderItems<TransparentUIRenderItem>(items: [])
+//        for entity in uiEntities {
+//            let (renderComponent, camera) = entity.components[UIRenderTextureComponent.self, Camera.self]
+//
+//            var spriteVerticies: [SpriteVertexData] = []
+//
+//            for index in 0 ..< Self.quadPosition.count {
+//                let data = SpriteVertexData(
+//                    position: Transform3D.identity * Self.quadPosition[index],
+//                    color: .clear,
+//                    textureCoordinate: renderComponent.renderTexture.textureCoordinates[index],
+//                    textureIndex: 0
+//                )
+//                spriteVerticies.append(data)
+//            }
+//
+//            let vertexBuffer = context.device.createVertexBuffer(
+//                length: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride,
+//                binding: 0
+//            )
+//            vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride)
+//
+//            let indeciesCount = 6
+//            let indicies = Int(indeciesCount * 4)
+//
+//            var quadIndices = [UInt32].init(repeating: 0, count: indicies)
+//
+//            var offset: UInt32 = 0
+//            for index in stride(from: 0, to: indicies, by: 6) {
+//                quadIndices[index + 0] = offset + 0
+//                quadIndices[index + 1] = offset + 1
+//                quadIndices[index + 2] = offset + 2
+//
+//                quadIndices[index + 3] = offset + 2
+//                quadIndices[index + 4] = offset + 3
+//                quadIndices[index + 5] = offset + 0
+//
+//                offset += 4
+//            }
+//
+//            let indexBuffer = context.device.createIndexBuffer(
+//                format: .uInt32,
+//                bytes: &quadIndices,
+//                length: indicies
+//            )
+//
+//            let renderData = UIRenderData(
+//                vertexBuffer: vertexBuffer,
+//                indexBuffer: indexBuffer,
+//                textures: .init(repeating: renderComponent.renderTexture, count: 16)
+//            )
+//
+//            items.items.append(TransparentUIRenderItem(
+//                entity: EmptyEntity {
+//                    renderData
+//                    camera
+//                },
+//                batchEntity: EmptyEntity(),
+//                drawPassId: UIDrawPass.identifier,
+//                renderPipeline: SpriteRenderPipeline.default.renderPipeline,
+//                sortKey: 0
+//            ))
+//        }
+//
+//        try items.render(drawList, world: context.world, view: view)
+//        context.device.endDrawList(drawList)
         return []
     }
 }

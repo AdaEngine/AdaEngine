@@ -285,20 +285,39 @@ extension MetalRenderDevice {
 
 extension MetalRenderDevice {
 
-    func beginDraw(for window: UIWindow.ID, clearColor: Color) throws -> DrawList {
+    enum DrawListError: String, LocalizedError {
+        case notAGlobalDevice = "RenderDevice isn't a global."
+        case windowNotExists = "Required window doesn't exists."
+        case failedToGetSurfaceTexture = "Failed to get surface texture."
+        case failedToCreateCommandBuffer = "Failed to create command buffer"
+        case failedToGetRenderPass = "Cannot get a render pass descriptor for current draw"
+
+        var errorDescription: String? {
+            return self.rawValue
+        }
+    }
+
+    func beginDraw(
+        for window: UIWindow.ID,
+        clearColor: Color,
+        loadAction: AttachmentLoadAction,
+        storeAction: AttachmentStoreAction
+    ) throws -> DrawList {
         guard let context else {
-            fatalError("Windows available only in global render device.")
+            throw DrawListError.notAGlobalDevice
         }
-
         guard let window = context.windows[window] else {
-            fatalError("Render Window not exists.")
+            throw DrawListError.windowNotExists
         }
-
-        let mtlRenderPass = window.getRenderPass()
+        guard let mtlRenderPass = window.getRenderPass() else {
+            throw DrawListError.failedToGetSurfaceTexture
+        }
+        
+        mtlRenderPass.colorAttachments[0].loadAction = loadAction.toMetal
+        mtlRenderPass.colorAttachments[0].storeAction = storeAction.toMetal
         mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
-
         guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
-            fatalError("Command Buffer not exists")
+            throw DrawListError.failedToCreateCommandBuffer
         }
 
         let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
@@ -310,13 +329,12 @@ extension MetalRenderDevice {
         return DrawList(commandBuffer: commandBuffer, renderDevice: self)
     }
 
-    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList {
+    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) throws -> DrawList {
         guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
-            fatalError("Cannot get a command buffer")
+            throw DrawListError.failedToCreateCommandBuffer
         }
-
         guard let mtlRenderPassDesc = (framebuffer as? MetalFramebuffer)?.renderPassDescriptor else {
-            fatalError("Cannot get a render pass descriptor for current draw")
+            throw DrawListError.failedToGetRenderPass
         }
 
         if let clearColors {

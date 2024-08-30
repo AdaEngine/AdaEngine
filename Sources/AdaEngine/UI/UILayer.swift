@@ -7,6 +7,7 @@
 
 import Math
 
+@MainActor
 class UILayer {
     
     private var texture: RenderTexture?

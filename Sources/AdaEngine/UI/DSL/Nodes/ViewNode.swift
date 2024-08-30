@@ -85,6 +85,9 @@ class ViewNode: Identifiable {
     /// Called each time, when environment values did change.
     func updateEnvironment(_ environment: EnvironmentValues) {
         self.environment.merge(environment)
+        storages.forEach { storage in
+            (storage as? ViewContextStorage)?.values = self.environment
+        }
     }
 
     /// Update layout properties for view. 
@@ -291,8 +294,9 @@ extension ViewNode: Equatable, Hashable {
 protocol ViewOwner: AnyObject {
     var window: UIWindow? { get }
     var containerView: UIView? { get }
-}
 
+    func updateEnvironment(_ env: EnvironmentValues)
+}
 
 extension UIGraphicsContext {
     func drawDebugBorders(_ size: Size, lineWidth: Float = 1, color: Color = .random()) {

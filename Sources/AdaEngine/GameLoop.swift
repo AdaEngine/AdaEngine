@@ -48,8 +48,8 @@ public final class GameLoop {
 
         try RenderEngine.shared.beginFrame()
 
-        await Application.shared.windowManager.update(deltaTime)
         try await Application.shared.renderWorld.update(deltaTime)
+        await Application.shared.windowManager.update(deltaTime)
 
         try RenderEngine.shared.endFrame()
 

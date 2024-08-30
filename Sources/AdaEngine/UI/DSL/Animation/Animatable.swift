@@ -7,6 +7,7 @@
 
 import Math
 
+@MainActor
 public protocol Animatable {
     /// The type defining the data to animate.
     associatedtype AnimatableData: VectorArithmetic

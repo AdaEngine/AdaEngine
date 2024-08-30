@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 3/21/23.
 //
 
+import Logging
+
 /// RenderWorld that store entities for rendering. Each update tick entities removed from RenderWorld.
 @RenderGraphActor
 public final class RenderWorld {

@@ -168,7 +168,6 @@ final class ButtonViewNode: ViewModifierNode {
     }
 
     override func onMouseLeave() {
-        print("Mouse leave")
         state = .normal
         self.invalidateContent()
     }
