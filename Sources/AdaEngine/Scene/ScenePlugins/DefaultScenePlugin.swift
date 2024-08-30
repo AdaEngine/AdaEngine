@@ -39,6 +39,5 @@ struct DefaultRenderPlugin: RenderWorldPlugin {
         world.addPlugin(Mesh2DRenderPlugin())
         world.addPlugin(SpriteRenderPlugin())
         world.addPlugin(Text2DRenderPlugin())
-        world.addPlugin(UIRenderPlugin())
     }
 }

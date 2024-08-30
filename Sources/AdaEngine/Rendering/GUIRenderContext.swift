@@ -8,7 +8,6 @@
 import Math
 
 // TODO: Clip Mask
-// TODO: Layers
 
 /// Special object to render user interface on the screen.
 /// Context use orthogonal projection.
@@ -165,19 +164,6 @@ public struct UIGraphicsContext {
 
     func flush() {
         self.currentDrawContext?.flush()
-    }
-
-    func commitToRenderWorld() async {
-        self.commitDraw()
-
-        guard case .texture(let texture) = camera.renderTarget else {
-            return
-        }
-        let entity = EmptyEntity {
-            UIRenderTextureComponent(renderTexture: texture)
-            camera
-        }
-        await Application.shared.renderWorld.addEntity(entity)
     }
 }
 
