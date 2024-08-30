@@ -13,11 +13,8 @@ struct AdaEditorApp: App {
 
     var scene: some AppScene {
         GameAppScene {
-            UITestScene()
+            SpaceInvaders()
         }
-//        GUIAppScene {
-//            EditorWindow()
-//        }
         .windowMode(.windowed)
         .windowTitle("AdaEngine")
     }

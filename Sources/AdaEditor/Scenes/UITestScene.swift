@@ -8,18 +8,11 @@
 import AdaEngine
 
 struct SomeContent: View {
-
-    @Environment(\.scene) var scene
-    @Environment(\.entity) var entity
-
     var body: some View {
         VStack {
             Color.blue
 
             Color.green
-        }
-        .onAppear {
-            print(scene, entity)
         }
     }
 }
@@ -38,16 +31,6 @@ class UITestScene: Scene {
         }
 
         self.addEntity(entity)
-
-        let uiEntity = Entity {
-            UIComponent(
-                view: SomeContent().frame(width: 150, height: 150),
-                behaviour: .overlay
-            )
-            
-            Transform(scale: Vector3(0.5), position: [0.5, 0, 0])
-        }
-        self.addEntity(uiEntity)
 
         let container = UIContainerView(rootView: Color.blue)
         container.backgroundColor = .surfaceClearColor
