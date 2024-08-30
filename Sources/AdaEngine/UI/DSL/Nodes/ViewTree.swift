@@ -59,6 +59,10 @@ final class ViewRootNode: ViewNode {
         )
     }
 
+    override func updateEnvironment(_ environment: EnvironmentValues) {
+        contentNode.updateEnvironment(environment)
+    }
+
     override func update(_ deltaTime: TimeInterval) async {
         await contentNode.update(deltaTime)
     }

@@ -52,7 +52,7 @@ open class UIView {
     public var backgroundColor: Color = .white
     private let debugViewColor = Color.random()
 
-    public weak var window: UIWindow? {
+    public internal(set) weak var window: UIWindow? {
         willSet {
             willMoveToWindow(newValue)
         }

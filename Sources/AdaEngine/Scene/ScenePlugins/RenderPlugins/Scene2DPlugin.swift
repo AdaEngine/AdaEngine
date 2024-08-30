@@ -66,12 +66,17 @@ public struct Main2DRenderNode: RenderNode {
         }
         
         let sortedRenderItems = renderItems.sorted()
-        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .gray
-        
+        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
+
         let drawList: DrawList
         switch camera.renderTarget {
         case .window(let windowId):
-            drawList = try context.device.beginDraw(for: windowId, clearColor: clearColor)
+            drawList = try context.device.beginDraw(
+                for: windowId,
+                clearColor: clearColor,
+                loadAction: .clear,
+                storeAction: .store
+            )
         case .texture(let texture):
             let desc = FramebufferDescriptor(
                 scale: texture.scaleFactor,
@@ -88,7 +93,7 @@ public struct Main2DRenderNode: RenderNode {
                 ]
             )
             let framebuffer = context.device.createFramebuffer(from: desc)
-            drawList = context.device.beginDraw(to: framebuffer, clearColors: [])
+            drawList = try context.device.beginDraw(to: framebuffer, clearColors: [])
         }
         
         if let viewport = camera.viewport {

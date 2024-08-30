@@ -29,8 +29,9 @@ open class ScriptableComponent: Component {
     open func onUpdate(_ deltaTime: TimeInterval) { }
     
     /// Called each frame to update gui.
+    @MainActor
     open func onUpdateGUI(_ deltaTime: TimeInterval, context: UIGraphicsContext) {
-        
+
     }
     
     /// Called each time with interval in seconds for physics and other updates.

@@ -12,10 +12,11 @@ import Math
 
 /// Special object to render user interface on the screen.
 /// Context use orthogonal projection.
+@MainActor
 public struct UIGraphicsContext {
-
     /// Window Identifier related presented window.
     private let camera: Camera
+
     /// Returns current transform.
     public private(set) var transform: Transform3D = .identity
     private(set) var currentDrawContext: Renderer2D.DrawContext?
@@ -31,9 +32,7 @@ public struct UIGraphicsContext {
 
     private var viewMatrix: Transform3D = .identity
 
-    @MainActor
-    @preconcurrency
-    init(window: UIWindow) {
+    @MainActor init(window: UIWindow) {
         let camera = Camera(window: window.id)
         camera.isActive = true
         camera.projection = .orthographic
@@ -52,20 +51,24 @@ public struct UIGraphicsContext {
     internal mutating func beginDraw(in size: Size, scaleFactor: Float) {
         let view = Transform3D.orthographic(
             left: 0,
-            right: size.width / scaleFactor,
+            right: size.width * scaleFactor,
             top: 0,
-            bottom: -size.height / scaleFactor,
-            zNear: -1,
-            zFar: 1
+            bottom: -size.height * scaleFactor,
+            zNear: 0,
+            zFar: 1000
         )
         self.viewMatrix = view
 
-        self.currentDrawContext = Renderer2D.beginDrawContext(
-            for: self.camera,
-            viewUniform: GlobalViewUniform(
-                viewProjectionMatrix: view
+        do {
+            self.currentDrawContext = try Renderer2D.beginDrawContext(
+                for: self.camera,
+                viewUniform: GlobalViewUniform(
+                    viewProjectionMatrix: view
+                )
             )
-        )
+        } catch {
+            print("[Error] \(error)")
+        }
     }
 
     public mutating func concatenate(_ transform: Transform3D) {
@@ -94,26 +97,34 @@ public struct UIGraphicsContext {
 
     /// Paints the area contained within the provided rectangle, using the passed color.
     public func drawRect(_ rect: Rect, color: Color) {
-        self.drawRect(rect, texture: nil, color: color.opacity(self.opacity))
+        self.drawRect(rect, texture: nil, color: applyOpacityIfNeeded(color))
     }
-    
+
     /// Paints the area contained within the provided rectangle, using the passed color and texture.
     public func drawRect(_ rect: Rect, texture: Texture2D? = nil, color: Color) {
         let transform = self.transform * rect.toTransform3D
-        self.currentDrawContext?.drawQuad(transform: transform, texture: texture, color: color.opacity(self.opacity))
+        self.currentDrawContext?.drawQuad(transform: transform, texture: texture, color: applyOpacityIfNeeded(color))
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
     public func drawEllipse(in rect: Rect, color: Color) {
         let transform = self.transform * rect.toTransform3D
-        self.currentDrawContext?.drawCircle(transform: transform, thickness: 1, fade: 0.005, color: color.opacity(self.opacity))
+        self.currentDrawContext?.drawCircle(transform: transform, thickness: 1, fade: 0.005, color: applyOpacityIfNeeded(color))
     }
 
     public func drawLine(start: Vector2, end: Vector2, lineWidth: Float, color: Color) {
         let start = (transform * Vector4(start.x, start.y, 0, 1))
         let end = (transform * Vector4(end.x, end.y, 0, 1))
 
-        self.currentDrawContext?.drawLine(start: start.xyz, end: end.xyz, lineWidth: lineWidth, color: color.opacity(self.opacity))
+        self.currentDrawContext?.drawLine(start: start.xyz, end: end.xyz, lineWidth: lineWidth, color: applyOpacityIfNeeded(color))
+    }
+
+    private func applyOpacityIfNeeded(_ color: Color) -> Color {
+        if color == .clear {
+            return color
+        }
+
+        return color.opacity(self.opacity)
     }
 
     // MARK: - Text Drawing

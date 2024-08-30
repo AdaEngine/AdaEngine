@@ -19,6 +19,7 @@ public class SceneView: UIView {
         self.sceneManager = SceneManager()
         super.init(frame: frame)
         self.sceneManager.sceneView = self
+        self.backgroundColor = .clear
     }
     
     public convenience init(scene: Scene, frame: Rect) {

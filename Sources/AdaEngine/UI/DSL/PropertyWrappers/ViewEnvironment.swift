@@ -23,7 +23,9 @@ public struct Environment<Value>: PropertyStoragable, UpdatableProperty {
     }
     
     public init(_ keyPath: KeyPath<EnvironmentValues, Value>) {
-        self.readValue = { $0.values[keyPath: keyPath] }
+        self.readValue = {
+            $0.values[keyPath: keyPath]
+        }
     }
 
     public func update() { }

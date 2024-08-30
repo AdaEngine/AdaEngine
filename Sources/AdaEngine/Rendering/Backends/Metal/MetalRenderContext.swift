@@ -13,9 +13,7 @@ import Math
 extension MetalRenderBackend {
     
     final class Context {
-        
         private(set) var windows: [UIWindow.ID: RenderWindow] = [:]
-        
         let physicalDevice: MTLDevice
         
         init() {
@@ -88,7 +86,6 @@ extension MetalRenderBackend {
     }
     
     final class RenderWindow {
-        
         private(set) weak var view: MetalView?
         var drawable: CAMetalDrawable?
         var commandBuffer: MTLCommandBuffer?
@@ -101,11 +98,13 @@ extension MetalRenderBackend {
             self.commandBuffer = commandBuffer
         }
         
-        func getRenderPass() -> MTLRenderPassDescriptor {
+        func getRenderPass() -> MTLRenderPassDescriptor? {
+            guard let drawable else {
+                return nil
+            }
+            
             let mtlRenderPass = MTLRenderPassDescriptor()
-            mtlRenderPass.colorAttachments[0].texture = self.drawable?.texture
-            mtlRenderPass.colorAttachments[0].loadAction = .clear
-            mtlRenderPass.colorAttachments[0].storeAction = .store
+            mtlRenderPass.colorAttachments[0].texture = drawable.texture
             return mtlRenderPass
         }
     }

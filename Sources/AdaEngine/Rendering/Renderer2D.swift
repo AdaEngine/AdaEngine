@@ -255,19 +255,24 @@ class Renderer2D {
         )
     }
     
-    static func beginDrawContext(for window: UIWindow, viewTransform: Transform3D) -> DrawContext {
+    static func beginDrawContext(for window: UIWindow, viewTransform: Transform3D) throws -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(GlobalViewUniform(projectionMatrix: .identity, viewProjectionMatrix: .identity, viewMatrix: viewTransform))
 
-        let currentDraw = try! RenderEngine.shared.renderDevice.beginDraw(for: window.id, clearColor: .black)
+        let currentDraw = try RenderEngine.shared.renderDevice.beginDraw(
+            for: window.id,
+            clearColor: .surfaceClearColor,
+            loadAction: .load,
+            storeAction: .store
+        )
         let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared, frameIndex: frameIndex)
         context.startBatch()
         return context
     }
     
-    static func beginDrawContext(for camera: Camera, viewUniform: GlobalViewUniform) -> DrawContext {
+    static func beginDrawContext(for camera: Camera, viewUniform: GlobalViewUniform) throws -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         let device = RenderEngine.shared.renderDevice
 
@@ -276,11 +281,11 @@ class Renderer2D {
 
         let currentDraw: DrawList
         
-        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .black
+        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
         
         switch camera.renderTarget {
         case .window(let windowId):
-            currentDraw = try! device.beginDraw(for: windowId, clearColor: clearColor)
+            currentDraw = try device.beginDraw(for: windowId, clearColor: clearColor, loadAction: .load, storeAction: .store)
         case .texture(let texture):
             let desc = FramebufferDescriptor(
                 scale: texture.scaleFactor,
@@ -295,7 +300,7 @@ class Renderer2D {
                 ]
             )
             let framebuffer = device.createFramebuffer(from: desc)
-            currentDraw = device.beginDraw(to: framebuffer, clearColors: [])
+            currentDraw = try device.beginDraw(to: framebuffer, clearColors: [])
         }
         
         let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared, frameIndex: frameIndex)

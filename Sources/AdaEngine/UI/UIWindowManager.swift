@@ -42,9 +42,9 @@ open class UIWindowManager {
             
             await window.internalUpdate(deltaTime)
 
-            if let renderTexture = window.renderTexture, window.canDraw {
-                var context = UIGraphicsContext(texture: renderTexture)
-                context.beginDraw(in: window.bounds.size, scaleFactor: 1)
+            if window.canDraw {
+                var context = UIGraphicsContext(window: window)
+                context.beginDraw(in: window.frame.size, scaleFactor: 1)
                 window.draw(with: context)
                 context.commitDraw()
             }

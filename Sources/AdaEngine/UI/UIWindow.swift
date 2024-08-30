@@ -35,7 +35,6 @@ open class UIWindow: UIView {
 
     /// Flag indicates that window can draw itself content in method ``draw(in:with:)``.
     open var canDraw: Bool = true
-    private(set) var renderTexture: RenderTexture?
 
     private var _minSize: Size = .zero
     public var minSize: Size {
@@ -54,16 +53,16 @@ open class UIWindow: UIView {
         return windowManager.getScreen(for: self)
     }
     
-    // Flag indicates that window is active.
+    /// Flag indicates that window is active.
     public internal(set) var isActive: Bool = false
-    
+
     public convenience override init() {
         self.init(frame: .zero)
     }
     
     public required init(frame: Rect) {
         super.init(frame: frame)
-        
+        self.backgroundColor = .clear
         self.windowManager.createWindow(for: self)
     }
 
@@ -73,25 +72,6 @@ open class UIWindow: UIView {
 
     open func close() {
         self.windowManager.closeWindow(self)
-    }
-
-    private func updateRenderTexture() {
-        guard self.frame.size != .zero else {
-            return
-        }
-
-        self.renderTexture = RenderTexture(
-            size: SizeInt(width: Int(self.frame.width), height: Int(self.frame.height)),
-            scaleFactor: 1,
-            format: .bgra8,
-            debugLabel: "Window \(id)"
-        )
-    }
-
-    open override func layoutSubviews() {
-        super.layoutSubviews()
-
-        self.updateRenderTexture()
     }
 
     // MARK: - Public Methods
@@ -144,7 +124,6 @@ open class UIWindow: UIView {
     open override func frameDidChange() {
         self.windowManager.resizeWindow(self, size: self.frame.size)
         super.frameDidChange()
-        self.updateRenderTexture()
     }
     
     public override func addSubview(_ view: UIView) {

@@ -97,11 +97,16 @@ public protocol RenderDevice: AnyObject {
     /// Begin draw for window.
     /// - Warning: Local RenderDevice can't render on specific window. Instead, use global ``RenderEngine/renderDevice`` instance.
     /// - Returns: ``DrawList`` which contains information about drawing.
-    func beginDraw(for window: UIWindow.ID, clearColor: Color) throws -> DrawList
+    func beginDraw(
+        for window: UIWindow.ID,
+        clearColor: Color,
+        loadAction: AttachmentLoadAction,
+        storeAction: AttachmentStoreAction
+    ) throws -> DrawList
 
     /// Begin draw to framebuffer.
     /// - Returns: ``DrawList`` which contains information about drawing.
-    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList
+    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) throws -> DrawList
 
     /// Draw all items from ``DrawList``.
     /// - Parameter indexCount: For each instance, the number of indices to read from the index buffer.

@@ -31,8 +31,6 @@ struct CameraRenderNode: RenderNode {
             context.runSubgraph(by: Scene2DPlugin.renderGraph, inputs: [
                 RenderSlotValue(name: Scene2DPlugin.InputNode.view, value: .entity(entity))
             ], viewEntity: entity)
-
-            // TODO: blit to window
         }
 
         return []

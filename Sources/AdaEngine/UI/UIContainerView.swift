@@ -55,6 +55,10 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
         }
     }
 
+    func updateEnvironment(_ env: EnvironmentValues) {
+        self.viewTree.rootNode.updateEnvironment(env)
+    }
+
     public override func onTouchesEvent(_ touches: Set<TouchEvent>) {
         if touches.isEmpty {
             return

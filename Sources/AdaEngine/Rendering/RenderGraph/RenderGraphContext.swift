@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 2/19/23.
 //
 
+import Logging
+
 /// The context with all graph information required to run a ``RenderNode``.
 /// This context is created for each node by the ``RenderGraphExecutor``.
 @RenderGraphActor
@@ -13,12 +15,14 @@ public final class RenderGraphContext {
     public let device: RenderDevice
     public let world: World
     public internal(set) var inputResources: [RenderSlotValue]
+    public let tracer: Logger
     public let viewEntity: Entity?
 
-    init(graph: RenderGraph, world: World, device: RenderDevice, inputResources: [RenderSlotValue], viewEntity: Entity?) {
+    init(graph: RenderGraph, world: World, device: RenderDevice, inputResources: [RenderSlotValue], tracer: Logger, viewEntity: Entity?) {
         self.graph = graph
         self.device = device
         self.world = world
+        self.tracer = tracer
         self.inputResources = inputResources
         self.viewEntity = viewEntity
     }
