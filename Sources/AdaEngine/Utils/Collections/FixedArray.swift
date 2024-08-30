@@ -84,7 +84,7 @@ public struct FixedArray<T>: Sequence, RandomAccessCollection {
     @inline(__always)
     public mutating func removeAll() {
         self._ensureUnique()
-        self.buffer.pointer.assign(repeating: nil)
+        self.buffer.pointer.update(repeating: nil)
     }
     
     /// Ensures that the sparse data storage buffer is uniquely referenced,
@@ -177,7 +177,7 @@ extension FixedArray {
         }
         
         func moveMemory(to destination: UnsafeMutableBufferPointer<Element>) {
-            self.pointer.baseAddress?.moveAssign(from: destination.baseAddress!, count: self.pointer.count)
+            self.pointer.baseAddress?.moveUpdate(from: destination.baseAddress!, count: self.pointer.count)
         }
         
         deinit {

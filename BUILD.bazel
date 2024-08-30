@@ -116,6 +116,7 @@ ada_engine_deps = [
     "@SPIRV-Cross",
     ":SPIRVCompiler",
     "@swiftpkg_box2d_swift//:box2d",
+    "@swiftpkg_swift_log//:Logging",
     ":MiniAudioBindings"
 ]
 

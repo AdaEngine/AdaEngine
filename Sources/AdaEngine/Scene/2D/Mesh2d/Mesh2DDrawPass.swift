@@ -36,7 +36,7 @@ public struct Mesh2DDrawPass: DrawPass {
         let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,
-            frameIndex: context.device.currentFrameIndex
+            frameIndex: RenderEngine.shared.currentFrameIndex
         )
         drawList.appendUniformBuffer(uniformBuffer, for: .vertex)
         
@@ -66,7 +66,7 @@ public struct Mesh2DDrawPass: DrawPass {
             }
         }
         
-        let meshUniformBuffer = context.device.makeUniformBuffer(Mesh2DUniform.self, binding: Self.meshUniformBinding)
+        let meshUniformBuffer = context.device.createUniformBuffer(Mesh2DUniform.self, binding: Self.meshUniformBinding)
         meshUniformBuffer.setData(meshComponent.modelUniform)
         
         meshUniformBuffer.setData(meshComponent.modelUniform)

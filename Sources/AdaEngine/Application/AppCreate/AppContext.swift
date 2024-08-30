@@ -1,9 +1,11 @@
 //
 //  AppContext.swift
-//  
+//  AdaEngine
 //
 //  Created by v.prusakov on 4/30/24.
 //
+
+import Logging
 
 final class AppContext<T: App> {
 
@@ -36,12 +38,13 @@ final class AppContext<T: App> {
     func setup() throws {
         try ResourceManager.initialize()
         try AudioServer.initialize()
-        
         RuntimeTypeLoader.loadTypes()
 
         guard let appScene = app.scene as? InternalAppScene else {
             fatalError("Incorrect object of App Scene")
         }
+        
+        LoggingSystem.bootstrap(StreamLogHandler.standardError)
 
         Task { @MainActor in
             var configuration = _AppSceneConfiguration()
@@ -52,7 +55,7 @@ final class AppContext<T: App> {
                 await self.application.renderWorld.addPlugin(DefaultRenderPlugin())
             }
 
-            for plugin in configuration.plugins {
+            for plugin in configuration.renderPlugins {
                 await self.application.renderWorld.addPlugin(plugin)
             }
 
@@ -62,9 +65,7 @@ final class AppContext<T: App> {
 
     func runApplication() throws {
         try AudioServer.shared.start()
-
         try application.run()
-
         try AudioServer.shared.stop()
     }
 }

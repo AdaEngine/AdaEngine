@@ -138,6 +138,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
+    .product(name: "Logging", package: "swift-log"),
     "MiniAudioBindings",
     "AtlasFontGenerator",
     "Yams",
@@ -157,7 +158,8 @@ let adaEngineTarget: Target = .target(
     dependencies: adaEngineDependencies,
     resources: [
         .copy("Assets/Shaders"),
-        .copy("Assets/Fonts")
+        .copy("Assets/Fonts"),
+        .copy("Assets/Images")
     ],
     swiftSettings: adaEngineSwiftSettings,
     linkerSettings: [
@@ -236,7 +238,10 @@ targets += [
 targets += [
     .testTarget(
         name: "AdaEngineTests",
-        dependencies: ["AdaEngine"]
+        dependencies: ["AdaEngine"],
+        swiftSettings: [
+            .interoperabilityMode(.Cxx)
+        ]
     ),
     .testTarget(
         name: "MathTests",
@@ -266,11 +271,12 @@ let package = Package(
 )
 
 package.dependencies += [
-    .package(url: "https://github.com/apple/swift-collections", branch: "main"),
+    .package(url: "https://github.com/apple/swift-collections", from: "1.1.1"),
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
+    .package(url: "https://github.com/apple/swift-log", from: "1.5.4"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
-    .package(url: "https://github.com/apple/swift-syntax", from: "509.1.1")
+    .package(url: "https://github.com/swiftlang/swift-syntax", from: "510.0.2")
 ]
 
 if useLocalDeps {

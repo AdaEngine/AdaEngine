@@ -13,7 +13,7 @@ class SpaceInvaders: Scene {
     var characterAtlas: TextureAtlas!
     
     override func sceneDidMove(to view: SceneView) {
-        let sound = try! ResourceManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
+//        let sound = try! ResourceManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
         let charactersTiles = try! ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
         self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
 

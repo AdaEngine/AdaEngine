@@ -46,9 +46,11 @@ public final class DrawList {
     }
     
     private var debugNames: [String] = []
-    
-    init(commandBuffer: DrawCommandBuffer) {
+    let renderDevice: RenderDevice
+
+    init(commandBuffer: DrawCommandBuffer, renderDevice: RenderDevice) {
         self.commandBuffer = commandBuffer
+        self.renderDevice = renderDevice
     }
     
     public func pushDebugName(_ name: String) {
@@ -131,7 +133,7 @@ public final class DrawList {
         indexBufferOffset: Int = 0,
         instanceCount: Int
     ) {
-        RenderEngine.shared.draw(
+        renderDevice.draw(
             self,
             indexCount: indexCount,
             indexBufferOffset: indexBufferOffset,

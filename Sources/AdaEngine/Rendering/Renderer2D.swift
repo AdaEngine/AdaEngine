@@ -7,16 +7,14 @@
 
 import Math
 
+// swiftlint:disable file_length
+
 // TODO: Should we use separete renderer? Maybe switch to render graph???
 // TODO: Needs optimizations
 
 /// A first implementation for 2D rendering.
 // Currently we don't use it in code base
 class Renderer2D {
-    
-    static var minimumZIndex = -4096
-
-    static var maximumZIndex = 4096
 
     public static let shared = Renderer2D()
 
@@ -52,9 +50,9 @@ class Renderer2D {
     // TODO: (Vlad) Maybe we should split this code
     // swiftlint:disable:next function_body_length
     private init() {
-        let device = RenderEngine.shared
+        let device = RenderEngine.shared.renderDevice
         
-        self.uniformSet = device.makeUniformBufferSet()
+        self.uniformSet = device.createUniformBufferSet()
         self.uniformSet.label = "Renderer2D_ViewUniform"
         self.uniformSet.initBuffers(for: GlobalViewUniform.self, binding: GlobalBufferIndex.viewUniform, set: 0)
 
@@ -80,7 +78,7 @@ class Renderer2D {
             offset += 4
         }
         
-        let quadIndexBuffer = device.makeIndexBuffer(
+        let quadIndexBuffer = device.createIndexBuffer(
             format: .uInt32,
             bytes: &quadIndices,
             length: Self.maxIndecies
@@ -111,9 +109,9 @@ class Renderer2D {
         
         piplineDesc.colorAttachments = [attachment]
         
-        let circlePipeline = device.makeRenderPipeline(from: piplineDesc)
+        let circlePipeline = device.createRenderPipeline(from: piplineDesc)
         
-        let circleVertexBuffer = device.makeVertexBuffer(
+        let circleVertexBuffer = device.createVertexBuffer(
             length: MemoryLayout<CircleVertexData>.stride * Self.maxVerticies,
             binding: 0
         )
@@ -147,9 +145,9 @@ class Renderer2D {
 
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
         
-        let quadPipeline = device.makeRenderPipeline(from: piplineDesc)
+        let quadPipeline = device.createRenderPipeline(from: piplineDesc)
         
-        let quadVertexBuffer = device.makeVertexBuffer(
+        let quadVertexBuffer = device.createVertexBuffer(
             length: MemoryLayout<QuadVertexData>.stride * Self.maxVerticies,
             binding: 0
         )
@@ -182,9 +180,9 @@ class Renderer2D {
         
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<LineVertexData>.stride
         
-        let linesPipeline = device.makeRenderPipeline(from: piplineDesc)
+        let linesPipeline = device.createRenderPipeline(from: piplineDesc)
         
-        let linesVertexBuffer = device.makeVertexBuffer(
+        let linesVertexBuffer = device.createVertexBuffer(
             length: MemoryLayout<LineVertexData>.stride * Self.maxLineVertices,
             binding: 0
         )
@@ -196,7 +194,7 @@ class Renderer2D {
             buffer[i] = Int32(i)
         }
         
-        let indexBuffer = device.makeIndexBuffer(
+        let indexBuffer = device.createIndexBuffer(
             format: .uInt32,
             bytes: &buffer,
             length: Self.maxLineIndices
@@ -214,6 +212,13 @@ class Renderer2D {
         
         // Text
         
+        let textIndexBuffer = device.createIndexBuffer(
+            format: .uInt32,
+            bytes: &quadIndices,
+            length: Self.maxIndecies
+        )
+        textIndexBuffer.label = "Renderer2D_TextIndexBuffer"
+
         piplineDesc.vertexDescriptor = VertexDescriptor()
         
         piplineDesc.debugName = "Text Pipeline"
@@ -230,45 +235,57 @@ class Renderer2D {
             .attribute(.int, name: "textureIndex")
         ])
         
+        let textVertexBuffer = device.createVertexBuffer(
+            length: MemoryLayout<GlyphVertexData>.stride * Self.maxVerticies,
+            binding: 0
+        )
+        textVertexBuffer.label = "Renderer2D_QuadVertexBuffer"
+
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<GlyphVertexData>.stride
         
-        let textPipeline = device.makeRenderPipeline(from: piplineDesc)
+        let textPipeline = device.createRenderPipeline(from: piplineDesc)
         
         self.textData = Data<GlyphVertexData>(
-            vertexBuffer: quadVertexBuffer,
+            vertexBuffer: textVertexBuffer,
             vertices: [],
             indeciesCount: 0,
-            indexBuffer: indexBuffer,
+            indexBuffer: textIndexBuffer,
             renderPipeline: textPipeline,
             textureSlots: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
         )
     }
     
-    static func beginDrawContext(for window: Window, viewTransform: Transform3D) -> DrawContext {
+    static func beginDrawContext(for window: UIWindow, viewTransform: Transform3D) throws -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(GlobalViewUniform(projectionMatrix: .identity, viewProjectionMatrix: .identity, viewMatrix: viewTransform))
 
-        let currentDraw = RenderEngine.shared.beginDraw(for: window.id, clearColor: .black)
+        let currentDraw = try RenderEngine.shared.renderDevice.beginDraw(
+            for: window.id,
+            clearColor: .surfaceClearColor,
+            loadAction: .load,
+            storeAction: .store
+        )
         let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared, frameIndex: frameIndex)
         context.startBatch()
         return context
     }
     
-    static func beginDrawContext(for camera: Camera, viewUniform: GlobalViewUniform, transform: Transform) -> DrawContext {
+    static func beginDrawContext(for camera: Camera, viewUniform: GlobalViewUniform) throws -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
-        
+        let device = RenderEngine.shared.renderDevice
+
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(viewUniform)
 
         let currentDraw: DrawList
         
-        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .black
+        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
         
         switch camera.renderTarget {
         case .window(let windowId):
-            currentDraw = RenderEngine.shared.beginDraw(for: windowId, clearColor: clearColor)
+            currentDraw = try device.beginDraw(for: windowId, clearColor: clearColor, loadAction: .load, storeAction: .store)
         case .texture(let texture):
             let desc = FramebufferDescriptor(
                 scale: texture.scaleFactor,
@@ -282,8 +299,8 @@ class Renderer2D {
                     )
                 ]
             )
-            let framebuffer = RenderEngine.shared.makeFramebuffer(from: desc)
-            currentDraw = RenderEngine.shared.beginDraw(to: framebuffer, clearColors: [])
+            let framebuffer = device.createFramebuffer(from: desc)
+            currentDraw = try device.beginDraw(to: framebuffer, clearColors: [])
         }
         
         let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared, frameIndex: frameIndex)
@@ -291,14 +308,18 @@ class Renderer2D {
         
         return context
     }
+
+    func setUniformBuffer(_ viewUniform: GlobalViewUniform) {
+        let frameIndex = RenderEngine.shared.currentFrameIndex
+        let buffer = self.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
+        buffer.setData(viewUniform)
+    }
 }
 
 extension Renderer2D {
     public class DrawContext {
         
         let currentDraw: DrawList
-        
-        private var fillColor: Color = .clear
         
         private var lineWidth: Float = 1
         
@@ -317,13 +338,12 @@ extension Renderer2D {
         }
         
         public func drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color) {
-            
             if self.renderEngine.quadData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()
             }
             
             // Flush all data if textures count more than 16
-            if self.renderEngine.quadData.textureSlotIndex >= Renderer2D.maxTexturesPerBatch {
+            if self.renderEngine.quadData.textureSlotIndex >= Renderer2D.maxTexturesPerBatch - 1 {
                 self.nextBatch()
                 self.renderEngine.quadData.textureSlots = [Texture2D].init(repeating: .whiteTexture, count: Renderer2D.maxTexturesPerBatch)
                 self.renderEngine.quadData.textureSlotIndex = 0
@@ -411,36 +431,107 @@ extension Renderer2D {
             
             self.renderEngine.circleData.indeciesCount += 6
         }
-        
-        public func drawText(_ textLayout: TextLayoutManager, transform: Transform3D) {
+
+        public func drawGlyph(_ glyph: Glyph, transform: Transform3D) {
             if self.renderEngine.textData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()
             }
-            
-            let glyphs = textLayout.getGlyphVertexData(transform: transform)
-            self.renderEngine.textData.vertices.append(contentsOf: glyphs.verticies)
-            self.renderEngine.textData.indeciesCount += glyphs.indeciesCount
-            
+
             // Flush all data if textures count more than 16
             if self.renderEngine.textData.textureSlotIndex >= 15 {
                 self.nextBatch()
                 self.renderEngine.textData.textureSlots = [Texture2D].init(repeating: .whiteTexture, count: 16)
                 self.renderEngine.textData.textureSlotIndex = 0
             }
-            
-            // Fill textures to render
-            for texture in glyphs.textures {
-                if let texture = texture {
-                    if !self.renderEngine.textData.textureSlots.contains(where: { $0 === texture }) {
-                        self.renderEngine.textData.textureSlotIndex += 1
-                        self.renderEngine.textData.textureSlots[self.renderEngine.textData.textureSlotIndex] = texture
-                        
-                    }
-                }
+
+            var textureSlotIndex = self.renderEngine.textData.textureSlotIndex
+
+            let texture = glyph.textureAtlas
+            let foregroundColor = glyph.attributes.foregroundColor
+            let outlineColor = glyph.attributes.outlineColor
+            let textureCoordinate = glyph.textureCoordinates
+
+            if let index = self.renderEngine.textData.textureSlots.firstIndex(where: { $0 === texture }) {
+                textureSlotIndex = index
+            } else {
+                textureSlotIndex += 1
+                self.renderEngine.textData.textureSlots[textureSlotIndex] = texture
+                self.renderEngine.textData.textureSlotIndex = textureSlotIndex
             }
+
+            var verticies = [GlyphVertexData]()
+
+            verticies.append(
+                GlyphVertexData(
+                    position: transform * Vector4(x: glyph.position.z, y: glyph.position.y, z: 0, w: 1),
+                    foregroundColor: foregroundColor,
+                    outlineColor: outlineColor,
+                    textureCoordinate: [ textureCoordinate.z, textureCoordinate.y ],
+                    textureIndex: textureSlotIndex
+                )
+            )
+
+            verticies.append(
+                GlyphVertexData(
+                    position: transform * Vector4(x: glyph.position.z, y: glyph.position.w, z: 0, w: 1),
+                    foregroundColor: foregroundColor,
+                    outlineColor: outlineColor,
+                    textureCoordinate: [ textureCoordinate.z, textureCoordinate.w ],
+                    textureIndex: textureSlotIndex
+                )
+            )
+
+            verticies.append(
+                GlyphVertexData(
+                    position: transform * Vector4(x: glyph.position.x, y: glyph.position.w, z: 0, w: 1),
+                    foregroundColor: foregroundColor,
+                    outlineColor: outlineColor,
+                    textureCoordinate: [ textureCoordinate.x, textureCoordinate.w ],
+                    textureIndex: textureSlotIndex
+                )
+            )
+
+            verticies.append(
+                GlyphVertexData(
+                    position: transform * Vector4(x: glyph.position.x, y: glyph.position.y, z: 0, w: 1),
+                    foregroundColor: foregroundColor,
+                    outlineColor: outlineColor,
+                    textureCoordinate: [ textureCoordinate.x, textureCoordinate.y ],
+                    textureIndex: textureSlotIndex
+                )
+            )
+
+            self.renderEngine.textData.indeciesCount += 6
+            self.renderEngine.textData.vertices.append(contentsOf: verticies)
+        }
+
+        public func drawText(_ textLayout: TextLayoutManager, transform: Transform3D) {
+            if self.renderEngine.textData.indeciesCount >= Renderer2D.maxIndecies {
+                self.nextBatch()
+            }
+
+            // Flush all data if textures count more than 16
+            if self.renderEngine.textData.textureSlotIndex >= 15 {
+                self.nextBatch()
+                self.renderEngine.textData.textureSlots = [Texture2D].init(repeating: .whiteTexture, count: 16)
+                self.renderEngine.textData.textureSlotIndex = 0
+            }
+
+            var textureSlotIndex = self.renderEngine.textData.textureSlotIndex
+
+            let glyphs = textLayout.getGlyphVertexData(
+                transform: transform,
+                textures: &self.renderEngine.textData.textureSlots,
+                textureSlotIndex: &textureSlotIndex
+            )
+
+            self.renderEngine.textData.textureSlotIndex = textureSlotIndex
+
+            self.renderEngine.textData.vertices.append(contentsOf: glyphs.verticies)
+            self.renderEngine.textData.indeciesCount += glyphs.indeciesCount
         }
         
-        public func drawLine(start: Vector3, end: Vector3, color: Color) {
+        public func drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color) {
             if self.renderEngine.lineData.indeciesCount >= Renderer2D.maxLineIndices {
                 self.nextBatch()
             }
@@ -467,7 +558,7 @@ extension Renderer2D {
         public func commitContext() {
             self.flush()
             
-            RenderEngine.shared.endDrawList(self.currentDraw)
+            RenderEngine.shared.renderDevice.endDrawList(self.currentDraw)
         }
         
         public func setTriangleFillMode(_ mode: TriangleFillMode) {
@@ -488,6 +579,9 @@ extension Renderer2D {
             
             self.renderEngine.lineData.vertices.removeAll(keepingCapacity: true)
             self.renderEngine.lineData.indeciesCount = 0
+
+            self.renderEngine.textData.vertices.removeAll(keepingCapacity: true)
+            self.renderEngine.textData.indeciesCount = 0
         }
         
         public func flush() {
@@ -498,13 +592,24 @@ extension Renderer2D {
             )
             
             self.currentDraw.appendUniformBuffer(buffer)
-            
+
             self.flush(for: self.renderEngine.quadData, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.lineData, indexPrimitive: .line, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.circleData, currentDraw: currentDraw)
             self.flush(for: self.renderEngine.textData, currentDraw: currentDraw)
         }
-        
+
+        private func flushTextData() {
+            let buffer = self.renderEngine.uniformSet.getBuffer(
+                binding: GlobalBufferIndex.viewUniform,
+                set: 0,
+                frameIndex: self.frameIndex
+            )
+
+            self.currentDraw.appendUniformBuffer(buffer)
+            self.flush(for: self.renderEngine.textData, currentDraw: currentDraw)
+        }
+
         private func flush<D>(for data: Data<D>, indexPrimitive: IndexPrimitive = .triangle, currentDraw: DrawList) {
             if data.indeciesCount == 0 {
                 return
@@ -526,7 +631,7 @@ extension Renderer2D {
             currentDraw.bindIndexBuffer(data.indexBuffer)
             currentDraw.bindIndexPrimitive(indexPrimitive)
             
-            RenderEngine.shared.draw(currentDraw, indexCount: data.indeciesCount, indexBufferOffset: 0, instanceCount: 1)
+            RenderEngine.shared.renderDevice.draw(currentDraw, indexCount: data.indeciesCount, indexBufferOffset: 0, instanceCount: 1)
         }
         
     }
@@ -557,3 +662,6 @@ fileprivate extension Renderer2D {
         let lineWidth: Float
     }
 }
+
+
+// TODO: Move it later

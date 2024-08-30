@@ -7,6 +7,7 @@
 
 // TODO: (Vlad) Create object aka CGFloat for float or doubles
 // TODO: (Vlad) when move to new vector object, we should use same object size
+// TODO: In swift 5.0 now SIMD is part of stdlib, should we support it instead of vector types..
 
 /// A 2-dimensional vector used for 2D math using floating point coordinates.
 @frozen
@@ -19,6 +20,13 @@ public struct Vector2: Hashable, Equatable, Codable {
     public init(x: Float, y: Float) {
         self.x = x
         self.y = y
+    }
+
+    @inlinable
+    @inline(__always)
+    public init() {
+        self.x = 0
+        self.y = 0
     }
 }
 
@@ -95,6 +103,20 @@ public extension Vector2 {
     @inline(__always)
     func dot(_ vector: Vector2) -> Float {
         return x * vector.x + y * vector.y
+    }
+
+    @inlinable
+    @inline(__always)
+    func clamped(to rect: Rect) -> Point {
+        let x = clamp(self.x, rect.minX, rect.maxX)
+        let y = clamp(self.y, rect.minY, rect.maxY)
+        return Point(x: x, y: y)
+    }
+}
+
+extension Vector2: Comparable {
+    public static func < (lhs: Vector2, rhs: Vector2) -> Bool {
+        lhs.x < rhs.x && lhs.y < rhs.y
     }
 }
 

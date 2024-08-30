@@ -19,6 +19,14 @@ public struct Vector3: Hashable, Equatable, Codable {
         self.y = y
         self.z = z
     }
+
+    @inlinable
+    @inline(__always)
+    public init() {
+        self.x = 0
+        self.y = 0
+        self.z = 0
+    }
 }
 
 public extension Vector3 {
@@ -96,6 +104,12 @@ extension Vector3: ExpressibleByArrayLiteral {
 extension Vector3 {
     public var description: String {
         return String(describing: type(of: self)) + "(\(x), \(y), \(z))"
+    }
+}
+
+extension Vector3: Comparable {
+    public static func < (lhs: Vector3, rhs: Vector3) -> Bool {
+        lhs.x < rhs.x && lhs.y < rhs.y && lhs.z < rhs.z
     }
 }
 

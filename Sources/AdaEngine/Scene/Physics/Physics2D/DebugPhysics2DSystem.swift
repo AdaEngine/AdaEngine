@@ -103,7 +103,7 @@ public struct DebugPhysicsExctract2DSystem: System {
 }
 
 /// System for rendering debug physics shape on top of the scene.
-public struct Physics2DDebugDrawSystem: System {
+public struct Physics2DDebugDrawSystem: RenderSystem {
     
     public static var dependencies: [SystemDependency] = [.after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)]
     

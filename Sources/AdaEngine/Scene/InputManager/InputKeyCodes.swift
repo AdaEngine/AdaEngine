@@ -36,7 +36,8 @@ public enum KeyCode: String, Hashable, CaseIterable {
     case capslock
     case ctrl
     case alt
-    case meta // "Command" button for macOS/iOS and "Windows" button for Windows/Linux
+    /// "Command" button for macOS/iOS and "Windows" button for Windows/Linux
+    case meta
 
     case home
     case pageUp
@@ -388,10 +389,7 @@ public enum MouseButton: UInt8, Hashable {
     case right
     case middle
     
-    case wheelUp
-    case wheelDown
-    case wheelLeft
-    case wheelRight
+    case scrollWheel
 }
 
 // swiftlint:enable all

@@ -4,7 +4,6 @@
 //
 //  Created by v.prusakov on 11/2/21.
 //
-//
 
 import Math
 
@@ -51,7 +50,7 @@ public struct Camera {
     public enum RenderTarget: Codable {
         
         /// Render camera to window.
-        case window(Window.ID)
+        case window(UIWindow.ID)
         
         /// Render camera to texture.
         case texture(RenderTexture)
@@ -84,8 +83,8 @@ public struct Camera {
     
     /// Fill color for unused pixel.
     @Export
-    public var backgroundColor: Color = .gray
-    
+    public var backgroundColor: Color = .surfaceClearColor
+
     /// Contains information about clear flags.
     /// By default contains ``CameraClearFlags/solid`` flag which fill clear color by ``Camera/backgroundColor``.
     @Export
@@ -115,6 +114,10 @@ public struct Camera {
     /// Create a new camera component. By default render target is window.
     public init() {
         self.renderTarget = .window(.empty)
+    }
+    
+    public init(window: UIWindow.ID) {
+        self.renderTarget = .window(window)
     }
     
     public var viewMatrix: Transform3D = .identity
@@ -210,7 +213,7 @@ struct GlobalViewUniformBufferSet {
     let uniformBufferSet: UniformBufferSet
     
     init() {
-        self.uniformBufferSet = RenderEngine.shared.makeUniformBufferSet()
+        self.uniformBufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
         self.uniformBufferSet.label = "Global View Uniform"
         self.uniformBufferSet.initBuffers(for: GlobalViewUniform.self, binding: GlobalBufferIndex.viewUniform, set: 0)
     }

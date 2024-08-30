@@ -46,7 +46,7 @@ typedef struct FontMetrics {
 } FontMetrics;
 
 typedef struct font_atlas_descriptor {
-    double fontScale;
+    double emFontScale;
     double minimumScale;
     bool expensiveColoring;
     double angleThreshold;

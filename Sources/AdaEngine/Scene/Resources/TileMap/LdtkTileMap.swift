@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/11/24.
 //
 
+import Logging
+
 /// Namespace for LDtk
 public enum LDtk { }
 
@@ -161,7 +163,8 @@ extension LDtk {
                 do {
                     try await loadLdtkProject(from: data)
                 } catch {
-                    print("Failed to update ldtk file", error.localizedDescription)
+                    
+                    Logger(label: "LDtk").critical("Failed to update ldtk file \(error.localizedDescription)")
                 }
             }
         }
@@ -288,8 +291,12 @@ public protocol TileMapDelegate: AnyObject {
     /// - Parameter entity: AdaEngine entity which will store in TileSource.
     /// - Parameter instance: Entity Instance from LDtk project. Use this object to get info about entity
     /// - Parameter tileSource: Instance of TileSource where entity will store.
-    func tileMap(_ tileMap: LDtk.TileMap, needsUpdate entity: AdaEngine.Entity,
-                 from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource)
+    func tileMap(
+        _ tileMap: LDtk.TileMap, 
+        needsUpdate entity: AdaEngine.Entity, 
+        from instance: LDtk.EntityInstance, 
+        in tileSource: LDtk.EntityTileSource
+    )
 }
 
 // MARK: - JSON Data

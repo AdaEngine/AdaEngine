@@ -7,7 +7,6 @@
 
 /// Set the minimum size of presented window.
 struct MinimumWindowSizeSceneModifier: SceneModifier {
-    
     let size: Size
     
     func modify(_ configuration: inout _AppSceneConfiguration) {
@@ -17,8 +16,7 @@ struct MinimumWindowSizeSceneModifier: SceneModifier {
 
 /// Set the window mode.
 struct WindowModeSceneModifier: SceneModifier {
-    
-    let windowMode: Window.Mode
+    let windowMode: UIWindow.Mode
     
     func modify(_ configuration: inout _AppSceneConfiguration) {
         configuration.windowMode = self.windowMode
@@ -44,11 +42,11 @@ struct WindowTitleSceneModifier: SceneModifier {
 }
 
 /// Add render world plugin.
-struct RenderWorldPlugin<T: ScenePlugin>: SceneModifier {
+struct RenderWorldPluginSceneModifier<T: RenderWorldPlugin>: SceneModifier {
     let plugin: T
     
     func modify(_ configuration: inout _AppSceneConfiguration) {
-        configuration.plugins.append(plugin)
+        configuration.renderPlugins.append(plugin)
     }
 }
 

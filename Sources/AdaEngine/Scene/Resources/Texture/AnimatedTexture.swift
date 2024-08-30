@@ -81,7 +81,7 @@ public final class AnimatedTexture: Texture2D {
     /// Create animated texture with 256 frames.
     public init() {
         self.frames = [Frame].init(repeating: Frame(texture: nil, delay: 0), count: 256)
-        let sampler = RenderEngine.shared.makeSampler(from: SamplerDescriptor())
+        let sampler = RenderEngine.shared.renderDevice.createSampler(from: SamplerDescriptor())
         super.init(gpuTexture: GPUTexture(), sampler: sampler, size: .zero)
         
         self.gameLoopToken = EventManager.default.subscribe(

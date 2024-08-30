@@ -73,7 +73,6 @@ public struct ExctractMesh2DSystem: System {
         }
 
         extractedEntity.components += extractedMeshes
-
         await Application.shared.renderWorld.addEntity(extractedEntity)
     }
 }
@@ -81,17 +80,17 @@ public struct ExctractMesh2DSystem: System {
 // MARK: - Mesh 2D Render Plugin -
 
 /// Plugin for RenderWorld for rendering 2D meshes.
-struct Mesh2DRenderPlugin: ScenePlugin {
-    func setup(in scene: Scene) async {
+struct Mesh2DRenderPlugin: RenderWorldPlugin {
+    func setup(in world: RenderWorld) {
         let drawPass = Mesh2DDrawPass()
         DrawPassStorage.setDrawPass(drawPass)
 
-        scene.addSystem(Mesh2DRenderSystem.self)
+        world.addSystem(Mesh2DRenderSystem.self)
     }
 }
 
 /// System in RenderWorld for rendering 2D meshes.
-public struct Mesh2DRenderSystem: System {
+public struct Mesh2DRenderSystem: RenderSystem {
 
     static let query = EntityQuery(where: .has(Camera.self) && .has(VisibleEntities.self) && .has(RenderItems<Transparent2DRenderItem>.self))
 
@@ -239,7 +238,7 @@ extension Material {
                 return nil
             }
 
-            return (RenderEngine.shared.makeRenderPipeline(from: pipelineDesc), shaderModule)
+            return (RenderEngine.shared.renderDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
         } catch {
             assertionFailure("[Mesh2DRenderSystem] \(error.localizedDescription)")
             return nil

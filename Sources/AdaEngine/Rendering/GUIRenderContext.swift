@@ -1,5 +1,5 @@
 //
-//  GUIRenderContext.swift
+//  UIGraphicsContext.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 5/16/22.
@@ -7,132 +7,172 @@
 
 import Math
 
+// TODO: Clip Mask
+
 /// Special object to render user interface on the screen.
 /// Context use orthogonal projection.
-final public class GUIRenderContext {
-    
-    private var fillColor: Color = .clear
-    private var strokeColor: Color = .black
-    
-    private var currentTransform = Transform3D.identity
-    
+@MainActor
+public struct UIGraphicsContext {
     /// Window Identifier related presented window.
-    private unowned let window: Window
-    
-    init(window: Window) {
-        self.window = window
-    }
-    
-    public func concatenate(_ transform: Transform3D) {
-        self.currentTransform = self.currentTransform * transform
-    }
-    
-    public func setCurrentTransform(_ transform: Transform3D) {
-        self.currentTransform = transform
-    }
-    
-    var view: Transform3D = .identity
-    private var screenRect: Rect = .zero
-    
-    private var currentDrawContext: Renderer2D.DrawContext?
-    
-    public func beginDraw(in screenRect: Rect) {
-        let size = screenRect.size
+    private let camera: Camera
+
+    /// Returns current transform.
+    public private(set) var transform: Transform3D = .identity
+    private(set) var currentDrawContext: Renderer2D.DrawContext?
+    private var clipPath: Path?
+
+    public var opacity: Float = 1
+
+    /// Values passed for render context.
+    public var environment: EnvironmentValues = EnvironmentValues()
+
+    // Used for internal and debug values.
+    @_spi(AdaEngineEditor) public var _environment: EnvironmentValues = EnvironmentValues()
+
+    private var viewMatrix: Transform3D = .identity
+
+    @MainActor init(window: UIWindow) {
+        let camera = Camera(window: window.id)
+        camera.isActive = true
+        camera.projection = .orthographic
         
+        self.camera = camera
+    }
+    
+    init(texture: RenderTexture) {
+        let camera = Camera(renderTarget: texture)
+        camera.isActive = true
+        camera.projection = .orthographic
+        
+        self.camera = camera
+    }
+    
+    internal mutating func beginDraw(in size: Size, scaleFactor: Float) {
         let view = Transform3D.orthographic(
             left: 0,
-            right: size.width,
+            right: size.width * scaleFactor,
             top: 0,
-            bottom: -size.height,
-            zNear: -1,
-            zFar: 1
+            bottom: -size.height * scaleFactor,
+            zNear: 0,
+            zFar: 1000
         )
-        
-        self.screenRect = screenRect
-        self.view = .identity
+        self.viewMatrix = view
 
-        self.currentDrawContext = Renderer2D.beginDrawContext(for: self.window, viewTransform: view)
+        do {
+            self.currentDrawContext = try Renderer2D.beginDrawContext(
+                for: self.camera,
+                viewUniform: GlobalViewUniform(
+                    viewProjectionMatrix: view
+                )
+            )
+        } catch {
+            print("[Error] \(error)")
+        }
+    }
+
+    public mutating func concatenate(_ transform: Transform3D) {
+        self.transform = transform * self.transform
+    }
+
+    public mutating func translateBy(x: Float, y: Float) {
+        let translationMatrix = Transform3D(translation: [x, y, 0])
+        self.transform = translationMatrix * self.transform
     }
     
-    public func setFillColor(_ color: Color) {
-        self.fillColor = color
+    public mutating func scaleBy(x: Float, y: Float) {
+        let scaleMatrix = Transform3D(scale: [x, y, 1])
+        self.transform = scaleMatrix * self.transform
     }
-    
-    public func setStrokeColor(_ color: Color) {
-        self.strokeColor = color
+
+    public mutating func rotate(by angle: Angle) {
+        self.transform = Transform3D(quat: Quat(axis: Vector3(0, 0, 1), angle: angle.radians)) * self.transform
     }
-    
-    public func setTransform(_ transform: Transform2D) {
-        self.currentTransform = self.makeCanvasTransform3D(from: transform)
+
+    public mutating func clearTransform() {
+        self.transform = .identity
     }
-    
-    public func pushDebugName(_ name: String) {
-        self.currentDrawContext?.pushDebugName(name)
+
+    // MARK: - Drawing
+
+    /// Paints the area contained within the provided rectangle, using the passed color.
+    public func drawRect(_ rect: Rect, color: Color) {
+        self.drawRect(rect, texture: nil, color: applyOpacityIfNeeded(color))
     }
-    
-    /// Paints the area contained within the provided rectangle, using the fill color in the current graphics state.
-    public func fillRect(_ rect: Rect) {
-        let transform = self.makeCanvasTransform3D(from: rect)
-        self.currentDrawContext?.drawQuad(transform: transform, color: self.fillColor)
-    }
-    
-    public func fillRect(_ xform: Transform3D) {
-        self.currentDrawContext?.drawQuad(transform: xform, color: self.fillColor)
+
+    /// Paints the area contained within the provided rectangle, using the passed color and texture.
+    public func drawRect(_ rect: Rect, texture: Texture2D? = nil, color: Color) {
+        let transform = self.transform * rect.toTransform3D
+        self.currentDrawContext?.drawQuad(transform: transform, texture: texture, color: applyOpacityIfNeeded(color))
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
-    public func fillEllipse(in rect: Rect) {
-        let transform = self.makeCanvasTransform3D(from: rect)
-        self.currentDrawContext?.drawCircle(transform: self.currentTransform * transform, thickness: 1, fade: 0.005, color: self.fillColor)
+    public func drawEllipse(in rect: Rect, color: Color) {
+        let transform = self.transform * rect.toTransform3D
+        self.currentDrawContext?.drawCircle(transform: transform, thickness: 1, fade: 0.005, color: applyOpacityIfNeeded(color))
     }
-    
-    public func commitDraw() {
-        self.currentDrawContext?.commitContext()
-        
-        self.clear()
-    }
-    
-    // MARK: - Private
-    
-    private func clear() {
-        self.fillColor = .clear
-        self.strokeColor = .black
-        self.currentTransform = .identity
-    }
-}
 
-extension GUIRenderContext {
-    func makeCanvasTransform3D(from affineTransform: Transform2D) -> Transform3D {
-        // swiftlint:disable:next identifier_name
-        let m = affineTransform
-        return Transform3D(
-            [m[0, 0], m[0, 1], 0, m[0, 2]],
-            [m[1, 0], m[1, 1], 0, m[1, 2]],
-            [0,       0,       1, 0      ],
-            [m[2, 0], -m[2, 1], 0, m[2, 2]]
-        )
+    public func drawLine(start: Vector2, end: Vector2, lineWidth: Float, color: Color) {
+        let start = (transform * Vector4(start.x, start.y, 0, 1))
+        let end = (transform * Vector4(end.x, end.y, 0, 1))
+
+        self.currentDrawContext?.drawLine(start: start.xyz, end: end.xyz, lineWidth: lineWidth, color: applyOpacityIfNeeded(color))
     }
-    
-    func makeCanvasTransform3D(from rect: Rect) -> Transform3D {
-        let origin = rect.origin
-        let size = rect.size
-        let screenSize = self.screenRect.size
-        
-        if size.width < 0 || size.height < 0 {
-            return .identity
+
+    private func applyOpacityIfNeeded(_ color: Color) -> Color {
+        if color == .clear {
+            return color
         }
 
-        return Transform3D(
-            [size.width / screenSize.width, 0, 0, 0],
-            [0, size.height / screenSize.height, 0, 0 ],
-            [0, 0, 1.0, 0.0],
-            [origin.x, -origin.y, 0, 1]
+        return color.opacity(self.opacity)
+    }
+
+    // MARK: - Text Drawing
+
+    public func drawText(in rect: Rect, from textLayout: TextLayoutManager) {
+        let transform = self.transform * rect.toTransform3D
+        self.currentDrawContext?.drawText(textLayout, transform: transform)
+    }
+
+    public func draw(_ path: Path) {
+        
+    }
+
+    public func draw(_ line: TextLine) {
+        for run in line {
+            self.draw(run)
+        }
+    }
+
+    public func draw(_ run: TextRun) {
+        for glyph in run {
+            self.draw(glyph)
+        }
+    }
+
+    public func draw(_ glyph: Glyph) {
+        let rect = Rect(
+            origin: glyph.origin,
+            size: glyph.size
         )
+        let transform = self.transform * rect.toTransform3D
+        self.currentDrawContext?.drawGlyph(glyph, transform: transform)
+    }
+
+    public func commitDraw() {
+        self.currentDrawContext?.commitContext()
+    }
+
+    func flush() {
+        self.currentDrawContext?.flush()
     }
 }
 
-// model -> view -> projection
-// quad -> .identity -> ortho
-// quad -> ortho
-
-// position = ortho * quad
+extension Rect {
+    var toTransform3D: Transform3D {
+        Transform3D(
+            translation: [self.midX, -self.midY, 0], 
+            rotation: .identity,
+            scale: [self.size.width, self.size.height, 1]
+        )
+    }
+}

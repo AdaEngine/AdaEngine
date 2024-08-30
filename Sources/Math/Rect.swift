@@ -101,9 +101,9 @@ public extension Rect {
     }
 
     func intersects(_ other: Rect) -> Bool {
-        if min(self.maxX, other.maxX) < max(self.minX, other.minX) { return false }
-        if min(self.maxY, other.maxY) < max(self.minY, other.minY) { return false }
-
-        return true
+      return self.minX <= other.maxX
+              && other.minX <= self.maxX
+              && self.minY <= other.maxY
+              && other.minY <= self.maxY
     }
 }
