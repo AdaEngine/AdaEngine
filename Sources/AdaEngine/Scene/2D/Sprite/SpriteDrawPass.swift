@@ -29,8 +29,7 @@ public struct SpriteDrawPass: DrawPass {
         
         let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
+            set: 0
         )
         
         if let batchSprite = item.batchEntity.components[BatchComponent.self] {

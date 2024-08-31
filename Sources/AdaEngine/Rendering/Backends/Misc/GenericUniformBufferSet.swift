@@ -5,12 +5,10 @@
 //  Created by v.prusakov on 3/18/24.
 //
 
-import Foundation
-
 final class GenericUniformBufferSet: UniformBufferSet {
     /// Max frames in flight.
     let frames: Int
-    let device: MetalRenderDevice
+    let device: RenderDevice
 
     public var label: String?
 
@@ -20,7 +18,7 @@ final class GenericUniformBufferSet: UniformBufferSet {
 
     private var uniformBuffers: [FrameIndex : [Set : [ Binding : UniformBuffer] ] ] = [:]
     
-    init(frames: Int, device: MetalRenderDevice) {
+    init(frames: Int, device: RenderDevice) {
         self.frames = frames
         self.device = device
     }
@@ -29,16 +27,21 @@ final class GenericUniformBufferSet: UniformBufferSet {
         for frame in 0 ..< frames {
             let buffer = self.device.createUniformBuffer(length: length, binding: binding)
             buffer.label = self.label
-            self.setBuffer(buffer, set: set, frameIndex: frame)
+            self._setBuffer(buffer, set: set, frameIndex: frame)
         }
     }
+    
+    func setBuffer(_ buffer: UniformBuffer, set: Int) {
+        self._setBuffer(buffer, set: set, frameIndex: RenderEngine.shared.currentFrameIndex)
+    }
 
-    func setBuffer(_ buffer: UniformBuffer, set: Int, frameIndex: Int) {
+    private func _setBuffer(_ buffer: UniformBuffer, set: Int, frameIndex: Int) {
         // frame -> set -> binding -> buffer
         self.uniformBuffers[frameIndex, default: [:]][set, default: [:]][buffer.binding] = buffer
     }
 
-    func getBuffer(binding: Int, set: Int, frameIndex: Int) -> UniformBuffer {
+    func getBuffer(binding: Int, set: Int) -> UniformBuffer {
+        let frameIndex = RenderEngine.shared.currentFrameIndex
         assert(self.uniformBuffers[frameIndex] != nil)
         assert(self.uniformBuffers[frameIndex]?[set] != nil)
         assert(self.uniformBuffers[frameIndex]?[set]?[binding] != nil)

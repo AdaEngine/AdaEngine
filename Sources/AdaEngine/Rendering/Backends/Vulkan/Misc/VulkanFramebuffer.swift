@@ -11,24 +11,20 @@ import Vulkan
 import Math
 
 final class VulkanFramebuffer: Framebuffer {
-
     private(set) var attachments: [FramebufferAttachment]
     private(set) var descriptor: FramebufferDescriptor
-
     private(set) var isScreenBuffer = false
-    private var size: Size = .zero
+    private var size: SizeInt = .zero
 
     private unowned let device: Device
-    private(set) var vkFramebuffer: Vulkan.Framebuffer!
+    private(set) var vkFramebuffer: VKFramebuffer!
     private(set) var renderPass: Vulkan.RenderPass!
     
-    init(device: Device, framebuffer: Vulkan.Framebuffer, renderPass: Vulkan.RenderPass) {
+    init(device: Device, framebuffer: VKFramebuffer, renderPass: Vulkan.RenderPass) {
         self.device = device
         self.vkFramebuffer = framebuffer
         self.renderPass = renderPass
-        
         self.isScreenBuffer = true
-        
         self.attachments = []
         descriptor = FramebufferDescriptor()
     }
@@ -36,25 +32,20 @@ final class VulkanFramebuffer: Framebuffer {
     init(device: Device, descriptor: FramebufferDescriptor) {
         self.device = device
         self.descriptor = descriptor
-
         self.attachments = []
-
-        self.size = Size(width: Float(descriptor.width), height: Float(descriptor.width))
-
+        self.size = SizeInt(width: descriptor.width, height: descriptor.height)
         self.invalidate()
     }
 
-    func resize(to newSize: Math.Size) {
+    func resize(to newSize: SizeInt) {
         guard newSize.width >= 0 && newSize.height >= 0 else {
             return
         }
-
         if self.size.width == newSize.width && self.size.height == newSize.height {
             return
         }
 
         self.size = newSize
-
         self.invalidate()
     }
 
@@ -179,7 +170,7 @@ final class VulkanFramebuffer: Framebuffer {
                 layers: 1
             )
 
-            self.vkFramebuffer = try Vulkan.Framebuffer(device: device, createInfo: createInfo)
+            self.vkFramebuffer = try VKFramebuffer(device: device, createInfo: createInfo)
             self.renderPass = renderPass
         } catch {
             assertionFailure("Failed to invalidate framebuffer")

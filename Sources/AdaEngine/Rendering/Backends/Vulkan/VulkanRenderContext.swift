@@ -10,6 +10,9 @@ import Foundation
 import Vulkan
 import CVulkan
 import Math
+#if canImport(MetalKit)
+import MetalKit
+#endif
 
 // TODO: Replace Prints to AdaEngine Logging system.
 
@@ -24,8 +27,8 @@ extension VulkanRenderBackend {
         var vkSwapchain: Vulkan.Swapchain?
         
         var images: [VkImage] = []
-        var imageViews: [ImageView] = []
-        var framebuffers: [Vulkan.Framebuffer] = []
+        var imageViews: [Vulkan.ImageView] = []
+        var framebuffers: [VKFramebuffer] = []
     }
     
     struct RenderWindow {
@@ -36,7 +39,7 @@ extension VulkanRenderBackend {
 
         private var debugCallback : VkDebugReportCallbackEXT? = nil
 
-        private(set) var windows: [Window.ID: RenderWindow] = [:]
+        private(set) var windows: [UIWindow.ID: RenderWindow] = [:]
         private(set) var instance: VulkanInstance
         private(set) var physicalDevice: PhysicalDevice
         private(set) var logicalDevice: Device
@@ -302,14 +305,14 @@ extension VulkanRenderBackend {
 #endif
         }
 
-        func createRenderWindow(with id: Window.ID, view: RenderView, size: Size) throws {
+        func createRenderWindow(with id: UIWindow.ID, surface: RenderSurface, size: SizeInt) throws {
             if self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
             
             let holder = VulkanUtils.TemporaryBufferHolder(label: "Create Vulkan Window")
 
-            let surface = try Surface(vulkan: self.instance, view: view)
+            let surface = try self.instance.makeSurface(for: surface)
             let formats = try self.physicalDevice.surfaceFormats(for: surface)
             
             var format: VkFormat = VK_FORMAT_UNDEFINED
@@ -376,7 +379,7 @@ extension VulkanRenderBackend {
             self.updateSizeForRenderWindow(id, size: size)
         }
 
-        func updateSizeForRenderWindow(_ windowId: Window.ID, size: Size) {
+        func updateSizeForRenderWindow(_ windowId: UIWindow.ID, size: SizeInt) {
             guard var window = self.windows[windowId] else {
                 assertionFailure("Not found window by id \(windowId)")
                 return
@@ -445,7 +448,7 @@ extension VulkanRenderBackend {
                 
                 let framebuffers = try imageViews.map {
                     framebufferCreateInfo.pAttachments = holder.unsafePointerCopy(from: $0.rawPointer)
-                    return try Vulkan.Framebuffer(device: logicalDevice, createInfo: framebufferCreateInfo)
+                    return try VKFramebuffer(device: logicalDevice, createInfo: framebufferCreateInfo)
                 }
                 
                 window.swapchain.framebuffers = framebuffers
@@ -457,7 +460,7 @@ extension VulkanRenderBackend {
             
         }
 
-        func destroyWindow(at windowId: Window.ID) throws {
+        func destroyWindow(at windowId: UIWindow.ID) throws {
             if self.windows[windowId] != nil {
                 assertionFailure("Window was already destroyed")
             }
@@ -491,4 +494,22 @@ extension VulkanRenderBackend {
         }
     }
 }
+
+extension VulkanInstance {
+    func makeSurface(for renderSurface: RenderSurface) throws -> Surface {
+        #if canImport(MetalKit)
+        return try Surface(vulkan: self, view: renderSurface as! MTKView)
+        #elseif os(Windows)
+        return try Surface(vulkan: self, view: renderSurface as! MTKView)
+        #elseif os(Linux)
+        return try Surface(vulkan: self, view: renderSurface as! MTKView)
+        #elseif os(wasm)
+        return try Surface(vulkan: self, view: renderSurface as! MTKView)
+        #endif
+        
+        fatalError("Unsupported platform")
+    }
+}
+
+
 #endif

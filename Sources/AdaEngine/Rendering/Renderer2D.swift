@@ -257,9 +257,7 @@ class Renderer2D {
     }
     
     static func beginDrawContext(for window: UIWindow, viewTransform: Transform3D) throws -> DrawContext {
-        let frameIndex = RenderEngine.shared.currentFrameIndex
-        
-        let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
+        let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0)
         uniform.setData(GlobalViewUniform(projectionMatrix: .identity, viewProjectionMatrix: .identity, viewMatrix: viewTransform))
 
         let currentDraw = try RenderEngine.shared.renderDevice.beginDraw(
@@ -268,7 +266,7 @@ class Renderer2D {
             loadAction: .load,
             storeAction: .store
         )
-        let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared, frameIndex: frameIndex)
+        let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared)
         context.startBatch()
         return context
     }
@@ -277,7 +275,7 @@ class Renderer2D {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         let device = RenderEngine.shared.renderDevice
 
-        let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
+        let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0)
         uniform.setData(viewUniform)
 
         let currentDraw: DrawList
@@ -304,7 +302,7 @@ class Renderer2D {
             currentDraw = try device.beginDraw(to: framebuffer, clearColors: [])
         }
         
-        let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared, frameIndex: frameIndex)
+        let context = DrawContext(currentDraw: currentDraw, renderEngine: Self.shared)
         context.startBatch()
         
         return context
@@ -312,7 +310,7 @@ class Renderer2D {
 
     func setUniformBuffer(_ viewUniform: GlobalViewUniform) {
         let frameIndex = RenderEngine.shared.currentFrameIndex
-        let buffer = self.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
+        let buffer = self.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0)
         buffer.setData(viewUniform)
     }
 }
@@ -323,12 +321,10 @@ extension Renderer2D {
         let currentDraw: DrawList
         private var lineWidth: Float = 1
         private let renderEngine: Renderer2D
-        private let frameIndex: Int
         
-        init(currentDraw: DrawList, renderEngine: Renderer2D, frameIndex: Int) {
+        init(currentDraw: DrawList, renderEngine: Renderer2D) {
             self.currentDraw = currentDraw
             self.renderEngine = renderEngine
-            self.frameIndex = frameIndex
         }
         
         public func drawQuad(position: Vector3, size: Vector2, texture: Texture2D? = nil, color: Color) {
@@ -586,8 +582,7 @@ extension Renderer2D {
         public func flush() {
             let buffer = self.renderEngine.uniformSet.getBuffer(
                 binding: GlobalBufferIndex.viewUniform,
-                set: 0,
-                frameIndex: self.frameIndex
+                set: 0
             )
             
             self.currentDraw.appendUniformBuffer(buffer)
@@ -601,8 +596,7 @@ extension Renderer2D {
         private func flushTextData() {
             let buffer = self.renderEngine.uniformSet.getBuffer(
                 binding: GlobalBufferIndex.viewUniform,
-                set: 0,
-                frameIndex: self.frameIndex
+                set: 0
             )
 
             self.currentDraw.appendUniformBuffer(buffer)

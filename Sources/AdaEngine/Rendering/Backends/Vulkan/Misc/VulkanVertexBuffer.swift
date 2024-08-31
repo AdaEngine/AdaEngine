@@ -13,13 +13,12 @@ class VulkanVertexBuffer: VulkanBuffer, VertexBuffer {
 
     var binding: Int
 
-    init(device: Device, size: Int, backend: VulkanRenderBackend, queueFamilyIndecies: [UInt32], binding: Int) throws {
+    init(renderDevice: VulkanRenderDevice, size: Int, queueFamilyIndecies: [UInt32], binding: Int) throws {
         self.binding = binding
         try super.init(
-            device: device,
+            renderDevice: renderDevice,
             size: size,
             usage: VK_BUFFER_USAGE_VERTEX_BUFFER_BIT.rawValue,
-            backend: backend,
             queueFamilyIndecies: queueFamilyIndecies
         )
     }

@@ -13,14 +13,13 @@ final class VulkanIndexBuffer: VulkanBuffer, IndexBuffer {
 
     let indexFormat: IndexBufferFormat
 
-    init(device: Device, size: Int, backend: VulkanRenderBackend, queueFamilyIndecies: [UInt32], indexFormat: IndexBufferFormat) throws {
+    init(renderDevice: VulkanRenderDevice, size: Int, queueFamilyIndecies: [UInt32], indexFormat: IndexBufferFormat) throws {
         self.indexFormat = indexFormat
         
         try super.init(
-            device: device,
+            renderDevice: renderDevice,
             size: size,
             usage: VK_BUFFER_USAGE_INDEX_BUFFER_BIT.rawValue,
-            backend: backend,
             queueFamilyIndecies: queueFamilyIndecies
         )
     }

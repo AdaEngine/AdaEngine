@@ -154,10 +154,6 @@ var adaEngineDependencies: [Target.Dependency] = [
 adaEngineDependencies += ["X11"]
 #endif
 
-if isVulkanEnabled {
-    adaEngineDependencies += [.product(name: "Vulkan", package: "Vulkan")]
-}
-
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
@@ -257,6 +253,10 @@ targets += [
 targets.append(contentsOf: swiftLintTargets)
 #endif
 
+if isVulkanEnabled {
+  setupForVulkan()
+}
+
 // MARK: - Package -
 
 let package = Package(
@@ -326,7 +326,37 @@ for target in package.targets
 
 // MARK: - Vulkan -
 
-// We turn on vulkan via build
-if isVulkanEnabled {
-    package.dependencies.append(.package(path: "Modules/Vulkan"))
+
+// // We turn on vulkan via build
+// if isVulkanEnabled {
+//     package.dependencies.append(.package(path: "Modules/Vulkan"))
+// }
+
+func setupForVulkan() {
+  adaEngineTarget.dependencies += [
+    "Vulkan"
+  ]
+
+  package.targets += [
+    .target(
+      name: "Vulkan",
+      dependencies: ["CVulkan"],
+      cxxSettings: [
+        // Apple
+        .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
+        .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
+        .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
+
+        // Android
+        .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
+
+        // Windows
+        .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
+      ]
+    ),
+    .systemLibrary(
+      name: "CVulkan",
+      pkgConfig: "vulkan"
+    )
+  ]
 }
