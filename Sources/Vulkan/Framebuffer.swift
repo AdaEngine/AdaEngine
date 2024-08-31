@@ -7,7 +7,7 @@
 
 import CVulkan
 
-public final class Framebuffer {
+public final class VKFramebuffer {
     
     public let rawPointer: VkFramebuffer
     public unowned let device: Device

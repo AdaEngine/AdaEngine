@@ -21,9 +21,7 @@ public final class Buffer {
     }()
     
     public init(device: Device, size: Int, usage: Usage, sharingMode: VkSharingMode) throws {
-        
         var buffer: VkBuffer?
-        
         self.size = UInt64(size)
         
         let info = VkBufferCreateInfo(

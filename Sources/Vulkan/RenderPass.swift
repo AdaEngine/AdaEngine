@@ -27,7 +27,7 @@ public class RenderPass {
         self.device = device
     }
     
-    public func begin(for cmd: CommandBuffer, framebuffer: Framebuffer, swapchain: Swapchain) {
+    public func begin(for cmd: CommandBuffer, framebuffer: VKFramebuffer, swapchain: Swapchain) {
         var clearColor = VkClearValue()
         clearColor.color = VkClearColorValue(float32: (0, 0, 0, 1))
         

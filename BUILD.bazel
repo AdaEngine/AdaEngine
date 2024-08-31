@@ -119,6 +119,7 @@ ada_engine_deps = [
     "@swiftpkg_swift_log//:Logging",
     ":MiniAudioBindings",
     ":Vulkan",
+    "//Sources/CVulkan:CVulkan"
 ]
 
 # C & CXX Libraries
@@ -139,10 +140,11 @@ cc_ada_library(
 
 # Swift Libraries
 
-
 swift_ada_library(
     name = "Vulkan",
-    deps = ["//Modules/Vulkan:CVulkan"]
+    deps = [
+        "//Sources/CVulkan:CVulkan"
+    ]
 )
 
 swift_ada_library(

@@ -1,6 +1,7 @@
-load("//utils/bazel:cc_ada_library.bzl", "cc_ada_library")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_c_module")
 
-package(default_visibility = ["//visibility:public"])
+name = "CVulkan"
+cxx_lib_name = "_{}_c_lib".format(name)
 
 VULKAN_LINK_OPTS = select({
     "@platforms//os:macos": [
@@ -27,11 +28,14 @@ VULKAN_LINK_OPTS = select({
     "//conditions:default": []
 })
 
-cc_ada_library(
-    name = "CVulkan",
+
+cc_library(
+    name = cxx_lib_name,
+    hdrs = ["cvulkan.h"],
     deps = [
         "@rules_vulkan//vulkan:vulkan_cc_library",
     ],
+    linkopts = VULKAN_LINK_OPTS,
     defines = select({
         "@platforms//os:macos": [
             "VK_USE_PLATFORM_MACOS_MVK",
@@ -56,5 +60,13 @@ cc_ada_library(
         ],
         "//conditions:default": []
     }),
-    linkopts = VULKAN_LINK_OPTS
+    visibility = ["//:__subpackages__"]
+)
+
+swift_c_module(
+    name = name,
+    module_map = "module.modulemap",
+    module_name = name,
+    deps = [cxx_lib_name],
+    visibility = ["//visibility:public"]
 )
