@@ -10,7 +10,6 @@ import CVulkan
 import Vulkan
 
 class VulkanGPUTexture: GPUTexture {
-
     let image: Vulkan.Image
     let imageView: Vulkan.ImageView
 
@@ -21,7 +20,11 @@ class VulkanGPUTexture: GPUTexture {
             flags: 0,
             imageType: VK_IMAGE_TYPE_2D,
             format: descriptor.pixelFormat.toVulkan,
-            extent: VkExtent3D(width: UInt32(descriptor.width), height: UInt32(descriptor.height), depth: 1),
+            extent: VkExtent3D(
+                width: UInt32(descriptor.width),
+                height: UInt32(descriptor.height),
+                depth: 1
+            ),
             mipLevels: UInt32(descriptor.mipmapLevel),
             arrayLayers: 1,
             samples: VK_SAMPLE_COUNT_1_BIT,
@@ -65,7 +68,6 @@ class VulkanGPUTexture: GPUTexture {
         )
 
         let imageView = try Vulkan.ImageView(device: device, info: imageViewInfo)
-
         self.image = vkImage
         self.imageView = imageView
     }

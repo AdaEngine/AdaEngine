@@ -11,12 +11,7 @@ public final class Image {
     
     public let rawPointer: VkImage
     private unowned let device: Device
-    
-    public lazy var memoryRequirements: VkMemoryRequirements = {
-        var memoryRequirements = VkMemoryRequirements()
-        vkGetImageMemoryRequirements(self.device.rawPointer, self.rawPointer, &memoryRequirements)
-        return memoryRequirements
-    }()
+    public let memory: DeviceMemory
     
     public init(device: Device, createInfo: VkImageCreateInfo) throws {
         var rawPointer: VkImage?
@@ -26,13 +21,21 @@ public final class Image {
         }
         
         try vkCheck(result)
-        
+
+        var memoryRequirements = VkMemoryRequirements()
+        vkGetImageMemoryRequirements(device.rawPointer, rawPointer, &memoryRequirements)
+
+        let allocationInfo = VkMemoryAllocateInfo(
+            sType: VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV,
+            pNext: nil,
+            allocationSize: memoryRequirements.size,
+            memoryTypeIndex: 0
+        )
+
+        self.memory = try DeviceMemory(device: device, allocateInfo: allocationInfo)
+        try self.memory.bindImageMemory(rawPointer)
+
         self.rawPointer = rawPointer!
-        self.device = device
-    }
-    
-    public init(device: Device, pointer: VkImage) {
-        self.rawPointer = pointer
         self.device = device
     }
     

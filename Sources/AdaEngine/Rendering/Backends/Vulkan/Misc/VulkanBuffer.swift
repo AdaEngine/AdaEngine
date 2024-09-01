@@ -13,8 +13,9 @@ class VulkanBuffer: Buffer {
 
     private let buffer: Vulkan.Buffer
     private unowned let renderDevice: VulkanRenderDevice
-    private var localStorage: UnsafeMutableRawPointer
-    
+    private let memoryFlags: VkMemoryMapFlags
+    private let usage: VkBufferUsageFlags
+
     var label: String? = ""
 
     var length: Int {
@@ -28,41 +29,23 @@ class VulkanBuffer: Buffer {
             usage: .init(rawValue: usage),
             sharingMode: VK_SHARING_MODE_EXCLUSIVE
         )
-        
-        self.localStorage = UnsafeMutableRawPointer.allocate(byteCount: size, alignment: 2)
+
+        self.usage = usage
+        self.memoryFlags = VkMemoryMapFlags(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue)
         self.renderDevice = renderDevice
     }
 
-    func contents() -> UnsafeMutableRawPointer {
-        return localStorage
+    func contents(_ memory: (UnsafeMutableRawPointer?) -> Void) {
+        self.buffer.deviceMemory.readMemoryBlock(flags: self.memoryFlags) { pointer in
+            memory(pointer)
+        }
     }
 
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
-        localStorage.copyMemory(
-            from: UnsafeRawPointer(bytes).advanced(by: offset),
-            byteCount: byteCount
-        )
-        
-        do {
-            let transferBuffer = try Vulkan.Buffer(
-                device: renderDevice.device,
-                size: byteCount,
-                usage: [.transferSource],
-                sharingMode: VK_SHARING_MODE_EXCLUSIVE
-            )
-            
-            try self.buffer.copyBuffer(
-                from: transferBuffer,
-                size: byteCount,
-                srcOffset: 0,
-                dstOffset: offset,
-                commandPool: self.renderDevice.commandPool
-            )
-        } catch {
-            assertionFailure("Failed to set data for buffer \(label): \(error)")
+        self.buffer.deviceMemory.readMemoryBlock(flags: self.memoryFlags) { pointer in
+            pointer?.advanced(by: offset)
+                .copyMemory(from: bytes, byteCount: byteCount)
         }
-        
-
     }
 }
 #endif

@@ -27,8 +27,10 @@ class MetalBuffer: Buffer {
     
     var length: Int { return buffer.length }
     
-    func contents() -> UnsafeMutableRawPointer { return self.buffer.contents() }
-    
+    func contents(_ memory: (UnsafeMutableRawPointer?) -> Void) {
+        memory(self.buffer.contents())
+    }
+
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
         self.buffer.contents().advanced(by: offset).copyMemory(from: bytes, byteCount: byteCount)
     }

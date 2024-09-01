@@ -34,20 +34,41 @@ public final class DeviceMemory {
         self.rawPointer = rawPointer!
     }
     
-    public func map(offset: Int, flags: VkMemoryMapFlags) throws -> UnsafeMutableRawPointer {
+    public func map(offset: Int = 0, flags: VkMemoryMapFlags = VkMemoryMapFlags()) throws -> UnsafeMutableRawPointer {
         var mutPointer: UnsafeMutableRawPointer?
         let result = vkMapMemory(self.device.rawPointer, self.rawPointer, UInt64(offset), VkDeviceSize(self.size), flags, &mutPointer)
         try vkCheck(result)
         
         return mutPointer!
     }
-    
-    public func free() {
-        vkFreeMemory(self.device.rawPointer, self.rawPointer, nil)
-    }
-    
+
     public func unmap() {
         vkUnmapMemory(self.device.rawPointer, self.rawPointer)
+    }
+
+    public func readMemoryBlock(
+        offset: Int = 0,
+        flags: VkMemoryMapFlags = VkMemoryMapFlags(),
+        block: (UnsafeMutableRawPointer?) -> Void
+    ) {
+        if let pointer = try? map(offset: offset, flags: flags) {
+            block(pointer)
+            self.unmap()
+        }
+    }
+
+    deinit {
+        vkFreeMemory(self.device.rawPointer, self.rawPointer, nil)
+    }
+
+    func bindImageMemory(_ image: VkImage?) throws {
+        let result = vkBindImageMemory(device.rawPointer, image, rawPointer, 0)
+        try vkCheck(result)
+    }
+
+    func bindBufferMemory(_ buffer: VkBuffer?) throws {
+        let result = vkBindBufferMemory(device.rawPointer, buffer, rawPointer, 0)
+        try vkCheck(result)
     }
 }
 

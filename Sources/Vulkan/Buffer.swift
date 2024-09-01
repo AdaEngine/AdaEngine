@@ -10,15 +10,10 @@ import CVulkan
 public final class Buffer {
     
     public let rawPointer: VkBuffer
+    public let deviceMemory: DeviceMemory
     private unowned let device: Device
     
     public private(set) var size: UInt64
-    
-    public lazy var memoryRequirements: VkMemoryRequirements = {
-        var memoryRequirements = VkMemoryRequirements()
-        vkGetBufferMemoryRequirements(self.device.rawPointer, self.rawPointer, &memoryRequirements)
-        return memoryRequirements
-    }()
     
     public init(device: Device, size: Int, usage: Usage, sharingMode: VkSharingMode) throws {
         var buffer: VkBuffer?
@@ -35,37 +30,27 @@ public final class Buffer {
             pQueueFamilyIndices: nil
         )
         
-        let result = withUnsafePointer(to: info) { ptr in
+        var result = withUnsafePointer(to: info) { ptr in
             vkCreateBuffer(device.rawPointer, ptr, nil, &buffer)
         }
         
         try vkCheck(result)
-        
-        self.rawPointer = buffer!
-        self.device = device
-    }
-    
-    public func allocateMemory(memoryTypeIndex: UInt32) throws -> DeviceMemory {
-        let requirements = self.memoryRequirements
-        
+
+        var memoryRequirements = VkMemoryRequirements()
+        vkGetBufferMemoryRequirements(device.rawPointer, buffer, &memoryRequirements)
         let allocInfo = VkMemoryAllocateInfo(
             sType: VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
             pNext: nil,
-            allocationSize: requirements.size,
-            memoryTypeIndex: memoryTypeIndex
+            allocationSize: memoryRequirements.size,
+            memoryTypeIndex: 0
         )
-        
-        return try DeviceMemory(device: self.device, allocateInfo: allocInfo)
+
+        self.deviceMemory = try DeviceMemory(device: device, allocateInfo: allocInfo)
+        try deviceMemory.bindBufferMemory(buffer)
+
+        self.rawPointer = buffer!
+        self.device = device
     }
-    
-    public func bindMemory(_ memory: DeviceMemory, offset: Int = 0) throws {
-        let result = vkBindBufferMemory(self.device.rawPointer, self.rawPointer, memory.rawPointer, UInt64(offset))
-        try vkCheck(result)
-    }
-    
-//    public func copy(from source: UnsafeRawPointer, to dest: UnsafeMutableRawPointer, size: Int) {
-//        dest.copyMemory(from: source, byteCount: size)
-//    }
     
     public func copyBuffer(
         from source: Buffer,
@@ -89,15 +74,12 @@ public final class Buffer {
         ).first!
         
         try commandBuffer.beginUpdate(flags: .oneTimeSubmit)
-        
         var copyRegion = VkBufferCopy(
             srcOffset: VkDeviceSize(srcOffset),
             dstOffset: VkDeviceSize(dstOffset),
             size: VkDeviceSize(size)
         )
-        
         vkCmdCopyBuffer(commandBuffer.rawPointer, source.rawPointer, self.rawPointer, 1, &copyRegion)
-        
         try commandBuffer.endUpdate()
     }
     

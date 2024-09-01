@@ -15,14 +15,14 @@ public final class ImageView {
     public init(device: Device, info: VkImageViewCreateInfo) throws {
         var pointer: VkImageView?
         
-        let result = withUnsafePointer(to: info) { infoPtr -> VkResult in
+        let result = withUnsafePointer(to: info) { infoPtr in
             vkCreateImageView(device.rawPointer, infoPtr, nil, &pointer)
         }
         
         guard let imageView = pointer, result == VK_SUCCESS else {
             throw VKError(code: result, message: "Could not create VkImageView")
         }
-        
+
         self.rawPointer = imageView
         self.device = device
     }

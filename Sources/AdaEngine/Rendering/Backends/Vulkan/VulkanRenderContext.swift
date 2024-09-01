@@ -373,9 +373,7 @@ extension VulkanRenderBackend {
                 renderPass: renderPass
             )
             let window = RenderWindow(swapchain: swapchain)
-
             self.windows[id] = window
-            
             self.updateSizeForRenderWindow(id, size: size)
         }
 
@@ -399,7 +397,7 @@ extension VulkanRenderBackend {
                 }
                 
                 var createInfo = VkSwapchainCreateInfoKHR()
-            createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
+                createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR
                 createInfo.surface = surface.rawPointer
                 createInfo.minImageCount = 1
                 createInfo.imageExtent = extent

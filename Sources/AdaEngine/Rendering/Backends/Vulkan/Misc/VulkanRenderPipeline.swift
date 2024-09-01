@@ -40,12 +40,9 @@ class VulkanRenderPipeline: RenderPipeline {
         }
 
         let vertexInputState = Self.makeVkPipelineVertexInputStateCreateInfo(for: descriptor, holder: holder)
-        
         let vertexDescriptorSetLayouts = (descriptor.vertex.compiledShader as! VulkanShader).descriptorSetLayouts
         let fragmentDescriptorSetLayouts = (descriptor.fragment.compiledShader as! VulkanShader).descriptorSetLayouts
-        
         let setLayouts: [VkDescriptorSetLayout?] = vertexDescriptorSetLayouts + fragmentDescriptorSetLayouts
-        
         let pSetLayouts = holder.unsafePointerCopy(collection: setLayouts)
         
         var layoutCreateInfo = VkPipelineLayoutCreateInfo()
@@ -135,7 +132,7 @@ class VulkanRenderPipeline: RenderPipeline {
             throw VulkanError.failedInit(message: "CompiledShader not is a VulkanShader class.", code: VK_ERROR_UNKNOWN)
         }
 
-        let name = holder.unsafePointerCopy(string: shader.entryPoint)
+        let name = holder.unsafePointerCopy(string: "main")
 
         let createInfo = VkPipelineShaderStageCreateInfo(
             sType: VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -159,7 +156,6 @@ class VulkanRenderPipeline: RenderPipeline {
         var colorAttachments: [VkPipelineColorBlendAttachmentState] = []
         
         if framebuffer.isScreenBuffer {
-            
             var state = VkPipelineColorBlendAttachmentState()
             state.colorWriteMask = 0xf
             state.blendEnable = true
