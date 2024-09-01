@@ -41,7 +41,7 @@ public struct TextureDescriptor {
         pixelFormat: PixelFormat = .bgra8,
         textureUsage: Texture.Usage,
         textureType: Texture.TextureType,
-        mipmapLevel: Int = 0,
+        mipmapLevel: Int = 1,
         image: Image? = nil,
         debugLabel: String? = nil,
         samplerDescription: SamplerDescriptor = SamplerDescriptor()

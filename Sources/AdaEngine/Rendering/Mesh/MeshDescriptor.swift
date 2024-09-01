@@ -253,22 +253,22 @@ public extension MeshDescriptor {
         }
         
         let vertexBuffer = RenderEngine.shared.renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
-        let vertexBufferContents = vertexBuffer.contents()
-        
-        var attributeOffset: Int = 0
-        for buffer in buffers.elements.values {
-            let elementSize = buffer.buffer.elementSize
-            
-            buffer.buffer.iterateByElements { index, pointer in
-                let offset = index * vertexSize + attributeOffset
-                vertexBufferContents
-                    .advanced(by: offset)
-                    .copyMemory(from: pointer, byteCount: elementSize)
+        vertexBuffer.contents { vertexBufferPtr in
+            var attributeOffset: Int = 0
+            for buffer in buffers.elements.values {
+                let elementSize = buffer.buffer.elementSize
+
+                buffer.buffer.iterateByElements { index, pointer in
+                    let offset = index * vertexSize + attributeOffset
+                    vertexBufferPtr?
+                        .advanced(by: offset)
+                        .copyMemory(from: pointer, byteCount: elementSize)
+                }
+
+                attributeOffset += elementSize
             }
-            
-            attributeOffset += elementSize
         }
-        
+
         return vertexBuffer
     }
 }

@@ -11,7 +11,7 @@ public protocol Buffer: AnyObject {
     /// Gets the system address of the buffer’s storage allocation.
     ///
     /// - Returns: A pointer to the shared copy of the buffer data, or NULL for buffers allocated with a private resource storage mode
-    func contents() -> UnsafeMutableRawPointer
+    func contents(_ memory: (UnsafeMutableRawPointer?) -> Void)
     
     /// A string that identifies the resource.
     var label: String? { get set }
@@ -43,6 +43,14 @@ public extension Buffer {
         withUnsafePointer(to: value) { ptr in
             self.setData(UnsafeMutableRawPointer(mutating: ptr), byteCount: size)
         }
+    }
+
+    /// Map buffer data to your type.
+    @inline(__always)
+    func mapContents<T>(_ memory: (UnsafeMutableRawPointer?) -> T?) -> T? {
+        var value: T?
+        self.contents { value = memory($0) }
+        return value
     }
 }
 

@@ -11,9 +11,11 @@ import CVulkan
 public final class Device {
 
     public let rawPointer: VkDevice
+    public let physicalDevice: PhysicalDevice
 
-    init(_ rawPointer: VkDevice) {
+    init(_ rawPointer: VkDevice, physicalDevice: PhysicalDevice) {
         self.rawPointer = rawPointer
+        self.physicalDevice = physicalDevice
     }
 
     public convenience init(physicalDevice: PhysicalDevice, createInfo: VkDeviceCreateInfo) throws {
@@ -26,7 +28,7 @@ public final class Device {
             throw VKError(code: result, message: "Cannot create VkDevice for passed GPU and create info")
         }
 
-        self.init(pointer)
+        self.init(pointer, physicalDevice: physicalDevice)
     }
 
     public convenience init(physicalDevice: PhysicalDevice, createInfo: DeviceCreateInfo) throws {
@@ -64,7 +66,7 @@ public final class Device {
             throw VKError(code: result, message: "Cannot create VkDevice for passed GPU and create info")
         }
 
-        self.init(pointer)
+        self.init(pointer, physicalDevice: physicalDevice)
     }
 
     public func waitIdle() throws {

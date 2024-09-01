@@ -81,8 +81,10 @@ final class MaterialStorage {
             binding: member.binding,
             set: 0
         )
-        
-        return buffer?.contents().load(fromByteOffset: member.offset, as: T.self)
+
+        return buffer?.mapContents({ pointer in
+            pointer?.load(fromByteOffset: member.offset, as: T.self)
+        })
     }
     
     @inlinable

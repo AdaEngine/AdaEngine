@@ -32,7 +32,7 @@ func convertTupleToArray<T, Element>(tuple: T, start: UnsafePointer<Element>) ->
 /// - Parameter message: Localized error message if VkResult is not a VK_SUCCESS
 /// - Throws: `VKError` with result code and user message
 public func vkCheck(_ result: VkResult, _ message: String = "") throws {
-    guard result == VK_SUCCESS else {
+    if result != VK_SUCCESS {
         throw VKError(code: result, message: message)
     }
 }

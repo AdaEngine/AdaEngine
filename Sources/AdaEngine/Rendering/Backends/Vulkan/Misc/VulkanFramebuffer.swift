@@ -50,6 +50,10 @@ final class VulkanFramebuffer: Framebuffer {
     }
 
     func invalidate() {
+        guard self.size.width >= 0 && self.size.height >= 0 else {
+            return
+        }
+
         let holder = VulkanUtils.TemporaryBufferHolder(label: "Framebuffer")
 
         self.attachments.removeAll(keepingCapacity: true)
@@ -60,7 +64,6 @@ final class VulkanFramebuffer: Framebuffer {
         )
         
         let desciptor = self.descriptor
-        
         var attachmentDescriptors = [VkAttachmentDescription]()
         var colorAttachmentReferences = [VkAttachmentReference]()
         var colorAttachments = [VulkanGPUTexture]()
@@ -115,9 +118,8 @@ final class VulkanFramebuffer: Framebuffer {
         }
         
         let attachmentDescriptorsPtr = holder.unsafePointerCopy(collection: attachmentDescriptors)
-        
         let pColorAttachmentReferences = holder.unsafePointerCopy(collection: colorAttachmentReferences)
-        
+
         let subpassDescription = VkSubpassDescription(
             flags: 0,
             pipelineBindPoint: VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -133,7 +135,7 @@ final class VulkanFramebuffer: Framebuffer {
         
         let pSubpasses = holder.unsafePointerCopy(from: subpassDescription)
         
-//        var dependencies = [VkSubpassDependency]()
+        var dependencies = [VkSubpassDependency]()
         
         let renderPassCreateInfo = VkRenderPassCreateInfo(
             sType: VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
