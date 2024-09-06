@@ -16,9 +16,9 @@ public final class Body2D {
     
     internal private(set) var debugMesh: Mesh?
     
-    private(set) var ref: b2Body
+    private(set) var ref: b2BodyId
     
-    internal init(world: PhysicsWorld2D, ref: b2Body, entity: Entity) {
+    internal init(world: PhysicsWorld2D, ref: b2BodyId, entity: Entity) {
         self.world = world
         self.ref = ref
         self.entity = entity
@@ -28,92 +28,94 @@ public final class Body2D {
         self.world.destroyBody(self)
     }
     
-    // FIXME: Should support multiple meshes inside
-    func addFixture(for fixtureDef: b2FixtureDef) {
-        var fixture = fixtureDef
-        self.ref.CreateFixture(&fixture)
-        self.debugMesh = self.getFixtureList().getMesh()
+    func setNullBodyId() {
+        self.ref = b2_nullBodyId
     }
     
-    func getFixtureList() -> FixtureList {
-        guard let list = self.ref.GetFixtureList() else {
-            fatalError("Failed to get fixture list")
-        }
-        
-        return FixtureList(list: list)
+    // FIXME: Should support multiple meshes inside
+    func addFixture(for chainDef: b2ChainDef) {
+        var chain = chainDef
+        var chainId = b2CreateChain(self.ref, &chain)
+        self.debugMesh = self.getFixtureList(with: shapeId).getMesh()
+    }
+    
+    func getFixtureList(with chainId: b2ChainId) -> FixtureList {
+        return FixtureList(list: b2Shape_Cha)
     }
     
     var massData: b2MassData {
         get {
-            return ref.GetMassData()
+            return b2Body_GetMassData(self.ref)
         }
         
         set {
-            withUnsafePointer(to: newValue) { ptr in
-                self.ref.SetMassData(ptr)
-            }
+            return b2Body_SetMassData(self.ref, newValue)
         }
     }
     
     func getPosition() -> Vector2 {
-        return self.ref.GetPosition().pointee.asVector2
+        return b2Body_GetPosition(self.ref).asVector2
     }
     
     func getAngle() -> Float {
-        return self.ref.GetAngle()
+        return b2Body_GetRotation(self.ref).s
     }
     
     func getLinearVelocity() -> Vector2 {
-        return self.ref.GetLinearVelocity().pointee.asVector2
+        return b2Body_GetLinearVelocity(self.ref).asVector2
     }
     
     func getWorldCenter() -> Vector2 {
-        return self.ref.GetWorldCenter().pointee.asVector2
+        return b2Body_GetWorldCenterOfMass(self.ref).asVector2
     }
     
     func setTransform(position: Vector2, angle: Float) {
-        self.ref.SetTransform(position.b2Vec, angle)
+        return b2Body_SetTransform(self.ref, position.b2Vec, b2MakeRot(angle))
     }
     
     /// Set the linear velocity of the center of mass.
     func setLinearVelocity(_ vector: Vector2) {
-        self.ref.SetLinearVelocity(vector.b2Vec)
+        return b2Body_SetLinearVelocity(self.ref, vector.b2Vec)
     }
     
     /// Apply a force at a world point. If the force is not applied at the center of mass, it will generate a torque and affect the angular velocity. This wakes up the body.
     func applyForce(force: Vector2, point: Vector2, wake: Bool) {
-        self.ref.ApplyForce(force.b2Vec, point.b2Vec, wake)
+        return b2Body_ApplyForce(self.ref, force.b2Vec, point.b2Vec, wake)
     }
     
     /// Apply a force to the center of mass. This wakes up the body.
     func applyForceToCenter(_ force: Vector2, wake: Bool) {
-        self.ref.ApplyForceToCenter(force.b2Vec, wake)
+        return b2Body_ApplyForceToCenter(self.ref, force.b2Vec, wake)
     }
     
     /// Apply an impulse at a point. This immediately modifies the velocity.
     /// It also modifies the angular velocity if the point of application is not at the center of mass. This wakes up the body.
     func applyLinearImpulse(_ impulse: Vector2, point: Vector2, wake: Bool) {
-        self.ref.ApplyLinearImpulse(impulse.b2Vec, point.b2Vec, wake)
+        return b2Body_ApplyLinearImpulse(self.ref, impulse.b2Vec, point.b2Vec, wake)
     }
     
     /// Apply a torque. This affects the angular velocity without affecting the linear velocity of the center of mass. This wakes up the body.
     func applyTorque(_ torque: Float, wake: Bool) {
-        self.ref.ApplyTorque(torque, wake)
+        return b2Body_ApplyTorque(self.ref, torque, wake)
     }
     
     /// Get the world linear velocity of a world point attached to this body.
     /// - Parameter worldPoint: point in world coordinates.
     /// - Returns: The world velocity of a point or zero if entity not attached to Physics2DWorld.
     
+    /* TODO: - (d.lomaev) - check b2 api 
+     // getLinearVelocityFromWorldPoint
+     // getLinearVelocityFromLocalPoint
+     */
     func getLinearVelocityFromWorldPoint(_ worldPoint: Vector2) -> Vector2 {
-        return self.ref.GetLinearVelocityFromWorldPoint(worldPoint.b2Vec).asVector2
+        return b2Body_GetLinearVelocity(self.ref).asVector2
     }
     
     /// Get the world velocity of a local point.
     /// - Parameter localPoint: point in local coordinates.
     /// - Returns: The world velocity of a point or zero if entity not attached to Physics2DWorld.
     func getLinearVelocityFromLocalPoint(_ localPoint: Vector2) -> Vector2 {
-        return self.ref.GetLinearVelocityFromLocalPoint(localPoint.b2Vec).asVector2
+        return b2Body_GetLinearVelocity(self.ref).asVector2
     }
 }
 
@@ -136,33 +138,32 @@ public struct Body2DDefinition {
 
 class FixtureList {
     
-    let list: b2Fixture
+    let list: b2ShapeId
     
-    init(list: b2Fixture) {
+    init(list: b2ShapeId) {
         self.list = list
     }
     
     var filterData: b2Filter {
         get {
-            return list.GetFilterData().pointee
+            b2Shape_GetFilter(self.list)
         }
         
         set {
-            list.SetFilterData(newValue)
+            b2Shape_SetFilter(self.list, newValue)
         }
     }
     
-    var body: b2Body {
-        return self.list.GetBody()
+    var body: b2BodyId {
+        return b2Shape_GetBody(self.list)
     }
     
     var shape: BoxShape2D {
-        return BoxShape2D(shape: list.GetShape())
+        return BoxShape2D(shape: self.list)
     }
     
     var type: Box2DShapeType {
-        
-        return Box2DShapeType(rawValue: list.GetType().rawValue)!
+        return b2Shape_GetType(self.list).toBox2DShapeType()
     }
     
     func getMesh() -> Mesh? {
@@ -192,16 +193,25 @@ enum Box2DShapeType: UInt32 {
     case count = 4
 }
 
+extension b2ShapeType {
+    func toBox2DShapeType() -> Box2DShapeType {
+        guard let type = Box2DShapeType(rawValue: self.rawValue) else {
+            fatalError("Can't cast box2d shape type to Ada type")
+        }
+        return type
+    }
+}
+
 class BoxShape2D {
     
-    private(set) var shape: b2Shape
+    private(set) var shape: b2ShapeId
     
-    init(shape: b2Shape) {
+    init(shape: b2ShapeId) {
         self.shape = shape
     }
     
     var type: Box2DShapeType {
-        return Box2DShapeType(rawValue: shape.GetType().rawValue)!
+        return b2Shape_GetType(self.shape).toBox2DShapeType()
     }
     
     func getPolygonVertices() -> [Vector2] {
@@ -209,9 +219,9 @@ class BoxShape2D {
             return []
         }
         
-        let polygonShape = Unmanaged.passUnretained(shape).toOpaque().assumingMemoryBound(to: b2PolygonShape.self)
+        let polygonShape = b2Shape_GetPolygon(self.shape)
         
-        let vertices = withUnsafeBytes(of: polygonShape.pointee.m_vertices) { buffer in
+        let vertices = withUnsafeBytes(of: polygonShape.vertices) { buffer in
             [Vector2](buffer.bindMemory(to: Vector2.self))
         }
         
@@ -223,6 +233,6 @@ class BoxShape2D {
     }
     
     func getRadius() -> Float {
-        return self.shape.m_radius
+        return b2Shape_GetPolygon(self.shape).radius
     }
 }

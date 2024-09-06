@@ -290,7 +290,8 @@ if useLocalDeps {
     ]
 } else {
     package.dependencies += [
-        .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "main"),
+//        .package(path: "../box2d-swift"),
+        .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "ADA-1"),
         .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
         .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
         .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),

@@ -23,32 +23,28 @@ public final class PhysicsWorld2D: Codable {
     /// Contains world gravity.
     public var gravity: Vector2 {
         get {
-            return self.world.GetGravity().asVector2
+            return b2World_GetGravity(self.worldId).asVector2
         }
 
         set {
-            self.world.SetGravity(newValue.b2Vec)
+            b2World_SetGravity(self.worldId, newValue.b2Vec)
         }
     }
     
-    private let worldPtr: UnsafeMutablePointer<b2World>
-    private var world: b2World {
-        worldPtr.pointee
-    }
+    private let worldId: b2WorldId
     
     weak var scene: Scene?
     let contactListner = _Physics2DContactListener()
     
     /// - Parameter gravity: default gravity is 9.8.
     init(gravity: Vector2 = [0, -9.81]) {
-        self.worldPtr = UnsafeMutablePointer<b2World>.allocate(capacity: 1)
-        self.worldPtr.initialize(to: b2World.CreateWorld(gravity.b2Vec))
-        
-        self.world.SetContactListener(self.contactListner.contactListener)
+        var worldDef = b2DefaultWorldDef()
+        worldDef.gravity = gravity.b2Vec
+        self.worldId = b2CreateWorld(&worldDef)
     }
     
     deinit {
-        self.worldPtr.deallocate()
+        // self.worldPtr.deallocate()
     }
     
     public nonisolated convenience init(from decoder: Decoder) throws {
@@ -72,7 +68,7 @@ public final class PhysicsWorld2D: Codable {
     
     /// Clear all forces in physics world.
     public func clearForces() {
-        self.world.ClearForces()
+        // self.world.ClearForces()
     }
     
     // MARK: - Raycasting
@@ -86,20 +82,23 @@ public final class PhysicsWorld2D: Codable {
         mask: CollisionGroup = .all
     ) -> [Raycast2DHit] {
         let callback = _Raycast2DCallback(startPoint: startPoint, endPoint: endPoint, query: query, mask: mask)
-        
         let userData = Unmanaged.passUnretained(callback)
-        let listenerPointer = UnsafeMutablePointer<SwiftRayCastCallback>.allocate(capacity: 1)
-        listenerPointer.initialize(to: SwiftRayCastCallback.CreateListener(userData.toOpaque()))
         
-        listenerPointer.pointee.m_ReportFixture = { userData, fixture, point, normal, fraction in
-            let raycast = Unmanaged<_Raycast2DCallback>.fromOpaque(userData!).takeUnretainedValue()
-            return raycast.reportFixture(fixture!, point: point, normal: normal, fraction: fraction)
-        }
+//        b2World_CastRay(self.worldId, startPoint.b2Vec, endPoint.b2Vec, .init(), { self.sha, <#b2Vec2#>, <#b2Vec2#>, <#Float#>, <#UnsafeMutableRawPointer?#> in
+//            <#code#>
+//        }, <#T##context: UnsafeMutableRawPointer!##UnsafeMutableRawPointer!#>)
+//        
+//        let listenerPointer = UnsafeMutablePointer<SwiftRayCastCallback>.allocate(capacity: 1)
+//        listenerPointer.initialize(to: SwiftRayCastCallback.CreateListener(userData.toOpaque()))
+//        
+//        listenerPointer.pointee.m_ReportFixture = { userData, fixture, point, normal, fraction in
+//            let raycast = Unmanaged<_Raycast2DCallback>.fromOpaque(userData!).takeUnretainedValue()
+//            return raycast.reportFixture(fixture!, point: point, normal: normal, fraction: fraction)
+//        }
         
-        let raycastCallback = UnsafeMutableRawPointer(listenerPointer).assumingMemoryBound(to: b2RayCastCallback.self)
-        world.RayCast(raycastCallback, startPoint.b2Vec, endPoint.b2Vec)
+//        let raycastCallback = UnsafeMutableRawPointer(listenerPointer).assumingMemoryBound(to: b2RayCastCallback.self)
         
-        listenerPointer.deallocate()
+//        listenerPointer.deallocate()
         
         return callback.results
     }
@@ -117,40 +116,40 @@ public final class PhysicsWorld2D: Codable {
     // MARK: - Internal
     
     internal func updateSimulation(_ delta: Float) {
-        self.world.Step(
-            delta, /* timeStep */
-            int32(self.velocityIterations), /* velocityIterations */
-            int32(self.positionIterations) /* positionIterations */
-        )
+        b2World_Step(self.worldId, delta, Int32(self.velocityIterations))
+//        self.world.Step(
+//            delta, /* timeStep */
+//            int32(self.velocityIterations), /* velocityIterations */
+//            int32(self.positionIterations) /* positionIterations */
+//        )
     }
     
     internal func destroyBody(_ body: Body2D) {
-        self.world.DestroyBody(body.ref)
+        b2DestroyBody(body.ref)
+        body.setNullBodyId()
     }
     
     internal func createBody(definition: Body2DDefinition, for entity: Entity) -> Body2D {
-        var bodyDef = b2BodyDef()
-        bodyDef.angle = definition.angle
+        var bodyDef = b2DefaultBodyDef()
+        bodyDef.angularVelocity = definition.angle
         bodyDef.position = definition.position.b2Vec
         bodyDef.type = definition.bodyMode.b2Type
         bodyDef.gravityScale = definition.gravityScale
-        bodyDef.allowSleep = definition.allowSleep
+        bodyDef.enableSleep = definition.allowSleep
         bodyDef.fixedRotation = definition.fixedRotation
-        bodyDef.bullet = definition.bullet
-        bodyDef.awake = definition.awake
+        bodyDef.isBullet = definition.bullet
+        bodyDef.isAwake = definition.awake
         
         bodyDef.angularDamping = definition.angularDamping
         bodyDef.angularVelocity = definition.angularVelocity
         bodyDef.linearDamping = definition.linearDamping
         bodyDef.linearVelocity = definition.linearVelocity.b2Vec
         
-        guard let body = self.world.CreateBody(&bodyDef) else {
-            fatalError("Failed to create body")
-        }
+        let bodyId = b2CreateBody(worldId, &bodyDef)
         
-        let body2d = Body2D(world: self, ref: body, entity: entity)
+        let body2d = Body2D(world: self, ref: bodyId, entity: entity)
         let pointer = Unmanaged.passUnretained(body2d).toOpaque()
-        body.GetUserDataMutating().pointee.pointer = UInt(bitPattern: OpaquePointer(pointer))
+//        body2d b2Body_GetUserData(bodyId)
         
         return body2d
     }
@@ -235,18 +234,17 @@ fileprivate final class _Raycast2DCallback {
         self.mask = mask
     }
     
-    func reportFixture(_ fixture: b2Fixture, point: b2Vec2, normal: b2Vec2, fraction: Float) -> Float {
-        let fixtureBody = fixture.GetBody()!
-        let userData = fixtureBody.GetUserData().pointee
+    func reportFixture(_ fixture: b2ShapeId, point: b2Vec2, normal: b2Vec2, fraction: Float) -> Float {
+        let fixtureBody = b2Shape_GetBody(fixture)
+        let userData = b2Body_GetUserData(fixtureBody)
         
-        let filterData = fixture.GetFilterData().pointee
+        let filterData = b2Shape_GetFilter(fixture)
         
         if !(filterData.maskBits == self.mask.rawValue) {
             return RaycastReporting.continue
         }
         
-        let pointer = UnsafeRawPointer(OpaquePointer(bitPattern: userData.pointer)!)
-        let body = Unmanaged<Body2D>.fromOpaque(pointer).takeUnretainedValue()
+        let body = Unmanaged<Body2D>.fromOpaque(userData!).takeUnretainedValue()
         
         guard let entity = body.entity else {
             return RaycastReporting.continue
@@ -276,55 +274,52 @@ fileprivate final class _Raycast2DCallback {
 
 final class _Physics2DContactListener {
 
-    lazy var contactListener: UnsafeMutablePointer<b2ContactListener> = {
-        let userData = Unmanaged.passUnretained(self).toOpaque()
-        let listener = SwiftContactListener2D.CreateListener(userData)
+//    lazy var contactListener: UnsafeMutablePointer<b2ContactEvents> = {
+//        let userData = Unmanaged.passUnretained(self).toOpaque()
+//        let listener = SwiftContactListener2D.CreateListener(userData)
+//        
+//        listener.m_BeginContact = { userData, contact in
+//            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+//            listener.beginContact(contact!)
+//        }
+//        
+//        listener.m_EndContact = { userData, contact in
+//            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+//            listener.endContact(contact!)
+//        }
+//        
+//        listener.m_PreSolve = { userData, contact, manifold in
+//            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+//            listener.preSolve(contact!, oldManifold: manifold)
+//        }
+//        
+//        listener.m_PostSolve = { userData, contact, impulse in
+//            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
+//            listener.postSolve(contact!, impulse: impulse!)
+//        }
         
-        listener.m_BeginContact = { userData, contact in
-            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
-            listener.beginContact(contact!)
-        }
-        
-        listener.m_EndContact = { userData, contact in
-            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
-            listener.endContact(contact!)
-        }
-        
-        listener.m_PreSolve = { userData, contact, manifold in
-            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
-            listener.preSolve(contact!, oldManifold: manifold)
-        }
-        
-        listener.m_PostSolve = { userData, contact, impulse in
-            let listener = Unmanaged<_Physics2DContactListener>.fromOpaque(userData!).takeUnretainedValue()
-            listener.postSolve(contact!, impulse: impulse!)
-        }
-        
-        return Unmanaged.passRetained(listener).toOpaque().assumingMemoryBound(to: b2ContactListener.self)
-    }()
+//        return userData
+//    }()
+//
+//    deinit {
+//        self.contactListener.deallocate()
+//    }
 
-    deinit {
-        self.contactListener.deallocate()
-    }
-
-    func beginContact(_ contact: b2Contact) {
-        let fixtureA = contact.GetFixtureA()!
-        let fixtureB = contact.GetFixtureB()!
+    func beginContact(_ contact: b2ContactBeginTouchEvent) {
+        let fixtureA = contact.shapeIdA
+        let fixtureB = contact.shapeIdB
         
-        let bodyFixtureA = fixtureA.GetBody()!
-        let bodyFixtureB = fixtureB.GetBody()!
+        let bodyFixtureA = b2Shape_GetBody(fixtureA)
+        let bodyFixtureB = b2Shape_GetBody(fixtureB)
         
-        let userDataA = bodyFixtureA.GetUserData()
-        let userDataB = bodyFixtureB.GetUserData()
-        
-        let userDataAPtr = OpaquePointer(bitPattern: userDataA.pointee.pointer)!
-        let userDataBPtr = OpaquePointer(bitPattern: userDataB.pointee.pointer)!
+        let userDataA = b2Body_GetUserData(bodyFixtureA)
+        let userDataB = b2Body_GetUserData(bodyFixtureB)
         
         // FIXME: We should get correct impulse of contact
 //        let manifold = contact.GetManifold()
 
-        let bodyA = Unmanaged<Body2D>.fromOpaque(UnsafeRawPointer(userDataAPtr)).takeUnretainedValue()
-        let bodyB = Unmanaged<Body2D>.fromOpaque(UnsafeRawPointer(userDataBPtr)).takeUnretainedValue()
+        let bodyA = Unmanaged<Body2D>.fromOpaque(userDataA!).takeUnretainedValue()
+        let bodyB = Unmanaged<Body2D>.fromOpaque(userDataB!).takeUnretainedValue()
 
 //        let impulse = contact.GetManifold().pointee.points.0.normalImpulse
         
@@ -341,21 +336,18 @@ final class _Physics2DContactListener {
         bodyA.world.scene?.eventManager.send(event)
     }
     
-    func endContact(_ contact: b2Contact) {
-        let fixtureA = contact.GetFixtureA()!
-        let fixtureB = contact.GetFixtureB()!
+    func endContact(_ contact: b2ContactEndTouchEvent) {
+        let fixtureA = contact.shapeIdA
+        let fixtureB = contact.shapeIdB
         
-        let bodyFixtureA = fixtureA.GetBody()!
-        let bodyFixtureB = fixtureB.GetBody()!
+        let bodyFixtureA = b2Shape_GetBody(fixtureA)
+        let bodyFixtureB = b2Shape_GetBody(fixtureB)
         
-        let userDataA = bodyFixtureA.GetUserData()
-        let userDataB = bodyFixtureB.GetUserData()
+        let userDataA = b2Body_GetUserData(bodyFixtureA)
+        let userDataB = b2Body_GetUserData(bodyFixtureB)
         
-        let userDataAPtr = OpaquePointer(bitPattern: userDataA.pointee.pointer)!
-        let userDataBPtr = OpaquePointer(bitPattern: userDataB.pointee.pointer)!
-
-        let bodyA = Unmanaged<Body2D>.fromOpaque(UnsafeRawPointer(userDataAPtr)).takeUnretainedValue()
-        let bodyB = Unmanaged<Body2D>.fromOpaque(UnsafeRawPointer(userDataBPtr)).takeUnretainedValue()
+        let bodyA = Unmanaged<Body2D>.fromOpaque(userDataA!).takeUnretainedValue()
+        let bodyB = Unmanaged<Body2D>.fromOpaque(userDataB!).takeUnretainedValue()
         
         guard let entityA = bodyA.entity, let entityB = bodyB.entity else {
             return
@@ -369,11 +361,7 @@ final class _Physics2DContactListener {
         bodyA.world.scene?.eventManager.send(event)
     }
 
-    func postSolve(_ contact: b2Contact, impulse: UnsafePointer<b2ContactImpulse>?) {
-        return
-    }
-
-    func preSolve(_ contact: b2Contact, oldManifold: UnsafePointer<b2Manifold>?) {
+    func hitEvent(_ contact: b2ContactHitEvent) {
         return
     }
 }

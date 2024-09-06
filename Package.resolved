@@ -5,8 +5,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/AdaEngine/box2d-swift",
       "state" : {
-        "branch" : "main",
-        "revision" : "6992c1b4269b52cf4cc3cd86ae16af471970c768"
+        "branch" : "ADA-1",
+        "revision" : "91f0f7e218ddae0a189427b72954568c461127cd"
       }
     },
     {

@@ -86,14 +86,14 @@ public final class Physics2DSystem: System {
                 for shapeResource in physicsBody.shapes {
                     let shape = self.makeShape(for: shapeResource, transform: transform)
 
-                    var fixtureDef = b2FixtureDef()
+                    var fixtureDef = b2DefaultShapeDef()
                     fixtureDef.shape = UnsafeRawPointer(shape).assumingMemoryBound(to: b2Shape.self).pointee
 
                     fixtureDef.density = physicsBody.material.density
                     fixtureDef.restitution = physicsBody.material.restitution
                     fixtureDef.friction = physicsBody.material.friction
 
-                    body.addFixture(for: fixtureDef)
+                    body.addFixture(for: fixtureDef, and: <#b2Polygon#>)
                     
                     shape.deallocate()
                 }
@@ -141,12 +141,10 @@ public final class Physics2DSystem: System {
 
                 for shapeResource in collisionBody.shapes {
                     let shape = self.makeShape(for: shapeResource, transform: transform)
-                    var fixtureDef = b2FixtureDef()
-                    fixtureDef.shape = UnsafeRawPointer(shape).assumingMemoryBound(to: b2Shape.self).pointee
-
-                    if case .trigger = collisionBody.mode {
-                        fixtureDef.isSensor = true
-                    }
+                    
+//                    if case .trigger = collisionBody.mode {
+//                        fixtureDef.isSensor = true
+//                    }
 
                     body.addFixture(for: fixtureDef)
                     
@@ -180,17 +178,17 @@ public final class Physics2DSystem: System {
         entity.components[Collision2DComponent.self]?.runtimeBody
     }
     
-    private func makeShape(for shape: Shape2DResource, transform: Transform) -> OpaquePointer {
+    private func makeShape(for shape: Shape2DResource, transform: Transform) -> b2ChainDef {
         switch shape.fixture {
         case .polygon(let shape):
-            let shapeRef = UnsafeMutablePointer<b2PolygonShape>.allocate(capacity: 1)
-            shapeRef.initialize(to: b2PolygonShape.Create())
+            var box = b2MakeBox(1.0, 1.0);
+            var shapeDef = b2DefaultChainDef()
             shape.verticies.withUnsafeBytes { ptr in
                 let baseAddress = ptr.assumingMemoryBound(to: b2Vec2.self).baseAddress
-                shapeRef.pointee.Set(baseAddress, int32(shape.verticies.count))
+                shapeDef.points = baseAddress
             }
-            
-            return OpaquePointer(shapeRef)
+
+            return shapeDef
         case .circle(let shape):
             let shapeRef = UnsafeMutablePointer<b2CircleShape>.allocate(capacity: 1)
             shapeRef.initialize(to: b2CircleShape.Create())
