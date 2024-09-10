@@ -51,7 +51,7 @@ class Renderer2D {
     // TODO: (Vlad) Maybe we should split this code
     // swiftlint:disable:next function_body_length
     private init() {
-        let device = RenderEngine.shared.renderDevice
+        let device = RenderEngine.shared.renderingDevice
         
         self.uniformSet = device.createUniformBufferSet()
         self.uniformSet.label = "Renderer2D_ViewUniform"
@@ -260,7 +260,7 @@ class Renderer2D {
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0)
         uniform.setData(GlobalViewUniform(projectionMatrix: .identity, viewProjectionMatrix: .identity, viewMatrix: viewTransform))
 
-        let currentDraw = try RenderEngine.shared.renderDevice.beginDraw(
+        let currentDraw = try RenderEngine.shared.renderingDevice.beginDraw(
             for: window.id,
             clearColor: .surfaceClearColor,
             loadAction: .load,
@@ -273,7 +273,7 @@ class Renderer2D {
     
     static func beginDrawContext(for camera: Camera, viewUniform: GlobalViewUniform) throws -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
-        let device = RenderEngine.shared.renderDevice
+        let device = RenderEngine.shared.renderingDevice
 
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0)
         uniform.setData(viewUniform)
@@ -553,7 +553,7 @@ extension Renderer2D {
         public func commitContext() {
             self.flush()
             
-            RenderEngine.shared.renderDevice.endDrawList(self.currentDraw)
+            RenderEngine.shared.renderingDevice.endDrawList(self.currentDraw)
         }
         
         public func setTriangleFillMode(_ mode: TriangleFillMode) {
@@ -624,7 +624,7 @@ extension Renderer2D {
             currentDraw.bindIndexBuffer(data.indexBuffer)
             currentDraw.bindIndexPrimitive(indexPrimitive)
             
-            RenderEngine.shared.renderDevice.draw(currentDraw, indexCount: data.indeciesCount, indexBufferOffset: 0, instanceCount: 1)
+            RenderEngine.shared.renderingDevice.draw(currentDraw, indexCount: data.indeciesCount, indexBufferOffset: 0, instanceCount: 1)
         }
         
     }

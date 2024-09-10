@@ -1,5 +1,5 @@
 //
-//  MetalRenderDevice.swift
+//  MetalRenderingDevice.swift
 //  AdaEngine
 //
 //  Created by vladislav.prusakov on 29.08.2024.
@@ -8,7 +8,7 @@
 #if METAL
 import MetalKit
 
-final class MetalRenderDevice: RenderDevice {
+final class MetalRenderingDevice: RenderingDevice {
 
     let device: MTLDevice
     let commandQueue: MTLCommandQueue
@@ -166,7 +166,7 @@ final class MetalRenderDevice: RenderDevice {
 
 // MARK: Texture
 
-extension MetalRenderDevice {
+extension MetalRenderingDevice {
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     func createTexture(from descriptor: TextureDescriptor) -> GPUTexture {
         let textureDesc = MTLTextureDescriptor()
@@ -282,10 +282,10 @@ extension MetalRenderDevice {
 
 // MARK: - Drawings
 
-extension MetalRenderDevice {
+extension MetalRenderingDevice {
 
     enum DrawListError: String, LocalizedError {
-        case notAGlobalDevice = "RenderDevice isn't a global."
+        case notAGlobalDevice = "RenderingDevice isn't a global."
         case windowNotExists = "Required window doesn't exists."
         case failedToGetSurfaceTexture = "Failed to get surface texture."
         case failedToCreateCommandBuffer = "Failed to create command buffer"
@@ -294,6 +294,30 @@ extension MetalRenderDevice {
         var errorDescription: String? {
             return self.rawValue
         }
+    }
+
+    func draw(
+        in commandBuffer: CommandBuffer,
+        vertexCount: Int,
+        instanceCount: Int,
+        baseVertex: Int,
+        firstInstance: Int
+    ) {
+        guard let commandBuffer = commandBuffer as? MetalRenderCommandBuffer else {
+            return
+        }
+
+    }
+
+    func drawIndexed(
+        in commandBuffer: CommandBuffer,
+        indexCount: Int,
+        instanceCount: Int,
+        firstIndex: Int,
+        offset: Int,
+        baseInstance: Int
+    ) {
+
     }
 
     func beginDraw(
@@ -325,7 +349,7 @@ extension MetalRenderDevice {
             commandBuffer: mtlCommandBuffer
         )
 
-        return DrawList(commandBuffer: commandBuffer, renderDevice: self)
+        return DrawList(commandBuffer: commandBuffer, renderingDevice: self)
     }
 
     func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) throws -> DrawList {
@@ -348,7 +372,7 @@ extension MetalRenderDevice {
             commandBuffer: mtlCommandBuffer
         )
 
-        return DrawList(commandBuffer: commandBuffer, renderDevice: self)
+        return DrawList(commandBuffer: commandBuffer, renderingDevice: self)
     }
 
     // MARK: - Uniforms -

@@ -145,7 +145,7 @@ public struct SpriteRenderSystem: RenderSystem {
             return
         }
 
-        let device = RenderEngine.shared.renderDevice
+        let device = RenderEngine.shared.renderingDevice
         let vertexBuffer = device.createVertexBuffer(
             length: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride,
             binding: 0

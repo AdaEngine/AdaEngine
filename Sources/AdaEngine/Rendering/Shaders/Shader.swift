@@ -54,7 +54,7 @@ public final class Shader: Resource, @unchecked Sendable {
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: self.stage)
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
-        self.compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: self)
+        self.compiledShader = try RenderEngine.shared.renderingDevice.compileShader(from: self)
     }
     
     // MARK: Shader
@@ -89,7 +89,7 @@ public final class Shader: Resource, @unchecked Sendable {
     
     static func make(from spirv: SpirvBinary, compiler: ShaderCompiler) throws -> Shader {
         let shader = try Shader(spirv: spirv, compiler: compiler)
-        let compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: shader)
+        let compiledShader = try RenderEngine.shared.renderingDevice.compileShader(from: shader)
         shader.compiledShader = compiledShader
         
         return shader

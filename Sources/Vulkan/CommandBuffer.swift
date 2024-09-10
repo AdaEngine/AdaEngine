@@ -21,7 +21,6 @@ final public class CommandBuffer {
     public private(set) var state: State = .ready
     
     public init(device: Device, commandPool: CommandPool, isPrimary: Bool) throws {
-        
         var commandBuffer: VkCommandBuffer?
         
         let info = VkCommandBufferAllocateInfo(
@@ -50,25 +49,6 @@ final public class CommandBuffer {
         self.commandPool = commandPool
     }
     
-    public func commandBarrier(_ barrier: VkImageMemoryBarrier) throws {
-        vkCmdPipelineBarrier(self.rawPointer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, 0, 0, nil, 0, nil, 1, [barrier])
-    }
-    
-    public func draw(vertexCount: Int, instanceCount: Int, firstVertex: Int, firstInstance: Int) {
-        vkCmdDraw(self.rawPointer, UInt32(vertexCount), UInt32(instanceCount), UInt32(firstVertex), UInt32(firstInstance))
-    }
-    
-    public func drawIndexed(indexCount: Int, instanceCount: Int, firstIndex: Int, vertexOffset: Int, firstInstance: Int) {
-        vkCmdDrawIndexed(
-            self.rawPointer,
-            UInt32(indexCount),
-            UInt32(instanceCount),
-            UInt32(firstIndex),
-            Int32(vertexOffset),
-            UInt32(firstInstance)
-        )
-    }
-    
     public func beginUpdate(flags: BeginFlags = .simultaneousUse) throws {
         let info = VkCommandBufferBeginInfo(
             sType: VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -82,27 +62,83 @@ final public class CommandBuffer {
         }
         
         try vkCheck(result, "Command buffer cannot begins update")
-        
         self.state = .recording
     }
     
     public func endUpdate() throws {
         let result = vkEndCommandBuffer(self.rawPointer)
         try vkCheck(result, "Command buffer cannot end update")
-        
         self.state = .recordingEnded
     }
-    
-    public func bindVertexBuffers(_ buffers: [Buffer], offsets: [UInt64]) {
-        var vertexBuffers: [VkBuffer?] = buffers.map(\.rawPointer)
-        var offsets: [UInt64] = offsets
-        vkCmdBindVertexBuffers(self.rawPointer, 0, 1, &vertexBuffers, &offsets)
+
+    @inline(__always)
+    public func setPolygonMode(_ mode: VkPolygonMode) {
+        vkCmdSetPolygonModeEXT(self.rawPointer, mode)
+    }
+
+    @inline(__always)
+    public func setViewport(_ viewports: [VkViewport]) {
+        viewports.withUnsafeBufferPointer { ptr in
+            vkCmdSetViewport(self.rawPointer, 0, UInt32(viewports.count), ptr.baseAddress)
+        }
+    }
+
+    @inline(__always)
+    public func setScissor(_ scissors: [VkRect2D]) {
+        scissors.withUnsafeBufferPointer { ptr in
+            vkCmdSetScissor(self.rawPointer, 0, UInt32(scissors.count), ptr.baseAddress)
+        }
+    }
+
+    @inline(__always)
+    public func setCullMode(_ mode: VkCullModeFlags) {
+        vkCmdSetCullMode(self.rawPointer, mode)
+    }
+
+    @inline(__always)
+    public func setFrontFacing(_ frontFace: VkFrontFace) {
+        vkCmdSetFrontFace(self.rawPointer, frontFace)
+    }
+
+    @inline(__always)
+    public func setLineWidth(_ lineWidth: Float) {
+        vkCmdSetLineWidth(self.rawPointer, lineWidth)
     }
     
+    @inline(__always)
+    public func bindRenderPipeline(_ pipeline: RenderPipeline) {
+        vkCmdBindPipeline(self.rawPointer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.rawPointer)
+    }
+
+    @inline(__always)
+    public func bindVertexBuffers(
+        _ buffers: [Buffer],
+        firstBinding: Int,
+        bindingCount: Int,
+        offsets: [UInt64]
+    ) {
+        var vertexBuffers: [VkBuffer?] = buffers.map(\.rawPointer)
+        var offsets: [UInt64] = offsets
+        vkCmdBindVertexBuffers(
+            self.rawPointer,
+            UInt32(firstBinding),
+            UInt32(bindingCount), 
+            &vertexBuffers,
+            &offsets
+        )
+    }
+
+    @inline(__always)
+    public func bindPrimitiveTopology(_ topology: VkPrimitiveTopology) {
+        vkCmdSetPrimitiveTopology(self.rawPointer, topology)
+    }
+
+    @inline(__always)
     public func bindIndexBuffer(_ buffer: Buffer, offset: UInt64, indexType: VkIndexType) {
         vkCmdBindIndexBuffer(self.rawPointer, buffer.rawPointer, offset, indexType)
     }
     
+    @inline(__always)
     public func bindDescriptorSet(
         pipelineBindPoint: VkPipelineBindPoint,
         layout: PipelineLayout,
@@ -111,7 +147,6 @@ final public class CommandBuffer {
         dynamicOffsets: [UInt32]? = nil
     ) {
         var descriptorSets: [VkDescriptorSet?] = descriptorSets.map(\.rawPointer)
-        
         vkCmdBindDescriptorSets(
             self.rawPointer,
             pipelineBindPoint,
@@ -123,7 +158,29 @@ final public class CommandBuffer {
             dynamicOffsets
         )
     }
-    
+
+    @inline(__always)
+    public func commandBarrier(_ barrier: VkImageMemoryBarrier) throws {
+        vkCmdPipelineBarrier(self.rawPointer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT.rawValue, 0, 0, nil, 0, nil, 1, [barrier])
+    }
+
+    @inline(__always)
+    public func draw(vertexCount: Int, instanceCount: Int, firstVertex: Int, firstInstance: Int) {
+        vkCmdDraw(self.rawPointer, UInt32(vertexCount), UInt32(instanceCount), UInt32(firstVertex), UInt32(firstInstance))
+    }
+
+    @inline(__always)
+    public func drawIndexed(indexCount: Int, instanceCount: Int, firstIndex: Int, vertexOffset: Int, firstInstance: Int) {
+        vkCmdDrawIndexed(
+            self.rawPointer,
+            UInt32(indexCount),
+            UInt32(instanceCount),
+            UInt32(firstIndex),
+            Int32(vertexOffset),
+            UInt32(firstInstance)
+        )
+    }
+
     public func reset() throws {
         let result = vkResetCommandBuffer(self.rawPointer, 0)
         try vkCheck(result)

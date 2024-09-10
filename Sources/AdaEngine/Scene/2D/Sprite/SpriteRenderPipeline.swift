@@ -14,7 +14,7 @@ struct SpriteRenderPipeline: Sendable {
     let renderPipeline: RenderPipeline
 
     private init() {
-        let device = RenderEngine.shared.renderDevice
+        let device = RenderEngine.shared.renderingDevice
         let quadShader = try! ResourceManager.loadSync("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
 
         var piplineDesc = RenderPipelineDescriptor()

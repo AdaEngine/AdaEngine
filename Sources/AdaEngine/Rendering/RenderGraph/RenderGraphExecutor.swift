@@ -80,7 +80,7 @@ public class RenderGraphExecutor {
             let context = RenderGraphContext(
                 graph: graph,
                 world: world,
-                device: RenderEngine.shared.renderDevice,
+                device: RenderEngine.shared.renderingDevice,
                 inputResources: inputs,
                 tracer: tracer,
                 viewEntity: viewEntity

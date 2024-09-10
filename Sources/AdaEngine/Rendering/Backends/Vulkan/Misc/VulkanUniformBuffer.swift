@@ -12,10 +12,10 @@ import Vulkan
 final class VulkanUniformBuffer: VulkanBuffer, UniformBuffer {
     let binding: Int
 
-    init(renderDevice: VulkanRenderDevice, size: Int, queueFamilyIndecies: [UInt32], binding: Int) throws {
+    init(renderingDevice: VulkanRenderingDevice, size: Int, queueFamilyIndecies: [UInt32], binding: Int) throws {
         self.binding = binding
         try super.init(
-            renderDevice: renderDevice,
+            renderingDevice: renderingDevice,
             size: size,
             usage: VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT.rawValue,
             queueFamilyIndecies: queueFamilyIndecies
