@@ -14,16 +14,11 @@ class VulkanRenderPipeline: RenderPipeline {
 
     let descriptor: RenderPipelineDescriptor
     private unowned let device: Device
-    private(set) var renderPipeline: VkPipeline!
-    private(set) var pipelineLayout: Vulkan.PipelineLayout!
+    private(set) var renderPipeline: Vulkan.RenderPipeline!
 
     init(device: Device, descriptor: RenderPipelineDescriptor) throws {
         self.descriptor = descriptor
         self.device = device
-    }
-
-    deinit {
-        vkDestroyPipeline(self.device.rawPointer, renderPipeline, nil)
     }
     
     func update(for framebuffer: VulkanFramebuffer, drawList: DrawList) throws {
@@ -111,18 +106,11 @@ class VulkanRenderPipeline: RenderPipeline {
         createInfo.layout = pipelineLayout.rawPointer
         createInfo.renderPass = framebuffer.renderPass.rawPointer
 
-        var renderPipeline: VkPipeline?
-
-        let result = withUnsafePointer(to: &createInfo) { ptr in
-            vkCreateGraphicsPipelines(device.rawPointer, nil, 1, ptr, nil, &renderPipeline)
-        }
-
-        guard let renderPipeline, result == VK_SUCCESS else {
-            throw VulkanError.failedInit(code: result)
-        }
-        
-        self.renderPipeline = renderPipeline
-        self.pipelineLayout = pipelineLayout
+        self.renderPipeline = try Vulkan.RenderPipeline(
+            device: self.device,
+            pipelineLayout: pipelineLayout,
+            graphicCreateInfo: createInfo
+        )
     }
 
     // MARK: - Static

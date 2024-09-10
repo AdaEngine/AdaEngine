@@ -213,7 +213,7 @@ struct GlobalViewUniformBufferSet {
     let uniformBufferSet: UniformBufferSet
     
     init() {
-        self.uniformBufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
+        self.uniformBufferSet = RenderEngine.shared.renderingDevice.createUniformBufferSet()
         self.uniformBufferSet.label = "Global View Uniform"
         self.uniformBufferSet.initBuffers(for: GlobalViewUniform.self, binding: GlobalBufferIndex.viewUniform, set: 0)
     }

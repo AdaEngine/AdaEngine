@@ -16,7 +16,7 @@ import Darwin.C
 #endif
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-let isVulkanEnabled = true
+let isVulkanEnabled = false
 #else
 let isVulkanEnabled = true
 #endif
@@ -252,10 +252,6 @@ targets += [
 targets.append(contentsOf: swiftLintTargets)
 #endif
 
-if isVulkanEnabled {
-  setupForVulkan()
-}
-
 // MARK: - Package -
 
 let package = Package(
@@ -278,7 +274,7 @@ package.dependencies += [
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
     .package(url: "https://github.com/apple/swift-log", from: "1.5.4"),
     // Plugins
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
+    .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.2"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "510.0.2")
 ]
 
@@ -304,9 +300,14 @@ if useLocalDeps {
 
 // MARK: - Vulkan -
 
+if isVulkanEnabled {
+  setupForVulkan()
+}
+
 func setupForVulkan() {
   adaEngineTarget.dependencies += [
-    "Vulkan"
+    "Vulkan",
+    "CVulkan"
   ]
 
   package.targets += [

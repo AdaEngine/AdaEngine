@@ -8,7 +8,7 @@
 final class GenericUniformBufferSet: UniformBufferSet {
     /// Max frames in flight.
     let frames: Int
-    let device: RenderDevice
+    let device: RenderingDevice
 
     public var label: String?
 
@@ -18,7 +18,7 @@ final class GenericUniformBufferSet: UniformBufferSet {
 
     private var uniformBuffers: [FrameIndex : [Set : [ Binding : UniformBuffer] ] ] = [:]
     
-    init(frames: Int, device: RenderDevice) {
+    init(frames: Int, device: RenderingDevice) {
         self.frames = frames
         self.device = device
     }

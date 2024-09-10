@@ -34,7 +34,7 @@ public struct Text2DRenderSystem: RenderSystem {
     let textRenderPipeline: RenderPipeline
 
     public init(scene: Scene) {
-        let device = RenderEngine.shared.renderDevice
+        let device = RenderEngine.shared.renderingDevice
 
         let textShader = try! ResourceManager.loadSync("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
         var piplineDesc = RenderPipelineDescriptor()
@@ -125,7 +125,7 @@ public struct Text2DRenderSystem: RenderSystem {
                 )
             )
 
-            let device = RenderEngine.shared.renderDevice
+            let device = RenderEngine.shared.renderingDevice
             let vertexBuffer = device.createVertexBuffer(
                 length: spriteVerticies.count * MemoryLayout<GlyphVertexData>.stride,
                 binding: 0

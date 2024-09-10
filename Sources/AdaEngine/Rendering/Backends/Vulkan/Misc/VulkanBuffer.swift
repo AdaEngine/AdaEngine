@@ -11,8 +11,8 @@ import Vulkan
 
 class VulkanBuffer: Buffer {
 
-    private let buffer: Vulkan.Buffer
-    private unowned let renderDevice: VulkanRenderDevice
+    let buffer: Vulkan.Buffer
+    private unowned let renderingDevice: VulkanRenderingDevice
     private let memoryFlags: VkMemoryMapFlags
     private let usage: VkBufferUsageFlags
 
@@ -22,9 +22,9 @@ class VulkanBuffer: Buffer {
         return Int(buffer.size)
     }
 
-    init(renderDevice: VulkanRenderDevice, size: Int, usage: VkBufferUsageFlags, queueFamilyIndecies: [UInt32]) throws {
+    init(renderingDevice: VulkanRenderingDevice, size: Int, usage: VkBufferUsageFlags, queueFamilyIndecies: [UInt32]) throws {
         self.buffer = try Vulkan.Buffer(
-            device: renderDevice.device,
+            device: renderingDevice.device,
             size: size,
             usage: .init(rawValue: usage),
             sharingMode: VK_SHARING_MODE_EXCLUSIVE
@@ -32,7 +32,7 @@ class VulkanBuffer: Buffer {
 
         self.usage = usage
         self.memoryFlags = VkMemoryMapFlags(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT.rawValue | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT.rawValue)
-        self.renderDevice = renderDevice
+        self.renderingDevice = renderingDevice
     }
 
     func contents(_ memory: (UnsafeMutableRawPointer?) -> Void) {

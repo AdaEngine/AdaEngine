@@ -7,7 +7,7 @@
 
 /// The context with information required to run a ``DrawPass``.
 public struct DrawPassRenderContext {
-    public let device: RenderDevice
+    public let device: RenderingDevice
     public let entity: Entity
     public let world: World
     public let view: Entity

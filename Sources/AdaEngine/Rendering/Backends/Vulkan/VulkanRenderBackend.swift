@@ -15,20 +15,20 @@ final class VulkanRenderBackend: RenderBackend {
     let context: Context
     var currentFrameIndex: Int = 0
     private var inFlightSemaphore: DispatchSemaphore
-    private(set) var renderDevice: RenderDevice
+    private(set) var renderingDevice: RenderingDevice
 
     init(appName: String) {
         self.context = Context(appName: appName)
         self.inFlightSemaphore = DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
-        self.renderDevice = VulkanRenderDevice(
+        self.renderingDevice = VulkanRenderingDevice(
             device: self.context.logicalDevice,
             commandPool: self.context.commandPool,
             context: context
         )
     }
 
-    func createLocalRenderDevice() -> RenderDevice {
-        VulkanRenderDevice(
+    func createLocalRenderingDevice() -> RenderingDevice {
+        VulkanRenderingDevice(
             device: self.context.logicalDevice,
             commandPool: self.context.commandPool
         )
@@ -116,14 +116,6 @@ extension Texture.TextureType {
         case .textureBuffer:
             fatalError("Unsupported type")
         }
-    }
-}
-
-class VulkanRenderCommandBuffer: DrawCommandBuffer {
-    let framebuffer: VulkanFramebuffer
-    
-    init(framebuffer: VulkanFramebuffer) {
-        self.framebuffer = framebuffer
     }
 }
 

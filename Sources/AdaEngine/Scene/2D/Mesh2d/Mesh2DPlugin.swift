@@ -238,7 +238,7 @@ extension Material {
                 return nil
             }
 
-            return (RenderEngine.shared.renderDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
+            return (RenderEngine.shared.renderingDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
         } catch {
             assertionFailure("[Mesh2DRenderSystem] \(error.localizedDescription)")
             return nil

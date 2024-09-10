@@ -501,7 +501,7 @@ extension VulkanInstance {
         return try Surface(vulkan: self, view: renderSurface as! MTKView)
         #elseif os(Linux)
         return try Surface(vulkan: self, view: renderSurface as! MTKView)
-        #elseif os(wasm)
+        #elseif os(WASI)
         return try Surface(vulkan: self, view: renderSurface as! MTKView)
         #endif
         
