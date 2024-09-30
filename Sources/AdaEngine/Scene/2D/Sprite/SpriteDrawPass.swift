@@ -24,9 +24,10 @@ public struct SpriteDrawPass: DrawPass {
         guard let cameraViewUniform = context.view.components[GlobalViewUniformBufferSet.self] else {
             return
         }
-        
-        context.drawList.pushDebugName("SpriteDrawPass")
-        
+
+        let renderEncoder = context.renderEncoder
+        renderEncoder.pushDebugName("SpriteDrawPass")
+
         let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0
@@ -34,21 +35,23 @@ public struct SpriteDrawPass: DrawPass {
         
         if let batchSprite = item.batchEntity.components[BatchComponent.self] {
             batchSprite.textures.enumerated().forEach { (index, texture) in
-                context.drawList.bindTexture(texture, at: index)
+//                context.drawList.bindTexture(texture, at: index)
             }
         }
-        
-        context.drawList.appendUniformBuffer(uniformBuffer)
-        context.drawList.appendVertexBuffer(spriteData.vertexBuffer)
-        context.drawList.bindIndexBuffer(spriteData.indexBuffer)
-        context.drawList.bindRenderPipeline(item.renderPipeline)
-        context.drawList.drawIndexed(
+
+        renderEncoder.setIndexBuffer(spriteData.indexBuffer, offset: 0)
+        renderEncoder.setRenderPipeline(item.renderPipeline)
+        renderEncoder.setVertexBuffers([spriteData.vertexBuffer], offsets: [0], index: 0)
+        renderEncoder.drawIndexed(
             indexCount: item.batchRange?.count ?? 6, // indicies count per quad
-            indexBufferOffset: Int(item.batchRange?.lowerBound ?? 0) * 4, // start position must be multiple by 4
-            instanceCount: 1
+            instanceCount: 1,
+            firstIndex: 0,
+            offset: Int(item.batchRange?.lowerBound ?? 0) * 4, // start position must be multiple by 4
+            firstInstance: 0
         )
+//        context.drawList.appendUniformBuffer(uniformBuffer)
         
-        context.drawList.popDebugName()
+        renderEncoder.popDebugName()
     }
 }
 

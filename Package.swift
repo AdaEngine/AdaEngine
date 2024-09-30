@@ -16,7 +16,7 @@ import Darwin.C
 #endif
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-let isVulkanEnabled = false
+let isVulkanEnabled = true
 #else
 let isVulkanEnabled = true
 #endif
@@ -301,35 +301,34 @@ if useLocalDeps {
 // MARK: - Vulkan -
 
 if isVulkanEnabled {
-  setupForVulkan()
-}
+    adaEngineTarget.dependencies += [
+        .target(name: "Vulkan"),
+        .target(name: "CVulkan")
+    ]
 
-func setupForVulkan() {
-  adaEngineTarget.dependencies += [
-    "Vulkan",
-    "CVulkan"
-  ]
+    package.targets += [
+        .target(
+            name: "Vulkan",
+            dependencies: ["CVulkan"],
+            cxxSettings: [
+                // Apple
+                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
+                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
+                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
 
-  package.targets += [
-    .target(
-      name: "Vulkan",
-      dependencies: ["CVulkan"],
-      cxxSettings: [
-        // Apple
-        .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
-        .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
-        .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
+                // Android
+                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
 
-        // Android
-        .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
-
-        // Windows
-        .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
-      ]
-    ),
-    .systemLibrary(
-      name: "CVulkan",
-      pkgConfig: "vulkan"
-    )
-  ]
+                // Windows
+                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
+            ]
+        ),
+        .systemLibrary(
+            name: "CVulkan",
+            pkgConfig: "vulkan",
+            providers: [
+                .apt(["vulkan"]),
+            ]
+        )
+    ]
 }

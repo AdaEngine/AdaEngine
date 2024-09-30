@@ -11,7 +11,7 @@ public struct DrawPassRenderContext {
     public let entity: Entity
     public let world: World
     public let view: Entity
-    public let drawList: DrawList
+    public let renderEncoder: RenderCommandEncoder
 }
 
 public struct DrawPassId: Equatable, Hashable {
