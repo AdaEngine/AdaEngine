@@ -8,6 +8,7 @@
 #if VULKAN
 import CVulkan
 import Vulkan
+import Math
 
 final class VulkanRenderingDevice: RenderingDevice {
 
@@ -125,7 +126,9 @@ final class VulkanRenderingDevice: RenderingDevice {
     func getImage(for texture2D: RID) -> Image? {
         fatalError("Kek")
     }
+}
 
+extension VulkanRenderingDevice {
     func beginDraw(
         for window: UIWindow.ID,
         clearColor: Color,
@@ -142,10 +145,24 @@ final class VulkanRenderingDevice: RenderingDevice {
             framebuffer: framebuffer,
             renderPass: window.swapchain.renderPass
         )
+
+        let renderArea = VkRect2D(
+            offset: VkOffset2D(x: 0, y: 0),
+            extent: VkExtent2D(width: UInt32(vkFramebuffer.descriptor.width), height: UInt32(vkFramebuffer.descriptor.height))
+        )
+
+        let commandBuffer = try self.device.getCommandBuffer(commandPool: self.commandPool)
+
+        commandBuffer.beginRenderPass(
+            framebuffer: vkFramebuffer.vkFramebuffer,
+            renderArea: renderArea,
+            clearColors: [VkClearValue(color: clearColor.toVulkanClearColor)]
+        )
+
         return DrawList(
             commandBuffer: VulkanRenderCommandBuffer(
                 framebuffer: vkFramebuffer,
-                commandBuffer: try self.device.getCommandBuffer(commandPool: self.commandPool)
+                commandBuffer: commandBuffer
             ),
             renderingDevice: self
         )
@@ -156,15 +173,28 @@ final class VulkanRenderingDevice: RenderingDevice {
             fatalError("Not correct framebuffer object")
         }
 
+        let renderArea = VkRect2D(
+            offset: VkOffset2D(x: 0, y: 0),
+            extent: VkExtent2D(width: UInt32(framebuffer.descriptor.width), height: UInt32(framebuffer.descriptor.height))
+        )
+
+        let clearColors = clearColors ?? [Color.black]
+
+        let commandBuffer = try self.device.getCommandBuffer(commandPool: self.commandPool)
+
+        commandBuffer.beginRenderPass(
+            framebuffer: vulkanFramebuffer.vkFramebuffer,
+            renderArea: renderArea,
+            clearColors: clearColors.map { VkClearValue(color: $0.toVulkanClearColor) }
+        )
+
         return DrawList(
             commandBuffer: VulkanRenderCommandBuffer(
                 framebuffer: vulkanFramebuffer,
-                commandBuffer: try self.device.getCommandBuffer(commandPool: self.commandPool)
+                commandBuffer: commandBuffer
             ),
             renderingDevice: self
         )
-
-        
     }
 
     func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
@@ -185,24 +215,10 @@ final class VulkanRenderingDevice: RenderingDevice {
                 drawList: list
             )
 
-            //            if let name = list.debugName {
-            //                encoder.label = name
-            //            }
-
-            //            if let depthStencilState = renderPipeline.depthStencilState {
-            //                encoder.setDepthStencilState(depthStencilState)
-            //            }
+            try commandBuffer.beginUpdate()
 
             // Should be in draw settings
             commandBuffer.bindRenderPipeline(renderPipeline.renderPipeline)
-            commandBuffer.setFrontFacing(VK_FRONT_FACE_COUNTER_CLOCKWISE)
-            commandBuffer.setCullMode(
-                renderPipeline.descriptor.backfaceCulling ?
-                VK_CULL_MODE_BACK_BIT.rawValue
-                : VK_CULL_MODE_FRONT_BIT.rawValue
-            )
-            commandBuffer.setPolygonMode(list.triangleFillMode.toVulkan)
-            commandBuffer.bindPrimitiveTopology(list.indexPrimitive.toVulkan)
 
             if list.isScissorEnabled {
                 let rect = list.scissorRect
@@ -235,10 +251,6 @@ final class VulkanRenderingDevice: RenderingDevice {
                 ])
             }
 
-            guard let indexBuffer = list.indexBuffer else {
-                fatalError("can't draw without index buffer")
-            }
-
             let vertexBuffers = list.vertexBuffers.map { ($0 as! VulkanVertexBuffer).buffer }
             commandBuffer.bindVertexBuffers(
                 vertexBuffers,
@@ -260,7 +272,7 @@ final class VulkanRenderingDevice: RenderingDevice {
                 let data = list.uniformBuffers[index]!
                 let buffer = data.buffer as! VulkanUniformBuffer
 
-                
+
 
 //                switch data.shaderStage {
 //                case .vertex:
@@ -289,17 +301,48 @@ final class VulkanRenderingDevice: RenderingDevice {
                 vertexOffset: 0,
                 firstInstance: 1
             )
+
+            try commandBuffer.endUpdate()
         } catch {
             assertionFailure("Failed to draw: \(error)")
         }
     }
 
     func endDrawList(_ drawList: DrawList) {
-        guard let renderCommandBuffer = drawList.commandBuffer as? VulkanCommandBuffer else {
+        guard let renderCommandBuffer = drawList.commandBuffer as? VulkanRenderCommandBuffer else {
             return
         }
 
-        
+        renderCommandBuffer.commandBuffer.endRenderPass()
+    }
+}
+
+extension VulkanRenderingDevice {
+    func createRenderEncoder(for framebuffer: Framebuffer) throws -> RenderCommandEncoder {
+        guard let framebuffer = framebuffer as? VulkanFramebuffer else {
+            fatalError()
+        }
+
+        let commandBuffer = try self.device.getCommandBuffer(commandPool: self.commandPool)
+
+        let commandEncoder = VulkanRenderCommandEncoder(
+            commandBuffer: commandBuffer,
+            framebuffer: framebuffer.vkFramebuffer
+        )
+
+        let renderArea = VkRect2D(
+            offset: VkOffset2D(x: 0, y: 0),
+            extent: VkExtent2D(width: UInt32(framebuffer.descriptor.width), height: UInt32(framebuffer.descriptor.height))
+        )
+
+        try commandBuffer.beginUpdate()
+        commandBuffer.beginRenderPass(
+            framebuffer: framebuffer.vkFramebuffer,
+            renderArea: renderArea,
+            clearColors: []
+        )
+
+        return commandEncoder
     }
 }
 
@@ -382,6 +425,12 @@ private extension TriangleFillMode {
     }
 }
 
+private extension Color {
+    var toVulkanClearColor: VkClearColorValue {
+        VkClearColorValue(float32: (self.red, self.green, self.blue, self.alpha))
+    }
+}
+
 struct VulkanCommandBuffer: CommandBuffer {
     let buffer: Vulkan.CommandBuffer
 }
@@ -399,4 +448,142 @@ class VulkanRenderCommandBuffer: DrawCommandBuffer {
     }
 }
 
+final class VulkanRenderCommandEncoder: RenderCommandEncoder {
+
+    let commandBuffer: Vulkan.CommandBuffer
+    let framebuffer: VKFramebuffer
+
+    init(commandBuffer: Vulkan.CommandBuffer, framebuffer: VKFramebuffer) {
+        self.commandBuffer = commandBuffer
+        self.framebuffer = framebuffer
+    }
+
+    func setRenderPipeline(_ renderPipeline: RenderPipeline) {
+        guard let renderPipeline = renderPipeline as? VulkanRenderPipeline else {
+            return
+        }
+
+        self.commandBuffer.bindRenderPipeline(renderPipeline.renderPipeline)
+    }
+
+    func pushDebugGroup(_ name: String) {
+
+    }
+
+    func popDebugGroup() {
+
+    }
+
+    func setVertexBuffers(_ buffers: [VertexBuffer], offsets: [Int], index: Int) {
+        let vulkanBuffers = buffers.compactMap {
+            ($0 as? VulkanBuffer)?.buffer
+        }
+        self.commandBuffer.bindVertexBuffers(vulkanBuffers, firstBinding: 0, bindingCount: 0, offsets: offsets)
+    }
+
+    func setViewports(_ viewports: [Viewport]) {
+        self.commandBuffer.setViewport(viewports.map {
+            VkViewport(
+                x: $0.rect.origin.x,
+                y: $0.rect.origin.y,
+                width: $0.rect.size.width,
+                height: $0.rect.size.height,
+                minDepth: $0.depth.lowerBound,
+                maxDepth: $0.depth.upperBound
+            )
+        })
+    }
+
+    func endEncoding() {
+        self.commandBuffer.endRenderPass()
+        try! self.commandBuffer.endUpdate()
+    }
+
+    func setScissors(_ rects: [Rect]) {
+        self.commandBuffer.setScissor(rects.map {
+            VkRect2D(
+                offset: VkOffset2D(x: Int32($0.origin.x), y: Int32($0.origin.y)),
+                extent: VkExtent2D(width: UInt32($0.size.width), height: UInt32($0.size.height))
+            )
+        })
+    }
+
+    func setIndexBuffer(_ buffer: IndexBuffer, offset: Int) {
+        guard let indexBuffer = buffer as? VulkanIndexBuffer else {
+            assertionFailure("IndexBuffer isn't an instance of VulkanIndexBuffer.")
+            return
+        }
+//
+//        VkDescriptorSetLayoutBinding(
+//            binding: <#T##UInt32#>,
+//            descriptorType: VkDescriptorType,
+//            descriptorCount: <#T##UInt32#>,
+//            stageFlags: <#T##VkShaderStageFlags#>,
+//            pImmutableSamplers: <#T##UnsafePointer<VkSampler?>!#>
+//        )
+
+        self.commandBuffer.bindIndexBuffer(indexBuffer.buffer, offset: UInt64(offset), indexType: indexBuffer.indexFormat.toVulkan)
+    }
+
+    func setLineWidth(_ width: Float) {
+        self.commandBuffer.setLineWidth(width)
+    }
+
+    func drawIndexed(
+        vertexCount: Int,
+        instanceCount: Int,
+        baseVertex: Int,
+        firstInstance: Int
+    ) {
+
+    }
+
+    func drawIndexed(
+        indexCount: Int,
+        instanceCount: Int,
+        firstIndex: Int,
+        offset: Int,
+        firstInstance: Int
+    ) {
+        self.commandBuffer.drawIndexed(
+            indexCount: indexCount,
+            instanceCount: instanceCount,
+            firstIndex: firstIndex,
+            vertexOffset: offset,
+            firstInstance: firstInstance
+        )
+    }
+}
+
 #endif
+
+public struct BindGroupLayoutDescriptor {
+    public let entries: [BindGroupLayoutEntry]
+
+    public init(entries: [BindGroupLayoutEntry]) {
+        self.entries = entries
+    }
+}
+
+public struct BindGroupLayoutEntry {
+
+    public enum BindingType {
+        case sampler
+        case texture
+    }
+
+    /// Binding index. Must match shader index and be unique inside a BindGroupLayout.
+    /// A binding of index 1, would be described as layout(set = 0, binding = 1) uniform in shaders.
+    public let binding: UInt32
+
+    /// Which shader stages can see this binding.
+    public let visibility: ShaderStage
+
+    public let type: BindingType
+
+    public init(binding: UInt32, visibility: ShaderStage, data: BindingData) {
+        self.binding = binding
+        self.visibility = visibility
+        self.data = data
+    }
+}

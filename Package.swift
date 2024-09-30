@@ -16,7 +16,7 @@ import Darwin.C
 #endif
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-let isVulkanEnabled = false
+let isVulkanEnabled = true
 #else
 let isVulkanEnabled = true
 #endif
@@ -350,9 +350,12 @@ func setupForVulkan() {
         .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
       ]
     ),
-    .systemLibrary(
-      name: "CVulkan",
-      pkgConfig: "vulkan"
-    )
+        .systemLibrary(
+            name: "CVulkan",
+            pkgConfig: "vulkan",
+            providers: [
+                .apt(["vulkan"]),
+            ]
+        )
   ]
 }

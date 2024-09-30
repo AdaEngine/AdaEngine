@@ -53,24 +53,9 @@ public protocol RenderingDevice: AnyObject {
     /// Get image from texture rid.
     func getImage(from texture: Texture) -> Image?
 
-    // MARK: - Drawing
+    // MARK: - Command Encoders
 
-    func draw(
-        in commandBuffer: CommandBuffer,
-        vertexCount: Int,
-        instanceCount: Int,
-        baseVertex: Int,
-        firstInstance: Int
-    )
-
-    func drawIndexed(
-        in commandBuffer: CommandBuffer,
-        indexCount: Int,
-        instanceCount: Int,
-        firstIndex: Int,
-        offset: Int,
-        firstInstance: Int
-    )
+    func createRenderEncoder(for framebuffer: Framebuffer) throws -> RenderCommandEncoder
 
     // TODO: Move to render backend, i think
 
@@ -104,4 +89,57 @@ public protocol CommandBuffer {
 
 public protocol DrawCommandBuffer {
 
+}
+
+public protocol CommandEncoder {
+
+    func pushDebugGroup(_ name: String)
+
+    func popDebugGroup()
+
+    func endEncoding()
+}
+
+public protocol RenderCommandEncoder: CommandEncoder {
+
+    func setRenderPipeline(_ renderPipeline: RenderPipeline)
+
+    func setVertexBuffers(_ buffers: [VertexBuffer], offsets: [Int], index: Int)
+
+    func setIndexBuffer(_ buffer: IndexBuffer, offset: Int)
+
+    func setViewports(_ viewports: [Viewport])
+
+    func setScissors(_ rects: [Rect])
+
+    func setLineWidth(_ width: Float)
+
+    func drawIndexed(
+        vertexCount: Int,
+        instanceCount: Int,
+        baseVertex: Int,
+        firstInstance: Int
+    )
+
+    func drawIndexed(
+        indexCount: Int,
+        instanceCount: Int,
+        firstIndex: Int,
+        offset: Int,
+        firstInstance: Int
+    )
+}
+
+public extension RenderCommandEncoder {
+    func setViewport(_ viewport: Viewport) {
+        self.setViewports([viewport])
+    }
+
+    func setScissor(_ rect: Rect) {
+        self.setScissors([rect])
+    }
+
+    func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, index: Int) {
+        self.setVertexBuffers([buffer], offsets: [offset], index: index)
+    }
 }

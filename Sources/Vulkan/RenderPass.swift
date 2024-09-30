@@ -8,7 +8,6 @@
 import CVulkan
 
 public class RenderPass {
-    
     public let rawPointer: VkRenderPass
     public unowned let device: Device
     
@@ -27,31 +26,7 @@ public class RenderPass {
         self.device = device
     }
     
-    public func begin(for cmd: CommandBuffer, framebuffer: VKFramebuffer, swapchain: Swapchain) {
-        var clearColor = VkClearValue()
-        clearColor.color = VkClearColorValue(float32: (0, 0, 0, 1))
-        
-        let info = VkRenderPassBeginInfo(
-            sType: VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            pNext: nil,
-            renderPass: self.rawPointer,
-            framebuffer: framebuffer.rawPointer,
-            renderArea: VkRect2D(offset: VkOffset2D(x: 0, y: 0), extent: swapchain.extent),
-            clearValueCount: 1,
-            pClearValues: &clearColor
-        )
-        
-        withUnsafePointer(to: info) { ptr in
-            vkCmdBeginRenderPass(cmd.rawPointer, ptr, VK_SUBPASS_CONTENTS_INLINE)
-        }
-    }
-    
-    public func end(for cmd: CommandBuffer) {
-        vkCmdEndRenderPass(cmd.rawPointer)
-    }
-    
     deinit {
         vkDestroyRenderPass(self.device.rawPointer, self.rawPointer, nil)
     }
-    
 }

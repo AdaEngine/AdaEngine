@@ -1,4 +1,5 @@
 {
+  "originHash" : "fac85b68cb27a55bff8fe1e2e6d2c6daacae76ab9ed417e866b9568a87d0b67b",
   "pins" : [
     {
       "identity" : "box2d-swift",
@@ -68,8 +69,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-docc-plugin",
       "state" : {
-        "revision" : "2eb22993b3dfd0c0d32729b357c8dabb6cd44680",
-        "version" : "1.4.2"
+        "revision" : "85e4bb4e1cd62cec64a4b8e769dcefdf0c5b9d64",
+        "version" : "1.4.3"
       }
     },
     {
@@ -109,5 +110,5 @@
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }

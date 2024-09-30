@@ -71,9 +71,31 @@ final public class CommandBuffer {
         self.state = .recordingEnded
     }
 
+    public func beginRenderPass(
+        framebuffer: VKFramebuffer,
+        renderArea: VkRect2D,
+        clearColors: [VkClearValue]
+    ) {
+        clearColors.withUnsafeBufferPointer { ptr in
+            let info = VkRenderPassBeginInfo(
+                sType: VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                pNext: nil,
+                renderPass: self.rawPointer,
+                framebuffer: framebuffer.rawPointer,
+                renderArea: renderArea,
+                clearValueCount: UInt32(clearColors.count),
+                pClearValues: ptr.baseAddress
+            )
+
+            return withUnsafePointer(to: info) { ptr in
+                vkCmdBeginRenderPass(self.rawPointer, ptr, VK_SUBPASS_CONTENTS_INLINE)
+            }
+        }
+    }
+
     @inline(__always)
-    public func setPolygonMode(_ mode: VkPolygonMode) {
-        vkCmdSetPolygonModeEXT(self.rawPointer, mode)
+    public func endRenderPass() {
+        vkCmdEndRenderPass(self.rawPointer)
     }
 
     @inline(__always)

@@ -25,21 +25,20 @@ public struct RenderItems<T: RenderItem> {
     }
     
     @MainActor
-    public func render(_ drawList: DrawList, world: World, view: Entity) throws {
+    public func render(_ renderCommandEncoder: RenderCommandEncoder, device: RenderingDevice, world: World, view: Entity) throws {
         for item in self.items {
             guard let drawPass = DrawPassStorage.getDrawPass(for: item) else {
                 continue
             }
             
             let context = DrawPassRenderContext(
-                device: drawList.renderingDevice,
+                device: device,
                 entity: item.entity,
                 world: world,
                 view: view,
-                drawList: drawList
+                renderEncoder: renderCommandEncoder
             )
             try drawPass.render(in: context, item: item)
-            drawList.clear()
         }
     }
 }

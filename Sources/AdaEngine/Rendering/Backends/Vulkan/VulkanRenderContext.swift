@@ -293,7 +293,7 @@ extension VulkanRenderBackend {
         // TODO: Headless mode
         private static var platformSpecificSurfaceExtensionName: String {
 #if MACOS || IOS || TVOS || VISIONOS
-            return VK_EXT_METAL_SURFACE_EXTENSION_NAME
+            return "VK_EXT_metal_surface"
 #elseif WINDOWS
             return "VK_KHR_win32_surface"
 #elseif LINUX
