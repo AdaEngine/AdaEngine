@@ -23,7 +23,8 @@ public final class Shader: Resource {
     
     /// Return SPIRV binary.
     public private(set) var spirvData: Data
-    
+    public private(set) var entryPoint: String
+
     internal private(set) var spirvCompiler: SpirvCompiler
     
     private var shaderCompiler: ShaderCompiler
@@ -35,6 +36,7 @@ public final class Shader: Resource {
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: spirv.stage)
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
+        self.entryPoint = spirv.entryPoint
         self.stage = spirv.stage
         self.shaderCompiler = compiler
         self.compiledShader = nil
@@ -52,7 +54,7 @@ public final class Shader: Resource {
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: self.stage)
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
-        self.compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: self)
+        self.compiledShader = try RenderEngine.shared.renderingDevice.compileShader(from: self)
     }
     
     // MARK: Shader
@@ -78,6 +80,7 @@ public final class Shader: Resource {
         self.spirvCompiler = shader.spirvCompiler
         self.stage = stage
         self.compiledShader = shader.compiledShader
+        self.entryPoint = shader.entryPoint
     }
 
     public func encodeContents(with encoder: AssetEncoder) throws {
@@ -86,7 +89,7 @@ public final class Shader: Resource {
     
     static func make(from spirv: SpirvBinary, compiler: ShaderCompiler) throws -> Shader {
         let shader = try Shader(spirv: spirv, compiler: compiler)
-        let compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: shader)
+        let compiledShader = try RenderEngine.shared.renderingDevice.compileShader(from: shader)
         shader.compiledShader = compiledShader
         
         return shader

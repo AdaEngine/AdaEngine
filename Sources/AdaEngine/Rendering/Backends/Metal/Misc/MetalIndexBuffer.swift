@@ -9,7 +9,7 @@
 
 import Metal
 
-class MetalIndexBuffer: MetalBuffer, IndexBuffer {
+final class MetalIndexBuffer: MetalBuffer, IndexBuffer {
     
     let indexFormat: IndexBufferFormat
     

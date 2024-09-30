@@ -35,15 +35,14 @@ public struct Mesh2DDrawPass: DrawPass {
         
         let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
+            set: 0
         )
         drawList.appendUniformBuffer(uniformBuffer, for: .vertex)
         
         drawList.pushDebugName("Mesh 2D Render")
         
         for (uniformName, buffer) in materialData.reflectionData.shaderBuffers {
-            guard let uniformBuffer = materialData.uniformBufferSet[uniformName]?.getBuffer(binding: buffer.binding, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex) else {
+            guard let uniformBuffer = materialData.uniformBufferSet[uniformName]?.getBuffer(binding: buffer.binding, set: 0) else {
                 continue
             }
             

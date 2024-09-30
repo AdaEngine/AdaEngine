@@ -16,7 +16,7 @@ import Darwin.C
 #endif
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-let isVulkanEnabled = false
+let isVulkanEnabled = true
 #else
 let isVulkanEnabled = true
 #endif
@@ -171,9 +171,8 @@ let adaEngineTarget: Target = .target(
 let adaEngineEmbeddable: Target = .target(
     name: "AdaEngineEmbeddable",
     dependencies: ["AdaEngine"],
-    swiftSettings: [.interoperabilityMode(.Cxx)],
-    linkerSettings: [
-        .linkedLibrary("c++")
+    swiftSettings: [
+        .interoperabilityMode(.Cxx)
     ]
 )
 
@@ -275,7 +274,7 @@ package.dependencies += [
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
     .package(url: "https://github.com/apple/swift-log", from: "1.5.4"),
     // Plugins
-    .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
+    .package(url: "https://github.com/swiftlang/swift-docc-plugin", from: "1.4.2"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "510.0.2")
 ]
 
@@ -295,6 +294,41 @@ if useLocalDeps {
         .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
         .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
         .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
-        .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
+        .package(url: "https://github.com/AdaEngine/libpng", branch: "main")
+    ]
+}
+
+// MARK: - Vulkan -
+
+if isVulkanEnabled {
+    adaEngineTarget.dependencies += [
+        .target(name: "Vulkan"),
+        .target(name: "CVulkan")
+    ]
+
+    package.targets += [
+        .target(
+            name: "Vulkan",
+            dependencies: ["CVulkan"],
+            cxxSettings: [
+                // Apple
+                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
+                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
+                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
+
+                // Android
+                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
+
+                // Windows
+                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
+            ]
+        ),
+        .systemLibrary(
+            name: "CVulkan",
+            pkgConfig: "vulkan",
+            providers: [
+                .apt(["vulkan"]),
+            ]
+        )
     ]
 }

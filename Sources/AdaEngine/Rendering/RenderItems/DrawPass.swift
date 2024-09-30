@@ -6,12 +6,12 @@
 //
 
 /// The context with information required to run a ``DrawPass``.
-public struct RenderContext {
-    public let device: RenderDevice
+public struct DrawPassRenderContext {
+    public let device: RenderingDevice
     public let entity: Entity
     public let world: World
     public let view: Entity
-    public let drawList: DrawList
+    public let renderEncoder: RenderCommandEncoder
 }
 
 public struct DrawPassId: Equatable, Hashable {
@@ -24,7 +24,7 @@ public struct DrawPassId: Equatable, Hashable {
 /// Pass additional render data as components to ``Entity`` and pass that entity to ``Transparent2DRenderItem/entity`` property.
 public protocol DrawPass<Item> {
     associatedtype Item: RenderItem
-    typealias Context = RenderContext
+    typealias Context = DrawPassRenderContext
     
     func render(in context: Context, item: Item) throws
 }

@@ -12,13 +12,13 @@ import Logging
 @RenderGraphActor
 public final class RenderGraphContext {
     public let graph: RenderGraph
-    public let device: RenderDevice
+    public let device: RenderingDevice
     public let world: World
     public internal(set) var inputResources: [RenderSlotValue]
     public let tracer: Logger
     public let viewEntity: Entity?
 
-    init(graph: RenderGraph, world: World, device: RenderDevice, inputResources: [RenderSlotValue], tracer: Logger, viewEntity: Entity?) {
+    init(graph: RenderGraph, world: World, device: RenderingDevice, inputResources: [RenderSlotValue], tracer: Logger, viewEntity: Entity?) {
         self.graph = graph
         self.device = device
         self.world = world

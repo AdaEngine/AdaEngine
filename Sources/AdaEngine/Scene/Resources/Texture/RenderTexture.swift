@@ -31,7 +31,7 @@ public class RenderTexture: Texture2D {
         self.pixelFormat = format
         self.scaleFactor = scaleFactor
         
-        let device = RenderEngine.shared.renderDevice
+        let device = RenderEngine.shared.renderingDevice
         let gpuTexture = device.createTexture(from: descriptor)
         let sampler = device.createSampler(from: descriptor.samplerDescription)
         

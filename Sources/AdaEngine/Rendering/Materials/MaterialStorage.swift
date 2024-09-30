@@ -15,7 +15,7 @@ class MaterialStorageData {
         
         module.reflectionData.shaderBuffers.forEach { (bufferName, bufferDesc) in
             if self.uniformBufferSet[bufferName] == nil {
-                let bufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
+                let bufferSet = RenderEngine.shared.renderingDevice.createUniformBufferSet()
                 bufferSet.label = "\(module.resourceName) \(bufferDesc.name) \(bufferDesc.shaderStage)"
                 bufferSet.initBuffers(length: bufferDesc.size, binding: bufferDesc.binding, set: 0)
                 
@@ -57,8 +57,7 @@ final class MaterialStorage {
         
         let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
             binding: member.binding,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
+            set: 0
         )
         
         withUnsafePointer(to: value) { pointer in
@@ -80,11 +79,12 @@ final class MaterialStorage {
         
         let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
             binding: member.binding,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
+            set: 0
         )
-        
-        return buffer?.contents().load(fromByteOffset: member.offset, as: T.self)
+
+        return buffer?.mapContents({ pointer in
+            pointer?.load(fromByteOffset: member.offset, as: T.self)
+        })
     }
     
     @inlinable

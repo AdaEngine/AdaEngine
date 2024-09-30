@@ -132,8 +132,7 @@ public struct ExtractCameraSystem: System {
 
                 let buffer = bufferSet.uniformBufferSet.getBuffer(
                     binding: GlobalBufferIndex.viewUniform,
-                    set: 0,
-                    frameIndex: RenderEngine.shared.currentFrameIndex
+                    set: 0
                 )
 
                 buffer.setData(uniform)
