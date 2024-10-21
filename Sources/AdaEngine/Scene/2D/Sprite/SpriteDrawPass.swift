@@ -26,7 +26,7 @@ public struct SpriteDrawPass: DrawPass {
         }
 
         let renderEncoder = context.renderEncoder
-        renderEncoder.pushDebugName("SpriteDrawPass")
+//        renderEncoder.pushDebugName("SpriteDrawPass")
 
         let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
@@ -51,7 +51,7 @@ public struct SpriteDrawPass: DrawPass {
         )
 //        context.drawList.appendUniformBuffer(uniformBuffer)
         
-        renderEncoder.popDebugName()
+//        renderEncoder.popDebugName()
     }
 }
 

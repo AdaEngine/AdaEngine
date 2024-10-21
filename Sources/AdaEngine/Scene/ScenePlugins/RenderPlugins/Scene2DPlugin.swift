@@ -102,6 +102,42 @@ public struct Main2DRenderNode: RenderNode {
         
         try await sortedRenderItems.render(drawList, world: context.world, view: entity)
         context.device.endDrawList(drawList)
+
+
+//        let renderEncoder: RenderCommandEncoder
+//        switch camera.renderTarget {
+//        case .window(let windowId):
+//            drawList = try context.device.beginDraw(
+//                for: windowId,
+//                clearColor: clearColor,
+//                loadAction: .clear,
+//                storeAction: .store
+//            )
+//        case .texture(let texture):
+//            let desc = FramebufferDescriptor(
+//                scale: texture.scaleFactor,
+//                width: texture.width,
+//                height: texture.height,
+//                attachments: [
+//                    FramebufferAttachmentDescriptor(
+//                        format: texture.pixelFormat,
+//                        texture: texture,
+//                        clearColor: clearColor,
+//                        loadAction: .clear,
+//                        storeAction: .store
+//                    )
+//                ]
+//            )
+//            let framebuffer = context.device.createFramebuffer(from: desc)
+//            renderEncoder = context.device.createRenderEncoder(for: framebuffer)
+//        }
+//        
+//        if let viewport = camera.viewport {
+//            drawList.setViewport(viewport)
+//        }
+//
+//        try sortedRenderItems.render(renderEncoder, world: context.world, view: entity)
+//        renderEncoder.endEncoding()
         return []
     }
 }

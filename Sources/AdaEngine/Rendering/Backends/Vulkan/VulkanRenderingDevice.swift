@@ -478,7 +478,7 @@ final class VulkanRenderCommandEncoder: RenderCommandEncoder {
         let vulkanBuffers = buffers.compactMap {
             ($0 as? VulkanBuffer)?.buffer
         }
-        self.commandBuffer.bindVertexBuffers(vulkanBuffers, firstBinding: 0, bindingCount: 0, offsets: offsets)
+//        self.commandBuffer.bindVertexBuffers(vulkanBuffers, firstBinding: 0, bindingCount: 0, offsets: offsets)
     }
 
     func setViewports(_ viewports: [Viewport]) {
@@ -556,34 +556,3 @@ final class VulkanRenderCommandEncoder: RenderCommandEncoder {
 }
 
 #endif
-
-public struct BindGroupLayoutDescriptor {
-    public let entries: [BindGroupLayoutEntry]
-
-    public init(entries: [BindGroupLayoutEntry]) {
-        self.entries = entries
-    }
-}
-
-public struct BindGroupLayoutEntry {
-
-    public enum BindingType {
-        case sampler
-        case texture
-    }
-
-    /// Binding index. Must match shader index and be unique inside a BindGroupLayout.
-    /// A binding of index 1, would be described as layout(set = 0, binding = 1) uniform in shaders.
-    public let binding: UInt32
-
-    /// Which shader stages can see this binding.
-    public let visibility: ShaderStage
-
-    public let type: BindingType
-
-    public init(binding: UInt32, visibility: ShaderStage, data: BindingData) {
-        self.binding = binding
-        self.visibility = visibility
-        self.data = data
-    }
-}
