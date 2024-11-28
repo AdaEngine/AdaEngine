@@ -12,7 +12,7 @@ import Logging
 public final class RenderWorld {
     let renderGraphExecutor = RenderGraphExecutor()
     public let renderGraph: RenderGraph = RenderGraph(label: "RenderWorld")
-    private let scene: Scene = Scene(name: "RenderWorld")
+    private let scene = Scene(name: "RenderWorld")
 
     public var world: World {
         return self.scene.world
@@ -32,9 +32,10 @@ public final class RenderWorld {
     public func addEntity(_ entity: Entity) {
         self.scene.addEntity(entity)
     }
-    
+
+    @MainActor
     func update(_ deltaTime: TimeInterval) async throws {
-        await self.scene.update(deltaTime)
+        self.scene.update(deltaTime)
         try await self.renderGraphExecutor.execute(self.renderGraph, in: self.world)
 
         self.scene.world.clear()

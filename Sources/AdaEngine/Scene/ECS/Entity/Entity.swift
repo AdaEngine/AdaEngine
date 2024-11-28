@@ -19,8 +19,8 @@ open class Entity: Identifiable, @unchecked Sendable {
     public var name: String
     
     /// Contains unique identifier of entity.
-    public private(set) var id: Int
-    
+    public nonisolated let id: Int
+
     /// Contains components specific for current entity.
     public var components: ComponentSet
 
@@ -70,10 +70,10 @@ open class Entity: Identifiable, @unchecked Sendable {
     
     /// Create entity from decoder.
     public required convenience init(from decoder: Decoder) throws {
-        self.init()
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.name = try container.decode(String.self, forKey: .name)
-        self.id = try container.decode(Int.self, forKey: .id)
+        let name = try container.decode(String.self, forKey: .name)
+        let id = try container.decode(Int.self, forKey: .id)
+        self.init()
         self.components = try container.decode(ComponentSet.self, forKey: .components)
         self.components.entity = self
     }

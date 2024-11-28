@@ -146,7 +146,7 @@ struct FireSystem: System {
         }
     }
 
-    func fireBullet(context: UpdateContext, shipTransform: Transform) {
+    @MainActor func fireBullet(context: UpdateContext, shipTransform: Transform) {
         let bullet = Entity()
 
         let bulletScale = Vector3(0.02, 0.04, 0.04)
@@ -232,7 +232,7 @@ struct EnemySpawnerSystem: System {
         }
     }
 
-    func spawnEnemy(context: UpdateContext) {
+    @MainActor func spawnEnemy(context: UpdateContext) {
         let entity = Entity(name: "Enemy")
 
         var transform = Transform()
