@@ -15,6 +15,7 @@ public protocol RuntimeRegistrable {
 enum RuntimeTypeLoader {
     
     /// Load type in memory to great decoding/encoding
+    @MainActor
     static func loadTypes() {
         TileMap.registerTypes()
         Texture.registerTypes()

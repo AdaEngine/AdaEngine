@@ -7,6 +7,7 @@
 
 import OrderedCollections
 
+@MainActor @preconcurrency
 public class TileSet: Resource, Codable {
 
     struct PhysicsLayer {
@@ -39,7 +40,8 @@ public class TileSet: Resource, Codable {
     }
 
     // MARK: - Resource
-    
+
+    @MainActor
     public required init(asset decoder: AssetDecoder) async throws {
         let file = try decoder.decode(FileContent.self)
         self.tileSize = file.tileSize
@@ -50,7 +52,7 @@ public class TileSet: Resource, Codable {
     }
     
     public func encodeContents(with encoder: any AssetEncoder) async throws {
-        try encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
+        try await encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
     }
 
     public static var resourceType: ResourceType = .text
@@ -93,8 +95,9 @@ public class TileSet: Resource, Codable {
 // MARK: - FileContent & CodingKeys
 
 extension TileSet {
-    
-    struct FileContent: Codable {
+
+    @MainActor
+    struct FileContent: @preconcurrency Codable {
         
         let tileSize: PointInt
         private(set) var sources: OrderedDictionary<TileSource.ID, TileSource> = [:]

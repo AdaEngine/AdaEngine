@@ -4,7 +4,7 @@
 //
 //  Created by v.prusakov on 5/5/24.
 //
-
+@MainActor
 public class TileSource: Codable {
 
     static let invalidSource: Int = -1

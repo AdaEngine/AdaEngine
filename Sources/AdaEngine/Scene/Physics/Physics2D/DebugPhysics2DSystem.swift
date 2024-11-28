@@ -98,7 +98,7 @@ public struct DebugPhysicsExctract2DSystem: System {
         }
     }
     
-    private func getRuntimeBody(from entity: Entity) -> Body2D? {
+    @MainActor private func getRuntimeBody(from entity: Entity) -> Body2D? {
         return entity.components[PhysicsBody2DComponent.self]?.runtimeBody
         ?? entity.components[Collision2DComponent.self]?.runtimeBody
     }
@@ -133,7 +133,7 @@ public struct Physics2DDebugDrawSystem: RenderSystem {
         }
     }
     
-    private func draw(
+    @MainActor private func draw(
         extractedItems: QueryResult,
         visibleEntities: VisibleEntities,
         items: inout [Transparent2DRenderItem]

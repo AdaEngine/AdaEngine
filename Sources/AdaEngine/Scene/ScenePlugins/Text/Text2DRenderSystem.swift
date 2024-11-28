@@ -73,7 +73,7 @@ public struct Text2DRenderSystem: RenderSystem {
     }
 
     // swiftlint:disable:next function_body_length
-    private func draw(
+    @MainActor private func draw(
         scene: Scene,
         visibleEntities: [Entity],
         renderItems: inout RenderItems<Transparent2DRenderItem>

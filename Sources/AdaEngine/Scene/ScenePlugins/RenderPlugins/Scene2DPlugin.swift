@@ -60,7 +60,7 @@ public struct Main2DRenderNode: RenderNode {
             return []
         }
         
-        let (camera, renderItems) = entity.components[Camera.self, RenderItems<Transparent2DRenderItem>.self]
+        let (camera, renderItems) = await entity.components[Camera.self, RenderItems<Transparent2DRenderItem>.self]
         if case .window(let id) = camera.renderTarget, id == .empty {
             return []
         }
@@ -100,7 +100,7 @@ public struct Main2DRenderNode: RenderNode {
             drawList.setViewport(viewport)
         }
         
-        try sortedRenderItems.render(drawList, world: context.world, view: entity)
+        try await sortedRenderItems.render(drawList, world: context.world, view: entity)
         context.device.endDrawList(drawList)
         return []
     }

@@ -175,6 +175,7 @@ public final class Physics2DSystem: System {
     
     // MARK: - Helpers
     
+    @MainActor
     private func getBody(from entity: Entity) -> Body2D? {
         entity.components[PhysicsBody2DComponent.self]?.runtimeBody ??
         entity.components[Collision2DComponent.self]?.runtimeBody

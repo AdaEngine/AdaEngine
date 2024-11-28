@@ -122,7 +122,7 @@ public struct Mesh2DRenderSystem: RenderSystem {
         }
     }
 
-    func draw(meshes: [ExctractedMesh2D], visibleEntities: VisibleEntities, items: inout [Transparent2DRenderItem], keys: Set<String>) {
+    @MainActor func draw(meshes: [ExctractedMesh2D], visibleEntities: VisibleEntities, items: inout [Transparent2DRenderItem], keys: Set<String>) {
         for mesh in meshes {
             guard visibleEntities.entityIds.contains(mesh.entityId) else {
                 continue

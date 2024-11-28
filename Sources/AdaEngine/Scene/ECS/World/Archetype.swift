@@ -93,7 +93,7 @@ extension Archetype: CustomStringConvertible {
         """
         Archetype(
             id: \(id)
-            entityIds: \(entities.compactMap { $0.id })
+            entityIds: \(""/*entities.compactMap { $0.id }*/)
             componentsBitMask: \(componentsBitMask)
         )
         """
