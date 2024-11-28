@@ -98,7 +98,7 @@ extension Mesh.PrimitiveTopology {
 }
 #endif
 
-public protocol MeshArraySemantic: Identifiable {
+public protocol MeshArraySemantic: Identifiable, Sendable {
     associatedtype Element
 
     var id: MeshDescriptor.Identifier { get }
@@ -106,7 +106,7 @@ public protocol MeshArraySemantic: Identifiable {
 
 extension MeshDescriptor {
 
-    public struct Identifier: Identifiable, Hashable {
+    public struct Identifier: Identifiable, Hashable, Sendable {
 
         public var id: String {
             return self.name

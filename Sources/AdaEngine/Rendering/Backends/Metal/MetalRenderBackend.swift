@@ -7,8 +7,6 @@
 
 // TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
-// swiftlint:disable file_length
-
 #if METAL
 import Metal
 import ModelIO

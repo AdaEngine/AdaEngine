@@ -177,7 +177,7 @@ extension Text {
 }
 
 /// A value that can replace the default text view rendering behavior.
-public protocol TextRenderer: Animatable {
+public protocol TextRenderer: Animatable, Sendable {
 
     /// Draws layout into context.
     func draw(layout: Text.Layout, in context: inout UIGraphicsContext)
@@ -210,16 +210,16 @@ public extension View {
 
 extension EnvironmentValues {
     /// Contains instance that can render text. If nil, will use default implementation ``DefaultRichTextRenderer``
-  var textRenderer: (any TextRenderer)? {
-    get {
-      self[TextRendererKey.self]
+    var textRenderer: (any TextRenderer)? {
+        get {
+            self[TextRendererKey.self]
+        }
+        set {
+            self[TextRendererKey.self] = newValue
+        }
     }
-    set {
-      self[TextRendererKey.self] = newValue
-    }
-  }
 
-  private struct TextRendererKey: EnvironmentKey {
-    static let defaultValue: (any TextRenderer)? = nil
-  }
+    private struct TextRendererKey: EnvironmentKey {
+        static let defaultValue: (any TextRenderer)? = nil
+    }
 }

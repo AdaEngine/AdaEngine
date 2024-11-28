@@ -11,7 +11,7 @@ import QuartzCore
 import Math
 
 extension MetalRenderBackend {
-    
+
     final class Context {
         private(set) var windows: [UIWindow.ID: RenderWindow] = [:]
         let physicalDevice: MTLDevice
@@ -23,8 +23,7 @@ extension MetalRenderBackend {
         }
         
         // MARK: - Methods
-        
-        func createRenderWindow(with id: UIWindow.ID, view: MetalView, size: SizeInt) throws {
+        @MainActor func createRenderWindow(with id: UIWindow.ID, view: MetalView, size: SizeInt) throws {
             if self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }

@@ -7,7 +7,7 @@
 
 import Math
 
-public enum Edge: UInt8, Equatable, Hashable {
+public enum Edge: UInt8, Equatable, Hashable, Sendable {
     case top
     case bottom
     case leading
@@ -15,7 +15,7 @@ public enum Edge: UInt8, Equatable, Hashable {
 }
 
 extension Edge {
-    public struct Set: OptionSet {
+    public struct Set: OptionSet, Sendable {
         public let rawValue: UInt8
 
         public init(rawValue: UInt8) {

@@ -9,7 +9,7 @@ public struct UIPlugin: ScenePlugin {
 
     public init() { }
 
-    public func setup(in scene: Scene) async {
+    public func setup(in scene: Scene) {
         scene.addSystem(UISystem.self)
     }
 }

@@ -22,7 +22,7 @@ public struct TileMapSystem: System {
 
     public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let physicsWorldEntity = context.scene.performQuery(Self.physicsWorld).first
         let physicsWorld = physicsWorldEntity?.components[Physics2DWorldComponent.self]?.world
 
@@ -55,7 +55,7 @@ public struct TileMapSystem: System {
         }
     }
 
-    private func setEntityActive(_ entity: Entity, isActive: Bool) {
+    @MainActor private func setEntityActive(_ entity: Entity, isActive: Bool) {
         entity.isActive = isActive
 
         for child in entity.children {
@@ -63,7 +63,7 @@ public struct TileMapSystem: System {
         }
     }
 
-    private func addTiles(
+    @MainActor private func addTiles(
         for layer: TileMapLayer,
         tileMapComponent: inout TileMapComponent,
         transform: Transform,

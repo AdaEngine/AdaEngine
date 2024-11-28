@@ -6,7 +6,7 @@
 //
 
 struct TransformPlugin: ScenePlugin {
-    func setup(in scene: Scene) async {
+    func setup(in scene: Scene) {
         scene.addSystem(TransformSystem.self)
         scene.addSystem(ChildTransformSystem.self)
     }

@@ -177,8 +177,8 @@ struct ExctractTextSystem: System {
 
     init(scene: Scene) { }
 
-    func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.textComponents).concurrent.forEach { entity in
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.textComponents).forEach { entity in
             if entity.components[Visibility.self]?.isVisible == false {
                 return
             }
@@ -187,7 +187,9 @@ struct ExctractTextSystem: System {
             exctractedEntity.components += entity.components[Transform.self]!
             exctractedEntity.components += entity.components[Text2DComponent.self]!
 
-            await Application.shared.renderWorld.addEntity(exctractedEntity)
+            Task {
+                await Application.shared.renderWorld.addEntity(exctractedEntity)
+            }
         }
     }
 }

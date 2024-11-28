@@ -8,14 +8,15 @@
 /// The main class represents application instance.
 /// The application cannot be created manualy, instead use an ``App`` protocol.
 /// To get access to the application instance, use static property `shared`
+@MainActor
 open class Application {
 
     // MARK: - Public
     
     /// Contains application instance if application created from ``App``.
-    public internal(set) static var shared: Application!
+    @MainActor public internal(set) static var shared: Application!
 
-    @MainActor let gameLoop: GameLoop = GameLoop.current
+    let gameLoop: GameLoop = GameLoop.current
 
     /// Current runtime platform.
     public var platform: RuntimePlatform {
@@ -27,6 +28,8 @@ open class Application {
         return .watchOS
         #elseif os(tvOS)
         return .tvOS
+        #elseif os(visionOS)
+        return .visionOS
         #elseif os(Windows)
         return .windows
         #elseif os(Linux)
@@ -39,16 +42,14 @@ open class Application {
     @MainActor @preconcurrency public internal(set) var windowManager: UIWindowManager = UIWindowManager()
 
     /// Contains world which can render on screen.
-    @RenderGraphActor public let renderWorld = RenderWorld()
-    
+    public let renderWorld = RenderWorld()
+
     // MARK: - Internal
     
-    public nonisolated init(
+    public init(
         argc: Int32,
         argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
-    ) throws {
-        Self.shared = self
-    }
+    ) throws { }
 
     /// Call this method to start main loop.
     func run() throws {

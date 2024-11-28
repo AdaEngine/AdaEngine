@@ -10,7 +10,7 @@
 /// An object contains identifier to resource.
 /// Currently, RID system help us to manage platform specific data without overcoding.
 /// - NOTE: Please, don't use RID for saving/restoring data.
-public struct RID: Equatable, Hashable, Codable {
+public struct RID: Equatable, Hashable, Codable, Sendable {
     internal let id: Int
 }
 

@@ -40,6 +40,8 @@ public final class MouseEvent: InputEvent {
     }
     
     public static func == (lhs: MouseEvent, rhs: MouseEvent) -> Bool {
-        return lhs.time == rhs.time && lhs.window == rhs.window && lhs.eventId == rhs.eventId && lhs.button == rhs.button && lhs.mousePosition == rhs.mousePosition && lhs.phase == rhs.phase && lhs.modifierKeys == rhs.modifierKeys
+        return lhs.time == rhs.time && lhs.window == rhs.window && lhs.eventId == rhs.eventId
+        && lhs.button == rhs.button && lhs.mousePosition == rhs.mousePosition
+        && lhs.phase == rhs.phase && lhs.modifierKeys == rhs.modifierKeys
     }
 }

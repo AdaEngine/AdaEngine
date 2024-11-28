@@ -46,7 +46,7 @@ final class OpacityViewNodeModifier: ViewModifierNode {
     }
 
     override func createLayer() -> UILayer? {
-        let layer = UILayer(frame: self.frame) { [weak self] context, size in
+        let layer = UILayer(frame: self.frame) { [weak self] context, _ in
             guard let self else {
                 return
             }

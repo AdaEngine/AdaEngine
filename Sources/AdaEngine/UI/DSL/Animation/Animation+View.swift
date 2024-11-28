@@ -11,7 +11,7 @@ public extension View {
     /// Applies the given animation to this view when the specified value changes.
     /// - Parameter animation: The animation to apply. If animation is nil, the view doesn’t animate.
     /// - Parameter value: A value to monitor for changes.
-    func animation<V: Equatable>(_ animation: Animation, value: V) -> some View {
+  @MainActor func animation<V: Equatable>(_ animation: Animation, value: V) -> some View {
         modifier(_AnimatedViewModifier(content: self, animation: animation, value: value))
     }
 

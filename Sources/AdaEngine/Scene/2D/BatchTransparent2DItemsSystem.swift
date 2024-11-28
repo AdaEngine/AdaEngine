@@ -42,6 +42,7 @@ public struct BatchTransparent2DItemsSystem: RenderSystem {
         }
     }
     
+    @MainActor
     private func tryToAddBatch(to currentItem: inout Transparent2DRenderItem, from otherItem: Transparent2DRenderItem) -> Bool {
         guard let batch = currentItem.batchRange, let otherBatch = otherItem.batchRange else {
             return false

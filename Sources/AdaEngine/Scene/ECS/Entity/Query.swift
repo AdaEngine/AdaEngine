@@ -37,10 +37,10 @@
 ///     }
 /// }
 /// ```
-@frozen public struct EntityQuery {
-    
+@frozen public struct EntityQuery: Sendable {
+
     /// Filter for entity query.
-    public struct Filter: OptionSet {
+    public struct Filter: OptionSet, Sendable {
         public typealias RawValue = UInt8
         
         public var rawValue: UInt8
@@ -78,7 +78,7 @@
 
 extension EntityQuery {
     @usableFromInline
-    final class State {
+    final class State: Sendable {
         @usableFromInline
         private(set) var archetypes: [Archetype] = []
         
@@ -95,6 +95,7 @@ extension EntityQuery {
             self.filter = filter
         }
         
+        @MainActor
         func updateArchetypes(in world: World) {
             self.world = world
             self.archetypes = world.archetypes.filter { self.predicate.evaluate($0) }
@@ -146,8 +147,9 @@ public extension QueryPredicate {
 }
 
 /// Contains array of entities matched for the given EntityQuery request.
+@MainActor
 public struct QueryResult: Sequence {
-    
+
     let state: EntityQuery.State
     
     internal init(state: EntityQuery.State) {
@@ -177,8 +179,9 @@ public struct QueryResult: Sequence {
 
 public extension QueryResult {
     /// This iterator iterate by each entity in passed archetype array
+    @MainActor
     struct EntityIterator: IteratorProtocol {
-        
+
         // We use pointer to avoid additional allocation in memory
         let count: Int
         let state: EntityQuery.State

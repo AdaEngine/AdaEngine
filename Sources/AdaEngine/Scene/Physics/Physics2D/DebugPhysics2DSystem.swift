@@ -45,7 +45,7 @@ public struct DebugPhysicsExctract2DSystem: System {
         )
     }
     
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
             return
         }
@@ -92,7 +92,9 @@ public struct DebugPhysicsExctract2DSystem: System {
                 continue
             }
 
-            await Application.shared.renderWorld.addEntity(emptyEntity)
+            Task {
+                await Application.shared.renderWorld.addEntity(emptyEntity)
+            }
         }
     }
     
@@ -114,7 +116,7 @@ public struct Physics2DDebugDrawSystem: RenderSystem {
     
     public init(scene: Scene) {}
     
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let exctractedValues = context.scene.performQuery(Self.entities)
             
         context.scene.performQuery(Self.cameras).forEach { entity in

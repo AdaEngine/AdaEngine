@@ -11,7 +11,7 @@ import Math
 
 /// Plugin to exctract meshes to RenderWorld
 struct Mesh2DPlugin: ScenePlugin {
-    func setup(in scene: Scene) async {
+    func setup(in scene: Scene) {
         scene.addSystem(ExctractMesh2DSystem.self)
     }
 }
@@ -49,7 +49,7 @@ public struct ExctractMesh2DSystem: System {
 
     public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let extractedEntity = EmptyEntity()
         var extractedMeshes = ExctractedMeshes2D()
 
@@ -73,7 +73,9 @@ public struct ExctractMesh2DSystem: System {
         }
 
         extractedEntity.components += extractedMeshes
-        await Application.shared.renderWorld.addEntity(extractedEntity)
+        Task {
+            await Application.shared.renderWorld.addEntity(extractedEntity)
+        }
     }
 }
 

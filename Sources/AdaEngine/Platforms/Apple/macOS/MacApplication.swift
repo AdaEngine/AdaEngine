@@ -11,6 +11,8 @@ import MetalKit
 
 final class MacApplication: Application {
 
+    private let delegate = MacAppDelegate()
+
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         try super.init(argc: argc, argv: argv)
         self.windowManager = MacOSWindowManager()
@@ -20,25 +22,23 @@ final class MacApplication: Application {
         app.setActivationPolicy(.regular)
 
         app.finishLaunching()
-
-        let delegate = MacAppDelegate()
-        app.delegate = delegate
+        app.delegate = self.delegate
 
         self.processEvents()
 
         app.activate(ignoringOtherApps: true)
     }
 
+    private var task: Task<Void, Never>?
+
     override func run() throws {
-        Task.detached(priority: .userInitiated) { @MainActor in
+        task = Task { @MainActor in
             self.gameLoop.setup()
             do {
                 while true {
                     try Task.checkCancellation()
                     self.processEvents()
                     try await self.gameLoop.iterate()
-                    // Free main loop for other tasks
-                    await Task.yield()
                 }
             } catch {
                 let alert = Alert(title: "AdaEngine finished with Error", message: error.localizedDescription, buttons: [.cancel("OK", action: {
@@ -53,6 +53,7 @@ final class MacApplication: Application {
     }
 
     override func terminate() {
+        self.task?.cancel()
         NSApplication.shared.terminate(nil)
     }
 

@@ -16,8 +16,8 @@ public struct CameraSystem: System {
 
     public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.query).concurrent.forEach { @MainActor entity in
+    public func update(context: UpdateContext) {
+        context.scene.performQuery(Self.query).forEach { entity in
             guard var camera = entity.components[Camera.self] else {
                 return
             }
@@ -122,8 +122,8 @@ public struct ExtractCameraSystem: System {
 
     public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.query).concurrent.forEach { entity in
+    public func update(context: UpdateContext) {
+        context.scene.performQuery(Self.query).forEach { entity in
             let cameraEntity = EmptyEntity()
 
             if
@@ -142,7 +142,9 @@ public struct ExtractCameraSystem: System {
             cameraEntity.components = entity.components
             cameraEntity.components.entity = cameraEntity
 
-            await Application.shared.renderWorld.addEntity(cameraEntity)
+            Task {
+                await Application.shared.renderWorld.addEntity(cameraEntity)
+            }
         }
     }
 }

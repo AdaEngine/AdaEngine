@@ -6,9 +6,9 @@
 //
 
 #if METAL
-import Metal
+@preconcurrency import Metal
 
-class MetalRenderPipeline: RenderPipeline {
+final class MetalRenderPipeline: RenderPipeline {
     
     let descriptor: RenderPipelineDescriptor
     let renderPipeline: MTLRenderPipelineState

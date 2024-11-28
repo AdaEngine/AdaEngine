@@ -35,10 +35,10 @@ public struct CameraClearFlags: OptionSet, Codable {
 /// This component represent camera on scene. You can create more than one camera for rendering.
 /// Each camera has frustum, projection data.
 @Component
-public struct Camera {
-    
+public struct Camera: Sendable {
+
     /// View projection for camera
-    public enum Projection: UInt8, Codable, CaseIterable {
+    public enum Projection: UInt8, Codable, CaseIterable, Sendable {
         /// Perspective projection used for 3D space.
         case perspective
         
@@ -47,7 +47,7 @@ public struct Camera {
     }
     
     /// Render target where camera will render.
-    public enum RenderTarget: Codable {
+    public enum RenderTarget: Codable, Sendable {
         
         /// Render camera to window.
         case window(UIWindow.ID)
