@@ -14,7 +14,7 @@
 /// If you want serialize your ``Component`` object, annotate properties inside them as `@Export`.
 /// - Note: You can use `private`, `fileprivate` modifiers, because `@Export` use reflection
 @propertyWrapper
-public final class Export<T: Codable>: Codable {
+public final class Export<T: Codable>: Codable, @unchecked Sendable {
     
     public var wrappedValue: T {
         didSet {

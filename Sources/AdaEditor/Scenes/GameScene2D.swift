@@ -245,6 +245,7 @@ struct PlayerMovementSystem: System {
 
     init(scene: Scene) { }
 
+    // swiftlint:disable:next function_body_length
     func update(context: UpdateContext) {
         let cameraEntity: Entity = context.scene.performQuery(Self.cameraQuery).first!
 

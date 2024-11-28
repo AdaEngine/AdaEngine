@@ -49,6 +49,7 @@ public struct VisibilitySystem: System {
 
     // FIXME: Should we calculate it here?
     /// Update or create bounding boxes for SpriteComponent and Mesh2D.
+    @MainActor
     private func updateBoundings(context: UpdateContext) {
         context.scene.performQuery(Self.entitiesWithTransform).forEach { entity in
             var bounds: BoundingComponent.Bounds?
@@ -78,6 +79,7 @@ public struct VisibilitySystem: System {
     }
     
     /// Filter entities for passed camera.
+    @MainActor
     private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()

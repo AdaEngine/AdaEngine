@@ -30,7 +30,7 @@
 ///
 /// Also, your resource can support ``Codable`` behaviour and for this scenario, you should implement only ``init(from decoder: Decoder)`` and ``func encode(to encoder: Encoder)`` methods. 
 /// Meta and other information will be available from userInfo. Use `Decoder.assetsDecodingContext`, `Decoder.assetMeta` and `Encoder.assetMeta` properties to get this info.
-public protocol Resource: AnyObject {
+public protocol Resource: AnyObject, Sendable {
     
     /// When resource load from the disk, this method will be called.
     ///
@@ -44,7 +44,7 @@ public protocol Resource: AnyObject {
     @ResourceActor func encodeContents(with encoder: AssetEncoder) async throws
 
     /// Type of resource.
-    static var resourceType: ResourceType { get }
+    @ResourceActor static var resourceType: ResourceType { get }
 
     /// Return meta info
     var resourceMetaInfo: ResourceMetaInfo? { get set }
@@ -64,7 +64,7 @@ public extension Resource {
     }
 }
 
-public struct ResourceMetaInfo: Codable {
+public struct ResourceMetaInfo: Codable, Sendable {
     public let resourcePath: String
     public let resourceName: String
     public let bundlePath: String?

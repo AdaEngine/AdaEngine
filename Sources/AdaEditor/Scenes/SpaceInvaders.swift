@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class SpaceInvaders: Scene {
+class SpaceInvaders: Scene, @unchecked Sendable {
 
     var disposeBag: Set<AnyCancellable> = []
     var characterAtlas: TextureAtlas!
@@ -121,7 +121,7 @@ struct FireSystem: System {
         self.laserAudio = try! ResourceManager.loadSync("Assets/laserShoot.wav", from: .editor) as AudioResource
     }
 
-    func update(context: UpdateContext) async {
+    func update(context: UpdateContext) {
         context.scene.performQuery(Self.player).forEach { entity in
             let transform = entity.components[Transform.self]!
 
@@ -144,7 +144,6 @@ struct FireSystem: System {
                 }
             }
         }
-
     }
 
     func fireBullet(context: UpdateContext, shipTransform: Transform) {
@@ -186,8 +185,8 @@ struct BulletSystem: System {
 
     init(scene: Scene) { }
 
-    func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.bullet).concurrent.forEach { entity in
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.bullet).forEach { entity in
             var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
 
             body.setLinearVelocity([0, Self.bulletSpeed])
@@ -320,7 +319,7 @@ struct EnemyExplosionSystem: System {
     static let explosions = EntityQuery(where: .has(ExplosionComponent.self))
     static let scores = EntityQuery(where: .has(GameState.self))
 
-    func update(context: UpdateContext) async {
+    func update(context: UpdateContext) {
         let scores = context.scene.performQuery(Self.scores).first
 
         // Make expolosions

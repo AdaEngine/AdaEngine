@@ -20,7 +20,6 @@ struct EntityRecord {
 /// Types for defining Archetypes, collections of entities that have the same set of
 /// components.
 public final class Archetype: Hashable, Identifiable {
-    
     public let id: Int
     public internal(set) var entities: SparseArray<Entity> = []
     

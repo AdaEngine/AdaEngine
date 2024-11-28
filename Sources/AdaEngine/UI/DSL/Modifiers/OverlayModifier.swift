@@ -8,7 +8,8 @@
 public extension View {
     /// Layers the views that you specify in front of this view.
     /// - Parameter anchor: The anchor that the modifier uses to position the implicit ``ZStack`` that groups the foreground views. The default is center.
-    /// - Parameter content: A ``ViewBuilder`` that you use to declare the views to draw in front of this view, stacked in the order that you list them. The last view that you list appears at the front of the stack.
+    /// - Parameter content: A ``ViewBuilder`` that you use to declare the views to draw in front of this view,
+    /// stacked in the order that you list them. The last view that you list appears at the front of the stack.
     func overlay<Content: View>(
         anchor: AnchorPoint = .center,
         @ViewBuilder content: () -> Content

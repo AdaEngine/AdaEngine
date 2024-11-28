@@ -14,18 +14,18 @@ public struct ScriptComponentUpdateSystem: System {
         self.fixedTime = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let fixedTimeResult = self.fixedTime.advance(with: context.deltaTime)
 
         let window = context.scene.window
         var renderContext: UIGraphicsContext?
 
         if let window {
-            renderContext = await UIGraphicsContext(window: window)
-            await renderContext?.beginDraw(in: window.frame.size, scaleFactor: 1)
+            renderContext = UIGraphicsContext(window: window)
+            renderContext?.beginDraw(in: window.frame.size, scaleFactor: 1)
         }
 
-        await context.scene.world.scripts.concurrent.forEach { @MainActor component in
+        context.scene.world.scripts.forEach { component in
             // Initialize component
             if !component.isAwaked {
                 component.onReady()
@@ -45,6 +45,6 @@ public struct ScriptComponentUpdateSystem: System {
             }
         }
 
-        await renderContext?.commitDraw()
+        renderContext?.commitDraw()
     }
 }

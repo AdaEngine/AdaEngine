@@ -47,7 +47,7 @@ public extension Buffer {
 }
 
 /// Options for the memory location and access permissions for a resource.
-public struct ResourceOptions: OptionSet {
+public struct ResourceOptions: OptionSet, Sendable {
     public let rawValue: UInt
     
     public init(rawValue: UInt) {

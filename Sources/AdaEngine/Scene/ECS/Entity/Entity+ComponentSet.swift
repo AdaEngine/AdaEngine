@@ -10,11 +10,10 @@ import Collections
 public extension Entity {
     
     /// Hold entity components specific for entity.
+    @MainActor
     struct ComponentSet: Codable, @unchecked Sendable {
-        
+
         internal weak var entity: Entity?
-        
-        let lock = NSLock()
         
         var world: World? {
             return self.entity?.world
@@ -59,8 +58,6 @@ public extension Entity {
         /// Gets or sets the component of the specified type.
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
             get {
-                lock.lock()
-                defer { lock.unlock() }
                 
                 return buffer[T.identifier] as? T
             }
@@ -76,9 +73,6 @@ public extension Entity {
 
         /// Set the component of the specified type.
         public mutating func set<T>(_ component: T) where T : Component {
-            lock.lock()
-            defer { lock.unlock() }
-
             var isChanged = false
             let identifier = T.identifier
             if self.buffer[identifier] != nil {
@@ -101,9 +95,6 @@ public extension Entity {
 
         /// Set the components of the specified type.
         public mutating func set(_ components: [Component]) {
-            lock.lock()
-            defer { lock.unlock() }
-            
             for component in components {
                 
                 let componentType = type(of: component)
@@ -138,16 +129,11 @@ public extension Entity {
 
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentType: Component.Type) -> Bool {
-            lock.lock()
-            defer { lock.unlock() }
             return self.buffer[componentType.identifier] != nil
         }
 
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
-            lock.lock()
-            defer { lock.unlock() }
-            
             let identifier = componentType.identifier
             (self.buffer[identifier] as? ScriptableComponent)?.onDestroy()
             self.buffer[identifier] = nil
@@ -161,9 +147,6 @@ public extension Entity {
         
         /// Remove all components from set.
         public mutating func removeAll(keepingCapacity: Bool = false) {
-            lock.lock()
-            defer { lock.unlock() }
-            
             for component in self.buffer.values.elements {
                 let componentType = type(of: component)
                 (component as? ScriptableComponent)?.onDestroy()
@@ -188,7 +171,7 @@ public extension Entity {
             return self.buffer.isEmpty
         }
         
-        public func isComponentChanged<T: Component>(_ componentType: T.Type) ->  Bool {
+        public func isComponentChanged<T: Component>(_ componentType: T.Type) -> Bool {
             guard let entity = self.entity else {
                 return false
             }
@@ -208,10 +191,7 @@ public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
     @inline(__always)
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        return (
+        (
             buffer[a.identifier] as! A,
             buffer[b.identifier] as! B
         )
@@ -220,10 +200,7 @@ public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
     @inline(__always)
     subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        return (
+        (
             buffer[a.identifier] as! A,
             buffer[b.identifier] as! B,
             buffer[c.identifier] as! C
@@ -233,10 +210,7 @@ public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
     @inline(__always)
     subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        return (
+        (
             buffer[a.identifier] as! A,
             buffer[b.identifier] as! B,
             buffer[c.identifier] as! C,

@@ -18,7 +18,7 @@ public struct TransformSystem: System {
     
     public init(scene: Scene) { }
     
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         context.scene.performQuery(Self.query).forEach { entity in
             if entity.components.isComponentChanged(Transform.self) || !entity.components.has(GlobalTransform.self) {
                 let transform = entity.components[Transform.self]!
@@ -49,7 +49,7 @@ public struct ChildTransformSystem: System {
     
     public init(scene: Scene) { }
     
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
 //        context.scene.performQuery(Self.query).forEach { entity in
 //            guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
 //                return

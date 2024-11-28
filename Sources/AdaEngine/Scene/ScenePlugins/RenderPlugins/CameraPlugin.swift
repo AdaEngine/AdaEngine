@@ -6,7 +6,7 @@
 //
 
 struct CameraPlugin: ScenePlugin {
-    func setup(in scene: Scene) async {
+    func setup(in scene: Scene) {
         scene.addSystem(CameraSystem.self)
         scene.addSystem(ExtractCameraSystem.self)
     }
@@ -24,7 +24,8 @@ struct CameraRenderNode: RenderNode {
     
     func execute(context: Context) async -> [RenderSlotValue] {
         await context.world.performQuery(Self.query).concurrent.forEach { entity in
-            guard let camera = entity.components[Camera.self], camera.isActive else {
+            let compontents = await entity.components
+            guard let camera = await compontents[Camera.self], camera.isActive else {
                 return
             }
 

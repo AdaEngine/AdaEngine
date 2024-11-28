@@ -12,6 +12,7 @@ import OrderedCollections
 
 /// Describe an entity and his characteristics.
 /// Entity in ECS based architecture is main object that holds components.
+@MainActor
 open class Entity: Identifiable, @unchecked Sendable {
 
     /// Contains entity name.

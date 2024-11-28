@@ -19,7 +19,7 @@ public struct FramebufferDescriptor {
     public var attachments: [FramebufferAttachmentDescriptor] = []
 }
 
-public struct FramebufferAttachmentUsage: OptionSet {
+public struct FramebufferAttachmentUsage: OptionSet, Sendable {
     public var rawValue: UInt16
     
     public init(rawValue: UInt16) {

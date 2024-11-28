@@ -27,7 +27,7 @@ class EditorCameraSystem: System {
 
     required public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let entities = context.scene.performQuery(Self.query)
         let deltaTime = context.deltaTime
 

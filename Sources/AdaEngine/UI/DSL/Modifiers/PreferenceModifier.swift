@@ -73,7 +73,6 @@ final class PreferenceChangeViewNode<Key: PreferenceKey>: ViewModifierNode {
     }
 }
 
-
 struct TransformPreference<V: View, K: PreferenceKey>: ViewModifier, ViewNodeBuilder {
 
     let content: V

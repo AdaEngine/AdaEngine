@@ -10,8 +10,8 @@
 import AppKit
 
 final class MacOSKeyboard: Keyboard {
-
-    static var shared = MacOSKeyboard()
+    
+    @MainActor static var shared = MacOSKeyboard()
 
     private override init() {
         super.init()

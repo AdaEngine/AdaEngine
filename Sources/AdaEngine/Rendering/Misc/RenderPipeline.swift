@@ -8,8 +8,8 @@
 // TODO: (Vlad) Add documentations
 
 /// An object that contains graphics functions and configuration state to use in a render command.
-public protocol RenderPipeline: AnyObject {
-    
+public protocol RenderPipeline: AnyObject, Sendable {
+
     /// /// Contains information about render pipeline descriptor.
     var descriptor: RenderPipelineDescriptor { get }
 }
@@ -48,7 +48,7 @@ public struct StencilOperationDescriptor {
 }
 
 /// An object that configures new depth and stencil operation.
-public struct DepthStencilDescriptor {
+public struct DepthStencilDescriptor: Sendable {
     
     public var isDepthTestEnabled: Bool
     
@@ -84,7 +84,7 @@ public struct DepthStencilDescriptor {
     }
 }
 
-public struct ColorAttachmentDescriptor {
+public struct ColorAttachmentDescriptor: Sendable {
     public var format: PixelFormat
     
     public var isBlendingEnabled: Bool = false
@@ -121,8 +121,8 @@ public struct ColorAttachmentDescriptor {
 /// including rasterization (such as multisampling), visibility, blending, tessellation, and graphics function state.
 ///
 /// To specify the vertex or fragment function in the rendering pipeline descriptor, set the vertex or fragment property.
-public struct RenderPipelineDescriptor {
-    
+public struct RenderPipelineDescriptor: Sendable {
+
     /// The vertex shader the pipeline run to process vertices.
     public var vertex: Shader?
     

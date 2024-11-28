@@ -7,14 +7,14 @@
 
 import Logging
 
+@MainActor
 final class AppContext<T: App> {
 
     private var app: T
-    private var application: Application
+    private var application: Application!
 
     init() throws {
         self.app = T.init()
-
         let argc = CommandLine.argc
         let argv = CommandLine.unsafeArgv
 
@@ -33,24 +33,25 @@ final class AppContext<T: App> {
 #if os(Linux)
         self.application = try LinuxApplication(argc: argc, argv: argv)
 #endif
+
+        Application.shared = self.application
     }
 
-    func setup() throws {
+    func setup() async throws {
         try ResourceManager.initialize()
         try AudioServer.initialize()
         RuntimeTypeLoader.loadTypes()
 
+        LoggingSystem.bootstrap(StreamLogHandler.standardError)
+
         guard let appScene = app.scene as? InternalAppScene else {
             fatalError("Incorrect object of App Scene")
         }
-        
-        LoggingSystem.bootstrap(StreamLogHandler.standardError)
 
+        var configuration = _AppSceneConfiguration()
+        appScene._buildConfiguration(&configuration)
         Task { @MainActor in
-            var configuration = _AppSceneConfiguration()
-            appScene._buildConfiguration(&configuration)
             let window = try await appScene._makeWindow(with: configuration)
-
             if configuration.useDefaultRenderPlugins {
                 await self.application.renderWorld.addPlugin(DefaultRenderPlugin())
             }
@@ -65,7 +66,7 @@ final class AppContext<T: App> {
 
     func runApplication() throws {
         try AudioServer.shared.start()
-        try application.run()
+        try self.application.run()
         try AudioServer.shared.stop()
     }
 }
