@@ -9,6 +9,6 @@ protocol ViewNodeBuilder {
 
     typealias BuildContext = _ViewInputs
 
-    @MainActor(unsafe)
+    @MainActor @preconcurrency
     func buildViewNode(in context: BuildContext) -> ViewNode
 }

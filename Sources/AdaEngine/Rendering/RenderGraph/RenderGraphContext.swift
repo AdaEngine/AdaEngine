@@ -53,7 +53,7 @@ public extension RenderGraphContext {
         self.inputResources.first(where: { $0.name == name })?.value.entity
     }
 
-    func textureResource(by name: String)-> Texture? {
+    func textureResource(by name: String) -> Texture? {
         self.inputResources.first(where: { $0.name == name })?.value.texture
     }
 

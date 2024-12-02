@@ -9,7 +9,7 @@ import Math
 
 public struct TransformSystem: System {
     
-    public static var dependencies: [SystemDependency] = [
+    public static let dependencies: [SystemDependency] = [
         .after(Physics2DSystem.self)
     ]
     
@@ -39,7 +39,7 @@ public struct TransformSystem: System {
 
 public struct ChildTransformSystem: System {
     
-    public static var dependencies: [SystemDependency] = [
+    public static let dependencies: [SystemDependency] = [
         .after(TransformSystem.self)
     ]
     

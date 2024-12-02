@@ -8,7 +8,7 @@
 // MARK: - Blending -
 
 /// The source and destination blend factors are often needed to complete specification of a blend operation.
-public enum BlendFactor: UInt, Codable {
+public enum BlendFactor: UInt, Codable, Sendable {
     
     /// Blend factor of zero.
     ///
@@ -104,7 +104,7 @@ public enum BlendFactor: UInt, Codable {
 /// Some blend operations multiply the source values by a source blend factor (SBF), 
 /// multiply the destination values by a destination blend factor (DBF), and then combine the results using addition or subtraction.
 /// Other blend operations use either a minimum or maximum function to determine the result.
-public enum BlendOperation: UInt, Codable {
+public enum BlendOperation: UInt, Codable, Sendable {
     
     /// Add portions of both source and destination pixel values.
     ///
@@ -145,7 +145,7 @@ public enum BlendOperation: UInt, Codable {
 // MARK: - Depth & Stencil -
 
 /// The operation performed on a currently stored stencil value when a comparison test passes or fails.
-public enum StencilOperation: UInt, Codable {
+public enum StencilOperation: UInt, Codable, Sendable {
     
     /// Set the stencil value to zero.
     case zero

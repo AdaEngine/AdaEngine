@@ -8,7 +8,7 @@
 /// The storage for caching draw passes by their type.
 public enum DrawPassStorage {
     
-    private static var draws: [DrawPassId: any DrawPass] = [:]
+    nonisolated(unsafe) private static var draws: [DrawPassId: any DrawPass] = [:]
     
     private static let lock: NSLock = NSLock()
     

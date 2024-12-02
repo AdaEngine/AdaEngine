@@ -34,6 +34,6 @@ struct CodingName: CodingKey {
 }
 
 extension CodingName {
-    static var editor = CodingName(stringValue: "_editor")
-    static var value = CodingName(stringValue: "_value")
+    nonisolated(unsafe) static var editor = CodingName(stringValue: "_editor")
+    nonisolated(unsafe) static var value = CodingName(stringValue: "_value")
 }

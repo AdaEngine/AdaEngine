@@ -10,7 +10,7 @@
 // FIXME: WE SHOULD USE SAME SPRITE RENDERER!!!!!!
 public struct Text2DRenderSystem: RenderSystem {
 
-    public static var dependencies: [SystemDependency] = [
+    public static let dependencies: [SystemDependency] = [
         .after(VisibilitySystem.self),
         .before(BatchTransparent2DItemsSystem.self)
     ]
@@ -168,7 +168,7 @@ public struct Text2DRenderSystem: RenderSystem {
 
 struct ExctractTextSystem: System {
 
-    static var dependencies: [SystemDependency] = [
+    static let dependencies: [SystemDependency] = [
         .after(VisibilitySystem.self),
         .after(Text2DLayoutSystem.self)
     ]

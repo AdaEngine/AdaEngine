@@ -6,6 +6,7 @@
 //
 
 /// Base protocol describes platform specific window.
+@MainActor
 public protocol SystemWindow {
     /// Window title.
     var title: String { get set }

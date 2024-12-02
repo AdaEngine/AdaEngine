@@ -14,7 +14,7 @@ struct TextLayoutComponent {
 /// System for layout text from ``Text2DComponent``.
 public struct Text2DLayoutSystem: System {
     
-    public static var dependencies: [SystemDependency] = [.before(VisibilitySystem.self)]
+    public static let dependencies: [SystemDependency] = [.before(VisibilitySystem.self)]
     
     static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self))
     

@@ -21,7 +21,7 @@ public class RenderGraphExecutor {
         try await self.executeGraph(graph, world: world, inputResources: [], viewEntity: nil)
     }
     
-    // swiftlint:disable:next cyclomatic_complexity
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func executeGraph(_ graph: RenderGraph, world: World, inputResources: [RenderSlotValue], viewEntity: Entity?) async throws {
         let tracer = Logger(label: "RenderGraph")
         tracer.trace("Begin Render Graph Frame")

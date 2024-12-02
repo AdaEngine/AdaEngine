@@ -281,7 +281,7 @@ class ViewNode: Identifiable {
     }
 }
 
-extension ViewNode: Equatable, Hashable {
+extension ViewNode: @preconcurrency Hashable {
     static func == (lhs: ViewNode, rhs: ViewNode) -> Bool {
         return lhs.isEquals(rhs)
     }

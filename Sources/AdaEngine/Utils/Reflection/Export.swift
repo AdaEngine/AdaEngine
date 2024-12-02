@@ -122,7 +122,7 @@ extension Export {
 
 extension CodingUserInfoKey {
     /// It will be used for editor feature. If type will be reflected with this key, we want to collect and show their properties on the editor screen.
-    static var editorIntrospection = CodingUserInfoKey(rawValue: "export.editor.introspection")!
+    nonisolated(unsafe) static var editorIntrospection = CodingUserInfoKey(rawValue: "export.editor.introspection")!
 }
 
 public protocol DefaultValue {

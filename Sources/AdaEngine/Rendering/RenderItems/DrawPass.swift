@@ -14,7 +14,7 @@ public struct RenderContext {
     public let drawList: DrawList
 }
 
-public struct DrawPassId: Equatable, Hashable {
+public struct DrawPassId: Equatable, Hashable, Sendable {
     let id: Int
 }
 

@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 09.06.2024.
 //
 
-public struct Font: Hashable, Equatable {
+public struct Font: Hashable, Equatable, Sendable {
     
     public let name: String
     public let familyFont: String
@@ -47,7 +47,7 @@ public extension Font {
 }
 
 extension Font {
-    public struct Weight: Equatable, Hashable {
+    public struct Weight: Equatable, Hashable, Sendable {
         internal let wightValue: Float
         
         public static let black: Weight = Weight(wightValue: 900)

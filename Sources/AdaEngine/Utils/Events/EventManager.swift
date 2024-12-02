@@ -10,8 +10,8 @@ public protocol Event: Sendable { }
 
 /// An object on which events can be published and subscribed.
 public final class EventManager {
-    
-    public static let `default`: EventManager = EventManager()
+
+    nonisolated(unsafe) public static let `default`: EventManager = EventManager()
     
     private var subscribers: [ObjectIdentifier : WeakSet<EventSubscriber>] = [:]
     

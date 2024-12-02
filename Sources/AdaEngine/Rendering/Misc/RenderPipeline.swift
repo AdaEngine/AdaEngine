@@ -15,7 +15,7 @@ public protocol RenderPipeline: AnyObject, Sendable {
 }
 
 /// An object that defines the front-facing or back-facing stencil operations of a depth and stencil state object.
-public struct StencilOperationDescriptor {
+public struct StencilOperationDescriptor: Sendable {
     
     /// The operation that is performed to update the values in the stencil attachment when the stencil test fails.
     public var fail: StencilOperation

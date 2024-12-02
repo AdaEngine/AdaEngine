@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/5/24.
 //
 @MainActor
-public class TileSource: Codable {
+public class TileSource: @preconcurrency Codable {
 
     static let invalidSource: Int = -1
 

@@ -20,7 +20,7 @@ public enum EngineEvents {
 
 public final class Engine {
     
-    public static let shared: Engine = Engine()
+    nonisolated(unsafe) public static let shared: Engine = Engine()
     
     private init() { }
     

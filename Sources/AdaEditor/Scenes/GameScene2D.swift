@@ -245,7 +245,7 @@ struct PlayerMovementSystem: System {
 
     init(scene: Scene) { }
 
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func update(context: UpdateContext) {
         let cameraEntity: Entity = context.scene.performQuery(Self.cameraQuery).first!
 

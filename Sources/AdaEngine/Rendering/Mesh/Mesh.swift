@@ -10,7 +10,7 @@ import Math
 // TODO: Add Resource implementation
 
 /// A high-level representation of a collection of vertices and edges that define a shape.
-public class Mesh: Resource {
+public class Mesh: Resource, @unchecked Sendable {
     
     /// A part of a model consisting of a single material.
     public struct Part: Identifiable {

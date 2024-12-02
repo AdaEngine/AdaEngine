@@ -6,7 +6,7 @@
 //
 
 /// Create a new entity with Text2DComponent and without frustum culling.
-open class Text2DEntity: Entity {
+open class Text2DEntity: Entity, @unchecked Sendable {
     
     open var textComponent: Text2DComponent {
         get {
