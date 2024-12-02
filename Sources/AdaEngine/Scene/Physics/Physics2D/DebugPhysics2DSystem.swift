@@ -92,9 +92,7 @@ public struct DebugPhysicsExctract2DSystem: System {
                 continue
             }
 
-            Task {
-                await Application.shared.renderWorld.addEntity(emptyEntity)
-            }
+            Application.shared.renderWorld.addEntity(emptyEntity)
         }
     }
     

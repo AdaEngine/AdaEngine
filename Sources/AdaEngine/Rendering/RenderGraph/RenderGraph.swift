@@ -50,7 +50,6 @@ public struct RunGraphNode: RenderNode {
     }
 }
 
-
 // Inspired by Bevy Render Graph
 
 /// The render graph configures the modular, parallel and re-usable render logic.
@@ -98,7 +97,7 @@ public final class RenderGraph {
         var outputEdges: [Edge] = []
     }
 
-    public init(label: String? = nil) {
+    public nonisolated init(label: String? = nil) {
         self.label = label
     }
 

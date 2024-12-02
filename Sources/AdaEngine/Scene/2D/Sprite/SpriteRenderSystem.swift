@@ -246,8 +246,6 @@ public struct ExtractSpriteSystem: System {
         }
 
         extractedEntity.components += extractedSprites
-        Task {
-            await Application.shared.renderWorld.addEntity(extractedEntity)
-        }
+        Application.shared.renderWorld.addEntity(extractedEntity)
     }
 }

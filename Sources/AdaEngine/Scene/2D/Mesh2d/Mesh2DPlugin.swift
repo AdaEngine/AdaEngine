@@ -73,9 +73,7 @@ public struct ExctractMesh2DSystem: System {
         }
 
         extractedEntity.components += extractedMeshes
-        Task {
-            await Application.shared.renderWorld.addEntity(extractedEntity)
-        }
+        Application.shared.renderWorld.addEntity(extractedEntity)
     }
 }
 
@@ -83,11 +81,11 @@ public struct ExctractMesh2DSystem: System {
 
 /// Plugin for RenderWorld for rendering 2D meshes.
 struct Mesh2DRenderPlugin: RenderWorldPlugin {
-    func setup(in world: RenderWorld) {
+    func setup(in world: RenderWorld) async {
         let drawPass = Mesh2DDrawPass()
         DrawPassStorage.setDrawPass(drawPass)
 
-        world.addSystem(Mesh2DRenderSystem.self)
+        await world.addSystem(Mesh2DRenderSystem.self)
     }
 }
 

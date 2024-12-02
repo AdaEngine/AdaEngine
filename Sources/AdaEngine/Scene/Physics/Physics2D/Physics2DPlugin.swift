@@ -22,9 +22,7 @@ public struct Physics2DPlugin: ScenePlugin {
         scene.addSystem(DebugPhysicsExctract2DSystem.self)
         scene.addSystem(Physics2DSystem.self)
 
-        Task {
-            await Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)
-        }
+        Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)
     }
 }
 
