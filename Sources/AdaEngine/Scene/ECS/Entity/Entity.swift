@@ -13,13 +13,13 @@ import OrderedCollections
 /// Describe an entity and his characteristics.
 /// Entity in ECS based architecture is main object that holds components.
 @MainActor
-open class Entity: Identifiable, @unchecked Sendable {
+open class Entity: @preconcurrency Identifiable, @unchecked Sendable {
 
     /// Contains entity name.
     public var name: String
     
     /// Contains unique identifier of entity.
-    public nonisolated let id: Int
+    public private(set) var id: Int
 
     /// Contains components specific for current entity.
     public var components: ComponentSet
@@ -73,7 +73,8 @@ open class Entity: Identifiable, @unchecked Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let name = try container.decode(String.self, forKey: .name)
         let id = try container.decode(Int.self, forKey: .id)
-        self.init()
+        self.init(name: name)
+        self.id = id
         self.components = try container.decode(ComponentSet.self, forKey: .components)
         self.components.entity = self
     }
@@ -96,7 +97,7 @@ open class Entity: Identifiable, @unchecked Sendable {
 
 // MARK: - Hashable
 
-extension Entity: Hashable {
+extension Entity: @preconcurrency Hashable {
     public static func == (lhs: Entity, rhs: Entity) -> Bool {
         return lhs.id == rhs.id && lhs.name == rhs.name
     }
@@ -107,7 +108,7 @@ extension Entity: Hashable {
     }
 }
 
-extension Entity: Codable {
+extension Entity: @preconcurrency Codable {
     enum CodingKeys: String, CodingKey {
         case id, name
         case components

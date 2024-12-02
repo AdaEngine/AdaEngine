@@ -172,7 +172,7 @@ extension ModifiedContent: View where Modifier: ViewModifier, Content: View {
 
 }
 
-extension ModifiedContent : ViewModifier where Content : ViewModifier, Modifier : ViewModifier {
+extension ModifiedContent : @preconcurrency ViewModifier where Content : ViewModifier, Modifier : ViewModifier {
     @MainActor
     public static func _makeView(
         for modifier: _ViewGraphNode<Self>,
@@ -199,7 +199,7 @@ extension ModifiedContent : ViewModifier where Content : ViewModifier, Modifier 
 }
 
 protocol _ViewInputsViewModifier {
-    static func _makeModifier(_ modifier: _ViewGraphNode<Self>, inputs: inout _ViewInputs)
+    @MainActor static func _makeModifier(_ modifier: _ViewGraphNode<Self>, inputs: inout _ViewInputs)
 }
 
 extension ViewModifier where Self: _ViewInputsViewModifier {

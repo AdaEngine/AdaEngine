@@ -6,7 +6,7 @@
 //
 
 /// An object that contains information about mouse event.
-public final class MouseEvent: InputEvent {
+public final class MouseEvent: InputEvent, @unchecked Sendable {
     
     public enum Phase: UInt8, Hashable {
         case began

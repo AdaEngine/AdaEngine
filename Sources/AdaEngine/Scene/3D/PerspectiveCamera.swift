@@ -6,7 +6,7 @@
 //
 
 /// A virtual camera that establishes the rendering perspective.
-public final class PerspectiveCamera: Entity {
+public final class PerspectiveCamera: Entity, @unchecked Sendable {
     
     /// A camera component for the perspective camera entity.
     public var camera: Camera {

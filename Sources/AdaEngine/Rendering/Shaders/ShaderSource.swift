@@ -24,7 +24,7 @@ public enum ShaderLanguage: String {
 
 // TODO: Add support for wgsl
 
-public enum ShaderStage: String, Hashable, Codable {
+public enum ShaderStage: String, Hashable, Codable, Sendable {
     case vertex
     case fragment
     case compute
@@ -34,8 +34,8 @@ public enum ShaderStage: String, Hashable, Codable {
 }
 
 /// Contains collection of shader sources splitted by stages.
-public final class ShaderSource: Resource {
-    
+public final class ShaderSource: Resource, @unchecked Sendable {
+
     enum Error: LocalizedError {
         case failedToRead(String)
         case message(String)

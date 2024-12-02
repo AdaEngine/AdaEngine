@@ -100,7 +100,8 @@ class TilemapScene: Scene {
         self.addEntity(tilemapEnt)
         self.addSystem(CamMovementSystem.self)
     }
-    
+
+    // swiftlint:disable:next function_body_length
     private func save() {
         let tileMap = TileMap()
         
@@ -118,7 +119,7 @@ class TilemapScene: Scene {
         source.createTile(for: TileAtlasCoordinates.first)
         source.createTile(for: TileAtlasCoordinates.plain)
         
-        /// Add animated river
+        // Add animated river
         source.createTile(for: TileAtlasCoordinates.riverStart)
             .setAnimationFrameColumns(2)
             .setAnimationFrameDuration(0.5)

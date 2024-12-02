@@ -13,7 +13,7 @@
 /// If entity has ``NoFrustumCulling`` than it will ignore frustum culling.
 public struct VisibilitySystem: System {
     
-    public static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(CameraSystem.self)]
     
     static let cameras = EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
     static let entities = EntityQuery(

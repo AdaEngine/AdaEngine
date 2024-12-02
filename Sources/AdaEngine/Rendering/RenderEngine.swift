@@ -22,10 +22,10 @@ public final class RenderEngine: RenderBackend {
     }
     
     /// Setup configuration for render engine
-    public static var configurations: Configuration = Configuration()
+    nonisolated(unsafe) public static var configurations: Configuration = Configuration()
     
     /// Return instance of render engine for specific backend.
-    public static let shared: RenderEngine = {
+    nonisolated(unsafe) public static let shared: RenderEngine = {
         let renderBackend: RenderBackend
         
         #if METAL

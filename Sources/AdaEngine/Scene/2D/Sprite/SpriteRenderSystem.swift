@@ -10,7 +10,7 @@
 /// System in RenderWorld for render sprites from exctracted sprites.
 public struct SpriteRenderSystem: RenderSystem {
 
-    public static var dependencies: [SystemDependency] = [
+    public static let dependencies: [SystemDependency] = [
         .before(BatchTransparent2DItemsSystem.self)
     ]
 

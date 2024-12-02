@@ -16,8 +16,8 @@ struct ExctractedPhysicsMesh2DDebug {
 /// System for exctracting physics bodies for debug rendering.
 public struct DebugPhysicsExctract2DSystem: System {
     
-    public static var dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
-    
+    public static let dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
+
     static let entities = EntityQuery(
         where: (.has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self)) && .has(Visibility.self)
     )
@@ -102,7 +102,7 @@ public struct DebugPhysicsExctract2DSystem: System {
 /// System for rendering debug physics shape on top of the scene.
 public struct Physics2DDebugDrawSystem: RenderSystem {
     
-    public static var dependencies: [SystemDependency] = [.after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)]
     
     static let cameras = EntityQuery(where: .has(Camera.self) && .has(RenderItems<Transparent2DRenderItem>.self))
     static let entities = EntityQuery(where: .has(ExctractedPhysicsMesh2DDebug.self))

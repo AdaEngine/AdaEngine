@@ -13,7 +13,7 @@ public struct TileMapSystem: System {
     
     let logger = Logger(label: "tilemap")
 
-    public static var dependencies: [SystemDependency] = [
+    public static let dependencies: [SystemDependency] = [
         .after(VisibilitySystem.self)
     ]
 

@@ -14,22 +14,22 @@ public protocol TextAttributeKey {
 
 public struct FontTextAttribute: TextAttributeKey {
     public typealias Value = Font
-    public static var defaultValue: Font = Font(fontResource: .system(emFontScale: 52), pointSize: 17)
+    public static let defaultValue: Font = Font(fontResource: .system(emFontScale: 52), pointSize: 17)
 }
 
 public struct ForegroundColorTextAttribute: TextAttributeKey {
     public typealias Value = Color
-    public static var defaultValue: Color = .black
+    public static let defaultValue: Color = .black
 }
 
 public struct OutlineColorTextAttribute: TextAttributeKey {
     public typealias Value = Color
-    public static var defaultValue: Color = .clear
+    public static let defaultValue: Color = .clear
 }
 
 public struct KernColorTextAttribute: TextAttributeKey {
     public typealias Value = Float
-    public static var defaultValue: Float = 0
+    public static let defaultValue: Float = 0
 }
 
 public extension TextAttributeContainer {

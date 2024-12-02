@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import Yams
+@preconcurrency import Yams
 
 /// Contains information about shader changes and store/load spirv binary in cache folder.
 enum ShaderCache {
@@ -161,7 +161,7 @@ enum ShaderCache {
             return
         }
         
-        try? fileSystem.removeItem(at: fileURL)
+        try? fileSystem.removeItem(at: cacheFile)
     }
     
     // MARK: - Private

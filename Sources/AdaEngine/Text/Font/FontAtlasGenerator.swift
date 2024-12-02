@@ -15,7 +15,7 @@ public struct FontDescriptor {
 /// Generate MTSDF atlas texture from font.
 final class FontAtlasGenerator {
     
-    static let shared = FontAtlasGenerator()
+    nonisolated(unsafe) static let shared = FontAtlasGenerator()
     
     private init() {}
     

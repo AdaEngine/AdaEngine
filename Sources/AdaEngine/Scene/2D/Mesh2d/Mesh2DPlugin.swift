@@ -43,7 +43,7 @@ public struct ExctractedMesh2D {
 /// System to render exctract meshes to RenderWorld.
 public struct ExctractMesh2DSystem: System {
 
-    public static var dependencies: [SystemDependency] = [.after(VisibilitySystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(VisibilitySystem.self)]
 
     static let query = EntityQuery(where: .has(Mesh2DComponent.self) && .has(Transform.self) && .has(Visibility.self))
 

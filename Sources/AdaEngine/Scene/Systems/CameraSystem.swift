@@ -10,7 +10,7 @@
 /// System for updating cameras data on scene.
 public struct CameraSystem: System {
 
-    public static var dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
 
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
 
@@ -116,7 +116,7 @@ public struct CameraSystem: System {
 /// Exctract cameras to RenderWorld for future rendering.
 public struct ExtractCameraSystem: System {
 
-    public static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(CameraSystem.self)]
 
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self) && .has(VisibleEntities.self))
 

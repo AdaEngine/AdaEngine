@@ -11,7 +11,7 @@
 // TODO: (Vlad) radius of pressure?
 
 /// Event describing the status of a finger touching the screen.
-public final class TouchEvent: InputEvent {
+public final class TouchEvent: InputEvent, @unchecked Sendable {
     
     /// Describe the phase of a finger touch
     public enum Phase: Equatable, Hashable {
