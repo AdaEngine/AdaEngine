@@ -187,9 +187,7 @@ struct ExctractTextSystem: System {
             exctractedEntity.components += entity.components[Transform.self]!
             exctractedEntity.components += entity.components[Text2DComponent.self]!
 
-            Task {
-                await Application.shared.renderWorld.addEntity(exctractedEntity)
-            }
+            Application.shared.renderWorld.addEntity(exctractedEntity)
         }
     }
 }

@@ -26,5 +26,5 @@ public protocol RenderWorldPlugin: Sendable {
     init()
 
     @RenderGraphActor
-    func setup(in world: RenderWorld)
+    func setup(in world: RenderWorld) async
 }

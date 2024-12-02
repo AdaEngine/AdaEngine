@@ -20,8 +20,8 @@ public struct SpriteRenderPlugin: RenderWorldPlugin {
 
     public init() {}
 
-    public func setup(in world: RenderWorld) {
-        world.addSystem(SpriteRenderSystem.self)
+    public func setup(in world: RenderWorld) async {
+        await world.addSystem(SpriteRenderSystem.self)
 
         let spriteDraw = SpriteDrawPass()
         DrawPassStorage.setDrawPass(spriteDraw)

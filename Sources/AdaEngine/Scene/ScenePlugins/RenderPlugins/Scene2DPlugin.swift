@@ -18,9 +18,9 @@ public struct Scene2DPlugin: RenderWorldPlugin {
         public static let view = "view"
     }
 
-    public func setup(in world: RenderWorld) {
+    public func setup(in world: RenderWorld) async {
         // Add Systems
-        world.addSystem(BatchTransparent2DItemsSystem.self)
+        await world.addSystem(BatchTransparent2DItemsSystem.self)
 
         // Add Render graph
         let graph = RenderGraph(label: "Scene2D")

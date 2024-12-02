@@ -142,9 +142,7 @@ public struct ExtractCameraSystem: System {
             cameraEntity.components = entity.components
             cameraEntity.components.entity = cameraEntity
 
-            Task {
-                await Application.shared.renderWorld.addEntity(cameraEntity)
-            }
+            Application.shared.renderWorld.addEntity(cameraEntity)
         }
     }
 }
