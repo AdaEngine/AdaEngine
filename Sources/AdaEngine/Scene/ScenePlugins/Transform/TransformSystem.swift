@@ -10,8 +10,7 @@ import Math
 public struct TransformSystem: System {
     
     public static var dependencies: [SystemDependency] = [
-        .after(ScriptComponentUpdateSystem.self),
-        .before(Physics2DSystem.self)
+        .after(Physics2DSystem.self)
     ]
     
     static let query = EntityQuery(where: .has(Transform.self))
@@ -30,7 +29,6 @@ public struct TransformSystem: System {
                 )
                 
                 let globalTransform = GlobalTransform(matrix: matrix)
-                
                 entity.components += globalTransform
             }
         }

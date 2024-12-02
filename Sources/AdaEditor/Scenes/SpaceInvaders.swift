@@ -16,7 +16,7 @@ class SpaceInvaders: Scene, @unchecked Sendable {
 //        let sound = try! ResourceManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
         let charactersTiles = try! ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
         self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
-
+        
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
         camera.camera.backgroundColor = .black
@@ -147,7 +147,7 @@ struct FireSystem: System {
     }
 
     @MainActor func fireBullet(context: UpdateContext, shipTransform: Transform) {
-        let bullet = Entity()
+        let bullet = Entity(name: "Bullet")
 
         let bulletScale = Vector3(0.02, 0.04, 0.04)
 
@@ -164,9 +164,7 @@ struct FireSystem: System {
         )
 
         collision.filter.categoryBitMask = .bullet
-
         bullet.components += collision
-
         context.scene.addEntity(bullet)
     }
 }

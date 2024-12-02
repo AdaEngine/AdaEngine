@@ -33,7 +33,6 @@ public final class Physics2DSystem: System {
         where: .has(PhysicsJoint2DComponent.self) && .has(Transform.self)
     )
     
-    @MainActor
     public func update(context: UpdateContext) {
         preconditionMainThreadOnly()
         

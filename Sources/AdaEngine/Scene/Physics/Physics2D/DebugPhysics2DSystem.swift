@@ -63,11 +63,8 @@ public struct DebugPhysicsExctract2DSystem: System {
             }
             
             let fixtureList = body.getFixtureList()
-            
             let emptyEntity = EmptyEntity()
-            
             let bodyPosition = Vector3(body.getPosition(), 0)
-            
             switch fixtureList.type {
             case .circle:
                 let radius = fixtureList.shape.getRadius()

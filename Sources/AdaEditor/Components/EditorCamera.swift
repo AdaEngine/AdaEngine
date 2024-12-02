@@ -102,7 +102,7 @@ class EditorCameraSystem: System {
     }
 }
 
-class EditorCameraEntity: Entity {
+class EditorCameraEntity: Entity, @unchecked Sendable {
     public override init(name: String = "Entity") {
         super.init(name: name)
 
