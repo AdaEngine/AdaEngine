@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 02.06.2024.
 //
 
-public struct SizeInt: Equatable, Codable, Hashable, Comparable {
+public struct SizeInt: Equatable, Codable, Hashable, Comparable, Sendable {
     public var width: Int
     public var height: Int
     

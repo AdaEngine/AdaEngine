@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct SpriteRenderPipeline {
+struct SpriteRenderPipeline: Sendable {
 
     static let `default` = SpriteRenderPipeline()
 

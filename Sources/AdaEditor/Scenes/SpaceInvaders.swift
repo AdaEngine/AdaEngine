@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class SpaceInvaders: Scene {
+class SpaceInvaders: Scene, @unchecked Sendable {
 
     var disposeBag: Set<AnyCancellable> = []
     var characterAtlas: TextureAtlas!
@@ -16,7 +16,7 @@ class SpaceInvaders: Scene {
 //        let sound = try! ResourceManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
         let charactersTiles = try! ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
         self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
-
+        
         let camera = OrthographicCamera()
         camera.camera.clearFlags = .solid
         camera.camera.backgroundColor = .black
@@ -121,7 +121,7 @@ struct FireSystem: System {
         self.laserAudio = try! ResourceManager.loadSync("Assets/laserShoot.wav", from: .editor) as AudioResource
     }
 
-    func update(context: UpdateContext) async {
+    func update(context: UpdateContext) {
         context.scene.performQuery(Self.player).forEach { entity in
             let transform = entity.components[Transform.self]!
 
@@ -144,11 +144,10 @@ struct FireSystem: System {
                 }
             }
         }
-
     }
 
-    func fireBullet(context: UpdateContext, shipTransform: Transform) {
-        let bullet = Entity()
+    @MainActor func fireBullet(context: UpdateContext, shipTransform: Transform) {
+        let bullet = Entity(name: "Bullet")
 
         let bulletScale = Vector3(0.02, 0.04, 0.04)
 
@@ -165,9 +164,7 @@ struct FireSystem: System {
         )
 
         collision.filter.categoryBitMask = .bullet
-
         bullet.components += collision
-
         context.scene.addEntity(bullet)
     }
 }
@@ -186,8 +183,8 @@ struct BulletSystem: System {
 
     init(scene: Scene) { }
 
-    func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.bullet).concurrent.forEach { entity in
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.bullet).forEach { entity in
             var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
 
             body.setLinearVelocity([0, Self.bulletSpeed])
@@ -233,7 +230,7 @@ struct EnemySpawnerSystem: System {
         }
     }
 
-    func spawnEnemy(context: UpdateContext) {
+    @MainActor func spawnEnemy(context: UpdateContext) {
         let entity = Entity(name: "Enemy")
 
         var transform = Transform()
@@ -320,7 +317,7 @@ struct EnemyExplosionSystem: System {
     static let explosions = EntityQuery(where: .has(ExplosionComponent.self))
     static let scores = EntityQuery(where: .has(GameState.self))
 
-    func update(context: UpdateContext) async {
+    func update(context: UpdateContext) {
         let scores = context.scene.performQuery(Self.scores).first
 
         // Make expolosions

@@ -164,7 +164,6 @@ final class MetalRenderDevice: RenderDevice {
     }
 }
 
-
 // MARK: Texture
 
 extension MetalRenderDevice {

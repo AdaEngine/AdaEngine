@@ -30,8 +30,8 @@ struct _ShapeView<S: Shape>: View, ViewNodeBuilder {
 
 public struct CircleShape: Shape {
     public func path(in rect: Rect) -> Path {
-        Path { path in
-            
+        Path { _ in
+            // FIXME: Make it
         }
     }
 }
@@ -82,7 +82,6 @@ class ShapeViewNode<S: Shape>: ViewNode {
         return shape.sizeThatFits(proposal)
     }
 }
-
 
 public extension Shape {
     func sizeThatFits(_ proposal: ProposedViewSize) -> Size {

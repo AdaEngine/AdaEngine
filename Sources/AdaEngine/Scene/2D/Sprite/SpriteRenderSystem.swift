@@ -10,7 +10,7 @@
 /// System in RenderWorld for render sprites from exctracted sprites.
 public struct SpriteRenderSystem: RenderSystem {
 
-    public static var dependencies: [SystemDependency] = [
+    public static let dependencies: [SystemDependency] = [
         .before(BatchTransparent2DItemsSystem.self)
     ]
 
@@ -53,7 +53,7 @@ public struct SpriteRenderSystem: RenderSystem {
     // MARK: - Private
 
     // swiftlint:disable:next function_body_length
-    private func draw(
+    @MainActor private func draw(
         extractedSprites: [ExtractedSprite],
         visibleEntities: VisibleEntities,
         renderItems: inout RenderItems<Transparent2DRenderItem>
@@ -223,7 +223,7 @@ public struct ExtractSpriteSystem: System {
 
     public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let extractedEntity = EmptyEntity()
         var extractedSprites = ExtractedSprites(sprites: [])
 
@@ -246,6 +246,6 @@ public struct ExtractSpriteSystem: System {
         }
 
         extractedEntity.components += extractedSprites
-        await Application.shared.renderWorld.addEntity(extractedEntity)
+        Application.shared.renderWorld.addEntity(extractedEntity)
     }
 }

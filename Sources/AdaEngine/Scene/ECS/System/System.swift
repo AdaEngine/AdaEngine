@@ -53,14 +53,14 @@ public struct SceneUpdateContext: Sendable {
 ///
 /// ```
 public protocol System {
-    
+
     typealias UpdateContext = SceneUpdateContext
     
     /// Creates a new system.
-    init(scene: Scene)
-    
+    @MainActor @preconcurrency init(scene: Scene)
+
     /// Updates entities every frame.
-    func update(context: UpdateContext) async
+    @MainActor func update(context: UpdateContext)
 
     // MARK: Dependencies
     

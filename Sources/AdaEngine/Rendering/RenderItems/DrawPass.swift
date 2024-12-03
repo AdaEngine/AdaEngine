@@ -14,7 +14,7 @@ public struct RenderContext {
     public let drawList: DrawList
 }
 
-public struct DrawPassId: Equatable, Hashable {
+public struct DrawPassId: Equatable, Hashable, Sendable {
     let id: Int
 }
 
@@ -25,7 +25,8 @@ public struct DrawPassId: Equatable, Hashable {
 public protocol DrawPass<Item> {
     associatedtype Item: RenderItem
     typealias Context = RenderContext
-    
+
+    @MainActor
     func render(in context: Context, item: Item) throws
 }
 
@@ -50,7 +51,7 @@ public struct AnyDrawPass<T: RenderItem>: DrawPass {
 }
 
 private extension DrawPass {
-    func _render(in context: Context, item: Any) throws {
+    @MainActor func _render(in context: Context, item: Any) throws {
         try self.render(in: context, item: item as! Self.Item)
     }
 }

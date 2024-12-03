@@ -8,11 +8,11 @@
 import Logging
 
 /// RenderWorld that store entities for rendering. Each update tick entities removed from RenderWorld.
-@RenderGraphActor
+@MainActor
 public final class RenderWorld {
     let renderGraphExecutor = RenderGraphExecutor()
-    public let renderGraph: RenderGraph = RenderGraph(label: "RenderWorld")
-    private let scene: Scene = Scene(name: "RenderWorld")
+    @RenderGraphActor public let renderGraph: RenderGraph = RenderGraph(label: "RenderWorld")
+    private let scene = Scene(name: "RenderWorld")
 
     public var world: World {
         return self.scene.world
@@ -24,17 +24,17 @@ public final class RenderWorld {
     }
     
     /// Add a new scene plugin to the scene.
-    public func addPlugin<T: RenderWorldPlugin>(_ plugin: T) {
-        plugin.setup(in: self)
+    public func addPlugin<T: RenderWorldPlugin>(_ plugin: T) async {
+        await plugin.setup(in: self)
     }
     
     /// Add a new entity to render world.
     public func addEntity(_ entity: Entity) {
         self.scene.addEntity(entity)
     }
-    
+
     func update(_ deltaTime: TimeInterval) async throws {
-        await self.scene.update(deltaTime)
+        self.scene.update(deltaTime)
         try await self.renderGraphExecutor.execute(self.renderGraph, in: self.world)
 
         self.scene.world.clear()

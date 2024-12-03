@@ -16,6 +16,7 @@ extension Component {
     /// When engine will initiate component from scene file, it will try to find
     /// component in registered list.
     /// Otherwise component will not be initialized.
+    @MainActor
     public static func registerComponent() {
         ComponentStorage.addComponent(self)
     }
@@ -35,6 +36,7 @@ extension Component {
     }
 }
 
+@MainActor
 enum ComponentStorage {
     
     private static var registeredComponents: [String: Component.Type] = [:]
@@ -53,11 +55,11 @@ enum ComponentStorage {
 // This hack can help us to find struct or classes in binary
 
 // https://github.com/apple/swift/blob/4435a37088b20fa7eca3c48947b0532e5221629b/stdlib/public/core/Misc.swift
-//@_silgen_name("swift_getTypeByMangledNameInContext")
-//internal func _getTypeByMangledNameUntrusted(
+// @_silgen_name("swift_getTypeByMangledNameInContext")
+// internal func _getTypeByMangledNameUntrusted(
 //  _ name: UnsafePointer<UInt8>,
 //  _ nameLength: UInt)
 //  -> Any.Type?
 //
-//@_silgen_name("swift_getMangledTypeName")
-//public func _getTypeName(_ type: Any.Type, qualified: Bool) -> (UnsafePointer<UInt8>, Int)
+// @_silgen_name("swift_getMangledTypeName")
+// public func _getTypeName(_ type: Any.Type, qualified: Bool) -> (UnsafePointer<UInt8>, Int)

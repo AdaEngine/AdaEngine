@@ -9,7 +9,7 @@
 /// Run each frame before drawing.
 public struct BatchTransparent2DItemsSystem: RenderSystem {
 
-    public static var dependencies: [SystemDependency] = [.after(CameraSystem.self), .after(VisibilitySystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(CameraSystem.self), .after(VisibilitySystem.self)]
 
     static let query = EntityQuery(where: .has(RenderItems<Transparent2DRenderItem>.self))
 
@@ -42,6 +42,7 @@ public struct BatchTransparent2DItemsSystem: RenderSystem {
         }
     }
     
+    @MainActor
     private func tryToAddBatch(to currentItem: inout Transparent2DRenderItem, from otherItem: Transparent2DRenderItem) -> Bool {
         guard let batch = currentItem.batchRange, let otherBatch = otherItem.batchRange else {
             return false

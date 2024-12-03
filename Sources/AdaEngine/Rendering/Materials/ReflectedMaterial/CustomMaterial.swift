@@ -83,7 +83,7 @@ protocol MaterialValueDelegate: AnyObject {
 ///
 @propertyWrapper
 @dynamicMemberLookup
-public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValueDelegate {
+public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValueDelegate, @unchecked Sendable {
 
     public var wrappedValue: T {
         get {

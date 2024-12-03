@@ -10,14 +10,15 @@ import OrderedCollections
 enum SceneSerializationError: Error {
     case invalidExtensionType
     case unsupportedVersion
-    case notRegistedObject(Any)
+    case notRegistedObject(String)
 }
 
 /// A container that holds the collection of entities for render.
-open class Scene: Resource, @unchecked Sendable {
+@MainActor @preconcurrency
+open class Scene: Resource {
 
     /// Current supported version for mapping scene from file.
-    static var currentVersion: Version = "1.0.0"
+    nonisolated(unsafe) static let currentVersion: Version = "1.0.0"
     
     /// Current scene name.
     public var name: String
@@ -58,7 +59,7 @@ open class Scene: Resource, @unchecked Sendable {
     /// Create new scene instance.
     /// - Parameter name: Name of this scene. By default name is `Scene`.
     /// - Parameter instantiateDefaultPlugin:
-    public nonisolated init(name: String? = nil, instantiateDefaultPlugin: Bool = true) {
+    public init(name: String? = nil, instantiateDefaultPlugin: Bool = true) {
         self.id = UUID()
         self.name = name ?? "Scene"
         self.world = World()
@@ -90,7 +91,7 @@ open class Scene: Resource, @unchecked Sendable {
     }
     
     required nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
-        guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+        guard await decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
@@ -100,27 +101,25 @@ open class Scene: Resource, @unchecked Sendable {
             throw SceneSerializationError.unsupportedVersion
         }
         
-        self.init(name: sceneData.scene)
+        await self.init(name: sceneData.scene)
 
-        Task { @MainActor in
-            for system in sceneData.systems {
-                guard let systemType = SystemStorage.getRegistredSystem(for: system.name) else {
-                    throw SceneSerializationError.notRegistedObject(system)
-                }
-                self.addSystem(systemType)
+        for system in sceneData.systems {
+            guard let systemType = await SystemStorage.getRegistredSystem(for: system.name) else {
+                throw SceneSerializationError.notRegistedObject(system.name)
+            }
+            await self.addSystem(systemType)
+        }
+
+        for plugin in sceneData.plugins {
+            guard let pluginType = await ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
+                throw SceneSerializationError.notRegistedObject(plugin.name)
             }
 
-            for plugin in sceneData.plugins {
-                guard let pluginType = ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
-                    throw SceneSerializationError.notRegistedObject(plugin)
-                }
+            await self.addPlugin(pluginType.init())
+        }
 
-                await self.addPlugin(pluginType.init())
-            }
-
-            for entity in sceneData.entities {
-                self.addEntity(entity)
-            }
+        for entity in sceneData.entities {
+            await self.addEntity(entity)
         }
     }
     
@@ -139,12 +138,12 @@ open class Scene: Resource, @unchecked Sendable {
     
     /// Add new scene plugin to the scene.
     /// - Warning: Plugin should be added before presenting.
-    public func addPlugin<T: ScenePlugin>(_ plugin: T) async {
+    public func addPlugin<T: ScenePlugin>(_ plugin: T) {
         if self.isReady {
             assertionFailure("Can't insert plugin if scene was ready")
         }
 
-        await plugin.setup(in: self)
+        plugin.setup(in: self)
         self.plugins.append(plugin)
     }
 
@@ -153,30 +152,28 @@ open class Scene: Resource, @unchecked Sendable {
     /// Tells you when the scene is presented.
     ///
     /// - Note: Scene is configured and you can't add new systems to the scene.
-    @MainActor open func sceneDidLoad() { }
+    open func sceneDidLoad() { }
 
     /// Tells you when the scene is about to be removed from a view.
-    @MainActor open func sceneDidMove(to view: SceneView) { }
+    open func sceneDidMove(to view: SceneView) { }
 
     /// Tells you when the scene is about to be removed from a view.
-    @MainActor open func sceneWillMove(from view: SceneView) { }
+    open func sceneWillMove(from view: SceneView) { }
 
     // MARK: - Internal methods
 
-    @MainActor
-    func readyIfNeeded() async {
+    func readyIfNeeded() {
         if self.isReady {
             return
         }
 
-        await self.ready()
+        self.ready()
     }
 
-    @MainActor
-    func ready() async {
+    func ready() {
         // TODO: In the future we need minimal scene plugin for headless mode.
         if self.instantiateDefaultPlugin {
-            await self.addPlugin(DefaultScenePlugin())
+            self.addPlugin(DefaultScenePlugin())
         }
 
         self.isReady = true
@@ -189,8 +186,7 @@ open class Scene: Resource, @unchecked Sendable {
     }
     
     /// Update scene world and systems by delta time.
-    @MainActor
-    func update(_ deltaTime: TimeInterval) async {
+    func update(_ deltaTime: TimeInterval) {
         if self.isUpdating {
             assertionFailure("Can't update scene twice")
             return
@@ -204,7 +200,7 @@ open class Scene: Resource, @unchecked Sendable {
             scene: self,
             deltaTime: deltaTime
         )
-        await self.systemGraphExecutor.execute(self.systemGraph, context: context)
+        self.systemGraphExecutor.execute(self.systemGraph, context: context)
     }
 }
 
@@ -291,13 +287,17 @@ extension Scene: EventSource {
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
     /// - Parameters completion: A closure to call with the event.
     /// - Returns: A cancellable object. You should store it in memory, to recieve events.
-    public func subscribe<E>(to event: E.Type, on eventSource: EventSource?, completion: @escaping (E) -> Void) -> Cancellable where E : Event {
+    public func subscribe<E>(
+        to event: E.Type,
+        on eventSource: EventSource?,
+        completion: @escaping (E) -> Void
+    ) -> Cancellable where E : Event {
         return self.eventManager.subscribe(to: event, on: eventSource ?? self, completion: completion)
     }
 }
 
 public extension Scene {
-    struct DebugOptions: OptionSet {
+    struct DebugOptions: OptionSet, Sendable {
         public var rawValue: UInt16
         
         public init(rawValue: UInt16) {

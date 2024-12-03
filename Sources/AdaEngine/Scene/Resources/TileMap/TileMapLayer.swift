@@ -7,6 +7,7 @@
 
 import OrderedCollections
 
+@MainActor
 public class TileMapLayer: Identifiable {
 
     public var name: String = ""

@@ -11,6 +11,7 @@ disabled_rules: # rule identifiers turned on by default to exclude from running
   - function_parameter_count
   - shorthand_operator
   - identifier_name
+  - todo
 opt_in_rules: # some rules are turned off by default, so you need to opt-in
   - empty_count # Find all the available rules by running: `swiftlint rules`
   - private_over_fileprivate

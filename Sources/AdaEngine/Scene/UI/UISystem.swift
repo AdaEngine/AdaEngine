@@ -12,8 +12,7 @@ public struct UISystem: System {
 
     public init(scene: Scene) { }
 
-    @MainActor
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let entities = context.scene.performQuery(Self.query)
 
         for entity in entities {
@@ -57,7 +56,9 @@ public struct UISystem: System {
                 responder.onEvent(event)
             }
 
-            await view.update(context.deltaTime)
+            Task {
+                await view.update(context.deltaTime)
+            }
         }
     }
 }

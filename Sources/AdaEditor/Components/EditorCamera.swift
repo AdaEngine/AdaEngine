@@ -27,7 +27,7 @@ class EditorCameraSystem: System {
 
     required public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let entities = context.scene.performQuery(Self.query)
         let deltaTime = context.deltaTime
 
@@ -102,7 +102,7 @@ class EditorCameraSystem: System {
     }
 }
 
-class EditorCameraEntity: Entity {
+class EditorCameraEntity: Entity, @unchecked Sendable {
     public override init(name: String = "Entity") {
         super.init(name: name)
 

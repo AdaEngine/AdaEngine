@@ -17,15 +17,14 @@ public protocol ScenePlugin {
     
     /// Called once when scene will setup plugin.
     @MainActor
-    func setup(in scene: Scene) async
+    func setup(in scene: Scene)
 }
 
 // swiftlint:enable line_length
-
-@RenderGraphActor
-public protocol RenderWorldPlugin {
+public protocol RenderWorldPlugin: Sendable {
 
     init()
 
-    func setup(in world: RenderWorld)
+    @RenderGraphActor
+    func setup(in world: RenderWorld) async
 }

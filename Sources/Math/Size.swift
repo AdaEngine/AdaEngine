@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/16/22.
 //
 
-public struct Size: Equatable, Codable, Hashable, Comparable {
+public struct Size: Equatable, Codable, Hashable, Comparable, Sendable {
     public var width: Float
     public var height: Float
     
@@ -33,7 +33,7 @@ public extension Vector2 {
 
 public extension Size {
     @inline(__always)
-    static let zero = Size(width: 0, height: 0)
+    nonisolated static let zero = Size(width: 0, height: 0)
 
     @inline(__always)
     static let infinity = Size(width: .infinity, height: .infinity)

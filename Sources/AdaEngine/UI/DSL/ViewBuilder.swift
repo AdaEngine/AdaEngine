@@ -8,6 +8,7 @@
 /// A custom parameter attribute that constructs views from closures.
 ///
 /// You typically use ``ViewBuilder`` as a parameter attribute for child view-producing closure parameters, allowing those closures to provide multiple child views.
+@MainActor
 @resultBuilder public enum ViewBuilder {
 
     /// Builds an empty view from a block containing no statements.
@@ -62,7 +63,6 @@ extension ViewBuilder {
         AnyView(content)
     }
 }
-
 
 public struct _ConditionalContent<TrueContent, FalseContent> {
 

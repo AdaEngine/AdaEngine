@@ -14,14 +14,14 @@ struct TextLayoutComponent {
 /// System for layout text from ``Text2DComponent``.
 public struct Text2DLayoutSystem: System {
     
-    public static var dependencies: [SystemDependency] = [.before(VisibilitySystem.self)]
+    public static let dependencies: [SystemDependency] = [.before(VisibilitySystem.self)]
     
     static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self))
     
     public init(scene: Scene) {}
     
-    public func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.textComponents).concurrent.forEach { entity in
+    public func update(context: UpdateContext) {
+        context.scene.performQuery(Self.textComponents).forEach { entity in
             let (text, visibility) = entity.components[Text2DComponent.self, Visibility.self]
             
             if !visibility.isVisible {

@@ -4,8 +4,8 @@
 //
 //  Created by v.prusakov on 5/5/24.
 //
-
-public class TileSource: Codable {
+@MainActor
+public class TileSource: @preconcurrency Codable {
 
     static let invalidSource: Int = -1
 

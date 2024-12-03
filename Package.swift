@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 5.10
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -23,7 +23,7 @@ let isVulkanEnabled = true
 
 let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
-let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS]
+let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
 var products: [Product] = [
     .executable(
@@ -99,6 +99,7 @@ var swiftSettings: [SwiftSetting] = [
     .define("WINDOWS", .when(platforms: [.windows])),
     .define("IOS", .when(platforms: [.iOS])),
     .define("TVOS", .when(platforms: [.tvOS])),
+    .define("VISIONOS", .when(platforms: [.visionOS])),
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
     .interoperabilityMode(.Cxx)
@@ -297,4 +298,25 @@ if useLocalDeps {
         .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
         .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
     ]
+}
+
+let disabledStrictConcurrencyTargets = [
+//  "AdaEngine",
+  "AdaEditor",
+//  "Math",
+  "AtlasFontGenerator",
+  "SPIRVCompiler",
+  "MiniAudioBindings",
+  "libpng",
+  "SPIRV-Cross",
+  "SPIRVCompiler",
+  "AdaEngineMacros",
+  "SwiftLintPlugin"
+]
+
+for target in package.targets
+  where !disabledStrictConcurrencyTargets.contains(target.name) && target.type != .binary {
+  var settings = target.swiftSettings ?? []
+  settings.append(.enableExperimentalFeature("StrictConcurrency"))
+  target.swiftSettings = settings
 }

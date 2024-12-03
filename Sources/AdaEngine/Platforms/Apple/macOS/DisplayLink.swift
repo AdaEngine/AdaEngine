@@ -74,7 +74,7 @@ public final class DisplayLink: @unchecked Sendable {
     }
 }
 
-final class DisplayLinkEventHandler {
+final class DisplayLinkEventHandler: @unchecked Sendable {
 
     private var handler: (() -> Void)?
     private let queue: DispatchQueue
@@ -92,7 +92,6 @@ final class DisplayLinkEventHandler {
             self.handler?()
         }
     }
-
 }
 
 #endif

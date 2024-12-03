@@ -19,11 +19,13 @@ public final class PhysicsJoint2DDescriptor: Codable {
     internal init(joint: Joint) {
         self.joint = joint
     }
-    
+
+    @MainActor
     public static func rope(entityA: Entity, entityB: Entity) -> PhysicsJoint2DDescriptor {
         return PhysicsJoint2DDescriptor(joint: .rope(entityA.id, entityB.id, .zero, .zero))
     }
-    
+
+    @MainActor
     public static func revolute(entityA: Entity) -> PhysicsJoint2DDescriptor {
         return PhysicsJoint2DDescriptor(joint: .revolute(entityA.id))
     }

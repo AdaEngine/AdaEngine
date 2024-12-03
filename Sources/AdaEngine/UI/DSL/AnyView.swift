@@ -39,10 +39,12 @@
         return self.makeListView(content, inputs: inputs)
     }
 
+    @MainActor @preconcurrency
     private static func makeView<T: View>(_ view: T, inputs: _ViewInputs) -> _ViewOutputs {
         T._makeView(_ViewGraphNode(value: view), inputs: inputs)
     }
 
+    @MainActor @preconcurrency
     private static func makeListView<T: View>(_ view: T, inputs: _ViewListInputs) -> _ViewListOutputs {
         T._makeListView(_ViewGraphNode(value: view), inputs: inputs)
     }

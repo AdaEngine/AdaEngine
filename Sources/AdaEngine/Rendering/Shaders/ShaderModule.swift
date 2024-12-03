@@ -7,7 +7,7 @@
 
 import Foundation
 
-public final class ShaderModule: Resource {
+public final class ShaderModule: Resource, @unchecked Sendable {
     
     private var shaders: [ShaderStage: Shader] = [:]
     var reflectionData: ShaderReflectionData

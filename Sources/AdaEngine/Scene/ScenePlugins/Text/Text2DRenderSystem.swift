@@ -10,7 +10,7 @@
 // FIXME: WE SHOULD USE SAME SPRITE RENDERER!!!!!!
 public struct Text2DRenderSystem: RenderSystem {
 
-    public static var dependencies: [SystemDependency] = [
+    public static let dependencies: [SystemDependency] = [
         .after(VisibilitySystem.self),
         .before(BatchTransparent2DItemsSystem.self)
     ]
@@ -73,7 +73,7 @@ public struct Text2DRenderSystem: RenderSystem {
     }
 
     // swiftlint:disable:next function_body_length
-    private func draw(
+    @MainActor private func draw(
         scene: Scene,
         visibleEntities: [Entity],
         renderItems: inout RenderItems<Transparent2DRenderItem>
@@ -168,7 +168,7 @@ public struct Text2DRenderSystem: RenderSystem {
 
 struct ExctractTextSystem: System {
 
-    static var dependencies: [SystemDependency] = [
+    static let dependencies: [SystemDependency] = [
         .after(VisibilitySystem.self),
         .after(Text2DLayoutSystem.self)
     ]
@@ -177,8 +177,8 @@ struct ExctractTextSystem: System {
 
     init(scene: Scene) { }
 
-    func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.textComponents).concurrent.forEach { entity in
+    func update(context: UpdateContext) {
+        context.scene.performQuery(Self.textComponents).forEach { entity in
             if entity.components[Visibility.self]?.isVisible == false {
                 return
             }
@@ -187,7 +187,7 @@ struct ExctractTextSystem: System {
             exctractedEntity.components += entity.components[Transform.self]!
             exctractedEntity.components += entity.components[Text2DComponent.self]!
 
-            await Application.shared.renderWorld.addEntity(exctractedEntity)
+            Application.shared.renderWorld.addEntity(exctractedEntity)
         }
     }
 }

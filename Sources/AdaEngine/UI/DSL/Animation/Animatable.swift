@@ -44,7 +44,7 @@ public struct EmptyAnimatableData: VectorArithmetic {
         EmptyAnimatableData(value: lhs.value + rhs.value)
     }
 
-    public static var zero: EmptyAnimatableData = EmptyAnimatableData(value: 0)
+    public static let zero: EmptyAnimatableData = EmptyAnimatableData(value: 0)
 
     var value: Double
 

@@ -7,7 +7,7 @@
 
 class ScreenManager {
     
-    static let shared: ScreenManager = {
+    nonisolated(unsafe) static let shared: ScreenManager = {
 #if MACOS
         return MacOSScreenManager()
 #elseif IOS || TVOS

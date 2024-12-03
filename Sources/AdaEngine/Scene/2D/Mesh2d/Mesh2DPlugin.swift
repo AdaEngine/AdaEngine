@@ -11,7 +11,7 @@ import Math
 
 /// Plugin to exctract meshes to RenderWorld
 struct Mesh2DPlugin: ScenePlugin {
-    func setup(in scene: Scene) async {
+    func setup(in scene: Scene) {
         scene.addSystem(ExctractMesh2DSystem.self)
     }
 }
@@ -43,13 +43,13 @@ public struct ExctractedMesh2D {
 /// System to render exctract meshes to RenderWorld.
 public struct ExctractMesh2DSystem: System {
 
-    public static var dependencies: [SystemDependency] = [.after(VisibilitySystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(VisibilitySystem.self)]
 
     static let query = EntityQuery(where: .has(Mesh2DComponent.self) && .has(Transform.self) && .has(Visibility.self))
 
     public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let extractedEntity = EmptyEntity()
         var extractedMeshes = ExctractedMeshes2D()
 
@@ -73,7 +73,7 @@ public struct ExctractMesh2DSystem: System {
         }
 
         extractedEntity.components += extractedMeshes
-        await Application.shared.renderWorld.addEntity(extractedEntity)
+        Application.shared.renderWorld.addEntity(extractedEntity)
     }
 }
 
@@ -81,11 +81,11 @@ public struct ExctractMesh2DSystem: System {
 
 /// Plugin for RenderWorld for rendering 2D meshes.
 struct Mesh2DRenderPlugin: RenderWorldPlugin {
-    func setup(in world: RenderWorld) {
+    func setup(in world: RenderWorld) async {
         let drawPass = Mesh2DDrawPass()
         DrawPassStorage.setDrawPass(drawPass)
 
-        world.addSystem(Mesh2DRenderSystem.self)
+        await world.addSystem(Mesh2DRenderSystem.self)
     }
 }
 
@@ -120,7 +120,7 @@ public struct Mesh2DRenderSystem: RenderSystem {
         }
     }
 
-    func draw(meshes: [ExctractedMesh2D], visibleEntities: VisibleEntities, items: inout [Transparent2DRenderItem], keys: Set<String>) {
+    @MainActor func draw(meshes: [ExctractedMesh2D], visibleEntities: VisibleEntities, items: inout [Transparent2DRenderItem], keys: Set<String>) {
         for mesh in meshes {
             guard visibleEntities.entityIds.contains(mesh.entityId) else {
                 continue

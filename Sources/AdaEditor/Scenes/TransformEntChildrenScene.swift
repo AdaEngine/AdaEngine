@@ -65,7 +65,7 @@ class ParentMovementSystem: System {
 
     required init(scene: Scene) { }
 
-    func update(context: UpdateContext) async {
+    func update(context: UpdateContext) {
 
         time += context.deltaTime
 

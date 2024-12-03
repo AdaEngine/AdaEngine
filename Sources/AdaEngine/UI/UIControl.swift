@@ -34,7 +34,7 @@ public final class UIEventAction: Hashable, Identifiable {
 
 open class UIControl: UIView {
 
-    public struct State: OptionSet, Hashable {
+    public struct State: OptionSet, Hashable, Sendable {
         public let rawValue: UInt
 
         public init(rawValue: UInt) {
@@ -63,7 +63,7 @@ open class UIControl: UIView {
         public static let selected = State(rawValue: 1 << 4)
     }
 
-    public struct Event: OptionSet, Hashable {
+    public struct Event: OptionSet, Hashable, Sendable {
         public let rawValue: UInt
 
         public init(rawValue: UInt) {

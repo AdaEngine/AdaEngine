@@ -15,7 +15,7 @@ enum AudioError: Error {
 /// An instance that managed audio in the AdaEngine.
 public final class AudioServer {
     
-    public private(set) static var shared: AudioServer!
+    nonisolated(unsafe) public private(set) static var shared: AudioServer!
     
     let engine: AudioEngine
     

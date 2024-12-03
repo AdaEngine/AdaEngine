@@ -10,7 +10,6 @@
 /// Adopt the ``ViewModifier`` protocol when you want to create a reusable modifier that you can apply to any view.
 /// You can apply ``View/modifier(_:)`` directly to a view, but a more common and idiomatic approach 
 /// uses ``View/modifier(_:)`` to define an extension to View itself that incorporates the view modifier:
-@MainActor
 @preconcurrency
 public protocol ViewModifier {
     /// The type of view representing the body.
@@ -173,7 +172,7 @@ extension ModifiedContent: View where Modifier: ViewModifier, Content: View {
 
 }
 
-extension ModifiedContent : ViewModifier where Content : ViewModifier, Modifier : ViewModifier {
+extension ModifiedContent : @preconcurrency ViewModifier where Content : ViewModifier, Modifier : ViewModifier {
     @MainActor
     public static func _makeView(
         for modifier: _ViewGraphNode<Self>,
@@ -200,7 +199,7 @@ extension ModifiedContent : ViewModifier where Content : ViewModifier, Modifier 
 }
 
 protocol _ViewInputsViewModifier {
-    static func _makeModifier(_ modifier: _ViewGraphNode<Self>, inputs: inout _ViewInputs)
+    @MainActor static func _makeModifier(_ modifier: _ViewGraphNode<Self>, inputs: inout _ViewInputs)
 }
 
 extension ViewModifier where Self: _ViewInputsViewModifier {
@@ -224,7 +223,7 @@ extension ViewModifier where Self: _ViewInputsViewModifier {
 }
 
 protocol _ViewOutputsViewModifier {
-    static func _makeModifier(_ modifier: _ViewGraphNode<Self>, outputs: inout _ViewOutputs)
+    @MainActor static func _makeModifier(_ modifier: _ViewGraphNode<Self>, outputs: inout _ViewOutputs)
 }
 
 extension ViewModifier where Self: _ViewOutputsViewModifier {
