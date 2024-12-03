@@ -60,4 +60,4 @@ Bazel is major build system for project, SPM maybe will be removed in the future
 
 #### Swift Package Manager
 
-Use Xcode 15.3 or Visual Studio Code with the [Swift VSCode Extension](https://www.swift.org/blog/vscode-extension/) and then open `Package.swift` file from the root directory. 
+Use Xcode 16.0 or Visual Studio Code with the [Swift VSCode Extension](https://www.swift.org/blog/vscode-extension/) and then open `Package.swift` file from the root directory. 
