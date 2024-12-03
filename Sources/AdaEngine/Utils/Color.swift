@@ -8,7 +8,7 @@
 import Math
 
 /// A representation of a color that adapts to a given context.
-public struct Color: Codable, Hashable {
+public struct Color: Codable, Hashable, Sendable {
     
     public private(set) var red: Float
     public private(set) var green: Float

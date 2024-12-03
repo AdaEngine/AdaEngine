@@ -10,7 +10,7 @@ public struct Text2DPlugin: ScenePlugin {
     
     public init() {}
     
-    public func setup(in scene: Scene) async {
+    public func setup(in scene: Scene) {
         scene.addSystem(ExctractTextSystem.self)
         scene.addSystem(Text2DLayoutSystem.self)
     }
@@ -20,7 +20,7 @@ public struct Text2DRenderPlugin: RenderWorldPlugin {
 
     public init() {}
 
-    public func setup(in world: RenderWorld) {
-        world.addSystem(Text2DRenderSystem.self)
+    public func setup(in world: RenderWorld) async {
+        await world.addSystem(Text2DRenderSystem.self)
     }
 }

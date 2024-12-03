@@ -200,7 +200,7 @@ open class UIView {
         return .zero
     }
 
-    public struct AutoresizingRule: OptionSet {
+    public struct AutoresizingRule: OptionSet, Sendable {
 
         public var rawValue: UInt
 
@@ -415,7 +415,7 @@ open class UIView {
 }
 
 /// During layout in AdaEngine UI, views choose their own size, but they do that in response to a size proposal from their parent view.
-public struct ProposedViewSize: Hashable, Equatable {
+public struct ProposedViewSize: Hashable, Equatable, Sendable {
     /// The proposed horizontal size measured in points.
     public var width: Float?
 

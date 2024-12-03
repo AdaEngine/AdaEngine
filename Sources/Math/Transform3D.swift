@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 10/19/21.
 //
 
-// swiftlint:disable identifier_name
+// swiftlint:disable identifier_name file_length
 
 // TODO: (Vlad) Check all math using https://github.com/nicklockwood/VectorMath/blob/master/VectorMath/VectorMath.swift
 
@@ -602,4 +602,4 @@ public extension Transform3D {
     }
 }
 
-// swiftlint:enable identifier_name
+// swiftlint:enable identifier_name file_length

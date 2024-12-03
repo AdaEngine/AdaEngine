@@ -7,12 +7,12 @@
 
 // TODO: Mode for decoding/encoding files from/into binary format.
 
-public struct AssetQuery {
+public struct AssetQuery: Sendable {
     public let name: String
     public let value: String?
 }
 
-public struct AssetMeta {
+public struct AssetMeta: Sendable {
     public let filePath: URL
     public let queryParams: [AssetQuery]
     
@@ -36,8 +36,8 @@ public enum AssetDecodingError: LocalizedError {
 // MARK: - Encoder -
 
 /// A type that can encode itself to an external asset representation.
-public protocol AssetEncoder {
-    
+public protocol AssetEncoder: Sendable {
+
     /// - Returns: Meta information about asset.
     var assetMeta: AssetMeta { get }
     
@@ -49,7 +49,7 @@ public protocol AssetEncoder {
 // MARK: - Decoder -
 
 /// A type that can decode itself from external asset representation.
-public protocol AssetDecoder {
+public protocol AssetDecoder: Sendable {
 
     /// - Returns: Meta information about asset.
     var assetMeta: AssetMeta { get }
@@ -65,10 +65,10 @@ public protocol AssetDecoder {
 
 public extension CodingUserInfoKey {
     /// Returns ``AssetDecodingContext`` object that contains information about resources
-    static var assetsDecodingContext: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetdecoder.context")!
-    
+    static let assetsDecodingContext: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetdecoder.context")!
+
     /// Returns ``AssetMeta`` object that contains information about resources
-    static var assetMetaInfo: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetsMetaInfo")!
+    static let assetMetaInfo: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetsMetaInfo")!
 }
 
 /// Context contains all resolved resources from decoding.

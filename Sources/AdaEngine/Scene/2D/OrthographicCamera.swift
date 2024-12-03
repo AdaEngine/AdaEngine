@@ -6,8 +6,8 @@
 //
 
 /// A virtual camera that establishes the rendering orthographic.
-public final class OrthographicCamera: Entity {
-    
+public final class OrthographicCamera: Entity, @unchecked Sendable {
+
     /// A camera component for the orthographic camera entity.
     public var camera: Camera {
         get {

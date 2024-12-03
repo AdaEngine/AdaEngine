@@ -245,6 +245,7 @@ struct PlayerMovementSystem: System {
 
     init(scene: Scene) { }
 
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func update(context: UpdateContext) {
         let cameraEntity: Entity = context.scene.performQuery(Self.cameraQuery).first!
 
@@ -413,7 +414,7 @@ class TubeSpawnerSystem: System {
         }
     }
 
-    private func spawnTube(in scene: Scene, transform: Transform, isUp: Bool) {
+    @MainActor private func spawnTube(in scene: Scene, transform: Transform, isUp: Bool) {
         let tube = Entity(name: "Tube")
         tube.components += TubeComponent()
         tube.components += SpriteComponent(tintColor: isUp ? Color.green : Color.blue)

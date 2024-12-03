@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/4/24.
 //
 
+@MainActor
 public class TileMap: Resource {
 
     public static var resourceType: ResourceType = .text
@@ -25,6 +26,7 @@ public class TileMap: Resource {
         self.tileSetDidChange()
     }
 
+    @MainActor
     public required init(asset decoder: AssetDecoder) async throws {
         let fileContent = try decoder.decode(FileContent.self)
         self.tileSet = fileContent.tileSet
@@ -43,6 +45,7 @@ public class TileMap: Resource {
         }
     }
 
+    @MainActor
     public func encodeContents(with encoder: AssetEncoder) async throws {
         var layers = [FileContent.Layer]()
         

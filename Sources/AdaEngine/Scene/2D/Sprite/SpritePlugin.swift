@@ -10,7 +10,7 @@ public struct SpritePlugin: ScenePlugin {
     
     public init() {}
     
-    public func setup(in scene: Scene) async {
+    public func setup(in scene: Scene) {
         scene.addSystem(ExtractSpriteSystem.self)
     }
 }
@@ -20,8 +20,8 @@ public struct SpriteRenderPlugin: RenderWorldPlugin {
 
     public init() {}
 
-    public func setup(in world: RenderWorld) {
-        world.addSystem(SpriteRenderSystem.self)
+    public func setup(in world: RenderWorld) async {
+        await world.addSystem(SpriteRenderSystem.self)
 
         let spriteDraw = SpriteDrawPass()
         DrawPassStorage.setDrawPass(spriteDraw)

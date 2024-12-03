@@ -8,8 +8,8 @@
 import Foundation
 
 /// A convenient interface to the contents of the file system, and the primary means of interacting with it.
-public class FileSystem {
-    
+public class FileSystem: @unchecked Sendable {
+
     public enum SearchDirectoryPath {
         case downloadsDirectory
         case documentDirectory

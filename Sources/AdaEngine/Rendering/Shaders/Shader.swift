@@ -13,7 +13,7 @@ public protocol CompiledShader: AnyObject {}
 // TODO: (Vlad) I'm not sure that we should save compiled shader inside `Shader` object.
 
 /// Contains shader data.
-public final class Shader: Resource {
+public final class Shader: Resource, @unchecked Sendable {
     
     /// Return compiled shader which used for specific render backend.
     public fileprivate(set) var compiledShader: CompiledShader!

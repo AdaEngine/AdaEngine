@@ -10,7 +10,7 @@ import Math
 /// A control that initiates an action.
 public struct Button: View, ViewNodeBuilder {
 
-    public struct State: OptionSet, Hashable {
+    public struct State: OptionSet, Hashable, Sendable {
         public let rawValue: UInt
 
         public init(rawValue: UInt) {

@@ -70,7 +70,7 @@ extension Transform2D: ShaderUniformValue, ShaderBindable {
     public static let shaderValueType: ShaderValueType = .mat3
 }
 
-public enum ShaderValueType: String, Codable {
+public enum ShaderValueType: String, Codable, Sendable {
     case vec2
     case vec3
     case vec4

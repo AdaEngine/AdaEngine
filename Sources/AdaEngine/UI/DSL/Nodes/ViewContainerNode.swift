@@ -87,6 +87,7 @@ class ViewContainerNode: ViewNode {
         self.invalidateContent(with: listInputs)
     }
 
+    // swiftlint:disable cyclomatic_complexity
     /// Compare and update old child nodes with a new nodes.
     private func updateChildNodes(from newNodes: [ViewNode]) {
         var needsLayout = false
@@ -145,6 +146,7 @@ class ViewContainerNode: ViewNode {
             self.performLayout()
         }
     }
+    // swiftlint:enable cyclomatic_complexity
 
     override func update(from newNode: ViewNode) {
         super.update(from: newNode)

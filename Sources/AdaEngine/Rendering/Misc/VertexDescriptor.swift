@@ -6,8 +6,8 @@
 //
 
 /// An array of vertex attribute descriptor objects.
-public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable {
-    
+public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable, Sendable {
+
     public typealias Element = VertexDescriptor.Attribute
     public typealias Iterator = Array<VertexDescriptor.Attribute>.Iterator
     
@@ -62,8 +62,8 @@ public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable {
 }
 
 /// An array of vertex buffer layout descriptor objects.
-public struct VertexDescriptorLayoutsArray: Sequence, Codable, Hashable {
-    
+public struct VertexDescriptorLayoutsArray: Sequence, Codable, Hashable, Sendable {
+
     public typealias Element = VertexDescriptor.Layout
     public typealias Iterator = Array<VertexDescriptor.Layout>.Iterator
     
@@ -97,7 +97,7 @@ public struct VertexDescriptorLayoutsArray: Sequence, Codable, Hashable {
 }
 
 /// Values that specify the organization of function vertex data.
-public enum VertexFormat: UInt, Codable {
+public enum VertexFormat: UInt, Codable, Sendable {
     case invalid
     
     case uint
@@ -131,8 +131,8 @@ public enum VertexFormat: UInt, Codable {
 /// This object is used to configure how vertex data stored in memory is mapped to attributes in a vertex shader.
 /// A pipeline state is the state of the graphics rendering pipeline, including shaders, blending, 
 /// multisampling, and visibility testing. For every pipeline state, there can be only one VertexDescriptor object.
-public struct VertexDescriptor: Codable, Hashable {
-    
+public struct VertexDescriptor: Codable, Hashable, Sendable {
+
     /// An array of state data that describes how vertex attribute data is stored in memory and is mapped to arguments for a vertex shader.
     public var attributes: VertexDescriptorAttributesArray
     
@@ -142,8 +142,8 @@ public struct VertexDescriptor: Codable, Hashable {
     public static let autocalculationOffset: Int = -2018
     
     /// An object that determines how to store attribute data in memory and map it to the arguments of a vertex shader.
-    public struct Attribute: CustomStringConvertible, Codable, Hashable {
-        
+    public struct Attribute: CustomStringConvertible, Codable, Hashable, Sendable {
+
         /// The name of an attribute in vertex data.
         public var name: String
         
@@ -173,8 +173,8 @@ public struct VertexDescriptor: Codable, Hashable {
     }
     
     /// An object that configures how a render pipeline fetches data to send to the vertex function.
-    public struct Layout: CustomStringConvertible, Codable, Hashable {
-        
+    public struct Layout: CustomStringConvertible, Codable, Hashable, Sendable {
+
         /// The distance, in bytes, between the attribute data of two vertices in the buffer.
         public var stride: Int
         

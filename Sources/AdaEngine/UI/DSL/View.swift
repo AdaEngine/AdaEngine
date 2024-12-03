@@ -94,6 +94,7 @@ extension Optional: View where Wrapped: View {
 // MARK: - Debug
 
 extension View {
+    @MainActor
     public static func printChanges() {
         ViewGraph.registerViewToDebugUpdate(self)
     }

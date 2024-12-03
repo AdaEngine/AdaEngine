@@ -9,7 +9,7 @@
 
 import Foundation
 
-final class FoundationFileSystem: FileSystem {
+final class FoundationFileSystem: FileSystem, @unchecked Sendable {
     
     let fileManager: Foundation.FileManager = .default
     

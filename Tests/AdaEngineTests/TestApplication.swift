@@ -23,6 +23,7 @@ class MockUIWindowManager: UIWindowManager {
 }
 
 extension Application {
+    @MainActor
     static func prepareForTest() throws {
         self.shared = try TestApplication()
     }

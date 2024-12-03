@@ -9,7 +9,8 @@
 ///
 /// You don’t create instances of ScrollViewProxy directly.
 /// Instead, your ``ScrollViewReader`` receives an instance of ``ScrollViewProxy`` in its content view builder.
-/// You use actions within this view builder, such as button and gesture handlers or the ``View/onChange(of:perform:)`` method, to call the proxy’s ``ScrollViewProxy/scrollTo(_:anchor:)`` method.
+/// You use actions within this view builder, such as button and gesture handlers or the ``View/onChange(of:perform:)``
+/// method, to call the proxy’s ``ScrollViewProxy/scrollTo(_:anchor:)`` method.
 @MainActor
 public struct ScrollViewProxy {
 

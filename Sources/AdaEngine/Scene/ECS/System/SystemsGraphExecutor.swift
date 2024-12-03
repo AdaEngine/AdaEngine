@@ -8,9 +8,9 @@
 import Collections
 
 // TODO: Add parallels execution for nodes without inputs
-
+@MainActor
 final class SystemsGraphExecutor {
-    func execute(_ graph: SystemsGraph, context: SceneUpdateContext) async {
+    func execute(_ graph: SystemsGraph, context: SceneUpdateContext) {
         var completedSystems: Set<String> = []
         completedSystems.reserveCapacity(graph.nodes.count)
         
@@ -19,7 +19,6 @@ final class SystemsGraphExecutor {
         
     nextNode:
         while let currentNode = nodes.popLast() {
-            
             // if we has a outputs for node we should skip it
             if completedSystems.contains(currentNode.name) {
                 continue
@@ -32,7 +31,7 @@ final class SystemsGraphExecutor {
                 }
             }
             
-            await currentNode.system.update(context: context)
+            currentNode.system.update(context: context)
             completedSystems.insert(currentNode.name)
             
             for outputNode in graph.getOuputNodes(for: currentNode.name) {

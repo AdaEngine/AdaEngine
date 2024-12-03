@@ -11,7 +11,8 @@ public enum RuntimePlatform: String, Codable {
     case tvOS
     case iOS
     case watchOS
-    
+    case visionOS
+
     case windows
     
     case linux

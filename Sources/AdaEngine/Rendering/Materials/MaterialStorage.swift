@@ -36,7 +36,7 @@ class MaterialStorageData {
 
 final class MaterialStorage {
     
-    static let shared: MaterialStorage = MaterialStorage()
+    nonisolated(unsafe) static let shared: MaterialStorage = MaterialStorage()
     
     private var materialData: [RID: MaterialStorageData] = [:]
     

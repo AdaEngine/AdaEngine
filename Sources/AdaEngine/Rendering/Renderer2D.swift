@@ -14,6 +14,7 @@ import Math
 
 /// A first implementation for 2D rendering.
 // Currently we don't use it in code base
+@MainActor
 class Renderer2D {
 
     public static let shared = Renderer2D()
@@ -317,12 +318,10 @@ class Renderer2D {
 }
 
 extension Renderer2D {
+    @MainActor
     public class DrawContext {
-        
         let currentDraw: DrawList
-        
         private var lineWidth: Float = 1
-        
         private let renderEngine: Renderer2D
         private let frameIndex: Int
         
@@ -425,13 +424,13 @@ extension Renderer2D {
                     fade: fade,
                     color: color
                 )
-                
                 self.renderEngine.circleData.vertices.append(data)
             }
             
             self.renderEngine.circleData.indeciesCount += 6
         }
 
+        // swiftlint:disable:next function_body_length
         public func drawGlyph(_ glyph: Glyph, transform: Transform3D) {
             if self.renderEngine.textData.indeciesCount >= Renderer2D.maxIndecies {
                 self.nextBatch()
@@ -662,6 +661,3 @@ fileprivate extension Renderer2D {
         let lineWidth: Float
     }
 }
-
-
-// TODO: Move it later

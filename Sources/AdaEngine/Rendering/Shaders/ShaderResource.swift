@@ -172,7 +172,7 @@ extension ShaderValueType {
 }
 
 /// Contains information about shader stages. For example, shader reflection data can have one or more stage flags for specific resource or buffer.
-public struct ShaderStageFlags: OptionSet, Codable {
+public struct ShaderStageFlags: OptionSet, Codable, Sendable {
     
     public let rawValue: UInt32
     

@@ -152,7 +152,7 @@ open class UIWindow: UIView {
 }
 
 public extension UIWindow {
-    enum Mode: UInt64 {
+    enum Mode: UInt64, Sendable {
         case windowed
         case fullscreen
     }

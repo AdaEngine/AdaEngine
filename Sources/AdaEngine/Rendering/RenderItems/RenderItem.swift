@@ -24,6 +24,7 @@ public struct RenderItems<T: RenderItem> {
         return value
     }
     
+    @MainActor
     public func render(_ drawList: DrawList, world: World, view: Entity) throws {
         for item in self.items {
             guard let drawPass = DrawPassStorage.getDrawPass(for: item) else {

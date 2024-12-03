@@ -16,8 +16,8 @@ struct ExctractedPhysicsMesh2DDebug {
 /// System for exctracting physics bodies for debug rendering.
 public struct DebugPhysicsExctract2DSystem: System {
     
-    public static var dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
-    
+    public static let dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
+
     static let entities = EntityQuery(
         where: (.has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self)) && .has(Visibility.self)
     )
@@ -45,7 +45,7 @@ public struct DebugPhysicsExctract2DSystem: System {
         )
     }
     
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
             return
         }
@@ -63,11 +63,8 @@ public struct DebugPhysicsExctract2DSystem: System {
             }
             
             let fixtureList = body.getFixtureList()
-            
             let emptyEntity = EmptyEntity()
-            
             let bodyPosition = Vector3(body.getPosition(), 0)
-            
             switch fixtureList.type {
             case .circle:
                 let radius = fixtureList.shape.getRadius()
@@ -92,11 +89,11 @@ public struct DebugPhysicsExctract2DSystem: System {
                 continue
             }
 
-            await Application.shared.renderWorld.addEntity(emptyEntity)
+            Application.shared.renderWorld.addEntity(emptyEntity)
         }
     }
     
-    private func getRuntimeBody(from entity: Entity) -> Body2D? {
+    @MainActor private func getRuntimeBody(from entity: Entity) -> Body2D? {
         return entity.components[PhysicsBody2DComponent.self]?.runtimeBody
         ?? entity.components[Collision2DComponent.self]?.runtimeBody
     }
@@ -105,7 +102,7 @@ public struct DebugPhysicsExctract2DSystem: System {
 /// System for rendering debug physics shape on top of the scene.
 public struct Physics2DDebugDrawSystem: RenderSystem {
     
-    public static var dependencies: [SystemDependency] = [.after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)]
     
     static let cameras = EntityQuery(where: .has(Camera.self) && .has(RenderItems<Transparent2DRenderItem>.self))
     static let entities = EntityQuery(where: .has(ExctractedPhysicsMesh2DDebug.self))
@@ -114,7 +111,7 @@ public struct Physics2DDebugDrawSystem: RenderSystem {
     
     public init(scene: Scene) {}
     
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         let exctractedValues = context.scene.performQuery(Self.entities)
             
         context.scene.performQuery(Self.cameras).forEach { entity in
@@ -131,7 +128,7 @@ public struct Physics2DDebugDrawSystem: RenderSystem {
         }
     }
     
-    private func draw(
+    @MainActor private func draw(
         extractedItems: QueryResult,
         visibleEntities: VisibleEntities,
         items: inout [Transparent2DRenderItem]

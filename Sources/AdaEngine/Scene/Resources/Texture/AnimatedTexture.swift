@@ -228,7 +228,7 @@ public final class AnimatedTexture: Texture2D {
 }
 
 public extension AnimatedTexture {
-    struct Options: OptionSet, Codable {
+    struct Options: OptionSet, Codable, Sendable {
         public var rawValue: UInt8
         
         public init(rawValue: UInt8) {
@@ -236,6 +236,6 @@ public extension AnimatedTexture {
         }
         
         /// Repeats animation forever.
-        public static let `repeat` = Options(rawValue: 0 << 1)
+        public static let `repeat` = Options(rawValue: 1 << 0)
     }
 }

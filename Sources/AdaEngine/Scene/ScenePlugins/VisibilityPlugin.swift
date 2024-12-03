@@ -7,7 +7,7 @@
 
 /// Visibility Plugin turn on a frustum culling for all entities on the screen.
 struct VisibilityPlugin: ScenePlugin {
-    func setup(in scene: Scene) async {
+    func setup(in scene: Scene) {
         scene.addSystem(VisibilitySystem.self)
     }
 }

@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/16/22.
 //
 
-public struct Rect: Equatable, Codable, Hashable {
+public struct Rect: Equatable, Codable, Hashable, Sendable {
     public var origin: Point
     public var size: Size
     

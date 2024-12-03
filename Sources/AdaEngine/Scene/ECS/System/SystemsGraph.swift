@@ -8,8 +8,9 @@
 import OrderedCollections
 
 /// Contains information about execution order of systems.
+@MainActor
 public final class SystemsGraph {
-    
+
     struct Edge: Equatable {
         let outputNode: String
         let inputNode: String
@@ -20,7 +21,7 @@ public final class SystemsGraph {
         typealias ID = String
         
         let name: String
-        let system: System
+        var system: System
         var dependencies: [SystemDependency]
         
         var inputEdges: [Edge] = []

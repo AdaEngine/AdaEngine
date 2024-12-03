@@ -5,6 +5,7 @@
 //  Created by Vladislav Prusakov on 27.06.2024.
 //
 
+@MainActor
 final class ViewGraph {
 
     private static var viewsTypeToDebug: Set<ObjectIdentifier> = []
@@ -18,6 +19,7 @@ final class ViewGraph {
     }
 }
 
+@MainActor
 public struct _ViewInputs {
     var parentNode: ViewNode?
     var layout: any Layout = VStackLayout()
@@ -53,7 +55,7 @@ public struct _ViewInputs {
     }
 
     /// Inflate all found storages to view node.
-    @MainActor 
+    @MainActor
     func registerNodeForStorages(_ node: ViewNode) {
         for storage in propertyStorages {
             storage.storage.registerNodeToUpdate(node)

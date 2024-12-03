@@ -9,16 +9,15 @@ import Math
 
 public struct TransformSystem: System {
     
-    public static var dependencies: [SystemDependency] = [
-        .after(ScriptComponentUpdateSystem.self),
-        .before(Physics2DSystem.self)
+    public static let dependencies: [SystemDependency] = [
+        .after(Physics2DSystem.self)
     ]
     
     static let query = EntityQuery(where: .has(Transform.self))
     
     public init(scene: Scene) { }
     
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         context.scene.performQuery(Self.query).forEach { entity in
             if entity.components.isComponentChanged(Transform.self) || !entity.components.has(GlobalTransform.self) {
                 let transform = entity.components[Transform.self]!
@@ -30,7 +29,6 @@ public struct TransformSystem: System {
                 )
                 
                 let globalTransform = GlobalTransform(matrix: matrix)
-                
                 entity.components += globalTransform
             }
         }
@@ -41,7 +39,7 @@ public struct TransformSystem: System {
 
 public struct ChildTransformSystem: System {
     
-    public static var dependencies: [SystemDependency] = [
+    public static let dependencies: [SystemDependency] = [
         .after(TransformSystem.self)
     ]
     
@@ -49,7 +47,7 @@ public struct ChildTransformSystem: System {
     
     public init(scene: Scene) { }
     
-    public func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
 //        context.scene.performQuery(Self.query).forEach { entity in
 //            guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
 //                return

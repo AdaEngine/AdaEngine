@@ -10,14 +10,14 @@
 /// System for updating cameras data on scene.
 public struct CameraSystem: System {
 
-    public static var dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
 
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
 
     public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.query).concurrent.forEach { @MainActor entity in
+    public func update(context: UpdateContext) {
+        context.scene.performQuery(Self.query).forEach { entity in
             guard var camera = entity.components[Camera.self] else {
                 return
             }
@@ -116,14 +116,14 @@ public struct CameraSystem: System {
 /// Exctract cameras to RenderWorld for future rendering.
 public struct ExtractCameraSystem: System {
 
-    public static var dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    public static let dependencies: [SystemDependency] = [.after(CameraSystem.self)]
 
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self) && .has(VisibleEntities.self))
 
     public init(scene: Scene) { }
 
-    public func update(context: UpdateContext) async {
-        await context.scene.performQuery(Self.query).concurrent.forEach { entity in
+    public func update(context: UpdateContext) {
+        context.scene.performQuery(Self.query).forEach { entity in
             let cameraEntity = EmptyEntity()
 
             if
@@ -142,7 +142,7 @@ public struct ExtractCameraSystem: System {
             cameraEntity.components = entity.components
             cameraEntity.components.entity = cameraEntity
 
-            await Application.shared.renderWorld.addEntity(cameraEntity)
+            Application.shared.renderWorld.addEntity(cameraEntity)
         }
     }
 }

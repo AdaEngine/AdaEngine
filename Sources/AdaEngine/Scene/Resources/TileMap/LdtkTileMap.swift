@@ -163,13 +163,11 @@ extension LDtk {
                 do {
                     try await loadLdtkProject(from: data)
                 } catch {
-                    
                     Logger(label: "LDtk").critical("Failed to update ldtk file \(error.localizedDescription)")
                 }
             }
         }
 
-        @ResourceActor
         private func loadLdtkProject(from data: Data) async throws {
             let currentProject = self.project
 
@@ -258,6 +256,7 @@ extension LDtk {
             return self.tiles[atlasCoordinates] != nil
         }
 
+        @MainActor
         public func createTile(at atlasCoordinates: PointInt, entityInstance: LDtk.EntityInstance) {
             let entity = AdaEngine.Entity(name: entityInstance.identifier)
 

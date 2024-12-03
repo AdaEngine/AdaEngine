@@ -25,7 +25,7 @@ extension Quat: CustomStringConvertible {
 
 public extension Quat {
     
-    static let identity = Quat(x: 0, y: 0, z: 0, w: 1)
+    nonisolated(unsafe) static let identity = Quat(x: 0, y: 0, z: 0, w: 1)
     
     init() {
         self.x = 0
