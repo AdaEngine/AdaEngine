@@ -59,6 +59,8 @@ public protocol RenderingDevice: AnyObject {
 
     // TODO: Move to render backend, i think
 
+    func getGlobalFramebuffer() -> any Framebuffer
+
     /// Begin draw for window.
     /// - Warning: Local RenderingDevice can't render on specific window. Instead, use global ``RenderEngine/renderingDevice`` instance.
     /// - Returns: ``DrawList`` which contains information about drawing.

@@ -123,6 +123,10 @@ final class VulkanRenderingDevice: RenderingDevice {
         }
     }
 
+    func getGlobalFramebuffer() -> any Framebuffer {
+        fatalError("Kek")
+    }
+
     func getImage(for texture2D: RID) -> Image? {
         fatalError("Kek")
     }

@@ -320,6 +320,10 @@ extension MetalRenderingDevice {
 
     }
 
+    func getGlobalFramebuffer() -> any Framebuffer {
+        fatalError("Not implemented")
+    }
+
     func beginDraw(
         for window: UIWindow.ID,
         clearColor: Color,

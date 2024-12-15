@@ -68,7 +68,9 @@ public struct Main2DRenderNode: RenderNode {
         let sortedRenderItems = renderItems.sorted()
         let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
 
+        let renderEncoder: RenderCommandEncoder
         let drawList: DrawList
+
         switch camera.renderTarget {
         case .window(let windowId):
             drawList = try context.device.beginDraw(
@@ -77,6 +79,8 @@ public struct Main2DRenderNode: RenderNode {
                 loadAction: .clear,
                 storeAction: .store
             )
+            let framebuffer = context.device.getGlobalFramebuffer()
+            renderEncoder = try context.device.createRenderEncoder(for: framebuffer)
         case .texture(let texture):
             let desc = FramebufferDescriptor(
                 scale: texture.scaleFactor,
@@ -93,51 +97,12 @@ public struct Main2DRenderNode: RenderNode {
                 ]
             )
             let framebuffer = context.device.createFramebuffer(from: desc)
-            drawList = try context.device.beginDraw(to: framebuffer, clearColors: [])
+            renderEncoder = try context.device.createRenderEncoder(for: framebuffer)
         }
-        
-        if let viewport = camera.viewport {
-            drawList.setViewport(viewport)
-        }
-        
-        try await sortedRenderItems.render(drawList, world: context.world, view: entity)
-        context.device.endDrawList(drawList)
 
+        try await sortedRenderItems.render(renderEncoder, device: context.device, world: context.world, view: entity)
+        renderEncoder.endEncoding()
 
-//        let renderEncoder: RenderCommandEncoder
-//        switch camera.renderTarget {
-//        case .window(let windowId):
-//            drawList = try context.device.beginDraw(
-//                for: windowId,
-//                clearColor: clearColor,
-//                loadAction: .clear,
-//                storeAction: .store
-//            )
-//        case .texture(let texture):
-//            let desc = FramebufferDescriptor(
-//                scale: texture.scaleFactor,
-//                width: texture.width,
-//                height: texture.height,
-//                attachments: [
-//                    FramebufferAttachmentDescriptor(
-//                        format: texture.pixelFormat,
-//                        texture: texture,
-//                        clearColor: clearColor,
-//                        loadAction: .clear,
-//                        storeAction: .store
-//                    )
-//                ]
-//            )
-//            let framebuffer = context.device.createFramebuffer(from: desc)
-//            renderEncoder = context.device.createRenderEncoder(for: framebuffer)
-//        }
-//        
-//        if let viewport = camera.viewport {
-//            drawList.setViewport(viewport)
-//        }
-//
-//        try sortedRenderItems.render(renderEncoder, world: context.world, view: entity)
-//        renderEncoder.endEncoding()
         return []
     }
 }
