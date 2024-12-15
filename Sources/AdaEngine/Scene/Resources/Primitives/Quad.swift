@@ -42,3 +42,9 @@ public struct Quad: GeometryShape {
         return mesh
     }
 }
+
+public extension GeometryShape {
+    static func quad(size: Vector2) -> Quad {
+        .init(size: size)
+    }
+}
