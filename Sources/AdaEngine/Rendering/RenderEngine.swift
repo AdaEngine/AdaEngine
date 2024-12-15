@@ -38,7 +38,7 @@ public final class RenderEngine: RenderBackend {
     }()
     
     private let renderBackend: RenderBackend
-    
+
     private init(renderBackend: RenderBackend) {
         self.renderBackend = renderBackend
     }
@@ -49,13 +49,13 @@ public final class RenderEngine: RenderBackend {
         return self.renderBackend.currentFrameIndex
     }
 
-    /// Returns global ``RenderDevice``.
-    public var renderDevice: RenderDevice {
-        return self.renderBackend.renderDevice
+    /// Returns global ``RenderingDevice``.
+    public var renderingDevice: RenderingDevice {
+        return self.renderBackend.renderingDevice
     }
 
-    public func createLocalRenderDevice() -> RenderDevice {
-        return self.renderBackend.createLocalRenderDevice()
+    public func createLocalRenderingDevice() -> RenderingDevice {
+        return self.renderBackend.createLocalRenderingDevice()
     }
 
     public func createWindow(_ windowId: UIWindow.ID, for surface: RenderSurface, size: SizeInt) throws {
@@ -81,7 +81,7 @@ public final class RenderEngine: RenderBackend {
     }
 }
 
-public extension RenderDevice {
+public extension RenderingDevice {
     func createUniformBuffer<T>(_ uniformType: T.Type, count: Int = 1, binding: Int) -> UniformBuffer {
         self.createUniformBuffer(length: MemoryLayout<T>.stride * count, binding: binding)
     }

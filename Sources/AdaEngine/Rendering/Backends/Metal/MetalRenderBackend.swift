@@ -22,7 +22,7 @@ class MetalRenderBackend: RenderBackend {
     private var inFlightSemaphore: DispatchSemaphore
     private var commandQueue: MTLCommandQueue
 
-    private(set) var renderDevice: RenderDevice
+    private(set) var renderingDevice: RenderingDevice
 
     init(appName: String) {
         self.context = Context()
@@ -30,15 +30,15 @@ class MetalRenderBackend: RenderBackend {
         self.inFlightSemaphore = DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
 
-        self.renderDevice = MetalRenderDevice(
+        self.renderingDevice = MetalRenderingDevice(
             device: self.context.physicalDevice,
             commandQueue: self.commandQueue,
             context: self.context
         )
     }
 
-    func createLocalRenderDevice() -> RenderDevice {
-        MetalRenderDevice(
+    func createLocalRenderingDevice() -> RenderingDevice {
+        MetalRenderingDevice(
             device: self.context.physicalDevice,
             commandQueue: self.context.physicalDevice.makeCommandQueue()!
         )
@@ -338,11 +338,3 @@ public extension Bundle {
 #if !SWIFT_PACKAGE || BAZEL_BUILD
 class BundleToken {}
 #endif
-
-public protocol CommandBuffer {
-    
-}
-
-public protocol DrawCommandBuffer {
-    
-}

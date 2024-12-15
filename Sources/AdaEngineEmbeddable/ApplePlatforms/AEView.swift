@@ -53,8 +53,9 @@ public final class AEView: MetalView {
     }
     
     deinit {
-        // We should destroy renderable view to avoid unpredictable behaviour.
-        try! RenderEngine.shared.destroyWindow(self.engineWindow.id)
+        Task.detached { @MainActor in
+            try! RenderEngine.shared.destroyWindow(self.engineWindow.id)
+        }
     }
 }
 

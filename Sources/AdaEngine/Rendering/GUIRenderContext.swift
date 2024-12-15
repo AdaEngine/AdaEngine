@@ -27,7 +27,8 @@ public struct UIGraphicsContext {
     public var environment: EnvironmentValues = EnvironmentValues()
 
     // Used for internal and debug values.
-    @_spi(AdaEngineEditor) public var _environment: EnvironmentValues = EnvironmentValues()
+    @_spi(AdaEngineEditor) 
+    public var _environment: EnvironmentValues = EnvironmentValues()
 
     private var viewMatrix: Transform3D = .identity
 

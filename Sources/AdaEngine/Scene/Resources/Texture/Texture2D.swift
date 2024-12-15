@@ -29,7 +29,7 @@ open class Texture2D: Texture {
             samplerDescription: samplerDescription ?? image.samplerDescription
         )
 
-        let device = RenderEngine.shared.createLocalRenderDevice()
+        let device = RenderEngine.shared.createLocalRenderingDevice()
         let gpuTexture = device.createTexture(from: descriptor)
         let sampler = device.createSampler(from: descriptor.samplerDescription)
 
@@ -41,7 +41,7 @@ open class Texture2D: Texture {
     }
     
     public init(descriptor: TextureDescriptor) {
-        let device = RenderEngine.shared.createLocalRenderDevice()
+        let device = RenderEngine.shared.createLocalRenderingDevice()
         let gpuTexture = device.createTexture(from: descriptor)
         let sampler = device.createSampler(from: descriptor.samplerDescription)
 
