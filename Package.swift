@@ -21,7 +21,7 @@ let isVulkanEnabled = false
 let isVulkanEnabled = true
 #endif
 
-let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
+let useLocalDeps = true// ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
@@ -146,7 +146,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "libpng",
     "SPIRV-Cross",
     "SPIRVCompiler",
-    .product(name: "box2d", package: "box2d-swift"),
+    "box2d",
     "AdaEngineMacros"
 ]
 
@@ -282,21 +282,34 @@ package.dependencies += [
 
 if useLocalDeps {
     package.dependencies += [
-        .package(path: "../box2d-swift"),
+        .package(path: "../box2d"),
         .package(path: "../msdf-atlas-gen"),
         .package(path: "../SPIRV-Cross"),
         .package(path: "../glslang"),
         .package(path: "../miniaudio"),
         .package(path: "../libpng"),
+
+//        .package(path: "../swift-collections"),
+//        .package(path: "../Yams"),
+//        .package(path: "../swift-log"),
+//        .package(path: "../swift-docc-plugin"),
+//        .package(path: "../swift-syntax")
     ]
 } else {
     package.dependencies += [
+        .package(url: "https://github.com/apple/swift-collections", from: "1.1.1"),
+        .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
+        .package(url: "https://github.com/apple/swift-log", from: "1.5.4"),
+        // Plugins
+        .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
+        .package(url: "https://github.com/swiftlang/swift-syntax", from: "510.0.2"),
+
         .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "main"),
         .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
         .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
         .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
         .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
-        .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
+        .package(url: "https://github.com/AdaEngine/libpng", branch: "main")
     ]
 }
 

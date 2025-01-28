@@ -39,3 +39,5 @@ Derived/
 # Compiled Shaders
 
 /Sources/AdaEngine/Rendering/Shaders/*.spv
+
+/LocalDeps/

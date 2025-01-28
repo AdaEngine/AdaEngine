@@ -37,7 +37,7 @@ public struct CollisionFilter: Codable {
 /// A bitmask used to define the collision group to which an entity belongs.
 public struct CollisionGroup: OptionSet, Codable {
     
-    public var rawValue: UInt16
+    public var rawValue: UInt64
     
     /// Creates an empty option set.
     public init() {
@@ -45,7 +45,7 @@ public struct CollisionGroup: OptionSet, Codable {
     }
     
     /// Creates a collision group from a raw value.
-    public init(rawValue: UInt16) {
+    public init(rawValue: UInt64) {
         self.rawValue = rawValue
     }
     

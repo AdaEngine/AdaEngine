@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 2/26/23.
 //
 
+import box2d
+
 @Component
 struct ExctractedPhysicsMesh2DDebug {
     let entityId: Entity.ID
@@ -62,31 +64,33 @@ public struct DebugPhysicsExctract2DSystem: System {
                 continue
             }
             
-            let fixtureList = body.getFixtureList()
+            let shapes = body.getShapes()
             let emptyEntity = EmptyEntity()
             let bodyPosition = Vector3(body.getPosition(), 0)
-            switch fixtureList.type {
-            case .circle:
-                let radius = fixtureList.shape.getRadius()
-                emptyEntity.components += ExctractedPhysicsMesh2DDebug(
-                    entityId: entity.id,
-                    mesh: self.quadMesh,
-                    material: self.circleMaterial,
-                    transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(radius))
-                )
-            case .polygon:
-                guard let mesh = body.debugMesh else {
+            for shape in shapes {
+                switch shape.type {
+//                case b2_circleShape:
+//                    let radius = shape.getRadius()
+//                    emptyEntity.components += ExctractedPhysicsMesh2DDebug(
+//                        entityId: entity.id,
+//                        mesh: self.quadMesh,
+//                        material: self.circleMaterial,
+//                        transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(radius))
+//                    )
+                case b2_polygonShape:
+                    guard let mesh = body.debugMesh else {
+                        continue
+                    }
+
+                    emptyEntity.components += ExctractedPhysicsMesh2DDebug(
+                        entityId: entity.id,
+                        mesh: mesh,
+                        material: self.colorMaterial,
+                        transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(1))
+                    )
+                default:
                     continue
                 }
-                
-                emptyEntity.components += ExctractedPhysicsMesh2DDebug(
-                    entityId: entity.id,
-                    mesh: mesh,
-                    material: self.colorMaterial,
-                    transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(1))
-                )
-            default:
-                continue
             }
 
             Application.shared.renderWorld.addEntity(emptyEntity)
