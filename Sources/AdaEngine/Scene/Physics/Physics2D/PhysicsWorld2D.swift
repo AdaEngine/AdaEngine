@@ -17,7 +17,7 @@ public final class PhysicsWorld2D: Codable {
         case gravity
     }
     
-    public var velocityIterations: Int = 6
+    public var velocityIterations: Int = 4
     public var positionIterations: Int = 2
     
     /// Contains world gravity.
@@ -114,6 +114,11 @@ public final class PhysicsWorld2D: Codable {
             delta, /* timeStep */
             Int32(self.velocityIterations) /* velocityIterations */
         )
+    }
+
+    func debugDraw(with definitions: b2DebugDraw) {
+        var definitions = definitions
+        b2World_Draw(worldId, &definitions)
     }
 
     func processContacts() {

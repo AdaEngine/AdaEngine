@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 2/26/23.
 //
 
-import box2d
+@_implementationOnly import box2d
 
 @Component
 struct ExctractedPhysicsMesh2DDebug {
@@ -96,11 +96,114 @@ public struct DebugPhysicsExctract2DSystem: System {
             Application.shared.renderWorld.addEntity(emptyEntity)
         }
     }
-    
+
+//    public func update(context: UpdateContext) {
+//        guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
+//            return
+//        }
+//
+//        guard let world = context.scene.physicsWorld2D else {
+//            return
+//        }
+//
+//        self.colorMaterial.color = context.scene.debugPhysicsColor
+//        self.circleMaterial.color = context.scene.debugPhysicsColor
+//
+//        let drawContext = WorldDebugDrawContext(colorMaterial: self.colorMaterial)
+//
+//        var debugDraw = b2DefaultDebugDraw()
+//        debugDraw.DrawPolygon = DebugPhysicsExctract2DSystem_DrawPolygon
+//        debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
+//        debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
+//        debugDraw.drawShapes = true
+//        world.debugDraw(with: debugDraw)
+//
+//        for item in drawContext.debugItems {
+//            let emptyEntity = EmptyEntity()
+//            emptyEntity.components += item
+//            Application.shared.renderWorld.addEntity(emptyEntity)
+//        }
+//    }
+
     @MainActor private func getRuntimeBody(from entity: Entity) -> Body2D? {
         return entity.components[PhysicsBody2DComponent.self]?.runtimeBody
         ?? entity.components[Collision2DComponent.self]?.runtimeBody
     }
+}
+
+///// Draw a closed polygon provided in CCW order.
+//void ( *DrawPolygon )( const b2Vec2* vertices, int vertexCount, b2HexColor color, void* context );
+//
+///// Draw a solid closed polygon provided in CCW order.
+//void ( *DrawSolidPolygon )( b2Transform transform, const b2Vec2* vertices, int vertexCount, float radius, b2HexColor color,
+//                            void* context );
+//
+///// Draw a circle.
+//void ( *DrawCircle )( b2Vec2 center, float radius, b2HexColor color, void* context );
+//
+///// Draw a solid circle.
+//void ( *DrawSolidCircle )( b2Transform transform, float radius, b2HexColor color, void* context );
+//
+///// Draw a solid capsule.
+//void ( *DrawSolidCapsule )( b2Vec2 p1, b2Vec2 p2, float radius, b2HexColor color, void* context );
+//
+///// Draw a line segment.
+//void ( *DrawSegment )( b2Vec2 p1, b2Vec2 p2, b2HexColor color, void* context );
+//
+///// Draw a transform. Choose your own length scale.
+//void ( *DrawTransform )( b2Transform transform, void* context );
+//
+///// Draw a point.
+//void ( *DrawPoint )( b2Vec2 p, float size, b2HexColor color, void* context );
+//
+///// Draw a string in world space
+//void ( *DrawString )( b2Vec2 p, const char* s, b2HexColor color, void* context );
+
+private final class WorldDebugDrawContext {
+    let colorMaterial: CustomMaterial<ColorCanvasMaterial>
+    let entityId: Entity.ID
+    var debugItems: [ExctractedPhysicsMesh2DDebug] = []
+
+    init(colorMaterial: CustomMaterial<ColorCanvasMaterial>) {
+        self.entityId = RID().id
+        self.colorMaterial = colorMaterial
+    }
+}
+
+private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
+    _ transform: b2Transform,
+    _ verticies: UnsafePointer<b2Vec2>?,
+    _ vertexCount: Int32,
+    _ radius: Float,
+    _ color: b2HexColor,
+    _ context: UnsafeMutableRawPointer?
+) {
+    guard let verticies else {
+        return
+    }
+    let debugContext = Unmanaged<WorldDebugDrawContext>.fromOpaque(context!).takeUnretainedValue()
+    debugContext.colorMaterial.color = .green
+    let vertices = (0..<vertexCount).map { index in
+        let vertex = verticies[Int(index)]
+        return Vector3(x: vertex.x, y: vertex.y, z: 0)
+    }
+    var meshDesc = MeshDescriptor(name: "FixtureMesh")
+    meshDesc.positions = MeshBuffer(vertices)
+    // FIXME: We should support 8 vertices
+    meshDesc.indicies = [
+        0, 1, 2, 2, 3, 0
+    ]
+    meshDesc.primitiveTopology = .lineStrip
+    let mesh = Mesh.generate(from: [meshDesc])
+    let debugItem = ExctractedPhysicsMesh2DDebug(
+        entityId: debugContext.entityId,
+        mesh: mesh,
+        material: debugContext.colorMaterial,
+        transform: Transform3D(
+            translation: Vector3(transform.p.asVector2, 0), rotation: .identity, scale: Vector3(1)
+        )
+    )
+    debugContext.debugItems.append(debugItem)
 }
 
 /// System for rendering debug physics shape on top of the scene.

@@ -27,21 +27,6 @@ public final class Body2D {
     deinit {
         self.world.destroyBody(self)
     }
-    
-    // FIXME: Should support multiple meshes inside
-//    func addFixture(for fixtureDef: b2FixtureDef) {
-//        var fixture = fixtureDef
-//        self.ref.CreateFixture(&fixture)
-//        self.debugMesh = self.getFixtureList().getMesh()
-//    }
-    
-//    func getFixtureList() -> FixtureList {
-//        guard let list = self.ref.GetFixtureList() else {
-//            fatalError("Failed to get fixture list")
-//        }
-//        
-//        return FixtureList(list: list)
-//    }
 
     @discardableResult
     func appendPolygonShape(
@@ -54,7 +39,9 @@ public final class Body2D {
             }
         }
 
-        return BoxShape2D(shape: shapeId)
+        let shape = BoxShape2D(shape: shapeId)
+        self.debugMesh = shape.getMesh()
+        return shape
     }
 
     var shapesCount: Int32 {
@@ -62,30 +49,26 @@ public final class Body2D {
     }
 
     func getShapes() -> [BoxShape2D] {
-        return Array<b2ShapeId>(unsafeUninitializedCapacity: Int(shapesCount)) { buffer, initializedCount in
-            b2Body_GetShapes(bodyId, buffer.baseAddress, Int32(initializedCount))
-        }.map {
+        let shapes = UnsafeMutablePointer<b2ShapeId>.allocate(capacity: Int(shapesCount))
+        b2Body_GetShapes(bodyId, shapes, shapesCount)
+        return Array(UnsafeBufferPointer(start: shapes, count: Int(shapesCount))).map {
             BoxShape2D(shape: $0)
         }
     }
 
     var massData: b2MassData {
-        get {
-            return b2Body_GetMassData(bodyId)
-        }
-        
-        set {
-            b2Body_SetMassData(bodyId, newValue)
-        }
+        get { b2Body_GetMassData(bodyId) }
+        set { b2Body_SetMassData(bodyId, newValue) }
     }
     
     func getPosition() -> Vector2 {
         b2Body_GetPosition(bodyId).asVector2
     }
 
-    // FIXME: Not correct
     func getAngle() -> Angle {
-        Angle.radians(b2Body_GetRotation(bodyId).c)
+        Angle.radians(
+            b2Rot_GetAngle(b2Body_GetRotation(bodyId))
+        )
     }
     
     func getLinearVelocity() -> Vector2 {
@@ -144,73 +127,6 @@ public final class Body2D {
     }
 }
 
-public struct Body2DDefinition {
-    public var bodyMode: PhysicsBodyMode = .static
-    public var position: Vector2 = .zero
-    public var angle: Float = 0
-    public var gravityScale: Float = 1
-    public var linearVelocity: Vector2 = .zero
-    
-    public var angularVelocity: Float = 0
-    public var linearDamping: Float = 0.01
-    public var angularDamping: Float = 0.05
-    public var allowSleep: Bool = true
-    public var awake: Bool = true
-    public var fixedRotation: Bool = false
-    public var bullet: Bool = false
-    public var isEnabled = true
-}
-
-//class FixtureList {
-//    
-//    let list: b2Fixture
-//
-//    init(list: b2Fixture) {
-//        self.list = list
-//    }
-//    
-//    var filterData: b2Filter {
-//        get {
-//            return list.GetFilterData().pointee
-//        }
-//        
-//        set {
-//            list.SetFilterData(newValue)
-//        }
-//    }
-//    
-//    var body: b2BodyId {
-////        return self.list.GetBody()
-//    }
-//    
-//    var shape: BoxShape2D {
-//        return BoxShape2D(shape: list.GetShape())
-//    }
-//    
-//    var type: Box2DShapeType {
-//        
-//        return Box2DShapeType(rawValue: list.GetType().rawValue)!
-//    }
-//    
-//    func getMesh() -> Mesh? {
-//        guard self.type == .polygon else {
-//            return nil
-//        }
-//        
-//        let vertices = self.shape.getPolygonVertices().map { Vector3($0, 0) }
-//        var meshDesc = MeshDescriptor(name: "FixtureMesh")
-//        
-//        meshDesc.positions = MeshBuffer(vertices)
-//        // FIXME: We should support 8 vertices
-//        meshDesc.indicies = [
-//            0, 1, 2, 2, 3, 0
-//        ]
-//        meshDesc.primitiveTopology = .lineStrip
-//        
-//        return Mesh.generate(from: [meshDesc])
-//    }
-//}
-
 final class BoxShape2D {
 
     private let shape: b2ShapeId
@@ -248,6 +164,23 @@ final class BoxShape2D {
 
     func getMaterial() -> Int32 {
         b2Shape_GetMaterial(shape)
+    }
+
+    func getMesh() -> Mesh? {
+        guard self.type == b2_polygonShape else {
+            return nil
+        }
+        let polygon = b2Shape_GetPolygon(shape)
+        let vertices = [b2Vec2].fromTuple(polygon.vertices).map { Vector3($0.x, $0.y, 0) }
+        var meshDesc = MeshDescriptor(name: "FixtureMesh")
+        meshDesc.positions = MeshBuffer(vertices)
+        // FIXME: We should support 8 vertices
+        meshDesc.indicies = [
+            0, 1, 2, 2, 3, 0
+        ]
+        meshDesc.primitiveTopology = .lineStrip
+
+        return Mesh.generate(from: [meshDesc])
     }
 
     func setMaterial(_ material: Int32) {
