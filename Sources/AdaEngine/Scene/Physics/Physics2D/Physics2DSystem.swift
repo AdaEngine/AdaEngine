@@ -105,7 +105,7 @@ public final class Physics2DSystem: System {
                     if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
                          filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
 
-                        var filter = b2Filter()
+                        var filter = b2DefaultFilter()
                         filter.categoryBits = collisionFilter.categoryBitMask.rawValue
                         filter.maskBits = collisionFilter.collisionBitMask.rawValue
                         shape.filter = filter
@@ -156,7 +156,7 @@ public final class Physics2DSystem: System {
                     if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
                          filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
 
-                        var filter = b2Filter()
+                        var filter = b2DefaultFilter()
                         filter.categoryBits = collisionFilter.categoryBitMask.rawValue
                         filter.maskBits = collisionFilter.collisionBitMask.rawValue
                         shape.filter = filter
