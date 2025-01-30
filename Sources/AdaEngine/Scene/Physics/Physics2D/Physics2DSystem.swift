@@ -48,6 +48,7 @@ public final class Physics2DSystem: System {
         if result.isFixedTick {
             world.updateSimulation(result.fixedTime)
             world.processContacts()
+            world.processSensors()
         }
         
         self.updatePhysicsBodyEntities(physicsBody, in: world)

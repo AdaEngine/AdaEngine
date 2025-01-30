@@ -140,6 +140,16 @@ final class BoxShape2D {
         b2Shape_GetBody(shape)
     }
 
+    @inline(__always)
+    var isValid: Bool {
+        b2Shape_IsValid(shape)
+    }
+
+    @inline(__always)
+    var isSensor: Bool {
+        b2Shape_IsSensor(shape)
+    }
+
     var body: Body2D? {
         guard let ptr = b2Body_GetUserData(bodyId) else {
             return nil
