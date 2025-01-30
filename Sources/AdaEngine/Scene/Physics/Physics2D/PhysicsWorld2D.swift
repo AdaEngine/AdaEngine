@@ -140,6 +140,20 @@ public final class PhysicsWorld2D: Codable {
         }
     }
 
+    func processSensors() {
+        let sensorEvents = b2World_GetSensorEvents(self.worldId)
+
+        for index in 0..<sensorEvents.beginCount {
+            let contact = sensorEvents.beginEvents[Int(index)]
+            onSensorBeginContact(contact)
+        }
+
+        for index in 0..<sensorEvents.endCount {
+            let contact = sensorEvents.endEvents[Int(index)]
+            onSensorEndContact(contact)
+        }
+    }
+
     func destroyBody(_ body: Body2D) {
         b2DestroyBody(body.bodyId)
     }
@@ -158,7 +172,49 @@ public final class PhysicsWorld2D: Codable {
 }
 
 private extension PhysicsWorld2D {
-    
+
+    private func onSensorBeginContact(_ contact: b2SensorBeginTouchEvent) {
+        let shapeIdA = BoxShape2D(shape: contact.sensorShapeId)
+        let shapeIdB = BoxShape2D(shape: contact.visitorShapeId)
+        let bodyA = shapeIdA.body
+        let bodyB = shapeIdB.body
+
+        guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
+            return
+        }
+
+        let event = CollisionEvents.Began(
+            entityA: entityA,
+            entityB: entityB,
+            impulse: 0
+        )
+
+        self.scene?.eventManager.send(event)
+    }
+
+    private func onSensorEndContact(_ contact: b2SensorEndTouchEvent) {
+        let shapeIdA = BoxShape2D(shape: contact.sensorShapeId)
+        let shapeIdB = BoxShape2D(shape: contact.visitorShapeId)
+
+        guard shapeIdA.isValid && shapeIdB.isValid else {
+            return
+        }
+
+        let bodyA = shapeIdA.body
+        let bodyB = shapeIdB.body
+
+        guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
+            return
+        }
+
+        let event = CollisionEvents.Ended(
+            entityA: entityA,
+            entityB: entityB
+        )
+
+        self.scene?.eventManager.send(event)
+    }
+
     private func onBeginContact(_ contact: b2ContactBeginTouchEvent) {
         let shapeIdA = BoxShape2D(shape: contact.shapeIdA)
         let shapeIdB = BoxShape2D(shape: contact.shapeIdB)
@@ -181,6 +237,10 @@ private extension PhysicsWorld2D {
     private func onEndContact(_ contact: b2ContactEndTouchEvent) {
         let shapeIdA = BoxShape2D(shape: contact.shapeIdA)
         let shapeIdB = BoxShape2D(shape: contact.shapeIdB)
+
+        guard shapeIdA.isValid && shapeIdB.isValid else {
+            return
+        }
 
         let bodyA = shapeIdA.body
         let bodyB = shapeIdB.body
