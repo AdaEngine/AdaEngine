@@ -15,7 +15,7 @@ gazelle_binary(
         "@bazel_skylib_gazelle_plugin//bzl",
         "@rules_swift_package_manager//gazelle",
     ],
-    visibility = ["//:__subpackages__"]
+    visibility = ["//:__subpackages__"],
 )
 
 gazelle(
@@ -38,6 +38,11 @@ alias(
     actual = "//bazel/swiftpm:update_pkgs_to_latest",
 )
 
+alias(
+    name = "gen-xcodeproj",
+    actual = "//utils/bazel:xcodeproj",
+)
+
 # Config settings
 
 config_setting(
@@ -57,31 +62,31 @@ config_setting(
 swift_defines = select({
     "@platforms//os:macos": [
         "MACOS",
-        "METAL"
+        "METAL",
     ],
     "@platforms//os:ios": [
         "IOS",
-        "METAL"
+        "METAL",
     ],
     "@platforms//os:tvos": [
         "TVOS",
-        "METAL"
+        "METAL",
     ],
     "@platforms//os:windows": [
         "WINDOWS",
-        "VULKAN"
+        "VULKAN",
     ],
     "@platforms//os:linux": [
         "LINUX",
-        "VULKAN"
+        "VULKAN",
     ],
     "@platforms//os:android": [
         "ANDROID",
-        "VULKAN"
+        "VULKAN",
     ],
     "//conditions:default": [],
 }) + [
-    "BAZEL_BUILD"
+    "BAZEL_BUILD",
 ]
 
 ada_editor_defines = select({
@@ -117,7 +122,7 @@ ada_engine_deps = [
     ":SPIRVCompiler",
     "@swiftpkg_box2d_swift//:box2d",
     "@swiftpkg_swift_log//:Logging",
-    ":MiniAudioBindings"
+    ":MiniAudioBindings",
 ]
 
 # C & CXX Libraries
@@ -139,43 +144,46 @@ cc_ada_library(
 # Swift Libraries
 
 swift_ada_library(
-    name = "Math"
+    name = "Math",
 )
 
 swift_compiler_plugin(
     name = "AdaEngineMacros",
     srcs = glob(["Sources/AdaEngineMacros/*.swift"]),
+    visibility = ["//visibility:public"],
     deps = [
         "@SwiftSyntax//:SwiftCompilerPlugin_opt",
         "@SwiftSyntax//:SwiftSyntaxBuilder_opt",
         "@SwiftSyntax//:SwiftSyntaxMacros_opt",
     ],
-    visibility = ["//visibility:public"]
 )
 
 swift_ada_library(
     name = "AdaEngine",
+    copts = [
+        "-cxx-interoperability-mode=default",
+    ],
     data = [
         "Sources/AdaEngine/Assets/Fonts",
         "Sources/AdaEngine/Assets/Shaders",
     ],
     defines = swift_defines,
-    deps = ada_engine_deps,
     plugins = [":AdaEngineMacros"],
-    copts = [
-        "-cxx-interoperability-mode=default"
-    ]
+    deps = ada_engine_deps,
 )
 
 swift_ada_library(
     name = "AdaEngineEmbeddable",
     deps = [
         ":AdaEngine",
-    ]
+    ],
 )
 
 swift_ada_library(
     name = "AdaEditor",
+    copts = [
+        "-cxx-interoperability-mode=default",
+    ],
     data = [
         "Sources/AdaEditor/Assets",
     ],
@@ -189,16 +197,13 @@ swift_ada_library(
         ":AdaEngine",
         ":Math",
     ],
-    copts = [
-        "-cxx-interoperability-mode=default"
-    ]
 )
 
 cc_ada_library(
     name = "MiniAudioBindings",
     deps = [
-        "@miniaudio"
-    ]
+        "@miniaudio",
+    ],
 )
 
 swift_test(
@@ -206,7 +211,7 @@ swift_test(
     srcs = glob(["Tests/AdaEngineTests/**/*.swift"]),
     deps = [
         ":AdaEngine",
-    ]
+    ],
 )
 
 swift_test(
@@ -214,7 +219,7 @@ swift_test(
     srcs = glob(["Tests/MathTests/**/*.swift"]),
     deps = [
         ":Math",
-    ]
+    ],
 )
 
 # Platform specific builds
@@ -226,18 +231,19 @@ macos_application(
     minimum_os_version = "14.0",
     deps = [
         ":AdaEditor",
-    ]
+    ],
 )
 
 ios_application(
     name = "AdaEditor-ios",
     bundle_id = "org.adaengine.AdaEditor-ios",
     families = [
-       "iphone", "ipad",
+        "iphone",
+        "ipad",
     ],
     infoplists = ["Sources/AdaEditor/Platforms/iOS/Info.plist"],
     minimum_os_version = "16.0",
     deps = [
         ":AdaEditor",
-    ]
+    ],
 )

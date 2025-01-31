@@ -114,16 +114,14 @@ public final class Body2D {
     /// - Returns: The world velocity of a point or zero if entity not attached to Physics2DWorld.
     
     func getLinearVelocityFromWorldPoint(_ worldPoint: Vector2) -> Vector2 {
-        b2Body_GetLinearVelocity(bodyId).asVector2
-//        return self.ref.GetLinearVelocityFromWorldPoint(worldPoint.b2Vec).asVector2
+        return b2Body_GetWorldPointVelocity(bodyId, worldPoint.b2Vec).asVector2
     }
     
     /// Get the world velocity of a local point.
     /// - Parameter localPoint: point in local coordinates.
     /// - Returns: The world velocity of a point or zero if entity not attached to Physics2DWorld.
     func getLinearVelocityFromLocalPoint(_ localPoint: Vector2) -> Vector2 {
-        return b2Body_GetLinearVelocity(bodyId).asVector2
-//        return self.ref.GetLinearVelocityFromLocalPoint(localPoint.b2Vec).asVector2
+        return b2Body_GetLocalPointVelocity(bodyId, localPoint.b2Vec).asVector2
     }
 }
 

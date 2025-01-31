@@ -76,24 +76,39 @@ public final class PhysicsWorld2D: Codable {
         query: CollisionCastQueryType = .all,
         mask: CollisionGroup = .all
     ) -> [Raycast2DHit] {
-        return []
-//        let callback = _Raycast2DCallback(startPoint: startPoint, endPoint: endPoint, query: query, mask: mask)
-//        
-//        let userData = Unmanaged.passUnretained(callback)
-//        let listenerPointer = UnsafeMutablePointer<SwiftRayCastCallback>.allocate(capacity: 1)
-//        listenerPointer.initialize(to: SwiftRayCastCallback.CreateListener(userData.toOpaque()))
-//        
-//        listenerPointer.pointee.m_ReportFixture = { userData, fixture, point, normal, fraction in
-//            let raycast = Unmanaged<_Raycast2DCallback>.fromOpaque(userData!).takeUnretainedValue()
-//            return raycast.reportFixture(fixture!, point: point, normal: normal, fraction: fraction)
-//        }
-//        
-//        let raycastCallback = UnsafeMutableRawPointer(listenerPointer).assumingMemoryBound(to: b2RayCastCallback.self)
-//        world.RayCast(raycastCallback, startPoint.b2Vec, endPoint.b2Vec)
-//        
-//        listenerPointer.deallocate()
-//        
-//        return callback.results
+        let input = b2RayCastInput(
+            origin: startPoint.b2Vec,
+            translation: (endPoint - startPoint).b2Vec,
+            maxFraction: 1.0)
+
+        switch query {
+        case .first:
+            var filter = b2DefaultQueryFilter()
+            filter.maskBits = mask.rawValue
+
+            let result = b2World_CastRayClosest(
+                worldId,
+                startPoint.b2Vec,
+                (endPoint - startPoint).b2Vec,
+                filter
+            )
+
+            let shape = BoxShape2D(shape: result.shapeId)
+            guard let entity = shape.body?.entity else {
+                return []
+            }
+
+            let distance = (startPoint - endPoint).squaredLength * result.fraction
+
+            return [Raycast2DHit(
+                entity: entity,
+                point: result.point.asVector2,
+                normal: result.normal.asVector2,
+                distance: distance
+            )]
+        case .all:
+            return []
+        }
     }
     
     /// An array of collision cast hit results.
@@ -258,7 +273,7 @@ private extension PhysicsWorld2D {
     }
 
     private func onHitContact(_ contact: b2ContactHitEvent) {
-        
+        // TODO: Not implemented
     }
 }
 
@@ -357,7 +372,7 @@ fileprivate final class _Raycast2DCallback {
         self.query = query
         self.mask = mask
     }
-    
+
 //    func reportFixture(_ fixture: b2Fixture, point: b2Vec2, normal: b2Vec2, fraction: Float) -> Float {
 //        let fixtureBody = fixture.GetBody()!
 //        let userData = fixtureBody.GetUserData().pointee

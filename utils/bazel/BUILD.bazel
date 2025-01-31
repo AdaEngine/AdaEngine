@@ -1,8 +1,9 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load(
     "@rules_xcodeproj//xcodeproj:defs.bzl",
+    "top_level_target",
     "xcode_schemes",
     "xcodeproj",
-    "top_level_target"
 )
 
 # Xcode gen
@@ -20,7 +21,7 @@ xcodeproj(
             ),
             test_action = xcode_schemes.test_action([
                 "//:AdaEngineTests",
-                "//:MathTests"
+                "//:MathTests",
             ]),
         ),
         xcode_schemes.scheme(
@@ -31,7 +32,7 @@ xcodeproj(
             ),
             test_action = xcode_schemes.test_action([
                 "//:AdaEngineTests",
-                "//:MathTests"
+                "//:MathTests",
             ]),
         ),
     ],
@@ -39,10 +40,31 @@ xcodeproj(
     top_level_targets = [
         "//:AdaEditor-macos",
         top_level_target(
-            "//:AdaEditor-ios", 
-            target_environments = ["simulator"]
+            "//:AdaEditor-ios",
+            target_environments = ["simulator"],
         ),
         "//:AdaEngineTests",
-        "//:MathTests"
+        "//:MathTests",
     ],
+    visibility = ["//visibility:public"],
+)
+
+bzl_library(
+    name = "cc_ada_library",
+    srcs = ["cc_ada_library.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+bzl_library(
+    name = "swift_ada_binary",
+    srcs = ["swift_ada_binary.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@build_bazel_rules_swift//swift:swift_binary"],
+)
+
+bzl_library(
+    name = "swift_ada_library",
+    srcs = ["swift_ada_library.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@build_bazel_rules_swift//swift"],
 )
