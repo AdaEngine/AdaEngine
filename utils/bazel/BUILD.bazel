@@ -16,42 +16,36 @@ xcodeproj(
         xcode_schemes.scheme(
             name = "AdaEditor macOS",
             launch_action = xcode_schemes.launch_action(
-                "//:AdaEditor-macos",
+                "//Sources/AdaEditor:AdaEditor-macos",
                 args = [],
             ),
             test_action = xcode_schemes.test_action([
-                "//:AdaEngineTests",
-                "//:MathTests",
+                "//Tests/AdaEngineTests",
+                "//Tests/MathTests",
             ]),
         ),
         xcode_schemes.scheme(
             name = "AdaEditor iOS",
             launch_action = xcode_schemes.launch_action(
-                "//:AdaEditor-ios",
+                "//Sources/AdaEditor:AdaEditor-ios",
                 args = [],
             ),
             test_action = xcode_schemes.test_action([
-                "//:AdaEngineTests",
-                "//:MathTests",
+                "//Tests/AdaEngineTests",
+                "//Tests/MathTests",
             ]),
         ),
     ],
     tags = ["manual"],
     top_level_targets = [
-        "//:AdaEditor-macos",
+        "//Sources/AdaEditor:AdaEditor-macos",
         top_level_target(
-            "//:AdaEditor-ios",
+            "//Sources/AdaEditor:AdaEditor-ios",
             target_environments = ["simulator"],
         ),
-        "//:AdaEngineTests",
-        "//:MathTests",
+        "//Tests/AdaEngineTests",
+        "//Tests/MathTests",
     ],
-    visibility = ["//visibility:public"],
-)
-
-bzl_library(
-    name = "cc_ada_library",
-    srcs = ["cc_ada_library.bzl"],
     visibility = ["//visibility:public"],
 )
 
@@ -65,6 +59,13 @@ bzl_library(
 bzl_library(
     name = "swift_ada_library",
     srcs = ["swift_ada_library.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@build_bazel_rules_swift//swift"],
+)
+
+bzl_library(
+    name = "cc_ada_library",
+    srcs = ["cc_ada_library.bzl"],
     visibility = ["//visibility:public"],
     deps = ["@build_bazel_rules_swift//swift"],
 )

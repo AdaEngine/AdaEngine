@@ -209,7 +209,7 @@ final class BoxShape2D {
         case .box(let shape):
             return b2MakeBox(
                 transform.scale.x * shape.halfWidth,
-                transform.scale.y * shape.halfWidth
+                transform.scale.y * shape.halfHeight
             )
         }
     }
