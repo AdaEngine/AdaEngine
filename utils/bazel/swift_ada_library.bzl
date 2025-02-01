@@ -2,11 +2,11 @@
 
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
 
-def swift_ada_library(name, deps = [], data = [], defines = [], copts = [], linkopts = [], plugins = [], linkstatic = True, testonly = False):
+def swift_ada_library(name, deps = [], data = [], defines = [], copts = [], linkopts = [], plugins = [], linkstatic = True, testonly = False, visibility = ["//visibility:public"]):
     swift_library(
         name = name,
         srcs = native.glob(
-            ["Sources/{}/**/*.swift".format(name)],
+            ["**/*.swift"],
             exclude = ["**/*.docc/**"],
             allow_empty = False,
         ),
@@ -17,5 +17,6 @@ def swift_ada_library(name, deps = [], data = [], defines = [], copts = [], link
         plugins = plugins,
         linkopts = linkopts,
         linkstatic = linkstatic,
-        testonly = testonly
+        testonly = testonly,
+        visibility = visibility
     )

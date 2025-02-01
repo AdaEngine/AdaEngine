@@ -302,21 +302,21 @@ if useLocalDeps {
 
 let disabledStrictConcurrencyTargets = [
 //  "AdaEngine",
-  "AdaEditor",
+    "AdaEditor",
 //  "Math",
-  "AtlasFontGenerator",
-  "SPIRVCompiler",
-  "MiniAudioBindings",
-  "libpng",
-  "SPIRV-Cross",
-  "SPIRVCompiler",
-  "AdaEngineMacros",
-  "SwiftLintPlugin"
+    "AtlasFontGenerator",
+    "SPIRVCompiler",
+    "MiniAudioBindings",
+    "libpng",
+    "SPIRV-Cross",
+    "SPIRVCompiler",
+    "AdaEngineMacros",
+    "SwiftLintPlugin"
 ]
 
 for target in package.targets
-  where !disabledStrictConcurrencyTargets.contains(target.name) && target.type != .binary {
-  var settings = target.swiftSettings ?? []
-  settings.append(.enableExperimentalFeature("StrictConcurrency"))
-  target.swiftSettings = settings
+    where !disabledStrictConcurrencyTargets.contains(target.name) && target.type != .binary {
+    var settings = target.swiftSettings ?? []
+    settings.append(.enableExperimentalFeature("StrictConcurrency"))
+    target.swiftSettings = settings
 }

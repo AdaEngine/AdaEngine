@@ -1,3 +1,5 @@
+common --enable_bzlmod
+
 build --cxxopt='-std=c++17'
 build --features=swift.use_explicit_swift_module_map
 build --host_features=swift.use_explicit_swift_module_map

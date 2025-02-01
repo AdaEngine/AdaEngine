@@ -22,7 +22,6 @@ swift_update_packages(
 
 bzl_library(
     name = "deps",
-    srcs = ["deps.bzl"],
     visibility = ["//visibility:public"],
     deps = ["@rules_swift_package_manager//swiftpkg:defs"],
 )

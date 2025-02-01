@@ -1,0 +1,16 @@
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_test")
+
+swift_test(
+    name = "AdaEngineTests",
+    srcs = [
+        "AdaEngineTests.swift",
+        "TestApplication.swift",
+        "UIWidgetTest/Helpers/ViewTester.swift",
+        "UIWidgetTest/ViewHitTests.swift",
+        "UIWidgetTest/ViewModifiersTests.swift",
+        "UIWidgetTest/ViewStoragesTests.swift",
+        "UIWidgetTest/ViewVisibilityTest.swift",
+    ],
+    module_name = "AdaEngineTests",
+    deps = ["//Sources/Math"],
+)
