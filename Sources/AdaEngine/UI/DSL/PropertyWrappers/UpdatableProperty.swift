@@ -12,7 +12,7 @@ public protocol UpdatableProperty {
 }
 
 protocol PropertyStoragable {
-    var storage: UpdatablePropertyStorage { get }
+    @MainActor var storage: UpdatablePropertyStorage { get }
 }
 
 class UpdatablePropertyStorage {

@@ -65,7 +65,7 @@ public protocol System {
     // MARK: Dependencies
     
     /// An array of dependencies for this system.
-    static var dependencies: [SystemDependency] { get }
+    @MainActor static var dependencies: [SystemDependency] { get }
 }
 
 public extension System {

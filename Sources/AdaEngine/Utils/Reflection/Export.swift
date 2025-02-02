@@ -125,15 +125,15 @@ extension CodingUserInfoKey {
     nonisolated(unsafe) static var editorIntrospection = CodingUserInfoKey(rawValue: "export.editor.introspection")!
 }
 
-public protocol DefaultValue {
+public protocol DefaultValue: Sendable {
     static var defaultValue: Self { get }
 }
 
 /// Annotate property as `@NoExport` if you don't need that a property will be serialized.
 /// ``Encodable`` protocol will ignore that property.
 @propertyWrapper
-public struct NoExport<T: DefaultValue>: Codable {
-    
+public struct NoExport<T: DefaultValue>: Codable, Sendable {
+
     public var wrappedValue: T
     
     public init(wrappedValue: T) {

@@ -26,6 +26,7 @@ public protocol DrawPass<Item> {
     associatedtype Item: RenderItem
     typealias Context = RenderContext
 
+    // TODO: Main Actor?
     @MainActor
     func render(in context: Context, item: Item) throws
 }

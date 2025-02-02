@@ -7,7 +7,7 @@
 
 import Math
 
-public struct Plane: Hashable, Codable {
+public struct Plane: Hashable, Codable, Sendable {
     
     public var normal: Vector3
     public var d: Float

@@ -17,7 +17,7 @@ public struct Viewport: Codable, Equatable {
     }
 }
 
-public struct CameraClearFlags: OptionSet, Codable {
+public struct CameraClearFlags: OptionSet, Codable, Sendable {
     public var rawValue: UInt8
     
     public init(rawValue: UInt8) {
@@ -190,10 +190,10 @@ public extension Camera {
 }
 
 extension Camera {
-    public struct CameraComputedData: DefaultValue {
-        
-        public static var defaultValue: Camera.CameraComputedData = .init()
-        
+    public struct CameraComputedData: DefaultValue, Sendable {
+
+        public static let defaultValue: Camera.CameraComputedData = .init()
+
         public internal(set) var projectionMatrix: Transform3D = .identity
         public internal(set) var viewMatrix: Transform3D = .identity
         public internal(set) var frustum: Frustum = Frustum()
