@@ -292,10 +292,10 @@ extension ViewNode: @preconcurrency Hashable {
 }
 
 protocol ViewOwner: AnyObject {
-    var window: UIWindow? { get }
-    var containerView: UIView? { get }
+    @MainActor var window: UIWindow? { get }
+    @MainActor var containerView: UIView? { get }
 
-    func updateEnvironment(_ env: EnvironmentValues)
+    @MainActor func updateEnvironment(_ env: EnvironmentValues)
 }
 
 extension UIGraphicsContext {

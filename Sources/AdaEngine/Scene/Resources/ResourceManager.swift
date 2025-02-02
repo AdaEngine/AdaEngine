@@ -29,7 +29,7 @@ public enum ResourceError: LocalizedError {
 /// If resource was loaded to memory, you recive reference to this resource.
 public final class ResourceManager {
 
-    private static var resourceDirectory: URL!
+    nonisolated(unsafe) private static var resourceDirectory: URL!
 
     private static let resKeyWord = "@res:"
 
@@ -168,7 +168,7 @@ public final class ResourceManager {
     public static func preload<R: Resource>(
         _ resourceType: R.Type,
         at path: String,
-        completion: ((Result<Void, Error>) -> Void)?
+        completion: (@Sendable (Result<Void, Error>) -> Void)?
     ) {
         loadAsync(resourceType, at: path) { result in
             completion?(result.map({ _ in return }))
@@ -179,7 +179,7 @@ public final class ResourceManager {
     public static func loadAsync<R: Resource>(
         _ resourceType: R.Type,
         at path: String,
-        completion: @escaping (Result<R, Error>) -> Void
+        completion: @escaping @Sendable (Result<R, Error>) -> Void
     ) {
         Task(priority: .background) {
             do {

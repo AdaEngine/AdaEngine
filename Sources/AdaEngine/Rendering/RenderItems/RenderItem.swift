@@ -7,7 +7,7 @@
 
 /// An object that store render items for rendering.
 @Component
-public struct RenderItems<T: RenderItem> {
+public struct RenderItems<T: RenderItem>: Sendable {
     public var items: [T]
     
     public init(items: [T] = []) {
@@ -44,7 +44,7 @@ public struct RenderItems<T: RenderItem> {
     }
 }
 
-public protocol RenderItem {
+public protocol RenderItem: Sendable {
     associatedtype SortKey: Comparable
     
     var entity: Entity { get }

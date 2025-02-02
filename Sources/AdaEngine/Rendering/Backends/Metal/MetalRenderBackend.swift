@@ -8,7 +8,7 @@
 // TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
 #if METAL
-import Metal
+@preconcurrency import Metal
 import ModelIO
 import MetalKit
 import OrderedCollections
@@ -343,6 +343,6 @@ public protocol CommandBuffer {
     
 }
 
-public protocol DrawCommandBuffer {
+public protocol DrawCommandBuffer: Sendable {
     
 }

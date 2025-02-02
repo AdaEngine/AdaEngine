@@ -6,6 +6,7 @@
 //
 
 @_implementationOnly import box2d
+import Math
 
 @Component
 struct ExctractedPhysicsMesh2DDebug {

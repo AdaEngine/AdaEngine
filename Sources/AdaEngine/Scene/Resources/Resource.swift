@@ -100,7 +100,7 @@ public struct ResourceMetaInfo: Codable, Sendable {
 }
 
 /// Contains resource type supported by AdaEngine.
-public enum ResourceType: String {
+public enum ResourceType: String, Sendable {
     case texture = "texres"
     case mesh = "mesh"
     case material = "mat"
