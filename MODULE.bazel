@@ -67,5 +67,5 @@ use_repo(
     "swiftpkg_swift_log",
     "swiftpkg_box2d",
     "swiftpkg_yams",
-    "swiftpkg_swift_docc_plugin"
+    "swiftpkg_spirv_cross"
 )
