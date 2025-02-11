@@ -10,10 +10,16 @@ bazel_dep(
     max_compatibility_level = 2, 
     repo_name = "build_bazel_rules_swift"
 )
+
+single_version_override(
+    module_name = "rules_swift",
+    version = "2.3.0",
+)
+
 bazel_dep(name = "cgrindel_bazel_starlib", version = "0.23.0")
 bazel_dep(name = "rules_apple", version = "3.3.0", repo_name = "build_bazel_rules_apple")
 bazel_dep(name = "apple_support", version = "1.17.1", repo_name = "build_bazel_apple_support")
-bazel_dep(name = "rules_xcodeproj", version = "2.9.2", repo_name = "rules_xcodeproj", dev_dependency = True)
+bazel_dep(name = "rules_xcodeproj", version = "2.10.0", repo_name = "rules_xcodeproj", dev_dependency = True)
 bazel_dep(name = "swift-syntax", version = "600.0.0", repo_name = "SwiftSyntax")
 bazel_dep(name = "zlib", version = "1.3.1")
 bazel_dep(
@@ -28,7 +34,7 @@ bazel_dep(
     repo_name = "bazel_gazelle",
 )
 bazel_dep(name = "swiftlint", version = "0.54.0", repo_name = "SwiftLint")
-bazel_dep(name = "rules_swift_package_manager", version = "0.30.0")
+bazel_dep(name = "rules_swift_package_manager", version = "0.45.0")
 bazel_dep(name = "platforms", version = "0.0.8", dev_dependency = True)
 
 ada_deps_vendor = use_extension(
@@ -43,23 +49,23 @@ use_repo(
     "libpng",
     "miniaudio"
 )
-# swift_deps START
+
 swift_deps = use_extension(
     "@rules_swift_package_manager//:extensions.bzl",
     "swift_deps",
 )
-# swift_deps.from_file(
-#     deps_index = "//bazel/swiftpm:deps_index.json",
-# )
 swift_deps.from_package(
     declare_swift_deps_info = True,
-    resolved = "//bazel/swiftpm:Package.resolved",
-    swift = "//bazel/swiftpm:Package.swift",
+    resolved = "Package.resolved",
+    swift = "Package.swift",
 )
 use_repo(
     swift_deps,
-    "swiftpkg_box2d_swift",
+    "swift_deps_info",
+    "swift_package",
     "swiftpkg_swift_collections",
     "swiftpkg_swift_log",
+    "swiftpkg_box2d",
+    "swiftpkg_yams",
+    "swiftpkg_swift_docc_plugin"
 )
-# swift_deps END

@@ -6,7 +6,7 @@ def swift_ada_binary(name, deps = [], data = [], defines = [], copts = [], testo
     swift_binary(
         name = name,
         srcs = native.glob(
-            ["Sources/{}/**/*.swift".format(name)],
+            ["**/*.swift".format(name)],
             exclude = ["**/*.docc/**"],
             allow_empty = False,
         ),
