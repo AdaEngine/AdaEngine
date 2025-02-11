@@ -54,7 +54,8 @@ ada_editor_defines = select({
 
 ada_engine_deps = [
     "@libpng",
-    "@SPIRV-Cross",
+    # "@SPIRV-Cross",
+    "@swiftpkg_spirv_cross//:SPIRV-Cross",
     "@swiftpkg_swift_collections//:Collections",
     "@swiftpkg_swift_collections//:BitCollections",
     "@swiftpkg_box2d//:box2d",
