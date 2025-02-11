@@ -20,8 +20,8 @@ xcodeproj(
                 args = [],
             ),
             test_action = xcode_schemes.test_action([
-                "//Tests/AdaEngineTests",
-                "//Tests/MathTests",
+                "//Tests/AdaEngineTests:AdaEngineTests",
+                "//Tests/MathTests:MathTests",
             ]),
         ),
         xcode_schemes.scheme(
@@ -31,8 +31,8 @@ xcodeproj(
                 args = [],
             ),
             test_action = xcode_schemes.test_action([
-                "//Tests/AdaEngineTests",
-                "//Tests/MathTests",
+                "//Tests/AdaEngineTests:AdaEngineTests",
+                "//Tests/MathTests:MathTests",
             ]),
         ),
     ],
@@ -43,8 +43,8 @@ xcodeproj(
             "//Sources/AdaEditor:AdaEditor-ios",
             target_environments = ["simulator"],
         ),
-        "//Tests/AdaEngineTests",
-        "//Tests/MathTests",
+        "//Tests/AdaEngineTests:AdaEngineTests",
+        "//Tests/MathTests:MathTests",
     ],
     visibility = ["//visibility:public"],
 )

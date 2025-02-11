@@ -1,8 +1,6 @@
 load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin")
 load("@cgrindel_bazel_starlib//bzltidy:defs.bzl", "tidy")
-load("//utils/bazel:cc_ada_library.bzl", "cc_ada_library")
-load("//utils/bazel:swift_ada_library.bzl", "swift_ada_library")
 
 package(default_visibility = ["//visibility:public"])
 

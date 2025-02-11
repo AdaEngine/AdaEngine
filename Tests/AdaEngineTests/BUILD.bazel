@@ -13,4 +13,5 @@ swift_test(
     ],
     module_name = "AdaEngineTests",
     deps = ["//Sources/Math"],
+    visibility = ["//visibility:public"]
 )

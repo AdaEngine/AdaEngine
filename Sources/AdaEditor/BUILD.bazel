@@ -94,7 +94,7 @@ swift_ada_library(
 macos_application(
     name = "AdaEditor-macos",
     bundle_id = "org.adaengine.AdaEditor-macos",
-    infoplists = ["Sources/AdaEditor/Platforms/macOS/Info.plist"],
+    infoplists = ["Platforms/macOS/Info.plist"],
     minimum_os_version = "14.0",
     visibility = ["//visibility:public"],
     deps = [
@@ -109,7 +109,7 @@ ios_application(
         "iphone",
         "ipad",
     ],
-    infoplists = ["Sources/AdaEditor/Platforms/iOS/Info.plist"],
+    infoplists = ["Platforms/iOS/Info.plist"],
     minimum_os_version = "16.0",
     visibility = ["//visibility:public"],
     deps = [
