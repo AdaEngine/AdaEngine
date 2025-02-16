@@ -1,0 +1,12 @@
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+swift_library(
+    name = "Engine",
+    srcs = [
+        "EngineView.swift",
+        "GameScene.swift",
+    ],
+    module_name = "Engine",
+    visibility = ["//visibility:public"],
+    deps = ["//Sources/AdaEngineEmbeddable"],
+)

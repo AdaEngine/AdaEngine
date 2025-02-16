@@ -1,8 +1,11 @@
+common --enable_bzlmod
+
 build --cxxopt='-std=c++17'
 build --features=swift.use_explicit_swift_module_map
 build --host_features=swift.use_explicit_swift_module_map
 build --host_macos_minimum_os=13.0
 build --macos_minimum_os=13.0
+build --action_env=PATH
 
 build:macos --apple_crosstool_top=@local_config_apple_cc//:toolchain
 build:macos --crosstool_top=@local_config_apple_cc//:toolchain

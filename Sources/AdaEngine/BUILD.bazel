@@ -1,0 +1,83 @@
+load("//utils/bazel:swift_ada_library.bzl", "swift_ada_library")
+
+swift_defines = select({
+    "@platforms//os:macos": [
+        "MACOS",
+        "METAL",
+    ],
+    "@platforms//os:ios": [
+        "IOS",
+        "METAL",
+    ],
+    "@platforms//os:tvos": [
+        "TVOS",
+        "METAL",
+    ],
+    "@platforms//os:windows": [
+        "WINDOWS",
+        "VULKAN",
+    ],
+    "@platforms//os:linux": [
+        "LINUX",
+        "VULKAN",
+    ],
+    "@platforms//os:android": [
+        "ANDROID",
+        "VULKAN",
+    ],
+    "//conditions:default": [],
+}) + [
+    "BAZEL_BUILD",
+]
+
+ada_editor_defines = select({
+    "@platforms//os:macos": [
+        "EDITOR_MACOS",
+    ],
+    "@platforms//os:ios": [
+        "EDITOR_IOS",
+    ],
+    "@platforms//os:tvos": [
+        "EDITOR_TVOS",
+    ],
+    "@platforms//os:windows": [
+        "EDITOR_WINDOWS",
+    ],
+    "@platforms//os:linux": [
+        "EDITOR_LINUX",
+    ],
+    "@platforms//os:android": [
+        "EDITOR_ANDROID",
+    ],
+    "//conditions:default": [],
+})
+
+ada_engine_deps = [
+    "@libpng",
+    # "@SPIRV-Cross",
+    "@swiftpkg_spirv_cross//:SPIRV-Cross",
+    "@swiftpkg_swift_collections//:Collections",
+    "@swiftpkg_swift_collections//:BitCollections",
+    "@swiftpkg_box2d//:box2d",
+    "@swiftpkg_swift_log//:Logging",
+    "@swiftpkg_yams//:Yams",
+    "//Sources/AtlasFontGenerator:AtlasFontGenerator",
+    "//Sources/SPIRVCompiler",
+    "//Sources/MiniAudioBindings",
+    "//Sources/Math"
+]
+
+swift_ada_library(
+    name = "AdaEngine",
+    copts = [
+        "-cxx-interoperability-mode=default",
+    ],
+    data = [
+        "Assets/Fonts",
+        "Assets/Shaders",
+    ],
+    defines = swift_defines,
+    plugins = ["//Sources/AdaEngineMacros:AdaEngineMacros"],
+    visibility = ["//visibility:public"],
+    deps = ada_engine_deps,
+)

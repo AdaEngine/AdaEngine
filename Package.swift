@@ -146,7 +146,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "libpng",
     "SPIRV-Cross",
     "SPIRVCompiler",
-    .product(name: "box2d", package: "box2d-swift"),
+    "box2d",
     "AdaEngineMacros"
 ]
 
@@ -282,41 +282,41 @@ package.dependencies += [
 
 if useLocalDeps {
     package.dependencies += [
-        .package(path: "../box2d-swift"),
+        .package(path: "../box2d"),
         .package(path: "../msdf-atlas-gen"),
         .package(path: "../SPIRV-Cross"),
         .package(path: "../glslang"),
         .package(path: "../miniaudio"),
-        .package(path: "../libpng"),
+        .package(path: "../libpng")
     ]
 } else {
     package.dependencies += [
-        .package(url: "https://github.com/AdaEngine/box2d-swift", branch: "main"),
+        .package(url: "https://github.com/AdaEngine/box2d", branch: "main"),
         .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
         .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
         .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
         .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
-        .package(url: "https://github.com/AdaEngine/libpng", branch: "main"),
+        .package(url: "https://github.com/AdaEngine/libpng", branch: "main")
     ]
 }
 
 let disabledStrictConcurrencyTargets = [
 //  "AdaEngine",
-  "AdaEditor",
+    "AdaEditor",
 //  "Math",
-  "AtlasFontGenerator",
-  "SPIRVCompiler",
-  "MiniAudioBindings",
-  "libpng",
-  "SPIRV-Cross",
-  "SPIRVCompiler",
-  "AdaEngineMacros",
-  "SwiftLintPlugin"
+    "AtlasFontGenerator",
+    "SPIRVCompiler",
+    "MiniAudioBindings",
+    "libpng",
+    "SPIRV-Cross",
+    "SPIRVCompiler",
+    "AdaEngineMacros",
+    "SwiftLintPlugin"
 ]
 
 for target in package.targets
-  where !disabledStrictConcurrencyTargets.contains(target.name) && target.type != .binary {
-  var settings = target.swiftSettings ?? []
-  settings.append(.enableExperimentalFeature("StrictConcurrency"))
-  target.swiftSettings = settings
+    where !disabledStrictConcurrencyTargets.contains(target.name) && target.type != .binary {
+    var settings = target.swiftSettings ?? []
+    settings.append(.enableExperimentalFeature("StrictConcurrency"))
+    target.swiftSettings = settings
 }

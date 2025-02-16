@@ -96,7 +96,7 @@ public struct PhysicsBody2DComponent {
     /// - Note: Contacts are updated on the next call to of Physics2DWorld.
     public func setPosition(_ position: Vector2, angle: Angle? = nil) {
         let bodyAngle = self.runtimeBody?.getAngle() ?? 0
-        self.runtimeBody?.setTransform(position: position, angle: angle?.radians ?? bodyAngle)
+        self.runtimeBody?.setTransform(position: position, angle: angle ?? bodyAngle)
     }
     
     /// Set the linear velocity of the center of mass.

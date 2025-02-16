@@ -101,3 +101,11 @@ extension FontHandle {
     }
     
 }
+
+extension OpaquePointer {
+
+    // TODO: Should we deallocate it in this place?
+    func deallocate() {
+        UnsafeRawPointer(self).deallocate()
+    }
+}

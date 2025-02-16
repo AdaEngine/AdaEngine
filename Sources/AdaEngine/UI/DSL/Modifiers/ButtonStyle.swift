@@ -77,7 +77,7 @@ public struct DefaultButtonStyle: ButtonStyle {
 }
 
 struct ButtonEnvironmentKey: EnvironmentKey {
-    @MainActor static var defaultValue: any ButtonStyle = DefaultButtonStyle()
+    @MainActor static let defaultValue: any ButtonStyle = DefaultButtonStyle()
 }
 
 extension EnvironmentValues {

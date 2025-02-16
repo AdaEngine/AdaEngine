@@ -1,0 +1,12 @@
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin")
+
+swift_compiler_plugin(
+    name = "AdaEngineMacros",
+    srcs = glob(["*.swift"]),
+    visibility = ["//visibility:public"],
+    deps = [
+        "@SwiftSyntax//:SwiftCompilerPlugin_opt",
+        "@SwiftSyntax//:SwiftSyntaxBuilder_opt",
+        "@SwiftSyntax//:SwiftSyntaxMacros_opt",
+    ],
+)

@@ -17,7 +17,7 @@ public protocol UIMenuBuilder: AnyObject {
 public final class MenuItem: Identifiable {
 
     private static let separatorTitle = "_SEPARATOR_"
-    public static let separator: MenuItem = MenuItem()
+    nonisolated(unsafe) public static let separator: MenuItem = MenuItem()
     
     public let title: String
     /// The menu item’s image.
