@@ -7,6 +7,7 @@
 
 import OrderedCollections
 
+// TODO: Should it be a main actor?
 @MainActor
 public class TileMapLayer: Identifiable {
 

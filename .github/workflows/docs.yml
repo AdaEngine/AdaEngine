@@ -19,7 +19,7 @@ jobs:
       - name: Setup Xcode version
         uses: maxim-lobanov/setup-xcode@v1.6.0
         with:
-          xcode-version: '16.0'
+          xcode-version: '16.2.0'
       - uses: actions/checkout@v2
       - name: Build Documentation
         run: swift package --allow-writing-to-directory ./docs generate-documentation --target AdaEngine --output-path ./docs --transform-for-static-hosting --hosting-base-path adaengine-docs

@@ -1,0 +1,12 @@
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_library")
+
+swift_library(
+    name = "AdaEngineEmbeddable",
+    srcs = [
+        "ApplePlatforms/AEView.swift",
+        "ApplePlatforms/AppleApplication.swift",
+        "ApplePlatforms/AppleWindowManager.swift",
+    ],
+    module_name = "AdaEngineEmbeddable",
+    visibility = ["//visibility:public"],
+)

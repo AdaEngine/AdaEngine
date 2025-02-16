@@ -157,7 +157,6 @@ class _MeshBuffer: Equatable {
         )
         
         self.indicesPointer = UnsafeMutableBufferPointer<UInt32>.allocate(capacity: indices.count)
-        
         _ = self.indicesPointer.initialize(from: indices)
     }
     

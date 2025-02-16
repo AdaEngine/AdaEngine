@@ -16,7 +16,7 @@ import Darwin.C
 /// An object that contains inputs from keyboards, mouse, touch screens and etc.
 public final class Input {
 
-    internal static let shared = Input()
+    nonisolated(unsafe) internal static let shared = Input()
 
     internal var mousePosition: Point = .zero
 

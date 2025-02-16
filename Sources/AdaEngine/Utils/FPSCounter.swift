@@ -9,7 +9,7 @@ import Math
 
 class FPSCounter {
     
-    static let shared = FPSCounter()
+    nonisolated(unsafe) static let shared = FPSCounter()
     
     private var lastNotificationTime: LongTimeInterval = 0
     private var notificationDelay: TimeInterval = 1.0

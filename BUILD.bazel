@@ -1,13 +1,18 @@
 load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
-load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
-load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin", "swift_test")
-load("//utils/bazel:cc_ada_library.bzl", "cc_ada_library")
-load("//utils/bazel:swift_ada_library.bzl", "swift_ada_library")
+load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin")
+load("@cgrindel_bazel_starlib//bzltidy:defs.bzl", "tidy")
 
 package(default_visibility = ["//visibility:public"])
 
+tidy(
+    name = "tidy",
+    targets = [
+        ":update_build_files",
+    ],
+)
+
 # Swift Package Manager
+# gazelle:exclude .build
 
 gazelle_binary(
     name = "gazelle_bin",
@@ -15,13 +20,16 @@ gazelle_binary(
         "@bazel_skylib_gazelle_plugin//bzl",
         "@rules_swift_package_manager//gazelle",
     ],
-    visibility = ["//:__subpackages__"]
+    visibility = ["//:__subpackages__"],
 )
 
 gazelle(
     name = "update_build_files",
-    args = [
-        "-swift_dependency_index=bazel/swiftpm/deps_index.json",
+    data = [
+        "@swift_deps_info//:swift_deps_index",
+    ],
+    extra_args = [
+        "-swift_dependency_index=$(location @swift_deps_info//:swift_deps_index)",
     ],
     gazelle = ":gazelle_bin",
 )
@@ -38,206 +46,7 @@ alias(
     actual = "//bazel/swiftpm:update_pkgs_to_latest",
 )
 
-# Config settings
-
-config_setting(
-    name = "debug",
-    values = {
-        "compilation_mode": "dbg",
-    },
-)
-
-config_setting(
-    name = "release",
-    values = {
-        "compilation_mode": "fastbuild",
-    },
-)
-
-swift_defines = select({
-    "@platforms//os:macos": [
-        "MACOS",
-        "METAL"
-    ],
-    "@platforms//os:ios": [
-        "IOS",
-        "METAL"
-    ],
-    "@platforms//os:tvos": [
-        "TVOS",
-        "METAL"
-    ],
-    "@platforms//os:windows": [
-        "WINDOWS",
-        "VULKAN"
-    ],
-    "@platforms//os:linux": [
-        "LINUX",
-        "VULKAN"
-    ],
-    "@platforms//os:android": [
-        "ANDROID",
-        "VULKAN"
-    ],
-    "//conditions:default": [],
-}) + [
-    "BAZEL_BUILD"
-]
-
-ada_editor_defines = select({
-    "@platforms//os:macos": [
-        "EDITOR_MACOS",
-    ],
-    "@platforms//os:ios": [
-        "EDITOR_IOS",
-    ],
-    "@platforms//os:tvos": [
-        "EDITOR_TVOS",
-    ],
-    "@platforms//os:windows": [
-        "EDITOR_WINDOWS",
-    ],
-    "@platforms//os:linux": [
-        "EDITOR_LINUX",
-    ],
-    "@platforms//os:android": [
-        "EDITOR_ANDROID",
-    ],
-    "//conditions:default": [],
-})
-
-ada_engine_deps = [
-    ":Math",
-    "@swiftpkg_swift_collections//:Collections",
-    "@swiftpkg_swift_collections//:BitCollections",
-    ":AtlasFontGenerator",
-    "@sourcekitten_com_github_jpsim_yams//:Yams",
-    "@libpng",
-    "@SPIRV-Cross",
-    ":SPIRVCompiler",
-    "@swiftpkg_box2d_swift//:box2d",
-    "@swiftpkg_swift_log//:Logging",
-    ":MiniAudioBindings"
-]
-
-# C & CXX Libraries
-
-cc_ada_library(
-    name = "AtlasFontGenerator",
-    deps = [
-        "@MSDFAtlasGen",
-    ],
-)
-
-cc_ada_library(
-    name = "SPIRVCompiler",
-    deps = [
-        "@glslang",
-    ],
-)
-
-# Swift Libraries
-
-swift_ada_library(
-    name = "Math"
-)
-
-swift_compiler_plugin(
-    name = "AdaEngineMacros",
-    srcs = glob(["Sources/AdaEngineMacros/*.swift"]),
-    deps = [
-        "@SwiftSyntax//:SwiftCompilerPlugin_opt",
-        "@SwiftSyntax//:SwiftSyntaxBuilder_opt",
-        "@SwiftSyntax//:SwiftSyntaxMacros_opt",
-    ],
-    visibility = ["//visibility:public"]
-)
-
-swift_ada_library(
-    name = "AdaEngine",
-    data = [
-        "Sources/AdaEngine/Assets/Fonts",
-        "Sources/AdaEngine/Assets/Shaders",
-    ],
-    defines = swift_defines,
-    deps = ada_engine_deps,
-    plugins = [":AdaEngineMacros"],
-    copts = [
-        "-cxx-interoperability-mode=default"
-    ]
-)
-
-swift_ada_library(
-    name = "AdaEngineEmbeddable",
-    deps = [
-        ":AdaEngine",
-    ]
-)
-
-swift_ada_library(
-    name = "AdaEditor",
-    data = [
-        "Sources/AdaEditor/Assets",
-    ],
-    defines = swift_defines + ada_editor_defines + select({
-        ":debug": [
-            "EDITOR_DEBUG",
-        ],
-        "//conditions:default": [],
-    }),
-    deps = [
-        ":AdaEngine",
-        ":Math",
-    ],
-    copts = [
-        "-cxx-interoperability-mode=default"
-    ]
-)
-
-cc_ada_library(
-    name = "MiniAudioBindings",
-    deps = [
-        "@miniaudio"
-    ]
-)
-
-swift_test(
-    name = "AdaEngineTests",
-    srcs = glob(["Tests/AdaEngineTests/**/*.swift"]),
-    deps = [
-        ":AdaEngine",
-    ]
-)
-
-swift_test(
-    name = "MathTests",
-    srcs = glob(["Tests/MathTests/**/*.swift"]),
-    deps = [
-        ":Math",
-    ]
-)
-
-# Platform specific builds
-
-macos_application(
-    name = "AdaEditor-macos",
-    bundle_id = "org.adaengine.AdaEditor-macos",
-    infoplists = ["Sources/AdaEditor/Platforms/macOS/Info.plist"],
-    minimum_os_version = "14.0",
-    deps = [
-        ":AdaEditor",
-    ]
-)
-
-ios_application(
-    name = "AdaEditor-ios",
-    bundle_id = "org.adaengine.AdaEditor-ios",
-    families = [
-       "iphone", "ipad",
-    ],
-    infoplists = ["Sources/AdaEditor/Platforms/iOS/Info.plist"],
-    minimum_os_version = "16.0",
-    deps = [
-        ":AdaEditor",
-    ]
+alias(
+    name = "gen-xcodeproj",
+    actual = "//utils/bazel:xcodeproj",
 )

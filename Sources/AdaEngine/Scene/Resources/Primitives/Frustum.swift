@@ -10,12 +10,12 @@ import Math
 /// A frustum defined by the 6 containing planes
 /// Planes are ordered left, right, top, bottom, near, far
 /// Normals point into the contained volume
-public struct Frustum: Hashable, Codable {
+public struct Frustum: Hashable, Codable, Sendable {
     var planes: FixedArray<Plane> = FixedArray(repeating: Plane(normal: .zero, d: 0), count: 6)
 }
 
 extension Frustum: DefaultValue {
-    public static var defaultValue: Frustum = Frustum()
+    public static let defaultValue: Frustum = Frustum()
 }
 
 public extension Frustum {

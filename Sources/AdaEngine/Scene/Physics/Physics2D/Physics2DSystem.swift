@@ -47,6 +47,8 @@ public final class Physics2DSystem: System {
         
         if result.isFixedTick {
             world.updateSimulation(result.fixedTime)
+            world.processContacts()
+            world.processSensors()
         }
         
         self.updatePhysicsBodyEntities(physicsBody, in: world)
@@ -64,53 +66,51 @@ public final class Physics2DSystem: System {
                 if physicsBody.mode == .static {
                     body.setTransform(
                         position: transform.position.xy,
-                        angle: transform.position.z
+                        angle: Angle.radians(transform.position.z)
                     )
                 } else {
                     let position = body.getPosition()
                     transform.position.x = position.x
                     transform.position.y = position.y
-                    transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle())
+                    transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle().radians)
                 }
                 
                 body.massData.mass = physicsBody.massProperties.mass
             } else {
-                var def = Body2DDefinition()
-                def.position = transform.position.xy
-                def.bodyMode = physicsBody.mode
+                var def = b2DefaultBodyDef()
+                def.position = transform.position.xy.b2Vec
+                def.type = physicsBody.mode.b2Type
 
-                let body = world.createBody(definition: def, for: entity)
+                let body = world.createBody(with: def, for: entity)
                 physicsBody.runtimeBody = body
 
                 for shapeResource in physicsBody.shapes {
-                    let shape = self.makeShape(for: shapeResource, transform: transform)
+                    let polygon = BoxShape2D.makeB2Polygon(for: shapeResource, transform: transform)
+                    var shapeDef = b2DefaultShapeDef()
+                    shapeDef.density = physicsBody.material.density
+                    shapeDef.restitution = physicsBody.material.restitution
+                    shapeDef.friction = physicsBody.material.friction
 
-                    var fixtureDef = b2FixtureDef()
-                    fixtureDef.shape = UnsafeRawPointer(shape).assumingMemoryBound(to: b2Shape.self).pointee
-
-                    fixtureDef.density = physicsBody.material.density
-                    fixtureDef.restitution = physicsBody.material.restitution
-                    fixtureDef.friction = physicsBody.material.friction
-
-                    body.addFixture(for: fixtureDef)
-                    
-                    shape.deallocate()
+                    body.appendPolygonShape(polygon, shapeDef: shapeDef)
                 }
 
                 body.massData.mass = physicsBody.massProperties.mass
             }
 
-            if let fixtureList = physicsBody.runtimeBody?.getFixtureList() {
+            if let shapes = physicsBody.runtimeBody?.getShapes() {
                 let collisionFilter = physicsBody.filter
-                let filterData = fixtureList.filterData
 
-                if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
-                     filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
+                for shape in shapes {
+                    let filterData = shape.filter
 
-                    var filter = b2Filter()
-                    filter.categoryBits = collisionFilter.categoryBitMask.rawValue
-                    filter.maskBits = collisionFilter.collisionBitMask.rawValue
-                    fixtureList.filterData = filter
+                    if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
+                         filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
+
+                        var filter = b2DefaultFilter()
+                        filter.categoryBits = collisionFilter.categoryBitMask.rawValue
+                        filter.maskBits = collisionFilter.collisionBitMask.rawValue
+                        shape.filter = filter
+                    }
                 }
             }
             
@@ -127,43 +127,41 @@ public final class Physics2DSystem: System {
             if let body = collisionBody.runtimeBody {
                 body.setTransform(
                     position: transform.position.xy,
-                    angle: transform.position.z
+                    angle: Angle.radians(transform.position.z)
                 )
             } else {
-                var def = Body2DDefinition()
-                def.position = transform.position.xy
-                def.angle = transform.rotation.z
-                def.bodyMode = .static
+                var def = b2DefaultBodyDef()
+                def.position = transform.position.xy.b2Vec
+                def.rotation = b2MakeRot(transform.rotation.z)
+                def.type = b2_staticBody
 
-                let body = world.createBody(definition: def, for: entity)
+                let body = world.createBody(with: def, for: entity)
                 collisionBody.runtimeBody = body
 
                 for shapeResource in collisionBody.shapes {
-                    let shape = self.makeShape(for: shapeResource, transform: transform)
-                    var fixtureDef = b2FixtureDef()
-                    fixtureDef.shape = UnsafeRawPointer(shape).assumingMemoryBound(to: b2Shape.self).pointee
-
+                    let shape = BoxShape2D.makeB2Polygon(for: shapeResource, transform: transform)
+                    var shapeDef = b2DefaultShapeDef()
                     if case .trigger = collisionBody.mode {
-                        fixtureDef.isSensor = true
+                        shapeDef.isSensor = true
                     }
-
-                    body.addFixture(for: fixtureDef)
-                    
-                    shape.deallocate()
+                    body.appendPolygonShape(shape, shapeDef: shapeDef)
                 }
             }
 
-            if let fixtureList = collisionBody.runtimeBody?.getFixtureList() {
+            if let shapes = collisionBody.runtimeBody?.getShapes() {
                 let collisionFilter = collisionBody.filter
-                let filterData = fixtureList.filterData
 
-                if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
-                     filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
+                for shape in shapes {
+                    let filterData = shape.filter
 
-                    var filter = b2Filter()
-                    filter.categoryBits = collisionFilter.categoryBitMask.rawValue
-                    filter.maskBits = collisionFilter.collisionBitMask.rawValue
-                    fixtureList.filterData = filter
+                    if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
+                         filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
+
+                        var filter = b2DefaultFilter()
+                        filter.categoryBits = collisionFilter.categoryBitMask.rawValue
+                        filter.maskBits = collisionFilter.collisionBitMask.rawValue
+                        shape.filter = filter
+                    }
                 }
             }
 
@@ -178,36 +176,5 @@ public final class Physics2DSystem: System {
     private func getBody(from entity: Entity) -> Body2D? {
         entity.components[PhysicsBody2DComponent.self]?.runtimeBody ??
         entity.components[Collision2DComponent.self]?.runtimeBody
-    }
-    
-    private func makeShape(for shape: Shape2DResource, transform: Transform) -> OpaquePointer {
-        switch shape.fixture {
-        case .polygon(let shape):
-            let shapeRef = UnsafeMutablePointer<b2PolygonShape>.allocate(capacity: 1)
-            shapeRef.initialize(to: b2PolygonShape.Create())
-            shape.verticies.withUnsafeBytes { ptr in
-                let baseAddress = ptr.assumingMemoryBound(to: b2Vec2.self).baseAddress
-                shapeRef.pointee.Set(baseAddress, int32(shape.verticies.count))
-            }
-            
-            return OpaquePointer(shapeRef)
-        case .circle(let shape):
-            let shapeRef = UnsafeMutablePointer<b2CircleShape>.allocate(capacity: 1)
-            shapeRef.initialize(to: b2CircleShape.Create())
-            shapeRef.pointee.m_radius = shape.radius * transform.scale.x
-            shapeRef.pointee.m_p = shape.offset.b2Vec
-            return OpaquePointer(shapeRef)
-        case .box(let shape):
-            let shapeRef = UnsafeMutablePointer<b2PolygonShape>.allocate(capacity: 1)
-            shapeRef.initialize(to: b2PolygonShape.Create())
-            shapeRef.pointee.SetAsBox(
-                transform.scale.x * shape.halfWidth, /* half width */
-                transform.scale.y * shape.halfHeight,  /* half height */
-                shape.offset.b2Vec, /* center */
-                0 /* angle */
-            )
-            
-            return OpaquePointer(shapeRef)
-        }
     }
 }
