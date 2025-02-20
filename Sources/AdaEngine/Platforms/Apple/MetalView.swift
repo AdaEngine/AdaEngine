@@ -11,7 +11,7 @@ import MetalKit
 
 open class MetalView: MTKView {
     
-    let windowID: UIWindow.ID
+    public var windowID: UIWindow.ID
     
     #if MACOS
     var currentTrackingArea: NSTrackingArea?

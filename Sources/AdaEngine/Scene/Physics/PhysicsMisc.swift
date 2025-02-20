@@ -22,12 +22,12 @@ public struct CollisionFilter: Codable {
     public var categoryBitMask: CollisionGroup = .default
     
     /// The collision group or groups, stored as a bitmask, with which the entity can collide.
-    public var collisionBitMask: CollisionGroup = .default
+    public var collisionBitMask: CollisionGroup = .all
     
     /// Creates a collision filter.
     public init(
         categoryBitMask: CollisionGroup = .default,
-        collisionBitMask: CollisionGroup = .default
+        collisionBitMask: CollisionGroup = .all
     ) {
         self.categoryBitMask = categoryBitMask
         self.collisionBitMask = collisionBitMask

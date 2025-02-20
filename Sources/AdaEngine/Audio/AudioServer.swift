@@ -23,6 +23,7 @@ public final class AudioServer {
         self.engine = engine
     }
     
+    @MainActor
     static func initialize() throws {
         let engine = try MiniAudioEngine()
         self.shared = AudioServer(engine: engine)
@@ -32,11 +33,11 @@ public final class AudioServer {
         self.engine.update(deltaTime)
     }
     
-    func start() throws {
+    public func start() throws {
         try self.engine.start()
     }
     
-    func stop() throws {
+    public func stop() throws {
         try self.engine.stop()
     }
     

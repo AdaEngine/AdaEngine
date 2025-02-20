@@ -14,5 +14,4 @@ public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "Comp
 @attached(accessor)
 @attached(peer, names: prefixed(__Key_))
 public macro Entry() = #externalMacro(module: "AdaEngineMacros", type: "EntryMacro")
-
 #endif

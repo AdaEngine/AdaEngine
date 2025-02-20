@@ -13,12 +13,10 @@ public final class PhysicsWorld2D: Codable {
 
     enum CodingKeys: CodingKey {
         case velocityIterations
-        case positionIterations
         case gravity
     }
     
     public var velocityIterations: Int = 4
-    public var positionIterations: Int = 2
     
     /// Contains world gravity.
     public var gravity: Vector2 {
@@ -56,14 +54,12 @@ public final class PhysicsWorld2D: Codable {
         self.init(gravity: gravity)
 
         self.velocityIterations = try container.decode(Int.self, forKey: .velocityIterations)
-        self.positionIterations = try container.decode(Int.self, forKey: .positionIterations)
     }
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.gravity, forKey: .gravity)
         try container.encode(self.velocityIterations, forKey: .velocityIterations)
-        try container.encode(self.positionIterations, forKey: .positionIterations)
     }
     
     // MARK: - Raycasting

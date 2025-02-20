@@ -46,7 +46,7 @@ public final class Physics2DSystem: System {
         }
         
         if result.isFixedTick {
-            world.updateSimulation(result.fixedTime)
+            world.updateSimulation((Float(1) / Float(Engine.shared.physicsTickPerSecond)))
             world.processContacts()
             world.processSensors()
         }
@@ -132,7 +132,6 @@ public final class Physics2DSystem: System {
             } else {
                 var def = b2DefaultBodyDef()
                 def.position = transform.position.xy.b2Vec
-                def.rotation = b2MakeRot(transform.rotation.z)
                 def.type = b2_staticBody
 
                 let body = world.createBody(with: def, for: entity)
