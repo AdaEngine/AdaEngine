@@ -147,4 +147,19 @@ public func sign(_ x: Float) -> Float {
     return x == 0 ? 0 : x < 0 ? -1 : 1
 }
 
+/// Linearly interpolates between two points.
+public func lerpf(_ lhs: Float, _ rhs: Float, _ t: Float) -> Float {
+    return lhs + (rhs - lhs) * t
+}
+
+/// Linearly interpolates between two points.
+public func lerp<T: FloatingPoint>(_ lhs: T, _ rhs: T, _ t: T) -> T {
+    return lhs + (rhs - lhs) * t
+}
+
+/// Linearly interpolates between two points.
+public func lerp(_ lhs: Double, _ rhs: Double, _ t: Double) -> Double {
+    return lhs + (rhs - lhs) * t
+}
+
 // swiftlint:enable identifier_name
