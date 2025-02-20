@@ -32,6 +32,9 @@ public struct PhysicsBody2DComponent {
         self.runtimeBody?.getWorldCenter() ?? .zero
     }
     
+    /// Should this body be prevented from rotating? Useful for characters.
+    public var fixedRotation: Bool = false
+    
     /// Linear velocity of the center of mass.
     /// - Returns: The linear velocity of the center of mass or zero if entity not connected to physics world.
     public var linearVelocity: Vector2 {
@@ -52,7 +55,7 @@ public struct PhysicsBody2DComponent {
     
     public init(
         shapes: [Shape2DResource],
-        mass: Float,
+        mass: Float = 0,
         material: PhysicsMaterial? = nil,
         mode: PhysicsBodyMode = .dynamic
     ) {

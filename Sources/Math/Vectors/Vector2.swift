@@ -90,7 +90,12 @@ public extension Vector2 {
     @inline(__always)
     var normalized: Vector2 {
         let length = self.squaredLength
-        return self / sqrt(length)
+        if length < Float.ulpOfOne {
+            return .zero
+        }
+
+        let invLength = 1.0 / length
+        return Vector2(invLength * x, invLength * y)
     }
     
     @inlinable
@@ -298,4 +303,8 @@ public func max(_ lhs: Vector2, _ rhs: Vector2) -> Vector2 {
     ]
 }
 
+/// Linearly interpolates between two points.
+public func lerp(_ lhs: Vector2, _ rhs: Vector2, _ t: Float) -> Vector2 {
+    return lhs + (rhs - lhs) * t
+}
 // swiftlint:enable identifier_name
