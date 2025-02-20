@@ -73,7 +73,7 @@ extension AEView: MTKViewDelegate {
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         do {
             self.engineWindow.frame.size = size.toEngineSize
-//            try RenderEngine.shared.resizeWindow(self.engineWindow.id, newSize: size.toEngineSize.toSizeInt())
+            try RenderEngine.shared.resizeWindow(self.engineWindow.id, newSize: size.toEngineSize.toSizeInt())
         } catch {
             print("[AEView Error]", error.localizedDescription)
         }
@@ -91,12 +91,11 @@ extension AEView: MTKViewDelegate {
 }
 
 private struct _EmbeddableApp: AdaEngine.App {
-    
     let window: UIWindow
     
     var scene: some AppScene {
         GUIAppScene(window: {
-            UIWindow()
+            window
         })
     }
 }
