@@ -11,7 +11,7 @@ import XCTest
 final class ViewModifiersTests: XCTestCase {
 
     override func setUp() async throws {
-        try Application.prepareForTest()
+        try await Application.prepareForTest()
     }
 
     @MainActor

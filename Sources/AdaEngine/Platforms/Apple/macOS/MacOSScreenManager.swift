@@ -53,6 +53,7 @@ class MacOSScreenManager: ScreenManager {
     }
 }
 
+@_spi(Internal)
 extension NSScreen: SystemScreen {}
 
 #endif

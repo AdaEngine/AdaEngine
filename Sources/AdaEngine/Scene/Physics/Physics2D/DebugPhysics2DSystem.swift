@@ -48,83 +48,83 @@ public struct DebugPhysicsExctract2DSystem: System {
         )
     }
     
-//    public func update(context: UpdateContext) {
-//        guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
-//            return
-//        }
-//        
-//        self.colorMaterial.color = context.scene.debugPhysicsColor
-//        self.circleMaterial.color = context.scene.debugPhysicsColor
-//        
-//        for entity in context.scene.performQuery(Self.entities) {
-//            if entity.components[Visibility.self]!.isVisible == false {
-//                continue
-//            }
-//            
-//            guard let body = self.getRuntimeBody(from: entity) else {
-//                continue
-//            }
-//            
-//            let shapes = body.getShapes()
-//            let emptyEntity = EmptyEntity()
-//            let bodyPosition = Vector3(body.getPosition(), 0)
-//            for shape in shapes {
-//                switch shape.type {
-////                case b2_circleShape:
-////                    let radius = shape.getRadius()
-////                    emptyEntity.components += ExctractedPhysicsMesh2DDebug(
-////                        entityId: entity.id,
-////                        mesh: self.quadMesh,
-////                        material: self.circleMaterial,
-////                        transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(radius))
-////                    )
-//                case b2_polygonShape:
-//                    guard let mesh = body.debugMesh else {
-//                        continue
-//                    }
-//
-//                    emptyEntity.components += ExctractedPhysicsMesh2DDebug(
-//                        entityId: entity.id,
-//                        mesh: mesh,
-//                        material: self.colorMaterial,
-//                        transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(1))
-//                    )
-//                default:
-//                    continue
-//                }
-//            }
-//
-//            Application.shared.renderWorld.addEntity(emptyEntity)
-//        }
-//    }
-
     public func update(context: UpdateContext) {
         guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
             return
         }
-
-        guard let world = context.scene.physicsWorld2D else {
-            return
-        }
-
+        
         self.colorMaterial.color = context.scene.debugPhysicsColor
         self.circleMaterial.color = context.scene.debugPhysicsColor
-
-        let drawContext = WorldDebugDrawContext(colorMaterial: self.colorMaterial)
-
-        var debugDraw = b2DefaultDebugDraw()
-        debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
-        debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
-        debugDraw.drawShapes = true
-        debugDraw.drawAABBs = true
-        world.debugDraw(with: debugDraw)
-
-        for item in drawContext.debugItems {
+        
+        for entity in context.scene.performQuery(Self.entities) {
+            if entity.components[Visibility.self]!.isVisible == false {
+                continue
+            }
+            
+            guard let body = self.getRuntimeBody(from: entity) else {
+                continue
+            }
+            
+            let shapes = body.getShapes()
             let emptyEntity = EmptyEntity()
-            emptyEntity.components += item
+            let bodyPosition = Vector3(body.getPosition(), 0)
+            for shape in shapes {
+                switch shape.type {
+//                case b2_circleShape:
+//                    let radius = shape.getRadius()
+//                    emptyEntity.components += ExctractedPhysicsMesh2DDebug(
+//                        entityId: entity.id,
+//                        mesh: self.quadMesh,
+//                        material: self.circleMaterial,
+//                        transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(radius))
+//                    )
+                case b2_polygonShape:
+                    guard let mesh = body.debugMesh else {
+                        continue
+                    }
+
+                    emptyEntity.components += ExctractedPhysicsMesh2DDebug(
+                        entityId: entity.id,
+                        mesh: mesh,
+                        material: self.colorMaterial,
+                        transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(1))
+                    )
+                default:
+                    continue
+                }
+            }
+
             Application.shared.renderWorld.addEntity(emptyEntity)
         }
     }
+
+//    public func update(context: UpdateContext) {
+//        guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
+//            return
+//        }
+//
+//        guard let world = context.scene.physicsWorld2D else {
+//            return
+//        }
+//
+//        self.colorMaterial.color = context.scene.debugPhysicsColor
+//        self.circleMaterial.color = context.scene.debugPhysicsColor
+//
+//        let drawContext = WorldDebugDrawContext(colorMaterial: self.colorMaterial)
+//
+//        var debugDraw = b2DefaultDebugDraw()
+//        debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
+//        debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
+//        debugDraw.drawShapes = true
+//        debugDraw.drawAABBs = true
+//        world.debugDraw(with: debugDraw)
+//
+//        for item in drawContext.debugItems {
+//            let emptyEntity = EmptyEntity()
+//            emptyEntity.components += item
+//            Application.shared.renderWorld.addEntity(emptyEntity)
+//        }
+//    }
 
     @MainActor private func getRuntimeBody(from entity: Entity) -> Body2D? {
         return entity.components[PhysicsBody2DComponent.self]?.runtimeBody

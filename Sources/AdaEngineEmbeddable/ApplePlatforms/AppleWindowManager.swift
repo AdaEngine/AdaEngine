@@ -6,27 +6,46 @@
 //
 
 #if canImport(MetalKit)
-import AdaEngine
+import MetalKit
+@_spi(Internal) import AdaEngine
 
 /// Because we don't have windows, this object is blank and using only for avoid crashes when windows will change their states.
-class AppleWindowManager: WindowManager {
+final class AppleWindowManager: UIWindowManager {
+    
+    weak var nativeView: MetalView?
     
     override init() { }
     
-    override func resizeWindow(_ window: Window, size: Size) {
+    override func resizeWindow(_ window: UIWindow, size: Size) {
         
     }
     
-    override func setWindowMode(_ window: Window, mode: Window.Mode) {
+    override func setWindowMode(_ window: UIWindow, mode: UIWindow.Mode) {
         
     }
     
-    override func closeWindow(_ window: Window) {
+    override func closeWindow(_ window: UIWindow) {
         
     }
     
-    override func showWindow(_ window: Window, isFocused: Bool) {
+    override func showWindow(_ window: UIWindow, isFocused: Bool) {
         
+    }
+    
+    override func setMinimumSize(_ size: Size, for window: UIWindow) {
+        
+    }
+    
+    override func updateCursor() {
+        
+    }
+    
+    override func getScreen(for window: UIWindow) -> Screen? {
+        guard let nativeScreen = nativeView?.window?.screen else {
+            return nil
+        }
+        
+        return Screen(systemScreen: nativeScreen)
     }
 }
 

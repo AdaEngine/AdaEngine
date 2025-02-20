@@ -39,7 +39,9 @@ open class Application {
         #endif
     }
     
-    @MainActor @preconcurrency public internal(set) var windowManager: UIWindowManager = UIWindowManager()
+    @_spi(Internal)
+    @MainActor @preconcurrency
+    public var windowManager: UIWindowManager = UIWindowManager()
 
     /// Contains world which can render on screen.
     public let renderWorld = RenderWorld()
@@ -86,5 +88,12 @@ public extension Application {
         case active
         case inactive
         case background
+    }
+}
+
+public extension Application {
+    @_spi(Internal)
+    public static func setApplication(_ app: Application) {
+        self.shared = app
     }
 }
