@@ -188,7 +188,7 @@ struct BulletSystem: System {
         context.scene.performQuery(Self.bullet).forEach { entity in
             var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
 
-            body.setLinearVelocity([0, Self.bulletSpeed])
+            body.linearVelocity = [0, Self.bulletSpeed]
             bullet.currentLifetime += context.deltaTime
 
             if bullet.lifetime > bullet.currentLifetime {

@@ -45,8 +45,9 @@ public final class Physics2DSystem: System {
             return
         }
         
-        if result.isFixedTick, result.fixedTime >= (Float(1) / Float(Engine.shared.physicsTickPerSecond)) {
-            world.updateSimulation((Float(1) / Float(Engine.shared.physicsTickPerSecond)))
+        let step = (Float(1) / Float(Engine.shared.physicsTickPerSecond))
+        if result.isFixedTick, result.fixedTime >= step {
+            world.updateSimulation(step)
             world.processContacts()
             world.processSensors()
         }
@@ -75,7 +76,7 @@ public final class Physics2DSystem: System {
                     transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle().radians)
                 }
                 
-//                body.massData.mass = physicsBody.massProperties.mass
+                body.massData.mass = physicsBody.massProperties.mass
             } else {
                 var def = b2DefaultBodyDef()
                 def.fixedRotation = physicsBody.fixedRotation
@@ -95,7 +96,7 @@ public final class Physics2DSystem: System {
                     body.appendPolygonShape(polygon, shapeDef: shapeDef)
                 }
 
-//                body.massData.mass = physicsBody.massProperties.mass
+                body.massData.mass = physicsBody.massProperties.mass
             }
 
             if let shapes = physicsBody.runtimeBody?.getShapes() {

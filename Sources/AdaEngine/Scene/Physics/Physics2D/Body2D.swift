@@ -123,6 +123,14 @@ public final class Body2D {
     func getLinearVelocityFromLocalPoint(_ localPoint: Vector2) -> Vector2 {
         return b2Body_GetLocalPointVelocity(bodyId, localPoint.b2Vec).asVector2
     }
+    
+    func setAngularVelocity(_ velocity: Float) {
+        b2Body_SetAngularVelocity(bodyId, velocity)
+    }
+    
+    func getAngularVelocity() -> Float {
+        b2Body_GetAngularVelocity(bodyId)
+    }
 }
 
 final class BoxShape2D {
