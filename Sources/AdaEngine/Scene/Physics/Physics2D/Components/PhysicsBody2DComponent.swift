@@ -38,7 +38,24 @@ public struct PhysicsBody2DComponent {
     /// Linear velocity of the center of mass.
     /// - Returns: The linear velocity of the center of mass or zero if entity not connected to physics world.
     public var linearVelocity: Vector2 {
-        self.runtimeBody?.getLinearVelocity() ?? .zero
+        get {
+            self.runtimeBody?.getLinearVelocity() ?? .zero
+        }
+        
+        set {
+            self.runtimeBody?.setLinearVelocity(newValue)
+        }
+    }
+    
+    /// Set the angular velocity of a body in radians per second
+    public var angularVelocity: Float {
+        get {
+            self.runtimeBody?.getAngularVelocity() ?? 0
+        }
+        
+        set {
+            self.runtimeBody?.setAngularVelocity(newValue)
+        }
     }
     
     public init(
@@ -115,6 +132,12 @@ public struct PhysicsBody2DComponent {
     /// Apply a force to the center of mass. This wakes up the body.
     public func applyForceToCenter(_ force: Vector2, wake: Bool) {
         self.runtimeBody?.applyForceToCenter(force, wake: wake)
+    }
+    
+    /// Clear all forces. This will zero out the forces and torques.
+    public func clearForces() {
+        self.runtimeBody?.setLinearVelocity(.zero)
+        self.runtimeBody?.setAngularVelocity(0)
     }
     
     /// Apply an impulse at a point. This immediately modifies the velocity.
