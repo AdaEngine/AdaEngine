@@ -209,6 +209,8 @@ public struct ExtractedSprites {
 public struct ExtractedSprite {
     public var entityId: Entity.ID
     public var texture: Texture2D?
+    public var flipX: Bool
+    public var flipY: Bool
     public var tintColor: Color
     public var transform: Transform
     public var worldTransform: Transform3D
@@ -238,6 +240,8 @@ public struct ExtractSpriteSystem: System {
                 ExtractedSprite(
                     entityId: entity.id,
                     texture: sprite.texture,
+                    flipX: false,
+                    flipY: false,
                     tintColor: sprite.tintColor,
                     transform: transform,
                     worldTransform: globalTransform.matrix
