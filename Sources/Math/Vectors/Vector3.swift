@@ -357,3 +357,8 @@ public func max(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
         max(lhs.z, rhs.z)
     ]
 }
+
+/// Linearly interpolates between two points.
+public func lerp(_ lhs: Vector3, _ rhs: Vector3, _ t: Float) -> Vector3 {
+    return lhs + (rhs - lhs) * t
+}

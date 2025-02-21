@@ -19,15 +19,15 @@
 public struct CollisionFilter: Codable {
     
     /// The collision group or groups, stored as a bit mask, to which the entity belongs.
-    public var categoryBitMask: CollisionGroup = .default
+    public var categoryBitMask: CollisionGroup
     
     /// The collision group or groups, stored as a bitmask, with which the entity can collide.
-    public var collisionBitMask: CollisionGroup = .default
+    public var collisionBitMask: CollisionGroup
     
     /// Creates a collision filter.
     public init(
         categoryBitMask: CollisionGroup = .default,
-        collisionBitMask: CollisionGroup = .default
+        collisionBitMask: CollisionGroup = .all
     ) {
         self.categoryBitMask = categoryBitMask
         self.collisionBitMask = collisionBitMask
@@ -50,7 +50,7 @@ public struct CollisionGroup: OptionSet, Codable {
     }
     
     /// The default collision group for objects.
-    public static let `default` = CollisionGroup(rawValue: 1)
+    public static let `default` = CollisionGroup(rawValue: 1 << 0)
     
     /// The collision group that represents all groups.
     public static let all = CollisionGroup(rawValue: .max)
