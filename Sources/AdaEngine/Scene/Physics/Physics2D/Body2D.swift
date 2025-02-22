@@ -55,6 +55,15 @@ public final class Body2D {
             BoxShape2D(shape: $0)
         }
     }
+    
+    var gravityScale: Float {
+        get {
+            b2Body_GetGravityScale(bodyId)
+        }
+        set {
+            b2Body_SetGravityScale(bodyId, newValue)
+        }
+    }
 
     var massData: b2MassData {
         get { b2Body_GetMassData(bodyId) }

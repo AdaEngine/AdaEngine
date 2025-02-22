@@ -9,7 +9,7 @@ import Math
 
 final class TextViewNode: ViewNode {
 
-    let layoutManager: TextLayoutManager
+    var layoutManager: TextLayoutManager
     private var textContainer: TextContainer {
         didSet {
             self.layoutManager.setTextContainer(self.textContainer)
@@ -61,16 +61,19 @@ final class TextViewNode: ViewNode {
         super.draw(with: context)
     }
 
-//    override func update(from newNode: ViewNode) {
-//        super.update(from: newNode)
-//
-//        guard let textNode = newNode as? TextViewNode else {
-//            return
-//        }
-//
-//        self.textRenderer = textNode.textRenderer
+    override func update(from newNode: ViewNode) {
+        super.update(from: newNode)
+
+        guard let textNode = newNode as? TextViewNode else {
+            return
+        }
+
+        self.textRenderer = textNode.textRenderer
+        self.textContainer = textNode.textContainer
+        self.updateEnvironment(textNode.environment)
+        
 //        self.invalidateLayerIfNeeded()
-//    }
+    }
 
 //    override func createLayer() -> UILayer? {
 //        let layer = UILayer(frame: self.frame, drawBlock: { [weak self] context, size in
