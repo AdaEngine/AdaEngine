@@ -39,6 +39,17 @@ public struct Transform: Codable, Hashable {
     }
 }
 
+public extension Transform {
+    /// Return matrix
+    var matrix: Transform3D {
+        Transform3D(
+            translation: self.position,
+            rotation: self.rotation,
+            scale: self.scale
+        )
+    }
+}
+
 public extension ScriptableComponent {
     
     /// Return transform component for current entity.
