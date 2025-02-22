@@ -13,7 +13,7 @@ public struct Font: Hashable, Equatable, Sendable {
     
     let fontResource: FontResource
     
-    internal init(fontResource: FontResource, pointSize: Double) {
+    public init(fontResource: FontResource, pointSize: Double) {
         self.pointSize = pointSize
         self.fontResource = fontResource
         self.name = fontResource.handle.fontName

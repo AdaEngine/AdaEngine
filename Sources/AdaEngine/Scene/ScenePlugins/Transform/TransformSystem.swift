@@ -21,21 +21,12 @@ public struct TransformSystem: System {
         context.scene.performQuery(Self.query).forEach { entity in
             if entity.components.isComponentChanged(Transform.self) || !entity.components.has(GlobalTransform.self) {
                 let transform = entity.components[Transform.self]!
-                
-                let matrix = Transform3D(
-                    translation: transform.position,
-                    rotation: transform.rotation,
-                    scale: transform.scale
-                )
-                
-                let globalTransform = GlobalTransform(matrix: matrix)
+                let globalTransform = GlobalTransform(matrix: transform.matrix)
                 entity.components += globalTransform
             }
         }
     }
 }
-
-// FIXME: Child transform doesn't works correctly.
 
 public struct ChildTransformSystem: System {
     
@@ -48,22 +39,30 @@ public struct ChildTransformSystem: System {
     public init(scene: Scene) { }
     
     public func update(context: UpdateContext) {
-//        context.scene.performQuery(Self.query).forEach { entity in
-//            guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
-//                return
-//            }
-//            
-//            let transform = entity.components[GlobalTransform.self]!
-//            
-//            for child in entity.children {
-//                guard let childTransform = child.components[GlobalTransform.self] else {
-//                    continue
-//                }
-//                
-//                let newMatrix = childTransform.matrix * transform.matrix
-//                let newTransform = Transform(matrix: newMatrix)
-//                child.components += newTransform
-//            }
-//        }
+        context.scene.performQuery(Self.query).forEach { entity in
+            guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
+                return
+            }
+            
+            let parentTransform = entity.components[GlobalTransform.self]!
+            updateChildren(entity.children, parentTransform: parentTransform)
+        }
+    }
+    
+    @MainActor
+    private func updateChildren(_ children: [Entity], parentTransform: GlobalTransform) {
+        for child in children {
+            guard let childTransform = child.components[Transform.self] else {
+                continue
+            }
+            
+            let newMatrix = parentTransform.matrix * childTransform.matrix
+//            child.components += Transform(matrix: newMatrix)
+            child.components += GlobalTransform(matrix: newMatrix)
+            
+            if !child.children.isEmpty {
+                updateChildren(child.children, parentTransform: GlobalTransform(matrix: newMatrix))
+            }
+        }
     }
 }
