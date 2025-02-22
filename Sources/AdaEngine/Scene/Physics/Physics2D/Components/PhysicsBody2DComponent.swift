@@ -35,6 +35,16 @@ public struct PhysicsBody2DComponent {
     /// Should this body be prevented from rotating? Useful for characters.
     public var fixedRotation: Bool = false
     
+    public var gravityScale: Float {
+        get {
+            runtimeBody?.gravityScale ?? 1.0
+        }
+        
+        set {
+            runtimeBody?.gravityScale = newValue
+        }
+    }
+    
     /// Linear velocity of the center of mass.
     /// - Returns: The linear velocity of the center of mass or zero if entity not connected to physics world.
     public var linearVelocity: Vector2 {
