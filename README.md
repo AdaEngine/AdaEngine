@@ -19,9 +19,13 @@ AdaEngine is a game engine fully written on Swift. The main idea is to encourage
 * **ECS:** AdaEngine is based on the data-oriented paradigm using a self-written ECS. The AdaEngine has been inspired by Apple's RealityKit framework.
 * **Simple:** AdaEngine is easy to use, and our main goal is to enable a quick start and deliver quick results.
 
-## Docs
+## 📕 Docs
 
 * **[Tutorials](https://adaengine.github.io/adaengine-docs/tutorials/adaengine/)**: AdaEngine's offical tutorials with how to start your first project.
+
+## ⭐️ Examples
+
+* **[AdaEngine Awesome Projects](https://github.com/AdaEngine/AdaEngineAwesome)**: AdaEngine's offical Awesome Projects page. Feel free to explore.
 
 ## Getting started
 
