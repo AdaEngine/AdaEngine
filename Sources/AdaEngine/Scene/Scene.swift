@@ -32,7 +32,7 @@ open class Scene: Resource {
     private var plugins: [ScenePlugin] = []
     private(set) var world: World
     
-    private(set) var eventManager: EventManager = EventManager.default
+    public private(set) var eventManager: EventManager = EventManager.default
     
     internal let systemGraph = SystemsGraph()
     internal let systemGraphExecutor = SystemsGraphExecutor()

@@ -129,11 +129,6 @@ public struct PhysicsBody2DComponent {
         self.runtimeBody?.setTransform(position: position, angle: angle ?? bodyAngle)
     }
     
-    /// Set the linear velocity of the center of mass.
-    public func setLinearVelocity(_ vector: Vector2) {
-        self.runtimeBody?.setLinearVelocity(vector)
-    }
-    
     /// Apply a force at a world point. If the force is not applied at the center of mass, it will generate a torque and affect the angular velocity. This wakes up the body.
     public func applyForce(force: Vector2, point: Vector2, wake: Bool) {
         self.runtimeBody?.applyForce(force: force, point: point, wake: wake)
