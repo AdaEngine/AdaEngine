@@ -211,6 +211,11 @@ public extension Scene {
     func performQuery(_ query: EntityQuery) -> QueryResult {
         return self.world.performQuery(query)
     }
+    
+    /// Clear all entities from scene
+    func clearAllEntities() {
+        return self.world.clear()
+    }
 }
 
 // MARK: - Entity
