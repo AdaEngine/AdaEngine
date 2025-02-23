@@ -67,6 +67,26 @@ public extension Quat {
 }
 
 public extension Quat {
+    
+    /// Returns a rotation that rotates z degrees around the z axis,
+    /// x degrees around the x axis, and y degrees around the y axis; applied in that order.
+    static func euler(_ vector: Vector3) -> Quat {
+        let c1 = cos(vector.y / 2)
+        let c2 = cos(vector.x / 2)
+        let c3 = cos(vector.z / 2)
+        
+        let s1 = sin(vector.y / 2)
+        let s2 = sin(vector.x / 2)
+        let s3 = sin(vector.z / 2)
+        
+        return Quat(
+            x: s1 * c2 * c3 + c1 * s2 * s3,
+            y: c1 * s2 * c3 - s1 * c2 * s3,
+            z: c1 * c2 * s3 + s1 * s2 * c3,
+            w: c1 * c2 * c3 - s1 * s2 * s3
+        )
+    }
+    
     func dot(_ quat: Quat) -> Float {
         return self.x * quat.x + self.y * quat.y + self.z * quat.z + self.w * quat.w
     }

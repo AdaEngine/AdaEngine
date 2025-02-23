@@ -32,7 +32,7 @@ open class Scene: Resource {
     private var plugins: [ScenePlugin] = []
     private(set) var world: World
     
-    private(set) var eventManager: EventManager = EventManager.default
+    public private(set) var eventManager: EventManager = EventManager.default
     
     internal let systemGraph = SystemsGraph()
     internal let systemGraphExecutor = SystemsGraphExecutor()
@@ -210,6 +210,11 @@ public extension Scene {
     /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
     func performQuery(_ query: EntityQuery) -> QueryResult {
         return self.world.performQuery(query)
+    }
+    
+    /// Clear all entities from scene
+    func clearAllEntities() {
+        return self.world.clear()
     }
 }
 

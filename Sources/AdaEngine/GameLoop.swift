@@ -27,7 +27,6 @@ public final class GameLoop {
     
     public func iterate() async throws {
         if self.isIterating {
-            assertionFailure("Can't iterated twice.")
             return
         }
 

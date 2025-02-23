@@ -164,6 +164,12 @@ public struct QueryResult: Sequence {
         return self.first { _ in return true }
     }
     
+    /// Calculate count of element in collection
+    /// - Complexity: O(n)
+    public var count: Int {
+        return self.count { _ in return true }
+    }
+    
     /// Return iterator over the query results.
     public func makeIterator() -> Iterator {
         return EntityIterator(state: self.state)

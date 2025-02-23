@@ -45,8 +45,9 @@ public final class Physics2DSystem: System {
             return
         }
         
-        if result.isFixedTick {
-            world.updateSimulation(result.fixedTime)
+        let step = (Float(1) / Float(Engine.shared.physicsTickPerSecond))
+        if result.isFixedTick, result.fixedTime >= step {
+            world.updateSimulation(step)
             world.processContacts()
             world.processSensors()
         }
@@ -66,7 +67,7 @@ public final class Physics2DSystem: System {
                 if physicsBody.mode == .static {
                     body.setTransform(
                         position: transform.position.xy,
-                        angle: Angle.radians(transform.position.z)
+                        angle: transform.rotation.angle2D
                     )
                 } else {
                     let position = body.getPosition()
@@ -78,6 +79,7 @@ public final class Physics2DSystem: System {
                 body.massData.mass = physicsBody.massProperties.mass
             } else {
                 var def = b2DefaultBodyDef()
+                def.fixedRotation = physicsBody.fixedRotation
                 def.position = transform.position.xy.b2Vec
                 def.type = physicsBody.mode.b2Type
 
@@ -90,7 +92,7 @@ public final class Physics2DSystem: System {
                     shapeDef.density = physicsBody.material.density
                     shapeDef.restitution = physicsBody.material.restitution
                     shapeDef.friction = physicsBody.material.friction
-
+                    shapeDef.filter = physicsBody.filter.b2Filter
                     body.appendPolygonShape(polygon, shapeDef: shapeDef)
                 }
 
@@ -105,11 +107,7 @@ public final class Physics2DSystem: System {
 
                     if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
                          filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
-
-                        var filter = b2DefaultFilter()
-                        filter.categoryBits = collisionFilter.categoryBitMask.rawValue
-                        filter.maskBits = collisionFilter.collisionBitMask.rawValue
-                        shape.filter = filter
+                        shape.filter = collisionFilter.b2Filter
                     }
                 }
             }
@@ -125,14 +123,15 @@ public final class Physics2DSystem: System {
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
 
             if let body = collisionBody.runtimeBody {
-                body.setTransform(
-                    position: transform.position.xy,
-                    angle: Angle.radians(transform.position.z)
-                )
+                if body.getPosition() != transform.position.xy {
+                    body.setTransform(
+                        position: transform.position.xy,
+                        angle: transform.rotation.angle2D
+                    )
+                }
             } else {
                 var def = b2DefaultBodyDef()
                 def.position = transform.position.xy.b2Vec
-                def.rotation = b2MakeRot(transform.rotation.z)
                 def.type = b2_staticBody
 
                 let body = world.createBody(with: def, for: entity)
@@ -141,6 +140,8 @@ public final class Physics2DSystem: System {
                 for shapeResource in collisionBody.shapes {
                     let shape = BoxShape2D.makeB2Polygon(for: shapeResource, transform: transform)
                     var shapeDef = b2DefaultShapeDef()
+                    shapeDef.density = 0
+                    shapeDef.filter = collisionBody.filter.b2Filter
                     if case .trigger = collisionBody.mode {
                         shapeDef.isSensor = true
                     }
@@ -156,11 +157,7 @@ public final class Physics2DSystem: System {
 
                     if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
                          filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
-
-                        var filter = b2DefaultFilter()
-                        filter.categoryBits = collisionFilter.categoryBitMask.rawValue
-                        filter.maskBits = collisionFilter.collisionBitMask.rawValue
-                        shape.filter = filter
+                        shape.filter = collisionFilter.b2Filter
                     }
                 }
             }
@@ -176,5 +173,24 @@ public final class Physics2DSystem: System {
     private func getBody(from entity: Entity) -> Body2D? {
         entity.components[PhysicsBody2DComponent.self]?.runtimeBody ??
         entity.components[Collision2DComponent.self]?.runtimeBody
+    }
+}
+
+private extension CollisionFilter {
+    var b2Filter: b2Filter {
+        var filter = b2DefaultFilter()
+        filter.categoryBits = categoryBitMask.rawValue
+        filter.maskBits = collisionBitMask.rawValue
+        return filter
+    }
+}
+
+private extension Quat {
+    var angle2D: Angle {
+        let rads = Math.atan2(
+            2 * (self.w * self.z + self.x * self.y),
+            1 - 2 * (self.y * self.y + self.z * self.z)
+        )
+        return Angle.radians(rads)
     }
 }

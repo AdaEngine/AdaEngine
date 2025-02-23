@@ -63,6 +63,15 @@ public extension View {
     func font(_ font: Font?) -> some View {
         return self.environment(\.font, font)
     }
+    
+    /// Sets the default font size for text in this view.
+    func fontSize(_ pointSize: Double) -> some View {
+        return self.transformEnvironment(\.font) { font in
+            var newFont = font ?? Font.system(size: 17)
+            newFont.pointSize = pointSize
+            font = newFont
+        }
+    }
 
     func foregroundColor(_ color: Color) -> some View {
         return self.environment(\.foregroundColor, color)

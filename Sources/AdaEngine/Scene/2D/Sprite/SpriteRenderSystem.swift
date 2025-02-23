@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
+import Math
+
 // TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
 
 /// System in RenderWorld for render sprites from exctracted sprites.
@@ -209,6 +211,8 @@ public struct ExtractedSprites {
 public struct ExtractedSprite {
     public var entityId: Entity.ID
     public var texture: Texture2D?
+    public var flipX: Bool
+    public var flipY: Bool
     public var tintColor: Color
     public var transform: Transform
     public var worldTransform: Transform3D
@@ -238,6 +242,8 @@ public struct ExtractSpriteSystem: System {
                 ExtractedSprite(
                     entityId: entity.id,
                     texture: sprite.texture,
+                    flipX: sprite.flipX,
+                    flipY: sprite.flipY,
                     tintColor: sprite.tintColor,
                     transform: transform,
                     worldTransform: globalTransform.matrix

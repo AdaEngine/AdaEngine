@@ -31,7 +31,8 @@ public struct UIGraphicsContext {
 
     private var viewMatrix: Transform3D = .identity
 
-    @MainActor init(window: UIWindow) {
+    @MainActor
+    public init(window: UIWindow) {
         let camera = Camera(window: window.id)
         camera.isActive = true
         camera.projection = .orthographic
@@ -39,7 +40,7 @@ public struct UIGraphicsContext {
         self.camera = camera
     }
     
-    init(texture: RenderTexture) {
+    public init(texture: RenderTexture) {
         let camera = Camera(renderTarget: texture)
         camera.isActive = true
         camera.projection = .orthographic
@@ -47,7 +48,7 @@ public struct UIGraphicsContext {
         self.camera = camera
     }
     
-    internal mutating func beginDraw(in size: Size, scaleFactor: Float) {
+    public mutating func beginDraw(in size: Size, scaleFactor: Float) {
         let view = Transform3D.orthographic(
             left: 0,
             right: size.width * scaleFactor,

@@ -123,7 +123,7 @@ open class UIWindowManager {
         fatalErrorMethodNotImplemented()
     }
     
-    internal func updateCursor() {
+    open func updateCursor() {
         fatalErrorMethodNotImplemented()
     }
     

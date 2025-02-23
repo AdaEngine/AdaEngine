@@ -72,17 +72,17 @@ products.append(ios)
 
 /// Currently plugins doesn't work on swift playground and not at all binaries can work in others platforms like Windows.
 #if os(macOS)
-let swiftLintTargets: [Target] = [
-    .binaryTarget(
-        name: "SwiftLintBinary",
-        path: "Binaries/SwiftLintBinary.artifactbundle"
-    ),
-    .plugin(
-        name: "SwiftLintPlugin",
-        capability: .buildTool(),
-        dependencies: ["SwiftLintBinary"]
-    )
-]
+//let swiftLintTargets: [Target] = [
+//    .binaryTarget(
+//        name: "SwiftLintBinary",
+//        path: "Binaries/SwiftLintBinary.artifactbundle"
+//    ),
+//    .plugin(
+//        name: "SwiftLintPlugin",
+//        capability: .buildTool(),
+//        dependencies: ["SwiftLintBinary"]
+//    )
+//]
 #endif
 
 // MARK: Editor Target
@@ -90,7 +90,7 @@ let swiftLintTargets: [Target] = [
 var commonPlugins: [Target.PluginUsage] = []
 
 #if os(macOS)
-commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
+//commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
 
 #endif
 
@@ -171,7 +171,10 @@ let adaEngineTarget: Target = .target(
 
 let adaEngineEmbeddable: Target = .target(
     name: "AdaEngineEmbeddable",
-    dependencies: ["AdaEngine"],
+    dependencies: [
+        "AdaEngine",
+        "AdaEngineMacros"
+    ],
     swiftSettings: [.interoperabilityMode(.Cxx)],
     linkerSettings: [
         .linkedLibrary("c++")
@@ -251,7 +254,7 @@ targets += [
 ]
 
 #if os(macOS)
-targets.append(contentsOf: swiftLintTargets)
+//targets.append(contentsOf: swiftLintTargets)
 #endif
 
 // MARK: - Package -
@@ -311,7 +314,7 @@ let disabledStrictConcurrencyTargets = [
     "SPIRV-Cross",
     "SPIRVCompiler",
     "AdaEngineMacros",
-    "SwiftLintPlugin"
+//    "SwiftLintPlugin"
 ]
 
 for target in package.targets

@@ -5,7 +5,7 @@
 //  Created by vladislav.prusakov on 12.08.2024.
 //
 
-@testable import AdaEngine
+@_spi(Internal) @testable import AdaEngine
 
 class TestApplication: Application {
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
