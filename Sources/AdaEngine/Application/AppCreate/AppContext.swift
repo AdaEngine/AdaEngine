@@ -8,13 +8,15 @@
 import Logging
 
 @MainActor
-final class AppContext<T: App> {
+@_spi(Internal)
+public final class AppContext<T: App> {
 
     private var app: T
     private var application: Application!
 
     init() throws {
         self.app = T.init()
+        
         let argc = CommandLine.argc
         let argv = CommandLine.unsafeArgv
 
@@ -36,8 +38,15 @@ final class AppContext<T: App> {
 
         Application.shared = self.application
     }
+    
+    @_spi(Internal)
+    public init(_ app: T) {
+        self.app = app
+        self.application = Application.shared
+    }
 
-    func setup() async throws {
+    @_spi(Internal)
+    public func setup() async throws {
         try ResourceManager.initialize()
         try AudioServer.initialize()
         RuntimeTypeLoader.loadTypes()
@@ -63,8 +72,9 @@ final class AppContext<T: App> {
             window.showWindow(makeFocused: true)
         }
     }
-
-    func runApplication() throws {
+    
+    @_spi(Internal)
+    public func runApplication() throws {
         try AudioServer.shared.start()
         try self.application.run()
         try AudioServer.shared.stop()

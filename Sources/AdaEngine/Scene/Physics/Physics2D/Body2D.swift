@@ -11,7 +11,7 @@ import Math
 // An object that represents physics 2D body.
 public final class Body2D {
     
-    unowned let world: PhysicsWorld2D
+    weak var world: PhysicsWorld2D?
     weak var entity: Entity?
     
     internal private(set) var debugMesh: Mesh?
@@ -25,7 +25,7 @@ public final class Body2D {
     }
     
     deinit {
-        self.world.destroyBody(self)
+        self.world?.destroyBody(self)
     }
 
     @discardableResult
@@ -53,6 +53,15 @@ public final class Body2D {
         b2Body_GetShapes(bodyId, shapes, shapesCount)
         return Array(UnsafeBufferPointer(start: shapes, count: Int(shapesCount))).map {
             BoxShape2D(shape: $0)
+        }
+    }
+    
+    var gravityScale: Float {
+        get {
+            b2Body_GetGravityScale(bodyId)
+        }
+        set {
+            b2Body_SetGravityScale(bodyId, newValue)
         }
     }
 
@@ -122,6 +131,14 @@ public final class Body2D {
     /// - Returns: The world velocity of a point or zero if entity not attached to Physics2DWorld.
     func getLinearVelocityFromLocalPoint(_ localPoint: Vector2) -> Vector2 {
         return b2Body_GetLocalPointVelocity(bodyId, localPoint.b2Vec).asVector2
+    }
+    
+    func setAngularVelocity(_ velocity: Float) {
+        b2Body_SetAngularVelocity(bodyId, velocity)
+    }
+    
+    func getAngularVelocity() -> Float {
+        b2Body_GetAngularVelocity(bodyId)
     }
 }
 

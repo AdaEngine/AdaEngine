@@ -21,10 +21,10 @@ public extension EnvironmentValues {
 
 public extension EnvironmentValues {
     /// The game scene where view attached.
-    @Entry internal(set) var scene: Scene?
+    @Entry internal(set) var scene: WeakBox<Scene>?
 
     /// The entity that contains the attched view.
-    @Entry internal(set) var entity: Entity?
+    @Entry internal(set) var entity: WeakBox<Entity>?
 }
 
 @_spi(AdaEngineEditor)

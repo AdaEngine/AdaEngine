@@ -9,11 +9,11 @@ public struct Font: Hashable, Equatable, Sendable {
     
     public let name: String
     public let familyFont: String
-    public let pointSize: Double
+    public internal(set) var pointSize: Double
     
     let fontResource: FontResource
     
-    internal init(fontResource: FontResource, pointSize: Double) {
+    public init(fontResource: FontResource, pointSize: Double) {
         self.pointSize = pointSize
         self.fontResource = fontResource
         self.name = fontResource.handle.fontName

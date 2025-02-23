@@ -146,6 +146,7 @@ public final class World {
     /// Remove all data from world.
     func clear() {
         self.records.removeAll(keepingCapacity: true)
+        self.updatedComponents.removeAll(keepingCapacity: true)
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
         self.archetypes.removeAll(keepingCapacity: true)

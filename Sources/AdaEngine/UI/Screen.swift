@@ -37,11 +37,12 @@ public final class Screen {
     /// Contains reference to native screen.
     internal private(set) weak var systemScreen: SystemScreen?
     
-    init(systemScreen: SystemScreen) {
+    @_spi(Internal)
+    public init(systemScreen: SystemScreen) {
         self.systemScreen = systemScreen
     }
-    
 }
 
 /// Represents platform specific screen.
-protocol SystemScreen: AnyObject {}
+@_spi(Internal)
+public protocol SystemScreen: AnyObject {}

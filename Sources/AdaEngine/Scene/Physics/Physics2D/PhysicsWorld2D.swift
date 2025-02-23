@@ -12,22 +12,53 @@ import Math
 public final class PhysicsWorld2D: Codable {
 
     enum CodingKeys: CodingKey {
-        case velocityIterations
-        case positionIterations
+        case substepIterations
         case gravity
     }
     
-    public var velocityIterations: Int = 4
-    public var positionIterations: Int = 2
+    public var substepIterations: Int = 4
     
     /// Contains world gravity.
     public var gravity: Vector2 {
         get {
             b2World_GetGravity(worldId).asVector2
         }
-
         set {
             b2World_SetGravity(worldId, newValue.b2Vec)
+        }
+    }
+    
+    /// Enable/disable continuous collision between dynamic and static bodies.
+    /// Generally you should keep continuous collision enabled to prevent fast moving objects from
+    /// going through static objects. The performance gain from disabling continuous collision is minor.
+    public var isContinuousEnabled: Bool {
+        get {
+            b2World_IsContinuousEnabled(worldId)
+        }
+        set {
+            b2World_EnableContinuous(worldId, newValue)
+        }
+    }
+    
+    /// Enable/disable constraint warm starting. Advanced feature for testing.
+    /// Disabling sleeping greatly reduces stability and provides no performance gain.
+    public var isWarmStartingEnabled: Bool {
+        get {
+            b2World_IsWarmStartingEnabled(worldId)
+        }
+        set {
+            b2World_EnableWarmStarting(worldId, newValue)
+        }
+    }
+    
+    /// Enable/disable sleep. If your application does not need sleeping, you can gain
+    /// some performance by disabling sleep completely at the world level.
+    public var isSleepEnabled: Bool {
+        get {
+            b2World_IsSleepingEnabled(worldId)
+        }
+        set {
+            b2World_EnableSleeping(worldId, newValue)
         }
     }
 
@@ -38,8 +69,11 @@ public final class PhysicsWorld2D: Codable {
     init(gravity: Vector2 = [0, -9.81]) {
         var worldDef = b2DefaultWorldDef()
         worldDef.gravity = gravity.b2Vec
+        worldDef.enableSleep = true
+        worldDef.enableContinuous = true
         self.worldId = b2CreateWorld(&worldDef)
-
+        b2World_EnableWarmStarting(worldId, true)
+        
         let unsafeWorldPtr = Unmanaged.passUnretained(self).toOpaque()
         b2World_SetPreSolveCallback(worldId, PhysicsWorld2D_PreSolve, unsafeWorldPtr)
         b2World_SetCustomFilterCallback(worldId, PhysicsWorld2D_CustomFilterCallback, unsafeWorldPtr)
@@ -55,15 +89,13 @@ public final class PhysicsWorld2D: Codable {
 
         self.init(gravity: gravity)
 
-        self.velocityIterations = try container.decode(Int.self, forKey: .velocityIterations)
-        self.positionIterations = try container.decode(Int.self, forKey: .positionIterations)
+        self.substepIterations = try container.decode(Int.self, forKey: .substepIterations)
     }
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.gravity, forKey: .gravity)
-        try container.encode(self.velocityIterations, forKey: .velocityIterations)
-        try container.encode(self.positionIterations, forKey: .positionIterations)
+        try container.encode(self.substepIterations, forKey: .substepIterations)
     }
     
     // MARK: - Raycasting
@@ -127,7 +159,7 @@ public final class PhysicsWorld2D: Codable {
         b2World_Step(
             worldId,
             delta, /* timeStep */
-            Int32(self.velocityIterations) /* velocityIterations */
+            Int32(self.substepIterations) /* velocityIterations */
         )
     }
 

@@ -95,7 +95,7 @@ extension Optional: View where Wrapped: View {
 
 extension View {
     @MainActor
-    public static func printChanges() {
+    public static func _printChanges() {
         ViewGraph.registerViewToDebugUpdate(self)
     }
 }
