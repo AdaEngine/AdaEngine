@@ -35,9 +35,6 @@ extension EntryMacro: AccessorMacro {
     }
 }
 
-// TODO: Modifiers as `any ButtonStyle` doesn't works
-// TODO: Can't create macro if we not defined type `@Entry var myObject = MyObject()`
-
 extension EntryMacro: PeerMacro {
     public static func expansion(
         of node: SwiftSyntax.AttributeSyntax,
@@ -71,11 +68,7 @@ extension EntryMacro: PeerMacro {
             throw MacroError.macroUsage("Value couldn't be nil if type isn't optional.")
         }
         
-        guard let type = typeSyntax.identifier else {
-            throw MacroError.macroUsage("Can't detect a property type.")
-        }
-        
-        let typeString = "\(type)" + (isOptional ? "?" : "")
+        let typeString = typeSyntax.description.trimmingCharacters(in: .whitespacesAndNewlines)
         
         let newKeyStruct: DeclSyntax =
         """

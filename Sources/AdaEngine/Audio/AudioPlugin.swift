@@ -113,6 +113,7 @@ public extension Entity {
     /// Use the controller to set playback characteristics like volume and reverb, and then start or stop playback.
     ///
     /// This method first prepares the audio by calling ``Entity/prepareAudio(_:)``, and then immediately calls the ``AudioPlaybackController/play()`` method on the returned controller.
+    @discardableResult
     func playAudio(_ resource: AudioResource) -> AudioPlaybackController {
         let controller = self.prepareAudio(resource)
         controller.play()

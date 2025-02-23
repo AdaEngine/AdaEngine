@@ -22,8 +22,8 @@ public struct UISystem: System {
 
             if let viewOwner = (view as? ViewOwner) {
                 var environment = EnvironmentValues()
-                environment.scene = context.scene
-                environment.entity = entity
+                environment.scene = WeakBox(value: context.scene)
+                environment.entity = WeakBox(value: entity)
                 viewOwner.updateEnvironment(environment)
             }
 

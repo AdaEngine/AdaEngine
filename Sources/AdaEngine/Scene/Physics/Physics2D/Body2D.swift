@@ -11,7 +11,7 @@ import Math
 // An object that represents physics 2D body.
 public final class Body2D {
     
-    unowned let world: PhysicsWorld2D
+    weak var world: PhysicsWorld2D?
     weak var entity: Entity?
     
     internal private(set) var debugMesh: Mesh?
@@ -25,7 +25,7 @@ public final class Body2D {
     }
     
     deinit {
-        self.world.destroyBody(self)
+        self.world?.destroyBody(self)
     }
 
     @discardableResult
