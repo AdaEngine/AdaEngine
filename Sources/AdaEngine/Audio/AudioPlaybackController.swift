@@ -43,6 +43,7 @@ public class AudioPlaybackController: @unchecked Sendable {
     ///
     /// Set this value to true to tell the associated ``AudioPlaybackController`` instance to loop playback indefinitely.
     /// This lets you create ambient sound that never ends, for example.
+    @discardableResult
     public func setLoop(_ isLooping: Bool) -> Self {
         self.sound.isLooping = isLooping
         return self
@@ -76,6 +77,7 @@ public class AudioPlaybackController: @unchecked Sendable {
     }
     
     /// Set the volume for the sound.
+    @discardableResult
     public func setVolume(_ volume: Float) -> Self {
         self.volume = volume
         return self
