@@ -66,7 +66,7 @@ public final class PhysicsWorld2D: Codable {
     weak var scene: Scene?
     
     /// - Parameter gravity: default gravity is 9.8.
-    init(gravity: Vector2 = [0, -9.81]) {
+    nonisolated init(gravity: Vector2 = [0, -9.81]) {
         var worldDef = b2DefaultWorldDef()
         worldDef.gravity = gravity.b2Vec
         worldDef.enableSleep = true
@@ -155,6 +155,7 @@ public final class PhysicsWorld2D: Codable {
     
     // MARK: - Internal
     
+    @MainActor
     func updateSimulation(_ delta: Float) {
         b2World_Step(
             worldId,
@@ -163,11 +164,13 @@ public final class PhysicsWorld2D: Codable {
         )
     }
 
+    @MainActor
     func debugDraw(with definitions: b2DebugDraw) {
         var definitions = definitions
         b2World_Draw(worldId, &definitions)
     }
 
+    @MainActor
     func processContacts() {
         let contactEvents = b2World_GetContactEvents(self.worldId)
 
@@ -187,6 +190,7 @@ public final class PhysicsWorld2D: Codable {
         }
     }
 
+    @MainActor
     func processSensors() {
         let sensorEvents = b2World_GetSensorEvents(self.worldId)
 
@@ -220,6 +224,7 @@ public final class PhysicsWorld2D: Codable {
 
 private extension PhysicsWorld2D {
 
+    @MainActor
     private func onSensorBeginContact(_ contact: b2SensorBeginTouchEvent) {
         let shapeIdA = BoxShape2D(shape: contact.sensorShapeId)
         let shapeIdB = BoxShape2D(shape: contact.visitorShapeId)
@@ -239,6 +244,7 @@ private extension PhysicsWorld2D {
         self.scene?.eventManager.send(event)
     }
 
+    @MainActor
     private func onSensorEndContact(_ contact: b2SensorEndTouchEvent) {
         let shapeIdA = BoxShape2D(shape: contact.sensorShapeId)
         let shapeIdB = BoxShape2D(shape: contact.visitorShapeId)
@@ -262,6 +268,7 @@ private extension PhysicsWorld2D {
         self.scene?.eventManager.send(event)
     }
 
+    @MainActor
     private func onBeginContact(_ contact: b2ContactBeginTouchEvent) {
         let shapeIdA = BoxShape2D(shape: contact.shapeIdA)
         let shapeIdB = BoxShape2D(shape: contact.shapeIdB)
@@ -281,6 +288,7 @@ private extension PhysicsWorld2D {
         self.scene?.eventManager.send(event)
     }
 
+    @MainActor
     private func onEndContact(_ contact: b2ContactEndTouchEvent) {
         let shapeIdA = BoxShape2D(shape: contact.shapeIdA)
         let shapeIdB = BoxShape2D(shape: contact.shapeIdB)
@@ -441,3 +449,37 @@ fileprivate final class _Raycast2DCallback {
 //        }
 //    }
 }
+
+//
+//func testScene() {
+//    var worldDef = b2DefaultWorldDef()
+//    let world = b2CreateWorld(&worldDef)
+//    
+//    var groundDef = b2DefaultBodyDef()
+//    groundDef.position = b2Vec2(x: 0, y: -10)
+//    let groundId = b2CreateBody(world, &groundDef)
+//    
+//    var groundBox = b2MakeBox(50, 10)
+//    
+//    var groundShapeDef = b2DefaultShapeDef()
+//    b2CreatePolygonShape(groundId, &groundShapeDef, &groundBox);
+//    
+//    var dynamicDef = b2DefaultBodyDef()
+//    dynamicDef.position = b2Vec2(x: 0, y: 4)
+//    dynamicDef.type = b2_dynamicBody
+//    dynamicDef.fixedRotation = true
+//    let dynamicId = b2CreateBody(world, &dynamicDef)
+//    
+//    var dynamicBox = b2MakeBox(1, 1)
+//    var dynamicShapeDef = b2DefaultShapeDef()
+//    dynamicShapeDef.density = 1
+//    b2CreatePolygonShape(dynamicId, &dynamicShapeDef, &dynamicBox)
+//    
+//    let timespamp: Float = 1.0 / 60.0
+//    
+//    for _ in 0..<130 {
+//        b2World_Step(world, timespamp, 4)
+//        var dynamicPosition = b2Body_GetPosition(dynamicId)
+//        print("Dynamic position: \(dynamicPosition.x) \(dynamicPosition.y)")
+//    }
+//}
