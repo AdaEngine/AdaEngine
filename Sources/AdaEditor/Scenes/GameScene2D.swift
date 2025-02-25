@@ -58,13 +58,7 @@ class GameScene2D: Scene {
         self.collisionHandler()
         //        self.fpsCounter(for: scene)
 //        self.addText(to: scene)
-
-//        scene.addSystem(TubeMovementSystem.self)
-//        scene.addSystem(TubeSpawnerSystem.self)
-//        scene.addSystem(TubeDestroyerSystem.self)
         self.addSystem(PlayerMovementSystem.self)
-
-        //        try ResourceManager.save(scene, at: scenePath)
 
         // Change gravitation
     }
