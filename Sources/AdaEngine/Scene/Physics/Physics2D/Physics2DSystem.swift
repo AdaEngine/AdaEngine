@@ -45,9 +45,8 @@ public final class Physics2DSystem: System {
             return
         }
         
-        let step = (Float(1) / Float(Engine.shared.physicsTickPerSecond))
-        if result.isFixedTick, result.fixedTime >= step {
-            world.updateSimulation(step)
+        if result.isFixedTick {
+            world.updateSimulation(fixedTimestep.step)
             world.processContacts()
             world.processSensors()
         }
@@ -140,7 +139,7 @@ public final class Physics2DSystem: System {
                 for shapeResource in collisionBody.shapes {
                     let shape = BoxShape2D.makeB2Polygon(for: shapeResource, transform: transform)
                     var shapeDef = b2DefaultShapeDef()
-                    shapeDef.density = 0
+                    shapeDef.density = 1
                     shapeDef.filter = collisionBody.filter.b2Filter
                     if case .trigger = collisionBody.mode {
                         shapeDef.isSensor = true

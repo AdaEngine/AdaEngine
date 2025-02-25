@@ -11,10 +11,12 @@ class GameScene2D: Scene {
 
     var disposeBag: Set<AnyCancellable> = []
 
-    let textureAtlas: TextureAtlas
-    let characterAtlas: TextureAtlas
+    var textureAtlas: TextureAtlas!
+    var characterAtlas: TextureAtlas!
 
-    init() {
+    
+    override func sceneDidMove(to view: SceneView) {
+        
         do {
             let tiles = try ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
             let charactersTiles = try ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
@@ -25,16 +27,6 @@ class GameScene2D: Scene {
             fatalError(error.localizedDescription)
         }
 
-        super.init()
-    }
-    
-    required nonisolated convenience init(asset decoder: any AssetDecoder) async throws {
-        fatalError("init(asset:) has not been implemented")
-    }
-    
-    override func sceneDidMove(to view: SceneView) {
-        //        let scene = try ResourceManager.load(scenePath) as Scene
-
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraEntity.camera.clearFlags = .solid
@@ -42,23 +34,16 @@ class GameScene2D: Scene {
 
         self.addEntity(cameraEntity)
 
-        let textTextEnt = Entity()
-        textTextEnt.components += Text2DComponent(text: AttributedText(""))
-        textTextEnt.components += InputMapCallComponent()
-        textTextEnt.components += NoFrustumCulling()
-        self.addEntity(textTextEnt)
-
         // DEBUG
         self.debugOptions = [.showPhysicsShapes]
-        //        scene.debugOptions = [.showBoundingBoxes]
         self.debugPhysicsColor = .red
         self.makePlayer()
         self.makeGround()
         try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
         self.collisionHandler()
-        //        self.fpsCounter(for: scene)
-//        self.addText(to: scene)
+        
         self.addSystem(PlayerMovementSystem.self)
+        self.addSystem(SpawnPhysicsBodiesSystem.self)
 
         // Change gravitation
     }
@@ -97,7 +82,7 @@ class GameScene2D: Scene {
                 .generateBox()
             ],
             mass: 1,
-            mode: .dynamic
+            mode: .kinematic
         )
         playerEntity.components += PlayerComponent()
         self.addEntity(playerEntity)
@@ -196,40 +181,6 @@ extension GameScene2D {
     }
 }
 
-class InputMapCallComponent: ScriptableComponent {
-
-    @RequiredComponent var textComponent: Text2DComponent
-
-    var container = TextAttributeContainer()
-
-    override func onReady() {
-        container.font = .system(size: 0, weight: .bold)
-        container.foregroundColor = .white
-    }
-
-    override func onPhysicsUpdate(_ deltaTime: TimeInterval) {
-        var text: String = ""
-
-        if Input.isKeyPressed(.w) {
-            text += "w"
-        }
-
-        if Input.isKeyPressed(.s) {
-            text += "s"
-        }
-
-        if Input.isKeyPressed(.a) {
-            text += "a"
-        }
-
-        if Input.isKeyPressed(.d) {
-            text += "d"
-        }
-
-        textComponent.text = AttributedText(text, attributes: container)
-    }
-}
-
 struct PlayerMovementSystem: System {
 
     static let playerQuery = EntityQuery(where: .has(PlayerComponent.self) && .has(PhysicsBody2DComponent.self))
@@ -319,109 +270,30 @@ struct PlayerMovementSystem: System {
             entity.components += transform
         }
 
-        context.scene.performQuery(Self.playerQuery).forEach { entity in
-            let body = entity.components[PhysicsBody2DComponent.self]!
-
-            if Input.isKeyPressed(.space) {
-                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
-            }
-
-            for touch in Input.getTouches() where touch.phase == .began {
-                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
-            }
-
-            if Input.isKeyPressed(.arrowLeft) {
-                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
-            }
-
-            if Input.isKeyPressed(.arrowRight) {
-                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
-            }
-        }
+//        context.scene.performQuery(Self.playerQuery).forEach { entity in
+//            let body = entity.components[PhysicsBody2DComponent.self]!
+//
+//            if Input.isKeyPressed(.space) {
+//                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
+//            }
+//
+//            for touch in Input.getTouches() where touch.phase == .began {
+//                body.applyLinearImpulse([0, 0.15], point: .zero, wake: true)
+//            }
+//
+//            if Input.isKeyPressed(.arrowLeft) {
+//                body.applyLinearImpulse([-0.05, 0], point: .zero, wake: true)
+//            }
+//
+//            if Input.isKeyPressed(.arrowRight) {
+//                body.applyLinearImpulse([0.05, 0], point: .zero, wake: true)
+//            }
+//        }
     }
 }
 
 @Component
 struct PlayerComponent { }
-
-@Component
-struct TubeComponent { }
-
-struct TubeMovementSystem: System {
-
-    static let tubeQuery = EntityQuery(
-        where: .has(TubeComponent.self) && .has(Transform.self)
-    )
-
-    init(scene: Scene) { }
-
-    func update(context: UpdateContext) {
-        context.scene.performQuery(Self.tubeQuery).forEach { entity in
-            var transform = entity.components[Transform.self]!
-            transform.position.x -= 1 * context.deltaTime
-            entity.components[Transform.self] = transform
-        }
-    }
-}
-
-struct TubeDestroyerSystem: System {
-
-    static let tubeQuery = EntityQuery(
-        where: .has(TubeComponent.self) && .has(Transform.self)
-    )
-
-    init(scene: Scene) { }
-
-    func update(context: UpdateContext) {
-        let entities = context.scene.performQuery(Self.tubeQuery)
-
-        entities.forEach { entity in
-            let transform = entity.components[Transform.self]!
-
-            if transform.position.x < -4 {
-                entity.removeFromScene()
-            }
-        }
-    }
-}
-
-class TubeSpawnerSystem: System {
-
-    let timer = FixedTimestep(step: 1.2)
-
-    required init(scene: Scene) { }
-
-    func update(context: UpdateContext) {
-        let timerResult = timer.advance(with: context.deltaTime)
-
-        if timerResult.isFixedTick {
-            var transform = Transform()
-            transform.scale = [0.4, 1, 1]
-
-            let position = Vector3(x: 4, y: Float.random(in: 0.4 ... 1.2), z: -1)
-            transform.position = position
-
-            self.spawnTube(in: context.scene, transform: transform, isUp: true)
-            transform.position.y -= 1.5
-
-            self.spawnTube(in: context.scene, transform: transform, isUp: false)
-        }
-    }
-
-    @MainActor private func spawnTube(in scene: Scene, transform: Transform, isUp: Bool) {
-        let tube = Entity(name: "Tube")
-        tube.components += TubeComponent()
-        tube.components += SpriteComponent(tintColor: isUp ? Color.green : Color.blue)
-        tube.components += transform
-        tube.components += Collision2DComponent(
-            shapes: [
-                .generateBox()
-            ]
-        )
-
-        scene.addEntity(tube)
-    }
-}
 
 struct MyMaterial: CanvasMaterial {
 
@@ -442,5 +314,45 @@ struct MyMaterial: CanvasMaterial {
 
     static func fragmentShader() throws -> ShaderSource {
         try ResourceManager.loadSync("Assets/custom_material.glsl", from: .editor)
+    }
+}
+
+struct SpawnPhysicsBodiesSystem: System {
+    
+    static let camera = EntityQuery(where: .has(Camera.self))
+    let fixedTimestep: FixedTimestep = FixedTimestep(stepsPerSecond: 20)
+
+    init(scene: Scene) { }
+
+    func update(context: UpdateContext) {
+        let result = fixedTimestep.advance(with: context.deltaTime)
+        if !result.isFixedTick {
+            return
+        }
+        
+        context.scene.performQuery(Self.camera).forEach { entity in
+            if Input.isMouseButtonPressed(.left) {
+                let (globalTransform, camera) = entity.components[GlobalTransform.self, Camera.self]
+                let mousePosition = Input.getMousePosition()
+                if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: mousePosition) {
+                    self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), scene: context.scene )
+                }
+            }
+        }
+    }
+    
+    @MainActor
+    private func spawnPhysicsBody(at position: Vector3, scene: Scene) {
+        let entity = Entity {
+            PhysicsBody2DComponent(
+                shapes: [.generateBox()],
+                mass: 1,
+                mode: .dynamic
+            )
+            Transform(scale: Vector3(0.4), position: position)
+            SpriteComponent(tintColor: .blue)
+        }
+        
+        scene.addEntity(entity)
     }
 }

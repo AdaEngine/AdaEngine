@@ -27,5 +27,5 @@ final public class PhysicsMaterial: Codable {
 public extension PhysicsMaterial {
     
     /// A default material resource.
-    static let `default` = PhysicsMaterial(friction: 0.6, restitution: 0, density: 1)
+    @MainActor static let `default` = PhysicsMaterial(friction: 0.6, restitution: 0, density: 1)
 }

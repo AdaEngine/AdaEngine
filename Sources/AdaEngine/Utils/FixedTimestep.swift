@@ -19,7 +19,7 @@ public final class FixedTimestep {
     /// The amount of time each step takes.
     public var step: TimeInterval = 0
     
-    private var accumulator: TimeInterval = 0
+    var accumulator: TimeInterval = 0
     
     /// Creates a FixedTimestep that ticks once every step seconds.
     public init(step: TimeInterval) {
@@ -28,6 +28,7 @@ public final class FixedTimestep {
     
     /// Creates a FixedTimestep that ticks once every `stepsPerSecond` times per second.
     public init(stepsPerSecond: Int) {
+        precondition(stepsPerSecond > 0)
         self.step = 1 / TimeInterval(stepsPerSecond)
     }
     
@@ -42,13 +43,19 @@ public final class FixedTimestep {
         
         self.accumulator += deltaTime
         
-        if self.accumulator >= self.step {
-            
-            result.fixedTime = self.accumulator
-            result.isFixedTick = true
-            
+//        if self.accumulator >= self.step {
+//            
+//            result.fixedTime = self.accumulator
+//            result.isFixedTick = true
+//            
+//            self.accumulator -= self.step
+//            return result
+//        }
+        
+        while self.accumulator >= self.step { // Обрабатываем все возможные шаги
             self.accumulator -= self.step
-            return result
+            result.fixedTime += self.step
+            result.isFixedTick = true
         }
         
         return result

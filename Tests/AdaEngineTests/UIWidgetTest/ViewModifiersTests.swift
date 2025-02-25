@@ -8,13 +8,13 @@
 import XCTest
 @testable import AdaEngine
 
+@MainActor
 final class ViewModifiersTests: XCTestCase {
 
     override func setUp() async throws {
-        try await Application.prepareForTest()
+        try Application.prepareForTest()
     }
 
-    @MainActor
     func test_OnAppearCalled_WhenVisible() {
         // given
         var isChanged = false
@@ -22,7 +22,6 @@ final class ViewModifiersTests: XCTestCase {
             MutableViewWithState(state: true) { isAppeared in
                 Color.blue
                     .onChange(of: isAppeared.wrappedValue) { oldValue, newValue in
-                        print("Kek")
                         isChanged = true
                     }
                     .onAppear {
