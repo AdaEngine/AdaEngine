@@ -40,7 +40,6 @@ final class Physics2DTests: XCTestCase {
     }
     
     func test_DynamicBodyFalling() async {
-        // Создаем пол
         let ground = Entity()
         let groundShape = Shape2DResource.generateBox(width: 100, height: 10)
         let groundCollision = Collision2DComponent(shapes: [groundShape], mode: .default)
@@ -65,10 +64,9 @@ final class Physics2DTests: XCTestCase {
             scene.update(1.0 / 60.0)
         }
         
-        // Проверяем, что объект упал
         let endY = box.components[Transform.self]?.position.y ?? 0
         XCTAssertLessThan(endY, startY)
-        XCTAssertGreaterThan(endY, -9) // Не должен пройти сквозь пол
+        XCTAssertGreaterThan(endY, -9)
     }
     
     func test_ApplyForce() async {
@@ -130,7 +128,6 @@ final class Physics2DTests: XCTestCase {
         entityA.components[Transform.self]?.position.x += 1
         entityB.components[Transform.self]?.position.x -= 1
         
-        // Симулируем несколько кадров
         for _ in 0..<10 {
             scene.update(1.0 / 60.0)
         }
