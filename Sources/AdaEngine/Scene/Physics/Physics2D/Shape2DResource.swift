@@ -37,8 +37,8 @@ public final class Shape2DResource: Codable {
     }
     
     /// Creates a circle shape with the specified radius.
-    public static func generateCircle(radius: Float) -> Shape2DResource {
-        return Shape2DResource(fixture: .circle(CircleShape(radius: radius)))
+    public static func generateCircle(radius: Float = 1) -> Shape2DResource {
+        return Shape2DResource(fixture: .circle(CircleShape(radius: radius / 2)))
     }
     
     /// Creates a box shape with the specified size. By default size is equal entity transformation scale value.

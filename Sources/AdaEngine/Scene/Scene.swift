@@ -40,9 +40,6 @@ open class Scene: Resource {
     /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     
-    /// Default color for debug physics color.
-    public var debugPhysicsColor: Color = .green
-    
     /// Instance of scene manager which holds this scene.
     public internal(set) weak var sceneManager: SceneManager?
 

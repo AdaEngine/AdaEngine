@@ -16,6 +16,9 @@ public struct Collision2DComponent {
     
     /// The physics body's filter.
     public var filter: CollisionFilter
+
+    /// Custom debug color.
+    public var debugColor: Color?
     
     public init(
         shapes: [Shape2DResource],

@@ -36,7 +36,6 @@ class GameScene2D: Scene {
 
         // DEBUG
         self.debugOptions = [.showPhysicsShapes]
-        self.debugPhysicsColor = .red
         self.makePlayer()
         self.makeGround()
         try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
@@ -241,7 +240,6 @@ struct PlayerMovementSystem: System {
                 let globalTransform = context.scene.worldTransformMatrix(for: cameraEntity)
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform, viewportPosition: mousePosition) {
-                    print("Position", position)
                     //                    let values = context.scene.physicsWorld2D?.raycast(from: .zero, to: position)
 
                     transform.position.x = position.x
@@ -343,14 +341,24 @@ struct SpawnPhysicsBodiesSystem: System {
     
     @MainActor
     private func spawnPhysicsBody(at position: Vector3, scene: Scene) {
+        let isCircle = Input.isKeyPressed(.space)
+
         let entity = Entity {
             PhysicsBody2DComponent(
-                shapes: [.generateBox()],
+                shapes: [
+                   isCircle ? .generateCircle(radius: 1) : .generateBox()
+                ],
                 mass: 1,
                 mode: .dynamic
             )
+            
             Transform(scale: Vector3(0.4), position: position)
-            SpriteComponent(tintColor: .blue)
+            
+            if isCircle {
+                Circle2DComponent(color: .red)
+            } else {
+                SpriteComponent(tintColor: .blue)
+            }
         }
         
         scene.addEntity(entity)
