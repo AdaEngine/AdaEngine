@@ -8,6 +8,22 @@
 @_implementationOnly import box2d
 import Math
 
+public protocol PhysicsWorld2DDelegate: AnyObject {
+    
+    func physicsWorldOnPreSolve(
+        _ world: PhysicsWorld2D,
+        entityA: Entity,
+        entityB: Entity,
+        manifold: Manifold2D?
+    ) -> Bool
+    
+    func physicsWorldOnCustomFilterCalled(
+        _ world: PhysicsWorld2D,
+        entityA: Entity,
+        entityB: Entity
+    ) -> Bool
+}
+
 /// An object that holds and simulate all 2D physics bodies.
 public final class PhysicsWorld2D: Codable {
 
@@ -15,6 +31,8 @@ public final class PhysicsWorld2D: Codable {
         case substepIterations
         case gravity
     }
+    
+    public weak var delegate: PhysicsWorld2DDelegate?
     
     public var substepIterations: Int = 4
     
@@ -108,11 +126,6 @@ public final class PhysicsWorld2D: Codable {
         query: CollisionCastQueryType = .all,
         mask: CollisionGroup = .all
     ) -> [Raycast2DHit] {
-        let input = b2RayCastInput(
-            origin: startPoint.b2Vec,
-            translation: (endPoint - startPoint).b2Vec,
-            maxFraction: 1.0)
-
         switch query {
         case .first:
             var filter = b2DefaultQueryFilter()
@@ -157,6 +170,7 @@ public final class PhysicsWorld2D: Codable {
     
     @MainActor
     func updateSimulation(_ delta: Float) {
+        print("xxx simulation delta", delta)
         b2World_Step(
             worldId,
             delta, /* timeStep */
@@ -323,7 +337,39 @@ private func PhysicsWorld2D_PreSolve(
     _ manifold: UnsafeMutablePointer<b2Manifold>?,
     _ context: UnsafeMutableRawPointer?
 ) -> Bool {
-    return false
+    guard let context else {
+        return false
+    }
+    
+    let world = Unmanaged<PhysicsWorld2D>.fromOpaque(context).takeUnretainedValue()
+    
+    let shapeIdA = BoxShape2D(shape: shapeA)
+    let shapeIdB = BoxShape2D(shape: shapeB)
+
+    guard shapeIdA.isValid && shapeIdB.isValid else {
+        return false
+    }
+
+    let bodyA = shapeIdA.body
+    let bodyB = shapeIdB.body
+
+    guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
+        return false
+    }
+    
+    let manifold = manifold.flatMap { ptr in
+        Manifold2D(
+            normal: ptr.pointee.normal.asVector2,
+            rollingImpulse: ptr.pointee.rollingImpulse
+        )
+    }
+    
+    return world.delegate?.physicsWorldOnPreSolve(
+        world,
+        entityA: entityA,
+        entityB: entityB,
+        manifold: manifold
+    ) ?? false
 }
 
 private func PhysicsWorld2D_CustomFilterCallback(
@@ -331,7 +377,31 @@ private func PhysicsWorld2D_CustomFilterCallback(
     _ shapeB: b2ShapeId,
     _ context: UnsafeMutableRawPointer?
 ) -> Bool {
-    return false
+    guard let context else {
+        return true
+    }
+    
+    let world = Unmanaged<PhysicsWorld2D>.fromOpaque(context).takeUnretainedValue()
+    
+    let shapeIdA = BoxShape2D(shape: shapeA)
+    let shapeIdB = BoxShape2D(shape: shapeB)
+
+    guard shapeIdA.isValid && shapeIdB.isValid else {
+        return true
+    }
+
+    let bodyA = shapeIdA.body
+    let bodyB = shapeIdB.body
+
+    guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
+        return true
+    }
+    
+    return world.delegate?.physicsWorldOnCustomFilterCalled(
+        world,
+        entityA: entityA,
+        entityB: entityB
+    ) ?? true
 }
 
 // MARK: - Casting
@@ -483,3 +553,9 @@ fileprivate final class _Raycast2DCallback {
 //        print("Dynamic position: \(dynamicPosition.x) \(dynamicPosition.y)")
 //    }
 //}
+
+public struct Manifold2D {
+    public let normal: Vector2
+    
+    public let rollingImpulse: Float
+}
