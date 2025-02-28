@@ -26,149 +26,136 @@ public struct DebugPhysicsExctract2DSystem: System {
     )
     
     static let cameras = EntityQuery(where:
-            .has(Camera.self) &&
-        .has(VisibleEntities.self) &&
-        .has(RenderItems<Transparent2DRenderItem>.self)
+        .has(Camera.self) && .has(GlobalViewUniform.self)
     )
     
-    private let colorMaterial: CustomMaterial<ColorCanvasMaterial>
-    private let circleMaterial: CustomMaterial<CircleCanvasMaterial>
+    public init(scene: Scene) { }
 
-    /// Contains base quad mesh for rendering.
-    private let quadMesh = Mesh.generate(from: Quad())
-    
-    public init(scene: Scene) { 
-        colorMaterial = CustomMaterial(ColorCanvasMaterial(color: .red))
-        circleMaterial = CustomMaterial(
-            CircleCanvasMaterial(
-                thickness: 0.03,
-                fade: 0,
-                color: .red
-            )
-        )
-    }
-    
     public func update(context: UpdateContext) {
         guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
             return
         }
-        
-        self.colorMaterial.color = context.scene.debugPhysicsColor
-        self.circleMaterial.color = context.scene.debugPhysicsColor
-        
-        for entity in context.scene.performQuery(Self.entities) {
-            if entity.components[Visibility.self]!.isVisible == false {
-                continue
-            }
-            
-            guard let body = self.getRuntimeBody(from: entity) else {
-                continue
-            }
-            
-            let shapes = body.getShapes()
-            let emptyEntity = EmptyEntity()
-            let bodyPosition = Vector3(body.getPosition(), 0)
-            for shape in shapes {
-                switch shape.type {
-//                case b2_circleShape:
-//                    let radius = shape.getRadius()
-//                    emptyEntity.components += ExctractedPhysicsMesh2DDebug(
-//                        entityId: entity.id,
-//                        mesh: self.quadMesh,
-//                        material: self.circleMaterial,
-//                        transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(radius))
-//                    )
-                case b2_polygonShape:
-                    guard let mesh = body.debugMesh else {
-                        continue
-                    }
 
-                    emptyEntity.components += ExctractedPhysicsMesh2DDebug(
-                        entityId: entity.id,
-                        mesh: mesh,
-                        material: self.colorMaterial,
-                        transform: Transform3D(translation: bodyPosition, rotation: .identity, scale: Vector3(1))
-                    )
-                default:
-                    continue
-                }
-            }
-
-            Application.shared.renderWorld.addEntity(emptyEntity)
+        guard let camera = context.scene.performQuery(Self.cameras).first else {
+            return
         }
+
+        guard let world = context.scene.physicsWorld2D else {
+            return
+        }
+        
+        guard let window = context.scene.window else {
+            return
+        }
+        
+        var graphics = UIGraphicsContext(window: window)
+        graphics.beginDraw(in: window.frame.size, scaleFactor: 1)
+        
+        if let viewUniform = camera.components[GlobalViewUniform.self] {
+            let viewMatrix = viewUniform.viewProjectionMatrix
+            graphics.concatenate(viewMatrix)
+            graphics.scaleBy(x: window.frame.size.width / 2, y: window.frame.size.height / 2)
+            graphics.translateBy(x: window.frame.size.width / 2, y: -window.frame.size.height / 2)
+        }
+        
+        let drawContext = WorldDebugDrawContext()
+        var debugDraw = b2DefaultDebugDraw()
+        debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
+        debugDraw.DrawSolidCircle = DebugPhysicsExctract2DSystem_DrawSolidCircle
+        debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
+        debugDraw.drawShapes = true
+        debugDraw.drawAABBs = true
+        world.debugDraw(with: debugDraw)
+        
+        drawContext.forEach { item in
+            switch item {
+            case let .line(start, end, color):
+                graphics.drawLine(
+                    start: start,
+                    end: end,
+                    lineWidth: 2.0,
+                    color: color
+                )
+            case let .circle(center, radius, color):
+                graphics.drawEllipse(
+                    in: Rect(
+                        x: center.x - radius,
+                        y: -center.y - radius,
+                        width: radius * 2,
+                        height: radius * 2
+                    ),
+                    color: color,
+                    thickness: 0.1
+                )
+            }
+        }
+        
+        graphics.commitDraw()
     }
 
-//    public func update(context: UpdateContext) {
-//        guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
-//            return
-//        }
-//
-//        guard let world = context.scene.physicsWorld2D else {
-//            return
-//        }
-//
-//        self.colorMaterial.color = context.scene.debugPhysicsColor
-//        self.circleMaterial.color = context.scene.debugPhysicsColor
-//
-//        let drawContext = WorldDebugDrawContext(colorMaterial: self.colorMaterial)
-//
-//        var debugDraw = b2DefaultDebugDraw()
-//        debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
-//        debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
-//        debugDraw.drawShapes = true
-//        debugDraw.drawAABBs = true
-//        world.debugDraw(with: debugDraw)
-//
-//        for item in drawContext.debugItems {
-//            let emptyEntity = EmptyEntity()
-//            emptyEntity.components += item
-//            Application.shared.renderWorld.addEntity(emptyEntity)
-//        }
-//    }
-
-    @MainActor private func getRuntimeBody(from entity: Entity) -> Body2D? {
+    @MainActor 
+    private func getRuntimeBody(from entity: Entity) -> Body2D? {
         return entity.components[PhysicsBody2DComponent.self]?.runtimeBody
         ?? entity.components[Collision2DComponent.self]?.runtimeBody
     }
 }
 
-///// Draw a closed polygon provided in CCW order.
-//void ( *DrawPolygon )( const b2Vec2* vertices, int vertexCount, b2HexColor color, void* context );
-//
-///// Draw a solid closed polygon provided in CCW order.
-//void ( *DrawSolidPolygon )( b2Transform transform, const b2Vec2* vertices, int vertexCount, float radius, b2HexColor color,
-//                            void* context );
-//
-///// Draw a circle.
-//void ( *DrawCircle )( b2Vec2 center, float radius, b2HexColor color, void* context );
-//
-///// Draw a solid circle.
-//void ( *DrawSolidCircle )( b2Transform transform, float radius, b2HexColor color, void* context );
-//
 ///// Draw a solid capsule.
 //void ( *DrawSolidCapsule )( b2Vec2 p1, b2Vec2 p2, float radius, b2HexColor color, void* context );
-//
+
 ///// Draw a line segment.
 //void ( *DrawSegment )( b2Vec2 p1, b2Vec2 p2, b2HexColor color, void* context );
-//
-///// Draw a transform. Choose your own length scale.
-//void ( *DrawTransform )( b2Transform transform, void* context );
-//
-///// Draw a point.
-//void ( *DrawPoint )( b2Vec2 p, float size, b2HexColor color, void* context );
 //
 ///// Draw a string in world space
 //void ( *DrawString )( b2Vec2 p, const char* s, b2HexColor color, void* context );
 
 private final class WorldDebugDrawContext {
-    let colorMaterial: CustomMaterial<ColorCanvasMaterial>
-    let entityId: Entity.ID
-    var debugItems: [ExctractedPhysicsMesh2DDebug] = []
-
-    init(colorMaterial: CustomMaterial<ColorCanvasMaterial>) {
-        self.entityId = RID().id
-        self.colorMaterial = colorMaterial
+    
+    enum DebugItem {
+        case line(start: Vector2, end: Vector2, color: Color)
+        case circle(center: Vector2, radius: Float, color: Color)
     }
+    
+    private var drawStack: [DebugItem] = []
+    
+    func addLine(start: Vector2, end: Vector2, color: Color) {
+        self.drawStack.append(.line(start: start, end: end, color: color))
+    }
+    
+    func addCircle(center: Vector2, radius: Float, color: Color) {
+        self.drawStack.append(.circle(center: center, radius: radius, color: color))
+    }
+    
+    func forEach(_ block: (DebugItem) -> Void) {
+        self.drawStack.forEach(block)
+    }
+}
+
+private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
+    _ transform: b2Transform,   
+    _ radius: Float,
+    _ color: b2HexColor,
+    _ context: UnsafeMutableRawPointer?
+) {
+    let debugContext = Unmanaged<WorldDebugDrawContext>
+        .fromOpaque(context!)
+        .takeUnretainedValue()
+    
+    let color = Color.fromHex(Int(color.rawValue))
+    
+    let center = Vector2(transform.p.x, transform.p.y)
+    
+    debugContext.addCircle(center: center, radius: radius, color: color)
+    
+    let direction = Vector2(
+        transform.q.c * radius,  // cos(angle) * radius
+        transform.q.s * radius   // sin(angle) * radius
+    )
+    
+    let start = center
+    let end = center + direction
+    
+    debugContext.addLine(start: start, end: end, color: color)
 }
 
 private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
@@ -182,29 +169,33 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
     guard let verticies else {
         return
     }
-    let debugContext = Unmanaged<WorldDebugDrawContext>.fromOpaque(context!).takeUnretainedValue()
-    debugContext.colorMaterial.color = .green
+    
+    let debugContext = Unmanaged<WorldDebugDrawContext>
+        .fromOpaque(context!)
+        .takeUnretainedValue()
+    let color = Color.fromHex(Int(color.rawValue))
+    
     let vertices = (0..<vertexCount).map { index in
         let vertex = verticies[Int(index)]
-        return Vector3(x: vertex.x, y: vertex.y, z: 0)
+        return Vector2(vertex.x, vertex.y)
     }
-    var meshDesc = MeshDescriptor(name: "FixtureMesh")
-    meshDesc.positions = MeshBuffer(vertices)
-    // FIXME: We should support 8 vertices
-    meshDesc.indicies = [
-        0, 1, 2, 2, 3, 0
-    ]
-    meshDesc.primitiveTopology = .lineStrip
-    let mesh = Mesh.generate(from: [meshDesc])
-    let debugItem = ExctractedPhysicsMesh2DDebug(
-        entityId: debugContext.entityId,
-        mesh: mesh,
-        material: debugContext.colorMaterial,
-        transform: Transform3D(
-            translation: Vector3(transform.p.asVector2, 0), rotation: .identity, scale: Vector3(1)
+    
+    for i in 0..<vertexCount {
+        let start = vertices[Int(i)]
+        let end = vertices[Int((Int(i) + 1) % Int(vertexCount))]
+        
+        let startTransformed = Vector2(
+            transform.q.c * start.x - transform.q.s * start.y + transform.p.x,
+            transform.q.s * start.x + transform.q.c * start.y + transform.p.y
         )
-    )
-    debugContext.debugItems.append(debugItem)
+        
+        let endTransformed = Vector2(
+            transform.q.c * end.x - transform.q.s * end.y + transform.p.x,
+            transform.q.s * end.x + transform.q.c * end.y + transform.p.y
+        )
+        
+        debugContext.addLine(start: startTransformed, end: endTransformed, color: color)
+    }
 }
 
 /// System for rendering debug physics shape on top of the scene.

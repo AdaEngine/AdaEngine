@@ -170,7 +170,6 @@ public final class PhysicsWorld2D: Codable {
     
     @MainActor
     func updateSimulation(_ delta: Float) {
-        print("xxx simulation delta", delta)
         b2World_Step(
             worldId,
             delta, /* timeStep */

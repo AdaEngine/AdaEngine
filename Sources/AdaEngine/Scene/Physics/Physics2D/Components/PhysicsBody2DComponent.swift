@@ -34,6 +34,9 @@ public struct PhysicsBody2DComponent {
     
     /// Should this body be prevented from rotating? Useful for characters.
     public var fixedRotation: Bool = false
+
+    /// Custom debug color.
+    public var debugColor: Color?
     
     public var gravityScale: Float {
         get {

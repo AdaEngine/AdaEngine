@@ -90,3 +90,19 @@ public extension Color {
 public extension Color {
     var asVector: Vector4 { return Vector4(red, green, blue, alpha) }
 }
+
+public extension Color {
+    static func fromHex(_ hex: Int) -> Color {
+        let red = Float((hex >> 16) & 0xFF) / 255.0
+        let green = Float((hex >> 8) & 0xFF) / 255.0
+        let blue = Float(hex & 0xFF) / 255.0
+        return Color(red: red, green: green, blue: blue, alpha: 1.0)
+    }
+    
+    var toHex: Int {
+        let redInt = Int(red * 255) << 16
+        let greenInt = Int(green * 255) << 8
+        let blueInt = Int(blue * 255)
+        return redInt | greenInt | blueInt
+    }
+}
