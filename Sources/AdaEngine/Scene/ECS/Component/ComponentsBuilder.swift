@@ -29,6 +29,7 @@ private struct ComponentBuilderTuple: Component {
         ComponentBuilderTuple(components: components)
     }
 
+    @_alwaysEmitIntoClient
     public static func buildLimitedAvailability(_ component: Component) -> Component {
         component
     }
@@ -55,7 +56,7 @@ private struct ComponentBuilderTuple: Component {
 
         for item in tuple.components {
             if item is ComponentBuilderTuple {
-                components.append(contentsOf: unpackComponentBuilderTuple(component))
+                components.append(contentsOf: unpackComponentBuilderTuple(item))
             } else {
                 components.append(item)
             }

@@ -107,9 +107,13 @@ public struct UIGraphicsContext {
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
-    public func drawEllipse(in rect: Rect, color: Color) {
+    public func drawEllipse(
+        in rect: Rect, 
+        color: Color,
+        thickness: Float = 1
+    ) {
         let transform = self.transform * rect.toTransform3D
-        self.currentDrawContext?.drawCircle(transform: transform, thickness: 1, fade: 0.005, color: applyOpacityIfNeeded(color))
+        self.currentDrawContext?.drawCircle(transform: transform, thickness: thickness, fade: 0.005, color: applyOpacityIfNeeded(color))
     }
 
     public func drawLine(start: Vector2, end: Vector2, lineWidth: Float, color: Color) {

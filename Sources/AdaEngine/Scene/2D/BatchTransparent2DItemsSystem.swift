@@ -29,7 +29,7 @@ public struct BatchTransparent2DItemsSystem: RenderSystem {
                 for nextItemIndex in 1..<items.count {
                     let nextItem = items[nextItemIndex]
                     
-                    if !tryToAddBatch(to: &currentItem, from: nextItem) == false {
+                    if tryToAddBatch(to: &currentItem, from: nextItem) == false {
                         batchedItems.append(currentItem)
                         currentItem = nextItem
                     }
