@@ -8,13 +8,13 @@
 import XCTest
 @testable import AdaEngine
 
+@MainActor
 final class ViewVisibilityTests: XCTestCase {
 
     override func setUp() async throws {
-        try await Application.prepareForTest()
+        try Application.prepareForTest()
     }
 
-    @MainActor
     func test_OnAppearCalled_WhenVisible() {
         // given
         var isAppeared = false
@@ -37,7 +37,6 @@ final class ViewVisibilityTests: XCTestCase {
         XCTAssert(isAppeared)
     }
 
-    @MainActor
     func test_OnAppearCalledOnce_WhenVisibleAndDrawsMultipleTimes() {
         // given
         var counter = 0
@@ -63,7 +62,6 @@ final class ViewVisibilityTests: XCTestCase {
         XCTAssert(counter == 1)
     }
 
-    @MainActor
     func test_OnDisappearCalledOnce_WhenObjectWillMoveOut() {
         // given
         var isDisappeared = false

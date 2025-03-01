@@ -45,9 +45,8 @@ public final class Physics2DSystem: System {
             return
         }
         
-        let step = (Float(1) / Float(Engine.shared.physicsTickPerSecond))
-        if result.isFixedTick, result.fixedTime >= step {
-            world.updateSimulation(step)
+        if result.isFixedTick {
+            world.updateSimulation(fixedTimestep.step)
             world.processContacts()
             world.processSensors()
         }
@@ -87,13 +86,25 @@ public final class Physics2DSystem: System {
                 physicsBody.runtimeBody = body
 
                 for shapeResource in physicsBody.shapes {
-                    let polygon = BoxShape2D.makeB2Polygon(for: shapeResource, transform: transform)
                     var shapeDef = b2DefaultShapeDef()
                     shapeDef.density = physicsBody.material.density
                     shapeDef.restitution = physicsBody.material.restitution
                     shapeDef.friction = physicsBody.material.friction
                     shapeDef.filter = physicsBody.filter.b2Filter
-                    body.appendPolygonShape(polygon, shapeDef: shapeDef)
+                    
+                    if physicsBody.isTrigger {
+                        shapeDef.isSensor = true
+                    }
+                    
+                    if let debugColor = physicsBody.debugColor {
+                        shapeDef.customColor = UInt32(debugColor.toHex)
+                    }
+                    
+                    body.appendShape(
+                        shapeResource,
+                        transform: transform,
+                        shapeDef: shapeDef
+                    )
                 }
 
                 body.massData.mass = physicsBody.massProperties.mass
@@ -138,14 +149,20 @@ public final class Physics2DSystem: System {
                 collisionBody.runtimeBody = body
 
                 for shapeResource in collisionBody.shapes {
-                    let shape = BoxShape2D.makeB2Polygon(for: shapeResource, transform: transform)
                     var shapeDef = b2DefaultShapeDef()
-                    shapeDef.density = 0
+                    shapeDef.density = 1
+                    if let debugColor = collisionBody.debugColor {
+                        shapeDef.customColor = UInt32(debugColor.toHex)
+                    }
                     shapeDef.filter = collisionBody.filter.b2Filter
                     if case .trigger = collisionBody.mode {
                         shapeDef.isSensor = true
                     }
-                    body.appendPolygonShape(shape, shapeDef: shapeDef)
+                    body.appendShape(
+                        shapeResource,
+                        transform: transform,
+                        shapeDef: shapeDef
+                    )
                 }
             }
 

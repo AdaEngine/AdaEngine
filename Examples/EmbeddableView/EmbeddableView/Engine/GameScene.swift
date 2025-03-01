@@ -170,7 +170,6 @@ final class GameScene2D {
         // DEBUG
         
         scene.debugOptions = [.showPhysicsShapes]
-        scene.debugPhysicsColor = .red
         
         self.makeBackground(for: scene)
         self.makePlayer(for: scene)

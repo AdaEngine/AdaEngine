@@ -8,13 +8,13 @@
 import XCTest
 @testable import AdaEngine
 
+@MainActor
 final class ViewStoragesTests: XCTestCase {
 
     override func setUp() async throws {
-        try await Application.prepareForTest()
+        try Application.prepareForTest()
     }
 
-    @MainActor
     func test_OnAppearCalled_WhenVisible() {
         // given
         struct TestableView: View {

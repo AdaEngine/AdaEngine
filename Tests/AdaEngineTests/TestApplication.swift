@@ -26,5 +26,32 @@ extension Application {
     @MainActor
     static func prepareForTest() throws {
         self.shared = try TestApplication()
+        AudioServer.shared = AudioServer(engine: MockAudioEngine())
+    }
+}
+
+class MockAudioEngine: AudioEngine {
+    /// Starts audio engine.
+    func start() throws {}
+    
+    /// Stop audio engine.
+    func stop() throws {}
+    
+    func update(_ deltaTime: TimeInterval) {}
+    
+    /// Create a new sound instance from file url.
+    func makeSound(from url: URL) throws -> Sound {
+        fatalError("Not implemented")
+    }
+    
+    /// Create a new sound instance from data.
+    func makeSound(from data: Data) throws -> Sound {
+        fatalError("Not implemented")
+    }
+    
+    /// Returns audio listener object at index.
+    /// Max count of listeners depends on implementation of ``AudioEngine``.
+    func getAudioListener(at index: Int) -> AudioEngineListener {
+        fatalError("Not implemented")
     }
 }

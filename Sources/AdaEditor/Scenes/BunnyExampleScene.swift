@@ -25,7 +25,7 @@ class ManySpritesExampleScene: Scene {
     }
     
     func spawnEntityes(atlas: TextureAtlas) {
-        let mapSize = Vector2(50)
+        let mapSize = Vector2(100)
         
         let halfX = Int(mapSize.x / 2.0)
         let halfY = Int(mapSize.y / 2.0)
@@ -42,7 +42,7 @@ class ManySpritesExampleScene: Scene {
                 let ent = Entity {
                     Transform(rotation: rotation, scale: scale, position: translation)
                     SpriteComponent(texture: atlas[Int.random(in: 0..<20), Int.random(in: 0..<9)])
-                    NoFrustumCulling()
+//                    NoFrustumCulling()
                 }
                 
                 self.addEntity(ent)

@@ -14,8 +14,6 @@ public final class Body2D {
     weak var world: PhysicsWorld2D?
     weak var entity: Entity?
     
-    internal private(set) var debugMesh: Mesh?
-    
     let bodyId: b2BodyId
 
     internal init(world: PhysicsWorld2D, bodyId: b2BodyId, entity: Entity) {
@@ -29,19 +27,18 @@ public final class Body2D {
     }
 
     @discardableResult
-    func appendPolygonShape(
-        _ polygon: b2Polygon,
+    func appendShape(
+        _ shapeResource: Shape2DResource,
+        transform: Transform,
         shapeDef: b2ShapeDef
     ) -> BoxShape2D {
-        let shapeId = withUnsafePointer(to: shapeDef) { shapeDefPtr in
-            withUnsafePointer(to: polygon) { polygonPtr in
-                b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
-            }
-        }
-
-        let shape = BoxShape2D(shape: shapeId)
-        self.debugMesh = shape.getMesh()
-        return shape
+        let shapeId = BoxShape2D.makeShape(
+            for: shapeResource,
+            transform: transform,
+            shapeDef: shapeDef,
+            bodyId: bodyId
+        )
+        return BoxShape2D(shape: shapeId)
     }
 
     var shapesCount: Int32 {
@@ -191,28 +188,16 @@ final class BoxShape2D {
         b2Shape_GetMaterial(shape)
     }
 
-    func getMesh() -> Mesh? {
-        guard self.type == b2_polygonShape else {
-            return nil
-        }
-        let polygon = b2Shape_GetPolygon(shape)
-        let vertices = [b2Vec2].fromTuple(polygon.vertices).map { Vector3($0.x, $0.y, 0) }
-        var meshDesc = MeshDescriptor(name: "FixtureMesh")
-        meshDesc.positions = MeshBuffer(vertices)
-        // FIXME: We should support 8 vertices
-        meshDesc.indicies = [
-            0, 1, 2, 2, 3, 0
-        ]
-        meshDesc.primitiveTopology = .lineStrip
-
-        return Mesh.generate(from: [meshDesc])
-    }
-
     func setMaterial(_ material: Int32) {
         return b2Shape_SetMaterial(shape, material)
     }
 
-    static func makeB2Polygon(for shape: Shape2DResource, transform: Transform) -> b2Polygon {
+    static func makeShape(
+        for shape: Shape2DResource,
+        transform: Transform,
+        shapeDef: b2ShapeDef,
+        bodyId: b2BodyId
+    ) -> b2ShapeId {
         switch shape.fixture {
         case .polygon(let shape):
             var hull = shape.verticies.withUnsafeBytes { ptr in
@@ -220,14 +205,28 @@ final class BoxShape2D {
                 return b2ComputeHull(baseAddress, Int32(shape.verticies.count))
             }
 
-            return b2MakeOffsetPolygon(&hull, shape.offset.b2Vec, b2Rot_identity)
+            let polygon = b2MakeOffsetPolygon(&hull, shape.offset.b2Vec, b2Rot_identity)
+            return withUnsafePointer(to: shapeDef) { shapeDefPtr in
+                withUnsafePointer(to: polygon) { polygonPtr in
+                    b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
+                }
+            }
         case .circle(let shape):
-            return b2MakeSquare(shape.radius * transform.scale.x)
+            var circle = b2Circle(center: Vector2.zero.b2Vec, radius: shape.radius * transform.scale.x)
+            return withUnsafePointer(to: shapeDef) { shapeDefPtr in
+                b2CreateCircleShape(bodyId, shapeDefPtr, &circle)
+            }
         case .box(let shape):
-            return b2MakeBox(
+            let polygon = b2MakeBox(
                 transform.scale.x * shape.halfWidth,
                 transform.scale.y * shape.halfHeight
             )
+            
+            return withUnsafePointer(to: shapeDef) { shapeDefPtr in
+                withUnsafePointer(to: polygon) { polygonPtr in
+                    b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
+                }
+            }
         }
     }
 }
