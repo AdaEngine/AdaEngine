@@ -38,6 +38,9 @@ public struct PhysicsBody2DComponent {
     /// Custom debug color.
     public var debugColor: Color?
     
+    /// Is this body a sensor?
+    public let isTrigger: Bool
+    
     public var gravityScale: Float {
         get {
             runtimeBody?.gravityScale ?? 1.0
@@ -75,24 +78,28 @@ public struct PhysicsBody2DComponent {
         shapes: [Shape2DResource],
         massProperties: PhysicsMassProperties,
         material: PhysicsMaterial? = nil,
-        mode: PhysicsBodyMode = .dynamic
+        mode: PhysicsBodyMode = .dynamic,
+        isTrigger: Bool = false
     ) {
         self.mode = mode
         self.shapes = shapes
         self.massProperties = massProperties
         self.material = material ?? .default
+        self.isTrigger = isTrigger
     }
     
     public init(
         shapes: [Shape2DResource],
         mass: Float = 0,
         material: PhysicsMaterial? = nil,
-        mode: PhysicsBodyMode = .dynamic
+        mode: PhysicsBodyMode = .dynamic,
+        isTrigger: Bool = false
     ) {
         self.mode = mode
         self.shapes = shapes
         self.massProperties = PhysicsMassProperties(mass: mass, inertia: .zero)
         self.material = material ?? .default
+        self.isTrigger = isTrigger
     }
     
     // MARK: - Codable
@@ -103,6 +110,7 @@ public struct PhysicsBody2DComponent {
         case shapes
         case material
         case massProperties
+        case isTrigger
     }
     
     public init(from decoder: Decoder) throws {
@@ -112,6 +120,7 @@ public struct PhysicsBody2DComponent {
         self.shapes = try container.decode([Shape2DResource].self, forKey: .shapes)
         self.material = try container.decode(PhysicsMaterial.self, forKey: .material)
         self.massProperties = try container.decode(PhysicsMassProperties.self, forKey: .massProperties)
+        self.isTrigger = try container.decode(Bool.self, forKey: .isTrigger)
     }
     
     public func encode(to encoder: Encoder) throws {
@@ -121,6 +130,7 @@ public struct PhysicsBody2DComponent {
         try container.encode(self.filter, forKey: .filter)
         try container.encode(self.material, forKey: .material)
         try container.encode(self.massProperties, forKey: .massProperties)
+        try container.encode(self.isTrigger, forKey: .isTrigger)
     }
     
     // MARK: - Methods

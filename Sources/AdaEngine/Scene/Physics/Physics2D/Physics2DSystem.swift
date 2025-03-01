@@ -92,6 +92,10 @@ public final class Physics2DSystem: System {
                     shapeDef.friction = physicsBody.material.friction
                     shapeDef.filter = physicsBody.filter.b2Filter
                     
+                    if physicsBody.isTrigger {
+                        shapeDef.isSensor = true
+                    }
+                    
                     if let debugColor = physicsBody.debugColor {
                         shapeDef.customColor = UInt32(debugColor.toHex)
                     }
