@@ -154,10 +154,6 @@ var adaEngineDependencies: [Target.Dependency] = [
 adaEngineDependencies += ["X11"]
 #endif
 
-if isVulkanEnabled {
-    adaEngineDependencies += [.product(name: "Vulkan", package: "Vulkan")]
-}
-
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
@@ -307,6 +303,42 @@ if useLocalDeps {
     ]
 }
 
+// MARK: - Vulkan -
+
+// We turn on vulkan via build
+if isVulkanEnabled {
+    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
+    package.targets += [
+        .target(
+            name: "Vulkan",
+            dependencies: ["CVulkan"],
+            cSettings: [
+                // Apple
+                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
+                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
+                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
+                
+                // Android
+                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
+                
+                // Windows
+                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
+            ],
+            swiftSettings: [
+                .interoperabilityMode(.Cxx),
+            ]
+        ),
+        .systemLibrary(
+            name: "CVulkan",
+            pkgConfig: "vulkan",
+            providers: [
+                .apt(["vulkan"])
+            ]
+        )
+    ]
+}
+
+
 let disabledStrictConcurrencyTargets = [
 //  "AdaEngine",
     "AdaEditor",
@@ -318,6 +350,8 @@ let disabledStrictConcurrencyTargets = [
     "SPIRV-Cross",
     "SPIRVCompiler",
     "AdaEngineMacros",
+    "Vulkan",
+    "CVulkan"
 //    "SwiftLintPlugin"
 ]
 

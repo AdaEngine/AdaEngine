@@ -93,9 +93,9 @@ final class VulkanShader: CompiledShader {
                 writeDescriptorSet.append(set)
             }
             
-            for (binding, buffer) in item.constantBuffers {
-                
-            }
+//            for (binding, buffer) in item.constantBuffers {
+//                
+//            }
             
             for (binding, sampler) in item.sampledImages {
                 let layout = VkDescriptorSetLayoutBinding(

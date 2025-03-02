@@ -10,6 +10,7 @@ import Foundation
 import Vulkan
 import CVulkan
 import Math
+import MetalKit
 
 extension VulkanRenderBackend {
     
@@ -22,7 +23,7 @@ extension VulkanRenderBackend {
         var vkSwapchain: Vulkan.Swapchain?
         
         var images: [VkImage] = []
-        var imageViews: [ImageView] = []
+        var imageViews: [Vulkan.ImageView] = []
         var framebuffers: [Vulkan.Framebuffer] = []
     }
     
@@ -32,7 +33,7 @@ extension VulkanRenderBackend {
 
     final class Context {
 
-        private(set) var windows: [Window.ID: RenderWindow] = [:]
+        private(set) var windows: [UIWindow.ID: RenderWindow] = [:]
         private(set) var instance: VulkanInstance
         private(set) var physicalDevice: PhysicalDevice
         private(set) var logicalDevice: Device
@@ -72,6 +73,10 @@ extension VulkanRenderBackend {
                 )
 
                 let vulkanInstance = try VulkanInstance(info: createInfo)
+                
+                #if canImport(Volk)
+                Volk.loadInstance(vulkanInstance.pointer)
+                #endif
 
                 self.instance = vulkanInstance
                 self.physicalDevices = try self.instance.physicalDevices()
@@ -256,7 +261,7 @@ extension VulkanRenderBackend {
         // TODO: Headless mode
         private static var platformSpecificSurfaceExtensionName: String {
 #if MACOS || IOS || TVOS || VISIONOS
-            return VK_EXT_METAL_SURFACE_EXTENSION_NAME
+            return "VK_EXT_METAL_SURFACE_EXTENSION_NAME"//VK_EXT_METAL_SURFACE_EXTENSION_NAME
 #elseif WINDOWS
             return "VK_KHR_win32_surface"
 #elseif LINUX
@@ -268,14 +273,14 @@ extension VulkanRenderBackend {
 #endif
         }
 
-        func createRenderWindow(with id: Window.ID, view: RenderView, size: Size) throws {
+        func createRenderWindow(with id: UIWindow.ID, view: RenderSurface, size: Math.SizeInt) throws {
             if self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
             
             let holder = VulkanUtils.TemporaryBufferHolder(label: "Create Vulkan Window")
 
-            let surface = try Surface(vulkan: self.instance, view: view)
+            let surface = try Surface(vulkan: self.instance, view: view as! MTKView)
             let formats = try self.physicalDevice.surfaceFormats(for: surface)
             
             var format: VkFormat = VK_FORMAT_UNDEFINED
@@ -342,7 +347,7 @@ extension VulkanRenderBackend {
             self.updateSizeForRenderWindow(id, size: size)
         }
 
-        func updateSizeForRenderWindow(_ windowId: Window.ID, size: Size) {
+        func updateSizeForRenderWindow(_ windowId: UIWindow.ID, size: Math.SizeInt) {
             guard var window = self.windows[windowId] else {
                 assertionFailure("Not found window by id \(windowId)")
                 return
@@ -423,7 +428,7 @@ extension VulkanRenderBackend {
             
         }
 
-        func destroyWindow(at windowId: Window.ID) throws {
+        func destroyWindow(at windowId: UIWindow.ID) throws {
             if self.windows[windowId] != nil {
                 assertionFailure("Window was already destroyed")
             }
