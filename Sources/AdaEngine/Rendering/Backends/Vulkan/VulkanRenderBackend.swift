@@ -6,36 +6,44 @@
 //
 
 #if VULKAN
-
 import Foundation
 import CVulkan
 import Vulkan
 import Math
 
 final class VulkanRenderBackend: RenderBackend {
-
+    private(set) var renderDevice: any RenderDevice
+    
     let context: Context
 
     var currentFrameIndex: Int = 0
     private var inFlightSemaphore: DispatchSemaphore
 
     init(appName: String) {
+        #if canImport(Volk)
+        try! Volk.load()
+        #endif
+        
         self.context = Context(appName: appName)
 
         self.inFlightSemaphore = DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
+        
+        self.renderDevice = VulkanRenderDevice(context: context)
     }
     
-    var currentFrameIndex: Int = 0
-    
-    func createWindow(_ windowId: Window.ID, for surface: RenderSurface, size: Size) throws {
-        try self.context.createRenderWindow(with: windowId, surface: surface, size: size)
+    func createLocalRenderDevice() -> any RenderDevice {
+        VulkanRenderDevice(context: context)
     }
     
-    func resizeWindow(_ windowId: Window.ID, newSize: Size) throws {
+    func createWindow(_ windowId: UIWindow.ID, for surface: any RenderSurface, size: Math.SizeInt) throws {
+        try self.context.createRenderWindow(with: windowId, view: surface, size: size)
+    }
+    
+    func resizeWindow(_ windowId: UIWindow.ID, newSize: Math.SizeInt) throws {
         self.context.updateSizeForRenderWindow(windowId, size: newSize)
     }
     
-    func destroyWindow(_ windowId: Window.ID) throws {
+    func destroyWindow(_ windowId: UIWindow.ID) throws {
         try self.context.destroyWindow(at: windowId)
     }
     
@@ -59,162 +67,6 @@ final class VulkanRenderBackend: RenderBackend {
         
         currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
     }
-
-    func getImage(from texture: Texture) -> Image? {
-        return nil
-    }
-
-    func makeIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
-        do {
-            let indexBuffer = try VulkanIndexBuffer(device: self.context.logicalDevice, size: length, backend: self, queueFamilyIndecies: [], indexFormat: format)
-            let rawPointer = UnsafeMutableRawPointer(mutating: bytes)
-            indexBuffer.setData(rawPointer, byteCount: length)
-            return indexBuffer
-        } catch {
-            fatalError("\(error.localizedDescription)")
-        }
-    }
-
-    func makeBuffer(length: Int, options: ResourceOptions) -> Buffer {
-        do {
-            return try VulkanBuffer(
-                device: self.context.logicalDevice,
-                size: length,
-                usage: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT.rawValue,
-                backend: self,
-                queueFamilyIndecies: []
-            )
-        } catch {
-            fatalError("\(error.localizedDescription)")
-        }
-    }
-
-    func makeBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
-        do {
-            let buffer = try VulkanBuffer(
-                device: self.context.logicalDevice,
-                size: length,
-                usage: VK_BUFFER_USAGE_STORAGE_BUFFER_BIT.rawValue,
-                backend: self,
-                queueFamilyIndecies: []
-            )
-            buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
-
-            return buffer
-        } catch {
-            fatalError("\(error.localizedDescription)")
-        }
-    }
-
-    func makeVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
-        do {
-            return try VulkanVertexBuffer(
-                device: self.context.logicalDevice,
-                size: length,
-                backend: self,
-                queueFamilyIndecies: [],
-                binding: binding
-            )
-        } catch {
-            fatalError("\(error.localizedDescription)")
-        }
-    }
-    
-    func compileShader(from shader: Shader) throws -> CompiledShader {
-        return try VulkanShader.make(from: shader, device: self.context.logicalDevice)
-    }
-    
-    func makeFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
-        return VulkanFramebuffer(device: self.context.logicalDevice, descriptor: descriptor)
-    }
-    
-    func makeRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
-        do {
-            return try VulkanRenderPipeline(device: self.context.logicalDevice, descriptor: descriptor)
-        } catch {
-            fatalError("\(error.localizedDescription)")
-        }
-    }
-    
-    func makeSampler(from descriptor: SamplerDescriptor) -> Sampler {
-        do {
-            return try VulkanSampler(device: self.context.logicalDevice, descriptor: descriptor)
-        } catch {
-            fatalError("\(error.localizedDescription)")
-        }
-    }
-    
-    func makeUniformBuffer(length: Int, binding: Int) -> UniformBuffer {
-        do {
-            return try VulkanUniformBuffer(device: self.context.logicalDevice, size: length, backend: self, queueFamilyIndecies: [], binding: binding)
-        } catch {
-            fatalError("\(error.localizedDescription)")
-        }
-    }
-    
-    func makeUniformBufferSet() -> UniformBufferSet {
-        return GenericUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, backend: self)
-    }
-    
-    func makeTexture(from descriptor: TextureDescriptor) -> GPUTexture {
-        do {
-            return try VulkanGPUTexture(device: self.context.logicalDevice, descriptor: descriptor)
-        } catch {
-            fatalError("[VulkanRenderBackend] Failed to create texture: \(error.localizedDescription)")
-        }
-    }
-    
-    func getImage(for texture2D: RID) -> Image? {
-        fatalError("Kek")
-    }
-    
-    func beginDraw(for window: Window.ID, clearColor: Color) -> DrawList {
-        guard let window = self.context.windows[window] else {
-            fatalError("Can't find window for draw")
-        }
-        
-        let framebuffer = window.swapchain.framebuffers[currentFrameIndex]
-        let vkFramebuffer = VulkanFramebuffer(
-            device: self.context.logicalDevice,
-            framebuffer: framebuffer,
-            renderPass: window.swapchain.renderPass
-        )
-        return DrawList(commandBuffer: VulkanRenderCommandBuffer(framebuffer: vkFramebuffer))
-    }
-    
-    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) -> DrawList {
-        guard let vulkanFramebuffer = framebuffer as? VulkanFramebuffer else {
-            fatalError("Not correct framebuffer object")
-        }
-        
-        return DrawList(commandBuffer: VulkanRenderCommandBuffer(framebuffer: vulkanFramebuffer))
-    }
-    
-    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
-        guard let renderPipeline = list.renderPipeline as? VulkanRenderPipeline else {
-            return
-        }
-        
-        guard let renderCommandBuffer = list.commandBuffer as? VulkanRenderCommandBuffer else {
-            return
-        }
-        
-        do {
-            // Prepare render pipeline
-            try renderPipeline.update(
-                for: renderCommandBuffer.framebuffer,
-                drawList: list
-            )
-            
-        } catch {
-            assertionFailure("Failed to draw: \(error)")
-        }
-    }
-
-    func endDrawList(_ drawList: DrawList) {
-        
-    }
-    
 }
 
 extension Version {

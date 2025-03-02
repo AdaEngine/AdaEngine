@@ -10,7 +10,7 @@ import Foundation
 final class GenericUniformBufferSet: UniformBufferSet {
     /// Max frames in flight.
     let frames: Int
-    let device: MetalRenderDevice
+    let device: RenderDevice
 
     public var label: String?
 
@@ -20,9 +20,9 @@ final class GenericUniformBufferSet: UniformBufferSet {
 
     private var uniformBuffers: [FrameIndex : [Set : [ Binding : UniformBuffer] ] ] = [:]
     
-    init(frames: Int, device: MetalRenderDevice) {
+    init(frames: Int, device: RenderDevice) {
         self.frames = frames
-        self.backend = backend
+        self.device = device
     }
 
     func initBuffers(length: Int, binding: Int, set: Int) {

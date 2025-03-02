@@ -16,7 +16,7 @@ final class VulkanFramebuffer: Framebuffer {
     private(set) var descriptor: FramebufferDescriptor
 
     private(set) var isScreenBuffer = false
-    private var size: Size = .zero
+    private var size: SizeInt = .zero
 
     private unowned let device: Device
     private(set) var vkFramebuffer: Vulkan.Framebuffer!
@@ -39,26 +39,15 @@ final class VulkanFramebuffer: Framebuffer {
 
         self.attachments = []
 
-        var size = Size(width: 1, height: 1)
-
-        if descriptor.width == 0 && descriptor.height == 0 {
-            let windowSize = Application.shared.windowManager.activeWindow?.frame.size ?? .zero
-            if windowSize.height > 0 && windowSize.width > 0 {
-                size = windowSize
-            }
-        } else {
-            size = Size(
-                width: Float(descriptor.width),
-                height: Float(descriptor.width)
-            )
-        }
-
-        self.size = size
+        self.size = SizeInt(
+            width: descriptor.width,
+            height: descriptor.height
+        )
 
         self.invalidate()
     }
 
-    func resize(to newSize: Math.Size) {
+    func resize(to newSize: Math.SizeInt) {
         guard newSize.width >= 0 && newSize.height >= 0 else {
             return
         }

@@ -5,6 +5,10 @@
 //  Created by v.prusakov on 11/3/21.
 //
 
+#if VULKAN
+import CVulkan
+#endif
+
 /// An array of vertex attribute descriptor objects.
 public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable, Sendable {
 
@@ -327,8 +331,6 @@ extension VertexFormat {
 #endif
 
 #if VULKAN
-
-import CVulkan
 
 extension VertexFormat {
     var toVulkan: VkFormat {
