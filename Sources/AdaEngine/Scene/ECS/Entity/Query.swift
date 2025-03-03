@@ -106,8 +106,8 @@ extension EntityQuery {
 // MARK: Predicate
 
 /// An object that defines the criteria for an entity query.
-public struct QueryPredicate {
-    let evaluate: (Archetype) -> Bool
+public struct QueryPredicate: Sendable {
+    let evaluate: @Sendable (Archetype) -> Bool
 }
 
 prefix public func ! (operand: QueryPredicate) -> QueryPredicate {
@@ -148,7 +148,7 @@ public extension QueryPredicate {
 
 /// Contains array of entities matched for the given EntityQuery request.
 @MainActor
-public struct QueryResult: Sequence {
+public struct QueryResult: @preconcurrency Sequence {
 
     let state: EntityQuery.State
     
@@ -186,7 +186,7 @@ public struct QueryResult: Sequence {
 public extension QueryResult {
     /// This iterator iterate by each entity in passed archetype array
     @MainActor
-    struct EntityIterator: IteratorProtocol {
+    struct EntityIterator: @preconcurrency IteratorProtocol {
 
         // We use pointer to avoid additional allocation in memory
         let count: Int

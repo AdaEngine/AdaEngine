@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 06.07.2024.
 //
 
-import Observation
+@preconcurrency import Observation
 
 public extension View {
 
@@ -23,7 +23,7 @@ public extension View {
     }
 }
 
-struct ObservableStorageEnvironment {
+struct ObservableStorageEnvironment: Sendable {
     private var storedValues: [ObjectIdentifier: any Observable] = [:]
 
     mutating func insertValue<T: Observable & AnyObject>(_ value: T?) {

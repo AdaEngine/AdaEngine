@@ -6,9 +6,10 @@
 //
 
 import OrderedCollections
+import Math
 
 @MainActor @preconcurrency
-public class TileSet: Resource, Codable {
+public class TileSet: Resource, @preconcurrency Codable {
 
     struct PhysicsLayer {
         var collisionLayer: CollisionGroup = .default

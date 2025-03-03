@@ -9,7 +9,7 @@ import Math
 
 /// The base class represents a 2D texture.
 /// If the texture isn't held by any object, then the GPU resource will freed immediately.
-open class Texture2D: Texture {
+open class Texture2D: Texture, @unchecked Sendable {
     
     public private(set) var width: Int
     public private(set) var height: Int

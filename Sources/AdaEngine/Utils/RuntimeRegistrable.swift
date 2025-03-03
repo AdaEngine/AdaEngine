@@ -9,7 +9,7 @@
 
 @_spi(Runtime)
 public protocol RuntimeRegistrable {
-    static func registerTypes()
+    @MainActor static func registerTypes()
 }
 
 enum RuntimeTypeLoader {

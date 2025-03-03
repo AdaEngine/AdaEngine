@@ -7,7 +7,7 @@
 
 import CVulkan
 
-extension VkBool32: ExpressibleByBooleanLiteral {
+extension VkBool32: @retroactive ExpressibleByBooleanLiteral {
     public init(booleanLiteral value: BooleanLiteralType) {
         self = value ? VK_TRUE : VK_FALSE
     }

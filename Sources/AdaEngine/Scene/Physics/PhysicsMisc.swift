@@ -35,7 +35,7 @@ public struct CollisionFilter: Codable {
 }
 
 /// A bitmask used to define the collision group to which an entity belongs.
-public struct CollisionGroup: OptionSet, Codable {
+public struct CollisionGroup: OptionSet, Codable, Sendable {
     
     public var rawValue: UInt64
     

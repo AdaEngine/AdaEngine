@@ -6,7 +6,7 @@
 //
 
 /// Material properties, like friction, of a physically simulated object.
-final public class PhysicsMaterial: Codable {
+final public class PhysicsMaterial: Codable, Sendable {
     
     let friction: Float
     let restitution: Float
@@ -27,5 +27,5 @@ final public class PhysicsMaterial: Codable {
 public extension PhysicsMaterial {
     
     /// A default material resource.
-    @MainActor static let `default` = PhysicsMaterial(friction: 0.6, restitution: 0, density: 1)
+    static let `default` = PhysicsMaterial(friction: 0.6, restitution: 0, density: 1)
 }
