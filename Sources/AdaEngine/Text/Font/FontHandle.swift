@@ -8,7 +8,7 @@
 @_implementationOnly import AtlasFontGenerator
 
 /// Hold information about font data and atlas.
-final class FontHandle: Hashable, Sendable {
+final class FontHandle: Hashable, @unchecked Sendable {
     
     let atlasTexture: Texture2D
     let fontData: OpaquePointer!

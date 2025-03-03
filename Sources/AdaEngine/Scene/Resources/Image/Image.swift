@@ -118,7 +118,7 @@ public extension Image {
         }
     }
     
-    private static var loaders: [ImageLoaderStrategy] = [
+    private static let loaders: [ImageLoaderStrategy] = [
         PNGImageSerializer()
     ]
     

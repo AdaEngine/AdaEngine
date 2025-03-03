@@ -6,7 +6,7 @@
 //
 
 /// This protocol describe buffer created for GPU usage.
-public protocol Buffer: AnyObject {
+public protocol Buffer: AnyObject, Sendable {
     
     /// Gets the system address of the buffer’s storage allocation.
     ///

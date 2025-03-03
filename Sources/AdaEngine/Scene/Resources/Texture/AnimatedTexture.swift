@@ -9,7 +9,7 @@
 
 /// Animated texture is represents a frame-based animations, where multiple textures can be chained with a predifined delay for each frame.
 /// This kind of textures can apply any 2D Textures to animate them.
-public final class AnimatedTexture: Texture2D {
+public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     
     struct Frame {
         var texture: Texture2D?

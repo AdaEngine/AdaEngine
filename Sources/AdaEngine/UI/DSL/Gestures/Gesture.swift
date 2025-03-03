@@ -12,11 +12,13 @@ public protocol Gesture<Value> {
 
     var body: Body { get }
 
+    @MainActor
     static func _makeGesture(gesture: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _Gesture
 }
 
 extension Gesture {
-    @MainActor public static func _makeGesture(gesture: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _Gesture {
+    @MainActor
+    public static func _makeGesture(gesture: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _Gesture {
         fatalError()
     }
 }

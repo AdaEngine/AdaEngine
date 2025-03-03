@@ -130,7 +130,7 @@ public final class SystemsGraph {
     
 }
 
-extension SystemsGraph: CustomDebugStringConvertible {
+extension SystemsGraph: @preconcurrency CustomDebugStringConvertible {
     public var debugDescription: String {
         var string = ""
         for node in nodes.values.elements {

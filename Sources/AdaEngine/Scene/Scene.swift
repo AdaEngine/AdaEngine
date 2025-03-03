@@ -283,7 +283,7 @@ public extension Scene {
 
 // MARK: - EventSource
 
-extension Scene: EventSource {
+extension Scene: @preconcurrency EventSource {
     
     /// Receives events of the given type.
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.

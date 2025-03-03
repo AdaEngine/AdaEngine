@@ -6,7 +6,7 @@
 //
 
 /// Base class describing a texture.
-open class Texture: Resource, Codable {
+open class Texture: Resource, Codable, @unchecked Sendable {
     
     private(set) var gpuTexture: GPUTexture
     
@@ -56,7 +56,7 @@ open class Texture: Resource, Codable {
 public extension Texture {
     
     /// The dimension of each image, including whether multiple images are arranged into an array or a cube.
-    enum TextureType: UInt16, Codable {
+    enum TextureType: UInt16, Codable, Sendable {
         
         /// A one-dimensional texture image.
         case texture1D
@@ -87,7 +87,7 @@ public extension Texture {
     }
     
     /// An enumeration for the various options that determine how you can use a texture.
-    struct Usage: OptionSet, Codable {
+    struct Usage: OptionSet, Codable, Sendable {
         
         public typealias RawValue = UInt8
         
@@ -98,13 +98,13 @@ public extension Texture {
         }
         
         /// An option for reading or sampling from the texture in a shader.
-        public static var read = Usage(rawValue: 1 << 0)
+        public static let read = Usage(rawValue: 1 << 0)
         
         /// An option for writing to the texture in a shader.
-        public static var write = Usage(rawValue: 1 << 1)
+        public static let write = Usage(rawValue: 1 << 1)
         
         /// An option for rendering to the texture in a render pass.
-        public static var renderTarget = Usage(rawValue: 1 << 2)
+        public static let renderTarget = Usage(rawValue: 1 << 2)
     }
 }
 
@@ -113,12 +113,14 @@ public extension Texture {
 @_spi(Runtime)
 extension Texture: RuntimeRegistrable {
     
-    static private(set) var types: [String: Texture.Type] = [:]
+    @MainActor static private(set) var types: [String: Texture.Type] = [:]
     
+    @MainActor
     static func registerTextureType() {
         types[String(reflecting: type(of: self))] = Self.self
     }
     
+    @MainActor
     public static func registerTypes() {
         Texture2D.registerTextureType()
         TextureAtlas.registerTextureType()

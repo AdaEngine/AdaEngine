@@ -363,15 +363,15 @@ public final class ResourceManager {
         private let semaphore = DispatchSemaphore(value: 0)
         private var result: Result<T, Error>?
 
-        init(priority: TaskPriority = .userInitiated, block: @escaping () async throws -> T) {
-            Task.detached(priority: priority) {
+        init(priority: TaskPriority = .userInitiated, block: @escaping @Sendable () async throws -> T) {
+            Task.detached(priority: priority) { [semaphore] in
                 do {
                     self.result = .success(try await block())
                 } catch {
                     self.result = .failure(error)
                 }
 
-                self.semaphore.signal()
+                semaphore.signal()
             }
         }
 

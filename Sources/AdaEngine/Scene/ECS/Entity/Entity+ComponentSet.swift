@@ -11,7 +11,7 @@ public extension Entity {
     
     /// Hold entity components specific for entity.
     @MainActor
-    struct ComponentSet: Codable, @unchecked Sendable {
+    struct ComponentSet: @preconcurrency Codable, @unchecked Sendable {
 
         internal weak var entity: Entity?
         
@@ -235,7 +235,7 @@ public extension Entity.ComponentSet {
     }
 }
 
-extension Entity.ComponentSet: CustomStringConvertible {
+extension Entity.ComponentSet: @preconcurrency CustomStringConvertible {
     public var description: String {
         let result = self.buffer.reduce("") { partialResult, value in
             let name = type(of: value.value)

@@ -6,7 +6,7 @@
 //
 
 /// Fast collection O(1) for insertion and deletion, but slow for resizing and iterating.
-@frozen public struct SparseArray<Element> {
+@frozen public struct SparseArray<Element: Sendable>: Sendable {
     
     public typealias Index = Int
     
