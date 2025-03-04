@@ -9,19 +9,24 @@ import CompilerPluginSupport
 import AppleProductTypes
 #endif
 
-#if os(Linux)
-import Glibc
-#else
-import Darwin.C
-#endif
-
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+import Darwin.C
+
 let isVulkanEnabled = false
 #else
+
+#if os(Linux)
+import Glibc
+#endif
+
+#if os(Windows)
+import WinSDK
+#endif
+
 let isVulkanEnabled = true
 #endif
 
-let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
+let useLocalDeps = true // ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
