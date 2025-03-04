@@ -23,7 +23,8 @@ public final class Shader: Resource, @unchecked Sendable {
     
     /// Return SPIRV binary.
     public private(set) var spirvData: Data
-    
+    public private(set) var entryPoint: String
+
     internal private(set) var spirvCompiler: SpirvCompiler
     
     private var shaderCompiler: ShaderCompiler
@@ -35,6 +36,7 @@ public final class Shader: Resource, @unchecked Sendable {
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: spirv.stage)
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
+        self.entryPoint = spirv.entryPoint
         self.stage = spirv.stage
         self.shaderCompiler = compiler
         self.compiledShader = nil
@@ -78,6 +80,7 @@ public final class Shader: Resource, @unchecked Sendable {
         self.spirvCompiler = shader.spirvCompiler
         self.stage = stage
         self.compiledShader = shader.compiledShader
+        self.entryPoint = shader.entryPoint
     }
 
     public func encodeContents(with encoder: AssetEncoder) throws {

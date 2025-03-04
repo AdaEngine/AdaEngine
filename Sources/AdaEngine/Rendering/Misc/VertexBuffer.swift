@@ -9,5 +9,5 @@
 public protocol VertexBuffer: Buffer {
     
     /// Contains group binding for shader.
-    var binding: Int { get set }
+    var binding: Int { get }
 }

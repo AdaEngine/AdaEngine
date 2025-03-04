@@ -64,7 +64,8 @@ ada_engine_deps = [
     "//Sources/AtlasFontGenerator:AtlasFontGenerator",
     "//Sources/SPIRVCompiler",
     "//Sources/MiniAudioBindings",
-    "//Sources/Math"
+    "//Sources/Math",
+    # "//Sources/Vulkan"
 ]
 
 swift_ada_library(

@@ -26,7 +26,7 @@ public extension Sequence {
 public extension ConcurrentSequence {
     /// Iterate over all elements in sequence and create task for each.
     func forEach(
-        _ operation: @escaping (Element) async -> Void
+        _ operation: @escaping @Sendable (Element) async -> Void
     ) async {
         // A task group automatically waits for all of its
         // sub-tasks to complete, while also performing those

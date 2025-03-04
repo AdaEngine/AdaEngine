@@ -9,7 +9,7 @@ import OrderedCollections
 
 // TODO: Should it be a main actor?
 @MainActor
-public class TileMapLayer: Identifiable {
+public class TileMapLayer: @preconcurrency Identifiable {
 
     public var name: String = ""
 

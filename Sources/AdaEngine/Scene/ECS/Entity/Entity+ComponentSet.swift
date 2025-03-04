@@ -11,7 +11,7 @@ public extension Entity {
     
     /// Hold entity components specific for entity.
     @MainActor
-    struct ComponentSet: Codable, @unchecked Sendable {
+    struct ComponentSet: @preconcurrency Codable, @unchecked Sendable {
 
         internal weak var entity: Entity?
         
@@ -36,23 +36,31 @@ public extension Entity {
             self.buffer = OrderedDictionary<ComponentId, Component>.init(minimumCapacity: container.allKeys.count)
             self.bitset = BitSet(reservingCapacity: container.allKeys.count)
             
-            for key in container.allKeys {
-                guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue) else {
-                    continue
-                }
+            // for key in container.allKeys {
+            //     guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue) else {
+            //         continue
+            //     }
 
 //                let component = try type.init(from: container.superDecoder(forKey: key))
 //                self.set(component)
-            }
+            // }
         }
         
         public func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingName.self)
+            // var container = encoder.container(keyedBy: CodingName.self)
             
-            for value in self.buffer.values {
+            // for value in self.buffer.values {
 //                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
 //                try value.encode(to: superEncoder)
-            }
+            // }
+        }
+
+        // FIXME: Replace to subscript??
+
+        /// Get any count of component types from set.
+        @inline(__always)
+        public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
+            return (repeat self.buffer[(each type).identifier] as! each T)
         }
 
         /// Gets or sets the component of the specified type.
@@ -227,7 +235,7 @@ public extension Entity.ComponentSet {
     }
 }
 
-extension Entity.ComponentSet: CustomStringConvertible {
+extension Entity.ComponentSet: @preconcurrency CustomStringConvertible {
     public var description: String {
         let result = self.buffer.reduce("") { partialResult, value in
             let name = type(of: value.value)

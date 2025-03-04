@@ -9,19 +9,24 @@ import CompilerPluginSupport
 import AppleProductTypes
 #endif
 
-#if os(Linux)
-import Glibc
-#else
-import Darwin.C
-#endif
-
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+import Darwin.C
+
 let isVulkanEnabled = false
 #else
+
+#if os(Linux)
+import Glibc
+#endif
+
+#if os(Windows)
+import WinSDK
+#endif
+
 let isVulkanEnabled = true
 #endif
 
-let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
+let useLocalDeps = true // ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
@@ -303,6 +308,42 @@ if useLocalDeps {
     ]
 }
 
+// MARK: - Vulkan -
+
+// We turn on vulkan via build
+if isVulkanEnabled {
+    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
+    package.targets += [
+        .target(
+            name: "Vulkan",
+            dependencies: ["CVulkan"],
+            cSettings: [
+                // Apple
+                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
+                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
+                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
+                
+                // Android
+                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
+                
+                // Windows
+                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
+            ],
+            swiftSettings: [
+                .interoperabilityMode(.Cxx),
+            ]
+        ),
+        .systemLibrary(
+            name: "CVulkan",
+            pkgConfig: "vulkan",
+            providers: [
+                .apt(["vulkan"])
+            ]
+        )
+    ]
+}
+
+
 let disabledStrictConcurrencyTargets = [
 //  "AdaEngine",
     "AdaEditor",
@@ -314,6 +355,8 @@ let disabledStrictConcurrencyTargets = [
     "SPIRV-Cross",
     "SPIRVCompiler",
     "AdaEngineMacros",
+    "Vulkan",
+    "CVulkan"
 //    "SwiftLintPlugin"
 ]
 

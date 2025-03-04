@@ -311,7 +311,7 @@ class MetalCommandBuffer: CommandBuffer {
     }
 }
 
-class MetalRenderCommandBuffer: DrawCommandBuffer {
+final class MetalRenderCommandBuffer: DrawCommandBuffer {
     let encoder: MTLRenderCommandEncoder
     let commandBuffer: MTLCommandBuffer
     
