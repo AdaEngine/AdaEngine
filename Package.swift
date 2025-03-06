@@ -119,6 +119,11 @@ if isVulkanEnabled {
 let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
     dependencies: ["AdaEngine", "Math"],
+    exclude: [
+        "BUILD.bazel",
+        "Platforms/iOS/Info.plist",
+        "Platforms/macOS/Info.plist"
+    ],
     resources: [
         .copy("Assets")
     ],
@@ -162,6 +167,9 @@ adaEngineDependencies += ["X11"]
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
+    exclude: [
+        "BUILD.bazel"
+    ],
     resources: [
         .copy("Assets/Shaders"),
         .copy("Assets/Fonts"),
@@ -180,6 +188,9 @@ let adaEngineEmbeddable: Target = .target(
         "AdaEngine",
         "AdaEngineMacros"
     ],
+    exclude: [
+        "BUILD.bazel"
+    ],
     swiftSettings: [.interoperabilityMode(.Cxx)],
     linkerSettings: [
         .linkedLibrary("c++")
@@ -191,6 +202,9 @@ let adaEngineMacros: Target = .macro(
     dependencies: [
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
         .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
+    ],
+    exclude: [
+        "BUILD.bazel"
     ]
 )
 
@@ -201,7 +215,12 @@ var targets: [Target] = [
     adaEngineTarget,
     adaEngineEmbeddable,
     adaEngineMacros,
-    .target(name: "Math")
+    .target(
+        name: "Math",
+        exclude: [
+            "BUILD.bazel"
+        ]
+    )
 ]
 
 // MARK: Extra
@@ -248,13 +267,19 @@ targets += [
     .testTarget(
         name: "AdaEngineTests",
         dependencies: ["AdaEngine"],
+        exclude: [
+            "BUILD.bazel"
+        ],
         swiftSettings: [
             .interoperabilityMode(.Cxx)
         ]
     ),
     .testTarget(
         name: "MathTests",
-        dependencies: ["Math"]
+        dependencies: ["Math"],
+        exclude: [
+            "BUILD.bazel"
+        ]
     )
 ]
 
@@ -317,6 +342,9 @@ if isVulkanEnabled {
         .target(
             name: "Vulkan",
             dependencies: ["CVulkan"],
+            exclude: [
+                "BUILD.bazel"
+            ],
             cSettings: [
                 // Apple
                 .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
