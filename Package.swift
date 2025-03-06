@@ -299,9 +299,7 @@ let package = Package(
     products: products,
     dependencies: [],
     targets: targets,
-    swiftLanguageVersions: [.v5],
-    cLanguageStandard: .c17,
-    cxxLanguageStandard: .cxx20
+    swiftLanguageVersions: [.v5]
 )
 
 package.dependencies += [
