@@ -146,7 +146,7 @@ class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 
 // MARK: - Environment
 
-class NamedViewCoordinateSpaceContainer {
+class NamedViewCoordinateSpaceContainer: @unchecked Sendable {
     var containers: [AnyHashable: ViewNode] = [:]
 }
 

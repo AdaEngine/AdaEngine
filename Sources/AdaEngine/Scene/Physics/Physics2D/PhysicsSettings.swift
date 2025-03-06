@@ -11,5 +11,5 @@
 public enum PhysicsSettings {
     
     /// Setup physics ticks per second. Default value is equal 60 ticks per second.
-    public static var ticksPerSecond: Int = 60
+    @MainActor public static var ticksPerSecond: Int = 60
 }

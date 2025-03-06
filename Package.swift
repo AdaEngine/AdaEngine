@@ -9,19 +9,24 @@ import CompilerPluginSupport
 import AppleProductTypes
 #endif
 
-#if os(Linux)
-import Glibc
-#else
-import Darwin.C
-#endif
-
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+import Darwin.C
+
 let isVulkanEnabled = false
 #else
+
+#if os(Linux)
+import Glibc
+#endif
+
+#if os(Windows)
+import WinSDK
+#endif
+
 let isVulkanEnabled = true
 #endif
 
-let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
+let useLocalDeps = true // ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
@@ -114,6 +119,11 @@ if isVulkanEnabled {
 let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
     dependencies: ["AdaEngine", "Math"],
+    exclude: [
+        "BUILD.bazel",
+        "Platforms/iOS/Info.plist",
+        "Platforms/macOS/Info.plist"
+    ],
     resources: [
         .copy("Assets")
     ],
@@ -157,6 +167,9 @@ adaEngineDependencies += ["X11"]
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
+    exclude: [
+        "BUILD.bazel"
+    ],
     resources: [
         .copy("Assets/Shaders"),
         .copy("Assets/Fonts"),
@@ -175,6 +188,9 @@ let adaEngineEmbeddable: Target = .target(
         "AdaEngine",
         "AdaEngineMacros"
     ],
+    exclude: [
+        "BUILD.bazel"
+    ],
     swiftSettings: [.interoperabilityMode(.Cxx)],
     linkerSettings: [
         .linkedLibrary("c++")
@@ -186,6 +202,9 @@ let adaEngineMacros: Target = .macro(
     dependencies: [
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
         .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
+    ],
+    exclude: [
+        "BUILD.bazel"
     ]
 )
 
@@ -196,7 +215,12 @@ var targets: [Target] = [
     adaEngineTarget,
     adaEngineEmbeddable,
     adaEngineMacros,
-    .target(name: "Math")
+    .target(
+        name: "Math",
+        exclude: [
+            "BUILD.bazel"
+        ]
+    )
 ]
 
 // MARK: Extra
@@ -243,13 +267,19 @@ targets += [
     .testTarget(
         name: "AdaEngineTests",
         dependencies: ["AdaEngine"],
+        exclude: [
+            "BUILD.bazel"
+        ],
         swiftSettings: [
             .interoperabilityMode(.Cxx)
         ]
     ),
     .testTarget(
         name: "MathTests",
-        dependencies: ["Math"]
+        dependencies: ["Math"],
+        exclude: [
+            "BUILD.bazel"
+        ]
     )
 ]
 
@@ -269,9 +299,7 @@ let package = Package(
     products: products,
     dependencies: [],
     targets: targets,
-    swiftLanguageVersions: [.v5],
-    cLanguageStandard: .c17,
-    cxxLanguageStandard: .cxx20
+    swiftLanguageVersions: [.v5]
 )
 
 package.dependencies += [
@@ -303,6 +331,45 @@ if useLocalDeps {
     ]
 }
 
+// MARK: - Vulkan -
+
+// We turn on vulkan via build
+if isVulkanEnabled {
+    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
+    package.targets += [
+        .target(
+            name: "Vulkan",
+            dependencies: ["CVulkan"],
+            exclude: [
+                "BUILD.bazel"
+            ],
+            cSettings: [
+                // Apple
+                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
+                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
+                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
+                
+                // Android
+                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
+                
+                // Windows
+                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
+            ],
+            swiftSettings: [
+                .interoperabilityMode(.Cxx),
+            ]
+        ),
+        .systemLibrary(
+            name: "CVulkan",
+            pkgConfig: "vulkan",
+            providers: [
+                .apt(["vulkan"])
+            ]
+        )
+    ]
+}
+
+
 let disabledStrictConcurrencyTargets = [
 //  "AdaEngine",
     "AdaEditor",
@@ -314,6 +381,8 @@ let disabledStrictConcurrencyTargets = [
     "SPIRV-Cross",
     "SPIRVCompiler",
     "AdaEngineMacros",
+    "Vulkan",
+    "CVulkan"
 //    "SwiftLintPlugin"
 ]
 

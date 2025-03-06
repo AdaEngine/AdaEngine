@@ -7,7 +7,7 @@
 
 // swiftlint:disable all
 
-public enum KeyCode: String, Hashable, CaseIterable {
+public enum KeyCode: String, Hashable, CaseIterable, Sendable {
     case none = ""
 
     case enter = "\r"
@@ -137,7 +137,7 @@ extension KeyCode {
     }
 }
 
-public struct KeyModifier: OptionSet, Hashable {
+public struct KeyModifier: OptionSet, Hashable, Sendable {
     public let rawValue: UInt8
     
     public init(rawValue: UInt8) {
