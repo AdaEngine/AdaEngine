@@ -101,14 +101,14 @@ extension Archetype: CustomStringConvertible {
 }
 
 extension Archetype {
-    struct Edge: Hashable, Equatable {
+    struct Edge: Hashable, Equatable, Sendable {
         var add: [ComponentId : Archetype] = [:]
         var remove: [ComponentId : Archetype] = [:]
     }
 }
 
 // FIXME: (Vlad) not a bit set!
-struct BitSet: Equatable, Hashable {
+struct BitSet: Equatable, Hashable, Sendable {
     // TODO: (Vlad) Not efficient in memory layout.
     private var mask: Set<ComponentId>
 
