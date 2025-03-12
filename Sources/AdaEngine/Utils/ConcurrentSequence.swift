@@ -19,7 +19,7 @@ public struct ConcurrentSequence<S: Sequence> {
 public extension Sequence {
     /// Create wrapper for sequence to use Swift Modern Concurrency.
     var concurrent: ConcurrentSequence<Self> {
-        return ConcurrentSequence(base: self)
+        ConcurrentSequence(base: self)
     }
 }
 

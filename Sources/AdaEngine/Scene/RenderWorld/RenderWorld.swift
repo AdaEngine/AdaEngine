@@ -35,7 +35,7 @@ public final class RenderWorld {
 
     func update(_ deltaTime: TimeInterval) async throws {
         self.scene.update(deltaTime)
-        try await self.renderGraphExecutor.execute(self.renderGraph, in: self.world)
+        try await self.renderGraphExecutor.execute(self.renderGraph, in: world)
 
         self.scene.world.clear()
     }

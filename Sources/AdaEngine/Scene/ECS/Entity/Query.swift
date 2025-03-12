@@ -95,7 +95,6 @@ extension EntityQuery {
             self.filter = filter
         }
         
-        @MainActor
         func updateArchetypes(in world: World) {
             self.world = world
             self.archetypes = world.archetypes.filter { self.predicate.evaluate($0) }
@@ -147,8 +146,7 @@ public extension QueryPredicate {
 }
 
 /// Contains array of entities matched for the given EntityQuery request.
-@MainActor
-public struct QueryResult: @preconcurrency Sequence {
+public struct QueryResult: Sequence, Sendable {
 
     let state: EntityQuery.State
     
@@ -185,7 +183,6 @@ public struct QueryResult: @preconcurrency Sequence {
 
 public extension QueryResult {
     /// This iterator iterate by each entity in passed archetype array
-    @MainActor
     struct EntityIterator: @preconcurrency IteratorProtocol {
 
         // We use pointer to avoid additional allocation in memory

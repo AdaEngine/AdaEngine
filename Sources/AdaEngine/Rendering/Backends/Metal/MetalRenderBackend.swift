@@ -81,8 +81,8 @@ class MetalRenderBackend: RenderBackend {
                 return
             }
             
-            commandBuffer.addCompletedHandler { _ in
-                self.inFlightSemaphore.signal()
+            commandBuffer.addCompletedHandler { @Sendable [inFlightSemaphore] _ in
+                inFlightSemaphore.signal()
             }
 
             commandBuffer.present(drawable)
