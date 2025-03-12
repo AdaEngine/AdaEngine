@@ -5,11 +5,11 @@
 //  Created by v.prusakov on 6/21/22.
 //
 
-struct ComponentId: Hashable, Equatable {
+struct ComponentId: Hashable, Equatable, Sendable {
     let id: Int
 }
 
-struct EntityRecord {
+struct EntityRecord: Sendable {
     // which archetype contains info about an entity
     var archetypeId: Archetype.ID
     

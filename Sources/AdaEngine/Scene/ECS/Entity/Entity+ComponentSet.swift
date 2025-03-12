@@ -10,9 +10,7 @@ import Collections
 public extension Entity {
     
     /// Hold entity components specific for entity.
-    @MainActor
-    struct ComponentSet: @preconcurrency Codable, @unchecked Sendable {
-
+    struct ComponentSet: Codable, @unchecked Sendable {
         internal weak var entity: Entity?
         
         var world: World? {
@@ -66,7 +64,6 @@ public extension Entity {
         /// Gets or sets the component of the specified type.
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
             get {
-                
                 return buffer[T.identifier] as? T
             }
             

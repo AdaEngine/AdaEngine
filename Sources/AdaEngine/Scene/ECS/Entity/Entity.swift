@@ -12,12 +12,11 @@ import OrderedCollections
 
 /// Describe an entity and his characteristics.
 /// Entity in ECS based architecture is main object that holds components.
-@MainActor
-open class Entity: @preconcurrency Identifiable, @unchecked Sendable {
+open class Entity: Identifiable, @unchecked Sendable {
 
     /// Contains entity name.
-    public var name: String
-    
+    public let name: String
+
     /// Contains unique identifier of entity.
     public private(set) var id: Int
 
@@ -97,7 +96,7 @@ open class Entity: @preconcurrency Identifiable, @unchecked Sendable {
 
 // MARK: - Hashable
 
-extension Entity: @preconcurrency Hashable {
+extension Entity: Hashable {
     public static func == (lhs: Entity, rhs: Entity) -> Bool {
         return lhs.id == rhs.id && lhs.name == rhs.name
     }
@@ -108,7 +107,7 @@ extension Entity: @preconcurrency Hashable {
     }
 }
 
-extension Entity: @preconcurrency Codable {
+extension Entity: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name
         case components
