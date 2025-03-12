@@ -60,7 +60,7 @@ public final class Shader: Resource, @unchecked Sendable {
     // MARK: Shader
 
     public var resourceMetaInfo: ResourceMetaInfo?
-    public static var resourceType: ResourceType = .material
+    public static let resourceType: ResourceType = .material
 
     // TODO: Load from spir-v
     public init(asset decoder: AssetDecoder) throws {

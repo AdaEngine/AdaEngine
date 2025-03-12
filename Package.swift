@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -26,7 +26,7 @@ import WinSDK
 let isVulkanEnabled = true
 #endif
 
-let useLocalDeps = true // ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
+let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
@@ -299,7 +299,8 @@ let package = Package(
     products: products,
     dependencies: [],
     targets: targets,
-    swiftLanguageVersions: [.v5]
+    cLanguageStandard: .c17,
+    cxxLanguageStandard: .cxx20
 )
 
 package.dependencies += [
@@ -367,28 +368,4 @@ if isVulkanEnabled {
             ]
         )
     ]
-}
-
-
-let disabledStrictConcurrencyTargets = [
-//  "AdaEngine",
-    "AdaEditor",
-//  "Math",
-    "AtlasFontGenerator",
-    "SPIRVCompiler",
-    "MiniAudioBindings",
-    "libpng",
-    "SPIRV-Cross",
-    "SPIRVCompiler",
-    "AdaEngineMacros",
-    "Vulkan",
-    "CVulkan"
-//    "SwiftLintPlugin"
-]
-
-for target in package.targets
-    where !disabledStrictConcurrencyTargets.contains(target.name) && target.type != .binary {
-    var settings = target.swiftSettings ?? []
-    settings.append(.enableExperimentalFeature("StrictConcurrency"))
-    target.swiftSettings = settings
 }

@@ -8,7 +8,7 @@
 // TODO: Looks like we should use buffer binding instead of `append` methods
 
 /// Contains information about draw. You can configure your draw whatever you want.
-public final class DrawList: Sendable {
+public final class DrawList: @unchecked Sendable {
     
     public enum ShaderFunction {
         case vertex

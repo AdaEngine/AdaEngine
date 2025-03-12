@@ -13,7 +13,7 @@ struct AdaEditorApp: App {
 
     var scene: some AppScene {
         GameAppScene {
-            GameScene2D()
+            await GameScene2D()
         }
         .windowMode(.windowed)
         .windowTitle("AdaEngine")

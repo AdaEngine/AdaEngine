@@ -6,7 +6,7 @@
 //
 
 /// Fast collection O(1) for insertion and deletion, but slow for resizing and iterating.
-@frozen public struct SparseArray<Element: Sendable>: Sendable {
+@frozen public struct SparseArray<Element> {
     
     public typealias Index = Int
     
@@ -149,6 +149,8 @@ extension SparseArray: Equatable where Element: Equatable {
         return lhs.values == rhs.values
     }
 }
+
+extension SparseArray: Sendable where Element: Sendable { }
 
 extension SparseArray: Hashable where Element: Hashable {
     public func hash(into hasher: inout Hasher) {

@@ -51,7 +51,9 @@ public final class AppContext<T: App> {
         try AudioServer.initialize()
         RuntimeTypeLoader.loadTypes()
 
-        LoggingSystem.bootstrap(StreamLogHandler.standardError)
+        LoggingSystem.bootstrap {
+            StreamLogHandler.standardError(label: $0)
+        }
 
         guard let appScene = app.scene as? InternalAppScene else {
             fatalError("Incorrect object of App Scene")

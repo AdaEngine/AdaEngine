@@ -134,7 +134,7 @@ public final class ShaderSource: Resource, @unchecked Sendable {
     
     public var resourceMetaInfo: ResourceMetaInfo?
     
-    public static var resourceType: ResourceType = .material
+    public static let resourceType: ResourceType = .material
     
     public init(asset decoder: AssetDecoder) throws {
         let fileURL = decoder.assetMeta.filePath

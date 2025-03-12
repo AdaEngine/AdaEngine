@@ -16,7 +16,7 @@ public enum FontWeight: String {
 }
 
 /// An object that provides access to the font's characteristics.
-public final class FontResource: Resource, Hashable {
+public final class FontResource: Resource, Hashable, @unchecked Sendable {
 
     let handle: FontHandle
     

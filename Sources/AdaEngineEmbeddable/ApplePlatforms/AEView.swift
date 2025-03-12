@@ -35,7 +35,7 @@ public final class AEView: MetalView {
         let window = AdaEngine.UIWindow(frame: rect)
         window.addSubview(view)
         
-        let appContext = try AppContext(_EmbeddableApp(window: window))
+        let appContext = AppContext(_EmbeddableApp(window: window))
         self.engineWindow = window
         
         super.init(windowId: window.id, frame: frame)

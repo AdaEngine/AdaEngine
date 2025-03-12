@@ -9,8 +9,8 @@
 
 import Metal
 
-final class MetalIndexBuffer: MetalBuffer, IndexBuffer {
-    
+final class MetalIndexBuffer: MetalBuffer, IndexBuffer, @unchecked Sendable {
+
     let indexFormat: IndexBufferFormat
     
     init(buffer: MTLBuffer, indexFormat: IndexBufferFormat) {
