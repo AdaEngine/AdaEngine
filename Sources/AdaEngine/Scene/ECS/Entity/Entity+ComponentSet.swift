@@ -232,7 +232,7 @@ public extension Entity.ComponentSet {
     }
 }
 
-extension Entity.ComponentSet: @preconcurrency CustomStringConvertible {
+extension Entity.ComponentSet: CustomStringConvertible {
     public var description: String {
         let result = self.buffer.reduce("") { partialResult, value in
             let name = type(of: value.value)

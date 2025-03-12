@@ -183,7 +183,7 @@ public struct QueryResult: Sequence, Sendable {
 
 public extension QueryResult {
     /// This iterator iterate by each entity in passed archetype array
-    struct EntityIterator: @preconcurrency IteratorProtocol {
+    struct EntityIterator: IteratorProtocol {
 
         // We use pointer to avoid additional allocation in memory
         let count: Int
