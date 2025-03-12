@@ -36,7 +36,7 @@ public final class ShaderModule: Resource, @unchecked Sendable {
     // Resource
     
     public var resourceMetaInfo: ResourceMetaInfo?
-    public static var resourceType: ResourceType = .material
+    public static let resourceType: ResourceType = .material
     
     // TODO: Add init from spir-v
     public init(asset decoder: AssetDecoder) throws {

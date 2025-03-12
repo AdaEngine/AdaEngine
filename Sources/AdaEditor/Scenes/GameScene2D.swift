@@ -13,10 +13,8 @@ class GameScene2D: Scene {
 
     var textureAtlas: TextureAtlas!
     var characterAtlas: TextureAtlas!
-
     
     override func sceneDidMove(to view: SceneView) {
-        
         do {
             let tiles = try ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
             let charactersTiles = try ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image

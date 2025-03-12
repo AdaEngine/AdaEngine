@@ -23,7 +23,7 @@ public final class PerspectiveCamera: Entity, @unchecked Sendable {
     public override init(name: String = "PerspectiveCamera") {
         super.init(name: name)
         
-        let camera = Camera()
+        var camera = Camera()
         camera.isActive = true
         camera.projection = .perspective
         self.components += camera
@@ -38,7 +38,7 @@ public final class PerspectiveCamera: Entity, @unchecked Sendable {
     public init(name: String = "PerspectiveCamera", camera: Camera) {
         super.init(name: name)
         
-        let camera = camera
+        var camera = camera
         camera.isActive = true
         camera.projection = .perspective
         self.components += camera

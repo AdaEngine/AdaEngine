@@ -161,6 +161,8 @@ extension FixedArray: Decodable where T: Codable {
     }
 }
 
+extension FixedArray: Sendable where T: Sendable { }
+
 extension FixedArray {
     enum CodingKeys: CodingKey {
         case length
@@ -170,7 +172,7 @@ extension FixedArray {
 
 extension FixedArray {
     @usableFromInline
-    internal final class Buffer {
+    internal final class Buffer: @unchecked Sendable {
         let pointer: UnsafeMutableBufferPointer<Element>
         
         init(count: Int) {

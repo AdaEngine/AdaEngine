@@ -27,13 +27,13 @@ public extension ConcurrentSequence {
     /// Iterate over all elements in sequence and create task for each.
     func forEach(
         _ operation: @escaping @Sendable (Element) async -> Void
-    ) async {
+    ) async where Element: Sendable {
         // A task group automatically waits for all of its
         // sub-tasks to complete, while also performing those
         // tasks in parallel:
         await withTaskGroup(of: Void.self) { group in
             for element in self.base {
-                group.addTask {
+                group.addTask { @Sendable [element] in
                     await operation(element)
                 }
             }

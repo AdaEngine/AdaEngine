@@ -8,6 +8,7 @@
 import Observation
 
 /// A property wrapper that reads a value from a view’s environment.
+@MainActor
 @propertyWrapper
 public struct Environment<Value>: PropertyStoragable, UpdatableProperty {
 
@@ -39,7 +40,7 @@ extension Environment where Value: Observable & AnyObject {
             return withObservationTracking {
                 value
             } onChange: {
-                Task { @MainActor in
+                Task(priority: .userInitiated) { @MainActor in
                     container.update()
                 }
             }

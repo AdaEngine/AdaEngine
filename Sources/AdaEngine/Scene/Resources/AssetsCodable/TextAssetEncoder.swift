@@ -7,7 +7,7 @@
 
 import Yams
 
-public final class TextAssetEncoder: AssetEncoder {
+public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {
 
     public let assetMeta: AssetMeta
     let encoder: AnyEncoder

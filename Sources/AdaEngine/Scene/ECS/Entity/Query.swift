@@ -78,7 +78,7 @@
 
 extension EntityQuery {
     @usableFromInline
-    final class State: Sendable {
+    final class State: @unchecked Sendable {
         @usableFromInline
         private(set) var archetypes: [Archetype] = []
         

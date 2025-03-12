@@ -6,9 +6,9 @@
 //
 
 #if METAL
-import Metal
+@preconcurrency import Metal
 
-class MetalBuffer: Buffer {
+class MetalBuffer: Buffer, @unchecked Sendable {
     let buffer: MTLBuffer
     
     var label: String? {

@@ -1,13 +1,9 @@
 name: Deploy Docs
 
-# on:
-#   push:
-#     branches:
-#       - 'main'
 on:
-  push
-    # branches:
-    #   - 'main'
+  push:
+    branches:
+      - 'main'
 
 permissions:
   contents: write

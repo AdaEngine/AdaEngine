@@ -8,7 +8,7 @@
 import OrderedCollections
 import Math
 
-@MainActor @preconcurrency
+@MainActor
 public class TileSet: Resource, @preconcurrency Codable {
 
     struct PhysicsLayer {
@@ -56,9 +56,8 @@ public class TileSet: Resource, @preconcurrency Codable {
         try await encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
     }
 
-    public static var resourceType: ResourceType = .text
-
-    public var resourceMetaInfo: ResourceMetaInfo?
+    public static let resourceType: ResourceType = .text
+    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
 
     public init() {}
 
