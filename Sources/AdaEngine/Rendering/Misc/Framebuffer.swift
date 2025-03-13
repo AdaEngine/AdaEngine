@@ -48,7 +48,7 @@ public struct FramebufferAttachmentDescriptor {
     public var slice: Int = 0
 }
 
-public struct FramebufferAttachment {
+public struct FramebufferAttachment: Sendable {
     public let texture: RenderTexture?
     public internal(set) var clearColor: Color = Color(0, 0, 0, 1)
     public internal(set) var usage: FramebufferAttachmentUsage = []

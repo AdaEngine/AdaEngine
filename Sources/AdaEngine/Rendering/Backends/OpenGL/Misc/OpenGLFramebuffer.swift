@@ -15,7 +15,7 @@ import OpenGL
 #endif
 import Math
 
-final class OpenGLFramebuffer: Framebuffer {
+final class OpenGLFramebuffer: Framebuffer, @unchecked Sendable {
     var attachments: [FramebufferAttachment] = []
     var descriptor: FramebufferDescriptor
 

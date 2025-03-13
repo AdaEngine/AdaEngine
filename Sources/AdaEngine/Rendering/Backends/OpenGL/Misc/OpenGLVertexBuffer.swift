@@ -1,5 +1,5 @@
 //
-//  OpenGLUniformBuffer.swift
+//  OpenGLVertexBuffer.swift
 //  AdaEngine
 //
 //  Created by vladislav.prusakov on 13.03.2025.
@@ -14,16 +14,13 @@ import OpenGL.GL3
 import OpenGL
 #endif
 
-final class OpenGLUniformBuffer: OpenGLBuffer, UniformBuffer, @unchecked Sendable {
+
+final class OpenGLVertexBuffer: OpenGLBuffer, VertexBuffer, @unchecked Sendable {
     let binding: Int
+
     init(size: Int, binding: Int, usage: ResourceOptions) {
         self.binding = binding
         super.init(size: size, usage: usage)
-        self.target = GLenum(GL_UNIFORM_BUFFER)
-    }
-
-    override func initialize(data: UnsafeRawPointer? = nil) {
-        super.initialize(data: data)
     }
 
     override func bind() {
@@ -31,4 +28,3 @@ final class OpenGLUniformBuffer: OpenGLBuffer, UniformBuffer, @unchecked Sendabl
         glBindBufferBase(target, GLuint(binding), buffer)
     }
 }
-
