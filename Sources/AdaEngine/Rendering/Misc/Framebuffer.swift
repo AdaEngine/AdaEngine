@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 1/22/23.
 //
 
+import Math
+
 // TODO: (Vlad) Add documentation
 
 public struct FramebufferDescriptor {

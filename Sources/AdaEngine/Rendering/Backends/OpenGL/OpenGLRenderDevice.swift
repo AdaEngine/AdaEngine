@@ -16,10 +16,6 @@ import OpenGL
 
 final class OpenGLRenderDevice: RenderDevice {
 
-    enum GLError: Error {
-        case shaderCompilationError
-    }
-
     unowned let context: OpenGLBackend.Context?
 
     init(context: OpenGLBackend.Context? = nil) {
@@ -57,40 +53,20 @@ final class OpenGLRenderDevice: RenderDevice {
     }
 
     func compileShader(from shader: Shader) throws -> any CompiledShader {
-        let spirvShader = try shader.spirvCompiler.compile()
-        let program = glCreateProgram()
-        let glShader = glCreateShader(shader.stage.glType)
-
-        spirvShader.source.withCString { pointer in
-            var ptr: UnsafePointer<GLchar>? = UnsafePointer<GLchar>(pointer)
-            return glShaderSource(glShader, 1, &ptr, nil)
-        }
-
-        glCompileShader(glShader)
-
-        var result: GLint = 0
-        glGetShaderiv(glShader, GLenum(GL_COMPILE_STATUS), &result)
-
-        if result != 0 {
-            throw GLError.shaderCompilationError
-        }
-
-        glAttachShader(program, glShader)
-        glLinkProgram(program)
-
-        return OpenGLShader(shader: glShader, program: program)
+        OpenGLBackend.currentContext?.makeCurrent()
+        return try OpenGLShader(shader: shader)
     }
 
     func createFramebuffer(from descriptor: FramebufferDescriptor) -> any Framebuffer {
-        fatalErrorMethodNotImplemented()
+        OpenGLFramebuffer(descriptor: descriptor)
     }
 
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> any RenderPipeline {
-        fatalErrorMethodNotImplemented()
+        OpenGLRenderPipeline(descriptor: descriptor)
     }
 
     func createSampler(from descriptor: SamplerDescriptor) -> any Sampler {
-        fatalErrorMethodNotImplemented()
+        OpenGLSampler(descriptor: descriptor)
     }
 
     func createUniformBufferSet() -> any UniformBufferSet {
@@ -98,49 +74,116 @@ final class OpenGLRenderDevice: RenderDevice {
     }
 
     func createTexture(from descriptor: TextureDescriptor) -> GPUTexture {
-        fatalErrorMethodNotImplemented()
+        do {
+            OpenGLBackend.currentContext?.makeCurrent()
+            return try OpenGLTexture(descriptor: descriptor)
+        } catch {
+            fatalError(error.localizedDescription)
+        }
     }
 
     func getImage(from texture: Texture) -> Image? {
-        fatalErrorMethodNotImplemented()
+        (texture.gpuTexture as? OpenGLTexture)?.getImage()
     }
 
-    func beginDraw(for window: UIWindow.ID, clearColor: Color, loadAction: AttachmentLoadAction, storeAction: AttachmentStoreAction) throws -> DrawList {
-        fatalErrorMethodNotImplemented()
+    func beginDraw(
+        for window: UIWindow.ID,
+        clearColor: Color,
+        loadAction: AttachmentLoadAction,
+        storeAction: AttachmentStoreAction
+    ) throws -> DrawList {
+        guard let context else {
+            throw DrawListError.notAGlobalDevice
+        }
+        guard let window = context.windows[window] else {
+            throw DrawListError.windowNotExists
+        }
+
+        window.openGLContext.makeCurrent()
+        return DrawList(commandBuffer: OpenGLDrawCommandBuffer(), renderDevice: self)
     }
 
-    func beginDraw(to framebuffer: any Framebuffer, clearColors: [Color]?) throws -> DrawList {
-        fatalErrorMethodNotImplemented()
+    func beginDraw(
+        to framebuffer: any Framebuffer,
+        clearColors: [Color]?
+    ) throws -> DrawList {
+        
+        return DrawList(commandBuffer: OpenGLDrawCommandBuffer(), renderDevice: self)
     }
 
     func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
-        fatalErrorMethodNotImplemented()
+        OpenGLBackend.currentContext?.makeCurrent()
+        guard let renderPipeline = list.renderPipeline as? OpenGLRenderPipeline else {
+            return
+        }
+
+        renderPipeline.program.use()
+
+        list.vertexBuffers.forEach { buffer in
+            (buffer as? OpenGLBuffer)?.bind()
+        }
+
+        (list.indexBuffer as? OpenGLBuffer)?.bind()
+
+        list.textures.forEach { texture in
+            (texture?.gpuTexture as? OpenGLTexture)?.bind()
+            (texture?.sampler as? OpenGLSampler)?.bind()
+        }
+
+//        if let depthStencilState = renderPipeline.depthStencilState {
+//            depthStencilState
+//        }
+
+        if let lineWidth = list.lineWidth {
+            glLineWidth(lineWidth)
+        }
+
+        if list.isScissorEnabled {
+            glScissor(
+                GLint(list.scissorRect.origin.x),
+                GLint(list.scissorRect.origin.y),
+                GLsizei(list.scissorRect.size.width),
+                GLsizei(list.scissorRect.size.height)
+            )
+        }
+
+        if list.isViewportEnabled {
+            glViewport(
+                GLint(list.viewport.rect.origin.x),
+                GLint(list.viewport.rect.origin.y),
+                GLsizei(list.viewport.rect.size.width),
+                GLsizei(list.viewport.rect.size.height)
+            )
+        }
+
+        glCullFace(GLenum(renderPipeline.descriptor.backfaceCulling ? GL_BACK : GL_FRONT))
+        glFrontFace(GLenum(GL_CCW))
+
+        switch list.triangleFillMode {
+        case .fill:
+            glDrawElements(GLenum(GL_TRIANGLES), GLsizei(indexCount), GLenum(GL_UNSIGNED_INT), nil)
+        case .lines:
+            glDrawArrays(GLenum(GL_LINES), 0, GLsizei(indexCount))
+        }
     }
 
     func endDrawList(_ drawList: DrawList) {
-        fatalErrorMethodNotImplemented()
+        OpenGLBackend.currentContext?.makeCurrent()
+        glFlush()
     }
 }
 
-private extension ShaderStage {
+final class OpenGLDrawCommandBuffer: DrawCommandBuffer {
+
+}
+
+extension TriangleFillMode {
     var glType: GLenum {
         switch self {
-        case .vertex:
-            return GLenum(GL_VERTEX_SHADER)
-        case .fragment:
-            return GLenum(GL_FRAGMENT_SHADER)
-        case .compute:
-            #if DARWIN
-            fatalErrorMethodNotImplemented()
-            #else
-            return GLenum(GL_COMPUTE_SHADER)
-            #endif
-        case .tesselationControl:
-            return GLenum(GL_TESS_CONTROL_SHADER)
-        case .tesselationEvaluation:
-            return GLenum(GL_TESS_EVALUATION_SHADER)
-        case .max:
-            return .max
+        case .fill:
+            GLenum(GL_TRIANGLES)
+        case .lines:
+            GLenum(GL_LINES)
         }
     }
 }

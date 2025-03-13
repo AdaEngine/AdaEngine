@@ -14,11 +14,14 @@ import OpenGL.GL3
 import OpenGL
 #endif
 import Math
+import Foundation
 
 final class OpenGLBackend: RenderBackend {
 
     var currentFrameIndex: Int = 0
-    
+
+    nonisolated(unsafe) static var currentContext: OpenGLContext?
+
     let renderDevice: any RenderDevice
     let context: Context
 
@@ -30,15 +33,15 @@ final class OpenGLBackend: RenderBackend {
     func createLocalRenderDevice() -> any RenderDevice {
         OpenGLRenderDevice()
     }
-    
+
     func createWindow(_ windowId: UIWindow.ID, for surface: any RenderSurface, size: Math.SizeInt) throws {
         try self.context.createWindow(windowId, for: surface, size: size)
     }
-    
+
     func resizeWindow(_ windowId: UIWindow.ID, newSize: Math.SizeInt) throws {
         try self.context.resizeWindow(windowId, newSize: newSize)
     }
-    
+
     func destroyWindow(_ windowId: UIWindow.ID) throws {
         try self.context.destroyWindow(windowId)
     }
@@ -48,6 +51,7 @@ final class OpenGLBackend: RenderBackend {
     }
     
     func endFrame() throws {
-        
+        glFinish()
+        currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
     }
 }

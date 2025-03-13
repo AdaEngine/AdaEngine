@@ -15,19 +15,16 @@ import OpenGL
 #endif
 
 final class OpenGLUniformBuffer: OpenGLBuffer, UniformBuffer, @unchecked Sendable {
-    var binding: Int {
-        get {
-            return Int(self.buffer)
-        }
-        set {
-            self.buffer = GLuint(newValue)
-        }
+    let binding: Int
+    init(size: Int, binding: Int, usage: ResourceOptions) {
+        self.binding = binding
+        super.init(size: size, usage: usage)
+        self.target = GLenum(GL_UNIFORM_BUFFER)
     }
 
-    init(size: Int, binding: Int, usage: ResourceOptions) {
-        super.init(size: size, usage: usage)
-        self.buffer = GLuint(binding)
-        self.target = GLenum(GL_UNIFORM_BUFFER)
+    override func initialize(data: UnsafeRawPointer? = nil) {
+        super.initialize(data: data)
+        glBindBufferBase(target, GLuint(binding), buffer)
     }
 }
 

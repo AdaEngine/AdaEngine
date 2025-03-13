@@ -28,8 +28,9 @@ extension OpenGLBackend {
     }
 
     final class Context {
-        private var windows: [UIWindow.ID: RenderWindow] = [:]
+        private(set) var windows: [UIWindow.ID: RenderWindow] = [:]
 
+        @MainActor
         func createWindow(
             _ windowId: UIWindow.ID,
             for surface: any RenderSurface,
@@ -39,17 +40,21 @@ extension OpenGLBackend {
                 throw RenderError.windowAlreadyExists
             }
 
-            self.windows[windowId] = RenderWindow()
+            let context = try surface.createGLContext()
+            context.makeCurrent()
+            self.windows[windowId] = RenderWindow(openGLContext: context)
         }
 
+        @MainActor
         func resizeWindow(_ windowId: UIWindow.ID, newSize: Math.SizeInt) throws {
-            guard let window  = self.windows[windowId] else {
+            guard let window = self.windows[windowId] else {
                 throw RenderError.windowNotFound
             }
         }
 
+        @MainActor
         func destroyWindow(_ windowId: UIWindow.ID) throws {
-            guard let window  = self.windows[windowId] else {
+            guard self.windows[windowId] != nil else {
                 throw RenderError.windowNotFound
             }
 
@@ -58,33 +63,46 @@ extension OpenGLBackend {
     }
 }
 
-private extension OpenGLBackend.Context {
-    final class RenderWindow {
-        init() {
-            
-        }
+extension OpenGLBackend.Context {
+    struct RenderWindow {
+        let openGLContext: OpenGLContext
     }
 }
 
 protocol OpenGLContext: AnyObject {
-
+    func makeCurrent()
 }
 
 private extension RenderSurface {
     @MainActor
-    func createGLContext() -> OpenGLContext {
+    func createGLContext() throws -> OpenGLContext {
 #if DARWIN
     #if canImport(AppKit)
-        let context = NSOpenGLContext()
+        var attributes: [NSOpenGLPixelFormatAttribute] = []
+        attributes.append(UInt32(NSOpenGLPFAAccelerated))
+        let format = NSOpenGLPixelFormat(attributes: &attributes)!
+        let context = NSOpenGLContext(format: format, share: nil)!
         context.view = self as! MetalView
-        return context as! OpenGLContext
+
+        return context
     #else
         fatalErrorMethodNotImplemented()
     #endif
 #elseif WASM
+        fatalErrorMethodNotImplemented()
+#elseif os(Windows)
         fatalErrorMethodNotImplemented()
 #else
         fatalErrorMethodNotImplemented()
 #endif
     }
 }
+
+#if canImport(AppKit)
+extension NSOpenGLContext: OpenGLContext {
+    func makeCurrent() {
+        OpenGLBackend.currentContext = self
+        self.makeCurrentContext()
+    }
+}
+#endif

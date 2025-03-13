@@ -26,7 +26,7 @@ class OpenGLBuffer: Buffer, @unchecked Sendable {
         self.usage = usage
     }
 
-    final func initialize(data: UnsafeRawPointer? = nil) {
+    func initialize(data: UnsafeRawPointer? = nil) {
         glGenBuffersARB(1, &self.buffer)
         glBindBuffer(target, self.buffer)
         glBufferData(target, self.length, data, self.usage.glUsage)
@@ -37,6 +37,7 @@ class OpenGLBuffer: Buffer, @unchecked Sendable {
     }
 
     deinit {
+        OpenGLBackend.currentContext?.makeCurrent()
         glDeleteBuffers(1, &self.buffer)
     }
 
@@ -52,18 +53,16 @@ class OpenGLBuffer: Buffer, @unchecked Sendable {
 }
 
 final class OpenGLVertexBuffer: OpenGLBuffer, VertexBuffer, @unchecked Sendable {
-    var binding: Int {
-        get {
-            return Int(self.buffer)
-        }
-        set {
-            self.buffer = GLuint(newValue)
-        }
-    }
+    let binding: Int
 
     init(size: Int, binding: Int, usage: ResourceOptions) {
+        self.binding = binding
         super.init(size: size, usage: usage)
-        self.buffer = GLuint(binding)
+    }
+
+    override func initialize(data: UnsafeRawPointer? = nil) {
+        super.initialize(data: data)
+        glBindBufferBase(target, GLuint(binding), buffer)
     }
 }
 
