@@ -323,22 +323,6 @@ final class MetalRenderCommandBuffer: DrawCommandBuffer {
 
 #endif
 
-// FIXME: (Vlad) Think about it
-
-public extension Bundle {
-    static var engineBundle: Bundle {
-#if SWIFT_PACKAGE && !BAZEL_BUILD
-        return Bundle.module
-#else
-        return Bundle(for: BundleToken.self)
-#endif
-    }
-}
-
-#if !SWIFT_PACKAGE || BAZEL_BUILD
-class BundleToken {}
-#endif
-
 public protocol CommandBuffer {
     
 }

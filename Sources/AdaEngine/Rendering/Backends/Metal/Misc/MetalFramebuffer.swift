@@ -55,7 +55,6 @@ final class MetalFramebuffer: Framebuffer {
         )
         
         for (index, attachmentDesc) in self.descriptor.attachments.enumerated() {
-            
             let framebufferAttachment: FramebufferAttachment
             
             let texture = attachmentDesc.texture ?? RenderTexture(
@@ -103,14 +102,6 @@ final class MetalFramebuffer: Framebuffer {
         renderPassDescriptor.renderTargetHeight = size.height
         
         self.renderPassDescriptor = renderPassDescriptor
-    }
-}
-
-final class MetalGPUTexture: GPUTexture {
-    var texture: MTLTexture
-    
-    init(texture: MTLTexture) {
-        self.texture = texture
     }
 }
 
