@@ -32,7 +32,7 @@ class OpenGLBuffer: Buffer, @unchecked Sendable {
         glBufferData(target, self.length, data, self.usage.glUsage)
     }
 
-    final func bind() {
+    func bind() {
         glBindBuffer(target, self.buffer)
     }
 
@@ -49,20 +49,6 @@ class OpenGLBuffer: Buffer, @unchecked Sendable {
     final func contents() -> UnsafeMutableRawPointer {
         glBindBuffer(target, self.buffer)
         return glMapBuffer(target, GLenum(GL_READ_WRITE))
-    }
-}
-
-final class OpenGLVertexBuffer: OpenGLBuffer, VertexBuffer, @unchecked Sendable {
-    let binding: Int
-
-    init(size: Int, binding: Int, usage: ResourceOptions) {
-        self.binding = binding
-        super.init(size: size, usage: usage)
-    }
-
-    override func initialize(data: UnsafeRawPointer? = nil) {
-        super.initialize(data: data)
-        glBindBufferBase(target, GLuint(binding), buffer)
     }
 }
 

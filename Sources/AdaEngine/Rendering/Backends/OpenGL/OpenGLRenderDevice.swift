@@ -100,15 +100,26 @@ final class OpenGLRenderDevice: RenderDevice {
         }
 
         window.openGLContext.makeCurrent()
-        return DrawList(commandBuffer: OpenGLDrawCommandBuffer(), renderDevice: self)
+        return DrawList(
+            commandBuffer: OpenGLDrawCommandBuffer(
+                framebuffer: OpenGLFramebuffer(descriptor: FramebufferDescriptor())
+            ),
+            renderDevice: self
+        )
     }
 
     func beginDraw(
         to framebuffer: any Framebuffer,
         clearColors: [Color]?
     ) throws -> DrawList {
-        
-        return DrawList(commandBuffer: OpenGLDrawCommandBuffer(), renderDevice: self)
+        guard let framebuffer = framebuffer as? OpenGLFramebuffer else {
+            throw DrawListError.failedToGetRenderPass
+        }
+
+        return DrawList(
+            commandBuffer: OpenGLDrawCommandBuffer(framebuffer: framebuffer),
+            renderDevice: self
+        )
     }
 
     func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
@@ -173,8 +184,12 @@ final class OpenGLRenderDevice: RenderDevice {
     }
 }
 
-final class OpenGLDrawCommandBuffer: DrawCommandBuffer {
+final class OpenGLDrawCommandBuffer: DrawCommandBuffer, Sendable {
+    let framebuffer: OpenGLFramebuffer
 
+    init(framebuffer: OpenGLFramebuffer) {
+        self.framebuffer = framebuffer
+    }
 }
 
 extension TriangleFillMode {
