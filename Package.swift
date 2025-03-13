@@ -107,6 +107,8 @@ var swiftSettings: [SwiftSetting] = [
     .define("VISIONOS", .when(platforms: [.visionOS])),
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
+    .define("DARWIN", .when(platforms: applePlatforms)),
+    .define("WASM", .when(platforms: [.wasi])),
     .interoperabilityMode(.Cxx)
 ]
 
@@ -114,6 +116,7 @@ if isVulkanEnabled {
     swiftSettings.append(.define("VULKAN"))
 } else {
     swiftSettings.append(.define("METAL"))
+    swiftSettings.append(.define("GLES_SILENCE_DEPRECATION"))
 }
 
 let editorTarget: Target = .executableTarget(
@@ -129,7 +132,7 @@ let editorTarget: Target = .executableTarget(
     ],
     swiftSettings: swiftSettings + [
         .define("EDITOR_DEBUG", .when(configuration: .debug)),
-        
+
         // List of defines availables only for editor
         .define("EDITOR_MACOS", .when(platforms: [.macOS])),
         .define("EDITOR_WINDOWS", .when(platforms: [.windows])),
@@ -349,10 +352,10 @@ if isVulkanEnabled {
                 .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
                 .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
                 .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
-                
+
                 // Android
                 .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
-                
+
                 // Windows
                 .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
             ],

@@ -17,7 +17,6 @@ public final class RenderEngine: RenderBackend {
     
     public struct Configuration {
         public var maxFramesInFlight: Int = 3
-        
         public init() {}
     }
     
@@ -27,13 +26,19 @@ public final class RenderEngine: RenderBackend {
     /// Return instance of render engine for specific backend.
     nonisolated(unsafe) public static let shared: RenderEngine = {
         let renderBackend: RenderBackend
-        
-        #if METAL
-        renderBackend = MetalRenderBackend(appName: "Ada Engine")
-        #elseif VULKAN
-        renderBackend = VulkanRenderBackend(appName: "Ada Engine")
-        #endif
-        
+
+        let appName = "AdaEngine"
+
+//        #if METAL
+//        renderBackend = MetalRenderBackend(appName: appName)
+//        #elseif VULKAN
+//        renderBackend = VulkanRenderBackend(appName: appName)
+//        #else
+//        renderBackend = OpenGLBackend(appName: appName)
+//        #endif
+
+        renderBackend = OpenGLBackend(appName: appName)
+
         return RenderEngine(renderBackend: renderBackend)
     }()
     
