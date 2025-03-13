@@ -304,7 +304,7 @@ extension SpirvCompiler {
         }
         spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_VERSION, version(2, 1, 0))
         spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_POINT_SIZE_BUILTIN, 1)
-        
+
 #if os(macOS)
         let platform = SPVC_MSL_PLATFORM_MACOS
 #else
