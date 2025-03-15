@@ -9,16 +9,15 @@
 #define spriv_compiler_hpp
 
 #include <stdint.h>
-#include <vector>
-
-enum shaderc_stage {
-    SHADER_STAGE_VERTEX,
-    SHADER_STAGE_FRAGMENT,
-    SHADER_STAGE_TESSELATION_CONTROL,
-    SHADER_STAGE_TESSELATION_EVALUATION,
-    SHADER_STAGE_COMPUTE,
-    SHADER_STAGE_MAX,
-};
+//
+//enum shaderc_stage {
+//    SHADER_STAGE_VERTEX,
+//    SHADER_STAGE_FRAGMENT,
+//    SHADER_STAGE_TESSELATION_CONTROL,
+//    SHADER_STAGE_TESSELATION_EVALUATION,
+//    SHADER_STAGE_COMPUTE,
+//    SHADER_STAGE_MAX,
+//};
 
 struct spirv_options {
     const char* preamble;

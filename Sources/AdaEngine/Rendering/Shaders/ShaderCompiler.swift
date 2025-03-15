@@ -6,7 +6,7 @@
 //
 
 import Foundation
-import SPIRVCompiler
+import glslang
 import SPIRV_Cross
 
 // TODO: Should we invert y-axis for vertex shader?

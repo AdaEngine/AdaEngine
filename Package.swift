@@ -109,7 +109,7 @@ var swiftSettings: [SwiftSetting] = [
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
     .define("WASM", .when(platforms: [.wasi])),
-    .interoperabilityMode(.Cxx)
+//    .interoperabilityMode(.Cxx)
 ]
 
 if isVulkanEnabled {
@@ -153,12 +153,13 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
-    "MiniAudioBindings",
+    "miniaudio",
     "AtlasFontGenerator",
     "Yams",
     "libpng",
     "SPIRV-Cross",
-    "SPIRVCompiler",
+    "glslang",
+//    "SPIRVCompiler",
     "box2d",
     "AdaEngineMacros"
 ]
@@ -194,7 +195,9 @@ let adaEngineEmbeddable: Target = .target(
     exclude: [
         "BUILD.bazel"
     ],
-    swiftSettings: [.interoperabilityMode(.Cxx)],
+    swiftSettings: [
+//        .interoperabilityMode(.Cxx)
+    ],
     linkerSettings: [
         .linkedLibrary("c++")
     ]
@@ -249,19 +252,12 @@ targets += [
         ],
         publicHeadersPath: "."
     ),
-    .target(
-        name: "MiniAudioBindings",
-        dependencies: [
-            "miniaudio",
-        ],
-        publicHeadersPath: "."
-    ),
-    .target(
-        name: "SPIRVCompiler",
-        dependencies: [
-            "glslang"
-        ]
-    )
+//    .target(
+//        name: "SPIRVCompiler",
+//        dependencies: [
+//            "glslang"
+//        ]
+//    )
 ]
 
 // MARK: - Tests
@@ -274,7 +270,7 @@ targets += [
             "BUILD.bazel"
         ],
         swiftSettings: [
-            .interoperabilityMode(.Cxx)
+//            .interoperabilityMode(.Cxx)
         ]
     ),
     .testTarget(
@@ -360,7 +356,7 @@ if isVulkanEnabled {
                 .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
             ],
             swiftSettings: [
-                .interoperabilityMode(.Cxx),
+//                .interoperabilityMode(.Cxx),
             ]
         ),
         .systemLibrary(
