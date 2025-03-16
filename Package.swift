@@ -77,17 +77,13 @@ products.append(ios)
 
 /// Currently plugins doesn't work on swift playground and not at all binaries can work in others platforms like Windows.
 #if os(macOS)
-//let swiftLintTargets: [Target] = [
-//    .binaryTarget(
-//        name: "SwiftLintBinary",
-//        path: "Binaries/SwiftLintBinary.artifactbundle"
-//    ),
-//    .plugin(
-//        name: "SwiftLintPlugin",
-//        capability: .buildTool(),
-//        dependencies: ["SwiftLintBinary"]
-//    )
-//]
+let swiftLintTargets: [Target] = [
+    .plugin(
+        name: "SwiftLintPlugin",
+        capability: .buildTool(),
+        dependencies: []
+    )
+]
 #endif
 
 // MARK: Editor Target
@@ -95,8 +91,7 @@ products.append(ios)
 var commonPlugins: [Target.PluginUsage] = []
 
 #if os(macOS)
-//commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
-
+commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
 #endif
 
 var swiftSettings: [SwiftSetting] = [
