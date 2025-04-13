@@ -13,7 +13,7 @@
 // Synchronized with upstream glslang/StandAlone/ResourceLimits.cpp which is not
 // part of the public API.
 
-const TBuiltInResource DefaultTBuiltInResource = {
+const struct TBuiltInResource DefaultTBuiltInResource = {
     /* .MaxLights = */ 32,
     /* .MaxClipPlanes = */ 6,
     /* .MaxTextureUnits = */ 32,

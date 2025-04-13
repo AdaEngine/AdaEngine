@@ -41,4 +41,4 @@ Derived/
 
 /Sources/AdaEngine/Rendering/Shaders/*.spv
 
-/LocalDeps/
+Modules/LocalDeps/

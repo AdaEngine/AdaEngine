@@ -5,7 +5,10 @@
 //  Created by v.prusakov on 3/13/23.
 //
 
+#if canImport(SPIRV_Cross)
 import SPIRV_Cross
+import glslang
+#endif
 
 struct SpirvShader {
 
@@ -18,6 +21,8 @@ struct SpirvShader {
     let language: ShaderLanguage
     let entryPoints: [EntryPoint]
 }
+
+#if canImport(SPIRV_Cross)
 
 /// Create High Level Shading Language from SPIR-V for specific shader language.
 final class SpirvCompiler {
@@ -331,3 +336,5 @@ extension ShaderLanguage {
         }
     }
 }
+
+#endif

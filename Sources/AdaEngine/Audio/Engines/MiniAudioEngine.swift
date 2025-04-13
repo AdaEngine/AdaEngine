@@ -5,7 +5,8 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
-@_implementationOnly import miniaudio
+#if ENABLE_MINIAUDIO
+import miniaudio
 import Math
 
 private let MA_SOUND_FLAG_DECODE: ma_sound_flags = ma_sound_flags(0x00000002)
@@ -296,3 +297,5 @@ final class MiniSound: Sound {
         }
     }
 }
+
+#endif

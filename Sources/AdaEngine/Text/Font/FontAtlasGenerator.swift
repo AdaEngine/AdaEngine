@@ -5,7 +5,9 @@
 //  Created by v.prusakov on 3/5/23.
 //
 
+#if ENABLE_FONT_GENERATOR
 @_implementationOnly import AtlasFontGenerator
+#endif
 import Foundation
 
 public struct FontDescriptor {
@@ -21,6 +23,9 @@ final class FontAtlasGenerator {
     
     /// Generate and save to the disk info about font atlas.
     func generateAtlas(fontPath: URL, fontDescriptor: FontDescriptor) -> FontHandle? {
+        #if !ENABLE_FONT_GENERATOR
+        return nil
+        #else
         var atlasFontDescriptor = font_atlas_descriptor()
         atlasFontDescriptor.angleThreshold = 3.0
         atlasFontDescriptor.atlasPixelRange = 2.0
@@ -71,6 +76,7 @@ final class FontAtlasGenerator {
             let texture = self.makeTextureAtlas(from: data, width: width, height: height)
             return FontHandle(atlasTexture: texture, fontData: fontData)
         }
+        #endif
     }
     
     // MARK: - Private

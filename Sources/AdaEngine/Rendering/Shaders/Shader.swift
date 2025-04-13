@@ -25,7 +25,9 @@ public final class Shader: Resource, @unchecked Sendable {
     public private(set) var spirvData: Data
     public private(set) var entryPoint: String
 
+    #if canImport(SPIRV_Cross)
     internal private(set) var spirvCompiler: SpirvCompiler
+    #endif
     
     private var shaderCompiler: ShaderCompiler
     
@@ -33,8 +35,10 @@ public final class Shader: Resource, @unchecked Sendable {
     
     fileprivate init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
         self.spirvData = spirv.data
+        #if canImport(SPIRV_Cross)
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: spirv.stage)
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
+        #endif
         
         self.entryPoint = spirv.entryPoint
         self.stage = spirv.stage
@@ -51,8 +55,10 @@ public final class Shader: Resource, @unchecked Sendable {
     public func recompile() throws {
         let spirv = try shaderCompiler.compileSpirvBin(for: self.stage)
         self.spirvData = spirv.data
+        #if canImport(SPIRV_Cross)
         self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: self.stage)
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
+        #endif
         
         self.compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: self)
     }
@@ -77,7 +83,9 @@ public final class Shader: Resource, @unchecked Sendable {
         let shader = try Self.make(from: spirv, compiler: self.shaderCompiler)
         self.spirvData = shader.spirvData
         self.reflectionData = shader.reflectionData
+#if canImport(SPIRV_Cross)
         self.spirvCompiler = shader.spirvCompiler
+        #endif
         self.stage = stage
         self.compiledShader = shader.compiledShader
         self.entryPoint = shader.entryPoint
@@ -98,7 +106,11 @@ public final class Shader: Resource, @unchecked Sendable {
     // MARK: - Private
     
     func reflect() -> ShaderReflectionData {
+        #if canImport(SPIRV_Cross)
         return self.spirvCompiler.reflection()
+        #else
+        fatalErrorMethodNotImplemented()
+        #endif
     }
 }
 

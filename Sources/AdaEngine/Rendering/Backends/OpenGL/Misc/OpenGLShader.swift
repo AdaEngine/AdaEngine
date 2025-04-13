@@ -23,6 +23,7 @@ final class OpenGLShader: CompiledShader {
     let shader: GLuint
 
     init(shader: Shader) throws {
+        #if ENABLE_GLSLANG
         let spirvShader = try shader.spirvCompiler.compile()
         let glShader = glCreateShader(shader.stage.glType)
 
@@ -41,6 +42,9 @@ final class OpenGLShader: CompiledShader {
         }
 
         self.shader = glShader
+        #else
+        fatalErrorMethodNotImplemented()
+        #endif
     }
 
     deinit {

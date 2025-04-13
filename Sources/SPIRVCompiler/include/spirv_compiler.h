@@ -9,15 +9,15 @@
 #define spriv_compiler_hpp
 
 #include <stdint.h>
-//
-//enum shaderc_stage {
-//    SHADER_STAGE_VERTEX,
-//    SHADER_STAGE_FRAGMENT,
-//    SHADER_STAGE_TESSELATION_CONTROL,
-//    SHADER_STAGE_TESSELATION_EVALUATION,
-//    SHADER_STAGE_COMPUTE,
-//    SHADER_STAGE_MAX,
-//};
+
+enum shaderc_stage {
+    SHADER_STAGE_VERTEX,
+    SHADER_STAGE_FRAGMENT,
+    SHADER_STAGE_TESSELATION_CONTROL,
+    SHADER_STAGE_TESSELATION_EVALUATION,
+    SHADER_STAGE_COMPUTE,
+    SHADER_STAGE_MAX,
+};
 
 struct spirv_options {
     const char* preamble;
@@ -28,13 +28,13 @@ struct spirv_bin {
     size_t length;
 };
 
-bool glslang_init_process();
+int glslang_init_process();
 void glslang_deinit_process();
 
-spirv_bin compile_shader_glsl(
+struct spirv_bin compile_shader_glsl(
                               const char *source,
-                              shaderc_stage stage,
-                              spirv_options options,
+                              enum shaderc_stage stage,
+                              struct spirv_options options,
                               const char **error
                               );
 

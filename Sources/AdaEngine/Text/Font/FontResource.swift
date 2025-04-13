@@ -53,22 +53,38 @@ public extension FontResource {
 
     /// The top y-coordinate, offset from the baseline, of the font’s longest ascender.
     var ascender: Double {
+        #if ENABLE_FONT_GENERATOR
         self.handle.metrics.ascenderY
+        #else
+        return 0
+        #endif
     }
     
     /// The bottom y-coordinate, offset from the baseline, of the font’s longest descender.
     var descender: Double {
+        #if ENABLE_FONT_GENERATOR
         self.handle.metrics.descenderY
+        #else
+        return 0
+        #endif
     }
     
     /// The height, in points, of text lines.
     var lineHeight: Double {
+        #if ENABLE_FONT_GENERATOR
         self.handle.metrics.lineHeight
+        #else
+        return 0
+        #endif
     }
 
     // The size of one EM.
     var fontEmSize: Double {
+        #if ENABLE_FONT_GENERATOR
         self.handle.metrics.emSize
+        #else
+        return 0
+        #endif
     }
 }
 

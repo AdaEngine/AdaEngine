@@ -25,8 +25,10 @@ public final class AudioServer {
     
     @MainActor
     static func initialize() throws {
+        #if ENABLE_AUDIO
         let engine = try MiniAudioEngine()
         self.shared = AudioServer(engine: engine)
+        #endif
     }
     
     func update(_ deltaTime: TimeInterval) {

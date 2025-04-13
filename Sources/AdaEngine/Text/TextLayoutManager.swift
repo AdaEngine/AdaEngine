@@ -148,12 +148,22 @@ public final class TextLayoutManager {
 
                 let font = attributes.font
                 let fontHandle = font.fontResource.handle
-                let metrics = fontHandle.metrics
                 let fontScale: Double = 1.5
+                
+                #if ENABLE_FONT_GENERATOR
+                let metrics = fontHandle.metrics
                 let fontSize = font.fontResource.getFontScale(for: font.pointSize)
+                let lineHeight: Double = metrics.lineHeight
                 maxLineHeight = max(fontSize, metrics.lineHeight + font.pointSize)
                 ascent = max(metrics.ascenderY, ascent)
                 descent = max(metrics.descenderY, descent)
+                #else
+                let fontSize: Double = 0
+                maxLineHeight = 0
+                let lineHeight: Double = 0
+                ascent = 0
+                descent = 0
+                #endif
 
                 // I'm not really think that we should for each loop here.
                 for scalarIndex in char.unicodeScalars.indices {
@@ -177,7 +187,7 @@ public final class TextLayoutManager {
                     if Float((pr * fontScale) + x) > availableSize.width {
                         // Move to the next line
                         x = 0
-                        y -= fontScale * metrics.lineHeight + lineHeightOffset + fontSize
+                        y -= fontScale * lineHeight + lineHeightOffset + fontSize
                     }
 
                     if abs(Float((pt * fontScale) + y)) > availableSize.height {

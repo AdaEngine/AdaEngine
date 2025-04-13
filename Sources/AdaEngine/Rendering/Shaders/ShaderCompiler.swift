@@ -6,8 +6,10 @@
 //
 
 import Foundation
+#if ENABLE_GLSLANG
 import glslang
 import SPIRV_Cross
+#endif
 
 // TODO: Should we invert y-axis for vertex shader?
 // TODO: We should remove cached shaders if their included content will change.
@@ -155,26 +157,28 @@ public final class ShaderCompiler {
     }
     
     internal func compileCode(_ code: String, entryPoint: String, stage: ShaderStage) throws -> SpirvBinary {
-        guard glslang_init_process() else {
-            throw CompileError.glslError("Can't create glslang process.")
-        }
-
-        defer {
-            glslang_deinit_process()
-        }
+        #if ENABLE_GLSLANG
+//        guard glslang_init_process() else {
+//            throw CompileError.glslError("Can't create glslang process.")
+//        }
+//
+//        defer {
+//            glslang_deinit_process()
+//        }
         
         var error: UnsafePointer<CChar>?
         let defines = self.getDefines(for: stage)
-        let binary = defines.withCString { definesPtr in
-            let options = spirv_options(preamble: definesPtr)
+        let binary = try defines.withCString { definesPtr in
+            let options = SpirvOptions(preamble: definesPtr)
             
-            return code.withCString { sourcePtr in
-                compile_shader_glsl(
-                    sourcePtr, /* source */
-                    stage.toShaderCompiler, /* stage */
-                    options, /* options */
-                    &error /* output error */
-                )
+            return try code.withCString { sourcePtr in
+                try self.compileSPVShader(source: sourcePtr, stage: stage, options: options)
+//                compile_shader_glsl(
+//                    sourcePtr, /* source */
+//                    stage.toShaderCompiler, /* stage */
+//                    options, /* options */
+//                    &error /* output error */
+//                )
             }
         }
         
@@ -183,16 +187,16 @@ public final class ShaderCompiler {
             throw CompileError.glslError(message)
         }
         
-        let data = Data(bytes: binary.bytes, count: binary.length)
-        binary.bytes.deallocate()
-        
         return SpirvBinary(
             stage: stage,
-            data: data,
+            data: binary,
             language: self.shaderSource.language,
             entryPoint: entryPoint,
             version: self.getShaderVersion(for: stage)
         )
+        #else
+        fatalErrorMethodNotImplemented()
+        #endif
     }
     
     private func getShaderVersion(for stage: ShaderStage) -> Int {
@@ -214,21 +218,23 @@ public final class ShaderCompiler {
     }
 }
 
-extension ShaderStage {
-    var toShaderCompiler: shaderc_stage {
-        switch self {
-        case .compute:
-            return SHADER_STAGE_COMPUTE
-        case .fragment:
-            return SHADER_STAGE_FRAGMENT
-        case .vertex:
-            return SHADER_STAGE_VERTEX
-        case .tesselationControl:
-            return SHADER_STAGE_TESSELATION_CONTROL
-        case .tesselationEvaluation:
-            return SHADER_STAGE_TESSELATION_EVALUATION
-        case .max:
-            return SHADER_STAGE_MAX
-        }
-    }
-}
+//#if ENABLE_GLSLANG
+//extension ShaderStage {
+//    var toShaderCompiler: shaderc_stage {
+//        switch self {
+//        case .compute:
+//            return SHADER_STAGE_COMPUTE
+//        case .fragment:
+//            return SHADER_STAGE_FRAGMENT
+//        case .vertex:
+//            return SHADER_STAGE_VERTEX
+//        case .tesselationControl:
+//            return SHADER_STAGE_TESSELATION_CONTROL
+//        case .tesselationEvaluation:
+//            return SHADER_STAGE_TESSELATION_EVALUATION
+//        case .max:
+//            return SHADER_STAGE_MAX
+//        }
+//    }
+//}
+//#endif

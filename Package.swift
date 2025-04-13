@@ -26,7 +26,7 @@ import WinSDK
 let isVulkanEnabled = true
 #endif
 
-let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
+let useLocalDeps = true// ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
@@ -77,21 +77,25 @@ products.append(ios)
 
 /// Currently plugins doesn't work on swift playground and not at all binaries can work in others platforms like Windows.
 #if os(macOS)
-let swiftLintTargets: [Target] = [
-    .plugin(
-        name: "SwiftLintPlugin",
-        capability: .buildTool(),
-        dependencies: []
-    )
-]
+//let swiftLintTargets: [Target] = [
+//    .plugin(
+//        name: "SwiftLintPlugin",
+//        capability: .buildTool(),
+//        dependencies: []
+//    )
+//]
 #endif
+
+var enableGLSLang = true
+var enableFontGenerator = false
+var enableMiniAudio = false
 
 // MARK: Editor Target
 
 var commonPlugins: [Target.PluginUsage] = []
 
 #if os(macOS)
-commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
+//commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
 #endif
 
 var swiftSettings: [SwiftSetting] = [
@@ -106,6 +110,18 @@ var swiftSettings: [SwiftSetting] = [
     .define("WASM", .when(platforms: [.wasi])),
 //    .interoperabilityMode(.Cxx)
 ]
+
+if enableGLSLang {
+    swiftSettings.append(.define("ENABLE_GLSLANG"))
+}
+
+if enableFontGenerator {
+    swiftSettings.append(.define("ENABLE_FONT_GENERATOR"))
+}
+
+if enableMiniAudio {
+    swiftSettings.append(.define("ENABLE_MINIAUDIO"))
+}
 
 if isVulkanEnabled {
     swiftSettings.append(.define("VULKAN"))
@@ -148,16 +164,24 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
-    "miniaudio",
-    "AtlasFontGenerator",
     "Yams",
     "libpng",
-    "SPIRV-Cross",
-    "glslang",
-//    "SPIRVCompiler",
     "box2d",
     "AdaEngineMacros"
 ]
+
+if enableGLSLang {
+    adaEngineDependencies.append("SPIRV-Cross")
+    adaEngineDependencies.append("glslang")
+}
+
+if enableFontGenerator {
+    adaEngineDependencies.append("AtlasFontGenerator")
+}
+
+if enableMiniAudio {
+    adaEngineDependencies.append("miniaudio")
+}
 
 #if os(Linux)
 adaEngineDependencies += ["X11"]
@@ -246,13 +270,7 @@ targets += [
             .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
         ],
         publicHeadersPath: "."
-    ),
-//    .target(
-//        name: "SPIRVCompiler",
-//        dependencies: [
-//            "glslang"
-//        ]
-//    )
+    )
 ]
 
 // MARK: - Tests
@@ -308,12 +326,12 @@ package.dependencies += [
 
 if useLocalDeps {
     package.dependencies += [
-        .package(path: "../box2d"),
-        .package(path: "../msdf-atlas-gen"),
-        .package(path: "../SPIRV-Cross"),
-        .package(path: "../glslang"),
-        .package(path: "../miniaudio"),
-        .package(path: "../libpng")
+        .package(path: "Modules/LocalDeps/box2d"),
+        .package(path: "Modules/LocalDeps/msdf-atlas-gen"),
+        .package(path: "Modules/LocalDeps/SPIRV-Cross"),
+        .package(path: "Modules/LocalDeps/glslang"),
+        .package(path: "Modules/LocalDeps/miniaudio"),
+        .package(path: "Modules/LocalDeps/libpng")
     ]
 } else {
     package.dependencies += [
@@ -351,7 +369,7 @@ if isVulkanEnabled {
                 .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
             ],
             swiftSettings: [
-//                .interoperabilityMode(.Cxx),
+                .interoperabilityMode(.Cxx),
             ]
         ),
         .systemLibrary(

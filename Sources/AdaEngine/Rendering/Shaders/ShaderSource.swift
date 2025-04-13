@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 3/13/23.
 //
 
-import SPIRVCompiler
-
 public enum ShaderLanguage: String {
     
     /// Vulkan, OpenGL, WebGL
