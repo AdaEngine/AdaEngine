@@ -86,7 +86,6 @@ products.append(ios)
 //]
 #endif
 
-var enableGLSLang = true
 var enableFontGenerator = false
 var enableMiniAudio = false
 
@@ -108,12 +107,8 @@ var swiftSettings: [SwiftSetting] = [
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
     .define("WASM", .when(platforms: [.wasi])),
-//    .interoperabilityMode(.Cxx)
+    .interoperabilityMode(.Cxx)
 ]
-
-if enableGLSLang {
-    swiftSettings.append(.define("ENABLE_GLSLANG"))
-}
 
 if enableFontGenerator {
     swiftSettings.append(.define("ENABLE_FONT_GENERATOR"))
@@ -167,13 +162,10 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Yams",
     "libpng",
     "box2d",
-    "AdaEngineMacros"
+    "AdaEngineMacros",
+    "SPIRV-Cross",
+    "glslang"
 ]
-
-if enableGLSLang {
-    adaEngineDependencies.append("SPIRV-Cross")
-    adaEngineDependencies.append("glslang")
-}
 
 if enableFontGenerator {
     adaEngineDependencies.append("AtlasFontGenerator")
@@ -215,7 +207,7 @@ let adaEngineEmbeddable: Target = .target(
         "BUILD.bazel"
     ],
     swiftSettings: [
-//        .interoperabilityMode(.Cxx)
+        .interoperabilityMode(.Cxx)
     ],
     linkerSettings: [
         .linkedLibrary("c++")
@@ -283,7 +275,7 @@ targets += [
             "BUILD.bazel"
         ],
         swiftSettings: [
-//            .interoperabilityMode(.Cxx)
+            .interoperabilityMode(.Cxx)
         ]
     ),
     .testTarget(

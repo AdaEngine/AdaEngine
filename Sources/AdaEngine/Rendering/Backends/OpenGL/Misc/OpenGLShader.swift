@@ -15,38 +15,34 @@ import OpenGL
 #endif
 
 final class OpenGLShader: CompiledShader {
-
+    
     enum GLError: Error {
         case shaderCompilationError
     }
-
+    
     let shader: GLuint
-
+    
     init(shader: Shader) throws {
-        #if ENABLE_GLSLANG
         let spirvShader = try shader.spirvCompiler.compile()
         let glShader = glCreateShader(shader.stage.glType)
-
+        
         spirvShader.source.withCString { pointer in
             var ptr: UnsafePointer<GLchar>? = UnsafePointer<GLchar>(pointer)
             return glShaderSource(glShader, 1, &ptr, nil)
         }
-
+        
         glCompileShader(glShader)
-
+        
         var result: GLint = 0
         glGetShaderiv(glShader, GLenum(GL_COMPILE_STATUS), &result)
-
+        
         if result != 0 {
             throw GLError.shaderCompilationError
         }
-
+        
         self.shader = glShader
-        #else
-        fatalErrorMethodNotImplemented()
-        #endif
     }
-
+    
     deinit {
         glDeleteShader(self.shader)
     }
@@ -60,11 +56,11 @@ private extension ShaderStage {
         case .fragment:
             return GLenum(GL_FRAGMENT_SHADER)
         case .compute:
-            #if DARWIN
+#if DARWIN
             fatalErrorMethodNotImplemented()
-            #else
+#else
             return GLenum(GL_COMPUTE_SHADER)
-            #endif
+#endif
         case .tesselationControl:
             return GLenum(GL_TESS_CONTROL_SHADER)
         case .tesselationEvaluation:
@@ -77,23 +73,23 @@ private extension ShaderStage {
 
 final class OpenGLProgram: Sendable {
     let program: GLuint
-
+    
     init() {
         self.program = glCreateProgram()
     }
-
+    
     func attach(to shader: OpenGLShader) {
         glAttachShader(program, shader.shader)
     }
-
+    
     func link() {
         glLinkProgram(program)
     }
-
+    
     func use() {
         glUseProgram(program)
     }
-
+    
     deinit {
         glDeleteProgram(program)
     }

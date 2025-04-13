@@ -9,7 +9,7 @@ let dependencies = [
     "msdf-atlas-gen": "https://github.com/AdaEngine/msdf-atlas-gen",
     "SPIRV-Cross": "https://github.com/AdaEngine/SPIRV-Cross",
     "miniaudio": "https://github.com/AdaEngine/miniaudio",
-    "libpng": "https://github.com/AdaEngine/libpng"
+    "libpng": "https://github.com/AdaEngine/libpng",
     "glslang": "https://github.com/AdaEngine/glslang",
 ]
 

@@ -6,10 +6,8 @@
 //
 
 import Foundation
-#if ENABLE_GLSLANG
 import glslang
 import SPIRV_Cross
-#endif
 
 // TODO: Should we invert y-axis for vertex shader?
 // TODO: We should remove cached shaders if their included content will change.
@@ -157,14 +155,13 @@ public final class ShaderCompiler {
     }
     
     internal func compileCode(_ code: String, entryPoint: String, stage: ShaderStage) throws -> SpirvBinary {
-        #if ENABLE_GLSLANG
-//        guard glslang_init_process() else {
-//            throw CompileError.glslError("Can't create glslang process.")
-//        }
-//
-//        defer {
-//            glslang_deinit_process()
-//        }
+        //        guard glslang_init_process() else {
+        //            throw CompileError.glslError("Can't create glslang process.")
+        //        }
+        //
+        //        defer {
+        //            glslang_deinit_process()
+        //        }
         
         var error: UnsafePointer<CChar>?
         let defines = self.getDefines(for: stage)
@@ -173,12 +170,12 @@ public final class ShaderCompiler {
             
             return try code.withCString { sourcePtr in
                 try self.compileSPVShader(source: sourcePtr, stage: stage, options: options)
-//                compile_shader_glsl(
-//                    sourcePtr, /* source */
-//                    stage.toShaderCompiler, /* stage */
-//                    options, /* options */
-//                    &error /* output error */
-//                )
+                //                compile_shader_glsl(
+                //                    sourcePtr, /* source */
+                //                    stage.toShaderCompiler, /* stage */
+                //                    options, /* options */
+                //                    &error /* output error */
+                //                )
             }
         }
         
@@ -194,9 +191,6 @@ public final class ShaderCompiler {
             entryPoint: entryPoint,
             version: self.getShaderVersion(for: stage)
         )
-        #else
-        fatalErrorMethodNotImplemented()
-        #endif
     }
     
     private func getShaderVersion(for stage: ShaderStage) -> Int {
@@ -218,7 +212,6 @@ public final class ShaderCompiler {
     }
 }
 
-//#if ENABLE_GLSLANG
 //extension ShaderStage {
 //    var toShaderCompiler: shaderc_stage {
 //        switch self {
@@ -237,4 +230,3 @@ public final class ShaderCompiler {
 //        }
 //    }
 //}
-//#endif

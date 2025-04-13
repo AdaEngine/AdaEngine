@@ -25,18 +25,14 @@ final class MetalRenderDevice: RenderDevice {
     }
 
     func compileShader(from shader: Shader) throws -> CompiledShader {
-        #if ENABLE_GLSLANG
         let spirvShader = try shader.spirvCompiler.compile()
         let library = try self.device.makeLibrary(source: spirvShader.source, options: nil)
-
+        
         let descriptor = MTLFunctionDescriptor()
         descriptor.name = spirvShader.entryPoints[0].name
         let function = try library.makeFunction(descriptor: descriptor)
-
+        
         return MetalShader(name: spirvShader.entryPoints[0].name, library: library, function: function)
-        #else
-        fatalError("GLSLANG is disabled")
-        #endif
     }
 
     func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
