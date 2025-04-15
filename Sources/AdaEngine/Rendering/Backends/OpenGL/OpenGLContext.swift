@@ -71,6 +71,8 @@ extension OpenGLBackend.Context {
 
 protocol OpenGLContext: AnyObject {
     func makeCurrent()
+    
+    func flushBuffer()
 }
 
 private extension RenderSurface {
@@ -78,9 +80,18 @@ private extension RenderSurface {
     func createGLContext() throws -> OpenGLContext {
 #if DARWIN
     #if canImport(AppKit)
-        var attributes: [NSOpenGLPixelFormatAttribute] = []
-        attributes.append(UInt32(NSOpenGLPFAAccelerated))
-        let format = NSOpenGLPixelFormat(attributes: &attributes)!
+        var attributes: [NSOpenGLPixelFormatAttribute] = [
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFAAccelerated),
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFADoubleBuffer),
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFAColorSize), 24,
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFAAlphaSize), 8,
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFADepthSize), 16,
+            NSOpenGLPixelFormatAttribute(0)
+        ]
+        guard let format = NSOpenGLPixelFormat(attributes: &attributes) else {
+            fatalError("Failed to create OpenGL pixel format")
+        }
+
         let context = NSOpenGLContext(format: format, share: nil)!
         context.view = self as! MetalView
 

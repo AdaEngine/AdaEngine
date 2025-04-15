@@ -30,7 +30,6 @@ final class OpenGLShader: CompiledShader {
             var ptr: UnsafePointer<GLchar>? = UnsafePointer<GLchar>(pointer)
             return glShaderSource(glShader, 1, &ptr, nil)
         }
-
         glCompileShader(glShader)
 
         var result: GLint = 0

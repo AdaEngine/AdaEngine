@@ -116,7 +116,6 @@ if isVulkanEnabled {
     swiftSettings.append(.define("VULKAN"))
 } else {
     swiftSettings.append(.define("METAL"))
-    swiftSettings.append(.define("GLES_SILENCE_DEPRECATION"))
 }
 
 let editorTarget: Target = .executableTarget(
@@ -177,6 +176,9 @@ let adaEngineTarget: Target = .target(
         .copy("Assets/Shaders"),
         .copy("Assets/Fonts"),
         .copy("Assets/Images")
+    ],
+    cSettings: [
+        .define("GL_SILENCE_DEPRECATION")
     ],
     swiftSettings: adaEngineSwiftSettings,
     linkerSettings: [

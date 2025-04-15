@@ -51,6 +51,10 @@ final class OpenGLBackend: RenderBackend {
     }
     
     func endFrame() throws {
+        for (_, window) in self.context.windows {
+            window.openGLContext.flushBuffer()
+        }
+        
         glFinish()
         currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
     }
