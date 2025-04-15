@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 3/19/23.
 //
 
-import Swift_SPIRV_Cross
+import SPIRV_Cross
 
 extension ShaderStage {
     init(from executionModel: SpvExecutionModel) {

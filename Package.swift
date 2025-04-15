@@ -164,7 +164,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "box2d",
     "AdaEngineMacros",
     "SPIRV-Cross",
-    "glslang"
+//    "glslang"
 ]
 
 if enableFontGenerator {

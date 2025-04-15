@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 3/13/23.
 //
 
-import Swift_SPIRV_Cross
+import SPIRV_Cross
 
 struct SpirvShader {
 
