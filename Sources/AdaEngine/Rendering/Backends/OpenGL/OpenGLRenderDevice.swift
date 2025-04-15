@@ -100,9 +100,20 @@ final class OpenGLRenderDevice: RenderDevice {
         }
 
         window.openGLContext.makeCurrent()
+        
+        let desc = FramebufferDescriptor(
+            scale: 1,
+            width: 800,
+            height: 600,
+            sampleCount: 1,
+            clearDepth: 0,
+            depthLoadAction: .clear,
+            attachments: []
+        )
+        
         return DrawList(
             commandBuffer: OpenGLDrawCommandBuffer(
-                framebuffer: OpenGLFramebuffer(descriptor: FramebufferDescriptor())
+                framebuffer: OpenGLFramebuffer(descriptor: desc)
             ),
             renderDevice: self
         )
@@ -127,23 +138,14 @@ final class OpenGLRenderDevice: RenderDevice {
         guard let renderPipeline = list.renderPipeline as? OpenGLRenderPipeline else {
             return
         }
-
-        renderPipeline.program.use()
-
-        list.vertexBuffers.forEach { buffer in
-            (buffer as? OpenGLBuffer)?.bind()
+        
+        guard let drawCommandBuffer = list.commandBuffer as? OpenGLDrawCommandBuffer else {
+            return
         }
+        let framebuffer = drawCommandBuffer.framebuffer
 
-        (list.indexBuffer as? OpenGLBuffer)?.bind()
-
-        list.textures.forEach { texture in
-            (texture?.gpuTexture as? OpenGLTexture)?.bind()
-            (texture?.sampler as? OpenGLSampler)?.bind()
-        }
-
-//        if let depthStencilState = renderPipeline.depthStencilState {
-//            depthStencilState
-//        }
+        glClear(GLbitfield(GL_COLOR_BUFFER_BIT))
+        glClearColor(0, 0, 0, 1)
 
         if let lineWidth = list.lineWidth {
             glLineWidth(lineWidth)
@@ -165,10 +167,34 @@ final class OpenGLRenderDevice: RenderDevice {
                 GLsizei(list.viewport.rect.size.width),
                 GLsizei(list.viewport.rect.size.height)
             )
+        } else {
+            glViewport(
+                GLint(0),
+                GLint(0),
+                GLsizei(framebuffer.size.width),
+                GLsizei(framebuffer.size.height)
+            )
         }
 
         glCullFace(GLenum(renderPipeline.descriptor.backfaceCulling ? GL_BACK : GL_FRONT))
         glFrontFace(GLenum(GL_CCW))
+
+        renderPipeline.program.use()
+
+        list.vertexBuffers.forEach { buffer in
+            (buffer as? OpenGLBuffer)?.bind()
+        }
+
+        (list.indexBuffer as? OpenGLBuffer)?.bind()
+
+        list.textures.forEach { texture in
+            (texture?.gpuTexture as? OpenGLTexture)?.bind()
+            (texture?.sampler as? OpenGLSampler)?.bind()
+        }
+
+//        if let depthStencilState = renderPipeline.depthStencilState {
+//            depthStencilState
+//        }
 
         switch list.triangleFillMode {
         case .fill:
