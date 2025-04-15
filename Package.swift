@@ -317,12 +317,12 @@ package.dependencies += [
 
 if useLocalDeps {
     package.dependencies += [
-        .package(path: "../box2d"),
-        .package(path: "../msdf-atlas-gen"),
-        .package(path: "../SPIRV-Cross"),
-        .package(path: "../glslang"),
-        .package(path: "../miniaudio"),
-        .package(path: "../libpng")
+        .package(path: "Modules/LocalDeps/box2d"),
+        .package(path: "Modules/LocalDeps/msdf-atlas-gen"),
+        .package(path: "Modules/LocalDeps/SPIRV-Cross"),
+        .package(path: "Modules/LocalDeps/glslang"),
+        .package(path: "Modules/LocalDeps/miniaudio"),
+        .package(path: "Modules/LocalDeps/libpng")
     ]
 } else {
     package.dependencies += [
