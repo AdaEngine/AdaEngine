@@ -7,7 +7,7 @@
 
 import Foundation
 import glslang
-import SPIRV_Cross
+import Swift_SPIRV_Cross
 
 // TODO: Should we invert y-axis for vertex shader?
 // TODO: We should remove cached shaders if their included content will change.
@@ -155,33 +155,21 @@ public final class ShaderCompiler {
     }
     
     internal func compileCode(_ code: String, entryPoint: String, stage: ShaderStage) throws -> SpirvBinary {
-        //        guard glslang_init_process() else {
-        //            throw CompileError.glslError("Can't create glslang process.")
-        //        }
-        //
-        //        defer {
-        //            glslang_deinit_process()
-        //        }
+        guard glslang_initialize_process() != 0 else {
+            throw CompileError.glslError("Can't create glslang process.")
+        }
         
-        var error: UnsafePointer<CChar>?
+        defer {
+            glslang_finalize_process()
+        }
+        
         let defines = self.getDefines(for: stage)
         let binary = try defines.withCString { definesPtr in
             let options = SpirvOptions(preamble: definesPtr)
             
             return try code.withCString { sourcePtr in
                 try self.compileSPVShader(source: sourcePtr, stage: stage, options: options)
-                //                compile_shader_glsl(
-                //                    sourcePtr, /* source */
-                //                    stage.toShaderCompiler, /* stage */
-                //                    options, /* options */
-                //                    &error /* output error */
-                //                )
             }
-        }
-        
-        if let error {
-            let message = String(cString: error, encoding: .utf8)!
-            throw CompileError.glslError(message)
         }
         
         return SpirvBinary(

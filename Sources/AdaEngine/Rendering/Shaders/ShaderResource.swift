@@ -5,8 +5,7 @@
 //  Created by v.prusakov on 3/19/23.
 //
 
-#if canImport(SPIRV_Cross)
-import SPIRV_Cross
+import Swift_SPIRV_Cross
 
 extension ShaderStage {
     init(from executionModel: SpvExecutionModel) {
@@ -26,7 +25,6 @@ extension ShaderStage {
         }
     }
 }
-#endif
 
 /// Name space for shader resources.
 public enum ShaderResource {
@@ -100,7 +98,6 @@ public enum ShaderResource {
     }
 }
 
-#if canImport(SPIRV_Cross)
 extension ShaderResource.ResourceType {
     var spvcResourceType: spvc_resource_type {
         switch self {
@@ -173,7 +170,6 @@ extension ShaderValueType {
         }
     }
 }
-#endif
 
 /// Contains information about shader stages. For example, shader reflection data can have one or more stage flags for specific resource or buffer.
 public struct ShaderStageFlags: OptionSet, Codable, Sendable {
