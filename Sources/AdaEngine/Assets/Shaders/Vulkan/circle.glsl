@@ -1,4 +1,4 @@
-#version 450 core
+#version 410 core
 #pragma stage : vert
 
 #include <AdaEngine/View.glsl>
@@ -27,7 +27,7 @@ void circle_vertex() {
     gl_Position = u_ViewProjection * vec4(a_WorldPosition, 1.0);
 }
 
-#version 450 core
+#version 410 core
 #pragma stage : frag
 
 layout(location = 0) out vec4 color;

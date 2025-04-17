@@ -23,6 +23,7 @@ private let GL_DEBUG_OUTPUT_SYNCHRONOUS = GLenum(0x8242)
 
 final class OpenGLBackend: RenderBackend {
 
+    let type: RenderBackendType = .opengl
     var currentFrameIndex: Int = 0
 
     nonisolated(unsafe) static var currentContext: OpenGLContext?

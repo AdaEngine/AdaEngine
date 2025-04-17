@@ -1,9 +1,9 @@
-#version 450 core
+#version 410 core
 #pragma stage : frag
 
 #include <AdaEngine/CanvasMaterial.frag>
 
-layout (std140, binding = 0) uniform ColorCanvasMaterial {
+layout (binding = 0) uniform ColorCanvasMaterial {
     vec4 u_Color;
 };
 

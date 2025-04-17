@@ -30,13 +30,25 @@ final class OpenGLShader: CompiledShader {
             var ptr: UnsafePointer<GLchar>? = UnsafePointer<GLchar>(pointer)
             return glShaderSource(glShader, 1, &ptr, nil)
         }
+        
         glCompileShader(glShader)
 
         var result: GLint = 0
         glGetShaderiv(glShader, GLenum(GL_COMPILE_STATUS), &result)
 
-        if result != 0 {
-            throw GLError.shaderCompilationError
+        if result == 0 {
+            var infoLogLength: GLint = 0
+            glGetShaderiv(glShader, GLenum(GL_INFO_LOG_LENGTH), &infoLogLength)
+            
+            if infoLogLength > 0 {
+                var infoLog = [GLchar](repeating: GLchar(0), count: Int(infoLogLength))
+                glGetShaderInfoLog(glShader, GLsizei(infoLogLength), nil, &infoLog)
+                let errorMessage = String(cString: infoLog)
+                assertionFailure("Shader compilation failed: \(errorMessage)")
+                // throw GLError.shaderCompilationError
+            }
+            assertionFailure("Shader compilation failed")
+            // throw GLError.shaderCompilationError
         }
 
         self.shader = glShader
@@ -70,8 +82,9 @@ private extension ShaderStage {
     }
 }
 
-final class OpenGLProgram: Sendable {
+final class OpenGLProgram: @unchecked Sendable {
     let program: GLuint
+    private var shaders: [OpenGLShader] = []
 
     init() {
         self.program = glCreateProgram()
@@ -79,6 +92,15 @@ final class OpenGLProgram: Sendable {
 
     func attach(to shader: OpenGLShader) {
         glAttachShader(program, shader.shader)
+        shaders.append(shader)
+
+        try! checkOpenGLError()
+    }
+
+    func isLinked() -> Bool {
+        var result: GLint = 0
+        glGetProgramiv(program, GLenum(GL_LINK_STATUS), &result)
+        return result != 0
     }
 
     func link() {
@@ -87,6 +109,14 @@ final class OpenGLProgram: Sendable {
 
     func use() {
         glUseProgram(program)
+    }
+
+    func validate() {
+        glValidateProgram(program)
+    }
+
+    func unuse() {
+        glUseProgram(0)
     }
 
     deinit {

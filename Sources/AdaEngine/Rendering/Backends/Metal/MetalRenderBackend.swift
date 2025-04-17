@@ -17,6 +17,7 @@ import Math
 class MetalRenderBackend: RenderBackend {
     
     private let context: Context
+    let type: RenderBackendType = .metal
     private(set) var currentFrameIndex: Int = 0
     
     private var inFlightSemaphore: DispatchSemaphore

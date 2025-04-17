@@ -12,8 +12,16 @@ public enum TriangleFillMode {
     case lines
 }
 
+public enum RenderBackendType: String {
+    case opengl
+    case metal
+    case vulkan
+}
+
 /// This protocol describe interface for GPU.
 protocol RenderBackend: AnyObject {
+    
+    var type: RenderBackendType { get }
 
     /// Returns current frame index. Min value 0, Max value is equal ``RenderEngine/Configuration/maxFramesInFlight`` value.
     var currentFrameIndex: Int { get }

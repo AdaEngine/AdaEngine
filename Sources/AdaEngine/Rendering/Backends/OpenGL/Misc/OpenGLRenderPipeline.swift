@@ -25,5 +25,15 @@ final class OpenGLRenderPipeline: RenderPipeline {
         self.program.attach(to: descriptor.vertex.compiledShader as! OpenGLShader)
         self.program.attach(to: descriptor.fragment.compiledShader as! OpenGLShader)
         self.program.link()
+
+        if !self.program.isLinked() {
+            var infoLogLength: GLint = 0
+            glGetProgramiv(self.program.program, GLenum(GL_INFO_LOG_LENGTH), &infoLogLength)
+            var infoLog = [GLchar](repeating: GLchar(0), count: Int(infoLogLength))
+            glGetProgramInfoLog(self.program.program, GLsizei(infoLogLength), nil, &infoLog)
+            assertionFailure("Program is not linked: \(String(cString: infoLog))")
+        }
+
+        self.program.validate()
     }
 }

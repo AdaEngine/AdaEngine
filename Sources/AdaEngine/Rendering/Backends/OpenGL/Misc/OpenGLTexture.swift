@@ -32,6 +32,14 @@ final class OpenGLTexture: GPUTexture {
     init(descriptor: TextureDescriptor) throws {
         self.descriptor = descriptor
 
+        // Validate texture dimensions
+        guard descriptor.width > 0 && descriptor.height > 0 else {
+            throw TextureError.invalidDimensions(
+                width: descriptor.width,
+                height: descriptor.height
+            )
+        }
+
         let glType = descriptor.textureType.glType
         self.target = glType
         let internalFormat = descriptor.pixelFormat.glType
@@ -39,8 +47,10 @@ final class OpenGLTexture: GPUTexture {
         let minFilter = descriptor.samplerDescription.minFilter.glType
         let magFilter = descriptor.samplerDescription.magFilter.glType
 
+        try checkOpenGLError()
+
         glGenTextures(1, &texture)
-        glActiveTexture(GLenum(GL_TEXTURE0));
+        glActiveTexture(GLenum(GL_TEXTURE0))
         glBindTexture(glType, texture)
 
         glTexParameteri(glType, GLenum(GL_TEXTURE_MIN_FILTER), minFilter)
@@ -49,8 +59,17 @@ final class OpenGLTexture: GPUTexture {
         glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_T), GL_REPEAT);
         glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_R), GL_REPEAT);
 
-        let pointer: UnsafeMutableBufferPointer<UInt8>? = descriptor.image.flatMap { .allocate(capacity: $0.data.count) }
-        _ = pointer.flatMap { descriptor.image?.data.copyBytes(to: $0) }
+        try checkOpenGLError()
+
+        let pointer: UnsafeMutableBufferPointer<UInt8>? = descriptor.image.flatMap { 
+            let buffer = UnsafeMutableBufferPointer<UInt8>.allocate(capacity: $0.data.count)
+            _ = $0.data.copyBytes(to: buffer)
+            return buffer
+        }
+
+        defer {
+            pointer?.deallocate()
+        }
 
         switch descriptor.textureType {
         case .texture1D, .texture1DArray:
@@ -65,6 +84,17 @@ final class OpenGLTexture: GPUTexture {
                 pointer?.baseAddress
             )
         case .texture2D, .texture2DArray:
+            // Determine the appropriate data type based on pixel format
+            let dataType: GLenum
+            switch descriptor.pixelFormat {
+            case .rgba_16f:
+                dataType = GLenum(GL_HALF_FLOAT)
+            case .rgba_32f, .depth_32f, .depth_32f_stencil8:
+                dataType = GLenum(GL_FLOAT)
+            default:
+                dataType = GLenum(GL_UNSIGNED_BYTE)
+            }
+            
             glTexImage2D(
                 glType,
                 GLint(descriptor.mipmapLevel),
@@ -73,7 +103,7 @@ final class OpenGLTexture: GPUTexture {
                 GLsizei(descriptor.height),
                 0,
                 GLenum(format),
-                GLenum(GL_UNSIGNED_BYTE),
+                dataType,
                 pointer?.baseAddress
             )
         case .texture2DMultisample, .texture2DMultisampleArray:
@@ -89,10 +119,26 @@ final class OpenGLTexture: GPUTexture {
             fatalErrorMethodNotImplemented()
         }
 
-        pointer?.deallocate()
-
+        // Check for errors after texture creation
         let error = glGetError()
         if error != GL_NO_ERROR {
+            print("Texture creation debug info:")
+            print("- Type: \(descriptor.textureType)")
+            print("- Width: \(descriptor.width)")
+            print("- Height: \(descriptor.height)")
+            print("- Internal Format: \(internalFormat)")
+            print("- Format: \(format)")
+            
+            if let image = descriptor.image {
+                print("- Image Data Size: \(image.data.count) bytes")
+                print("- Expected Data Size: \(descriptor.width * descriptor.height * 4) bytes")
+                if !image.data.isEmpty {
+                    print("- First few bytes: \(Array(image.data.prefix(16)))")
+                }
+            } else {
+                print("- No image data provided")
+            }
+            
             fatalError("Failed to create texture: OpenGL error \(error)")
         }
     }
@@ -167,34 +213,62 @@ extension PixelFormat {
     var glType: GLint {
         switch self {
         case .none:
-            GL_NONE
+            return GL_NONE
         case .bgra8:
-            GL_BGRA
+            return GL_RGBA8  // OpenGL doesn't have native BGRA internal format, use RGBA8
         case .bgra8_srgb:
-            GL_SRGB_ALPHA
+            return GL_SRGB8_ALPHA8
         case .rgba8:
-            GL_RGBA8
+            return GL_RGBA8
         case .rgba_16f:
-            GL_RGBA16F
+            return GL_RGBA16F
         case .rgba_32f:
-            GL_RGBA32F
+            return GL_RGBA32F
         case .depth_32f_stencil8:
-            fatalError()
+            return GL_DEPTH32F_STENCIL8
         case .depth_32f:
-            GL_DEPTH_COMPONENT32F
+            return GL_DEPTH_COMPONENT32F
         case .depth24_stencil8:
-            GL_DEPTH_COMPONENT24
+            return GL_DEPTH24_STENCIL8
         }
     }
 
     var glFormat: GLint {
         switch self {
-        case .rgba8, .rgba_16f, .rgba_32f, .bgra8, .bgra8_srgb:
-            GL_RGBA
-        case .depth_32f, .depth24_stencil8, .depth_32f_stencil8:
-            GL_DEPTH_COMPONENT
+        case .rgba8, .rgba_16f, .rgba_32f:
+            return GL_RGBA
+        case .bgra8, .bgra8_srgb:
+            return GL_BGRA  // Use BGRA as the format (not internal format)
+        case .depth_32f:
+            return GL_DEPTH_COMPONENT
+        case .depth24_stencil8, .depth_32f_stencil8:
+            return GL_DEPTH_STENCIL
         case .none:
-            GL_NONE
+            return GL_NONE
         }
+    }
+}
+
+enum TextureError: Error {
+    case invalidDimensions(width: Int, height: Int)
+}
+
+func checkOpenGLError() throws {
+    let error = glGetError()
+    if error != GL_NO_ERROR {
+        assertionFailure("OpenGL error \(error)")
+        throw OpenGLError(error)
+    }
+}
+
+struct OpenGLError: LocalizedError {
+    let error: GLenum
+
+    init(_ error: GLenum) {
+        self.error = error
+    }
+
+    var errorDescription: String? {
+        return "OpenGL error \(error)"
     }
 }

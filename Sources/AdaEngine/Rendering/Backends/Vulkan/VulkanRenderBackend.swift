@@ -16,6 +16,7 @@ final class VulkanRenderBackend: RenderBackend {
     
     let context: Context
 
+    let type: RenderBackendType = .vulkan
     var currentFrameIndex: Int = 0
     private var inFlightSemaphore: DispatchSemaphore
 
