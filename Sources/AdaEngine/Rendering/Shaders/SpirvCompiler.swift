@@ -6,6 +6,7 @@
 //
 
 import SPIRV_Cross
+import Logging
 
 struct SpirvShader {
 
@@ -28,6 +29,8 @@ final class SpirvCompiler {
     var context: spvc_context
     var spvcCompiler: spvc_compiler
     var ir: spvc_parsed_ir
+    
+    let loggerShader = Logger(label: "SpirvCompiler")
 
     struct Error: LocalizedError {
         let message: String
@@ -90,7 +93,9 @@ final class SpirvCompiler {
     func compile() throws -> SpirvShader {
         var spvcCompilerOptions: spvc_compiler_options?
         if spvc_compiler_create_compiler_options(spvcCompiler, &spvcCompilerOptions) != SPVC_SUCCESS {
-            throw Error(String(cString: spvc_context_get_last_error_string(context)))
+            let errorMessage = String(cString: spvc_context_get_last_error_string(context))
+            loggerShader.critical("⚠️ SPIRV-Cross compiler options creation failed: \(errorMessage)")
+            throw Error(errorMessage)
         }
 
         Self.makeCompileOptions(spvcCompilerOptions, deviceLang: deviceLang)
@@ -98,8 +103,31 @@ final class SpirvCompiler {
         spvc_compiler_install_compiler_options(spvcCompiler, spvcCompilerOptions)
 
         var compilerOutputSourcePtr: UnsafePointer<CChar>?
-        if spvc_compiler_compile(spvcCompiler, &compilerOutputSourcePtr) != SPVC_SUCCESS {
-            throw Error(String(cString: spvc_context_get_last_error_string(context)))
+        let result = spvc_compiler_compile(spvcCompiler, &compilerOutputSourcePtr)
+        if result != SPVC_SUCCESS {
+            let errorMessage = String(cString: spvc_context_get_last_error_string(context))
+            loggerShader.critical("⚠️ SPIRV-Cross compilation failed: \(errorMessage)")
+            
+            // Print detailed diagnostic info
+            loggerShader.critical("🔍 Target language: \(deviceLang)")
+            loggerShader.critical("🔍 Shader stage: \(stage)")
+            
+            // If we have entry points, print them
+            var numberOfEntryPoints: Int = 0
+            var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
+            spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
+            
+            if numberOfEntryPoints > 0 {
+                loggerShader.critical("🔍 Entry points:")
+                for index in 0..<numberOfEntryPoints {
+                    let entryPoint = spvcEntryPoints![index]
+                    loggerShader.critical("  - \(String(cString: entryPoint.name)) (execution model: \(entryPoint.execution_model))")
+                }
+            } else {
+                loggerShader.critical("⚠️ No entry points found in shader")
+            }
+            
+            throw Error(errorMessage)
         }
 
         let source = String(cString: compilerOutputSourcePtr!)

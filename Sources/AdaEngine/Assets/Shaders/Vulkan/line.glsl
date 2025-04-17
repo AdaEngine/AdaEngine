@@ -1,4 +1,4 @@
-#version 410 core
+#version 450 core
 #pragma stage : vert
 
 #include <AdaEngine/View.glsl>
@@ -19,7 +19,7 @@ void line_vertex() {
     gl_Position = u_ViewProjection * vec4(a_Position, 1.0);
 }
 
-#version 410 core
+#version 450 core
 #pragma stage : frag
 
 layout (location = 0) out vec4 color;
