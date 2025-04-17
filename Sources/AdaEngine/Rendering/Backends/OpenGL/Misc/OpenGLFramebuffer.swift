@@ -66,7 +66,22 @@ final class OpenGLFramebuffer: Framebuffer, @unchecked Sendable {
             var usage: FramebufferAttachmentUsage = []
 
             let gpuTexture = (texture.gpuTexture as! OpenGLTexture)
+            
+            // Verify texture is valid
+            if gpuTexture.texture == 0 {
+                fatalError("Invalid texture created for framebuffer attachment")
+            }
+            
+            // Ensure texture is properly bound
+            glActiveTexture(GLenum(GL_TEXTURE0))
             gpuTexture.bind()
+            
+            // Verify texture binding
+            var boundTexture: GLint = 0
+            glGetIntegerv(GLenum(GL_TEXTURE_BINDING_2D), &boundTexture)
+            if GLuint(boundTexture) != gpuTexture.texture {
+                fatalError("Failed to bind texture properly")
+            }
 
             if attachmentDesc.format.isDepthFormat {
                 usage.insert(.depthStencilAttachment)
@@ -77,6 +92,12 @@ final class OpenGLFramebuffer: Framebuffer, @unchecked Sendable {
                     gpuTexture.texture,
                     0
                 )
+                
+                // Check for depth attachment errors
+                let error = glGetError()
+                if error != GL_NO_ERROR {
+                    fatalError("Failed to attach depth texture: OpenGL error \(error)")
+                }
             } else {
                 usage.insert(.colorAttachment)
                 glFramebufferTexture2D(
@@ -86,6 +107,12 @@ final class OpenGLFramebuffer: Framebuffer, @unchecked Sendable {
                     gpuTexture.texture,
                     0
                 )
+                
+                // Check for color attachment errors
+                let error = glGetError()
+                if error != GL_NO_ERROR {
+                    fatalError("Failed to attach color texture: OpenGL error \(error)")
+                }
             }
 
             self.attachments.append(
@@ -126,10 +153,21 @@ final class OpenGLFramebuffer: Framebuffer, @unchecked Sendable {
             default:
                 errorMessage += "Unknown error code: \(status)"
             }
+            
+            // Print additional debug information
+            print("Framebuffer debug info:")
+            print("- Size: \(size)")
+            print("- Number of attachments: \(attachments.count)")
+            for (i, attachment) in attachments.enumerated() {
+                print("- Attachment \(i):")
+                print("  - Format: \(attachment.texture?.pixelFormat ?? .none)")
+                print("  - Usage: \(attachment.usage)")
+            }
+            
             fatalError(errorMessage)
         }
 
-        glBindFramebuffer(GLenum(GL_FRAMEBUFFER), 0);
+        glBindFramebuffer(GLenum(GL_FRAMEBUFFER), 0)
     }
 
     func bind() {
