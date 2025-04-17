@@ -42,14 +42,22 @@ extension OpenGLBackend {
 
             let context = try surface.createGLContext()
             context.makeCurrent()
-            self.windows[windowId] = RenderWindow(openGLContext: context)
+            self.windows[windowId] = RenderWindow(
+                size: size,
+                renderSurface: surface,
+                openGLContext: context
+            )
         }
 
         @MainActor
         func resizeWindow(_ windowId: UIWindow.ID, newSize: Math.SizeInt) throws {
-            guard let window = self.windows[windowId] else {
+            guard var window = self.windows[windowId] else {
                 throw RenderError.windowNotFound
             }
+
+            window.size = newSize
+            window.openGLContext.resize(to: newSize)
+            self.windows[windowId] = window
         }
 
         @MainActor
@@ -65,6 +73,8 @@ extension OpenGLBackend {
 
 extension OpenGLBackend.Context {
     struct RenderWindow {
+        var size: Math.SizeInt
+        let renderSurface: any RenderSurface
         let openGLContext: OpenGLContext
     }
 }
@@ -73,6 +83,8 @@ protocol OpenGLContext: AnyObject {
     func makeCurrent()
     
     func flushBuffer()
+
+    func resize(to size: Math.SizeInt)
 }
 
 private extension RenderSurface {
@@ -114,6 +126,16 @@ extension NSOpenGLContext: OpenGLContext {
     func makeCurrent() {
         OpenGLBackend.currentContext = self
         self.makeCurrentContext()
+    }
+
+    func resize(to size: Math.SizeInt) {
+        guard let cglContext = self.cglContextObj else {
+            assertionFailure("CGLContext is not set")
+            return
+        }
+        var params = [GLint(size.width), GLint(size.height)]
+        CGLSetParameter(cglContext, kCGLCPSurfaceBackingSize, &params)
+        CGLEnable(cglContext, kCGLCESurfaceBackingSize)
     }
 }
 #endif

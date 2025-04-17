@@ -98,22 +98,34 @@ final class OpenGLRenderDevice: RenderDevice {
         guard let window = context.windows[window] else {
             throw DrawListError.windowNotExists
         }
-
         window.openGLContext.makeCurrent()
-        
-        let desc = FramebufferDescriptor(
+
+        let framebufferDescriptor = FramebufferDescriptor(
             scale: 1,
-            width: 800,
-            height: 600,
-            sampleCount: 1,
-            clearDepth: 0,
-            depthLoadAction: .clear,
-            attachments: []
+            width: window.size.width,
+            height: window.size.height,
+            attachments: [
+               FramebufferAttachmentDescriptor(
+                format: .bgra8,
+                texture: nil,
+                clearColor: clearColor,
+                loadAction: loadAction,
+                storeAction: storeAction
+               ),
+               FramebufferAttachmentDescriptor(
+                format: .depth_32f,
+                texture: nil,
+                clearColor: Color(0, 0, 0, 1),
+                loadAction: .load,
+                storeAction: .store
+               )
+            ]
         )
         
+        let framebuffer = OpenGLFramebuffer(descriptor: framebufferDescriptor)
         return DrawList(
             commandBuffer: OpenGLDrawCommandBuffer(
-                framebuffer: OpenGLFramebuffer(descriptor: desc)
+                framebuffer: framebuffer
             ),
             renderDevice: self
         )
@@ -138,14 +150,11 @@ final class OpenGLRenderDevice: RenderDevice {
         guard let renderPipeline = list.renderPipeline as? OpenGLRenderPipeline else {
             return
         }
-        
         guard let drawCommandBuffer = list.commandBuffer as? OpenGLDrawCommandBuffer else {
             return
         }
         let framebuffer = drawCommandBuffer.framebuffer
-
-        glClear(GLbitfield(GL_COLOR_BUFFER_BIT))
-        glClearColor(0, 0, 0, 1)
+        framebuffer.bind()
 
         if let lineWidth = list.lineWidth {
             glLineWidth(lineWidth)
@@ -166,13 +175,6 @@ final class OpenGLRenderDevice: RenderDevice {
                 GLint(list.viewport.rect.origin.y),
                 GLsizei(list.viewport.rect.size.width),
                 GLsizei(list.viewport.rect.size.height)
-            )
-        } else {
-            glViewport(
-                GLint(0),
-                GLint(0),
-                GLsizei(framebuffer.size.width),
-                GLsizei(framebuffer.size.height)
             )
         }
 
