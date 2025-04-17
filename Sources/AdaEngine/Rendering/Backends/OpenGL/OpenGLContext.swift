@@ -97,7 +97,7 @@ private extension RenderSurface {
             NSOpenGLPixelFormatAttribute(NSOpenGLPFADoubleBuffer),
             NSOpenGLPixelFormatAttribute(NSOpenGLPFAColorSize), 24,
             NSOpenGLPixelFormatAttribute(NSOpenGLPFAAlphaSize), 8,
-            NSOpenGLPixelFormatAttribute(NSOpenGLPFADepthSize), 16,
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFADepthSize), 32,
             NSOpenGLPixelFormatAttribute(0)
         ]
         guard let format = NSOpenGLPixelFormat(attributes: &attributes) else {
@@ -105,6 +105,7 @@ private extension RenderSurface {
         }
 
         let context = NSOpenGLContext(format: format, share: nil)!
+        (self as! MetalView).colorPixelFormat = .bgra8Unorm
         context.view = self as! MetalView
 
         return context

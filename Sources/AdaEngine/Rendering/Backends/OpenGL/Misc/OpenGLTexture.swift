@@ -34,12 +34,20 @@ final class OpenGLTexture: GPUTexture {
 
         let glType = descriptor.textureType.glType
         self.target = glType
-        let pixelFormat = descriptor.pixelFormat.glType
+        let internalFormat = descriptor.pixelFormat.glType
+        let format = descriptor.pixelFormat.glFormat
         let minFilter = descriptor.samplerDescription.minFilter.glType
         let magFilter = descriptor.samplerDescription.magFilter.glType
 
         glGenTextures(1, &texture)
+        glActiveTexture(GLenum(GL_TEXTURE0));
         glBindTexture(glType, texture)
+
+        glTexParameteri(glType, GLenum(GL_TEXTURE_MIN_FILTER), minFilter)
+        glTexParameteri(glType, GLenum(GL_TEXTURE_MAG_FILTER), magFilter)
+        glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_S), GL_REPEAT);
+        glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_T), GL_REPEAT);
+        glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_R), GL_REPEAT);
 
         let pointer: UnsafeMutableBufferPointer<UInt8>? = descriptor.image.flatMap { .allocate(capacity: $0.data.count) }
         _ = pointer.flatMap { descriptor.image?.data.copyBytes(to: $0) }
@@ -49,10 +57,10 @@ final class OpenGLTexture: GPUTexture {
             glTexImage1D(
                 glType,
                 GLint(descriptor.mipmapLevel),
-                pixelFormat,
+                internalFormat,
                 GLsizei(descriptor.width),
                 0,
-                GLenum(descriptor.pixelFormat.glFormat),
+                GLenum(format),
                 GLenum(GL_UNSIGNED_BYTE),
                 pointer?.baseAddress
             )
@@ -60,11 +68,11 @@ final class OpenGLTexture: GPUTexture {
             glTexImage2D(
                 glType,
                 GLint(descriptor.mipmapLevel),
-                pixelFormat,
+                internalFormat,
                 GLsizei(descriptor.width),
                 GLsizei(descriptor.height),
                 0,
-                GLenum(descriptor.pixelFormat.glFormat),
+                GLenum(format),
                 GLenum(GL_UNSIGNED_BYTE),
                 pointer?.baseAddress
             )
@@ -72,7 +80,7 @@ final class OpenGLTexture: GPUTexture {
             glTexImage2DMultisample(
                 glType,
                 GLsizei(0),
-                pixelFormat,
+                internalFormat,
                 GLsizei(descriptor.width),
                 GLsizei(descriptor.height),
                 GLboolean(GL_TRUE)
@@ -83,11 +91,10 @@ final class OpenGLTexture: GPUTexture {
 
         pointer?.deallocate()
 
-        glTexParameteri(glType, GLenum(GL_TEXTURE_MIN_FILTER), minFilter)
-        glTexParameteri(glType, GLenum(GL_TEXTURE_MAG_FILTER), magFilter)
-        glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_S), GL_REPEAT);
-        glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_T), GL_REPEAT);
-        glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_R), GL_REPEAT);
+        let error = glGetError()
+        if error != GL_NO_ERROR {
+            fatalError("Failed to create texture: OpenGL error \(error)")
+        }
     }
 
     deinit {
@@ -164,7 +171,7 @@ extension PixelFormat {
         case .bgra8:
             GL_BGRA
         case .bgra8_srgb:
-            GL_SRGB8
+            GL_SRGB_ALPHA
         case .rgba8:
             GL_RGBA8
         case .rgba_16f:
@@ -182,9 +189,7 @@ extension PixelFormat {
 
     var glFormat: GLint {
         switch self {
-        case .bgra8, .bgra8_srgb:
-            GL_BGRA
-        case .rgba8, .rgba_16f, .rgba_32f:
+        case .rgba8, .rgba_16f, .rgba_32f, .bgra8, .bgra8_srgb:
             GL_RGBA
         case .depth_32f, .depth24_stencil8, .depth_32f_stencil8:
             GL_DEPTH_COMPONENT

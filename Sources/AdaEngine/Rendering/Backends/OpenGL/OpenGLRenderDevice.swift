@@ -104,6 +104,7 @@ final class OpenGLRenderDevice: RenderDevice {
             scale: 1,
             width: window.size.width,
             height: window.size.height,
+            sampleCount: 1,
             attachments: [
                FramebufferAttachmentDescriptor(
                 format: .bgra8,
@@ -155,6 +156,23 @@ final class OpenGLRenderDevice: RenderDevice {
         }
         let framebuffer = drawCommandBuffer.framebuffer
         framebuffer.bind()
+
+        framebuffer.attachments.forEach { attachment in
+            if attachment.usage.contains(.depthStencilAttachment) {
+                glClear(GLenum(GL_DEPTH_BUFFER_BIT) | GLenum(GL_STENCIL_BUFFER_BIT))
+                glClearDepth(framebuffer.descriptor.clearDepth)
+            }
+
+            glClear(GLenum(GL_COLOR_BUFFER_BIT))
+            if attachment.usage.contains(.colorAttachment) {
+                glClearColor(
+                    attachment.clearColor.red,
+                    attachment.clearColor.green,
+                    attachment.clearColor.blue,
+                    attachment.clearColor.alpha
+                )
+            }
+        }
 
         if let lineWidth = list.lineWidth {
             glLineWidth(lineWidth)
