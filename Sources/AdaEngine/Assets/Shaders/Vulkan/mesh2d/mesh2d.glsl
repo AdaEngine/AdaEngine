@@ -1,4 +1,4 @@
-#version 450 core
+#version 410 core
 #pragma stage : vert
 
 #include <AdaEngine/View.glsl>
@@ -53,7 +53,7 @@ void mesh_vertex()
     gl_Position = u_ViewProjection * Output.WorldPosition;
 }
 
-#version 450 core
+#version 410 core
 #pragma stage : frag
 
 #include "mesh2d_vertex_output.glsl"

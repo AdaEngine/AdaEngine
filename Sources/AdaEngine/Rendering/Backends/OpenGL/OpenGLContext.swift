@@ -56,7 +56,7 @@ extension OpenGLBackend {
             }
 
             window.size = newSize
-            window.openGLContext.resize(to: newSize)
+            try window.openGLContext.resize(to: newSize)
             self.windows[windowId] = window
         }
 
@@ -84,7 +84,7 @@ protocol OpenGLContext: AnyObject {
     
     func flushBuffer()
 
-    func resize(to size: Math.SizeInt)
+    func resize(to size: Math.SizeInt) throws
 }
 
 private extension RenderSurface {
@@ -93,20 +93,26 @@ private extension RenderSurface {
 #if DARWIN
     #if canImport(AppKit)
         var attributes: [NSOpenGLPixelFormatAttribute] = [
-            NSOpenGLPixelFormatAttribute(NSOpenGLPFAAccelerated),
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFAClosestPolicy),
             NSOpenGLPixelFormatAttribute(NSOpenGLPFADoubleBuffer),
-            NSOpenGLPixelFormatAttribute(NSOpenGLPFAColorSize), 24,
-            NSOpenGLPixelFormatAttribute(NSOpenGLPFAAlphaSize), 8,
-            NSOpenGLPixelFormatAttribute(NSOpenGLPFADepthSize), 32,
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFAOpenGLProfile),
+            NSOpenGLPixelFormatAttribute(NSOpenGLProfileVersion4_1Core),
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFAColorSize), 32,
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFADepthSize), 24,
+            NSOpenGLPixelFormatAttribute(NSOpenGLPFAStencilSize), 8,
             NSOpenGLPixelFormatAttribute(0)
         ]
         guard let format = NSOpenGLPixelFormat(attributes: &attributes) else {
             fatalError("Failed to create OpenGL pixel format")
         }
 
+        try! checkOpenGLError()
+
         let context = NSOpenGLContext(format: format, share: nil)!
         (self as! MetalView).colorPixelFormat = .bgra8Unorm
         context.view = self as! MetalView
+
+        context.makeCurrentContext()
 
         return context
     #else
@@ -127,9 +133,10 @@ extension NSOpenGLContext: OpenGLContext {
     func makeCurrent() {
         OpenGLBackend.currentContext = self
         self.makeCurrentContext()
+        try! checkOpenGLError()
     }
 
-    func resize(to size: Math.SizeInt) {
+    func resize(to size: Math.SizeInt) throws {
         guard let cglContext = self.cglContextObj else {
             assertionFailure("CGLContext is not set")
             return
@@ -137,6 +144,7 @@ extension NSOpenGLContext: OpenGLContext {
         var params = [GLint(size.width), GLint(size.height)]
         CGLSetParameter(cglContext, kCGLCPSurfaceBackingSize, &params)
         CGLEnable(cglContext, kCGLCESurfaceBackingSize)
+        try checkOpenGLError()
     }
 }
 #endif

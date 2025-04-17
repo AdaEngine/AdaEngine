@@ -1,9 +1,9 @@
-#version 450 core
+#version 410 core
 #pragma stage : frag
 
 #include <AdaEngine/CanvasMaterial.frag>
 
-layout (std140, binding = 0) uniform CircleCanvasMaterial {
+layout (binding = 0) uniform CircleCanvasMaterial {
     float u_Fade;
     float u_Thickness;
     vec4 u_Color;

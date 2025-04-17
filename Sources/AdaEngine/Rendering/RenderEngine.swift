@@ -50,6 +50,10 @@ public final class RenderEngine: RenderBackend {
     
     // MARK: - RenderBackend
     
+    public var type: RenderBackendType {
+        self.renderBackend.type
+    }
+    
     public var currentFrameIndex: Int {
         return self.renderBackend.currentFrameIndex
     }

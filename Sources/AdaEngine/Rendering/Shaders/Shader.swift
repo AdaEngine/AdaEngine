@@ -33,7 +33,12 @@ public final class Shader: Resource, @unchecked Sendable {
     
     fileprivate init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
         self.spirvData = spirv.data
-        self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: spirv.stage)
+        
+        self.spirvCompiler = try SpirvCompiler(
+            spriv: spirv.data,
+            stage: spirv.stage,
+            deviceLang: RenderEngine.shared.type.deviceLang
+        )
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
         self.entryPoint = spirv.entryPoint
@@ -51,7 +56,11 @@ public final class Shader: Resource, @unchecked Sendable {
     public func recompile() throws {
         let spirv = try shaderCompiler.compileSpirvBin(for: self.stage)
         self.spirvData = spirv.data
-        self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: self.stage)
+        self.spirvCompiler = try SpirvCompiler(
+            spriv: spirv.data,
+            stage: self.stage,
+            deviceLang: RenderEngine.shared.type.deviceLang
+        )
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
         self.compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: self)
@@ -113,5 +122,17 @@ extension Shader: UniqueHashable {
     
     public func hash(into hasher: inout FNVHasher) {
         hasher.combine(self.resourcePath)
+    }
+}
+
+
+extension RenderBackendType {
+    var deviceLang: ShaderLanguage {
+        switch self {
+        case .opengl, .vulkan:
+            return .glsl
+        case .metal:
+            return .msl
+        }
     }
 }

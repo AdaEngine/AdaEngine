@@ -157,6 +157,8 @@ final class OpenGLRenderDevice: RenderDevice {
         let framebuffer = drawCommandBuffer.framebuffer
         framebuffer.bind()
 
+        try! checkOpenGLError()
+
         framebuffer.attachments.forEach { attachment in
             if attachment.usage.contains(.depthStencilAttachment) {
                 glClear(GLenum(GL_DEPTH_BUFFER_BIT) | GLenum(GL_STENCIL_BUFFER_BIT))
@@ -173,6 +175,8 @@ final class OpenGLRenderDevice: RenderDevice {
                 )
             }
         }
+
+        try! checkOpenGLError()
 
         if let lineWidth = list.lineWidth {
             glLineWidth(lineWidth)
@@ -196,25 +200,31 @@ final class OpenGLRenderDevice: RenderDevice {
             )
         }
 
+        try! checkOpenGLError()
+
         glCullFace(GLenum(renderPipeline.descriptor.backfaceCulling ? GL_BACK : GL_FRONT))
         glFrontFace(GLenum(GL_CCW))
 
+        try! checkOpenGLError()
         renderPipeline.program.use()
 
+        try! checkOpenGLError()
         list.vertexBuffers.forEach { buffer in
             (buffer as? OpenGLBuffer)?.bind()
         }
 
+        try! checkOpenGLError()
+
         (list.indexBuffer as? OpenGLBuffer)?.bind()
+
+        try! checkOpenGLError()
 
         list.textures.forEach { texture in
             (texture?.gpuTexture as? OpenGLTexture)?.bind()
             (texture?.sampler as? OpenGLSampler)?.bind()
         }
 
-//        if let depthStencilState = renderPipeline.depthStencilState {
-//            depthStencilState
-//        }
+        try! checkOpenGLError()
 
         switch list.triangleFillMode {
         case .fill:
@@ -222,6 +232,8 @@ final class OpenGLRenderDevice: RenderDevice {
         case .lines:
             glDrawArrays(GLenum(GL_LINES), 0, GLsizei(indexCount))
         }
+
+        try! checkOpenGLError()
     }
 
     func endDrawList(_ drawList: DrawList) {
