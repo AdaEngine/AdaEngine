@@ -179,7 +179,7 @@ public final class ShaderCompiler {
         }
         
         if let error {
-            let message = String(cString: error, encoding: .utf8)!
+            let message = String(cString: error, encoding: .utf8) ?? "Failed to compile"
             throw CompileError.glslError(message)
         }
         

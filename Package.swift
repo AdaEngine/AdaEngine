@@ -26,7 +26,7 @@ import WinSDK
 let isVulkanEnabled = true
 #endif
 
-let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
+let useLocalDeps = true//ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 

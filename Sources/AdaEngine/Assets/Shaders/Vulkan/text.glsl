@@ -1,4 +1,4 @@
-#version 410 core
+#version 450 core
 #pragma stage : vert
 
 #include <AdaEngine/View.glsl>
@@ -29,7 +29,7 @@ void text_vertex() {
     gl_Position = u_ViewProjection * a_Position;
 }
 
-#version 410 core
+#version 450 core
 #pragma stage : frag
 
 layout (location = 0) out vec4 color;

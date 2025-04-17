@@ -29,15 +29,15 @@ public final class RenderEngine: RenderBackend {
 
         let appName = "AdaEngine"
 
-        // #if METAL
-        // renderBackend = MetalRenderBackend(appName: appName)
-        // #elseif VULKAN
-        // renderBackend = VulkanRenderBackend(appName: appName)
-        // #else
-        // renderBackend = OpenGLBackend(appName: appName)
-        // #endif
+         #if METAL
+         renderBackend = MetalRenderBackend(appName: appName)
+         #elseif VULKAN
+         renderBackend = VulkanRenderBackend(appName: appName)
+         #else
+         renderBackend = OpenGLBackend(appName: appName)
+         #endif
 
-       renderBackend = OpenGLBackend(appName: appName)
+//       renderBackend = OpenGLBackend(appName: appName)
 
         return RenderEngine(renderBackend: renderBackend)
     }()

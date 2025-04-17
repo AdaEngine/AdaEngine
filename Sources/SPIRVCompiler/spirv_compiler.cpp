@@ -38,7 +38,7 @@ spirv_bin compile_shader_glsl(
     const char *cs_strings = source;
     
     int ClientInputSemanticsVersion = 100;
-    int DefaultVersion = 100;
+    int DefaultVersion = 410;
     glslang::EShTargetClientVersion ClientVersion = glslang::EShTargetVulkan_1_2;
     glslang::EShTargetLanguageVersion TargetVersion = glslang::EShTargetSpv_1_5;
     
@@ -57,7 +57,10 @@ spirv_bin compile_shader_glsl(
     EShMessages message = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
     
     if (!shader.preprocess(&DefaultTBuiltInResource, DefaultVersion, ENoProfile, false, false, message, &pre_processed_code, includer)) {
-        printf("%s", shader.getInfoLog());
+        printf("===== GLSL PREPROCESSING ERROR =====\n");
+        printf("Shader source:\n%s\n", source);
+        printf("Preprocessor error:\n%s\n", shader.getInfoDebugLog());
+        printf("===================================\n");
         *error = "failed to preprocess a shader";
         return {};
     }
@@ -67,12 +70,12 @@ spirv_bin compile_shader_glsl(
     shader.setStrings(&cs_strings, 1);
     
     if (!shader.parse(&DefaultTBuiltInResource, DefaultVersion, false, message)) {
+         printf("===== GLSL PARSE ERROR =====\n");
+        printf("Shader source:\n%s\n", source);
+        printf("Preprocessor error:\n%s\n", shader.getInfoDebugLog());
+        printf("===================================\n");
+        *error = "failed to parse a shader";
         printf("%s", shader.getInfoLog());
-        *error = "failed to parse shader";
-        //        errorMsg += shader.getInfoLog();
-        //        errorMsg += "\n";
-        //        errorMsg += shader.getInfoDebugLog();
-        //        *error = errorMsg.c_str();
         
         return {};
     }
