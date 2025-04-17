@@ -25,7 +25,7 @@ final class OpenGLFramebuffer: Framebuffer, @unchecked Sendable {
     init(descriptor: FramebufferDescriptor) {
         self.descriptor = descriptor
         self.size.width = self.descriptor.width
-        self.size.width = self.descriptor.height
+        self.size.height = self.descriptor.height
 
         self.invalidate()
     }
@@ -42,17 +42,21 @@ final class OpenGLFramebuffer: Framebuffer, @unchecked Sendable {
         if self.size.width == newSize.width && self.size.height == newSize.height {
             return
         }
+
+        self.size = newSize
+        self.invalidate()
     }
 
     func invalidate() {
         if framebuffer != 0 {
             glDeleteFramebuffers(1, &framebuffer)
+            self.attachments.removeAll()
         }
 
         glGenFramebuffers(1, &framebuffer)
-        for (index, attachmentDesc) in self.descriptor.attachments.enumerated() {
-            let framebufferAttachment: FramebufferAttachment
+        glBindFramebuffer(GLenum(GL_FRAMEBUFFER), framebuffer)
 
+        for (index, attachmentDesc) in self.descriptor.attachments.enumerated() {
             let texture = attachmentDesc.texture ?? RenderTexture(
                 size: size,
                 scaleFactor: self.descriptor.scale,
@@ -61,30 +65,79 @@ final class OpenGLFramebuffer: Framebuffer, @unchecked Sendable {
 
             var usage: FramebufferAttachmentUsage = []
 
+            let gpuTexture = (texture.gpuTexture as! OpenGLTexture)
+            gpuTexture.bind()
+
             if attachmentDesc.format.isDepthFormat {
                 usage.insert(.depthStencilAttachment)
+                glFramebufferTexture2D(
+                    GLenum(GL_FRAMEBUFFER),
+                    GLenum(GL_DEPTH_ATTACHMENT),
+                    GLenum(GL_TEXTURE_2D),
+                    gpuTexture.texture,
+                    0
+                )
             } else {
                 usage.insert(.colorAttachment)
+                glFramebufferTexture2D(
+                    GLenum(GL_FRAMEBUFFER),
+                    GLenum(GL_COLOR_ATTACHMENT0) + GLenum(index),
+                    GLenum(GL_TEXTURE_2D),
+                    gpuTexture.texture,
+                    0
+                )
             }
 
-            let gpuTexture = (texture.gpuTexture as! OpenGLTexture)
-
-            glFramebufferTexture2D(
-                GLenum(GL_FRAMEBUFFER),
-                GLenum(GL_COLOR_ATTACHMENT0),
-                GLenum(GL_TEXTURE_2D),
-                gpuTexture.texture,
-                0
+            self.attachments.append(
+                FramebufferAttachment(
+                    texture: texture,
+                    usage: usage,
+                    slice: 0
+                )
             )
         }
 
-        if glCheckFramebufferStatus(GLenum(GL_FRAMEBUFFER)) != GL_FRAMEBUFFER_COMPLETE {
-            fatalError("Something go wrong")
+        if attachments.isEmpty {
+            glDrawBuffer(GLenum(GL_NONE))
+        } else {
+            glDrawBuffer(GLenum(GL_COLOR_ATTACHMENT0))
         }
+
+        let status = glCheckFramebufferStatus(GLenum(GL_FRAMEBUFFER))
+        if status != GL_FRAMEBUFFER_COMPLETE {
+            var errorMessage = "Framebuffer is not complete. Status: "
+            switch Int32(status) {
+            case GL_FRAMEBUFFER_UNDEFINED:
+                errorMessage += "GL_FRAMEBUFFER_UNDEFINED - target is the default framebuffer"
+            case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+                errorMessage += "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT - some attachment point has no image attached"
+            case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+                errorMessage += "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT - no images are attached to the framebuffer"
+            case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+                errorMessage += "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER - draw buffer incomplete"
+            case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+                errorMessage += "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER - read buffer incomplete"
+            case GL_FRAMEBUFFER_UNSUPPORTED:
+                errorMessage += "GL_FRAMEBUFFER_UNSUPPORTED - combination of internal formats is not supported"
+            case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+                errorMessage += "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE - inconsistent multisample settings"
+            case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+                errorMessage += "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS - layered attachment mismatch"
+            default:
+                errorMessage += "Unknown error code: \(status)"
+            }
+            fatalError(errorMessage)
+        }
+
+        glBindFramebuffer(GLenum(GL_FRAMEBUFFER), 0);
     }
 
     func bind() {
         glBindFramebuffer(GLenum(GL_FRAMEBUFFER), framebuffer)
         glViewport(0, 0, GLsizei(self.size.width), GLsizei(self.size.height))
+    }
+
+    func unbind() {
+        glBindFramebuffer(GLenum(GL_FRAMEBUFFER), 0)
     }
 }

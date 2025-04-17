@@ -19,6 +19,16 @@ final class OpenGLTexture: GPUTexture {
     var texture: GLuint = 0
     let target: GLenum
 
+    init(
+        texture: GLuint, 
+        target: GLenum,
+        descriptor: TextureDescriptor
+    ) {
+        self.texture = texture
+        self.target = target
+        self.descriptor = descriptor
+    }
+
     init(descriptor: TextureDescriptor) throws {
         self.descriptor = descriptor
 
@@ -29,6 +39,7 @@ final class OpenGLTexture: GPUTexture {
         let magFilter = descriptor.samplerDescription.magFilter.glType
 
         glGenTextures(1, &texture)
+        glBindTexture(glType, texture)
 
         let pointer: UnsafeMutableBufferPointer<UInt8>? = descriptor.image.flatMap { .allocate(capacity: $0.data.count) }
         _ = pointer.flatMap { descriptor.image?.data.copyBytes(to: $0) }
@@ -76,6 +87,7 @@ final class OpenGLTexture: GPUTexture {
         glTexParameteri(glType, GLenum(GL_TEXTURE_MAG_FILTER), magFilter)
         glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_S), GL_REPEAT);
         glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_T), GL_REPEAT);
+        glTexParameteri(glType, GLenum(GL_TEXTURE_WRAP_R), GL_REPEAT);
     }
 
     deinit {
@@ -84,6 +96,10 @@ final class OpenGLTexture: GPUTexture {
 
     func bind() {
         glBindTexture(target, texture)
+    }
+
+    func unbind() {
+        glBindTexture(target, 0)
     }
 
     func getImage() -> Image? {
