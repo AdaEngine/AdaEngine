@@ -45,7 +45,7 @@ final class FontHandle: Hashable, @unchecked Sendable {
     }
     
     var glyphsCount: Int {
-        return font_handle_get_glyphs_count(self.fontData)
+        return Int(font_handle_get_glyphs_count(self.fontData))
     }
     
     // MARK: Hashable
