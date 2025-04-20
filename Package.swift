@@ -109,7 +109,6 @@ var swiftSettings: [SwiftSetting] = [
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
     .define("WASM", .when(platforms: [.wasi])),
-//    .interoperabilityMode(.Cxx)
 ]
 
 if isVulkanEnabled {
@@ -196,9 +195,6 @@ let adaEngineEmbeddable: Target = .target(
     exclude: [
         "BUILD.bazel"
     ],
-    swiftSettings: [
-//        .interoperabilityMode(.Cxx)
-    ],
     linkerSettings: [
         .linkedLibrary("c++")
     ]
@@ -270,9 +266,6 @@ targets += [
         dependencies: ["AdaEngine"],
         exclude: [
             "BUILD.bazel"
-        ],
-        swiftSettings: [
-//            .interoperabilityMode(.Cxx)
         ]
     ),
     .testTarget(
@@ -356,9 +349,6 @@ if isVulkanEnabled {
 
                 // Windows
                 .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
-            ],
-            swiftSettings: [
-//                .interoperabilityMode(.Cxx),
             ]
         ),
         .systemLibrary(
