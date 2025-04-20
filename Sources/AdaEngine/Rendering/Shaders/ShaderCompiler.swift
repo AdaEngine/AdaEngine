@@ -155,12 +155,12 @@ public final class ShaderCompiler {
     }
     
     internal func compileCode(_ code: String, entryPoint: String, stage: ShaderStage) throws -> SpirvBinary {
-        guard glslang_init_process() else {
+        guard glslang_initialize() != 0 else {
             throw CompileError.glslError("Can't create glslang process.")
         }
 
         defer {
-            glslang_deinit_process()
+            glslang_finalize()
         }
         
         var error: UnsafePointer<CChar>?
@@ -183,7 +183,7 @@ public final class ShaderCompiler {
             throw CompileError.glslError(message)
         }
         
-        let data = Data(bytes: binary.bytes, count: binary.length)
+        let data = Data(bytes: binary.bytes, count: Int(binary.length))
         binary.bytes.deallocate()
         
         return SpirvBinary(

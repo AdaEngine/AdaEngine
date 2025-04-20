@@ -1,36 +1,39 @@
 //
-//  spriv_compiler.hpp
-//  AdaEngine
+//  glslang.h
+//  TEST
 //
-//  Created by v.prusakov on 3/11/23.
+//  Created by Vladislav Prusakov on 20.04.2025.
 //
 
 #ifndef spriv_compiler_hpp
 #define spriv_compiler_hpp
 
-#include <stdint.h>
-#include <vector>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-enum shaderc_stage {
+#include <stdint.h>
+
+typedef enum {
     SHADER_STAGE_VERTEX,
     SHADER_STAGE_FRAGMENT,
     SHADER_STAGE_TESSELATION_CONTROL,
     SHADER_STAGE_TESSELATION_EVALUATION,
     SHADER_STAGE_COMPUTE,
     SHADER_STAGE_MAX,
-};
+} shaderc_stage;
 
-struct spirv_options {
+typedef struct {
     const char* preamble;
-};
+} spirv_options;
 
-struct spirv_bin {
+typedef struct {
     const void *bytes;
-    size_t length;
-};
+    unsigned long length;
+} spirv_bin;
 
-bool glslang_init_process();
-void glslang_deinit_process();
+int glslang_initialize(void);
+void glslang_finalize(void);
 
 spirv_bin compile_shader_glsl(
                               const char *source,
@@ -38,5 +41,9 @@ spirv_bin compile_shader_glsl(
                               spirv_options options,
                               const char **error
                               );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* spriv_compiler_hpp */

@@ -23,7 +23,7 @@ import Glibc
 import WinSDK
 #endif
 
-let isVulkanEnabled = true
+let isVulkanEnabled = false
 #endif
 
 let useLocalDeps = true//ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
@@ -109,7 +109,7 @@ var swiftSettings: [SwiftSetting] = [
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
     .define("WASM", .when(platforms: [.wasi])),
-    .interoperabilityMode(.Cxx)
+//    .interoperabilityMode(.Cxx)
 ]
 
 if isVulkanEnabled {
@@ -152,7 +152,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
-    "MiniAudioBindings",
+    "miniaudio",
     "AtlasFontGenerator",
     "Yams",
     "libpng",
@@ -196,7 +196,9 @@ let adaEngineEmbeddable: Target = .target(
     exclude: [
         "BUILD.bazel"
     ],
-    swiftSettings: [.interoperabilityMode(.Cxx)],
+    swiftSettings: [
+//        .interoperabilityMode(.Cxx)
+    ],
     linkerSettings: [
         .linkedLibrary("c++")
     ]
@@ -249,20 +251,14 @@ targets += [
         dependencies: [
             .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
         ],
-        publicHeadersPath: "."
-    ),
-    .target(
-        name: "MiniAudioBindings",
-        dependencies: [
-            "miniaudio",
-        ],
-        publicHeadersPath: "."
+        publicHeadersPath: "include"
     ),
     .target(
         name: "SPIRVCompiler",
         dependencies: [
             "glslang"
-        ]
+        ],
+        publicHeadersPath: "."
     )
 ]
 
@@ -276,7 +272,7 @@ targets += [
             "BUILD.bazel"
         ],
         swiftSettings: [
-            .interoperabilityMode(.Cxx)
+//            .interoperabilityMode(.Cxx)
         ]
     ),
     .testTarget(
@@ -362,7 +358,7 @@ if isVulkanEnabled {
                 .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
             ],
             swiftSettings: [
-                .interoperabilityMode(.Cxx),
+//                .interoperabilityMode(.Cxx),
             ]
         ),
         .systemLibrary(

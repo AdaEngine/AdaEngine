@@ -5,18 +5,135 @@
 //  Created by v.prusakov on 3/11/23.
 //
 
-#include "include/spirv_compiler.h"
-#include "glslang_resource_limits.hpp"
+#include "spirv_compiler.h"
 
+#include "glslang/Include/ResourceLimits.h"
 #include "glslang/Include/Types.h"
 #include "glslang/Public/ShaderLang.h"
 #include "SPIRV/GlslangToSpv.h"
 
-bool glslang_init_process() {
+const TBuiltInResource DefaultTBuiltInResource = {
+    /* .MaxLights = */ 32,
+    /* .MaxClipPlanes = */ 6,
+    /* .MaxTextureUnits = */ 32,
+    /* .MaxTextureCoords = */ 32,
+    /* .MaxVertexAttribs = */ 64,
+    /* .MaxVertexUniformComponents = */ 4096,
+    /* .MaxVaryingFloats = */ 64,
+    /* .MaxVertexTextureImageUnits = */ 32,
+    /* .MaxCombinedTextureImageUnits = */ 80,
+    /* .MaxTextureImageUnits = */ 32,
+    /* .MaxFragmentUniformComponents = */ 4096,
+    /* .MaxDrawBuffers = */ 32,
+    /* .MaxVertexUniformVectors = */ 128,
+    /* .MaxVaryingVectors = */ 8,
+    /* .MaxFragmentUniformVectors = */ 16,
+    /* .MaxVertexOutputVectors = */ 16,
+    /* .MaxFragmentInputVectors = */ 15,
+    /* .MinProgramTexelOffset = */ -8,
+    /* .MaxProgramTexelOffset = */ 7,
+    /* .MaxClipDistances = */ 8,
+    /* .MaxComputeWorkGroupCountX = */ 65535,
+    /* .MaxComputeWorkGroupCountY = */ 65535,
+    /* .MaxComputeWorkGroupCountZ = */ 65535,
+    /* .MaxComputeWorkGroupSizeX = */ 1024,
+    /* .MaxComputeWorkGroupSizeY = */ 1024,
+    /* .MaxComputeWorkGroupSizeZ = */ 64,
+    /* .MaxComputeUniformComponents = */ 1024,
+    /* .MaxComputeTextureImageUnits = */ 16,
+    /* .MaxComputeImageUniforms = */ 8,
+    /* .MaxComputeAtomicCounters = */ 8,
+    /* .MaxComputeAtomicCounterBuffers = */ 1,
+    /* .MaxVaryingComponents = */ 60,
+    /* .MaxVertexOutputComponents = */ 64,
+    /* .MaxGeometryInputComponents = */ 64,
+    /* .MaxGeometryOutputComponents = */ 128,
+    /* .MaxFragmentInputComponents = */ 128,
+    /* .MaxImageUnits = */ 8,
+    /* .MaxCombinedImageUnitsAndFragmentOutputs = */ 8,
+    /* .MaxCombinedShaderOutputResources = */ 8,
+    /* .MaxImageSamples = */ 0,
+    /* .MaxVertexImageUniforms = */ 0,
+    /* .MaxTessControlImageUniforms = */ 0,
+    /* .MaxTessEvaluationImageUniforms = */ 0,
+    /* .MaxGeometryImageUniforms = */ 0,
+    /* .MaxFragmentImageUniforms = */ 8,
+    /* .MaxCombinedImageUniforms = */ 8,
+    /* .MaxGeometryTextureImageUnits = */ 16,
+    /* .MaxGeometryOutputVertices = */ 256,
+    /* .MaxGeometryTotalOutputComponents = */ 1024,
+    /* .MaxGeometryUniformComponents = */ 1024,
+    /* .MaxGeometryVaryingComponents = */ 64,
+    /* .MaxTessControlInputComponents = */ 128,
+    /* .MaxTessControlOutputComponents = */ 128,
+    /* .MaxTessControlTextureImageUnits = */ 16,
+    /* .MaxTessControlUniformComponents = */ 1024,
+    /* .MaxTessControlTotalOutputComponents = */ 4096,
+    /* .MaxTessEvaluationInputComponents = */ 128,
+    /* .MaxTessEvaluationOutputComponents = */ 128,
+    /* .MaxTessEvaluationTextureImageUnits = */ 16,
+    /* .MaxTessEvaluationUniformComponents = */ 1024,
+    /* .MaxTessPatchComponents = */ 120,
+    /* .MaxPatchVertices = */ 32,
+    /* .MaxTessGenLevel = */ 64,
+    /* .MaxViewports = */ 16,
+    /* .MaxVertexAtomicCounters = */ 0,
+    /* .MaxTessControlAtomicCounters = */ 0,
+    /* .MaxTessEvaluationAtomicCounters = */ 0,
+    /* .MaxGeometryAtomicCounters = */ 0,
+    /* .MaxFragmentAtomicCounters = */ 8,
+    /* .MaxCombinedAtomicCounters = */ 8,
+    /* .MaxAtomicCounterBindings = */ 1,
+    /* .MaxVertexAtomicCounterBuffers = */ 0,
+    /* .MaxTessControlAtomicCounterBuffers = */ 0,
+    /* .MaxTessEvaluationAtomicCounterBuffers = */ 0,
+    /* .MaxGeometryAtomicCounterBuffers = */ 0,
+    /* .MaxFragmentAtomicCounterBuffers = */ 1,
+    /* .MaxCombinedAtomicCounterBuffers = */ 1,
+    /* .MaxAtomicCounterBufferSize = */ 16384,
+    /* .MaxTransformFeedbackBuffers = */ 4,
+    /* .MaxTransformFeedbackInterleavedComponents = */ 64,
+    /* .MaxCullDistances = */ 8,
+    /* .MaxCombinedClipAndCullDistances = */ 8,
+    /* .MaxSamples = */ 4,
+    /* .maxMeshOutputVerticesNV = */ 256,
+    /* .maxMeshOutputPrimitivesNV = */ 512,
+    /* .maxMeshWorkGroupSizeX_NV = */ 32,
+    /* .maxMeshWorkGroupSizeY_NV = */ 1,
+    /* .maxMeshWorkGroupSizeZ_NV = */ 1,
+    /* .maxTaskWorkGroupSizeX_NV = */ 32,
+    /* .maxTaskWorkGroupSizeY_NV = */ 1,
+    /* .maxTaskWorkGroupSizeZ_NV = */ 1,
+    /* .maxMeshViewCountNV = */ 4,
+    /* .maxMeshOutputVerticesEXT = */ 256,
+    /* .maxMeshOutputPrimitivesEXT = */ 256,
+    /* .maxMeshWorkGroupSizeX_EXT = */ 128,
+    /* .maxMeshWorkGroupSizeY_EXT = */ 128,
+    /* .maxMeshWorkGroupSizeZ_EXT = */ 128,
+    /* .maxTaskWorkGroupSizeX_EXT = */ 128,
+    /* .maxTaskWorkGroupSizeY_EXT = */ 128,
+    /* .maxTaskWorkGroupSizeZ_EXT = */ 128,
+    /* .maxMeshViewCountEXT = */ 4,
+    /* .maxDualSourceDrawBuffersEXT = */ 1,
+
+    /* .limits = */ {
+            /* .nonInductiveForLoops = */ true,
+            /* .whileLoops = */ true,
+            /* .doWhileLoops = */ true,
+            /* .generalUniformIndexing = */ true,
+            /* .generalAttributeMatrixVectorIndexing = */ true,
+            /* .generalVaryingIndexing = */ true,
+            /* .generalSamplerIndexing = */ true,
+            /* .generalVariableIndexing = */ true,
+            /* .generalConstantMatrixVectorIndexing = */ true,
+    }
+};
+
+int glslang_initialize() {
     return glslang::InitializeProcess();
 }
 
-void glslang_deinit_process() {
+void glslang_finalize() {
     glslang::FinalizeProcess();
 }
 
@@ -26,7 +143,6 @@ spirv_bin compile_shader_glsl(
                               spirv_options options,
                               const char **error
                               ) {
-    
     EShLanguage stages[shaderc_stage::SHADER_STAGE_MAX] = {
         EShLangVertex,
         EShLangFragment,
@@ -52,7 +168,7 @@ spirv_bin compile_shader_glsl(
     if (options.preamble) {
         shader.setPreamble(options.preamble);
     }
-
+    
     std::string pre_processed_code;
     EShMessages message = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
     
@@ -70,7 +186,7 @@ spirv_bin compile_shader_glsl(
     shader.setStrings(&cs_strings, 1);
     
     if (!shader.parse(&DefaultTBuiltInResource, DefaultVersion, false, message)) {
-         printf("===== GLSL PARSE ERROR =====\n");
+        printf("===== GLSL PARSE ERROR =====\n");
         printf("Shader source:\n%s\n", source);
         printf("Preprocessor error:\n%s\n", shader.getInfoDebugLog());
         printf("===================================\n");
