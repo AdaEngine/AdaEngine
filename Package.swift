@@ -180,9 +180,6 @@ let adaEngineTarget: Target = .target(
         .define("GL_SILENCE_DEPRECATION")
     ],
     swiftSettings: adaEngineSwiftSettings,
-    linkerSettings: [
-        .linkedLibrary("c++")
-    ],
     plugins: commonPlugins
 )
 
@@ -194,9 +191,6 @@ let adaEngineEmbeddable: Target = .target(
     ],
     exclude: [
         "BUILD.bazel"
-    ],
-    linkerSettings: [
-        .linkedLibrary("c++")
     ]
 )
 
