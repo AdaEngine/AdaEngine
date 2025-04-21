@@ -23,7 +23,7 @@ import Glibc
 import WinSDK
 #endif
 
-let isVulkanEnabled = true
+let isVulkanEnabled = false
 #endif
 
 let useLocalDeps = true//ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
@@ -109,7 +109,6 @@ var swiftSettings: [SwiftSetting] = [
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
     .define("WASM", .when(platforms: [.wasi])),
-    .interoperabilityMode(.Cxx)
 ]
 
 if isVulkanEnabled {
@@ -152,7 +151,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
-    "MiniAudioBindings",
+    "miniaudio",
     "AtlasFontGenerator",
     "Yams",
     "libpng",
@@ -181,9 +180,6 @@ let adaEngineTarget: Target = .target(
         .define("GL_SILENCE_DEPRECATION")
     ],
     swiftSettings: adaEngineSwiftSettings,
-    linkerSettings: [
-        .linkedLibrary("c++")
-    ],
     plugins: commonPlugins
 )
 
@@ -195,10 +191,6 @@ let adaEngineEmbeddable: Target = .target(
     ],
     exclude: [
         "BUILD.bazel"
-    ],
-    swiftSettings: [.interoperabilityMode(.Cxx)],
-    linkerSettings: [
-        .linkedLibrary("c++")
     ]
 )
 
@@ -249,20 +241,14 @@ targets += [
         dependencies: [
             .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
         ],
-        publicHeadersPath: "."
-    ),
-    .target(
-        name: "MiniAudioBindings",
-        dependencies: [
-            "miniaudio",
-        ],
-        publicHeadersPath: "."
+        publicHeadersPath: "include"
     ),
     .target(
         name: "SPIRVCompiler",
         dependencies: [
             "glslang"
-        ]
+        ],
+        publicHeadersPath: "."
     )
 ]
 
@@ -274,9 +260,6 @@ targets += [
         dependencies: ["AdaEngine"],
         exclude: [
             "BUILD.bazel"
-        ],
-        swiftSettings: [
-            .interoperabilityMode(.Cxx)
         ]
     ),
     .testTarget(
@@ -360,9 +343,6 @@ if isVulkanEnabled {
 
                 // Windows
                 .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
-            ],
-            swiftSettings: [
-                .interoperabilityMode(.Cxx),
             ]
         ),
         .systemLibrary(
