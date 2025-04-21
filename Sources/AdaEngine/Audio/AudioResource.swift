@@ -18,11 +18,11 @@ public final class AudioResource: Resource, @unchecked Sendable {
     public static let resourceType: ResourceType = .audio
 
     public required init(asset decoder: AssetDecoder) async throws {
-//        if await decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion {
-//            self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetData)
-//        } else {
+        if decoder.assetMeta.filePath.pathExtension == ResourceType.audio.fileExtenstion {
+            self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetData)
+        } else {
             self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetMeta.filePath)
-//        }
+        }
     }
     
     private init(sound: Sound) {
