@@ -8,7 +8,11 @@
 #ifndef atlas_font_gen_h
 #define atlas_font_gen_h
 
-#include <vector>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include <stdint.h>
 
 /// Type of atlas image contents
 typedef enum AFG_ImageType {
@@ -48,7 +52,7 @@ typedef struct FontMetrics {
 typedef struct font_atlas_descriptor {
     double emFontScale;
     double minimumScale;
-    bool expensiveColoring;
+    int expensiveColoring;
     double angleThreshold;
     unsigned long coloringSeed;
     
@@ -63,34 +67,29 @@ typedef struct font_handle_s font_handle_t;
 typedef struct font_generator_s font_generator_t;
 typedef struct font_glyph_s font_glyph_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+struct font_generator_s* font_atlas_generator_create(const char* fontPath, const char* fontName,
+                                                     struct font_atlas_descriptor fontDescriptor);
 
-font_generator_s* font_atlas_generator_create(const char* fontPath,
-                                              const char* fontName,
-                                              font_atlas_descriptor fontDescriptor);
+struct font_handle_s* font_atlas_generator_get_font_data(struct font_generator_s* generator);
+void font_handle_destroy(struct font_handle_s *fontHandle);
 
-font_handle_s* font_atlas_generator_get_font_data(font_generator_s* generator);
-void font_handle_destroy(font_handle_s *fontHandle);
+AtlasBitmap* font_atlas_generator_generate_bitmap(struct font_generator_s* generator);
 
-AtlasBitmap* font_atlas_generator_generate_bitmap(font_generator_s* generator);
+const char* font_geometry_get_name(struct font_handle_s* fontData);
+double font_geometry_get_scale(struct font_handle_s* fontData);
 
-const char* font_geometry_get_name(font_handle_s* fontData);
-double font_geometry_get_scale(font_handle_s* fontData);
+unsigned long font_handle_get_glyphs_count(struct font_handle_s* fontData);
 
-size_t font_handle_get_glyphs_count(font_handle_s* fontData);
+void font_handle_get_advance(struct font_handle_s* fontData, double* advance, uint32_t currentUnicode, uint32_t nextUnicode);
 
-void font_handle_get_advance(font_handle_s* fontData, double* advance, uint32_t currentUnicode, uint32_t nextUnicode);
-
-FontMetrics font_geometry_get_metrics(font_handle_s* fontData);
+FontMetrics font_geometry_get_metrics(struct font_handle_s* fontData);
 
 // MARK: GLYPH
 
-font_glyph_s* font_handle_get_glyph_unicode(font_handle_s* fontData, uint32_t unicode);
-double font_glyph_get_advance(font_glyph_s *glyph);
-void font_glyph_get_quad_atlas_bounds(font_glyph_s *glyph, double* l, double* b, double* r, double* t);
-void font_glyph_get_quad_plane_bounds(font_glyph_s *glyph, double* pl, double* pb, double* pr, double* pt);
+struct font_glyph_s* font_handle_get_glyph_unicode(struct font_handle_s* fontData, uint32_t unicode);
+double font_glyph_get_advance(struct font_glyph_s *glyph);
+void font_glyph_get_quad_atlas_bounds(struct font_glyph_s *glyph, double* l, double* b, double* r, double* t);
+void font_glyph_get_quad_plane_bounds(struct font_glyph_s *glyph, double* pl, double* pb, double* pr, double* pt);
 
 
 #ifdef __cplusplus

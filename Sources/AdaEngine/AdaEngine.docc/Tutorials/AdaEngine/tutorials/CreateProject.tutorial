@@ -119,14 +119,6 @@
                 @Image(source: "CP-2-4.png", alt: "You can see package dependencies tab in Xcode")
             }
             
-            AdaEngine uses a lot of C++ libraries and we should tell the compiler that we want to add C++ interoperanility to our app.
-            
-            @Step {
-                We should add C++ interop to the project. Add `-cxx-interoperability-mode=default` value to your `OTHER_SWIFT_FLAGS`.
-                
-                @Image(source: "CP-2-7.png", alt: "We add experimental-cxx-interop to project.")
-            }
-            
             @Step {
                 To run your project on macOS, remove `App Sandbox` from the `Capabilities` tab.
                 
