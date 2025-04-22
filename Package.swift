@@ -26,7 +26,7 @@ import WinSDK
 let isVulkanEnabled = false
 #endif
 
-let useLocalDeps = true//ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
+let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
@@ -248,7 +248,10 @@ targets += [
         dependencies: [
             "glslang"
         ],
-        publicHeadersPath: "."
+        publicHeadersPath: ".",
+        linkerSettings: [
+            .linkedLibrary("m", .when(platforms: [.linux]))
+        ]
     )
 ]
 
