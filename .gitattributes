@@ -22,4 +22,9 @@
 *.spv filter=lfs diff=lfs merge=lfs -text
 *.bin filter=lfs diff=lfs merge=lfs -text
 
+Assets/*.png -filter -diff -merge
+Assets/*.jpeg -filter -diff -merge
+Assets/*.jpg -filter -diff -merge
+Assets/*.gif -filter -diff -merge
+
 Modules/** linguist-vendored
