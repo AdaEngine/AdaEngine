@@ -19,21 +19,21 @@ public struct ConcurrentSequence<S: Sequence> {
 public extension Sequence {
     /// Create wrapper for sequence to use Swift Modern Concurrency.
     var concurrent: ConcurrentSequence<Self> {
-        return ConcurrentSequence(base: self)
+        ConcurrentSequence(base: self)
     }
 }
 
 public extension ConcurrentSequence {
     /// Iterate over all elements in sequence and create task for each.
     func forEach(
-        _ operation: @escaping (Element) async -> Void
-    ) async {
+        _ operation: @escaping @Sendable (Element) async -> Void
+    ) async where Element: Sendable {
         // A task group automatically waits for all of its
         // sub-tasks to complete, while also performing those
         // tasks in parallel:
         await withTaskGroup(of: Void.self) { group in
             for element in self.base {
-                group.addTask {
+                group.addTask { @Sendable [element] in
                     await operation(element)
                 }
             }

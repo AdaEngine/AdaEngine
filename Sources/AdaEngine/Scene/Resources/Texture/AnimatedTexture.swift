@@ -9,7 +9,7 @@
 
 /// Animated texture is represents a frame-based animations, where multiple textures can be chained with a predifined delay for each frame.
 /// This kind of textures can apply any 2D Textures to animate them.
-public final class AnimatedTexture: Texture2D {
+public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     
     struct Frame {
         var texture: Texture2D?
@@ -105,7 +105,7 @@ public final class AnimatedTexture: Texture2D {
     }
     
     public convenience required init(asset decoder: AssetDecoder) async throws {
-        guard decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+        guard await decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
         }
         
@@ -130,9 +130,9 @@ public final class AnimatedTexture: Texture2D {
     }
     
     public override func encode(to encoder: Encoder) throws {
-        guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
-            throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
-        }
+//        guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+//            throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
+//        }
         
         var frames: [AssetRepresentation.Frame] = []
         

@@ -167,134 +167,18 @@ final class MetalRenderDevice: RenderDevice {
 // MARK: Texture
 
 extension MetalRenderDevice {
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func createTexture(from descriptor: TextureDescriptor) -> GPUTexture {
-        let textureDesc = MTLTextureDescriptor()
-
-        switch descriptor.textureType {
-        case .textureCube:
-            textureDesc.textureType = .typeCube
-        case .texture1D:
-            textureDesc.textureType = .type1D
-        case .texture1DArray:
-            textureDesc.textureType = .type1DArray
-        case .texture2D:
-            textureDesc.textureType = .type2D
-        case .texture2DArray:
-            textureDesc.textureType = .type2DArray
-        case .texture2DMultisample:
-            textureDesc.textureType = .type2DMultisample
-        case .texture2DMultisampleArray:
-            textureDesc.textureType = .type2DMultisampleArray
-        case .texture3D:
-            textureDesc.textureType = .type3D
-        case .textureBuffer:
-            textureDesc.textureType = .typeTextureBuffer
-        }
-
-        var mtlUsage: MTLTextureUsage = []
-
-        if descriptor.textureUsage.contains(.read) {
-            mtlUsage.insert(.shaderRead)
-        }
-
-        if descriptor.textureUsage.contains(.write) {
-            mtlUsage.insert(.shaderWrite)
-        }
-
-        if descriptor.textureUsage.contains(.renderTarget) {
-            mtlUsage.insert(.renderTarget)
-        }
-
-        textureDesc.usage = mtlUsage
-        textureDesc.width = descriptor.width
-        textureDesc.height = descriptor.height
-        textureDesc.pixelFormat = descriptor.pixelFormat.toMetal
-
-        guard let texture = self.device.makeTexture(descriptor: textureDesc) else {
-            fatalError("Cannot create texture")
-        }
-
-        texture.label = descriptor.debugLabel
-
-        if let image = descriptor.image {
-            let region = MTLRegion(
-                origin: MTLOrigin(x: 0, y: 0, z: 0),
-                size: MTLSize(width: image.width, height: image.height, depth: 1)
-            )
-
-            let bytesPerRow = descriptor.pixelFormat.bytesPerComponent * image.width
-
-            image.data.withUnsafeBytes { buffer in
-                precondition(buffer.baseAddress != nil, "Image should not contains empty address.")
-
-                texture.replace(
-                    region: region,
-                    mipmapLevel: 0,
-                    withBytes: buffer.baseAddress!,
-                    bytesPerRow: bytesPerRow
-                )
-            }
-        }
-
-        return MetalGPUTexture(texture: texture)
+        return MetalGPUTexture(descriptor: descriptor, device: self.device)
     }
 
-    // TODO: (Vlad) think about it later
     func getImage(from texture: Texture) -> Image? {
-        guard let mtlTexture = (texture.gpuTexture as? MetalGPUTexture)?.texture else {
-            return nil
-        }
-
-        if mtlTexture.isFramebufferOnly {
-            return nil
-        }
-
-        let imageFormat: Image.Format
-        let bytesInPixel: Int
-
-        switch mtlTexture.pixelFormat {
-        case .bgra8Unorm:
-            imageFormat = .bgra8
-            bytesInPixel = 4
-        default:
-            imageFormat = .rgba8
-            bytesInPixel = 4
-        }
-
-        let bytesPerRow = mtlTexture.width * bytesInPixel
-        let pixelCount = mtlTexture.width * mtlTexture.height
-
-        var imageBytes = [UInt8](repeating: 0, count: pixelCount * bytesInPixel)
-        mtlTexture.getBytes(
-            &imageBytes,
-            bytesPerRow: bytesPerRow,
-            from: MTLRegion(
-                origin: MTLOrigin(x: 0, y: 0, z: 0),
-                size: MTLSize(width: mtlTexture.width, height: mtlTexture.height, depth: 1)
-            ),
-            mipmapLevel: 0
-        )
-
-        return Image(width: mtlTexture.width, height: mtlTexture.height, data: Data(imageBytes), format: imageFormat)
+        (texture.gpuTexture as? MetalGPUTexture)?.getImage()
     }
 }
 
 // MARK: - Drawings
 
 extension MetalRenderDevice {
-
-    enum DrawListError: String, LocalizedError {
-        case notAGlobalDevice = "RenderDevice isn't a global."
-        case windowNotExists = "Required window doesn't exists."
-        case failedToGetSurfaceTexture = "Failed to get surface texture."
-        case failedToCreateCommandBuffer = "Failed to create command buffer"
-        case failedToGetRenderPass = "Cannot get a render pass descriptor for current draw"
-
-        var errorDescription: String? {
-            return self.rawValue
-        }
-    }
 
     func beginDraw(
         for window: UIWindow.ID,
@@ -354,7 +238,7 @@ extension MetalRenderDevice {
     // MARK: - Uniforms -
 
     func createUniformBufferSet() -> UniformBufferSet {
-        return MetalUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, device: self)
+        return GenericUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, device: self)
     }
 
     func createUniformBuffer(length: Int, binding: Int) -> UniformBuffer {

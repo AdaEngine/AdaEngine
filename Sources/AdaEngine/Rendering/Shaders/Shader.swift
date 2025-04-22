@@ -23,7 +23,8 @@ public final class Shader: Resource, @unchecked Sendable {
     
     /// Return SPIRV binary.
     public private(set) var spirvData: Data
-    
+    public private(set) var entryPoint: String
+
     internal private(set) var spirvCompiler: SpirvCompiler
     
     private var shaderCompiler: ShaderCompiler
@@ -32,9 +33,15 @@ public final class Shader: Resource, @unchecked Sendable {
     
     fileprivate init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
         self.spirvData = spirv.data
-        self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: spirv.stage)
+        
+        self.spirvCompiler = try SpirvCompiler(
+            spriv: spirv.data,
+            stage: spirv.stage,
+            deviceLang: RenderEngine.shared.type.deviceLang
+        )
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
+        self.entryPoint = spirv.entryPoint
         self.stage = spirv.stage
         self.shaderCompiler = compiler
         self.compiledShader = nil
@@ -49,7 +56,11 @@ public final class Shader: Resource, @unchecked Sendable {
     public func recompile() throws {
         let spirv = try shaderCompiler.compileSpirvBin(for: self.stage)
         self.spirvData = spirv.data
-        self.spirvCompiler = try SpirvCompiler(spriv: spirv.data, stage: self.stage)
+        self.spirvCompiler = try SpirvCompiler(
+            spriv: spirv.data,
+            stage: self.stage,
+            deviceLang: RenderEngine.shared.type.deviceLang
+        )
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
         self.compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: self)
@@ -58,7 +69,7 @@ public final class Shader: Resource, @unchecked Sendable {
     // MARK: Shader
 
     public var resourceMetaInfo: ResourceMetaInfo?
-    public static var resourceType: ResourceType = .material
+    public static let resourceType: ResourceType = .material
 
     // TODO: Load from spir-v
     public init(asset decoder: AssetDecoder) throws {
@@ -78,6 +89,7 @@ public final class Shader: Resource, @unchecked Sendable {
         self.spirvCompiler = shader.spirvCompiler
         self.stage = stage
         self.compiledShader = shader.compiledShader
+        self.entryPoint = shader.entryPoint
     }
 
     public func encodeContents(with encoder: AssetEncoder) throws {
@@ -110,5 +122,17 @@ extension Shader: UniqueHashable {
     
     public func hash(into hasher: inout FNVHasher) {
         hasher.combine(self.resourcePath)
+    }
+}
+
+
+extension RenderBackendType {
+    var deviceLang: ShaderLanguage {
+        switch self {
+        case .opengl, .vulkan:
+            return .glsl
+        case .metal:
+            return .msl
+        }
     }
 }

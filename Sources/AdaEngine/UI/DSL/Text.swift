@@ -189,10 +189,10 @@ extension Text {
 public protocol TextRenderer: Animatable, Sendable {
 
     /// Draws layout into context.
-    func draw(layout: Text.Layout, in context: inout UIGraphicsContext)
+    @MainActor func draw(layout: Text.Layout, in context: inout UIGraphicsContext)
 
     /// Returns the size of the text in proposal. The provided text proxy value may be used to query the sizing behavior of the underlying text layout.
-    func sizeThatFits(proposal: ProposedViewSize, text: Text.Proxy) -> Size
+    @MainActor func sizeThatFits(proposal: ProposedViewSize, text: Text.Proxy) -> Size
 }
 
 public extension TextRenderer {

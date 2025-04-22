@@ -150,6 +150,8 @@ extension SparseArray: Equatable where Element: Equatable {
     }
 }
 
+extension SparseArray: Sendable where Element: Sendable { }
+
 extension SparseArray: Hashable where Element: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.count)

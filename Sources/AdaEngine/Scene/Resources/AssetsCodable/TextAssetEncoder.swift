@@ -7,7 +7,7 @@
 
 import Yams
 
-public final class TextAssetEncoder: AssetEncoder {
+public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {
 
     public let assetMeta: AssetMeta
     let encoder: AnyEncoder
@@ -32,9 +32,11 @@ public final class TextAssetEncoder: AssetEncoder {
     }
 }
 
-protocol AnyEncoder {
+protocol AnyEncoder: Sendable {
     func encode<T: Encodable>(_ value: T, userInfo: [CodingUserInfoKey: Any]) throws -> Data
 }
+
+extension YAMLEncoder: @unchecked @retroactive Sendable {}
 
 extension YAMLEncoder: AnyEncoder {
     func encode<T>(_ value: T, userInfo: [CodingUserInfoKey : Any]) throws -> Data where T : Encodable {

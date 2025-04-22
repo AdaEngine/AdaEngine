@@ -9,7 +9,7 @@
 import MetalKit
 
 // TODO: (Vlad) think about inheretence and how it affect type casting and vtables
-class MetalUniformBuffer: MetalBuffer, UniformBuffer {
+final class MetalUniformBuffer: MetalBuffer, UniformBuffer, @unchecked Sendable {
     
     let binding: Int
     

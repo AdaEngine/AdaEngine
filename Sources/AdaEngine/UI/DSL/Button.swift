@@ -45,12 +45,14 @@ public struct Button: View, ViewNodeBuilder {
     let action: () -> Void
     let label: ButtonStyleConfiguration.Label.Storage
 
+    @MainActor
     public init<Label: View>(action: @escaping () -> Void, @ViewBuilder label: () -> Label) {
         self.action = action
         let label = label()
         self.label = .makeView({ Label._makeView(_ViewGraphNode(value: label), inputs: $0) })
     }
 
+    @MainActor
     public init(_ text: String, action: @escaping () -> Void) {
         self.action = action
         self.label = .makeView({ Text._makeView(_ViewGraphNode(value: Text(text)), inputs: $0) })

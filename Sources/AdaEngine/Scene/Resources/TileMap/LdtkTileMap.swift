@@ -19,7 +19,7 @@ extension LDtk {
     /// ```swift
     /// let tileMap = try await ResourceManager.load("@res://Assets/TileMap.ldtk") as LDtkTileMap
     /// ```
-    public final class TileMap: AdaEngine.TileMap {
+    public final class TileMap: AdaEngine.TileMap, @unchecked Sendable {
 
         public weak var delegate: TileMapDelegate? {
             didSet {

@@ -33,7 +33,7 @@ protocol MaterialValueDelegate: AnyObject {
 /// After that, we should write our own fragment shader code:
 ///
 /// ```c++
-/// #version 450 core
+/// #version 330 core
 /// #pragma stage : frag // Declare that this code can be used for fragment shading
 ///
 /// #include <AdaEngine/CanvasMaterial.frag> // Include basic canvas header code for you shader

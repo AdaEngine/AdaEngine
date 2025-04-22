@@ -13,7 +13,6 @@
 ///
 /// - Warning: AdaEngine doesn't has execution order for `ScriptableComponent`.
 ///
-@MainActor
 open class ScriptableComponent: Component {
 
     internal var isAwaked: Bool = false

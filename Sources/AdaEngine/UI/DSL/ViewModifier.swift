@@ -22,13 +22,13 @@ public protocol ViewModifier {
     @ViewBuilder
     func body(content: Self.Content) -> Body
 
-    static func _makeView(
+    @MainActor static func _makeView(
         for modifier: _ViewGraphNode<Self>,
         inputs: _ViewInputs,
         body: @escaping (_ViewInputs) -> _ViewOutputs
     ) -> _ViewOutputs
 
-    static func _makeListView(
+    @MainActor static func _makeListView(
         for modifier: _ViewGraphNode<Self>,
         inputs: _ViewListInputs,
         body: @escaping (_ViewListInputs) -> _ViewListOutputs
@@ -172,7 +172,7 @@ extension ModifiedContent: View where Modifier: ViewModifier, Content: View {
 
 }
 
-extension ModifiedContent : @preconcurrency ViewModifier where Content : ViewModifier, Modifier : ViewModifier {
+extension ModifiedContent : ViewModifier where Content : ViewModifier, Modifier : ViewModifier {
     @MainActor
     public static func _makeView(
         for modifier: _ViewGraphNode<Self>,

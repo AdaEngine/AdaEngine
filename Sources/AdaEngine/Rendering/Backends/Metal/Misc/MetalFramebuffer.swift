@@ -9,8 +9,8 @@
 import Metal
 import Math
 
-class MetalFramebuffer: Framebuffer {
-    
+final class MetalFramebuffer: Framebuffer {
+
     private(set) var attachments: [FramebufferAttachment]
     private(set) var renderPassDescriptor: MTLRenderPassDescriptor!
     private(set) var descriptor: FramebufferDescriptor
@@ -38,7 +38,9 @@ class MetalFramebuffer: Framebuffer {
         if self.size.width == newSize.width && self.size.height == newSize.height {
             return
         }
-        
+
+        self.size = newSize
+
         self.invalidate()
     }
     
@@ -53,7 +55,6 @@ class MetalFramebuffer: Framebuffer {
         )
         
         for (index, attachmentDesc) in self.descriptor.attachments.enumerated() {
-            
             let framebufferAttachment: FramebufferAttachment
             
             let texture = attachmentDesc.texture ?? RenderTexture(
@@ -101,14 +102,6 @@ class MetalFramebuffer: Framebuffer {
         renderPassDescriptor.renderTargetHeight = size.height
         
         self.renderPassDescriptor = renderPassDescriptor
-    }
-}
-
-class MetalGPUTexture: GPUTexture {
-    var texture: MTLTexture
-    
-    init(texture: MTLTexture) {
-        self.texture = texture
     }
 }
 

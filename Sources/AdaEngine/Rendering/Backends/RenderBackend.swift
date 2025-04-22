@@ -12,8 +12,16 @@ public enum TriangleFillMode {
     case lines
 }
 
+public enum RenderBackendType: String {
+    case opengl
+    case metal
+    case vulkan
+}
+
 /// This protocol describe interface for GPU.
 protocol RenderBackend: AnyObject {
+    
+    var type: RenderBackendType { get }
 
     /// Returns current frame index. Min value 0, Max value is equal ``RenderEngine/Configuration/maxFramesInFlight`` value.
     var currentFrameIndex: Int { get }
@@ -116,4 +124,16 @@ public protocol RenderDevice: AnyObject {
 
     /// Commit all draws from ``DrawList``.
     func endDrawList(_ drawList: DrawList)
+}
+
+enum DrawListError: String, LocalizedError {
+    case notAGlobalDevice = "RenderDevice isn't a global."
+    case windowNotExists = "Required window doesn't exists."
+    case failedToGetSurfaceTexture = "Failed to get surface texture."
+    case failedToCreateCommandBuffer = "Failed to create command buffer"
+    case failedToGetRenderPass = "Cannot get a render pass descriptor for current draw"
+
+    var errorDescription: String? {
+        return self.rawValue
+    }
 }

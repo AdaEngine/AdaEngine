@@ -16,8 +16,7 @@ import Collections
 /// Each ``Entity`` has a set of components. Each component can have up to one instance of each
 /// component type. Entity components can be created, updated, removed, and queried using a given World.
 /// - Warning: Still work in progress.
-@MainActor
-public final class World {
+public final class World: @unchecked Sendable {
 
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 

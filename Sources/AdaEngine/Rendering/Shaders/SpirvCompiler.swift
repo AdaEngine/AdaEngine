@@ -6,6 +6,7 @@
 //
 
 import SPIRV_Cross
+import Logging
 
 struct SpirvShader {
 
@@ -22,19 +23,14 @@ struct SpirvShader {
 /// Create High Level Shading Language from SPIR-V for specific shader language.
 final class SpirvCompiler {
 
-    static var deviceLang: ShaderLanguage {
-#if METAL
-        return .msl
-#else
-        return .glsl
-#endif
-    }
-
+    let deviceLang: ShaderLanguage
     private let stage: ShaderStage
 
     var context: spvc_context
     var spvcCompiler: spvc_compiler
     var ir: spvc_parsed_ir
+    
+    let loggerShader = Logger(label: "SpirvCompiler")
 
     struct Error: LocalizedError {
         let message: String
@@ -52,7 +48,7 @@ final class SpirvCompiler {
         }
     }
 
-    init(spriv: Data, stage: ShaderStage) throws {
+    init(spriv: Data, stage: ShaderStage, deviceLang: ShaderLanguage) throws {
         self.stage = stage
 
         var context: spvc_context!
@@ -71,11 +67,12 @@ final class SpirvCompiler {
 
         self.ir = ir
         self.context = context
-
+        
+        self.deviceLang = deviceLang
         var spvcCompiler: spvc_compiler?
         spvc_context_create_compiler(
             context,
-            Self.deviceLang.spvcBackend,
+            deviceLang.spvcBackend,
             ir,
             SPVC_CAPTURE_MODE_TAKE_OWNERSHIP,
             &spvcCompiler
@@ -96,16 +93,41 @@ final class SpirvCompiler {
     func compile() throws -> SpirvShader {
         var spvcCompilerOptions: spvc_compiler_options?
         if spvc_compiler_create_compiler_options(spvcCompiler, &spvcCompilerOptions) != SPVC_SUCCESS {
-            throw Error(String(cString: spvc_context_get_last_error_string(context)))
+            let errorMessage = String(cString: spvc_context_get_last_error_string(context))
+            loggerShader.critical("⚠️ SPIRV-Cross compiler options creation failed: \(errorMessage)")
+            throw Error(errorMessage)
         }
 
-        Self.makeCompileOptions(spvcCompilerOptions)
+        Self.makeCompileOptions(spvcCompilerOptions, deviceLang: deviceLang)
 
         spvc_compiler_install_compiler_options(spvcCompiler, spvcCompilerOptions)
 
         var compilerOutputSourcePtr: UnsafePointer<CChar>?
-        if spvc_compiler_compile(spvcCompiler, &compilerOutputSourcePtr) != SPVC_SUCCESS {
-            throw Error(String(cString: spvc_context_get_last_error_string(context)))
+        let result = spvc_compiler_compile(spvcCompiler, &compilerOutputSourcePtr)
+        if result != SPVC_SUCCESS {
+            let errorMessage = String(cString: spvc_context_get_last_error_string(context))
+            loggerShader.critical("⚠️ SPIRV-Cross compilation failed: \(errorMessage)")
+            
+            // Print detailed diagnostic info
+            loggerShader.critical("🔍 Target language: \(deviceLang)")
+            loggerShader.critical("🔍 Shader stage: \(stage)")
+            
+            // If we have entry points, print them
+            var numberOfEntryPoints: Int = 0
+            var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
+            spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
+            
+            if numberOfEntryPoints > 0 {
+                loggerShader.critical("🔍 Entry points:")
+                for index in 0..<numberOfEntryPoints {
+                    let entryPoint = spvcEntryPoints![index]
+                    loggerShader.critical("  - \(String(cString: entryPoint.name)) (execution model: \(entryPoint.execution_model))")
+                }
+            } else {
+                loggerShader.critical("⚠️ No entry points found in shader")
+            }
+            
+            throw Error(errorMessage)
         }
 
         let source = String(cString: compilerOutputSourcePtr!)
@@ -135,7 +157,7 @@ final class SpirvCompiler {
 
         return SpirvShader(
             source: source,
-            language: Self.deviceLang,
+            language: self.deviceLang,
             entryPoints: entryPoints
         )
     }
@@ -283,7 +305,7 @@ final class SpirvCompiler {
                     )
 
                     reflectionData.resources[resourceName] = image
-                    descriptorSet.sampledImages[resourceName] = image
+                    descriptorSet.sampledImages[Int(binding)] = image
                 default:
                     continue
                 }
@@ -297,23 +319,34 @@ final class SpirvCompiler {
 }
 
 extension SpirvCompiler {
-    static func makeCompileOptions(_ options: spvc_compiler_options?) {
-#if METAL
+    static func makeCompileOptions(_ options: spvc_compiler_options?, deviceLang: ShaderLanguage) {
         let version = { (major: UInt32, minor: UInt32, patch: UInt32) in
             return (major * 10000) + (minor * 100) + patch
         }
-        spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_VERSION, version(2, 1, 0))
-        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_POINT_SIZE_BUILTIN, 1)
         
+        if deviceLang == .msl {
+            spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_VERSION, version(2, 1, 0))
+            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_POINT_SIZE_BUILTIN, 1)
+
 #if os(macOS)
-        let platform = SPVC_MSL_PLATFORM_MACOS
+            let platform = SPVC_MSL_PLATFORM_MACOS
 #else
-        let platform = SPVC_MSL_PLATFORM_IOS
+            let platform = SPVC_MSL_PLATFORM_IOS
 #endif
 
-        spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_PLATFORM, platform.rawValue)
-        spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_DECORATION_BINDING, 1)
-#endif
+            spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_PLATFORM, platform.rawValue)
+            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_DECORATION_BINDING, 1)
+        }
+
+        if deviceLang == .glsl {
+            // Set GLSL version to 4.10, matching our OpenGL context
+            spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_GLSL_VERSION, 410)
+        
+            // Enable GLSL specific options for better compatibility
+            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_SEPARATE_SHADER_OBJECTS, 1)
+            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_ENABLE_420PACK_EXTENSION, 1)
+            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_ES, 0) // Use desktop GLSL, not GLSL ES
+        }
     }
 }
 

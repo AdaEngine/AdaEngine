@@ -1,4 +1,4 @@
-// swift-tools-version: 5.10
+// swift-tools-version: 6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -9,16 +9,21 @@ import CompilerPluginSupport
 import AppleProductTypes
 #endif
 
-#if os(Linux)
-import Glibc
-#else
-import Darwin.C
-#endif
-
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+import Darwin.C
+
 let isVulkanEnabled = false
 #else
-let isVulkanEnabled = true
+
+#if os(Linux)
+import Glibc
+#endif
+
+#if os(Windows)
+import WinSDK
+#endif
+
+let isVulkanEnabled = false
 #endif
 
 let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
@@ -102,7 +107,8 @@ var swiftSettings: [SwiftSetting] = [
     .define("VISIONOS", .when(platforms: [.visionOS])),
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
-    .interoperabilityMode(.Cxx)
+    .define("DARWIN", .when(platforms: applePlatforms)),
+    .define("WASM", .when(platforms: [.wasi])),
 ]
 
 if isVulkanEnabled {
@@ -114,12 +120,17 @@ if isVulkanEnabled {
 let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
     dependencies: ["AdaEngine", "Math"],
+    exclude: [
+        "BUILD.bazel",
+        "Platforms/iOS/Info.plist",
+        "Platforms/macOS/Info.plist"
+    ],
     resources: [
         .copy("Assets")
     ],
     swiftSettings: swiftSettings + [
         .define("EDITOR_DEBUG", .when(configuration: .debug)),
-        
+
         // List of defines availables only for editor
         .define("EDITOR_MACOS", .when(platforms: [.macOS])),
         .define("EDITOR_WINDOWS", .when(platforms: [.windows])),
@@ -140,7 +151,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
-    "MiniAudioBindings",
+    "miniaudio",
     "AtlasFontGenerator",
     "Yams",
     "libpng",
@@ -157,15 +168,18 @@ adaEngineDependencies += ["X11"]
 let adaEngineTarget: Target = .target(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
+    exclude: [
+        "BUILD.bazel"
+    ],
     resources: [
         .copy("Assets/Shaders"),
         .copy("Assets/Fonts"),
         .copy("Assets/Images")
     ],
-    swiftSettings: adaEngineSwiftSettings,
-    linkerSettings: [
-        .linkedLibrary("c++")
+    cSettings: [
+        .define("GL_SILENCE_DEPRECATION")
     ],
+    swiftSettings: adaEngineSwiftSettings,
     plugins: commonPlugins
 )
 
@@ -175,9 +189,8 @@ let adaEngineEmbeddable: Target = .target(
         "AdaEngine",
         "AdaEngineMacros"
     ],
-    swiftSettings: [.interoperabilityMode(.Cxx)],
-    linkerSettings: [
-        .linkedLibrary("c++")
+    exclude: [
+        "BUILD.bazel"
     ]
 )
 
@@ -186,6 +199,9 @@ let adaEngineMacros: Target = .macro(
     dependencies: [
         .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
         .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
+    ],
+    exclude: [
+        "BUILD.bazel"
     ]
 )
 
@@ -196,7 +212,12 @@ var targets: [Target] = [
     adaEngineTarget,
     adaEngineEmbeddable,
     adaEngineMacros,
-    .target(name: "Math")
+    .target(
+        name: "Math",
+        exclude: [
+            "BUILD.bazel"
+        ]
+    )
 ]
 
 // MARK: Extra
@@ -220,19 +241,16 @@ targets += [
         dependencies: [
             .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
         ],
-        publicHeadersPath: "."
-    ),
-    .target(
-        name: "MiniAudioBindings",
-        dependencies: [
-            "miniaudio",
-        ],
-        publicHeadersPath: "."
+        publicHeadersPath: "include"
     ),
     .target(
         name: "SPIRVCompiler",
         dependencies: [
             "glslang"
+        ],
+        publicHeadersPath: ".",
+        linkerSettings: [
+            .linkedLibrary("m", .when(platforms: [.linux]))
         ]
     )
 ]
@@ -243,13 +261,16 @@ targets += [
     .testTarget(
         name: "AdaEngineTests",
         dependencies: ["AdaEngine"],
-        swiftSettings: [
-            .interoperabilityMode(.Cxx)
+        exclude: [
+            "BUILD.bazel"
         ]
     ),
     .testTarget(
         name: "MathTests",
-        dependencies: ["Math"]
+        dependencies: ["Math"],
+        exclude: [
+            "BUILD.bazel"
+        ]
     )
 ]
 
@@ -269,7 +290,6 @@ let package = Package(
     products: products,
     dependencies: [],
     targets: targets,
-    swiftLanguageVersions: [.v5],
     cLanguageStandard: .c17,
     cxxLanguageStandard: .cxx20
 )
@@ -280,17 +300,17 @@ package.dependencies += [
     .package(url: "https://github.com/apple/swift-log", from: "1.5.4"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
-    .package(url: "https://github.com/swiftlang/swift-syntax", from: "510.0.2")
+    .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.1")
 ]
 
 if useLocalDeps {
     package.dependencies += [
-        .package(path: "../box2d"),
-        .package(path: "../msdf-atlas-gen"),
-        .package(path: "../SPIRV-Cross"),
-        .package(path: "../glslang"),
-        .package(path: "../miniaudio"),
-        .package(path: "../libpng")
+        .package(path: "Modules/LocalDeps/box2d"),
+        .package(path: "Modules/LocalDeps/msdf-atlas-gen"),
+        .package(path: "Modules/LocalDeps/SPIRV-Cross"),
+        .package(path: "Modules/LocalDeps/glslang"),
+        .package(path: "Modules/LocalDeps/miniaudio"),
+        .package(path: "Modules/LocalDeps/libpng")
     ]
 } else {
     package.dependencies += [
@@ -303,23 +323,37 @@ if useLocalDeps {
     ]
 }
 
-let disabledStrictConcurrencyTargets = [
-//  "AdaEngine",
-    "AdaEditor",
-//  "Math",
-    "AtlasFontGenerator",
-    "SPIRVCompiler",
-    "MiniAudioBindings",
-    "libpng",
-    "SPIRV-Cross",
-    "SPIRVCompiler",
-    "AdaEngineMacros",
-//    "SwiftLintPlugin"
-]
+// MARK: - Vulkan -
 
-for target in package.targets
-    where !disabledStrictConcurrencyTargets.contains(target.name) && target.type != .binary {
-    var settings = target.swiftSettings ?? []
-    settings.append(.enableExperimentalFeature("StrictConcurrency"))
-    target.swiftSettings = settings
+// We turn on vulkan via build
+if isVulkanEnabled {
+    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
+    package.targets += [
+        .target(
+            name: "Vulkan",
+            dependencies: ["CVulkan"],
+            exclude: [
+                "BUILD.bazel"
+            ],
+            cSettings: [
+                // Apple
+                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
+                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
+                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
+
+                // Android
+                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
+
+                // Windows
+                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
+            ]
+        ),
+        .systemLibrary(
+            name: "CVulkan",
+            pkgConfig: "vulkan",
+            providers: [
+                .apt(["vulkan"])
+            ]
+        )
+    ]
 }

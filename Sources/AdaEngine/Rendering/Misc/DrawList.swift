@@ -8,7 +8,7 @@
 // TODO: Looks like we should use buffer binding instead of `append` methods
 
 /// Contains information about draw. You can configure your draw whatever you want.
-public final class DrawList: Sendable {
+public final class DrawList: @unchecked Sendable {
     
     public enum ShaderFunction {
         case vertex
@@ -33,7 +33,6 @@ public final class DrawList: Sendable {
     private(set) var uniformBuffers: [BufferData<UniformBuffer>?] = [BufferData<UniformBuffer>?].init(repeating: nil, count: maximumUniformsCount)
     private(set) var uniformBufferCount: Int = 0
     private(set) var textures: [Texture?] = [Texture?].init(repeating: nil, count: maximumTexturesCount)
-    private(set) var renderPipline: RenderPipeline?
     private(set) var triangleFillMode: TriangleFillMode = .fill
     private(set) var indexPrimitive: IndexPrimitive = .triangle
     private(set) var isScissorEnabled: Bool = false

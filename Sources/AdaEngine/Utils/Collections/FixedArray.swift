@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 2/6/23.
 //
 
+// TODO: Replace to (repeat each T) with tuple
+
 /// Create a fixed sized array on a heap.
 @frozen
 public struct FixedArray<T>: Sequence, RandomAccessCollection {
@@ -159,6 +161,8 @@ extension FixedArray: Decodable where T: Codable {
     }
 }
 
+extension FixedArray: Sendable where T: Sendable { }
+
 extension FixedArray {
     enum CodingKeys: CodingKey {
         case length
@@ -168,7 +172,7 @@ extension FixedArray {
 
 extension FixedArray {
     @usableFromInline
-    internal final class Buffer {
+    internal final class Buffer: @unchecked Sendable {
         let pointer: UnsafeMutableBufferPointer<Element>
         
         init(count: Int) {

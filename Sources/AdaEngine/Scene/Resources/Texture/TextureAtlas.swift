@@ -10,7 +10,7 @@ import Math
 /// The atlas, also know as Sprite Sheet is an object contains an image and can provide
 /// a little piece of the texture for specific stride. You can describe size of sprite you expect and grab specific sprite by coordinates.
 /// The Atlas is more efficient way to use 2D textures, because the GPU works with one piece of data.
-public final class TextureAtlas: Texture2D {
+public final class TextureAtlas: Texture2D, @unchecked Sendable {
     
     private let spriteSize: SizeInt
     
@@ -112,7 +112,7 @@ public final class TextureAtlas: Texture2D {
 public extension TextureAtlas {
     
     /// A slice represents piece of the texture region. The slices is an efficient way to work with the texture.
-    final class Slice: Texture2D {
+    final class Slice: Texture2D, @unchecked Sendable {
         
         // We should store reference to the atlas, because if the altas deiniting from memory
         // then the GPU representation will be also deinited.

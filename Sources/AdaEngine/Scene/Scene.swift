@@ -27,7 +27,7 @@ open class Scene: Resource {
     public internal(set) weak var window: UIWindow?
     public internal(set) var viewport: Viewport = Viewport()
     
-    public var resourceMetaInfo: ResourceMetaInfo?
+    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
     
     private var plugins: [ScenePlugin] = []
     private(set) var world: World
@@ -68,7 +68,7 @@ open class Scene: Resource {
     public static let resourceType: ResourceType = .scene
     
     public func encodeContents(with encoder: AssetEncoder) async throws {
-        guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+        guard await encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
@@ -283,7 +283,7 @@ public extension Scene {
 
 // MARK: - EventSource
 
-extension Scene: EventSource {
+extension Scene: @preconcurrency EventSource {
     
     /// Receives events of the given type.
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.

@@ -44,7 +44,7 @@ public protocol Resource: AnyObject, Sendable {
     @ResourceActor func encodeContents(with encoder: AssetEncoder) async throws
 
     /// Type of resource.
-    @ResourceActor static var resourceType: ResourceType { get }
+    @MainActor static var resourceType: ResourceType { get }
 
     /// Return meta info
     var resourceMetaInfo: ResourceMetaInfo? { get set }
