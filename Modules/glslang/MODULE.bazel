@@ -1,0 +1,15 @@
+###############################################################################
+# Bazel now uses Bzlmod by default to manage external dependencies.
+# Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
+#
+# For more details, please check https://github.com/bazelbuild/bazel/issues/18958
+###############################################################################
+
+module(
+    name = "glslang",
+    version = "1.0.0",
+    compatibility_level = 1,
+    repo_name = "AdaEngine"
+)
+
+bazel_dep(name = "platforms", version = "0.0.8", dev_dependency = True)
