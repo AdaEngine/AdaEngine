@@ -37,8 +37,6 @@ public final class RenderEngine: RenderBackend {
          renderBackend = OpenGLBackend(appName: appName)
          #endif
 
-//       renderBackend = OpenGLBackend(appName: appName)
-
         return RenderEngine(renderBackend: renderBackend)
     }()
     
