@@ -26,8 +26,6 @@ import WinSDK
 let isVulkanEnabled = false
 #endif
 
-let useLocalDeps = ProcessInfo.processInfo.environment["SWIFT_USE_LOCAL_DEPS"] != nil
-
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
 var products: [Product] = [
@@ -75,29 +73,9 @@ products.append(ios)
 
 // MARK: - Targets
 
-/// Currently plugins doesn't work on swift playground and not at all binaries can work in others platforms like Windows.
-#if os(macOS)
-//let swiftLintTargets: [Target] = [
-//    .binaryTarget(
-//        name: "SwiftLintBinary",
-//        path: "Binaries/SwiftLintBinary.artifactbundle"
-//    ),
-//    .plugin(
-//        name: "SwiftLintPlugin",
-//        capability: .buildTool(),
-//        dependencies: ["SwiftLintBinary"]
-//    )
-//]
-#endif
-
 // MARK: Editor Target
 
 var commonPlugins: [Target.PluginUsage] = []
-
-#if os(macOS)
-//commonPlugins.append(.plugin(name: "SwiftLintPlugin"))
-
-#endif
 
 var swiftSettings: [SwiftSetting] = [
     .define("MACOS", .when(platforms: [.macOS])),
@@ -300,28 +278,15 @@ package.dependencies += [
     .package(url: "https://github.com/apple/swift-log", from: "1.5.4"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
-    .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.1")
-]
+    .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.1"),
 
-if useLocalDeps {
-    package.dependencies += [
-        .package(path: "Modules/LocalDeps/box2d"),
-        .package(path: "Modules/LocalDeps/msdf-atlas-gen"),
-        .package(path: "Modules/LocalDeps/SPIRV-Cross"),
-        .package(path: "Modules/LocalDeps/glslang"),
-        .package(path: "Modules/LocalDeps/miniaudio"),
-        .package(path: "Modules/LocalDeps/libpng")
-    ]
-} else {
-    package.dependencies += [
-        .package(url: "https://github.com/AdaEngine/box2d", branch: "main"),
-        .package(url: "https://github.com/AdaEngine/msdf-atlas-gen", branch: "master"),
-        .package(url: "https://github.com/AdaEngine/SPIRV-Cross", branch: "main"),
-        .package(url: "https://github.com/AdaEngine/glslang", branch: "main"),
-        .package(url: "https://github.com/AdaEngine/miniaudio", branch: "master"),
-        .package(url: "https://github.com/AdaEngine/libpng", branch: "main")
-    ]
-}
+    .package(path: "Modules/box2d"),
+    .package(path: "Modules/msdf-atlas-gen"),
+    .package(path: "Modules/SPIRV-Cross"),
+    .package(path: "Modules/glslang"),
+    .package(path: "Modules/miniaudio"),
+    .package(path: "Modules/libpng")
+]
 
 // MARK: - Vulkan -
 

@@ -1,0 +1,1 @@
+workspace(name = "msdf-atlas-gen")
