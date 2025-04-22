@@ -1,0 +1,5 @@
+module freetype {
+    header "ft2build.h"
+    
+    export *
+}
