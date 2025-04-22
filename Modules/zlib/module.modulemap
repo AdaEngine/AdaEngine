@@ -1,0 +1,3 @@
+module ae_zlib {
+    header "zlib.h"
+}
