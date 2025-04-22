@@ -23,7 +23,7 @@ let package = Package(
         .target(
             name: "libpng",
             dependencies: [
-                .target(name: "ae_zlib", condition: .when(platforms: [.windows]))
+                .product(name: "ae_zib", package: "zlib", condition: .when(platforms: [.windows]))
             ],
             sources: [
                 "png.c",
