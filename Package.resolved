@@ -1,5 +1,5 @@
 {
-  "originHash" : "fadee61601bde91833d18ba11361b56f3d65d8687cdc9806daaeb341ab863108",
+  "originHash" : "dfc62d9095524d0b29e0da3c8a6d31c85c4c5ec2d19ba04bf011ac7928e6c19d",
   "pins" : [
     {
       "identity" : "box2d",
@@ -7,7 +7,7 @@
       "location" : "https://github.com/AdaEngine/box2d",
       "state" : {
         "branch" : "main",
-        "revision" : "560e48409753e28bd81607c15f3d3f6b298feb0e"
+        "revision" : "475d09eed4acd3692da7cdbb6a12c70ce4b4173d"
       }
     },
     {
@@ -16,7 +16,7 @@
       "location" : "https://github.com/AdaEngine/glslang",
       "state" : {
         "branch" : "main",
-        "revision" : "28dab900903b7341ef7dbab89df1e44958b8a8b0"
+        "revision" : "5caa4022ea7fe8d18c74a03f70f5481bed44b2f6"
       }
     },
     {
@@ -25,7 +25,7 @@
       "location" : "https://github.com/AdaEngine/libpng",
       "state" : {
         "branch" : "main",
-        "revision" : "22465834d2d062f9d8ab5b7fcb5955df6d678c2b"
+        "revision" : "d22d32ad3b8def59a74419d2227ca0d87f272491"
       }
     },
     {
@@ -34,7 +34,7 @@
       "location" : "https://github.com/AdaEngine/miniaudio",
       "state" : {
         "branch" : "master",
-        "revision" : "490c6955d4fa1d9307123abc379818f561d80394"
+        "revision" : "e66264f1d06b9e05e75b6be98c91370f2fa21c18"
       }
     },
     {
@@ -52,7 +52,7 @@
       "location" : "https://github.com/AdaEngine/SPIRV-Cross",
       "state" : {
         "branch" : "main",
-        "revision" : "e67c6acc5b577a36f9166d70bfd5c5dc6f8cdbe9"
+        "revision" : "c8b50acd63050d821babc268b1db0c061f7da5b3"
       }
     },
     {
@@ -96,8 +96,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/swiftlang/swift-syntax",
       "state" : {
-        "revision" : "2bc86522d115234d1f588efe2bcb4ce4be8f8b82",
-        "version" : "510.0.3"
+        "revision" : "0687f71944021d616d34d922343dcef086855920",
+        "version" : "600.0.1"
       }
     },
     {
@@ -105,8 +105,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jpsim/Yams",
       "state" : {
-        "revision" : "3036ba9d69cf1fd04d433527bc339dc0dc75433d",
-        "version" : "5.1.3"
+        "revision" : "f47ba4838c30dbd59998a4e4c87ab620ff959e8a",
+        "version" : "5.0.5"
       }
     }
   ],

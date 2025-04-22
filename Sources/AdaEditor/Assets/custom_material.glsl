@@ -3,7 +3,7 @@
 
 #include <AdaEngine/CanvasMaterial.frag>
 
-layout (std140, binding = 0) uniform CustomMaterial {
+layout (binding = 0) uniform CustomMaterial {
     float u_Time;
     vec4 u_Color;
 };

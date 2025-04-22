@@ -6,9 +6,10 @@
 //
 
 import OrderedCollections
+import Math
 
-@MainActor @preconcurrency
-public class TileSet: Resource, Codable {
+@MainActor
+public class TileSet: Resource, @preconcurrency Codable {
 
     struct PhysicsLayer {
         var collisionLayer: CollisionGroup = .default
@@ -55,9 +56,8 @@ public class TileSet: Resource, Codable {
         try await encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
     }
 
-    public static var resourceType: ResourceType = .text
-
-    public var resourceMetaInfo: ResourceMetaInfo?
+    public static let resourceType: ResourceType = .text
+    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
 
     public init() {}
 

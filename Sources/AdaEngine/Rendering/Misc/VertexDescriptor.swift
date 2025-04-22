@@ -5,6 +5,10 @@
 //  Created by v.prusakov on 11/3/21.
 //
 
+#if VULKAN
+import CVulkan
+#endif
+
 /// An array of vertex attribute descriptor objects.
 public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable, Sendable {
 
@@ -320,6 +324,35 @@ extension VertexFormat {
         case .char: return .char
         default:
             return .invalid
+        }
+    }
+}
+
+#endif
+
+#if VULKAN
+
+extension VertexFormat {
+    var toVulkan: VkFormat {
+        switch self {
+        case .invalid:
+            return VK_FORMAT_UNDEFINED
+        case .uint:
+            return VK_FORMAT_R32_UINT
+        case .char:
+            return VK_FORMAT_R8_SINT
+        case .short:
+            return VK_FORMAT_R16_SINT
+        case .int:
+            return VK_FORMAT_R32_SINT
+        case .float:
+            return VK_FORMAT_R32_SFLOAT
+        case .vector4:
+            return VK_FORMAT_R32G32B32A32_SFLOAT
+        case .vector3:
+            return VK_FORMAT_R32G32B32_SFLOAT
+        case .vector2:
+            return VK_FORMAT_R32G32_SFLOAT
         }
     }
 }

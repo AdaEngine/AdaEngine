@@ -7,7 +7,7 @@
 
 import Yams
 
-public final class TextAssetDecoder: AssetDecoder {
+public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
 
     public let assetMeta: AssetMeta
     public var assetData: Data

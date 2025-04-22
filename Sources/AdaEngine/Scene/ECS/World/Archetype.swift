@@ -5,11 +5,11 @@
 //  Created by v.prusakov on 6/21/22.
 //
 
-struct ComponentId: Hashable, Equatable {
+struct ComponentId: Hashable, Equatable, Sendable {
     let id: Int
 }
 
-struct EntityRecord {
+struct EntityRecord: Sendable {
     // which archetype contains info about an entity
     var archetypeId: Archetype.ID
     
@@ -19,7 +19,7 @@ struct EntityRecord {
 
 /// Types for defining Archetypes, collections of entities that have the same set of
 /// components.
-public final class Archetype: Hashable, Identifiable {
+public final class Archetype: Hashable, Identifiable, @unchecked Sendable {
     public let id: Int
     public internal(set) var entities: SparseArray<Entity> = []
     
@@ -101,14 +101,14 @@ extension Archetype: CustomStringConvertible {
 }
 
 extension Archetype {
-    struct Edge: Hashable, Equatable {
+    struct Edge: Hashable, Equatable, Sendable {
         var add: [ComponentId : Archetype] = [:]
         var remove: [ComponentId : Archetype] = [:]
     }
 }
 
 // FIXME: (Vlad) not a bit set!
-struct BitSet: Equatable, Hashable {
+struct BitSet: Equatable, Hashable, Sendable {
     // TODO: (Vlad) Not efficient in memory layout.
     private var mask: Set<ComponentId>
 

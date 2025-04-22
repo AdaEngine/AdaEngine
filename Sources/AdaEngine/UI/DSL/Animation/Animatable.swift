@@ -35,7 +35,7 @@ public extension Animatable where Self.AnimatableData == EmptyAnimatableData {
     }
 }
 
-public struct EmptyAnimatableData: VectorArithmetic {
+public struct EmptyAnimatableData: VectorArithmetic, Sendable {
     public static func - (lhs: EmptyAnimatableData, rhs: EmptyAnimatableData) -> EmptyAnimatableData {
         EmptyAnimatableData(value: lhs.value - rhs.value)
     }

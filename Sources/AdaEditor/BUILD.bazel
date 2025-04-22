@@ -69,10 +69,7 @@ ada_editor_defines = select({
 })
 
 swift_ada_library(
-    name = "AdaEditor",
-    copts = [
-        "-cxx-interoperability-mode=default",
-    ],
+    name = "AdaEditor"
     data = [
         "Assets",
     ],

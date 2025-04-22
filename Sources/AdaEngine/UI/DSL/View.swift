@@ -7,6 +7,7 @@
 
 /// A type that represents part of your user interface and provides modifiers that you use to configure views.
 @_typeEraser(AnyView)
+@MainActor @preconcurrency 
 public protocol View {
     /// The type of view representing the body of this view.
     associatedtype Body: View

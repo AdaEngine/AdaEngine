@@ -6,7 +6,7 @@
 //
 
 /// An object that hold reference as weak.
-public final class WeakBox<T: AnyObject>: Identifiable, Hashable {
+public final class WeakBox<T: AnyObject>: Identifiable, Hashable, @unchecked Sendable {
     
     public private(set) weak var value: T?
     

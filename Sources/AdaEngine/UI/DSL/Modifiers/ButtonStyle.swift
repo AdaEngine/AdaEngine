@@ -69,14 +69,14 @@ public extension View {
 /// The default button style, based on the button’s context.
 public struct DefaultButtonStyle: ButtonStyle {
 
-    public nonisolated init() {}
+    public init() {}
 
     public func makeBody(configuration: Configuration) -> some View {
         configuration.label
     }
 }
 
-struct ButtonEnvironmentKey: EnvironmentKey {
+struct ButtonEnvironmentKey: @preconcurrency EnvironmentKey {
     @MainActor static let defaultValue: any ButtonStyle = DefaultButtonStyle()
 }
 

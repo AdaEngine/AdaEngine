@@ -11,7 +11,7 @@
 import Math
 
 // A texture using as a render target.
-public class RenderTexture: Texture2D {
+public final class RenderTexture: Texture2D, @unchecked Sendable {
     
     public let pixelFormat: PixelFormat
     public let scaleFactor: Float

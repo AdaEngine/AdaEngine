@@ -47,7 +47,7 @@ use_repo(
     "glslang",
     "SPIRV-Cross",
     "libpng",
-    "miniaudio"
+    "miniaudio",
 )
 
 swift_deps = use_extension(

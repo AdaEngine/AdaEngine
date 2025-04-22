@@ -8,7 +8,7 @@
 @_implementationOnly import AtlasFontGenerator
 
 /// Hold information about font data and atlas.
-final class FontHandle: Hashable, Sendable {
+final class FontHandle: Hashable, @unchecked Sendable {
     
     let atlasTexture: Texture2D
     let fontData: OpaquePointer!
@@ -45,7 +45,7 @@ final class FontHandle: Hashable, Sendable {
     }
     
     var glyphsCount: Int {
-        return font_handle_get_glyphs_count(self.fontData)
+        return Int(font_handle_get_glyphs_count(self.fontData))
     }
     
     // MARK: Hashable

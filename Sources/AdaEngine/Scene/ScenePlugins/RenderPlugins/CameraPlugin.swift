@@ -24,12 +24,12 @@ struct CameraRenderNode: RenderNode {
     
     func execute(context: Context) async -> [RenderSlotValue] {
         await context.world.performQuery(Self.query).concurrent.forEach { entity in
-            let compontents = await entity.components
-            guard let camera = await compontents[Camera.self], camera.isActive else {
+            let compontents = entity.components
+            guard let camera = compontents[Camera.self], camera.isActive else {
                 return
             }
 
-            context.runSubgraph(by: Scene2DPlugin.renderGraph, inputs: [
+            await context.runSubgraph(by: Scene2DPlugin.renderGraph, inputs: [
                 RenderSlotValue(name: Scene2DPlugin.InputNode.view, value: .entity(entity))
             ], viewEntity: entity)
         }

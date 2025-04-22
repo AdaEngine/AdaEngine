@@ -22,13 +22,11 @@ public enum ResourceError: LocalizedError {
 }
 
 // TODO: In the future, we should compile assets into binary
-// TODO: Add documentation about query
 
 /// Manager using for loading and saving resources in file system.
 /// Each resource loaded from manager stored in memory cache.
 /// If resource was loaded to memory, you recive reference to this resource.
 public final class ResourceManager {
-
     nonisolated(unsafe) private static var resourceDirectory: URL!
 
     private static let resKeyWord = "@res:"
@@ -64,7 +62,7 @@ public final class ResourceManager {
         let hasFileExt = !processedPath.url.pathExtension.isEmpty
 
         if !hasFileExt {
-            processedPath.url.appendPathExtension(R.resourceType.fileExtenstion)
+            await processedPath.url.appendPathExtension(R.resourceType.fileExtenstion)
         }
 
         guard FileSystem.current.itemExists(at: processedPath.url) else {
@@ -208,7 +206,7 @@ public final class ResourceManager {
         processedPath.url.append(path: name)
         
         if processedPath.url.pathExtension.isEmpty {
-            processedPath.url.appendPathExtension(R.resourceType.fileExtenstion)
+            await processedPath.url.appendPathExtension(R.resourceType.fileExtenstion)
         }
 
         let meta = AssetMeta(filePath: processedPath.url, queryParams: processedPath.query)
@@ -295,23 +293,34 @@ public final class ResourceManager {
 
         return resource
     }
+}
+
+extension ResourceManager {
+    struct Path {
+        var url: URL
+        let query: [AssetQuery]
+    }
+
+    static func getFilePath(from meta: ResourceMetaInfo) -> Path {
+       let processedPath = self.processPath(meta.resourcePath)
+
+       if let bundlePath = meta.bundlePath, let bundle = Bundle(path: bundlePath) {
+           if let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil) {
+               return Path(url: uri, query: processedPath.query)
+           }
+       }
+
+       return processedPath
+   }
+}
+
+private extension ResourceManager {
+
 
     // TODO: (Vlad) looks very unstable
     private static func makeCacheKey<R: Resource>(resource: R.Type, path: String) -> Int {
         let cacheKey = path + "\(UInt(bitPattern: ObjectIdentifier(resource)))"
         return cacheKey.hashValue
-    }
-    
-    internal static func getFilePath(from meta: ResourceMetaInfo) -> Path {
-        let processedPath = self.processPath(meta.resourcePath)
-        
-        if let bundlePath = meta.bundlePath, let bundle = Bundle(path: bundlePath) {
-            if let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil) {
-                return Path(url: uri, query: processedPath.query)
-            }
-        }
-        
-        return processedPath
     }
 
     /// Replace tag `@res:` to relative path or create url from given path.
@@ -352,26 +361,21 @@ public final class ResourceManager {
         }
     }
 
-    struct Path {
-        var url: URL
-        let query: [AssetQuery]
-    }
-
     /// Use Swift Coroutines but block current execution context and wait until task is done.
-    private final class UnsafeTask<T> {
+    private final class UnsafeTask<T>: @unchecked Sendable {
 
         private let semaphore = DispatchSemaphore(value: 0)
         private var result: Result<T, Error>?
 
-        init(priority: TaskPriority = .userInitiated, block: @escaping () async throws -> T) {
-            Task.detached(priority: priority) {
+        init(priority: TaskPriority = .userInitiated, block: @escaping @Sendable () async throws -> T) {
+            Task.detached(priority: priority) { @Sendable [self, semaphore] in
                 do {
                     self.result = .success(try await block())
                 } catch {
                     self.result = .failure(error)
                 }
 
-                self.semaphore.signal()
+                semaphore.signal()
             }
         }
 

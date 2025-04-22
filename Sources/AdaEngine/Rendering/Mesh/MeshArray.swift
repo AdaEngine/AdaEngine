@@ -143,19 +143,23 @@ class _MeshBuffer: Equatable {
     internal let elementType: Mesh.ElementType
     
     init<Element>(elements: [Element], indices: [UInt32], elementType: Mesh.ElementType) {
-        self.elementSize = MemoryLayout<Element>.size
+        let elementSize = MemoryLayout<Element>.size
         self.elementType = elementType
-        
-        self.bytes = UnsafeMutableRawBufferPointer.allocate(
-            byteCount: self.elementSize * elements.count,
+        self.elementSize = elementSize
+
+        let bytes = UnsafeMutableRawBufferPointer.allocate(
+            byteCount: elementSize * elements.count,
             alignment: MemoryLayout<Element>.alignment
         )
-        
-        self.bytes.baseAddress?.copyMemory(
-            from: elements,
-            byteCount: self.elementSize * elements.count
-        )
-        
+
+        withUnsafePointer(to: elements) { pointer in
+            bytes.baseAddress?.copyMemory(
+                from: pointer,
+                byteCount: elementSize * elements.count
+            )
+        }
+
+        self.bytes = bytes
         self.indicesPointer = UnsafeMutableBufferPointer<UInt32>.allocate(capacity: indices.count)
         _ = self.indicesPointer.initialize(from: indices)
     }

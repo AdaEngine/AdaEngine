@@ -6,9 +6,9 @@
 //
 
 @MainActor
-public class TileMap: Resource {
+public class TileMap: Resource, @unchecked Sendable {
 
-    public static var resourceType: ResourceType = .text
+    public static let resourceType: ResourceType = .text
 
     public var tileSet: TileSet = TileSet() {
         didSet {
@@ -18,7 +18,7 @@ public class TileMap: Resource {
 
     @Atomic public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
 
-    public var resourceMetaInfo: ResourceMetaInfo?
+    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
 
     internal private(set) var needsUpdate: Bool = false
 

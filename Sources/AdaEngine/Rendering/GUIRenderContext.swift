@@ -33,18 +33,16 @@ public struct UIGraphicsContext {
 
     @MainActor
     public init(window: UIWindow) {
-        let camera = Camera(window: window.id)
+        var camera = Camera(window: window.id)
         camera.isActive = true
         camera.projection = .orthographic
-        
         self.camera = camera
     }
     
     public init(texture: RenderTexture) {
-        let camera = Camera(renderTarget: texture)
+        var camera = Camera(renderTarget: texture)
         camera.isActive = true
         camera.projection = .orthographic
-        
         self.camera = camera
     }
     

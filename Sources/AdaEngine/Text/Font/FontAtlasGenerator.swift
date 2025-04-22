@@ -26,7 +26,7 @@ final class FontAtlasGenerator {
         atlasFontDescriptor.atlasPixelRange = 2.0
         atlasFontDescriptor.coloringSeed = 3
         atlasFontDescriptor.threads = 8
-        atlasFontDescriptor.expensiveColoring = true
+        atlasFontDescriptor.expensiveColoring = 1
         atlasFontDescriptor.emFontScale = fontDescriptor.emFontScale
         atlasFontDescriptor.atlasImageType = AFG_IMAGE_TYPE_MTSDF
         atlasFontDescriptor.miterLimit = 1.0

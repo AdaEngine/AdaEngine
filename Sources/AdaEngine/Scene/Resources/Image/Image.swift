@@ -8,7 +8,7 @@
 import Foundation
 
 /// An object that manages image data in your app.
-public final class Image {
+public final class Image: @unchecked Sendable {
     
     public private(set) var data: Data
     
@@ -118,7 +118,7 @@ public extension Image {
         }
     }
     
-    private static var loaders: [ImageLoaderStrategy] = [
+    private static let loaders: [ImageLoaderStrategy] = [
         PNGImageSerializer()
     ]
     

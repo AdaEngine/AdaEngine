@@ -23,7 +23,7 @@ public final class OrthographicCamera: Entity, @unchecked Sendable {
     public override init(name: String = "OrthographicCamera") {
         super.init(name: name)
         
-        let camera = Camera()
+        var camera = Camera()
         camera.isActive = true
         camera.projection = .orthographic
         self.components += camera
@@ -38,7 +38,7 @@ public final class OrthographicCamera: Entity, @unchecked Sendable {
     public init(name: String = "OrthographicCamera", camera: Camera) {
         super.init(name: name)
         
-        let camera = camera
+        var camera = camera
         camera.isActive = true
         camera.projection = .orthographic
         self.components += camera

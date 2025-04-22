@@ -78,7 +78,7 @@
 
 extension EntityQuery {
     @usableFromInline
-    final class State: Sendable {
+    final class State: @unchecked Sendable {
         @usableFromInline
         private(set) var archetypes: [Archetype] = []
         
@@ -95,7 +95,6 @@ extension EntityQuery {
             self.filter = filter
         }
         
-        @MainActor
         func updateArchetypes(in world: World) {
             self.world = world
             self.archetypes = world.archetypes.filter { self.predicate.evaluate($0) }
@@ -106,8 +105,8 @@ extension EntityQuery {
 // MARK: Predicate
 
 /// An object that defines the criteria for an entity query.
-public struct QueryPredicate {
-    let evaluate: (Archetype) -> Bool
+public struct QueryPredicate: Sendable {
+    let evaluate: @Sendable (Archetype) -> Bool
 }
 
 prefix public func ! (operand: QueryPredicate) -> QueryPredicate {
@@ -147,8 +146,7 @@ public extension QueryPredicate {
 }
 
 /// Contains array of entities matched for the given EntityQuery request.
-@MainActor
-public struct QueryResult: Sequence {
+public struct QueryResult: Sequence, Sendable {
 
     let state: EntityQuery.State
     
@@ -185,7 +183,6 @@ public struct QueryResult: Sequence {
 
 public extension QueryResult {
     /// This iterator iterate by each entity in passed archetype array
-    @MainActor
     struct EntityIterator: IteratorProtocol {
 
         // We use pointer to avoid additional allocation in memory

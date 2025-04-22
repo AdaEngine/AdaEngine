@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
-public struct PointInt: Codable, Equatable, Hashable, Comparable {
+public struct PointInt: Codable, Equatable, Hashable, Comparable, Sendable {
     public var x: Int
     public var y: Int
 

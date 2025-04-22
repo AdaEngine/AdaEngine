@@ -17,7 +17,7 @@ public class Material: Resource, Hashable, @unchecked Sendable {
     
     public var resourceMetaInfo: ResourceMetaInfo?
     
-    public static var resourceType: ResourceType = .material
+    public static let resourceType: ResourceType = .material
     
     let rid = RID()
     

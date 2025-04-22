@@ -60,7 +60,7 @@ public struct Main2DRenderNode: RenderNode {
             return []
         }
         
-        let (camera, renderItems) = await entity.components[Camera.self, RenderItems<Transparent2DRenderItem>.self]
+        let (camera, renderItems) = entity.components[Camera.self, RenderItems<Transparent2DRenderItem>.self]
         if case .window(let id) = camera.renderTarget, id == .empty {
             return []
         }

@@ -8,7 +8,7 @@
 #if METAL
 import MetalKit
 
-class MetalVertexBuffer: MetalBuffer, VertexBuffer {
+final class MetalVertexBuffer: MetalBuffer, VertexBuffer, @unchecked Sendable {
     
     var binding: Int
     let offset: Int

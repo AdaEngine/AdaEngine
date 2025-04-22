@@ -13,15 +13,21 @@ import Glibc
 import Darwin.C
 #endif
 
+#if canImport(WinSDK)
+import WinSDK
+#endif
+
 // swiftlint:disable identifier_name
 
-// TODO: Suppors Windows/Android/Web?
+// TODO: Suppors Android/Web?
 
 @inlinable
 @inline(__always)
 public func tanf(_ float: Float) -> Float {
 #if os(Linux)
     return Glibc.tanf(float)
+#elseif os(Windows)
+    return WinSDK.tanf(float)
 #else
     return Darwin.tanf(float)
 #endif
@@ -32,6 +38,8 @@ public func tanf(_ float: Float) -> Float {
 public func atan2(_ lhs: Double, _ rhs: Double) -> Double {
 #if os(Linux)
     return Glibc.atan2(lhs, rhs)
+#elseif os(Windows)
+    return WinSDK.atan2(lhs, rhs)
 #else
     return Darwin.atan2(lhs, rhs)
 #endif
@@ -42,6 +50,8 @@ public func atan2(_ lhs: Double, _ rhs: Double) -> Double {
 public func atan2(_ lhs: Float, _ rhs: Float) -> Float {
 #if os(Linux)
     return Glibc.atan2(lhs, rhs)
+#elseif os(Windows)
+    return WinSDK.atan2f(lhs, rhs)
 #else
     return Darwin.atan2(lhs, rhs)
 #endif
@@ -76,6 +86,13 @@ public func cross(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
 public func round<T: FloatingPoint>(_ value: T) -> T {
 #if os(Linux)
     return Glibc.round(value)
+#elseif os(Windows)
+    if let value = value as? Float {
+        return WinSDK.roundf(value) as! T
+    } else if let value = value as? Double {
+        return WinSDK.round(value) as! T
+    }
+    fatalError("Unsupported type")
 #else
     return Darwin.round(value)
 #endif
@@ -86,6 +103,8 @@ public func round<T: FloatingPoint>(_ value: T) -> T {
 public func sin(_ value: Double) -> Double {
 #if os(Linux)
     return Glibc.sin(value)
+#elseif os(Windows)
+    return WinSDK.sin(value)
 #else
     return Darwin.sin(value)
 #endif
@@ -96,6 +115,8 @@ public func sin(_ value: Double) -> Double {
 public func sin(_ value: Float) -> Float {
 #if os(Linux)
     return Glibc.sinf(value)
+#elseif os(Windows)
+    return WinSDK.sinf(value)
 #else
     return Darwin.sinf(value)
 #endif
@@ -106,6 +127,8 @@ public func sin(_ value: Float) -> Float {
 public func cos(_ value: Double) -> Double {
 #if os(Linux)
     return Glibc.cos(value)
+#elseif os(Windows)
+    return WinSDK.cos(value)
 #else
     return Darwin.cos(value)
 #endif
@@ -116,6 +139,8 @@ public func cos(_ value: Double) -> Double {
 public func cos(_ value: Float) -> Float {
 #if os(Linux)
     return Glibc.cosf(value)
+#elseif os(Windows)
+    return WinSDK.cosf(value)
 #else
     return Darwin.cosf(value)
 #endif
@@ -126,6 +151,8 @@ public func cos(_ value: Float) -> Float {
 public func acos(_ value: Float) -> Float {
 #if os(Linux)
     return Glibc.acos(value)
+#elseif os(Windows)
+    return WinSDK.acosf(value)
 #else
     return Darwin.acos(value)
 #endif
@@ -136,6 +163,8 @@ public func acos(_ value: Float) -> Float {
 public func acos(_ value: Double) -> Double {
 #if os(Linux)
     return Glibc.acos(value)
+#elseif os(Windows)
+    return WinSDK.acos(value)
 #else
     return Darwin.acos(value)
 #endif

@@ -93,7 +93,7 @@ public extension Application {
 
 public extension Application {
     @_spi(Internal)
-    public static func setApplication(_ app: Application) {
+    static func setApplication(_ app: Application) {
         self.shared = app
     }
 }

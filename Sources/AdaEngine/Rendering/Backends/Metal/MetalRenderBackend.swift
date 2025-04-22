@@ -17,6 +17,7 @@ import Math
 class MetalRenderBackend: RenderBackend {
     
     private let context: Context
+    let type: RenderBackendType = .metal
     private(set) var currentFrameIndex: Int = 0
     
     private var inFlightSemaphore: DispatchSemaphore
@@ -81,8 +82,8 @@ class MetalRenderBackend: RenderBackend {
                 return
             }
             
-            commandBuffer.addCompletedHandler { _ in
-                self.inFlightSemaphore.signal()
+            commandBuffer.addCompletedHandler { @Sendable [inFlightSemaphore] _ in
+                inFlightSemaphore.signal()
             }
 
             commandBuffer.present(drawable)
@@ -311,7 +312,7 @@ class MetalCommandBuffer: CommandBuffer {
     }
 }
 
-class MetalRenderCommandBuffer: DrawCommandBuffer {
+final class MetalRenderCommandBuffer: DrawCommandBuffer {
     let encoder: MTLRenderCommandEncoder
     let commandBuffer: MTLCommandBuffer
     
@@ -321,22 +322,6 @@ class MetalRenderCommandBuffer: DrawCommandBuffer {
     }
 }
 
-#endif
-
-// FIXME: (Vlad) Think about it
-
-public extension Bundle {
-    static var engineBundle: Bundle {
-#if SWIFT_PACKAGE && !BAZEL_BUILD
-        return Bundle.module
-#else
-        return Bundle(for: BundleToken.self)
-#endif
-    }
-}
-
-#if !SWIFT_PACKAGE || BAZEL_BUILD
-class BundleToken {}
 #endif
 
 public protocol CommandBuffer {

@@ -61,7 +61,7 @@ public class Mesh: Resource, @unchecked Sendable {
     // MARK: - Resource
     
     public var resourceMetaInfo: ResourceMetaInfo?
-    public static var resourceType: ResourceType = .mesh
+    public static let resourceType: ResourceType = .mesh
     
     public required init(asset decoder: AssetDecoder) throws {
         fatalErrorMethodNotImplemented()
