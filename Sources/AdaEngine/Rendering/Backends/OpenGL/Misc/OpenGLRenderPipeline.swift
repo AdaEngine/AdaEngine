@@ -29,9 +29,10 @@ final class OpenGLRenderPipeline: RenderPipeline {
         if !self.program.isLinked() {
             var infoLogLength: GLint = 0
             glGetProgramiv(self.program.program, GLenum(GL_INFO_LOG_LENGTH), &infoLogLength)
-            var infoLog = [GLchar](repeating: GLchar(0), count: Int(infoLogLength))
+            var infoLog = UnsafeMutablePointer<GLchar>.allocate(capacity: Int(infoLogLength))
             glGetProgramInfoLog(self.program.program, GLsizei(infoLogLength), nil, &infoLog)
             assertionFailure("Program is not linked: \(String(cString: infoLog))")
+            infoLog.deallocate()
         }
 
         self.program.validate()
