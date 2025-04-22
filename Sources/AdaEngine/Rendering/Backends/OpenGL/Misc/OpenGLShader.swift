@@ -41,10 +41,11 @@ final class OpenGLShader: CompiledShader {
             glGetShaderiv(glShader, GLenum(GL_INFO_LOG_LENGTH), &infoLogLength)
             
             if infoLogLength > 0 {
-                var infoLog = [GLchar](repeating: GLchar(0), count: Int(infoLogLength))
+                var infoLog = UnsafeMutablePointer<GLchar>.allocate(capacity: Int(infoLogLength))
                 glGetShaderInfoLog(glShader, GLsizei(infoLogLength), nil, &infoLog)
                 let errorMessage = String(cString: infoLog)
                 assertionFailure("Shader compilation failed: \(errorMessage)")
+                infoLog.deallocate()
                 // throw GLError.shaderCompilationError
             }
             assertionFailure("Shader compilation failed")
