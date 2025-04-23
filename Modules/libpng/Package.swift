@@ -17,13 +17,17 @@ let package = Package(
             targets: ["libpng"]),
     ],
     dependencies: [
-        .package(name: "ae_zlib", path: "../zlib")
+        .package(path: "../zlib")
     ],
     targets: [
         .target(
             name: "libpng",
             dependencies: [
-                .target(name: "ae_zlib", condition: .when(platforms: [.windows]))
+                .product(
+                    name: "ae_zlib", 
+                    package: "zlib", 
+                    condition: .when(platforms: [.windows, .linux])
+                )
             ],
             sources: [
                 "png.c",
