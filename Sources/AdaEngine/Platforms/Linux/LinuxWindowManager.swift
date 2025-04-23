@@ -6,7 +6,9 @@
 //
 
 #if LINUX
-import X11
+import X11.Xlib
+import X11.X
+
 
 final class LinuxWindowManager: WindowManager {
     

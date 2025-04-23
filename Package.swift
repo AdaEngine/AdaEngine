@@ -92,7 +92,9 @@ var swiftSettings: [SwiftSetting] = [
 if isVulkanEnabled {
     swiftSettings.append(.define("VULKAN"))
 } else {
+    #if canImport(Metal)
     swiftSettings.append(.define("METAL"))
+    #endif
 }
 
 let editorTarget: Target = .executableTarget(
@@ -202,12 +204,13 @@ var targets: [Target] = [
 
 #if os(Linux)
 targets += [
-    .systemLibrary(
+    .target(
         name: "X11",
-        pkgConfig: "x11",
-        providers: [
-            .apt(["libx11-dev"])
-        ]),
+        exclude: [
+            "BUILD.bazel"
+        ],
+        publicHeadersPath: "."
+    )
 ]
 #endif
 
