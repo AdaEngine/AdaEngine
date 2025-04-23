@@ -14,13 +14,20 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "MSDFAtlasGen",
-            targets: ["MSDFAtlasGen"]
+            name: "AtlasFontGenerator",
+            targets: ["AtlasFontGenerator"]
         )
     ],
     targets: [
         .target(
-            name: "MSDFGen",
+            name: "AtlasFontGenerator",
+            dependencies: [
+                "MSDFAtlasGen",
+            ],
+            path: "AtlasFontGenerator"
+        ),
+        .target(
+            name: "msdfgen",
             dependencies: [
                 "freetype",
                 "tinyxml"
@@ -35,7 +42,7 @@ let package = Package(
         .target(
             name: "MSDFAtlasGen",
             dependencies: [
-                "MSDFGen"
+                "msdfgen"
             ],
             path: "msdf-atlas-gen",
             publicHeadersPath: ".",
