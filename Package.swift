@@ -142,7 +142,11 @@ var adaEngineDependencies: [Target.Dependency] = [
 ]
 
 #if os(Linux)
-adaEngineDependencies += ["X11"]
+
+adaEngineDependencies += [
+    "X11",
+    "OpenGL"
+]
 #endif
 
 let adaEngineTarget: Target = .target(
@@ -210,7 +214,12 @@ targets += [
             "BUILD.bazel"
         ],
         publicHeadersPath: "."
-    )
+    ),
+    .systemLibrary(
+        name: "OpenGL",
+        pkgConfig: "gl",
+        providers: [.apt(["libglu1-mesa-dev", "mesa-common-dev"])]
+    ),
 ]
 #endif
 

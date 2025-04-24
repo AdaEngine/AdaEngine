@@ -1,0 +1,5 @@
+module OpenGL [system] {
+    umbrella header "OpenGL.h"
+    link "GL"
+    export *
+}
