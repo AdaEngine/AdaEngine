@@ -6,16 +6,12 @@
 //
 
 #if LINUX
-import X11.Xlib
-import X11.X
+import X11
 
-
-final class LinuxWindowManager: WindowManager {
-    
-    override func createWindow(for window: Window) {
+final class LinuxWindowManager: UIWindowManager {
+    override func createWindow(for window: UIWindow) {
         fatalErrorMethodNotImplemented()
     }
-    
 }
 
 #endif

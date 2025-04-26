@@ -1,10 +1,6 @@
 module X11 [system] {
-    header "macros.h"
-    module Xlib {
-        header "/usr/include/X11/Xlib.h"
-    }
-    module X {
-        header "/usr/include/X11/X.h"
-    }
+    umbrella header "macros.h"
     link "X11"
+    export *
+    module * { export * }
 }

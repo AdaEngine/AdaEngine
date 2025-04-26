@@ -161,7 +161,8 @@ let adaEngineTarget: Target = .target(
         .copy("Assets/Images")
     ],
     cSettings: [
-        .define("GL_SILENCE_DEPRECATION")
+        .define("GL_SILENCE_DEPRECATION", .when(platforms: applePlatforms)),
+        .define("GL_GLEXT_PROTOTYPES", .when(platforms: [.android, .linux, .windows])),
     ],
     swiftSettings: adaEngineSwiftSettings,
     plugins: commonPlugins
@@ -208,12 +209,10 @@ var targets: [Target] = [
 
 #if os(Linux)
 targets += [
-    .target(
+    .systemLibrary(
         name: "X11",
-        exclude: [
-            "BUILD.bazel"
-        ],
-        publicHeadersPath: "."
+        pkgConfig: "x11",
+        providers: [.apt(["libx11-dev"])]
     ),
     .systemLibrary(
         name: "OpenGL",

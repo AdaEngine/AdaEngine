@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/6/22.
 //
 
-@_implementationOnly import box2d
+import box2d
 import Math
 
 public protocol PhysicsWorld2DDelegate: AnyObject {
