@@ -28,6 +28,7 @@ public final class FileWatcher {
     }
 
     public func observe(on queue: DispatchQueue? = nil, block: @escaping (FileWatcher.Event) -> Void) throws -> Cancellable {
+        #if !os(Linux)
         let handle = open(url.path(), O_EVTONLY)
 
         if handle == -1 {
@@ -78,6 +79,8 @@ public final class FileWatcher {
         source.resume()
 
         return AnyCancellable(cancel)
+        #else
+        fatalError("FileWatcher is not supported on Linux")
+        #endif
     }
-
 }

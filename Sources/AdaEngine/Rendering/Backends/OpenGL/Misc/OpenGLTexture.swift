@@ -107,6 +107,7 @@ final class OpenGLTexture: GPUTexture {
                 pointer?.baseAddress
             )
         case .texture2DMultisample, .texture2DMultisampleArray:
+        #if !os(Linux)
             glTexImage2DMultisample(
                 glType,
                 GLsizei(0),
@@ -115,6 +116,7 @@ final class OpenGLTexture: GPUTexture {
                 GLsizei(descriptor.height),
                 GLboolean(GL_TRUE)
             )
+        #endif
         default:
             fatalErrorMethodNotImplemented()
         }

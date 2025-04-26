@@ -92,7 +92,9 @@ var swiftSettings: [SwiftSetting] = [
 if isVulkanEnabled {
     swiftSettings.append(.define("VULKAN"))
 } else {
+    #if canImport(Metal)
     swiftSettings.append(.define("METAL"))
+    #endif
 }
 
 let editorTarget: Target = .executableTarget(
@@ -129,18 +131,22 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
+    .product(name: "AtlasFontGenerator", package: "msdf-atlas-gen"),
+    .product(name: "SPIRVCompiler", package: "glslang"),
     "miniaudio",
-    "AtlasFontGenerator",
     "Yams",
     "libpng",
     "SPIRV-Cross",
-    "SPIRVCompiler",
     "box2d",
     "AdaEngineMacros"
 ]
 
 #if os(Linux)
-adaEngineDependencies += ["X11"]
+
+adaEngineDependencies += [
+    "X11",
+    "OpenGL"
+]
 #endif
 
 let adaEngineTarget: Target = .target(
@@ -155,7 +161,8 @@ let adaEngineTarget: Target = .target(
         .copy("Assets/Images")
     ],
     cSettings: [
-        .define("GL_SILENCE_DEPRECATION")
+        .define("GL_SILENCE_DEPRECATION", .when(platforms: applePlatforms)),
+        .define("GL_GLEXT_PROTOTYPES", .when(platforms: [.android, .linux, .windows])),
     ],
     swiftSettings: adaEngineSwiftSettings,
     plugins: commonPlugins
@@ -200,38 +207,20 @@ var targets: [Target] = [
 
 // MARK: Extra
 
-#if os(Android) || os(Linux)
+#if os(Linux)
 targets += [
     .systemLibrary(
         name: "X11",
         pkgConfig: "x11",
-        providers: [
-            .apt(["libx11-dev"])
-        ]),
+        providers: [.apt(["libx11-dev"])]
+    ),
+    .systemLibrary(
+        name: "OpenGL",
+        pkgConfig: "gl",
+        providers: [.apt(["libglu1-mesa-dev", "mesa-common-dev"])]
+    ),
 ]
 #endif
-
-// MARK: - CXX Internal Targets
-
-targets += [
-    .target(
-        name: "AtlasFontGenerator",
-        dependencies: [
-            .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
-        ],
-        publicHeadersPath: "include"
-    ),
-    .target(
-        name: "SPIRVCompiler",
-        dependencies: [
-            "glslang"
-        ],
-        publicHeadersPath: ".",
-        linkerSettings: [
-            .linkedLibrary("m", .when(platforms: [.linux]))
-        ]
-    )
-]
 
 // MARK: - Tests
 

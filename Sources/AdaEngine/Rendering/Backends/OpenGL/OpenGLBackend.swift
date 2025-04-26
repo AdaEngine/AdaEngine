@@ -34,17 +34,6 @@ final class OpenGLBackend: RenderBackend {
     init(appName: String) {
         self.context = Context()
         self.renderDevice = OpenGLRenderDevice(context: context)
-
-         #if !METAL && DEBUG
-         glEnable(GLenum(GL_DEBUG_OUTPUT))
-		 glEnable(GLenum(GL_DEBUG_OUTPUT_SYNCHRONOUS))
-		 glDebugMessageCallback({ (source: GLenum, type: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: UnsafePointer<GLchar>?, userParam: UnsafeMutableRawPointer?) in
-		     let msg = String(cString: message!)
-		     print("OpenGL Debug Message: \(msg)")
-		 }, nil)
-		
-		 glDebugMessageControl(GLenum(GL_DONT_CARE), GLenum(GL_DONT_CARE), GLenum(GL_DEBUG_SEVERITY_NOTIFICATION), 0, nil, GLboolean(GL_FALSE))
-         #endif
     }
 
     func createLocalRenderDevice() -> any RenderDevice {

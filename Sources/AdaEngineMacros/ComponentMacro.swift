@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 2/14/24.
 //
 
+import Foundation
 import SwiftDiagnostics
 import SwiftOperators
 import SwiftSyntax

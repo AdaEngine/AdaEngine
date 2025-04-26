@@ -5,12 +5,12 @@
 //  Created by v.prusakov on 3/11/23.
 //
 
-#include "spirv_compiler.h"
+#include "include/spirv_compiler.h"
 
-#include <glslang/Include/ResourceLimits.h>
-#include <glslang/Include/Types.h>
-#include <glslang/Public/ShaderLang.h>
-#include <SPIRV/GlslangToSpv.h>
+#include "glslang/Include/ResourceLimits.h"
+#include "glslang/Include/Types.h"
+#include "glslang/Public/ShaderLang.h"
+#include "SPIRV/GlslangToSpv.h"
 
 const TBuiltInResource DefaultTBuiltInResource = {
     /* .MaxLights = */ 32,

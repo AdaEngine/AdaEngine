@@ -60,16 +60,31 @@ let package = Package(
         .library(
             name: "glslang",
             targets: ["glslang"]
+        ),
+        .library(
+            name: "SPIRVCompiler",
+            targets: ["SPIRVCompiler"]
         )
     ],
     targets: [
         .target(
             name: "glslang",
-            path: ".",
+            path: "Sources",
             sources: glslangSources,
             publicHeadersPath: ".",
             cxxSettings: [
                 .define("ENABLE_OPT", to: "0"),
+            ]
+        ),
+        .target(
+            name: "SPIRVCompiler",
+            dependencies: [
+                "glslang"
+            ],
+            path: "SPIRVCompiler",
+            cxxSettings: [
+                .headerSearchPath("../Sources/glslang/Include/"),
+                .headerSearchPath("../Sources/glslang/SPIRV/")
             ]
         )
     ],

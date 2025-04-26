@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 26.07.2024.
 //
 
+import Observation
+
 /// A proxy value that supports programmatic scrolling of the scrollable views within a view hierarchy.
 ///
 /// You don’t create instances of ScrollViewProxy directly.
