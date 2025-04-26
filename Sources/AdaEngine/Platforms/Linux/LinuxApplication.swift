@@ -6,8 +6,7 @@
 //
 
 #if LINUX
-import X11.Xlib
-import X11.X
+import X11
 
 
 final class LinuxApplication: Application {

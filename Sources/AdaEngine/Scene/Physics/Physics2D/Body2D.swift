@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 3/19/23.
 //
 
-@_implementationOnly import box2d
+import box2d
 import Math
 
 // An object that represents physics 2D body.

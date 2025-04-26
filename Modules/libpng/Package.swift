@@ -26,7 +26,7 @@ let package = Package(
                 .product(
                     name: "ae_zlib", 
                     package: "zlib", 
-                    condition: .when(platforms: [.windows, .linux])
+                    condition: .when(platforms: [.windows])
                 )
             ],
             sources: [
@@ -52,7 +52,11 @@ let package = Package(
             publicHeadersPath: "include",
             cSettings: [
                 .define("PNG_ARM_NEON_OPT", to: useNeon ? "2" : "0")
-            ]),
+            ],
+            linkerSettings: [
+                .linkedFramework("z", .when(platforms: [.linux]))
+            ]
+        ),
         .testTarget(
             name: "libpngTests",
             dependencies: ["libpng"]),
