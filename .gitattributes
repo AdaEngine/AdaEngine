@@ -4,6 +4,13 @@ Modules/** linguist-vendored
 *.vert text eol=lf
 *.glsl text eol=lf
 
+/Sources/AdaEngine/AdaEngine.docc/*.png -diff -merge
+/Sources/AdaEngine/AdaEngine.docc/*.jpg -diff -merge
+/Sources/AdaEngine/AdaEngine.docc/*.jpeg -diff -merge
+/Sources/AdaEngine/AdaEngine.docc/*.ttf -diff -merge
+/Sources/AdaEngine/AdaEngine.docc/*.gif -diff -merge
+/Sources/AdaEngine/AdaEngine.docc/*.zip -diff -merge
+
 # All files that are truly binary and should not be modified.
 *.png binary
 *.jpg binary
