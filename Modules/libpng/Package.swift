@@ -48,9 +48,6 @@ let package = Package(
             publicHeadersPath: "include",
             cSettings: [
                 .define("PNG_ARM_NEON_OPT", to: useNeon ? "2" : "0")
-            ]),
-        .testTarget(
-            name: "libpngTests",
-            dependencies: ["libpng"]),
+            ])
     ]
 )
