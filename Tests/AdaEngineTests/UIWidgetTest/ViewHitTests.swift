@@ -5,12 +5,13 @@
 //  Created by vladislav.prusakov on 09.08.2024.
 //
 
-import XCTest
+import Testing
 @testable import AdaEngine
 
-final class ViewHitTests: XCTestCase {
-    @MainActor
-    func test_HitTest_OnBlueButton() {
+@MainActor
+struct ViewHitTests {
+    @Test
+    func hitTest_OnBlueButton() {
         // given
         let tester = ViewTester {
             VStack(spacing: 0) {
@@ -31,7 +32,7 @@ final class ViewHitTests: XCTestCase {
         // when
         let node = tester.click(at: Point(100, 100)) // click to center of blue
         // then
-        XCTAssertNotNil(node, "Hit test failed, we not find a first responder.")
-        XCTAssert(tester.findNodeByAccessibilityIdentifier("Blue") === node)
+        #expect(node != nil)
+        #expect(tester.findNodeByAccessibilityIdentifier("Blue") === node)
     }
 }
