@@ -501,7 +501,7 @@ private extension Surface {
         
         return Surface(vulkan: vulkan, surface: surface)
         #elseif os(Linux)
-        return makeSurfaceLinux(vulkan: vulkan, view: view)
+        return try makeSurfaceLinux(vulkan: vulkan, view: view)
         #elseif os(Windows)
         var createInfo = VkWin32SurfaceCreateInfoKHR()
         createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR
@@ -539,7 +539,8 @@ private extension Surface {
     }
 
     #if os(Linux)
-    private static func makeSurfaceLinux(vulkan: VulkanInstance, view: RenderSurface) -> Surface {
+    @MainActor
+    private static func makeSurfaceLinux(vulkan: VulkanInstance, view: RenderSurface) throws -> Surface {
         #if canImport(X11)
         var createInfo = VkXlibSurfaceCreateInfoKHR()
         createInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR
@@ -561,8 +562,8 @@ private extension Surface {
 
         var createInfo = VkWaylandSurfaceCreateInfoKHR()
         createInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR
-        createInfo.dpy = waylandView.surface
-        createInfo.window = waylandView.window
+        createInfo.surface = waylandView.surface
+        createInfo.display = waylandView.window
         
         var surface: VkSurfaceKHR?
         let result = withUnsafePointer(to: &createInfo) { ptr in

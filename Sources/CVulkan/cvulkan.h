@@ -14,6 +14,11 @@
 #include <vulkan/vulkan_xlib.h>
 #endif
 
+#if __has_include(<wayland-client.h>)
+#include <wayland-client.h>
+#include <vulkan/vulkan_wayland.h>
+#endif
+
 #else
 #include "/usr/local/include/vulkan/vulkan.h"
 #endif
