@@ -7,6 +7,12 @@
 
 @preconcurrency import Observation
 
+// FIXME: This is a little hack to avoid crash
+#if os(Android) || os(Linux)
+@_cdecl("_ZN5swift9threading5fatalEPKcz")
+func swiftThreadingFatal() { }
+#endif
+
 public extension View {
 
     /// Places an observable object in the view's environment.
