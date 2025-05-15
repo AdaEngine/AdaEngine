@@ -245,7 +245,10 @@ targets += [
     ),
     .testTarget(
         name: "MathTests",
-        dependencies: ["Math"],
+        dependencies: [
+            .product(name: "Numerics", package: "swift-numerics"),
+            "Math"
+        ],
         exclude: [
             "BUILD.bazel"
         ]
@@ -276,6 +279,7 @@ package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", from: "1.1.1"),
     .package(url: "https://github.com/jpsim/Yams", from: "5.0.1"),
     .package(url: "https://github.com/apple/swift-log", from: "1.5.4"),
+    .package(url: "https://github.com/apple/swift-numerics", from: "1.0.0"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.1"),
