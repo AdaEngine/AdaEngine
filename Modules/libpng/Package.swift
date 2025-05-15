@@ -17,13 +17,13 @@ let package = Package(
             targets: ["libpng"]),
     ],
     dependencies: [
-        .package(name: "ae_zlib", path: "../zlib")
+        .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.1")
     ],
     targets: [
         .target(
             name: "libpng",
             dependencies: [
-                .target(name: "ae_zlib", condition: .when(platforms: [.windows]))
+                .product(name: "ZLib", package: "zlib"),
             ],
             sources: [
                 "png.c",
