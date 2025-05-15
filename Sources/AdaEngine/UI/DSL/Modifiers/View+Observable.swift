@@ -7,7 +7,8 @@
 
 @preconcurrency import Observation
 
-// FIXME: This is a little hack to avoid crash
+// https://github.com/swiftlang/swift/pull/77890#issuecomment-2645596313
+// FIXME: This is a little hack to avoid crash 
 #if os(Android) || os(Linux)
 @_cdecl("_ZN5swift9threading5fatalEPKcz")
 func swiftThreadingFatal() { }
