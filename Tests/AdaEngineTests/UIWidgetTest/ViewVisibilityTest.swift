@@ -5,17 +5,17 @@
 //  Created by vladislav.prusakov on 11.08.2024.
 //
 
-import XCTest
+import Testing
 @testable import AdaEngine
 
 @MainActor
-final class ViewVisibilityTests: XCTestCase {
-
-    override func setUp() async throws {
+struct ViewVisibilityTests {
+    init() async throws {
         try Application.prepareForTest()
     }
 
-    func test_OnAppearCalled_WhenVisible() {
+    @Test
+    func onAppearCalled_WhenVisible() {
         // given
         var isAppeared = false
         let tester = ViewTester {
@@ -34,10 +34,11 @@ final class ViewVisibilityTests: XCTestCase {
         tester.simulateRenderOneFrame()
 
         // then
-        XCTAssert(isAppeared)
+        #expect(isAppeared)
     }
 
-    func test_OnAppearCalledOnce_WhenVisibleAndDrawsMultipleTimes() {
+    @Test
+    func onAppearCalledOnce_WhenVisibleAndDrawsMultipleTimes() {
         // given
         var counter = 0
         let tester = ViewTester {
@@ -59,10 +60,11 @@ final class ViewVisibilityTests: XCTestCase {
         tester.simulateRenderOneFrame()
 
         // then
-        XCTAssert(counter == 1)
+        #expect(counter == 1)
     }
 
-    func test_OnDisappearCalledOnce_WhenObjectWillMoveOut() {
+    @Test
+    func onDisappearCalledOnce_WhenObjectWillMoveOut() {
         // given
         var isDisappeared = false
         var isAppeared = false
@@ -98,7 +100,7 @@ final class ViewVisibilityTests: XCTestCase {
             .simulateRenderOneFrame()
 
         // then
-        XCTAssert(isAppeared, "Is not appeared at the first time.")
-        XCTAssert(isDisappeared, "Is not disappered after all.")
+        #expect(isAppeared, "Is not appeared at the first time.")
+        #expect(isDisappeared, "Is not disappered after all.")
     }
 }

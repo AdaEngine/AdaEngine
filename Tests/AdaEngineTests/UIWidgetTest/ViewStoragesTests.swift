@@ -5,17 +5,18 @@
 //  Created by vladislav.prusakov on 12.08.2024.
 //
 
-import XCTest
+import Testing
 @testable import AdaEngine
 
 @MainActor
-final class ViewStoragesTests: XCTestCase {
+struct ViewStoragesTests {
 
-    override func setUp() async throws {
+    init() async throws {
         try Application.prepareForTest()
     }
 
-    func test_OnAppearCalled_WhenVisible() {
+    @Test
+    func onAppearCalled_WhenVisible() {
         // given
         struct TestableView: View {
             @State private var value: String = "Value"
@@ -34,8 +35,8 @@ final class ViewStoragesTests: XCTestCase {
         // when
         let node = tester.findNodeByAccessibilityIdentifier("Test")
         // then
-        XCTAssert(node?.storages.count == 1)
-        XCTAssert(node?.storages.contains(where: { $0.propertyName == "_value" }) == true, "Incorrect name of property")
-        XCTAssert(node?.storages.contains(where: { $0 is StateStorage<String> }) == true, "Incorrect type of stored property")
+        #expect(node?.storages.count == 1)
+        #expect(node?.storages.contains(where: { $0.propertyName == "_value" }) == true, "Incorrect name of property")
+        #expect(node?.storages.contains(where: { $0 is StateStorage<String> }) == true, "Incorrect type of stored property")
     }
 }
