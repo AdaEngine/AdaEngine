@@ -5,6 +5,8 @@
 //  Created by vladislav.prusakov on 13.03.2025.
 //
 
+#if ENABLE_OPENGL
+
 #if WASM
 import WebGL
 #endif
@@ -274,3 +276,5 @@ struct OpenGLError: LocalizedError {
         return "OpenGL error \(error)"
     }
 }
+
+#endif

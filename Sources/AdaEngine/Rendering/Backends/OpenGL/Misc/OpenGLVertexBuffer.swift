@@ -5,6 +5,8 @@
 //  Created by vladislav.prusakov on 13.03.2025.
 //
 
+#if ENABLE_OPENGL
+
 #if WASM
 import WebGL
 #endif
@@ -28,3 +30,5 @@ final class OpenGLVertexBuffer: OpenGLBuffer, VertexBuffer, @unchecked Sendable 
         glBindBufferBase(target, GLuint(binding), buffer)
     }
 }
+
+#endif

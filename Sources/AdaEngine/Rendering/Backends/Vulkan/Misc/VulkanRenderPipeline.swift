@@ -10,7 +10,7 @@
 import CVulkan
 import Vulkan
 
-class VulkanRenderPipeline: RenderPipeline {
+final class VulkanRenderPipeline: RenderPipeline, @unchecked Sendable {
 
     let descriptor: RenderPipelineDescriptor
     private unowned let device: Device

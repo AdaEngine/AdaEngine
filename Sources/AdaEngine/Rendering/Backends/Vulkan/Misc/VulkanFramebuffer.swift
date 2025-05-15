@@ -10,7 +10,7 @@ import CVulkan
 import Vulkan
 import Math
 
-final class VulkanFramebuffer: Framebuffer {
+final class VulkanFramebuffer: Framebuffer, @unchecked Sendable {
 
     private(set) var attachments: [FramebufferAttachment]
     private(set) var descriptor: FramebufferDescriptor

@@ -10,7 +10,7 @@
 import CVulkan
 import Vulkan
 
-final class VulkanShader: CompiledShader {
+final class VulkanShader: CompiledShader, @unchecked Sendable {
     
     private(set) var shaderModule: VkShaderModule
     private unowned let device: Device

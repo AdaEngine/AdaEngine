@@ -1,0 +1,5 @@
+module Wayland [system] {
+    header "wayland.h"
+    link "wayland-client"
+    export *
+} 

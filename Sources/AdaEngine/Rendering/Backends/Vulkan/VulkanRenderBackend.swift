@@ -126,7 +126,7 @@ extension Texture.TextureType {
     }
 }
 
-class VulkanRenderCommandBuffer: DrawCommandBuffer {
+final class VulkanRenderCommandBuffer: DrawCommandBuffer, @unchecked Sendable {
     let framebuffer: VulkanFramebuffer
     
     init(framebuffer: VulkanFramebuffer) {

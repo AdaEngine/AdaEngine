@@ -5,6 +5,8 @@
 //  Created by vladislav.prusakov on 13.03.2025.
 //
 
+#if ENABLE_OPENGL
+
 #if WASM
 import WebGL
 #endif
@@ -179,3 +181,5 @@ final class OpenGLFramebuffer: Framebuffer, @unchecked Sendable {
         glBindFramebuffer(GLenum(GL_FRAMEBUFFER), 0)
     }
 }
+
+#endif

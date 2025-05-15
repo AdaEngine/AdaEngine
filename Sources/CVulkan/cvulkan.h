@@ -18,7 +18,6 @@
 #include "/usr/local/include/vulkan/vulkan.h"
 #endif
 
-
 static uint32_t vkApiVersion_1_2() {
     return VK_API_VERSION_1_2;
 }

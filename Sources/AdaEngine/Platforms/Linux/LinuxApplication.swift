@@ -6,8 +6,7 @@
 //
 
 #if LINUX
-import X11
-
+import Wayland
 
 final class LinuxApplication: Application {
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {

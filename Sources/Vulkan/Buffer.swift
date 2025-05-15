@@ -109,7 +109,7 @@ public final class Buffer {
 }
 
 public extension Buffer {
-    struct Usage: OptionSet {
+    struct Usage: OptionSet, Sendable {
         public var rawValue: UInt32
         
         public init(rawValue: UInt32) {

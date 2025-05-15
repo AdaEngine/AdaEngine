@@ -139,12 +139,12 @@ final class FontAtlasGenerator {
             var header = AtlasHeader(width: width, height: height, dataSize: data.count)
             withUnsafeBytes(of: &header) { ptr in
                 let bytes = ptr.baseAddress!.assumingMemoryBound(to: UInt8.self)
-                stream.write(bytes, maxLength: MemoryLayout<AtlasHeader>.stride)
+                _ = stream.write(bytes, maxLength: MemoryLayout<AtlasHeader>.stride)
             }
             
             data.withUnsafeBytes { (bufferPtr: UnsafeRawBufferPointer) in
                 let bytes = bufferPtr.baseAddress!.assumingMemoryBound(to: UInt8.self)
-                stream.write(bytes, maxLength: data.count)
+                _ = stream.write(bytes, maxLength: data.count)
             }
             
             stream.close()
@@ -170,11 +170,11 @@ final class FontAtlasGenerator {
             stream.open()
             
             let headerData: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer<UInt8>.allocate(capacity: MemoryLayout<AtlasHeader>.stride)
-            stream.read(headerData, maxLength: MemoryLayout<AtlasHeader>.size)
+            _ = stream.read(headerData, maxLength: MemoryLayout<AtlasHeader>.size)
             let atlasHeader = UnsafeRawPointer(headerData).load(as: AtlasHeader.self)
             
             let atlasData: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer<UInt8>.allocate(capacity: atlasHeader.dataSize)
-            stream.read(atlasData, maxLength: atlasHeader.dataSize)
+            _ = stream.read(atlasData, maxLength: atlasHeader.dataSize)
             let data = Data(bytes: UnsafeRawPointer(atlasData), count: atlasHeader.dataSize)
             
             defer {

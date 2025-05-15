@@ -152,7 +152,7 @@ public extension CommandBuffer {
         }
     }
     
-    struct BeginFlags: OptionSet {
+    struct BeginFlags: OptionSet, Sendable {
         public var rawValue: UInt32
         
         public init(rawValue: UInt32) {

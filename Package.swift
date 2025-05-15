@@ -12,7 +12,7 @@ import AppleProductTypes
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 import Darwin.C
 
-let isVulkanEnabled = false
+let isVulkanEnabled = true
 #else
 
 #if os(Linux)
@@ -23,7 +23,7 @@ import Glibc
 import WinSDK
 #endif
 
-let isVulkanEnabled = false
+let isVulkanEnabled = true
 #endif
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
@@ -142,10 +142,9 @@ var adaEngineDependencies: [Target.Dependency] = [
 ]
 
 #if os(Linux)
-
 adaEngineDependencies += [
-    "X11",
-    "OpenGL"
+    "Wayland",
+    // "OpenGL"
 ]
 #endif
 
@@ -210,15 +209,20 @@ var targets: [Target] = [
 #if os(Linux)
 targets += [
     .systemLibrary(
-        name: "X11",
-        pkgConfig: "x11",
-        providers: [.apt(["libx11-dev"])]
+        name: "Wayland",
+        pkgConfig: "wayland-client",
+        providers: [.apt(["libwayland-dev"])]
     ),
-    .systemLibrary(
-        name: "OpenGL",
-        pkgConfig: "gl",
-        providers: [.apt(["libglu1-mesa-dev", "mesa-common-dev"])]
-    ),
+    // .systemLibrary(
+    //     name: "X11",
+    //     pkgConfig: "x11",
+    //     providers: [.apt(["libx11-dev"])]
+    // ),
+    // .systemLibrary(
+    //     name: "OpenGL",
+    //     pkgConfig: "gl",
+    //     providers: [.apt(["libglu1-mesa-dev", "mesa-common-dev"])]
+    // ),
 ]
 #endif
 
@@ -304,6 +308,10 @@ if isVulkanEnabled {
 
                 // Windows
                 .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
+
+                // Linux
+                .define("VK_USE_PLATFORM_XCB_KHR", .when(platforms: [.linux])),
+                .define("VK_USE_PLATFORM_WAYLAND_KHR", .when(platforms: [.linux])),
             ]
         ),
         .systemLibrary(
