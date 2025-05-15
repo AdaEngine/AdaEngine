@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/22/22.
 //
 
-import XCTest
+import Testing
 @testable import Math
 
 #if canImport(simd)
@@ -16,10 +16,11 @@ import simd
 import QuartzCore
 #endif
 
-class Transform2DTests: XCTestCase {
+struct Transform2DTests {
     
     #if canImport(QuartzCore)
-    func test_transform3DToAffineTransform_Equals_QuartzAnalog() {
+    @Test
+    func transform3DToAffineTransform_Equals_QuartzAnalog() {
         // given
         let caTranslation = CATransform3DMakeTranslation(30, 4, 30)
         let caRotation = CATransform3DMakeRotation(54, 0, 1, 0)
@@ -39,7 +40,8 @@ class Transform2DTests: XCTestCase {
         TestUtils.assertEqual(cgAffine, myAffine)
     }
     
-    func test_applyingTransformOnPoint_Equals_QuartzAnalog() {
+    @Test
+    func applyingTransformOnPoint_Equals_QuartzAnalog() {
         // given
         let cgPoint = CGPoint(x: 54, y: 21)
         let point = Point(x: 54, y: 21)

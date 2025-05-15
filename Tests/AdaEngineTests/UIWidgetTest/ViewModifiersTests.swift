@@ -5,17 +5,18 @@
 //  Created by vladislav.prusakov on 12.08.2024.
 //
 
-import XCTest
+import Testing
 @testable import AdaEngine
 
 @MainActor
-final class ViewModifiersTests: XCTestCase {
+struct ViewModifiersTests {
 
-    override func setUp() async throws {
+    init() async throws {
         try Application.prepareForTest()
     }
 
-    func test_OnAppearCalled_WhenVisible() {
+    @Test
+    func onAppearCalled_WhenVisible() {
         // given
         var isChanged = false
         let tester = ViewTester {
@@ -39,7 +40,7 @@ final class ViewModifiersTests: XCTestCase {
             .invalidateContent()
 
         // then
-        XCTAssert(isChanged)
+        #expect(isChanged)
     }
 }
 

@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/4/22.
 //
 
-import XCTest
+import Testing
 
 @testable import Math
 #if canImport(simd)
@@ -16,9 +16,10 @@ import simd
 import QuartzCore
 #endif
 
-class Transform3DTests: XCTestCase {
+struct Transform3DTests {
     
-    func test_MatrixScale() {
+    @Test
+    func matrixScale() {
         // given
         var a = Transform3D(columns: [
             [1, 2, 3, 4],
@@ -38,10 +39,11 @@ class Transform3DTests: XCTestCase {
         a.scale = b
         
         // when
-        XCTAssertEqual(a, c)
+        #expect(a == c)
     }
     
-    func test_MatrixMultiply() {
+    @Test
+    func matrixMultiply() {
         // given
         
         let matA = Transform3D(
@@ -71,11 +73,12 @@ class Transform3DTests: XCTestCase {
         
         // then
         
-        XCTAssertEqual(expectedRes, res)
+        #expect(expectedRes == res)
     }
 
     #if canImport(simd)
-    func test_Transform3DMultiplicationAndSimd4x4Multiplication_Equals() {
+    @Test
+    func transform3DMultiplicationAndSimd4x4Multiplication_Equals() {
         // given
         let columns1 = [
             Vector4(1, 2, 0, 4),
@@ -99,7 +102,8 @@ class Transform3DTests: XCTestCase {
         TestUtils.assertEqual(simdMatrix, transform)
     }
     
-    func test_Transform3DInverse_and_Simd4x4Inverse_Equals() {
+    @Test
+    func transform3DInverse_and_Simd4x4Inverse_Equals() {
         // given
         let columns1 = [
             Vector4(1, 2, 5, 4),
@@ -116,7 +120,8 @@ class Transform3DTests: XCTestCase {
         TestUtils.assertEqual(simdMatrix, transform)
     }
     
-    func test_Transform3DMultiplicationAndSimd4x4Multiplication_inTRS_Equals() {
+    @Test
+    func transform3DMultiplicationAndSimd4x4Multiplication_inTRS_Equals() {
         // given
         let translation: Vector3 = [3, 10, 3]
         let rotation = simd_quatf(ix: 0, iy: 0, iz: 0, r: 1)
@@ -139,7 +144,8 @@ class Transform3DTests: XCTestCase {
         TestUtils.assertEqual(simdMatrix, transform)
     }
     
-    func test_QuatFromSimdQuat_AreEquals() {
+    @Test
+    func quatFromSimdQuat_AreEquals() {
         // given
         let simdQuat = simd_quatf(ix: 3, iy: 2, iz: 1, r: 1)
 
@@ -150,7 +156,8 @@ class Transform3DTests: XCTestCase {
         TestUtils.assertEqual(simdQuat, quat)
     }
     
-    func test_quatToMatrixAndSimdQuatToMatrix_AreEquals() {
+    @Test
+    func quatToMatrixAndSimdQuatToMatrix_AreEquals() {
         // given
         let quat = simd_quatf(ix: 3, iy: 2, iz: 1, r: 1)
         
@@ -162,7 +169,8 @@ class Transform3DTests: XCTestCase {
         TestUtils.assertEqual(simdMatrix, transform)
     }
     
-    func test_quatFromMatrixAndSimdQuatFromMatrix_AreEquals() {
+    @Test
+    func quatFromMatrixAndSimdQuatFromMatrix_AreEquals() {
         // given
         let columns = [
             Vector4(1, 2, 0, 4),
@@ -182,7 +190,8 @@ class Transform3DTests: XCTestCase {
         TestUtils.assertEqual(simdQuat, quat, accuracy: -1)
     }
     
-    func test_quatNormalizedAndSimdQuatNormalized_AreEquals() {
+    @Test
+    func quatNormalizedAndSimdQuatNormalized_AreEquals() {
         // given
         
         let quatVector = Vector4(3, 2, 1, 1)
@@ -200,7 +209,8 @@ class Transform3DTests: XCTestCase {
         TestUtils.assertEqual(simdQuatNormalized, quatNormalized)
     }
     
-    func test_Transform3DMultipleVec4_And_SimdMatrix4MultipleVec4_AreEquals() {
+    @Test
+    func transform3DMultipleVec4_And_SimdMatrix4MultipleVec4_AreEquals() {
         // given
         let columns = [
             Vector4(43, 2, 12, 4),
@@ -224,11 +234,12 @@ class Transform3DTests: XCTestCase {
         
         // then
         
-        XCTAssertEqual(simdVec, myVec.simd)
-        XCTAssertEqual(invSimdVec, invMyVec.simd)
+        #expect(simdVec == myVec.simd)
+        #expect(invSimdVec == invMyVec.simd)
     }
     
-    func test_Transform3DInitializedFromSimd4x4Matrix_AreEquals() {
+    @Test
+    func transform3DInitializedFromSimd4x4Matrix_AreEquals() {
         // given
         let simdMatrix = matrix_float4x4([1, 2, 3, 4], [5, 6, 7, 8], [9, 7, 6, 5], [2, 3, 5, 7])
         let columns = simdMatrix.columns
@@ -246,7 +257,8 @@ class Transform3DTests: XCTestCase {
         TestUtils.assertEqual(simdMatrix, transform)
     }
     
-    func test_OrthoTransform3DMultipleByVector_isEqual_SimdOrthoMyltiplyByVector() {
+    @Test
+    func orthoTransform3DMultipleByVector_isEqual_SimdOrthoMyltiplyByVector() {
         // given
         let aspectRation: Float = 800.0/600.0
         let scale: Float = 1.0
@@ -261,10 +273,11 @@ class Transform3DTests: XCTestCase {
         let resSimdVector = vector.simd * simdTransform
         
         // then
-        XCTAssertEqual(resMyVector.simd, resSimdVector)
+        #expect(resMyVector.simd == resSimdVector)
     }
     
-    func test_Transform3DRowsInit_Equals_SimdRowsInit() {
+    @Test
+    func transform3DRowsInit_Equals_SimdRowsInit() {
         // given
         let rows: [Vector4] = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 7, 6, 5], [2, 3, 5, 7]]
         let simdRows = unsafeBitCast(rows, to: [SIMD4<Float>].self)
@@ -297,7 +310,8 @@ class Transform3DTests: XCTestCase {
     
     #if canImport(QuartzCore)
     
-    func test_AffineTransformTo3D_Equals_QuartzAffineToTransform3D() {
+    @Test
+    func affineTransformTo3D_Equals_QuartzAffineToTransform3D() {
         // given
         let cgAffine = CGAffineTransform(translationX: 30, y: 4).scaledBy(x: 2, y: 2).rotated(by: 30)
         let myAffine = Transform2D(translation: [30, 4]).scaledBy(x: 2, y: 2).rotated(by: 30)
