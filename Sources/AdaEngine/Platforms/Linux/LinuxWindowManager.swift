@@ -12,15 +12,45 @@ import Wayland
 final class LinuxWindowManager: UIWindowManager {
     private(set) var display: OpaquePointer?
     private(set) var registry: OpaquePointer?
-    private(set) var compositor: OpaquePointer?
-    private(set) var shell: OpaquePointer?
-    private(set) var shm: OpaquePointer?
-    
-    override init() {
-        super.init()
-        Task { @MainActor in
-            setupWayland()
+    var compositor: OpaquePointer?
+    var shell: OpaquePointer?
+    var shm: OpaquePointer?
+
+    // Wayland registry listener
+    private var registryListener = wl_registry_listener(
+    global: { data, registry, id, interface, version in
+        let windowManager = Unmanaged<LinuxWindowManager>.fromOpaque(data!).takeUnretainedValue()
+        let interfaceName = String(cString: interface!)
+        print("Wayland interface name", interfaceName)
+        switch interfaceName {
+        case "wl_compositor":
+            var wl_compositor_interface_ptr = wl_compositor_interface
+            windowManager.compositor = OpaquePointer(
+                wl_registry_bind(registry, id, &wl_compositor_interface_ptr, min(version, 4))
+            )
+            print("new compositor", windowManager.compositor)
+        case "wl_shell":
+            var wl_shell_interface_ptr = wl_shell_interface
+            windowManager.shell = OpaquePointer(
+                wl_registry_bind(registry, id, &wl_shell_interface_ptr, min(version, 1))
+            )
+            print("new shell", windowManager.shell)
+        case "wl_shm":
+            var wl_shm_interface_ptr = wl_shm_interface
+            windowManager.shm = OpaquePointer(
+                wl_registry_bind(registry, id, &wl_shm_interface_ptr, min(version, 1))
+            )
+            print("new shm", windowManager.shm)
+        default:
+            break
         }
+    },
+    global_remove: { _, _, _ in }
+    )
+    
+    required init() {
+        super.init()
+        setupWayland()
     }
     
     private func setupWayland() {
@@ -99,26 +129,5 @@ final class LinuxWindowManager: UIWindowManager {
 }
 
 extension WaylandView: RenderSurface {}
-
-// Wayland registry listener
-nonisolated(unsafe)
-private var registryListener = wl_registry_listener(
-    global: { data, registry, id, interface, version in
-        let windowManager = Unmanaged<LinuxWindowManager>.fromOpaque(data!).takeUnretainedValue()
-        let interfaceName = String(cString: interface!)
-        
-        // switch interfaceName {
-        // case "wl_compositor":
-        //     windowManager.compositor = wl_registry_bind(registry, id, &wl_compositor_interface, min(version, 4))
-        // case "wl_shell":
-        //     windowManager.shell = wl_registry_bind(registry, id, wl_shell_interface, min(version, 1))
-        // case "wl_shm":
-        //     windowManager.shm = wl_registry_bind(registry, id, wl_shm_interface, min(version, 1))
-        // default:
-        //     break
-        // }
-    },
-    global_remove: { _, _, _ in }
-)
 
 #endif

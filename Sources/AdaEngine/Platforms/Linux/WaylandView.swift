@@ -32,6 +32,9 @@ final class WaylandView: SystemWindow {
             fatalError("Window manager is not set")
         }
 
+        print(#function)
+        print("Setup surface compositor", windowManager.compositor)
+
         // Create surface
         surface = wl_compositor_create_surface(windowManager.compositor)
         guard surface != nil else {
