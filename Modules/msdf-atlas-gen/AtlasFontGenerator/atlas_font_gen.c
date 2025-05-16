@@ -10,57 +10,53 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#ifdef _WIN32
+#include <crtdbg.h>
+#endif
 
 // Forward declarations
-struct FontGeometry;
-struct GlyphGeometry;
-struct FontMetrics;
-struct AtlasBitmap;
-struct font_atlas_descriptor;
+// struct FontGeometry;
+// struct GlyphGeometry;
+// struct FontMetrics;
+// struct AtlasBitmap;
+// struct font_atlas_descriptor;
 
-// Forward declarations of internal structures
-typedef struct FontData {
-    struct FontGeometry fontGeometry;
-    struct GlyphGeometry* glyphs;
-    size_t glyphsCount;
-} FontData;
+// typedef struct FontGeometry {
+//     const char* name;
+//     double geometryScale;
+//     double (*getAdvance)(struct FontGeometry* self, uint32_t currentUnicode, uint32_t nextUnicode);
+//     struct GlyphGeometry* (*getGlyph)(struct FontGeometry* self, uint32_t unicode);
+//     struct FontMetrics (*getMetrics)(struct FontGeometry* self);
+// } FontGeometry;
 
-typedef struct FontGeometry {
-    const char* name;
-    double geometryScale;
-    double (*getAdvance)(struct FontGeometry* self, uint32_t currentUnicode, uint32_t nextUnicode);
-    struct GlyphGeometry* (*getGlyph)(struct FontGeometry* self, uint32_t unicode);
-    struct FontMetrics (*getMetrics)(struct FontGeometry* self);
-} FontGeometry;
+// typedef struct GlyphGeometry {
+//     double advance;
+//     void (*getQuadAtlasBounds)(struct GlyphGeometry* self, double* l, double* b, double* r, double* t);
+//     void (*getQuadPlaneBounds)(struct GlyphGeometry* self, double* pl, double* pb, double* pr, double* pt);
+// } GlyphGeometry;
 
-typedef struct GlyphGeometry {
-    double advance;
-    void (*getQuadAtlasBounds)(struct GlyphGeometry* self, double* l, double* b, double* r, double* t);
-    void (*getQuadPlaneBounds)(struct GlyphGeometry* self, double* pl, double* pb, double* pr, double* pt);
-} GlyphGeometry;
+// typedef struct FontAtlasGenerator {
+//     FontData* fontData;
+//     char* fontPath;
+//     char* fontName;
+//     struct font_atlas_descriptor descriptor;
+//     AtlasBitmap* (*generateAtlasBitmap)(struct FontAtlasGenerator* self);
+// } FontAtlasGenerator;
 
-typedef struct FontAtlasGenerator {
-    FontData* fontData;
-    char* fontPath;
-    char* fontName;
-    struct font_atlas_descriptor descriptor;
-    AtlasBitmap* (*generateAtlasBitmap)(struct FontAtlasGenerator* self);
-} FontAtlasGenerator;
+// // Implementation of font_handle_s
+// struct font_handle_s {
+//     FontData* font_data;
+// };
 
-// Implementation of font_handle_s
-struct font_handle_s {
-    FontData* font_data;
-};
+// // Implementation of font_glyph_s
+// struct font_glyph_s {
+//     const GlyphGeometry* glyph;
+// };
 
-// Implementation of font_glyph_s
-struct font_glyph_s {
-    const GlyphGeometry* glyph;
-};
-
-// Implementation of font_generator_s
-struct font_generator_s {
-    FontAtlasGenerator* generator;
-};
+// // Implementation of font_generator_s
+// struct font_generator_s {
+//     FontAtlasGenerator* generator;
+// };
 
 // Function implementations
 struct font_generator_s* font_atlas_generator_create(const char* fontPath,
@@ -69,8 +65,8 @@ struct font_generator_s* font_atlas_generator_create(const char* fontPath,
     FontAtlasGenerator* font_generator = (FontAtlasGenerator*)malloc(sizeof(FontAtlasGenerator));
     if (!font_generator) return NULL;
     
-    font_generator->fontPath = strdup(fontPath);
-    font_generator->fontName = strdup(fontName);
+    font_generator->fontPath = _strdup(fontPath);
+    font_generator->fontName = _strdup(fontName);
     font_generator->descriptor = fontDescriptor;
     
     struct font_generator_s* generator = (struct font_generator_s*)malloc(sizeof(struct font_generator_s));
