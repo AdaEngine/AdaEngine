@@ -10,7 +10,7 @@
 import CVulkan
 import Vulkan
 
-final class VulkanShader: CompiledShader {
+final class VulkanShader: CompiledShader, @unchecked Sendable {
     
     private(set) var shaderModule: VkShaderModule
     private unowned let device: Device
@@ -122,18 +122,20 @@ final class VulkanShader: CompiledShader {
                 layoutBindings.append(layout)
                 writeDescriptorSet.append(set)
             }
-            
-            var createInfo = VkDescriptorSetLayoutCreateInfo(
-                sType: VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                pNext: nil,
-                flags: 0,
-                bindingCount: UInt32(layoutBindings.count),
-                pBindings: &layoutBindings
-            )
-            
+
             var descriptorSetLayout: VkDescriptorSetLayout?
-            let result = vkCreateDescriptorSetLayout(self.device.rawPointer, &createInfo, nil, &descriptorSetLayout)
+            let result = layoutBindings.withUnsafeBufferPointer { pBindings in
+                var createInfo = VkDescriptorSetLayoutCreateInfo(
+                    sType: VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                    pNext: nil,
+                    flags: 0,
+                    bindingCount: UInt32(layoutBindings.count),
+                    pBindings: pBindings.baseAddress
+                )
             
+                return vkCreateDescriptorSetLayout(self.device.rawPointer, &createInfo, nil, &descriptorSetLayout)
+            }
+
             if let descriptorSetLayout, result == VK_SUCCESS {
                 descriptorSetLayouts.append(descriptorSetLayout)
             } else {

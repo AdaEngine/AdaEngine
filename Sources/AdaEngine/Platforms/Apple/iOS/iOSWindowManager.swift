@@ -12,7 +12,6 @@ import UIKit
 final class iOSWindowManager: WindowManager {
     
     override func createWindow(for window: Window) {
-        
         let screen = UIScreen.main
         let frame = screen.bounds.toEngineRect
         
@@ -46,9 +45,7 @@ final class iOSWindowManager: WindowManager {
         }
         
         uiWindow.makeKeyAndVisible()
-        
         window.windowDidAppear()
-        
         self.setActiveWindow(window)
     }
     

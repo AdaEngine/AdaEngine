@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 2/26/23.
 //
 
-@_implementationOnly import box2d
+import box2d
 import Math
 
 @Component

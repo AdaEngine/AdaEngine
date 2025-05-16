@@ -10,7 +10,22 @@ import Foundation
 import Vulkan
 import CVulkan
 import Math
+
+#if canImport(WinSDK)
+import WinSDK
+#endif
+
+#if canImport(X11)
+import X11
+#endif
+
+#if canImport(Wayland)
+import Wayland
+#endif
+
+#if canImport(MetalKit)
 import MetalKit
+#endif
 
 extension VulkanRenderBackend {
     
@@ -273,14 +288,14 @@ extension VulkanRenderBackend {
 #endif
         }
 
+        @MainActor
         func createRenderWindow(with id: UIWindow.ID, view: RenderSurface, size: Math.SizeInt) throws {
             if self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
             
             let holder = VulkanUtils.TemporaryBufferHolder(label: "Create Vulkan Window")
-
-            let surface = try Surface(vulkan: self.instance, view: view as! MTKView)
+            let surface = try Surface.createSurface(vulkan: self.instance, view: view)
             let formats = try self.physicalDevice.surfaceFormats(for: surface)
             
             var format: VkFormat = VK_FORMAT_UNDEFINED
@@ -462,4 +477,110 @@ extension VulkanRenderBackend {
         }
     }
 }
+
+private extension Surface {
+    @MainActor
+    static func createSurface(vulkan: VulkanInstance, view: RenderSurface) throws -> Surface {
+        #if canImport(MetalKit)
+        guard let layer = (view as? MTKView)?.layer as? CAMetalLayer else {
+            throw VKError(code: VK_ERROR_INITIALIZATION_FAILED, message: "Can't cast layer to CAMetalLayer")
+        }
+        
+        var createInfo = VkMacOSSurfaceCreateInfoMVK()
+        createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+        createInfo.pView = UnsafeRawPointer(Unmanaged.passUnretained(layer).toOpaque())
+        
+        var surface: VkSurfaceKHR?
+        let result = withUnsafePointer(to: &createInfo) { ptr in
+            vkCreateMacOSSurfaceMVK(vulkan.pointer, ptr, nil, &surface)
+        }
+        
+        guard let surface = surface, result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Can't create macOS surface")
+        }
+        
+        return Surface(vulkan: vulkan, surface: surface)
+        #elseif os(Linux)
+        return try makeSurfaceLinux(vulkan: vulkan, view: view)
+        #elseif os(Windows)
+        var createInfo = VkWin32SurfaceCreateInfoKHR()
+        createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR
+        createInfo.hinstance = display
+        createInfo.hwnd = window
+
+        var surface: VkSurfaceKHR?
+        let result = withUnsafePointer(to: &createInfo) { ptr in
+            vkCreateWin32SurfaceKHR(vulkan.pointer, ptr, nil, &surface)
+        }
+        
+        guard let surface = surface, result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Can't create Windows surface")
+        }
+
+        return Surface(vulkan: vulkan, surface: surface)
+        #elseif os(Android)
+        var createInfo = VkAndroidSurfaceCreateInfoKHR()
+        createInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR
+        // createInfo.window = window
+
+        var surface: VkSurfaceKHR?
+        let result = withUnsafePointer(to: &createInfo) { ptr in
+            vkCreateAndroidSurfaceKHR(vulkan.pointer, ptr, nil, &surface)
+        }
+        
+        guard let surface = surface, result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Can't create Android surface")
+        }
+
+        return Surface(vulkan: vulkan, surface: surface)
+        #else
+        fatalError("No render surface selected")
+        #endif
+    }
+
+    #if os(Linux)
+    @MainActor
+    private static func makeSurfaceLinux(vulkan: VulkanInstance, view: RenderSurface) throws -> Surface {
+        #if canImport(X11)
+        var createInfo = VkXlibSurfaceCreateInfoKHR()
+        createInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR
+        createInfo.dpy = display
+        createInfo.window = window
+        
+        var surface: VkSurfaceKHR?
+        let result = withUnsafePointer(to: &createInfo) { ptr in
+            vkCreateXlibSurfaceKHR(vulkan.pointer, ptr, nil, &surface)
+        }
+        
+        guard let surface = surface, result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Can't create Linux X11 surface")
+        }
+        
+        self.init(vulkan: vulkan, surface: surface)
+        #elseif canImport(Wayland)
+        let waylandView = view as! WaylandView
+
+        var createInfo = VkWaylandSurfaceCreateInfoKHR()
+        createInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR
+        createInfo.surface = waylandView.surface
+        createInfo.display = waylandView.windowManager?.display
+        
+        var surface: VkSurfaceKHR?
+        let result = withUnsafePointer(to: &createInfo) { ptr in
+            vkCreateWaylandSurfaceKHR(vulkan.pointer, ptr, nil, &surface)
+        }
+        
+        guard let surface = surface, result == VK_SUCCESS else {
+            throw VKError(code: result, message: "Can't create Linux Wayland surface")
+        }
+        
+        return Surface(vulkan: vulkan, surface: surface)
+        #else
+        #error("Not supported surface")
+        fatalError("Not supported surface")
+        #endif
+    }
+    #endif
+}
+
 #endif

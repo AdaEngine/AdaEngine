@@ -10,9 +10,6 @@
 /// To get access to the application instance, use static property `shared`
 @MainActor
 open class Application {
-
-    // MARK: - Public
-    
     /// Contains application instance if application created from ``App``.
     @MainActor public internal(set) static var shared: Application!
 
@@ -38,10 +35,14 @@ open class Application {
         return .android
         #endif
     }
+
+    public class var windowManagerClass: UIWindowManager.Type {
+        UIWindowManager.self
+    }
     
     @_spi(Internal)
-    @MainActor @preconcurrency
-    public var windowManager: UIWindowManager = UIWindowManager()
+    @preconcurrency
+    public let windowManager: UIWindowManager
 
     /// Contains world which can render on screen.
     public let renderWorld = RenderWorld()
@@ -51,7 +52,9 @@ open class Application {
     public init(
         argc: Int32,
         argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
-    ) throws { }
+    ) throws {
+        self.windowManager = Self.windowManagerClass.init()
+    }
 
     /// Call this method to start main loop.
     func run() throws {
@@ -61,13 +64,11 @@ open class Application {
     // MARK: - Public methods
     
     /// Call this method to terminate app execution with 0 status code.
-    @MainActor 
     open func terminate() {
         exit(EXIT_SUCCESS)
     }
     
     /// Method to open url.
-    @MainActor
     @discardableResult
     open func openURL(_ url: URL) -> Bool {
         assertionFailure("Not implemented")
@@ -75,7 +76,6 @@ open class Application {
     }
     
     /// Call this method to show specific alert.
-    @MainActor
     open func showAlert(_ alert: Alert) {
         assertionFailure("Not implemented")
     }

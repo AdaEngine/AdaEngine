@@ -6,7 +6,6 @@
 //
 
 #if VULKAN
-
 import CVulkan
 import Vulkan
 

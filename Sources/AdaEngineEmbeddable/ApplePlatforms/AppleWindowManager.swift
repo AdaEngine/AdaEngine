@@ -14,7 +14,7 @@ final class AppleWindowManager: UIWindowManager {
     
     weak var nativeView: MetalView?
     
-    override init() { }
+    override required init() { }
     
     override func resizeWindow(_ window: UIWindow, size: Size) {
         

@@ -9,7 +9,7 @@
 import CVulkan
 import Vulkan
 
-class VulkanBuffer: Buffer {
+class VulkanBuffer: Buffer, @unchecked Sendable {
 
     private let buffer: Vulkan.Buffer
     private unowned let logicalDevice: Device

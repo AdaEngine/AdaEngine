@@ -1,5 +1,5 @@
 module X11 [system] {
-    umbrella header "x11-umbrella.h"
+    umbrella header "macros.h"
     link "X11"
     export *
     module * { export * }

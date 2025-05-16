@@ -9,7 +9,7 @@
 import CVulkan
 import Vulkan
 
-final class VulkanUniformBuffer: VulkanBuffer, UniformBuffer {
+final class VulkanUniformBuffer: VulkanBuffer, UniformBuffer, @unchecked Sendable {
     let binding: Int
 
     init(

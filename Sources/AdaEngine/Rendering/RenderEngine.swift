@@ -17,6 +17,8 @@ public final class RenderEngine: RenderBackend {
     
     public struct Configuration {
         public var maxFramesInFlight: Int = 3
+        /// Select render backend.
+        public var renderBackend: RenderBackendType = .vulkan
         public init() {}
     }
     
@@ -29,13 +31,27 @@ public final class RenderEngine: RenderBackend {
 
         let appName = "AdaEngine"
 
-         #if METAL
-         renderBackend = MetalRenderBackend(appName: appName)
-         #elseif VULKAN
-         renderBackend = VulkanRenderBackend(appName: appName)
-         #else
-         renderBackend = OpenGLBackend(appName: appName)
-         #endif
+        /// Select render backend based on the platform.
+        switch configurations.renderBackend {
+        case .metal:
+            #if METAL
+            renderBackend = MetalRenderBackend(appName: appName)
+            #else
+            fatalError("Metal is not enabled")
+            #endif
+        case .vulkan:
+            #if ENABLE_VULKAN
+            renderBackend = VulkanRenderBackend(appName: appName)
+            #else
+            fatalError("Vulkan is not enabled")
+            #endif
+        case .opengl:
+         #if ENABLE_OPENGL
+            renderBackend = OpenGLBackend(appName: appName)
+        #else
+            fatalError("No render backend selected")
+        #endif
+        }
 
         return RenderEngine(renderBackend: renderBackend)
     }()

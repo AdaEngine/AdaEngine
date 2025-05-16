@@ -15,6 +15,12 @@ public final class AppContext<T: App> {
     private var application: Application!
 
     init() throws {
+        #if METAL
+        /// By default, the render backend is set to Vulkan.
+        /// But if the Metal backend is available, it will be used instead.
+        RenderEngine.configurations.renderBackend = .metal
+        #endif
+
         self.app = T.init()
         
         let argc = CommandLine.argc
@@ -46,6 +52,7 @@ public final class AppContext<T: App> {
     }
 
     @_spi(Internal)
+    @MainActor
     public func setup() async throws {
         try ResourceManager.initialize()
         try AudioServer.initialize()

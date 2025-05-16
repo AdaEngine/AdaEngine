@@ -14,10 +14,34 @@
 #include <vulkan/vulkan_xlib.h>
 #endif
 
+#if __has_include(<wayland-client.h>)
+#include <wayland-client.h>
+#include <vulkan/vulkan_wayland.h>
+#endif
+
+#if __has_include(<vulkan/vulkan_macos.h>)
+#include <vulkan/vulkan_macos.h>
+
+typedef struct VkMetalSurfaceCreateInfoEXT_Swift {
+    VkStructureType         sType;
+    const void*             pNext;
+    VkFlags                 flags;
+    const void*             pLayer;
+} VkMetalSurfaceCreateInfoEXT_Swift;
+
+#endif
+
+#if __has_include(<vulkan/vulkan_ios.h>)
+#include <vulkan/vulkan_ios.h>
+#endif
+
+#if __has_include(<vulkan/vulkan_android.h>)
+#include <vulkan/vulkan_android.h>
+#endif
+
 #else
 #include "/usr/local/include/vulkan/vulkan.h"
 #endif
-
 
 static uint32_t vkApiVersion_1_2() {
     return VK_API_VERSION_1_2;
@@ -42,10 +66,3 @@ static uint32_t vkVersionMinor(uint32_t version) {
 static uint32_t vkVersionPatch(uint32_t version) {
     return VK_VERSION_PATCH(version);
 }
-
-typedef struct VkMetalSurfaceCreateInfoEXT_Swift {
-    VkStructureType         sType;
-    const void*             pNext;
-    VkFlags                 flags;
-    const void*             pLayer;
-} VkMetalSurfaceCreateInfoEXT_Swift;

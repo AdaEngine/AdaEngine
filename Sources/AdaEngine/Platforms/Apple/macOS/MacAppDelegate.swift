@@ -10,7 +10,13 @@ import AppKit
 import MetalKit
 
 final class MacAppDelegate: NSObject, NSApplicationDelegate {
-    
+    func applicationDidFinishLaunching(_ aNotification: Notification) {
+        print("applicationDidFinishLaunching")
+    }
+
+    func applicationWillTerminate(_ aNotification: Notification) {
+        print("applicationWillTerminate")
+    }
 }
 
 #endif

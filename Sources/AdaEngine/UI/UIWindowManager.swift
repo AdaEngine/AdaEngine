@@ -29,7 +29,7 @@ open class UIWindowManager {
     /// Contains active window if available.
     public private(set) var activeWindow: UIWindow?
 
-    public nonisolated init() { }
+    public required init() { }
 
     /// Called each frame to update windows.
     func update(_ deltaTime: TimeInterval) async {

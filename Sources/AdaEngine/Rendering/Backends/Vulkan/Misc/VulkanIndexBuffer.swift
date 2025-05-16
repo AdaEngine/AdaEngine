@@ -9,7 +9,7 @@
 import CVulkan
 import Vulkan
 
-final class VulkanIndexBuffer: VulkanBuffer, IndexBuffer {
+final class VulkanIndexBuffer: VulkanBuffer, IndexBuffer, @unchecked Sendable {
 
     let indexFormat: IndexBufferFormat
 

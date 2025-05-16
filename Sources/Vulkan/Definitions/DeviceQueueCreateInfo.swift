@@ -12,7 +12,7 @@ public struct DeviceQueueCreateInfo {
     public let queuePriorities: [Float]
     public let flags: Flags
     
-    public struct Flags: OptionSet {
+    public struct Flags: OptionSet, Sendable {
         public let rawValue: UInt32
 
         public init(rawValue: UInt32) {

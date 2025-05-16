@@ -5,6 +5,8 @@
 //  Created by vladislav.prusakov on 13.03.2025.
 //
 
+#if ENABLE_OPENGL
+
 #if WASM
 import WebGL
 #endif
@@ -107,6 +109,7 @@ final class OpenGLTexture: GPUTexture {
                 pointer?.baseAddress
             )
         case .texture2DMultisample, .texture2DMultisampleArray:
+        #if !os(Linux)
             glTexImage2DMultisample(
                 glType,
                 GLsizei(0),
@@ -115,6 +118,7 @@ final class OpenGLTexture: GPUTexture {
                 GLsizei(descriptor.height),
                 GLboolean(GL_TRUE)
             )
+        #endif
         default:
             fatalErrorMethodNotImplemented()
         }
@@ -272,3 +276,5 @@ struct OpenGLError: LocalizedError {
         return "OpenGL error \(error)"
     }
 }
+
+#endif

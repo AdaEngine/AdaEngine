@@ -9,7 +9,7 @@
 import CVulkan
 import Vulkan
 
-class VulkanVertexBuffer: VulkanBuffer, VertexBuffer {
+final class VulkanVertexBuffer: VulkanBuffer, VertexBuffer, @unchecked Sendable {
 
     var binding: Int
 

@@ -8,9 +8,8 @@
 @_spi(Internal) @testable import AdaEngine
 
 class TestApplication: Application {
-    override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        try super.init(argc: argc, argv: argv)
-        self.windowManager = MockUIWindowManager()
+    override class var windowManagerClass: UIWindowManager.Type {
+        MockUIWindowManager.self
     }
 
     convenience init() throws {
