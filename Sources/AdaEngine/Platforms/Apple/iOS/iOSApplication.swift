@@ -12,8 +12,12 @@ import UIKit
 @MainActor
 final class iOSApplication: Application {
     
-    let argc: Int32
-    let argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
+    private let argc: Int32
+    private let argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
+
+    override class var windowManagerClass: UIWindowManager.Type {
+        iOSWindowManager.self
+    }
     
     var displayLink: CADisplayLink!
     
@@ -22,7 +26,6 @@ final class iOSApplication: Application {
         self.argc = argc
         
         try super.init(argc: argc, argv: argv)
-        self.windowManager = iOSWindowManager()
     }
     
     override func run() throws {

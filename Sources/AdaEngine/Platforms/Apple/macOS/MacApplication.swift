@@ -9,13 +9,35 @@
 import AppKit
 import MetalKit
 
+// This hack to avoid using NSApplication.shared.run().
+func runLoopObserverCallback(
+    observer: CFRunLoopObserver?, 
+    activity: CFRunLoopActivity, 
+    info: UnsafeMutableRawPointer?
+) {
+    MainActor.assumeIsolated {
+        let gameLoop = Application.shared.gameLoop
+        do {
+            if !gameLoop.isIterating {
+                try gameLoop.iterate()
+            }
+        } catch {
+            print("error", error)
+        }
+    }
+    CFRunLoopWakeUp(CFRunLoopGetCurrent())
+}
+
 final class MacApplication: Application {
 
     private let delegate = MacAppDelegate()
 
+    override class var windowManagerClass: UIWindowManager.Type {
+        MacOSWindowManager.self
+    }
+
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         try super.init(argc: argc, argv: argv)
-        self.windowManager = MacOSWindowManager()
 
         // Create application
         let app = AdaApplication.shared
@@ -24,36 +46,43 @@ final class MacApplication: Application {
         app.finishLaunching()
         app.delegate = self.delegate
 
-        self.processEvents()
+        let observer = CFRunLoopObserverCreate(
+            kCFAllocatorDefault, 
+            CFRunLoopActivity.beforeWaiting.rawValue, 
+            true, 
+            0, 
+            runLoopObserverCallback, 
+            nil
+        )
+        CFRunLoopAddObserver(CFRunLoopGetCurrent(), observer, CFRunLoopMode.defaultMode)
 
+        self.processEvents()
         app.activate(ignoringOtherApps: true)
     }
 
-    private var task: Task<Void, Never>?
-
     override func run() throws {
-        task = Task { @MainActor in
-            self.gameLoop.setup()
-            do {
-                while true {
-                    try Task.checkCancellation()
-                    self.processEvents()
-                    try await self.gameLoop.iterate()
-                }
-            } catch {
-                let alert = Alert(title: "AdaEngine finished with Error", message: error.localizedDescription, buttons: [.cancel("OK", action: {
-                    exit(EXIT_FAILURE)
-                })])
-
-                Application.shared.showAlert(alert)
+        self.gameLoop.setup()
+        do {
+            while true {
+                self.processEvents()
+                try self.gameLoop.iterate()
             }
-        }
+        } catch {
+            let alert = Alert(
+                title: "AdaEngine finished with Error", message: error.localizedDescription,
+                buttons: [
+                    .cancel(
+                        "OK",
+                        action: {
+                            exit(EXIT_FAILURE)
+                        })
+                ])
 
-        NSApplication.shared.run()
+            Application.shared.showAlert(alert)
+        }
     }
 
     override func terminate() {
-        self.task?.cancel()
         NSApplication.shared.terminate(nil)
     }
 
@@ -77,7 +106,7 @@ final class MacApplication: Application {
             }
         }
 
-        let result = nsAlert.runModal() // synchronous call
+        let result = nsAlert.runModal()  // synchronous call
 
         // hack from that thread: https://stackoverflow.com/a/59245758
         let index = result.rawValue - 1000
@@ -88,7 +117,7 @@ final class MacApplication: Application {
 
     // MARK: - Private
 
-    func processEvents() {
+    func processEvents(_ until: Date = .distantPast) {
         while true {
             let event = NSApp.nextEvent(
                 matching: .any,

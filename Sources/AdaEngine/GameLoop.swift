@@ -13,7 +13,7 @@ public final class GameLoop {
     public private(set) static var current: GameLoop = GameLoop()
 
     private var lastUpdate: LongTimeInterval = 0
-
+    private var error: Error?
     private(set) var isIterating = false
 
     private var isFirstTick: Bool = true
@@ -24,36 +24,46 @@ public final class GameLoop {
         let physicsTickPerSecond = Engine.shared.physicsTickPerSecond
         self.fixedTimestep.step = 1 / TimeInterval(physicsTickPerSecond)
     }
-    
-    public func iterate() async throws {
-        if self.isIterating {
-            return
+
+    public func iterate() throws {
+        if let error = self.error {
+            throw error
         }
 
-        self.isIterating = true
-        defer { self.isIterating = false }
+        Task { @MainActor in
+            do {
+                if self.isIterating {
+                    return
+                }
 
-        let now = Time.absolute
-        let deltaTime = TimeInterval(max(0, now - self.lastUpdate))
-        self.lastUpdate = now
+                self.isIterating = true
+                defer { self.isIterating = false }
 
-        // that little hack to avoid big delta in the first tick, because delta is equals Time.absolute value.
-        if self.isFirstTick {
-            self.isFirstTick = false
-            return
+                let now = Time.absolute
+                let deltaTime = TimeInterval(max(0, now - self.lastUpdate))
+                self.lastUpdate = now
+
+                // that little hack to avoid big delta in the first tick, because delta is equals Time.absolute value.
+                if self.isFirstTick {
+                    self.isFirstTick = false
+                    return
+                }
+
+                EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
+
+                try RenderEngine.shared.beginFrame()
+
+                try await Application.shared.renderWorld.update(deltaTime)
+                await Application.shared.windowManager.update(deltaTime)
+
+                try RenderEngine.shared.endFrame()
+
+                Input.shared.removeEvents()
+
+                FPSCounter.shared.tick()
+            } catch {
+                self.error = error
+            }
         }
-
-        EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
-
-        try RenderEngine.shared.beginFrame()
-
-        try await Application.shared.renderWorld.update(deltaTime)
-        await Application.shared.windowManager.update(deltaTime)
-
-        try RenderEngine.shared.endFrame()
-
-        Input.shared.removeEvents()
-
-        FPSCounter.shared.tick()
     }
 }

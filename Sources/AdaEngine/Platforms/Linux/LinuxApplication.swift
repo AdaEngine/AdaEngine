@@ -9,32 +9,34 @@
 import Wayland
 
 final class LinuxApplication: Application {
-    private var task: Task<Void, Never>?
+    override class var windowManagerClass: UIWindowManager.Type {
+        LinuxWindowManager.self
+    }
 
-    override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        try super.init(argc: argc, argv: argv)
-        
-        self.windowManager = LinuxWindowManager()
+    private var linuxWindowManager: LinuxWindowManager {
+        windowManager as! LinuxWindowManager
     }
 
     override func run() {
-        print("LinuxApplication.run()")
-        task = Task { @MainActor in
-            self.gameLoop.setup()
-            do {
-                while true {
-                    try Task.checkCancellation()
-                    self.processEvents()
-                    try await self.gameLoop.iterate()
-                }
-            } catch {
-                fatalError("LinuxApplication.run() error: \(error)")
-                let alert = Alert(title: "AdaEngine finished with Error", message: error.localizedDescription, buttons: [.cancel("OK", action: {
-                    exit(EXIT_FAILURE)
-                })])
+        guard let display = linuxWindowManager.display else {
+            fatalError("Display is not set")
+        }
 
-                Application.shared.showAlert(alert)
+        self.gameLoop.setup()
+
+        do {
+            while true {
+                while wl_display_prepare_read(display) != 0 {
+                    wl_display_dispatch_pending(display)
+                }
+                wl_display_flush(display)
+                wl_display_read_events(display)
+                wl_display_dispatch_pending(display)
+
+                try self.gameLoop.iterate()
             }
+        } catch {
+            print("error", error)
         }
     }
 

@@ -18,7 +18,7 @@ public final class RenderEngine: RenderBackend {
     public struct Configuration {
         public var maxFramesInFlight: Int = 3
         /// Select render backend.
-        public var renderBackend: RenderBackendType = .metal
+        public var renderBackend: RenderBackendType = .vulkan
         public init() {}
     }
     

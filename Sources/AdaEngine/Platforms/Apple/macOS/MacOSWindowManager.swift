@@ -14,8 +14,6 @@ final class MacOSWindowManager: UIWindowManager {
 
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)
 
-    public nonisolated override init() { }
-
     private var menus: [UIWindow.ID: MacOSUIMenuBuilder] = [:]
 
     override func createWindow(for window: UIWindow) {

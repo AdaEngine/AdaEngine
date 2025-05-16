@@ -39,7 +39,11 @@ final class LinuxWindowManager: UIWindowManager {
         let frame = window.frame
         let size = frame.size == .zero ? minSize : frame.size
         
-        let waylandView = WaylandView(windowId: window.id, frame: frame)
+        let waylandView = WaylandView(
+            windowId: window.id, 
+            frame: frame,
+            windowManager: self
+        )
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
         
         try? RenderEngine.shared.createWindow(window.id, for: waylandView, size: sizeInt)

@@ -11,20 +11,27 @@ final class WaylandView: SystemWindow {
     private var _title: String = ""
     private var _position: Point = .zero
     private var _minSize: Size = .zero
+
+    weak var windowManager: LinuxWindowManager?
     
     let windowId: UIWindow.ID
     
-    init(windowId: UIWindow.ID, frame: Rect) {
+    init(
+        windowId: UIWindow.ID, 
+        frame: Rect,
+        windowManager: LinuxWindowManager
+    ) {
         self.windowId = windowId
         self.frame = frame
+        self.windowManager = windowManager
         setupWaylandSurface()
     }
     
     private func setupWaylandSurface() {
-        guard let windowManager = Application.shared.windowManager as? LinuxWindowManager else {
-            fatalError("Window manager is not LinuxWindowManager")
+        guard let windowManager = windowManager else {
+            fatalError("Window manager is not set")
         }
-        
+
         // Create surface
         surface = wl_compositor_create_surface(windowManager.compositor)
         guard surface != nil else {

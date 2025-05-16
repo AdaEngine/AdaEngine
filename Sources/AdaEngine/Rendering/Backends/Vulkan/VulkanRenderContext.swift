@@ -11,8 +11,8 @@ import Vulkan
 import CVulkan
 import Math
 
-#if canImport(Win32)
-import Win32
+#if canImport(WinSDK)
+import WinSDK
 #endif
 
 #if canImport(X11)
@@ -486,13 +486,13 @@ private extension Surface {
             throw VKError(code: VK_ERROR_INITIALIZATION_FAILED, message: "Can't cast layer to CAMetalLayer")
         }
         
-        var createInfo = VkMetalSurfaceCreateInfoEXT()
+        var createInfo = VkMacOSSurfaceCreateInfoMVK()
         createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
-        createInfo.pLayer = layer
+        createInfo.pView = UnsafeRawPointer(Unmanaged.passUnretained(layer).toOpaque())
         
         var surface: VkSurfaceKHR?
         let result = withUnsafePointer(to: &createInfo) { ptr in
-            vkCreateMetalSurfaceEXT(vulkan.pointer, ptr, nil, &surface)
+            vkCreateMacOSSurfaceMVK(vulkan.pointer, ptr, nil, &surface)
         }
         
         guard let surface = surface, result == VK_SUCCESS else {
@@ -563,7 +563,7 @@ private extension Surface {
         var createInfo = VkWaylandSurfaceCreateInfoKHR()
         createInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR
         createInfo.surface = waylandView.surface
-        createInfo.display = waylandView.window
+        createInfo.display = waylandView.windowManager?.display
         
         var surface: VkSurfaceKHR?
         let result = withUnsafePointer(to: &createInfo) { ptr in

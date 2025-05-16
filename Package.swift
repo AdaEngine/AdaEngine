@@ -12,7 +12,7 @@ import AppleProductTypes
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 import Darwin.C
 
-let isVulkanEnabled = true
+let isVulkanEnabled = false
 #else
 
 #if os(Linux)
