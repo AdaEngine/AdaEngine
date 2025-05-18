@@ -109,22 +109,22 @@ public struct Mesh2DRenderSystem: RenderSystem, Sendable {
         context.world.performQuery(Self.query).forEach { entity in
             for exctractedMesh in exctractedMeshes {
                 let meshes = exctractedMesh.components[ExctractedMeshes2D.self]!.meshes
-                var (visibleEntities, renderItems) = entity.components[VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
-                context.scheduler.addTask {
-                    await self.draw(
-                        meshes: meshes,
-                        visibleEntities: visibleEntities,
-                        items: &renderItems.items,
-                        keys: []
-                    )
-                    
-                    entity.components += renderItems
-                }
+                var (visibleEntities, renderItems) = entity.components[
+                    VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
+
+                self.draw(
+                    meshes: meshes,
+                    visibleEntities: visibleEntities,
+                    items: &renderItems.items,
+                    keys: []
+                )
+
+                entity.components += renderItems
             }
         }
     }
 
-    @MainActor func draw(
+    func draw(
         meshes: [ExctractedMesh2D],
         visibleEntities: VisibleEntities,
         items: inout [Transparent2DRenderItem],

@@ -32,7 +32,6 @@ public final class OrthographicCamera: Entity, @unchecked Sendable {
         self.components += GlobalViewUniformBufferSet()
         self.components += AudioReceiver()
         self.components += Transform()
-        self.components += RenderItems<Transparent2DRenderItem>()
     }
     
     /// Create a new orthograpich camera for rendering 2D and 3D items on screen.
@@ -46,6 +45,5 @@ public final class OrthographicCamera: Entity, @unchecked Sendable {
         self.components += GlobalViewUniform()
         self.components += GlobalViewUniformBufferSet()
         self.components += VisibleEntities()
-        self.components += RenderItems<Transparent2DRenderItem>()
     }
 }

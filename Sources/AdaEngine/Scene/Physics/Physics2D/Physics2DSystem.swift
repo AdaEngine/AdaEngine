@@ -36,9 +36,8 @@ public final class Physics2DSystem: System, Sendable {
     
     public func update(context: UpdateContext) {
         let result = self.fixedTimestep.advance(with: context.deltaTime)
-        let physicsBody = context.world.performQuery(Self.physicsBodyQuery)
-        let colissionBody = context.world.performQuery(Self.collisionQuery)
         let step = fixedTimestep.step
+
         context.scheduler.addTask { @MainActor in
             guard let world = context.world.physicsWorld2D else {
                 return
@@ -49,6 +48,9 @@ public final class Physics2DSystem: System, Sendable {
                 world.processContacts()
                 world.processSensors()
             }
+
+            let physicsBody = context.world.performQuery(Self.physicsBodyQuery)
+            let colissionBody = context.world.performQuery(Self.collisionQuery)
             
             self.updatePhysicsBodyEntities(physicsBody, in: world)
             self.updateCollisionEntities(colissionBody, in: world)
@@ -61,7 +63,6 @@ public final class Physics2DSystem: System, Sendable {
     private func updatePhysicsBodyEntities(_ entities: QueryResult, in world: PhysicsWorld2D) {
         for entity in entities {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
-
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
                     body.setTransform(
@@ -122,7 +123,6 @@ public final class Physics2DSystem: System, Sendable {
                     }
                 }
             }
-            
             entity.components += transform
             entity.components += physicsBody
         }

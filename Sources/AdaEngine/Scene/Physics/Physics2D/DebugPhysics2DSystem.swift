@@ -222,19 +222,17 @@ public struct Physics2DDebugDrawSystem: RenderSystem, Sendable {
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
             
-            context.scheduler.addTask {
-                await self.draw(
-                    extractedItems: exctractedValues,
-                    visibleEntities: visibleEntities,
-                    items: &renderItems.items
-                )
+            self.draw(
+                extractedItems: exctractedValues,
+                visibleEntities: visibleEntities,
+                items: &renderItems.items
+            )
                 
-                entity.components += renderItems
-            }
+            entity.components += renderItems
         }
     }
     
-    @MainActor private func draw(
+    private func draw(
         extractedItems: QueryResult,
         visibleEntities: VisibleEntities,
         items: inout [Transparent2DRenderItem]

@@ -28,33 +28,32 @@ public struct TileMapSystem: System, Sendable {
         let physicsWorld = physicsWorldEntity?.components[Physics2DWorldComponent.self]?.world
 
         for entity in context.world.performQuery(Self.tileMap) {
-            context.scheduler.addTask { @MainActor in
-                var (tileMapComponent, transform) = entity.components[TileMapComponent.self, Transform.self]
-                let tileMap = tileMapComponent.tileMap
+            var (tileMapComponent, transform) = entity.components[
+                TileMapComponent.self, Transform.self
+            ]
+            let tileMap = tileMapComponent.tileMap
 
-                if !tileMap.needsUpdate {
-                    return
-                }
-                
-                for layer in tileMap.layers {
-                    if let ent = tileMapComponent.tileLayers[layer.id] {
-                        self.setEntityActive(ent, isActive: layer.isEnabled)
-                    }
-
-                    self.addTiles(
-                        for: layer,
-                        tileMapComponent: &tileMapComponent,
-                        transform: transform,
-                        entity: entity,
-                        physicsWorld: physicsWorld,
-                        world: context.world
-                    )
-                }
-
-                entity.components += tileMapComponent
-                tileMap.updateDidFinish()
+            if !tileMap.needsUpdate {
+                return
             }
-            
+
+            for layer in tileMap.layers {
+                if let ent = tileMapComponent.tileLayers[layer.id] {
+                    self.setEntityActive(ent, isActive: layer.isEnabled)
+                }
+
+                self.addTiles(
+                    for: layer,
+                    tileMapComponent: &tileMapComponent,
+                    transform: transform,
+                    entity: entity,
+                    physicsWorld: physicsWorld,
+                    world: context.world
+                )
+            }
+
+            entity.components += tileMapComponent
+            tileMap.updateDidFinish()
         }
     }
 
@@ -66,7 +65,6 @@ public struct TileMapSystem: System, Sendable {
         }
     }
 
-    @MainActor
     private func addTiles(
         for layer: TileMapLayer,
         tileMapComponent: inout TileMapComponent,

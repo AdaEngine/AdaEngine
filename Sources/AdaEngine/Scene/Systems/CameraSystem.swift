@@ -8,6 +8,7 @@
 @_spi(Internal) import AdaECS
 
 // FIXME: Currently we render on window directly
+// TODO: Move window info to ECS system
 
 /// System for updating cameras data on scene.
 public struct CameraSystem: System, Sendable {
@@ -20,15 +21,14 @@ public struct CameraSystem: System, Sendable {
 
     public func update(context: UpdateContext) {
         context.world.performQuery(Self.query).forEach { entity in
+            guard var camera = entity.components[Camera.self] else {
+                return
+            }
+            let transform = context.world.worldTransformMatrix(for: entity)
+            let viewMatrix = transform.inverse
+            camera.viewMatrix = viewMatrix
+
             context.scheduler.addTask { @MainActor in
-                guard var camera = entity.components[Camera.self] else {
-                    return
-                }
-
-                let transform = context.world.worldTransformMatrix(for: entity)
-                let viewMatrix = transform.inverse
-                camera.viewMatrix = viewMatrix
-
                 self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
                 self.updateProjectionMatrix(for: &camera)
                 self.updateFrustum(for: &camera)
@@ -44,7 +44,10 @@ public struct CameraSystem: System, Sendable {
     }
 
     @MainActor
-    private func updateViewportSizeIfNeeded(for camera: inout Camera, window: UIWindow?) {
+    private func updateViewportSizeIfNeeded(
+        for camera: inout Camera, 
+        window: UIWindow?
+    ) {
         switch camera.renderTarget {
         case .window(let id):
             if id != window?.id {
@@ -121,31 +124,35 @@ public struct ExtractCameraSystem: System {
 
     public static let dependencies: [SystemDependency] = [.after(CameraSystem.self)]
 
-    static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self) && .has(VisibleEntities.self))
+    static let query = EntityQuery(
+        where: .has(Camera.self) && 
+        .has(Transform.self) && 
+        .has(VisibleEntities.self)
+    )
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
         context.world.performQuery(Self.query).forEach { entity in
+            let cameraEntity = Entity(name: "ExtractedCameraEntity")
+            if let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
+                let uniform = entity.components[GlobalViewUniform.self]
+            {
+
+                let buffer = bufferSet.uniformBufferSet.getBuffer(
+                    binding: GlobalBufferIndex.viewUniform,
+                    set: 0,
+                    frameIndex: RenderEngine.shared.currentFrameIndex
+                )
+
+                buffer.setData(uniform)
+            }
+
+            cameraEntity.components = entity.components
+            cameraEntity.components += RenderItems<Transparent2DRenderItem>()
+            cameraEntity.components.entity = cameraEntity
+
             context.scheduler.addTask {
-                let cameraEntity = EmptyEntity()
-
-                if
-                    let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
-                    let uniform = entity.components[GlobalViewUniform.self] {
-
-                    let buffer = bufferSet.uniformBufferSet.getBuffer(
-                        binding: GlobalBufferIndex.viewUniform,
-                        set: 0,
-                        frameIndex: RenderEngine.shared.currentFrameIndex
-                    )
-
-                    buffer.setData(uniform)
-                }
-
-                cameraEntity.components = entity.components
-                cameraEntity.components.entity = cameraEntity
-
                 await Application.shared.renderWorld.addEntity(cameraEntity)
             }
         }

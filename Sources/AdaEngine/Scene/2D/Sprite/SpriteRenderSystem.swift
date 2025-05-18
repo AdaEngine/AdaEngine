@@ -39,26 +39,24 @@ public struct SpriteRenderSystem: RenderSystem, Sendable {
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
             
-            context.scheduler.addTask {
-                for entity in extractedSprites {
-                    let extractedSprites = entity.components[ExtractedSprites.self]!
+            for entity in extractedSprites {
+                let extractedSprites = entity.components[ExtractedSprites.self]!
 
-                    await self.draw(
-                        extractedSprites: extractedSprites.sprites,
-                        visibleEntities: visibleEntities,
-                        renderItems: &renderItems
-                    )
-                }
-                
-                entity.components += renderItems
+                self.draw(
+                    extractedSprites: extractedSprites.sprites,
+                    visibleEntities: visibleEntities,
+                    renderItems: &renderItems
+                )
             }
+            
+            entity.components += renderItems
         }
     }
 
     // MARK: - Private
 
     // swiftlint:disable:next function_body_length
-    @MainActor private func draw(
+    private func draw(
         extractedSprites: [ExtractedSprite],
         visibleEntities: VisibleEntities,
         renderItems: inout RenderItems<Transparent2DRenderItem>
@@ -231,16 +229,16 @@ public struct ExtractSpriteSystem: System {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let extractedEntity = EmptyEntity()
+        let extractedEntity = Entity(name: "ExtractedSpriteEntity")
         var extractedSprites = ExtractedSprites(sprites: [])
 
         context.world.performQuery(Self.sprites).forEach { entity in
             let (sprite, globalTransform, transform, visible) = entity.components[SpriteComponent.self, GlobalTransform.self, Transform.self, Visibility.self]
 
-             if visible == .hidden {
-                 return
-             }
-
+            if visible == .hidden {
+                return
+            }
+            
             extractedSprites.sprites.append(
                 ExtractedSprite(
                     entityId: entity.id,

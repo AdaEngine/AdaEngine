@@ -8,14 +8,14 @@
 import OrderedCollections
 
 /// Contains information about execution order of systems.
-public final class SystemsGraph {
+public final class SystemsGraph: @unchecked Sendable {
 
     struct Edge: Equatable {
         let outputNode: String
         let inputNode: String
     }
     
-    struct Node {
+    struct Node: @unchecked Sendable {
         
         typealias ID = String
         
