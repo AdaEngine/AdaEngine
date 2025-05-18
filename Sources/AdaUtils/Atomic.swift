@@ -8,34 +8,6 @@
 import Foundation
 
 @propertyWrapper
-public class Atomic<Value: Sendable> {
-
-    private var value: Value
-    private let queue = DispatchQueue(label: "atomic", attributes: .concurrent)
-
-    public init(wrappedValue value: Value) {
-        self.value = value
-    }
-
-    public var wrappedValue: Value {
-        get { return load() }
-        set { store(newValue: newValue) }
-    }
-
-    func load() -> Value {
-        queue.sync {
-            return value
-        }
-    }
-
-    func store(newValue: Value) {
-        queue.async(flags: .barrier) {
-            self.value = newValue
-        }
-    }
-}
-
-@propertyWrapper
 @dynamicMemberLookup
 public final class LockProperty<Value: Sendable>: @unchecked Sendable {
     
