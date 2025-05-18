@@ -13,11 +13,11 @@
 /// including its color and whether it’s shiny or reflective. 
 /// Some components like ``Mesh2DComponent`` may have one material that defines the way AdaEngine renders the entire entity,
 /// or it may have several that define the look of different parts of the model.
-public class Material: Resource, Hashable, @unchecked Sendable {
+public class Material: Asset, Hashable, @unchecked Sendable {
     
-    public var resourceMetaInfo: ResourceMetaInfo?
+    public var assetMetaInfo: AssetMetaInfo?
     
-    public static let resourceType: ResourceType = .material
+    public static let assetType: AssetType = .material
     
     let rid = RID()
     

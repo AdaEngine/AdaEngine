@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-final class LdtkTilemapScene: Scene, TileMapDelegate, @unchecked Sendable {
+final class LdtkTilemapScene: Scene, @preconcurrency TileMapDelegate, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
         self.debugOptions = [.showPhysicsShapes]
         
@@ -23,7 +23,7 @@ final class LdtkTilemapScene: Scene, TileMapDelegate, @unchecked Sendable {
         transform.scale = Vector3(0.5)
         
         do {
-            let tileMap = try ResourceManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LDtk.TileMap
+            let tileMap = try AssetsManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LDtk.TileMap
             tileMap.delegate = self
             tileMap.loadLevel(at: 0)
             
@@ -38,7 +38,7 @@ final class LdtkTilemapScene: Scene, TileMapDelegate, @unchecked Sendable {
             fatalError("Failed to load \(error)")
         }
         
-        self.addSystem(CamMovementSystem.self)
+        self.world.addSystem(CamMovementSystem.self)
     }
     
     // MARK: - LDtk.EntityTileSourceDelegate
@@ -76,7 +76,7 @@ final class TilemapScene: Scene, @unchecked Sendable {
     }
     
     private func loadIfNeeded() {
-        let tileMap = try! ResourceManager.loadSync("/Users/vprusakov/Downloads/tilemap.res") as TileMap
+        let tileMap = try! AssetsManager.loadSync("/Users/vprusakov/Downloads/tilemap.res") as TileMap
         
         self.debugOptions = [.showPhysicsShapes]
         
@@ -98,14 +98,14 @@ final class TilemapScene: Scene, @unchecked Sendable {
         }
         
         self.world.addEntity(tilemapEnt)
-        self.addSystem(CamMovementSystem.self)
+        self.world.addSystem(CamMovementSystem.self)
     }
 
     // swiftlint:disable:next function_body_length
     private func save() {
         let tileMap = TileMap()
         
-        let image = try! ResourceManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image
+        let image = try! AssetsManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image
         let source = TextureAtlasTileSource(from: image, size: [18, 18])
         
         source.createTile(for: TileAtlasCoordinates.topLeft)
@@ -190,11 +190,11 @@ final class TilemapScene: Scene, @unchecked Sendable {
         }
         
         self.world.addEntity(tilemapEnt)
-        self.addSystem(CamMovementSystem.self)
+        self.world.addSystem(CamMovementSystem.self)
         
-        Task { @ResourceActor in
+        Task { @AssetActor in
             do {
-                try await ResourceManager.save(tileMap, at: "/Users/vprusakov/Downloads", name: "tilemap")
+                try await AssetsManager.save(tileMap, at: "/Users/vprusakov/Downloads", name: "tilemap")
             } catch {
                 print("Failed", error)
             }

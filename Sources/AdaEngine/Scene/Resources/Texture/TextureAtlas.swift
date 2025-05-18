@@ -179,11 +179,11 @@ public extension TextureAtlas {
         public override func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
 
-            if self.atlas.resourcePath.isEmpty {
+            if self.atlas.assetPath.isEmpty {
                 throw AssetDecodingError.decodingProblem("Can't encode TextureAtlas.Slice, because TextureAtlas doesn't have resource path on disk.")
             }
 
-            try container.encode(self.atlas.resourcePath, forKey: .textureAtlasResource)
+            try container.encode(self.atlas.assetPath, forKey: .textureAtlasResource)
             try container.encode(self.min, forKey: .min)
             try container.encode(self.max, forKey: .max)
             try container.encode(SizeInt(width: self.width, height: self.height), forKey: .size)

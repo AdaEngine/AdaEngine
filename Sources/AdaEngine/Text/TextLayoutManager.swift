@@ -57,7 +57,7 @@ public struct TextContainer: Hashable {
 
 /// An object that coordinates the layout and display of text characters.
 /// TextLayoutManager maps unicods characters codes to glyphs.
-public final class TextLayoutManager {
+public final class TextLayoutManager: @unchecked Sendable {
     
     enum Constants {
         static let questionMark = Character("?").unicodeScalars.first!

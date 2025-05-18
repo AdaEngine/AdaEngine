@@ -182,7 +182,7 @@ public final class World: @unchecked Sendable {
     
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
-    func tick() {
+    public func tick() {
         self.moveEntitiesToMatchedArchetypesIfNeeded()
         
         for entityId in self.removedEntities {
@@ -193,12 +193,15 @@ public final class World: @unchecked Sendable {
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
         self.updatedComponents.removeAll(keepingCapacity: true)
+        
+        print("clear all", removedEntities.count, self.addedEntities.count, self.updatedComponents)
     }
     
+    @MainActor
     public func update(_ deltaTime: TimeInterval) async {
         self.tick()
         
-        await withTaskGroup { group in
+        await withTaskGroup { @MainActor group in
             let context = SceneUpdateContext(
                 world: self,
                 deltaTime: deltaTime,
@@ -222,6 +225,12 @@ public final class World: @unchecked Sendable {
         // self.friedScriptsIndecies.removeAll(keepingCapacity: true)
     }
 }
+
+@globalActor
+public actor ECSActor {
+    public static var shared = ECSActor()
+}
+
 
 // MARK: - Private
 
@@ -247,7 +256,7 @@ extension World {
     // }
 
     // MARK: - Components Delegate
-
+    
     func entity(_ entity: Entity, didAddComponent component: Component, with identifier: ComponentId) {
         // if let script = component as? ScriptableComponent {
         //     self.addScript(script, entity: entity.id, identifier: identifier)
@@ -258,7 +267,7 @@ extension World {
 
         self.updatedEntities.insert(entity)
     }
-
+    
     func entity(_ entity: Entity, didUpdateComponent component: Component, with identifier: ComponentId) {
         // if let script = component as? ScriptableComponent {
         //     self.addScript(script, entity: entity.id, identifier: identifier)
@@ -270,7 +279,7 @@ extension World {
         self.updatedEntities.insert(entity)
         self.updatedComponents[entity, default: []].insert(identifier)
     }
-
+    
     func entity(_ entity: Entity, didRemoveComponent component: Component.Type, with identifier: ComponentId) {
         eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
 

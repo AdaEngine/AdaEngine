@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
+import Foundation
+import AdaUtils
 import Collections
 
 public extension Entity {
@@ -18,7 +20,8 @@ public extension Entity {
             return self.entity?.world
         }
         
-        private(set) var buffer: OrderedDictionary<ComponentId, Component>
+        let lock = NSRecursiveLock()
+        @LockProperty private(set) var buffer: OrderedDictionary<ComponentId, Component>
         private(set) var bitset: BitSet
         
         // MARK: - Codable
@@ -80,18 +83,20 @@ public extension Entity {
 
         /// Set the component of the specified type.
         public mutating func set<T>(_ component: T) where T : Component {
-            var isChanged = false
-            let identifier = T.identifier
-            if self.buffer[identifier] != nil {
-                isChanged = true
+            lock.lock()
+            defer {
+                lock.unlock()
             }
-
+            
+            let identifier = T.identifier
+            let isChanged = self.buffer[identifier] != nil
+            
             self.buffer[identifier] = component
             self.bitset.insert(T.self)
             guard let ent = self.entity else {
                 return
             }
-
+            
             if isChanged {
                 self.world?.entity(ent, didUpdateComponent: component, with: identifier)
             } else {
@@ -102,16 +107,9 @@ public extension Entity {
         /// Set the components of the specified type.
         public mutating func set(_ components: [Component]) {
             for component in components {
-                
                 let componentType = type(of: component)
-                
                 let identifier = componentType.identifier
-
-                var isChanged = false
-                if self.buffer[identifier] != nil {
-                    isChanged = true
-                }
-
+                let isChanged = self.buffer[identifier] != nil
                 self.buffer[identifier] = component
                 self.bitset.insert(identifier)
                 
@@ -119,6 +117,10 @@ public extension Entity {
                     continue
                 }
 
+                lock.lock()
+                defer {
+                    lock.unlock()
+                }
                 if isChanged {
                     self.world?.entity(ent, didUpdateComponent: component, with: identifier)
                 } else {
@@ -144,9 +146,8 @@ public extension Entity {
             
             self.bitset.remove(componentType)
             
-            if let ent = self.entity {
-                self.world?.entity(ent, didRemoveComponent: componentType, with: identifier)
-            }
+            guard let ent = self.entity else { return }
+            world?.entity(ent, didRemoveComponent: componentType, with: identifier)
         }
         
         /// Remove all components from set.
@@ -154,13 +155,11 @@ public extension Entity {
             for component in self.buffer.values.elements {
                 let componentType = type(of: component)
 
-                if let ent = self.entity {
-                    self.world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
-                }
+                guard let ent = self.entity else { return }
+                world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
             }
             
             self.bitset = BitSet(reservingCapacity: self.buffer.count)
-            
             self.buffer.removeAll(keepingCapacity: keepingCapacity)
         }
         
@@ -173,7 +172,7 @@ public extension Entity {
         public var isEmpty: Bool {
             return self.buffer.isEmpty
         }
-        
+  
         public func isComponentChanged<T: Component>(_ componentType: T.Type) -> Bool {
             guard let entity = self.entity else {
                 return false

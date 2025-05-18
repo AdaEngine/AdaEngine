@@ -1,5 +1,5 @@
 //
-//  ResourceManager.swift
+//  AssetsManager.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 6/19/22.
@@ -7,14 +7,14 @@
 
 import Foundation
 
-public enum ResourceError: LocalizedError {
+public enum AssetError: LocalizedError {
     case notExistAtPath(String)
     case message(String)
 
     public var errorDescription: String? {
         switch self {
         case .notExistAtPath(let path):
-            return "Resource not exists at path: \(path)"
+            return "Asset not exists at path: \(path)"
         case .message(let message):
             return message
         }
@@ -23,38 +23,38 @@ public enum ResourceError: LocalizedError {
 
 // TODO: In the future, we should compile assets into binary
 
-/// Manager using for loading and saving resources in file system.
-/// Each resource loaded from manager stored in memory cache.
-/// If resource was loaded to memory, you recive reference to this resource.
-public final class ResourceManager {
+/// Manager using for loading and saving assets in file system.
+/// Each asset loaded from manager stored in memory cache.
+/// If asset was loaded to memory, you recive reference to this resource.
+public final class AssetsManager {
     nonisolated(unsafe) private static var resourceDirectory: URL!
 
     private static let resKeyWord = "@res:"
 
-    @ResourceActor private static var loadedResources: [Int: Resource] = [:]
+    @AssetActor private static var loadedAssets: [Int: Asset] = [:]
 
     // MARK: - LOADING -
 
     /// Load a resource and saving it to memory cache. We use `@res:` prefix to link to resource folder.
     ///
     /// ```swift
-    /// let texture = try await ResourceManager.load("@res:Assets/armor.png") as Texture2D
+    /// let texture = try await AssetsManager.load("@res:Assets/armor.png") as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try await ResourceManager.load("@res:Assets/armor.png")
+    /// let texture: Texture2D = try await AssetsManager.load("@res:Assets/armor.png")
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
-    @ResourceActor
-    public static func load<R: Resource>(
+    @AssetActor
+    public static func load<A: Asset>(
         _ path: String,
         ignoreCache: Bool = false
-    ) async throws -> R {
-        let key = self.makeCacheKey(resource: R.self, path: path)
+    ) async throws -> A {
+        let key = self.makeCacheKey(resource: A.self, path: path)
 
-        if let cachedResource = self.loadedResources[key], !ignoreCache {
-            return cachedResource as! R
+        if let cachedAsset = self.loadedAssets[key], !ignoreCache {
+            return cachedAsset as! A
         }
 
         var processedPath = self.processPath(path)
@@ -62,15 +62,15 @@ public final class ResourceManager {
         let hasFileExt = !processedPath.url.pathExtension.isEmpty
 
         if !hasFileExt {
-            await processedPath.url.appendPathExtension(R.resourceType.fileExtenstion)
+            processedPath.url.appendPathExtension(A.assetType.fileExtenstion)
         }
 
         guard FileSystem.current.itemExists(at: processedPath.url) else {
-            throw ResourceError.notExistAtPath(processedPath.url.path)
+            throw AssetError.notExistAtPath(processedPath.url.path)
         }
 
-        let resource: R = try await self.load(from: processedPath, originalPath: path, bundle: nil)
-        self.loadedResources[key] = resource
+        let resource: A = try await self.load(from: processedPath, originalPath: path, bundle: nil)
+        self.loadedAssets[key] = resource
 
         return resource
     }
@@ -79,15 +79,15 @@ public final class ResourceManager {
     /// It may be useful to load resource without concurrent context.
     ///
     /// ```swift
-    /// let texture = try ResourceManager.loadSync("Assets/armor.png") as Texture2D
+    /// let texture = try AssetsManager.loadSync("Assets/armor.png") as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try ResourceManager.loadSync("Assets/armor.png")
+    /// let texture: Texture2D = try AssetsManager.loadSync("Assets/armor.png")
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
-    public static func loadSync<R: Resource>(
+    public static func loadSync<R: Asset>(
         _ path: String,
         ignoreCache: Bool = false
     ) throws -> R {
@@ -101,38 +101,38 @@ public final class ResourceManager {
     /// Load a resource and saving it to memory cache
     ///
     /// ```swift
-    /// let texture = try await ResourceManager.load("Assets/armor.png", from: Bundle.module) as Texture2D
+    /// let texture = try await AssetsManager.load("Assets/armor.png", from: Bundle.module) as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try await ResourceManager.load("Assets/armor.png", from: Bundle.module)
+    /// let texture: Texture2D = try await AssetsManager.load("Assets/armor.png", from: Bundle.module)
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Parameter bundle: Bundle where we search our resources
     /// - Returns: Instance of resource.
-    @ResourceActor
-    public static func load<R: Resource>(
+    @AssetActor
+    public static func load<A: Asset>(
         _ path: String,
         from bundle: Bundle,
         ignoreCache: Bool = false
-    ) async throws -> R {
-        let key = self.makeCacheKey(resource: R.self, path: path)
+    ) async throws -> A {
+        let key = self.makeCacheKey(resource: A.self, path: path)
 
-        if let cachedResource = self.loadedResources[key], !ignoreCache {
-            return cachedResource as! R
+        if let cachedAsset = self.loadedAssets[key], !ignoreCache {
+            return cachedAsset as! A
         }
 
         let processedPath = self.processPath(path)
         guard let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil), FileSystem.current.itemExists(at: uri) else {
-            throw ResourceError.notExistAtPath(processedPath.url.relativeString)
+            throw AssetError.notExistAtPath(processedPath.url.relativeString)
         }
 
-        let resource: R = try await self.load(
+        let resource: A = try await self.load(
             from: Path(url: uri, query: processedPath.query),
             originalPath: path,
             bundle: bundle
         )
-        self.loadedResources[key] = resource
+        self.loadedAssets[key] = resource
 
         return resource
     }
@@ -141,16 +141,16 @@ public final class ResourceManager {
     /// It may be useful to load resource without concurrent context.
     ///
     /// ```swift
-    /// let texture = try ResourceManager.loadSync("Assets/armor.png", from: Bundle.module) as Texture2D
+    /// let texture = try AssetsManager.loadSync("Assets/armor.png", from: Bundle.module) as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try ResourceManager.loadSync("Assets/armor.png", from: Bundle.module)
+    /// let texture: Texture2D = try AssetsManager.loadSync("Assets/armor.png", from: Bundle.module)
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Parameter bundle: Bundle where we search our resources
     /// - Returns: Instance of resource.
-    public static func loadSync<R: Resource>(
+    public static func loadSync<R: Asset>(
         _ path: String,
         from bundle: Bundle,
         ignoreCache: Bool = false
@@ -163,7 +163,7 @@ public final class ResourceManager {
     }
 
     /// Pre load resource in background and save it to the memory.
-    public static func preload<R: Resource>(
+    public static func preload<R: Asset>(
         _ resourceType: R.Type,
         at path: String,
         completion: (@Sendable (Result<Void, Error>) -> Void)?
@@ -174,7 +174,7 @@ public final class ResourceManager {
     }
 
     /// Load resource in background and save it to the memory.
-    public static func loadAsync<R: Resource>(
+    public static func loadAsync<R: Asset>(
         _ resourceType: R.Type,
         at path: String,
         completion: @escaping @Sendable (Result<R, Error>) -> Void
@@ -194,8 +194,8 @@ public final class ResourceManager {
     // FIXME: Use binary format for specific resource types
 
     /// Save resource at path.
-    @ResourceActor
-    public static func save<R: Resource>(
+    @AssetActor
+    public static func save<R: Asset>(
         _ resource: R,
         at path: String,
         name: String
@@ -206,7 +206,7 @@ public final class ResourceManager {
         processedPath.url.append(path: name)
         
         if processedPath.url.pathExtension.isEmpty {
-            await processedPath.url.appendPathExtension(R.resourceType.fileExtenstion)
+            processedPath.url.appendPathExtension(R.assetType.fileExtenstion)
         }
 
         let meta = AssetMeta(filePath: processedPath.url, queryParams: processedPath.query)
@@ -224,30 +224,30 @@ public final class ResourceManager {
         }
 
         guard let encodedData = defaultEncoder.encodedData else {
-            throw ResourceError.message("Can't get encoded data from resource.")
+            throw AssetError.message("Can't get encoded data from resource.")
         }
 
         if !FileSystem.current.createFile(at: processedPath.url, contents: encodedData) {
-            throw ResourceError.message("Can't create file at path \(processedPath.url.absoluteString)")
+            throw AssetError.message("Can't create file at path \(processedPath.url.absoluteString)")
         }
     }
 
     // MARK: - UNLOADING -
 
     /// Unload specific resource type from memory.
-    @ResourceActor
-    public static func unload<R: Resource>(_ res: R.Type, at path: String) {
+    @AssetActor
+    public static func unload<R: Asset>(_ res: R.Type, at path: String) {
         let key = self.makeCacheKey(resource: res, path: path)
-        self.loadedResources[key] = nil
+        self.loadedAssets[key] = nil
     }
 
     // MARK: - Public methods
 
     /// Set the root folder of all resources and remove all cached items.
-    @ResourceActor
-    public static func setResourceDirectory(_ url: URL) throws {
+    @AssetActor
+    public static func setAssetDirectory(_ url: URL) throws {
         if url.hasDirectoryPath {
-            throw ResourceError.message("URL doesn't has directory path.")
+            throw AssetError.message("URL doesn't has directory path.")
         }
 
         if !FileSystem.current.itemExists(at: url) {
@@ -256,7 +256,7 @@ public final class ResourceManager {
 
         self.resourceDirectory = url
         
-        self.loadedResources.removeAll()
+        self.loadedAssets.removeAll()
     }
 
     // MARK: - Internal
@@ -265,7 +265,7 @@ public final class ResourceManager {
     static func initialize() throws {
         let fileSystem = FileSystem.current
 
-        let resources = fileSystem.applicationFolderURL.appendingPathComponent("Resources")
+        let resources = fileSystem.applicationFolderURL.appendingPathComponent("Assets")
 
         if !fileSystem.itemExists(at: resources) {
             try fileSystem.createDirectory(at: resources, withIntermediateDirectories: true)
@@ -275,19 +275,19 @@ public final class ResourceManager {
     }
 
     // MARK: - Private
-    @ResourceActor
-    private static func load<R: Resource>(from path: Path, originalPath: String, bundle: Bundle?) async throws -> R {
+    @AssetActor
+    private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Bundle?) async throws -> A {
         guard let data = FileSystem.current.readFile(at: path.url) else {
-            throw ResourceError.notExistAtPath(path.url.path)
+            throw AssetError.notExistAtPath(path.url.path)
         }
 
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = TextAssetDecoder(meta: meta, data: data)
-        let resource = try await R.init(asset: decoder)
+        let resource = try await A.init(asset: decoder)
         
-        resource.resourceMetaInfo = ResourceMetaInfo(
-            resourcePath: originalPath,
-            resourceName: path.url.lastPathComponent,
+        resource.assetMetaInfo = AssetMetaInfo(
+            assetPath: originalPath,
+            assetName: path.url.lastPathComponent,
             bundlePath: bundle?.bundleIdentifier
         )
 
@@ -295,14 +295,14 @@ public final class ResourceManager {
     }
 }
 
-extension ResourceManager {
+extension AssetsManager {
     struct Path {
         var url: URL
         let query: [AssetQuery]
     }
 
-    static func getFilePath(from meta: ResourceMetaInfo) -> Path {
-       let processedPath = self.processPath(meta.resourcePath)
+    static func getFilePath(from meta: AssetMetaInfo) -> Path {
+       let processedPath = self.processPath(meta.assetPath)
 
        if let bundlePath = meta.bundlePath, let bundle = Bundle(path: bundlePath) {
            if let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil) {
@@ -314,11 +314,11 @@ extension ResourceManager {
    }
 }
 
-private extension ResourceManager {
+private extension AssetsManager {
 
 
     // TODO: (Vlad) looks very unstable
-    private static func makeCacheKey<R: Resource>(resource: R.Type, path: String) -> Int {
+    private static func makeCacheKey<R: Asset>(resource: R.Type, path: String) -> Int {
         let cacheKey = path + "\(UInt(bitPattern: ObjectIdentifier(resource)))"
         return cacheKey.hashValue
     }
@@ -392,6 +392,6 @@ private extension ResourceManager {
 
 /// Actor for loading and saving resources.
 @globalActor
-public actor ResourceActor {
-    public static var shared = ResourceActor()
+public actor AssetActor {
+    public static var shared = AssetActor()
 }

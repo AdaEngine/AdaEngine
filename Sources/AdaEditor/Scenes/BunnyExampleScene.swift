@@ -9,7 +9,7 @@ import AdaEngine
 
 final class ManySpritesExampleScene: Scene, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
-        let tilesImage = try! ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
+        let tilesImage = try! AssetsManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
         
         let characterAtlas = TextureAtlas(from: tilesImage, size: [18, 18])
         
@@ -20,8 +20,8 @@ final class ManySpritesExampleScene: Scene, @unchecked Sendable {
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 20
 
-        self.world.addEntity(cameraEntity)
-        self.addSystem(CamMovementSystem.self)
+        world.addEntity(cameraEntity)
+        world.addSystem(CamMovementSystem.self)
     }
     
     func spawnEntityes(atlas: TextureAtlas) {

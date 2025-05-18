@@ -7,7 +7,7 @@
 
 /// A container for attribute keys and values.
 @dynamicMemberLookup
-public struct TextAttributeContainer: Hashable {
+public struct TextAttributeContainer: Hashable, @unchecked Sendable {
     
     typealias Container = [ObjectIdentifier : AnyHashable]
     

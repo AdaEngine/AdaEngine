@@ -6,7 +6,7 @@
 //
 
 /// This component contains the set of ``UniformBuffer`` by specific binding and set.
-public protocol UniformBufferSet: AnyObject {
+public protocol UniformBufferSet: AnyObject, Sendable {
     
     /// The debug label for all created buffers.
     var label: String? { get set }

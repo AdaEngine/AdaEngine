@@ -15,9 +15,9 @@ extension LDtk {
     /// Tile map that supports LDtk file formats (`ldtk` or `json`).
     /// - Note: We only support tilesets, layers and levels.
     ///
-    /// You can load LDtk tile map using ``ResourceManager`` object.
+    /// You can load LDtk tile map using ``AssetsManager`` object.
     /// ```swift
-    /// let tileMap = try await ResourceManager.load("@res://Assets/TileMap.ldtk") as LDtkTileMap
+    /// let tileMap = try await AssetsManager.load("@res://Assets/TileMap.ldtk") as LDtkTileMap
     /// ```
     public final class TileMap: AdaEngine.TileMap, @unchecked Sendable {
 
@@ -191,7 +191,7 @@ extension LDtk {
                         .deletingLastPathComponent()
                         .appending(path: tileSource.relPath ?? "")
 
-                    let image = try await ResourceManager.load(atlasPath.absoluteString) as Image
+                    let image = try await AssetsManager.load(atlasPath.absoluteString) as Image
 
                     let source = TextureAtlasTileSource(
                         from: image,

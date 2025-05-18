@@ -135,7 +135,7 @@ extension MeshBuffer: ExpressibleByArrayLiteral {
     }
 }
 
-class _MeshBuffer: Equatable {
+class _MeshBuffer: Equatable, @unchecked Sendable {
     
     internal let bytes: UnsafeMutableRawBufferPointer
     private let indicesPointer: UnsafeMutableBufferPointer<UInt32>
@@ -411,7 +411,7 @@ public extension MeshBuffer where Element == Color {
 }
 
 /// Mesh buffer stored in the container.
-public struct AnyMeshBuffer {
+public struct AnyMeshBuffer: Sendable {
     
     typealias Buffer = _MeshBuffer
     

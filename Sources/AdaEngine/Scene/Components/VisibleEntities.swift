@@ -19,14 +19,15 @@ public struct VisibilitySystem: System {
     
     static let cameras = EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
     static let entities = EntityQuery(
-        where: .has(Transform.self) && .has(Visibility.self) && .has(BoundingComponent.self) && .without(NoFrustumCulling.self)
+        where: .has(Transform.self) && .has(Visibility.self)
+        && .has(BoundingComponent.self) && .without(NoFrustumCulling.self)
     )
     
     static let entitiesWithNoFrustum = EntityQuery(
         where: .has(Transform.self) && .has(Visibility.self) && .has(NoFrustumCulling.self)
     )
     
-    static let entitiesWithNoVisibility = EntityQuery(
+    static let entitiesWithoutVisibility = EntityQuery(
         where: .has(Transform.self) && .without(Visibility.self)
     )
     
@@ -55,7 +56,7 @@ public struct VisibilitySystem: System {
     }
     
     private func addVisibilityIfNeeded(context: UpdateContext) {
-        context.world.performQuery(Self.entitiesWithNoVisibility).forEach { entity in
+        context.world.performQuery(Self.entitiesWithoutVisibility).forEach { entity in
             entity.components += Visibility.visible
         }
     }

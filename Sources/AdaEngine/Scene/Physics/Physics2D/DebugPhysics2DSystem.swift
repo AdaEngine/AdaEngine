@@ -33,20 +33,22 @@ public struct DebugPhysicsExctract2DSystem: System {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.scheduler.addTask { @MainActor in
+        let scene = context.scene
+        
+        context.scheduler.addTask { @MainActor in    
             guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
                 return
             }
-
+            
             guard let camera = context.world.performQuery(Self.cameras).first else {
                 return
             }
-
+            
             guard let world = context.world.physicsWorld2D else {
                 return
             }
             
-            guard let window = context.scene.window else {
+            guard let window = scene.window else {
                 return
             }
             

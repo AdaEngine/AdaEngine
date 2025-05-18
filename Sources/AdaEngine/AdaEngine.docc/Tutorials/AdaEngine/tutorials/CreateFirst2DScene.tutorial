@@ -98,7 +98,7 @@
             }
             
             @Step {
-                Let's create an image from a file using a special resource manager object. ``ResourceManager`` manages and cache game and engine resources. In our case we should load an image from a file named `characters_packed.png` and use `Bundle.main` as a search path.
+                Let's create an image from a file using a special resource manager object. ``AssetsManager`` manages and cache game and engine resources. In our case we should load an image from a file named `characters_packed.png` and use `Bundle.main` as a search path.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-3-2-sprite.swift)
             }

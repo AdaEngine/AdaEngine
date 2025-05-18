@@ -9,9 +9,10 @@ import AdaECS
 import Logging
 
 /// RenderWorld that store entities for rendering. Each update tick entities removed from RenderWorld.
+@RenderGraphActor
 public final class RenderWorld: Sendable {
     let renderGraphExecutor = RenderGraphExecutor()
-    @RenderGraphActor public let renderGraph: RenderGraph = RenderGraph(label: "RenderWorld")
+    public let renderGraph: RenderGraph = RenderGraph(label: "RenderWorld")
 
     public let world: World = World()
     

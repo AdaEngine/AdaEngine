@@ -26,7 +26,7 @@ public struct ImageView: View, ViewNodeBuilder {
     }
 
     public init(_ path: String, bundle: Bundle) {
-        self.storage = .texture(try! ResourceManager.loadSync(path, from: bundle))
+        self.storage = .texture(try! AssetsManager.loadSync(path, from: bundle))
     }
 
     public init(_ texture: Texture2D) {

@@ -16,7 +16,7 @@ class MaterialStorageData {
         module.reflectionData.shaderBuffers.forEach { (bufferName, bufferDesc) in
             if self.uniformBufferSet[bufferName] == nil {
                 let bufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
-                bufferSet.label = "\(module.resourceName) \(bufferDesc.name) \(bufferDesc.shaderStage)"
+                bufferSet.label = "\(module.assetName) \(bufferDesc.name) \(bufferDesc.shaderStage)"
                 bufferSet.initBuffers(length: bufferDesc.size, binding: bufferDesc.binding, set: 0)
                 
                 self.uniformBufferSet[bufferName] = bufferSet

@@ -22,7 +22,7 @@ open class Entity: Identifiable, @unchecked Sendable {
     public private(set) var id: Int
 
     /// Contains components specific for current entity.
-    public var components: ComponentSet
+    @LockProperty public var components: ComponentSet = ComponentSet()
 
     /// A Boolean that indicates whether the entity is active.
     /// - Note:  AdaEngine doesn’t simulate or render inactive entities.
@@ -38,9 +38,6 @@ open class Entity: Identifiable, @unchecked Sendable {
     public init(name: String = "Entity") {
         self.name = name
         self.id = RID().id
-        
-        self.components = ComponentSet()
-        
         // swiftlint:disable:next inert_defer
         defer {
             self.components.entity = self

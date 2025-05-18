@@ -14,8 +14,8 @@ class SpaceInvaders: Scene, @unchecked Sendable {
     
     override func sceneDidMove(to view: SceneView) {
         self.debugOptions = [.showPhysicsShapes]
-//        let sound = try! ResourceManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
-        let charactersTiles = try! ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
+//        let sound = try! AssetsManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
+        let charactersTiles = try! AssetsManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
         self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
         
         let camera = OrthographicCamera()
@@ -33,16 +33,16 @@ class SpaceInvaders: Scene, @unchecked Sendable {
 
         // Systems
 
-        self.addSystem(MovementSystem.self)
-        self.addSystem(FireSystem.self)
-        self.addSystem(BulletSystem.self)
+        self.world.addSystem(MovementSystem.self)
+        self.world.addSystem(FireSystem.self)
+        self.world.addSystem(BulletSystem.self)
 
-        self.addSystem(EnemySpawnerSystem.self)
-        self.addSystem(EnemyMovementSystem.self)
-        self.addSystem(EnemyLifetimeSystem.self)
-        self.addSystem(EnemyExplosionSystem.self)
+        self.world.addSystem(EnemySpawnerSystem.self)
+        self.world.addSystem(EnemyMovementSystem.self)
+        self.world.addSystem(EnemyLifetimeSystem.self)
+        self.world.addSystem(EnemyExplosionSystem.self)
 
-        self.addSystem(ScoreSystem.self)
+        self.world.addSystem(ScoreSystem.self)
 
         self.subscribe(to: CollisionEvents.Began.self) { event in
             if let bullet = event.entityB.components[Bullet.self], var enemy = event.entityA.components[EnemyComponent.self] {
@@ -68,7 +68,7 @@ class SpaceInvaders: Scene, @unchecked Sendable {
 
         self.world.addEntity(player)
     }
-
+    
     private func makeScore() throws {
         var container = TextAttributeContainer()
         container.foregroundColor = .white
@@ -119,7 +119,7 @@ struct FireSystem: System {
     let laserAudio: AudioResource
 
     init(world: World) {
-        self.laserAudio = try! ResourceManager.loadSync("Assets/laserShoot.wav", from: .editor) as AudioResource
+        self.laserAudio = try! AssetsManager.loadSync("Assets/laserShoot.wav", from: .editor) as AudioResource
     }
 
     func update(context: UpdateContext) {
@@ -215,7 +215,7 @@ struct EnemySpawnerSystem: System {
 
     init(world: World) {
         do {
-            let tiles = try ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
+            let tiles = try AssetsManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
 
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
         } catch {
@@ -305,10 +305,10 @@ struct EnemyExplosionSystem: System {
 
     init(world: World) {
         do {
-            let image = try ResourceManager.loadSync("Assets/explosion.png", from: .editor) as Image
+            let image = try AssetsManager.loadSync("Assets/explosion.png", from: .editor) as Image
             self.exposionAtlas = TextureAtlas(from: image, size: SizeInt(width: 32, height: 32))
 
-            self.explosionAudio = try ResourceManager.loadSync("Assets/explosion-1.wav", from: .editor) as AudioResource
+            self.explosionAudio = try AssetsManager.loadSync("Assets/explosion-1.wav", from: .editor) as AudioResource
         } catch {
             fatalError("Can't load assets \(error)")
         }
@@ -326,7 +326,6 @@ struct EnemyExplosionSystem: System {
             let (enemy, transform) = entity.components[EnemyComponent.self, Transform.self]
 
             if enemy.health <= 0 {
-
                 scores?.components[GameState.self]?.score += 1
 
                 let texture = AnimatedTexture()
@@ -384,7 +383,7 @@ struct ScoreSystem: System {
     }
 
     func update(context: UpdateContext) {
-        context.world.performQuery(Self.scores).forEach { entity in
+        for entity in context.world.performQuery(Self.scores) {
             var (text, score) = entity.components[Text2DComponent.self, GameState.self]
             text.text = AttributedText("Score: \(score.score)", attributes: self.container)
             entity.components += text

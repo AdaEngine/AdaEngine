@@ -31,6 +31,7 @@ public final class OrthographicCamera: Entity, @unchecked Sendable {
         self.components += GlobalViewUniform()
         self.components += GlobalViewUniformBufferSet()
         self.components += AudioReceiver()
+        self.components += Transform()
         self.components += RenderItems<Transparent2DRenderItem>()
     }
     

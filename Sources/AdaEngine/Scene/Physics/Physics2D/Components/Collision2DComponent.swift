@@ -54,7 +54,7 @@ public struct Collision2DComponent {
 }
 
 public extension Collision2DComponent {
-    enum Mode: Codable {
+    enum Mode: Codable, Sendable {
         case trigger
         case `default`
     }

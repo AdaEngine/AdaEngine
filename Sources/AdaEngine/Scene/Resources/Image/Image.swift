@@ -18,7 +18,7 @@ public final class Image: @unchecked Sendable {
     // TODO: Replace it to PixelFormat
     public private(set) var format: Format
     
-    public var resourceMetaInfo: ResourceMetaInfo?
+    public var assetMetaInfo: AssetMetaInfo?
     public var samplerDescription: SamplerDescriptor = SamplerDescriptor()
     
     /// Create an empty image.
@@ -142,7 +142,7 @@ public extension Image {
     }
 }
 
-extension Image: Resource {
+extension Image: Asset {
     
     private struct ImageRepresentation: Codable {
         let imageSize: Size
@@ -187,7 +187,7 @@ extension Image: Resource {
         }
     }
     
-    public static let resourceType: ResourceType = .texture
+    public static let assetType: AssetType = .texture
 }
 
 private extension Image {
