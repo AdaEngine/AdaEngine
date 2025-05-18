@@ -11,7 +11,7 @@ struct SystemRepresentation: Codable {
     let name: String
 }
 
-struct ScenePluginRepresentation: Codable {
+struct WorldPluginRepresentation: Codable {
     let name: String
 }
 
@@ -22,7 +22,7 @@ struct ComponentRepresentation: Codable {
 struct SceneRepresentation: Codable {
     let version: Version
     let scene: String
-    let plugins: [ScenePluginRepresentation]
+    let plugins: [WorldPluginRepresentation]
     let systems: [SystemRepresentation]
     let entities: [Entity]
 }

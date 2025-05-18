@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+import AdaUtils
+
 // TODO: (Vlad) looks like codable isn't great solutions
 
 /// The base component in ECS paradigm.

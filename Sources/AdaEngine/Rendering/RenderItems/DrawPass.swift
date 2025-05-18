@@ -25,9 +25,7 @@ public struct DrawPassId: Equatable, Hashable, Sendable {
 public protocol DrawPass<Item> {
     associatedtype Item: RenderItem
     typealias Context = RenderContext
-
-    // TODO: Main Actor?
-    @MainActor
+    
     func render(in context: Context, item: Item) throws
 }
 
@@ -52,7 +50,7 @@ public struct AnyDrawPass<T: RenderItem>: DrawPass {
 }
 
 private extension DrawPass {
-    @MainActor func _render(in context: Context, item: Any) throws {
+    func _render(in context: Context, item: Any) throws {
         try self.render(in: context, item: item as! Self.Item)
     }
 }

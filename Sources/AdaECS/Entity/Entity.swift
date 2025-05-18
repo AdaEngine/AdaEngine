@@ -8,6 +8,7 @@
 // TODO: (Vlad) Make a benchmark
 // FIXME: (Vlad) I think we should store components in ComponentTable and avoid storing them in ComponentSet. (Think about after benchmark)
 
+import AdaUtils
 import OrderedCollections
 
 /// Describe an entity and his characteristics.
@@ -38,12 +39,7 @@ open class Entity: Identifiable, @unchecked Sendable {
         self.name = name
         self.id = RID().id
         
-        var components = ComponentSet()
-        components += Transform()
-        components += RelationshipComponent()
-        components += Visibility()
-        
-        self.components = components
+        self.components = ComponentSet()
         
         // swiftlint:disable:next inert_defer
         defer {

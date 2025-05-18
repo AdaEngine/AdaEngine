@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
+import AdaECS
 import Logging
 
 // FIXME: a lot of sprites drop fps.
@@ -20,13 +21,13 @@ public struct TileMapSystem: System {
     static let tileMap = EntityQuery(where: .has(TileMapComponent.self) && .has(Transform.self))
     static let physicsWorld = EntityQuery(where: .has(Physics2DWorldComponent.self))
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let physicsWorldEntity = context.scene.performQuery(Self.physicsWorld).first
+        let physicsWorldEntity = context.world.performQuery(Self.physicsWorld).first
         let physicsWorld = physicsWorldEntity?.components[Physics2DWorldComponent.self]?.world
 
-        for entity in context.scene.performQuery(Self.tileMap) {
+        for entity in context.world.performQuery(Self.tileMap) {
             var (tileMapComponent, transform) = entity.components[TileMapComponent.self, Transform.self]
             let tileMap = tileMapComponent.tileMap
 
@@ -45,17 +46,16 @@ public struct TileMapSystem: System {
                     transform: transform,
                     entity: entity,
                     physicsWorld: physicsWorld,
-                    scene: context.scene
+                    world: context.world
                 )
             }
 
             entity.components += tileMapComponent
-
             tileMap.updateDidFinish()
         }
     }
 
-    @MainActor private func setEntityActive(_ entity: Entity, isActive: Bool) {
+    private func setEntityActive(_ entity: Entity, isActive: Bool) {
         entity.isActive = isActive
 
         for child in entity.children {
@@ -63,13 +63,13 @@ public struct TileMapSystem: System {
         }
     }
 
-    @MainActor private func addTiles(
+    private func addTiles(
         for layer: TileMapLayer,
         tileMapComponent: inout TileMapComponent,
         transform: Transform,
         entity: Entity,
         physicsWorld: PhysicsWorld2D?,
-        scene: Scene
+        world: World
     ) {
         guard let tileSet = layer.tileSet else {
             return
@@ -119,13 +119,10 @@ public struct TileMapSystem: System {
 //                }
 
                 tileParent.addChild(tileEntity)
-                scene.addEntity(tileEntity)
+                world.addEntity(tileEntity)
             }
-
-            scene.addEntity(tileParent)
-
+            world.addEntity(tileParent)
             tileMapComponent.tileLayers[layer.id] = tileParent
-
             layer.updateDidFinish()
         }
     }

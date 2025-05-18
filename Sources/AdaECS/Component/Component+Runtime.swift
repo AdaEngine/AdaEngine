@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
+import Foundation
+
 // TODO: (Vlad) Add components list to editor and generate file with registered components.
 // TODO: (Vlad) We can think about `swift_getMangledTypeName` and `swift_getTypeByMangledNameInContext`
 

@@ -9,7 +9,7 @@ import Math
 
 /// A component that defines the scale, rotation, and translation of an entity.
 @Component
-public struct Transform: Codable, Hashable {
+public struct Transform: Codable, Hashable, Sendable {
     
     /// The rotation of the entity specified as a unit quaternion.
     public var rotation: Quat

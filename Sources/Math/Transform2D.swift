@@ -8,7 +8,7 @@
 // swiftlint:disable identifier_name
 
 @frozen
-public struct Transform2D: Hashable {
+public struct Transform2D: Hashable, Sendable {
     public var x: Vector3
     public var y: Vector3
     public var z: Vector3

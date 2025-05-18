@@ -236,7 +236,7 @@ extension LDtk {
 
 extension LDtk {
     
-    public class EntityTileSource: TileEntityAtlasSource {
+    public class EntityTileSource: TileEntityAtlasSource, @unchecked Sendable {
 
         weak var delegate: TileMapDelegate?
         
@@ -255,8 +255,7 @@ extension LDtk {
         public func hasTile(at atlasCoordinates: PointInt) -> Bool {
             return self.tiles[atlasCoordinates] != nil
         }
-
-        @MainActor
+        
         public func createTile(at atlasCoordinates: PointInt, entityInstance: LDtk.EntityInstance) {
             let entity = AdaEngine.Entity(name: entityInstance.identifier)
 

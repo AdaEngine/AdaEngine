@@ -5,15 +5,26 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
+import AdaUtils
+
 // TODO: Add Job Scheduler instead of System.update(_:) async
 
 /// Contains information about current scene update.
-public struct SceneUpdateContext: Sendable {
+public final class SceneUpdateContext: @unchecked Sendable {
     /// The updating scene.
-    public let scene: Scene
+    public let world: World
     
     /// The number of seconds elapsed since the last update.
-    public let deltaTime: TimeInterval
+    public let deltaTime: AdaUtils.TimeInterval
+    
+    /// Custom scheduler
+    public var scheduler: TaskGroup<Void>
+    
+    init(world: World, deltaTime: AdaUtils.TimeInterval, scheduler: TaskGroup<Void>) {
+        self.world = world
+        self.deltaTime = deltaTime
+        self.scheduler = scheduler
+    }
 }
 
 /// An object that affects multiple entities in every frame.
@@ -35,10 +46,10 @@ public struct SceneUpdateContext: Sendable {
 ///     // We want to recieve entities with `PlayerComponent` and `Transform`
 ///     static let query = EntityQuery(where: .has(Transform.self) && .has(PlayerComponent.self))
 ///
-///     init(scene: Scene) {}
+///     init(world: World) {}
 ///
 ///     func update(context: UpdateContext) {
-///         context.scene.performQuery(Self.query).forEach { entity in
+///         context.world.performQuery(Self.query).forEach { entity in
 ///             // Get transform component from entity
 ///             let transform = entity.components[Transform.self]!
 ///
@@ -57,15 +68,15 @@ public protocol System {
     typealias UpdateContext = SceneUpdateContext
     
     /// Creates a new system.
-    @MainActor @preconcurrency init(scene: Scene)
+    @preconcurrency init(world: World)
 
     /// Updates entities every frame.
-    @MainActor func update(context: UpdateContext)
+    func update(context: UpdateContext)
 
     // MARK: Dependencies
     
     /// An array of dependencies for this system.
-    @MainActor static var dependencies: [SystemDependency] { get }
+    static var dependencies: [SystemDependency] { get }
 }
 
 public extension System {

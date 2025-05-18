@@ -72,7 +72,7 @@ public extension CodingUserInfoKey {
 }
 
 /// Context contains all resolved resources from decoding.
-public final class AssetDecodingContext {
+public final class AssetDecodingContext: @unchecked Sendable {
 
     private var resources: [String: WeakBox<AnyObject>] = [:]
 

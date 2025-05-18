@@ -8,7 +8,6 @@
 import Yams
 
 public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
-
     public let assetMeta: AssetMeta
     public var assetData: Data
 
@@ -28,7 +27,7 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
             return self.assetData as! T
         }
         
-        return try decoder.decode(T.self, from: self.assetData, userInfo: [
+        return try decoder._decode(T.self, from: self.assetData, userInfo: [
             .assetsDecodingContext: self.context,
             .assetMetaInfo: self.assetMeta
         ])
@@ -36,13 +35,25 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
 }
 
 protocol AnyDecoder {
-    func decode<T: Decodable>(_ type: T.Type, from data: Data, userInfo: [CodingUserInfoKey: Any]) throws -> T
+    func _decode<T: Decodable>(
+        _ type: T.Type,
+        from data: Data,
+        userInfo: [CodingUserInfoKey: any Sendable]
+    ) throws -> T
 }
 
-extension YAMLDecoder: AnyDecoder { }
+extension YAMLDecoder: AnyDecoder {
+    func _decode<T>(
+        _ type: T.Type,
+        from data: Data,
+        userInfo: [CodingUserInfoKey : any Sendable]
+    ) throws -> T where T : Decodable {
+        try self.decode(type, from: data, userInfo: userInfo)
+    }
+}
 
 extension JSONDecoder: AnyDecoder {
-    func decode<T: Decodable>(_ type: T.Type, from data: Data, userInfo: [CodingUserInfoKey: Any]) throws -> T {
+    func _decode<T: Decodable>(_ type: T.Type, from data: Data, userInfo: [CodingUserInfoKey: any Sendable]) throws -> T {
         self.userInfo = userInfo
         return try self.decode(type, from: data)
     }

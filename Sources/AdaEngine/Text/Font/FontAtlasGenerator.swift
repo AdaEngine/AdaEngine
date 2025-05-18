@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 3/5/23.
 //
 
-@_implementationOnly import AtlasFontGenerator
+import AtlasFontGenerator
 import Foundation
 
 public struct FontDescriptor {

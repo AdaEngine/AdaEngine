@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 7/6/22.
 //
 
-@_implementationOnly import box2d
+import box2d
 import Math
 
 public protocol PhysicsWorld2DDelegate: AnyObject {
@@ -81,7 +81,7 @@ public final class PhysicsWorld2D: Codable {
     }
 
     private let worldId: b2WorldId
-    weak var scene: Scene?
+    weak var world: World?
     
     /// - Parameter gravity: default gravity is 9.8.
     nonisolated init(gravity: Vector2 = [0, -9.81]) {
@@ -157,7 +157,7 @@ public final class PhysicsWorld2D: Codable {
     }
     
     /// An array of collision cast hit results.
-    /// Each hit indicates where the ray, starting at a given point and traveling in a given direction, hit a particular entity in the scene.
+    /// Each hit indicates where the ray, starting at a given point and traveling in a given direction, hit a particular entity in the world.
     public func raycast(
         from ray: Ray,
         query: CollisionCastQueryType = .all,
@@ -254,7 +254,7 @@ private extension PhysicsWorld2D {
             impulse: 0
         )
 
-        self.scene?.eventManager.send(event)
+        self.world?.eventManager.send(event)
     }
 
     @MainActor
@@ -278,7 +278,7 @@ private extension PhysicsWorld2D {
             entityB: entityB
         )
 
-        self.scene?.eventManager.send(event)
+        self.world?.eventManager.send(event)
     }
 
     @MainActor
@@ -298,7 +298,7 @@ private extension PhysicsWorld2D {
             impulse: 0
         )
 
-        self.scene?.eventManager.send(event)
+        self.world?.eventManager.send(event)
     }
 
     @MainActor
@@ -322,7 +322,7 @@ private extension PhysicsWorld2D {
             entityB: entityB
         )
 
-        self.scene?.eventManager.send(event)
+        self.world?.eventManager.send(event)
     }
 
     private func onHitContact(_ contact: b2ContactHitEvent) {

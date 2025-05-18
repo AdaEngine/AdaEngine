@@ -38,6 +38,10 @@ var products: [Product] = [
         targets: ["AdaEngine"]
     ),
     .library(
+        name: "AdaECS",
+        targets: ["AdaECS"]
+    ),
+    .library(
         name: "AdaEngineEmbeddable",
         targets: ["AdaEngineEmbeddable"]
     )
@@ -136,7 +140,8 @@ var adaEngineDependencies: [Target.Dependency] = [
     "SPIRV-Cross",
     "SPIRVCompiler",
     "box2d",
-    "AdaEngineMacros"
+    "AdaECS",
+    "AdaEngineMacros",
 ]
 
 #if os(Linux)
@@ -194,6 +199,22 @@ var targets: [Target] = [
         name: "Math",
         exclude: [
             "BUILD.bazel"
+        ]
+    ),
+    .target(
+        name: "AdaECS",
+        dependencies: [
+            .product(name: "Collections", package: "swift-collections"),
+            .product(name: "BitCollections", package: "swift-collections"),
+            "AdaEngineMacros",
+            "AdaUtils"
+        ]
+    ),
+    .target(
+        name: "AdaUtils",
+        dependencies: [
+            .product(name: "Collections", package: "swift-collections"),
+            .product(name: "BitCollections", package: "swift-collections"),
         ]
     )
 ]

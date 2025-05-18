@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class GameScene2D: Scene {
+final class GameScene2D: Scene, @unchecked Sendable {
 
     var disposeBag: Set<AnyCancellable> = []
 
@@ -30,7 +30,7 @@ class GameScene2D: Scene {
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 1.5
 
-        self.addEntity(cameraEntity)
+        self.world.addEntity(cameraEntity)
 
         // DEBUG
         self.debugOptions = [.showPhysicsShapes]
@@ -46,7 +46,7 @@ class GameScene2D: Scene {
     }
 
     override func sceneDidLoad() {
-        self.physicsWorld2D?.gravity = Vector2(0, -3.62)
+        self.world.physicsWorld2D?.gravity = Vector2(0, -3.62)
     }
 
     private func collisionHandler() {
@@ -82,7 +82,7 @@ class GameScene2D: Scene {
             mode: .kinematic
         )
         playerEntity.components += PlayerComponent()
-        self.addEntity(playerEntity)
+        self.world.addEntity(playerEntity)
     }
 
     func makeCanvasItem(position: Vector3) throws {
@@ -104,7 +104,7 @@ class GameScene2D: Scene {
         let entity = Entity(name: "custom_material")
         entity.components += mesh
         entity.components += transform
-        self.addEntity(entity)
+        self.world.addEntity(entity)
     }
 
     private func makeGround() {
@@ -121,7 +121,7 @@ class GameScene2D: Scene {
             ]
         )
 
-        self.addEntity(untexturedEntity)
+        self.world.addEntity(untexturedEntity)
     }
 
     private func gameOver() {
@@ -174,7 +174,7 @@ extension GameScene2D {
             lineBreakMode: .byWordWrapping
         )
 
-        scene.addEntity(entity)
+        scene.world.addEntity(entity)
     }
 }
 
@@ -185,11 +185,11 @@ struct PlayerMovementSystem: System {
     static let cameraQuery = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
     static let matQuery = EntityQuery(where: .has(Mesh2DComponent.self) && .has(Transform.self))
 
-    init(scene: Scene) { }
+    init(world: World) { }
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     func update(context: UpdateContext) {
-        let cameraEntity: Entity = context.scene.performQuery(Self.cameraQuery).first!
+        let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
 
         var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]
 
@@ -222,7 +222,7 @@ struct PlayerMovementSystem: System {
         cameraEntity.components += cameraTransform
         cameraEntity.components += camera
 
-        context.scene.performQuery(Self.matQuery).forEach { entity in
+        context.world.performQuery(Self.matQuery).forEach { entity in
             let meshComponent = entity.components[Mesh2DComponent.self]!
             if Input.isMouseButtonPressed(.left) {
                 (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .mint
@@ -235,7 +235,7 @@ struct PlayerMovementSystem: System {
             var transform = entity.components[Transform.self]!
 
             if Input.isMouseButtonPressed(.left) {
-                let globalTransform = context.scene.worldTransformMatrix(for: cameraEntity)
+                let globalTransform = context.world.worldTransformMatrix(for: cameraEntity)
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform, viewportPosition: mousePosition) {
                     //                    let values = context.scene.physicsWorld2D?.raycast(from: .zero, to: position)
@@ -266,7 +266,7 @@ struct PlayerMovementSystem: System {
             entity.components += transform
         }
 
-//        context.scene.performQuery(Self.playerQuery).forEach { entity in
+//        context.world.performQuery(Self.playerQuery).forEach { entity in
 //            let body = entity.components[PhysicsBody2DComponent.self]!
 //
 //            if Input.isKeyPressed(.space) {
@@ -318,7 +318,7 @@ struct SpawnPhysicsBodiesSystem: System {
     static let camera = EntityQuery(where: .has(Camera.self))
     let fixedTimestep: FixedTimestep = FixedTimestep(stepsPerSecond: 20)
 
-    init(scene: Scene) { }
+    init(world: World) { }
 
     func update(context: UpdateContext) {
         let result = fixedTimestep.advance(with: context.deltaTime)
@@ -326,18 +326,17 @@ struct SpawnPhysicsBodiesSystem: System {
             return
         }
         
-        context.scene.performQuery(Self.camera).forEach { entity in
+        context.world.performQuery(Self.camera).forEach { entity in
             if Input.isMouseButtonPressed(.left) {
                 let (globalTransform, camera) = entity.components[GlobalTransform.self, Camera.self]
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: mousePosition) {
-                    self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), scene: context.scene )
+                    self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), scene: context.scene)
                 }
             }
         }
     }
     
-    @MainActor
     private func spawnPhysicsBody(at position: Vector3, scene: Scene) {
         let isCircle = Input.isKeyPressed(.space)
 
@@ -359,6 +358,6 @@ struct SpawnPhysicsBodiesSystem: System {
             }
         }
         
-        scene.addEntity(entity)
+        scene.world.addEntity(entity)
     }
 }

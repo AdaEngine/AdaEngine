@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class ManySpritesExampleScene: Scene {
+final class ManySpritesExampleScene: Scene, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
         let tilesImage = try! ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
         
@@ -20,7 +20,7 @@ class ManySpritesExampleScene: Scene {
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 20
 
-        self.addEntity(cameraEntity)
+        self.world.addEntity(cameraEntity)
         self.addSystem(CamMovementSystem.self)
     }
     
@@ -45,7 +45,7 @@ class ManySpritesExampleScene: Scene {
 //                    NoFrustumCulling()
                 }
                 
-                self.addEntity(ent)
+                self.world.addEntity(ent)
                 
                 entities += 1
             }
@@ -58,10 +58,10 @@ class ManySpritesExampleScene: Scene {
         
         static let cameraQuery = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
         
-        init(scene: Scene) { }
+        init(world: World) { }
         
         func update(context: UpdateContext) {
-            let cameraEntity: Entity = context.scene.performQuery(Self.cameraQuery).first!
+            let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
             
             var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]
             

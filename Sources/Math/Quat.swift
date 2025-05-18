@@ -8,14 +8,14 @@
 // swiftlint:disable identifier_name
 
 /// The struct describe Quaternion
-public struct Quat {
+public struct Quat: Codable, Sendable {
     public var x: Float
     public var y: Float
     public var z: Float
     public var w: Float
 }
 
-extension Quat: Codable, Equatable, Hashable {}
+extension Quat: Equatable, Hashable {}
 
 extension Quat: CustomStringConvertible {
     public var description: String {
@@ -24,8 +24,7 @@ extension Quat: CustomStringConvertible {
 }
 
 public extension Quat {
-    
-    nonisolated(unsafe) static let identity = Quat(x: 0, y: 0, z: 0, w: 1)
+    static let identity = Quat(x: 0, y: 0, z: 0, w: 1)
     
     init() {
         self.x = 0

@@ -5,7 +5,7 @@ class FirstScene: Scene {
         
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(45/255, 171/255, 255/255, 1)
-        self.addEntity(cameraEntity)
+        self.world.addEntity(cameraEntity)
         
         let spriteSheetImage = try ResourceManager.loadSync("characters_packed.png", from: Bundle.main) as Image
         let spriteSheet = TextureAtlas(from: spriteSheetImage, size: [20, 23], margin: [4, 1])
@@ -13,6 +13,6 @@ class FirstScene: Scene {
         let playerEntity = Entity(name: "Player")
         playerEntity.components += SpriteComponent(texture: spriteSheet[7, 1])
         playerEntity.components += Transform(scale: Vector3(0.19))
-        self.addEntity(playerEntity)
+        self.world.addEntity(playerEntity)
     }
 }

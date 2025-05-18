@@ -8,7 +8,6 @@
 import OrderedCollections
 
 /// Contains information about execution order of systems.
-@MainActor
 public final class SystemsGraph {
 
     struct Edge: Equatable {
@@ -33,6 +32,8 @@ public final class SystemsGraph {
     }
     
     private(set) var nodes: OrderedDictionary<String, Node> = [:]
+    
+    public init() { }
     
     // MARK: - Internal methods
     
@@ -130,7 +131,7 @@ public final class SystemsGraph {
     
 }
 
-extension SystemsGraph: @preconcurrency CustomDebugStringConvertible {
+extension SystemsGraph: CustomDebugStringConvertible {
     public var debugDescription: String {
         var string = ""
         for node in nodes.values.elements {

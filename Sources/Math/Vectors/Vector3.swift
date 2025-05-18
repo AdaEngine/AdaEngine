@@ -7,7 +7,7 @@
 
 /// A 3-dimensional vector used for 3D math using floating point coordinates.
 @frozen
-public struct Vector3: Hashable, Equatable, Codable {
+public struct Vector3: Hashable, Equatable, Codable, Sendable {
     public var x: Float
     public var y: Float
     public var z: Float

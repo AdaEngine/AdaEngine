@@ -7,7 +7,7 @@
 
 /// A 4-dimensional vector used for 4D math using floating point coordinates.
 @frozen
-public struct Vector4: Hashable, Equatable, Codable {
+public struct Vector4: Hashable, Equatable, Codable, Sendable {
     public var x: Float
     public var y: Float
     public var z: Float

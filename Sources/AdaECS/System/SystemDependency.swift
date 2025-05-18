@@ -21,7 +21,7 @@
 /// }
 ///
 /// ```
-public enum SystemDependency {
+public enum SystemDependency: Sendable {
     case before(System.Type)
     case after(System.Type)
 }

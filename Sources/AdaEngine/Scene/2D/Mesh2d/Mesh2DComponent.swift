@@ -7,7 +7,7 @@
 
 /// Component that hold mesh and collection of materials for rendering.
 @Component
-public struct Mesh2DComponent {
+public struct Mesh2DComponent: Sendable {
     public var mesh: Mesh
     public var materials: [Material]
     

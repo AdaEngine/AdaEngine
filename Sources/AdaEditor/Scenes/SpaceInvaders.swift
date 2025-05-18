@@ -26,7 +26,7 @@ class SpaceInvaders: Scene, @unchecked Sendable {
 //            .setVolume(0.6)
 //            .play()
 
-        self.addEntity(camera)
+        self.world.addEntity(camera)
 
         try! self.makePlayer()
         try! self.makeScore()
@@ -55,7 +55,7 @@ class SpaceInvaders: Scene, @unchecked Sendable {
         .store(in: &self.disposeBag)
 
         self.subscribe(to: SceneEvents.OnReady.self) { event in
-            event.scene.physicsWorld2D?.gravity = .zero
+            event.scene.world.physicsWorld2D?.gravity = .zero
         }.store(in: &self.disposeBag)
     }
 
@@ -66,7 +66,7 @@ class SpaceInvaders: Scene, @unchecked Sendable {
         player.components += PlayerComponent()
         player.components += SpriteComponent(texture: characterAtlas[7, 1])
 
-        self.addEntity(player)
+        self.world.addEntity(player)
     }
 
     private func makeScore() throws {
@@ -81,7 +81,7 @@ class SpaceInvaders: Scene, @unchecked Sendable {
             NoFrustumCulling()
         }
 
-        self.addEntity(score)
+        self.world.addEntity(score)
     }
 }
 
@@ -90,18 +90,18 @@ struct MovementSystem: System {
     static let camera = EntityQuery(where: .has(Camera.self))
     static let player = EntityQuery(where: .has(PlayerComponent.self))
 
-    init(scene: Scene) { }
+    init(world: World) { }
 
     func update(context: UpdateContext) {
-        let cameraEntity = context.scene.performQuery(Self.camera).first!
+        let cameraEntity = context.world.performQuery(Self.camera).first!
         let camera = cameraEntity.components[Camera.self]!
-        let globalTransform = context.scene.worldTransformMatrix(for: cameraEntity)
+        let globalTransform = context.world.worldTransformMatrix(for: cameraEntity)
 
         let mousePosition = Input.getMousePosition()
 
         let worldPosition = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform, viewportPosition: mousePosition) ?? .zero
 
-        context.scene.performQuery(Self.player).forEach { entity in
+        context.world.performQuery(Self.player).forEach { entity in
             var transform = entity.components[Transform.self]!
             transform.position.x = worldPosition.x
             transform.position.y = -worldPosition.y
@@ -118,12 +118,12 @@ struct FireSystem: System {
     let fixedTime = FixedTimestep(stepsPerSecond: 12)
     let laserAudio: AudioResource
 
-    init(scene: Scene) {
+    init(world: World) {
         self.laserAudio = try! ResourceManager.loadSync("Assets/laserShoot.wav", from: .editor) as AudioResource
     }
 
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.player).forEach { entity in
+        context.world.performQuery(Self.player).forEach { entity in
             let transform = entity.components[Transform.self]!
 
             if Input.isMouseButtonPressed(.left) || Input.isKeyPressed(.space) {
@@ -147,7 +147,7 @@ struct FireSystem: System {
         }
     }
 
-    @MainActor func fireBullet(context: UpdateContext, shipTransform: Transform) {
+    func fireBullet(context: UpdateContext, shipTransform: Transform) {
         let bullet = Entity(name: "Bullet")
 
         let bulletScale = Vector3(0.02, 0.04, 0.04)
@@ -166,7 +166,7 @@ struct FireSystem: System {
 
         collision.filter.categoryBitMask = .bullet
         bullet.components += collision
-        context.scene.addEntity(bullet)
+        context.world.addEntity(bullet)
     }
 }
 
@@ -182,10 +182,10 @@ struct BulletSystem: System {
     static let bullet = EntityQuery(where: .has(Bullet.self) && .has(PhysicsBody2DComponent.self))
     static let bulletSpeed: Float = 3
 
-    init(scene: Scene) { }
+    init(world: World) { }
 
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.bullet).forEach { entity in
+        context.world.performQuery(Self.bullet).forEach { entity in
             var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
 
             body.linearVelocity = [0, Self.bulletSpeed]
@@ -213,7 +213,7 @@ struct EnemySpawnerSystem: System {
 
     let textureAtlas: TextureAtlas
 
-    init(scene: Scene) {
+    init(world: World) {
         do {
             let tiles = try ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
 
@@ -231,7 +231,7 @@ struct EnemySpawnerSystem: System {
         }
     }
 
-    @MainActor func spawnEnemy(context: UpdateContext) {
+    func spawnEnemy(context: UpdateContext) {
         let entity = Entity(name: "Enemy")
 
         var transform = Transform()
@@ -251,17 +251,17 @@ struct EnemySpawnerSystem: System {
 
         entity.components += collision
         entity.components += EnemyComponent(health: 100, lifetime: 12)
-        context.scene.addEntity(entity)
+        context.world.addEntity(entity)
     }
 }
 
 struct EnemyLifetimeSystem: System {
     static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))
 
-    init(scene: Scene) { }
+    init(world: World) { }
 
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.enemy).forEach { entity in
+        context.world.performQuery(Self.enemy).forEach { entity in
             var enemy = entity.components[EnemyComponent.self]!
 
             enemy.currentLifetime += context.deltaTime
@@ -280,10 +280,10 @@ struct EnemyMovementSystem: System {
     static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))
     static let speed: Float = 0.1
 
-    init(scene: Scene) { }
+    init(world: World) { }
 
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.enemy).forEach { entity in
+        context.world.performQuery(Self.enemy).forEach { entity in
             var transform = entity.components[Transform.self]!
             transform.position.y -= Self.speed * context.deltaTime
             entity.components += transform
@@ -303,7 +303,7 @@ struct EnemyExplosionSystem: System {
     let exposionAtlas: TextureAtlas
     let explosionAudio: AudioResource
 
-    init(scene: Scene) {
+    init(world: World) {
         do {
             let image = try ResourceManager.loadSync("Assets/explosion.png", from: .editor) as Image
             self.exposionAtlas = TextureAtlas(from: image, size: SizeInt(width: 32, height: 32))
@@ -319,10 +319,10 @@ struct EnemyExplosionSystem: System {
     static let scores = EntityQuery(where: .has(GameState.self))
 
     func update(context: UpdateContext) {
-        let scores = context.scene.performQuery(Self.scores).first
+        let scores = context.world.performQuery(Self.scores).first
 
         // Make expolosions
-        context.scene.performQuery(Self.enemy).forEach { entity in
+        context.world.performQuery(Self.enemy).forEach { entity in
             let (enemy, transform) = entity.components[EnemyComponent.self, Transform.self]
 
             if enemy.health <= 0 {
@@ -348,14 +348,14 @@ struct EnemyExplosionSystem: System {
                 explosion.components += SpriteComponent(texture: texture)
                 explosion.components += transform
                 explosion.components += ExplosionComponent()
-                context.scene.addEntity(explosion)
+                context.world.addEntity(explosion)
 
                 entity.removeFromScene()
             }
         }
 
         // Remove explosions
-        context.scene.performQuery(Self.explosions).forEach { entity in
+        context.world.performQuery(Self.explosions).forEach { entity in
             guard let texture = entity.components[SpriteComponent.self]?.texture as? AnimatedTexture else {
                 return
             }
@@ -378,17 +378,15 @@ struct ScoreSystem: System {
 
     var container: TextAttributeContainer
 
-    init(scene: Scene) {
+    init(world: World) {
         self.container = TextAttributeContainer()
         self.container.foregroundColor = .white
     }
 
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.scores).forEach { entity in
+        context.world.performQuery(Self.scores).forEach { entity in
             var (text, score) = entity.components[Text2DComponent.self, GameState.self]
-
             text.text = AttributedText("Score: \(score.score)", attributes: self.container)
-
             entity.components += text
         }
     }
