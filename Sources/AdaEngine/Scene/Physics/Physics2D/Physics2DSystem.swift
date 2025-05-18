@@ -73,7 +73,7 @@ public final class Physics2DSystem: System, Sendable {
                     let position = body.getPosition()
                     transform.position.x = position.x
                     transform.position.y = position.y
-                    transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle().radians)
+                    transform.rotation = Quat(axis: [0, 0, 1], angle: -body.getAngle().radians)
                 }
                 
                 body.massData.mass = physicsBody.massProperties.mass
