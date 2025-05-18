@@ -63,21 +63,17 @@ public struct Text2DRenderSystem: RenderSystem, Sendable {
     public func update(context: UpdateContext) {
         context.world.performQuery(Self.cameras).forEach { entity in
             var (visibleEntities, renderItems) = entity.components[VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
-
-            context.scheduler.addTask {
-                await self.draw(
-                    world: context.world,
-                    visibleEntities: visibleEntities.entities,
-                    renderItems: &renderItems
-                )
+            self.draw(
+                world: context.world,
+                visibleEntities: visibleEntities.entities,
+                renderItems: &renderItems
+            )
                 
-                entity.components += renderItems
-            }
+            entity.components += renderItems
         }
     }
 
     // swiftlint:disable:next function_body_length
-    @MainActor
     private func draw(
         world: World,
         visibleEntities: [Entity],
@@ -183,15 +179,15 @@ struct ExctractTextSystem: System {
 
     func update(context: UpdateContext) {
         context.world.performQuery(Self.textComponents).forEach { entity in
-            context.scheduler.addTask {
-                if entity.components[Visibility.self] == .hidden {
-                    return
-                }
-                
-                let exctractedEntity = EmptyEntity()
-                exctractedEntity.components += entity.components[Transform.self]!
-                exctractedEntity.components += entity.components[Text2DComponent.self]!
+            if entity.components[Visibility.self] == .hidden {
+                return
+            }
 
+            let exctractedEntity = EmptyEntity()
+            exctractedEntity.components += entity.components[Transform.self]!
+            exctractedEntity.components += entity.components[Text2DComponent.self]!
+
+            context.scheduler.addTask {
                 await Application.shared.renderWorld.addEntity(exctractedEntity)
             }
         }

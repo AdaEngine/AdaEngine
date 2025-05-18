@@ -19,11 +19,16 @@ public struct TransformSystem: System {
     public init(world: World) { }
     
     public func update(context: UpdateContext) {
+        print(context.world.performQuery(Self.query).count)
         context.world.performQuery(Self.query).forEach { entity in
-            if entity.components.isComponentChanged(Transform.self) || !entity.components.has(GlobalTransform.self) {
-                let transform = entity.components[Transform.self]!
-                let globalTransform = GlobalTransform(matrix: transform.matrix)
-                entity.components += globalTransform
+            context.scheduler.addTask { @MainActor in
+                if entity.components.isComponentChanged(Transform.self)
+                    || !entity.components.has(GlobalTransform.self)
+                {
+                    let transform = entity.components[Transform.self]!
+                    let globalTransform = GlobalTransform(matrix: transform.matrix)
+                    entity.components += globalTransform
+                }
             }
         }
     }

@@ -11,7 +11,10 @@ import AdaECS
 /// Run each frame before drawing.
 public struct BatchTransparent2DItemsSystem: RenderSystem {
 
-    public static let dependencies: [SystemDependency] = [.after(CameraSystem.self), .after(VisibilitySystem.self)]
+    public static let dependencies: [SystemDependency] = [
+        .after(CameraSystem.self), 
+        .after(VisibilitySystem.self)
+    ]
 
     static let query = EntityQuery(where: .has(RenderItems<Transparent2DRenderItem>.self))
 

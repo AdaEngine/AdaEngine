@@ -193,8 +193,6 @@ public final class World: @unchecked Sendable {
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
         self.updatedComponents.removeAll(keepingCapacity: true)
-        
-        print("clear all", removedEntities.count, self.addedEntities.count, self.updatedComponents)
     }
     
     @MainActor
