@@ -224,12 +224,6 @@ public final class World: @unchecked Sendable {
     }
 }
 
-@globalActor
-public actor ECSActor {
-    public static var shared = ECSActor()
-}
-
-
 // MARK: - Private
 
 extension World {

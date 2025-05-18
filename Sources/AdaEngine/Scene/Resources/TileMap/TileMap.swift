@@ -15,7 +15,7 @@ public class TileMap: Asset, @unchecked Sendable {
         }
     }
 
-    @Atomic public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
+    public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
 
     public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
 
