@@ -5,37 +5,41 @@
 //  Created by v.prusakov on 5/7/22.
 //
 
+@_spi(Internal) import AdaECS
+
 // FIXME: Currently we render on window directly
 
 /// System for updating cameras data on scene.
-public struct CameraSystem: System {
+public struct CameraSystem: System, Sendable {
 
     public static let dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
 
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
-            guard var camera = entity.components[Camera.self] else {
-                return
+        context.world.performQuery(Self.query).forEach { entity in
+            context.scheduler.addTask { @MainActor in
+                guard var camera = entity.components[Camera.self] else {
+                    return
+                }
+
+                let transform = context.world.worldTransformMatrix(for: entity)
+                let viewMatrix = transform.inverse
+                camera.viewMatrix = viewMatrix
+
+                self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
+                self.updateProjectionMatrix(for: &camera)
+                self.updateFrustum(for: &camera)
+
+                entity.components += GlobalViewUniform(
+                    projectionMatrix: camera.computedData.projectionMatrix,
+                    viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
+                    viewMatrix: camera.viewMatrix
+                )
+                entity.components[Camera.self] = camera
             }
-
-            let transform = context.scene.worldTransformMatrix(for: entity)
-            let viewMatrix = transform.inverse
-            camera.viewMatrix = viewMatrix
-
-            self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
-            self.updateProjectionMatrix(for: &camera)
-            self.updateFrustum(for: &camera)
-
-            entity.components += GlobalViewUniform(
-                projectionMatrix: camera.computedData.projectionMatrix,
-                viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
-                viewMatrix: camera.viewMatrix
-            )
-            entity.components[Camera.self] = camera
         }
     }
 
@@ -43,7 +47,6 @@ public struct CameraSystem: System {
     private func updateViewportSizeIfNeeded(for camera: inout Camera, window: UIWindow?) {
         switch camera.renderTarget {
         case .window(let id):
-
             if id != window?.id {
                 camera.renderTarget = .window(window?.id ?? .empty)
                 camera.computedData.targetScaleFactor = window?.screen?.scale ?? 1
@@ -120,29 +123,31 @@ public struct ExtractCameraSystem: System {
 
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self) && .has(VisibleEntities.self))
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
-            let cameraEntity = EmptyEntity()
+        context.world.performQuery(Self.query).forEach { entity in
+            context.scheduler.addTask {
+                let cameraEntity = EmptyEntity()
 
-            if
-                let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
-                let uniform = entity.components[GlobalViewUniform.self] {
+                if
+                    let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
+                    let uniform = entity.components[GlobalViewUniform.self] {
 
-                let buffer = bufferSet.uniformBufferSet.getBuffer(
-                    binding: GlobalBufferIndex.viewUniform,
-                    set: 0,
-                    frameIndex: RenderEngine.shared.currentFrameIndex
-                )
+                    let buffer = bufferSet.uniformBufferSet.getBuffer(
+                        binding: GlobalBufferIndex.viewUniform,
+                        set: 0,
+                        frameIndex: RenderEngine.shared.currentFrameIndex
+                    )
 
-                buffer.setData(uniform)
+                    buffer.setData(uniform)
+                }
+
+                cameraEntity.components = entity.components
+                cameraEntity.components.entity = cameraEntity
+
+                await Application.shared.renderWorld.addEntity(cameraEntity)
             }
-
-            cameraEntity.components = entity.components
-            cameraEntity.components.entity = cameraEntity
-
-            Application.shared.renderWorld.addEntity(cameraEntity)
         }
     }
 }

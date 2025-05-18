@@ -5,17 +5,18 @@
 //  Created by v.prusakov on 7/8/22.
 //
 
-@_implementationOnly import box2d
+import AdaECS
+import box2d
 import Math
 
 // - TODO: (Vlad) Runtime update shape resource
 
 /// A system for simulate and update physics bodies on the scene.
-public final class Physics2DSystem: System {
+public final class Physics2DSystem: System, Sendable {
     
-    let fixedTimestep: FixedTimestep
+    private let fixedTimestep: FixedTimestep
     
-    public init(scene: Scene) {
+    public init(world: World) {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     
@@ -38,21 +39,25 @@ public final class Physics2DSystem: System {
         
         let result = self.fixedTimestep.advance(with: context.deltaTime)
         
-        let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
-        let colissionBody = context.scene.performQuery(Self.collisionQuery)
+        let physicsBody = context.world.performQuery(Self.physicsBodyQuery)
+        let colissionBody = context.world.performQuery(Self.collisionQuery)
         
-        guard let world = context.scene.physicsWorld2D else {
+        guard let world = context.world.physicsWorld2D else {
             return
         }
         
-        if result.isFixedTick {
-            world.updateSimulation(fixedTimestep.step)
-            world.processContacts()
-            world.processSensors()
-        }
+        let step = fixedTimestep.step
         
-        self.updatePhysicsBodyEntities(physicsBody, in: world)
-        self.updateCollisionEntities(colissionBody, in: world)
+        context.scheduler.addTask { @MainActor in
+            if result.isFixedTick {
+                world.updateSimulation(step)
+                world.processContacts()
+                world.processSensors()
+            }
+            
+            self.updatePhysicsBodyEntities(physicsBody, in: world)
+            self.updateCollisionEntities(colissionBody, in: world)
+        }
     }
     
     // MARK: - Private

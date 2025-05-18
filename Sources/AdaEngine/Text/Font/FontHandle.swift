@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 3/19/23.
 //
 
-@_implementationOnly import AtlasFontGenerator
+import AtlasFontGenerator
 
 /// Hold information about font data and atlas.
 final class FontHandle: Hashable, @unchecked Sendable {

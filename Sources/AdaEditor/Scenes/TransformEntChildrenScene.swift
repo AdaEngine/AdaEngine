@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class TransformEntChildrenScene: Scene {
+final class TransformEntChildrenScene: Scene, @unchecked Sendable {
 
     private var characterAtlas: TextureAtlas!
 
@@ -22,7 +22,7 @@ class TransformEntChildrenScene: Scene {
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 1.5
 
-        self.addEntity(cameraEntity)
+        self.world.addEntity(cameraEntity)
 
         let parent = Entity(name: "parent") {
             Transform(scale: Vector3(0.5), position: [0, 0, 0])
@@ -46,8 +46,8 @@ class TransformEntChildrenScene: Scene {
 
         parent.addChild(child)
 
-        self.addEntity(parent)
-        self.addEntity(child)
+        self.world.addEntity(parent)
+        self.world.addEntity(child)
 
         self.addSystem(ParentMovementSystem.self)
     }
@@ -63,13 +63,11 @@ class ParentMovementSystem: System {
 
     var time: TimeInterval = 0
 
-    required init(scene: Scene) { }
+    required init(world: World) { }
 
     func update(context: UpdateContext) {
-
         time += context.deltaTime
-
-        context.scene.performQuery(Self.query).forEach { entity in
+        context.world.performQuery(Self.query).forEach { entity in
             var transform = entity.components[Transform.self]!
             transform.position.x = Math.sin(time) * 1
             entity.components += transform

@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
+import AdaECS
+import AdaUtils
+
 /// Base class describe some unit of game logic.
 ///
 /// - Note: We don't recomend use a lot of scriptable objects, instead use ECS paradigm.
@@ -21,21 +24,25 @@ open class ScriptableComponent: Component {
     
     /// Create a new script component.
     public required init() {}
+
+    deinit {
+        self.onDestroy()
+    }
     
     /// Called once when component is on scene and ready to use.
     open func onReady() { }
 
     /// Called each frame.
-    open func onUpdate(_ deltaTime: TimeInterval) { }
+    open func onUpdate(_ deltaTime: AdaUtils.TimeInterval) { }
     
     /// Called each frame to update gui.
     @MainActor
-    open func onUpdateGUI(_ deltaTime: TimeInterval, context: UIGraphicsContext) {
+    open func onUpdateGUI(_ deltaTime: AdaUtils.TimeInterval, context: UIGraphicsContext) {
 
     }
     
     /// Called each time with interval in seconds for physics and other updates.
-    open func onPhysicsUpdate(_ deltaTime: TimeInterval) {
+    open func onPhysicsUpdate(_ deltaTime: AdaUtils.TimeInterval) {
 
     }
     

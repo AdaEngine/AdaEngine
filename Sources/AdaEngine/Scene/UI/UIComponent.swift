@@ -7,9 +7,9 @@
 
 /// - Warning: Work in progress component
 @Component
-public struct UIComponent {
+public struct UIComponent: Sendable {
     /// Behaviour how to draw view on screen
-    public enum Behaviour {
+    public enum Behaviour: Sendable {
 
         /// Always render on top of scene.
         case overlay

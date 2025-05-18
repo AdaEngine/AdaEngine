@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/10/24.
 //
 
-public class TileEntityAtlasSource: TileSource {
+public class TileEntityAtlasSource: TileSource, @unchecked Sendable {
 
     struct EntityTileData {
         var entity: Entity

@@ -5,10 +5,12 @@
 //  Created by v.prusakov on 2/19/23.
 //
 
-struct CameraPlugin: ScenePlugin {
-    func setup(in scene: Scene) {
-        scene.addSystem(CameraSystem.self)
-        scene.addSystem(ExtractCameraSystem.self)
+import AdaECS
+
+struct CameraPlugin: WorldPlugin {
+    func setup(in world: World) {
+        world.addSystem(CameraSystem.self)
+        world.addSystem(ExtractCameraSystem.self)
     }
 }
 

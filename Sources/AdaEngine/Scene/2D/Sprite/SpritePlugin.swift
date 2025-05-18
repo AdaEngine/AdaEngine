@@ -6,12 +6,12 @@
 //
 
 /// Plugin for exctracting sprites from scene to RenderWorld.
-public struct SpritePlugin: ScenePlugin {
+public struct SpritePlugin: WorldPlugin {
     
     public init() {}
     
-    public func setup(in scene: Scene) {
-        scene.addSystem(ExtractSpriteSystem.self)
+    public func setup(in world: World) {
+        world.addSystem(ExtractSpriteSystem.self)
     }
 }
 
@@ -21,7 +21,7 @@ public struct SpriteRenderPlugin: RenderWorldPlugin {
     public init() {}
 
     public func setup(in world: RenderWorld) async {
-        await world.addSystem(SpriteRenderSystem.self)
+        world.addSystem(SpriteRenderSystem.self)
 
         let spriteDraw = SpriteDrawPass()
         DrawPassStorage.setDrawPass(spriteDraw)

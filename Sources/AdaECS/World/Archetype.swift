@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 6/21/22.
 //
 
+import AdaUtils
+
 struct ComponentId: Hashable, Equatable, Sendable {
     let id: Int
 }

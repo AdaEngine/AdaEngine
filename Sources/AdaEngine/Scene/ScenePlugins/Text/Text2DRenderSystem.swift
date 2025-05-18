@@ -5,10 +5,12 @@
 //  Created by v.prusakov on 3/7/23.
 //
 
+import AdaECS
+
 // FIXME: Should works with frustum culling
 
 // FIXME: WE SHOULD USE SAME SPRITE RENDERER!!!!!!
-public struct Text2DRenderSystem: RenderSystem {
+public struct Text2DRenderSystem: RenderSystem, Sendable {
 
     public static let dependencies: [SystemDependency] = [
         .after(VisibilitySystem.self),
@@ -33,7 +35,7 @@ public struct Text2DRenderSystem: RenderSystem {
 
     let textRenderPipeline: RenderPipeline
 
-    public init(scene: Scene) {
+    public init(world: World) {
         let device = RenderEngine.shared.renderDevice
 
         let textShader = try! ResourceManager.loadSync("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
@@ -59,26 +61,28 @@ public struct Text2DRenderSystem: RenderSystem {
     }
 
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.cameras).forEach { entity in
+        context.world.performQuery(Self.cameras).forEach { entity in
             var (visibleEntities, renderItems) = entity.components[VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
 
-            self.draw(
-                scene: context.scene,
-                visibleEntities: visibleEntities.entities,
-                renderItems: &renderItems
-            )
-
-            entity.components += renderItems
+            context.scheduler.addTask {
+                await self.draw(
+                    world: context.world,
+                    visibleEntities: visibleEntities.entities,
+                    renderItems: &renderItems
+                )
+                
+                entity.components += renderItems
+            }
         }
     }
 
     // swiftlint:disable:next function_body_length
-    @MainActor private func draw(
-        scene: Scene,
+    @MainActor
+    private func draw(
+        world: World,
         visibleEntities: [Entity],
         renderItems: inout RenderItems<Transparent2DRenderItem>
     ) {
-
         let spriteDraw = SpriteDrawPass.identifier
 
         let texts = visibleEntities.filter {
@@ -96,7 +100,7 @@ public struct Text2DRenderSystem: RenderSystem {
             let currentBatchEntity = EmptyEntity()
 
             let transform = entity.components[Transform.self]!
-            let worldTransform = scene.worldTransformMatrix(for: entity)
+            let worldTransform = world.worldTransformMatrix(for: entity)
 
             let glyphs = textLayout.textLayout.getGlyphVertexData(transform: worldTransform)
 
@@ -175,19 +179,21 @@ struct ExctractTextSystem: System {
 
     static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self) && .has(TextLayoutComponent.self))
 
-    init(scene: Scene) { }
+    init(world: World) { }
 
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.textComponents).forEach { entity in
-            if entity.components[Visibility.self]?.isVisible == false {
-                return
-            }
-            
-            let exctractedEntity = EmptyEntity()
-            exctractedEntity.components += entity.components[Transform.self]!
-            exctractedEntity.components += entity.components[Text2DComponent.self]!
+        context.world.performQuery(Self.textComponents).forEach { entity in
+            context.scheduler.addTask {
+                if entity.components[Visibility.self] == .hidden {
+                    return
+                }
+                
+                let exctractedEntity = EmptyEntity()
+                exctractedEntity.components += entity.components[Transform.self]!
+                exctractedEntity.components += entity.components[Text2DComponent.self]!
 
-            Application.shared.renderWorld.addEntity(exctractedEntity)
+                await Application.shared.renderWorld.addEntity(exctractedEntity)
+            }
         }
     }
 }

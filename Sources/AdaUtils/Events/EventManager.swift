@@ -13,6 +13,8 @@ public final class EventManager {
 
     nonisolated(unsafe) public static let `default`: EventManager = EventManager()
     
+    public init() {}
+    
     private var subscribers: [ObjectIdentifier : WeakSet<EventSubscriber>] = [:]
     
     public func subscribe<T: Event>(

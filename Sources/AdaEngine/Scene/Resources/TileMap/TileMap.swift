@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 5/4/24.
 //
 
-@MainActor
 public class TileMap: Resource, @unchecked Sendable {
 
     public static let resourceType: ResourceType = .text
@@ -25,8 +24,7 @@ public class TileMap: Resource, @unchecked Sendable {
     public init() {
         self.tileSetDidChange()
     }
-
-    @MainActor
+    
     public required init(asset decoder: AssetDecoder) async throws {
         let fileContent = try decoder.decode(FileContent.self)
         self.tileSet = fileContent.tileSet

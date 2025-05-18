@@ -5,9 +5,9 @@ class FirstScene: Scene {
         
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(45/255, 171/255, 255/255, 1)
-        self.addEntity(cameraEntity)
+        self.world.addEntity(cameraEntity)
         
         let playerEntity = Entity(name: "Player")
-        self.addEntity(playerEntity)
+        self.world.addEntity(playerEntity)
     }
 }

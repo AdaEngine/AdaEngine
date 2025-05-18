@@ -14,7 +14,7 @@
 ///     static let query = EntityQuery(where: .has(Transform.self))
 ///
 ///     func update(context: UpdateContext) {
-///         context.scene.performQuery(Self.query).forEach {
+///         context.world.performQuery(Self.query).forEach {
 ///             var transform = entity.components[Transform.self]
 ///             // Do some movement
 ///         }
@@ -29,7 +29,7 @@
 ///     static let query = EntityQuery(where: .has(SpriteComponent.self) && .has(Transform.self))
 ///
 ///     func update(context: UpdateContext) {
-///         var entities = context.scene.performQuery(Self.query)
+///         var entities = context.world.performQuery(Self.query)
 ///
 ///         for entity in entities {
 ///             // Get components from entity and do some render

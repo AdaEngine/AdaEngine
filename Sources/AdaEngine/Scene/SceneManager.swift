@@ -26,7 +26,7 @@ public class SceneManager {
         }
 
         currentScene.readyIfNeeded()
-        currentScene.update(deltaTime)
+        await currentScene.update(deltaTime)
     }
     
     /// Set viewport for current scene.

@@ -11,7 +11,8 @@ public extension Entity {
     
     /// Hold entity components specific for entity.
     struct ComponentSet: Codable, @unchecked Sendable {
-        internal weak var entity: Entity?
+        @_spi(Internal)
+        public weak var entity: Entity?
         
         var world: World? {
             return self.entity?.world
@@ -30,9 +31,9 @@ public extension Entity {
         
         /// Create component set from decoder.
         public init(from decoder: Decoder) throws {
-            let container = try decoder.container(keyedBy: CodingName.self)
-            self.buffer = OrderedDictionary<ComponentId, Component>.init(minimumCapacity: container.allKeys.count)
-            self.bitset = BitSet(reservingCapacity: container.allKeys.count)
+//            let container = try decoder.container(keyedBy: CodingName.self)
+//            self.buffer = OrderedDictionary<ComponentId, Component>.init(minimumCapacity: container.allKeys.count)
+//            self.bitset = BitSet(reservingCapacity: container.allKeys.count)
             
             // for key in container.allKeys {
             //     guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue) else {
@@ -42,6 +43,7 @@ public extension Entity {
 //                let component = try type.init(from: container.superDecoder(forKey: key))
 //                self.set(component)
             // }
+            fatalError()
         }
         
         public func encode(to encoder: Encoder) throws {
@@ -85,7 +87,6 @@ public extension Entity {
             }
 
             self.buffer[identifier] = component
-            (component as? ScriptableComponent)?.entity = self.entity
             self.bitset.insert(T.self)
             guard let ent = self.entity else {
                 return
@@ -112,7 +113,6 @@ public extension Entity {
                 }
 
                 self.buffer[identifier] = component
-                (component as? ScriptableComponent)?.entity = self.entity
                 self.bitset.insert(identifier)
                 
                 guard let ent = self.entity else {
@@ -140,7 +140,6 @@ public extension Entity {
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
             let identifier = componentType.identifier
-            (self.buffer[identifier] as? ScriptableComponent)?.onDestroy()
             self.buffer[identifier] = nil
             
             self.bitset.remove(componentType)
@@ -154,7 +153,6 @@ public extension Entity {
         public mutating func removeAll(keepingCapacity: Bool = false) {
             for component in self.buffer.values.elements {
                 let componentType = type(of: component)
-                (component as? ScriptableComponent)?.onDestroy()
 
                 if let ent = self.entity {
                     self.world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)

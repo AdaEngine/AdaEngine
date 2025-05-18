@@ -5,11 +5,13 @@
 //  Created by v.prusakov on 2/6/23.
 //
 
+import AdaUtils
+
 /// FixedTimestep enable your systems run at a fixed timestep between executions.
 /// This does not guarentee you that the elapsed time will be exactly fixed.
-public final class FixedTimestep {
+public final class FixedTimestep: @unchecked Sendable {
     
-    public struct AdvanceResult {
+    public struct AdvanceResult: Sendable {
         /// The elapsed time between executions.
         public internal(set) var fixedTime: TimeInterval
         /// The flag that tell you, that is a fixed tick.
@@ -17,12 +19,12 @@ public final class FixedTimestep {
     }
     
     /// The amount of time each step takes.
-    public var step: TimeInterval = 0
+    public var step: TimeInterval
     
     var accumulator: TimeInterval = 0
     
     /// Creates a FixedTimestep that ticks once every step seconds.
-    public init(step: TimeInterval) {
+    public init(step: TimeInterval = 0) {
         self.step = step
     }
     

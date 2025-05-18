@@ -5,11 +5,11 @@
 //  Created by v.prusakov on 5/4/24.
 //
 
-public struct TileMapPlugin: ScenePlugin {
+public struct TileMapPlugin: WorldPlugin {
 
     public init() {}
 
-    public func setup(in scene: Scene) {
-        scene.addSystem(TileMapSystem.self)
+    public func setup(in world: World) {
+        world.addSystem(TileMapSystem.self)
     }
 }
