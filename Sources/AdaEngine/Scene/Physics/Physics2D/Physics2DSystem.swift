@@ -35,20 +35,15 @@ public final class Physics2DSystem: System, Sendable {
     )
     
     public func update(context: UpdateContext) {
-        preconditionMainThreadOnly()
-        
         let result = self.fixedTimestep.advance(with: context.deltaTime)
-        
         let physicsBody = context.world.performQuery(Self.physicsBodyQuery)
         let colissionBody = context.world.performQuery(Self.collisionQuery)
-        
-        guard let world = context.world.physicsWorld2D else {
-            return
-        }
-        
         let step = fixedTimestep.step
-        
         context.scheduler.addTask { @MainActor in
+            guard let world = context.world.physicsWorld2D else {
+                return
+            }
+            
             if result.isFixedTick {
                 world.updateSimulation(step)
                 world.processContacts()

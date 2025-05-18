@@ -53,5 +53,6 @@ public struct InRange<T: Comparable & Codable>: Codable {
     }
 }
 
+extension InRange: Sendable where T: Sendable {}
 extension InRange: Hashable where T: Hashable {}
 extension InRange: Equatable where T: Equatable {}

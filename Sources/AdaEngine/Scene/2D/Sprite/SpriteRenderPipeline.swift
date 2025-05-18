@@ -15,7 +15,7 @@ struct SpriteRenderPipeline: Sendable {
 
     private init() {
         let device = RenderEngine.shared.renderDevice
-        let quadShader = try! ResourceManager.loadSync("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
+        let quadShader = try! AssetsManager.loadSync("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
 
         var piplineDesc = RenderPipelineDescriptor()
         piplineDesc.vertex = quadShader.getShader(for: .vertex)

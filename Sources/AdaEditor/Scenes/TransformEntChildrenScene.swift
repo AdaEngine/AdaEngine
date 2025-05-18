@@ -12,7 +12,7 @@ final class TransformEntChildrenScene: Scene, @unchecked Sendable {
     private var characterAtlas: TextureAtlas!
 
     override func sceneDidMove(to view: SceneView) {
-        let charactersTiles = try! ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
+        let charactersTiles = try! AssetsManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
         self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
 
         self.debugOptions = [.showPhysicsShapes]
@@ -49,7 +49,7 @@ final class TransformEntChildrenScene: Scene, @unchecked Sendable {
         self.world.addEntity(parent)
         self.world.addEntity(child)
 
-        self.addSystem(ParentMovementSystem.self)
+        self.world.addSystem(ParentMovementSystem.self)
     }
 
 }

@@ -237,9 +237,9 @@ public struct ExtractSpriteSystem: System {
         context.world.performQuery(Self.sprites).forEach { entity in
             let (sprite, globalTransform, transform, visible) = entity.components[SpriteComponent.self, GlobalTransform.self, Transform.self, Visibility.self]
 
-            if visible == .hidden {
-                return
-            }
+             if visible == .hidden {
+                 return
+             }
 
             extractedSprites.sprites.append(
                 ExtractedSprite(
@@ -256,8 +256,8 @@ public struct ExtractSpriteSystem: System {
 
         extractedEntity.components += extractedSprites
         
-        context.scheduler.addTask { @MainActor in
-            Application.shared.renderWorld.addEntity(extractedEntity)
+        context.scheduler.addTask {
+            await Application.shared.renderWorld.addEntity(extractedEntity)
         }
     }
 }

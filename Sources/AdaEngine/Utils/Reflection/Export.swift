@@ -46,7 +46,7 @@ public struct Export<T: Codable>: Codable, @unchecked Sendable {
         self.storage = .init(value: wrappedValue)
     }
     
-    public init(wrappedValue: T) where T: Resource {
+    public init(wrappedValue: T) where T: Asset {
         self.storage = .init(value: wrappedValue)
         self.storage.editorInfo = EditorInfo(modifiers: .resource)
     }

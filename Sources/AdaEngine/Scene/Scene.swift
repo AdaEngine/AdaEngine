@@ -16,20 +16,20 @@ enum SceneSerializationError: Error {
 }
 
 /// A container that holds the collection of entities for render.
-@preconcurrency
-open class Scene: Resource, @unchecked Sendable {
+@MainActor @preconcurrency
+open class Scene: @preconcurrency Asset {
 
     /// Current supported version for mapping scene from file.
     public nonisolated(unsafe) static let currentVersion: Version = "1.0.0"
     
     /// Current scene name.
-    @MainActor public var name: String
-    @MainActor public private(set) var id: UUID
+    public var name: String
+    public private(set) var id: UUID
     
-    @MainActor public internal(set) weak var window: UIWindow?
-    @MainActor public internal(set) var viewport: Viewport = Viewport()
+    public internal(set) weak var window: UIWindow?
+    public internal(set) var viewport: Viewport = Viewport()
     
-    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
+    public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
     
     public private(set) var world: World
     
@@ -62,10 +62,10 @@ open class Scene: Resource, @unchecked Sendable {
     
     // MARK: - Resource -
     
-    public static let resourceType: ResourceType = .scene
+    public static let assetType: AssetType = .scene
     
     public func encodeContents(with encoder: AssetEncoder) async throws {
-        guard await encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+        guard await encoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
@@ -85,7 +85,7 @@ open class Scene: Resource, @unchecked Sendable {
     }
     
     required nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
-        guard await decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+        guard await decoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
@@ -95,7 +95,7 @@ open class Scene: Resource, @unchecked Sendable {
             throw SceneSerializationError.unsupportedVersion
         }
         
-        self.init(name: sceneData.scene)
+        await self.init(name: sceneData.scene)
 
 //        for system in sceneData.systems {
 //            guard let systemType = await SystemStorage.getRegistredSystem(for: system.name) else {
@@ -119,32 +119,17 @@ open class Scene: Resource, @unchecked Sendable {
         fatalErrorMethodNotImplemented()
     }
     
-    // MARK: - Public methods -
-    
-    /// Add new system to the scene.
-    /// - Warning: Systems should be added before presenting.
-    public func addSystem<T: System>(_ systemType: T.Type) {
-        if self.isReady {
-            assertionFailure("Can't insert system if scene was ready")
-        }
-
-        world.addSystem(systemType)
-    }
-
     // MARK: - Life Cycle
 
     /// Tells you when the scene is presented.
     ///
     /// - Note: Scene is configured and you can't add new systems to the scene.
-    @MainActor
     open func sceneDidLoad() { }
 
     /// Tells you when the scene is about to be removed from a view.
-    @MainActor
     open func sceneDidMove(to view: SceneView) { }
 
     /// Tells you when the scene is about to be removed from a view.
-    @MainActor
     open func sceneWillMove(from view: SceneView) { }
 
     // MARK: - Internal methods
@@ -156,20 +141,24 @@ open class Scene: Resource, @unchecked Sendable {
 
         self.ready()
     }
-
+    
     func ready() {
         // TODO: In the future we need minimal scene plugin for headless mode.
-//        if self.instantiateDefaultPlugin {
-//            self.addPlugin(DefaultWorldPlugin())
-//        }
-
+        if self.instantiateDefaultPlugin {
+            world.addPlugin(DefaultWorldPlugin())
+        }
+        
         self.isReady = true
         self.world.build()
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
         
-        Task { @MainActor in
-            self.sceneDidLoad()
-        }
+        self.world.addEntity(
+            Entity(name: SceneResource.sceneWorldIdentifier) {
+                SceneResource(scene: self)
+            }
+        )
+        
+        self.sceneDidLoad()
     }
     
     /// Update scene world and systems by delta time.
@@ -190,6 +179,7 @@ open class Scene: Resource, @unchecked Sendable {
 public extension Scene {
     
     /// Clear all entities from scene
+    @MainActor
     func clearAllEntities() {
         return self.world.clear()
     }
@@ -223,7 +213,7 @@ public extension World {
 
 // MARK: - EventSource
 
-extension Scene: EventSource {
+extension Scene: @preconcurrency EventSource {
     
     /// Receives events of the given type.
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.

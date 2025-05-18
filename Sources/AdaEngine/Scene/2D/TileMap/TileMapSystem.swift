@@ -10,7 +10,7 @@ import Logging
 
 // FIXME: a lot of sprites drop fps.
 
-public struct TileMapSystem: System {
+public struct TileMapSystem: System, Sendable {
     
     let logger = Logger(label: "tilemap")
 
@@ -28,30 +28,33 @@ public struct TileMapSystem: System {
         let physicsWorld = physicsWorldEntity?.components[Physics2DWorldComponent.self]?.world
 
         for entity in context.world.performQuery(Self.tileMap) {
-            var (tileMapComponent, transform) = entity.components[TileMapComponent.self, Transform.self]
-            let tileMap = tileMapComponent.tileMap
+            context.scheduler.addTask { @MainActor in
+                var (tileMapComponent, transform) = entity.components[TileMapComponent.self, Transform.self]
+                let tileMap = tileMapComponent.tileMap
 
-            if !tileMap.needsUpdate {
-                return
-            }
+                if !tileMap.needsUpdate {
+                    return
+                }
+                
+                for layer in tileMap.layers {
+                    if let ent = tileMapComponent.tileLayers[layer.id] {
+                        self.setEntityActive(ent, isActive: layer.isEnabled)
+                    }
 
-            for layer in tileMap.layers {
-                if let ent = tileMapComponent.tileLayers[layer.id] {
-                    self.setEntityActive(ent, isActive: layer.isEnabled)
+                    self.addTiles(
+                        for: layer,
+                        tileMapComponent: &tileMapComponent,
+                        transform: transform,
+                        entity: entity,
+                        physicsWorld: physicsWorld,
+                        world: context.world
+                    )
                 }
 
-                self.addTiles(
-                    for: layer,
-                    tileMapComponent: &tileMapComponent,
-                    transform: transform,
-                    entity: entity,
-                    physicsWorld: physicsWorld,
-                    world: context.world
-                )
+                entity.components += tileMapComponent
+                tileMap.updateDidFinish()
             }
-
-            entity.components += tileMapComponent
-            tileMap.updateDidFinish()
+            
         }
     }
 
@@ -63,6 +66,7 @@ public struct TileMapSystem: System {
         }
     }
 
+    @MainActor
     private func addTiles(
         for layer: TileMapLayer,
         tileMapComponent: inout TileMapComponent,
@@ -71,12 +75,9 @@ public struct TileMapSystem: System {
         physicsWorld: PhysicsWorld2D?,
         world: World
     ) {
-        guard let tileSet = layer.tileSet else {
-            return
-        }
+        guard let tileSet = layer.tileSet else { return }
 
         let scale = Vector3(1)
-
         if layer.needUpdates {
             tileMapComponent.tileLayers[layer.id]?.removeFromScene(recursively: true)
 

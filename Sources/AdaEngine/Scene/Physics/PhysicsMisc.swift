@@ -6,7 +6,7 @@
 //
 
 /// The ways that a physics body can move in response to physical forces.
-@frozen public enum PhysicsBodyMode: Codable {
+@frozen public enum PhysicsBodyMode: Codable, Sendable {
     /// Zero mass, zero velocity, may be manually moved
     case `static`
     /// Positive mass, non-zero velocity determined by forces, moved by solver
@@ -16,7 +16,7 @@
 }
 
 /// A set of masks that determine whether entities can collide during simulations.
-public struct CollisionFilter: Codable {
+public struct CollisionFilter: Codable, Sendable {
     
     /// The collision group or groups, stored as a bit mask, to which the entity belongs.
     public var categoryBitMask: CollisionGroup

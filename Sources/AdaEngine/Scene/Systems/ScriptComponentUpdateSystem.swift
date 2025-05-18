@@ -19,18 +19,19 @@ public struct ScriptComponentUpdateSystem: System {
     }
     
     public func update(context: UpdateContext) {
-//        context.scheduler.addTask { @MainActor
-//            let fixedTimeResult = self.fixedTime.advance(with: context.deltaTime)
-//
-//            let window = context.scene.window
-//            var renderContext: UIGraphicsContext?
-//
-//            if let window {
-//                renderContext = UIGraphicsContext(window: window)
-//                renderContext?.beginDraw(in: window.frame.size, scaleFactor: 1)
-//            }
-//
-//            context.scene.world.scripts.forEach { component in
+        let fixedTimeResult = self.fixedTime.advance(with: context.deltaTime)
+        
+        context.scheduler.addTask { @MainActor in
+            let scene = context.scene
+            let window = scene.window
+            var renderContext: UIGraphicsContext?
+
+            if let window {
+                renderContext = UIGraphicsContext(window: window)
+                renderContext?.beginDraw(in: window.frame.size, scaleFactor: 1)
+            }
+
+//            world.scripts.forEach { component in
 //                // Initialize component
 //                if !component.isAwaked {
 //                    component.onReady()
@@ -49,8 +50,8 @@ public struct ScriptComponentUpdateSystem: System {
 //                    component.onUpdateGUI(context.deltaTime, context: renderContext)
 //                }
 //            }
-//
-//            renderContext?.commitDraw()
-//        }
+
+            renderContext?.commitDraw()
+        }
     }
 }

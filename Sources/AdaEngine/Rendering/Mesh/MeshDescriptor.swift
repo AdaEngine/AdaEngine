@@ -10,7 +10,7 @@ import Math
 
 /// An object that defines a mesh.
 /// This struct contains all the mesh data.
-public struct MeshDescriptor {
+public struct MeshDescriptor: Sendable {
     
     /// Descriptors for the buffers.
     public internal(set) var buffers: OrderedDictionary<MeshDescriptor.Identifier, AnyMeshBuffer> = [:]
@@ -18,7 +18,7 @@ public struct MeshDescriptor {
     /// Name of the mesh.
     public var name: String
     
-    public enum Materials {
+    public enum Materials: Sendable {
         case allFaces(UInt32)
         case perFace([UInt32])
     }
@@ -49,7 +49,7 @@ public struct MeshDescriptor {
 }
 
 extension Mesh {
-    public enum ElementType: UInt8 {
+    public enum ElementType: UInt8, Sendable {
         case int8
         case uint8
         case int16
@@ -64,7 +64,7 @@ extension Mesh {
         case vector4
     }
     
-    public enum ArrayType: UInt8 {
+    public enum ArrayType: UInt8, Sendable {
         case vertex
         case normal
         case textureUV
@@ -73,7 +73,7 @@ extension Mesh {
         case index
     }
     
-    public enum PrimitiveTopology: UInt8 {
+    public enum PrimitiveTopology: UInt8, Sendable {
         case points
         case triangleList
         case triangleStrip

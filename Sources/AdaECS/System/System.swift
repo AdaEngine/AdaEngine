@@ -7,8 +7,6 @@
 
 import AdaUtils
 
-// TODO: Add Job Scheduler instead of System.update(_:) async
-
 /// Contains information about current scene update.
 public final class SceneUpdateContext: @unchecked Sendable {
     /// The updating scene.

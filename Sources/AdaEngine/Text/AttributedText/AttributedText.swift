@@ -11,7 +11,7 @@ import OrderedCollections
 
 /// A value type for a string with associated attributes for portions of its text.
 @dynamicMemberLookup
-public struct AttributedText: Hashable {
+public struct AttributedText: Hashable, Sendable {
     
     public enum AttributeMergePolicy {
         case keepNew

@@ -17,15 +17,14 @@ public struct Physics2DPlugin: WorldPlugin {
         /// physics world in the scene object.
         let physicsWorldEntity = Entity(name: "PhysicsWorld2D")
         let world2D = PhysicsWorld2D()
-        world2D.world = world
         physicsWorldEntity.components += Physics2DWorldComponent(world: world2D)
         
         world.addEntity(physicsWorldEntity)
         world.addSystem(DebugPhysicsExctract2DSystem.self)
         world.addSystem(Physics2DSystem.self)
 
-        Task { @MainActor in
-            Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)
+        Task {
+            await Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)
         }
     }
 }
@@ -36,6 +35,7 @@ public extension World {
     
     /// Returns ``PhysicsWorld2D`` instance is ``Physics2DPlugin`` is connected to the scene.
     /// - Note: ``Physics2DPlugin`` connected by default on first update tick in current scene.
+    @MainActor
     var physicsWorld2D: PhysicsWorld2D? {
         guard let entity = self.performQuery(Self.physicsWorldQuery).first else {
             return nil

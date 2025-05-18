@@ -16,7 +16,7 @@ import AdaUtils
 ///
 /// - Warning: AdaEngine doesn't has execution order for `ScriptableComponent`.
 ///
-open class ScriptableComponent: Component {
+open class ScriptableComponent: Component, @unchecked Sendable {
 
     internal var isAwaked: Bool = false
     

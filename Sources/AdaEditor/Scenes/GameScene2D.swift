@@ -16,8 +16,8 @@ final class GameScene2D: Scene, @unchecked Sendable {
     
     override func sceneDidMove(to view: SceneView) {
         do {
-            let tiles = try ResourceManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
-            let charactersTiles = try ResourceManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
+            let tiles = try AssetsManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
+            let charactersTiles = try AssetsManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
 
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
@@ -39,8 +39,8 @@ final class GameScene2D: Scene, @unchecked Sendable {
         try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
         self.collisionHandler()
         
-        self.addSystem(PlayerMovementSystem.self)
-        self.addSystem(SpawnPhysicsBodiesSystem.self)
+        self.world.addSystem(PlayerMovementSystem.self)
+        self.world.addSystem(SpawnPhysicsBodiesSystem.self)
 
         // Change gravitation
     }
@@ -86,7 +86,7 @@ final class GameScene2D: Scene, @unchecked Sendable {
     }
 
     func makeCanvasItem(position: Vector3) throws {
-        let dogTexture = try ResourceManager.loadSync("Assets/dog.png", from: Bundle.editor) as Texture2D
+        let dogTexture = try AssetsManager.loadSync("Assets/dog.png", from: Bundle.editor) as Texture2D
 
         @CustomMaterial var material = MyMaterial(color: .red, customTexture: dogTexture)
 
@@ -309,7 +309,7 @@ struct MyMaterial: CanvasMaterial {
     }
 
     static func fragmentShader() throws -> ShaderSource {
-        try ResourceManager.loadSync("Assets/custom_material.glsl", from: .editor)
+        try AssetsManager.loadSync("Assets/custom_material.glsl", from: .editor)
     }
 }
 
@@ -331,13 +331,13 @@ struct SpawnPhysicsBodiesSystem: System {
                 let (globalTransform, camera) = entity.components[GlobalTransform.self, Camera.self]
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: mousePosition) {
-                    self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), scene: context.scene)
+                    self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), world: context.world)
                 }
             }
         }
     }
     
-    private func spawnPhysicsBody(at position: Vector3, scene: Scene) {
+    private func spawnPhysicsBody(at position: Vector3, world: World) {
         let isCircle = Input.isKeyPressed(.space)
 
         let entity = Entity {
@@ -358,6 +358,6 @@ struct SpawnPhysicsBodiesSystem: System {
             }
         }
         
-        scene.world.addEntity(entity)
+        world.addEntity(entity)
     }
 }

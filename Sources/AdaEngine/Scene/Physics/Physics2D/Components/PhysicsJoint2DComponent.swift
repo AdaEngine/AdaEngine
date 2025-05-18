@@ -7,11 +7,11 @@
 
 import Math
 
-public final class PhysicsJoint2DDescriptor: Codable {
+public final class PhysicsJoint2DDescriptor: Codable, Sendable {
     
     let joint: Joint
     
-    enum Joint: Codable {
+    enum Joint: Codable, Sendable {
         case rope(Entity.ID, Entity.ID, Vector2, Vector2)
         case revolute(Entity.ID)
     }
@@ -32,7 +32,7 @@ public final class PhysicsJoint2DDescriptor: Codable {
 }
 
 @Component
-public struct PhysicsJoint2DComponent {
+public struct PhysicsJoint2DComponent: @unchecked Sendable {
     let jointDescriptor: PhysicsJoint2DDescriptor
     
     var runtimeJoint: OpaquePointer?

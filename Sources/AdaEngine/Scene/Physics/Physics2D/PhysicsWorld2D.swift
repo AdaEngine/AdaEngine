@@ -25,7 +25,8 @@ public protocol PhysicsWorld2DDelegate: AnyObject {
 }
 
 /// An object that holds and simulate all 2D physics bodies.
-public final class PhysicsWorld2D: Codable {
+@MainActor
+public final class PhysicsWorld2D: @preconcurrency Codable {
 
     enum CodingKeys: CodingKey {
         case substepIterations
@@ -81,7 +82,7 @@ public final class PhysicsWorld2D: Codable {
     }
 
     private let worldId: b2WorldId
-    weak var world: World?
+    var eventManager: EventManager = .default
     
     /// - Parameter gravity: default gravity is 9.8.
     nonisolated init(gravity: Vector2 = [0, -9.81]) {
@@ -218,7 +219,7 @@ public final class PhysicsWorld2D: Codable {
         }
     }
 
-    func destroyBody(_ body: Body2D) {
+    nonisolated func destroyBody(_ body: Body2D) {
         b2DestroyBody(body.bodyId)
     }
     
@@ -254,7 +255,7 @@ private extension PhysicsWorld2D {
             impulse: 0
         )
 
-        self.world?.eventManager.send(event)
+        self.eventManager.send(event)
     }
 
     @MainActor
@@ -278,7 +279,7 @@ private extension PhysicsWorld2D {
             entityB: entityB
         )
 
-        self.world?.eventManager.send(event)
+        self.eventManager.send(event)
     }
 
     @MainActor
@@ -298,7 +299,7 @@ private extension PhysicsWorld2D {
             impulse: 0
         )
 
-        self.world?.eventManager.send(event)
+        self.eventManager.send(event)
     }
 
     @MainActor
@@ -322,7 +323,7 @@ private extension PhysicsWorld2D {
             entityB: entityB
         )
 
-        self.world?.eventManager.send(event)
+        self.eventManager.send(event)
     }
 
     private func onHitContact(_ contact: b2ContactHitEvent) {
@@ -339,23 +340,7 @@ private func PhysicsWorld2D_PreSolve(
     guard let context else {
         return false
     }
-    
     let world = Unmanaged<PhysicsWorld2D>.fromOpaque(context).takeUnretainedValue()
-    
-    let shapeIdA = BoxShape2D(shape: shapeA)
-    let shapeIdB = BoxShape2D(shape: shapeB)
-
-    guard shapeIdA.isValid && shapeIdB.isValid else {
-        return false
-    }
-
-    let bodyA = shapeIdA.body
-    let bodyB = shapeIdB.body
-
-    guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
-        return false
-    }
-    
     let manifold = manifold.flatMap { ptr in
         Manifold2D(
             normal: ptr.pointee.normal.asVector2,
@@ -363,12 +348,28 @@ private func PhysicsWorld2D_PreSolve(
         )
     }
     
-    return world.delegate?.physicsWorldOnPreSolve(
-        world,
-        entityA: entityA,
-        entityB: entityB,
-        manifold: manifold
-    ) ?? false
+    return MainActor.assumeIsolated {
+        let shapeIdA = BoxShape2D(shape: shapeA)
+        let shapeIdB = BoxShape2D(shape: shapeB)
+
+        guard shapeIdA.isValid && shapeIdB.isValid else {
+            return false
+        }
+
+        let bodyA = shapeIdA.body
+        let bodyB = shapeIdB.body
+
+        guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
+            return false
+        }
+        
+        return world.delegate?.physicsWorldOnPreSolve(
+            world,
+            entityA: entityA,
+            entityB: entityB,
+            manifold: manifold
+        ) ?? false
+    }
 }
 
 private func PhysicsWorld2D_CustomFilterCallback(
@@ -379,28 +380,29 @@ private func PhysicsWorld2D_CustomFilterCallback(
     guard let context else {
         return true
     }
-    
     let world = Unmanaged<PhysicsWorld2D>.fromOpaque(context).takeUnretainedValue()
-    
-    let shapeIdA = BoxShape2D(shape: shapeA)
-    let shapeIdB = BoxShape2D(shape: shapeB)
+    return MainActor.assumeIsolated {
+        
+        let shapeIdA = BoxShape2D(shape: shapeA)
+        let shapeIdB = BoxShape2D(shape: shapeB)
 
-    guard shapeIdA.isValid && shapeIdB.isValid else {
-        return true
+        guard shapeIdA.isValid && shapeIdB.isValid else {
+            return true
+        }
+
+        let bodyA = shapeIdA.body
+        let bodyB = shapeIdB.body
+
+        guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
+            return true
+        }
+        
+        return world.delegate?.physicsWorldOnCustomFilterCalled(
+            world,
+            entityA: entityA,
+            entityB: entityB
+        ) ?? true
     }
-
-    let bodyA = shapeIdA.body
-    let bodyB = shapeIdB.body
-
-    guard let entityA = bodyA?.entity, let entityB = bodyB?.entity else {
-        return true
-    }
-    
-    return world.delegate?.physicsWorldOnCustomFilterCalled(
-        world,
-        entityA: entityA,
-        entityB: entityB
-    ) ?? true
 }
 
 // MARK: - Casting
@@ -553,7 +555,7 @@ fileprivate final class _Raycast2DCallback {
 //    }
 //}
 
-public struct Manifold2D {
+public struct Manifold2D: Sendable {
     public let normal: Vector2
     
     public let rollingImpulse: Float

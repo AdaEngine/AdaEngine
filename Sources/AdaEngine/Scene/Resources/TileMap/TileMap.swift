@@ -5,9 +5,9 @@
 //  Created by v.prusakov on 5/4/24.
 //
 
-public class TileMap: Resource, @unchecked Sendable {
+public class TileMap: Asset, @unchecked Sendable {
 
-    public static let resourceType: ResourceType = .text
+    public static let assetType: AssetType = .text
 
     public var tileSet: TileSet = TileSet() {
         didSet {
@@ -17,7 +17,7 @@ public class TileMap: Resource, @unchecked Sendable {
 
     @Atomic public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
 
-    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
+    public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
 
     internal private(set) var needsUpdate: Bool = false
 

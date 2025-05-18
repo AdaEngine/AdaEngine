@@ -8,7 +8,7 @@
 import OrderedCollections
 import Math
 
-public class TileSet: Resource, Codable, @unchecked Sendable {
+public class TileSet: Asset, Codable, @unchecked Sendable {
 
     struct PhysicsLayer {
         var collisionLayer: CollisionGroup = .default
@@ -55,8 +55,8 @@ public class TileSet: Resource, Codable, @unchecked Sendable {
         try encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
     }
 
-    public static let resourceType: ResourceType = .text
-    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
+    public static let assetType: AssetType = .text
+    public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
 
     public init() {}
 
