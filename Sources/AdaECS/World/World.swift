@@ -36,12 +36,6 @@ public final class World: @unchecked Sendable {
     
     private var plugins: [WorldPlugin] = []
     public private(set) var eventManager: EventManager = EventManager.default
-
-
-    /// FIXME: Not efficient, should refactor later
-    // private(set) var scripts: SparseArray<ScriptableComponent> = []
-    // private(set) var scriptRecords: [Entity.ID: [ComponentId: Int]] = [:]
-    // private(set) var friedScriptsIndecies: [Int] = []
     
     // MARK: - Methods
     
@@ -111,12 +105,6 @@ public final class World: @unchecked Sendable {
     /// - Warning: If entity has different world, than we return assertation error.
     public func addEntity(_ entity: Entity) {
         precondition(entity.world !== self, "Entity has different world reference, and can't be added")
-        // for (identifier, component) in entity.components.buffer {
-        //     if let script = component as? ScriptableComponent {
-        //         self.addScript(script, entity: entity.id, identifier: identifier)
-        //     }
-        // }
-        
         entity.world = self
         
         self.updatedEntities.insert(entity)
@@ -218,42 +206,13 @@ public final class World: @unchecked Sendable {
         self.archetypes.removeAll(keepingCapacity: true)
         self.freeArchetypeIndices.removeAll(keepingCapacity: true)
         self.updatedEntities.removeAll(keepingCapacity: true)
-        // self.scripts.removeAll(keepingCapacity: true)
-        // self.scriptRecords.removeAll(keepingCapacity: true)
-        // self.friedScriptsIndecies.removeAll(keepingCapacity: true)
     }
 }
 
 // MARK: - Private
 
-extension World {
-    // /// Add script component
-    // private func addScript(_ component: ScriptableComponent, entity: Entity.ID, identifier: ComponentId) {
-    //     if self.friedScriptsIndecies.isEmpty {
-    //         self.scripts.append(component)
-    //         self.scriptRecords[entity, default: [:]][identifier] = self.scripts.count - 1
-    //     } else {
-    //         let index = self.friedScriptsIndecies.removeLast()
-    //         self.scripts[index] = component
-    //         self.scriptRecords[entity, default: [:]][identifier] = index
-    //     }
-    // }
-    
-    // /// Remove script component
-    // private func removeScript(entity: Entity.ID, identifier: ComponentId) {
-    //     if let row = self.scriptRecords[entity, default: [:]][identifier] {
-    //         self.scripts[row] = nil
-    //         friedScriptsIndecies.append(row)
-    //     }
-    // }
-
-    // MARK: - Components Delegate
-    
+extension World {    
     func entity(_ entity: Entity, didAddComponent component: Component, with identifier: ComponentId) {
-        // if let script = component as? ScriptableComponent {
-        //     self.addScript(script, entity: entity.id, identifier: identifier)
-        // }
-
         let componentType = type(of: component)
         eventManager.send(ComponentEvents.DidAdd(componentType: componentType, entity: entity))
 
@@ -261,10 +220,6 @@ extension World {
     }
     
     func entity(_ entity: Entity, didUpdateComponent component: Component, with identifier: ComponentId) {
-        // if let script = component as? ScriptableComponent {
-        //     self.addScript(script, entity: entity.id, identifier: identifier)
-        // }
-
         let componentType = type(of: component)
         eventManager.send(ComponentEvents.DidChange(componentType: componentType, entity: entity))
 
@@ -274,11 +229,6 @@ extension World {
     
     func entity(_ entity: Entity, didRemoveComponent component: Component.Type, with identifier: ComponentId) {
         eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
-
-        // if component is ScriptableComponent.Type {
-        //     self.removeScript(entity: entity.id, identifier: identifier)
-        // }
-
         self.updatedEntities.insert(entity)
     }
 }

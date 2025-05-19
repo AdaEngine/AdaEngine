@@ -288,8 +288,29 @@ struct PlayerMovementSystem: System {
     }
 }
 
-@Component
-struct PlayerComponent { }
+final class PlayerComponent: ScriptableComponent, @unchecked Sendable {
+    
+    @RequiredComponent var body: PhysicsBody2DComponent
+    
+    override func onUpdate(_ deltaTime: AdaEngine.TimeInterval) {
+        if Input.isKeyPressed(.space) {
+            body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+        }
+    }
+    
+    override func onEvent(_ events: Set<InputEvent>) {
+        for event in events {
+            if let touch = event as? TouchEvent {
+                if touch.phase == .moved {
+                    body.applyLinearImpulse([0, 1], point: .zero, wake: true)
+                }
+            }
+        }
+    }
+}
+
+// @Component
+// struct PlayerComponent { }
 
 struct MyMaterial: CanvasMaterial {
 
