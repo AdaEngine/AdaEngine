@@ -17,7 +17,7 @@ enum SceneSerializationError: Error {
 
 /// A container that holds the collection of entities for render.
 @MainActor @preconcurrency
-open class Scene: @preconcurrency Asset {
+open class Scene: @preconcurrency Asset, @unchecked Sendable {
 
     /// Current supported version for mapping scene from file.
     public nonisolated(unsafe) static let currentVersion: Version = "1.0.0"
