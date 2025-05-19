@@ -19,7 +19,6 @@ public struct TransformSystem: System {
     public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        print(context.world.performQuery(Self.query).count)
         context.world.performQuery(Self.query).forEach { entity in
             context.scheduler.addTask { @MainActor in
                 if entity.components.isComponentChanged(Transform.self)

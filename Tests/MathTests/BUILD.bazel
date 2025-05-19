@@ -8,6 +8,9 @@ swift_test(
         "Utils.swift",
     ],
     module_name = "MathTests",
-    deps = ["//Sources/Math"],
-    visibility = ["//visibility:public"]
+    visibility = ["//visibility:public"],
+    deps = [
+        "//Sources/Math",
+        "@swiftpkg_swift_numerics//:Numerics",
+    ],
 )

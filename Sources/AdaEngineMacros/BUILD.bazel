@@ -5,8 +5,8 @@ swift_compiler_plugin(
     srcs = glob(["*.swift"]),
     visibility = ["//visibility:public"],
     deps = [
-        "@SwiftSyntax//:SwiftCompilerPlugin_opt",
-        "@SwiftSyntax//:SwiftSyntaxBuilder_opt",
-        "@SwiftSyntax//:SwiftSyntaxMacros_opt",
+        "@SwiftSyntax",
+        "@SwiftSyntax//:SwiftCompilerPlugin",
+        "@SwiftSyntax//:SwiftSyntaxMacros",
     ],
 )
