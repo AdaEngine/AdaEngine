@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
+import AdaECS
 import Math
 
 public struct TransformSystem: System {
@@ -15,14 +16,18 @@ public struct TransformSystem: System {
     
     static let query = EntityQuery(where: .has(Transform.self))
     
-    public init(scene: Scene) { }
+    public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
-            if entity.components.isComponentChanged(Transform.self) || !entity.components.has(GlobalTransform.self) {
-                let transform = entity.components[Transform.self]!
-                let globalTransform = GlobalTransform(matrix: transform.matrix)
-                entity.components += globalTransform
+        context.world.performQuery(Self.query).forEach { entity in
+            context.scheduler.addTask { @MainActor in
+                if entity.components.isComponentChanged(Transform.self)
+                    || !entity.components.has(GlobalTransform.self)
+                {
+                    let transform = entity.components[Transform.self]!
+                    let globalTransform = GlobalTransform(matrix: transform.matrix)
+                    entity.components += globalTransform
+                }
             }
         }
     }
@@ -36,10 +41,10 @@ public struct ChildTransformSystem: System {
     
     static let query = EntityQuery(where: .has(Transform.self) && .has(RelationshipComponent.self))
     
-    public init(scene: Scene) { }
+    public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
+        context.world.performQuery(Self.query).forEach { entity in
             guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
                 return
             }
@@ -49,7 +54,6 @@ public struct ChildTransformSystem: System {
         }
     }
     
-    @MainActor
     private func updateChildren(_ children: [Entity], parentTransform: GlobalTransform) {
         for child in children {
             guard let childTransform = child.components[Transform.self] else {

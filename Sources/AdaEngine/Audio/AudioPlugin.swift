@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
+import AdaECS
+
 /// Emmiter of audio in spatial environment.
 @Component
 public struct AudioComponent {
@@ -34,12 +36,12 @@ public struct AudioReceiver {
 }
 
 /// Add audio capatibilities to the scene.
-public struct AudioPlugin: ScenePlugin {
+public struct AudioPlugin: WorldPlugin {
     
     public init() {}
     
-    public func setup(in scene: Scene) {
-        scene.addSystem(AudioSystem.self)
+    public func setup(in world: World) {
+        world.addSystem(AudioSystem.self)
     }
 }
 
@@ -52,19 +54,19 @@ public struct AudioSystem: System {
     
     let audioEngine: AudioEngine
     
-    public init(scene: Scene) {
+    public init(world: World) {
         self.audioEngine = AudioServer.shared.engine
     }
     
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
+        context.world.performQuery(Self.query).forEach { entity in
             let (audioComponent, transform) = entity.components[AudioPlaybacksControllers.self, Transform.self]
             audioComponent.controllers.forEach { controller in
                 controller.sound.position = transform.position
             }
         }
         
-        context.scene.performQuery(Self.audioReceiverQuery).forEach { entity in
+        context.world.performQuery(Self.audioReceiverQuery).forEach { entity in
             var (audioReceiver, transform) = entity.components[AudioReceiver.self, Transform.self]
             
             if let listener = audioReceiver.audioListener, listener.position != transform.position {

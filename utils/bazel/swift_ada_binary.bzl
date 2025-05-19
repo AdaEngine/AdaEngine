@@ -2,7 +2,15 @@
 
 load("@build_bazel_rules_swift//swift:swift_binary.bzl", "swift_binary")
 
-def swift_ada_binary(name, deps = [], data = [], defines = [], copts = [], testonly = False):
+def swift_ada_binary(
+    name, 
+    deps = [], 
+    data = [], 
+    defines = [], 
+    copts = [], 
+    testonly = False,
+    visibility = ["//visibility:public"]
+):
     swift_binary(
         name = name,
         srcs = native.glob(
@@ -12,7 +20,9 @@ def swift_ada_binary(name, deps = [], data = [], defines = [], copts = [], testo
         ),
         deps = deps,
         data = data,
+        module_name = name,
         defines = defines,
         copts = copts,
-        testonly = testonly
+        testonly = testonly,
+        visibility = visibility,
     )

@@ -17,20 +17,20 @@ struct SomeContent: View {
     }
 }
 
-class UITestScene: Scene {
+final class UITestScene: Scene, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 1.5
-        self.addEntity(cameraEntity)
+        self.world.addEntity(cameraEntity)
 
         let entity = Entity {
             SpriteComponent(tintColor: .red)
             Transform(scale: Vector3(0.5), position: [0.5, 0, 0])
         }
 
-        self.addEntity(entity)
+        self.world.addEntity(entity)
 
         let container = UIContainerView(rootView: Color.blue)
         container.backgroundColor = .surfaceClearColor

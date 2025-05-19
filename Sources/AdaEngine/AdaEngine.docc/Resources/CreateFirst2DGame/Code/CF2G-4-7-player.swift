@@ -15,10 +15,10 @@ struct MovementSystem: System {
     
     let speed: Float = 3
     
-    init(scene: Scene) { }
+    init(world: World) { }
     
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.playerQuery).forEach { entity in
+        context.world.performQuery(Self.playerQuery).forEach { entity in
             var transform = entity.components[Transform.self]!
             
             if Input.isKeyPressed(.w) {

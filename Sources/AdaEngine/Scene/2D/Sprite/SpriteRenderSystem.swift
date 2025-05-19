@@ -5,12 +5,13 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
+import AdaECS
 import Math
 
 // TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
 
 /// System in RenderWorld for render sprites from exctracted sprites.
-public struct SpriteRenderSystem: RenderSystem {
+public struct SpriteRenderSystem: RenderSystem, Sendable {
 
     public static let dependencies: [SystemDependency] = [
         .before(BatchTransparent2DItemsSystem.self)
@@ -29,15 +30,15 @@ public struct SpriteRenderSystem: RenderSystem {
 
     static let maxTexturesPerBatch = 16
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let extractedSprites = context.scene.performQuery(Self.extractedSprites)
+        let extractedSprites = context.world.performQuery(Self.extractedSprites)
 
-        context.scene.performQuery(Self.cameras).forEach { entity in
+        context.world.performQuery(Self.cameras).forEach { entity in
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
-
+            
             for entity in extractedSprites {
                 let extractedSprites = entity.components[ExtractedSprites.self]!
 
@@ -47,7 +48,7 @@ public struct SpriteRenderSystem: RenderSystem {
                     renderItems: &renderItems
                 )
             }
-
+            
             entity.components += renderItems
         }
     }
@@ -55,7 +56,7 @@ public struct SpriteRenderSystem: RenderSystem {
     // MARK: - Private
 
     // swiftlint:disable:next function_body_length
-    @MainActor private func draw(
+    private func draw(
         extractedSprites: [ExtractedSprite],
         visibleEntities: VisibleEntities,
         renderItems: inout RenderItems<Transparent2DRenderItem>
@@ -199,7 +200,7 @@ public struct BatchComponent {
 // MARK: Extraction to Render World
 
 @Component
-public struct ExtractedSprites {
+public struct ExtractedSprites: Sendable {
     public var sprites: [ExtractedSprite]
 
     public init(sprites: [ExtractedSprite]) {
@@ -208,7 +209,7 @@ public struct ExtractedSprites {
 }
 
 @Component
-public struct ExtractedSprite {
+public struct ExtractedSprite: Sendable {
     public var entityId: Entity.ID
     public var texture: Texture2D?
     public var flipX: Bool
@@ -225,19 +226,19 @@ public struct ExtractSpriteSystem: System {
 
     static let sprites = EntityQuery(where: .has(SpriteComponent.self) && .has(GlobalTransform.self) && .has(Transform.self) && .has(Visibility.self))
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let extractedEntity = EmptyEntity()
+        let extractedEntity = Entity(name: "ExtractedSpriteEntity")
         var extractedSprites = ExtractedSprites(sprites: [])
 
-        context.scene.performQuery(Self.sprites).forEach { entity in
+        context.world.performQuery(Self.sprites).forEach { entity in
             let (sprite, globalTransform, transform, visible) = entity.components[SpriteComponent.self, GlobalTransform.self, Transform.self, Visibility.self]
 
-            if !visible.isVisible {
+            if visible == .hidden {
                 return
             }
-
+            
             extractedSprites.sprites.append(
                 ExtractedSprite(
                     entityId: entity.id,
@@ -252,6 +253,9 @@ public struct ExtractSpriteSystem: System {
         }
 
         extractedEntity.components += extractedSprites
-        Application.shared.renderWorld.addEntity(extractedEntity)
+        
+        context.scheduler.addTask {
+            await Application.shared.renderWorld.addEntity(extractedEntity)
+        }
     }
 }

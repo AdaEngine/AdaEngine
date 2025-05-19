@@ -5,11 +5,11 @@
 //  Created by v.prusakov on 3/19/23.
 //
 
-@_implementationOnly import box2d
+import box2d
 import Math
 
 // An object that represents physics 2D body.
-public final class Body2D {
+public final class Body2D: @unchecked Sendable {
     
     weak var world: PhysicsWorld2D?
     weak var entity: Entity?
@@ -23,7 +23,7 @@ public final class Body2D {
     }
     
     deinit {
-        self.world?.destroyBody(self)
+        world?.destroyBody(self)
     }
 
     @discardableResult

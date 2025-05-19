@@ -10,5 +10,8 @@
 // Can be problem if swift deprecate this @_exported hack.
 
 @_exported import Foundation
-
 @_exported import Math
+@_exported import AdaECS
+@_exported import AdaUtils
+
+public typealias TimeInterval = AdaUtils.TimeInterval

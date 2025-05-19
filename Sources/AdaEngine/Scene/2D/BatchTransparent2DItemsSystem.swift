@@ -5,18 +5,23 @@
 //  Created by v.prusakov on 2/23/23.
 //
 
+import AdaECS
+
 /// Batch transparent items which contains batchEntity.
 /// Run each frame before drawing.
 public struct BatchTransparent2DItemsSystem: RenderSystem {
 
-    public static let dependencies: [SystemDependency] = [.after(CameraSystem.self), .after(VisibilitySystem.self)]
+    public static let dependencies: [SystemDependency] = [
+        .after(CameraSystem.self), 
+        .after(VisibilitySystem.self)
+    ]
 
     static let query = EntityQuery(where: .has(RenderItems<Transparent2DRenderItem>.self))
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
+        context.world.performQuery(Self.query).forEach { entity in
             guard let renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self] else {
                 return
             }
@@ -42,7 +47,6 @@ public struct BatchTransparent2DItemsSystem: RenderSystem {
         }
     }
     
-    @MainActor
     private func tryToAddBatch(to currentItem: inout Transparent2DRenderItem, from otherItem: Transparent2DRenderItem) -> Bool {
         guard let batch = currentItem.batchRange, let otherBatch = otherItem.batchRange else {
             return false

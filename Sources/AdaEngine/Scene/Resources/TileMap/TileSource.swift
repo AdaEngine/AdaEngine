@@ -4,8 +4,8 @@
 //
 //  Created by v.prusakov on 5/5/24.
 //
-@MainActor
-public class TileSource: @preconcurrency Codable {
+
+public class TileSource: Codable, @unchecked Sendable {
 
     static let invalidSource: Int = -1
 
@@ -40,7 +40,7 @@ public class TileSource: @preconcurrency Codable {
     
     // MARK: - Register
     
-    static private(set) var types: [String: TileSource.Type] = [:]
+    nonisolated(unsafe) static private(set) var types: [String: TileSource.Type] = [:]
     
     /// Call this function if you inherited from TileSource
     public static func registerTileSource() {

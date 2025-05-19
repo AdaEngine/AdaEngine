@@ -6,7 +6,7 @@
 //
 
 /// Base class describing a texture.
-open class Texture: Resource, Codable, @unchecked Sendable {
+open class Texture: Asset, Codable, @unchecked Sendable {
     
     private(set) var gpuTexture: GPUTexture
     
@@ -15,7 +15,7 @@ open class Texture: Resource, Codable, @unchecked Sendable {
     
     private(set) var textureType: TextureType
     
-    public var resourceMetaInfo: ResourceMetaInfo?
+    public var assetMetaInfo: AssetMetaInfo?
     
     init(gpuTexture: GPUTexture, sampler: Sampler, textureType: TextureType) {
         self.gpuTexture = gpuTexture
@@ -50,7 +50,7 @@ open class Texture: Resource, Codable, @unchecked Sendable {
     
     // MARK: - Resources
     
-    public static let resourceType: ResourceType = .texture
+    public static let assetType: AssetType = .texture
 }
 
 public extension Texture {

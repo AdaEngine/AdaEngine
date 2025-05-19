@@ -9,7 +9,7 @@
 @Component
 public struct BoundingComponent {
     
-    public enum Bounds: Codable {
+    public enum Bounds: Codable, Sendable {
         case aabb(AABB)
     }
     

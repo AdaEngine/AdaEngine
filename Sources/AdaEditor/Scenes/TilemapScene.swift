@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-class LdtkTilemapScene: Scene, @preconcurrency TileMapDelegate {
+final class LdtkTilemapScene: Scene, @preconcurrency TileMapDelegate, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
         self.debugOptions = [.showPhysicsShapes]
         
@@ -16,14 +16,14 @@ class LdtkTilemapScene: Scene, @preconcurrency TileMapDelegate {
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 10.5
         
-        self.addEntity(cameraEntity)
+        self.world.addEntity(cameraEntity)
         
         var transform = Transform()
         transform.position.y = -0.5
         transform.scale = Vector3(0.5)
         
         do {
-            let tileMap = try ResourceManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LDtk.TileMap
+            let tileMap = try AssetsManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LDtk.TileMap
             tileMap.delegate = self
             tileMap.loadLevel(at: 0)
             
@@ -33,12 +33,12 @@ class LdtkTilemapScene: Scene, @preconcurrency TileMapDelegate {
                 transform
             }
             
-            self.addEntity(tilemapEnt)
+            self.world.addEntity(tilemapEnt)
         } catch {
             fatalError("Failed to load \(error)")
         }
         
-        self.addSystem(CamMovementSystem.self)
+        self.world.addSystem(CamMovementSystem.self)
     }
     
     // MARK: - LDtk.EntityTileSourceDelegate
@@ -48,7 +48,7 @@ class LdtkTilemapScene: Scene, @preconcurrency TileMapDelegate {
     }
 }
 
-class TilemapScene: Scene {
+final class TilemapScene: Scene, @unchecked Sendable {
     
     enum TileAtlasCoordinates {
         static let topLeft: PointInt = [1, 5]
@@ -76,7 +76,7 @@ class TilemapScene: Scene {
     }
     
     private func loadIfNeeded() {
-        let tileMap = try! ResourceManager.loadSync("/Users/vprusakov/Downloads/tilemap.res") as TileMap
+        let tileMap = try! AssetsManager.loadSync("/Users/vprusakov/Downloads/tilemap.res") as TileMap
         
         self.debugOptions = [.showPhysicsShapes]
         
@@ -85,7 +85,7 @@ class TilemapScene: Scene {
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 1.5
         
-        self.addEntity(cameraEntity)
+        self.world.addEntity(cameraEntity)
         
         var transform = Transform()
         transform.position.y = -0.5
@@ -97,15 +97,15 @@ class TilemapScene: Scene {
             transform
         }
         
-        self.addEntity(tilemapEnt)
-        self.addSystem(CamMovementSystem.self)
+        self.world.addEntity(tilemapEnt)
+        self.world.addSystem(CamMovementSystem.self)
     }
 
     // swiftlint:disable:next function_body_length
     private func save() {
         let tileMap = TileMap()
         
-        let image = try! ResourceManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image
+        let image = try! AssetsManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image
         let source = TextureAtlasTileSource(from: image, size: [18, 18])
         
         source.createTile(for: TileAtlasCoordinates.topLeft)
@@ -177,7 +177,7 @@ class TilemapScene: Scene {
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 1.5
         
-        self.addEntity(cameraEntity)
+        self.world.addEntity(cameraEntity)
         
         var transform = Transform()
         transform.position.y = -0.5
@@ -189,12 +189,12 @@ class TilemapScene: Scene {
             transform
         }
         
-        self.addEntity(tilemapEnt)
-        self.addSystem(CamMovementSystem.self)
+        self.world.addEntity(tilemapEnt)
+        self.world.addSystem(CamMovementSystem.self)
         
-        Task { @ResourceActor in
+        Task { @AssetActor in
             do {
-                try await ResourceManager.save(tileMap, at: "/Users/vprusakov/Downloads", name: "tilemap")
+                try await AssetsManager.save(tileMap, at: "/Users/vprusakov/Downloads", name: "tilemap")
             } catch {
                 print("Failed", error)
             }
@@ -249,11 +249,11 @@ struct CamMovementSystem: System {
     static let cameraQuery = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
     static let tileMap = EntityQuery(where: .has(TileMapComponent.self))
     
-    init(scene: Scene) { }
+    init(world: World) { }
     
     func update(context: UpdateContext) {
-        let cameraEntity: Entity = context.scene.performQuery(Self.cameraQuery).first!
-//        let tileEntity: Entity = context.scene.performQuery(Self.tileMap).first!
+        let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
+//        let tileEntity: Entity = context.world.performQuery(Self.tileMap).first!
         
 //        if Input.isKeyPressed(.m) {
 //            tileEntity.components[TileMapComponent.self]!.tileMap.layers[0].isEnabled.toggle()

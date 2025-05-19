@@ -10,10 +10,10 @@ import Math
 // TODO: Add Resource implementation
 
 /// A high-level representation of a collection of vertices and edges that define a shape.
-public class Mesh: Resource, @unchecked Sendable {
+public class Mesh: Asset, @unchecked Sendable {
     
     /// A part of a model consisting of a single material.
-    public struct Part: Identifiable {
+    public struct Part: Identifiable, Sendable {
         
         /// The stable identity of the entity associated with this instance.
         public let id: Int
@@ -60,8 +60,8 @@ public class Mesh: Resource, @unchecked Sendable {
     
     // MARK: - Resource
     
-    public var resourceMetaInfo: ResourceMetaInfo?
-    public static let resourceType: ResourceType = .mesh
+    public var assetMetaInfo: AssetMetaInfo?
+    public static let assetType: AssetType = .mesh
     
     public required init(asset decoder: AssetDecoder) throws {
         fatalErrorMethodNotImplemented()

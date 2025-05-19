@@ -5,9 +5,11 @@
 //  Created by v.prusakov on 2/6/23.
 //
 
+import AdaECS
+
 /// Visibility Plugin turn on a frustum culling for all entities on the screen.
-struct VisibilityPlugin: ScenePlugin {
-    func setup(in scene: Scene) {
-        scene.addSystem(VisibilitySystem.self)
+struct VisibilityPlugin: WorldPlugin {
+    func setup(in world: World) {
+        world.addSystem(VisibilitySystem.self)
     }
 }

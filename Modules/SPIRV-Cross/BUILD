@@ -1,4 +1,3 @@
-
 cc_library(
     name = "SPIRV-Cross",
     srcs = [
@@ -12,11 +11,11 @@ cc_library(
         "spirv_hlsl.cpp",
         "spirv_msl.cpp",
         "spirv_parser.cpp",
-        "spirv_reflect.cpp"
+        "spirv_reflect.cpp",
     ],
     hdrs = glob([
         "*.hpp",
-        "*.h"
+        "*.h",
     ]),
     defines = [
         "SPIRV_CROSS_C_API_CPP=1",
@@ -25,6 +24,6 @@ cc_library(
         "SPIRV_CROSS_C_API_MSL=1",
         "SPIRV_CROSS_C_API_REFLECT=1",
     ],
+    tags = ["swift_module=SPIRV_Cross"],
     visibility = ["//visibility:public"],
-    tags = ["swift_module=SPIRV_Cross"]
 )

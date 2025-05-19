@@ -7,7 +7,7 @@
 
 import Foundation
 
-public final class ShaderModule: Resource, @unchecked Sendable {
+public final class ShaderModule: Asset, @unchecked Sendable {
     
     private var shaders: [ShaderStage: Shader] = [:]
     var reflectionData: ShaderReflectionData
@@ -35,8 +35,8 @@ public final class ShaderModule: Resource, @unchecked Sendable {
     
     // Resource
     
-    public var resourceMetaInfo: ResourceMetaInfo?
-    public static let resourceType: ResourceType = .material
+    public var assetMetaInfo: AssetMetaInfo?
+    public static let assetType: AssetType = .material
     
     // TODO: Add init from spir-v
     public init(asset decoder: AssetDecoder) throws {

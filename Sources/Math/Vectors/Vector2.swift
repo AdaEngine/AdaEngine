@@ -11,7 +11,7 @@
 
 /// A 2-dimensional vector used for 2D math using floating point coordinates.
 @frozen
-public struct Vector2: Hashable, Equatable, Codable {
+public struct Vector2: Hashable, Equatable, Codable, Sendable {
     public var x: Float
     public var y: Float
     

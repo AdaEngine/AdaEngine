@@ -7,9 +7,7 @@
 
 import OrderedCollections
 
-// TODO: Should it be a main actor?
-@MainActor
-public class TileMapLayer: @preconcurrency Identifiable {
+public class TileMapLayer: Identifiable, @unchecked Sendable {
 
     public var name: String = ""
 

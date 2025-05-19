@@ -19,7 +19,7 @@
 //
 
 /// The 3D transformation matrix 4x4 (column major). This matrix can represent transformations such as translation, rotation or scaling.
-@frozen public struct Transform3D: Hashable, Codable {
+@frozen public struct Transform3D: Hashable, Codable, Sendable {
     public var x: Vector4
     public var y: Vector4
     public var z: Vector4

@@ -5,17 +5,18 @@
 //  Created by v.prusakov on 7/8/22.
 //
 
-@_implementationOnly import box2d
+import AdaECS
+import box2d
 import Math
 
 // - TODO: (Vlad) Runtime update shape resource
 
 /// A system for simulate and update physics bodies on the scene.
-public final class Physics2DSystem: System {
+public final class Physics2DSystem: System, Sendable {
     
-    let fixedTimestep: FixedTimestep
+    private let fixedTimestep: FixedTimestep
     
-    public init(scene: Scene) {
+    public init(world: World) {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     
@@ -34,25 +35,26 @@ public final class Physics2DSystem: System {
     )
     
     public func update(context: UpdateContext) {
-        preconditionMainThreadOnly()
-        
         let result = self.fixedTimestep.advance(with: context.deltaTime)
-        
-        let physicsBody = context.scene.performQuery(Self.physicsBodyQuery)
-        let colissionBody = context.scene.performQuery(Self.collisionQuery)
-        
-        guard let world = context.scene.physicsWorld2D else {
-            return
+        let step = fixedTimestep.step
+
+        context.scheduler.addTask { @MainActor in
+            guard let world = context.world.physicsWorld2D else {
+                return
+            }
+            
+            if result.isFixedTick {
+                world.updateSimulation(step)
+                world.processContacts()
+                world.processSensors()
+            }
+
+            let physicsBody = context.world.performQuery(Self.physicsBodyQuery)
+            let colissionBody = context.world.performQuery(Self.collisionQuery)
+            
+            self.updatePhysicsBodyEntities(physicsBody, in: world)
+            self.updateCollisionEntities(colissionBody, in: world)
         }
-        
-        if result.isFixedTick {
-            world.updateSimulation(fixedTimestep.step)
-            world.processContacts()
-            world.processSensors()
-        }
-        
-        self.updatePhysicsBodyEntities(physicsBody, in: world)
-        self.updateCollisionEntities(colissionBody, in: world)
     }
     
     // MARK: - Private
@@ -61,7 +63,6 @@ public final class Physics2DSystem: System {
     private func updatePhysicsBodyEntities(_ entities: QueryResult, in world: PhysicsWorld2D) {
         for entity in entities {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
-
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
                     body.setTransform(
@@ -72,7 +73,7 @@ public final class Physics2DSystem: System {
                     let position = body.getPosition()
                     transform.position.x = position.x
                     transform.position.y = position.y
-                    transform.rotation = Quat(axis: [0, 0, 1], angle: body.getAngle().radians)
+                    transform.rotation = Quat(axis: [0, 0, 1], angle: -body.getAngle().radians)
                 }
                 
                 body.massData.mass = physicsBody.massProperties.mass
@@ -122,7 +123,6 @@ public final class Physics2DSystem: System {
                     }
                 }
             }
-            
             entity.components += transform
             entity.components += physicsBody
         }

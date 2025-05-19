@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
+import AdaECS
+import AdaUtils
 import OrderedCollections
 
 enum SceneSerializationError: Error {
@@ -15,10 +17,10 @@ enum SceneSerializationError: Error {
 
 /// A container that holds the collection of entities for render.
 @MainActor @preconcurrency
-open class Scene: Resource {
+open class Scene: @preconcurrency Asset, @unchecked Sendable {
 
     /// Current supported version for mapping scene from file.
-    nonisolated(unsafe) static let currentVersion: Version = "1.0.0"
+    public nonisolated(unsafe) static let currentVersion: Version = "1.0.0"
     
     /// Current scene name.
     public var name: String
@@ -27,16 +29,11 @@ open class Scene: Resource {
     public internal(set) weak var window: UIWindow?
     public internal(set) var viewport: Viewport = Viewport()
     
-    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
+    public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
     
-    private var plugins: [ScenePlugin] = []
-    private(set) var world: World
+    public private(set) var world: World
     
     public private(set) var eventManager: EventManager = EventManager.default
-    
-    internal let systemGraph = SystemsGraph()
-    internal let systemGraphExecutor = SystemsGraphExecutor()
-
     /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     
@@ -65,10 +62,10 @@ open class Scene: Resource {
     
     // MARK: - Resource -
     
-    public static let resourceType: ResourceType = .scene
+    public static let assetType: AssetType = .scene
     
     public func encodeContents(with encoder: AssetEncoder) async throws {
-        guard await encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+        guard await encoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
@@ -76,7 +73,7 @@ open class Scene: Resource {
 //            version: Self.currentVersion,
 //            scene: self.name,
 //            plugins: self.plugins.map {
-//                ScenePluginRepresentation(name: type(of: $0).swiftName)
+//                WorldPluginRepresentation(name: type(of: $0).swiftName)
 //            },
 //            systems: self.systemGraph.systems.map {
 //                SystemRepresentation(name: type(of: $0).swiftName)
@@ -88,7 +85,7 @@ open class Scene: Resource {
     }
     
     required nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
-        guard await decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+        guard await decoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
@@ -100,50 +97,28 @@ open class Scene: Resource {
         
         await self.init(name: sceneData.scene)
 
-        for system in sceneData.systems {
-            guard let systemType = await SystemStorage.getRegistredSystem(for: system.name) else {
-                throw SceneSerializationError.notRegistedObject(system.name)
-            }
-            await self.addSystem(systemType)
-        }
+//        for system in sceneData.systems {
+//            guard let systemType = await SystemStorage.getRegistredSystem(for: system.name) else {
+//                throw SceneSerializationError.notRegistedObject(system.name)
+//            }
+//            self.world.addSystem(systemType)
+//        }
 
-        for plugin in sceneData.plugins {
-            guard let pluginType = await ScenePluginStorage.getRegistredPlugin(for: plugin.name) else {
-                throw SceneSerializationError.notRegistedObject(plugin.name)
-            }
-
-            await self.addPlugin(pluginType.init())
-        }
-
-        for entity in sceneData.entities {
-            await self.addEntity(entity)
-        }
+//        for plugin in sceneData.plugins {
+//            guard let pluginType = await WorldPluginStorage.getRegistredPlugin(for: plugin.name) else {
+//                throw SceneSerializationError.notRegistedObject(plugin.name)
+//            }
+//
+//            self.addPlugin(pluginType.init())
+//        }
+//
+//        for entity in sceneData.entities {
+//            self.world.addEntity(entity)
+//        }
+        
+        fatalErrorMethodNotImplemented()
     }
     
-    // MARK: - Public methods -
-    
-    /// Add new system to the scene.
-    /// - Warning: Systems should be added before presenting.
-    public func addSystem<T: System>(_ systemType: T.Type) {
-        if self.isReady {
-            assertionFailure("Can't insert system if scene was ready")
-        }
-
-        let system = systemType.init(scene: self)
-        self.systemGraph.addSystem(system)
-    }
-    
-    /// Add new scene plugin to the scene.
-    /// - Warning: Plugin should be added before presenting.
-    public func addPlugin<T: ScenePlugin>(_ plugin: T) {
-        if self.isReady {
-            assertionFailure("Can't insert plugin if scene was ready")
-        }
-
-        plugin.setup(in: self)
-        self.plugins.append(plugin)
-    }
-
     // MARK: - Life Cycle
 
     /// Tells you when the scene is presented.
@@ -166,24 +141,28 @@ open class Scene: Resource {
 
         self.ready()
     }
-
+    
     func ready() {
         // TODO: In the future we need minimal scene plugin for headless mode.
         if self.instantiateDefaultPlugin {
-            self.addPlugin(DefaultScenePlugin())
+            world.addPlugin(DefaultWorldPlugin())
         }
-
-        self.isReady = true
         
-        self.systemGraph.linkSystems()
-        self.world.tick() // prepare all values
+        self.isReady = true
+        self.world.build()
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
-
+        
+        self.world.addEntity(
+            Entity(name: SceneResource.sceneWorldIdentifier) {
+                SceneResource(scene: self)
+            }
+        )
+        
         self.sceneDidLoad()
     }
     
     /// Update scene world and systems by delta time.
-    func update(_ deltaTime: TimeInterval) {
+    func update(_ deltaTime: TimeInterval) async {
         if self.isUpdating {
             assertionFailure("Can't update scene twice")
             return
@@ -191,74 +170,25 @@ open class Scene: Resource {
         self.eventManager.send(SceneEvents.Update(scene: self, deltaTime: deltaTime), source: self)
         self.isUpdating = true
         defer { self.isUpdating = false }
-
-        self.world.tick()
-        let context = SceneUpdateContext(
-            scene: self,
-            deltaTime: deltaTime
-        )
-        self.systemGraphExecutor.execute(self.systemGraph, context: context)
+        await self.world.update(deltaTime)
     }
 }
 
 // MARK: - ECS
 
 public extension Scene {
-    /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
-    func performQuery(_ query: EntityQuery) -> QueryResult {
-        return self.world.performQuery(query)
-    }
     
     /// Clear all entities from scene
+    @MainActor
     func clearAllEntities() {
         return self.world.clear()
-    }
-}
-
-// MARK: - Entity
-
-public extension Scene {
-    
-    /// Add a new entity to the scene. This entity will be available on the next update tick.
-    /// - Warning: If entity has different world, than we return assertation error.
-    func addEntity(_ entity: Entity) {
-        precondition(entity.world !== self.world, "Entity has different world reference, and can't be added")
-        self.world.appendEntity(entity)
-        
-        self.eventManager.send(SceneEvents.DidAddEntity(entity: entity), source: self)
-    }
-    
-    /// Find an entity by their id.
-    /// - Parameter id: Entity identifier.
-    /// - Complexity: O(1)
-    /// - Returns: Returns nil if entity not registed in scene world.
-    func findEntityByID(_ id: Entity.ID) -> Entity? {
-        return self.world.getEntityByID(id)
-    }
-    
-    /// Find an entity by name.
-    /// - Note: Not efficient way to find an entity.
-    /// - Complexity: O(n)
-    /// - Returns: An entity with matched name or nil if entity with given name not exists.
-    func findEntityByName(_ name: String) -> Entity? {
-        self.world.getEntityByName(name)
-    }
-    
-    /// Remove entity from world.
-    /// - Note: Entity will removed on next `update` call.
-    /// - Parameter recursively: also remove entity child.
-    func removeEntity(_ entity: Entity, recursively: Bool = false) {
-        self.eventManager.send(SceneEvents.WillRemoveEntity(entity: entity), source: self)
-        
-        self.world.removeEntityOnNextTick(entity, recursively: recursively)
     }
 }
 
 // MARK: - World Transform
 
 // TODO: Replace it to GlobalTransform
-public extension Scene {
-    
+public extension World {
     /// Returns world transform component of entity.
     func worldTransform(for entity: Entity) -> Transform {
         let worldMatrix = self.worldTransformMatrix(for: entity)
@@ -323,16 +253,6 @@ public enum SceneEvents {
         public let scene: Scene
     }
     
-    /// Raised after an entity is added to the scene.
-    public struct DidAddEntity: Event {
-        public let entity: Entity
-    }
-    
-    /// Raised before an entity is removed from the scene.
-    public struct WillRemoveEntity: Event {
-        public let entity: Entity
-    }
-
     /// An event triggered once per frame interval that you can use to execute custom logic for each frame.
     public struct Update: Event {
 
@@ -343,4 +263,19 @@ public enum SceneEvents {
         public let deltaTime: TimeInterval
     }
 
+}
+
+@Component
+struct SceneResource {
+    static let sceneWorldIdentifier = "_ae_scene_ent"
+    
+    unowned let scene: Scene
+}
+
+public extension SceneUpdateContext {
+    var scene: Scene {
+        self.world.getEntityByName(SceneResource.sceneWorldIdentifier)!
+            .components[SceneResource.self]!
+            .scene
+    }
 }

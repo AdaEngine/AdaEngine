@@ -72,42 +72,42 @@ public extension CodingUserInfoKey {
 }
 
 /// Context contains all resolved resources from decoding.
-public final class AssetDecodingContext {
+public final class AssetDecodingContext: @unchecked Sendable {
 
     private var resources: [String: WeakBox<AnyObject>] = [:]
 
-    public func getOrLoadResource<R: Resource>(at path: String) throws -> R {
-        if let value = self.resources[path]?.value as? R {
+    public func getOrLoadResource<A: Asset>(at path: String) throws -> A {
+        if let value = self.resources[path]?.value as? A {
             return value
         } else {
-            let value = try ResourceManager.loadSync(path, ignoreCache: true) as R
+            let value = try AssetsManager.loadSync(path, ignoreCache: true) as A
             self.appendResource(value)
             
             return value
         }
     }
 
-    public func appendResource<R: Resource>(_ resource: R) {
-        self.resources[resource.resourcePath] = WeakBox(value: resource)
+    public func appendResource<A: Asset>(_ resource: A) {
+        self.resources[resource.assetPath] = WeakBox(value: resource)
     }
 }
 
 public extension Decoder {
     /// Returns instance of asset decoding context if exists.
-    /// - Warning: Only available if you save asset from ResourceManager
+    /// - Warning: Only available if you save asset from AssetsManager
     var assetsDecodingContext: AssetDecodingContext {
         guard let context = self.userInfo[.assetsDecodingContext] as? AssetDecodingContext else {
-            fatalError("AssetDecodingContext info available if you save resouce from ResourceManager object.")
+            fatalError("AssetDecodingContext info available if you save resouce from AssetsManager object.")
         }
         
         return context
     }
     
     /// Returns instance of asset meta
-    /// - Warning: Only available if you save asset from ResourceManager
+    /// - Warning: Only available if you save asset from AssetsManager
     var assetMeta: AssetMeta {
         guard let meta = self.userInfo[.assetMetaInfo] as? AssetMeta else {
-            fatalError("AssetMeta info available if you save resouce from ResourceManager object.")
+            fatalError("AssetMeta info available if you save resouce from AssetsManager object.")
         }
         
         return meta
@@ -117,10 +117,10 @@ public extension Decoder {
 public extension Encoder {
     
     /// Returns instance of asset meta
-    /// /// - Warning: Only available if you load asset from ResourceManager
+    /// /// - Warning: Only available if you load asset from AssetsManager
     var assetMeta: AssetMeta {
         guard let meta = self.userInfo[.assetMetaInfo] as? AssetMeta else {
-            fatalError("AssetMeta info available if you load resouce from ResourceManager object.")
+            fatalError("AssetMeta info available if you load resouce from AssetsManager object.")
         }
         
         return meta

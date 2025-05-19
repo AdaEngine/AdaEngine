@@ -11,6 +11,11 @@ tidy(
     ],
 )
 
+alias(
+    name = "AdaEditor",
+    actual = "//Sources/AdaEditor",
+)
+
 # Swift Package Manager
 # gazelle:exclude .build
 

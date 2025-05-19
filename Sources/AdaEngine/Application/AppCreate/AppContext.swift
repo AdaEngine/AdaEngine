@@ -47,7 +47,7 @@ public final class AppContext<T: App> {
 
     @_spi(Internal)
     public func setup() async throws {
-        try ResourceManager.initialize()
+        try AssetsManager.initialize()
         try AudioServer.initialize()
         RuntimeTypeLoader.loadTypes()
 

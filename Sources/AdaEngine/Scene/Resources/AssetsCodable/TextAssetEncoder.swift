@@ -33,19 +33,19 @@ public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {
 }
 
 protocol AnyEncoder: Sendable {
-    func encode<T: Encodable>(_ value: T, userInfo: [CodingUserInfoKey: Any]) throws -> Data
+    func encode<T: Encodable>(_ value: T, userInfo: [CodingUserInfoKey: any Sendable]) throws -> Data
 }
 
 extension YAMLEncoder: @unchecked @retroactive Sendable {}
 
 extension YAMLEncoder: AnyEncoder {
-    func encode<T>(_ value: T, userInfo: [CodingUserInfoKey : Any]) throws -> Data where T : Encodable {
+    func encode<T>(_ value: T, userInfo: [CodingUserInfoKey : any Sendable]) throws -> Data where T : Encodable {
         return try self.encode(value, userInfo: userInfo).data(using: .utf8)!
     }
 }
 
 extension JSONEncoder: AnyEncoder {
-    func encode<T>(_ value: T, userInfo: [CodingUserInfoKey : Any]) throws -> Data where T : Encodable {
+    func encode<T>(_ value: T, userInfo: [CodingUserInfoKey : any Sendable]) throws -> Data where T : Encodable {
         self.userInfo = userInfo
         return try self.encode(value)
     }

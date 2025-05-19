@@ -13,7 +13,7 @@ public protocol CompiledShader: AnyObject {}
 // TODO: (Vlad) I'm not sure that we should save compiled shader inside `Shader` object.
 
 /// Contains shader data.
-public final class Shader: Resource, @unchecked Sendable {
+public final class Shader: Asset, @unchecked Sendable {
     
     /// Return compiled shader which used for specific render backend.
     public fileprivate(set) var compiledShader: CompiledShader!
@@ -68,8 +68,8 @@ public final class Shader: Resource, @unchecked Sendable {
     
     // MARK: Shader
 
-    public var resourceMetaInfo: ResourceMetaInfo?
-    public static let resourceType: ResourceType = .material
+    public var assetMetaInfo: AssetMetaInfo?
+    public static let assetType: AssetType = .material
 
     // TODO: Load from spir-v
     public init(asset decoder: AssetDecoder) throws {
@@ -117,11 +117,11 @@ extension Shader: UniqueHashable {
     public static func == (lhs: Shader, rhs: Shader) -> Bool {
         lhs.spirvData == rhs.spirvData &&
         lhs.stage == rhs.stage &&
-        lhs.resourcePath == rhs.resourcePath
+        lhs.assetPath == rhs.assetPath
     }
     
     public func hash(into hasher: inout FNVHasher) {
-        hasher.combine(self.resourcePath)
+        hasher.combine(self.assetPath)
     }
 }
 

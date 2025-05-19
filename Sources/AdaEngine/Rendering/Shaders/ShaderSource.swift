@@ -34,7 +34,7 @@ public enum ShaderStage: String, Hashable, Codable, Sendable {
 }
 
 /// Contains collection of shader sources splitted by stages.
-public final class ShaderSource: Resource, @unchecked Sendable {
+public final class ShaderSource: Asset, @unchecked Sendable {
 
     enum Error: LocalizedError {
         case failedToRead(String)
@@ -132,9 +132,9 @@ public final class ShaderSource: Resource, @unchecked Sendable {
     
     // MARK: - Resource
     
-    public var resourceMetaInfo: ResourceMetaInfo?
+    public var assetMetaInfo: AssetMetaInfo?
     
-    public static let resourceType: ResourceType = .material
+    public static let assetType: AssetType = .material
     
     public init(asset decoder: AssetDecoder) throws {
         let fileURL = decoder.assetMeta.filePath

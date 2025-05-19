@@ -72,7 +72,7 @@ final class MiniAudioEngine: AudioEngine {
 
 // MARK: - MiniAudioEngineListener -
 
-final class MiniAudioEngineListener: AudioEngineListener {
+final class MiniAudioEngineListener: AudioEngineListener, @unchecked Sendable {
     
     private let engine: UnsafeMutablePointer<ma_engine>
     let listenerIndex: UInt32

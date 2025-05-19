@@ -1,5 +1,5 @@
 //
-//  DefaultScenePlugin.swift
+//  DefaultWorldPlugin.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 8/11/22.
@@ -7,25 +7,25 @@
 
 /// Contains base configuration for any scene in the game.
 /// This plugins will applied for each scene in Ada application and should be passed once per scene.
-struct DefaultScenePlugin: ScenePlugin {
-    func setup(in scene: Scene) {
+struct DefaultWorldPlugin: WorldPlugin {
+    func setup(in world: World) {
         // Add base systems
-        scene.addSystem(ScriptComponentUpdateSystem.self)
+        world.addSystem(ScriptComponentUpdateSystem.self)
 
         // Setup render
-        scene.addPlugin(VisibilityPlugin())
-        scene.addPlugin(CameraPlugin())
+        world.addPlugin(VisibilityPlugin())
+        world.addPlugin(CameraPlugin())
 
-        scene.addPlugin(SpritePlugin())
-        scene.addPlugin(Mesh2DPlugin())
-        scene.addPlugin(Text2DPlugin())
-        scene.addPlugin(AudioPlugin())
-        scene.addPlugin(UIPlugin())
+        world.addPlugin(SpritePlugin())
+        world.addPlugin(Mesh2DPlugin())
+        world.addPlugin(Text2DPlugin())
+        world.addPlugin(AudioPlugin())
+        world.addPlugin(UIPlugin())
 
         // Setup Physics
-        scene.addPlugin(Physics2DPlugin())
-        scene.addPlugin(TransformPlugin())
-        scene.addPlugin(TileMapPlugin())
+        world.addPlugin(Physics2DPlugin())
+        world.addPlugin(TransformPlugin())
+        world.addPlugin(TileMapPlugin())
     }
 }
 
