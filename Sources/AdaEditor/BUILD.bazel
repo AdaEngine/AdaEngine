@@ -1,6 +1,6 @@
 load("@build_bazel_rules_apple//apple:ios.bzl", "ios_application")
 load("@build_bazel_rules_apple//apple:macos.bzl", "macos_application")
-load("//utils/bazel:swift_ada_library.bzl", "swift_ada_library")
+load("//utils/bazel:swift_ada_binary.bzl", "swift_ada_binary")
 
 config_setting(
     name = "debug",
@@ -68,7 +68,7 @@ ada_editor_defines = select({
     "//conditions:default": [],
 })
 
-swift_ada_library(
+swift_ada_binary(
     name = "AdaEditor",
     data = [
         "Assets",
