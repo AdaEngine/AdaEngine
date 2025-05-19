@@ -7,7 +7,8 @@
 
 import AdaUtils
 
-struct ComponentId: Hashable, Equatable, Sendable {
+@_spi(Internal)
+public struct ComponentId: Hashable, Equatable, Sendable {
     let id: Int
 }
 
