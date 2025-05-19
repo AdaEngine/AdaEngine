@@ -69,7 +69,7 @@ ada_editor_defines = select({
 })
 
 swift_ada_library(
-    name = "AdaEditor"
+    name = "AdaEditor",
     data = [
         "Assets",
     ],

@@ -3,7 +3,8 @@ load("@build_bazel_rules_swift//swift:swift.bzl", "swift_test")
 swift_test(
     name = "AdaEngineTests",
     srcs = [
-        "AdaEngineTests.swift",
+        "FixedTimestepTests.swift",
+        "Physics2DTests.swift",
         "TestApplication.swift",
         "UIWidgetTest/Helpers/ViewTester.swift",
         "UIWidgetTest/ViewHitTests.swift",
@@ -12,6 +13,6 @@ swift_test(
         "UIWidgetTest/ViewVisibilityTest.swift",
     ],
     module_name = "AdaEngineTests",
+    visibility = ["//visibility:public"],
     deps = ["//Sources/Math"],
-    visibility = ["//visibility:public"]
 )

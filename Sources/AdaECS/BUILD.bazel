@@ -1,0 +1,12 @@
+load("//utils/bazel:swift_ada_library.bzl", "swift_ada_library")
+
+swift_ada_library(
+    name = "AdaECS",
+    plugins = ["//Sources/AdaEngineMacros"],
+    deps = [
+        "//Sources/AdaUtils",
+        "//Sources/AdaEngineMacros",
+        "@swiftpkg_swift_collections//:Collections",
+        "@swiftpkg_swift_collections//:BitCollections",
+    ],
+)

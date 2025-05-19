@@ -35,6 +35,5 @@ public final class RenderWorld: Sendable {
         await self.world.update(deltaTime)
         try await self.renderGraphExecutor.execute(self.renderGraph, in: world)
         self.world.clear()
-        print(self.world)
     }
 }

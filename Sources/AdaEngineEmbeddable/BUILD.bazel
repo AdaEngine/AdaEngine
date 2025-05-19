@@ -6,6 +6,7 @@ swift_library(
         "ApplePlatforms/AEView.swift",
         "ApplePlatforms/AppleApplication.swift",
         "ApplePlatforms/AppleWindowManager.swift",
+        "PreviewScene/PreviewProvider.swift",
     ],
     module_name = "AdaEngineEmbeddable",
     visibility = ["//visibility:public"],

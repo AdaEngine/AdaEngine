@@ -208,6 +208,9 @@ var targets: [Target] = [
             .product(name: "BitCollections", package: "swift-collections"),
             "AdaEngineMacros",
             "AdaUtils"
+        ],
+        exclude: [
+            "BUILD.bazel"
         ]
     ),
     .target(
@@ -215,6 +218,9 @@ var targets: [Target] = [
         dependencies: [
             .product(name: "Collections", package: "swift-collections"),
             .product(name: "BitCollections", package: "swift-collections"),
+        ],
+        exclude: [
+            "BUILD.bazel"
         ]
     )
 ]

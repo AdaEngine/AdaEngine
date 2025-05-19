@@ -1,21 +1,21 @@
 cc_library(
     name = "libpng",
     srcs = [
-        "Sources/libpng/png.c",
         "Sources/libpng/include/pngdebug.h",
-        "Sources/libpng/pngerror.c",
-        "Sources/libpng/pngget.c",
         "Sources/libpng/include/pnginfo.h",
         "Sources/libpng/include/pnglibconf.h",
+        "Sources/libpng/include/pngpriv.h",
+        "Sources/libpng/include/pngstruct.h",
+        "Sources/libpng/png.c",
+        "Sources/libpng/pngerror.c",
+        "Sources/libpng/pngget.c",
         "Sources/libpng/pngmem.c",
         "Sources/libpng/pngpread.c",
-        "Sources/libpng/include/pngpriv.h",
         "Sources/libpng/pngread.c",
         "Sources/libpng/pngrio.c",
         "Sources/libpng/pngrtran.c",
         "Sources/libpng/pngrutil.c",
         "Sources/libpng/pngset.c",
-        "Sources/libpng/include/pngstruct.h",
         "Sources/libpng/pngtrans.c",
         "Sources/libpng/pngwio.c",
         "Sources/libpng/pngwrite.c",
@@ -32,17 +32,17 @@ cc_library(
     hdrs = [
         "Sources/libpng/include/libpng.h",
         "Sources/libpng/include/png.h",
-        "Sources/libpng/include/pngconf.h"
+        "Sources/libpng/include/pngconf.h",
     ],
-    includes = ["Sources/libpng/include"],
     defines = select({
         "@platforms//cpu:arm64": [
             "PNG_ARM_NEON_OPT=2",
         ],
         "//conditions:default": [],
     }),
+    includes = ["Sources/libpng/include"],
     linkopts = ["-lm"],
-    deps = ["@zlib"],
+    tags = ["swift_module=libpng"],
     visibility = ["//visibility:public"],
-    tags = ["swift_module=libpng"]
+    deps = ["@zlib"],
 )

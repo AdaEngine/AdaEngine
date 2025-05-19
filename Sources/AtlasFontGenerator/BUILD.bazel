@@ -3,6 +3,7 @@ load("//utils/bazel:cc_ada_library.bzl", "cc_ada_library")
 cc_ada_library(
     name = "AtlasFontGenerator",
     deps = [
-        "@MSDFAtlasGen",
+        # "@swiftpkg_msdf_atlas_gen//:MSDFAtlasGen",
+        "//Modules/msdf-atlas-gen:MSDFAtlasGen",
     ],
 )

@@ -53,32 +53,30 @@ ada_editor_defines = select({
 })
 
 ada_engine_deps = [
-    "@libpng",
-    # "@SPIRV-Cross",
-    "@swiftpkg_spirv_cross//:SPIRV-Cross",
     "@swiftpkg_swift_collections//:Collections",
     "@swiftpkg_swift_collections//:BitCollections",
-    "@swiftpkg_box2d//:box2d",
     "@swiftpkg_swift_log//:Logging",
     "@swiftpkg_yams//:Yams",
+    # "@swiftpkg_miniaudio//:miniaudio",
+    "//Modules/miniaudio:miniaudio",
+    "@swiftpkg_box2d//:box2d",
+    "@swiftpkg_libpng//:libpng",
+    "@swiftpkg_spirv_cross//:SPIRV-Cross",
     "//Sources/AtlasFontGenerator:AtlasFontGenerator",
     "//Sources/SPIRVCompiler",
-    "//Sources/MiniAudioBindings",
     "//Sources/Math",
-    # "//Sources/Vulkan"
+    "//Sources/AdaUtils",
+    "//Sources/AdaECS",
 ]
 
 swift_ada_library(
     name = "AdaEngine",
-    copts = [
-        "-cxx-interoperability-mode=default",
-    ],
     data = [
         "Assets/Fonts",
         "Assets/Shaders",
     ],
     defines = swift_defines,
-    plugins = ["//Sources/AdaEngineMacros:AdaEngineMacros"],
+    plugins = ["//Sources/AdaEngineMacros"],
     visibility = ["//visibility:public"],
     deps = ada_engine_deps,
 )
