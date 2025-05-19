@@ -80,12 +80,12 @@ public extension TextAttributeContainer {
     
 }
 
-public enum LineBreakMode {
+public enum LineBreakMode: Sendable {
     case byCharWrapping
     case byWordWrapping
 }
 
-public enum TextAlignment {
+public enum TextAlignment: Sendable {
     case center
     case trailing
     case leading

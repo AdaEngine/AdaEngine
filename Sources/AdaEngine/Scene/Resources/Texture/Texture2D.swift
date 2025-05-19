@@ -37,7 +37,7 @@ open class Texture2D: Texture, @unchecked Sendable {
         self.height = descriptor.height
         
         super.init(gpuTexture: gpuTexture, sampler: sampler, textureType: descriptor.textureType)
-        self.resourceMetaInfo = image.resourceMetaInfo
+        self.assetMetaInfo = image.assetMetaInfo
     }
     
     public init(descriptor: TextureDescriptor) {
@@ -85,7 +85,7 @@ open class Texture2D: Texture, @unchecked Sendable {
     
     public convenience required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let filePath = try container.decode(ResourceMetaInfo.self, forKey: .filePath)
+        let filePath = try container.decode(AssetMetaInfo.self, forKey: .filePath)
         let samplerDesc = try container.decodeIfPresent(SamplerDescriptor.self, forKey: .sampler)
         
         let image = try decoder.assetsDecodingContext.getOrLoadResource(at: filePath.fullFileURL.absoluteString) as Image
@@ -94,7 +94,7 @@ open class Texture2D: Texture, @unchecked Sendable {
     
     public override func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(self.resourceMetaInfo, forKey: .filePath)
+        try container.encodeIfPresent(self.assetMetaInfo, forKey: .filePath)
         try container.encode(self.sampler.descriptor, forKey: .sampler)
     }
 }

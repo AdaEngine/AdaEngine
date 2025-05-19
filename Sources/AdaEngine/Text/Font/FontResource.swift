@@ -16,7 +16,7 @@ public enum FontWeight: String {
 }
 
 /// An object that provides access to the font's characteristics.
-public final class FontResource: Resource, Hashable, @unchecked Sendable {
+public final class FontResource: Asset, Hashable, @unchecked Sendable {
 
     let handle: FontHandle
     
@@ -24,9 +24,9 @@ public final class FontResource: Resource, Hashable, @unchecked Sendable {
         self.handle = handle
     }
     
-    public var resourceMetaInfo: ResourceMetaInfo?
+    public var assetMetaInfo: AssetMetaInfo?
     
-    public static var resourceType: ResourceType {
+    public static var assetType: AssetType {
         return .font
     }
     
@@ -115,7 +115,7 @@ public extension FontResource {
                 path.append("#emSize=\(scale)")
             }
 
-            return try ResourceManager.loadSync(path, from: .engineBundle) as FontResource
+            return try AssetsManager.loadSync(path, from: .engineBundle) as FontResource
         } catch {
             fatalError("[Font]: Something went wrong \(error.localizedDescription)")
         }

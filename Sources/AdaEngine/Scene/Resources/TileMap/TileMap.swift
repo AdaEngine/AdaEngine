@@ -5,10 +5,9 @@
 //  Created by v.prusakov on 5/4/24.
 //
 
-@MainActor
-public class TileMap: Resource, @unchecked Sendable {
+public class TileMap: Asset, @unchecked Sendable {
 
-    public static let resourceType: ResourceType = .text
+    public static let assetType: AssetType = .text
 
     public var tileSet: TileSet = TileSet() {
         didSet {
@@ -16,17 +15,16 @@ public class TileMap: Resource, @unchecked Sendable {
         }
     }
 
-    @Atomic public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
+    public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
 
-    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
+    public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
 
     internal private(set) var needsUpdate: Bool = false
 
     public init() {
         self.tileSetDidChange()
     }
-
-    @MainActor
+    
     public required init(asset decoder: AssetDecoder) async throws {
         let fileContent = try decoder.decode(FileContent.self)
         self.tileSet = fileContent.tileSet

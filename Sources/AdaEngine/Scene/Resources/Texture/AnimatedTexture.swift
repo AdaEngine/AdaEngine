@@ -105,7 +105,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     }
     
     public convenience required init(asset decoder: AssetDecoder) async throws {
-        guard await decoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
+        guard decoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
             throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
         }
         

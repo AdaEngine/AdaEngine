@@ -55,7 +55,7 @@ public final class AudioServer {
 }
 
 /// Interface describes audio listener entity in spatial audio scene.
-protocol AudioEngineListener: AnyObject {
+protocol AudioEngineListener: AnyObject, Sendable {
     
     var position: Vector3 { get set }
     var direction: Vector3 { get set }

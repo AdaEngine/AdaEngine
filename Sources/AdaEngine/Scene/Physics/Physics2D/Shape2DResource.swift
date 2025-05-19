@@ -5,26 +5,28 @@
 //  Created by v.prusakov on 7/11/22.
 //
 
-/// A representation of a shape.
-public final class Shape2DResource: Codable {
+import Math
 
-    struct CircleShape: Codable, Hashable, Equatable {
+/// A representation of a shape.
+public final class Shape2DResource: Codable, Sendable {
+
+    struct CircleShape: Codable, Hashable, Equatable, Sendable {
         let radius: Float
         var offset: Vector2 = .zero
     }
     
-    struct BoxShape: Codable, Hashable, Equatable {
+    struct BoxShape: Codable, Hashable, Equatable, Sendable {
         let halfWidth: Float
         let halfHeight: Float
         var offset: Vector2 = .zero
     }
     
-    struct PolygonShape: Codable, Hashable, Equatable {
+    struct PolygonShape: Codable, Hashable, Equatable, Sendable {
         let verticies: [Vector2]
         var offset: Vector2 = .zero
     }
     
-    enum Fixture: Codable, Hashable, Equatable {
+    enum Fixture: Codable, Hashable, Equatable, Sendable {
         case circle(CircleShape)
         case box(BoxShape)
         case polygon(PolygonShape)

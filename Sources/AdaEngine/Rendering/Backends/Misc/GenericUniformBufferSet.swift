@@ -7,7 +7,7 @@
 
 import Foundation
 
-final class GenericUniformBufferSet: UniformBufferSet {
+final class GenericUniformBufferSet: UniformBufferSet, @unchecked Sendable {
     /// Max frames in flight.
     let frames: Int
     let device: RenderDevice

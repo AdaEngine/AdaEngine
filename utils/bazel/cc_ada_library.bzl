@@ -2,7 +2,18 @@
 
 load("@build_bazel_rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
 
-def cc_ada_library(name, hdrs = [], srcs = [], includes = ["include"], copts = [], linkopts = [], deps = [], defines = [], data = [], testonly = False):
+def cc_ada_library(
+    name, 
+    hdrs = [], 
+    srcs = [], 
+    includes = ["include"], 
+    copts = [], 
+    linkopts = [], 
+    deps = [], 
+    defines = [], 
+    data = [], 
+    testonly = False
+    ):
     cxx_lib_name = "_{}_cxx_lib".format(name)
 
     native.cc_library(

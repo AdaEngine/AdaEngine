@@ -25,10 +25,10 @@ class EditorCameraSystem: System {
 
     private var isViewMatrixDirty = false
 
-    required public init(scene: Scene) { }
+    required public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let entities = context.scene.performQuery(Self.query)
+        let entities = context.world.performQuery(Self.query)
         let deltaTime = context.deltaTime
 
         for entity in entities {

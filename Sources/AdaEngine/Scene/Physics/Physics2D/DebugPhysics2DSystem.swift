@@ -5,7 +5,8 @@
 //  Created by v.prusakov on 2/26/23.
 //
 
-@_implementationOnly import box2d
+import AdaECS
+import box2d
 import Math
 
 @Component
@@ -29,68 +30,72 @@ public struct DebugPhysicsExctract2DSystem: System {
         .has(Camera.self) && .has(GlobalViewUniform.self)
     )
     
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
-            return
-        }
-
-        guard let camera = context.scene.performQuery(Self.cameras).first else {
-            return
-        }
-
-        guard let world = context.scene.physicsWorld2D else {
-            return
-        }
+        let scene = context.scene
         
-        guard let window = context.scene.window else {
-            return
-        }
-        
-        var graphics = UIGraphicsContext(window: window)
-        graphics.beginDraw(in: window.frame.size, scaleFactor: 1)
-        
-        if let viewUniform = camera.components[GlobalViewUniform.self] {
-            let viewMatrix = viewUniform.viewProjectionMatrix
-            graphics.concatenate(viewMatrix)
-            graphics.scaleBy(x: window.frame.size.width / 2, y: window.frame.size.height / 2)
-            graphics.translateBy(x: window.frame.size.width / 2, y: -window.frame.size.height / 2)
-        }
-        
-        let drawContext = WorldDebugDrawContext()
-        var debugDraw = b2DefaultDebugDraw()
-        debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
-        debugDraw.DrawSolidCircle = DebugPhysicsExctract2DSystem_DrawSolidCircle
-        debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
-        debugDraw.drawShapes = true
-        debugDraw.drawAABBs = true
-        world.debugDraw(with: debugDraw)
-        
-        drawContext.forEach { item in
-            switch item {
-            case let .line(start, end, color):
-                graphics.drawLine(
-                    start: start,
-                    end: end,
-                    lineWidth: 2.0,
-                    color: color
-                )
-            case let .circle(center, radius, color):
-                graphics.drawEllipse(
-                    in: Rect(
-                        x: center.x - radius,
-                        y: -center.y - radius,
-                        width: radius * 2,
-                        height: radius * 2
-                    ),
-                    color: color,
-                    thickness: 0.1
-                )
+        context.scheduler.addTask { @MainActor in    
+            guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
+                return
             }
+            
+            guard let camera = context.world.performQuery(Self.cameras).first else {
+                return
+            }
+            
+            guard let world = context.world.physicsWorld2D else {
+                return
+            }
+            
+            guard let window = scene.window else {
+                return
+            }
+            
+            var graphics = UIGraphicsContext(window: window)
+            graphics.beginDraw(in: window.frame.size, scaleFactor: 1)
+            
+            if let viewUniform = camera.components[GlobalViewUniform.self] {
+                let viewMatrix = viewUniform.viewProjectionMatrix
+                graphics.concatenate(viewMatrix)
+                graphics.scaleBy(x: window.frame.size.width / 2, y: window.frame.size.height / 2)
+                graphics.translateBy(x: window.frame.size.width / 2, y: -window.frame.size.height / 2)
+            }
+            
+            let drawContext = WorldDebugDrawContext()
+            var debugDraw = b2DefaultDebugDraw()
+            debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
+            debugDraw.DrawSolidCircle = DebugPhysicsExctract2DSystem_DrawSolidCircle
+            debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
+            debugDraw.drawShapes = true
+            debugDraw.drawAABBs = true
+            world.debugDraw(with: debugDraw)
+            
+            drawContext.forEach { item in
+                switch item {
+                case let .line(start, end, color):
+                    graphics.drawLine(
+                        start: start,
+                        end: end,
+                        lineWidth: 2.0,
+                        color: color
+                    )
+                case let .circle(center, radius, color):
+                    graphics.drawEllipse(
+                        in: Rect(
+                            x: center.x - radius,
+                            y: -center.y - radius,
+                            width: radius * 2,
+                            height: radius * 2
+                        ),
+                        color: color,
+                        thickness: 0.1
+                    )
+                }
+            }
+            
+            graphics.commitDraw()
         }
-        
-        graphics.commitDraw()
     }
 
     @MainActor 
@@ -199,7 +204,7 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
 }
 
 /// System for rendering debug physics shape on top of the scene.
-public struct Physics2DDebugDrawSystem: RenderSystem {
+public struct Physics2DDebugDrawSystem: RenderSystem, Sendable {
     
     public static let dependencies: [SystemDependency] = [.after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)]
     
@@ -208,12 +213,12 @@ public struct Physics2DDebugDrawSystem: RenderSystem {
     
     static let mesh2dDrawPassIdentifier = Mesh2DDrawPass.identifier
     
-    public init(scene: Scene) {}
+    public init(world: World) {}
     
     public func update(context: UpdateContext) {
-        let exctractedValues = context.scene.performQuery(Self.entities)
-            
-        context.scene.performQuery(Self.cameras).forEach { entity in
+        let exctractedValues = context.world.performQuery(Self.entities)
+        
+        context.world.performQuery(Self.cameras).forEach { entity in
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
             
@@ -222,17 +227,16 @@ public struct Physics2DDebugDrawSystem: RenderSystem {
                 visibleEntities: visibleEntities,
                 items: &renderItems.items
             )
-            
+                
             entity.components += renderItems
         }
     }
     
-    @MainActor private func draw(
+    private func draw(
         extractedItems: QueryResult,
         visibleEntities: VisibleEntities,
         items: inout [Transparent2DRenderItem]
     ) {
-        
     itemIterator:
         for entity in extractedItems {
             

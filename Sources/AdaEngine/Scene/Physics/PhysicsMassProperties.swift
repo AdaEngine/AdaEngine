@@ -8,7 +8,7 @@
 import Math
 
 /// Mass properties of a physics body.
-public struct PhysicsMassProperties: Codable {
+public struct PhysicsMassProperties: Codable, Sendable {
     
     /// The mass in kilograms.
     public var mass: Float

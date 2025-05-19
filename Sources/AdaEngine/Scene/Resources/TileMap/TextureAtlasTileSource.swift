@@ -8,7 +8,7 @@
 import OrderedCollections
 import Math
 
-public class TextureAtlasTileSource: TileSource {
+public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
 
     // key - atlas coordinates
     private var tiles: OrderedDictionary<PointInt, AtlasTileData> = [:]

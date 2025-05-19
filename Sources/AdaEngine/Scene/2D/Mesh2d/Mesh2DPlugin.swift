@@ -5,19 +5,20 @@
 //  Created by v.prusakov on 3/21/23.
 //
 
+import AdaECS
 import Math
 
 // MARK: - Mesh 2D Plugin -
 
 /// Plugin to exctract meshes to RenderWorld
-struct Mesh2DPlugin: ScenePlugin {
-    func setup(in scene: Scene) {
-        scene.addSystem(ExctractMesh2DSystem.self)
+struct Mesh2DPlugin: WorldPlugin {
+    func setup(in world: World) {
+        world.addSystem(ExctractMesh2DSystem.self)
     }
 }
 
 @Component
-public struct ExctractedMeshes2D {
+public struct ExctractedMeshes2D: Sendable {
     public var meshes: [ExctractedMesh2D] = []
 
     public init(meshes: [ExctractedMesh2D] = []) {
@@ -26,7 +27,7 @@ public struct ExctractedMeshes2D {
 }
 
 @Component
-public struct ExctractedMesh2D {
+public struct ExctractedMesh2D: Sendable {
     public var entityId: Entity.ID
     public var mesh: Mesh2DComponent
     public var transform: Transform
@@ -47,20 +48,20 @@ public struct ExctractMesh2DSystem: System {
 
     static let query = EntityQuery(where: .has(Mesh2DComponent.self) && .has(Transform.self) && .has(Visibility.self))
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
         let extractedEntity = EmptyEntity()
         var extractedMeshes = ExctractedMeshes2D()
 
-        context.scene.performQuery(Self.query).forEach { entity in
+        context.world.performQuery(Self.query).forEach { entity in
             let (mesh, transform, visibility) = entity.components[Mesh2DComponent.self, Transform.self, Visibility.self]
 
-            if !visibility.isVisible {
+            if visibility == .hidden {
                 return
             }
 
-            let worldTransform = context.scene.worldTransformMatrix(for: entity)
+            let worldTransform = context.world.worldTransformMatrix(for: entity)
 
             extractedMeshes.meshes.append(
                 ExctractedMesh2D(
@@ -73,7 +74,9 @@ public struct ExctractMesh2DSystem: System {
         }
 
         extractedEntity.components += extractedMeshes
-        Application.shared.renderWorld.addEntity(extractedEntity)
+        context.scheduler.addTask {
+            await Application.shared.renderWorld.addEntity(extractedEntity)
+        }
     }
 }
 
@@ -85,12 +88,12 @@ struct Mesh2DRenderPlugin: RenderWorldPlugin {
         let drawPass = Mesh2DDrawPass()
         DrawPassStorage.setDrawPass(drawPass)
 
-        await world.addSystem(Mesh2DRenderSystem.self)
+        world.addSystem(Mesh2DRenderSystem.self)
     }
 }
 
 /// System in RenderWorld for rendering 2D meshes.
-public struct Mesh2DRenderSystem: RenderSystem {
+public struct Mesh2DRenderSystem: RenderSystem, Sendable {
 
     static let query = EntityQuery(where: .has(Camera.self) && .has(VisibleEntities.self) && .has(RenderItems<Transparent2DRenderItem>.self))
 
@@ -98,29 +101,35 @@ public struct Mesh2DRenderSystem: RenderSystem {
 
     let meshDrawPassIdentifier = Mesh2DDrawPass.identifier
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let exctractedMeshes = context.scene.performQuery(Self.extractedMeshes)
+        let exctractedMeshes = context.world.performQuery(Self.extractedMeshes)
 
-        context.scene.performQuery(Self.query).forEach { entity in
-            var (visibleEntities, renderItems) = entity.components[VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
-
+        context.world.performQuery(Self.query).forEach { entity in
             for exctractedMesh in exctractedMeshes {
                 let meshes = exctractedMesh.components[ExctractedMeshes2D.self]!.meshes
+                var (visibleEntities, renderItems) = entity.components[
+                    VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
+
                 self.draw(
                     meshes: meshes,
                     visibleEntities: visibleEntities,
                     items: &renderItems.items,
                     keys: []
                 )
-            }
 
-            entity.components += renderItems
+                entity.components += renderItems
+            }
         }
     }
 
-    @MainActor func draw(meshes: [ExctractedMesh2D], visibleEntities: VisibleEntities, items: inout [Transparent2DRenderItem], keys: Set<String>) {
+    func draw(
+        meshes: [ExctractedMesh2D],
+        visibleEntities: VisibleEntities,
+        items: inout [Transparent2DRenderItem],
+        keys: Set<String>
+    ) {
         for mesh in meshes {
             guard visibleEntities.entityIds.contains(mesh.entityId) else {
                 continue

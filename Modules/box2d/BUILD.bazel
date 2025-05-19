@@ -1,0 +1,8 @@
+cc_library(
+    name = "box2d",
+    srcs = glob(["src/*.c"]),
+    hdrs = glob(["src/*.h"]),
+    includes = ["include/include"],
+    tags = ["swift_module=box2d"],
+    visibility = ["//visibility:public"],
+)

@@ -20,7 +20,7 @@ public struct Scene2DPlugin: RenderWorldPlugin {
 
     public func setup(in world: RenderWorld) async {
         // Add Systems
-        await world.addSystem(BatchTransparent2DItemsSystem.self)
+        world.addSystem(BatchTransparent2DItemsSystem.self)
 
         // Add Render graph
         let graph = RenderGraph(label: "Scene2D")
@@ -100,7 +100,7 @@ public struct Main2DRenderNode: RenderNode {
             drawList.setViewport(viewport)
         }
         
-        try await sortedRenderItems.render(drawList, world: context.world, view: entity)
+        try sortedRenderItems.render(drawList, world: context.world, view: entity)
         context.device.endDrawList(drawList)
         return []
     }

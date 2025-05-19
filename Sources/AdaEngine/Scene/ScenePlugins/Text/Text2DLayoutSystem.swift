@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 3/7/23.
 //
 
+import AdaECS
+
 /// An object that store text layout manager
 @Component
 struct TextLayoutComponent {
@@ -18,13 +20,13 @@ public struct Text2DLayoutSystem: System {
     
     static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self))
     
-    public init(scene: Scene) {}
+    public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.textComponents).forEach { entity in
+        context.world.performQuery(Self.textComponents).forEach { entity in
             let (text, visibility) = entity.components[Text2DComponent.self, Visibility.self]
             
-            if !visibility.isVisible {
+            if visibility == .hidden {
                 return
             }
             

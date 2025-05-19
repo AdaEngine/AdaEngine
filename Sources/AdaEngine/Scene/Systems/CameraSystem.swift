@@ -5,45 +5,51 @@
 //  Created by v.prusakov on 5/7/22.
 //
 
+@_spi(Internal) import AdaECS
+
 // FIXME: Currently we render on window directly
+// TODO: Move window info to ECS system
 
 /// System for updating cameras data on scene.
-public struct CameraSystem: System {
+public struct CameraSystem: System, Sendable {
 
     public static let dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
 
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
+        context.world.performQuery(Self.query).forEach { entity in
             guard var camera = entity.components[Camera.self] else {
                 return
             }
-
-            let transform = context.scene.worldTransformMatrix(for: entity)
+            let transform = context.world.worldTransformMatrix(for: entity)
             let viewMatrix = transform.inverse
             camera.viewMatrix = viewMatrix
 
-            self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
-            self.updateProjectionMatrix(for: &camera)
-            self.updateFrustum(for: &camera)
+            context.scheduler.addTask { @MainActor in
+                self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
+                self.updateProjectionMatrix(for: &camera)
+                self.updateFrustum(for: &camera)
 
-            entity.components += GlobalViewUniform(
-                projectionMatrix: camera.computedData.projectionMatrix,
-                viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
-                viewMatrix: camera.viewMatrix
-            )
-            entity.components[Camera.self] = camera
+                entity.components += GlobalViewUniform(
+                    projectionMatrix: camera.computedData.projectionMatrix,
+                    viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
+                    viewMatrix: camera.viewMatrix
+                )
+                entity.components[Camera.self] = camera
+            }
         }
     }
 
     @MainActor
-    private func updateViewportSizeIfNeeded(for camera: inout Camera, window: UIWindow?) {
+    private func updateViewportSizeIfNeeded(
+        for camera: inout Camera, 
+        window: UIWindow?
+    ) {
         switch camera.renderTarget {
         case .window(let id):
-
             if id != window?.id {
                 camera.renderTarget = .window(window?.id ?? .empty)
                 camera.computedData.targetScaleFactor = window?.screen?.scale ?? 1
@@ -118,17 +124,20 @@ public struct ExtractCameraSystem: System {
 
     public static let dependencies: [SystemDependency] = [.after(CameraSystem.self)]
 
-    static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self) && .has(VisibleEntities.self))
+    static let query = EntityQuery(
+        where: .has(Camera.self) && 
+        .has(Transform.self) && 
+        .has(VisibleEntities.self)
+    )
 
-    public init(scene: Scene) { }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.scene.performQuery(Self.query).forEach { entity in
-            let cameraEntity = EmptyEntity()
-
-            if
-                let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
-                let uniform = entity.components[GlobalViewUniform.self] {
+        context.world.performQuery(Self.query).forEach { entity in
+            let cameraEntity = Entity(name: "ExtractedCameraEntity")
+            if let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
+                let uniform = entity.components[GlobalViewUniform.self]
+            {
 
                 let buffer = bufferSet.uniformBufferSet.getBuffer(
                     binding: GlobalBufferIndex.viewUniform,
@@ -140,9 +149,12 @@ public struct ExtractCameraSystem: System {
             }
 
             cameraEntity.components = entity.components
+            cameraEntity.components += RenderItems<Transparent2DRenderItem>()
             cameraEntity.components.entity = cameraEntity
 
-            Application.shared.renderWorld.addEntity(cameraEntity)
+            context.scheduler.addTask {
+                await Application.shared.renderWorld.addEntity(cameraEntity)
+            }
         }
     }
 }

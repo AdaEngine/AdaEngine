@@ -9,7 +9,7 @@
 /// You must use this type of scene if your application should launch a game scene.
 public struct GameAppScene: AppScene {
     
-    public typealias SceneBlock = @Sendable () async throws -> Scene
+    public typealias SceneBlock = @MainActor @Sendable () async throws -> Scene
 
     public var scene: Never { fatalError() }
     

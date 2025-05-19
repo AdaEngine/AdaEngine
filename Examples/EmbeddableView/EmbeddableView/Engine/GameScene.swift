@@ -72,10 +72,10 @@ struct TubeMovementSystem: System {
         where: .has(TubeComponent.self) && .has(Transform.self)
     )
 
-    init(scene: Scene) { }
+    init(world: World) { }
     
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.tubeQuery).forEach { entity in
+        context.world.performQuery(Self.tubeQuery).forEach { entity in
             var transform = entity.components[Transform.self]!
             transform.position.x -= 2 * context.deltaTime
             entity.components += transform
@@ -88,10 +88,10 @@ struct TubeDestoryerSystem: System {
         where: .has(TubeComponent.self) && .has(Transform.self)
     )
 
-    init(scene: Scene) { }
+    init(world: World) { }
     
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.tubeQuery).forEach { entity in
+        context.world.performQuery(Self.tubeQuery).forEach { entity in
             let transform = entity.components[Transform.self]!
             
             if transform.position.x < -4 {
@@ -103,10 +103,10 @@ struct TubeDestoryerSystem: System {
 
 class TubeSpawnerSystem: System {
 
-    var lastSpawnTime: AdaEngine.TimeInterval = 0
-    var counter: AdaEngine.TimeInterval = 0
+    var lastSpawnTime: TimeInterval = 0
+    var counter: TimeInterval = 0
 
-    required init(scene: Scene) { }
+    required init(world: World) { }
 
     func update(context: UpdateContext) {
         counter += context.deltaTime
@@ -184,9 +184,9 @@ final class GameScene2D {
         userEntity.components += camera
         scene.addEntity(userEntity)
 
-        scene.addSystem(TubeMovementSystem.self)
-        scene.addSystem(TubeSpawnerSystem.self)
-        scene.addSystem(TubeDestoryerSystem.self)
+        world.addSystem(TubeMovementSystem.self)
+        world.addSystem(TubeSpawnerSystem.self)
+        world.addSystem(TubeDestoryerSystem.self)
         
         return scene
     }

@@ -8,8 +8,7 @@
 import OrderedCollections
 import Math
 
-@MainActor
-public class TileSet: Resource, @preconcurrency Codable {
+public class TileSet: Asset, Codable, @unchecked Sendable {
 
     struct PhysicsLayer {
         var collisionLayer: CollisionGroup = .default
@@ -52,12 +51,12 @@ public class TileSet: Resource, @preconcurrency Codable {
         }
     }
     
-    public func encodeContents(with encoder: any AssetEncoder) async throws {
-        try await encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
+    public func encodeContents(with encoder: any AssetEncoder) throws {
+        try encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
     }
 
-    public static let resourceType: ResourceType = .text
-    public nonisolated(unsafe) var resourceMetaInfo: ResourceMetaInfo?
+    public static let assetType: AssetType = .text
+    public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
 
     public init() {}
 
@@ -95,9 +94,8 @@ public class TileSet: Resource, @preconcurrency Codable {
 // MARK: - FileContent & CodingKeys
 
 extension TileSet {
-
-    @MainActor
-    struct FileContent: @preconcurrency Codable {
+    
+    struct FileContent: Codable {
         
         let tileSize: PointInt
         private(set) var sources: OrderedDictionary<TileSource.ID, TileSource> = [:]

@@ -15,9 +15,9 @@ struct MovementSystem: System {
     
     let speed: Float = 3
     
-    init(scene: Scene) { }
+    init(world: World) { }
     
     func update(context: UpdateContext) {
-        context.scene.performQuery(Self.playerQuery)
+        context.world.performQuery(Self.playerQuery)
     }
 }
