@@ -1,3 +1,5 @@
+load("@build_bazel_rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
+
 cc_library(
     name = "freetype",
     srcs = [
@@ -71,7 +73,7 @@ cc_library(
 )
 
 cc_library(
-    name = "MSDFGen",
+    name = "msdfgen",
     srcs = glob([
         "msdfgen/**/*.cpp",
     ]),
@@ -88,6 +90,7 @@ cc_library(
         "MSDFGEN_USE_CPP11",
     ],
     includes = ["msdfgen"],
+    aspect_hints = ["msdfgen_cxx"],
     deps = [
         ":freetype",
         ":tinyxml",
@@ -95,7 +98,7 @@ cc_library(
 )
 
 cc_library(
-    name = "MSDFAtlasGen",
+    name = "msdf-atlas-gen",
     srcs = glob([
         "msdf-atlas-gen/*.cpp",
     ]),
@@ -106,10 +109,8 @@ cc_library(
     copts = [
         "-Wunused-function",
     ],
-    defines = [
-        "_CRT_SECURE_NO_WARNINGS=1",
-    ],
     includes = ["msdf-atlas-gen"],
     visibility = ["//visibility:public"],
-    deps = [":MSDFGen"],
+    aspect_hints = ["msdf-atlas-gen_cxx"],
+    deps = [":msdfgen"],
 )
