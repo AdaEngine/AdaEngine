@@ -1,11 +1,8 @@
+load("@build_bazel_rules_swift//swift:swift_interop_hint.bzl", "swift_interop_hint")
+
 cc_library(
     name = "libpng",
     srcs = [
-        "Sources/libpng/include/pngdebug.h",
-        "Sources/libpng/include/pnginfo.h",
-        "Sources/libpng/include/pnglibconf.h",
-        "Sources/libpng/include/pngpriv.h",
-        "Sources/libpng/include/pngstruct.h",
         "Sources/libpng/png.c",
         "Sources/libpng/pngerror.c",
         "Sources/libpng/pngget.c",
@@ -40,9 +37,17 @@ cc_library(
         ],
         "//conditions:default": [],
     }),
-    includes = ["Sources/libpng/include"],
+    includes = [
+        "Sources/libpng/include"
+    ],
     linkopts = ["-lm"],
-    tags = ["swift_module=libpng"],
-    visibility = ["//visibility:public"],
     deps = ["@zlib"],
+    aspect_hints = ["libpng_cc"],
+    visibility = ["//visibility:public"],
+)
+
+swift_interop_hint(
+    name = "libpng_cc",
+    module_name = "libpng",
+    visibility = ["//visibility:public"]
 )

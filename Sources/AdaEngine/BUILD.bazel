@@ -30,37 +30,14 @@ swift_defines = select({
     "BAZEL_BUILD",
 ]
 
-ada_editor_defines = select({
-    "@platforms//os:macos": [
-        "EDITOR_MACOS",
-    ],
-    "@platforms//os:ios": [
-        "EDITOR_IOS",
-    ],
-    "@platforms//os:tvos": [
-        "EDITOR_TVOS",
-    ],
-    "@platforms//os:windows": [
-        "EDITOR_WINDOWS",
-    ],
-    "@platforms//os:linux": [
-        "EDITOR_LINUX",
-    ],
-    "@platforms//os:android": [
-        "EDITOR_ANDROID",
-    ],
-    "//conditions:default": [],
-})
-
 ada_engine_deps = [
     "@swiftpkg_swift_collections//:Collections",
     "@swiftpkg_swift_collections//:BitCollections",
     "@swiftpkg_swift_log//:Logging",
     "@swiftpkg_yams//:Yams",
-    # "@swiftpkg_miniaudio//:miniaudio",
-    "//Modules/miniaudio:miniaudio",
+    "@swiftpkg_miniaudio//:miniaudio",
     "@swiftpkg_box2d//:box2d",
-    "@swiftpkg_libpng//:libpng",
+    "//Modules/libpng:libpng",
     "@swiftpkg_spirv_cross//:SPIRV-Cross",
     "//Sources/AtlasFontGenerator:AtlasFontGenerator",
     "//Sources/SPIRVCompiler",
