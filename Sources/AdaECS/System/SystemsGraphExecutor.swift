@@ -32,6 +32,7 @@ final class SystemsGraphExecutor {
                 }
             }
             
+            currentNode.system.queries.update(from: context.world)
             currentNode.system.update(context: context)
             completedSystems.insert(currentNode.name)
             

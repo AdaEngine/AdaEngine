@@ -60,7 +60,7 @@ public final class Physics2DSystem: System, Sendable {
     // MARK: - Private
     
     @MainActor
-    private func updatePhysicsBodyEntities(_ entities: QueryResult, in world: PhysicsWorld2D) {
+    private func updatePhysicsBodyEntities(_ entities: QueryResult<Entity>, in world: PhysicsWorld2D) {
         for entity in entities {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
             if let body = physicsBody.runtimeBody {
@@ -129,7 +129,7 @@ public final class Physics2DSystem: System, Sendable {
     }
 
     @MainActor
-    private func updateCollisionEntities(_ entities: QueryResult, in world: PhysicsWorld2D) {
+    private func updateCollisionEntities(_ entities: QueryResult<Entity>, in world: PhysicsWorld2D) {
         for entity in entities {
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
 

@@ -185,11 +185,7 @@ public extension Entity {
                 return false
             }
 
-            return world?.isComponentChanged(T.identifier, for: entity) ?? false
-        }
-        
-        public func isComponentChanged<T: Component>(_ component: T) -> Bool {
-            return self.isComponentChanged(T.self)
+            return world?.isComponentChanged(componentType, for: entity) ?? false
         }
     }
 }

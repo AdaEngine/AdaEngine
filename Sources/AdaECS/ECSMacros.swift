@@ -13,4 +13,9 @@
 @attached(extension, names: arbitrary, conformances: Component)
 public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "ComponentMacro")
 
+@attached(member, names: named(queries), named(dependencies))
+@attached(extension, names: arbitrary, conformances: System)
+public macro System(dependencies: [SystemDependency] = []) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
+
 #endif
+

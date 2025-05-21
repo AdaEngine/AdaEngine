@@ -123,22 +123,32 @@ public final class World: @unchecked Sendable, Codable {
         return nil
     }
     
-    public func addSystem<T: System>(_ systemType: T.Type) {
+    /// Add new system to the world.
+    /// - Warning: System should be added before build.
+    /// - Parameter systemType: System type.
+    @discardableResult
+    public func addSystem<T: System>(_ systemType: T.Type) -> Self {
         if self.isReady {
             assertionFailure("Can't insert system if scene was ready")
+            return self
         }
         let system = systemType.init(world: self)
         self.systemGraph.addSystem(system)
+        return self
     }
     
     /// Add new scene plugin to the scene.
-    /// - Warning: Plugin should be added before presenting.
-    public func addPlugin<T: WorldPlugin>(_ plugin: T) {
+    /// - Warning: Plugin should be added before build.
+    /// - Parameter plugin: Plugin instance.
+    @discardableResult
+    public func addPlugin<T: WorldPlugin>(_ plugin: T) -> Self {
         if self.isReady {
             assertionFailure("Can't insert plugin if scene was ready")
+            return self
         }
         plugin.setup(in: self)
         self.plugins.append(plugin)
+        return self
     }
 
     public func build() {
@@ -154,7 +164,8 @@ public final class World: @unchecked Sendable, Codable {
     
     /// Add a new entity to the world. This entity will be available on the next update tick.
     /// - Warning: If entity has different world, than we return assertation error.
-    public func addEntity(_ entity: Entity) {
+    @discardableResult
+    public func addEntity(_ entity: Entity) -> Self {
         precondition(entity.world !== self, "Entity has different world reference, and can't be added")
         entity.world = self
         
@@ -162,10 +173,24 @@ public final class World: @unchecked Sendable, Codable {
         self.addedEntities.insert(entity.id)
         
         eventManager.send(WorldEvents.DidAddEntity(entity: entity), source: self)
+        return self
     }
     
-    public func removeEntity(_ entity: Entity) {
+    /// Remove entity from world.
+    /// - Parameter recursively: also remove entity child.
+    @discardableResult
+    public func removeEntity(_ entity: Entity, recursively: Bool = false) -> Self {
         self.removeEntityRecord(entity.id)
+
+        guard recursively && !entity.children.isEmpty else {
+            return self
+        }
+
+        for child in entity.children {
+            self.removeEntity(child, recursively: recursively)
+        }
+        
+        return self
     }
     
     /// Remove entity from world.
@@ -190,9 +215,11 @@ public final class World: @unchecked Sendable, Codable {
 
     /// Insert a resource into the world.
     /// - Parameter resource: The resource to insert.
-    public func insertResource<T: Component>(_ resource: T) {
+    @discardableResult
+    public func insertResource<T: Component>(_ resource: T) -> Self {
         let componentId = self.componentsStorage.getOrRegisterComponent(T.self)
         self.componentsStorage.resourceComponents[componentId] = resource
+        return self
     }
 
     /// Remove a resource from the world.
@@ -208,10 +235,16 @@ public final class World: @unchecked Sendable, Codable {
         return self.componentsStorage.getResource(resource)
     }
 
-    func isComponentChanged(_ component: ComponentId, for entity: Entity) -> Bool {
-        return self.updatedComponents[entity]?.contains(component) ?? false
+    /// Check if component was changed for entity.
+    /// - Parameter component: Component identifier.
+    /// - Parameter entity: Entity.
+    /// - Returns: True if component was changed for entity, otherwise false.
+    public func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
+        return self.updatedComponents[entity]?.contains(T.identifier) ?? false
     }
     
+    /// Update all data in world.
+    /// - Parameter deltaTime: Time interval since last update.
     @MainActor
     public func update(_ deltaTime: TimeInterval) async {
         self.tick()
@@ -347,7 +380,7 @@ private extension World {
 
 extension World {
     /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
-    public func performQuery(_ query: EntityQuery) -> QueryResult {
+    public func performQuery(_ query: EntityQuery) -> QueryResult<Entity> {
         let state = query.state
         state.updateArchetypes(in: self)
         return QueryResult(state: state)
