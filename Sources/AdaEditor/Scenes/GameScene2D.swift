@@ -39,8 +39,10 @@ final class GameScene2D: Scene, @unchecked Sendable {
         try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
         self.collisionHandler()
         
-        self.world.addSystem(PlayerMovementSystem.self)
-        self.world.addSystem(SpawnPhysicsBodiesSystem.self)
+        self.world
+            .addSystem(PlayerMovementSystem.self)
+            .addSystem(SpawnPhysicsBodiesSystem.self)
+            .addSystem(NewSystem.self)
 
         // Change gravitation
     }
@@ -334,11 +336,23 @@ struct MyMaterial: CanvasMaterial {
     }
 }
 
+@System
+struct NewSystem {
+    
+    @EntityQuery(where: .has(Camera.self)) private var cameras
+    
+    init(world: World) { }
+    
+    func update(context: UpdateContext) {
+        
+    }
+}
+
 struct SpawnPhysicsBodiesSystem: System {
     
     static let camera = EntityQuery(where: .has(Camera.self))
     let fixedTimestep: FixedTimestep = FixedTimestep(stepsPerSecond: 20)
-
+    
     init(world: World) { }
 
     func update(context: UpdateContext) {

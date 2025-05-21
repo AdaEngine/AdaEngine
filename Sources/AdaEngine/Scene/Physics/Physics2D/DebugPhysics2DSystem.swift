@@ -233,7 +233,7 @@ public struct Physics2DDebugDrawSystem: RenderSystem, Sendable {
     }
     
     private func draw(
-        extractedItems: QueryResult,
+        extractedItems: QueryResult<Entity>,
         visibleEntities: VisibleEntities,
         items: inout [Transparent2DRenderItem]
     ) {
