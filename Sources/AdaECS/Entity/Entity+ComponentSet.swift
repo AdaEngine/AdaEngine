@@ -99,7 +99,7 @@ public extension Entity {
             let isChanged = self.buffer[identifier] != nil
             
             self.buffer[identifier] = component
-            self.bitset.insert(T.self)
+            self.bitset.insert(T.identifier)
             guard let ent = self.entity else {
                 return
             }

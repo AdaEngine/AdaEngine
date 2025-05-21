@@ -39,6 +39,7 @@ extension Component {
 }
 
 enum ComponentStorage {
+    
     nonisolated(unsafe) private static var registeredComponents: [String: Component.Type] = [:]
     
     /// Return registered component or try to find it by NSClassFromString (works only for objc runtime)

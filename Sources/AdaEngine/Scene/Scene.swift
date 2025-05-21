@@ -128,13 +128,7 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
         self.isReady = true
         self.world.build()
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
-        
-        self.world.addEntity(
-            Entity(name: SceneResource.sceneWorldIdentifier) {
-                SceneResource(scene: self)
-            }
-        )
-        
+        self.world.insertResource(SceneResource(scene: self))
         self.sceneDidLoad()
     }
     
@@ -244,16 +238,12 @@ public enum SceneEvents {
 
 @Component
 struct SceneResource {
-    static let sceneWorldIdentifier = "_ae_scene_ent"
-    
     unowned let scene: Scene
 }
 
 public extension SceneUpdateContext {
     var scene: Scene {
-        self.world.getEntityByName(SceneResource.sceneWorldIdentifier)!
-            .components[SceneResource.self]!
-            .scene
+        self.world.getResource(SceneResource.self)!.scene
     }
 }
 
