@@ -65,27 +65,21 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
     public static let assetType: AssetType = .scene
     
     public func encodeContents(with encoder: AssetEncoder) async throws {
-        guard await encoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
+        guard encoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
-        
-//        let sceneData = SceneRepresentation(
-//            version: Self.currentVersion,
-//            scene: self.name,
-//            plugins: self.plugins.map {
-//                WorldPluginRepresentation(name: type(of: $0).swiftName)
-//            },
-//            systems: self.systemGraph.systems.map {
-//                SystemRepresentation(name: type(of: $0).swiftName)
-//            },
-//            entities: self.world.getEntities()
-//        )
-//        
-//        try encoder.encode(sceneData)
+        let sceneData = SceneRepresentation(
+            version: Self.currentVersion,
+            scene: self.name,
+            instantiateDefaultPlugin: self.instantiateDefaultPlugin,
+            world: self.world
+        )
+
+        try encoder.encode(sceneData)
     }
     
-    required nonisolated public convenience init(asset decoder: AssetDecoder) async throws {
-        guard await decoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
+    required public convenience init(asset decoder: AssetDecoder) async throws {
+        guard decoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
             throw SceneSerializationError.invalidExtensionType
         }
         
@@ -95,28 +89,11 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
             throw SceneSerializationError.unsupportedVersion
         }
         
-        await self.init(name: sceneData.scene)
-
-//        for system in sceneData.systems {
-//            guard let systemType = await SystemStorage.getRegistredSystem(for: system.name) else {
-//                throw SceneSerializationError.notRegistedObject(system.name)
-//            }
-//            self.world.addSystem(systemType)
-//        }
-
-//        for plugin in sceneData.plugins {
-//            guard let pluginType = await WorldPluginStorage.getRegistredPlugin(for: plugin.name) else {
-//                throw SceneSerializationError.notRegistedObject(plugin.name)
-//            }
-//
-//            self.addPlugin(pluginType.init())
-//        }
-//
-//        for entity in sceneData.entities {
-//            self.world.addEntity(entity)
-//        }
-        
-        fatalErrorMethodNotImplemented()
+        self.init(
+            name: sceneData.scene, 
+            instantiateDefaultPlugin: sceneData.instantiateDefaultPlugin
+        )
+        self.world = sceneData.world
     }
     
     // MARK: - Life Cycle
@@ -277,5 +254,14 @@ public extension SceneUpdateContext {
         self.world.getEntityByName(SceneResource.sceneWorldIdentifier)!
             .components[SceneResource.self]!
             .scene
+    }
+}
+
+private extension Scene {
+    struct SceneRepresentation: Codable {
+        let version: Version
+        let scene: String
+        let instantiateDefaultPlugin: Bool
+        let world: AdaECS.World
     }
 }

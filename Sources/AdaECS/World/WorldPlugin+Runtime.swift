@@ -1,23 +1,23 @@
 //
-//  System+Runtime.swift
+//  WorldPlugin+Runtime.swift
 //  AdaEngine
 //
-//  Created by v.prusakov on 5/24/22.
+//  Created by Vladislav Prusakov on 21.05.2025.
 //
 
 import Foundation
 
 // We should register our systems in engine, because we should initiate them in memory
 // TODO: (Vlad) Add system list to editor and generate file with registred systems.
-extension System {
+extension WorldPlugin {
     
     /// Call this method to add system to engine.
     /// When engine will initiate system from scene file, it will try to find
     /// system in registred list.
     /// Otherwise system will not be initialized.
     @MainActor
-    public static func registerSystem() {
-        SystemStorage.register(self)
+    public static func registerPlugin() {
+        WorldPluginStorage.register(self)
     }
     
     static var swiftName: String {
@@ -25,15 +25,15 @@ extension System {
     }
 }
 
-enum SystemStorage {
-    nonisolated(unsafe) private static var registeredSystem: [String: System.Type] = [:]
+enum WorldPluginStorage {
+    nonisolated(unsafe) private static var registeredPlugin: [String: WorldPlugin.Type] = [:]
     
     /// Return registred system or try to find it by NSClassFromString (works only for objc runtime)
-    static func getRegistredSystem(for name: String) -> System.Type? {
-        return self.registeredSystem[name] ?? (NSClassFromString(name) as? System.Type)
+    static func getRegistredPlugin(for name: String) -> WorldPlugin.Type? {
+        return self.registeredPlugin[name] ?? (NSClassFromString(name) as? WorldPlugin.Type)
     }
 
-    static func register<T: System>(_ system: T.Type) {
-        self.registeredSystem[T.swiftName] = system
+    static func register<T: WorldPlugin>(_ plugin: T.Type) {
+        self.registeredPlugin[T.swiftName] = plugin
     }
 }

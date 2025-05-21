@@ -36,15 +36,15 @@ public protocol Asset: AnyObject, Sendable {
     ///
     /// - Parameter data: Asset's data.
     /// - Returns: Return instance of asset
-    @AssetActor init(asset decoder: AssetDecoder) async throws
+    init(asset decoder: AssetDecoder) async throws
 
     /// To store asset on the disk, you should implement this method.
     ///
     /// - Returns: the asset data to be saved
-    @AssetActor func encodeContents(with encoder: AssetEncoder) async throws
+    func encodeContents(with encoder: AssetEncoder) async throws
 
     /// Type of asset.
-    static var assetType: AssetType { get }
+    nonisolated static var assetType: AssetType { get }
 
     /// Return meta info
     var assetMetaInfo: AssetMetaInfo? { get set }

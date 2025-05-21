@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
+import AdaUtils
+
 // TODO: Add export name
 // TODO: Add more options for export
 // TODO: Should me mutating
@@ -80,7 +82,7 @@ public struct Export<T: Codable>: Codable, @unchecked Sendable {
 // MARK: - _ExportCodable
 
 extension Export: _ExportCodable {
-    func decode(from container: DecodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws {
+    public func decode(from container: DecodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws {
         guard let value = try container.decodeIfPresent(T.self, forKey: CodingName(stringValue: propertyName)) else {
             return
         }
@@ -88,7 +90,7 @@ extension Export: _ExportCodable {
         self.storage.value = value
     }
     
-    func encode(to container: inout EncodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws {
+    public func encode(to container: inout EncodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws {
         /// we have difference between initial value
         if self.storage.hasChanges && !self.storage.skipped {
             try container.encode(self.wrappedValue, forKey: CodingName(stringValue: propertyName))
