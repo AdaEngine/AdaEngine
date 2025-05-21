@@ -19,5 +19,6 @@ enum RuntimeTypeLoader {
     static func loadTypes() {
         TileMap.registerTypes()
         Texture.registerTypes()
+        RegistredComponent.registerTypes()
     }
 }

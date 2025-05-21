@@ -17,7 +17,7 @@ import Collections
 /// Each ``Entity`` has a set of components. Each component can have up to one instance of each
 /// component type. Entity components can be created, updated, removed, and queried using a given World.
 /// - Warning: Still work in progress.
-public final class World: @unchecked Sendable {
+public final class World: @unchecked Sendable, Codable {
 
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 
@@ -40,6 +40,49 @@ public final class World: @unchecked Sendable {
     // MARK: - Methods
     
     public init() {}
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let entities = try container.decode([Entity].self, forKey: .entities)
+        let systems = try container.decode([String].self, forKey: .systems)
+        let plugins = try container.decode([String].self, forKey: .plugins)
+
+        for entity in entities {
+            self.addEntity(entity)
+        }
+
+        self.tick()
+
+        for system in systems {
+            guard let systemType = SystemStorage.getRegistredSystem(for: system) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .systems, 
+                    in: container, 
+                    debugDescription: "System \(system) not found"
+                )
+            }
+            self.addSystem(systemType)
+        }
+
+        for plugin in plugins {
+            guard let pluginType = WorldPluginStorage.getRegistredPlugin(for: plugin) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .plugins, 
+                    in: container, 
+                    debugDescription: "Plugin \(plugin) not found"
+                )
+           }
+
+           self.addPlugin(pluginType.init())
+       }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.getEntities() + updatedEntities, forKey: .entities)
+        try container.encode(self.systemGraph.systems.map { type(of: $0).swiftName }, forKey: .systems)
+        try container.encode(self.plugins.map { type(of: $0).swiftName }, forKey: .plugins)
+    }
     
     /// Get all entities in world.
     /// - Complexity: O(n)
@@ -305,5 +348,13 @@ public enum WorldEvents {
     /// Raised before an entity is removed from the scene.
     public struct WillRemoveEntity: Event {
         public let entity: Entity
+    }
+}
+
+private extension World {
+    enum CodingKeys: String, CodingKey {
+        case entities
+        case systems
+        case plugins
     }
 }
