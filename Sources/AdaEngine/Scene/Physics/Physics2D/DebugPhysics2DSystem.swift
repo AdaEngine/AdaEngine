@@ -18,29 +18,32 @@ struct ExctractedPhysicsMesh2DDebug {
 }
 
 /// System for exctracting physics bodies for debug rendering.
-public struct DebugPhysicsExctract2DSystem: System {
-    
-    public static let dependencies: [SystemDependency] = [.after(Physics2DSystem.self)]
+@System(dependencies: [
+    .after(Physics2DSystem.self)
+])
+public struct DebugPhysicsExctract2DSystem {
 
-    static let entities = EntityQuery(
+    @EntityQuery(
         where: (.has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self)) && .has(Visibility.self)
     )
+    private var entities
     
-    static let cameras = EntityQuery(where:
+    @EntityQuery(where:
         .has(Camera.self) && .has(GlobalViewUniform.self)
     )
+    private var cameras
     
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
         let scene = context.scene
         
+        guard let camera = self.cameras.first else {
+            return
+        }
+        
         context.scheduler.addTask { @MainActor in    
             guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
-                return
-            }
-            
-            guard let camera = context.world.performQuery(Self.cameras).first else {
                 return
             }
             
@@ -204,26 +207,28 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
 }
 
 /// System for rendering debug physics shape on top of the scene.
+@System(dependencies: [
+    .after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)
+])
 public struct Physics2DDebugDrawSystem: RenderSystem, Sendable {
     
-    public static let dependencies: [SystemDependency] = [.after(SpriteRenderSystem.self), .before(BatchTransparent2DItemsSystem.self)]
+    @EntityQuery(where: .has(Camera.self) && .has(RenderItems<Transparent2DRenderItem>.self))
+    private var cameras
     
-    static let cameras = EntityQuery(where: .has(Camera.self) && .has(RenderItems<Transparent2DRenderItem>.self))
-    static let entities = EntityQuery(where: .has(ExctractedPhysicsMesh2DDebug.self))
+    @EntityQuery(where: .has(ExctractedPhysicsMesh2DDebug.self))
+    private var entities
     
     static let mesh2dDrawPassIdentifier = Mesh2DDrawPass.identifier
     
     public init(world: World) {}
     
     public func update(context: UpdateContext) {
-        let exctractedValues = context.world.performQuery(Self.entities)
         
-        context.world.performQuery(Self.cameras).forEach { entity in
+        self.cameras.forEach { entity in
             let visibleEntities = entity.components[VisibleEntities.self]!
             var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
             
             self.draw(
-                extractedItems: exctractedValues,
                 visibleEntities: visibleEntities,
                 items: &renderItems.items
             )
@@ -233,12 +238,11 @@ public struct Physics2DDebugDrawSystem: RenderSystem, Sendable {
     }
     
     private func draw(
-        extractedItems: QueryResult<Entity>,
         visibleEntities: VisibleEntities,
         items: inout [Transparent2DRenderItem]
     ) {
     itemIterator:
-        for entity in extractedItems {
+        for entity in self.entities {
             
             // Draw meshes
             guard let item = entity.components[ExctractedPhysicsMesh2DDebug.self] else {

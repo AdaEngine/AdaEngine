@@ -12,7 +12,8 @@ import Math
 // - TODO: (Vlad) Runtime update shape resource
 
 /// A system for simulate and update physics bodies on the scene.
-public final class Physics2DSystem: System, Sendable {
+@System
+public final class Physics2DSystem: @unchecked Sendable {
     
     private let fixedTimestep: FixedTimestep
     
@@ -20,19 +21,22 @@ public final class Physics2DSystem: System, Sendable {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     
-    static let physicsBodyQuery = EntityQuery(
+    @EntityQuery(
         where: .has(PhysicsBody2DComponent.self) && .has(Transform.self),
         filter: [.stored, .added]
     )
+    private var physicsBodyQuery
     
-    static let collisionQuery = EntityQuery(
+    @EntityQuery(
         where: .has(Collision2DComponent.self) && .has(Transform.self),
         filter: [.stored, .added]
     )
+    private var collisionQuery
     
-    static let jointsQuery = EntityQuery(
+    @EntityQuery(
         where: .has(PhysicsJoint2DComponent.self) && .has(Transform.self)
     )
+    private var jointsQuery
     
     public func update(context: UpdateContext) {
         let result = self.fixedTimestep.advance(with: context.deltaTime)
@@ -48,20 +52,17 @@ public final class Physics2DSystem: System, Sendable {
                 world.processContacts()
                 world.processSensors()
             }
-
-            let physicsBody = context.world.performQuery(Self.physicsBodyQuery)
-            let colissionBody = context.world.performQuery(Self.collisionQuery)
             
-            self.updatePhysicsBodyEntities(physicsBody, in: world)
-            self.updateCollisionEntities(colissionBody, in: world)
+            self.updatePhysicsBodyEntities(in: world)
+            self.updateCollisionEntities(in: world)
         }
     }
     
     // MARK: - Private
     
     @MainActor
-    private func updatePhysicsBodyEntities(_ entities: QueryResult<Entity>, in world: PhysicsWorld2D) {
-        for entity in entities {
+    private func updatePhysicsBodyEntities(in world: PhysicsWorld2D) {
+        for entity in self.physicsBodyQuery {
             var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
@@ -129,8 +130,8 @@ public final class Physics2DSystem: System, Sendable {
     }
 
     @MainActor
-    private func updateCollisionEntities(_ entities: QueryResult<Entity>, in world: PhysicsWorld2D) {
-        for entity in entities {
+    private func updateCollisionEntities(in world: PhysicsWorld2D) {
+        for entity in collisionQuery {
             var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
 
             if let body = collisionBody.runtimeBody {

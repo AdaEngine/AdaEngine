@@ -8,18 +8,18 @@
 import AdaECS
 import Math
 
-public struct TransformSystem: System {
+@System(dependencies: [
+    .after(Physics2DSystem.self)
+])
+public struct TransformSystem {
     
-    public static let dependencies: [SystemDependency] = [
-        .after(Physics2DSystem.self)
-    ]
-    
-    static let query = EntityQuery(where: .has(Transform.self))
+    @EntityQuery(where: .has(Transform.self))
+    private var query
     
     public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        context.world.performQuery(Self.query).forEach { entity in
+        self.query.forEach { entity in
             context.scheduler.addTask { @MainActor in
                 if entity.components.isComponentChanged(Transform.self)
                     || !entity.components.has(GlobalTransform.self)
@@ -33,18 +33,18 @@ public struct TransformSystem: System {
     }
 }
 
-public struct ChildTransformSystem: System {
+@System(dependencies: [
+    .after(TransformSystem.self)
+])
+public struct ChildTransformSystem {
     
-    public static let dependencies: [SystemDependency] = [
-        .after(TransformSystem.self)
-    ]
-    
-    static let query = EntityQuery(where: .has(Transform.self) && .has(RelationshipComponent.self))
+    @EntityQuery(where: .has(Transform.self) && .has(RelationshipComponent.self))
+    private var query
     
     public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        context.world.performQuery(Self.query).forEach { entity in
+        self.query.forEach { entity in
             guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
                 return
             }

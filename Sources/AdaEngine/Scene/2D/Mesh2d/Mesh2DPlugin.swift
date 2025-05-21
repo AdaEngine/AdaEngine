@@ -42,11 +42,17 @@ public struct ExctractedMesh2D: Sendable {
 }
 
 /// System to render exctract meshes to RenderWorld.
-public struct ExctractMesh2DSystem: System {
+@System(dependencies: [
+    .after(VisibilitySystem.self)
+])
+public struct ExctractMesh2DSystem {
 
-    public static let dependencies: [SystemDependency] = [.after(VisibilitySystem.self)]
-
-    static let query = EntityQuery(where: .has(Mesh2DComponent.self) && .has(Transform.self) && .has(Visibility.self))
+    @EntityQuery(
+        where: .has(Mesh2DComponent.self) &&
+            .has(Transform.self) &&
+            .has(Visibility.self)
+    )
+    private var query
 
     public init(world: World) { }
 
@@ -54,7 +60,7 @@ public struct ExctractMesh2DSystem: System {
         let extractedEntity = EmptyEntity()
         var extractedMeshes = ExctractedMeshes2D()
 
-        context.world.performQuery(Self.query).forEach { entity in
+        self.query.forEach { entity in
             let (mesh, transform, visibility) = entity.components[Mesh2DComponent.self, Transform.self, Visibility.self]
 
             if visibility == .hidden {

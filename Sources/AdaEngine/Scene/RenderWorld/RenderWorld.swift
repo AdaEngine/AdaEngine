@@ -17,18 +17,24 @@ public final class RenderWorld: Sendable {
     public let world: World = World()
     
     /// Add a new system to the scene.
-    public func addSystem<T: RenderSystem>(_ systemType: T.Type) {
+    @discardableResult
+    public func addSystem<T: RenderSystem>(_ systemType: T.Type) -> Self {
         world.addSystem(systemType)
+        return self
     }
     
     /// Add a new scene plugin to the scene.
-    public func addPlugin<T: RenderWorldPlugin>(_ plugin: T) async {
+    @discardableResult
+    public func addPlugin<T: RenderWorldPlugin>(_ plugin: T) async -> Self {
         await plugin.setup(in: self)
+        return self
     }
     
     /// Add a new entity to render world.
-    public func addEntity(_ entity: Entity) {
+    @discardableResult
+    public func addEntity(_ entity: Entity) -> Self {
         self.world.addEntity(entity)
+        return self
     }
 
     func update(_ deltaTime: TimeInterval) async throws {

@@ -166,19 +166,22 @@ public struct Text2DRenderSystem: RenderSystem, Sendable {
     }
 }
 
-struct ExctractTextSystem: System {
+@System(dependencies: [
+    .after(VisibilitySystem.self),
+    .after(Text2DLayoutSystem.self)
+])
+struct ExctractTextSystem {
 
-    static let dependencies: [SystemDependency] = [
-        .after(VisibilitySystem.self),
-        .after(Text2DLayoutSystem.self)
-    ]
-
-    static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self) && .has(TextLayoutComponent.self))
+    @EntityQuery(
+        where: .has(Text2DComponent.self) && .has(Transform.self) &&
+            .has(Visibility.self) && .has(TextLayoutComponent.self)
+    )
+    private var textComponents
 
     init(world: World) { }
 
     func update(context: UpdateContext) {
-        context.world.performQuery(Self.textComponents).forEach { entity in
+        self.textComponents.forEach { entity in
             if entity.components[Visibility.self] == .hidden {
                 return
             }

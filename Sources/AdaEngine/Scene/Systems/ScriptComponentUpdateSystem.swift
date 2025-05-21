@@ -8,7 +8,8 @@
 @_spi(Internal) import AdaECS
 
 /// A system that updates all scripts components on scene
-public final class ScriptComponentUpdateSystem: System {
+@System
+public final class ScriptComponentUpdateSystem {
 
     let fixedTime: FixedTimestep
 

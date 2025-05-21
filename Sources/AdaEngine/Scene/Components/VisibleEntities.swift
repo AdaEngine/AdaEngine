@@ -13,35 +13,43 @@ import AdaECS
 /// All cameras has frustum and each entity should has ``BoundingComponent`` to be detected.
 /// If entity doesn't has ``BoundingComponent`` than system tries to add it.
 /// If entity has ``NoFrustumCulling`` than it will ignore frustum culling.
-public struct VisibilitySystem: System {
+@System(dependencies: [
+    .after(CameraSystem.self)
+])
+public struct VisibilitySystem {
     
-    public static let dependencies: [SystemDependency] = [.after(CameraSystem.self)]
+    @EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
+    private var cameras
     
-    static let cameras = EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
-    static let entities = EntityQuery(
+    
+    @EntityQuery(
         where: .has(Transform.self) && .has(Visibility.self)
         && .has(BoundingComponent.self) && .without(NoFrustumCulling.self)
     )
+    private var entities
     
-    static let entitiesWithNoFrustum = EntityQuery(
+    @EntityQuery(
         where: .has(Transform.self) && .has(Visibility.self) && .has(NoFrustumCulling.self)
     )
+    private var entitiesWithNoFrustum
     
-    static let entitiesWithoutVisibility = EntityQuery(
+    @EntityQuery(
         where: .has(Transform.self) && .without(Visibility.self)
     )
+    private var entitiesWithoutVisibility
     
-    static let entitiesWithTransform = EntityQuery(
+    @EntityQuery(
         where: .has(Transform.self) && .without(NoFrustumCulling.self)
     )
+    private var entitiesWithTransform
     
     public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        self.addVisibilityIfNeeded(context: context)
-        self.updateBoundings(context: context)
+        self.addVisibilityIfNeeded()
+        self.updateBoundings()
         
-        context.world.performQuery(Self.cameras).forEach { entity in
+        self.cameras.forEach { entity in
             var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
             
             if !camera.isActive {
@@ -55,16 +63,16 @@ public struct VisibilitySystem: System {
         }
     }
     
-    private func addVisibilityIfNeeded(context: UpdateContext) {
-        context.world.performQuery(Self.entitiesWithoutVisibility).forEach { entity in
+    private func addVisibilityIfNeeded() {
+        self.entitiesWithoutVisibility.forEach { entity in
             entity.components += Visibility.visible
         }
     }
 
     // FIXME: Should we calculate it here?
     /// Update or create bounding boxes for SpriteComponent and Mesh2D.
-    private func updateBoundings(context: UpdateContext) {
-        context.world.performQuery(Self.entitiesWithTransform).forEach { entity in
+    private func updateBoundings() {
+        self.entitiesWithTransform.forEach { entity in
             var bounds: BoundingComponent.Bounds?
             
             if entity.components.has(SpriteComponent.self) || entity.components.has(Circle2DComponent.self) {
@@ -95,7 +103,7 @@ public struct VisibilitySystem: System {
     private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()
-        let filtredEntities = context.world.performQuery(Self.entities).filter { entity in
+        let filtredEntities = self.entities.filter { entity in
             let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
             
             if visibility == .hidden {
@@ -114,7 +122,7 @@ public struct VisibilitySystem: System {
             }
         }
         
-        let withNoFrustumEntities = context.world.performQuery(Self.entitiesWithNoFrustum).filter { entity in
+        let withNoFrustumEntities = self.entitiesWithNoFrustum.filter { entity in
             let visibility = entity.components[Visibility.self]!
             
             if visibility != .hidden {

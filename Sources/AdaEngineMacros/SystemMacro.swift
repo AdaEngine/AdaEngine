@@ -40,6 +40,8 @@ public struct SystemMacro: MemberMacro {
             return "_\(identifier)"
         }
         
+        let availability = declaration.modifiers
+        
         // Get dependencies from macro arguments
         var dependencies: [String] = []
         if let arguments = node.arguments?.as(LabeledExprListSyntax.self) {
@@ -65,7 +67,7 @@ public struct SystemMacro: MemberMacro {
         // Generate queries property if there are any EntityQuery properties
         if !entityQueries.isEmpty {
             let queriesProperty: DeclSyntax = """
-            var queries: SystemQueries {
+            \(availability)var queries: SystemQueries {
                 return SystemQueries(queries: [\(raw: entityQueries.joined(separator: ", "))])
             }
             """
@@ -75,7 +77,7 @@ public struct SystemMacro: MemberMacro {
         // Generate dependencies property if there are any dependencies
         if !dependencies.isEmpty {
             let dependenciesProperty: DeclSyntax = """
-            static var dependencies: [SystemDependency] {
+            \(availability)static var dependencies: [SystemDependency] {
                 return [\(raw: dependencies.joined(separator: ", "))]
             }
             """
