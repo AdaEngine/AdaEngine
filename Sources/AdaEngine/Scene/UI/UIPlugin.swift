@@ -5,6 +5,8 @@
 //  Created by vladislav.prusakov on 19.08.2024.
 //
 
+import AdaECS
+
 public struct UIPlugin: WorldPlugin {
 
     public init() { }

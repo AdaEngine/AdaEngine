@@ -9,8 +9,9 @@ import AdaECS
 
 struct CameraPlugin: WorldPlugin {
     func setup(in world: World) {
-        world.addSystem(CameraSystem.self)
-        world.addSystem(ExtractCameraSystem.self)
+        world
+            .addSystem(CameraSystem.self)
+            .addSystem(ExtractCameraSystem.self)
     }
 }
 

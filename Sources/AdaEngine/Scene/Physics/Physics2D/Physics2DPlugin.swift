@@ -16,10 +16,11 @@ public struct Physics2DPlugin: WorldPlugin {
         /// We have physics world as an entity, because it's more flexible solution then store
         /// physics world in the scene object.
         let world2D = PhysicsWorld2D()
-        world.insertResource(Physics2DWorldComponent(world: world2D))
         
-        world.addSystem(DebugPhysicsExctract2DSystem.self)
-        world.addSystem(Physics2DSystem.self)
+        world
+            .insertResource(Physics2DWorldComponent(world: world2D))
+            .addSystem(DebugPhysicsExctract2DSystem.self)
+            .addSystem(Physics2DSystem.self)
 
         Task {
             await Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)

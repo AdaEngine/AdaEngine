@@ -11,8 +11,9 @@ public struct Text2DPlugin: WorldPlugin {
     public init() {}
     
     public func setup(in world: World) {
-        world.addSystem(ExctractTextSystem.self)
-        world.addSystem(Text2DLayoutSystem.self)
+        world
+            .addSystem(ExctractTextSystem.self)
+            .addSystem(Text2DLayoutSystem.self)
     }
 }
 

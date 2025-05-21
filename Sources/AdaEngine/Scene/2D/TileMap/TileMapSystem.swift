@@ -9,25 +9,22 @@ import AdaECS
 import Logging
 
 // FIXME: a lot of sprites drop fps.
-
-public struct TileMapSystem: System, Sendable {
+@System(dependencies: [
+    .after(VisibilitySystem.self)
+])
+public struct TileMapSystem: Sendable {
     
     let logger = Logger(label: "tilemap")
 
-    public static let dependencies: [SystemDependency] = [
-        .after(VisibilitySystem.self)
-    ]
-
-    static let tileMap = EntityQuery(where: .has(TileMapComponent.self) && .has(Transform.self))
-    static let physicsWorld = EntityQuery(where: .has(Physics2DWorldComponent.self))
+    @EntityQuery(where: .has(TileMapComponent.self) && .has(Transform.self))
+    private var tileMap
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let physicsWorldEntity = context.world.performQuery(Self.physicsWorld).first
-        let physicsWorld = physicsWorldEntity?.components[Physics2DWorldComponent.self]?.world
+        let physicsWorld = context.world.getResource(Physics2DWorldComponent.self)?.world
 
-        for entity in context.world.performQuery(Self.tileMap) {
+        for entity in tileMap {
             var (tileMapComponent, transform) = entity.components[
                 TileMapComponent.self, Transform.self
             ]
