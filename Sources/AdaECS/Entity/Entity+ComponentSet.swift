@@ -36,32 +36,37 @@ public extension Entity {
         
         /// Create component set from decoder.
         public init(from decoder: Decoder) throws {
-//            let container = try decoder.container(keyedBy: CodingName.self)
-//            self.buffer = OrderedDictionary<ComponentId, Component>.init(minimumCapacity: container.allKeys.count)
-//            self.bitset = BitSet(reservingCapacity: container.allKeys.count)
-            
-            // for key in container.allKeys {
-            //     guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue) else {
-            //         continue
-            //     }
+            let container = try decoder.container(keyedBy: CodingName.self)
+            self.buffer = OrderedDictionary<ComponentId, Component>(
+                minimumCapacity: container.allKeys.count
+            )
+            self.bitset = BitSet(reservingCapacity: container.allKeys.count)
 
-//                let component = try type.init(from: container.superDecoder(forKey: key))
-//                self.set(component)
-            // }
-            fatalError()
+            for key in container.allKeys {
+                guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue)
+                else {
+                    continue
+                }
+
+                if let decodable = type as? Decodable.Type {
+                    let component = try decodable.init(from: container.superDecoder(forKey: key))
+                    self.buffer[type.identifier] = component as? Component
+                }
+            }
         }
         
         public func encode(to encoder: Encoder) throws {
-            // var container = encoder.container(keyedBy: CodingName.self)
-            
-            // for value in self.buffer.values {
-//                let superEncoder = container.superEncoder(forKey: CodingName(stringValue: type(of: value).swiftName))
-//                try value.encode(to: superEncoder)
-            // }
+            var container = encoder.container(keyedBy: CodingName.self)
+            for component in self.buffer.values {
+                do {
+                    try container.encode(AnyEncodable(component), forKey: CodingName(stringValue: type(of: component).swiftName))
+                } catch {
+                    print("Component encoding error: \(error)")
+                }
+            }
         }
 
         // FIXME: Replace to subscript??
-
         /// Get any count of component types from set.
         @inline(__always)
         public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
@@ -239,6 +244,13 @@ extension Entity.ComponentSet: CustomStringConvertible {
         }
         
         return "ComponentSet(\(result)\n)"
+    }
+}
+
+private extension Entity.ComponentSet {
+    struct ComponentRepresentable<T: Codable>: Codable {
+        let type: String
+        let value: T
     }
 }
 

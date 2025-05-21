@@ -5,35 +5,35 @@
 //  Created by v.prusakov on 1/22/23.
 //
 
-typealias _ExportCodable = _ExportDecodable & _ExportEncodable
+public typealias _ExportCodable = _ExportDecodable & _ExportEncodable
 
 /// Helper to avoid generics problems
-protocol _ExportDecodable {
+public protocol _ExportDecodable {
     typealias DecodingContainer = KeyedDecodingContainer<CodingName>
     func decode(from container: DecodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws
 }
 
-protocol _ExportEncodable {
+public protocol _ExportEncodable {
     typealias EncodingContainer = KeyedEncodingContainer<CodingName>
     func encode(to container: inout EncodingContainer, propertyName: String, userInfo: [CodingUserInfoKey: Any]) throws
 }
 
-struct CodingName: CodingKey {
-    var stringValue: String
+public struct CodingName: CodingKey {
+    public var stringValue: String
     
-    init(stringValue: String) {
+    public init(stringValue: String) {
         self.stringValue = stringValue
     }
     
-    var intValue: Int?
+    public var intValue: Int?
     
-    init?(intValue: Int) {
+    public init?(intValue: Int) {
         self.intValue = intValue
         self.stringValue = String(intValue)
     }
 }
 
-extension CodingName {
+public extension CodingName {
     nonisolated(unsafe) static var editor = CodingName(stringValue: "_editor")
     nonisolated(unsafe) static var value = CodingName(stringValue: "_value")
 }
