@@ -38,10 +38,8 @@ extension Component {
     }
 }
 
-@MainActor
 enum ComponentStorage {
-    
-    private static var registeredComponents: [String: Component.Type] = [:]
+    nonisolated(unsafe) private static var registeredComponents: [String: Component.Type] = [:]
     
     /// Return registered component or try to find it by NSClassFromString (works only for objc runtime)
     static func getRegisteredComponent(for name: String) -> Component.Type? {
@@ -51,7 +49,6 @@ enum ComponentStorage {
     static func addComponent<T: Component>(_ type: T.Type) {
         self.registeredComponents[T.swiftName] = type
     }
-
 }
 
 // This hack can help us to find struct or classes in binary
