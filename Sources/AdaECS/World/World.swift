@@ -18,7 +18,6 @@ import Collections
 /// component type. Entity components can be created, updated, removed, and queried using a given World.
 /// - Warning: Still work in progress.
 public final class World: @unchecked Sendable, Codable {
-
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 
     internal private(set) var removedEntities: Set<Entity.ID> = []
@@ -29,6 +28,8 @@ public final class World: @unchecked Sendable, Codable {
     
     private var updatedEntities: Set<Entity> = []
     private var updatedComponents: [Entity: Set<ComponentId>] = [:]
+
+    private var componentsStorage = ComponentsStorage()
     
     internal let systemGraph = SystemsGraph()
     internal let systemGraphExecutor = SystemsGraphExecutor()
@@ -126,7 +127,6 @@ public final class World: @unchecked Sendable, Codable {
         if self.isReady {
             assertionFailure("Can't insert system if scene was ready")
         }
-
         let system = systemType.init(world: self)
         self.systemGraph.addSystem(system)
     }
@@ -137,12 +137,20 @@ public final class World: @unchecked Sendable, Codable {
         if self.isReady {
             assertionFailure("Can't insert plugin if scene was ready")
         }
-
         plugin.setup(in: self)
         self.plugins.append(plugin)
     }
+
+    public func build() {
+        if isReady {
+            fatalError("World already configured")
+        }
+        isReady = true
+        self.systemGraph.linkSystems()
+        self.tick()
+    }
     
-    // FIXME: Can crash if we change components set during runtime
+    // FIXME: Can crash if we change components set during runtime from different thread
     
     /// Add a new entity to the world. This entity will be available on the next update tick.
     /// - Warning: If entity has different world, than we return assertation error.
@@ -156,16 +164,7 @@ public final class World: @unchecked Sendable, Codable {
         eventManager.send(WorldEvents.DidAddEntity(entity: entity), source: self)
     }
     
-    public func build() {
-        if isReady {
-            fatalError("World already configured")
-        }
-        isReady = true
-        self.systemGraph.linkSystems()
-        self.tick()
-    }
-    
-    func removeEntity(_ entity: Entity) {
+    public func removeEntity(_ entity: Entity) {
         self.removeEntityRecord(entity.id)
     }
     
@@ -189,48 +188,35 @@ public final class World: @unchecked Sendable, Codable {
         }
     }
 
-    func isComponentChanged(_ component: ComponentId, for entity: Entity) -> Bool {
-        return self.updatedComponents[entity]?.contains(component) ?? false
+    /// Insert a resource into the world.
+    /// - Parameter resource: The resource to insert.
+    public func insertResource<T: Component>(_ resource: T) {
+        let componentId = self.componentsStorage.getOrRegisterComponent(T.self)
+        self.componentsStorage.resourceComponents[componentId] = resource
     }
 
-    private func removeEntityRecord(_ entity: Entity.ID) {
-        guard let record = self.records[entity] else {
-            return
-        }
-        self.records[entity] = nil
-        
-        guard let currentArchetype = self.archetypes[record.archetypeId] else {
-            assertionFailure("Incorrect record of archetype \(record)")
-            return
-        }
-        currentArchetype.remove(at: record.row)
-        
-        if currentArchetype.entities.isEmpty {
-            self.archetypes[record.archetypeId]!.clear()
-            self.freeArchetypeIndices.append(record.archetypeId)
-        }
+    /// Remove a resource from the world.
+    /// - Parameter resource: The resource to remove.
+    public func removeResource<T: Component>(_ resource: T.Type) {
+        self.componentsStorage.removeResource(resource)
     }
-    
-    /// Update all data in world.
-    /// In this step we move entities to matched archetypes and remove pending in delition entities.
-    public func tick() {
-        self.moveEntitiesToMatchedArchetypesIfNeeded()
-        
-        for entityId in self.removedEntities {
-            self.removeEntityRecord(entityId)
-        }
-        
-        // Should think about it
-        self.removedEntities.removeAll(keepingCapacity: true)
-        self.addedEntities.removeAll(keepingCapacity: true)
-        self.updatedComponents.removeAll(keepingCapacity: true)
+
+    /// Get a resource from the world.
+    /// - Parameter resource: The resource to get.
+    /// - Returns: The resource if it exists, otherwise nil.
+    public func getResource<T: Component>(_ resource: T.Type) -> T? {
+        return self.componentsStorage.getResource(resource)
+    }
+
+    func isComponentChanged(_ component: ComponentId, for entity: Entity) -> Bool {
+        return self.updatedComponents[entity]?.contains(component) ?? false
     }
     
     @MainActor
     public func update(_ deltaTime: TimeInterval) async {
         self.tick()
         
-        await withTaskGroup { @MainActor group in
+        await withTaskGroup(of: Void.self) { @MainActor group in
             let context = SceneUpdateContext(
                 world: self,
                 deltaTime: deltaTime,
@@ -252,7 +238,7 @@ public final class World: @unchecked Sendable, Codable {
     }
 }
 
-// MARK: - Private
+// MARK: - Delegate
 
 extension World {    
     func entity(_ entity: Entity, didAddComponent component: Component, with identifier: ComponentId) {
@@ -277,14 +263,47 @@ extension World {
 }
 
 private extension World {
+    /// Update all data in world.
+    /// In this step we move entities to matched archetypes and remove pending in delition entities.
+    func tick() {
+        self.moveEntitiesToMatchedArchetypesIfNeeded()
+        
+        for entityId in self.removedEntities {
+            self.removeEntityRecord(entityId)
+        }
+        
+        // Should think about it
+        self.removedEntities.removeAll(keepingCapacity: true)
+        self.addedEntities.removeAll(keepingCapacity: true)
+        self.updatedComponents.removeAll(keepingCapacity: true)
+    }
+
+    private func removeEntityRecord(_ entity: Entity.ID) {
+        guard let record = self.records[entity] else {
+            return
+        }
+        self.records[entity] = nil
+        
+        guard let currentArchetype = self.archetypes[record.archetypeId] else {
+            assertionFailure("Incorrect record of archetype \(record)")
+            return
+        }
+        currentArchetype.remove(at: record.row)
+        
+        if currentArchetype.entities.isEmpty {
+            self.archetypes[record.archetypeId]!.clear()
+            self.freeArchetypeIndices.append(record.archetypeId)
+        }
+    }
+
     /// Find or create matched arhcetypes for all entities that wait update
     private func moveEntitiesToMatchedArchetypesIfNeeded() {
-        if self.updatedEntities.isEmpty {
+        guard !self.updatedEntities.isEmpty else {
             return
         }
         
         for entity in self.updatedEntities {
-            let bitmask = entity.components.bitset
+           let bitmask = entity.components.bitset
             
             if let record = self.records[entity.id], let currentArchetype = self.archetypes[record.archetypeId] {
                 
@@ -324,7 +343,6 @@ private extension World {
         
         self.updatedEntities.removeAll(keepingCapacity: true)
     }
-    
 }
 
 extension World {
@@ -356,5 +374,54 @@ private extension World {
         case entities
         case systems
         case plugins
+    }
+}
+
+extension World {
+    struct ComponentsStorage {
+        var components: [ComponentId] = []
+        var resourceIds: [ObjectIdentifier: ComponentId] = [:]
+        var resourceComponents: [ComponentId: any Component] = [:]
+
+        @discardableResult
+        mutating func registerComponent() -> ComponentId {
+            let id = ComponentId(id: components.count)
+            self.components.append(id)
+            return id
+        }
+
+        mutating func getOrRegisterComponent<T: Component>(
+            _ component: T.Type
+        ) -> ComponentId {
+            let id = ObjectIdentifier(T.self)
+            if let componentId = self.resourceIds[id] {
+                return componentId
+            }
+            return registerResource(T.self)
+        }
+
+        mutating func registerResource<T: Component>(_ resource: T.Type) -> ComponentId {
+            let id = ObjectIdentifier(T.self)
+            let componentId = registerComponent()
+            self.resourceIds[id] = componentId
+            return componentId
+        }
+
+        func getResource<T: Component>(_ resource: T.Type) -> T? {
+            let id = ObjectIdentifier(T.self)
+            guard let componentId = self.resourceIds[id] else {
+                return nil
+            }
+            return self.resourceComponents[componentId] as? T
+        }
+
+        mutating func removeResource<T: Component>(_ resource: T.Type) {
+            let id = ObjectIdentifier(T.self)
+            guard let componentId = self.resourceIds[id] else {
+                return
+            }
+            self.resourceComponents[componentId] = nil
+            self.resourceIds[id] = nil
+        }
     }
 }
