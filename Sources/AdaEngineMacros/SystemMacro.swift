@@ -14,6 +14,12 @@ import SwiftSyntaxMacros
 
 // FIXME: We should avoid comparising `attributeName == "EntityQuery"` because user can have alias.
 public struct SystemMacro: MemberMacro {
+    
+    static let queryAttributes = [
+        "EntityQuery",
+        "Query"
+    ]
+    
     public static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
@@ -28,7 +34,7 @@ public struct SystemMacro: MemberMacro {
                 guard let attributeName = attribute.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self)?.name.text else {
                     return false
                 }
-                return attributeName == "EntityQuery" || attributeName == "AdaECS.EntityQuery"
+                return queryAttributes.contains(attributeName)
             }
             
             guard hasEntityQueryAttribute,
@@ -67,8 +73,8 @@ public struct SystemMacro: MemberMacro {
         // Generate queries property if there are any EntityQuery properties
         if !entityQueries.isEmpty {
             let queriesProperty: DeclSyntax = """
-            \(availability)var queries: SystemQueries {
-                return SystemQueries(queries: [\(raw: entityQueries.joined(separator: ", "))])
+            \(availability)var queries: AdaECS.SystemQueries {
+                return AdaECS.SystemQueries(queries: [\(raw: entityQueries.joined(separator: ", "))])
             }
             """
             declarations.append(queriesProperty)
@@ -77,7 +83,7 @@ public struct SystemMacro: MemberMacro {
         // Generate dependencies property if there are any dependencies
         if !dependencies.isEmpty {
             let dependenciesProperty: DeclSyntax = """
-            \(availability)static var dependencies: [SystemDependency] {
+            \(availability)static var dependencies: [AdaECS.SystemDependency] {
                 return [\(raw: dependencies.joined(separator: ", "))]
             }
             """

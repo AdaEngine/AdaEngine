@@ -10,16 +10,13 @@
 /// If you need to specify the update order between your system and other systems in your app, you can do that using this property.
 ///
 /// ```swift
-///
-/// struct MovementSystem: System {
-///     static var dependencies: [SystemDependency] = [
-///         .after(EnemyChasingSystem.self) // Run MovementSystem after EnemyChasingSystem
-///         .before(BulletSystem.self) // Run MovementSystem before BulletSystem
-///     ]
-///
+/// @System(dependencies: [
+///     .after(EnemyChasingSystem.self), // Run MovementSystem after EnemyChasingSystem
+///     .before(BulletSystem.self) // Run MovementSystem before BulletSystem
+/// ])
+/// struct MovementSystem {
 ///     // ...
 /// }
-///
 /// ```
 public enum SystemDependency: Sendable {
     case before(System.Type)

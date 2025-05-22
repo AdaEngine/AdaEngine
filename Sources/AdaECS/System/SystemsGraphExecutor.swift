@@ -7,11 +7,10 @@
 
 import Collections
 
-// TODO: Add parallels execution for nodes without inputs
 final class SystemsGraphExecutor {
     public init() {}
     
-    func execute(_ graph: SystemsGraph, context: SceneUpdateContext) {
+    func execute(_ graph: SystemsGraph, context: WorldUpdateContext) {
         var completedSystems: Set<String> = []
         completedSystems.reserveCapacity(graph.nodes.count)
         

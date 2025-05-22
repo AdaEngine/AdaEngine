@@ -36,13 +36,14 @@ final class GameScene2D: Scene, @unchecked Sendable {
         self.debugOptions = [.showPhysicsShapes]
         self.makePlayer()
         self.makeGround()
-        try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
+        // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
         self.collisionHandler()
         
         self.world
             .addSystem(PlayerMovementSystem.self)
             .addSystem(SpawnPhysicsBodiesSystem.self)
             .addSystem(NewSystem.self)
+            .addSystem(Example.self)
 
         // Change gravitation
     }
@@ -191,7 +192,9 @@ struct PlayerMovementSystem: System {
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     func update(context: UpdateContext) {
-        let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
+        guard let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first else {
+            return
+        }
 
         var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]
 
@@ -394,5 +397,21 @@ struct SpawnPhysicsBodiesSystem: System {
         }
         
         world.addEntity(entity)
+    }
+}
+
+@System
+struct Example {
+    
+    @Query<Entity, Camera, Ref<Transform>>
+    private var query
+    
+    init(world: World) { }
+    
+    func update(context: UpdateContext) {
+        query.forEach { entity, camera, transform in
+            transform.position.x -= 0.5 * context.deltaTime
+            print(transform.position.x)
+        }
     }
 }

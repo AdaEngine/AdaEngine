@@ -250,4 +250,24 @@ private extension Entity.ComponentSet {
     }
 }
 
+extension Entity.ComponentSet {
+    func get<T: Component>(by identifier: ComponentId) -> T {
+        return (self.buffer[identifier] as! T)
+    }
+    
+    subscript<T: Component>(by componentId: ComponentId) -> T? where T : Component {
+        get {
+            return buffer[T.identifier] as? T
+        }
+        
+        set {
+            if let newValue {
+                self.set(newValue)
+            } else {
+                self.remove(T.self)
+            }
+        }
+    }
+}
+
 // swiftlint:enable identifier_name

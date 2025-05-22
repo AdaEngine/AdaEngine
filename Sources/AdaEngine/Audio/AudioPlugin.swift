@@ -99,16 +99,13 @@ public extension Entity {
     /// When you create an audio playback controller engine will automatically update position for spatial audio.
     func prepareAudio(_ resource: AudioResource) -> AudioPlaybackController {
         var controllers = self.components[AudioPlaybacksControllers.self] ?? AudioPlaybacksControllers()
-        
         if let controller = controllers.controllers.first(where: { $0.resource === resource }) {
             return controller
         }
         
         let playbackController = AudioServer.shared.prepareAudio(resource)
         playbackController.entity = self
-        
         controllers.controllers.append(playbackController)
-        
         self.components += controllers
         
         return playbackController

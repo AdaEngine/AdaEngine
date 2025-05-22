@@ -250,7 +250,7 @@ public final class World: @unchecked Sendable, Codable {
         self.tick()
         
         await withTaskGroup(of: Void.self) { @MainActor group in
-            let context = SceneUpdateContext(
+            let context = WorldUpdateContext(
                 world: self,
                 deltaTime: deltaTime,
                 scheduler: group
@@ -380,7 +380,7 @@ private extension World {
 
 extension World {
     /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
-    public func performQuery(_ query: EntityQuery) -> QueryResult<Entity> {
+    public func performQuery(_ query: EntityQuery) -> QueryResult<QueryBuilderTargets<Entity>> {
         let state = query.state
         state.updateArchetypes(in: self)
         return QueryResult(state: state)
