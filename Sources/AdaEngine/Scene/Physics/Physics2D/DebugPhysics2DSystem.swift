@@ -212,28 +212,22 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
 ])
 public struct Physics2DDebugDrawSystem: RenderSystem, Sendable {
     
-    @EntityQuery(where: .has(Camera.self) && .has(RenderItems<Transparent2DRenderItem>.self))
+    @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>
     private var cameras
     
-    @EntityQuery(where: .has(ExctractedPhysicsMesh2DDebug.self))
-    private var entities
+    @Query<ExctractedPhysicsMesh2DDebug>
+    private var meshes
     
     static let mesh2dDrawPassIdentifier = Mesh2DDrawPass.identifier
     
     public init(world: World) {}
     
     public func update(context: UpdateContext) {
-        
-        self.cameras.forEach { entity in
-            let visibleEntities = entity.components[VisibleEntities.self]!
-            var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
-            
+        self.cameras.forEach { visibleEntities, renderItems in
             self.draw(
                 visibleEntities: visibleEntities,
-                items: &renderItems.items
+                items: &renderItems.wrappedValue.items
             )
-                
-            entity.components += renderItems
         }
     }
     
@@ -242,13 +236,7 @@ public struct Physics2DDebugDrawSystem: RenderSystem, Sendable {
         items: inout [Transparent2DRenderItem]
     ) {
     itemIterator:
-        for entity in self.entities {
-            
-            // Draw meshes
-            guard let item = entity.components[ExctractedPhysicsMesh2DDebug.self] else {
-                continue
-            }
-            
+        for item in self.meshes {
             if !visibleEntities.entityIds.contains(item.entityId) {
                 continue
             }

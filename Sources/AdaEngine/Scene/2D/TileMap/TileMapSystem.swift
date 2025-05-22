@@ -16,7 +16,7 @@ public struct TileMapSystem: Sendable {
     
     let logger = Logger(label: "tilemap")
 
-    @EntityQuery(where: .has(TileMapComponent.self) && .has(Transform.self))
+    @Query<Entity, Ref<TileMapComponent>, Transform>
     private var tileMap
 
     public init(world: World) { }
@@ -24,10 +24,7 @@ public struct TileMapSystem: Sendable {
     public func update(context: UpdateContext) {
         let physicsWorld = context.world.getResource(Physics2DWorldComponent.self)?.world
 
-        for entity in tileMap {
-            var (tileMapComponent, transform) = entity.components[
-                TileMapComponent.self, Transform.self
-            ]
+        for (entity, tileMapComponent, transform) in tileMap {
             let tileMap = tileMapComponent.tileMap
 
             if !tileMap.needsUpdate {
@@ -41,15 +38,13 @@ public struct TileMapSystem: Sendable {
 
                 self.addTiles(
                     for: layer,
-                    tileMapComponent: &tileMapComponent,
+                    tileMapComponent: &tileMapComponent.wrappedValue,
                     transform: transform,
                     entity: entity,
                     physicsWorld: physicsWorld,
                     world: context.world
                 )
             }
-
-            entity.components += tileMapComponent
             tileMap.updateDidFinish()
         }
     }

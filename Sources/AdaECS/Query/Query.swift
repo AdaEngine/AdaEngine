@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
+// TODO: Add support for queries with filters like Without<Component>, OR, AND, etc.
+
 /// A query that can fetch query targets like components or entities.
 ///
 /// Use queries to efficiently access and iterate over entities and their components that match specific criteria.

@@ -19,17 +19,13 @@ struct TextLayoutComponent {
 ])
 public struct Text2DLayoutSystem {
     
-    @EntityQuery(
-        where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self)
-    )
+    @Query<Entity, Ref<Text2DComponent>, Visibility>(filter: [.stored, .added])
     private var textComponents
     
     public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        self.textComponents.forEach { entity in
-            let (text, visibility) = entity.components[Text2DComponent.self, Visibility.self]
-            
+        self.textComponents.forEach { entity, text, visibility in
             if visibility == .hidden {
                 return
             }

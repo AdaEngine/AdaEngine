@@ -47,11 +47,7 @@ public struct ExctractedMesh2D: Sendable {
 ])
 public struct ExctractMesh2DSystem {
 
-    @EntityQuery(
-        where: .has(Mesh2DComponent.self) &&
-            .has(Transform.self) &&
-            .has(Visibility.self)
-    )
+    @Query<Entity, Mesh2DComponent, Transform, Visibility>
     private var query
 
     public init(world: World) { }
@@ -60,9 +56,7 @@ public struct ExctractMesh2DSystem {
         let extractedEntity = EmptyEntity()
         var extractedMeshes = ExctractedMeshes2D()
 
-        self.query.forEach { entity in
-            let (mesh, transform, visibility) = entity.components[Mesh2DComponent.self, Transform.self, Visibility.self]
-
+        self.query.forEach { entity, mesh, transform, visibility in
             if visibility == .hidden {
                 return
             }
