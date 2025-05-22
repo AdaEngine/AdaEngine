@@ -225,10 +225,7 @@ public struct ExtractedSprite: Sendable {
 ])
 public struct ExtractSpriteSystem {
 
-    @EntityQuery(
-        where: .has(SpriteComponent.self) && .has(GlobalTransform.self) &&
-            .has(Transform.self) && .has(Visibility.self)
-    )
+    @Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>
     private var sprites
 
     public init(world: World) { }
@@ -237,9 +234,7 @@ public struct ExtractSpriteSystem {
         let extractedEntity = Entity(name: "ExtractedSpriteEntity")
         var extractedSprites = ExtractedSprites(sprites: [])
 
-        self.sprites.forEach { entity in
-            let (sprite, globalTransform, transform, visible) = entity.components[SpriteComponent.self, GlobalTransform.self, Transform.self, Visibility.self]
-
+        self.sprites.forEach { entity, sprite, globalTransform, transform, visible in
             if visible == .hidden {
                 return
             }

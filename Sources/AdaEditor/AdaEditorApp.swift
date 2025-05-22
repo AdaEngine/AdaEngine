@@ -13,11 +13,10 @@ struct AdaEditorApp: App {
 
     var scene: some AppScene {
         GameAppScene {
-            GameScene2D(name: "Kek", instantiateDefaultPlugin: true)
+            GameScene2D(name: "Kek")
         }
         .windowMode(.windowed)
         .windowTitle("AdaEngine")
-        // .disableDefaultRenderPlugins(true)
     }
 }
 

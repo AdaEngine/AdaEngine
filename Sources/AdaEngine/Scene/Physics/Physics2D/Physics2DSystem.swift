@@ -21,21 +21,13 @@ public final class Physics2DSystem: @unchecked Sendable {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     
-    @EntityQuery(
-        where: .has(PhysicsBody2DComponent.self) && .has(Transform.self),
-        filter: [.stored, .added]
-    )
+    @Query<Entity, Ref<PhysicsBody2DComponent>, Ref<Transform>>(filter: [.stored, .added])
     private var physicsBodyQuery
     
-    @EntityQuery(
-        where: .has(Collision2DComponent.self) && .has(Transform.self),
-        filter: [.stored, .added]
-    )
+    @Query<Entity, Ref<Collision2DComponent>, Ref<Transform>>(filter: [.stored, .added])
     private var collisionQuery
     
-    @EntityQuery(
-        where: .has(PhysicsJoint2DComponent.self) && .has(Transform.self)
-    )
+    @Query<Entity, Ref<PhysicsJoint2DComponent>, Ref<Transform>>
     private var jointsQuery
     
     public func update(context: UpdateContext) {
@@ -62,8 +54,7 @@ public final class Physics2DSystem: @unchecked Sendable {
     
     @MainActor
     private func updatePhysicsBodyEntities(in world: PhysicsWorld2D) {
-        for entity in self.physicsBodyQuery {
-            var (physicsBody, transform) = entity.components[PhysicsBody2DComponent.self, Transform.self]
+        for (entity, physicsBody, transform) in self.physicsBodyQuery {
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
                     body.setTransform(
@@ -87,14 +78,14 @@ public final class Physics2DSystem: @unchecked Sendable {
                 let body = world.createBody(with: def, for: entity)
                 physicsBody.runtimeBody = body
 
-                for shapeResource in physicsBody.shapes {
+                for shapeResource in physicsBody.wrappedValue.shapes {
                     var shapeDef = b2DefaultShapeDef()
                     shapeDef.density = physicsBody.material.density
                     shapeDef.restitution = physicsBody.material.restitution
                     shapeDef.friction = physicsBody.material.friction
                     shapeDef.filter = physicsBody.filter.b2Filter
                     
-                    if physicsBody.isTrigger {
+                    if physicsBody.wrappedValue.isTrigger {
                         shapeDef.isSensor = true
                     }
                     
@@ -104,7 +95,7 @@ public final class Physics2DSystem: @unchecked Sendable {
                     
                     body.appendShape(
                         shapeResource,
-                        transform: transform,
+                        transform: transform.wrappedValue,
                         shapeDef: shapeDef
                     )
                 }
@@ -124,16 +115,12 @@ public final class Physics2DSystem: @unchecked Sendable {
                     }
                 }
             }
-            entity.components += transform
-            entity.components += physicsBody
         }
     }
 
     @MainActor
     private func updateCollisionEntities(in world: PhysicsWorld2D) {
-        for entity in collisionQuery {
-            var (collisionBody, transform) = entity.components[Collision2DComponent.self, Transform.self]
-
+        for (entity, collisionBody, transform) in collisionQuery {
             if let body = collisionBody.runtimeBody {
                 if body.getPosition() != transform.position.xy {
                     body.setTransform(
@@ -149,7 +136,7 @@ public final class Physics2DSystem: @unchecked Sendable {
                 let body = world.createBody(with: def, for: entity)
                 collisionBody.runtimeBody = body
 
-                for shapeResource in collisionBody.shapes {
+                for shapeResource in collisionBody.wrappedValue.shapes {
                     var shapeDef = b2DefaultShapeDef()
                     shapeDef.density = 1
                     if let debugColor = collisionBody.debugColor {
@@ -161,7 +148,7 @@ public final class Physics2DSystem: @unchecked Sendable {
                     }
                     body.appendShape(
                         shapeResource,
-                        transform: transform,
+                        transform: transform.wrappedValue,
                         shapeDef: shapeDef
                     )
                 }
@@ -179,9 +166,6 @@ public final class Physics2DSystem: @unchecked Sendable {
                     }
                 }
             }
-
-            entity.components += transform
-            entity.components += collisionBody
         }
     }
     

@@ -38,19 +38,18 @@ public struct TransformSystem {
 ])
 public struct ChildTransformSystem {
     
-    @EntityQuery(where: .has(Transform.self) && .has(RelationshipComponent.self))
+    @Query<Entity, Ref<GlobalTransform>>(filter: [.stored, .added])
     private var query
     
     public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        self.query.forEach { entity in
+        self.query.forEach { entity, transform in
             guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
                 return
             }
             
-            let parentTransform = entity.components[GlobalTransform.self]!
-            updateChildren(entity.children, parentTransform: parentTransform)
+            updateChildren(entity.children, parentTransform: transform.wrappedValue)
         }
     }
     
