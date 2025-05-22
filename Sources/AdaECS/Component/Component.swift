@@ -12,7 +12,7 @@ import AdaUtils
 /// The base component in ECS paradigm.
 /// Component contains data described some entity characteristic in the game world, like:
 /// color, transformation and etc.
-public protocol Component: Sendable { }
+public protocol Component: QueryTarget { }
 
 /// Provides the events related to components.
 public enum ComponentEvents {

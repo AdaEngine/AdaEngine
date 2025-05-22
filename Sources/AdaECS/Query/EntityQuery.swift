@@ -38,45 +38,21 @@
 /// ```
 @propertyWrapper
 @frozen public struct EntityQuery: Sendable {
-
-    public var wrappedValue: QueryResult<Entity> {
+    public var wrappedValue: QueryResult<QueryBuilderTargets<Entity>> {
         return QueryResult(state: self.state)
     }
-
-    /// Filter for entity query.
-    public struct Filter: OptionSet, Sendable {
-        public typealias RawValue = UInt8
-        
-        public var rawValue: UInt8
-        
-        public init(rawValue: UInt8) {
-            self.rawValue = rawValue
-        }
-        
-        /// Returns entities which added to world.
-        public static let added = Filter(rawValue: 1 << 0)
-        
-        /// Returns entities which stored in world.
-        public static let stored = Filter(rawValue: 1 << 1)
-
-        /// Returns entities which wait removing from world.
-        public static let removed = Filter(rawValue: 1 << 2)
-        
-        /// Filter that include all values
-        public static let all: Filter = [.added, .stored, .removed]
-    }
     
-    let state: State
+    let state: QueryState
     let predicate: QueryPredicate
-    let filter: Filter
+    let filter: QueryFilter
     
     /// Create a new entity query for specific predicate.
     /// - Parameter predicate: Describe what entity should contains to satisfy query.
     /// - Parameter filter: Describe filter of this query. By default is ``Filter/all``
-    public init(where predicate: QueryPredicate, filter: Filter = .all) {
+    public init(where predicate: QueryPredicate, filter: QueryFilter = .all) {
         self.predicate = predicate
         self.filter = filter
-        self.state = State(predicate: predicate, filter: filter)
+        self.state = QueryState(predicate: predicate, filter: filter)
     }
 }
 
@@ -86,71 +62,65 @@ extension EntityQuery: SystemQuery {
     }
 }
 
-extension EntityQuery {
-    @usableFromInline
-    final class State: @unchecked Sendable, QueryState {
-        @usableFromInline
-        private(set) var archetypes: [Archetype] = []
-        
-        @usableFromInline
-        let predicate: QueryPredicate
-        
-        @usableFromInline
-        let filter: Filter
-        
-        private(set) weak var world: World?
-        
-        internal init(predicate: QueryPredicate, filter: Filter) {
-            self.predicate = predicate
-            self.filter = filter
-        }
-        
-        func updateArchetypes(in world: World) {
-            self.world = world
-            self.archetypes = world.archetypes.filter { self.predicate.evaluate($0) }
-        }
-    }
-}
-
-// MARK: Predicate
-
-/// An object that defines the criteria for an entity query.
-public struct QueryPredicate: Sendable {
-    let evaluate: @Sendable (Archetype) -> Bool
-}
-
-prefix public func ! (operand: QueryPredicate) -> QueryPredicate {
-    QueryPredicate { archetype in
-        !operand.evaluate(archetype)
-    }
-}
-
-public extension QueryPredicate {
-    /// Set the rule that entity should contains given type.
-    static func has<T: Component>(_ type: T.Type) -> QueryPredicate {
-        QueryPredicate { archetype in
-            return archetype.componentsBitMask.contains(type.identifier)
-        }
+/// This iterator iterate by each entity in passed archetype array
+public struct EntityIterator: IteratorProtocol {
+    // We use pointer to avoid additional allocation in memory
+    let count: Int
+    let state: QueryState
+    
+    private var currentArchetypeIndex = 0
+    private var currentEntityIndex = -1 // We should use -1 for first iterating.
+    private var canIterateNext: Bool = true
+    
+    /// - Parameter pointer: Pointer to archetypes array.
+    /// - Parameter count: Count archetypes in array.
+    init(state: QueryState) {
+        self.count = state.archetypes.count
+        self.state = state
     }
     
-    /// Set the rule that entity doesn't contains given type.
-    static func without<T: Component>(_ type: T.Type) -> QueryPredicate {
-        QueryPredicate { archetype in
-            return !archetype.componentsBitMask.contains(type.identifier)
+    public mutating func next() -> Entity? {
+        // swiftlint:disable:next empty_count
+        guard self.count > 0 else {
+            return nil
         }
-    }
-    
-    /// Set AND condition for predicate.
-    static func && (lhs: QueryPredicate, rhs: QueryPredicate) -> QueryPredicate {
-        QueryPredicate { value in
-            lhs.evaluate(value) && rhs.evaluate(value)
-        }
-    }
-    
-    /// Set OR condition for predicate.
-    static func || (lhs: QueryPredicate, rhs: QueryPredicate) -> QueryPredicate {
-        QueryPredicate { value in
-            lhs.evaluate(value) || rhs.evaluate(value)
+        
+        while true {
+            guard self.currentArchetypeIndex < self.count else {
+                return nil
+            }
+            
+            let currentEntitiesCount = self.state.archetypes[self.currentArchetypeIndex].entities.count
+            
+            if self.currentEntityIndex < currentEntitiesCount - 1 {
+                self.currentEntityIndex += 1
+            } else {
+                self.currentArchetypeIndex += 1
+                self.currentEntityIndex = -1
+                continue
+            }
+            
+            let currentArchetype = self.state.archetypes[self.currentArchetypeIndex]
+
+            guard let entity = currentArchetype.entities[self.currentEntityIndex], entity.isActive else {
+                continue
+            }
+            
+            guard let world = self.state.world else {
+                return nil
+            }
+            
+            if self.state.filter.contains(.all) {
+                return entity
+            } else if self.state.filter.contains(.added) && world.addedEntities.contains(entity.id) {
+                return entity
+            } else if self.state.filter.contains(.removed) && world.removedEntities.contains(entity.id) {
+                return entity
+            } else if self.state.filter.contains(.stored) {
+                return entity
+            }
+            
+            continue
         }
     }
 }

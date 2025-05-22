@@ -241,7 +241,7 @@ struct SceneResource {
     unowned let scene: Scene
 }
 
-public extension SceneUpdateContext {
+public extension WorldUpdateContext {
     var scene: Scene {
         self.world.getResource(SceneResource.self)!.scene
     }
