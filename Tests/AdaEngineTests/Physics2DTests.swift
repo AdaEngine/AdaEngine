@@ -11,18 +11,19 @@ import Testing
 @MainActor
 struct Physics2DTests {
     
-    let scene: Scene
+    let world: World
     
     init() async throws {
         try Application.prepareForTest()
         
-        let scene = Scene()
-        self.scene = scene
-        scene.readyIfNeeded()
+        let world = World()
+        self.world = world
+        self.world.addPlugin(DefaultWorldPlugin())
+        world.build()
     }
     
     @Test
-    func createStaticBody() throws {
+    func createStaticBody() async throws {
         let entity = Entity()
         
         let collision = Collision2DComponent(
@@ -33,8 +34,8 @@ struct Physics2DTests {
         entity.components += collision
         entity.components += Transform(position: [0, -10, 0])
         
-        scene.addEntity(entity)
-        scene.update(1.0 / 60.0)
+        world.addEntity(entity)
+        await world.update(1.0 / 60.0)
         
         try #require(entity.components[Collision2DComponent.self]?.runtimeBody != nil)
         #expect(entity.components[Transform.self]?.position.xy == [0, -10])
@@ -47,7 +48,7 @@ struct Physics2DTests {
         let groundCollision = Collision2DComponent(shapes: [groundShape], mode: .default)
         ground.components.set(groundCollision)
         ground.components += Transform(position: [0, -10, 0])
-        scene.addEntity(ground)
+        world.addEntity(ground)
         
         let box = Entity()
         let boxShape = Shape2DResource.generateBox(width: 1, height: 1)
@@ -58,12 +59,12 @@ struct Physics2DTests {
         )
         box.components += boxCollision
         box.components += Transform(position: [0, 10, 0])
-        scene.addEntity(box)
+        world.addEntity(box)
         
         let startY = box.components[Transform.self]?.position.y ?? 0
         
         for _ in 0..<60 {
-            scene.update(1.0 / 60.0)
+            await world.update(1.0 / 60.0)
         }
         
         let endY = box.components[Transform.self]?.position.y ?? 0
@@ -81,15 +82,15 @@ struct Physics2DTests {
         )
         box.components += physicsBody
         box.components += Transform(position: .zero)
-        scene.addEntity(box)
+        world.addEntity(box)
         
-        scene.update(1.0 / 60.0)
+        await world.update(1.0 / 60.0)
         
         box.components[PhysicsBody2DComponent.self]?.applyForceToCenter([100, 0], wake: true)
         
         let initialVelocity = box.components[PhysicsBody2DComponent.self]!.linearVelocity.x
         
-        scene.update(1.0 / 60.0)
+        await world.update(1.0 / 60.0)
         
         let finalVelocity = box.components[PhysicsBody2DComponent.self]!.linearVelocity.x
         #expect(finalVelocity > initialVelocity)
@@ -100,7 +101,7 @@ struct Physics2DTests {
     // func collision() async {
     //     var collisionOccurred = false
         
-    //     _ = scene.eventManager.subscribe(to: CollisionEvents.Began.self) { event in
+    //     _ = world.eventManager.subscribe(to: CollisionEvents.Began.self) { event in
     //         collisionOccurred = true
     //     }
         
@@ -125,16 +126,16 @@ struct Physics2DTests {
     //     entityA.components += Transform(position: [-1, 0, 0])
     //     entityB.components += Transform(position: [1, 0, 0])
         
-    //     scene.addEntity(entityA)
-    //     scene.addEntity(entityB)
+    //     world.addEntity(entityA)
+    //     world.addEntity(entityB)
         
-    //     scene.update(1.0 / 60.0)
+    //     await world.update(1.0 / 60.0)
         
     //     entityA.components[Transform.self]?.position.x += 1
     //     entityB.components[Transform.self]?.position.x -= 1
         
     //     for _ in 0..<10 {
-    //         scene.update(1.0 / 60.0)
+    //         await world.update(1.0 / 60.0)
     //     }
         
     //     #expect(collisionOccurred)

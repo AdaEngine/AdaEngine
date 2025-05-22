@@ -242,8 +242,8 @@ struct SceneResource {
 }
 
 public extension WorldUpdateContext {
-    var scene: Scene {
-        self.world.getResource(SceneResource.self)!.scene
+    var scene: Scene? {
+        self.world.getResource(SceneResource.self)?.scene
     }
 }
 

@@ -16,31 +16,27 @@
 ])
 public struct CameraSystem: Sendable {
 
-    @EntityQuery(where: .has(Camera.self) && .has(Transform.self))
+    @Query<Entity, Ref<Camera>, Transform>
     private var query
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        self.query.forEach { entity in
-            guard var camera = entity.components[Camera.self] else {
-                return
-            }
+        self.query.forEach { entity, camera, transform in
             let transform = context.world.worldTransformMatrix(for: entity)
             let viewMatrix = transform.inverse
             camera.viewMatrix = viewMatrix
 
             context.scheduler.addTask { @MainActor in
-                self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
-                self.updateProjectionMatrix(for: &camera)
-                self.updateFrustum(for: &camera)
+                self.updateViewportSizeIfNeeded(for: &camera.wrappedValue, window: context.scene?.window)
+                self.updateProjectionMatrix(for: &camera.wrappedValue)
+                self.updateFrustum(for: &camera.wrappedValue)
 
                 entity.components += GlobalViewUniform(
                     projectionMatrix: camera.computedData.projectionMatrix,
                     viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
                     viewMatrix: camera.viewMatrix
                 )
-                entity.components[Camera.self] = camera
             }
         }
     }

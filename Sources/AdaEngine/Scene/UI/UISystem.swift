@@ -16,7 +16,10 @@ public struct UISystem: Sendable {
     public init(world: World) {}
 
     public func update(context: UpdateContext) {
-        let scene = context.scene
+        guard let scene = context.scene else {
+            return
+        }
+
         for entity in self.uiComponents {
             context.scheduler.addTask {
                 await update(entity: entity, scene: scene, deltaTime: context.deltaTime)
