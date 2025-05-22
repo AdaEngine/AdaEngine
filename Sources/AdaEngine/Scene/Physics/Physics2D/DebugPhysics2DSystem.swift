@@ -43,7 +43,7 @@ public struct DebugPhysicsExctract2DSystem {
         }
         
         context.scheduler.addTask { @MainActor in    
-            guard context.scene.debugOptions.contains(.showPhysicsShapes) else {
+            guard context.scene?.debugOptions.contains(.showPhysicsShapes) == true else {
                 return
             }
             
@@ -51,7 +51,7 @@ public struct DebugPhysicsExctract2DSystem {
                 return
             }
             
-            guard let window = scene.window else {
+            guard let window = scene?.window else {
                 return
             }
             

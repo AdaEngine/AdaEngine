@@ -43,7 +43,6 @@ final class GameScene2D: Scene, @unchecked Sendable {
             .addSystem(PlayerMovementSystem.self)
             .addSystem(SpawnPhysicsBodiesSystem.self)
             .addSystem(NewSystem.self)
-            .addSystem(Example.self)
 
         // Change gravitation
     }
@@ -397,21 +396,5 @@ struct SpawnPhysicsBodiesSystem: System {
         }
         
         world.addEntity(entity)
-    }
-}
-
-@System
-struct Example {
-    
-    @Query<Entity, Camera, Ref<Transform>>
-    private var query
-    
-    init(world: World) { }
-    
-    func update(context: UpdateContext) {
-        query.forEach { entity, camera, transform in
-            transform.position.x -= 0.5 * context.deltaTime
-            print(transform.position.x)
-        }
     }
 }

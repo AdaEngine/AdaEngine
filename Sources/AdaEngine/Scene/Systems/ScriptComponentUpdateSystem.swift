@@ -22,7 +22,7 @@ public final class ScriptComponentUpdateSystem {
 
         context.scheduler.addTask { @MainActor in
             let scene = context.scene
-            let window = scene.window
+            let window = scene?.window
             var renderContext: UIGraphicsContext?
 
             if let window {

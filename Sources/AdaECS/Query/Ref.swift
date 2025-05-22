@@ -11,6 +11,15 @@
 public struct Ref<T: Component>: @unchecked Sendable {
     public typealias Getter = () -> T
     public typealias Setter = (T) -> Void
+
+    public var wrappedValue: T {
+        get {
+            return getValue()
+        }
+        nonmutating set {
+            setValue(newValue)
+        }
+    }
     
     let getValue: Getter
     let setValue: Setter
@@ -26,12 +35,10 @@ public struct Ref<T: Component>: @unchecked Sendable {
     
     public subscript<U>(dynamicMember dynamicMember: WritableKeyPath<T, U>) -> U {
         get {
-            return getValue()[keyPath: dynamicMember]
+            return self.wrappedValue[keyPath: dynamicMember]
         }
         nonmutating set {
-            var value = getValue()
-            value[keyPath: dynamicMember] = newValue
-            setValue(value)
+            self.wrappedValue[keyPath: dynamicMember] = newValue
         }
     }
 }
