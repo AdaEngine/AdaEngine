@@ -239,7 +239,9 @@ struct PlayerMovementSystem: System {
             var transform = entity.components[Transform.self]!
 
             if Input.isMouseButtonPressed(.left) {
-                let globalTransform = context.world.worldTransformMatrix(for: cameraEntity)
+                guard let globalTransform = cameraEntity.components[GlobalTransform.self]?.matrix else {
+                    return
+                }
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform, viewportPosition: mousePosition) {
                     //                    let values = context.scene.physicsWorld2D?.raycast(from: .zero, to: position)

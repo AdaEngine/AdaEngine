@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/19/24.
 //
 
+// TODO: Add support for events like create, delete, modify, etc.
+
 // Take from https://github.com/swiftlang/swift-tools-support-core/blob/main/Sources/TSCUtility/FSWatch.swift
 
 import Foundation
@@ -15,7 +17,6 @@ import WinSDK
 #endif
 
 public typealias AbsolutePath = String
-
 public typealias FileWatcher = FSWatch
 
 /// FSWatch is a cross-platform filesystem watching utility.
@@ -573,7 +574,7 @@ public final class Inotify {
 
     /// Spawns a thread that collects events and reports them after the settle period.
     private func startReportThread() {
-        let thread = TSCBasic.Thread {
+        let thread = Thread {
             var endLoop = false
             while !endLoop {
 
@@ -836,6 +837,7 @@ public final class FSEventStream {
             )
 
             // Start the stream.
+            // FSEventStreamSetDispatchQueue(self.stream, self.callbacksQueue) <- TODO: (Vlad) Add dispatch queue
             FSEventStreamScheduleWithRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
             FSEventStreamStart(self.stream)
             CFRunLoopRun()

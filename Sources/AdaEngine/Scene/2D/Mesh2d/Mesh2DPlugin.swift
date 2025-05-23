@@ -47,7 +47,7 @@ public struct ExctractedMesh2D: Sendable {
 ])
 public struct ExctractMesh2DSystem {
 
-    @Query<Entity, Mesh2DComponent, Transform, Visibility>
+    @Query<Entity, Mesh2DComponent, Transform, GlobalTransform, Visibility>
     private var query
 
     public init(world: World) { }
@@ -56,19 +56,17 @@ public struct ExctractMesh2DSystem {
         let extractedEntity = EmptyEntity()
         var extractedMeshes = ExctractedMeshes2D()
 
-        self.query.forEach { entity, mesh, transform, visibility in
+        self.query.forEach { entity, mesh, transform, globalTransform, visibility in
             if visibility == .hidden {
                 return
             }
-
-            let worldTransform = context.world.worldTransformMatrix(for: entity)
 
             extractedMeshes.meshes.append(
                 ExctractedMesh2D(
                     entityId: entity.id,
                     mesh: mesh,
                     transform: transform,
-                    worldTransform: worldTransform
+                    worldTransform: globalTransform.matrix
                 )
             )
         }

@@ -12,12 +12,13 @@ import SwiftSyntaxBuilder
 import SwiftSyntaxMacroExpansion
 import SwiftSyntaxMacros
 
-// FIXME: We should avoid comparising `attributeName == "EntityQuery"` because user can have alias.
 public struct SystemMacro: MemberMacro {
     
+    // FIXME: We should avoid comparising `attributeName == "EntityQuery"` because user can have alias.    
     static let queryAttributes = [
         "EntityQuery",
-        "Query"
+        "Query",
+        "ResourceQuery",
     ]
     
     public static func expansion(

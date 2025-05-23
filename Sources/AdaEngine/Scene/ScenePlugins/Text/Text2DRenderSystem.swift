@@ -96,7 +96,7 @@ public struct Text2DRenderSystem: RenderSystem, Sendable {
             let currentBatchEntity = EmptyEntity()
 
             let transform = entity.components[Transform.self]!
-            let worldTransform = world.worldTransformMatrix(for: entity)
+            let worldTransform = entity.components[GlobalTransform.self]!.matrix
 
             let glyphs = textLayout.textLayout.getGlyphVertexData(transform: worldTransform)
 

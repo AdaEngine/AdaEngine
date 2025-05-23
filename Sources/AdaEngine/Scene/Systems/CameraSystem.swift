@@ -16,15 +16,14 @@
 ])
 public struct CameraSystem: Sendable {
 
-    @Query<Entity, Ref<Camera>, Transform>
+    @Query<Entity, Ref<Camera>, GlobalTransform>
     private var query
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        self.query.forEach { entity, camera, transform in
-            let transform = context.world.worldTransformMatrix(for: entity)
-            let viewMatrix = transform.inverse
+        self.query.forEach { entity, camera, globalTransform in
+            let viewMatrix = globalTransform.matrix.inverse
             camera.viewMatrix = viewMatrix
 
             context.scheduler.addTask { @MainActor in

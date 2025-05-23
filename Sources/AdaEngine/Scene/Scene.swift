@@ -156,32 +156,6 @@ public extension Scene {
     }
 }
 
-// MARK: - World Transform
-
-// TODO: Replace it to GlobalTransform
-public extension World {
-    /// Returns world transform component of entity.
-    func worldTransform(for entity: Entity) -> Transform {
-        let worldMatrix = self.worldTransformMatrix(for: entity)
-        return Transform(matrix: worldMatrix)
-    }
-    
-    /// Returns world transform matrix of entity.
-    func worldTransformMatrix(for entity: Entity) -> Transform3D {
-        var transform = Transform3D.identity
-        
-        if let parent = entity.parent {
-            transform = self.worldTransformMatrix(for: parent)
-        }
-        
-        guard let entityTransform = entity.components[GlobalTransform.self] else {
-            return transform
-        }
-        
-        return transform * entityTransform.matrix
-    }
-}
-
 // MARK: - EventSource
 
 extension Scene: @preconcurrency EventSource {
@@ -236,8 +210,7 @@ public enum SceneEvents {
 
 }
 
-@Component
-struct SceneResource {
+struct SceneResource: Resource {
     unowned let scene: Scene
 }
 

@@ -52,6 +52,22 @@ public final class World: @unchecked Sendable, Codable {
             self.addEntity(entity)
         }
 
+        let resourcesContainer = try container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
+        for resourceKey in resourcesContainer.allKeys {
+            guard let resourceType = ResourceStorage.getRegisteredResource(for: resourceKey.stringValue) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .resources, 
+                    in: container, 
+                    debugDescription: "Resource \(resourceKey) not found"
+                )
+            }
+
+            if let decodable = resourceType as? Decodable.Type {
+                let resource = try decodable.init(from: resourcesContainer.superDecoder(forKey: resourceKey))
+                self.insertResource(resource as! Resource)
+            }
+        }
+
         self.tick()
 
         for system in systems {
@@ -83,6 +99,7 @@ public final class World: @unchecked Sendable, Codable {
         try container.encode(self.getEntities() + updatedEntities, forKey: .entities)
         try container.encode(self.systemGraph.systems.map { type(of: $0).swiftName }, forKey: .systems)
         try container.encode(self.plugins.map { type(of: $0).swiftName }, forKey: .plugins)
+        try container.encode(self.componentsStorage.resourceComponents.map { type(of: $0.value).swiftName }, forKey: .resources)
     }
     
     /// Get all entities in world.
@@ -216,22 +233,29 @@ public final class World: @unchecked Sendable, Codable {
     /// Insert a resource into the world.
     /// - Parameter resource: The resource to insert.
     @discardableResult
-    public func insertResource<T: Component>(_ resource: T) -> Self {
-        let componentId = self.componentsStorage.getOrRegisterComponent(T.self)
+    public func insertResource<T: Resource>(_ resource: T) -> Self {
+        let componentId = self.componentsStorage.getOrRegisterResource(T.self)
+        self.componentsStorage.resourceComponents[componentId] = resource
+        return self
+    }
+
+    @discardableResult
+    public func insertResource(_ resource: any Resource) -> Self {
+        let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
     }
 
     /// Remove a resource from the world.
     /// - Parameter resource: The resource to remove.
-    public func removeResource<T: Component>(_ resource: T.Type) {
+    public func removeResource<T: Resource>(_ resource: T.Type) {
         self.componentsStorage.removeResource(resource)
     }
 
     /// Get a resource from the world.
     /// - Parameter resource: The resource to get.
     /// - Returns: The resource if it exists, otherwise nil.
-    public func getResource<T: Component>(_ resource: T.Type) -> T? {
+    public func getResource<T: Resource>(_ resource: T.Type) -> T? {
         return self.componentsStorage.getResource(resource)
     }
 
@@ -405,6 +429,7 @@ public enum WorldEvents {
 private extension World {
     enum CodingKeys: String, CodingKey {
         case entities
+        case resources
         case systems
         case plugins
     }
@@ -414,7 +439,7 @@ extension World {
     struct ComponentsStorage {
         var components: [ComponentId] = []
         var resourceIds: [ObjectIdentifier: ComponentId] = [:]
-        var resourceComponents: [ComponentId: any Component] = [:]
+        var resourceComponents: [ComponentId: any Resource] = [:]
 
         @discardableResult
         mutating func registerComponent() -> ComponentId {
@@ -430,17 +455,27 @@ extension World {
             if let componentId = self.resourceIds[id] {
                 return componentId
             }
-            return registerResource(T.self)
+            return registerComponent()
         }
 
-        mutating func registerResource<T: Component>(_ resource: T.Type) -> ComponentId {
+        mutating func getOrRegisterResource(
+            _ resource: any Resource.Type
+        ) -> ComponentId {
+            let id = resource.identifier
+            if let componentId = self.resourceIds[id] {
+                return componentId
+            }
+            return registerResource(resource)
+        }
+
+        mutating func registerResource<T: Resource>(_ resource: T.Type) -> ComponentId {
             let id = ObjectIdentifier(T.self)
             let componentId = registerComponent()
             self.resourceIds[id] = componentId
             return componentId
         }
 
-        func getResource<T: Component>(_ resource: T.Type) -> T? {
+        func getResource<T: Resource>(_ resource: T.Type) -> T? {
             let id = ObjectIdentifier(T.self)
             guard let componentId = self.resourceIds[id] else {
                 return nil
@@ -448,7 +483,7 @@ extension World {
             return self.resourceComponents[componentId] as? T
         }
 
-        mutating func removeResource<T: Component>(_ resource: T.Type) {
+        mutating func removeResource<T: Resource>(_ resource: T.Type) {
             let id = ObjectIdentifier(T.self)
             guard let componentId = self.resourceIds[id] else {
                 return

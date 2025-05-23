@@ -114,4 +114,25 @@ struct QueryTests {
         query.update(from: world)
         #expect(query.wrappedValue.count == 0)
     }
+
+    @Test("Query with optional components")
+    func queryWithOptionalComponents() async {
+        let world = World()
+
+        let entity = Entity()
+        entity.components += Transform()
+        world.addEntity(entity)
+        
+        let query = Query<Entity, Optional<Transform>, Velocity>()
+        query.update(from: world)
+        #expect(query.wrappedValue.count == 0)
+        world.build()
+
+        entity.components += Velocity()
+
+        await world.update(1.0 / 60.0)
+        
+        query.update(from: world)
+        #expect(query.wrappedValue.count == 1)
+    }
 }

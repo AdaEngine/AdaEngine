@@ -23,9 +23,15 @@ public struct Physics2DPlugin: WorldPlugin {
             .addSystem(Physics2DSystem.self)
 
         Task {
+            await Physics2DWorldComponent.registerResource()
             await Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)
         }
     }
+}
+
+/// Resource contains ``PhysicsWorld2D``.
+public struct Physics2DWorldComponent: Resource {
+    public let world: PhysicsWorld2D
 }
 
 public extension World {
