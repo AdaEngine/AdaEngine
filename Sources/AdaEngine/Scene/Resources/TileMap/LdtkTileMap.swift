@@ -163,7 +163,7 @@ extension LDtk {
         private func onLDtkFileMapChanged(paths: [String]) {
             Task {
                 do {
-                    guard let data = try FileManager.default.contents(atPath: paths[0]) else {
+                    guard let data = FileManager.default.contents(atPath: paths[0]) else {
                         return
                     }
 

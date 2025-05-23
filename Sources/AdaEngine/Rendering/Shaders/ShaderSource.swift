@@ -130,11 +130,9 @@ public final class ShaderSource: Asset, @unchecked Sendable {
         return Array(self.sources.keys)
     }
     
-    // MARK: - Resource
+    // MARK: - Asset
     
     public var assetMetaInfo: AssetMetaInfo?
-    
-    public static let assetType: AssetType = .material
     
     public init(asset decoder: AssetDecoder) throws {
         let fileURL = decoder.assetMeta.filePath
@@ -181,6 +179,10 @@ public final class ShaderSource: Asset, @unchecked Sendable {
         }
         
         return entryPoints
+    }
+    
+    public static func extensions() -> [String] {
+        ["mat"]
     }
 }
 

@@ -10,13 +10,11 @@
 /// To get access to the application instance, use static property `shared`
 @MainActor
 open class Application {
-
-    // MARK: - Public
     
     /// Contains application instance if application created from ``App``.
     @MainActor public internal(set) static var shared: Application!
 
-    let gameLoop: GameLoop = GameLoop.current
+    let mainLoop: MainLoop = MainLoop.current
 
     /// Current runtime platform.
     public var platform: RuntimePlatform {

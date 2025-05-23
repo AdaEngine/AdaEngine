@@ -55,8 +55,11 @@ public class TileSet: Asset, Codable, @unchecked Sendable {
         try encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
     }
 
-    public static let assetType: AssetType = .text
     public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
+    
+    public static func extensions() -> [String] {
+        ["tileset"]
+    }
 
     public init() {}
 

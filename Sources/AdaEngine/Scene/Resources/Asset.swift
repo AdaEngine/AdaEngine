@@ -43,8 +43,13 @@ public protocol Asset: AnyObject, Sendable {
     /// - Returns: the asset data to be saved
     func encodeContents(with encoder: AssetEncoder) async throws
 
-    /// Type of asset.
-    nonisolated static var assetType: AssetType { get }
+    /// Update asset with new asset.
+    ///
+    /// - Parameter newAsset: New asset.
+    func update(_ newAsset: Self) async throws
+
+    /// Extensions for asset.
+    static func extensions() -> [String]
 
     /// Return meta info
     var assetMetaInfo: AssetMetaInfo? { get set }
@@ -61,6 +66,12 @@ public extension Asset {
     /// - Warning: Do not override stored value.
     var assetName: String {
         self.assetMetaInfo?.assetName ?? ""
+    }
+
+    func update(_ newAsset: Self) async throws {
+        #if DEBUG
+        print("Asset \(self) was updated with \(newAsset), but it's not implemented")
+        #endif
     }
 }
 
@@ -96,22 +107,5 @@ public struct AssetMetaInfo: Codable, Sendable {
         
         try container.encode(self.assetPath, forKey: .assetPath)
         try container.encodeIfPresent(self.bundlePath, forKey: .bundlePath)
-    }
-}
-
-/// Contains asset type supported by AdaEngine.
-public enum AssetType: String, Sendable {
-    case texture = "texres"
-    case mesh = "mesh"
-    case material = "mat"
-    case text = "res"
-    case scene = "ascn"
-    case audio = "audiores"
-    case font = "font"
-    
-    case none
-    
-    public var fileExtenstion: String {
-        return self.rawValue
     }
 }

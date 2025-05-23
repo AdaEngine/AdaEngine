@@ -20,7 +20,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     private var frames: [Frame]
     
     /// Contains ref to subscription of event
-    private var gameLoopToken: Cancellable?
+    private var mainLoopToken: Cancellable?
     
     public var framesCount: Int = 1
     
@@ -84,8 +84,8 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         let sampler = RenderEngine.shared.renderDevice.createSampler(from: SamplerDescriptor())
         super.init(gpuTexture: GPUTexture(), sampler: sampler, size: .zero)
         
-        self.gameLoopToken = EventManager.default.subscribe(
-            to: EngineEvents.GameLoopBegan.self,
+        self.mainLoopToken = EventManager.default.subscribe(
+            to: EngineEvents.MainLoopBegan.self,
             completion: update(_:)
         )
     }
@@ -105,7 +105,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     }
     
     public convenience required init(asset decoder: AssetDecoder) async throws {
-        guard decoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
+        guard Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) else {
             throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
         }
         
@@ -160,6 +160,13 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         var container = encoder.singleValueContainer()
         try container.encode(asset)
     }
+
+    public func update(_ newAnimatedTexture: AnimatedTexture) async throws {
+        self.frames = newAnimatedTexture.frames
+        self.framesCount = newAnimatedTexture.framesCount
+        self.framesPerSecond = newAnimatedTexture.framesPerSecond
+        self.options = newAnimatedTexture.options
+    }
     
     // MARK: - Public methods
     
@@ -195,7 +202,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     private var time: TimeInterval = 0
     
     /// Called each frame to update current frame.
-    private func update(_ event: EngineEvents.GameLoopBegan) {
+    private func update(_ event: EngineEvents.MainLoopBegan) {
         if self.isPaused {
             return
         }

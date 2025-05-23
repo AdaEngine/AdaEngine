@@ -25,9 +25,9 @@ public final class FontResource: Asset, Hashable, @unchecked Sendable {
     }
     
     public var assetMetaInfo: AssetMetaInfo?
-    
-    public static var assetType: AssetType {
-        return .font
+
+    public static func extensions() -> [String] {
+        return ["ttf", "otf"]
     }
     
     public required convenience init(asset decoder: AssetDecoder) throws {

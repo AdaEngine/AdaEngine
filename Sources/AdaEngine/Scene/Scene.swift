@@ -15,25 +15,35 @@ enum SceneSerializationError: Error {
     case notRegistedObject(String)
 }
 
+// TODO: (Vlad) MainActor can still in problem. Should we use it? 
+
 /// A container that holds the collection of entities for render.
 @MainActor @preconcurrency
 open class Scene: @preconcurrency Asset, @unchecked Sendable {
+
+    public typealias ID = UUID
 
     /// Current supported version for mapping scene from file.
     public nonisolated(unsafe) static let currentVersion: Version = "1.0.0"
     
     /// Current scene name.
     public var name: String
-    public private(set) var id: UUID
-    
+
+    /// Current scene id.
+    public private(set) var id: ID
+
+    /// Current window for scene.
     public internal(set) weak var window: UIWindow?
     public internal(set) var viewport: Viewport = Viewport()
     
     public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
     
+    /// World for scene.
     public private(set) var world: World
     
+    /// Event manager for scene.
     public private(set) var eventManager: EventManager = EventManager.default
+
     /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     
@@ -62,10 +72,8 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
     
     // MARK: - Resource -
     
-    public static let assetType: AssetType = .scene
-    
     public func encodeContents(with encoder: AssetEncoder) async throws {
-        guard encoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
+        guard Self.extensions().contains(where: { encoder.assetMeta.filePath.pathExtension == $0 }) else {
             throw SceneSerializationError.invalidExtensionType
         }
         let sceneData = SceneRepresentation(
@@ -79,7 +87,7 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
     }
     
     required public convenience init(asset decoder: AssetDecoder) async throws {
-        guard decoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
+        guard Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) else {
             throw SceneSerializationError.invalidExtensionType
         }
         
@@ -94,6 +102,17 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
             instantiateDefaultPlugin: sceneData.instantiateDefaultPlugin
         )
         self.world = sceneData.world
+    }
+    
+    public static func extensions() -> [String] {
+        ["ascn"]
+    }
+
+    public func update(_ newScene: Scene) async throws {
+        self.world = newScene.world
+        self.eventManager = newScene.eventManager
+        self.debugOptions = newScene.debugOptions
+        self.instantiateDefaultPlugin = newScene.instantiateDefaultPlugin
     }
     
     // MARK: - Life Cycle

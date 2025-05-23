@@ -187,7 +187,16 @@ extension Image: Asset {
         }
     }
     
-    public static let assetType: AssetType = .texture
+    public static func extensions() -> [String] {
+        ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "webp"]
+    }
+
+    public func update(_ newImage: Image) async throws {
+        self.data = newImage.data
+        self.width = newImage.width
+        self.height = newImage.height
+        self.format = newImage.format
+    }
 }
 
 private extension Image {

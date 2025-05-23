@@ -20,7 +20,7 @@ public typealias AbsolutePath = String
 public typealias FileWatcher = FSWatch
 
 /// FSWatch is a cross-platform filesystem watching utility.
-public class FSWatch {
+public final class FSWatch: @unchecked Sendable {
 
     public typealias EventReceivedBlock = (_ paths: [AbsolutePath]) -> Void
 
@@ -764,7 +764,7 @@ private func callback(
     let eventPaths = unsafeBitCast(eventPaths, to: NSArray.self) as? [String] ?? []
 
     // Compute the set of paths that were changed.
-    let paths = eventPaths//.compactMap({ try? AbsolutePath(validating: $0) })
+    let paths = eventPaths//.compactMap({ try? AbsolutePath(validating: $0) }) // <- TODO (Vlad): May be ok
 
     eventStream.callbacksQueue.async {
         eventStream.delegate.pathsDidReceiveEvent(paths)
@@ -776,7 +776,7 @@ public protocol FSEventStreamDelegate {
 }
 
 /// Wrapper for Darwin's FSEventStream API.
-public final class FSEventStream {
+public final class FSEventStream: @unchecked Sendable {
 
     /// The errors encountered during fs event watching.
     public enum Error: Swift.Error {

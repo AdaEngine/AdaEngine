@@ -53,7 +53,6 @@ public struct Text2DRenderSystem: RenderSystem, Sendable {
         ])
 
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<GlyphVertexData>.stride
-
         piplineDesc.colorAttachments = [ColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
 
         let quadPipeline = device.createRenderPipeline(from: piplineDesc)

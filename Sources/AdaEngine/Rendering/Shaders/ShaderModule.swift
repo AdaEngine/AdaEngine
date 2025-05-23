@@ -36,7 +36,6 @@ public final class ShaderModule: Asset, @unchecked Sendable {
     // Resource
     
     public var assetMetaInfo: AssetMetaInfo?
-    public static let assetType: AssetType = .material
     
     // TODO: Add init from spir-v
     public init(asset decoder: AssetDecoder) throws {
@@ -48,6 +47,10 @@ public final class ShaderModule: Asset, @unchecked Sendable {
     
     public func encodeContents(with encoder: AssetEncoder) throws {
         fatalError("TODO")
+    }
+    
+    public static func extensions() -> [String] {
+        ["mat"]
     }
 }
 

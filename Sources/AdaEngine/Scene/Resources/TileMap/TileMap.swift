@@ -7,8 +7,6 @@
 
 public class TileMap: Asset, @unchecked Sendable {
 
-    public static let assetType: AssetType = .text
-
     public var tileSet: TileSet = TileSet() {
         didSet {
             self.tileSetDidChange()
@@ -63,6 +61,10 @@ public class TileMap: Asset, @unchecked Sendable {
         
         let content = FileContent(layers: layers, tileSet: self.tileSet)
         try encoder.encode(content)
+    }
+    
+    public static func extensions() -> [String] {
+        ["tilemap"]
     }
 
     public func createLayer() -> TileMapLayer {
