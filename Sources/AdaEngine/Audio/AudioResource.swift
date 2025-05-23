@@ -13,16 +13,18 @@ public final class AudioResource: Asset, @unchecked Sendable {
     
     public var assetMetaInfo: AssetMetaInfo?
     
-    private let sound: Sound
-    
-    public static let assetType: AssetType = .audio
+    private var sound: Sound
 
     public required init(asset decoder: AssetDecoder) async throws {
-        if decoder.assetMeta.filePath.pathExtension == AssetType.audio.fileExtenstion {
+        if Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) {
             self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetData)
         } else {
             self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetMeta.filePath)
         }
+    }
+    
+    public static func extensions() -> [String] {
+        ["audiores"]
     }
     
     private init(sound: Sound) {
@@ -31,6 +33,10 @@ public final class AudioResource: Asset, @unchecked Sendable {
     
     public func encodeContents(with encoder: AssetEncoder) throws {
         fatalErrorMethodNotImplemented()
+    }
+
+    public func update(_ newAsset: AudioResource) async throws {
+        self.sound = newAsset.sound
     }
     
     // TODO: (Vlad) I'm not sure that is a good solution to copy sound.

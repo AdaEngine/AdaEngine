@@ -95,7 +95,9 @@ struct MovementSystem: System {
     func update(context: UpdateContext) {
         let cameraEntity = context.world.performQuery(Self.camera).first!
         let camera = cameraEntity.components[Camera.self]!
-        let globalTransform = context.world.worldTransformMatrix(for: cameraEntity)
+        guard let globalTransform = cameraEntity.components[GlobalTransform.self]?.matrix else {
+            return
+        }
 
         let mousePosition = Input.getMousePosition()
 

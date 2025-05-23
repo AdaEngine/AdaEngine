@@ -80,7 +80,7 @@ public final class AssetDecodingContext: @unchecked Sendable {
         if let value = self.resources[path]?.value as? A {
             return value
         } else {
-            let value = try AssetsManager.loadSync(path, ignoreCache: true) as A
+            let value = try AssetsManager.loadSync(path) as A
             self.appendResource(value)
             
             return value

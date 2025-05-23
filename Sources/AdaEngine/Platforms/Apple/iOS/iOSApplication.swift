@@ -94,7 +94,7 @@ final class iOSApplication: Application {
     
     @objc private func update() {
         do {
-            try self.gameLoop.iterate()
+            try self.mainLoop.iterate()
         } catch {
             print(error.localizedDescription)
             exit(-1)

@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 6/19/22.
 //
 
+import AdaUtils
 import Foundation
 
 public enum AssetError: LocalizedError {
@@ -27,15 +28,32 @@ public enum AssetError: LocalizedError {
 /// Each asset loaded from manager stored in memory cache.
 /// If asset was loaded to memory, you recive reference to this resource.
 public final class AssetsManager {
+    
     nonisolated(unsafe) private static var resourceDirectory: URL!
-
     private static let resKeyWord = "@res:"
 
-    @AssetActor private static var loadedAssets: [Int: Asset] = [:]
+    @AssetActor
+    private static var storage: AssetsStorage = AssetsStorage() {
+        didSet {
+            self.updateFileWatcher()
+        }
+    }
+
+    @AssetActor
+    private static var fileWatcher: FileWatcher?
+
+    /// If hot reloading is enabled, the file watcher will be started.
+    /// Default value is true.
+    @AssetActor
+    private static var isHotReloadingEnabled: Bool = true {
+        didSet {
+           self.updateHotReloadingAssets()
+        }
+    }
 
     // MARK: - LOADING -
 
-    /// Load a resource and saving it to memory cache. We use `@res:` prefix to link to resource folder.
+    /// Load a resource. We use `@res:` prefix to link to resource folder.
     ///
     /// ```swift
     /// let texture = try await AssetsManager.load("@res:Assets/armor.png") as Texture2D
@@ -49,28 +67,35 @@ public final class AssetsManager {
     @AssetActor
     public static func load<A: Asset>(
         _ path: String,
-        ignoreCache: Bool = false
+        handleChanges: Bool = false
     ) async throws -> A {
         let key = self.makeCacheKey(resource: A.self, path: path)
-
-        if let cachedAsset = self.loadedAssets[key], !ignoreCache {
-            return cachedAsset as! A
+        if let cachedAsset = self.storage.loadedAssets[key]?.value as? A {
+            return cachedAsset
         }
 
-        var processedPath = self.processPath(path)
-
+        let processedPath = self.processPath(path)
         let hasFileExt = !processedPath.url.pathExtension.isEmpty
 
         if !hasFileExt {
-            processedPath.url.appendPathExtension(A.assetType.fileExtenstion)
+            throw AssetError.notExistAtPath(processedPath.url.path)
         }
 
         guard FileSystem.current.itemExists(at: processedPath.url) else {
             throw AssetError.notExistAtPath(processedPath.url.path)
         }
 
+        if handleChanges {
+            self.storage.hotReloadingAssets[path] = HotReloadingAsset(
+                path: processedPath,
+                key: key,
+                resource: A.self,
+                needsUpdate: false
+            )
+        }
+
         let resource: A = try await self.load(from: processedPath, originalPath: path, bundle: nil)
-        self.loadedAssets[key] = resource
+        self.storage.loadedAssets[key] = WeakBox(resource)
 
         return resource
     }
@@ -88,8 +113,7 @@ public final class AssetsManager {
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
     public static func loadSync<R: Asset>(
-        _ path: String,
-        ignoreCache: Bool = false
+        _ path: String
     ) throws -> R {
         let task = UnsafeTask<R> {
             return try await load(path)
@@ -114,12 +138,12 @@ public final class AssetsManager {
     public static func load<A: Asset>(
         _ path: String,
         from bundle: Bundle,
-        ignoreCache: Bool = false
+        handleChanges: Bool = false
     ) async throws -> A {
         let key = self.makeCacheKey(resource: A.self, path: path)
 
-        if let cachedAsset = self.loadedAssets[key], !ignoreCache {
-            return cachedAsset as! A
+        if let cachedAsset = self.storage.loadedAssets[key]?.value as? A {
+            return cachedAsset
         }
 
         let processedPath = self.processPath(path)
@@ -132,7 +156,7 @@ public final class AssetsManager {
             originalPath: path,
             bundle: bundle
         )
-        self.loadedAssets[key] = resource
+        self.storage.loadedAssets[key] = WeakBox(resource)
 
         return resource
     }
@@ -152,11 +176,10 @@ public final class AssetsManager {
     /// - Returns: Instance of resource.
     public static func loadSync<R: Asset>(
         _ path: String,
-        from bundle: Bundle,
-        ignoreCache: Bool = false
+        from bundle: Bundle
     ) throws -> R {
         let task = UnsafeTask<R> {
-            return try await load(path, from: bundle, ignoreCache: ignoreCache)
+            return try await load(path, from: bundle)
         }
 
         return try task.get()
@@ -206,7 +229,7 @@ public final class AssetsManager {
         processedPath.url.append(path: name)
         
         if processedPath.url.pathExtension.isEmpty {
-            processedPath.url.appendPathExtension(R.assetType.fileExtenstion)
+            processedPath.url.appendPathExtension(R.extensions().first ?? "")
         }
 
         let meta = AssetMeta(filePath: processedPath.url, queryParams: processedPath.query)
@@ -238,7 +261,7 @@ public final class AssetsManager {
     @AssetActor
     public static func unload<R: Asset>(_ res: R.Type, at path: String) {
         let key = self.makeCacheKey(resource: res, path: path)
-        self.loadedAssets[key] = nil
+        self.storage.loadedAssets[key] = nil
     }
 
     // MARK: - Public methods
@@ -255,8 +278,7 @@ public final class AssetsManager {
         }
 
         self.resourceDirectory = url
-        
-        self.loadedAssets.removeAll()
+        self.storage.loadedAssets.removeAll()
     }
 
     // MARK: - Internal
@@ -274,7 +296,53 @@ public final class AssetsManager {
         self.resourceDirectory = resources
     }
 
+    @AssetActor
+    static func processResources() async throws {
+        for (_, asset) in self.storage.hotReloadingAssets where asset.needsUpdate {
+            guard let oldResource = self.storage.loadedAssets[asset.key]?.value as? any Asset else {
+                print("Resource \(asset.resource) is not found")
+                continue
+            }
+
+            try await self.loadAndUpdateInternal(
+                assetType: asset.resource, 
+                oldResource: oldResource,
+                from: asset.path, 
+                originalPath: asset.path.url.path
+            )
+        }
+    }
+
     // MARK: - Private
+
+    @AssetActor
+    private static func updateHotReloadingAssets() {
+        do {
+             if self.isHotReloadingEnabled {
+                try self.fileWatcher?.start()
+            } else {
+                self.fileWatcher?.stop()
+            }
+        } catch {
+            print("Error updating hot reloading assets: \(error)")
+        }
+    }
+
+    @AssetActor
+    private static func loadAndUpdateInternal(
+        assetType: any Asset.Type, 
+        oldResource: any Asset,
+        from path: Path, 
+        originalPath: String
+    ) async throws {
+        guard let data = FileSystem.current.readFile(at: path.url) else {
+            throw AssetError.notExistAtPath(path.url.path)
+        }
+        let meta = AssetMeta(filePath: path.url, queryParams: path.query)
+        let decoder = TextAssetDecoder(meta: meta, data: data)
+        try await assetType.loadAndUpdateInternal(from: decoder, oldResource: oldResource)
+    }
+
     @AssetActor
     private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Bundle?) async throws -> A {
         guard let data = FileSystem.current.readFile(at: path.url) else {
@@ -315,8 +383,6 @@ extension AssetsManager {
 }
 
 private extension AssetsManager {
-
-
     // TODO: (Vlad) looks very unstable
     private static func makeCacheKey<R: Asset>(resource: R.Type, path: String) -> Int {
         let cacheKey = path + "\(UInt(bitPattern: ObjectIdentifier(resource)))"
@@ -347,6 +413,32 @@ private extension AssetsManager {
         }
 
         return Path(url: url, query: query)
+    }
+
+    @AssetActor
+    private static func updateFileWatcher() {
+        if self.storage.hotReloadingAssets.values.isEmpty {
+            return
+        }
+
+        self.fileWatcher = FileWatcher(
+            paths: self.storage.hotReloadingAssets.values.map({ $0.path.url.path }),
+            block: { paths in
+                for path in paths {
+                    var asset = self.storage.hotReloadingAssets[path]
+                    asset?.needsUpdate = true
+                    self.storage.hotReloadingAssets[path] = asset
+                }
+            }
+        )
+
+        do {
+            if self.isHotReloadingEnabled {
+                try self.fileWatcher?.start()   
+            }
+        } catch {
+            print("Error updating file watcher: \(error)")
+        }
     }
 
     private static func fetchQuery(from string: String) -> [AssetQuery] {
@@ -390,8 +482,35 @@ private extension AssetsManager {
     }
 }
 
+extension AssetsManager {
+    struct AssetsStorage: Sendable {
+        var loadedAssets: [Int: WeakBox<AnyObject>] = [:]
+        var hotReloadingAssets: [String: HotReloadingAsset] = [:]
+    }
+
+    struct HotReloadingAsset: Sendable {
+        var path: Path
+        var key: Int
+        var resource: any Asset.Type
+        var needsUpdate: Bool = false
+    }
+}
+
 /// Actor for loading and saving resources.
 @globalActor
 public actor AssetActor {
     public static var shared = AssetActor()
+}
+
+private extension Asset {
+    static func loadAndUpdateInternal(
+        from asset: any AssetDecoder,
+        oldResource: any Asset
+    ) async throws {
+        let resource = try await Self.init(asset: asset)
+        guard let oldResource = oldResource as? Self else {
+            throw AssetError.message("Old resource is not of type \(Self.self)")
+        }
+        try await oldResource.update(resource)
+    }
 }

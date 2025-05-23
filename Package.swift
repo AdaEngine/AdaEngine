@@ -279,6 +279,13 @@ targets += [
         exclude: [
             "BUILD.bazel"
         ]
+    ),
+    .testTarget(
+        name: "AdaECSTests",
+        dependencies: ["AdaECS", "Math"],
+        exclude: [
+            "BUILD.bazel"
+        ]
     )
 ]
 

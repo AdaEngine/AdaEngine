@@ -48,9 +48,15 @@ open class Texture: Asset, Codable, @unchecked Sendable {
         fatalErrorMethodNotImplemented()
     }
     
-    // MARK: - Resources
-    
-    public static let assetType: AssetType = .texture
+    public static func extensions() -> [String] {
+        return ["tex"]
+    }
+
+    public func update(_ newAsset: Texture) async throws {
+        self.gpuTexture = newAsset.gpuTexture
+        self.sampler = newAsset.sampler
+        self.textureType = newAsset.textureType
+    }
 }
 
 public extension Texture {

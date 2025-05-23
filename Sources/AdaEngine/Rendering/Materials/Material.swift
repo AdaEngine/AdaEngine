@@ -17,8 +17,6 @@ public class Material: Asset, Hashable, @unchecked Sendable {
     
     public var assetMetaInfo: AssetMetaInfo?
     
-    public static let assetType: AssetType = .material
-    
     let rid = RID()
     
     let shaderSource: ShaderSource
@@ -35,6 +33,10 @@ public class Material: Asset, Hashable, @unchecked Sendable {
     
     public func encodeContents(with encoder: AssetEncoder) throws {
         try self.shaderSource.encodeContents(with: encoder)
+    }
+    
+    public static func extensions() -> [String] {
+        ["mat"]
     }
     
     /// Set the new value for material.

@@ -36,11 +36,13 @@ final class GameScene2D: Scene, @unchecked Sendable {
         self.debugOptions = [.showPhysicsShapes]
         self.makePlayer()
         self.makeGround()
-        try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
+        // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
         self.collisionHandler()
         
-        self.world.addSystem(PlayerMovementSystem.self)
-        self.world.addSystem(SpawnPhysicsBodiesSystem.self)
+        self.world
+            .addSystem(PlayerMovementSystem.self)
+            .addSystem(SpawnPhysicsBodiesSystem.self)
+            .addSystem(NewSystem.self)
 
         // Change gravitation
     }
@@ -189,7 +191,9 @@ struct PlayerMovementSystem: System {
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     func update(context: UpdateContext) {
-        let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
+        guard let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first else {
+            return
+        }
 
         var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]
 
@@ -235,7 +239,9 @@ struct PlayerMovementSystem: System {
             var transform = entity.components[Transform.self]!
 
             if Input.isMouseButtonPressed(.left) {
-                let globalTransform = context.world.worldTransformMatrix(for: cameraEntity)
+                guard let globalTransform = cameraEntity.components[GlobalTransform.self]?.matrix else {
+                    return
+                }
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform, viewportPosition: mousePosition) {
                     //                    let values = context.scene.physicsWorld2D?.raycast(from: .zero, to: position)
@@ -334,11 +340,23 @@ struct MyMaterial: CanvasMaterial {
     }
 }
 
+@System
+struct NewSystem {
+    
+    @EntityQuery(where: .has(Camera.self)) private var cameras
+    
+    init(world: World) { }
+    
+    func update(context: UpdateContext) {
+        
+    }
+}
+
 struct SpawnPhysicsBodiesSystem: System {
     
     static let camera = EntityQuery(where: .has(Camera.self))
     let fixedTimestep: FixedTimestep = FixedTimestep(stepsPerSecond: 20)
-
+    
     init(world: World) { }
 
     func update(context: UpdateContext) {
