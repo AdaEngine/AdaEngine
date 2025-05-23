@@ -43,6 +43,18 @@ extension Entity: QueryTarget {
         return entity as! Self
     }
     
+    /// Always returns true because entity is always present in an archetype.
+    public static func _queryContains(in archetype: Archetype) -> Bool {
+        return true
+    }
+}
+
+extension Optional: QueryTarget where Wrapped: QueryTarget {
+    public static func _queryTarget(from entity: Entity) -> Self {
+        return Wrapped._queryTarget(from: entity)
+    }
+    
+    /// Always returns true because optional can be nil.
     public static func _queryContains(in archetype: Archetype) -> Bool {
         return true
     }

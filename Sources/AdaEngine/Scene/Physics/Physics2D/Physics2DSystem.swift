@@ -30,12 +30,15 @@ public final class Physics2DSystem: @unchecked Sendable {
     @Query<Entity, Ref<PhysicsJoint2DComponent>, Ref<Transform>>
     private var jointsQuery
     
+    @ResourceQuery<Physics2DWorldComponent>
+    private var physicsWorld
+
     public func update(context: UpdateContext) {
         let result = self.fixedTimestep.advance(with: context.deltaTime)
         let step = fixedTimestep.step
 
         context.scheduler.addTask { @MainActor in
-            guard let world = context.world.physicsWorld2D else {
+            guard let world = self.physicsWorld?.world else {
                 return
             }
             
