@@ -34,22 +34,13 @@ extension LDtk {
         private var project: Project?
         private let filePath: URL
 
-        private let fileWatcher: FileWatcher
+        private var fileWatcher: FileWatcher!
         private var fileWatcherObserver: Cancellable?
         
         /// When is hot reloading enabled, TileMap will automatically update tiles when LDtk project changed.
-        /// Default value is true.
         ///
         /// - Note: Use ``TileMap/resourcePath`` field to get runtime path to your LDtk file.
-        public var isHotReloadingEnabled: Bool = true {
-            didSet {
-                if isHotReloadingEnabled {
-                    self.fileWatcherObserver = try! self.fileWatcher.observe(on: .main, block: self.onLDtkFileMapChanged)
-                } else {
-                    self.fileWatcherObserver = nil
-                }
-            }
-        }
+        public private(set) var isHotReloadingEnabled: Bool = false
 
         public required init(asset decoder: AssetDecoder) async throws {
             let pathExt = decoder.assetMeta.filePath.pathExtension
@@ -58,13 +49,15 @@ extension LDtk {
                 throw AssetDecodingError.invalidAssetExtension("Invalid extension for Ldtk project: \(pathExt)")
             }
 
-            self.fileWatcher = FileWatcher(url: decoder.assetMeta.filePath)
             self.filePath = decoder.assetMeta.filePath
 
             super.init()
 
+            self.fileWatcher = FileWatcher(paths: [decoder.assetMeta.filePath.absoluteString]) { [weak self] paths in
+                self?.onLDtkFileMapChanged(paths: paths)
+            }
+
             try await self.loadLdtkProject(from: decoder.assetData)
-            self.fileWatcherObserver = try self.fileWatcher.observe(on: .main, block: self.onLDtkFileMapChanged)
         }
 
         public override func encodeContents(with encoder: AssetEncoder) async throws {
@@ -152,15 +145,28 @@ extension LDtk {
             }
         }
 
-        // MARK: - Private
-
-        private func onLDtkFileMapChanged(_ event: FileWatcher.Event) {
-            guard case .update(let data) = event else {
-                return
+        /// Enable or disable hot reloading.
+        ///
+        /// - Note: Use ``TileMap/resourcePath`` field to get runtime path to your LDtk file.
+        public func setHotReloading(enabled: Bool) throws {
+            if enabled {
+                try fileWatcher.start()
+            } else {
+                fileWatcher.stop()
             }
 
+            self.isHotReloadingEnabled = enabled
+        }
+
+        // MARK: - Private
+
+        private func onLDtkFileMapChanged(paths: [String]) {
             Task {
                 do {
+                    guard let data = try FileManager.default.contents(atPath: paths[0]) else {
+                        return
+                    }
+
                     try await loadLdtkProject(from: data)
                 } catch {
                     Logger(label: "LDtk").critical("Failed to update ldtk file \(error.localizedDescription)")
