@@ -259,6 +259,10 @@ public final class World: @unchecked Sendable, Codable {
         return self.componentsStorage.getResource(resource)
     }
 
+    public func getResources() -> [any Resource] {
+        return Array(self.componentsStorage.resourceComponents.values)
+    }
+
     /// Check if component was changed for entity.
     /// - Parameter component: Component identifier.
     /// - Parameter entity: Entity.

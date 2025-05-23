@@ -69,7 +69,6 @@ public final class Shader: Asset, @unchecked Sendable {
     // MARK: Shader
 
     public var assetMetaInfo: AssetMetaInfo?
-    public static let assetType: AssetType = .material
 
     // TODO: Load from spir-v
     public init(asset decoder: AssetDecoder) throws {
@@ -94,6 +93,10 @@ public final class Shader: Asset, @unchecked Sendable {
 
     public func encodeContents(with encoder: AssetEncoder) throws {
         fatalErrorMethodNotImplemented()
+    }
+    
+    public static func extensions() -> [String] {
+        ["mat"]
     }
     
     static func make(from spirv: SpirvBinary, compiler: ShaderCompiler) throws -> Shader {
