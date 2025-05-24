@@ -19,6 +19,8 @@ public class TileMapLayer: Identifiable, @unchecked Sendable {
     /// Set z index for layer
     public var zIndex: Int = 0
 
+    public var collisionFilter: CollisionFilter = CollisionFilter()
+
     struct TileCellData {
         /// Position in atlas
         let atlasCoordinates: PointInt

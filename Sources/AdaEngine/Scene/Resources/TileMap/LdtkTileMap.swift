@@ -227,6 +227,27 @@ extension LDtk {
                     let newLayer = self.createLayer()
                     newLayer.name = layer.identifier
                     newLayer.id = layer.uid
+
+                    // Parse custom physics properties from LDtk layer field instances
+                    var categoryBitMaskValue: UInt64 = 1 // Default category
+                    var collisionBitMaskValue: UInt64 = UInt64.max // Default mask (collides with all)
+
+                    if let fieldInstances = layer.fieldInstances {
+                        if let categoryField = fieldInstances.first(where: { $0.identifier == "physicsLayer_categoryBitMask" }),
+                           let intValue = categoryField.value.intValue {
+                            categoryBitMaskValue = UInt64(intValue)
+                        }
+
+                        if let maskField = fieldInstances.first(where: { $0.identifier == "physicsLayer_collisionBitMask" }),
+                           let intValue = maskField.value.intValue {
+                            collisionBitMaskValue = UInt64(intValue)
+                        }
+                    }
+                    
+                    let categoryGroup = CollisionGroup(rawValue: categoryBitMaskValue)
+                    let maskGroup = CollisionGroup(rawValue: collisionBitMaskValue)
+                    
+                    newLayer.collisionFilter = CollisionFilter(categoryBitMask: categoryGroup, collisionBitMask: maskGroup)
                 }
             }
 
@@ -418,6 +439,7 @@ extension LDtk {
         let uid: Int
         let tilesetDefUid: Int?
         let gridSize: Int
+        let fieldInstances: [FieldInstance]?
     }
 
     struct Entity: Codable, Equatable {
