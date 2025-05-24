@@ -140,4 +140,96 @@ struct Physics2DTests {
         
     //     #expect(collisionOccurred)
     // }
+    
+    @Test
+    func testStaticBodyTransformSync() async throws {
+        let app = Application(
+            plugins: [
+                Physics2DPlugin()
+            ]
+        )
+        
+        let scene = Scene()
+        app.addScene(scene)
+        
+        let entity = Entity()
+        
+        let initialPosition = Vector2(1, 2)
+        let initialAngle = Angle.degrees(45)
+        
+        var physicsBody = PhysicsBody2DComponent(
+            shapes: [.generateBox()],
+            mode: .static
+        )
+        entity.components += physicsBody
+        entity.components += Transform(
+            position: Vector3(initialPosition.x, initialPosition.y, 0),
+            rotation: Quat(angle: initialAngle, axis: .axisZ)
+        )
+        
+        scene.addEntity(entity)
+        
+        app.run(frames: 5)
+        
+        let newPosition = Vector2(3, 4)
+        let newAngle = Angle.degrees(90)
+        
+        physicsBody = entity.components[PhysicsBody2DComponent.self]!
+        physicsBody.runtimeBody?.setTransform(position: newPosition, angle: newAngle)
+        entity.components[PhysicsBody2DComponent.self] = physicsBody // Re-assign to trigger potential updates
+        
+        app.run(frames: 5)
+        
+        let finalTransform = entity.components[Transform.self]!
+        
+        #expect(abs(finalTransform.position.x - newPosition.x) < 0.001)
+        #expect(abs(finalTransform.position.y - newPosition.y) < 0.001)
+        #expect(abs(finalTransform.rotation.angle.degrees - newAngle.degrees) < 0.001)
+    }
+    
+    @Test
+    func testCollisionBodyTransformSync() async throws {
+        let app = Application(
+            plugins: [
+                Physics2DPlugin()
+            ]
+        )
+        
+        let scene = Scene()
+        app.addScene(scene)
+        
+        let entity = Entity()
+        
+        let initialPosition = Vector2(5, 6)
+        let initialAngle = Angle.degrees(30)
+        
+        var collisionBody = Collision2DComponent(
+            shapes: [.generateBox()],
+            mode: .default // Or .trigger, doesn't matter much for this test
+        )
+        entity.components += collisionBody
+        entity.components += Transform(
+            position: Vector3(initialPosition.x, initialPosition.y, 0),
+            rotation: Quat(angle: initialAngle, axis: .axisZ)
+        )
+        
+        scene.addEntity(entity)
+        
+        app.run(frames: 5)
+        
+        let newPosition = Vector2(7, 8)
+        let newAngle = Angle.degrees(60)
+        
+        collisionBody = entity.components[Collision2DComponent.self]!
+        collisionBody.runtimeBody?.setTransform(position: newPosition, angle: newAngle)
+        entity.components[Collision2DComponent.self] = collisionBody // Re-assign to trigger potential updates
+        
+        app.run(frames: 5)
+        
+        let finalTransform = entity.components[Transform.self]!
+        
+        #expect(abs(finalTransform.position.x - newPosition.x) < 0.001)
+        #expect(abs(finalTransform.position.y - newPosition.y) < 0.001)
+        #expect(abs(finalTransform.rotation.angle.degrees - newAngle.degrees) < 0.001)
+    }
 }
