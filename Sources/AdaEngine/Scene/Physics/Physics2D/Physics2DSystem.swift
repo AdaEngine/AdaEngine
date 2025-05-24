@@ -69,6 +69,10 @@ public final class Physics2DSystem: System, Sendable {
                         position: transform.position.xy,
                         angle: transform.rotation.angle2D
                     )
+                    let newPosition = body.getPosition()
+                    let newAngle = body.getAngle().radians
+                    transform.position = Vector3(newPosition.x, newPosition.y, transform.position.z)
+                    transform.rotation = Quat(axis: [0, 0, 1], angle: -newAngle)
                 } else {
                     let position = body.getPosition()
                     transform.position.x = position.x
@@ -139,6 +143,10 @@ public final class Physics2DSystem: System, Sendable {
                         position: transform.position.xy,
                         angle: transform.rotation.angle2D
                     )
+                    let newPosition = body.getPosition()
+                    let newAngle = body.getAngle().radians
+                    transform.position = Vector3(newPosition.x, newPosition.y, transform.position.z)
+                    transform.rotation = Quat(axis: [0, 0, 1], angle: -newAngle)
                 }
             } else {
                 var def = b2DefaultBodyDef()
