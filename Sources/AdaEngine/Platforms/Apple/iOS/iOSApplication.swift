@@ -23,6 +23,7 @@ final class iOSApplication: Application {
         
         try super.init(argc: argc, argv: argv)
         self.windowManager = iOSWindowManager()
+        AppleGameControllerManager.shared.startMonitoring()
     }
     
     override func run() throws {
