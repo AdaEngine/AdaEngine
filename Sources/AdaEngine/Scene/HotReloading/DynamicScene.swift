@@ -33,10 +33,10 @@ struct DynamicSceneInitSystem: System {
                 return
             }
             
-            // if instance.identifier != scene.scene.asset.world.id {
-            //     removeChild(from: entity)
-            //     insertScene(to: entity, dynamicScene: scene, world: context.world)
-            // }
+            if instance.identifier != scene.scene.asset.world.id {
+                removeChild(from: entity)
+                insertScene(to: entity, dynamicScene: scene, world: context.world)
+            }
         }
     }
     
