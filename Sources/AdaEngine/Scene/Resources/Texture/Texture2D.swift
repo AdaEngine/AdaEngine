@@ -65,11 +65,6 @@ open class Texture2D: Texture, @unchecked Sendable {
     
     // MARK: - Resource & Codable
     
-    enum CodingKeys: String, CodingKey {
-        case sampler
-        case filePath = "file"
-    }
-    
     public convenience required init(from decoder: any AssetDecoder) throws {
         if Self.extensions().contains(where: { $0 == decoder.assetMeta.filePath.pathExtension }) {
             let dto = try decoder.decode(TextureSerializable.self)
@@ -95,9 +90,6 @@ open class Texture2D: Texture, @unchecked Sendable {
                 sampler: self.sampler.descriptor
             )
         )
-//        var container = encoder.container(keyedBy: CodingKeys.self)
-//        try container.encodeIfPresent(self.assetMetaInfo, forKey: .filePath)
-//        try container.encode(self.sampler.descriptor, forKey: .sampler)
     }
 }
 

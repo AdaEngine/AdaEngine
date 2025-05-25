@@ -30,7 +30,8 @@ public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {
             self.encodedData = data
         } else {
             let data = try YAMLEncoder().encode(value, userInfo: [
-                .assetMetaInfo: self.assetMeta
+                .assetMetaInfo: self.assetMeta,
+                .assetsEncodingContext: self
             ])
             
             self.encodedData = data

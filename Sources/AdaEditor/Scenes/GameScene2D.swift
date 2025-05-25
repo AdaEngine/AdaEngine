@@ -40,9 +40,8 @@ final class GameScene2D: Scene, @unchecked Sendable {
 
         // DEBUG
         self.debugOptions = [.showPhysicsShapes]
-        self.makePlayer()
-         self.loadSubscene()
-//        self.makeSubsceneAndSave()
+        // self.makePlayer()
+        self.makeSubsceneAndSave()
         // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
         self.collisionHandler()
         
@@ -139,6 +138,10 @@ final class GameScene2D: Scene, @unchecked Sendable {
 
         Task {
             try await AssetsManager.save(scene, at: "@res://", name: "Subscene.ascn")
+
+            await MainActor.run {
+                self.loadSubscene()
+            }
         }
     }
 
