@@ -70,35 +70,44 @@ open class Texture2D: Texture, @unchecked Sendable {
         case filePath = "file"
     }
     
-    public convenience required init(asset decoder: any AssetDecoder) async throws {
-        if let texture = try? decoder.decode(Self.self) {
-            self.init(
-                gpuTexture: texture.gpuTexture,
-                sampler: texture.sampler,
-                size: SizeInt(width: texture.width, height: texture.height)
+    public convenience required init(from decoder: any AssetDecoder) throws {
+        if Self.extensions().contains(where: { $0 == decoder.assetMeta.filePath.pathExtension }) {
+            let dto = try decoder.decode(TextureSerializable.self)
+            
+            let filePath = dto.info?.assetAbsolutePath.path() ?? decoder.assetMeta.filePath.path()
+            let samplerDesc = dto.sampler
+            
+            let image = try decoder.getOrLoadResource(
+                Image.self,
+                at: filePath
             )
+            self.init(image: image.asset, samplerDescription: samplerDesc)
         } else {
-            let image = try Image(asset: decoder)
-            self.init(image: image)
+            let image = try Image(from: decoder)
+            self.init(image: image, samplerDescription: image.samplerDescription)
         }
     }
     
-    public convenience required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let filePath = try container.decode(AssetMetaInfo.self, forKey: .filePath)
-        let samplerDesc = try container.decodeIfPresent(SamplerDescriptor.self, forKey: .sampler)
-        
-        let image = try decoder.assetsDecodingContext.getOrLoadResource(at: filePath.assetAbsolutePath.absoluteString) as Image
-        self.init(image: image, samplerDescription: samplerDesc)
-    }
-    
-    public override func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(self.assetMetaInfo, forKey: .filePath)
-        try container.encode(self.sampler.descriptor, forKey: .sampler)
+    public override func encodeContents(with encoder: any AssetEncoder) throws {
+        try encoder.encode(
+            TextureSerializable(
+                info: self.assetMetaInfo,
+                sampler: self.sampler.descriptor
+            )
+        )
+//        var container = encoder.container(keyedBy: CodingKeys.self)
+//        try container.encodeIfPresent(self.assetMetaInfo, forKey: .filePath)
+//        try container.encode(self.sampler.descriptor, forKey: .sampler)
     }
 }
 
 public extension Texture2D {
     static let whiteTexture = Texture2D(image: Image(width: 1, height: 1, color: .white))
+}
+
+extension Texture2D {
+    struct TextureSerializable: Codable {
+        let info: AssetMetaInfo?
+        let sampler: SamplerDescriptor
+    }
 }

@@ -17,10 +17,18 @@ public struct SpriteComponent: Codable {
     /// - Parameter texture: Texture for rendering
     /// - Parameter tintColor: Color for tinting the texture. By default is white and don't tint a texture.
     public init(
-        texture: Texture2D? = nil,
+        texture: AssetHandle<Texture2D>? = nil,
         tintColor: Color = .white
     ) {
-        self.texture = texture.map { AssetHandle($0) }
+        self.texture = texture
+        self.tintColor = tintColor
+    }
+
+    public init(
+        texture: Texture2D,
+        tintColor: Color = .white
+    ) {
+        self.texture = AssetHandle(texture)
         self.tintColor = tintColor
     }
 }

@@ -10,25 +10,36 @@ import Yams
 public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {
 
     public let assetMeta: AssetMeta
-    let encoder: AnyEncoder
+    public let encoder: (any Encoder)?
 
     private(set) var encodedData: Data?
 
-    init(meta: AssetMeta) {
+    init(meta: AssetMeta, encoder: (any Encoder)? = nil) {
         self.assetMeta = meta
-        self.encoder = YAMLEncoder()
+        self.encoder = encoder
     }
 
     public func encode<T>(_ value: T) throws where T : Encodable {
+        if let encoder {
+            var container = encoder.singleValueContainer()
+            try container.encode(value)
+            return
+        }
+        
         if let data = value as? Data {
             self.encodedData = data
         } else {
-            let data = try self.encoder.encode(value, userInfo: [
+            let data = try YAMLEncoder().encode(value, userInfo: [
                 .assetMetaInfo: self.assetMeta
             ])
             
             self.encodedData = data
         }
+    }
+    
+    public func encode<A: Asset>(_ asset: A, to encoder: any Encoder) throws {
+        let newEncoder = Self(meta: self.assetMeta, encoder: encoder)
+        try asset.encodeContents(with: newEncoder)
     }
 }
 

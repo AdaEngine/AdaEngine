@@ -88,11 +88,15 @@ class Renderer2D {
         
         // Circle
         
-        let circleShader = try! AssetsManager.loadSync("Shaders/Vulkan/circle.glsl", from: .engineBundle) as ShaderModule
+        let circleShader = try! AssetsManager.loadSync(
+            ShaderModule.self, 
+            at: "Shaders/Vulkan/circle.glsl", 
+            from: .engineBundle
+        )
 
         var piplineDesc = RenderPipelineDescriptor()
-        piplineDesc.vertex = circleShader.getShader(for: .vertex)
-        piplineDesc.fragment = circleShader.getShader(for: .fragment)
+        piplineDesc.vertex = circleShader.asset.getShader(for: .vertex)
+        piplineDesc.fragment = circleShader.asset.getShader(for: .fragment)
         piplineDesc.debugName = "Circle Pipeline"
         
         piplineDesc.vertexDescriptor.attributes.append([
@@ -133,9 +137,13 @@ class Renderer2D {
         
         piplineDesc.debugName = "Quad Pipline"
         
-        let quadShader = try! AssetsManager.loadSync("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
-        piplineDesc.vertex = quadShader.getShader(for: .vertex)
-        piplineDesc.fragment = quadShader.getShader(for: .fragment)
+        let quadShader = try! AssetsManager.loadSync(
+            ShaderModule.self, 
+            at: "Shaders/Vulkan/quad.glsl", 
+            from: .engineBundle
+        )
+        piplineDesc.vertex = quadShader.asset.getShader(for: .vertex)
+        piplineDesc.fragment = quadShader.asset.getShader(for: .fragment)
 
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "a_Position"),
@@ -169,9 +177,13 @@ class Renderer2D {
         
         piplineDesc.debugName = "Lines Pipeline"
         
-        let linesShader = try! AssetsManager.loadSync("Shaders/Vulkan/line.glsl", from: .engineBundle) as ShaderModule
-        piplineDesc.vertex = linesShader.getShader(for: .vertex)
-        piplineDesc.fragment = linesShader.getShader(for: .fragment)
+        let linesShader = try! AssetsManager.loadSync(
+            ShaderModule.self,
+            at: "Shaders/Vulkan/line.glsl", 
+            from: .engineBundle
+        )
+        piplineDesc.vertex = linesShader.asset.getShader(for: .vertex)
+        piplineDesc.fragment = linesShader.asset.getShader(for: .fragment)
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector3, name: "position"),
@@ -224,9 +236,13 @@ class Renderer2D {
         
         piplineDesc.debugName = "Text Pipeline"
         
-        let textShader = try! AssetsManager.loadSync("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
-        piplineDesc.vertex = textShader.getShader(for: .vertex)
-        piplineDesc.fragment = textShader.getShader(for: .fragment)
+        let textShader = try! AssetsManager.loadSync(
+            ShaderModule.self, 
+            at: "Shaders/Vulkan/text.glsl", 
+            from: .engineBundle
+        )
+        piplineDesc.vertex = textShader.asset.getShader(for: .vertex)
+        piplineDesc.fragment = textShader.asset.getShader(for: .fragment)
         
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "position"),
@@ -287,7 +303,8 @@ class Renderer2D {
         switch camera.renderTarget {
         case .window(let windowId):
             currentDraw = try device.beginDraw(for: windowId, clearColor: clearColor, loadAction: .load, storeAction: .store)
-        case .texture(let texture):
+        case .texture(let textureHandle):
+            let texture = textureHandle.asset
             let desc = FramebufferDescriptor(
                 scale: texture.scaleFactor,
                 width: texture.width,

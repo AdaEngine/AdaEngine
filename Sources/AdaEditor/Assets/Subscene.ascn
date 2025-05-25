@@ -12,7 +12,7 @@ world:
           meta:
             textureAtlasResource:
               margin:
-                width: 0
+                width: 10
                 height: 0
               spriteSize:
                 width: 18

@@ -2,19 +2,14 @@ import AdaECS
 
 @Component
 public struct DynamicScene {
-    let worldId: World.ID
-    public let entities: [Entity]
-    public let resources: [any Resource]
-
-    @MainActor
-    public init(scene: Scene) {
-        self.init(world: scene.world)
+    let scene: AssetHandle<Scene>
+    
+    public init(scene: AssetHandle<Scene>) {
+        self.scene = scene
     }
 
     public init(world: World) {
-        self.worldId = world.id
-        self.entities = world.getEntities()
-        self.resources = world.getResources()
+        self.scene = AssetHandle(Scene(from: world))
     }
 }
 
@@ -30,25 +25,38 @@ struct DynamicSceneInitSystem: System {
     private var dynamicScenes
 
     init(world: World) {  }
-
+    
     func update(context: UpdateContext) {
         for (entity, scene, instance) in dynamicScenes {
-            if instance == nil {
+            guard let instance else {
                 insertScene(to: entity, dynamicScene: scene, world: context.world)
+                return
             }
+            
+            // if instance.identifier != scene.scene.asset.world.id {
+            //     removeChild(from: entity)
+            //     insertScene(to: entity, dynamicScene: scene, world: context.world)
+            // }
         }
     }
     
     private func insertScene(to rootEntity: Entity, dynamicScene: DynamicScene, world: World) {
-        for entity in dynamicScene.entities {
+        let sceneWorld = dynamicScene.scene.asset.world
+        for entity in sceneWorld.getEntities() {
             rootEntity.addChild(entity)
             world.addEntity(entity)
         }
         
-        for resource in dynamicScene.resources {
+        for resource in sceneWorld.getResources() {
             world.insertResource(resource)
         }
         
-        rootEntity.components += DynamicSceneInstance(identifier: dynamicScene.worldId)
+        rootEntity.components += DynamicSceneInstance(identifier: sceneWorld.id)
+    }
+    
+    private func removeChild(from entity: Entity) {
+        for child in entity.children {
+            child.removeFromScene(recursively: true)
+        }
     }
 }

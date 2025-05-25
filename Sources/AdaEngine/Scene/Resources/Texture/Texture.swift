@@ -6,7 +6,7 @@
 //
 
 /// Base class describing a texture.
-open class Texture: Asset, Codable, @unchecked Sendable {
+open class Texture: Asset, @unchecked Sendable {
     
     private(set) var gpuTexture: GPUTexture
     
@@ -32,30 +32,16 @@ open class Texture: Asset, Codable, @unchecked Sendable {
         return Image()
     }
     
-    public required init(asset decoder: any AssetDecoder) async throws {
+    public required init(from assetDecoder: any AssetDecoder) throws {
         fatalErrorMethodNotImplemented()
     }
     
-    public func encodeContents(with encoder: any AssetEncoder) async throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public required init(from decoder: Decoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public func encode(to encoder: Encoder) throws {
+    public func encodeContents(with encoder: any AssetEncoder) throws {
         fatalErrorMethodNotImplemented()
     }
     
     public static func extensions() -> [String] {
         return ["tex"]
-    }
-
-    public func update(_ newAsset: Texture) async throws {
-        self.gpuTexture = newAsset.gpuTexture
-        self.sampler = newAsset.sampler
-        self.textureType = newAsset.textureType
     }
 }
 

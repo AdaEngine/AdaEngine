@@ -42,7 +42,7 @@ extension LDtk {
         /// - Note: Use ``TileMap/resourcePath`` field to get runtime path to your LDtk file.
         public private(set) var isHotReloadingEnabled: Bool = false
 
-        public required init(asset decoder: AssetDecoder) async throws {
+        public required init(from decoder: AssetDecoder) throws {
             let pathExt = decoder.assetMeta.filePath.pathExtension
 
             guard pathExt == "ldtk" || pathExt == "json" else {
@@ -57,19 +57,13 @@ extension LDtk {
                 self?.onLDtkFileMapChanged(paths: paths)
             }
 
-            try await self.loadLdtkProject(from: decoder.assetData)
-        }
-
-        public override func encodeContents(with encoder: AssetEncoder) async throws {
-            try await super.encodeContents(with: encoder)
+            Task {
+                try await self.loadLdtkProject(from: decoder.assetData)
+            }
         }
         
-        public required init(from decoder: any Decoder) throws {
-            fatalErrorMethodNotImplemented()
-        }
-        
-        public override func encode(to encoder: any Encoder) throws {
-            fatalErrorMethodNotImplemented()
+        public override func encodeContents(with encoder: AssetEncoder) throws {
+            try super.encodeContents(with: encoder)
         }
         
         /// Load level from LDtk project at index.
@@ -205,10 +199,13 @@ extension LDtk {
                         .deletingLastPathComponent()
                         .appending(path: tileSource.relPath ?? "")
 
-                    let image = try await AssetsManager.load(atlasPath.absoluteString) as Image
+                    let image = try await AssetsManager.load(
+                        Image.self,
+                        at: atlasPath.absoluteString
+                    )
 
                     let source = TextureAtlasTileSource(
-                        from: image,
+                        from: image.asset,
                         size: SizeInt(width: tileSource.tileGridSize, height: tileSource.tileGridSize),
                         margin: SizeInt(width: tileSource.padding, height: tileSource.padding)
                     )
@@ -282,7 +279,7 @@ extension LDtk {
                 
                 let data = source.getTileData(at: tileCoordinate)
                 let texture = source.getTexture(at: tileCoordinate)
-                entity.components += SpriteComponent(texture: texture, tintColor: data.modulateColor)
+                entity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: data.modulateColor)
             }
 
             if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {

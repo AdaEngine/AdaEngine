@@ -30,23 +30,18 @@
 ///
 /// Also, your asset can support ``Codable`` behaviour and for this scenario, you should implement only ``init(from decoder: Decoder)`` and ``func encode(to encoder: Encoder)`` methods.
 /// Meta and other information will be available from userInfo. Use `Decoder.assetsDecodingContext`, `Decoder.assetMeta` and `Encoder.assetMeta` properties to get this info.
-public protocol Asset: AnyObject, Sendable, Codable {
+public protocol Asset: AnyObject, Sendable {
     
     /// When asset load from the disk, this method will be called.
     ///
     /// - Parameter data: Asset's data.
     /// - Returns: Return instance of asset
-    init(asset decoder: AssetDecoder) async throws
+    init(from assetDecoder: AssetDecoder) throws
 
     /// To store asset on the disk, you should implement this method.
     ///
     /// - Returns: the asset data to be saved
-    func encodeContents(with encoder: AssetEncoder) async throws
-
-    /// Update asset with new asset.
-    ///
-    /// - Parameter newAsset: New asset.
-    func update(_ newAsset: Self) async throws
+    func encodeContents(with assetEncoder: AssetEncoder) throws
 
     /// Extensions for asset.
     static func extensions() -> [String]
@@ -71,12 +66,6 @@ public extension Asset {
     /// Return full path to Asset.
     var assetAbsolutePath: String {
         self.assetMetaInfo?.assetAbsolutePath.path() ?? ""
-    }
-
-    func update(_ newAsset: Self) async throws {
-        #if DEBUG
-        print("Asset \(self) was updated with \(newAsset), but it's not implemented")
-        #endif
     }
 }
 
@@ -114,9 +103,9 @@ public struct AssetMetaInfo: Codable, Sendable {
     }
 }
 
-public struct AssetHandle<T: Asset>: Codable, Sendable {
+public final class AssetHandle<T: Asset>: Codable, Sendable {
     
-    public var asset: T
+    public nonisolated(unsafe) var asset: T
     
     public init(_ asset: T) {
         self.asset = asset
@@ -133,7 +122,7 @@ public struct AssetHandle<T: Asset>: Codable, Sendable {
         let type = try container.decode(String.self, forKey: .type)
         let assetType = AssetsManager.getAssetType(for: type) ?? T.self
         let superDecoder = try container.superDecoder(forKey: .meta)
-        let asset = try assetType.init(from: superDecoder)
+        let asset = try decoder.assetsDecoder.decode(assetType, from: superDecoder)
         self.asset = asset as! T
     }
     
@@ -144,6 +133,11 @@ public struct AssetHandle<T: Asset>: Codable, Sendable {
             try container.encode(asset.assetPath, forKey: .assetPath)
         }
         let superEncoder = container.superEncoder(forKey: .meta)
-        try asset.encode(to: superEncoder)
+        try encoder.assetsEncoder.encode(asset, to: superEncoder)
+    }
+
+    @AssetActor
+    func update(_ newAsset: T) async throws {
+        self.asset = newAsset
     }
 }

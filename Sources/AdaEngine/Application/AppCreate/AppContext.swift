@@ -52,7 +52,7 @@ public final class AppContext<T: App> {
         }
 
         let filePath = appScene._getFilePath()
-        try AssetsManager.initialize(filePath: filePath)
+        try await AssetsManager.initialize(filePath: filePath)
         try AudioServer.initialize()
         RuntimeTypeLoader.loadTypes()
 
