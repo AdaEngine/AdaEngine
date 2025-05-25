@@ -123,15 +123,14 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
             let vertexShaderSource = try T.vertexShader()
             let fragmentShaderSource = try T.fragmentShader()
 
-            assert(vertexShaderSource.getSource(for: .vertex) != nil, "Failed to load vertex data")
-            assert(fragmentShaderSource.getSource(for: .fragment) != nil, "Failed to load fragment data")
+            assert(vertexShaderSource.asset.getSource(for: .vertex) != nil, "Failed to load vertex data")
+            assert(fragmentShaderSource.asset.getSource(for: .fragment) != nil, "Failed to load fragment data")
             
-            shaderSource.setSource(vertexShaderSource.getSource(for: .vertex)!, for: .vertex)
-            shaderSource.setSource(fragmentShaderSource.getSource(for: .fragment)!, for: .fragment)
+            shaderSource.setSource(vertexShaderSource.asset.getSource(for: .vertex)!, for: .vertex)
+            shaderSource.setSource(fragmentShaderSource.asset.getSource(for: .fragment)!, for: .fragment)
             
-            shaderSource.includeSearchPaths.append(contentsOf: vertexShaderSource.includeSearchPaths)
-            shaderSource.includeSearchPaths.append(contentsOf: fragmentShaderSource.includeSearchPaths)
-            
+            shaderSource.includeSearchPaths.append(contentsOf: vertexShaderSource.asset.includeSearchPaths)
+            shaderSource.includeSearchPaths.append(contentsOf: fragmentShaderSource.asset.includeSearchPaths)
         } catch {
             assertionFailure("[CustomMaterial] \(error.localizedDescription)")
         }
@@ -140,16 +139,8 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
         self.reflectMaterial(from: material)
     }
     
-    public required init(asset decoder: AssetDecoder) throws {
+    public required init(from decoder: AssetDecoder) throws {
         fatalError("init(asset:) has not been implemented")
-    }
-    
-    public required init(from decoder: any Decoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public override func encode(to encoder: any Encoder) throws {
-        fatalErrorMethodNotImplemented()
     }
     
     public subscript<Value>(dynamicMember keyPath: WritableKeyPath<T, Value>) -> Value {

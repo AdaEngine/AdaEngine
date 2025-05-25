@@ -15,11 +15,15 @@ struct SpriteRenderPipeline: Sendable {
 
     private init() {
         let device = RenderEngine.shared.renderDevice
-        let quadShader = try! AssetsManager.loadSync("Shaders/Vulkan/quad.glsl", from: .engineBundle) as ShaderModule
+        let quadShader = try! AssetsManager.loadSync(
+            ShaderModule.self, 
+            at: "Shaders/Vulkan/quad.glsl", 
+            from: .engineBundle
+        )
 
         var piplineDesc = RenderPipelineDescriptor()
-        piplineDesc.vertex = quadShader.getShader(for: .vertex)
-        piplineDesc.fragment = quadShader.getShader(for: .fragment)
+        piplineDesc.vertex = quadShader.asset.getShader(for: .vertex)
+        piplineDesc.fragment = quadShader.asset.getShader(for: .fragment)
         piplineDesc.debugName = "Sprite Pipeline"
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "a_Position"),

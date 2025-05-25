@@ -38,7 +38,7 @@ public final class ShaderModule: Asset, @unchecked Sendable {
     public var assetMetaInfo: AssetMetaInfo?
     
     // TODO: Add init from spir-v
-    public init(asset decoder: AssetDecoder) throws {
+    public init(from decoder: AssetDecoder) throws {
         let filePath = decoder.assetMeta.filePath
         let module = try ShaderCompiler(from: filePath).compileShaderModule()
         self.shaders = module.shaders

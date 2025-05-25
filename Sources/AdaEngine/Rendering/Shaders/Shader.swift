@@ -71,7 +71,7 @@ public final class Shader: Asset, @unchecked Sendable {
     public var assetMetaInfo: AssetMetaInfo?
 
     // TODO: Load from spir-v
-    public init(asset decoder: AssetDecoder) throws {
+    public init(from decoder: AssetDecoder) throws {
         let filePath = decoder.assetMeta.filePath
         let shaderSource = try ShaderSource(from: filePath)
         let stage = ShaderUtils.shaderStage(from: decoder.assetMeta.queryParams.first?.name ?? "") ?? shaderSource.stages.first
@@ -92,14 +92,6 @@ public final class Shader: Asset, @unchecked Sendable {
     }
 
     public func encodeContents(with encoder: AssetEncoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public required init(from decoder: any Decoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public func encode(to encoder: any Encoder) throws {
         fatalErrorMethodNotImplemented()
     }
     

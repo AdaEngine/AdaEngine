@@ -134,8 +134,8 @@ public final class ShaderSource: Asset, @unchecked Sendable {
     
     public var assetMetaInfo: AssetMetaInfo?
     
-    public init(asset decoder: AssetDecoder) throws {
-        let fileURL = decoder.assetMeta.filePath
+    public init(from assetDecoder: AssetDecoder) throws {
+        let fileURL = assetDecoder.assetMeta.filePath
         self.fileURL = fileURL
         
         guard let data = FileSystem.current.readFile(at: fileURL) else {
@@ -151,7 +151,7 @@ public final class ShaderSource: Asset, @unchecked Sendable {
             let sources = try ShaderUtils.processGLSLShader(source: sourceCode)
             
             if
-                let stageName = decoder.assetMeta.queryParams.first?.name,
+                let stageName = assetDecoder.assetMeta.queryParams.first?.name,
                 let stage = ShaderUtils.shaderStage(from: stageName)
             {
                 guard let sourceForStage = sources[stage] else {
@@ -168,14 +168,6 @@ public final class ShaderSource: Asset, @unchecked Sendable {
     }
     
     public func encodeContents(with encoder: AssetEncoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public required init(from decoder: any Decoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public func encode(to encoder: any Encoder) throws {
         fatalErrorMethodNotImplemented()
     }
     

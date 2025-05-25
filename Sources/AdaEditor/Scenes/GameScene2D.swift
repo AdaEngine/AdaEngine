@@ -16,8 +16,14 @@ final class GameScene2D: Scene, @unchecked Sendable {
     
     override func sceneDidMove(to view: SceneView) {
         do {
-            let tiles = try AssetsManager.loadSync("@res://tiles_packed.png") as Image
-            let charactersTiles = try AssetsManager.loadSync("@res://characters_packed.png") as Image
+            let tiles = try AssetsManager.loadSync(
+                Image.self, 
+                at: "@res://tiles_packed.png",
+            ).asset
+            let charactersTiles = try AssetsManager.loadSync(
+                Image.self, 
+                at: "@res://characters_packed.png"
+            ).asset
 
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
@@ -89,7 +95,10 @@ final class GameScene2D: Scene, @unchecked Sendable {
     }
 
     func makeCanvasItem(position: Vector3) throws {
-        let dogTexture = try AssetsManager.loadSync("@res://dog.png") as Texture2D
+        let dogTexture = try AssetsManager.loadSync(
+            Texture2D.self, 
+            at: "@res://dog.png"
+        ).asset
 
         @CustomMaterial var material = MyMaterial(color: .red, customTexture: dogTexture)
 
@@ -137,9 +146,10 @@ final class GameScene2D: Scene, @unchecked Sendable {
         Task { @MainActor in
             do {
                 let scene = try await AssetsManager.load(
-                    "@res://Subscene.ascn",
+                    Scene.self,
+                    at: "@res://Subscene.ascn",
                     handleChanges: true
-                ) as Scene
+                )
                 self.world.addEntity(
                     Entity(name: "Subscene") {
                         DynamicScene(scene: scene)
@@ -360,8 +370,12 @@ struct MyMaterial: CanvasMaterial {
         self.customTexture = customTexture
     }
 
-    static func fragmentShader() throws -> ShaderSource {
-        try AssetsManager.loadSync("Assets/custom_material.glsl", from: .editor)
+    static func fragmentShader() throws -> AssetHandle<ShaderSource> {
+        try AssetsManager.loadSync(
+            ShaderSource.self, 
+            at: "Assets/custom_material.glsl", 
+            from: .editor
+        )
     }
 }
 

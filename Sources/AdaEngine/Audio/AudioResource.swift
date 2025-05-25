@@ -15,7 +15,7 @@ public final class AudioResource: Asset, @unchecked Sendable {
     
     private var sound: Sound
 
-    public required init(asset decoder: AssetDecoder) async throws {
+    public required init(from decoder: AssetDecoder) throws {
         if Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) {
             self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetData)
         } else {
@@ -33,18 +33,6 @@ public final class AudioResource: Asset, @unchecked Sendable {
     
     public func encodeContents(with encoder: AssetEncoder) throws {
         fatalErrorMethodNotImplemented()
-    }
-    
-    public required init(from decoder: any Decoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public func encode(to encoder: any Encoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-
-    public func update(_ newAsset: AudioResource) async throws {
-        self.sound = newAsset.sound
     }
     
     // TODO: (Vlad) I'm not sure that is a good solution to copy sound.

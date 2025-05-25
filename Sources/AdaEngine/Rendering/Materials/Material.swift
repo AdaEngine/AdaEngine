@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/3/21.
 //
 
+import AdaUtils
+
 // TODO: (Vlad) I think that `MaterialStorage` isn't great solution.
 
 /// A type that describes the material aspects of a mesh, like color and texture.
@@ -26,8 +28,8 @@ public class Material: Asset, Hashable, @unchecked Sendable {
         self.shaderSource = shaderSource
     }
     
-    public required convenience init(asset decoder: AssetDecoder) throws {
-        let shaderSource = try ShaderSource(asset: decoder)
+    public required convenience init(from assetDecoder: AssetDecoder) throws {
+        let shaderSource = try ShaderSource(from: assetDecoder)
         self.init(shaderSource: shaderSource)
     }
     

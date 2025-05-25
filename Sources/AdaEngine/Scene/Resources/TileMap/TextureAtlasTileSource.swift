@@ -44,7 +44,7 @@ public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
     
     public required init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.textureAtlas = try container.decode(TextureAtlas.self, forKey: .textureAtlas)
+        self.textureAtlas = try container.decode(AssetHandle<TextureAtlas>.self, forKey: .textureAtlas).asset
         
         super.init()
         
@@ -59,7 +59,7 @@ public class TextureAtlasTileSource: TileSource, @unchecked Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.name, forKey: .name)
         try container.encode(self.id, forKey: .id)
-        try container.encode(self.textureAtlas, forKey: .textureAtlas)
+        try container.encode(AssetHandle(self.textureAtlas), forKey: .textureAtlas)
         
         let tiles = self.tiles.elements.map { (position, data) in
             TileCellData(position: [position.x, position.y], data: data)

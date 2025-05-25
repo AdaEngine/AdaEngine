@@ -89,7 +89,7 @@ public struct TileMapSystem: Sendable {
                     let texture = atlasSource.getTexture(at: tile.atlasCoordinates)
 
                     tileEntity = Entity()
-                    tileEntity.components += SpriteComponent(texture: texture, tintColor: tileData.modulateColor)
+                    tileEntity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: tileData.modulateColor)
                     tileEntity.components += Transform(scale: scale, position: position)
                 case let entitySource as TileEntityAtlasSource:
                     tileEntity = entitySource.getEntity(at: tile.atlasCoordinates)

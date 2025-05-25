@@ -151,11 +151,11 @@ extension Image: Asset {
         let sampler: SamplerDescriptor
     }
     
-    public convenience init(asset decoder: AssetDecoder) throws {
-        let pathExt = decoder.assetMeta.filePath.pathExtension
+    public convenience init(from assetDecoder: AssetDecoder) throws {
+        let pathExt = assetDecoder.assetMeta.filePath.pathExtension
         
         if pathExt.isEmpty || pathExt == "res" {
-            let rep = try decoder.decode(ImageRepresentation.self)
+            let rep = try assetDecoder.decode(ImageRepresentation.self)
             
             self.init(
                 width: Int(rep.imageSize.width),
@@ -166,7 +166,7 @@ extension Image: Asset {
             
             self.samplerDescription = rep.sampler
         } else {
-            try self.init(contentsOf: decoder.assetMeta.filePath)
+            try self.init(contentsOf: assetDecoder.assetMeta.filePath)
         }
     }
     

@@ -62,19 +62,11 @@ public class Mesh: Asset, @unchecked Sendable {
     
     public var assetMetaInfo: AssetMetaInfo?
     
-    public required init(asset decoder: AssetDecoder) throws {
+    public required init(from decoder: AssetDecoder) throws {
         fatalErrorMethodNotImplemented()
     }
     
     public func encodeContents(with encoder: AssetEncoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public required init(from decoder: any Decoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public func encode(to encoder: any Encoder) throws {
         fatalErrorMethodNotImplemented()
     }
     
