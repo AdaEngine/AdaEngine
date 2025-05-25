@@ -18,6 +18,7 @@ struct DefaultWorldPlugin: WorldPlugin {
             .addPlugin(SpritePlugin())
             .addPlugin(Mesh2DPlugin())
             .addPlugin(Text2DPlugin())
+            .addPlugin(ScenePlugin())
             .addPlugin(AudioPlugin())
             .addPlugin(UIPlugin())
             .addPlugin(Physics2DPlugin())

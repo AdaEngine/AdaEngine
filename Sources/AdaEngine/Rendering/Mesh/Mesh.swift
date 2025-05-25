@@ -70,6 +70,14 @@ public class Mesh: Asset, @unchecked Sendable {
         fatalErrorMethodNotImplemented()
     }
     
+    public required init(from decoder: any Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
     public static func extensions() -> [String] {
         ["mesh"]
     }

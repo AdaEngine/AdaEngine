@@ -34,6 +34,14 @@ public final class AudioResource: Asset, @unchecked Sendable {
     public func encodeContents(with encoder: AssetEncoder) throws {
         fatalErrorMethodNotImplemented()
     }
+    
+    public required init(from decoder: any Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
 
     public func update(_ newAsset: AudioResource) async throws {
         self.sound = newAsset.sound

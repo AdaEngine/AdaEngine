@@ -13,13 +13,17 @@ public struct GUIAppScene: AppScene {
     public var scene: Never { fatalError() }
     
     let window: () -> UIWindow
+    let filePath: StaticString
     
     /// Create a new app scene for GUI application.
     /// - Parameters window: ``Window`` which will be presented on screen
-    public init(window: @escaping () -> UIWindow) {
+    public init(
+        window: @escaping () -> UIWindow,
+        filePath: StaticString = #filePath
+    ) {
         self.window = window
+        self.filePath = filePath
     }
-    
 }
 
 extension GUIAppScene: InternalAppScene {
@@ -38,5 +42,10 @@ extension GUIAppScene: InternalAppScene {
         window.setWindowMode(configuration.windowMode)
         window.minSize = configuration.minimumSize
         return window
+    }
+
+    @MainActor
+    func _getFilePath() -> StaticString {
+        self.filePath
     }
 }

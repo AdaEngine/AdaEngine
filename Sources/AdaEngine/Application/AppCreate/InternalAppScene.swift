@@ -31,6 +31,9 @@ protocol InternalAppScene: Sendable {
     /// - NOTE: We use this method for ``SceneModifier`` interface.
     @MainActor
     func _buildConfiguration(_ configuration: inout _AppSceneConfiguration)
+
+    @MainActor
+    func _getFilePath() -> StaticString
 }
 
 extension InternalAppScene {

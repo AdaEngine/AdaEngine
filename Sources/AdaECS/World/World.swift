@@ -18,6 +18,10 @@ import Collections
 /// component type. Entity components can be created, updated, removed, and queried using a given World.
 /// - Warning: Still work in progress.
 public final class World: @unchecked Sendable, Codable {
+    
+    public typealias ID = RID
+    
+    public let id = ID()
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 
     internal private(set) var removedEntities: Set<Entity.ID> = []
@@ -99,7 +103,10 @@ public final class World: @unchecked Sendable, Codable {
         try container.encode(self.getEntities() + updatedEntities, forKey: .entities)
         try container.encode(self.systemGraph.systems.map { type(of: $0).swiftName }, forKey: .systems)
         try container.encode(self.plugins.map { type(of: $0).swiftName }, forKey: .plugins)
-        try container.encode(self.componentsStorage.resourceComponents.map { type(of: $0.value).swiftName }, forKey: .resources)
+        var unkeyedContainer = container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
+        for resource in self.componentsStorage.resourceComponents.values {
+            try unkeyedContainer.encode(AnyEncodable(resource), forKey: CodingName(stringValue: type(of: resource).swiftName))
+        }
     }
     
     /// Get all entities in world.

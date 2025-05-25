@@ -18,7 +18,7 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
         self.assetMeta = meta
         self.assetData = data
 
-        self.context = AssetDecodingContext()
+        self.context = AssetDecodingContext(resources: [:], assetMeta: meta)
         self.decoder = YAMLDecoder(encoding: .utf8)
     }
 

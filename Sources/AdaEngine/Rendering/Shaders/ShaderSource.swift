@@ -171,6 +171,14 @@ public final class ShaderSource: Asset, @unchecked Sendable {
         fatalErrorMethodNotImplemented()
     }
     
+    public required init(from decoder: any Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
     private static func getEntryPoints(from sources: [ShaderStage : String]) -> [ShaderStage : String] {
         var entryPoints = [ShaderStage : String]()
         

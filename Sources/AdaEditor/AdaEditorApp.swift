@@ -10,7 +10,6 @@ import Logging
 
 @main
 struct AdaEditorApp: App {
-
     var scene: some AppScene {
         GameAppScene {
             GameScene2D(name: "Kek")

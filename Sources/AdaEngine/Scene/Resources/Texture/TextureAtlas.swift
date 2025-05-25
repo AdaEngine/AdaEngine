@@ -45,10 +45,8 @@ public final class TextureAtlas: Texture2D, @unchecked Sendable {
     
     public required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        
         self.margin = try container.decode(SizeInt.self, forKey: .margin)
         self.spriteSize = try container.decode(SizeInt.self, forKey: .spriteSize)
-        
         let superDecoder = try container.superDecoder()
         let texture = try Texture2D(from: superDecoder)
         
@@ -65,19 +63,11 @@ public final class TextureAtlas: Texture2D, @unchecked Sendable {
     }
     
     public required init(asset decoder: any AssetDecoder) async throws {
-        let atlas = try decoder.decode(Self.self)
-        self.spriteSize = atlas.spriteSize
-        self.margin = atlas.margin
-        
-        super.init(
-            gpuTexture: atlas.gpuTexture,
-            sampler: atlas.sampler,
-            size: [atlas.width, atlas.height]
-        )
+        fatalErrorMethodNotImplemented()
     }
     
     public override func encodeContents(with encoder: any AssetEncoder) async throws {
-        try encoder.encode(self)
+        fatalErrorMethodNotImplemented()
     }
     
     // MARK: - Slices
@@ -162,17 +152,11 @@ public extension TextureAtlas {
         }
         
         public convenience required init(from decoder: Decoder) throws {
-            let context = decoder.assetsDecodingContext
-            
             let container = try decoder.container(keyedBy: CodingKeys.self)
-            
-            let path = try container.decode(String.self, forKey: .textureAtlasResource)
             let min = try container.decode(Vector2.self, forKey: .min)
             let max = try container.decode(Vector2.self, forKey: .max)
             let size = try container.decode(SizeInt.self, forKey: .size)
-            
-            let textureAtlas = try context.getOrLoadResource(at: path) as TextureAtlas
-
+            let textureAtlas = try container.decode(TextureAtlas.self, forKey: .textureAtlasResource)
             self.init(atlas: textureAtlas, min: min, max: max, size: size)
         }
         
@@ -183,7 +167,7 @@ public extension TextureAtlas {
                 throw AssetDecodingError.decodingProblem("Can't encode TextureAtlas.Slice, because TextureAtlas doesn't have resource path on disk.")
             }
 
-            try container.encode(self.atlas.assetPath, forKey: .textureAtlasResource)
+            try container.encode(self.atlas, forKey: .textureAtlasResource)
             try container.encode(self.min, forKey: .min)
             try container.encode(self.max, forKey: .max)
             try container.encode(SizeInt(width: self.width, height: self.height), forKey: .size)

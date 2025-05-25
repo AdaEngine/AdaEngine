@@ -47,7 +47,12 @@ public final class AppContext<T: App> {
 
     @_spi(Internal)
     public func setup() async throws {
-        try AssetsManager.initialize()
+        guard let appScene = app.scene as? InternalAppScene else {
+            fatalError("Incorrect object of App Scene")
+        }
+
+        let filePath = appScene._getFilePath()
+        try AssetsManager.initialize(filePath: filePath)
         try AudioServer.initialize()
         RuntimeTypeLoader.loadTypes()
 
@@ -55,9 +60,6 @@ public final class AppContext<T: App> {
             StreamLogHandler.standardError(label: $0)
         }
 
-        guard let appScene = app.scene as? InternalAppScene else {
-            fatalError("Incorrect object of App Scene")
-        }
 
         var configuration = _AppSceneConfiguration()
         appScene._buildConfiguration(&configuration)

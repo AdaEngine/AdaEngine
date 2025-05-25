@@ -64,6 +64,14 @@ extension LDtk {
             try await super.encodeContents(with: encoder)
         }
         
+        public required init(from decoder: any Decoder) throws {
+            fatalErrorMethodNotImplemented()
+        }
+        
+        public override func encode(to encoder: any Encoder) throws {
+            fatalErrorMethodNotImplemented()
+        }
+        
         /// Load level from LDtk project at index.
         /// You can get information about levels count using ``levelsCount`` property.
         /// - Note: Each time when you call ``loadLevel(at:)`` method, then previous tiles will deleted.

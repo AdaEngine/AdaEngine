@@ -66,6 +66,9 @@ public protocol AssetDecoder: Sendable {
 public extension CodingUserInfoKey {
     /// Returns ``AssetDecodingContext`` object that contains information about resources
     static let assetsDecodingContext: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetdecoder.context")!
+    
+    /// Returns ``AssetEncodingContext`` object that contains information about resources
+    static let assetsEncodingContext: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetencoder.context")!
 
     /// Returns ``AssetMeta`` object that contains information about resources
     static let assetMetaInfo: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetsMetaInfo")!
@@ -75,6 +78,12 @@ public extension CodingUserInfoKey {
 public final class AssetDecodingContext: @unchecked Sendable {
 
     private var resources: [String: WeakBox<AnyObject>] = [:]
+    public let assetMeta: AssetMeta
+    
+    init(resources: [String : WeakBox<AnyObject>], assetMeta: AssetMeta) {
+        self.resources = resources
+        self.assetMeta = assetMeta
+    }
 
     public func getOrLoadResource<A: Asset>(at path: String) throws -> A {
         if let value = self.resources[path]?.value as? A {
@@ -124,5 +133,22 @@ public extension Encoder {
         }
         
         return meta
+    }
+    
+    /// Returns instance of asset encoding context if exists.
+    /// - Warning: Only available if you save asset from AssetsManager
+    var assetsDecodingContext: AssetEncodingContext {
+        guard let context = self.userInfo[.assetsEncodingContext] as? AssetEncodingContext else {
+            fatalError("AssetEncodingContext info available if you save resouce from AssetsManager object.")
+        }
+        
+        return context
+    }
+}
+
+/// Context contains all resolved resources from encoding.
+public final class AssetEncodingContext: @unchecked Sendable {
+    public func saveSubresource<A: Asset>(_ asset: A) {
+
     }
 }

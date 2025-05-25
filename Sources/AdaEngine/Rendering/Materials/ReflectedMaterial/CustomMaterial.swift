@@ -144,6 +144,14 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
         fatalError("init(asset:) has not been implemented")
     }
     
+    public required init(from decoder: any Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public override func encode(to encoder: any Encoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
     public subscript<Value>(dynamicMember keyPath: WritableKeyPath<T, Value>) -> Value {
         get {
             return self.material[keyPath: keyPath]
