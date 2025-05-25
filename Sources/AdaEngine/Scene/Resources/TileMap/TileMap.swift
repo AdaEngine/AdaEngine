@@ -66,6 +66,14 @@ public class TileMap: Asset, @unchecked Sendable {
     public static func extensions() -> [String] {
         ["tilemap"]
     }
+    
+    public required init(from decoder: any Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
 
     public func createLayer() -> TileMapLayer {
         let layer = TileMapLayer()

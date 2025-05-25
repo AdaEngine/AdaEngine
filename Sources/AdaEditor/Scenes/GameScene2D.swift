@@ -16,8 +16,8 @@ final class GameScene2D: Scene, @unchecked Sendable {
     
     override func sceneDidMove(to view: SceneView) {
         do {
-            let tiles = try AssetsManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
-            let charactersTiles = try AssetsManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
+            let tiles = try AssetsManager.loadSync("@res://tiles_packed.png") as Image
+            let charactersTiles = try AssetsManager.loadSync("@res://characters_packed.png") as Image
 
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
@@ -35,7 +35,8 @@ final class GameScene2D: Scene, @unchecked Sendable {
         // DEBUG
         self.debugOptions = [.showPhysicsShapes]
         self.makePlayer()
-        self.makeGround()
+         self.loadSubscene()
+//        self.makeSubsceneAndSave()
         // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
         self.collisionHandler()
         
@@ -88,7 +89,7 @@ final class GameScene2D: Scene, @unchecked Sendable {
     }
 
     func makeCanvasItem(position: Vector3) throws {
-        let dogTexture = try AssetsManager.loadSync("Assets/dog.png", from: Bundle.editor) as Texture2D
+        let dogTexture = try AssetsManager.loadSync("@res://dog.png") as Texture2D
 
         @CustomMaterial var material = MyMaterial(color: .red, customTexture: dogTexture)
 
@@ -109,7 +110,9 @@ final class GameScene2D: Scene, @unchecked Sendable {
         self.world.addEntity(entity)
     }
 
-    private func makeGround() {
+    private func makeSubsceneAndSave() {
+        let scene = Scene()
+
         var transform = Transform()
         transform.scale = [3, 0.19, 0.19]
         transform.position.y = -1
@@ -123,7 +126,29 @@ final class GameScene2D: Scene, @unchecked Sendable {
             ]
         )
 
-        self.world.addEntity(untexturedEntity)
+        scene.world.addEntity(untexturedEntity)
+
+        Task {
+            try await AssetsManager.save(scene, at: "@res://", name: "Subscene.ascn")
+        }
+    }
+
+    private func loadSubscene() {
+        Task { @MainActor in
+            do {
+                let scene = try await AssetsManager.load(
+                    "@res://Subscene.ascn",
+                    handleChanges: true
+                ) as Scene
+                self.world.addEntity(
+                    Entity(name: "Subscene") {
+                        DynamicScene(scene: scene)
+                    }
+                )
+            } catch {
+                print(error)
+            }
+        }
     }
 
     private func gameOver() {

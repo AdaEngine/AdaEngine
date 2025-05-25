@@ -7,6 +7,9 @@
 
 /// A protocol that allows to use components and entities as query targets.
 public protocol QueryTarget: Sendable {
+    /// Check that entity contains target
+    static func _queryTargetContains(in entity: Entity) -> Bool
+    
     /// Create a new query target from an entity.
     static func _queryTarget(from entity: Entity) -> Self
 
@@ -15,8 +18,12 @@ public protocol QueryTarget: Sendable {
 }
 
 extension Component {
+    public static func _queryTargetContains(in entity: Entity) -> Bool {
+        return entity.components.has(Self.self)
+    }
+    
     public static func _queryTarget(from entity: Entity) -> Self {
-        return entity.components.get(by: Self.identifier)
+        return entity.components.get(by: Self.identifier)!
     }
     
     public static func _queryContains(in archetype: Archetype) -> Bool {
@@ -25,6 +32,11 @@ extension Component {
 }
 
 extension Ref: QueryTarget {
+    
+    public static func _queryTargetContains(in entity: Entity) -> Bool {
+        T._queryTargetContains(in: entity)
+    }
+    
     public static func _queryTarget(from entity: Entity) -> Ref<T> {
         Ref {
             entity.components.get(T.self)
@@ -39,6 +51,11 @@ extension Ref: QueryTarget {
 }
 
 extension Entity: QueryTarget {
+    
+    public static func _queryTargetContains(in entity: Entity) -> Bool {
+        return true
+    }
+    
     public static func _queryTarget(from entity: Entity) -> Self {
         return entity as! Self
     }
@@ -50,8 +67,17 @@ extension Entity: QueryTarget {
 }
 
 extension Optional: QueryTarget where Wrapped: QueryTarget {
+    
+    public static func _queryTargetContains(in entity: Entity) -> Bool {
+        Wrapped._queryTargetContains(in: entity)
+    }
+    
     public static func _queryTarget(from entity: Entity) -> Self {
-        return Wrapped._queryTarget(from: entity)
+        if Wrapped._queryTargetContains(in: entity) {
+            return .some(Wrapped._queryTarget(from: entity))
+        }
+        
+        return .none
     }
     
     /// Always returns true because optional can be nil.

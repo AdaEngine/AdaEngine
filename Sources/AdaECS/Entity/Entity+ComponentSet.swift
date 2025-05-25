@@ -251,8 +251,8 @@ private extension Entity.ComponentSet {
 }
 
 extension Entity.ComponentSet {
-    func get<T: Component>(by identifier: ComponentId) -> T {
-        return (self.buffer[identifier] as! T)
+    func get<T: Component>(by identifier: ComponentId) -> T? {
+        return (self.buffer[identifier] as? T)
     }
     
     subscript<T: Component>(by componentId: ComponentId) -> T? where T : Component {

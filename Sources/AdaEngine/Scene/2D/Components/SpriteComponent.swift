@@ -8,7 +8,7 @@
 /// Contains information about sprite, like texture and tint coloring.
 @Component
 public struct SpriteComponent: Codable {
-    public var texture: Texture2D?
+    public var texture: AssetHandle<Texture2D>?
     public var tintColor: Color
     public var flipX: Bool = false
     public var flipY: Bool = false
@@ -20,7 +20,7 @@ public struct SpriteComponent: Codable {
         texture: Texture2D? = nil,
         tintColor: Color = .white
     ) {
-        self.texture = texture
+        self.texture = texture.map { AssetHandle($0) }
         self.tintColor = tintColor
     }
 }

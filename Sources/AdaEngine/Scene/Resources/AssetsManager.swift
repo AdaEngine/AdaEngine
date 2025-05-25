@@ -30,7 +30,8 @@ public enum AssetError: LocalizedError {
 public final class AssetsManager {
     
     nonisolated(unsafe) private static var resourceDirectory: URL!
-    private static let resKeyWord = "@res:"
+    private static let resKeyWord = "@res://"
+    nonisolated(unsafe) private static var registredAssetTypes: [String: any Asset.Type] = [:]
 
     @AssetActor
     private static var storage: AssetsStorage = AssetsStorage() {
@@ -51,16 +52,18 @@ public final class AssetsManager {
         }
     }
 
+    nonisolated(unsafe) static var projectDirectories: ProjectDirectories!
+
     // MARK: - LOADING -
 
-    /// Load a resource. We use `@res:` prefix to link to resource folder.
+    /// Load a resource. We use `@res://` prefix to link to resource folder.
     ///
     /// ```swift
-    /// let texture = try await AssetsManager.load("@res:Assets/armor.png") as Texture2D
+    /// let texture = try await AssetsManager.load("@res://Assets/armor.png") as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try await AssetsManager.load("@res:Assets/armor.png")
+    /// let texture: Texture2D = try await AssetsManager.load("@res://Assets/armor.png")
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
@@ -265,6 +268,14 @@ public final class AssetsManager {
     }
 
     // MARK: - Public methods
+    
+    public static func getAssetType(for typeName: String) -> (any Asset.Type)? {
+        return registredAssetTypes[typeName]
+    }
+    
+    public static func registerAssetType<T: Asset>(_ type: T.Type) {
+        registredAssetTypes[String(reflecting: type)] = T.self
+    }
 
     /// Set the root folder of all resources and remove all cached items.
     @AssetActor
@@ -284,16 +295,24 @@ public final class AssetsManager {
     // MARK: - Internal
 
     // TODO: (Vlad) where we should call this method in embeddable view?
-    static func initialize() throws {
-        let fileSystem = FileSystem.current
+    // TODO: (Vlad) We must set current dev path to the asset manager
+    static func initialize(filePath: StaticString) throws {
+        let projectDirectories = try URL.findProjectDirectories(from: filePath)
+        self.projectDirectories = projectDirectories
 
-        let resources = fileSystem.applicationFolderURL.appendingPathComponent("Assets")
+
+        #if DEBUG
+        self.resourceDirectory = projectDirectories.assetsDirectory
+        #else
+        let fileSystem = FileSystem.current
+        let resources = projectDirectories.assetsDirectory
 
         if !fileSystem.itemExists(at: resources) {
             try fileSystem.createDirectory(at: resources, withIntermediateDirectories: true)
         }
 
         self.resourceDirectory = resources
+        #endif
     }
 
     @AssetActor
@@ -389,7 +408,7 @@ private extension AssetsManager {
         return cacheKey.hashValue
     }
 
-    /// Replace tag `@res:` to relative path or create url from given path.
+    /// Replace tag `@res://` to relative path or create url from given path.
     private static func processPath(_ path: String) -> Path {
         var path = path
         var url: URL
@@ -407,7 +426,6 @@ private extension AssetsManager {
 
         if !splitComponents.isEmpty {
             query = Self.fetchQuery(from: String(splitComponents.last!))
-
             url.deleteLastPathComponent()
             url.appendPathComponent(String(splitComponents.first!))
         }
@@ -420,9 +438,15 @@ private extension AssetsManager {
         if self.storage.hotReloadingAssets.values.isEmpty {
             return
         }
+        
+        let paths = self.storage.hotReloadingAssets.values.map({ $0.path.url.path })
+        
+        if self.fileWatcher?.paths == paths {
+            return
+        }
 
         self.fileWatcher = FileWatcher(
-            paths: self.storage.hotReloadingAssets.values.map({ $0.path.url.path }),
+            paths: paths,
             block: { paths in
                 for path in paths {
                     var asset = self.storage.hotReloadingAssets[path]
@@ -455,7 +479,6 @@ private extension AssetsManager {
 
     /// Use Swift Coroutines but block current execution context and wait until task is done.
     private final class UnsafeTask<T>: @unchecked Sendable {
-
         private let semaphore = DispatchSemaphore(value: 0)
         private var result: Result<T, Error>?
 
@@ -513,4 +536,38 @@ private extension Asset {
         }
         try await oldResource.update(resource)
     }
+}
+
+private extension URL {
+    static func findProjectDirectories(from file: StaticString) throws -> ProjectDirectories {
+        var currentURL = URL(filePath: file.description)
+        var assetDirectory: URL?
+        
+        while currentURL.path != "/" {
+            currentURL = currentURL.deletingLastPathComponent()
+            let packageURL = currentURL.appending(path: "Package.swift")
+
+            if FileManager.default.fileExists(atPath: packageURL.path) {
+                return ProjectDirectories(
+                    source: packageURL.deletingLastPathComponent(),
+                    assetsDirectory: assetDirectory ?? currentURL.appending(path: "Assets")
+                )
+            }
+
+            let assetsDirectory = currentURL.appending(path: "Assets")
+            if FileManager.default.fileExists(atPath: assetsDirectory.path) {
+                assetDirectory = assetsDirectory
+            }
+        }
+
+        throw AssetError.message("Missing package directory")
+    }
+}
+
+struct ProjectDirectories {
+    /// Source directory is a directory where we store all source code for the project.
+    let source: URL
+
+    /// Assets directory is a directory where we store all assets for the project.
+    let assetsDirectory: URL
 }

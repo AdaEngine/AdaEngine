@@ -30,7 +30,7 @@
 ///
 /// Also, your asset can support ``Codable`` behaviour and for this scenario, you should implement only ``init(from decoder: Decoder)`` and ``func encode(to encoder: Encoder)`` methods.
 /// Meta and other information will be available from userInfo. Use `Decoder.assetsDecodingContext`, `Decoder.assetMeta` and `Encoder.assetMeta` properties to get this info.
-public protocol Asset: AnyObject, Sendable {
+public protocol Asset: AnyObject, Sendable, Codable {
     
     /// When asset load from the disk, this method will be called.
     ///
@@ -56,8 +56,8 @@ public protocol Asset: AnyObject, Sendable {
 }
 
 public extension Asset {
-    /// If resource was initiated from resource, than property will return path to that file.
-    /// /// - Warning: Do not override stored value.
+    /// If resource was initiated from resource, than property will return path to that file relative source dir.
+    /// - Warning: Do not override stored value.
     var assetPath: String {
         self.assetMetaInfo?.assetPath ?? ""
     }
@@ -66,6 +66,11 @@ public extension Asset {
     /// - Warning: Do not override stored value.
     var assetName: String {
         self.assetMetaInfo?.assetName ?? ""
+    }
+    
+    /// Return full path to Asset.
+    var assetAbsolutePath: String {
+        self.assetMetaInfo?.assetAbsolutePath.path() ?? ""
     }
 
     func update(_ newAsset: Self) async throws {
@@ -80,7 +85,7 @@ public struct AssetMetaInfo: Codable, Sendable {
     public let assetName: String
     public let bundlePath: String?
     
-    public var fullFileURL: URL {
+    public var assetAbsolutePath: URL {
         return AssetsManager.getFilePath(from: self).url
     }
     
@@ -104,8 +109,41 @@ public struct AssetMetaInfo: Codable, Sendable {
     
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        
         try container.encode(self.assetPath, forKey: .assetPath)
         try container.encodeIfPresent(self.bundlePath, forKey: .bundlePath)
+    }
+}
+
+public struct AssetHandle<T: Asset>: Codable, Sendable {
+    
+    public var asset: T
+    
+    public init(_ asset: T) {
+        self.asset = asset
+    }
+    
+    enum CodingKeys: CodingKey {
+        case type
+        case assetPath
+        case meta
+    }
+    
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(String.self, forKey: .type)
+        let assetType = AssetsManager.getAssetType(for: type) ?? T.self
+        let superDecoder = try container.superDecoder(forKey: .meta)
+        let asset = try assetType.init(from: superDecoder)
+        self.asset = asset as! T
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(String(reflecting: type(of: self.asset)), forKey: .type)
+        if !asset.assetPath.isEmpty {
+            try container.encode(asset.assetPath, forKey: .assetPath)
+        }
+        let superEncoder = container.superEncoder(forKey: .meta)
+        try asset.encode(to: superEncoder)
     }
 }

@@ -242,7 +242,7 @@ public struct ExtractSpriteSystem {
             extractedSprites.sprites.append(
                 ExtractedSprite(
                     entityId: entity.id,
-                    texture: sprite.texture,
+                    texture: sprite.texture?.asset,
                     flipX: sprite.flipX,
                     flipY: sprite.flipY,
                     tintColor: sprite.tintColor,

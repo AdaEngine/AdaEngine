@@ -69,6 +69,13 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
         self.world = World()
         self.instantiateDefaultPlugin = instantiateDefaultPlugin
     }
+
+    public init(from world: World, instantiateDefaultPlugin: Bool = true) {
+        self.id = UUID()
+        self.name = "Scene"
+        self.world = world
+        self.instantiateDefaultPlugin = instantiateDefaultPlugin
+    }
     
     // MARK: - Resource -
     
@@ -104,8 +111,16 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
         self.world = sceneData.world
     }
     
+    public required init(from decoder: any Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
     public static func extensions() -> [String] {
-        ["ascn"]
+        ["ascn", "scene", "scn"]
     }
 
     public func update(_ newScene: Scene) async throws {

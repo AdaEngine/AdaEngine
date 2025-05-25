@@ -42,6 +42,14 @@ public final class FontResource: Asset, Hashable, @unchecked Sendable {
     public func encodeContents(with encoder: AssetEncoder) throws {
         fatalErrorMethodNotImplemented()
     }
+    
+    public required init(from decoder: any Decoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encode(to encoder: any Encoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
 }
 
 public extension FontResource {

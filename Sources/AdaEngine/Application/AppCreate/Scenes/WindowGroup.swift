@@ -10,9 +10,11 @@ public struct WindowGroup<Content: View>: AppScene {
     public var scene: Never { fatalError() }
     
     let content: Content
+    let filePath: StaticString
     
-    public init(@ViewBuilder content: () -> Content) {
+    public init(@ViewBuilder content: () -> Content, filePath: StaticString = #filePath) {
         self.content = content()
+        self.filePath = filePath
     }
 }
 
@@ -34,5 +36,10 @@ extension WindowGroup: InternalAppScene {
         }
         
         return window
+    }
+
+    @MainActor
+    func _getFilePath() -> StaticString {
+        self.filePath
     }
 }

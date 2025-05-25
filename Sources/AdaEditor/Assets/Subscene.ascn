@@ -1,0 +1,76 @@
+version: 1.0.0
+scene: Scene
+instantiateDefaultPlugin: true
+world:
+  entities:
+  - name: Ground
+    id: 122203354172284880
+    components:
+      AdaEngine.SpriteComponent:
+        texture:
+          type: AdaEngine.TextureAtlas.Slice
+          meta:
+            textureAtlasResource:
+              margin:
+                width: 0
+                height: 0
+              spriteSize:
+                width: 18
+                height: 18
+              super:
+                file:
+                  assetPath: '@res://tiles_packed.png'
+                sampler:
+                  minFilter: nearest
+                  magFilter: nearest
+                  mipFilter: nearest
+                  lodMinClamp: 0e+0
+                  lodMaxClamp: 3.4028234663852886e+38
+            min:
+              x: 0e+0
+              y: 0e+0
+            max:
+              x: 5.00000007450581e-2
+              y: 1.11111111938953e-1
+            size:
+              width: 18
+              height: 18
+        tintColor:
+          red: 1e+0
+          green: 1e+0
+          blue: 1e+0
+          alpha: 1e+0
+        flipX: false
+        flipY: false
+      AdaEngine.Transform:
+        rotation:
+          x: 0e+0
+          y: 0e+0
+          z: 0e+0
+          w: 1e+0
+        scale:
+          x: 3e+0
+          y: 1.89999997615814e-1
+          z: 1.89999997615814e-1
+        position:
+          x: 0e+0
+          y: -1e+0
+          z: 0e+0
+      AdaEngine.Collision2DComponent:
+        shapes:
+        - fixture:
+            box:
+              _0:
+                halfWidth: 5e-1
+                halfHeight: 5e-1
+                offset:
+                  x: 0e+0
+                  y: 0e+0
+        filter:
+          categoryBitMask: 1
+          collisionBitMask: 18446744073709551615
+        mode:
+          default: {}
+  systems: []
+  plugins: []
+  resources: {}

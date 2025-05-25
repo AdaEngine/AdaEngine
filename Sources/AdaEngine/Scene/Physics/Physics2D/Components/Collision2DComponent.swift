@@ -6,7 +6,7 @@
 //
 
 @Component
-public struct Collision2DComponent {
+public struct Collision2DComponent: Sendable, Codable {
     
     internal var runtimeBody: Body2D?
     internal private(set) var shapes: [Shape2DResource] = []

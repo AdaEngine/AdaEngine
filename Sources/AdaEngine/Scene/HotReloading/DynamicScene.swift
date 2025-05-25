@@ -2,8 +2,9 @@ import AdaECS
 
 @Component
 public struct DynamicScene {
-    public var entities: [Entity]
-    public var resources: [any Resource]
+    let worldId: World.ID
+    public let entities: [Entity]
+    public let resources: [any Resource]
 
     @MainActor
     public init(scene: Scene) {
@@ -11,6 +12,7 @@ public struct DynamicScene {
     }
 
     public init(world: World) {
+        self.worldId = world.id
         self.entities = world.getEntities()
         self.resources = world.getResources()
     }
@@ -18,18 +20,35 @@ public struct DynamicScene {
 
 @Component
 public struct DynamicSceneInstance {
-    let identifier: Scene.ID
+    let identifier: World.ID
 }
 
 @System
 struct DynamicSceneInitSystem: System {
 
-    @Query<DynamicScene, DynamicSceneInstance?>
+    @Query<Entity, DynamicScene, DynamicSceneInstance?>
     private var dynamicScenes
 
     init(world: World) {  }
 
     func update(context: UpdateContext) {
+        for (entity, scene, instance) in dynamicScenes {
+            if instance == nil {
+                insertScene(to: entity, dynamicScene: scene, world: context.world)
+            }
+        }
+    }
+    
+    private func insertScene(to rootEntity: Entity, dynamicScene: DynamicScene, world: World) {
+        for entity in dynamicScene.entities {
+            rootEntity.addChild(entity)
+            world.addEntity(entity)
+        }
         
+        for resource in dynamicScene.resources {
+            world.insertResource(resource)
+        }
+        
+        rootEntity.components += DynamicSceneInstance(identifier: dynamicScene.worldId)
     }
 }

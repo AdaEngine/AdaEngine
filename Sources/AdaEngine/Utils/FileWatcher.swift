@@ -79,6 +79,10 @@ public final class FSWatch: @unchecked Sendable {
         fatalError("Unsupported platform")
       #endif
     }
+    
+    deinit {
+        _watcher.stop()
+    }
 
     /// Start watching the filesystem for events.
     ///
@@ -185,7 +189,7 @@ public final class RDCWatcher {
 
     private let watches: [Watch]
     private let queue: DispatchQueue =
-            DispatchQueue(label: "org.swift.swiftpm.\(RDCWatcher.self).callback")
+            DispatchQueue(label: "org.adaengine.\(RDCWatcher.self).callback")
 
     public init(paths: [AbsolutePath], latency: Double, delegate: RDCWatcherDelegate? = nil) {
         self.paths = paths
@@ -219,7 +223,7 @@ public final class RDCWatcher {
     public func start() throws {
         // TODO(compnerd) can we compress the threads to a single worker thread
         self.watches.forEach { watch in
-            watch.thread = Thread { [delegate = self.delegate, queue = self.queue, weak watch] in
+            watch.thread = TSCBasic.Thread { [delegate = self.delegate, queue = self.queue, weak watch] in
                 guard let watch = watch else { return }
 
                 while true {
@@ -407,10 +411,10 @@ public final class Inotify {
     private var wds: [Int32: AbsolutePath] = [:]
 
     /// The queue on which we read the events.
-    private let readQueue = DispatchQueue(label: "org.swift.swiftpm.\(Inotify.self).read")
+    private let readQueue = DispatchQueue(label: "org.adaengine.\(Inotify.self).read")
 
     /// Callback queue for the delegate.
-    private let callbacksQueue = DispatchQueue(label: "org.swift.swiftpm.\(Inotify.self).callback")
+    private let callbacksQueue = DispatchQueue(label: "org.adaengine.\(Inotify.self).callback")
 
     /// Condition for handling event reporting.
     private var reportCondition = Condition()
@@ -574,7 +578,7 @@ public final class Inotify {
 
     /// Spawns a thread that collects events and reports them after the settle period.
     private func startReportThread() {
-        let thread = Thread {
+        let thread = TSCBasic.Thread {
             var endLoop = false
             while !endLoop {
 
@@ -793,13 +797,13 @@ public final class FSEventStream: @unchecked Sendable {
     let delegate: FSEventStreamDelegate
 
     /// The thread on which the stream is running.
-    private var thread: Thread?
+    private var thread: TSCBasic.Thread?
 
     /// The run loop attached to the stream.
     private var runLoop: CFRunLoop?
 
     /// Callback queue for the delegate.
-    fileprivate let callbacksQueue = DispatchQueue(label: "org.swift.swiftpm.\(FSEventStream.self).callback")
+    fileprivate let callbacksQueue = DispatchQueue(label: "org.adaengine.\(FSEventStream.self).callback")
 
     public init(
         paths: [AbsolutePath],
@@ -826,7 +830,7 @@ public final class FSEventStream: @unchecked Sendable {
 
     // Start the runloop.
     public func start() throws {
-        let thread = Thread { [weak self] in
+        let thread = TSCBasic.Thread { [weak self] in
             guard let `self` = self else { return }
             self.runLoop = CFRunLoopGetCurrent()
             // Schedule the run loop.
@@ -837,7 +841,6 @@ public final class FSEventStream: @unchecked Sendable {
             )
 
             // Start the stream.
-            // FSEventStreamSetDispatchQueue(self.stream, self.callbacksQueue) <- TODO: (Vlad) Add dispatch queue
             FSEventStreamScheduleWithRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
             FSEventStreamStart(self.stream)
             CFRunLoopRun()
@@ -861,3 +864,129 @@ public final class FSEventStream: @unchecked Sendable {
     }
 }
 #endif
+
+enum TSCBasic {
+    /// This class bridges the gap between Darwin and Linux Foundation Threading API.
+    /// It provides closure based execution and a join method to block the calling thread
+    /// until the thread is finished executing.
+    final public class Thread {
+        
+        /// The thread implementation which is Foundation.Thread on Linux and
+        /// a Thread subclass which provides closure support on Darwin.
+        private var thread: ThreadImpl!
+        
+        /// Condition variable to support blocking other threads using join when this thread has not finished executing.
+        private var finishedCondition: Condition
+        
+        /// A boolean variable to track if this thread has finished executing its task.
+        private var isFinished: Bool
+        
+        /// Creates an instance of thread class with closure to be executed when start() is called.
+        public init(task: @escaping () -> Void) {
+            isFinished = false
+            finishedCondition = Condition()
+            
+            // Wrap the task with condition notifying any other threads blocked due to this thread.
+            // Capture self weakly to avoid reference cycle. In case Thread is deinited before the task
+            // runs, skip the use of finishedCondition.
+            let theTask = { [weak self] in
+                if let strongSelf = self {
+                    precondition(!strongSelf.isFinished)
+                    strongSelf.finishedCondition.whileLocked {
+                        task()
+                        strongSelf.isFinished = true
+                        strongSelf.finishedCondition.broadcast()
+                    }
+                } else {
+                    // If the containing thread has been destroyed, we can ignore the finished condition and just run the
+                    // task.
+                    task()
+                }
+            }
+            
+            self.thread = ThreadImpl(block: theTask)
+        }
+        
+        /// Starts the thread execution.
+        public func start() {
+            thread.start()
+        }
+        
+        /// Blocks the calling thread until this thread is finished execution.
+        public func join() {
+            finishedCondition.whileLocked {
+                while !isFinished {
+                    finishedCondition.wait()
+                }
+            }
+        }
+        
+        /// Causes the calling thread to yield execution to another thread.
+        public static func yield() {
+#if os(Windows)
+            SwitchToThread()
+#else
+            sched_yield()
+#endif
+        }
+}
+
+#if canImport(Darwin)
+    /// A helper subclass of Foundation's Thread with closure support.
+    final private class ThreadImpl: Foundation.Thread {
+        
+        /// The task to be executed.
+        private let task: () -> Void
+        
+        override func main() {
+            task()
+        }
+        
+        init(block task: @escaping () -> Void) {
+            self.task = task
+        }
+    }
+#else
+    // Thread on Linux supports closure so just use it directly.
+    typealias ThreadImpl = Foundation.Thread
+#endif
+    
+    public struct Condition: Sendable {
+        private let _condition = NSCondition()
+
+        /// Create a new condition.
+        public init() {}
+
+        /// Wait for the condition to become available.
+        public func wait() {
+            _condition.wait()
+        }
+
+        /// Blocks the current thread until the condition is signaled or the specified time limit is reached.
+        ///
+        /// - Returns: true if the condition was signaled; otherwise, false if the time limit was reached.
+        public func wait(until limit: Date) -> Bool {
+            return _condition.wait(until: limit)
+        }
+
+        /// Signal the availability of the condition (awake one thread waiting on
+        /// the condition).
+        public func signal() {
+            _condition.signal()
+        }
+
+        /// Broadcast the availability of the condition (awake all threads waiting
+        /// on the condition).
+        public func broadcast() {
+            _condition.broadcast()
+        }
+
+        /// A helper method to execute the given body while condition is locked.
+        /// - Note: Will ensure condition unlocks even if `body` throws.
+        public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
+            _condition.lock()
+            defer { _condition.unlock() }
+            return try body()
+        }
+    }
+}

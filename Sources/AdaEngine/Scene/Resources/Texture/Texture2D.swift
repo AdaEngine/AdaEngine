@@ -88,7 +88,7 @@ open class Texture2D: Texture, @unchecked Sendable {
         let filePath = try container.decode(AssetMetaInfo.self, forKey: .filePath)
         let samplerDesc = try container.decodeIfPresent(SamplerDescriptor.self, forKey: .sampler)
         
-        let image = try decoder.assetsDecodingContext.getOrLoadResource(at: filePath.fullFileURL.absoluteString) as Image
+        let image = try decoder.assetsDecodingContext.getOrLoadResource(at: filePath.assetAbsolutePath.absoluteString) as Image
         self.init(image: image, samplerDescription: samplerDesc)
     }
     
