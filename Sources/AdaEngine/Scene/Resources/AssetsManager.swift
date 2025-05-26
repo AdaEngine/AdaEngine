@@ -314,6 +314,7 @@ public final class AssetsManager {
         for (key, asset) in self.storage.hotReloadingAssets where asset.needsUpdate {
             guard let oldResource = self.storage.loadedAssets[key]?.value as? AnyAssetHandle else {
                 logger.error("Resource \(asset.resource) is not found")
+                self.storage.hotReloadingAssets[key] = nil
                 continue
             }
 
