@@ -7,6 +7,7 @@
 
 import AdaUtils
 import Foundation
+import Logging
 
 public enum AssetError: LocalizedError {
     case notExistAtPath(String)
@@ -29,16 +30,14 @@ public enum AssetError: LocalizedError {
 /// If asset was loaded to memory, you recive reference to this resource.
 public final class AssetsManager {
     
+    private static let logger = Logger(label: "AssetsManager")
+    
     nonisolated(unsafe) private static var resourceDirectory: URL!
     private static let resKeyWord = "@res://"
     nonisolated(unsafe) private static var registredAssetTypes: [String: any Asset.Type] = [:]
     
     @AssetActor
-    private static var storage: AssetsStorage = AssetsStorage() {
-        didSet {
-            self.updateFileWatcher()
-        }
-    }
+    private static var storage: AssetsStorage = AssetsStorage()
     
     @AssetActor
     private static var fileWatcher: FileWatcher?
@@ -56,14 +55,14 @@ public final class AssetsManager {
     
     // MARK: - LOADING -
     
-    /// Load a resource. We use `@res://` prefix to link to resource folder.
+    /// Load a resource. We use `@res://` prefix to link to assets folder.
     ///
     /// ```swift
-    /// let texture = try await AssetsManager.load("@res://Assets/armor.png") as Texture2D
+    /// let texture = try await AssetsManager.load("@res://armor.png") as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try await AssetsManager.load("@res://Assets/armor.png")
+    /// let texture: Texture2D = try await AssetsManager.load("@res://armor.png")
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
@@ -74,8 +73,8 @@ public final class AssetsManager {
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
         let key = self.makeCacheKey(resource: A.self, path: path)
-        if let cachedAsset = self.storage.loadedAssets[key]?.value as? A {
-            return AssetHandle(cachedAsset)
+        if let cachedAsset = self.storage.loadedAssets[key]?.value as? AssetHandle<A> {
+            return cachedAsset
         }
         
         let processedPath = self.processPath(path)
@@ -90,29 +89,31 @@ public final class AssetsManager {
         }
         
         if handleChanges {
-            self.storage.hotReloadingAssets[path] = HotReloadingAsset(
+            self.storage.hotReloadingAssets[key] = HotReloadingAsset(
                 path: processedPath,
-                key: key,
                 resource: A.self,
                 needsUpdate: false
             )
+
+            self.updateFileWatcher()
         }
         
         let resource: A = try await self.load(from: processedPath, originalPath: path, bundle: nil)
-        self.storage.loadedAssets[key] = WeakBox(resource)
+        let handle = AssetHandle(resource)
+        self.storage.loadedAssets[key] = WeakBox(handle)
         
-        return AssetHandle(resource)
+        return handle
     }
     
     /// Load a resource with block current thread and saving it to memory cache.
     /// It may be useful to load resource without concurrent context.
     ///
     /// ```swift
-    /// let texture = try AssetsManager.loadSync("Assets/armor.png") as Texture2D
+    /// let texture = try AssetsManager.loadSync("@res://armor.png") as Texture2D
     ///
     /// // == or ==
     ///
-    /// let texture: Texture2D = try AssetsManager.loadSync("Assets/armor.png")
+    /// let texture: Texture2D = try AssetsManager.loadSync("@res://armor.png")
     /// ```
     /// - Parameter path: Path to the resource.
     /// - Returns: Instance of resource.
@@ -162,9 +163,10 @@ public final class AssetsManager {
             originalPath: path,
             bundle: bundle
         )
-        self.storage.loadedAssets[key] = WeakBox(resource)
+        let handle = AssetHandle(resource)
+        self.storage.loadedAssets[key] = WeakBox(handle)
         
-        return AssetHandle(resource)
+        return handle
     }
     
     /// Load a resource with block current thread and saving it to memory cache.
@@ -258,6 +260,8 @@ public final class AssetsManager {
     public static func unload<R: Asset>(_ res: R.Type, at path: String) {
         let key = self.makeCacheKey(resource: res, path: path)
         self.storage.loadedAssets[key] = nil
+        self.storage.hotReloadingAssets[key] = nil
+        self.updateFileWatcher()
     }
     
     // MARK: - Public methods
@@ -307,18 +311,26 @@ public final class AssetsManager {
     
     @AssetActor
     static func processResources() async throws {
-        for (_, asset) in self.storage.hotReloadingAssets where asset.needsUpdate {
-            guard let oldResource = self.storage.loadedAssets[asset.key]?.value as? any Asset else {
-                print("Resource \(asset.resource) is not found")
+        for (key, asset) in self.storage.hotReloadingAssets where asset.needsUpdate {
+            guard let oldResource = self.storage.loadedAssets[key]?.value as? AnyAssetHandle else {
+                logger.error("Resource \(asset.resource) is not found")
                 continue
             }
+
+            defer {
+                self.storage.hotReloadingAssets[key]?.needsUpdate = false
+            }
             
-            try await self.loadAndUpdateInternal(
-                assetType: asset.resource,
-                oldResource: oldResource,
-                from: asset.path,
-                originalPath: asset.path.url.path
-            )
+            do {
+                try await self.loadAndUpdateInternal(
+                    assetType: asset.resource,
+                    oldResource: oldResource,
+                    from: asset.path,
+                    originalPath: asset.path.url.path
+                )
+            } catch {
+                logger.error("Error updating hot reloading asset \(asset.resource) at path \(asset.path.url.path): \(error)")
+            }
         }
     }
     
@@ -333,23 +345,23 @@ public final class AssetsManager {
                 self.fileWatcher?.stop()
             }
         } catch {
-            print("Error updating hot reloading assets: \(error)")
+            logger.error("Error updating hot reloading assets: \(error)")
         }
     }
     
     @AssetActor
     private static func loadAndUpdateInternal(
         assetType: any Asset.Type,
-        oldResource: any Asset,
+        oldResource: any AnyAssetHandle,
         from path: Path,
         originalPath: String
     ) async throws {
-        // guard let data = FileSystem.current.readFile(at: path.url) else {
-        //     throw AssetError.notExistAtPath(path.url.path)
-        // }
-        // let meta = AssetMeta(filePath: path.url, queryParams: path.query)
-        // let decoder = TextAssetDecoder(meta: meta, data: data)
-        // try await assetType.loadAndUpdateInternal(from: decoder, oldResource: oldResource)
+        guard let data = FileSystem.current.readFile(at: path.url) else {
+            throw AssetError.notExistAtPath(path.url.path)
+        }
+        let meta = AssetMeta(filePath: path.url, queryParams: path.query)
+        let decoder = TextAssetDecoder(meta: meta, data: data)
+        try assetType.loadAndUpdateInternal(from: decoder, oldResource: oldResource)
     }
     
     @AssetActor
@@ -435,19 +447,30 @@ private extension AssetsManager {
             return
         }
         
-        let paths = self.storage.hotReloadingAssets.values.map({ $0.path.url.path })
-        
-        if self.fileWatcher?.paths == paths {
+        var paths = [String: Int]()
+        for (key, asset) in self.storage.hotReloadingAssets {
+            paths[asset.path.url.path()] = key
+        }
+
+        let watchedPaths = Array(paths.keys)
+        if self.fileWatcher?.paths == watchedPaths {
             return
         }
         
         self.fileWatcher = FileWatcher(
-            paths: paths,
-            block: { paths in
-                for path in paths {
-                    var asset = self.storage.hotReloadingAssets[path]
+            paths: watchedPaths,
+            latency: 0.1,
+            block: { fsPaths in
+                for path in fsPaths {
+                    guard let key = paths[path] else {
+                        logger.error("Asset key not found at path \(path)")
+                        continue
+                    }
+                    
+                    var asset = self.storage.hotReloadingAssets[key]
                     asset?.needsUpdate = true
-                    self.storage.hotReloadingAssets[path] = asset
+                    self.storage.hotReloadingAssets[key] = asset
+                    logger.info("Marked asset at path \(path) for hot reload.")
                 }
             }
         )
@@ -455,9 +478,10 @@ private extension AssetsManager {
         do {
             if self.isHotReloadingEnabled {
                 try self.fileWatcher?.start()
+                logger.info("Started file watcher for paths: \(watchedPaths)")
             }
         } catch {
-            print("Error updating file watcher: \(error)")
+            logger.error("Error updating file watcher: \(error)")
         }
     }
     
@@ -504,12 +528,11 @@ private extension AssetsManager {
 extension AssetsManager {
     struct AssetsStorage: Sendable {
         var loadedAssets: [Int: WeakBox<AnyObject>] = [:]
-        var hotReloadingAssets: [String: HotReloadingAsset] = [:]
+        var hotReloadingAssets: [Int: HotReloadingAsset] = [:]
     }
     
     struct HotReloadingAsset: Sendable {
         var path: Path
-        var key: Int
         var resource: any Asset.Type
         var needsUpdate: Bool = false
     }
@@ -522,15 +545,13 @@ public actor AssetActor {
 }
 
 private extension Asset {
+    @AssetActor
     static func loadAndUpdateInternal(
         from asset: any AssetDecoder,
-        oldResource: any Asset
-    ) async throws {
+        oldResource: any AnyAssetHandle
+    ) throws {
         let resource = try Self.init(from: asset)
-        guard let oldResource = oldResource as? Self else {
-            throw AssetError.message("Old resource is not of type \(Self.self)")
-        }
-        //        try await oldResource.update(resource)
+        try oldResource.update(resource)
     }
 }
 

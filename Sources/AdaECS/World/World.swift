@@ -184,13 +184,10 @@ public final class World: @unchecked Sendable, Codable {
         self.tick()
     }
     
-    // FIXME: Can crash if we change components set during runtime from different thread
-    
     /// Add a new entity to the world. This entity will be available on the next update tick.
-    /// - Warning: If entity has different world, than we return assertation error.
     @discardableResult
     public func addEntity(_ entity: Entity) -> Self {
-        precondition(entity.world !== self, "Entity has different world reference, and can't be added")
+        let entity = entity.world?.id != self.id ? entity.copy() : entity
         entity.world = self
         
         self.updatedEntities.insert(entity)
@@ -372,9 +369,9 @@ private extension World {
         
         for entity in self.updatedEntities {
            let bitmask = entity.components.bitset
+            assert(!bitmask.isEmpty, "Entity \(entity.name) has empty bitmask")
             
             if let record = self.records[entity.id], let currentArchetype = self.archetypes[record.archetypeId] {
-                
                 // We currently updated existed components
                 if currentArchetype.componentsBitMask == bitmask {
                     continue

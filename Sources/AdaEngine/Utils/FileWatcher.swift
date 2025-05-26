@@ -809,7 +809,7 @@ public final class FSEventStream: @unchecked Sendable {
         paths: [AbsolutePath],
         latency: Double,
         delegate: FSEventStreamDelegate,
-        flags: FSEventStreamCreateFlags = FSEventStreamCreateFlags(kFSEventStreamCreateFlagUseCFTypes)
+        flags: FSEventStreamCreateFlags = FSEventStreamCreateFlags(kFSEventStreamCreateFlagUseCFTypes | kFSEventStreamCreateFlagFileEvents)
     ) {
         self.delegate = delegate
 
@@ -821,7 +821,7 @@ public final class FSEventStream: @unchecked Sendable {
         self.stream = FSEventStreamCreate(nil,
             callback, 
             &callbackContext, 
-            paths.map({ $0 }) as CFArray, 
+            paths as CFArray, 
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
             latency,
             flags
