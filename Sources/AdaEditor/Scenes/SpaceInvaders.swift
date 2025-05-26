@@ -15,7 +15,11 @@ class SpaceInvaders: Scene, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
         self.debugOptions = [.showPhysicsShapes]
 //        let sound = try! AssetsManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
-        let charactersTiles = try! AssetsManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
+        let charactersTiles = try! AssetsManager.loadSync(
+            Image.self, 
+            at: "Assets/characters_packed.png", 
+            from: Bundle.editor
+        ).asset
         self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
         
         let camera = OrthographicCamera()
@@ -95,7 +99,9 @@ struct MovementSystem: System {
     func update(context: UpdateContext) {
         let cameraEntity = context.world.performQuery(Self.camera).first!
         let camera = cameraEntity.components[Camera.self]!
-        let globalTransform = context.world.worldTransformMatrix(for: cameraEntity)
+        guard let globalTransform = cameraEntity.components[GlobalTransform.self]?.matrix else {
+            return
+        }
 
         let mousePosition = Input.getMousePosition()
 
@@ -119,7 +125,11 @@ struct FireSystem: System {
     let laserAudio: AudioResource
 
     init(world: World) {
-        self.laserAudio = try! AssetsManager.loadSync("Assets/laserShoot.wav", from: .editor) as AudioResource
+        self.laserAudio = try! AssetsManager.loadSync(
+            AudioResource.self, 
+            at: "Assets/laserShoot.wav", 
+            from: .editor
+        ).asset
     }
 
     func update(context: UpdateContext) {
@@ -215,7 +225,11 @@ struct EnemySpawnerSystem: System {
 
     init(world: World) {
         do {
-            let tiles = try AssetsManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
+            let tiles = try AssetsManager.loadSync(
+                Image.self, 
+                at: "Assets/tiles_packed.png", 
+                from: Bundle.editor
+            ).asset
 
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
         } catch {
@@ -305,10 +319,18 @@ struct EnemyExplosionSystem: System {
 
     init(world: World) {
         do {
-            let image = try AssetsManager.loadSync("Assets/explosion.png", from: .editor) as Image
+            let image = try AssetsManager.loadSync(
+                Image.self, 
+                at: "Assets/explosion.png", 
+                from: .editor
+            ).asset
             self.exposionAtlas = TextureAtlas(from: image, size: SizeInt(width: 32, height: 32))
 
-            self.explosionAudio = try AssetsManager.loadSync("Assets/explosion-1.wav", from: .editor) as AudioResource
+            self.explosionAudio = try AssetsManager.loadSync(
+                AudioResource.self, 
+                at: "Assets/explosion-1.wav", 
+                from: .editor
+            ).asset
         } catch {
             fatalError("Can't load assets \(error)")
         }

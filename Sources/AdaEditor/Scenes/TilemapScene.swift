@@ -23,7 +23,11 @@ final class LdtkTilemapScene: Scene, @preconcurrency TileMapDelegate, @unchecked
         transform.scale = Vector3(0.5)
         
         do {
-            let tileMap = try AssetsManager.loadSync("Assets/TestTileMap.ldtk", from: .editor) as LDtk.TileMap
+            let tileMap = try AssetsManager.loadSync(
+                LDtk.TileMap.self, 
+                at: "Assets/TestTileMap.ldtk", 
+                from: .editor
+            ).asset
             tileMap.delegate = self
             tileMap.loadLevel(at: 0)
             
@@ -76,7 +80,11 @@ final class TilemapScene: Scene, @unchecked Sendable {
     }
     
     private func loadIfNeeded() {
-        let tileMap = try! AssetsManager.loadSync("/Users/vprusakov/Downloads/tilemap.res") as TileMap
+        let tileMap = try! AssetsManager.loadSync(
+            TileMap.self, 
+            at: "/Users/vprusakov/Downloads/tilemap.res", 
+            from: .editor
+        ).asset
         
         self.debugOptions = [.showPhysicsShapes]
         
@@ -105,7 +113,10 @@ final class TilemapScene: Scene, @unchecked Sendable {
     private func save() {
         let tileMap = TileMap()
         
-        let image = try! AssetsManager.loadSync("Assets/tiles_packed.png", from: .editor) as Image
+        let image = try! AssetsManager.loadSync(
+            Image.self, 
+            at: "Assets/tiles_packed.png"
+        ).asset
         let source = TextureAtlasTileSource(from: image, size: [18, 18])
         
         source.createTile(for: TileAtlasCoordinates.topLeft)

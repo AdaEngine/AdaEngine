@@ -14,10 +14,15 @@ public struct GameAppScene: AppScene {
     public var scene: Never { fatalError() }
     
     private let gameScene: SceneBlock
-    
+    private let filePath: StaticString
+
     /// Create a new app scene from a game scene.
-    public init(scene: @escaping SceneBlock) {
+    public init(
+        scene: @escaping SceneBlock,
+        filePath: StaticString = #filePath
+    ) {
         self.gameScene = scene
+        self.filePath = filePath
     }
 }
 
@@ -43,5 +48,10 @@ extension GameAppScene: InternalAppScene {
         }
         
         return window
+    }
+
+    @MainActor
+    func _getFilePath() -> StaticString {
+        self.filePath
     }
 }

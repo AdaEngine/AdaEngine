@@ -53,7 +53,7 @@ public struct Camera: Sendable {
         case window(UIWindow.ID)
         
         /// Render camera to texture.
-        case texture(RenderTexture)
+        case texture(AssetHandle<RenderTexture>)
     }
     
     // MARK: Properties
@@ -107,7 +107,7 @@ public struct Camera: Sendable {
     
     /// Create a new camera component with specific render target and viewport.
     public init(renderTarget: RenderTexture, viewport: Viewport? = nil) {
-        self.renderTarget = .texture(renderTarget)
+        self.renderTarget = .texture(AssetHandle(renderTarget))
         self.viewport = viewport
     }
     

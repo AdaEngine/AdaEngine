@@ -56,7 +56,7 @@ public struct Export<T: Codable>: Codable, @unchecked Sendable {
     public init(wrappedValue: T) where T: CaseIterable {
         self.storage = .init(value: wrappedValue)
         self.storage.editorInfo = EditorInfo(
-            modifiers: .enum(EnumModifier(cases: T.allCases.map { String(describing: $0) }))
+            modifiers: .enum(EnumModifier(cases: T.allCases.map { String(reflecting: $0) }))
         )
     }
     

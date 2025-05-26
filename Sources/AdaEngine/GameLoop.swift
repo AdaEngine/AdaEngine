@@ -1,16 +1,16 @@
 //
-//  GameLoop.swift
+//  MainLoop.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 11/2/21.
 //
 
 /// The main class responds to update all systems in engine.
-/// You can have only one GameLoop per app.
+/// You can have only one MainLoop per app.
 @MainActor
-public final class GameLoop {
+public final class MainLoop {
 
-    public private(set) static var current: GameLoop = GameLoop()
+    public private(set) static var current: MainLoop = MainLoop()
 
     private var lastUpdate: LongTimeInterval = 0
 
@@ -43,7 +43,8 @@ public final class GameLoop {
             return
         }
 
-        EventManager.default.send(EngineEvents.GameLoopBegan(deltaTime: deltaTime))
+        EventManager.default.send(EngineEvents.MainLoopBegan(deltaTime: deltaTime))
+        try await AssetsManager.processResources()
 
         try RenderEngine.shared.beginFrame()
 

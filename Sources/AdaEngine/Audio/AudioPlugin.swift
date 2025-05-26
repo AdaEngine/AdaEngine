@@ -46,11 +46,16 @@ public struct AudioPlugin: WorldPlugin {
 }
 
 /// A system that managed an audio resources for spatial audio.
-public struct AudioSystem: System {
+@System
+public struct AudioSystem {
     
-    static let query = EntityQuery(where: .has(AudioPlaybacksControllers.self) && .has(Transform.self))
+    @EntityQuery(
+        where: .has(AudioPlaybacksControllers.self) && .has(Transform.self)
+    )
+    private var query
     
-    static let audioReceiverQuery = EntityQuery(where: .has(AudioReceiver.self) && .has(Transform.self))
+    @EntityQuery(where: .has(AudioReceiver.self) && .has(Transform.self))
+    private var audioReceiverQuery
     
     let audioEngine: AudioEngine
     
@@ -59,14 +64,14 @@ public struct AudioSystem: System {
     }
     
     public func update(context: UpdateContext) {
-        context.world.performQuery(Self.query).forEach { entity in
+        self.query.forEach { entity in
             let (audioComponent, transform) = entity.components[AudioPlaybacksControllers.self, Transform.self]
             audioComponent.controllers.forEach { controller in
                 controller.sound.position = transform.position
             }
         }
         
-        context.world.performQuery(Self.audioReceiverQuery).forEach { entity in
+        self.audioReceiverQuery.forEach { entity in
             var (audioReceiver, transform) = entity.components[AudioReceiver.self, Transform.self]
             
             if let listener = audioReceiver.audioListener, listener.position != transform.position {
@@ -94,16 +99,13 @@ public extension Entity {
     /// When you create an audio playback controller engine will automatically update position for spatial audio.
     func prepareAudio(_ resource: AudioResource) -> AudioPlaybackController {
         var controllers = self.components[AudioPlaybacksControllers.self] ?? AudioPlaybacksControllers()
-        
         if let controller = controllers.controllers.first(where: { $0.resource === resource }) {
             return controller
         }
         
         let playbackController = AudioServer.shared.prepareAudio(resource)
         playbackController.entity = self
-        
         controllers.controllers.append(playbackController)
-        
         self.components += controllers
         
         return playbackController

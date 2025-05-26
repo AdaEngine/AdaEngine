@@ -31,9 +31,10 @@ public final class TextureAtlas: Texture2D, @unchecked Sendable {
     // MARK: - Resource
     
     struct TextureAtlasAssetRepresentation: Codable {
-        let filePath: String
-        let spriteSize: Size
-        let margin: Size
+        let spriteSize: SizeInt
+        let margin: SizeInt
+        let info: AssetMetaInfo?
+        let sampler: SamplerDescriptor
     }
     
     // MARK: - Codable
@@ -43,41 +44,29 @@ public final class TextureAtlas: Texture2D, @unchecked Sendable {
         case spriteSize
     }
     
-    public required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        
-        self.margin = try container.decode(SizeInt.self, forKey: .margin)
-        self.spriteSize = try container.decode(SizeInt.self, forKey: .spriteSize)
-        
-        let superDecoder = try container.superDecoder()
-        let texture = try Texture2D(from: superDecoder)
-        
-        super.init(gpuTexture: texture.gpuTexture, sampler: texture.sampler, size: texture.size)
+    public required init(from assetDecoder: any AssetDecoder) throws {
+        let representation = try assetDecoder.decode(TextureAtlasAssetRepresentation.self)
+
+        self.spriteSize = representation.spriteSize
+        self.margin = representation.margin
+
+        guard let filePath = representation.info?.assetAbsolutePath else {
+            throw AssetDecodingError.decodingProblem("TextureAtlas: Can't decode TextureAtlas, because no file path passed.")
+        }
+
+        let image = try Image(contentsOf: filePath)
+        super.init(image: image, samplerDescription: representation.sampler)
     }
-    
-    public override func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.margin, forKey: .margin)
-        try container.encode(self.spriteSize, forKey: .spriteSize)
-        
-        let superEncoder = container.superEncoder()
-        try super.encode(to: superEncoder)
-    }
-    
-    public required init(asset decoder: any AssetDecoder) async throws {
-        let atlas = try decoder.decode(Self.self)
-        self.spriteSize = atlas.spriteSize
-        self.margin = atlas.margin
-        
-        super.init(
-            gpuTexture: atlas.gpuTexture,
-            sampler: atlas.sampler,
-            size: [atlas.width, atlas.height]
+
+    public override func encodeContents(with assetEncoder: any AssetEncoder) throws {
+        try assetEncoder.encode(
+            TextureAtlasAssetRepresentation(
+                spriteSize: self.spriteSize,
+                margin: self.margin,
+                info: self.assetMetaInfo,
+                sampler: self.sampler.descriptor
+            )
         )
-    }
-    
-    public override func encodeContents(with encoder: any AssetEncoder) async throws {
-        try encoder.encode(self)
     }
     
     // MARK: - Slices
@@ -106,7 +95,6 @@ public final class TextureAtlas: Texture2D, @unchecked Sendable {
             size: self.spriteSize
         )
     }
-    
 }
 
 public extension TextureAtlas {
@@ -157,33 +145,33 @@ public extension TextureAtlas {
             case size
         }
         
-        public required init(asset decoder: any AssetDecoder) async throws {
-            fatalError("init(asset:) has not been implemented")
-        }
-        
-        public convenience required init(from decoder: Decoder) throws {
-            let context = decoder.assetsDecodingContext
-            
-            let container = try decoder.container(keyedBy: CodingKeys.self)
-            
-            let path = try container.decode(String.self, forKey: .textureAtlasResource)
+        public convenience required init(from assetDecoder: any AssetDecoder) throws {
+            guard let container = try assetDecoder.decoder?.container(keyedBy: CodingKeys.self) else {
+                throw DecodingError.dataCorrupted(
+                    DecodingError.Context(
+                        codingPath: [],
+                        debugDescription: "Failed to decode \(Self.self). Decoder not passed."
+                    )
+                )
+            }
             let min = try container.decode(Vector2.self, forKey: .min)
             let max = try container.decode(Vector2.self, forKey: .max)
             let size = try container.decode(SizeInt.self, forKey: .size)
-            
-            let textureAtlas = try context.getOrLoadResource(at: path) as TextureAtlas
-
+            let textureAtlasDecoder = try container.superDecoder(forKey: .textureAtlasResource)
+            let textureAtlas = try assetDecoder.decode(TextureAtlas.self, from: textureAtlasDecoder)
             self.init(atlas: textureAtlas, min: min, max: max, size: size)
         }
         
-        public override func encode(to encoder: Encoder) throws {
-            var container = encoder.container(keyedBy: CodingKeys.self)
-
+        public override func encodeContents(with encoder: any AssetEncoder) throws {
             if self.atlas.assetPath.isEmpty {
                 throw AssetDecodingError.decodingProblem("Can't encode TextureAtlas.Slice, because TextureAtlas doesn't have resource path on disk.")
             }
+            
+            guard var container = encoder.encoder?.container(keyedBy: CodingKeys.self) else {
+                throw AssetDecodingError.decodingProblem("Can't encode TextureAtlas.Slice, because not encoder passed")
+            }
 
-            try container.encode(self.atlas.assetPath, forKey: .textureAtlasResource)
+            try encoder.encode(self.atlas, to: container.superEncoder(forKey: .textureAtlasResource))
             try container.encode(self.min, forKey: .min)
             try container.encode(self.max, forKey: .max)
             try container.encode(SizeInt(width: self.width, height: self.height), forKey: .size)

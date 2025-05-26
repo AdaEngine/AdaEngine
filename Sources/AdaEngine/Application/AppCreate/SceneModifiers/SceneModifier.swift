@@ -39,4 +39,8 @@ extension ModifiedScene: InternalAppScene {
     func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> UIWindow {
         try await (self.scene as! InternalAppScene)._makeWindow(with: configuration)
     }
+
+    func _getFilePath() -> StaticString {
+        (self.scene as? InternalAppScene)?._getFilePath() ?? #filePath
+    }
 }

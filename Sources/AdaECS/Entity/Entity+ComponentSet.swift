@@ -33,6 +33,11 @@ public extension Entity {
             self.bitset = BitSet()
             self.buffer = [:]
         }
+
+        init(from other: Self) {
+            self.buffer = other.buffer
+            self.bitset = other.bitset
+        }
         
         /// Create component set from decoder.
         public init(from decoder: Decoder) throws {
@@ -51,6 +56,7 @@ public extension Entity {
                 if let decodable = type as? Decodable.Type {
                     let component = try decodable.init(from: container.superDecoder(forKey: key))
                     self.buffer[type.identifier] = component as? Component
+                    self.bitset.insert(type.identifier)
                 }
             }
         }
@@ -99,7 +105,7 @@ public extension Entity {
             let isChanged = self.buffer[identifier] != nil
             
             self.buffer[identifier] = component
-            self.bitset.insert(T.self)
+            self.bitset.insert(T.identifier)
             guard let ent = self.entity else {
                 return
             }
@@ -185,11 +191,11 @@ public extension Entity {
                 return false
             }
 
-            return world?.isComponentChanged(T.identifier, for: entity) ?? false
+            return world?.isComponentChanged(componentType, for: entity) ?? false
         }
-        
-        public func isComponentChanged<T: Component>(_ component: T) -> Bool {
-            return self.isComponentChanged(T.self)
+
+        public func copy() -> Self {
+            return Self(from: self)
         }
     }
 }
@@ -251,6 +257,26 @@ private extension Entity.ComponentSet {
     struct ComponentRepresentable<T: Codable>: Codable {
         let type: String
         let value: T
+    }
+}
+
+extension Entity.ComponentSet {
+    func get<T: Component>(by identifier: ComponentId) -> T? {
+        return (self.buffer[identifier] as? T)
+    }
+    
+    subscript<T: Component>(by componentId: ComponentId) -> T? where T : Component {
+        get {
+            return buffer[T.identifier] as? T
+        }
+        
+        set {
+            if let newValue {
+                self.set(newValue)
+            } else {
+                self.remove(T.self)
+            }
+        }
     }
 }
 

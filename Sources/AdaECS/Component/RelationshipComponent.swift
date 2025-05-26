@@ -52,7 +52,7 @@ public extension Entity {
     func addChild(_ entity: Entity) {
         assert(!self.children.contains { $0 === entity }, "Currently has entity in child")
         assert(self !== entity, "Could not add entity as its child")
-
+        entity.world = self.world
         var relationship = self.components[RelationshipComponent.self] ?? RelationshipComponent()
 
         entity.components[RelationshipComponent.self]?.parent = self.id

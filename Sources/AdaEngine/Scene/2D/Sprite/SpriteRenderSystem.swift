@@ -220,11 +220,13 @@ public struct ExtractedSprite: Sendable {
 }
 
 /// Exctract sprites to RenderWorld for future rendering.
-public struct ExtractSpriteSystem: System {
+@System(dependencies: [
+    .after(VisibilitySystem.self)
+])
+public struct ExtractSpriteSystem {
 
-    public static let dependencies: [SystemDependency] = [.after(VisibilitySystem.self)]
-
-    static let sprites = EntityQuery(where: .has(SpriteComponent.self) && .has(GlobalTransform.self) && .has(Transform.self) && .has(Visibility.self))
+    @Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>
+    private var sprites
 
     public init(world: World) { }
 
@@ -232,9 +234,7 @@ public struct ExtractSpriteSystem: System {
         let extractedEntity = Entity(name: "ExtractedSpriteEntity")
         var extractedSprites = ExtractedSprites(sprites: [])
 
-        context.world.performQuery(Self.sprites).forEach { entity in
-            let (sprite, globalTransform, transform, visible) = entity.components[SpriteComponent.self, GlobalTransform.self, Transform.self, Visibility.self]
-
+        self.sprites.forEach { entity, sprite, globalTransform, transform, visible in
             if visible == .hidden {
                 return
             }
@@ -242,7 +242,7 @@ public struct ExtractSpriteSystem: System {
             extractedSprites.sprites.append(
                 ExtractedSprite(
                     entityId: entity.id,
-                    texture: sprite.texture,
+                    texture: sprite.texture?.asset,
                     flipX: sprite.flipX,
                     flipY: sprite.flipY,
                     tintColor: sprite.tintColor,

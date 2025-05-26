@@ -6,7 +6,7 @@
 //
 
 /// Base class describing a texture.
-open class Texture: Asset, Codable, @unchecked Sendable {
+open class Texture: Asset, @unchecked Sendable {
     
     private(set) var gpuTexture: GPUTexture
     
@@ -32,25 +32,17 @@ open class Texture: Asset, Codable, @unchecked Sendable {
         return Image()
     }
     
-    public required init(asset decoder: any AssetDecoder) async throws {
+    public required init(from assetDecoder: any AssetDecoder) throws {
         fatalErrorMethodNotImplemented()
     }
     
-    public func encodeContents(with encoder: any AssetEncoder) async throws {
+    public func encodeContents(with encoder: any AssetEncoder) throws {
         fatalErrorMethodNotImplemented()
     }
     
-    public required init(from decoder: Decoder) throws {
-        fatalErrorMethodNotImplemented()
+    public static func extensions() -> [String] {
+        return ["tex"]
     }
-    
-    public func encode(to encoder: Encoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    // MARK: - Resources
-    
-    public static let assetType: AssetType = .texture
 }
 
 public extension Texture {
@@ -122,6 +114,11 @@ extension Texture: RuntimeRegistrable {
     
     @MainActor
     public static func registerTypes() {
+        AssetsManager.registerAssetType(Texture2D.self)
+        AssetsManager.registerAssetType(TextureAtlas.self)
+        AssetsManager.registerAssetType(TextureAtlas.Slice.self)
+        AssetsManager.registerAssetType(AnimatedTexture.self)
+        
         Texture2D.registerTextureType()
         TextureAtlas.registerTextureType()
         AnimatedTexture.registerTextureType()

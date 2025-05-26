@@ -1,0 +1,115 @@
+version: 1.0.0
+scene: Scene
+instantiateDefaultPlugin: true
+world:
+  entities:
+  - name: Ground
+    id: 122205517774981650
+    components:
+      AdaEngine.SpriteComponent:
+        texture:
+          type: AdaEngine.TextureAtlas.Slice
+          meta:
+            textureAtlasResource:
+              spriteSize:
+                width: 18
+                height: 18
+              margin:
+                width: 0
+                height: 0
+              info:
+                assetPath: '@res://tiles_packed.png'
+              sampler:
+                minFilter: nearest
+                magFilter: nearest
+                mipFilter: nearest
+                lodMinClamp: 0
+                lodMaxClamp: 3.4028234663852886e+38
+            min:
+              x: 0
+              y: 0
+            max:
+              x: 0.05
+              y: 0.1111111
+            size:
+              width: 18
+              height: 18
+        tintColor:
+          red: 1
+          green: 1
+          blue: 1
+          alpha: 1
+        flipX: false
+        flipY: false
+      AdaEngine.Transform:
+        rotation:
+          x: 0
+          y: 0
+          z: 0
+          w: 1
+        scale:
+          x: 3
+          y: 0.19
+          z: 0.19
+        position:
+          x: 0
+          y: -1
+          z: 0
+      AdaEngine.Collision2DComponent:
+        shapes:
+        - fixture:
+            box:
+              _0:
+                halfWidth: 0.5
+                halfHeight: 0.5
+                offset:
+                  x: 0
+                  y: 0
+        filter:
+          categoryBitMask: 1
+          collisionBitMask: 18446744073709551615
+        mode:
+          default: {}
+  - name: Ground 2
+    id: 122205517774981690
+    components:
+      AdaEngine.SpriteComponent:
+        tintColor:
+          red: 0.3
+          green: 0
+          blue: 0
+          alpha: 1
+        flipX: false
+        flipY: false
+      AdaEngine.Transform:
+        rotation:
+          x: 0
+          y: 0
+          z: 0
+          w: 1
+        scale:
+          x: 0.39
+          y: 0.39
+          z: 0.39
+        position:
+          x: 0
+          y: 0.3
+          z: 0
+      AdaEngine.Collision2DComponent:
+        shapes:
+        - fixture:
+            box:
+              _0:
+                halfWidth: 0.5
+                halfHeight: 0.5
+                offset:
+                  x: 0
+                  y: 0
+        filter:
+          categoryBitMask: 1
+          collisionBitMask: 18446744073709551615
+        mode:
+          default: {}
+  systems: []
+  plugins: []
+  resources: {}

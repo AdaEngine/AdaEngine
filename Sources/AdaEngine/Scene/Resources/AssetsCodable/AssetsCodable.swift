@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 3/9/23.
 //
 
+import AdaUtils
+
 // TODO: Mode for decoding/encoding files from/into binary format.
 
 public struct AssetQuery: Sendable {
@@ -41,9 +43,13 @@ public protocol AssetEncoder: Sendable {
     /// - Returns: Meta information about asset.
     var assetMeta: AssetMeta { get }
     
+    var encoder: (any Encoder)? { get }
+    
     /// Use this method to encode content from asset.
     /// - Note: If you call this method more than once, than previous encode data will overwritten.
     func encode<T: Encodable>(_ value: T) throws
+    
+    func encode<A: Asset>(_ asset: A, to encoder: any Encoder) throws
 }
 
 // MARK: - Decoder -
@@ -56,9 +62,19 @@ public protocol AssetDecoder: Sendable {
     
     /// - Returns: asset file data.
     var assetData: Data { get }
-
+    
+    /// - Returns: decoder.
+    var decoder: (any Decoder)? { get }
+    
+    func getOrLoadResource<A: Asset>(
+        _ resourceType: A.Type,
+        at path: String
+    ) throws -> AssetHandle<A>
+    
     /// Use this method to decode content from asset.
     func decode<T: Decodable>(_ type: T.Type) throws -> T
+    
+    func decode<A: Asset>(_ type: A.Type, from decoder: any Decoder) throws -> A
 }
 
 // MARK: Asset Decoding Context
@@ -66,37 +82,19 @@ public protocol AssetDecoder: Sendable {
 public extension CodingUserInfoKey {
     /// Returns ``AssetDecodingContext`` object that contains information about resources
     static let assetsDecodingContext: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetdecoder.context")!
+    
+    /// Returns ``AssetEncodingContext`` object that contains information about resources
+    static let assetsEncodingContext: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetencoder.context")!
 
     /// Returns ``AssetMeta`` object that contains information about resources
     static let assetMetaInfo: CodingUserInfoKey = CodingUserInfoKey(rawValue: "org.adaengine.assetsMetaInfo")!
 }
 
-/// Context contains all resolved resources from decoding.
-public final class AssetDecodingContext: @unchecked Sendable {
-
-    private var resources: [String: WeakBox<AnyObject>] = [:]
-
-    public func getOrLoadResource<A: Asset>(at path: String) throws -> A {
-        if let value = self.resources[path]?.value as? A {
-            return value
-        } else {
-            let value = try AssetsManager.loadSync(path, ignoreCache: true) as A
-            self.appendResource(value)
-            
-            return value
-        }
-    }
-
-    public func appendResource<A: Asset>(_ resource: A) {
-        self.resources[resource.assetPath] = WeakBox(value: resource)
-    }
-}
-
 public extension Decoder {
     /// Returns instance of asset decoding context if exists.
     /// - Warning: Only available if you save asset from AssetsManager
-    var assetsDecodingContext: AssetDecodingContext {
-        guard let context = self.userInfo[.assetsDecodingContext] as? AssetDecodingContext else {
+    var assetsDecoder: AssetDecoder {
+        guard let context = self.userInfo[.assetsDecodingContext] as? AssetDecoder else {
             fatalError("AssetDecodingContext info available if you save resouce from AssetsManager object.")
         }
         
@@ -124,5 +122,15 @@ public extension Encoder {
         }
         
         return meta
+    }
+    
+    /// Returns instance of asset encoding context if exists.
+    /// - Warning: Only available if you save asset from AssetsManager
+    var assetsEncoder: AssetEncoder {
+        guard let context = self.userInfo[.assetsEncodingContext] as? AssetEncoder else {
+            fatalError("AssetEncodingContext info available if you save resouce from AssetsManager object.")
+        }
+        
+        return context
     }
 }

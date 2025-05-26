@@ -22,28 +22,11 @@ public class TileSet: Asset, Codable, @unchecked Sendable {
     public private(set) var sources: OrderedDictionary<TileSource.ID, TileSource> = [:]
 
     public internal(set) weak var tileMap: TileMap?
-    
-    // MARK: - Codable
-    
-    public required init(from decoder: any Decoder) throws {
-        let file = try decoder.singleValueContainer().decode(FileContent.self)
-        self.tileSize = file.tileSize
-        
-        for source in file.sources.elements.values {
-            self.addTileSource(source)
-        }
-    }
-    
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
-    }
 
     // MARK: - Resource
 
-    @MainActor
-    public required init(asset decoder: AssetDecoder) async throws {
-        let file = try decoder.decode(FileContent.self)
+    public required init(from assetDecoder: AssetDecoder) throws {
+        let file = try assetDecoder.decode(FileContent.self)
         self.tileSize = file.tileSize
         
         for source in file.sources.elements.values {
@@ -55,8 +38,11 @@ public class TileSet: Asset, Codable, @unchecked Sendable {
         try encoder.encode(FileContent(tileSize: self.tileSize, sources: self.sources))
     }
 
-    public static let assetType: AssetType = .text
     public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
+    
+    public static func extensions() -> [String] {
+        ["tileset"]
+    }
 
     public init() {}
 

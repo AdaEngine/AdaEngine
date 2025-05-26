@@ -10,10 +10,9 @@ import Logging
 
 @main
 struct AdaEditorApp: App {
-
     var scene: some AppScene {
         GameAppScene {
-            GameScene2D()
+            GameScene2D(name: "Kek")
         }
         .windowMode(.windowed)
         .windowTitle("AdaEngine")

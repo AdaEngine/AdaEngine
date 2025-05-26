@@ -20,6 +20,11 @@ public final class WeakBox<T: AnyObject>: Identifiable, Hashable, @unchecked Sen
         self.value = value
         self.id = ObjectIdentifier(value)
     }
+
+    public init(_ value: T) {
+        self.value = value
+        self.id = ObjectIdentifier(value)
+    }
     
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.id)

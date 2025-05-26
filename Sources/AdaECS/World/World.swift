@@ -18,7 +18,10 @@ import Collections
 /// component type. Entity components can be created, updated, removed, and queried using a given World.
 /// - Warning: Still work in progress.
 public final class World: @unchecked Sendable, Codable {
-
+    
+    public typealias ID = RID
+    
+    public let id = ID()
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 
     internal private(set) var removedEntities: Set<Entity.ID> = []
@@ -29,6 +32,8 @@ public final class World: @unchecked Sendable, Codable {
     
     private var updatedEntities: Set<Entity> = []
     private var updatedComponents: [Entity: Set<ComponentId>] = [:]
+
+    private var componentsStorage = ComponentsStorage()
     
     internal let systemGraph = SystemsGraph()
     internal let systemGraphExecutor = SystemsGraphExecutor()
@@ -49,6 +54,22 @@ public final class World: @unchecked Sendable, Codable {
 
         for entity in entities {
             self.addEntity(entity)
+        }
+
+        let resourcesContainer = try container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
+        for resourceKey in resourcesContainer.allKeys {
+            guard let resourceType = ResourceStorage.getRegisteredResource(for: resourceKey.stringValue) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .resources, 
+                    in: container, 
+                    debugDescription: "Resource \(resourceKey) not found"
+                )
+            }
+
+            if let decodable = resourceType as? Decodable.Type {
+                let resource = try decodable.init(from: resourcesContainer.superDecoder(forKey: resourceKey))
+                self.insertResource(resource as! Resource)
+            }
         }
 
         self.tick()
@@ -82,6 +103,10 @@ public final class World: @unchecked Sendable, Codable {
         try container.encode(self.getEntities() + updatedEntities, forKey: .entities)
         try container.encode(self.systemGraph.systems.map { type(of: $0).swiftName }, forKey: .systems)
         try container.encode(self.plugins.map { type(of: $0).swiftName }, forKey: .plugins)
+        var unkeyedContainer = container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
+        for resource in self.componentsStorage.resourceComponents.values {
+            try unkeyedContainer.encode(AnyEncodable(resource), forKey: CodingName(stringValue: type(of: resource).swiftName))
+        }
     }
     
     /// Get all entities in world.
@@ -122,40 +147,34 @@ public final class World: @unchecked Sendable, Codable {
         return nil
     }
     
-    public func addSystem<T: System>(_ systemType: T.Type) {
+    /// Add new system to the world.
+    /// - Warning: System should be added before build.
+    /// - Parameter systemType: System type.
+    @discardableResult
+    public func addSystem<T: System>(_ systemType: T.Type) -> Self {
         if self.isReady {
             assertionFailure("Can't insert system if scene was ready")
+            return self
         }
-
         let system = systemType.init(world: self)
         self.systemGraph.addSystem(system)
+        return self
     }
     
     /// Add new scene plugin to the scene.
-    /// - Warning: Plugin should be added before presenting.
-    public func addPlugin<T: WorldPlugin>(_ plugin: T) {
+    /// - Warning: Plugin should be added before build.
+    /// - Parameter plugin: Plugin instance.
+    @discardableResult
+    public func addPlugin<T: WorldPlugin>(_ plugin: T) -> Self {
         if self.isReady {
             assertionFailure("Can't insert plugin if scene was ready")
+            return self
         }
-
         plugin.setup(in: self)
         self.plugins.append(plugin)
+        return self
     }
-    
-    // FIXME: Can crash if we change components set during runtime
-    
-    /// Add a new entity to the world. This entity will be available on the next update tick.
-    /// - Warning: If entity has different world, than we return assertation error.
-    public func addEntity(_ entity: Entity) {
-        precondition(entity.world !== self, "Entity has different world reference, and can't be added")
-        entity.world = self
-        
-        self.updatedEntities.insert(entity)
-        self.addedEntities.insert(entity.id)
-        
-        eventManager.send(WorldEvents.DidAddEntity(entity: entity), source: self)
-    }
-    
+
     public func build() {
         if isReady {
             fatalError("World already configured")
@@ -165,8 +184,34 @@ public final class World: @unchecked Sendable, Codable {
         self.tick()
     }
     
-    func removeEntity(_ entity: Entity) {
+    /// Add a new entity to the world. This entity will be available on the next update tick.
+    @discardableResult
+    public func addEntity(_ entity: Entity) -> Self {
+        let entity = entity.world?.id != self.id ? entity.copy() : entity
+        entity.world = self
+        
+        self.updatedEntities.insert(entity)
+        self.addedEntities.insert(entity.id)
+        
+        eventManager.send(WorldEvents.DidAddEntity(entity: entity), source: self)
+        return self
+    }
+    
+    /// Remove entity from world.
+    /// - Parameter recursively: also remove entity child.
+    @discardableResult
+    public func removeEntity(_ entity: Entity, recursively: Bool = false) -> Self {
         self.removeEntityRecord(entity.id)
+
+        guard recursively && !entity.children.isEmpty else {
+            return self
+        }
+
+        for child in entity.children {
+            self.removeEntity(child, recursively: recursively)
+        }
+        
+        return self
     }
     
     /// Remove entity from world.
@@ -189,49 +234,55 @@ public final class World: @unchecked Sendable, Codable {
         }
     }
 
-    func isComponentChanged(_ component: ComponentId, for entity: Entity) -> Bool {
-        return self.updatedComponents[entity]?.contains(component) ?? false
+    /// Insert a resource into the world.
+    /// - Parameter resource: The resource to insert.
+    @discardableResult
+    public func insertResource<T: Resource>(_ resource: T) -> Self {
+        let componentId = self.componentsStorage.getOrRegisterResource(T.self)
+        self.componentsStorage.resourceComponents[componentId] = resource
+        return self
     }
 
-    private func removeEntityRecord(_ entity: Entity.ID) {
-        guard let record = self.records[entity] else {
-            return
-        }
-        self.records[entity] = nil
-        
-        guard let currentArchetype = self.archetypes[record.archetypeId] else {
-            assertionFailure("Incorrect record of archetype \(record)")
-            return
-        }
-        currentArchetype.remove(at: record.row)
-        
-        if currentArchetype.entities.isEmpty {
-            self.archetypes[record.archetypeId]!.clear()
-            self.freeArchetypeIndices.append(record.archetypeId)
-        }
+    @discardableResult
+    public func insertResource(_ resource: any Resource) -> Self {
+        let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
+        self.componentsStorage.resourceComponents[componentId] = resource
+        return self
+    }
+
+    /// Remove a resource from the world.
+    /// - Parameter resource: The resource to remove.
+    public func removeResource<T: Resource>(_ resource: T.Type) {
+        self.componentsStorage.removeResource(resource)
+    }
+
+    /// Get a resource from the world.
+    /// - Parameter resource: The resource to get.
+    /// - Returns: The resource if it exists, otherwise nil.
+    public func getResource<T: Resource>(_ resource: T.Type) -> T? {
+        return self.componentsStorage.getResource(resource)
+    }
+
+    public func getResources() -> [any Resource] {
+        return Array(self.componentsStorage.resourceComponents.values)
+    }
+
+    /// Check if component was changed for entity.
+    /// - Parameter component: Component identifier.
+    /// - Parameter entity: Entity.
+    /// - Returns: True if component was changed for entity, otherwise false.
+    public func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
+        return self.updatedComponents[entity]?.contains(T.identifier) ?? false
     }
     
     /// Update all data in world.
-    /// In this step we move entities to matched archetypes and remove pending in delition entities.
-    public func tick() {
-        self.moveEntitiesToMatchedArchetypesIfNeeded()
-        
-        for entityId in self.removedEntities {
-            self.removeEntityRecord(entityId)
-        }
-        
-        // Should think about it
-        self.removedEntities.removeAll(keepingCapacity: true)
-        self.addedEntities.removeAll(keepingCapacity: true)
-        self.updatedComponents.removeAll(keepingCapacity: true)
-    }
-    
+    /// - Parameter deltaTime: Time interval since last update.
     @MainActor
     public func update(_ deltaTime: TimeInterval) async {
         self.tick()
         
-        await withTaskGroup { @MainActor group in
-            let context = SceneUpdateContext(
+        await withTaskGroup(of: Void.self) { @MainActor group in
+            let context = WorldUpdateContext(
                 world: self,
                 deltaTime: deltaTime,
                 scheduler: group
@@ -252,7 +303,7 @@ public final class World: @unchecked Sendable, Codable {
     }
 }
 
-// MARK: - Private
+// MARK: - Delegate
 
 extension World {    
     func entity(_ entity: Entity, didAddComponent component: Component, with identifier: ComponentId) {
@@ -277,17 +328,50 @@ extension World {
 }
 
 private extension World {
+    /// Update all data in world.
+    /// In this step we move entities to matched archetypes and remove pending in delition entities.
+    func tick() {
+        self.moveEntitiesToMatchedArchetypesIfNeeded()
+        
+        for entityId in self.removedEntities {
+            self.removeEntityRecord(entityId)
+        }
+        
+        // Should think about it
+        self.removedEntities.removeAll(keepingCapacity: true)
+        self.addedEntities.removeAll(keepingCapacity: true)
+        self.updatedComponents.removeAll(keepingCapacity: true)
+    }
+
+    private func removeEntityRecord(_ entity: Entity.ID) {
+        guard let record = self.records[entity] else {
+            return
+        }
+        self.records[entity] = nil
+        
+        guard let currentArchetype = self.archetypes[record.archetypeId] else {
+            assertionFailure("Incorrect record of archetype \(record)")
+            return
+        }
+        currentArchetype.remove(at: record.row)
+        
+        if currentArchetype.entities.isEmpty {
+            self.archetypes[record.archetypeId]!.clear()
+            self.freeArchetypeIndices.append(record.archetypeId)
+        }
+    }
+
     /// Find or create matched arhcetypes for all entities that wait update
     private func moveEntitiesToMatchedArchetypesIfNeeded() {
-        if self.updatedEntities.isEmpty {
+        guard !self.updatedEntities.isEmpty else {
             return
         }
         
         for entity in self.updatedEntities {
-            let bitmask = entity.components.bitset
+           let bitmask = entity.components.bitset
+            assert(!bitmask.isEmpty, "Entity \(entity.name) has empty bitmask")
             
             if let record = self.records[entity.id], let currentArchetype = self.archetypes[record.archetypeId] {
-                
                 // We currently updated existed components
                 if currentArchetype.componentsBitMask == bitmask {
                     continue
@@ -324,12 +408,11 @@ private extension World {
         
         self.updatedEntities.removeAll(keepingCapacity: true)
     }
-    
 }
 
 extension World {
     /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
-    public func performQuery(_ query: EntityQuery) -> QueryResult {
+    public func performQuery(_ query: EntityQuery) -> QueryResult<QueryBuilderTargets<Entity>> {
         let state = query.state
         state.updateArchetypes(in: self)
         return QueryResult(state: state)
@@ -354,7 +437,67 @@ public enum WorldEvents {
 private extension World {
     enum CodingKeys: String, CodingKey {
         case entities
+        case resources
         case systems
         case plugins
+    }
+}
+
+extension World {
+    struct ComponentsStorage {
+        var components: [ComponentId] = []
+        var resourceIds: [ObjectIdentifier: ComponentId] = [:]
+        var resourceComponents: [ComponentId: any Resource] = [:]
+
+        @discardableResult
+        mutating func registerComponent() -> ComponentId {
+            let id = ComponentId(id: components.count)
+            self.components.append(id)
+            return id
+        }
+
+        mutating func getOrRegisterComponent<T: Component>(
+            _ component: T.Type
+        ) -> ComponentId {
+            let id = ObjectIdentifier(T.self)
+            if let componentId = self.resourceIds[id] {
+                return componentId
+            }
+            return registerComponent()
+        }
+
+        mutating func getOrRegisterResource(
+            _ resource: any Resource.Type
+        ) -> ComponentId {
+            let id = resource.identifier
+            if let componentId = self.resourceIds[id] {
+                return componentId
+            }
+            return registerResource(resource)
+        }
+
+        mutating func registerResource<T: Resource>(_ resource: T.Type) -> ComponentId {
+            let id = ObjectIdentifier(T.self)
+            let componentId = registerComponent()
+            self.resourceIds[id] = componentId
+            return componentId
+        }
+
+        func getResource<T: Resource>(_ resource: T.Type) -> T? {
+            let id = ObjectIdentifier(T.self)
+            guard let componentId = self.resourceIds[id] else {
+                return nil
+            }
+            return self.resourceComponents[componentId] as? T
+        }
+
+        mutating func removeResource<T: Resource>(_ resource: T.Type) {
+            let id = ObjectIdentifier(T.self)
+            guard let componentId = self.resourceIds[id] else {
+                return
+            }
+            self.resourceComponents[componentId] = nil
+            self.resourceIds[id] = nil
+        }
     }
 }

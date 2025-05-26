@@ -8,15 +8,19 @@
 import AdaECS
 import Math
 
-public struct UISystem: System, Sendable {
-    private static let query = EntityQuery(where: .has(UIComponent.self) && .has(GlobalTransform.self))
+@System
+public struct UISystem: Sendable {
+    @EntityQuery(where: .has(UIComponent.self) && .has(GlobalTransform.self))
+    private var uiComponents
 
     public init(world: World) {}
 
     public func update(context: UpdateContext) {
-        let entities = context.world.performQuery(Self.query)
-        let scene = context.scene
-        for entity in entities {
+        guard let scene = context.scene else {
+            return
+        }
+
+        for entity in self.uiComponents {
             context.scheduler.addTask {
                 await update(entity: entity, scene: scene, deltaTime: context.deltaTime)
             }

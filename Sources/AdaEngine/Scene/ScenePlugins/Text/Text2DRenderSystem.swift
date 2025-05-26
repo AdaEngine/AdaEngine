@@ -38,10 +38,14 @@ public struct Text2DRenderSystem: RenderSystem, Sendable {
     public init(world: World) {
         let device = RenderEngine.shared.renderDevice
 
-        let textShader = try! AssetsManager.loadSync("Shaders/Vulkan/text.glsl", from: .engineBundle) as ShaderModule
+        let textShader = try! AssetsManager.loadSync(
+            ShaderModule.self, 
+            at: "Shaders/Vulkan/text.glsl", 
+            from: .engineBundle
+        )
         var piplineDesc = RenderPipelineDescriptor()
-        piplineDesc.vertex = textShader.getShader(for: .vertex)
-        piplineDesc.fragment = textShader.getShader(for: .fragment)
+        piplineDesc.vertex = textShader.asset.getShader(for: .vertex)
+        piplineDesc.fragment = textShader.asset.getShader(for: .fragment)
         piplineDesc.debugName = "Text Pipeline"
 
         piplineDesc.vertexDescriptor.attributes.append([
@@ -53,7 +57,6 @@ public struct Text2DRenderSystem: RenderSystem, Sendable {
         ])
 
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<GlyphVertexData>.stride
-
         piplineDesc.colorAttachments = [ColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
 
         let quadPipeline = device.createRenderPipeline(from: piplineDesc)
@@ -96,7 +99,7 @@ public struct Text2DRenderSystem: RenderSystem, Sendable {
             let currentBatchEntity = EmptyEntity()
 
             let transform = entity.components[Transform.self]!
-            let worldTransform = world.worldTransformMatrix(for: entity)
+            let worldTransform = entity.components[GlobalTransform.self]!.matrix
 
             let glyphs = textLayout.textLayout.getGlyphVertexData(transform: worldTransform)
 
@@ -166,19 +169,22 @@ public struct Text2DRenderSystem: RenderSystem, Sendable {
     }
 }
 
-struct ExctractTextSystem: System {
+@System(dependencies: [
+    .after(VisibilitySystem.self),
+    .after(Text2DLayoutSystem.self)
+])
+struct ExctractTextSystem {
 
-    static let dependencies: [SystemDependency] = [
-        .after(VisibilitySystem.self),
-        .after(Text2DLayoutSystem.self)
-    ]
-
-    static let textComponents = EntityQuery(where: .has(Text2DComponent.self) && .has(Transform.self) && .has(Visibility.self) && .has(TextLayoutComponent.self))
+    @EntityQuery(
+        where: .has(Text2DComponent.self) && .has(Transform.self) &&
+            .has(Visibility.self) && .has(TextLayoutComponent.self)
+    )
+    private var textComponents
 
     init(world: World) { }
 
     func update(context: UpdateContext) {
-        context.world.performQuery(Self.textComponents).forEach { entity in
+        self.textComponents.forEach { entity in
             if entity.components[Visibility.self] == .hidden {
                 return
             }
