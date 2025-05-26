@@ -311,7 +311,7 @@ let package = Package(
 
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", from: "1.1.1"),
-    .package(url: "https://github.com/jpsim/Yams", from: "6.0.0"),
+    .package(url: "https://github.com/SpectralDragon/Yams.git", branch: "main"),
     .package(url: "https://github.com/apple/swift-log", from: "1.5.4"),
     .package(url: "https://github.com/apple/swift-numerics", from: "1.0.0"),
     // Plugins
