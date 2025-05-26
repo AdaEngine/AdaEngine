@@ -33,6 +33,11 @@ public extension Entity {
             self.bitset = BitSet()
             self.buffer = [:]
         }
+
+        init(from other: Self) {
+            self.buffer = other.buffer
+            self.bitset = other.bitset
+        }
         
         /// Create component set from decoder.
         public init(from decoder: Decoder) throws {
@@ -51,6 +56,7 @@ public extension Entity {
                 if let decodable = type as? Decodable.Type {
                     let component = try decodable.init(from: container.superDecoder(forKey: key))
                     self.buffer[type.identifier] = component as? Component
+                    self.bitset.insert(type.identifier)
                 }
             }
         }
@@ -186,6 +192,10 @@ public extension Entity {
             }
 
             return world?.isComponentChanged(componentType, for: entity) ?? false
+        }
+
+        public func copy() -> Self {
+            return Self(from: self)
         }
     }
 }

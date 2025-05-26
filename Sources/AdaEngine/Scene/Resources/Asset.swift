@@ -104,7 +104,6 @@ public struct AssetMetaInfo: Codable, Sendable {
 }
 
 public final class AssetHandle<T: Asset>: Codable, Sendable {
-    
     public nonisolated(unsafe) var asset: T
     
     public init(_ asset: T) {
@@ -136,8 +135,24 @@ public final class AssetHandle<T: Asset>: Codable, Sendable {
         try encoder.assetsEncoder.encode(asset, to: superEncoder)
     }
 
-    @AssetActor
+    
     func update(_ newAsset: T) async throws {
         self.asset = newAsset
     }
+}
+
+extension AssetHandle: AnyAssetHandle {
+    @AssetActor
+    func update(_ newAsset: any Asset) throws {
+        guard newAsset is T else {
+            throw AssetError.message("Asset \(newAsset) is not of type \(T.self)")
+        }
+
+        self.asset = newAsset as! T
+    }
+}
+
+protocol AnyAssetHandle {
+    @AssetActor
+    func update(_ newAsset: any Asset) throws
 }

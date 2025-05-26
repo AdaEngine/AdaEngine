@@ -119,6 +119,10 @@ struct BitSet: Equatable, Hashable, Sendable {
    // TODO: (Vlad) Not efficient in memory layout.
    private var mask: Set<ComponentId>
 
+   var isEmpty: Bool {
+    return self.mask.isEmpty
+   }
+
    init(reservingCapacity: Int = 0) {
        self.mask = []
        self.mask.reserveCapacity(reservingCapacity)

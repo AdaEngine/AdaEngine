@@ -3,8 +3,48 @@ scene: Scene
 instantiateDefaultPlugin: true
 world:
   entities:
+  - name: Ground 2
+    id: 122205438265634730
+    components:
+      AdaEngine.SpriteComponent:
+        tintColor:
+          red: 1e+0
+          green: 0e+0
+          blue: 0e+0
+          alpha: 1e+0
+        flipX: false
+        flipY: false
+      AdaEngine.Transform:
+        rotation:
+          x: 0e+0
+          y: 0e+0
+          z: 0e+0
+          w: 1e+0
+        scale:
+          x: 4.90000009536743e-1
+          y: 4.90000009536743e-1
+          z: 4.90000009536743e-1
+        position:
+          x: 0e+0
+          y: 3.00000011920929e-1
+          z: 0e+0
+      AdaEngine.Collision2DComponent:
+        shapes:
+        - fixture:
+            box:
+              _0:
+                halfWidth: 5e-1
+                halfHeight: 5e-1
+                offset:
+                  x: 0e+0
+                  y: 0e+0
+        filter:
+          categoryBitMask: 1
+          collisionBitMask: 18446744073709551615
+        mode:
+          default: {}
   - name: Ground
-    id: 122204666199284590
+    id: 122205438265634700
     components:
       AdaEngine.SpriteComponent:
         texture:

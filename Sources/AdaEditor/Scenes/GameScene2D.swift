@@ -134,7 +134,21 @@ final class GameScene2D: Scene, @unchecked Sendable {
             ]
         )
 
+        transform.position.y = -1.5
+
+        let texturedEntity = Entity(name: "Ground 2")
+        texturedEntity.components += SpriteComponent(tintColor: .red)
+        texturedEntity.components += Transform()
+            .setPosition(Vector3(0, 0.3, 0))
+            .setScale(Vector3(0.49, 0.49, 0.49))
+        texturedEntity.components += Collision2DComponent(
+            shapes: [
+                .generateBox()
+            ]
+        )
+
         scene.world.addEntity(untexturedEntity)
+        scene.world.addEntity(texturedEntity)
 
         Task {
             try await AssetsManager.save(scene, at: "@res://", name: "Subscene.ascn")

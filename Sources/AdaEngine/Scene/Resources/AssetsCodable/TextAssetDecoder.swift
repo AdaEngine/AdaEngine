@@ -54,7 +54,8 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
             return self.assetData as! T
         }
         
-        return try YAMLDecoder(encoding: .utf8)._decode(T.self, from: self.assetData, userInfo: [
+        let decoder = YAMLDecoder(encoding: .utf8)
+        return try decoder._decode(T.self, from: self.assetData, userInfo: [
             .assetsDecodingContext: self,
             .assetMetaInfo: self.assetMeta
         ])
