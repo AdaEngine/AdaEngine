@@ -32,7 +32,11 @@ public final class Archetype: Hashable, Identifiable, @unchecked Sendable {
     var edge: Edge = Edge()
     var componentsBitMask: BitSet = BitSet()
     
-    private init(id: Archetype.ID, entities: [Entity] = [], componentsBitMask: BitSet = BitSet()) {
+    private init(
+        id: Archetype.ID,
+        entities: [Entity] = [],
+        componentsBitMask: BitSet = BitSet()
+    ) {
         self.id = id
         self.entities = SparseArray(entities)
         self.componentsBitMask = componentsBitMask
@@ -96,7 +100,7 @@ extension Archetype: CustomStringConvertible {
         """
         Archetype(
             id: \(id)
-            entityIds: \(""/*entities.compactMap { $0.id }*/)
+            entityIds: \(entities.compactMap { $0.id })
             componentsBitMask: \(componentsBitMask)
         )
         """
@@ -110,33 +114,37 @@ extension Archetype {
     }
 }
 
-// FIXME: (Vlad) not a bit set!
+//// FIXME: (Vlad) not a bit set! 
 struct BitSet: Equatable, Hashable, Sendable {
-    // TODO: (Vlad) Not efficient in memory layout.
-    private var mask: Set<ComponentId>
+   // TODO: (Vlad) Not efficient in memory layout.
+   private var mask: Set<ComponentId>
 
-    init(reservingCapacity: Int = 0) {
-        self.mask = []
-        self.mask.reserveCapacity(reservingCapacity)
-    }
-    
-    mutating func insert<T: Component>(_ component: T.Type) {
-        self.mask.insert(T.identifier)
-    }
+   var isEmpty: Bool {
+    return self.mask.isEmpty
+   }
 
-    mutating func insert(_ component: ComponentId) {
-        self.mask.insert(component)
-    }
+   init(reservingCapacity: Int = 0) {
+       self.mask = []
+       self.mask.reserveCapacity(reservingCapacity)
+   }
+   
+   mutating func insert<T: Component>(_ component: T.Type) {
+       self.mask.insert(T.identifier)
+   }
 
-    mutating func remove<T: Component>(_ component: T.Type) {
-        self.mask.remove(T.identifier)
-    }
+   mutating func insert(_ component: ComponentId) {
+       self.mask.insert(component)
+   }
 
-    func contains(_ identifier: ComponentId) -> Bool {
-        self.mask.contains(identifier)
-    }
+   mutating func remove<T: Component>(_ component: T.Type) {
+       self.mask.remove(T.identifier)
+   }
 
-    func contains<T: Component>(_ component: T.Type) -> Bool {
-        return self.mask.contains(T.identifier)
-    }
+   func contains(_ identifier: ComponentId) -> Bool {
+       self.mask.contains(identifier)
+   }
+
+   func contains<T: Component>(_ component: T.Type) -> Bool {
+       return self.mask.contains(T.identifier)
+   }
 }

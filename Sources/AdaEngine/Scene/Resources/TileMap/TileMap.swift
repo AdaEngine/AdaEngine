@@ -7,8 +7,6 @@
 
 public class TileMap: Asset, @unchecked Sendable {
 
-    public static let assetType: AssetType = .text
-
     public var tileSet: TileSet = TileSet() {
         didSet {
             self.tileSetDidChange()
@@ -16,16 +14,14 @@ public class TileMap: Asset, @unchecked Sendable {
     }
 
     public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
-
     public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
-
     internal private(set) var needsUpdate: Bool = false
 
     public init() {
         self.tileSetDidChange()
     }
     
-    public required init(asset decoder: AssetDecoder) async throws {
+    public required init(from decoder: AssetDecoder) throws {
         let fileContent = try decoder.decode(FileContent.self)
         self.tileSet = fileContent.tileSet
         
@@ -42,9 +38,8 @@ public class TileMap: Asset, @unchecked Sendable {
             }
         }
     }
-
-    @MainActor
-    public func encodeContents(with encoder: AssetEncoder) async throws {
+    
+    public func encodeContents(with encoder: AssetEncoder) throws {
         var layers = [FileContent.Layer]()
         
         for layer in self.layers {
@@ -63,6 +58,10 @@ public class TileMap: Asset, @unchecked Sendable {
         
         let content = FileContent(layers: layers, tileSet: self.tileSet)
         try encoder.encode(content)
+    }
+    
+    public static func extensions() -> [String] {
+        ["tilemap"]
     }
 
     public func createLayer() -> TileMapLayer {

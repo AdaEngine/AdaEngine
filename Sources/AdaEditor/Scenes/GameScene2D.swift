@@ -16,8 +16,14 @@ final class GameScene2D: Scene, @unchecked Sendable {
     
     override func sceneDidMove(to view: SceneView) {
         do {
-            let tiles = try AssetsManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
-            let charactersTiles = try AssetsManager.loadSync("Assets/characters_packed.png", from: Bundle.editor) as Image
+            let tiles = try AssetsManager.loadSync(
+                Image.self, 
+                at: "@res://tiles_packed.png",
+            ).asset
+            let charactersTiles = try AssetsManager.loadSync(
+                Image.self, 
+                at: "@res://characters_packed.png"
+            ).asset
 
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
             self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
@@ -34,13 +40,15 @@ final class GameScene2D: Scene, @unchecked Sendable {
 
         // DEBUG
         self.debugOptions = [.showPhysicsShapes]
-        self.makePlayer()
-        self.makeGround()
-        try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
+        // self.makePlayer()
+        self.makeSubsceneAndSave()
+        // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
         self.collisionHandler()
         
-        self.world.addSystem(PlayerMovementSystem.self)
-        self.world.addSystem(SpawnPhysicsBodiesSystem.self)
+        self.world
+            .addSystem(PlayerMovementSystem.self)
+            .addSystem(SpawnPhysicsBodiesSystem.self)
+            .addSystem(NewSystem.self)
 
         // Change gravitation
     }
@@ -86,7 +94,10 @@ final class GameScene2D: Scene, @unchecked Sendable {
     }
 
     func makeCanvasItem(position: Vector3) throws {
-        let dogTexture = try AssetsManager.loadSync("Assets/dog.png", from: Bundle.editor) as Texture2D
+        let dogTexture = try AssetsManager.loadSync(
+            Texture2D.self, 
+            at: "@res://dog.png"
+        ).asset
 
         @CustomMaterial var material = MyMaterial(color: .red, customTexture: dogTexture)
 
@@ -107,7 +118,9 @@ final class GameScene2D: Scene, @unchecked Sendable {
         self.world.addEntity(entity)
     }
 
-    private func makeGround() {
+    private func makeSubsceneAndSave() {
+        let scene = Scene()
+
         var transform = Transform()
         transform.scale = [3, 0.19, 0.19]
         transform.position.y = -1
@@ -121,7 +134,48 @@ final class GameScene2D: Scene, @unchecked Sendable {
             ]
         )
 
-        self.world.addEntity(untexturedEntity)
+        transform.position.y = -1.5
+
+        let texturedEntity = Entity(name: "Ground 2")
+        texturedEntity.components += SpriteComponent(tintColor: .red)
+        texturedEntity.components += Transform()
+            .setPosition(Vector3(0, 0.3, 0))
+            .setScale(Vector3(0.49, 0.49, 0.49))
+        texturedEntity.components += Collision2DComponent(
+            shapes: [
+                .generateBox()
+            ]
+        )
+
+        scene.world.addEntity(untexturedEntity)
+        scene.world.addEntity(texturedEntity)
+
+        Task {
+            try await AssetsManager.save(scene, at: "@res://", name: "Subscene.ascn")
+
+            await MainActor.run {
+                self.loadSubscene()
+            }
+        }
+    }
+
+    private func loadSubscene() {
+        Task { @MainActor in
+            do {
+                let scene = try await AssetsManager.load(
+                    Scene.self,
+                    at: "@res://Subscene.ascn",
+                    handleChanges: true
+                )
+                self.world.addEntity(
+                    Entity(name: "Subscene") {
+                        DynamicScene(scene: scene)
+                    }
+                )
+            } catch {
+                print(error)
+            }
+        }
     }
 
     private func gameOver() {
@@ -189,7 +243,9 @@ struct PlayerMovementSystem: System {
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     func update(context: UpdateContext) {
-        let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
+        guard let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first else {
+            return
+        }
 
         var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]
 
@@ -235,7 +291,9 @@ struct PlayerMovementSystem: System {
             var transform = entity.components[Transform.self]!
 
             if Input.isMouseButtonPressed(.left) {
-                let globalTransform = context.world.worldTransformMatrix(for: cameraEntity)
+                guard let globalTransform = cameraEntity.components[GlobalTransform.self]?.matrix else {
+                    return
+                }
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform, viewportPosition: mousePosition) {
                     //                    let values = context.scene.physicsWorld2D?.raycast(from: .zero, to: position)
@@ -329,8 +387,24 @@ struct MyMaterial: CanvasMaterial {
         self.customTexture = customTexture
     }
 
-    static func fragmentShader() throws -> ShaderSource {
-        try AssetsManager.loadSync("Assets/custom_material.glsl", from: .editor)
+    static func fragmentShader() throws -> AssetHandle<ShaderSource> {
+        try AssetsManager.loadSync(
+            ShaderSource.self, 
+            at: "Assets/custom_material.glsl", 
+            from: .editor
+        )
+    }
+}
+
+@System
+struct NewSystem {
+    
+    @EntityQuery(where: .has(Camera.self)) private var cameras
+    
+    init(world: World) { }
+    
+    func update(context: UpdateContext) {
+        
     }
 }
 
@@ -338,7 +412,7 @@ struct SpawnPhysicsBodiesSystem: System {
     
     static let camera = EntityQuery(where: .has(Camera.self))
     let fixedTimestep: FixedTimestep = FixedTimestep(stepsPerSecond: 20)
-
+    
     init(world: World) { }
 
     func update(context: UpdateContext) {

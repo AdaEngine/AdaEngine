@@ -9,7 +9,11 @@ import AdaEngine
 
 final class ManySpritesExampleScene: Scene, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
-        let tilesImage = try! AssetsManager.loadSync("Assets/tiles_packed.png", from: Bundle.editor) as Image
+        let tilesImage = try! AssetsManager.loadSync(
+            Image.self, 
+            at: "Assets/tiles_packed.png", 
+            from: Bundle.editor
+        ).asset
         
         let characterAtlas = TextureAtlas(from: tilesImage, size: [18, 18])
         

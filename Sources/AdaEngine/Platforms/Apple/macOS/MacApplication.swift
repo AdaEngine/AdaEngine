@@ -33,12 +33,12 @@ final class MacApplication: Application {
 
     override func run() throws {
         task = Task { @MainActor in
-            self.gameLoop.setup()
+            self.mainLoop.setup()
             do {
                 while true {
                     try Task.checkCancellation()
                     self.processEvents()
-                    try await self.gameLoop.iterate()
+                    try await self.mainLoop.iterate()
                 }
             } catch {
                 let alert = Alert(title: "AdaEngine finished with Error", message: error.localizedDescription, buttons: [.cancel("OK", action: {

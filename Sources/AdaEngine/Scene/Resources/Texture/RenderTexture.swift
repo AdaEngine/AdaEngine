@@ -38,12 +38,8 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
         super.init(gpuTexture: gpuTexture, sampler: sampler, size: size)
     }
 
-    public required init(asset decoder: AssetDecoder) throws {
+    public required init(from decoder: AssetDecoder) throws {
         fatalError("init(asset:) has not been implemented")
-    }
-    
-    public convenience required init(from decoder: Decoder) throws {
-        fatalError("init(from:) has not been implemented")
     }
     
     func setActive(_ isActive: Bool) {

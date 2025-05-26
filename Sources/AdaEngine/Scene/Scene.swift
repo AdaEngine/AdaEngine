@@ -15,25 +15,34 @@ enum SceneSerializationError: Error {
     case notRegistedObject(String)
 }
 
+// TODO: (Vlad) MainActor can still in problem. Should we use it? 
+
 /// A container that holds the collection of entities for render.
-@MainActor @preconcurrency
 open class Scene: @preconcurrency Asset, @unchecked Sendable {
+
+    public typealias ID = UUID
 
     /// Current supported version for mapping scene from file.
     public nonisolated(unsafe) static let currentVersion: Version = "1.0.0"
     
     /// Current scene name.
     public var name: String
-    public private(set) var id: UUID
-    
+
+    /// Current scene id.
+    public private(set) var id: ID
+
+    /// Current window for scene.
     public internal(set) weak var window: UIWindow?
     public internal(set) var viewport: Viewport = Viewport()
     
     public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
     
+    /// World for scene.
     public private(set) var world: World
     
+    /// Event manager for scene.
     public private(set) var eventManager: EventManager = EventManager.default
+
     /// Options for content in a scene that can aid debugging.
     public var debugOptions: DebugOptions = []
     
@@ -59,41 +68,57 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
         self.world = World()
         self.instantiateDefaultPlugin = instantiateDefaultPlugin
     }
-    
-    // MARK: - Resource -
-    
-    public static let assetType: AssetType = .scene
-    
-    public func encodeContents(with encoder: AssetEncoder) async throws {
-        guard encoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
-            throw SceneSerializationError.invalidExtensionType
-        }
-        let sceneData = SceneRepresentation(
-            version: Self.currentVersion,
-            scene: self.name,
-            instantiateDefaultPlugin: self.instantiateDefaultPlugin,
-            world: self.world
-        )
 
-        try encoder.encode(sceneData)
+    public init(from world: World, instantiateDefaultPlugin: Bool = true) {
+        self.id = UUID()
+        self.name = "Scene"
+        self.world = world
+        self.instantiateDefaultPlugin = instantiateDefaultPlugin
     }
     
-    required public convenience init(asset decoder: AssetDecoder) async throws {
-        guard decoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
+    // MARK: - Resource -
+    public required convenience init(from assetDecoder: any AssetDecoder) throws {
+        guard Self.extensions().contains(where: { assetDecoder.assetMeta.filePath.pathExtension == $0 }) else {
             throw SceneSerializationError.invalidExtensionType
         }
         
-        let sceneData = try decoder.decode(SceneRepresentation.self)
+        let scene = try assetDecoder.decode(SceneSerialization.self)
         
-        if Self.currentVersion < sceneData.version {
+        if Self.currentVersion < scene.version {
             throw SceneSerializationError.unsupportedVersion
         }
         
         self.init(
-            name: sceneData.scene, 
-            instantiateDefaultPlugin: sceneData.instantiateDefaultPlugin
+            name: scene.scene,
+            instantiateDefaultPlugin: scene.instantiateDefaultPlugin
         )
-        self.world = sceneData.world
+        self.world = scene.world
+    }
+    
+    public func encodeContents(with assetEncoder: any AssetEncoder) throws {
+        guard Self.extensions().contains(where: { assetEncoder.assetMeta.filePath.pathExtension == $0 }) else {
+            throw SceneSerializationError.invalidExtensionType
+        }
+        
+        try assetEncoder.encode(
+            SceneSerialization(
+                version: Self.currentVersion,
+                scene: name,
+                instantiateDefaultPlugin: instantiateDefaultPlugin,
+                world: world
+            )
+        )
+    }
+    
+    public static func extensions() -> [String] {
+        ["ascn", "scene", "scn"]
+    }
+
+    public func update(_ newScene: Scene) async throws {
+        self.world = newScene.world
+        self.eventManager = newScene.eventManager
+        self.debugOptions = newScene.debugOptions
+        self.instantiateDefaultPlugin = newScene.instantiateDefaultPlugin
     }
     
     // MARK: - Life Cycle
@@ -101,17 +126,17 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
     /// Tells you when the scene is presented.
     ///
     /// - Note: Scene is configured and you can't add new systems to the scene.
-    open func sceneDidLoad() { }
+    @MainActor open func sceneDidLoad() { }
 
     /// Tells you when the scene is about to be removed from a view.
-    open func sceneDidMove(to view: SceneView) { }
+    @MainActor open func sceneDidMove(to view: SceneView) { }
 
     /// Tells you when the scene is about to be removed from a view.
-    open func sceneWillMove(from view: SceneView) { }
+    @MainActor open func sceneWillMove(from view: SceneView) { }
 
     // MARK: - Internal methods
 
-    func readyIfNeeded() {
+    @MainActor func readyIfNeeded() {
         if self.isReady {
             return
         }
@@ -119,7 +144,7 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
         self.ready()
     }
     
-    func ready() {
+    @MainActor func ready() {
         // TODO: In the future we need minimal scene plugin for headless mode.
         if self.instantiateDefaultPlugin {
             world.addPlugin(DefaultWorldPlugin())
@@ -128,18 +153,12 @@ open class Scene: @preconcurrency Asset, @unchecked Sendable {
         self.isReady = true
         self.world.build()
         self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
-        
-        self.world.addEntity(
-            Entity(name: SceneResource.sceneWorldIdentifier) {
-                SceneResource(scene: self)
-            }
-        )
-        
+        self.world.insertResource(SceneResource(scene: self))
         self.sceneDidLoad()
     }
     
     /// Update scene world and systems by delta time.
-    func update(_ deltaTime: TimeInterval) async {
+    @MainActor func update(_ deltaTime: TimeInterval) async {
         if self.isUpdating {
             assertionFailure("Can't update scene twice")
             return
@@ -162,35 +181,9 @@ public extension Scene {
     }
 }
 
-// MARK: - World Transform
-
-// TODO: Replace it to GlobalTransform
-public extension World {
-    /// Returns world transform component of entity.
-    func worldTransform(for entity: Entity) -> Transform {
-        let worldMatrix = self.worldTransformMatrix(for: entity)
-        return Transform(matrix: worldMatrix)
-    }
-    
-    /// Returns world transform matrix of entity.
-    func worldTransformMatrix(for entity: Entity) -> Transform3D {
-        var transform = Transform3D.identity
-        
-        if let parent = entity.parent {
-            transform = self.worldTransformMatrix(for: parent)
-        }
-        
-        guard let entityTransform = entity.components[GlobalTransform.self] else {
-            return transform
-        }
-        
-        return transform * entityTransform.matrix
-    }
-}
-
 // MARK: - EventSource
 
-extension Scene: @preconcurrency EventSource {
+extension Scene: EventSource {
     
     /// Receives events of the given type.
     /// - Parameters event: The type of the event, like `CollisionEvents.Began.Self`.
@@ -242,23 +235,18 @@ public enum SceneEvents {
 
 }
 
-@Component
-struct SceneResource {
-    static let sceneWorldIdentifier = "_ae_scene_ent"
-    
+struct SceneResource: Resource {
     unowned let scene: Scene
 }
 
-public extension SceneUpdateContext {
-    var scene: Scene {
-        self.world.getEntityByName(SceneResource.sceneWorldIdentifier)!
-            .components[SceneResource.self]!
-            .scene
+public extension WorldUpdateContext {
+    var scene: Scene? {
+        self.world.getResource(SceneResource.self)?.scene
     }
 }
 
 private extension Scene {
-    struct SceneRepresentation: Codable {
+    struct SceneSerialization: Codable {
         let version: Version
         let scene: String
         let instantiateDefaultPlugin: Bool

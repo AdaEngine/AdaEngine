@@ -13,16 +13,18 @@ public final class AudioResource: Asset, @unchecked Sendable {
     
     public var assetMetaInfo: AssetMetaInfo?
     
-    private let sound: Sound
-    
-    public static let assetType: AssetType = .audio
+    private var sound: Sound
 
-    public required init(asset decoder: AssetDecoder) async throws {
-        if decoder.assetMeta.filePath.pathExtension == AssetType.audio.fileExtenstion {
+    public required init(from decoder: AssetDecoder) throws {
+        if Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) {
             self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetData)
         } else {
             self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetMeta.filePath)
         }
+    }
+    
+    public static func extensions() -> [String] {
+        ["audiores"]
     }
     
     private init(sound: Sound) {

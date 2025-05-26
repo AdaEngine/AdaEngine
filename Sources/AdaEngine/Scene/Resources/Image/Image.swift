@@ -151,11 +151,11 @@ extension Image: Asset {
         let sampler: SamplerDescriptor
     }
     
-    public convenience init(asset decoder: AssetDecoder) throws {
-        let pathExt = decoder.assetMeta.filePath.pathExtension
+    public convenience init(from assetDecoder: AssetDecoder) throws {
+        let pathExt = assetDecoder.assetMeta.filePath.pathExtension
         
         if pathExt.isEmpty || pathExt == "res" {
-            let rep = try decoder.decode(ImageRepresentation.self)
+            let rep = try assetDecoder.decode(ImageRepresentation.self)
             
             self.init(
                 width: Int(rep.imageSize.width),
@@ -166,7 +166,7 @@ extension Image: Asset {
             
             self.samplerDescription = rep.sampler
         } else {
-            try self.init(contentsOf: decoder.assetMeta.filePath)
+            try self.init(contentsOf: assetDecoder.assetMeta.filePath)
         }
     }
     
@@ -187,7 +187,16 @@ extension Image: Asset {
         }
     }
     
-    public static let assetType: AssetType = .texture
+    public static func extensions() -> [String] {
+        ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "webp"]
+    }
+
+    public func update(_ newImage: Image) async throws {
+        self.data = newImage.data
+        self.width = newImage.width
+        self.height = newImage.height
+        self.format = newImage.format
+    }
 }
 
 private extension Image {

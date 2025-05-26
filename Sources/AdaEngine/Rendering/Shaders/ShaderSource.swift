@@ -130,14 +130,12 @@ public final class ShaderSource: Asset, @unchecked Sendable {
         return Array(self.sources.keys)
     }
     
-    // MARK: - Resource
+    // MARK: - Asset
     
     public var assetMetaInfo: AssetMetaInfo?
     
-    public static let assetType: AssetType = .material
-    
-    public init(asset decoder: AssetDecoder) throws {
-        let fileURL = decoder.assetMeta.filePath
+    public init(from assetDecoder: AssetDecoder) throws {
+        let fileURL = assetDecoder.assetMeta.filePath
         self.fileURL = fileURL
         
         guard let data = FileSystem.current.readFile(at: fileURL) else {
@@ -153,7 +151,7 @@ public final class ShaderSource: Asset, @unchecked Sendable {
             let sources = try ShaderUtils.processGLSLShader(source: sourceCode)
             
             if
-                let stageName = decoder.assetMeta.queryParams.first?.name,
+                let stageName = assetDecoder.assetMeta.queryParams.first?.name,
                 let stage = ShaderUtils.shaderStage(from: stageName)
             {
                 guard let sourceForStage = sources[stage] else {
@@ -181,6 +179,10 @@ public final class ShaderSource: Asset, @unchecked Sendable {
         }
         
         return entryPoints
+    }
+    
+    public static func extensions() -> [String] {
+        ["mat"]
     }
 }
 

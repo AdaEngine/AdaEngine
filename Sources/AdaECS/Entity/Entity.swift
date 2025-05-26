@@ -85,6 +85,15 @@ open class Entity: Identifiable, @unchecked Sendable {
     public func removeFromScene(recursively: Bool = false) {
         self.world?.removeEntityOnNextTick(self, recursively: recursively)
     }
+
+    open func copy() -> Entity {
+        let entity = Entity(name: self.name)
+        entity.components = self.components.copy()
+        entity.components.entity = entity
+        entity.isActive = self.isActive
+        entity.world = self.world
+        return entity
+    }
 }
 
 // MARK: - Hashable

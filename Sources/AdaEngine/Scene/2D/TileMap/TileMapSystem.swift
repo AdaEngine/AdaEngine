@@ -9,28 +9,22 @@ import AdaECS
 import Logging
 
 // FIXME: a lot of sprites drop fps.
-
-public struct TileMapSystem: System, Sendable {
+@System(dependencies: [
+    .after(VisibilitySystem.self)
+])
+public struct TileMapSystem: Sendable {
     
     let logger = Logger(label: "tilemap")
 
-    public static let dependencies: [SystemDependency] = [
-        .after(VisibilitySystem.self)
-    ]
-
-    static let tileMap = EntityQuery(where: .has(TileMapComponent.self) && .has(Transform.self))
-    static let physicsWorld = EntityQuery(where: .has(Physics2DWorldComponent.self))
+    @Query<Entity, Ref<TileMapComponent>, Transform>
+    private var tileMap
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let physicsWorldEntity = context.world.performQuery(Self.physicsWorld).first
-        let physicsWorld = physicsWorldEntity?.components[Physics2DWorldComponent.self]?.world
+        let physicsWorld = context.world.getResource(Physics2DWorldComponent.self)?.world
 
-        for entity in context.world.performQuery(Self.tileMap) {
-            var (tileMapComponent, transform) = entity.components[
-                TileMapComponent.self, Transform.self
-            ]
+        for (entity, tileMapComponent, transform) in tileMap {
             let tileMap = tileMapComponent.tileMap
 
             if !tileMap.needsUpdate {
@@ -44,15 +38,13 @@ public struct TileMapSystem: System, Sendable {
 
                 self.addTiles(
                     for: layer,
-                    tileMapComponent: &tileMapComponent,
+                    tileMapComponent: &tileMapComponent.wrappedValue,
                     transform: transform,
                     entity: entity,
                     physicsWorld: physicsWorld,
                     world: context.world
                 )
             }
-
-            entity.components += tileMapComponent
             tileMap.updateDidFinish()
         }
     }
@@ -97,7 +89,7 @@ public struct TileMapSystem: System, Sendable {
                     let texture = atlasSource.getTexture(at: tile.atlasCoordinates)
 
                     tileEntity = Entity()
-                    tileEntity.components += SpriteComponent(texture: texture, tintColor: tileData.modulateColor)
+                    tileEntity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: tileData.modulateColor)
                     tileEntity.components += Transform(scale: scale, position: position)
                 case let entitySource as TileEntityAtlasSource:
                     tileEntity = entitySource.getEntity(at: tile.atlasCoordinates)

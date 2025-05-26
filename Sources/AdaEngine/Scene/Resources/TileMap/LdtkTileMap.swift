@@ -34,41 +34,36 @@ extension LDtk {
         private var project: Project?
         private let filePath: URL
 
-        private let fileWatcher: FileWatcher
+        private var fileWatcher: FileWatcher!
         private var fileWatcherObserver: Cancellable?
         
         /// When is hot reloading enabled, TileMap will automatically update tiles when LDtk project changed.
-        /// Default value is true.
         ///
         /// - Note: Use ``TileMap/resourcePath`` field to get runtime path to your LDtk file.
-        public var isHotReloadingEnabled: Bool = true {
-            didSet {
-                if isHotReloadingEnabled {
-                    self.fileWatcherObserver = try! self.fileWatcher.observe(on: .main, block: self.onLDtkFileMapChanged)
-                } else {
-                    self.fileWatcherObserver = nil
-                }
-            }
-        }
+        public private(set) var isHotReloadingEnabled: Bool = false
 
-        public required init(asset decoder: AssetDecoder) async throws {
+        public required init(from decoder: AssetDecoder) throws {
             let pathExt = decoder.assetMeta.filePath.pathExtension
 
             guard pathExt == "ldtk" || pathExt == "json" else {
                 throw AssetDecodingError.invalidAssetExtension("Invalid extension for Ldtk project: \(pathExt)")
             }
 
-            self.fileWatcher = FileWatcher(url: decoder.assetMeta.filePath)
             self.filePath = decoder.assetMeta.filePath
 
             super.init()
 
-            try await self.loadLdtkProject(from: decoder.assetData)
-            self.fileWatcherObserver = try self.fileWatcher.observe(on: .main, block: self.onLDtkFileMapChanged)
-        }
+            self.fileWatcher = FileWatcher(paths: [decoder.assetMeta.filePath.absoluteString]) { [weak self] paths in
+                self?.onLDtkFileMapChanged(paths: paths)
+            }
 
-        public override func encodeContents(with encoder: AssetEncoder) async throws {
-            try await super.encodeContents(with: encoder)
+            Task {
+                try await self.loadLdtkProject(from: decoder.assetData)
+            }
+        }
+        
+        public override func encodeContents(with encoder: AssetEncoder) throws {
+            try super.encodeContents(with: encoder)
         }
         
         /// Load level from LDtk project at index.
@@ -152,15 +147,28 @@ extension LDtk {
             }
         }
 
-        // MARK: - Private
-
-        private func onLDtkFileMapChanged(_ event: FileWatcher.Event) {
-            guard case .update(let data) = event else {
-                return
+        /// Enable or disable hot reloading.
+        ///
+        /// - Note: Use ``TileMap/resourcePath`` field to get runtime path to your LDtk file.
+        public func setHotReloading(enabled: Bool) throws {
+            if enabled {
+                try fileWatcher.start()
+            } else {
+                fileWatcher.stop()
             }
 
+            self.isHotReloadingEnabled = enabled
+        }
+
+        // MARK: - Private
+
+        private func onLDtkFileMapChanged(paths: [String]) {
             Task {
                 do {
+                    guard let data = FileManager.default.contents(atPath: paths[0]) else {
+                        return
+                    }
+
                     try await loadLdtkProject(from: data)
                 } catch {
                     Logger(label: "LDtk").critical("Failed to update ldtk file \(error.localizedDescription)")
@@ -191,10 +199,13 @@ extension LDtk {
                         .deletingLastPathComponent()
                         .appending(path: tileSource.relPath ?? "")
 
-                    let image = try await AssetsManager.load(atlasPath.absoluteString) as Image
+                    let image = try await AssetsManager.load(
+                        Image.self,
+                        at: atlasPath.absoluteString
+                    )
 
                     let source = TextureAtlasTileSource(
-                        from: image,
+                        from: image.asset,
                         size: SizeInt(width: tileSource.tileGridSize, height: tileSource.tileGridSize),
                         margin: SizeInt(width: tileSource.padding, height: tileSource.padding)
                     )
@@ -268,7 +279,7 @@ extension LDtk {
                 
                 let data = source.getTileData(at: tileCoordinate)
                 let texture = source.getTexture(at: tileCoordinate)
-                entity.components += SpriteComponent(texture: texture, tintColor: data.modulateColor)
+                entity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: data.modulateColor)
             }
 
             if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {

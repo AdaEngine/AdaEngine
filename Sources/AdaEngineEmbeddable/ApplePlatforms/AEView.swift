@@ -82,7 +82,7 @@ extension AEView: MTKViewDelegate {
     public func draw(in view: MTKView) {
         Task {
             do {
-                try await GameLoop.current.iterate()
+                try await MainLoop.current.iterate()
             } catch {
                 print("[AEView Error]", error.localizedDescription)
             }

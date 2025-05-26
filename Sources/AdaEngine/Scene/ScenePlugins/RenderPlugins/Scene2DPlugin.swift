@@ -77,7 +77,8 @@ public struct Main2DRenderNode: RenderNode {
                 loadAction: .clear,
                 storeAction: .store
             )
-        case .texture(let texture):
+        case .texture(let textureHandle):
+            let texture = textureHandle.asset
             let desc = FramebufferDescriptor(
                 scale: texture.scaleFactor,
                 width: texture.width,

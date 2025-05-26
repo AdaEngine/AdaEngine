@@ -25,12 +25,12 @@ public final class FontResource: Asset, Hashable, @unchecked Sendable {
     }
     
     public var assetMetaInfo: AssetMetaInfo?
-    
-    public static var assetType: AssetType {
-        return .font
+
+    public static func extensions() -> [String] {
+        return ["ttf", "otf"]
     }
     
-    public required convenience init(asset decoder: AssetDecoder) throws {
+    public required convenience init(from decoder: AssetDecoder) throws {
         let emSizeStr = decoder.assetMeta.queryParams.first(where: { $0.name == "emSize" })?.value ?? ""
         let emSize = Double(emSizeStr)
         guard let handle = Self.custom(fontPath: decoder.assetMeta.filePath, emFontScale: emSize)?.handle else {
@@ -115,7 +115,11 @@ public extension FontResource {
                 path.append("#emSize=\(scale)")
             }
 
-            return try AssetsManager.loadSync(path, from: .engineBundle) as FontResource
+            return try AssetsManager.loadSync(
+                FontResource.self, 
+                at: path, 
+                from: .engineBundle
+            ).asset
         } catch {
             fatalError("[Font]: Something went wrong \(error.localizedDescription)")
         }

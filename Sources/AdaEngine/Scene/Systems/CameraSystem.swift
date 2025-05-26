@@ -11,34 +11,31 @@
 // TODO: Move window info to ECS system
 
 /// System for updating cameras data on scene.
-public struct CameraSystem: System, Sendable {
+@System(dependencies: [
+    .after(ScriptComponentUpdateSystem.self)
+])
+public struct CameraSystem: Sendable {
 
-    public static let dependencies: [SystemDependency] = [.after(ScriptComponentUpdateSystem.self)]
-
-    static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
+    @Query<Entity, Ref<Camera>, GlobalTransform>
+    private var query
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.world.performQuery(Self.query).forEach { entity in
-            guard var camera = entity.components[Camera.self] else {
-                return
-            }
-            let transform = context.world.worldTransformMatrix(for: entity)
-            let viewMatrix = transform.inverse
+        self.query.forEach { entity, camera, globalTransform in
+            let viewMatrix = globalTransform.matrix.inverse
             camera.viewMatrix = viewMatrix
 
             context.scheduler.addTask { @MainActor in
-                self.updateViewportSizeIfNeeded(for: &camera, window: context.scene.window)
-                self.updateProjectionMatrix(for: &camera)
-                self.updateFrustum(for: &camera)
+                self.updateViewportSizeIfNeeded(for: &camera.wrappedValue, window: context.scene?.window)
+                self.updateProjectionMatrix(for: &camera.wrappedValue)
+                self.updateFrustum(for: &camera.wrappedValue)
 
                 entity.components += GlobalViewUniform(
                     projectionMatrix: camera.computedData.projectionMatrix,
                     viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
                     viewMatrix: camera.viewMatrix
                 )
-                entity.components[Camera.self] = camera
             }
         }
     }
@@ -65,7 +62,8 @@ public struct CameraSystem: System, Sendable {
             if camera.viewport?.rect.size != windowSize {
                 camera.viewport?.rect.size = windowSize
             }
-        case .texture(let texture):
+        case .texture(let textureHandle):
+            let texture = textureHandle.asset
             let size = Size(width: Float(texture.width), height: Float(texture.height))
 
             if camera.viewport == nil {
@@ -120,20 +118,22 @@ public struct CameraSystem: System, Sendable {
 }
 
 /// Exctract cameras to RenderWorld for future rendering.
-public struct ExtractCameraSystem: System {
+@System(dependencies: [
+    .after(CameraSystem.self)
+])
+public struct ExtractCameraSystem {
 
-    public static let dependencies: [SystemDependency] = [.after(CameraSystem.self)]
-
-    static let query = EntityQuery(
-        where: .has(Camera.self) && 
+    @EntityQuery(
+        where: .has(Camera.self) &&
         .has(Transform.self) && 
         .has(VisibleEntities.self)
     )
+    private var query
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.world.performQuery(Self.query).forEach { entity in
+        self.query.forEach { entity in
             let cameraEntity = Entity(name: "ExtractedCameraEntity")
             if let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
                 let uniform = entity.components[GlobalViewUniform.self]

@@ -61,14 +61,17 @@ public class Mesh: Asset, @unchecked Sendable {
     // MARK: - Resource
     
     public var assetMetaInfo: AssetMetaInfo?
-    public static let assetType: AssetType = .mesh
     
-    public required init(asset decoder: AssetDecoder) throws {
+    public required init(from decoder: AssetDecoder) throws {
         fatalErrorMethodNotImplemented()
     }
     
     public func encodeContents(with encoder: AssetEncoder) throws {
         fatalErrorMethodNotImplemented()
+    }
+    
+    public static func extensions() -> [String] {
+        ["mesh"]
     }
 }
 

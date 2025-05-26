@@ -20,7 +20,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     private var frames: [Frame]
     
     /// Contains ref to subscription of event
-    private var gameLoopToken: Cancellable?
+    private var mainLoopToken: Cancellable?
     
     public var framesCount: Int = 1
     
@@ -84,8 +84,8 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         let sampler = RenderEngine.shared.renderDevice.createSampler(from: SamplerDescriptor())
         super.init(gpuTexture: GPUTexture(), sampler: sampler, size: .zero)
         
-        self.gameLoopToken = EventManager.default.subscribe(
-            to: EngineEvents.GameLoopBegan.self,
+        self.mainLoopToken = EventManager.default.subscribe(
+            to: EngineEvents.MainLoopBegan.self,
             completion: update(_:)
         )
     }
@@ -94,7 +94,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     
     struct AssetRepresentation: Codable {
         struct Frame: Codable {
-            let texture: Texture2D // FIXME: (Vlad) resource id/path
+            let texture: AssetHandle<Texture2D> // FIXME: (Vlad) resource id/path
             let delay: TimeInterval
         }
         
@@ -104,8 +104,8 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         let options: Options
     }
     
-    public convenience required init(asset decoder: AssetDecoder) async throws {
-        guard decoder.assetMeta.filePath.pathExtension == Self.assetType.fileExtenstion else {
+    public convenience required init(from decoder: AssetDecoder) throws {
+        guard Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) else {
             throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
         }
         
@@ -118,21 +118,15 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         self.options = asset.options
         
         for (frameIndex, frame) in asset.frames.enumerated() {
-            self.setTexture(frame.texture, for: frameIndex)
+            self.setTexture(frame.texture.asset, for: frameIndex)
             self.setDelay(frame.delay, for: frameIndex)
         }
     }
     
-    // MARK: - Codable
-    
-    public convenience required init(from decoder: Decoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public override func encode(to encoder: Encoder) throws {
-//        guard encoder.assetMeta.filePath.pathExtension == Self.resourceType.fileExtenstion else {
-//            throw AssetDecodingError.invalidAssetExtension(encoder.assetMeta.filePath.pathExtension)
-//        }
+    public override func encodeContents(with encoder: any AssetEncoder) throws {
+        guard var container = encoder.encoder?.singleValueContainer() else {
+            return
+        }
         
         var frames: [AssetRepresentation.Frame] = []
         
@@ -143,7 +137,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
             }
 
             let item = AssetRepresentation.Frame(
-                texture: texture,
+                texture: AssetHandle(texture),
                 delay: frame.delay
             )
 
@@ -157,8 +151,14 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
             options: self.options
         )
         
-        var container = encoder.singleValueContainer()
         try container.encode(asset)
+    }
+
+    public func update(_ newAnimatedTexture: AnimatedTexture) async throws {
+        self.frames = newAnimatedTexture.frames
+        self.framesCount = newAnimatedTexture.framesCount
+        self.framesPerSecond = newAnimatedTexture.framesPerSecond
+        self.options = newAnimatedTexture.options
     }
     
     // MARK: - Public methods
@@ -195,7 +195,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     private var time: TimeInterval = 0
     
     /// Called each frame to update current frame.
-    private func update(_ event: EngineEvents.GameLoopBegan) {
+    private func update(_ event: EngineEvents.MainLoopBegan) {
         if self.isPaused {
             return
         }
