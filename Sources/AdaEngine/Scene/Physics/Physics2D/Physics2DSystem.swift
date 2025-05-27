@@ -198,7 +198,7 @@ private extension CollisionFilter {
     }
 }
 
-private extension Quat {
+extension Quat {
     var angle2D: Angle {
         let rads = Math.atan2(
             2 * (self.w * self.z + self.x * self.y),
