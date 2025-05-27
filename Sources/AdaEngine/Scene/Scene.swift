@@ -18,7 +18,7 @@ enum SceneSerializationError: Error {
 // TODO: (Vlad) MainActor can still in problem. Should we use it? 
 
 /// A container that holds the collection of entities for render.
-open class Scene: @preconcurrency Asset, @unchecked Sendable {
+open class Scene: Asset, @unchecked Sendable {
 
     public typealias ID = UUID
 
