@@ -2,8 +2,8 @@ import Testing
 @testable import AdaEngine
 
 @Suite("AssetsManager Tests")
-final class AssetsManagerTests {
-    
+struct AssetsManagerTests: Sendable {
+
     @AssetActor
     init() async throws {
         // Set up test environment
@@ -15,12 +15,6 @@ final class AssetsManagerTests {
         try AssetsManager.initialize(filePath: #filePath)
         try AssetsManager.setAssetDirectory(testDirectory)
         AssetsManager.registerAssetType(TestAsset.self)
-    }
-    
-    deinit {
-        // Clean up test environment
-        let testDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AssetsManagerTests")
-        try? FileManager.default.removeItem(at: testDirectory)
     }
     
     @Test("Loading non-existent asset should throw error")

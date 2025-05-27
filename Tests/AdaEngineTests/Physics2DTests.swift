@@ -37,8 +37,8 @@ struct Physics2DTests {
         world.addEntity(entity)
         await world.update(1.0 / 60.0)
         
-        try #require(entity.components[Collision2DComponent.self]?.runtimeBody != nil)
-        #expect(entity.components[Transform.self]?.position.xy == [0, -10])
+        let runtimeBody = try #require(entity.components[Collision2DComponent.self]?.runtimeBody)
+        #expect(runtimeBody.getPosition() == [0, -10])
     }
     
     @Test

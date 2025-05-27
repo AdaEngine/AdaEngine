@@ -63,7 +63,7 @@ public extension Entity {
         
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingName.self)
-            for component in self.buffer.values {
+            for component in self.buffer.elements.values {
                 do {
                     try container.encode(AnyEncodable(component), forKey: CodingName(stringValue: type(of: component).swiftName))
                 } catch {

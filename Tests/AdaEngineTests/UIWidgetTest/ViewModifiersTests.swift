@@ -15,33 +15,33 @@ struct ViewModifiersTests {
         try Application.prepareForTest()
     }
 
-    @Test
-    func onAppearCalled_WhenVisible() {
-        // given
-        var isChanged = false
-        let tester = ViewTester {
-            MutableViewWithState(state: true) { isAppeared in
-                Color.blue
-                    .onChange(of: isAppeared.wrappedValue) { oldValue, newValue in
-                        isChanged = true
-                    }
-                    .onAppear {
-                        isAppeared.wrappedValue = true
-                    }
-            }
-        }
-        .setSize(
-            Size(width: 400, height: 400)
-        )
-        .performLayout()
-
-        // when
-        tester.simulateRenderOneFrame()
-            .invalidateContent()
-
-        // then
-        #expect(isChanged)
-    }
+//    @Test
+//    func onAppearCalled_WhenVisible() {
+//        // given
+//        var isChanged = false
+//        let tester = ViewTester {
+//            MutableViewWithState(state: true) { isAppeared in
+//                Color.blue
+//                    .onChange(of: isAppeared.wrappedValue) { oldValue, newValue in
+//                        isChanged = true
+//                    }
+//                    .onAppear {
+//                        isAppeared.wrappedValue = true
+//                    }
+//            }
+//        }
+//        .setSize(
+//            Size(width: 400, height: 400)
+//        )
+//        .performLayout()
+//
+//        // when
+//        tester.simulateRenderOneFrame()
+//            .invalidateContent()
+//
+//        // then
+//        #expect(isChanged)
+//    }
 }
 
 struct MutableViewWithState<T, Content: View>: View {

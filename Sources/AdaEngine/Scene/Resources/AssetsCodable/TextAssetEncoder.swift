@@ -30,7 +30,7 @@ public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {
             self.encodedData = data
         } else {
             let encoder = YAMLEncoder()
-            encoder.options.numberFormatStrategy.style = .decimal
+            encoder.options.floatingPointNumberFormatStrategy = .decimal
             let data = try encoder.encode(value, userInfo: [
                 .assetMetaInfo: self.assetMeta,
                 .assetsEncodingContext: self

@@ -91,7 +91,6 @@ open class Entity: Identifiable, @unchecked Sendable {
         entity.components = self.components.copy()
         entity.components.entity = entity
         entity.isActive = self.isActive
-        entity.world = self.world
         return entity
     }
 }

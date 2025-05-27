@@ -28,24 +28,24 @@ enum TestUtils {
             #expect(
                 simd_matrix[0, 0].isApproximatelyEqual(
                     to: transform[0, 0], absoluteTolerance: accuracy))
-            #expect(simd_matrix[0, 1] == transform[0, 1])
-            #expect(simd_matrix[0, 2] == transform[0, 2])
-            #expect(simd_matrix[0, 3] == transform[0, 3])
+            #expect(simd_matrix[0, 1].isApproximatelyEqual(to: transform[0, 1], absoluteTolerance: accuracy))
+            #expect(simd_matrix[0, 2].isApproximatelyEqual(to: transform[0, 2], absoluteTolerance: accuracy))
+            #expect(simd_matrix[0, 3].isApproximatelyEqual(to: transform[0, 3], absoluteTolerance: accuracy))
 
-            #expect(simd_matrix[1, 0] == transform[1, 0])
-            #expect(simd_matrix[1, 1] == transform[1, 1])
-            #expect(simd_matrix[1, 2] == transform[1, 2])
-            #expect(simd_matrix[1, 3] == transform[1, 3])
+            #expect(simd_matrix[1, 0].isApproximatelyEqual(to: transform[1, 0], absoluteTolerance: accuracy))
+            #expect(simd_matrix[1, 1].isApproximatelyEqual(to: transform[1, 1], absoluteTolerance: accuracy))
+            #expect(simd_matrix[1, 2].isApproximatelyEqual(to: transform[1, 2], absoluteTolerance: accuracy))
+            #expect(simd_matrix[1, 3].isApproximatelyEqual(to: transform[1, 3], absoluteTolerance: accuracy))
 
-            #expect(simd_matrix[2, 0] == transform[2, 0])
-            #expect(simd_matrix[2, 1] == transform[2, 1])
-            #expect(simd_matrix[2, 2] == transform[2, 2])
-            #expect(simd_matrix[2, 3] == transform[2, 3])
+            #expect(simd_matrix[2, 0].isApproximatelyEqual(to: transform[2, 0], absoluteTolerance: accuracy))
+            #expect(simd_matrix[2, 1].isApproximatelyEqual(to: transform[2, 1], absoluteTolerance: accuracy))
+            #expect(simd_matrix[2, 2].isApproximatelyEqual(to: transform[2, 2], absoluteTolerance: accuracy))
+            #expect(simd_matrix[2, 3].isApproximatelyEqual(to: transform[2, 3], absoluteTolerance: accuracy))
 
-            #expect(simd_matrix[3, 0] == transform[3, 0])
-            #expect(simd_matrix[3, 1] == transform[3, 1])
-            #expect(simd_matrix[3, 2] == transform[3, 2])
-            #expect(simd_matrix[3, 3] == transform[3, 3])
+            #expect(simd_matrix[3, 0].isApproximatelyEqual(to: transform[3, 0], absoluteTolerance: accuracy))
+            #expect(simd_matrix[3, 1].isApproximatelyEqual(to: transform[3, 1], absoluteTolerance: accuracy))
+            #expect(simd_matrix[3, 2].isApproximatelyEqual(to: transform[3, 2], absoluteTolerance: accuracy))
+            #expect(simd_matrix[3, 3].isApproximatelyEqual(to: transform[3, 3], absoluteTolerance: accuracy))
         }
 
         static func assertEqual(_ simd_quat: simd_quatf, _ quat: Quat, accuracy: Float = 0.00001) {

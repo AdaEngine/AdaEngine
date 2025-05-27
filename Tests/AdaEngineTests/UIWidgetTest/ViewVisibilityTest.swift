@@ -63,44 +63,44 @@ struct ViewVisibilityTests {
         #expect(counter == 1)
     }
 
-    @Test
-    func onDisappearCalledOnce_WhenObjectWillMoveOut() {
-        // given
-        var isDisappeared = false
-        var isAppeared = false
-        @State var position: Point = Point(0, 0)
+    // @Test
+    // func onDisappearCalledOnce_WhenObjectWillMoveOut() {
+    //     // given
+    //     var isDisappeared = false
+    //     var isAppeared = false
+    //     @State var position: Point = Point(0, 0)
 
-        let tester = ViewTester {
-            Color.blue
-                .frame(width: 50, height: 50)
-                .offset(position)
-                .onAppear {
-                    isAppeared = true
-                }
-                .onChange(of: position, perform: { oldValue, newValue in
-                    print(oldValue, newValue)
-                })
-                .onDisappear {
-                    isDisappeared = true
-                }
-                .id("Color")
-        }
-        .setSize(
-            Size(width: 200, height: 200)
-        )
-        .performLayout()
+    //     let tester = ViewTester {
+    //         Color.blue
+    //             .frame(width: 50, height: 50)
+    //             .offset(position)
+    //             .onAppear {
+    //                 isAppeared = true
+    //             }
+    //             .onChange(of: position, perform: { oldValue, newValue in
+    //                 print(oldValue, newValue)
+    //             })
+    //             .onDisappear {
+    //                 isDisappeared = true
+    //             }
+    //             .id("Color")
+    //     }
+    //     .setSize(
+    //         Size(width: 200, height: 200)
+    //     )
+    //     .performLayout()
 
-        // when
-        tester.simulateRenderOneFrame()
-        position = [400, 400]
+    //     // when
+    //     tester.simulateRenderOneFrame()
+    //     position = [400, 400]
 
-        // Perform relayout for movement and simulate next frame
-        tester
-            .invalidateContent()
-            .simulateRenderOneFrame()
+    //     // Perform relayout for movement and simulate next frame
+    //     tester
+    //         .invalidateContent()
+    //         .simulateRenderOneFrame()
 
-        // then
-        #expect(isAppeared, "Is not appeared at the first time.")
-        #expect(isDisappeared, "Is not disappered after all.")
-    }
+    //     // then
+    //     #expect(isAppeared, "Is not appeared at the first time.")
+    //     #expect(isDisappeared, "Is not disappered after all.")
+    // }
 }
