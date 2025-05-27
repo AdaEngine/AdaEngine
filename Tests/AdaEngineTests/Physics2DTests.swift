@@ -148,29 +148,28 @@ struct Physics2DTests {
         let initialPosition = Vector2(1, 2)
         let initialAngle = Angle.degrees(45)
         
-        var physicsBody = PhysicsBody2DComponent(
+        let physicsBody = PhysicsBody2DComponent(
             shapes: [.generateBox()],
             mode: .static
         )
-        entity.components += physicsBody
-        entity.components += Transform(
+        entity.components.set(physicsBody)
+        entity.components.set(Transform(
             rotation: Quat(axis: Vector3(0, 0, 1), angle: initialAngle.radians),
             position: Vector3(initialPosition.x, initialPosition.y, 0)
-        )
+        ))
         
         world.addEntity(entity)
         await world.update(1.0 / 60.0)
         let newPosition = Vector2(3, 4)
         let newAngle = Angle.degrees(90)
         
-        physicsBody = entity.components[PhysicsBody2DComponent.self]!
-        physicsBody.runtimeBody?.setTransform(position: newPosition, angle: newAngle)
-        entity.components[PhysicsBody2DComponent.self] = physicsBody // Re-assign to trigger potential updates
+        let runtimeBody = try #require(entity.components[PhysicsBody2DComponent.self]?.runtimeBody)
+        runtimeBody.setTransform(position: newPosition, angle: newAngle)
         
         await world.update(1.0 / 60.0)
         
-        let finalTransform = entity.components[Transform.self]!
-        
+        let finalTransform = entity.components.get(Transform.self)
+
         #expect(abs(finalTransform.position.x - newPosition.x) < 0.001)
         #expect(abs(finalTransform.position.y - newPosition.y) < 0.001)
         #expect(abs(finalTransform.rotation.angle2D.degrees - newAngle.degrees) < 0.001)
@@ -183,15 +182,15 @@ struct Physics2DTests {
         let initialPosition = Vector2(5, 6)
         let initialAngle = Angle.degrees(30)
         
-        var collisionBody = Collision2DComponent(
+        let collisionBody = Collision2DComponent(
             shapes: [.generateBox()],
             mode: .default // Or .trigger, doesn't matter much for this test
         )
-        entity.components += collisionBody
-        entity.components += Transform(
+        entity.components.set(collisionBody)
+        entity.components.set(Transform(
             rotation: Quat(axis: Vector3(0, 0, 1), angle: initialAngle.radians),
-            position: Vector3(initialPosition.x, initialPosition.y, 0),
-        )
+            position: Vector3(initialPosition.x, initialPosition.y, 0)
+        ))
         
         world.addEntity(entity)
         
@@ -200,13 +199,12 @@ struct Physics2DTests {
         let newPosition = Vector2(7, 8)
         let newAngle = Angle.degrees(60)
         
-        collisionBody = entity.components[Collision2DComponent.self]!
-        collisionBody.runtimeBody?.setTransform(position: newPosition, angle: newAngle)
-        entity.components[Collision2DComponent.self] = collisionBody // Re-assign to trigger potential updates
-        
+        let runtimeBody = try #require(entity.components.get(Collision2DComponent.self).runtimeBody)
+        runtimeBody.setTransform(position: newPosition, angle: newAngle)
+
         await world.update(1.0 / 60.0)
         
-        let finalTransform = entity.components[Transform.self]!
+        let finalTransform = entity.components.get(Transform.self)
         
         #expect(abs(finalTransform.position.x - newPosition.x) < 0.001)
         #expect(abs(finalTransform.position.y - newPosition.y) < 0.001)
