@@ -18,7 +18,6 @@ public struct DynamicSceneInstance {
     let identifier: World.ID
 }
 
-@System
 struct DynamicSceneInitSystem: System {
 
     @Query<Entity, DynamicScene, DynamicSceneInstance?>
@@ -52,6 +51,7 @@ struct DynamicSceneInitSystem: System {
         }
         
         rootEntity.components += DynamicSceneInstance(identifier: sceneWorld.id)
+        world.flush()
     }
     
     private func removeChild(from entity: Entity) {

@@ -72,7 +72,7 @@ public final class World: @unchecked Sendable, Codable {
             }
         }
 
-        self.tick()
+        self.flush()
 
         for system in systems {
             guard let systemType = SystemStorage.getRegistredSystem(for: system) else {
@@ -181,7 +181,7 @@ public final class World: @unchecked Sendable, Codable {
         }
         isReady = true
         self.systemGraph.linkSystems()
-        self.tick()
+        self.flush()
     }
     
     /// Add a new entity to the world. This entity will be available on the next update tick.
@@ -279,7 +279,7 @@ public final class World: @unchecked Sendable, Codable {
     /// - Parameter deltaTime: Time interval since last update.
     @MainActor
     public func update(_ deltaTime: TimeInterval) async {
-        self.tick()
+        self.flush()
         
         await withTaskGroup(of: Void.self) { @MainActor group in
             let context = WorldUpdateContext(
@@ -289,6 +289,21 @@ public final class World: @unchecked Sendable, Codable {
             )
             self.systemGraphExecutor.execute(self.systemGraph, context: context)
         }
+    }
+
+    /// Update all data in world.
+    /// In this step we move entities to matched archetypes and remove pending in delition entities.
+    public func flush() {
+        self.moveEntitiesToMatchedArchetypesIfNeeded()
+        
+        for entityId in self.removedEntities {
+            self.removeEntityRecord(entityId)
+        }
+        
+        // Should think about it
+        self.removedEntities.removeAll(keepingCapacity: true)
+        self.addedEntities.removeAll(keepingCapacity: true)
+        self.updatedComponents.removeAll(keepingCapacity: true)
     }
     
     /// Remove all data from world.
@@ -328,21 +343,6 @@ extension World {
 }
 
 private extension World {
-    /// Update all data in world.
-    /// In this step we move entities to matched archetypes and remove pending in delition entities.
-    func tick() {
-        self.moveEntitiesToMatchedArchetypesIfNeeded()
-        
-        for entityId in self.removedEntities {
-            self.removeEntityRecord(entityId)
-        }
-        
-        // Should think about it
-        self.removedEntities.removeAll(keepingCapacity: true)
-        self.addedEntities.removeAll(keepingCapacity: true)
-        self.updatedComponents.removeAll(keepingCapacity: true)
-    }
-
     private func removeEntityRecord(_ entity: Entity.ID) {
         guard let record = self.records[entity] else {
             return
