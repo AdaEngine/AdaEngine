@@ -23,6 +23,8 @@ final class MacApplication: Application {
 
         app.finishLaunching()
         app.delegate = self.delegate
+        
+        AppleGameControllerManager.shared.startMonitoring()
 
         self.processEvents()
 

@@ -48,7 +48,6 @@ final class GameScene2D: Scene, @unchecked Sendable {
         self.world
             .addSystem(PlayerMovementSystem.self)
             .addSystem(SpawnPhysicsBodiesSystem.self)
-            .addSystem(NewSystem.self)
 
         // Change gravitation
     }
@@ -251,6 +250,27 @@ struct PlayerMovementSystem: System {
 
         let speed: Float = 2 * context.deltaTime
 
+        // --- Gamepad camera movement ---
+        print("Gamepad connected: \(Input.getConnectedGamepads())")
+        if let gamepad = Input.getConnectedGamepads().first {
+            print("", gamepad.info)
+            let leftStickX = gamepad.getAxisValue(.leftStickX)
+            let leftStickY = gamepad.getAxisValue(.leftStickY)
+            let deadzone: Float = 0.1
+            if abs(leftStickX) > deadzone {
+                cameraTransform.position.x += leftStickX * speed
+            }
+            if abs(leftStickY) > deadzone {
+                cameraTransform.position.y += leftStickY * speed // Invert Y for typical 2D controls
+            }
+
+            let rightStickY = gamepad.getAxisValue(.rightStickY)
+            if abs(rightStickY) > deadzone {
+                camera.orthographicScale -= rightStickY * speed // Invert Y for typical 2D controls
+            }
+        }
+        // --- End gamepad camera movement ---
+
         if Input.isKeyPressed(.w) {
             cameraTransform.position.y += speed
         }
@@ -274,7 +294,6 @@ struct PlayerMovementSystem: System {
         if Input.isKeyPressed(.arrowDown) {
             camera.orthographicScale += speed
         }
-
         cameraEntity.components += cameraTransform
         cameraEntity.components += camera
 
@@ -396,18 +415,6 @@ struct MyMaterial: CanvasMaterial {
     }
 }
 
-@System
-struct NewSystem {
-    
-    @EntityQuery(where: .has(Camera.self)) private var cameras
-    
-    init(world: World) { }
-    
-    func update(context: UpdateContext) {
-        
-    }
-}
-
 struct SpawnPhysicsBodiesSystem: System {
     
     static let camera = EntityQuery(where: .has(Camera.self))
@@ -426,6 +433,14 @@ struct SpawnPhysicsBodiesSystem: System {
                 let (globalTransform, camera) = entity.components[GlobalTransform.self, Camera.self]
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: mousePosition) {
+                    self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), world: context.world)
+                }
+            }
+
+            if let gamepad = Input.getConnectedGamepads().first, gamepad.isGamepadButtonPressed(.rightTriggerButton) {
+                let (globalTransform, camera) = entity.components[GlobalTransform.self, Camera.self]
+                let centerOfScreen = Vector2(camera.viewport!.rect.width / 2, camera.viewport!.rect.height / 2)
+                if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: centerOfScreen) {
                     self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), world: context.world)
                 }
             }
