@@ -18,7 +18,8 @@ public struct DynamicSceneInstance {
     let identifier: World.ID
 }
 
-struct DynamicSceneInitSystem: System {
+@System
+struct DynamicSceneInitSystem {
 
     @Query<Entity, DynamicScene, DynamicSceneInstance?>
     private var dynamicScenes
@@ -42,8 +43,9 @@ struct DynamicSceneInitSystem: System {
     private func insertScene(to rootEntity: Entity, dynamicScene: DynamicScene, world: World) {
         let sceneWorld = dynamicScene.scene.asset.world
         for entity in sceneWorld.getEntities() {
-            rootEntity.addChild(entity)
-            world.addEntity(entity)
+            let copy = entity.copy()
+            rootEntity.addChild(copy)
+            world.addEntity(copy)
         }
         
         for resource in sceneWorld.getResources() {

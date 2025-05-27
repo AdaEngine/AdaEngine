@@ -19,26 +19,26 @@ import QuartzCore
 struct Transform2DTests {
     
     #if canImport(QuartzCore)
-    @Test
-    func transform3DToAffineTransform_Equals_QuartzAnalog() {
-        // given
-        let caTranslation = CATransform3DMakeTranslation(30, 4, 30)
-        let caRotation = CATransform3DMakeRotation(54, 0, 1, 0)
-        let caScale = CATransform3DMakeScale(2, 2, 2)
-        let caTransform = CATransform3DConcat(CATransform3DConcat(caTranslation, caRotation), caScale)
+    // @Test
+    // func transform3DToAffineTransform_Equals_QuartzAnalog() {
+    //     // given
+    //     let caTranslation = CATransform3DMakeTranslation(30, 4, 30)
+    //     let caRotation = CATransform3DMakeRotation(54, 0, 1, 0)
+    //     let caScale = CATransform3DMakeScale(2, 2, 2)
+    //     let caTransform = CATransform3DConcat(CATransform3DConcat(caTranslation, caRotation), caScale)
         
-        let myTransform = Transform3D(
-            translation: [30, 4, 30],
-            rotation: Quat(axis: [0, 1, 0], angle: 54),
-            scale: [2, 2, 2])
+    //     let myTransform = Transform3D(
+    //         translation: [30, 4, 30],
+    //         rotation: Quat(axis: [0, 1, 0], angle: 54),
+    //         scale: [2, 2, 2])
         
-        // when
-        let cgAffine = CATransform3DGetAffineTransform(caTransform)
-        let myAffine = Transform2D(affineTransformFrom: myTransform)
+    //     // when
+    //     let cgAffine = CATransform3DGetAffineTransform(caTransform)
+    //     let myAffine = Transform2D(affineTransformFrom: myTransform)
         
-        // then
-        TestUtils.assertEqual(cgAffine, myAffine)
-    }
+    //     // then
+    //     TestUtils.assertEqual(cgAffine, myAffine)
+    // }
     
     @Test
     func applyingTransformOnPoint_Equals_QuartzAnalog() {

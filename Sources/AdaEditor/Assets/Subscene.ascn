@@ -4,7 +4,7 @@ instantiateDefaultPlugin: true
 world:
   entities:
   - name: Ground
-    id: 122205903825506070
+    id: 122206036780005980
     components:
       AdaEngine.SpriteComponent:
         texture:
@@ -23,38 +23,38 @@ world:
                 minFilter: nearest
                 magFilter: nearest
                 mipFilter: nearest
-                lodMinClamp: 0
-                lodMaxClamp: 3.4028234663852886e+38
+                lodMinClamp: 0.0
+                lodMaxClamp: 3.4028235e+38
             min:
-              x: 0
-              y: 0
+              x: 0.0
+              y: 0.0
             max:
               x: 0.05
-              y: 0.1111111
+              y: 0.11111111
             size:
               width: 18
               height: 18
         tintColor:
-          red: 1
-          green: 1
-          blue: 1
-          alpha: 1
+          red: 1.0
+          green: 1.0
+          blue: 1.0
+          alpha: 1.0
         flipX: false
         flipY: false
       AdaEngine.Transform:
         rotation:
-          x: 0
-          y: 0
-          z: 0
-          w: 1
+          x: 0.0
+          y: 0.0
+          z: 0.0
+          w: 1.0
         scale:
-          x: 3
+          x: 3.0
           y: 0.19
           z: 0.19
         position:
-          x: 0
-          y: -1
-          z: 0
+          x: 0.0
+          y: -1.0
+          z: 0.0
       AdaEngine.Collision2DComponent:
         shapes:
         - fixture:
@@ -63,38 +63,38 @@ world:
                 halfWidth: 0.5
                 halfHeight: 0.5
                 offset:
-                  x: 0
-                  y: 0
+                  x: 0.0
+                  y: 0.0
         filter:
           categoryBitMask: 1
           collisionBitMask: 18446744073709551615
         mode:
           default: {}
   - name: Ground 2
-    id: 122205903825506110
+    id: 122206036780006300
     components:
       AdaEngine.SpriteComponent:
         tintColor:
-          red: 1
-          green: 0
-          blue: 0
-          alpha: 1
+          red: 1.0
+          green: 0.0
+          blue: 0.0
+          alpha: 1.0
         flipX: false
         flipY: false
       AdaEngine.Transform:
         rotation:
-          x: 0
-          y: 0
-          z: 0
-          w: 1
+          x: 0.0
+          y: 0.0
+          z: 0.0
+          w: 1.0
         scale:
           x: 0.49
           y: 0.49
           z: 0.49
         position:
-          x: 0
+          x: 0.0
           y: 0.3
-          z: 0
+          z: 0.0
       AdaEngine.Collision2DComponent:
         shapes:
         - fixture:
@@ -103,8 +103,8 @@ world:
                 halfWidth: 0.5
                 halfHeight: 0.5
                 offset:
-                  x: 0
-                  y: 0
+                  x: 0.0
+                  y: 0.0
         filter:
           categoryBitMask: 1
           collisionBitMask: 18446744073709551615
