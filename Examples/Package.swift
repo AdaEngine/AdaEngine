@@ -23,6 +23,13 @@ let package = Package(
             resources: [
                 .copy("Resources")
             ],
+        ),
+        .executableTarget(
+            name: "scene_tilemap_physics_app",
+            dependencies: [
+                "AdaEngine"
+            ],
+            path: "Sources/scene_tilemap_physics"
         )
     ]
 )

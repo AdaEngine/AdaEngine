@@ -101,11 +101,8 @@ public struct TileMapSystem: Sendable {
 
 //                if tileData.useCollisition {
 //                    tileEntity.components += Collision2DComponent(
-//                        shapes: [.generateBox()],
-//                        filter: CollisionFilter(
-//                            categoryBitMask: tileData.physicLayer.collisionLayer,
-//                            collisionBitMask: tileData.physicLayer.collisionMask
-//                        )
+//                        shapes: tileData.physicsBody?.shapes ?? [.generateBox()], // Use physicsBody shapes or default
+//                        filter: layer.collisionFilter // Apply collisionFilter from the layer
 //                    )
 //                }
 
