@@ -147,6 +147,7 @@ public final class Input: @unchecked Sendable {
     func receiveEvent(_ event: InputEvent) {
         self.eventsPool.append(event)
         self.parseInputEvent(event)
+        print("value")
     }
 
     // MARK: - Private
@@ -173,7 +174,7 @@ public final class Input: @unchecked Sendable {
                 let controllerType = gamepadConnectionEvent.gamepadInfo?.type ?? "Unknown"
                 let controllerName = gamepadConnectionEvent.gamepadInfo?.name ?? "Unknown"
 
-                Input.shared.gamepads[gamepadConnectionEvent.gamepadId] = Gamepad(
+                self.gamepads[gamepadConnectionEvent.gamepadId] = Gamepad(
                     gamepadId: gamepadConnectionEvent.gamepadId,
                     info: gamepadConnectionEvent.gamepadInfo
                 )
