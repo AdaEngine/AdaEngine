@@ -18,7 +18,7 @@ final class GameScene2D: Scene, @unchecked Sendable {
         do {
             let tiles = try AssetsManager.loadSync(
                 Image.self, 
-                at: "@res://tiles_packed.png",
+                at: "@res://tiles_packed.png"
             ).asset
             let charactersTiles = try AssetsManager.loadSync(
                 Image.self, 
