@@ -10,7 +10,7 @@ import Foundation
 
 /// Contains information about shader changes and store/load spirv binary in cache folder.
 enum ShaderCache {
-    
+
     private typealias Cache = [String : [ShaderStage : ShaderCache]]
     
     struct ShaderCache: Equatable, Codable {
@@ -18,11 +18,9 @@ enum ShaderCache {
         let headers: [ShaderSource.IncludeSearchPath]
         let version: Int
     }
-    
-    private static let decoder = YAMLDecoder()
-    private static let encoder = YAMLEncoder()
+
     private static let fileSystem = FileSystem.current
-    
+
     static func hasChanges(for source: ShaderSource, version: Int) -> Set<ShaderStage> {
         guard let cacheKey = source.fileURL?.relativeString else {
             return []
@@ -126,7 +124,7 @@ enum ShaderCache {
             .deletingPathExtension()
             .appendingPathExtension("cache-\(stage.rawValue).ref")
         
-        let stringData = try encoder.encode(reflectionData)
+        let stringData = try YAMLEncoder().encode(reflectionData)
         _ = fileSystem.createFile(at: cacheURL, contents: stringData.data(using: .utf8)!)
     }
     
@@ -148,7 +146,7 @@ enum ShaderCache {
             return nil
         }
         
-        return try? decoder.decode(ShaderReflectionData.self, from: data)
+        return try? YAMLDecoder().decode(ShaderReflectionData.self, from: data)
     }
     
     static func removeReflection(for fileURL: URL, stage: ShaderStage) {
@@ -175,7 +173,7 @@ enum ShaderCache {
                 return [:]
             }
             
-            return try decoder.decode(Cache.self, from: data)
+            return try YAMLDecoder().decode(Cache.self, from: data)
         } catch {
             fatalError("[ShaderCache] \(error)")
         }
@@ -186,7 +184,7 @@ enum ShaderCache {
         
         do {
             let cacheFile = try getCacheFile()
-            let string = try encoder.encode(cacheData)
+            let string = try YAMLEncoder().encode(cacheData)
             _ = fileSystem.createFile(at: cacheFile, contents: string.data(using: .utf8)!)
         } catch {
             fatalError("[ShaderCache] \(error)")

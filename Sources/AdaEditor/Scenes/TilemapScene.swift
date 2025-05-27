@@ -7,7 +7,7 @@
 
 import AdaEngine
 
-final class LdtkTilemapScene: Scene, @preconcurrency TileMapDelegate, @unchecked Sendable {
+final class LdtkTilemapScene: Scene, TileMapDelegate, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
         self.debugOptions = [.showPhysicsShapes]
         
