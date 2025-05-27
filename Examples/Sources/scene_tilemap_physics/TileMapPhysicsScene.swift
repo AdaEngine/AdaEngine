@@ -1,5 +1,14 @@
 import AdaEngine
 
+@main
+struct TileMapPhysicsApp: App {
+    var scene: some AppScene {
+        GameAppScene {
+            TileMapPhysicsScene()
+        }
+    }
+}
+
 // Helper for Collision Groups (if not already part of AdaEngine globally)
 // It's an OptionSet, so it can be used like: CollisionGroup([.group(0), .group(1)])
 // Or define static properties for clarity if preferred.
@@ -63,11 +72,13 @@ class CollectibleScript: ScriptableComponent {
 }
 
 
-public struct TileMapPhysicsScene: SceneFunction {
+public final class TileMapPhysicsScene: Scene, @unchecked Sendable {
 
-    public func setup(scene: Scene, game: Game) {
+    var subscriptions: Set<AnyCancellable> = []
+
+    public override func sceneWillMove(from view: SceneView) {
         // 1. Basic Scene Setup
-        scene.debugOptions.insert(.showPhysicsShapes) // Visualize physics shapes
+        self.debugOptions.insert(.showPhysicsShapes) // Visualize physics shapes
 
         // 2. Create Programmatic Images & TileSet
         let tileSet = TileSet()
@@ -75,7 +86,7 @@ public struct TileMapPhysicsScene: SceneFunction {
         let greenImage = Image(width: 16, height: 16, color: .green)
         let redImage = Image(width: 16, height: 16, color: .red)
         let yellowImage = Image(width: 16, height: 16, color: .yellow)
-        let blueImage = Image(width: 16, height: 16, color: .blue) // For player
+        let blueImage = Texture2D(image: Image(width: 16, height: 16, color: .blue)) // For player
 
         // Ground Source
         let groundSource = TextureAtlasTileSource(from: greenImage, size: [16, 16], margin: .zero)
@@ -112,7 +123,7 @@ public struct TileMapPhysicsScene: SceneFunction {
         let groundLayer = tileMap.createLayer()
         groundLayer.name = "GroundLayer"
         groundLayer.collisionFilter = CollisionFilter(
-            categoryBitMask: .group(0), 
+            categoryBitMask: .group(0),
             collisionBitMask: .group(1) // Collides with Player
         )
         for x in -10..<10 { // Create a ground platform
@@ -126,7 +137,7 @@ public struct TileMapPhysicsScene: SceneFunction {
         let obstacleLayer = tileMap.createLayer()
         obstacleLayer.name = "ObstacleLayer"
         obstacleLayer.collisionFilter = CollisionFilter(
-            categoryBitMask: .group(2), 
+            categoryBitMask: .group(2),
             collisionBitMask: CollisionGroup([.group(0), .group(1)]) // Collides with Ground and Player
         )
         for y in -4..<0 { // Create a wall
@@ -139,7 +150,7 @@ public struct TileMapPhysicsScene: SceneFunction {
         let collectibleLayer = tileMap.createLayer()
         collectibleLayer.name = "CollectibleLayer"
         collectibleLayer.collisionFilter = CollisionFilter(
-            categoryBitMask: .group(3), 
+            categoryBitMask: .group(3),
             collisionBitMask: .group(1) // Collides with Player (as trigger)
         )
         // Tiles on this layer will have their Collision2DComponent mode set to .trigger by TileMapSystem later.
@@ -153,14 +164,14 @@ public struct TileMapPhysicsScene: SceneFunction {
         let tileMapEntity = Entity(name: "ExampleTileMap")
         tileMapEntity.components += TileMapComponent(tileMap: tileMap)
         tileMapEntity.components += Transform() // Position at origin
-        scene.addEntity(tileMapEntity)
-        
+        world.addEntity(tileMapEntity)
+
         // Post-process collectible tiles to make them triggers
         // This is a workaround. Ideally, TileMapSystem or TileData would specify trigger mode.
-        scene.subscribe(to: SceneEvents.UpdateBegan.self) { _ in
+        self.subscribe(to: SceneEvents.Update.self) { _ in
              // Run once after TileMapSystem has created entities
             if let tmComponent = tileMapEntity.components[TileMapComponent.self] {
-                if let collectibleLayerEntity = tmComponent.tileLayers[collectibleLayer.id] {
+                if let collectibleLayerEntity = tmComponent.tileMap.layers[collectibleLayer.id] {
                     for tileChild in collectibleLayerEntity.children {
                         if var collisionComp = tileChild.components[Collision2DComponent.self] {
                             if collisionComp.mode != .trigger { // Avoid redundant sets
@@ -172,22 +183,23 @@ public struct TileMapPhysicsScene: SceneFunction {
                     }
                 }
             }
-        }.store(in: &scene.subscriptions)
+        }
+        .store(in: &subscriptions)
 
 
         // 4. Player Entity
         let playerEntity = Entity(name: "Player")
         playerEntity.components += Transform(scale: [0.8, 0.8, 1], position: [-5, -2, 0]) // Start above ground
-        
+
         let playerSprite = SpriteComponent(texture: blueImage)
         playerEntity.components += playerSprite
-        
+
         playerEntity.components += PhysicsBody2DComponent(
             shapes: [.generateBox(size: [0.8, 0.8])], // Player physics shape
             mass: 1.0,
             mode: .dynamic,
             filter: CollisionFilter(
-                categoryBitMask: .group(1), 
+                categoryBitMask: .group(1),
                 collisionBitMask: CollisionGroup([.group(0), .group(2), .group(3)]) // Collides with Ground, Obstacles, Collectibles
             )
         )
@@ -204,19 +216,3 @@ public struct TileMapPhysicsScene: SceneFunction {
         scene.addEntity(cameraEntity)
     }
 }
-
-// Main application setup (will be in a separate main.swift)
-// struct TileMapPhysicsApp: AdaEngineApp {
-//     var scene: SceneFunction = TileMapPhysicsScene()
-// 
-//     var body: some AppScene {
-//         GameScene {
-//             EngineSetup(appName: "TileMapPhysicsExample", bundle: .main)
-//         }
-//     }
-// }
-//
-// TileMapPhysicsApp.main()
-
-// Placeholder for main.swift content if creating it in the same block
-// For now, this file focuses on TileMapPhysicsScene.swift
