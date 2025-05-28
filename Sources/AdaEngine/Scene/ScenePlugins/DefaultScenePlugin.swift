@@ -11,8 +11,11 @@ import AdaTransform
 
 /// Contains base configuration for any scene in the game.
 /// This plugins will applied for each scene in Ada application and should be passed once per scene.
-struct DefaultWorldPlugin: WorldPlugin {
-    func setup(in world: World) {
+public struct DefaultWorldPlugin: WorldPlugin {
+
+    public init() {}
+
+    public func setup(in world: World) {
         world
             .addSystem(ScriptComponentUpdateSystem.self)
             .addPlugin(VisibilityPlugin())
@@ -31,8 +34,11 @@ struct DefaultWorldPlugin: WorldPlugin {
 
 /// Contains base configurations for render world.
 /// This plugins will applied for entire Ada application and should be passed once per run.
-struct DefaultRenderPlugin: RenderWorldPlugin {
-    func setup(in world: RenderWorld) async {
+public struct DefaultRenderPlugin: RenderWorldPlugin {
+
+    public init() {}
+    
+    public func setup(in world: RenderWorld) async {
         await world
             .addPlugin(CameraRenderPlugin())
             .addPlugin(Scene2DPlugin())
