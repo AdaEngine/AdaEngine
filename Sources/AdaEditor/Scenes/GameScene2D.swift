@@ -251,7 +251,6 @@ struct PlayerMovementSystem: System {
         let speed: Float = 2 * context.deltaTime
 
         // --- Gamepad camera movement ---
-        print("Gamepad connected: \(Input.getConnectedGamepads())")
         if let gamepad = Input.getConnectedGamepads().first {
             print("", gamepad.info)
             let leftStickX = gamepad.getAxisValue(.leftStickX)

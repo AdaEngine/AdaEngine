@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/2/24.
 //
 
+import Foundation
 import Yams
 
 public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {

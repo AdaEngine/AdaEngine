@@ -4,7 +4,7 @@ instantiateDefaultPlugin: true
 world:
   entities:
   - name: Ground
-    id: 122206160920790060
+    id: 122206846813697590
     components:
       AdaEngine.SpriteComponent:
         texture:
@@ -71,7 +71,7 @@ world:
         mode:
           default: {}
   - name: Ground 2
-    id: 122206160920793240
+    id: 122206846813698700
     components:
       AdaEngine.SpriteComponent:
         tintColor:

@@ -147,7 +147,6 @@ public final class Input: @unchecked Sendable {
     func receiveEvent(_ event: InputEvent) {
         self.eventsPool.append(event)
         self.parseInputEvent(event)
-        print("value")
     }
 
     // MARK: - Private

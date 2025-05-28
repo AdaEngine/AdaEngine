@@ -291,7 +291,8 @@ public final class AssetsManager {
     
     // TODO: (Vlad) where we should call this method in embeddable view?
     // TODO: (Vlad) We must set current dev path to the asset manager
-    static func initialize(filePath: StaticString) throws {
+    @_spi(AdaEngine)
+    public static func initialize(filePath: StaticString) throws {
         let projectDirectories = try URL.findProjectDirectories(from: filePath)
         self.projectDirectories = projectDirectories
         
@@ -308,9 +309,10 @@ public final class AssetsManager {
         self.resourceDirectory = resources
 #endif
     }
-    
+
+    @_spi(AdaEngine)
     @AssetActor
-    static func processResources() async throws {
+    public static func processResources() async throws {
         for (key, asset) in self.storage.hotReloadingAssets where asset.needsUpdate {
             guard let oldResource = self.storage.loadedAssets[key]?.value as? AnyAssetHandle else {
                 logger.error("Resource \(asset.resource) is not found")
