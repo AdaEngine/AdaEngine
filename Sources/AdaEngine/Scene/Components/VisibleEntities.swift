@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+@_spi(Internal) import AdaRender
 
 // TODO: (Vlad) add sphere supports
 

@@ -8,8 +8,8 @@
 /// An event that represents a change in a gamepad's analog axis value.
 ///
 /// This event is dispatched when an analog stick or trigger on a connected gamepad moves.
-public class GamepadAxisEvent: InputEvent {
-    
+public final class GamepadAxisEvent: InputEvent, @unchecked Sendable {
+
     /// The unique identifier of the gamepad that triggered the event.
     /// Gamepad IDs are typically assigned by the system.
     public let gamepadId: Int

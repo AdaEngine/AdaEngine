@@ -134,16 +134,13 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
     "AtlasFontGenerator",
-    "Yams",
-    "libpng",
-    "SPIRV-Cross",
-    "SPIRVCompiler",
     "box2d",
     "AdaECS",
     "AdaEngineMacros",
     "AdaAssets",
     "AdaAudio",
-    "AdaTransform"
+    "AdaTransform",
+    "AdaRender"
 ]
 
 #if os(Linux)
@@ -157,7 +154,6 @@ let adaEngineTarget: Target = .target(
         "BUILD.bazel"
     ],
     resources: [
-        .copy("Assets/Shaders"),
         .copy("Assets/Fonts"),
         .copy("Assets/Images")
     ],
@@ -213,7 +209,8 @@ var targets: [Target] = [
         ],
         exclude: [
             "BUILD.bazel"
-        ]
+        ],
+        swiftSettings: swiftSettings
     ),
     .target(
         name: "AdaUtils",
@@ -223,7 +220,8 @@ var targets: [Target] = [
         ],
         exclude: [
             "BUILD.bazel"
-        ]
+        ],
+        swiftSettings: swiftSettings
     ),
     .target(
         name: "AdaAssets",
@@ -231,7 +229,8 @@ var targets: [Target] = [
             .product(name: "Logging", package: "swift-log"),
             "AdaUtils",
             "Yams"
-        ]
+        ],
+        swiftSettings: swiftSettings
     ),
     .target(
         name: "AdaAudio",
@@ -242,14 +241,32 @@ var targets: [Target] = [
             "AdaTransform",
             "miniaudio",
             "Math"
-        ]
+        ],
+        swiftSettings: swiftSettings
     ),
     .target(
         name: "AdaTransform",
         dependencies: [
             "AdaECS",
             "Math"
-        ]
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaRender",
+        dependencies: [
+            "AdaECS",
+            "AdaTransform",
+            "Math",
+            "Yams",
+            "SPIRV-Cross",
+            "SPIRVCompiler",
+            "libpng",
+        ],
+        resources: [
+            .copy("Assets")
+        ],
+        swiftSettings: swiftSettings
     )
 ]
 

@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 5/4/24.
 //
 
+import AdaAssets
+@_spi(Runtime) import AdaUtils
+
 public class TileMap: Asset, @unchecked Sendable {
 
     public var tileSet: TileSet = TileSet() {

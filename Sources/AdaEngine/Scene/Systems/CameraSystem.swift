@@ -6,6 +6,7 @@
 //
 
 @_spi(Internal) import AdaECS
+@_spi(Internal) import AdaRender
 
 // FIXME: Currently we render on window directly
 // TODO: Move window info to ECS system
@@ -46,11 +47,9 @@ public struct CameraSystem: Sendable {
         window: UIWindow?
     ) {
         switch camera.renderTarget {
-        case .window(let id):
-            if id != window?.id {
-                camera.renderTarget = .window(window?.id ?? .empty)
-                camera.computedData.targetScaleFactor = window?.screen?.scale ?? 1
-            }
+        case .window(let windowRef):
+            camera.renderTarget = .window(windowRef)
+            camera.computedData.targetScaleFactor = window?.screen?.scale ?? 1
 
             let windowSize = window?.frame.size ?? .zero
 

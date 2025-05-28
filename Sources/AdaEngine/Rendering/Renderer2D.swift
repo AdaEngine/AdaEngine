@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
+import AdaECS
+import AdaAssets
+@_spi(Internal) import AdaRender
 import Math
 
 // swiftlint:disable file_length
@@ -90,7 +93,7 @@ class Renderer2D {
         
         let circleShader = try! AssetsManager.loadSync(
             ShaderModule.self, 
-            at: "Shaders/Vulkan/circle.glsl", 
+            at: "Shaders/circle.glsl",
             from: .engineBundle
         )
 
@@ -139,7 +142,7 @@ class Renderer2D {
         
         let quadShader = try! AssetsManager.loadSync(
             ShaderModule.self, 
-            at: "Shaders/Vulkan/quad.glsl", 
+            at: "Shaders/quad.glsl",
             from: .engineBundle
         )
         piplineDesc.vertex = quadShader.asset.getShader(for: .vertex)
@@ -179,7 +182,7 @@ class Renderer2D {
         
         let linesShader = try! AssetsManager.loadSync(
             ShaderModule.self,
-            at: "Shaders/Vulkan/line.glsl", 
+            at: "Shaders/line.glsl",
             from: .engineBundle
         )
         piplineDesc.vertex = linesShader.asset.getShader(for: .vertex)
@@ -238,7 +241,7 @@ class Renderer2D {
         
         let textShader = try! AssetsManager.loadSync(
             ShaderModule.self, 
-            at: "Shaders/Vulkan/text.glsl", 
+            at: "Shaders/text.glsl", 
             from: .engineBundle
         )
         piplineDesc.vertex = textShader.asset.getShader(for: .vertex)
@@ -272,14 +275,14 @@ class Renderer2D {
         )
     }
     
-    static func beginDrawContext(for window: UIWindow, viewTransform: Transform3D) throws -> DrawContext {
+    static func beginDrawContext(for window: WindowRef, viewTransform: Transform3D) throws -> DrawContext {
         let frameIndex = RenderEngine.shared.currentFrameIndex
         
         let uniform = Self.shared.uniformSet.getBuffer(binding: GlobalBufferIndex.viewUniform, set: 0, frameIndex: frameIndex)
         uniform.setData(GlobalViewUniform(projectionMatrix: .identity, viewProjectionMatrix: .identity, viewMatrix: viewTransform))
 
         let currentDraw = try RenderEngine.shared.renderDevice.beginDraw(
-            for: window.id,
+            for: window,
             clearColor: .surfaceClearColor,
             loadAction: .load,
             storeAction: .store

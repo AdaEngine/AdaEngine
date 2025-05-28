@@ -33,7 +33,7 @@ public struct UIGraphicsContext {
 
     @MainActor
     public init(window: UIWindow) {
-        var camera = Camera(window: window.id)
+        var camera = Camera(window: .windowId(window.id))
         camera.isActive = true
         camera.projection = .orthographic
         self.camera = camera

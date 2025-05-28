@@ -4,11 +4,11 @@ instantiateDefaultPlugin: true
 world:
   entities:
   - name: Ground
-    id: 122206870354981880
+    id: 122207144618176690
     components:
       AdaEngine.SpriteComponent:
         texture:
-          type: AdaEngine.TextureAtlas.Slice
+          type: AdaRender.TextureAtlas.Slice
           meta:
             textureAtlasResource:
               spriteSize:
@@ -71,7 +71,7 @@ world:
         mode:
           default: {}
   - name: Ground 2
-    id: 122206870354987670
+    id: 122207144618185930
     components:
       AdaEngine.SpriteComponent:
         tintColor:

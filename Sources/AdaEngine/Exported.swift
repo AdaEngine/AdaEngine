@@ -16,5 +16,6 @@
 @_exported import AdaAssets
 @_exported import AdaAudio
 @_exported import AdaTransform
+@_exported import AdaRender
 
 public typealias TimeInterval = AdaUtils.TimeInterval

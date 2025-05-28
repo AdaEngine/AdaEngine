@@ -7,6 +7,7 @@
 
 import AdaECS
 import Math
+@_spi(Internal) import AdaRender
 
 // MARK: - Mesh 2D Plugin -
 
@@ -182,7 +183,7 @@ struct MaterialMesh2dKey: Hashable {
     let vertexDescritor: VertexDescriptor
 }
 
-class Mesh2dMaterialStorageData: MaterialStorageData {
+public class Mesh2dMaterialStorageData: MaterialStorageData {
     var pipelines: [MaterialMesh2dKey : RenderPipeline] = [:]
 }
 

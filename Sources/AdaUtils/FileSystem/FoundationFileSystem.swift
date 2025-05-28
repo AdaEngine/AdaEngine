@@ -16,7 +16,7 @@ final class FoundationFileSystem: FileSystem, @unchecked Sendable {
     // swiftlint:disable force_try
     override var applicationFolderURL: URL {
         #if MACOS
-        return Bundle.engineBundle.bundleURL.deletingLastPathComponent()
+        return Bundle.main.bundleURL.deletingLastPathComponent()
         #elseif IOS || TVOS
         return try! self.fileManager.url(for: .applicationDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
         #else

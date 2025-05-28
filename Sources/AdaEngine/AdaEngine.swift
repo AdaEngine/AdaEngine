@@ -5,18 +5,19 @@
 //  Created by v.prusakov on 8/14/21.
 //
 
-/// Main events available from the engine.
-public enum EngineEvents {
-    /// Called each time, when main main loop was iterating.
-    public struct MainLoopBegan: Event {
-        /// The delta time after previous tick.
-        public let deltaTime: TimeInterval
-    }
-    
-    public struct FramesPerSecondEvent: Event {
-        public let framesPerSecond: Int
+@_spi(Runtime) import AdaRender
+
+enum RuntimeTypeLoader {
+
+    /// Load type in memory to great decoding/encoding
+    @MainActor
+    static func loadTypes() {
+        TileMap.registerTypes()
+        Texture.registerTypes()
+        RegistredComponent.registerTypes()
     }
 }
+
 
 public final class Engine {
     

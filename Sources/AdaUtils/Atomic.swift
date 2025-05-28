@@ -49,7 +49,7 @@ public final class LockProperty<Value: Sendable>: @unchecked Sendable {
 
 extension NSRecursiveLock {
   @inlinable @discardableResult
-  @_spi(Internals) public func sync<R>(work: () throws -> R) rethrows -> R {
+  @_spi(Internal) public func sync<R>(work: () throws -> R) rethrows -> R {
     self.lock()
     defer { self.unlock() }
     return try work()
