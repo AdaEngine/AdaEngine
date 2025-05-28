@@ -218,7 +218,6 @@ final class MacOSWindowManager: UIWindowManager {
         }
         
         let image = texture.image
-        
         guard let bitmap = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: texture.width,
@@ -255,7 +254,6 @@ final class MacOSWindowManager: UIWindowManager {
         
         let nsImage = NSImage(size: CGSize(width: CGFloat(texture.width), height: CGFloat(texture.height)))
         nsImage.addRepresentation(bitmap)
-        
         let cursor = NSCursor(
             image: nsImage,
             hotSpot: CGPoint(x: CGFloat(hotspot.x), y: CGFloat(hotspot.y))

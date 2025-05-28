@@ -45,7 +45,7 @@ public struct TextAttributeContainer: Hashable, @unchecked Sendable {
 
 public extension TextAttributeContainer {
     /// Returns style for specific type.
-    public subscript<T: TextAttributeKey>(_ type: T.Type) -> T.Value? {
+    subscript<T: TextAttributeKey>(_ type: T.Type) -> T.Value? {
         get {
             return self.container[ObjectIdentifier(type)] as? T.Value
         }
@@ -55,7 +55,7 @@ public extension TextAttributeContainer {
         }
     }
     
-    public subscript<T>(dynamicMember keyPath: WritableKeyPath<TextAttributeContainer, T>) -> T {
+    subscript<T>(dynamicMember keyPath: WritableKeyPath<TextAttributeContainer, T>) -> T {
         get {
             return self[keyPath: keyPath]
         }

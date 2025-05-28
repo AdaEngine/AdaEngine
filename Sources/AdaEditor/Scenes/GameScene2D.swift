@@ -34,13 +34,13 @@ final class GameScene2D: Scene, @unchecked Sendable {
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraEntity.camera.clearFlags = .solid
-        cameraEntity.camera.orthographicScale = 1.5
+        cameraEntity.camera.orthographicScale = 1.1
 
         self.world.addEntity(cameraEntity)
 
         // DEBUG
         self.debugOptions = [.showPhysicsShapes]
-        // self.makePlayer()
+//         self.makePlayer()
         self.makeSubsceneAndSave()
         // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
         self.collisionHandler()

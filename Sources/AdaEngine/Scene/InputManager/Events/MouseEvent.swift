@@ -21,7 +21,15 @@ public final class MouseEvent: InputEvent, @unchecked Sendable {
     public let modifierKeys: KeyModifier
     public let phase: Phase
 
-    init(window: UIWindow.ID, button: MouseButton, scrollDelta: Point = .zero, mousePosition: Point, phase: Phase, modifierKeys: KeyModifier, time: TimeInterval) {
+    init(
+        window: UIWindow.ID,
+        button: MouseButton,
+        scrollDelta: Point = .zero,
+        mousePosition: Point,
+        phase: Phase,
+        modifierKeys: KeyModifier,
+        time: TimeInterval
+    ) {
         self.scrollDelta = scrollDelta
         self.button = button
         self.mousePosition = mousePosition
