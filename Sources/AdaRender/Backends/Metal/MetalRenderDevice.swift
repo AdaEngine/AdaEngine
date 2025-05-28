@@ -190,7 +190,7 @@ extension MetalRenderDevice {
         guard let context else {
             throw DrawListError.notAGlobalDevice
         }
-        guard let window = context.windows[window] else {
+        guard let window = context.getRenderWindow(for: window) else {
             throw DrawListError.windowNotExists
         }
         guard let mtlRenderPass = window.getRenderPass() else {

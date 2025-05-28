@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaAudio
+import AdaText
 import AdaTransform
 
 /// Contains base configuration for any scene in the game.

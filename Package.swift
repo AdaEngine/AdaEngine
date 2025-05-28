@@ -133,14 +133,14 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
-    "AtlasFontGenerator",
     "box2d",
     "AdaECS",
     "AdaEngineMacros",
     "AdaAssets",
     "AdaAudio",
     "AdaTransform",
-    "AdaRender"
+    "AdaRender",
+    "AdaText"
 ]
 
 #if os(Linux)
@@ -154,8 +154,8 @@ let adaEngineTarget: Target = .target(
         "BUILD.bazel"
     ],
     resources: [
-        .copy("Assets/Fonts"),
-        .copy("Assets/Images")
+        .copy("Assets/Images"),
+        .copy("Assets/Shaders")
     ],
     cSettings: [
         .define("GL_SILENCE_DEPRECATION")
@@ -262,6 +262,20 @@ var targets: [Target] = [
             "SPIRV-Cross",
             "SPIRVCompiler",
             "libpng",
+        ],
+        resources: [
+            .copy("Assets/Shaders")
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaText",
+        dependencies: [
+            "AdaECS",
+            "AdaTransform",
+            "Math",
+            "AdaRender",
+            "AtlasFontGenerator",
         ],
         resources: [
             .copy("Assets")

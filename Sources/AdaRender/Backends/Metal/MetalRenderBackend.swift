@@ -59,12 +59,16 @@ class MetalRenderBackend: RenderBackend {
         self.context.updateSizeForRenderWindow(windowId, size: newSize)
     }
     
-    func destroyWindow(_ windowId: WindowRef) throws {
+    func destroyWindow(_ window: WindowRef) throws {
+        guard case(.windowId(let windowId)) = window else {
+            return
+        }
+
         guard self.context.windows[windowId] != nil else {
             return
         }
         
-        self.context.destroyWindow(by: windowId)
+        self.context.destroyWindow(by: window)
     }
     
     func beginFrame() throws {

@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
+@_spi(Internal) import AdaRender
+
 /// The main class represents application instance.
 /// The application cannot be created manualy, instead use an ``App`` protocol.
 /// To get access to the application instance, use static property `shared`

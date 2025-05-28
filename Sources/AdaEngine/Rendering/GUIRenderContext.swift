@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/16/22.
 //
 
+import AdaText
 import Math
 
 // TODO: Clip Mask
@@ -18,7 +19,7 @@ public struct UIGraphicsContext {
 
     /// Returns current transform.
     public private(set) var transform: Transform3D = .identity
-    private(set) var currentDrawContext: Renderer2D.DrawContext?
+//    private(set) var currentDrawContext: Renderer2D.DrawContext?
     private var clipPath: Path?
 
     public var opacity: Float = 1
@@ -56,17 +57,17 @@ public struct UIGraphicsContext {
             zFar: 1000
         )
         self.viewMatrix = view
-
-        do {
-            self.currentDrawContext = try Renderer2D.beginDrawContext(
-                for: self.camera,
-                viewUniform: GlobalViewUniform(
-                    viewProjectionMatrix: view
-                )
-            )
-        } catch {
-            print("[Error] \(error)")
-        }
+//
+//        do {
+//            self.currentDrawContext = try Renderer2D.beginDrawContext(
+//                for: self.camera,
+//                viewUniform: GlobalViewUniform(
+//                    viewProjectionMatrix: view
+//                )
+//            )
+//        } catch {
+//            print("[Error] \(error)")
+//        }
     }
 
     public mutating func concatenate(_ transform: Transform3D) {
@@ -101,7 +102,7 @@ public struct UIGraphicsContext {
     /// Paints the area contained within the provided rectangle, using the passed color and texture.
     public func drawRect(_ rect: Rect, texture: Texture2D? = nil, color: Color) {
         let transform = self.transform * rect.toTransform3D
-        self.currentDrawContext?.drawQuad(transform: transform, texture: texture, color: applyOpacityIfNeeded(color))
+//        self.currentDrawContext?.drawQuad(transform: transform, texture: texture, color: applyOpacityIfNeeded(color))
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
@@ -111,14 +112,14 @@ public struct UIGraphicsContext {
         thickness: Float = 1
     ) {
         let transform = self.transform * rect.toTransform3D
-        self.currentDrawContext?.drawCircle(transform: transform, thickness: thickness, fade: 0.005, color: applyOpacityIfNeeded(color))
+//        self.currentDrawContext?.drawCircle(transform: transform, thickness: thickness, fade: 0.005, color: applyOpacityIfNeeded(color))
     }
 
     public func drawLine(start: Vector2, end: Vector2, lineWidth: Float, color: Color) {
         let start = (transform * Vector4(start.x, start.y, 0, 1))
         let end = (transform * Vector4(end.x, end.y, 0, 1))
 
-        self.currentDrawContext?.drawLine(start: start.xyz, end: end.xyz, lineWidth: lineWidth, color: applyOpacityIfNeeded(color))
+//        self.currentDrawContext?.drawLine(start: start.xyz, end: end.xyz, lineWidth: lineWidth, color: applyOpacityIfNeeded(color))
     }
 
     private func applyOpacityIfNeeded(_ color: Color) -> Color {
@@ -133,7 +134,7 @@ public struct UIGraphicsContext {
 
     public func drawText(in rect: Rect, from textLayout: TextLayoutManager) {
         let transform = self.transform * rect.toTransform3D
-        self.currentDrawContext?.drawText(textLayout, transform: transform)
+//        self.currentDrawContext?.drawText(textLayout, transform: transform)
     }
 
     public func draw(_ path: Path) {
@@ -158,15 +159,15 @@ public struct UIGraphicsContext {
             size: glyph.size
         )
         let transform = self.transform * rect.toTransform3D
-        self.currentDrawContext?.drawGlyph(glyph, transform: transform)
+//        self.currentDrawContext?.drawGlyph(glyph, transform: transform)
     }
 
     public func commitDraw() {
-        self.currentDrawContext?.commitContext()
+//        self.currentDrawContext?.commitContext()
     }
 
     func flush() {
-        self.currentDrawContext?.flush()
+//        self.currentDrawContext?.flush()
     }
 }
 

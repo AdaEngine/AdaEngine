@@ -15,7 +15,8 @@ import MetalKit
 extension MetalRenderBackend {
 
     final class Context {
-        private(set) var windows: [WindowRef: RenderWindow] = [:]
+        private(set) var windows: [RID: RenderWindow] = [:]
+        private var primaryWindow: RenderWindow?
         let physicalDevice: MTLDevice
         
         init() {
@@ -23,10 +24,19 @@ extension MetalRenderBackend {
             let needsShowDebugHUD = ProcessInfo.processInfo.environment["METAL_HUD_DEBUG"] != nil
             UserDefaults.standard.set(needsShowDebugHUD, forKey: "MetalForceHudEnabled")
         }
-        
+
+        func getRenderWindow(for window: WindowRef) -> RenderWindow? {
+            switch window {
+            case .primary:
+                return primaryWindow
+            case .windowId(let id):
+                return windows[id]
+            }
+        }
+
         // MARK: - Methods
         @MainActor func createRenderWindow(with id: WindowRef, view: MTKView, size: SizeInt) throws {
-            if self.windows[id] != nil {
+            if case(.windowId(let id)) = id, self.windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
             
@@ -38,8 +48,13 @@ extension MetalRenderBackend {
             view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
             view.framebufferOnly = false
             view.sampleCount = 1
-            
-            self.windows[id] = window
+
+            if self.primaryWindow == nil {
+                self.primaryWindow = window
+            }
+            if case .windowId(let id) = id {
+                self.windows[id] = window
+            }
         }
         
         func updateSizeForRenderWindow(_ windowId: WindowRef, size: SizeInt) {
@@ -52,6 +67,10 @@ extension MetalRenderBackend {
         }
         
         func destroyWindow(by id: WindowRef) {
+            guard case .windowId(let id) = id else {
+                return
+            }
+
             guard self.windows[id] != nil else {
                 assertionFailure("Not found window by id \(id)")
                 return

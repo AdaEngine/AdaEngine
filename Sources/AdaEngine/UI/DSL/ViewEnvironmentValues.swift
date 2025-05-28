@@ -5,6 +5,9 @@
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
+import AdaText
+import AdaUtils
+
 public extension EnvironmentValues {
     /// The default font of this environment.
     @Entry var font: Font?
