@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 14.06.2024.
 //
 
+import AdaText
+
 @MainActor
 open class UILabel: UIView {
 
@@ -26,7 +28,7 @@ open class UILabel: UIView {
         }
     }
 
-    public var attributedString: AdaEngine.AttributedText? {
+    public var attributedString: AttributedText? {
         didSet {
             updateTextLayoutManager()
         }

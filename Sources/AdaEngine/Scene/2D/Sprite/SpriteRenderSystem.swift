@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import AdaRender
 import Math
 
 // TODO: Rewrite sprite batch if needed. Too much drawcalls, I think

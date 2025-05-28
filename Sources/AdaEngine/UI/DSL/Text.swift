@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
+import AdaText
+
 public struct Text {
 
     let storage: Storage

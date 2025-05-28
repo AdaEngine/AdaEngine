@@ -7,6 +7,7 @@
 
 import AdaECS
 @_spi(Runtime) import AdaUtils
+import AdaText
 
 // FIXME: We must use Codegen to register components at build time...
 /// Sourcery??

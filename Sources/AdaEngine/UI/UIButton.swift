@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 18.06.2024.
 //
 
+import AdaText
+
 open class UIButton: UIControl {
 
     private struct ButtonStyle {
