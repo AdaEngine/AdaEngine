@@ -7,6 +7,8 @@
 
 import Foundation
 
+// TODO: Should we use this instead of NSFileManager thats dilivered by SwiftFoundation?
+
 /// A convenient interface to the contents of the file system, and the primary means of interacting with it.
 public class FileSystem: @unchecked Sendable {
 

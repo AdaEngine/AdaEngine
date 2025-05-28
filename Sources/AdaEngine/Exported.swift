@@ -13,5 +13,6 @@
 @_exported import Math
 @_exported import AdaECS
 @_exported import AdaUtils
+@_exported import AdaAssets
 
 public typealias TimeInterval = AdaUtils.TimeInterval

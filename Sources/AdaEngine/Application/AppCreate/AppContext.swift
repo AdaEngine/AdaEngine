@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 4/30/24.
 //
 
+@_spi(AdaEngine) import AdaAssets
 import Logging
 
 @MainActor

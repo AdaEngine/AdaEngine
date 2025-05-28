@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 3/9/23.
 //
 
+import Foundation
 import AdaUtils
 
 // TODO: Mode for decoding/encoding files from/into binary format.

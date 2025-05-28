@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/10/21.
 //
 
+import Foundation
+
 /// The interface describe asset in a system.
 /// Asset describe information needed to your game, like Audio, Mesh, Texture and etc.
 /// You can create your own asset and use loaded it using ``AssetsManager`` object.

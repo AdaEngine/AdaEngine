@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+@_spi(AdaEngine) import AdaAssets
+
 /// The main class responds to update all systems in engine.
 /// You can have only one MainLoop per app.
 @MainActor

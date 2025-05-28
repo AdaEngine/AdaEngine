@@ -142,6 +142,7 @@ var adaEngineDependencies: [Target.Dependency] = [
     "box2d",
     "AdaECS",
     "AdaEngineMacros",
+    "AdaAssets"
 ]
 
 #if os(Linux)
@@ -222,6 +223,14 @@ var targets: [Target] = [
         exclude: [
             "BUILD.bazel"
         ]
+    ),
+    .target(
+        name: "AdaAssets",
+        dependencies: [
+            .product(name: "Logging", package: "swift-log"),
+            "AdaUtils",
+            "Yams"
+        ]
     )
 ]
 
@@ -283,6 +292,13 @@ targets += [
     .testTarget(
         name: "AdaECSTests",
         dependencies: ["AdaECS", "Math"],
+        exclude: [
+            "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
+        name: "AdaAssetsTests",
+        dependencies: ["AdaAssets"],
         exclude: [
             "BUILD.bazel"
         ]

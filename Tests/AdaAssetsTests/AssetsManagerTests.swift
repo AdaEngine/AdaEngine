@@ -1,5 +1,5 @@
 import Testing
-@testable import AdaEngine
+@testable import AdaAssets
 
 @Suite("AssetsManager Tests")
 struct AssetsManagerTests: Sendable {
