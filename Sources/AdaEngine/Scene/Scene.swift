@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
+import AdaAssets
 import AdaECS
 import AdaUtils
 import OrderedCollections

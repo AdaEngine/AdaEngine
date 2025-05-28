@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 4/2/23.
 //
 
+@_spi(Internal) import AdaRender
 import Math
 
 struct Mesh2DUniform {

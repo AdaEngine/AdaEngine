@@ -8,6 +8,7 @@
 import AdaECS
 import box2d
 import Math
+@_spi(Internal) import AdaRender
 
 @Component
 struct ExctractedPhysicsMesh2DDebug {

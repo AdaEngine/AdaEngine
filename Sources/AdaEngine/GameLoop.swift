@@ -6,6 +6,7 @@
 //
 
 @_spi(AdaEngine) import AdaAssets
+import AdaRender
 
 /// The main class responds to update all systems in engine.
 /// You can have only one MainLoop per app.

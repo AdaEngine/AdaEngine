@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 2/6/23.
 //
 
-import AdaUtils
-
 /// FixedTimestep enable your systems run at a fixed timestep between executions.
 /// This does not guarentee you that the elapsed time will be exactly fixed.
 public final class FixedTimestep: @unchecked Sendable {
@@ -45,16 +43,7 @@ public final class FixedTimestep: @unchecked Sendable {
         
         self.accumulator += deltaTime
         
-//        if self.accumulator >= self.step {
-//            
-//            result.fixedTime = self.accumulator
-//            result.isFixedTick = true
-//            
-//            self.accumulator -= self.step
-//            return result
-//        }
-        
-        while self.accumulator >= self.step { // Обрабатываем все возможные шаги
+        while self.accumulator >= self.step {
             self.accumulator -= self.step
             result.fixedTime += self.step
             result.isFixedTick = true

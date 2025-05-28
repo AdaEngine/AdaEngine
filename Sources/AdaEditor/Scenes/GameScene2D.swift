@@ -252,7 +252,6 @@ struct PlayerMovementSystem: System {
 
         // --- Gamepad camera movement ---
         if let gamepad = Input.getConnectedGamepads().first {
-            print("", gamepad.info)
             let leftStickX = gamepad.getAxisValue(.leftStickX)
             let leftStickY = gamepad.getAxisValue(.leftStickY)
             let deadzone: Float = 0.1

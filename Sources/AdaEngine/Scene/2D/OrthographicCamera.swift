@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 4/5/23.
 //
 
+import AdaECS
+import AdaRender
+
 /// A virtual camera that establishes the rendering orthographic.
 public final class OrthographicCamera: Entity, @unchecked Sendable {
 

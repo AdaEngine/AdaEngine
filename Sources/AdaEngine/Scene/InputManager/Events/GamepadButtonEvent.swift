@@ -8,7 +8,7 @@
 /// An event that represents a gamepad button press or release.
 ///
 /// This event is dispatched when a button on a connected gamepad changes its state.
-public class GamepadButtonEvent: InputEvent {
+public final class GamepadButtonEvent: InputEvent, @unchecked Sendable {
     
     /// The unique identifier of the gamepad that triggered the event.
     /// Gamepad IDs are typically assigned by the system.

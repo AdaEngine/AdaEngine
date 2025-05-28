@@ -6,6 +6,7 @@
 //
 
 #if MACOS
+import AdaRender
 import AppKit
 import Math
 
@@ -35,8 +36,8 @@ final class MacOSWindowManager: UIWindowManager {
         let metalView = MetalView(windowId: window.id, frame: contentRect)
         
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-        try? RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
-        
+        try? RenderEngine.shared.createWindow(.windowId(window.id), for: metalView, size: sizeInt)
+
         let systemWindow = NSWindow(
             contentRect: contentRect,
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
@@ -344,7 +345,7 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
         }
     
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-        try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
+        try? RenderEngine.shared.resizeWindow(.windowId(window.id), newSize: sizeInt)
     }
     
     func windowDidExitFullScreen(_ notification: Notification) {

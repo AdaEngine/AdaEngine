@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
+import AdaAssets
+import AdaRender
 import Foundation
 
 struct SpriteRenderPipeline: Sendable {
@@ -17,7 +19,7 @@ struct SpriteRenderPipeline: Sendable {
         let device = RenderEngine.shared.renderDevice
         let quadShader = try! AssetsManager.loadSync(
             ShaderModule.self, 
-            at: "Shaders/Vulkan/quad.glsl", 
+            at: "Shaders/quad.glsl", 
             from: .engineBundle
         )
 

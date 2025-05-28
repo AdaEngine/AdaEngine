@@ -40,7 +40,7 @@ public struct Text2DRenderSystem: RenderSystem, Sendable {
 
         let textShader = try! AssetsManager.loadSync(
             ShaderModule.self, 
-            at: "Shaders/Vulkan/text.glsl", 
+            at: "Shaders/text.glsl", 
             from: .engineBundle
         )
         var piplineDesc = RenderPipelineDescriptor()

@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 2/19/23.
 //
 
+@_spi(Internal) import AdaRender
+
 /// Plugin for RenderWorld added 2D render capatibilites.
 public struct Scene2DPlugin: RenderWorldPlugin {
 
@@ -61,7 +63,11 @@ public struct Main2DRenderNode: RenderNode {
         }
         
         let (camera, renderItems) = entity.components[Camera.self, RenderItems<Transparent2DRenderItem>.self]
-        if case .window(let id) = camera.renderTarget, id == .empty {
+        if
+            case .window(let windowRef) = camera.renderTarget,
+            case .windowId(let id) = windowRef,
+            id == .empty
+        {
             return []
         }
         
