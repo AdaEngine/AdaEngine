@@ -67,27 +67,23 @@ public final class Image: @unchecked Sendable {
     /// Get pixel color for specific X and Y position.
     public func getPixel(x: Int, y: Int) -> Color {
         let offset = y * self.width + x
-        
         switch self.format {
         case .rgb8:
             let red     = Float(self.data[offset * 3 + 0]) / 255
             let green   = Float(self.data[offset * 3 + 1]) / 255
             let blue    = Float(self.data[offset * 3 + 2]) / 255
-            
             return Color(red, green, blue, 1)
         case .rgba8:
             let red     = Float(self.data[offset * 4 + 0]) / 255
             let green   = Float(self.data[offset * 4 + 1]) / 255
             let blue    = Float(self.data[offset * 4 + 2]) / 255
             let alpha   = Float(self.data[offset * 4 + 3]) / 255
-            
             return Color(red, green, blue, alpha)
         case .bgra8:
             let blue    = Float(self.data[offset * 4 + 0]) / 255
             let green   = Float(self.data[offset * 4 + 1]) / 255
             let red     = Float(self.data[offset * 4 + 2]) / 255
             let alpha   = Float(self.data[offset * 4 + 3]) / 255
-            
             return Color(red, green, blue, alpha)
         default:
             fatalError("Not supported format to get pixel.")

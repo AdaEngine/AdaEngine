@@ -108,7 +108,6 @@ public final class TextLayoutManager: @unchecked Sendable {
         var y: Double = 0
 
         self.glyphsToRender = nil
-
         let lineHeightOffset = Double(self.textContainer.lineSpacing)
         let attributedText = self.textContainer.text
 
@@ -116,7 +115,6 @@ public final class TextLayoutManager: @unchecked Sendable {
         self.textLines = []
 
         let numberOfLines = self.textContainer.numberOfLines ?? lines.count
-
         if numberOfLines < 0 {
             print("Line limit can't be less than zero.")
             return
@@ -135,10 +133,8 @@ public final class TextLayoutManager: @unchecked Sendable {
 
             var width: Double = 0
             var height: Double = 0
-
             var ascent: Double = 0
             var descent: Double = 0
-
             var maxLineHeight: Double = 0
 
         indecies:
@@ -233,11 +229,9 @@ public final class TextLayoutManager: @unchecked Sendable {
 
             boundingBox.size.width = Float(width).rounded(.up)
             boundingBox.size.height = Float(height + maxLineHeight).rounded(.up)
-
             textLine.typographicBounds.ascent = ascent
             textLine.typographicBounds.descent = descent
             textLine.typographicBounds.rect = boundingBox
-
             self.textLines.append(textLine)
         }
     }
