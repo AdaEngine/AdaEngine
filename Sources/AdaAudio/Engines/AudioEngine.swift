@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
+import AdaUtils
+import Foundation
+
 /// Interface that works with audio.
 protocol AudioEngine {
     
@@ -14,7 +17,7 @@ protocol AudioEngine {
     /// Stop audio engine.
     func stop() throws
     
-    func update(_ deltaTime: TimeInterval)
+    func update(_ deltaTime: AdaUtils.TimeInterval)
     
     /// Create a new sound instance from file url.
     func makeSound(from url: URL) throws -> Sound

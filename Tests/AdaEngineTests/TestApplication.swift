@@ -5,6 +5,7 @@
 //  Created by vladislav.prusakov on 12.08.2024.
 //
 
+@_spi(AdaEngine) @testable import AdaAudio
 @_spi(Internal) @testable import AdaEngine
 
 class TestApplication: Application {

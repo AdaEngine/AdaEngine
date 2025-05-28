@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/3/23.
 //
 
+import AdaUtils
 import Math
 
 public enum SoundState {
@@ -36,7 +37,7 @@ protocol Sound: AnyObject {
     
     func copy() throws -> Sound
     
-    func update(_ deltaTime: TimeInterval)
+    func update(_ deltaTime: AdaUtils.TimeInterval)
     
     func onCompleteHandler(_ block: @escaping () -> Void) 
 }

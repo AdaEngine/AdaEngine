@@ -133,7 +133,6 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
-    "miniaudio",
     "AtlasFontGenerator",
     "Yams",
     "libpng",
@@ -142,7 +141,9 @@ var adaEngineDependencies: [Target.Dependency] = [
     "box2d",
     "AdaECS",
     "AdaEngineMacros",
-    "AdaAssets"
+    "AdaAssets",
+    "AdaAudio",
+    "AdaTransform"
 ]
 
 #if os(Linux)
@@ -231,6 +232,24 @@ var targets: [Target] = [
             "AdaUtils",
             "Yams"
         ]
+    ),
+    .target(
+        name: "AdaAudio",
+        dependencies: [
+            "AdaECS",
+            "AdaUtils",
+            "AdaAssets",
+            "AdaTransform",
+            "miniaudio",
+            "Math"
+        ]
+    ),
+    .target(
+        name: "AdaTransform",
+        dependencies: [
+            "AdaECS",
+            "Math"
+        ]
     )
 ]
 
@@ -299,6 +318,13 @@ targets += [
     .testTarget(
         name: "AdaAssetsTests",
         dependencies: ["AdaAssets"],
+        exclude: [
+            "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
+        name: "AdaTransformTests",
+        dependencies: ["AdaECS", "AdaTransform"],
         exclude: [
             "BUILD.bazel"
         ]

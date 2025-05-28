@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 11/1/21.
 //
 
+import AdaECS
 import Math
 
 /// A component that defines the scale, rotation, and translation of an entity.
@@ -50,30 +51,11 @@ public extension Transform {
     }
 }
 
-public extension ScriptableComponent {
-    
-    /// Return transform component for current entity.
-    var transform: Transform {
-        get {
-            return self.components[Transform.self]!
-        }
-        
-        set {
-            return self.components[Transform.self] = newValue
-        }
-    }
-    
-    /// Return global transform component for current entity.
-    var globalTransform: GlobalTransform {
-        return self.components[GlobalTransform.self]!
-    }
-}
-
 /// A component that describe global transform of an entity
 ///
 /// - Note: To update position, scale or rotation of an entity, use ``Transform`` component.
 @Component
-public struct GlobalTransform {
+public struct GlobalTransform: Hashable, Sendable, Codable {
     public internal(set) var matrix: Transform3D
 }
 

@@ -5,12 +5,15 @@
 //  Created by v.prusakov on 5/3/23.
 //
 
+import AdaUtils
 import Math
 
 enum AudioError: Error {
     case engineInitializationFailed
     case soundInitializationFailed
 }
+
+// TODO: Move to global resource?
 
 /// An instance that managed audio in the AdaEngine.
 public final class AudioServer {
@@ -22,14 +25,15 @@ public final class AudioServer {
     init(engine: AudioEngine) {
         self.engine = engine
     }
-    
+
+    @_spi(AdaEngine)
     @MainActor
-    static func initialize() throws {
+    public static func initialize() throws {
         let engine = try MiniAudioEngine()
         self.shared = AudioServer(engine: engine)
     }
     
-    func update(_ deltaTime: TimeInterval) {
+    func update(_ deltaTime: AdaUtils.TimeInterval) {
         self.engine.update(deltaTime)
     }
     

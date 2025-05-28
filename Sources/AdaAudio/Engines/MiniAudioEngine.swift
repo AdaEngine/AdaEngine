@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
+import AdaUtils
+import Foundation
 import miniaudio
 import Math
 
@@ -51,8 +53,8 @@ final class MiniAudioEngine: AudioEngine {
         }
     }
     
-    func update(_ deltaTime: TimeInterval) { }
-    
+    func update(_ deltaTime: AdaUtils.TimeInterval) { }
+
     func makeSound(from url: URL) throws -> Sound {
         try MiniSound(from: url, engine: engine)
     }
@@ -210,7 +212,7 @@ final class MiniSound: Sound {
         return try MiniSound(prototype: self)
     }
     
-    func update(_ deltaTime: TimeInterval) {
+    func update(_ deltaTime: AdaUtils.TimeInterval) {
         
     }
     

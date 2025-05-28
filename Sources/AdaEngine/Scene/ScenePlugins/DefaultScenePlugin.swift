@@ -6,6 +6,8 @@
 //
 
 import AdaECS
+import AdaAudio
+import AdaTransform
 
 /// Contains base configuration for any scene in the game.
 /// This plugins will applied for each scene in Ada application and should be passed once per scene.
