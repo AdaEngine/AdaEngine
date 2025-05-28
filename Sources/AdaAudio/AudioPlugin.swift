@@ -6,13 +6,24 @@
 //
 
 import AdaECS
+import AdaTransform
 
-/// Emmiter of audio in spatial environment.
+/// A component that holds an ``AudioPlaybackController`` for an audio resource.
+///
+/// Use this component to play audio on an entity.
+///
+/// - Note: Audio component will be automatically freed when entity is removed from memory and nobody own a reference to the playback controller.
+///
+/// When you create an audio playback controller engine will automatically update position for spatial audio.
 @Component
 public struct AudioComponent {
     
+    /// The playback controller for the audio component.
     public let playbackController: AudioPlaybackController
     
+    /// Creates a new audio component with the specified audio resource.
+    ///
+    /// - Parameter resource: The audio resource to play.
     public init(resource: AudioResource) {
         self.playbackController = AudioServer.shared.prepareAudio(resource)
     }
@@ -23,7 +34,12 @@ public struct AudioComponent {
 public struct AudioReceiver {
 
     internal var audioListener: AudioEngineListener?
-    
+
+    public init() { }
+
+    /// A Boolean that indicates whether the audio receiver is enabled.
+    ///
+    /// Set this value to false to disable the audio receiver.
     public var isEnabled: Bool {
         get {
             audioListener?.isEnabled ?? false
@@ -35,7 +51,7 @@ public struct AudioReceiver {
     }
 }
 
-/// Add audio capatibilities to the scene.
+/// A plugin that adds audio capabilities to the world.
 public struct AudioPlugin: WorldPlugin {
     
     public init() {}
@@ -45,16 +61,14 @@ public struct AudioPlugin: WorldPlugin {
     }
 }
 
-/// A system that managed an audio resources for spatial audio.
+/// A system that manages audio resources for spatial audio.
 @System
 public struct AudioSystem {
     
-    @EntityQuery(
-        where: .has(AudioPlaybacksControllers.self) && .has(Transform.self)
-    )
-    private var query
+    @Query<AudioPlaybacksControllers, Transform>
+    private var audioPlaybacksControllersQuery
     
-    @EntityQuery(where: .has(AudioReceiver.self) && .has(Transform.self))
+    @Query<Ref<AudioReceiver>, Transform>
     private var audioReceiverQuery
     
     let audioEngine: AudioEngine
@@ -64,30 +78,28 @@ public struct AudioSystem {
     }
     
     public func update(context: UpdateContext) {
-        self.query.forEach { entity in
-            let (audioComponent, transform) = entity.components[AudioPlaybacksControllers.self, Transform.self]
+        self.audioPlaybacksControllersQuery.forEach { audioComponent, transform in
             audioComponent.controllers.forEach { controller in
                 controller.sound.position = transform.position
             }
         }
         
-        self.audioReceiverQuery.forEach { entity in
-            var (audioReceiver, transform) = entity.components[AudioReceiver.self, Transform.self]
-            
+        self.audioReceiverQuery.forEach { (audioReceiver, transform) in
             if let listener = audioReceiver.audioListener, listener.position != transform.position {
                 listener.position = transform.position
             } else {
                 audioReceiver.audioListener = self.audioEngine.getAudioListener(at: 0)
-                entity.components += audioReceiver
             }
         }
     }
 }
 
-/// Holds ``AudioPlaybackController`` to controll their lifetimes
+/// Holds ``AudioPlaybackController`` to control their lifetimes
 @Component
-struct AudioPlaybacksControllers {
-    var controllers: [AudioPlaybackController] = []
+public struct AudioPlaybacksControllers {
+
+    /// The playback controllers for the audio playback controllers.
+    public var controllers: [AudioPlaybackController] = []
 }
 
 public extension Entity {

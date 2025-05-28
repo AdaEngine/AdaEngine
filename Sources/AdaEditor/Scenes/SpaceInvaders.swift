@@ -7,6 +7,8 @@
 
 import AdaEngine
 
+/// FIXME: This scene has a bug with animated texture. They doesn't dispawned correctly..
+
 class SpaceInvaders: Scene, @unchecked Sendable {
 
     var disposeBag: Set<AnyCancellable> = []

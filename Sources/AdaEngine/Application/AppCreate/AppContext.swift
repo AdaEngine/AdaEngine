@@ -6,6 +6,7 @@
 //
 
 @_spi(AdaEngine) import AdaAssets
+@_spi(AdaEngine) import AdaAudio
 import Logging
 
 @MainActor

@@ -1,5 +1,6 @@
+import Foundation
 import Testing
-@testable import AdaAssets
+@testable @_spi(AdaEngine) import AdaAssets
 
 @Suite("AssetsManager Tests")
 struct AssetsManagerTests: Sendable {
@@ -21,7 +22,7 @@ struct AssetsManagerTests: Sendable {
     func testLoadNonExistentAsset() async throws {
         // Test loading a non-existent asset
         await #expect(throws: AssetError.self) {
-            _ = try await AssetsManager.load(Texture2D.self, at: "@res://non_existent.png")
+            _ = try await AssetsManager.load(TestAsset.self, at: "@res://non_existent.txt")
         }
     }
     
@@ -158,11 +159,11 @@ final class TestAsset: Asset, @unchecked Sendable {
         self.testData = testData
     }
     
-    init(from assetDecoder: any AdaEngine.AssetDecoder) throws {
+    init(from assetDecoder: any AssetDecoder) throws {
         self.testData = try assetDecoder.decode(String.self)
     }
     
-    func encodeContents(with assetEncoder: any AdaEngine.AssetEncoder) throws {
+    func encodeContents(with assetEncoder: any AssetEncoder) throws {
         try assetEncoder.encode(self.testData)
     }
     
@@ -170,6 +171,5 @@ final class TestAsset: Asset, @unchecked Sendable {
         ["txt"]
     }
     
-    var assetMetaInfo: AdaEngine.AssetMetaInfo?
-    
+    var assetMetaInfo: AssetMetaInfo?
 }

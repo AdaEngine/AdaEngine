@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
+import AdaECS
+import AdaUtils
+
 /// A controller that manages audio playback of a resource.
 ///
 /// You receive an audio playback controller by calling an entity’s ``Entity/prepareAudio(_:)`` method.
@@ -29,6 +32,10 @@ public class AudioPlaybackController: @unchecked Sendable {
         return self.sound.state == .playing
     }
     
+    /// The volume of the audio resource.
+    ///
+    /// The volume is a value between 0.0 and 1.0, where 0.0 is the lowest volume and 1.0 is the highest volume.
+    /// The default volume is 1.0.
     public var volume: Float {
         get {
             self.sound.volume
@@ -65,6 +72,7 @@ public class AudioPlaybackController: @unchecked Sendable {
     }
     
     /// A closure that the playback controller executes when it comes to the end of the audio stream.
+    @discardableResult
     public func onCompleteHandler(_ block: @escaping () -> Void) -> Self {
         self.sound.onCompleteHandler { [weak self] in
             if let self = self {

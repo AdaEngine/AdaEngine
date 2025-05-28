@@ -6,18 +6,21 @@
 //
 
 import AdaECS
+import AdaTransform
 import box2d
 import Math
 
 // - TODO: (Vlad) Runtime update shape resource
 
 /// A system for simulate and update physics bodies on the scene.
-@System
-public final class Physics2DSystem: @unchecked Sendable {
+@System(dependencies: [
+    .before(TransformSystem.self)
+])
+public class Physics2DSystem: @unchecked Sendable {
     
     private let fixedTimestep: FixedTimestep
     
-    public init(world: World) {
+    public required init(world: World) {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
     }
     

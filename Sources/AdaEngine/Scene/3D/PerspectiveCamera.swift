@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 2/10/23.
 //
 
+import AdaAudio
+
 /// A virtual camera that establishes the rendering perspective.
 public final class PerspectiveCamera: Entity, @unchecked Sendable {
     

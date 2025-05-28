@@ -7,8 +7,11 @@
 
 import AdaECS
 
-struct TransformPlugin: WorldPlugin {
-    func setup(in world: World) {
+public struct TransformPlugin: WorldPlugin {
+
+    public init() {}
+
+    public func setup(in world: World) {
         world
             .addSystem(TransformSystem.self)
             .addSystem(ChildTransformSystem.self)

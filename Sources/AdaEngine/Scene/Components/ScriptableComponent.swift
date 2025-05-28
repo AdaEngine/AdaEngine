@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaUtils
+import AdaTransform
 
 /// Base class describe some unit of game logic.
 ///
@@ -140,5 +141,24 @@ public extension ScriptableComponent {
     /// Set component to entity
     func setComponent<T: Component>(_ component: T) {
         self.entity?.components.set(component)
+    }
+}
+
+public extension ScriptableComponent {
+
+    /// Return transform component for current entity.
+    var transform: Transform {
+        get {
+            return self.components[Transform.self]!
+        }
+
+        set {
+            return self.components[Transform.self] = newValue
+        }
+    }
+
+    /// Return global transform component for current entity.
+    var globalTransform: GlobalTransform {
+        return self.components[GlobalTransform.self]!
     }
 }

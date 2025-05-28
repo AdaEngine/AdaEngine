@@ -8,9 +8,7 @@
 import AdaECS
 import Math
 
-@System(dependencies: [
-    .after(Physics2DSystem.self)
-])
+@System()
 public struct TransformSystem {
     
     @EntityQuery(where: .has(Transform.self))
