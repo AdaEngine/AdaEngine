@@ -134,13 +134,18 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
     "box2d",
+    "AdaApp",
     "AdaECS",
+    "AdaUI",
     "AdaEngineMacros",
     "AdaAssets",
+    "AppPlatform",
     "AdaAudio",
     "AdaTransform",
     "AdaRender",
-    "AdaText"
+    "AdaText",
+    "AdaInput",
+    "AdaScene"
 ]
 
 #if os(Linux)
@@ -200,6 +205,33 @@ var targets: [Target] = [
         ]
     ),
     .target(
+        name: "AdaApp",
+        dependencies: [
+            .product(name: "Logging", package: "swift-log"),
+            "AdaUtils",
+            "AdaECS",
+            "Yams"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AppPlatform",
+        dependencies: [
+            .product(name: "Logging", package: "swift-log"),
+            "AdaUtils",
+            "AdaECS",
+            "AdaApp",
+            "AdaUI"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
         name: "AdaECS",
         dependencies: [
             .product(name: "Collections", package: "swift-collections"),
@@ -227,6 +259,7 @@ var targets: [Target] = [
         name: "AdaAssets",
         dependencies: [
             .product(name: "Logging", package: "swift-log"),
+            "AdaApp",
             "AdaUtils",
             "Yams"
         ],
@@ -235,6 +268,7 @@ var targets: [Target] = [
     .target(
         name: "AdaAudio",
         dependencies: [
+            "AdaApp",
             "AdaECS",
             "AdaUtils",
             "AdaAssets",
@@ -247,6 +281,7 @@ var targets: [Target] = [
     .target(
         name: "AdaTransform",
         dependencies: [
+            "AdaApp",
             "AdaECS",
             "Math"
         ],
@@ -255,6 +290,7 @@ var targets: [Target] = [
     .target(
         name: "AdaRender",
         dependencies: [
+            "AdaApp",
             "AdaECS",
             "AdaTransform",
             "Math",
@@ -271,6 +307,7 @@ var targets: [Target] = [
     .target(
         name: "AdaText",
         dependencies: [
+            "AdaApp",
             "AdaECS",
             "AdaTransform",
             "Math",
@@ -279,6 +316,43 @@ var targets: [Target] = [
         ],
         resources: [
             .copy("Assets")
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaUI",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "AdaTransform",
+            "AdaText",
+            "Math",
+            "AdaRender",
+            "AdaInput",
+            "AdaEngineMacros",
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaInput",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "AdaTransform",
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaScene",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "box2d",
+            "AdaTransform",
+            "AdaText",
+            "AdaAudio",
+            "AdaRender",
+            "AdaUI"
         ],
         swiftSettings: swiftSettings
     )

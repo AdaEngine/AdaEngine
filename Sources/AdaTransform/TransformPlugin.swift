@@ -5,14 +5,15 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
+import AdaApp
 import AdaECS
 
-public struct TransformPlugin: WorldPlugin {
+public struct TransformPlugin: Plugin {
 
     public init() {}
 
-    public func setup(in world: World) {
-        world
+    public func setup(in app: AppWorlds) {
+        app
             .addSystem(TransformSystem.self)
             .addSystem(ChildTransformSystem.self)
     }

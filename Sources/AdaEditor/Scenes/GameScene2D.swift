@@ -373,7 +373,7 @@ final class PlayerComponent: ScriptableComponent, @unchecked Sendable {
         }
     }
     
-    override func onEvent(_ events: Set<InputEvent>) {
+    override func onEvent(_ events: [any InputEvent]) {
         for event in events {
             if let touch = event as? TouchEvent {
                 if touch.phase == .moved {

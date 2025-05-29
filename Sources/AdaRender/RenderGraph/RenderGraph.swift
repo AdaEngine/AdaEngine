@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 2/15/23.
 //
 
+import AdaECS
+
 // Inspired by Bevy https://github.com/bevyengine/bevy/tree/main/crates/bevy_render/src/render_graph
 
 public struct RenderSlot {
@@ -72,7 +74,7 @@ public struct RunGraphNode: RenderNode {
 ///  The ``RenderGraphExecutor`` is responsible for executing the entire graph each frame.
 ///
 @RenderGraphActor
-public final class RenderGraph {
+public final class RenderGraph: Resource {
 
     static let entryNodeName: String = "_GraphEntryNode"
     

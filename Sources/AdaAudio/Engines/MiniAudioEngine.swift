@@ -21,8 +21,10 @@ enum MAError: LocalizedError {
     }
 }
 
-final class MiniAudioEngine: AudioEngine {
-    private var engine: UnsafeMutablePointer<ma_engine> = .allocate(capacity: MemoryLayout.size(ofValue: ma_engine.self))
+final class MiniAudioEngine: AudioEngine, @unchecked Sendable {
+    private var engine: UnsafeMutablePointer<ma_engine> = .allocate(
+        capacity: MemoryLayout.size(ofValue: ma_engine.self)
+    )
 
     init() throws {
         var config = ma_engine_config_init()
