@@ -72,6 +72,7 @@ public struct AudioPlugin: Plugin {
 
         do {
             try engine.start()
+
             app
                 .insertResource(engine)
                 .addSystem(AudioSystem.self)
@@ -98,13 +99,13 @@ public struct AudioSystem {
     
     @Query<Ref<AudioReceiver>, Transform>
     private var audioReceiverQuery
-    
-    let audioEngine: AudioEngine
-    
+
+    let audioEngine: AudioEngine!
+
     public init(world: World) {
-        self.audioEngine = AudioServer.shared.engine
+        self.audioEngine = world.getResource(MiniAudioEngine.self)!
     }
-    
+
     public func update(context: UpdateContext) {
         self.audioPlaybacksControllersQuery.forEach { audioComponent, transform in
             audioComponent.controllers.forEach { controller in

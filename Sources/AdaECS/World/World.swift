@@ -39,7 +39,6 @@ public final class World: @unchecked Sendable, Codable {
     internal let systemGraphExecutor = SystemsGraphExecutor()
     private var isReady = false
 
-    private var plugins: [WorldPlugin] = []
     public private(set) var eventManager: EventManager = EventManager.default
 
     // MARK: - Methods
@@ -84,18 +83,6 @@ public final class World: @unchecked Sendable, Codable {
             }
             self.addSystem(systemType)
         }
-
-        for plugin in plugins {
-            guard let pluginType = WorldPluginStorage.getRegistredPlugin(for: plugin) else {
-                throw DecodingError.dataCorruptedError(
-                    forKey: .plugins,
-                    in: container,
-                    debugDescription: "Plugin \(plugin) not found"
-                )
-            }
-
-            self.addPlugin(pluginType.init())
-        }
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -105,16 +92,17 @@ public final class World: @unchecked Sendable, Codable {
         })
         try container.encode(entities, forKey: .entities)
         try container.encode(self.systemGraph.systems.map { type(of: $0).swiftName }, forKey: .systems)
-        try container.encode(self.plugins.map { type(of: $0).swiftName }, forKey: .plugins)
         var unkeyedContainer = container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
         for resource in self.componentsStorage.resourceComponents.values {
             try unkeyedContainer.encode(AnyEncodable(resource), forKey: CodingName(stringValue: type(of: resource).swiftName))
         }
     }
+}
 
+public extension World {
     /// Get all entities in world.
     /// - Complexity: O(n)
-    public func getEntities() -> [Entity] {
+    func getEntities() -> [Entity] {
         return self.records.values.elements
             .map { record in
                 let archetype = self.archetypes[record.archetypeId]!
@@ -127,7 +115,7 @@ public final class World: @unchecked Sendable, Codable {
     /// - Parameter id: Entity identifier.
     /// - Complexity: O(1)
     /// - Returns: Returns nil if entity not registed in scene world.
-    public func getEntityByID(_ entityID: Entity.ID) -> Entity? {
+    func getEntityByID(_ entityID: Entity.ID) -> Entity? {
         guard let record = self.records[entityID] else {
             return nil
         }
@@ -140,7 +128,7 @@ public final class World: @unchecked Sendable, Codable {
     /// - Note: Not efficient way to find an entity.
     /// - Complexity: O(n)
     /// - Returns: An entity with matched name or nil if entity with given name not exists.
-    public func getEntityByName(_ name: String) -> Entity? {
+    func getEntityByName(_ name: String) -> Entity? {
         for arch in archetypes {
             if let ent = arch.entities.first(where: { $0.name == name }) {
                 return ent
@@ -154,7 +142,7 @@ public final class World: @unchecked Sendable, Codable {
     /// - Warning: System should be added before build.
     /// - Parameter systemType: System type.
     @discardableResult
-    public func addSystem<T: System>(_ systemType: T.Type) -> Self {
+    func addSystem<T: System>(_ systemType: T.Type) -> Self {
         if self.isReady {
             assertionFailure("Can't insert system if scene was ready")
             return self
@@ -164,21 +152,7 @@ public final class World: @unchecked Sendable, Codable {
         return self
     }
 
-    /// Add new scene plugin to the scene.
-    /// - Warning: Plugin should be added before build.
-    /// - Parameter plugin: Plugin instance.
-    @discardableResult
-    public func addPlugin<T: WorldPlugin>(_ plugin: T) -> Self {
-        if self.isReady {
-            assertionFailure("Can't insert plugin if scene was ready")
-            return self
-        }
-        plugin.setup(in: self)
-        self.plugins.append(plugin)
-        return self
-    }
-
-    public func build() {
+    func build() {
         if isReady {
             fatalError("World already configured")
         }
@@ -191,7 +165,7 @@ public final class World: @unchecked Sendable, Codable {
     /// - Parameter entity: The entity to add.
     /// - Parameter needsCopy: If true, the entity will be copied before adding to the world.
     @discardableResult
-    public func addEntity(_ entity: Entity) -> Self {
+    func addEntity(_ entity: Entity) -> Self {
         entity.world = self
 
         self.updatedEntities.insert(entity)
@@ -204,7 +178,7 @@ public final class World: @unchecked Sendable, Codable {
     /// Remove entity from world.
     /// - Parameter recursively: also remove entity child.
     @discardableResult
-    public func removeEntity(_ entity: Entity, recursively: Bool = false) -> Self {
+    func removeEntity(_ entity: Entity, recursively: Bool = false) -> Self {
         self.removeEntityRecord(entity.id)
 
         guard recursively && !entity.children.isEmpty else {
@@ -221,7 +195,7 @@ public final class World: @unchecked Sendable, Codable {
     /// Remove entity from world.
     /// - Note: Entity will removed on next `update` call.
     /// - Parameter recursively: also remove entity child.
-    public func removeEntityOnNextTick(_ entity: Entity, recursively: Bool = false) {
+    func removeEntityOnNextTick(_ entity: Entity, recursively: Bool = false) {
         guard self.records[entity.id] != nil else {
             return
         }
@@ -241,14 +215,14 @@ public final class World: @unchecked Sendable, Codable {
     /// Insert a resource into the world.
     /// - Parameter resource: The resource to insert.
     @discardableResult
-    public func insertResource<T: Resource>(_ resource: T) -> Self {
+    func insertResource<T: Resource>(_ resource: T) -> Self {
         let componentId = self.componentsStorage.getOrRegisterResource(T.self)
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
     }
 
     @discardableResult
-    public func insertResource(_ resource: any Resource) -> Self {
+    func insertResource(_ resource: any Resource) -> Self {
         let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
@@ -256,18 +230,18 @@ public final class World: @unchecked Sendable, Codable {
 
     /// Remove a resource from the world.
     /// - Parameter resource: The resource to remove.
-    public func removeResource<T: Resource>(_ resource: T.Type) {
+    func removeResource<T: Resource>(_ resource: T.Type) {
         self.componentsStorage.removeResource(resource)
     }
 
     /// Get a resource from the world.
     /// - Parameter resource: The resource to get.
     /// - Returns: The resource if it exists, otherwise nil.
-    public func getResource<T: Resource>(_ resource: T.Type) -> T? {
+    func getResource<T: Resource>(_ resource: T.Type) -> T? {
         return self.componentsStorage.getResource(resource)
     }
 
-    public func getResources() -> [any Resource] {
+    func getResources() -> [any Resource] {
         return Array(self.componentsStorage.resourceComponents.values)
     }
 
@@ -275,14 +249,14 @@ public final class World: @unchecked Sendable, Codable {
     /// - Parameter component: Component identifier.
     /// - Parameter entity: Entity.
     /// - Returns: True if component was changed for entity, otherwise false.
-    public func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
+    func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
         return self.updatedComponents[entity]?.contains(T.identifier) ?? false
     }
 
     /// Update all data in world.
     /// - Parameter deltaTime: Time interval since last update.
     @MainActor
-    public func update(_ deltaTime: TimeInterval) async {
+    func update(_ deltaTime: TimeInterval) async {
         self.flush()
 
         await withTaskGroup(of: Void.self) { @MainActor group in
@@ -297,7 +271,7 @@ public final class World: @unchecked Sendable, Codable {
 
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
-    public func flush() {
+    func flush() {
         self.moveEntitiesToMatchedArchetypesIfNeeded()
 
         for entityId in self.removedEntities {
@@ -311,7 +285,7 @@ public final class World: @unchecked Sendable, Codable {
     }
 
     /// Remove all data from world.
-    public func clear() {
+    func clear() {
         self.records.removeAll(keepingCapacity: true)
         self.updatedComponents.removeAll(keepingCapacity: true)
         self.removedEntities.removeAll(keepingCapacity: true)

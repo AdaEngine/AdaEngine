@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+import AdaECS
 import AdaUtils
 import Foundation
 import Math
@@ -12,7 +13,7 @@ import Math
 // - TODO: (Vlad) Add actions list and method like `isActionPressed`
 
 /// An object that contains inputs from keyboards, mouse, touch screens and etc.
-public final class Input: @unchecked Sendable {
+public final class Input: Resource, @unchecked Sendable {
 
     @_spi(Internal)
     public static let shared = Input()

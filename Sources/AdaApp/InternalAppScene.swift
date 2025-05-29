@@ -16,6 +16,7 @@ public enum WindowMode: UInt64, Sendable {
 }
 
 /// Describe default scene configuration settings for the app
+@MainActor
 public struct _AppSceneConfiguration {
     public var minimumSize: Size = Size(width: 800, height: 600)
     public var windowMode: WindowMode = .fullscreen

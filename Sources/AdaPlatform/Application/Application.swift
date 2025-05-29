@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
+import AdaApp
 import AdaECS
 @_spi(Internal) import AdaRender
 import Foundation
@@ -46,9 +47,6 @@ open class Application: Resource {
     @MainActor @preconcurrency
     public var windowManager: UIWindowManager = UIWindowManager()
 
-    /// Contains world which can render on screen.
-    public let renderWorld = RenderWorld()
-
     // MARK: - Internal
     
     public init(
@@ -57,7 +55,7 @@ open class Application: Resource {
     ) throws { }
 
     /// Call this method to start main loop.
-    func run() throws {
+    func run(_ appWorlds: AppWorlds) throws {
         assertionFailure("Not implemented")
     }
     
@@ -87,7 +85,7 @@ open class Application: Resource {
 public extension Application {
     
     /// The collection of available Application States.
-    enum State {
+    enum State: Hashable, Sendable {
         case active
         case inactive
         case background
