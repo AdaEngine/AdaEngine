@@ -10,17 +10,22 @@ import AdaECS
 import AdaAudio
 import AdaText
 import AdaTransform
+import AdaInput
 import AdaUI
+import AdaPlatform
+import AdaScene
 
 /// Contains base configuration for any scene in the game.
 /// This plugins will applied for each scene in Ada application and should be passed once per scene.
-public struct DefaultWorldPlugin: Plugin {
+public struct DefaultPlugins: Plugin {
 
     public init() {}
 
     public func setup(in app: AppWorlds) {
         app
-//            .addSystem(ScriptComponentUpdateSystem.self)
+            .addPlugin(AppPlatformPlugin())
+            .addPlugin(InputPlugin())
+            .addPlugin(AssetsPlugin())
             .addPlugin(VisibilityPlugin())
             .addPlugin(CameraPlugin())
             .addPlugin(SpritePlugin())
@@ -32,6 +37,10 @@ public struct DefaultWorldPlugin: Plugin {
             .addPlugin(Physics2DPlugin())
             .addPlugin(TransformPlugin())
             .addPlugin(TileMapPlugin())
+            .addSystem(ScriptComponentUpdateSystem.self)
+
+        let renderWorld = app.getSubworldBuilder(by: RenderWorld.self)
+        renderWorld?.addPlugin(DefaultRenderPlugin())
     }
 }
 
@@ -43,7 +52,6 @@ public struct DefaultRenderPlugin: Plugin {
     
     public func setup(in app: AppWorlds) {
         app
-            .addPlugin(CameraRenderPlugin())
             .addPlugin(Scene2DPlugin())
             .addPlugin(Mesh2DRenderPlugin())
             .addPlugin(SpriteRenderPlugin())

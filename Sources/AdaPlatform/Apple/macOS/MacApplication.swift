@@ -6,6 +6,7 @@
 //
 
 #if MACOS
+import AdaApp
 import AppKit
 import MetalKit
 import AdaInput
@@ -33,20 +34,23 @@ final class MacApplication: Application {
 
     private var task: Task<Void, Never>?
 
-    override func run() throws {
+    override func run(_ appWorlds: AppWorlds) throws {
         task = Task { @MainActor in
             self.mainLoop.setup()
             do {
                 while true {
                     try Task.checkCancellation()
                     self.processEvents()
-                    try await self.mainLoop.iterate()
+                    try await self.mainLoop.iterate(appWorlds)
                 }
             } catch {
-                let alert = Alert(title: "AdaEngine finished with Error", message: error.localizedDescription, buttons: [.cancel("OK", action: {
-                    exit(EXIT_FAILURE)
-                })])
-
+                let alert = Alert(
+                    title: "AdaEngine finished with Error",
+                    message: error.localizedDescription,
+                    buttons: [
+                        .cancel("OK", action: { exit(EXIT_FAILURE)})
+                    ]
+                )
                 Application.shared.showAlert(alert)
             }
         }

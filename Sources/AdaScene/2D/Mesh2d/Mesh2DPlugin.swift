@@ -14,6 +14,9 @@ import Math
 
 /// Plugin to exctract meshes to RenderWorld
 public struct Mesh2DPlugin: Plugin {
+
+    public init() {}
+
     public func setup(in app: AppWorlds) {
         app.addSystem(ExctractMesh2DSystem.self)
     }
@@ -83,8 +86,11 @@ public struct ExctractMesh2DSystem {
 // MARK: - Mesh 2D Render Plugin -
 
 /// Plugin for RenderWorld for rendering 2D meshes.
-struct Mesh2DRenderPlugin: Plugin {
-    func setup(in app: AppWorlds) {
+public struct Mesh2DRenderPlugin: Plugin {
+
+    public init() {}
+
+    public func setup(in app: AppWorlds) {
         let app = app.getSubworldBuilder(by: "RenderWorld")
         let drawPass = Mesh2DDrawPass()
         DrawPassStorage.setDrawPass(drawPass)

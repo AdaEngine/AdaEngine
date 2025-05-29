@@ -40,7 +40,9 @@ public struct ScriptComponentUpdateSystem {
                         component.isAwaked = true
                     }
 
-                    component.onEvent(Input.shared.eventsPool)
+                    if let inputManager = context.world.getResource(Input.self) {
+                        component.onEvent(inputManager.eventsPool)
+                    }
                     component.onUpdate(context.deltaTime)
 
 //                    if fixedTimeResult.isFixedTick {

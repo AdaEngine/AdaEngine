@@ -139,13 +139,13 @@ var adaEngineDependencies: [Target.Dependency] = [
     "AdaUI",
     "AdaEngineMacros",
     "AdaAssets",
-    "AppPlatform",
+    "AdaPlatform",
     "AdaAudio",
     "AdaTransform",
     "AdaRender",
     "AdaText",
     "AdaInput",
-    "AdaScene"
+    "AdaScene",
 ]
 
 #if os(Linux)
@@ -218,7 +218,7 @@ var targets: [Target] = [
         swiftSettings: swiftSettings
     ),
     .target(
-        name: "AppPlatform",
+        name: "AdaPlatform",
         dependencies: [
             .product(name: "Logging", package: "swift-log"),
             "AdaUtils",

@@ -7,6 +7,7 @@
 
 /// Base interface that can decorate launch configurations.
 protocol SceneModifier {
+    @MainActor
     func modify(_ configuration: inout _AppSceneConfiguration)
 }
 

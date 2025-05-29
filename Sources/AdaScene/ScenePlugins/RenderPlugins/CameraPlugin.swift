@@ -32,12 +32,6 @@ public struct CameraPlugin: Plugin {
     }
 }
 
-struct CameraRenderPlugin: Plugin {
-    public func setup(in app: AppWorlds) {
-
-    }
-}
-
 struct CameraRenderNode: RenderNode {
     
     static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))

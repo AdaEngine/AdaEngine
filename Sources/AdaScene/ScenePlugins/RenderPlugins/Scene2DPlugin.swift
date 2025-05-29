@@ -46,7 +46,9 @@ public struct Scene2DPlugin: Plugin {
                 inputSlot: Main2DRenderNode.InputNode.view
             )
 
-            app.mainWorld.getResource(RenderGraph.self)?.addSubgraph(graph, name: Self.renderGraph)
+            await app.mainWorld
+                .getResource(RenderGraph.self)?
+                .addSubgraph(graph, name: Self.renderGraph)
         }
     }
 }

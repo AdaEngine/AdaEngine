@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 11/2/21.
 //
 
+import AdaApp
 import AdaUtils
 @_spi(AdaEngine) import AdaAssets
 import AdaRender
@@ -31,7 +32,7 @@ public final class MainLoop {
         self.fixedTimestep.step = 1 / TimeInterval(physicsTickPerSecond)
     }
     
-    public func iterate() async throws {
+    public func iterate(_ appWorlds: AppWorlds) async throws {
         if self.isIterating {
             return
         }
@@ -54,11 +55,10 @@ public final class MainLoop {
 
         try RenderEngine.shared.beginFrame()
 
-        try await Application.shared.renderWorld.update(deltaTime)
         await Application.shared.windowManager.update(deltaTime)
+        await appWorlds.update(deltaTime)
 
         try RenderEngine.shared.endFrame()
-
         Input.shared.removeEvents()
     }
 }
