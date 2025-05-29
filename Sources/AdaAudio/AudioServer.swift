@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/3/23.
 //
 
+import AdaECS
 import AdaUtils
 import Math
 
@@ -13,11 +14,9 @@ enum AudioError: Error {
     case soundInitializationFailed
 }
 
-// TODO: Move to global resource?
-
 /// An instance that managed audio in the AdaEngine.
-public final class AudioServer {
-    
+public final class AudioServer: Resource {
+
     nonisolated(unsafe) public internal(set) static var shared: AudioServer!
     
     let engine: AudioEngine

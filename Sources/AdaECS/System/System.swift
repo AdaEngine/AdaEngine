@@ -98,9 +98,6 @@ public extension System {
     }
 }
 
-/// The system that will used in Render World.
-public protocol RenderSystem: System { }
-
 public struct SystemQueries {
     public let queries: [SystemQuery]
     

@@ -5,12 +5,13 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
+import AdaECS
 import AdaUtils
 import Foundation
 
 /// Interface that works with audio.
-protocol AudioEngine {
-    
+protocol AudioEngine: Resource {
+
     /// Starts audio engine.
     func start() throws
     

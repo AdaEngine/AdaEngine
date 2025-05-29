@@ -11,6 +11,7 @@
 
 @_exported import Foundation
 @_exported import Math
+@_exported import AdaApp
 @_exported import AdaECS
 @_exported import AdaUtils
 @_exported import AdaAssets
@@ -18,5 +19,8 @@
 @_exported import AdaTransform
 @_exported import AdaRender
 @_exported import AdaText
+@_exported import AdaUI
+@_exported import AdaScene
+@_exported import AdaInput
 
 public typealias TimeInterval = AdaUtils.TimeInterval

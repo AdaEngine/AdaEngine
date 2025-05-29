@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
+import AdaApp
 import AdaECS
 import AdaTransform
 
@@ -52,12 +53,39 @@ public struct AudioReceiver {
 }
 
 /// A plugin that adds audio capabilities to the world.
-public struct AudioPlugin: WorldPlugin {
+public struct AudioPlugin: Plugin {
+
+    var engine: AudioEngine?
+
+    public init() {
+        do {
+            self.engine = try MiniAudioEngine()
+        } catch {
+            print("Error", error)
+        }
+    }
     
-    public init() {}
-    
-    public func setup(in world: World) {
-        world.addSystem(AudioSystem.self)
+    public func setup(in app: AppWorlds) {
+        guard let engine else {
+            return
+        }
+
+        do {
+            try engine.start()
+            app
+                .insertResource(engine)
+                .addSystem(AudioSystem.self)
+        } catch {
+            print("Error", error)
+        }
+    }
+
+    public func finish() {
+        do {
+            try engine?.stop()
+        } catch {
+            print("Error", error)
+        }
     }
 }
 
