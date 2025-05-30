@@ -5,6 +5,7 @@
 //  Created by Vladislav Prusakov on 06.07.2024.
 //
 
+import AdaUtils
 @preconcurrency import Observation
 
 public extension View {

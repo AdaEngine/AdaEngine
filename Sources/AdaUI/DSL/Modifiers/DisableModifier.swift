@@ -5,6 +5,8 @@
 //  Created by vladislav.prusakov on 31.07.2024.
 //
 
+import AdaUtils
+
 public extension View {
     /// Adds a condition that controls whether users can interact with this view.
     func disabled(_ disabled: Bool) -> some View {

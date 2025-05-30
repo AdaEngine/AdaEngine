@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/16/22.
 //
 
+import AdaApp
 import AdaText
 import AdaRender
 import AdaUtils

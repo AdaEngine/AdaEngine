@@ -5,6 +5,7 @@
 //  Created by Vladislav Prusakov on 22.06.2024.
 //
 
+import AdaApp
 import AdaInput
 import AdaUtils
 import Observation

@@ -250,6 +250,7 @@ var targets: [Target] = [
         dependencies: [
             .product(name: "Collections", package: "swift-collections"),
             .product(name: "BitCollections", package: "swift-collections"),
+            "AdaEngineMacros",
         ],
         exclude: [
             "BUILD.bazel"

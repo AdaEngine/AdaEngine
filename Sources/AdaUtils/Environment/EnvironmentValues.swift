@@ -1,56 +1,13 @@
 //
-//  Environment.swift
+//  EnvironmentValues.swift
 //  AdaEngine
 //
-//  Created by Vladislav Prusakov on 07.06.2024.
+//  Created by Vladislav Prusakov on 30.05.2025.
 //
 
-import Observation
-
-/// A property wrapper that reads a value from a view’s environment.
-@MainActor
-@propertyWrapper
-public struct Environment<Value>: PropertyStoragable, UpdatableProperty {
-
-    let container = ViewContextStorage()
-    var storage: UpdatablePropertyStorage {
-        return self.container
-    }
-
-    var readValue: (ViewContextStorage) -> Value
-
-    public var wrappedValue: Value {
-        return readValue(container)
-    }
-    
-    public init(_ keyPath: KeyPath<EnvironmentValues, Value>) {
-        self.readValue = {
-            $0.values[keyPath: keyPath]
-        }
-    }
-
-    public func update() { }
-}
-
-extension Environment where Value: Observable & AnyObject {
-    public init(_ observable: Value.Type) where Value: Observable & AnyObject {
-        self.readValue = { container in
-            let value = container.values.observableStorage.getValue(observable)
-
-            return withObservationTracking {
-                value
-            } onChange: {
-                Task(priority: .userInitiated) { @MainActor in
-                    container.update()
-                }
-            }
-        }
-    }
-}
-
-final class ViewContextStorage: UpdatablePropertyStorage {
-    var values: EnvironmentValues = EnvironmentValues()
-}
+@attached(accessor)
+@attached(peer, names: prefixed(__Key_))
+public macro Entry() = #externalMacro(module: "AdaEngineMacros", type: "EntryMacro")
 
 /// A key for accessing values in the environment.
 ///
@@ -62,7 +19,7 @@ final class ViewContextStorage: UpdatablePropertyStorage {
 ///     static let defaultValue: String = "Default value"
 /// }
 /// ```
-/// 
+///
 /// Then use the key to define a new environment value property:
 /// ```swift
 /// extension EnvironmentValues {
@@ -74,7 +31,7 @@ final class ViewContextStorage: UpdatablePropertyStorage {
 /// ```
 ///
 /// Clients of your environment value never use the key directly. Instead, they use the key path of your
-/// custom environment value property. To set the environment value for a view and all its subviews, 
+/// custom environment value property. To set the environment value for a view and all its subviews,
 /// add the ``View/environment(_:_:)`` view modifier to that view:
 ///
 /// ```swift
@@ -101,7 +58,7 @@ public protocol EnvironmentKey {
 
 /// A collection of environment values propagated through a view hierarchy.
 ///
-/// AdaEngine exposes a collection of values to your app’s views in an EnvironmentValues structure. 
+/// AdaEngine exposes a collection of values to your app’s views in an EnvironmentValues structure.
 /// To read a value from the structure, declare a property using the ``Environment`` property wrapper
 /// and specify the value’s key path.
 /// For example, you can read the current scale factor:
@@ -135,9 +92,9 @@ public protocol EnvironmentKey {
 /// }
 /// ```
 public struct EnvironmentValues {
-    
+
     private var values: [ObjectIdentifier: Any] = [:]
-    
+
     /// Creates an environment values instance.
     public init() { }
 
@@ -151,7 +108,8 @@ public struct EnvironmentValues {
         }
     }
 
-    mutating func merge(_ newValue: EnvironmentValues) {
+    @_spi(Internal)
+    public mutating func merge(_ newValue: EnvironmentValues) {
         self.values.merge(newValue.values, uniquingKeysWith: { $1 })
     }
 }
