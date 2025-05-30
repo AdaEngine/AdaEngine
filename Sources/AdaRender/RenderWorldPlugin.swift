@@ -15,6 +15,11 @@ public struct RenderWorldPlugin: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
+        VisibleEntities.registerComponent()
+        Visibility.registerComponent()
+        NoFrustumCulling.registerComponent()
+        BoundingComponent.registerComponent()
+
         guard let renderWorld = app.getSubworldBuilder(by: RenderWorld.self) else {
             return
         }

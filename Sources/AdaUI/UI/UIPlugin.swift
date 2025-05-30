@@ -13,6 +13,8 @@ public struct UIPlugin: Plugin {
     public init() { }
 
     public func setup(in app: AppWorlds) {
+        UIComponent.registerComponent()
+        
         app.addSystem(UISystem.self)
     }
 }

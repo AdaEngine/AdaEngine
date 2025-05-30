@@ -22,5 +22,8 @@
 @_exported import AdaUI
 @_exported import AdaScene
 @_exported import AdaInput
+@_exported import AdaTilemap
+@_exported import AdaSprite
+@_exported import AdaPhysics
 
 public typealias TimeInterval = AdaUtils.TimeInterval

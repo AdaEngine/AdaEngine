@@ -7,11 +7,14 @@
 
 @_spi(Internal) import AdaECS
 @_spi(Internal) import AdaInput
+import AdaRender
 import AdaUtils
 import AdaUI
 
 /// A system that updates all scripts components on scene
-@System
+@System(dependencies: [
+    .before(CameraSystem.self)
+])
 public struct ScriptComponentUpdateSystem {
 
     public init(world: World) { }

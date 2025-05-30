@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 5/10/22.
 //
 
+import AdaECS
+import AdaUtils
+
 /// Create a new 2D circle on scene.
 @Component
 public struct Circle2DComponent: Codable {

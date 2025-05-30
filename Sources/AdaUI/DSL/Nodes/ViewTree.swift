@@ -75,12 +75,12 @@ final class ViewRootNode: ViewNode {
         super.draw(with: context)
     }
 
-    override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         let newPoint = contentNode.convert(point, from: self)
         return contentNode.hitTest(newPoint, with: event)
     }
 
-    override func point(inside point: Point, with event: InputEvent) -> Bool {
+    override func point(inside point: Point, with event: any InputEvent) -> Bool {
         contentNode.point(inside: point, with: event)
     }
 
@@ -92,7 +92,7 @@ final class ViewRootNode: ViewNode {
         contentNode.updateViewOwner(owner)
     }
 
-    override func onReceiveEvent(_ event: InputEvent) {
+    override func onReceiveEvent(_ event: any InputEvent) {
         contentNode.onReceiveEvent(event)
     }
 

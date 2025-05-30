@@ -82,7 +82,7 @@ class ViewModifierNode: ViewNode {
         contentNode.sizeThatFits(proposal)
     }
 
-    override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         if super.point(inside: point, with: event) {
             let newPoint = contentNode.convert(point, from: self)
             return contentNode.hitTest(newPoint, with: event)
@@ -96,7 +96,7 @@ class ViewModifierNode: ViewNode {
         contentNode.updateViewOwner(owner)
     }
 
-    override func point(inside point: Point, with event: InputEvent) -> Bool {
+    override func point(inside point: Point, with event: any InputEvent) -> Bool {
         if super.point(inside: point, with: event) {
             let newPoint = contentNode.convert(point, from: self)
             return contentNode.point(inside: newPoint, with: event)
@@ -109,7 +109,7 @@ class ViewModifierNode: ViewNode {
         contentNode.onMouseEvent(event)
     }
 
-    override func onReceiveEvent(_ event: InputEvent) {
+    override func onReceiveEvent(_ event: any InputEvent) {
         contentNode.onReceiveEvent(event)
     }
 

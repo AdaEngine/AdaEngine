@@ -211,9 +211,9 @@ class ViewNode: Identifiable {
     
     // MARK: - Interaction
     
-    func onReceiveEvent(_ event: InputEvent) { }
+    func onReceiveEvent(_ event: any InputEvent) { }
 
-    func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
+    func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         if self.point(inside: point, with: event) {
             return self
         }
@@ -222,7 +222,7 @@ class ViewNode: Identifiable {
     }
 
     /// - Returns: true if point is inside the receiver’s bounds; otherwise, false.
-    func point(inside point: Point, with event: InputEvent) -> Bool {
+    func point(inside point: Point, with event: any InputEvent) -> Bool {
         return point.x >= 0 && point.y >= 0 && point.x <= frame.width && point.y <= frame.height
     }
 
@@ -250,7 +250,7 @@ class ViewNode: Identifiable {
 
     func onMouseLeave() { }
 
-    func findFirstResponder(for event: InputEvent) -> ViewNode? {
+    func findFirstResponder(for event: any InputEvent) -> ViewNode? {
         let responder: ViewNode?
 
         switch event {

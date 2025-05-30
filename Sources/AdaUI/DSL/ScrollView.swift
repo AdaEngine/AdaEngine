@@ -57,7 +57,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
         super.performLayout()
     }
 
-    override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         guard self.point(inside: point, with: event) else {
             return nil
         }

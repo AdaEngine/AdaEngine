@@ -48,8 +48,6 @@ public final class World: @unchecked Sendable, Codable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let entities = try container.decode([Entity].self, forKey: .entities)
-        let systems = try container.decode([String].self, forKey: .systems)
-        let plugins = try container.decode([String].self, forKey: .plugins)
 
         for entity in entities {
             self.addEntity(entity)
@@ -72,17 +70,6 @@ public final class World: @unchecked Sendable, Codable {
         }
 
         self.flush()
-
-        for system in systems {
-            guard let systemType = SystemStorage.getRegistredSystem(for: system) else {
-                throw DecodingError.dataCorruptedError(
-                    forKey: .systems,
-                    in: container,
-                    debugDescription: "System \(system) not found"
-                )
-            }
-            self.addSystem(systemType)
-        }
     }
 
     public func encode(to encoder: Encoder) throws {

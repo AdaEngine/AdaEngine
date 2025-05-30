@@ -37,7 +37,7 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
         fatalError("init(frame:) has not been implemented")
     }
 
-    public override func hitTest(_ point: Point, with event: InputEvent) -> UIView? {
+    public override func hitTest(_ point: Point, with event: any InputEvent) -> UIView? {
         if self.viewTree.rootNode.hitTest(point, with: event) != nil {
             return self
         }
@@ -72,7 +72,7 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
         }
     }
 
-    public override func point(inside point: Point, with event: InputEvent) -> Bool {
+    public override func point(inside point: Point, with event: any InputEvent) -> Bool {
         return self.viewTree.rootNode.point(inside: point, with: event)
     }
     

@@ -15,6 +15,8 @@ public struct Text2DPlugin: Plugin {
     public init() {}
     
     public func setup(in app: AppWorlds) {
+        Text2DComponent.registerComponent()
+
         app
 //            .addSystem(ExctractTextSystem.self)
             .addSystem(Text2DLayoutSystem.self)

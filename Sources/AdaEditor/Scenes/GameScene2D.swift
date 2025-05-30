@@ -37,9 +37,6 @@ final class GameScene2D: Scene, @unchecked Sendable {
         cameraEntity.camera.orthographicScale = 1.1
 
         self.world.addEntity(cameraEntity)
-
-        // DEBUG
-        self.debugOptions = [.showPhysicsShapes]
 //         self.makePlayer()
         self.makeSubsceneAndSave()
         // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])

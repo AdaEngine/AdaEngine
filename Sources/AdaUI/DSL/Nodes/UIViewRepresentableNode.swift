@@ -34,7 +34,7 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
         self.representable.updateUIView(view!, in: context)
     }
 
-    override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         if let view = self.view, view.hitTest(point, with: event) != nil {
             return self
         }
@@ -42,7 +42,7 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
         return super.hitTest(point, with: event)
     }
 
-    override func point(inside point: Point, with event: InputEvent) -> Bool {
+    override func point(inside point: Point, with event: any InputEvent) -> Bool {
         if let view = self.view, view.point(inside: point, with: event) {
             return true
         }

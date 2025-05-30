@@ -9,6 +9,46 @@ import AdaApp
 import AdaECS
 import AdaTransform
 
+/// A plugin that adds audio capabilities to the world.
+public struct AudioPlugin: Plugin {
+
+    var engine: AudioEngine?
+
+    public init() {
+        do {
+            self.engine = try MiniAudioEngine()
+        } catch {
+            print("Error", error)
+        }
+    }
+
+    public func setup(in app: AppWorlds) {
+        guard let engine else {
+            return
+        }
+        do {
+            try engine.start()
+            AudioComponent.registerComponent()
+            AudioReceiver.registerComponent()
+            AudioPlaybacksControllers.registerComponent()
+
+            app
+                .insertResource(engine)
+                .addSystem(AudioSystem.self)
+        } catch {
+            print("Error", error)
+        }
+    }
+
+    public func finish() {
+        do {
+            try engine?.stop()
+        } catch {
+            print("Error", error)
+        }
+    }
+}
+
 /// A component that holds an ``AudioPlaybackController`` for an audio resource.
 ///
 /// Use this component to play audio on an entity.
@@ -48,44 +88,6 @@ public struct AudioReceiver {
         
         set {
             audioListener?.isEnabled = newValue
-        }
-    }
-}
-
-/// A plugin that adds audio capabilities to the world.
-public struct AudioPlugin: Plugin {
-
-    var engine: AudioEngine?
-
-    public init() {
-        do {
-            self.engine = try MiniAudioEngine()
-        } catch {
-            print("Error", error)
-        }
-    }
-    
-    public func setup(in app: AppWorlds) {
-        guard let engine else {
-            return
-        }
-
-        do {
-            try engine.start()
-
-            app
-                .insertResource(engine)
-                .addSystem(AudioSystem.self)
-        } catch {
-            print("Error", error)
-        }
-    }
-
-    public func finish() {
-        do {
-            try engine?.stop()
-        } catch {
-            print("Error", error)
         }
     }
 }

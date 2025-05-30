@@ -24,7 +24,7 @@ public struct DrawPassId: Equatable, Hashable, Sendable {
 ///
 /// For example, you can create render pass for rendering ``Transparent2DRenderItem`` and configure rendering whatever you want. 
 /// Pass additional render data as components to ``Entity`` and pass that entity to ``Transparent2DRenderItem/entity`` property.
-public protocol DrawPass<Item> {
+public protocol DrawPass<Item>: Resource {
     associatedtype Item: RenderItem
     typealias Context = RenderContext
     

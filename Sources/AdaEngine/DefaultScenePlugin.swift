@@ -13,6 +13,9 @@ import AdaTransform
 import AdaInput
 import AdaUI
 import AdaPlatform
+import AdaTilemap
+import AdaSprite
+import AdaPhysics
 import AdaScene
 
 /// Contains base configuration for any scene in the game.
@@ -22,6 +25,9 @@ public struct DefaultPlugins: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
+        ScriptableComponent.registerComponent()
+        Circle2DComponent.registerComponent()
+
         app
             .addPlugin(AppPlatformPlugin())
             .addPlugin(InputPlugin())
@@ -53,8 +59,5 @@ public struct DefaultRenderPlugin: Plugin {
     public func setup(in app: AppWorlds) {
         app
             .addPlugin(Scene2DPlugin())
-            .addPlugin(Mesh2DRenderPlugin())
-            .addPlugin(SpriteRenderPlugin())
-            .addPlugin(Text2DRenderPlugin())
     }
 }
