@@ -5,7 +5,7 @@
 //  Created by Vladislav Prusakov on 07.06.2024.
 //
 
-import AdaUtils
+@_spi(Internal) import AdaUtils
 import Observation
 import Math
 import AdaInput

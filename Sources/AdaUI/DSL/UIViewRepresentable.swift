@@ -5,6 +5,7 @@
 //  Created by Vladislav Prusakov on 09.06.2024.
 //
 
+import AdaUtils
 import Math
 
 public struct UIViewRepresentableContext<View: UIViewRepresentable> {

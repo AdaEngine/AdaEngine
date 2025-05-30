@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 29.07.2024.
 //
 
+import AdaUtils
+
 /// The possible color schemes, corresponding to the light and dark appearances.
 public enum ColorScheme: Hashable, Sendable, CaseIterable {
     case light

@@ -17,47 +17,56 @@ import AdaTilemap
 import AdaSprite
 import AdaPhysics
 import AdaScene
+import OrderedCollections
 
 /// Contains base configuration for any scene in the game.
 /// This plugins will applied for each scene in Ada application and should be passed once per scene.
 public struct DefaultPlugins: Plugin {
 
-    public init() {}
+    private var plugins: OrderedDictionary<String, any Plugin>
+
+    public init() {
+        var plugins = OrderedDictionary<String, any Plugin>()
+        insertPlugin(AppPlatformPlugin(), into: &plugins)
+        insertPlugin(InputPlugin(), into: &plugins)
+        insertPlugin(AssetsPlugin(), into: &plugins)
+        insertPlugin(VisibilityPlugin(), into: &plugins)
+        insertPlugin(CameraPlugin(), into: &plugins)
+        insertPlugin(SpritePlugin(), into: &plugins)
+        insertPlugin(Mesh2DPlugin(), into: &plugins)
+        insertPlugin(Text2DPlugin(), into: &plugins)
+        insertPlugin(ScenePlugin(), into: &plugins)
+        insertPlugin(AudioPlugin(), into: &plugins)
+        insertPlugin(UIPlugin(), into: &plugins)
+        insertPlugin(Physics2DPlugin(), into: &plugins)
+        insertPlugin(TransformPlugin(), into: &plugins)
+        insertPlugin(TileMapPlugin(), into: &plugins)
+        insertPlugin(Scene2DPlugin(), into: &plugins)
+        self.plugins = plugins
+    }
 
     public func setup(in app: AppWorlds) {
         ScriptableComponent.registerComponent()
         Circle2DComponent.registerComponent()
 
-        app
-            .addPlugin(AppPlatformPlugin())
-            .addPlugin(InputPlugin())
-            .addPlugin(AssetsPlugin())
-            .addPlugin(VisibilityPlugin())
-            .addPlugin(CameraPlugin())
-            .addPlugin(SpritePlugin())
-            .addPlugin(Mesh2DPlugin())
-            .addPlugin(Text2DPlugin())
-            .addPlugin(ScenePlugin())
-            .addPlugin(AudioPlugin())
-            .addPlugin(UIPlugin())
-            .addPlugin(Physics2DPlugin())
-            .addPlugin(TransformPlugin())
-            .addPlugin(TileMapPlugin())
-            .addSystem(ScriptComponentUpdateSystem.self)
+        for plugin in plugins.elements.values {
+            app.addPlugin(plugin)
+        }
 
-        let renderWorld = app.getSubworldBuilder(by: RenderWorld.self)
-        renderWorld?.addPlugin(DefaultRenderPlugin())
+        app
+            .addSystem(ScriptComponentUpdateSystem.self)
+    }
+
+    public func set<T: Plugin>(_ plugin: T) -> DefaultPlugins {
+        var newValue = self
+        insertPlugin(plugin, into: &newValue.plugins)
+        return newValue
     }
 }
 
-/// Contains base configurations for render world.
-/// This plugins will applied for entire Ada application and should be passed once per run.
-public struct DefaultRenderPlugin: Plugin {
-
-    public init() {}
-    
-    public func setup(in app: AppWorlds) {
-        app
-            .addPlugin(Scene2DPlugin())
-    }
+private func insertPlugin<T: Plugin>(
+    _ plugin: T,
+    into dictionary: inout OrderedDictionary<String, any Plugin>
+) {
+    dictionary[String(reflecting: T.self)] = plugin
 }

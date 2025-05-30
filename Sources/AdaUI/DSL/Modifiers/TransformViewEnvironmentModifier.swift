@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
+import AdaUtils
+
 public extension View {
     /// Transforms the environment value of the specified key path with the given function.
     /// - Parameter keyPath: A key path that indicates the property of the EnvironmentValues structure to update.
