@@ -73,6 +73,10 @@ public extension AppWorlds {
         return self
     }
 
+    func getResource<T: Resource>(_ resource: T.Type) -> T? {
+        return self.mainWorld.getResource(resource)
+    }
+
     func build() throws {
         /// Wait until all plugins is loaded
         while !self.plugins.allSatisfy({ $0.value.isLoaded() }) {
@@ -83,14 +87,12 @@ public extension AppWorlds {
         try self.subWorlds.values.forEach {
             try $0.build()
         }
-
         self.isConfigured = true
     }
 }
 
 
 public protocol Plugin: Sendable {
-
     @MainActor
     func setup(in app: AppWorlds)
 

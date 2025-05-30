@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 4/30/24.
 //
 
+import AdaECS
+import AdaUtils
 import Logging
 
 @MainActor
@@ -25,10 +27,6 @@ public final class AppContext<T: App> {
 
     @_spi(Internal)
     public func run() throws {
-        guard let appScene = app.body as? InternalAppScene else {
-            fatalError("Incorrect object of App Scene")
-        }
-
 //        let filePath = appScene._getFilePath()
 //        try AssetsManager.initialize(filePath: filePath)
 //        RuntimeTypeLoader.loadTypes()
@@ -37,12 +35,14 @@ public final class AppContext<T: App> {
             StreamLogHandler.standardError(label: $0)
         }
 
-        var configuration = _AppSceneConfiguration()
-        appScene._buildConfiguration(&configuration)
-        let appBuilder = configuration.appBuilder
-        try appBuilder.build()
-        appBuilder.runner?(appBuilder)
-//
+        let appWorlds = AppWorlds(mainWorld: World(name: "MainWorld"), subWorlds: [:])
+        appWorlds.insertResource(WindowSettings())
+        let inputs = _SceneInputs(appWorlds: appWorlds)
+        let node = _AppSceneNode(value: app.body)
+        let _ = T.Content._makeView(node, inputs: inputs)
+        try appWorlds.build()
+        appWorlds.runner?(appWorlds)
+        
 //        Task { @MainActor in
 //            let window = try await appScene._makeWindow(with: configuration)
 //            await self.application.renderWorld.addPlugin(DefaultRenderPlugin())

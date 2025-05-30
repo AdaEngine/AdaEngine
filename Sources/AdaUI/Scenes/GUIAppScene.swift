@@ -13,7 +13,12 @@ import Math
 /// - Warning: Under development!
 public struct GUIAppScene: AppScene {
     
-    public var body: Never { fatalError() }
+    public var body: some AppScene {
+        EmptyWindow()
+            .transformAppWorlds { world in
+
+            }
+    }
     
     let window: () -> UIWindow
     let filePath: StaticString
@@ -28,27 +33,27 @@ public struct GUIAppScene: AppScene {
         self.filePath = filePath
     }
 }
-
-extension GUIAppScene: InternalAppScene {
-    @MainActor
-    public func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Any {
-        let window = window()
-        
-        if window.frame.size == .zero {
-            window.frame = Rect(origin: .zero, size: configuration.minimumSize)
-        }
-        
-        if let title = configuration.title {
-            window.title = title
-        }
-        
-        window.setWindowMode(configuration.windowMode == .fullscreen ? .fullscreen : .windowed)
-        window.minSize = configuration.minimumSize
-        return window
-    }
-
-    @MainActor
-    public func _getFilePath() -> StaticString {
-        self.filePath
-    }
-}
+//
+//extension GUIAppScene: InternalAppScene {
+//    @MainActor
+//    public func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Any {
+//        let window = window()
+//        
+//        if window.frame.size == .zero {
+//            window.frame = Rect(origin: .zero, size: configuration.minimumSize)
+//        }
+//        
+//        if let title = configuration.title {
+//            window.title = title
+//        }
+//        
+//        window.setWindowMode(configuration.windowMode == .fullscreen ? .fullscreen : .windowed)
+//        window.minSize = configuration.minimumSize
+//        return window
+//    }
+//
+//    @MainActor
+//    public func _getFilePath() -> StaticString {
+//        self.filePath
+//    }
+//}
