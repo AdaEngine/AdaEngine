@@ -22,6 +22,7 @@ public final class World: @unchecked Sendable, Codable {
     public typealias ID = RID
 
     public let id = ID()
+    public let name: String?
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 
     internal private(set) var removedEntities: Set<Entity.ID> = []
@@ -43,10 +44,13 @@ public final class World: @unchecked Sendable, Codable {
 
     // MARK: - Methods
 
-    public init() {}
+    public init(name: String? = nil) {
+        self.name = name
+    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decodeIfPresent(String.self, forKey: .name)
         let entities = try container.decode([Entity].self, forKey: .entities)
 
         for entity in entities {
@@ -400,6 +404,7 @@ public enum WorldEvents {
 
 private extension World {
     enum CodingKeys: String, CodingKey {
+        case name
         case entities
         case resources
         case systems
