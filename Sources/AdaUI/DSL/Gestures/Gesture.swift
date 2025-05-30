@@ -43,7 +43,7 @@ public class _Gesture {
 
     weak var node: ViewNode?
 
-    func onReceiveEvent(_ event: InputEvent) {
+    func onReceiveEvent(_ event: any InputEvent) {
 
     }
 
@@ -104,7 +104,7 @@ class GestureAreaViewNode: ViewModifierNode {
 
     var gestures: [GestureRecognizer] = []
 
-    override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         return contentNode
     }
 
@@ -116,7 +116,7 @@ class GestureAreaViewNode: ViewModifierNode {
 
     }
 
-    override func onReceiveEvent(_ event: InputEvent) {
+    override func onReceiveEvent(_ event: any InputEvent) {
 
     }
 }

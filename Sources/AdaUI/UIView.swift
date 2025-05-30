@@ -264,7 +264,7 @@ open class UIView {
 
     // MARK: - Interaction
 
-    open func hitTest(_ point: Point, with event: InputEvent) -> UIView? {
+    open func hitTest(_ point: Point, with event: any InputEvent) -> UIView? {
         guard self.isInteractionEnabled && !self.isHidden else {
             return nil
         }
@@ -288,7 +288,7 @@ open class UIView {
     }
 
     /// - Returns: true if point is inside the receiver’s bounds; otherwise, false.
-    open func point(inside point: Point, with event: InputEvent) -> Bool {
+    open func point(inside point: Point, with event: any InputEvent) -> Bool {
         return self.bounds.contains(point: point)
     }
 
@@ -313,7 +313,7 @@ open class UIView {
         return view?.convert(point, to: self) ?? point
     }
 
-    open func canRespondToAction(_ event: InputEvent) -> Bool {
+    open func canRespondToAction(_ event: any InputEvent) -> Bool {
         return true
     }
 
@@ -321,7 +321,7 @@ open class UIView {
 
     open func onMouseEvent(_ event: MouseEvent) { }
 
-    internal func onEvent(_ event: InputEvent) {
+    internal func onEvent(_ event: any InputEvent) {
         switch event {
         case let event as MouseEvent:
             self.onMouseEvent(event)
@@ -341,7 +341,7 @@ open class UIView {
             .store(in: &eventsDisposeBag)
     }
 
-    func findFirstResponder(for event: InputEvent) -> UIView? {
+    func findFirstResponder(for event: any InputEvent) -> UIView? {
         let responder: UIView?
 
         switch event {

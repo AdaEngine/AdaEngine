@@ -133,7 +133,6 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
-    "box2d",
     "AdaApp",
     "AdaECS",
     "AdaUI",
@@ -146,6 +145,8 @@ var adaEngineDependencies: [Target.Dependency] = [
     "AdaText",
     "AdaInput",
     "AdaScene",
+    "AdaTilemap",
+    "AdaPhysics"
 ]
 
 #if os(Linux)
@@ -352,10 +353,46 @@ var targets: [Target] = [
             "AdaText",
             "AdaAudio",
             "AdaRender",
-            "AdaUI"
+            "AdaUI",
+            "AdaPhysics"
         ],
         swiftSettings: swiftSettings
-    )
+    ),
+    .target(
+        name: "AdaTilemap",
+        dependencies: [
+            "AdaApp",
+            "AdaAssets",
+            "AdaECS",
+            "Math",
+            "AdaPhysics",
+            "AdaSprite"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaPhysics",
+        dependencies: [
+            "AdaApp",
+            "AdaAssets",
+            "AdaECS",
+            "Math",
+            "box2d",
+            "AdaRender"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaSprite",
+        dependencies: [
+            "AdaApp",
+            "AdaAssets",
+            "AdaECS",
+            "Math",
+            "AdaRender"
+        ],
+        swiftSettings: swiftSettings
+    ),
 ]
 
 // MARK: Extra

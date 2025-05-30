@@ -15,7 +15,6 @@ class SpaceInvaders: Scene, @unchecked Sendable {
     var characterAtlas: TextureAtlas!
     
     override func sceneDidMove(to view: SceneView) {
-        self.debugOptions = [.showPhysicsShapes]
 //        let sound = try! AssetsManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
         let charactersTiles = try! AssetsManager.loadSync(
             Image.self, 

@@ -13,6 +13,9 @@ public struct TransformPlugin: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
+        Transform.registerComponent()
+        GlobalTransform.registerComponent()
+
         app
             .addSystem(TransformSystem.self)
             .addSystem(ChildTransformSystem.self)

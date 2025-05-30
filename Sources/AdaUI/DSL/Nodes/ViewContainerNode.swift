@@ -229,7 +229,7 @@ class ViewContainerNode: ViewNode {
         }
     }
 
-    override func hitTest(_ point: Point, with event: InputEvent) -> ViewNode? {
+    override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
         for node in self.nodes.reversed() {
             let newPoint = node.convert(point, from: self)
             if let node = node.hitTest(newPoint, with: event) {

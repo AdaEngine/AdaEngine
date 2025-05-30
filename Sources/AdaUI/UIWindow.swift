@@ -108,7 +108,7 @@ open class UIWindow: UIView {
         return true
     }
 
-    func sendEvent(_ event: InputEvent) {
+    func sendEvent(_ event: any InputEvent) {
         guard self.canRespondToAction(event) else {
             return
         }

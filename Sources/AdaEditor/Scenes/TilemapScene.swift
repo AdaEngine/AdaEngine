@@ -9,7 +9,6 @@ import AdaEngine
 
 final class LdtkTilemapScene: Scene, TileMapDelegate, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
-        self.debugOptions = [.showPhysicsShapes]
         
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
@@ -85,8 +84,6 @@ final class TilemapScene: Scene, @unchecked Sendable {
             at: "/Users/vprusakov/Downloads/tilemap.res", 
             from: .editor
         ).asset
-        
-        self.debugOptions = [.showPhysicsShapes]
         
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
@@ -180,8 +177,6 @@ final class TilemapScene: Scene, @unchecked Sendable {
                 atlasCoordinates: coordinates
             )
         }
-        
-        self.debugOptions = [.showPhysicsShapes]
         
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)

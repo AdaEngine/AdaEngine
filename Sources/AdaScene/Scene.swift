@@ -44,9 +44,6 @@ open class Scene: Asset, @unchecked Sendable {
     
     /// Event manager for scene.
     public private(set) var eventManager: EventManager = EventManager.default
-
-    /// Options for content in a scene that can aid debugging.
-    public var debugOptions: DebugOptions = []
     
     /// Instance of scene manager which holds this scene.
     public internal(set) weak var sceneManager: SceneManager?
@@ -57,25 +54,21 @@ open class Scene: Asset, @unchecked Sendable {
     /// Check the scene will not run earlier.
     private(set) var isReady = false
 
-    private var instantiateDefaultPlugin: Bool = true
-
     // MARK: - Initialization -
     
     /// Create new scene instance.
     /// - Parameter name: Name of this scene. By default name is `Scene`.
     /// - Parameter instantiateDefaultPlugin:
-    public init(name: String? = nil, instantiateDefaultPlugin: Bool = true) {
+    public init(name: String? = nil) {
         self.id = UUID()
         self.name = name ?? "Scene"
         self.world = World()
-        self.instantiateDefaultPlugin = instantiateDefaultPlugin
     }
 
-    public init(from world: World, instantiateDefaultPlugin: Bool = true) {
+    public init(from world: World) {
         self.id = UUID()
         self.name = "Scene"
         self.world = world
-        self.instantiateDefaultPlugin = instantiateDefaultPlugin
     }
     
     // MARK: - Resource -
@@ -90,10 +83,7 @@ open class Scene: Asset, @unchecked Sendable {
             throw SceneSerializationError.unsupportedVersion
         }
         
-        self.init(
-            name: scene.scene,
-            instantiateDefaultPlugin: scene.instantiateDefaultPlugin
-        )
+        self.init(name: scene.scene)
         self.world = scene.world
     }
     
@@ -106,7 +96,6 @@ open class Scene: Asset, @unchecked Sendable {
             SceneSerialization(
                 version: Self.currentVersion,
                 scene: name,
-                instantiateDefaultPlugin: instantiateDefaultPlugin,
                 world: world
             )
         )
@@ -119,8 +108,6 @@ open class Scene: Asset, @unchecked Sendable {
     public func update(_ newScene: Scene) async throws {
         self.world = newScene.world
         self.eventManager = newScene.eventManager
-        self.debugOptions = newScene.debugOptions
-        self.instantiateDefaultPlugin = newScene.instantiateDefaultPlugin
     }
     
     // MARK: - Life Cycle
@@ -195,23 +182,6 @@ extension Scene: EventSource {
     }
 }
 
-public extension Scene {
-    struct DebugOptions: OptionSet, Sendable {
-        public var rawValue: UInt16
-        
-        public init(rawValue: UInt16) {
-            self.rawValue = rawValue
-        }
-        
-        /// Draw physics collision shapes for physics object.
-        public static let showPhysicsShapes = DebugOptions(rawValue: 1 << 0)
-
-        public static let showFPS = DebugOptions(rawValue: 1 << 1)
-
-        public static let showBoundingBoxes = DebugOptions(rawValue: 1 << 2)
-    }
-}
-
 /// Events the scene triggers.
 public enum SceneEvents {
     
@@ -246,7 +216,6 @@ private extension Scene {
     struct SceneSerialization: Codable {
         let version: Version
         let scene: String
-        let instantiateDefaultPlugin: Bool
         let world: AdaECS.World
     }
 }
