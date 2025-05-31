@@ -5,27 +5,25 @@
 //  Created by v.prusakov on 5/5/24.
 //
 
+import AdaECS
 import AdaAssets
 import AdaRender
 import Foundation
 
-struct SpriteRenderPipeline: Sendable {
-
-    static let `default` = SpriteRenderPipeline()
-
+struct SpriteRenderPipeline: Resource {
     let renderPipeline: RenderPipeline
 
-    private init() {
+    init() {
         let device = RenderEngine.shared.renderDevice
-//        let quadShader = try! AssetsManager.loadSync(
-//            ShaderModule.self, 
-//            at: "Shaders/quad.glsl", 
-//            from: .module
-//        )
+        let spriteShader = try! AssetsManager.loadSync(
+            ShaderModule.self,
+            at: "Assets/sprite.glsl",
+            from: .module
+        )
 
         var piplineDesc = RenderPipelineDescriptor()
-//        piplineDesc.vertex = quadShader.asset.getShader(for: .vertex)
-//        piplineDesc.fragment = quadShader.asset.getShader(for: .fragment)
+        piplineDesc.vertex = spriteShader.asset.getShader(for: .vertex)
+        piplineDesc.fragment = spriteShader.asset.getShader(for: .fragment)
         piplineDesc.debugName = "Sprite Pipeline"
         piplineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "a_Position"),

@@ -14,6 +14,7 @@ import Math
 // TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
 
 @System(dependencies: [
+    .after(ExtractCameraSystem.self),
     .after(BatchTransparent2DItemsSystem.self)
 ])
 public struct SpriteRenderSystem: Sendable {
@@ -30,6 +31,9 @@ public struct SpriteRenderSystem: Sendable {
     @ResourceQuery
     private var spriteDrawPass: SpriteDrawPass!
 
+    @ResourceQuery
+    private var spriteRenderPipeline: SpriteRenderPipeline!
+
     static let quadPosition: [Vector4] = [
         [-0.5, -0.5,  0.0, 1.0],
         [ 0.5, -0.5,  0.0, 1.0],
@@ -42,7 +46,6 @@ public struct SpriteRenderSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-
         for (visibleEntities, renderItems) in cameras {
             self.draw(
                 extractedSprites: self.extractedSprites?.sprites ?? [],
@@ -132,7 +135,7 @@ public struct SpriteRenderSystem: Sendable {
                     entity: spriteData,
                     batchEntity: currentBatchEntity,
                     drawPass: self.spriteDrawPass,
-                    renderPipeline: SpriteRenderPipeline.default.renderPipeline,
+                    renderPipeline: self.spriteRenderPipeline.renderPipeline,
                     sortKey: sprite.transform.position.z,
                     batchRange: itemStart..<itemEnd
                 )
@@ -217,10 +220,12 @@ public struct ExtractedSprite: Sendable {
 }
 
 /// Exctract sprites to RenderWorld for future rendering.
-@System
+@System(dependencies: [
+    .before(SpriteRenderSystem.self)
+])
 public struct ExtractSpriteSystem {
 
-    @Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>
+    @Extract<Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>>
     private var sprites
 
     public init(world: World) { }
@@ -228,7 +233,7 @@ public struct ExtractSpriteSystem {
     public func update(context: UpdateContext) {
         var extractedSprites = ExtractedSprites(sprites: [])
 
-        self.sprites.forEach { entity, sprite, globalTransform, transform, visible in
+        self.sprites.wrappedValue.forEach { entity, sprite, globalTransform, transform, visible in
             if visible == .hidden {
                 return
             }

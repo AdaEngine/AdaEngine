@@ -16,14 +16,20 @@ public struct SpritePlugin: Plugin {
     public func setup(in app: AppWorlds) {
         SpriteComponent.registerComponent()
 
+        app
+            .addSystem(updateBoundingsSystem.self)
+
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
 
+        let pipeline = SpriteRenderPipeline()
+
         renderWorld
+            .insertResource(pipeline)
+            .insertResource(SpriteDrawPass())
             .addSystem(ExtractSpriteSystem.self)
             .addSystem(SpriteRenderSystem.self)
             .addSystem(ExctractMesh2DSystem.self)
-            .insertResource(SpriteDrawPass())
     }
 }

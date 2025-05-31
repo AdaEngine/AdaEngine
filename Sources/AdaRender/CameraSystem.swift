@@ -27,7 +27,11 @@ public struct CameraSystem: Sendable {
             let viewMatrix = globalTransform.matrix.inverse
             camera.viewMatrix = viewMatrix
 
-//                self.updateViewportSizeIfNeeded(for: &camera.wrappedValue, window: context.scene?.window)
+                self.updateViewportSizeIfNeeded(
+                    for: &camera.wrappedValue,
+                    screenScale: 2,
+                    windowSize: Size(width: 800, height: 600) // FIXME: Must use actual size
+                )
             self.updateProjectionMatrix(for: &camera.wrappedValue)
             self.updateFrustum(for: &camera.wrappedValue)
 
@@ -39,42 +43,40 @@ public struct CameraSystem: Sendable {
         }
     }
 
-//    @MainActor
-//    private func updateViewportSizeIfNeeded(
-//        for camera: inout Camera, 
-//        window: UIWindow?
-//    ) {
-//        switch camera.renderTarget {
-//        case .window(let windowRef):
-//            camera.renderTarget = .window(windowRef)
-//            camera.computedData.targetScaleFactor = window?.screen?.scale ?? 1
-//
-//            let windowSize = window?.frame.size ?? .zero
-//
-//            if camera.viewport == nil {
-//                camera.viewport = Viewport(rect: Rect(origin: .zero, size: windowSize))
-//                return
-//            }
-//
-//            if camera.viewport?.rect.size != windowSize {
-//                camera.viewport?.rect.size = windowSize
-//            }
-//        case .texture(let textureHandle):
-//            let texture = textureHandle.asset
-//            let size = Size(width: Float(texture.width), height: Float(texture.height))
-//
-//            if camera.viewport == nil {
-//                camera.viewport = Viewport(rect: Rect(origin: .zero, size: size))
-//                return
-//            }
-//
-//            if camera.viewport?.rect.size != size {
-//                camera.viewport?.rect.size = size
-//            }
-//
-//            camera.computedData.targetScaleFactor = texture.scaleFactor
-//        }
-//    }
+    private func updateViewportSizeIfNeeded(
+        for camera: inout Camera, 
+        screenScale: Float,
+        windowSize: Size
+    ) {
+        switch camera.renderTarget {
+        case .window(let windowRef):
+            camera.renderTarget = .window(windowRef)
+            camera.computedData.targetScaleFactor = screenScale
+
+            if camera.viewport == nil {
+                camera.viewport = Viewport(rect: Rect(origin: .zero, size: windowSize))
+                return
+            }
+
+            if camera.viewport?.rect.size != windowSize {
+                camera.viewport?.rect.size = windowSize
+            }
+        case .texture(let textureHandle):
+            let texture = textureHandle.asset
+            let size = Size(width: Float(texture.width), height: Float(texture.height))
+
+            if camera.viewport == nil {
+                camera.viewport = Viewport(rect: Rect(origin: .zero, size: size))
+                return
+            }
+
+            if camera.viewport?.rect.size != size {
+                camera.viewport?.rect.size = size
+            }
+
+            camera.computedData.targetScaleFactor = texture.scaleFactor
+        }
+    }
 
     private func updateFrustum(for camera: inout Camera) {
         camera.computedData.frustum = Frustum.make(from: camera.computedData.projectionMatrix * camera.viewMatrix)
@@ -114,7 +116,6 @@ public struct CameraSystem: Sendable {
     }
 }
 
-/// Exctract cameras to RenderWorld for future rendering.
 @System
 public struct ExtractCameraSystem {
 
