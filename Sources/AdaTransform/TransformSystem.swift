@@ -18,7 +18,7 @@ public struct TransformSystem {
     
     public func update(context: UpdateContext) {
         self.query.forEach { entity in
-            context.scheduler.addTask { @MainActor in
+            context.taskGroup.addTask { @MainActor in
                 if entity.components.isComponentChanged(Transform.self)
                     || !entity.components.has(GlobalTransform.self)
                 {

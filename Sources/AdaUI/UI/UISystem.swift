@@ -12,7 +12,7 @@ import AdaUtils
 import Math
 
 @System
-public struct UISystem: Sendable {
+public struct UIComponentSystem: Sendable {
     
     @EntityQuery(where: .has(UIComponent.self) && .has(GlobalTransform.self))
     private var uiComponents
@@ -25,14 +25,14 @@ public struct UISystem: Sendable {
 //        }
 //
 //        for entity in self.uiComponents {
-//            context.scheduler.addTask {
+//            context.taskGroup.addTask {
 //                await update(entity: entity, scene: scene, deltaTime: context.deltaTime)
 //            }
 //        }
     }
 }
 
-private extension UISystem {
+private extension UIComponentSystem {
     @MainActor
     func update(entity: Entity, window: UIWindow, deltaTime: TimeInterval) async {
         let (component, globalTransform) = entity.components[UIComponent.self, GlobalTransform.self]

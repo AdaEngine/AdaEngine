@@ -19,12 +19,12 @@ public struct Mesh2DPlugin: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
-        app.addSystem(ExctractMesh2DSystem.self)
+        let renderWorld = app.getSubworldBuilder(by: RenderWorld.self)
+        renderWorld?.addSystem(ExctractMesh2DSystem.self)
     }
 }
 
-@Component
-public struct ExctractedMeshes2D: Sendable {
+public struct ExctractedMeshes2D: Resource {
     public var meshes: [ExctractedMesh2D] = []
 
     public init(meshes: [ExctractedMesh2D] = []) {
@@ -48,21 +48,19 @@ public struct ExctractedMesh2D: Sendable {
 }
 
 /// System to render exctract meshes to RenderWorld.
-@System(dependencies: [
-    .after(VisibilitySystem.self)
-])
+@System
 public struct ExctractMesh2DSystem {
 
-    @Query<Entity, Mesh2DComponent, Transform, GlobalTransform, Visibility>
+    @Extract<
+        Query<Entity, Mesh2DComponent, Transform, GlobalTransform, Visibility>
+    >
     private var query
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let extractedEntity = Entity()
         var extractedMeshes = ExctractedMeshes2D()
-
-        self.query.forEach { entity, mesh, transform, globalTransform, visibility in
+        self.query.wrappedValue.forEach { entity, mesh, transform, globalTransform, visibility in
             if visibility == .hidden {
                 return
             }
@@ -76,11 +74,7 @@ public struct ExctractMesh2DSystem {
                 )
             )
         }
-
-        extractedEntity.components += extractedMeshes
-//        context.scheduler.addTask {
-//            await Application.shared.renderWorld.addEntity(extractedEntity)
-//        }
+        context.world.insertResource(extractedMeshes)
     }
 }
 
@@ -94,10 +88,12 @@ public struct Mesh2DRenderPlugin: Plugin {
     public func setup(in app: AppWorlds) {
         Mesh2DComponent.registerComponent()
 
-        let app = app.getSubworldBuilder(by: RenderWorld.self)
-        let drawPass = Mesh2DDrawPass()
-        DrawPassStorage.setDrawPass(drawPass)
-        app?.addSystem(Mesh2DRenderSystem.self)
+        guard let renderWorld = app.getSubworldBuilder(by: RenderWorld.self) else {
+            return
+        }
+        renderWorld
+            .insertResource(Mesh2DDrawPass())
+            .addSystem(Mesh2DRenderSystem.self)
     }
 }
 
@@ -105,32 +101,25 @@ public struct Mesh2DRenderPlugin: Plugin {
 @System
 public struct Mesh2DRenderSystem: Sendable {
 
-    static let query = EntityQuery(where: .has(Camera.self) && .has(VisibleEntities.self) && .has(RenderItems<Transparent2DRenderItem>.self))
+    @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>
+    private var query
 
-    static let extractedMeshes = EntityQuery(where: .has(ExctractedMeshes2D.self))
+    @ResourceQuery
+    private var extractedMeshes: ExctractedMeshes2D!
 
-    let meshDrawPassIdentifier = Mesh2DDrawPass.identifier
+    @ResourceQuery
+    private var meshDrawPass: Mesh2DDrawPass!
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let exctractedMeshes = context.world.performQuery(Self.extractedMeshes)
-
-        context.world.performQuery(Self.query).forEach { entity in
-            for exctractedMesh in exctractedMeshes {
-                let meshes = exctractedMesh.components[ExctractedMeshes2D.self]!.meshes
-                var (visibleEntities, renderItems) = entity.components[
-                    VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
-
-                self.draw(
-                    meshes: meshes,
-                    visibleEntities: visibleEntities,
-                    items: &renderItems.items,
-                    keys: []
-                )
-
-                entity.components += renderItems
-            }
+        self.query.forEach { visibleEntities, renderItems in
+            self.draw(
+                meshes: extractedMeshes.meshes,
+                visibleEntities: visibleEntities,
+                items: &renderItems.items,
+                keys: []
+            )
         }
     }
 
@@ -170,7 +159,7 @@ public struct Mesh2DRenderSystem: Sendable {
                         Transparent2DRenderItem(
                             entity: emptyEntity,
                             batchEntity: emptyEntity,
-                            drawPassId: self.meshDrawPassIdentifier,
+                            drawPass: self.meshDrawPass,
                             renderPipeline: pipeline,
                             sortKey: mesh.transform.position.z
                         )

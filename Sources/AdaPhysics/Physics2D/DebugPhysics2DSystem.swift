@@ -33,9 +33,7 @@ struct ExctractedPhysicsMesh2DDebug {
 }
 
 /// System for exctracting physics bodies for debug rendering.
-@System(dependencies: [
-    .after(Physics2DSystem.self)
-])
+@System
 public struct DebugPhysicsExctract2DSystem {
 
     @EntityQuery(
@@ -55,7 +53,7 @@ public struct DebugPhysicsExctract2DSystem {
             return
         }
         
-        context.scheduler.addTask { @MainActor in    
+        context.taskGroup.addTask { @MainActor in    
             guard context.world.getResource(PhysicsDebugOptions.self)?.contains(.showPhysicsShapes) == true else {
                 return
             }

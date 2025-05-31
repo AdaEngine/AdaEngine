@@ -25,16 +25,14 @@ public struct Physics2DPlugin: Plugin {
         
         app
             .insertResource(Physics2DWorldComponent(world: world2D))
-            .addSystem(DebugPhysicsExctract2DSystem.self)
             .addSystem(Physics2DSystem.self)
 
-        let renderWorld = app.getSubworldBuilder(by: RenderWorld.self)
-        renderWorld?.addSystem(Physics2DDebugDrawSystem.self)
-
-//        Task {
-//            await Physics2DWorldComponent.registerResource()
-//            await Application.shared.renderWorld.addSystem(Physics2DDebugDrawSystem.self)
-//        }
+        guard let renderWorld = app.getSubworldBuilder(by: RenderWorld.self) else {
+            return
+        }
+        renderWorld
+            .addSystem(Physics2DDebugDrawSystem.self)
+            .addSystem(DebugPhysicsExctract2DSystem.self)
     }
 }
 

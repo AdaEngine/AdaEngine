@@ -54,7 +54,3 @@ public struct SpriteDrawPass: DrawPass {
         context.drawList.popDebugName()
     }
 }
-
-public extension DrawPassId {
-    static let sprite = SpriteDrawPass.identifier
-}

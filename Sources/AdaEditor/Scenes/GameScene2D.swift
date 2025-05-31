@@ -7,6 +7,41 @@
 
 import AdaEngine
 
+struct GameScene2DPlugin: Plugin {
+    func setup(in app: AppWorlds) {
+//        do {
+//            let tiles = try AssetsManager.loadSync(
+//                Image.self,
+//                at: "@res://tiles_packed.png"
+//            ).asset
+//            let charactersTiles = try AssetsManager.loadSync(
+//                Image.self,
+//                at: "@res://characters_packed.png"
+//            ).asset
+//
+//            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
+//            self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
+//        } catch {
+//            fatalError(error.localizedDescription)
+//        }
+
+        let cameraEntity = OrthographicCamera()
+        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
+        cameraEntity.camera.clearFlags = .solid
+        cameraEntity.camera.orthographicScale = 1.1
+        app.mainWorld.addEntity(cameraEntity)
+
+////         self.makePlayer()
+//        self.makeSubsceneAndSave()
+//        // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
+//        self.collisionHandler()
+//
+        app
+            .addSystem(PlayerMovementSystem.self)
+            .addSystem(SpawnPhysicsBodiesSystem.self)
+    }
+}
+
 final class GameScene2D: Scene, @unchecked Sendable {
 
     var disposeBag: Set<AnyCancellable> = []
@@ -410,9 +445,11 @@ struct MyMaterial: CanvasMaterial {
     }
 }
 
-struct SpawnPhysicsBodiesSystem: System {
-    
-    static let camera = EntityQuery(where: .has(Camera.self))
+@System
+struct SpawnPhysicsBodiesSystem {
+
+    @Query<Camera, GlobalTransform>
+    private var camera
     let fixedTimestep: FixedTimestep = FixedTimestep(stepsPerSecond: 20)
     
     init(world: World) { }
@@ -423,9 +460,8 @@ struct SpawnPhysicsBodiesSystem: System {
             return
         }
         
-        context.world.performQuery(Self.camera).forEach { entity in
+        self.camera.forEach { camera, globalTransform in
             if Input.isMouseButtonPressed(.left) {
-                let (globalTransform, camera) = entity.components[GlobalTransform.self, Camera.self]
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: mousePosition) {
                     self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), world: context.world)
@@ -433,7 +469,6 @@ struct SpawnPhysicsBodiesSystem: System {
             }
 
             if let gamepad = Input.getConnectedGamepads().first, gamepad.isGamepadButtonPressed(.rightTriggerButton) {
-                let (globalTransform, camera) = entity.components[GlobalTransform.self, Camera.self]
                 let centerOfScreen = Vector2(camera.viewport!.rect.width / 2, camera.viewport!.rect.height / 2)
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: centerOfScreen) {
                     self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), world: context.world)

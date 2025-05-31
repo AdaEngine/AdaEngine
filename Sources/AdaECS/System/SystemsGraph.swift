@@ -95,9 +95,9 @@ public final class SystemsGraph: @unchecked Sendable {
         var outputNode = self.nodes[outputSystemName]
         var inputNode = self.nodes[inputSystemName]
         
-        assert(outputNode != nil, "[SystemsGraph] System not exists \(outputSystemName)")
-        assert(inputNode != nil, "[SystemsGraph] System not exists \(inputSystemName)")
-        
+        assert(outputNode != nil, "[SystemsGraph] System not exists \(outputSystemName) to \(inputSystemName)")
+        assert(inputNode != nil, "[SystemsGraph] System not exists \(inputSystemName) for \(outputSystemName)")
+
         let edge = Edge(outputNode: outputSystemName, inputNode: inputSystemName)
         let reversedEdge = Edge(outputNode: inputSystemName, inputNode: outputSystemName)
         

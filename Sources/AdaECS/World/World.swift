@@ -7,6 +7,7 @@
 
 import AdaUtils
 import Collections
+import Foundation
 
 /// TODO: (Vlad)
 /// [] Recalculate archetype for removed and added components. Archetype should use graph
@@ -35,12 +36,12 @@ public final class World: @unchecked Sendable, Codable {
     private var updatedComponents: [Entity: Set<ComponentId>] = [:]
 
     private var componentsStorage = ComponentsStorage()
-
-    internal let systemGraph = SystemsGraph()
-    internal let systemGraphExecutor = SystemsGraphExecutor()
     private var isReady = false
 
     public private(set) var eventManager: EventManager = EventManager.default
+
+    // Scheduler registry and mapping from scheduler to systems
+    public let schedulers = Schedulers(Scheduler.default)
 
     // MARK: - Methods
 
@@ -82,11 +83,48 @@ public final class World: @unchecked Sendable, Codable {
             $0.id < $1.id
         })
         try container.encode(entities, forKey: .entities)
-        try container.encode(self.systemGraph.systems.map { type(of: $0).swiftName }, forKey: .systems)
         var unkeyedContainer = container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
         for resource in self.componentsStorage.resourceComponents.values {
             try unkeyedContainer.encode(AnyEncodable(resource), forKey: CodingName(stringValue: type(of: resource).swiftName))
         }
+    }
+
+    // MARK: - Scheduler API
+
+    /// Set the order of schedulers for this world.
+    public func setSchedulers(_ schedulers: [Scheduler]) {
+        self.schedulers.setSchedulers(schedulers)
+    }
+
+    /// Insert a scheduler before or after another scheduler.
+    public func insertScheduler(_ scheduler: Scheduler, after: Scheduler) {
+        schedulers.insert(scheduler, after: after)
+    }
+
+    public func insertScheduler(_ scheduler: Scheduler, before: Scheduler) {
+        schedulers.insert(scheduler, before: before)
+    }
+    /// Add new system to the world.
+    /// - Warning: System should be added before build.
+    /// - Parameter systemType: System type.
+    /// Add a system to a specific scheduler.
+    @discardableResult
+    public func addSystem<T: System>(_ systemType: T.Type, on scheduler: Scheduler) -> Self {
+        if self.isReady {
+            assertionFailure("Can't insert system if scene was ready")
+            return self
+        }
+        let system = systemType.init(world: self)
+        self.schedulers.getScheduler(scheduler)?.systemGraph.addSystem(system)
+        return self
+    }
+
+    /// Add new system to the world.
+    /// - Warning: System should be added before build.
+    /// - Parameter systemType: System type.
+    @discardableResult
+    public func addSystem<T: System>(_ systemType: T.Type) -> Self {
+        return addSystem(systemType, on: .update)
     }
 }
 
@@ -129,26 +167,15 @@ public extension World {
         return nil
     }
 
-    /// Add new system to the world.
-    /// - Warning: System should be added before build.
-    /// - Parameter systemType: System type.
-    @discardableResult
-    func addSystem<T: System>(_ systemType: T.Type) -> Self {
-        if self.isReady {
-            assertionFailure("Can't insert system if scene was ready")
-            return self
-        }
-        let system = systemType.init(world: self)
-        self.systemGraph.addSystem(system)
-        return self
-    }
-
     func build() {
         if isReady {
             fatalError("World already configured")
         }
         isReady = true
-        self.systemGraph.linkSystems()
+        for label in self.schedulers.schedulerLabels {
+            let scheduler = self.schedulers.getScheduler(label)
+            scheduler?.systemGraph.linkSystems()
+        }
         self.flush()
     }
 
@@ -247,16 +274,26 @@ public extension World {
     /// Update all data in world.
     /// - Parameter deltaTime: Time interval since last update.
     @MainActor
-    func update(_ deltaTime: TimeInterval) async {
+    func update(_ deltaTime: AdaUtils.TimeInterval) async {
         self.flush()
 
-        await withTaskGroup(of: Void.self) { @MainActor group in
-            let context = WorldUpdateContext(
-                world: self,
-                deltaTime: deltaTime,
-                scheduler: group
-            )
-            self.systemGraphExecutor.execute(self.systemGraph, context: context)
+        for label in self.schedulers.schedulerLabels {
+            guard let scheduler = self.schedulers.getScheduler(label) else {
+                continue
+            }
+
+            await withTaskGroup(of: Void.self) { @MainActor group in
+                let context = WorldUpdateContext(
+                    world: self,
+                    deltaTime: deltaTime,
+                    scheduler: label,
+                    taskGroup: group
+                )
+
+                scheduler.runner.execute(scheduler.systemGraph, context: context)
+            }
+
+            self.flush()
         }
     }
 

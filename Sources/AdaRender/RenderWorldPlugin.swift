@@ -7,8 +7,7 @@
 
 import AdaApp
 import AdaECS
-
-public struct RenderWorld: Label {}
+import AdaUtils
 
 public struct RenderWorldPlugin: Plugin {
 
@@ -20,17 +19,22 @@ public struct RenderWorldPlugin: Plugin {
         NoFrustumCulling.registerComponent()
         BoundingComponent.registerComponent()
 
-        guard let renderWorld = app.getSubworldBuilder(by: RenderWorld.self) else {
-            return
-        }
+        let renderWorld = app.createSubworld(by: .renderWorld)
+        renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
+        renderWorld.setExctractor(RenderWorldExctractor())
+        renderWorld.mainWorld.setSchedulers([
+            .update,
+            .render
+        ])
 
-        renderWorld
-            .addSystem(RenderWorldSystem.self)
+        renderWorld.mainWorld
+            .addSystem(RenderWorldSystem.self, on: .render)
     }
 }
 
 @System
 struct RenderWorldSystem {
+
     private let renderGraphExecutor = RenderGraphExecutor()
 
     init(world: World) { }
@@ -39,7 +43,7 @@ struct RenderWorldSystem {
     private var renderGraph: RenderGraph!
 
     func update(context: UpdateContext) {
-        context.scheduler.addTask {
+        context.taskGroup.addTask {
             do {
                 try await self.renderGraphExecutor.execute(renderGraph, in: context.world)
             } catch {
@@ -49,21 +53,47 @@ struct RenderWorldSystem {
     }
 }
 
-///// RenderWorld that store entities for rendering. Each update tick entities removed from RenderWorld.
-//@RenderGraphActor
-//public final class RenderWorld: Sendable {
-//    let renderGraphExecutor = RenderGraphExecutor()
-//    public
-//
-//    public let world: World = World()
-//
-//    @MainActor
-//    @_spi(Internal)
-//    public init() {}
-//
-//    public func update(_ deltaTime: AdaUtils.TimeInterval) async throws {
-//        await self.world.update(deltaTime)
-//        try await self.renderGraphExecutor.execute(self.renderGraph, in: world)
-//        self.world.clear()
-//    }
-//}
+struct RenderWorldExctractor: WorldExctractor {
+    func exctract(from mainWorld: World, to renderWorld: World) {
+        renderWorld.clear()
+        renderWorld.insertResource(MainWorld(world: mainWorld))
+    }
+}
+
+struct MainWorld: Resource {
+    var world: World
+}
+
+/// A property wrapper that allows you to query a resource in a system.
+@propertyWrapper
+public final class Extract<T: SystemQuery>: @unchecked Sendable {
+    private var _value: T!
+    public var wrappedValue: T {
+        self._value
+    }
+
+    public init() { }
+
+    public init(from world: World) {
+        self._value = T.init(from: world)
+    }
+}
+
+extension Extract: SystemQuery {
+    public func update(from world: World) {
+        if _value == nil {
+            _value = T.init(from: world)
+        }
+        if let resource = world.getResource(MainWorld.self) {
+            _value?.update(from: resource.world)
+        }
+    }
+}
+
+public extension Scheduler {
+    static let render = Scheduler(rawValue: "RenderWorld_Render")
+}
+
+public extension AppWorldName {
+    static let renderWorld = AppWorldName(rawValue: "RenderWorld")
+}

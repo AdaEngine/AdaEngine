@@ -196,7 +196,7 @@
 //            exctractedEntity.components += entity.components[Transform.self]!
 //            exctractedEntity.components += entity.components[Text2DComponent.self]!
 //
-//            context.scheduler.addTask {
+//            context.taskGroup.addTask {
 //                await Application.shared.renderWorld.addEntity(exctractedEntity)
 //            }
 //        }

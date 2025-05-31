@@ -36,6 +36,9 @@ public extension AppScene {
         _ scene: _AppSceneNode<Self>,
         inputs: _SceneInputs
     ) -> _SceneOutputs {
+        if Self.Body.self == Never.self {
+            return _SceneOutputs(appWorlds: inputs.appWorlds)
+        }
         let body = Self.Body._makeView(scene[\.body], inputs: inputs)
         return body
     }

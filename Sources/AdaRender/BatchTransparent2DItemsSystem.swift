@@ -12,11 +12,6 @@ import AdaECS
 @System
 public struct BatchTransparent2DItemsSystem {
 
-    public static let dependencies: [SystemDependency] = [
-        .after(CameraSystem.self), 
-        .after(VisibilitySystem.self)
-    ]
-
     static let query = EntityQuery(where: .has(RenderItems<Transparent2DRenderItem>.self))
 
     public init(world: World) { }

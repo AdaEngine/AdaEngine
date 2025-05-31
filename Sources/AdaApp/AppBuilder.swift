@@ -8,23 +8,40 @@
 import AdaECS
 import AdaUtils
 
+public protocol WorldExctractor {
+    func exctract(from mainWorld: World, to world: World)
+}
+
 @MainActor
 public class AppWorlds {
     public var mainWorld: World
     var subWorlds: [String: AppWorlds]
+    
+    var worldExctractor: (any WorldExctractor)?
 
     var plugins: [ObjectIdentifier: any Plugin] = [:]
     var runner: ((AppWorlds) -> Void)?
 
     var isConfigured: Bool = false
 
-    init(mainWorld: World, subWorlds: [String : AppWorlds]) {
+    init(
+        mainWorld: World,
+        subWorlds: [String : AppWorlds] = [:]
+    ) {
         self.mainWorld = mainWorld
         self.subWorlds = subWorlds
     }
 }
 
 public extension AppWorlds {
+
+    func setExctractor(_ exctractor: any WorldExctractor) {
+        self.worldExctractor = exctractor
+    }
+
+    func setRunner(_ block: @escaping (AppWorlds) -> Void) {
+        self.runner = block
+    }
 
     func update(_ deltaTime: AdaUtils.TimeInterval) async {
         if !isConfigured {
@@ -34,20 +51,19 @@ public extension AppWorlds {
         await mainWorld.update(deltaTime)
 
         for world in self.subWorlds.values {
+            world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
             await world.update(deltaTime)
         }
     }
 
-    func setRunner(_ block: @escaping (AppWorlds) -> Void) {
-        self.runner = block
+    func getSubworldBuilder(by name: AppWorldName) -> AppWorlds? {
+        self.subWorlds[name.rawValue]
     }
 
-    func getSubworldBuilder(by name: String) -> AppWorlds? {
-        self.subWorlds[name]
-    }
-
-    func getSubworldBuilder<L: Label>(by label: L.Type) -> AppWorlds? {
-        self.subWorlds[label.name]
+    func createSubworld(by name: AppWorldName) -> AppWorlds {
+        let subworld = AppWorlds(mainWorld: World(name: name.rawValue))
+        self.subWorlds[name.rawValue] = subworld
+        return subworld
     }
 
     @discardableResult
@@ -62,8 +78,8 @@ public extension AppWorlds {
     }
 
     @discardableResult
-    func addSystem<T: System>(_ system: T.Type) -> Self {
-        self.mainWorld.addSystem(system)
+    func addSystem<T: System>(_ system: T.Type, scheduler: Scheduler = .update) -> Self {
+        self.mainWorld.addSystem(system, on: scheduler)
         return self
     }
 
@@ -97,10 +113,13 @@ public protocol Plugin: Sendable {
     func setup(in app: AppWorlds)
 
     @MainActor
+    func finish()
+
+    @MainActor
     func isLoaded() -> Bool
 
     @MainActor
-    func finish()
+    func destroy()
 }
 
 public extension Plugin {
@@ -109,12 +128,18 @@ public extension Plugin {
     }
 
     func finish() { }
+
+    @MainActor
+    func destroy() { }
 }
 
-public protocol Label {
-    static var name: String { get }
-}
+public struct AppWorldName: Hashable, Equatable, RawRepresentable, CustomStringConvertible, Sendable {
+    public let rawValue: String
+    public var description: String { rawValue }
 
-public extension Label {
-    static var name: String { String(reflecting: Self.self) }
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    public static let main = Scheduler(rawValue: "Main")
 }
