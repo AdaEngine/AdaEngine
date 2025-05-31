@@ -170,7 +170,7 @@ extension SystemMacro: PeerMacro {
         
         // Generate struct body
         let structDecl: DeclSyntax = """
-        \(availability)struct \(raw: funcName)SystemFunc: AdaECS.System {
+        \(availability)struct \(raw: funcName)System: AdaECS.System {
         \(raw: propertyDecls.joined(separator: "\n\n"))
         
             \(availability)init(world: AdaECS.World) {}

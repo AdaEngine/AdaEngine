@@ -8,22 +8,29 @@
 import AdaEngine
 
 struct GameScene2DPlugin: Plugin {
+
+    @LocalIsolated
+    private var textureAtlas: TextureAtlas!
+
+    @LocalIsolated
+    private var characterAtlas: TextureAtlas!
+
     func setup(in app: AppWorlds) {
-//        do {
-//            let tiles = try AssetsManager.loadSync(
-//                Image.self,
-//                at: "@res://tiles_packed.png"
-//            ).asset
-//            let charactersTiles = try AssetsManager.loadSync(
-//                Image.self,
-//                at: "@res://characters_packed.png"
-//            ).asset
-//
-//            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
-//            self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
-//        } catch {
-//            fatalError(error.localizedDescription)
-//        }
+        do {
+            let tiles = try AssetsManager.loadSync(
+                Image.self,
+                at: "@res://tiles_packed.png"
+            ).asset
+            let charactersTiles = try AssetsManager.loadSync(
+                Image.self,
+                at: "@res://characters_packed.png"
+            ).asset
+
+            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
+            self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
+        } catch {
+            fatalError(error.localizedDescription)
+        }
 
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
@@ -31,7 +38,7 @@ struct GameScene2DPlugin: Plugin {
         cameraEntity.camera.orthographicScale = 1.1
         app.mainWorld.addEntity(cameraEntity)
 
-////         self.makePlayer()
+        self.makePlayer(app.mainWorld)
 //        self.makeSubsceneAndSave()
 //        // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
 //        self.collisionHandler()
@@ -39,6 +46,30 @@ struct GameScene2DPlugin: Plugin {
         app
             .addSystem(PlayerMovementSystem.self)
             .addSystem(SpawnPhysicsBodiesSystem.self)
+    }
+
+    private func makePlayer(_ world: World) {
+        var transform = Transform()
+        transform.scale = [0.2, 0.2, 0.2]
+
+        let playerTexture = AnimatedTexture()
+        playerTexture.framesPerSecond = 5
+        playerTexture.framesCount = 2
+        playerTexture[0] = self.characterAtlas[0, 0]
+        playerTexture[1] = self.characterAtlas[1, 0]
+
+        let playerEntity = Entity(name: "Player")
+        playerEntity.components += SpriteComponent(texture: playerTexture)
+        playerEntity.components += transform
+        playerEntity.components += PhysicsBody2DComponent(
+            shapes: [
+                .generateBox()
+            ],
+            mass: 1,
+            mode: .kinematic
+        )
+        playerEntity.components += PlayerComponent()
+        world.addEntity(playerEntity)
     }
 }
 

@@ -17,7 +17,7 @@ public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "Comp
 @attached(extension, names: arbitrary, conformances: System)
 public macro System(dependencies: [SystemDependency] = []) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
 
-@attached(peer, names: suffixed(SystemFunc), conformances: System)
+@attached(peer, names: suffixed(System), conformances: System)
 public macro SystemFunc(dependencies: [SystemDependency] = []) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
 
 #endif

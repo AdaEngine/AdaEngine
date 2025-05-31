@@ -12,17 +12,14 @@ import AdaECS
 @System
 public struct BatchTransparent2DItemsSystem {
 
-    static let query = EntityQuery(where: .has(RenderItems<Transparent2DRenderItem>.self))
+    @Query<Ref<RenderItems<Transparent2DRenderItem>>>
+    private var query
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.world.performQuery(Self.query).forEach { entity in
-            guard let renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self] else {
-                return
-            }
-            
-            let items = renderItems.sorted().items
+        self.query.forEach { renderItems in
+            let items = renderItems.wrappedValue.sorted().items
             var batchedItems: [Transparent2DRenderItem] = []
             batchedItems.reserveCapacity(items.count)
             
@@ -39,7 +36,7 @@ public struct BatchTransparent2DItemsSystem {
                 batchedItems.append(currentItem)
             }
             
-            entity.components[RenderItems<Transparent2DRenderItem>.self] = RenderItems(items: batchedItems)
+            renderItems.items = batchedItems
         }
     }
     

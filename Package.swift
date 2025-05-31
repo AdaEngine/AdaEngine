@@ -392,6 +392,9 @@ var targets: [Target] = [
             "Math",
             "AdaRender"
         ],
+        resources: [
+            .copy("Assets")
+        ],
         swiftSettings: swiftSettings
     ),
 ]
