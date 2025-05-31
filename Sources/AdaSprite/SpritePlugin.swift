@@ -16,7 +16,7 @@ public struct SpritePlugin: Plugin {
     public func setup(in app: AppWorlds) {
         SpriteComponent.registerComponent()
 
-        guard let renderWorld = app.getSubworldBuilder(by: RenderWorld.self) else {
+        guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
 
