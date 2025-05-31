@@ -18,16 +18,12 @@ public struct Physics2DPlugin: Plugin {
         PhysicsBody2DComponent.registerComponent()
         PhysicsJoint2DComponent.registerComponent()
         Collision2DComponent.registerComponent()
-
-        /// We have physics world as an entity, because it's more flexible solution then store
-        /// physics world in the scene object.
-        let world2D = PhysicsWorld2D()
         
         app
-            .insertResource(Physics2DWorldComponent(world: world2D))
+            .insertResource(Physics2DWorldComponent(world: PhysicsWorld2D()))
             .addSystem(Physics2DSystem.self)
 
-        guard let renderWorld = app.getSubworldBuilder(by: RenderWorld.self) else {
+        guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
         renderWorld

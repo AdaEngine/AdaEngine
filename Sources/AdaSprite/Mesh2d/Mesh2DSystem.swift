@@ -19,7 +19,7 @@ public struct Mesh2DPlugin: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
-        let renderWorld = app.getSubworldBuilder(by: RenderWorld.self)
+        let renderWorld = app.getSubworldBuilder(by: .renderWorld)
         renderWorld?.addSystem(ExctractMesh2DSystem.self)
     }
 }
@@ -88,7 +88,7 @@ public struct Mesh2DRenderPlugin: Plugin {
     public func setup(in app: AppWorlds) {
         Mesh2DComponent.registerComponent()
 
-        guard let renderWorld = app.getSubworldBuilder(by: RenderWorld.self) else {
+        guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
         renderWorld
