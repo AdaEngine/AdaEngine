@@ -19,6 +19,7 @@ public struct SystemMacro: MemberMacro {
         "EntityQuery",
         "Query",
         "ResourceQuery",
+        "Extract"
     ]
     
     public static func expansion(
@@ -116,5 +117,76 @@ extension SystemMacro: ExtensionMacro {
         extension \(type.trimmed): \(raw: proto) { }
         """
         return [ext.cast(ExtensionDeclSyntax.self)]
+    }
+}
+
+extension SystemMacro: PeerMacro {
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        guard let funcDecl = declaration.as(FunctionDeclSyntax.self) else {
+            // Only handle function declarations
+            return []
+        }
+        
+        let funcName = funcDecl.name.text
+        let params = funcDecl.signature.parameterClause.parameters
+        let availability = funcDecl.modifiers
+
+                // Get dependencies from macro arguments
+        var dependencies: [String] = []
+        if let arguments = node.arguments?.as(LabeledExprListSyntax.self) {
+            for argument in arguments where argument.label?.text == "dependencies" {
+                if let arrayExpr = argument.expression.as(ArrayExprSyntax.self) {
+                    for element in arrayExpr.elements {
+                        if let functionCall = element.expression.as(FunctionCallExprSyntax.self),
+                           let memberAccess = functionCall.calledExpression.as(
+                            MemberAccessExprSyntax.self),
+                            let argument = functionCall.arguments.first
+                        {
+                            let dependencyType = memberAccess.declName.baseName.text
+                            let systemType = argument.expression.trimmedDescription
+                            dependencies.append(".\(dependencyType)(\(systemType))")
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Generate property declarations and type list for queries
+        var propertyDecls: [String] = []
+        var queryVars: [String] = []
+        var paramNames: [String] = []
+        
+        for param in params {
+            let paramName = param.firstName.text
+            let typeString = param.type.trimmedDescription
+            propertyDecls.append("@\(typeString)\nprivate var \(paramName)")
+            queryVars.append("_\(paramName)")
+            paramNames.append(paramName)
+        }
+        
+        // Generate struct body
+        let structDecl: DeclSyntax = """
+        \(availability)struct \(raw:funcName.uppercased())SystemFunc: AdaECS.System {
+        \(raw: propertyDecls.joined(separator: "\n\n"))
+        
+            \(availability)init(world: AdaECS.World) {}
+        
+            \(availability)func update(context: UpdateContext) {
+                \(raw: funcName)(\(raw: paramNames.map { "\($0): _\($0)" }.joined(separator: ", ")))
+            }
+        
+            \(availability) var queries: AdaECS.SystemQueries {
+                return AdaECS.SystemQueries(queries: [\(raw: queryVars.joined(separator: ", "))])
+            }
+
+            \(raw: dependencies.isEmpty ? "" : "\(availability)var dependencies: [AdaECS.SystemDependency] { [\(dependencies.joined(separator: ", "))] }")
+        }
+        """
+        
+        return [structDecl]
     }
 }

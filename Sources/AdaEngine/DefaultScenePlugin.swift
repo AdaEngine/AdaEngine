@@ -25,13 +25,14 @@ public struct DefaultPlugins: Plugin {
 
     private var plugins: OrderedDictionary<String, any Plugin>
 
-    public init() {
+    public init(filePath: StaticString = #filePath) {
         var plugins = OrderedDictionary<String, any Plugin>()
         insertPlugin(AppPlatformPlugin(), into: &plugins)
-        insertPlugin(InputPlugin(), into: &plugins)
-        insertPlugin(AssetsPlugin(), into: &plugins)
-        insertPlugin(VisibilityPlugin(), into: &plugins)
+        insertPlugin(RenderWorldPlugin(), into: &plugins)
         insertPlugin(CameraPlugin(), into: &plugins)
+        insertPlugin(InputPlugin(), into: &plugins)
+        insertPlugin(AssetsPlugin(filePath: filePath), into: &plugins)
+        insertPlugin(VisibilityPlugin(), into: &plugins)
         insertPlugin(SpritePlugin(), into: &plugins)
         insertPlugin(Mesh2DPlugin(), into: &plugins)
         insertPlugin(Text2DPlugin(), into: &plugins)
@@ -46,6 +47,7 @@ public struct DefaultPlugins: Plugin {
     }
 
     public func setup(in app: AppWorlds) {
+        // FIXME: Move out this components..
         ScriptableComponent.registerComponent()
         Circle2DComponent.registerComponent()
 
@@ -60,6 +62,12 @@ public struct DefaultPlugins: Plugin {
     public func set<T: Plugin>(_ plugin: T) -> DefaultPlugins {
         var newValue = self
         insertPlugin(plugin, into: &newValue.plugins)
+        return newValue
+    }
+
+    public func disable<T: Plugin>(_ plugin: T.Type) -> DefaultPlugins {
+        var newValue = self
+        newValue.plugins[String(reflecting: T.self)] = nil
         return newValue
     }
 }

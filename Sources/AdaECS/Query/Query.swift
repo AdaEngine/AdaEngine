@@ -48,6 +48,10 @@ public struct Query<each T: QueryTarget> {
             filter: filter
         )
     }
+
+    public init(from world: World) {
+        self.init(filter: .all)
+    }
 }
 
 extension Query: SystemQuery {

@@ -20,7 +20,7 @@ public struct ScriptComponentUpdateSystem {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        context.scheduler.addTask { @MainActor in
+        context.taskGroup.addTask { @MainActor in
             let scene = context.scene
             let window = scene?.window
             var renderContext: UIGraphicsContext?

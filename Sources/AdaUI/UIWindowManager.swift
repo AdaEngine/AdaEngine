@@ -28,13 +28,15 @@ public protocol SystemWindow {
 @MainActor
 open class UIWindowManager {
 
+    public private(set) static var shared: UIWindowManager!
+
     /// Returns all windows registred in current process.
     public internal(set) var windows: [UIWindow] = []
     
     /// Contains active window if available.
     public private(set) var activeWindow: UIWindow?
 
-    public nonisolated init() { }
+    public init() { }
 
     /// Called each frame to update windows.
     @_spi(Internal)
@@ -157,5 +159,12 @@ open class UIWindowManager {
             let newUIWindow = self.windows.last!
             self.setActiveWindow(newUIWindow)
         }
+    }
+}
+
+extension UIWindowManager {
+    @_spi(Internal)
+    public static func setShared(_ manager: UIWindowManager) {
+        self.shared = manager
     }
 }

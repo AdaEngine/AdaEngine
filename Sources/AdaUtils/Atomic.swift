@@ -9,7 +9,7 @@ import Foundation
 
 @propertyWrapper
 @dynamicMemberLookup
-public final class LockProperty<Value: Sendable>: @unchecked Sendable {
+public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {
     
     /// The lock-isolated value.
     public var wrappedValue: Value {

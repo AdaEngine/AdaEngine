@@ -23,7 +23,7 @@ public extension Entity {
         let lock = NSRecursiveLock()
 
         @_spi(Internal)
-        @LockProperty public private(set) var buffer: OrderedDictionary<ComponentId, Component>
+        @LocalIsolated public private(set) var buffer: OrderedDictionary<ComponentId, Component>
         private(set) var bitset: BitSet
         
         // MARK: - Codable

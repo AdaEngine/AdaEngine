@@ -29,7 +29,6 @@ public final class AppContext<T: App> {
     public func run() throws {
 //        let filePath = appScene._getFilePath()
 //        try AssetsManager.initialize(filePath: filePath)
-//        RuntimeTypeLoader.loadTypes()
 
         LoggingSystem.bootstrap {
             StreamLogHandler.standardError(label: $0)

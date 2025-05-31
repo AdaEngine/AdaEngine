@@ -40,16 +40,10 @@ public struct VisibilitySystem {
     )
     private var entitiesWithoutVisibility
     
-    @EntityQuery(
-        where: .has(Transform.self) && .without(NoFrustumCulling.self)
-    )
-    private var entitiesWithTransform
-    
     public init(world: World) { }
     
     public func update(context: UpdateContext) {
         self.addVisibilityIfNeeded()
-        self.updateBoundings()
         
         self.cameras.forEach { entity in
             var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
@@ -68,36 +62,6 @@ public struct VisibilitySystem {
     private func addVisibilityIfNeeded() {
         self.entitiesWithoutVisibility.forEach { entity in
             entity.components += Visibility.visible
-        }
-    }
-
-    // FIXME: Should we calculate it here?
-    /// Update or create bounding boxes for SpriteComponent and Mesh2D.
-    private func updateBoundings() {
-        self.entitiesWithTransform.forEach { entity in
-            var bounds: BoundingComponent.Bounds?
-            
-//            if entity.components.has(SpriteComponent.self) {
-                if !entity.components.isComponentChanged(Transform.self) && entity.components.has(BoundingComponent.self) {
-                    return
-                }
-                
-                let transform = entity.components[Transform.self]!
-
-                let position = transform.position
-                let scale = transform.scale
-                
-                let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
-                let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
-                
-                bounds = .aabb(AABB(min: min, max: max))
-//            } else if let mesh2d = entity.components[Mesh2DComponent.self] {
-//                bounds = .aabb(mesh2d.mesh.bounds)
-//            }
-            
-            if let bounds {
-                entity.components += BoundingComponent(bounds: bounds)
-            }
         }
     }
     

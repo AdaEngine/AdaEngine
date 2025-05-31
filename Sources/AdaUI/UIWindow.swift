@@ -27,7 +27,9 @@ open class UIWindow: UIView {
         set { self.systemWindow?.title = newValue }
     }
 
-    public var windowManager: UIWindowManager!
+    public var windowManager: UIWindowManager {
+        UIWindowManager.shared
+    }
     @_spi(Internal) public var systemWindow: SystemWindow?
     internal let eventManager = EventManager()
 

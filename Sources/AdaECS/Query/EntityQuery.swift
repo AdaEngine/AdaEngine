@@ -54,6 +54,10 @@
         self.filter = filter
         self.state = QueryState(predicate: predicate, filter: filter)
     }
+
+    public init(from world: World) {
+        fatalError()
+    }
 }
 
 extension EntityQuery: SystemQuery {

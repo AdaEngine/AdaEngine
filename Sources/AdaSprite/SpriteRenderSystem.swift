@@ -13,17 +13,22 @@ import Math
 
 // TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
 
-/// System in RenderWorld for render sprites from exctracted sprites.
-@System
+@System(dependencies: [
+    .after(BatchTransparent2DItemsSystem.self)
+])
 public struct SpriteRenderSystem: Sendable {
 
-    public static let dependencies: [SystemDependency] = [
-        .before(BatchTransparent2DItemsSystem.self)
-    ]
+    @Query<
+        VisibleEntities,
+        Ref<RenderItems<Transparent2DRenderItem>>
+    >
+    private var cameras
 
-    static let cameras = EntityQuery(where: .has(Camera.self) && .has(RenderItems<Transparent2DRenderItem>.self))
+    @ResourceQuery
+    private var extractedSprites: ExtractedSprites?
 
-    static let extractedSprites = EntityQuery(where: .has(ExtractedSprites.self))
+    @ResourceQuery
+    private var spriteDrawPass: SpriteDrawPass!
 
     static let quadPosition: [Vector4] = [
         [-0.5, -0.5,  0.0, 1.0],
@@ -37,23 +42,13 @@ public struct SpriteRenderSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let extractedSprites = context.world.performQuery(Self.extractedSprites)
 
-        context.world.performQuery(Self.cameras).forEach { entity in
-            let visibleEntities = entity.components[VisibleEntities.self]!
-            var renderItems = entity.components[RenderItems<Transparent2DRenderItem>.self]!
-            
-            for entity in extractedSprites {
-                let extractedSprites = entity.components[ExtractedSprites.self]!
-
-                self.draw(
-                    extractedSprites: extractedSprites.sprites,
-                    visibleEntities: visibleEntities,
-                    renderItems: &renderItems
-                )
-            }
-            
-            entity.components += renderItems
+        for (visibleEntities, renderItems) in cameras {
+            self.draw(
+                extractedSprites: self.extractedSprites?.sprites ?? [],
+                visibleEntities: visibleEntities,
+                renderItems: &renderItems.wrappedValue
+            )
         }
     }
 
@@ -136,7 +131,7 @@ public struct SpriteRenderSystem: Sendable {
                 Transparent2DRenderItem(
                     entity: spriteData,
                     batchEntity: currentBatchEntity,
-                    drawPassId: .sprite,
+                    drawPass: self.spriteDrawPass,
                     renderPipeline: SpriteRenderPipeline.default.renderPipeline,
                     sortKey: sprite.transform.position.z,
                     batchRange: itemStart..<itemEnd
@@ -203,8 +198,7 @@ public struct BatchComponent {
 
 // MARK: Extraction to Render World
 
-@Component
-public struct ExtractedSprites: Sendable {
+public struct ExtractedSprites: Resource {
     public var sprites: [ExtractedSprite]
 
     public init(sprites: [ExtractedSprite]) {
@@ -212,7 +206,6 @@ public struct ExtractedSprites: Sendable {
     }
 }
 
-@Component
 public struct ExtractedSprite: Sendable {
     public var entityId: Entity.ID
     public var texture: Texture2D?
@@ -224,9 +217,7 @@ public struct ExtractedSprite: Sendable {
 }
 
 /// Exctract sprites to RenderWorld for future rendering.
-@System(dependencies: [
-    .after(VisibilitySystem.self)
-])
+@System
 public struct ExtractSpriteSystem {
 
     @Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>
@@ -235,7 +226,6 @@ public struct ExtractSpriteSystem {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        let extractedEntity = Entity(name: "ExtractedSpriteEntity")
         var extractedSprites = ExtractedSprites(sprites: [])
 
         self.sprites.forEach { entity, sprite, globalTransform, transform, visible in
@@ -256,10 +246,37 @@ public struct ExtractSpriteSystem {
             )
         }
 
-        extractedEntity.components += extractedSprites
-        
-//        context.scheduler.addTask {
-//            await Application.shared.renderWorld.addEntity(extractedEntity)
-//        }
+        context.world.insertResource(extractedSprites)
+    }
+}
+
+@SystemFunc
+func updateBoundings(
+    entitiesWithTransform: Query<Entity, Transform>
+) {
+    entitiesWithTransform.wrappedValue.forEach { entity, transform in
+        var bounds: BoundingComponent.Bounds?
+
+        if entity.components.has(SpriteComponent.self) {
+            if !entity.components.isComponentChanged(Transform.self) && entity.components.has(BoundingComponent.self) {
+                return
+            }
+
+            let transform = entity.components[Transform.self]!
+
+            let position = transform.position
+            let scale = transform.scale
+
+            let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
+            let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
+
+            bounds = .aabb(AABB(min: min, max: max))
+        } else if let mesh2d = entity.components[Mesh2DComponent.self] {
+            bounds = .aabb(mesh2d.mesh.bounds)
+        }
+
+        if let bounds {
+            entity.components += BoundingComponent(bounds: bounds)
+        }
     }
 }

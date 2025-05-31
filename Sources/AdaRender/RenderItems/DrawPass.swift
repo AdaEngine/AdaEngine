@@ -16,10 +16,6 @@ public struct RenderContext {
     public let drawList: DrawList
 }
 
-public struct DrawPassId: Equatable, Hashable, Sendable {
-    let id: Int
-}
-
 /// Draw pass is a render function that will render for specific item.
 ///
 /// For example, you can create render pass for rendering ``Transparent2DRenderItem`` and configure rendering whatever you want. 
@@ -29,13 +25,6 @@ public protocol DrawPass<Item>: Resource {
     typealias Context = RenderContext
     
     func render(in context: Context, item: Item) throws
-}
-
-public extension DrawPass {
-    /// Return identifier of draw pass based on DrawPass.Type
-    @inline(__always) static var identifier: DrawPassId {
-        DrawPassId(id: Int(bitPattern: ObjectIdentifier(self)))
-    }
 }
 
 /// Type-erased draw pass.

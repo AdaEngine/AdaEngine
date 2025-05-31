@@ -28,10 +28,6 @@ public struct RenderItems<T: RenderItem>: Sendable {
     
     public func render(_ drawList: DrawList, world: World, view: Entity) throws {
         for item in self.items {
-            guard let drawPass = DrawPassStorage.getDrawPass(for: item) else {
-                continue
-            }
-            
             let context = RenderContext(
                 device: drawList.renderDevice,
                 entity: item.entity,
@@ -39,7 +35,8 @@ public struct RenderItems<T: RenderItem>: Sendable {
                 view: view,
                 drawList: drawList
             )
-            try drawPass.render(in: context, item: item)
+
+            try AnyDrawPass(item.drawPass).render(in: context, item: item)
             drawList.clear()
         }
     }
@@ -49,6 +46,6 @@ public protocol RenderItem: Sendable {
     associatedtype SortKey: Comparable
     
     var entity: Entity { get }
-    var drawPassId: DrawPassId { get }
+    var drawPass: any DrawPass { get }
     var sortKey: SortKey { get }
 }

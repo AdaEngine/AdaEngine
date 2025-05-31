@@ -7,7 +7,7 @@
 
 import Collections
 
-final class SystemsGraphExecutor {
+struct SystemsGraphExecutor: Sendable {
     public init() {}
     
     func execute(_ graph: SystemsGraph, context: WorldUpdateContext) {

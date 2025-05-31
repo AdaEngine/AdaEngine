@@ -8,8 +8,9 @@
 #if MACOS
 import AdaApp
 import AppKit
-import MetalKit
 import AdaInput
+@_spi(Internal) import AdaUI
+import MetalKit
 
 final class MacApplication: Application {
 
@@ -18,6 +19,8 @@ final class MacApplication: Application {
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         try super.init(argc: argc, argv: argv)
         self.windowManager = MacOSWindowManager()
+        UIWindowManager.setShared(self.windowManager)
+
 
         // Create application
         let app = AdaApplication.shared

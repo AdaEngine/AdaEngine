@@ -8,11 +8,16 @@
 import AdaApp
 
 public struct AssetsPlugin: Plugin {
-    public init() {}
+
+    private let filePath: StaticString
+
+    public init(filePath: StaticString = #filePath) {
+        self.filePath = filePath
+    }
 
     public func setup(in app: AppWorlds) {
         do {
-            try AssetsManager.initialize(filePath: #filePath)
+            try AssetsManager.initialize(filePath: filePath)
         } catch {
             print(error)
         }

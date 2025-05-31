@@ -22,7 +22,7 @@ open class Entity: Identifiable, @unchecked Sendable {
     public private(set) var id: Int
 
     /// Contains components specific for current entity.
-    @LockProperty public var components: ComponentSet = ComponentSet()
+    @LocalIsolated public var components: ComponentSet = ComponentSet()
 
     /// A Boolean that indicates whether the entity is active.
     /// - Note:  AdaEngine doesn’t simulate or render inactive entities.

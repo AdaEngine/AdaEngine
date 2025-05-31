@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 6/19/22.
 //
 
+import AdaECS
 import AdaUtils
 import Foundation
 import Logging
@@ -28,8 +29,8 @@ public enum AssetError: LocalizedError {
 /// Manager using for loading and saving assets in file system.
 /// Each asset loaded from manager stored in memory cache.
 /// If asset was loaded to memory, you recive reference to this resource.
-public final class AssetsManager {
-    
+public final class AssetsManager: Resource {
+
     private static let logger = Logger(label: "AssetsManager")
     
     nonisolated(unsafe) private static var resourceDirectory: URL!

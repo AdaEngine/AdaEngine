@@ -15,18 +15,17 @@ public struct CameraPlugin: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
-        Camera.registerComponent()
-        
-        app
-            .addSystem(CameraSystem.self)
-            .addSystem(ExtractCameraSystem.self)
+        Camera.registerComponent()        
+        app.addSystem(CameraSystem.self)
 
-        guard let subworld = app.getSubworldBuilder(by: RenderWorld.self) else {
+        guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
 
+        renderWorld.addSystem(ExtractCameraSystem.self)
+
         Task {
-            await subworld.mainWorld
+            await renderWorld.mainWorld
                 .getResource(RenderGraph.self)?
                 .addNode(CameraRenderNode())
         }

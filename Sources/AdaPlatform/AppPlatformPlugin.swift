@@ -35,7 +35,7 @@ public struct AppPlatformPlugin: Plugin {
 #if os(Linux)
             application = try LinuxApplication(argc: argc, argv: argv)
 #endif
-
+            
             Application.shared = application
             app.mainWorld.insertResource(application)
 
@@ -52,14 +52,5 @@ public struct AppPlatformPlugin: Plugin {
         } catch {
             fatalError("Can't initialise application: \(error)")
         }
-    }
-}
-
-@System
-struct WindowSystem {
-    init(world: World) { }
-
-    func update(context: UpdateContext) {
-
     }
 }

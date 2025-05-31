@@ -40,7 +40,7 @@ public class Physics2DSystem: @unchecked Sendable {
 //        let result = self.fixedTimestep.advance(with: context.deltaTime)
 //        let step = fixedTimestep.step
 
-        context.scheduler.addTask { @MainActor in
+        context.taskGroup.addTask { @MainActor in
             guard let world = self.physicsWorld?.world else {
                 return
             }

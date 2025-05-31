@@ -22,7 +22,7 @@ public struct Scene2DPlugin: Plugin {
     }
 
     public func setup(in app: AppWorlds) {
-        guard let app = app.getSubworldBuilder(by: RenderWorld.self) else {
+        guard let app = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
 
@@ -132,7 +132,7 @@ public struct Transparent2DRenderItem: RenderItem {
     public var batchEntity: Entity
     
     /// Draw pass which will be used for rendering this item.
-    public var drawPassId: DrawPassId
+    public var drawPass: any DrawPass
     
     /// Render Pipeline for rendering this item.
     public var renderPipeline: RenderPipeline
@@ -146,14 +146,14 @@ public struct Transparent2DRenderItem: RenderItem {
     public init(
         entity: Entity,
         batchEntity: Entity,
-        drawPassId: DrawPassId,
+        drawPass: any DrawPass,
         renderPipeline: RenderPipeline,
         sortKey: Float,
         batchRange: Range<Int32>? = nil
     ) {
         self.entity = entity
         self.batchEntity = batchEntity
-        self.drawPassId = drawPassId
+        self.drawPass = drawPass
         self.renderPipeline = renderPipeline
         self.sortKey = sortKey
         self.batchRange = batchRange

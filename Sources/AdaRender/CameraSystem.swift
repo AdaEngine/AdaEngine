@@ -27,17 +27,15 @@ public struct CameraSystem: Sendable {
             let viewMatrix = globalTransform.matrix.inverse
             camera.viewMatrix = viewMatrix
 
-            context.scheduler.addTask { @MainActor in
 //                self.updateViewportSizeIfNeeded(for: &camera.wrappedValue, window: context.scene?.window)
-                self.updateProjectionMatrix(for: &camera.wrappedValue)
-                self.updateFrustum(for: &camera.wrappedValue)
+            self.updateProjectionMatrix(for: &camera.wrappedValue)
+            self.updateFrustum(for: &camera.wrappedValue)
 
-                entity.components += GlobalViewUniform(
-                    projectionMatrix: camera.computedData.projectionMatrix,
-                    viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
-                    viewMatrix: camera.viewMatrix
-                )
-            }
+            entity.components += GlobalViewUniform(
+                projectionMatrix: camera.computedData.projectionMatrix,
+                viewProjectionMatrix: camera.computedData.projectionMatrix * viewMatrix,
+                viewMatrix: camera.viewMatrix
+            )
         }
     }
 
@@ -117,27 +115,21 @@ public struct CameraSystem: Sendable {
 }
 
 /// Exctract cameras to RenderWorld for future rendering.
-@System(dependencies: [
-    .after(CameraSystem.self)
-])
+@System
 public struct ExtractCameraSystem {
 
-    @EntityQuery(
-        where: .has(Camera.self) &&
-        .has(Transform.self) && 
-        .has(VisibleEntities.self)
-    )
+    @Extract<Query<Entity, Camera, Transform, VisibleEntities>>
     private var query
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        self.query.forEach { entity in
+        self.query.wrappedValue.forEach { entity, camera, _, _ in
             let cameraEntity = Entity(name: "ExtractedCameraEntity")
-            if let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
+            if
+                let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
                 let uniform = entity.components[GlobalViewUniform.self]
             {
-
                 let buffer = bufferSet.uniformBufferSet.getBuffer(
                     binding: GlobalBufferIndex.viewUniform,
                     set: 0,
@@ -150,10 +142,7 @@ public struct ExtractCameraSystem {
             cameraEntity.components = entity.components
             cameraEntity.components += RenderItems<Transparent2DRenderItem>()
             cameraEntity.components.entity = cameraEntity
-
-//            context.scheduler.addTask {
-//                await Application.shared.renderWorld.addEntity(cameraEntity)
-//            }
+            context.world.addEntity(cameraEntity)
         }
     }
 }

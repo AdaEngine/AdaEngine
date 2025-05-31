@@ -15,19 +15,15 @@ public struct SpritePlugin: Plugin {
     
     public func setup(in app: AppWorlds) {
         SpriteComponent.registerComponent()
-        app.addSystem(ExtractSpriteSystem.self)
-    }
-}
 
-/// Plugin for RenderWorld to render sprites.
-public struct SpriteRenderPlugin: Plugin {
+        guard let renderWorld = app.getSubworldBuilder(by: RenderWorld.self) else {
+            return
+        }
 
-    public init() {}
-
-    public func setup(in app: AppWorlds) {
-        app.addSystem(SpriteRenderSystem.self)
-
-        let spriteDraw = SpriteDrawPass()
-        DrawPassStorage.setDrawPass(spriteDraw)
+        renderWorld
+            .addSystem(ExtractSpriteSystem.self)
+            .addSystem(SpriteRenderSystem.self)
+            .addSystem(ExctractMesh2DSystem.self)
+            .insertResource(SpriteDrawPass())
     }
 }

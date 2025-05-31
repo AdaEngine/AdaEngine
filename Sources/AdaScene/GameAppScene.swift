@@ -6,6 +6,7 @@
 //
 
 import AdaApp
+import AdaAssets
 import AdaECS
 import AdaUI
 import Math
@@ -20,11 +21,11 @@ public struct GameAppScene: AppScene {
         EmptyWindow()
             .transformAppWorlds { appWorlds in
                 do {
-                    let entity = Entity(name: "GameAppScene")
-                    entity.components += try DynamicScene(scene: AssetHandle<Scene>(gameScene()))
-                    appWorlds.mainWorld.addEntity(entity)
+                    try appWorlds.addPlugin(
+                        GameScenePlugin(gameScene: AssetHandle<Scene>(gameScene()))
+                    )
                 } catch {
-                    fatalError("Error \(error)")
+                    fatalError("\(error)")
                 }
             }
     }
@@ -42,33 +43,13 @@ public struct GameAppScene: AppScene {
     }
 }
 
-// MARK: - InternalAppScene
+struct GameScenePlugin: Plugin {
 
-//
-//extension GameAppScene: InternalAppScene {
-//    @MainActor
-//    public func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Any {
-//        let scene = try await self.gameScene()
-//
-//        let frame = Rect(origin: .zero, size: configuration.minimumSize)
-//        let window = UIWindow(frame: frame)
-//
-//        let gameSceneView = SceneView(scene: scene, frame: frame)
-//        gameSceneView.autoresizingRules = [.flexibleWidth, .flexibleHeight]
-//        window.addSubview(gameSceneView)
-//
-//        window.setWindowMode(configuration.windowMode == .fullscreen ? .fullscreen : .windowed)
-//        window.minSize = configuration.minimumSize
-//
-//        if let title = configuration.title {
-//            window.title = title
-//        }
-//
-//        return window
-//    }
-//
-//    @MainActor
-//    public func _getFilePath() -> StaticString {
-//        self.filePath
-//    }
-//}
+    let gameScene: AssetHandle<Scene>
+
+    func setup(in app: AppWorlds) {
+        let entity = Entity(name: "GameAppScene")
+        entity.components += DynamicScene(scene: gameScene)
+        app.mainWorld.addEntity(entity)
+    }
+}

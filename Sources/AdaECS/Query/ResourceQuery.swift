@@ -17,6 +17,10 @@ public final class ResourceQuery<T: Resource>: @unchecked Sendable {
     public init() {
         self._value = nil
     }
+
+    public init(from world: World) {
+        self._value = world.getResource(T.self)
+    }
 }
 
 extension ResourceQuery: SystemQuery {
