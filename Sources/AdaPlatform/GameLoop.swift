@@ -54,10 +54,8 @@ public final class MainLoop {
         try await AssetsManager.processResources()
 
         try RenderEngine.shared.beginFrame()
-
         await Application.shared.windowManager.update(deltaTime)
-        await appWorlds.update(deltaTime)
-
+        await appWorlds.update()
         try RenderEngine.shared.endFrame()
         Input.shared.removeEvents()
     }

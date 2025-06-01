@@ -61,30 +61,3 @@ struct WindowGroupSystem {
         }
     }
 }
-
-//
-//extension WindowGroup: InternalAppScene {
-//    @MainActor
-//    public func _makeWindow(with configuration: _AppSceneConfiguration) async throws -> Any {
-//        let frame = Rect(origin: .zero, size: configuration.minimumSize)
-//        let window = UIWindow(frame: frame)
-//        
-//        let gameSceneView = UIContainerView(rootView: self.content)
-//        gameSceneView.autoresizingRules = [.flexibleWidth, .flexibleHeight]
-//        window.addSubview(gameSceneView)
-//        
-//        window.setWindowMode(configuration.windowMode == .fullscreen ? .fullscreen : .windowed)
-//        window.minSize = configuration.minimumSize
-//        
-//        if let title = configuration.title {
-//            window.title = title
-//        }
-//        
-//        return window
-//    }
-//
-//    @MainActor
-//    public func _getFilePath() -> StaticString {
-//        self.filePath
-//    }
-//}

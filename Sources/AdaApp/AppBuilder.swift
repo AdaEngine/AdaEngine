@@ -8,64 +8,109 @@
 import AdaECS
 import AdaUtils
 
+/// A protocol that represents a world extractor.
+/// Used to extract data from main world to subworlds.
 public protocol WorldExctractor {
+    /// Extract data from main world to subworld.
+    /// - Parameters:
+    ///   - mainWorld: The main world.
+    ///   - world: The subworld.
     func exctract(from mainWorld: World, to world: World)
 }
 
+/// A class that represents a collection of worlds.
 @MainActor
 public class AppWorlds {
+    /// The main world.
     public var mainWorld: World
+
+    /// The subworlds.
     var subWorlds: [String: AppWorlds]
-    
+
+    /// The world extractor.
     var worldExctractor: (any WorldExctractor)?
 
+    /// The plugins.
     var plugins: [ObjectIdentifier: any Plugin] = [:]
+
+    /// The runner.
     var runner: ((AppWorlds) -> Void)?
 
+    /// The flag that indicates if the app is configured.
     var isConfigured: Bool = false
 
+    var scedulers: [Scheduler]
+
+    /// Initialize a new instance of `AppWorlds` with the given main world and subworlds.
+    /// - Parameters:
+    ///   - mainWorld: The main world.
+    ///   - subWorlds: The subworlds.
     init(
         mainWorld: World,
         subWorlds: [String : AppWorlds] = [:]
     ) {
         self.mainWorld = mainWorld
         self.subWorlds = subWorlds
+        self.scedulers = [Scheduler(name: .update)]
     }
 }
 
 public extension AppWorlds {
 
+    /// Set the world extractor.
+    /// - Parameter exctractor: The world extractor.
     func setExctractor(_ exctractor: any WorldExctractor) {
         self.worldExctractor = exctractor
     }
 
+    /// Set the world scheduler
+    /// - Parameter scheduler: The world scheduler.
+    func setSchedulers(_ schedulers: [Scheduler]) {
+        self.scedulers = schedulers
+    }
+
+    /// Set the runner.
+    /// - Parameter block: The runner.
     func setRunner(_ block: @escaping (AppWorlds) -> Void) {
         self.runner = block
     }
 
-    func update(_ deltaTime: AdaUtils.TimeInterval) async {
+    /// Update the app.
+    /// - Parameter deltaTime: The delta time.
+    func update() async {
         if !isConfigured {
             return
         }
 
-        await mainWorld.update(deltaTime)
+        for sceduler in self.scedulers {
+            await sceduler.run(world: mainWorld)
 
-        for world in self.subWorlds.values {
-            world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
-            await world.update(deltaTime)
+            for world in self.subWorlds.values {
+                world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
+                await world.update()
+            }
         }
     }
 
+    /// Get the subworld builder by name.
+    /// - Parameter name: The name of the subworld.
+    /// - Returns: The subworld builder.
     func getSubworldBuilder(by name: AppWorldName) -> AppWorlds? {
         self.subWorlds[name.rawValue]
     }
 
+    /// Create a new subworld.
+    /// - Parameter name: The name of the subworld.
+    /// - Returns: The subworld builder.
     func createSubworld(by name: AppWorldName) -> AppWorlds {
         let subworld = AppWorlds(mainWorld: World(name: name.rawValue))
         self.subWorlds[name.rawValue] = subworld
         return subworld
     }
 
+    /// Add a plugin to the app.
+    /// - Parameter plugin: The plugin to add.
+    /// - Returns: The app builder.
     @discardableResult
     func addPlugin<T: Plugin>(_ plugin: T) -> Self {
         if self.plugins[ObjectIdentifier(T.self)] != nil {
@@ -77,12 +122,32 @@ public extension AppWorlds {
         return self
     }
 
+    /// Add a system to the main world.
+    /// - Parameters:
+    ///   - system: The system to add.
+    ///   - scheduler: The scheduler to run the system on.
+    /// - Returns: The app builder.
     @discardableResult
-    func addSystem<T: System>(_ system: T.Type, scheduler: Scheduler = .update) -> Self {
+    func addSystem<T: System>(
+        _ system: T.Type,
+        on scheduler: AdaECS.SchedulerName = .update
+    ) -> Self {
         self.mainWorld.addSystem(system, on: scheduler)
         return self
     }
 
+    /// Add an entity to the main world.
+    /// - Parameter entity: The entity to add.
+    /// - Returns: The app builder.
+    @discardableResult
+    func addEntity(_ entity: Entity) -> Self {
+        self.mainWorld.addEntity(entity)
+        return self
+    }
+
+    /// Insert a resource to the main world.
+    /// - Parameter resource: The resource to insert.
+    /// - Returns: The app builder.
     @discardableResult
     func insertResource<T: Resource>(_ resource: T) -> Self {
         self.mainWorld.insertResource(resource)
@@ -108,16 +173,21 @@ public extension AppWorlds {
 }
 
 
+/// A protocol that represents a plugin for the app.
 public protocol Plugin: Sendable {
+    /// Setup the plugin in the app.
     @MainActor
     func setup(in app: AppWorlds)
 
+    /// Notify the plugin that the app is ready.
     @MainActor
     func finish()
 
+    /// Check if the plugin is loaded. Used for async plugins.
     @MainActor
     func isLoaded() -> Bool
 
+    /// Destroy the plugin.
     @MainActor
     func destroy()
 }
@@ -141,5 +211,5 @@ public struct AppWorldName: Hashable, Equatable, RawRepresentable, CustomStringC
         self.rawValue = rawValue
     }
 
-    public static let main = Scheduler(rawValue: "Main")
+    public static let main = AppWorldName(rawValue: "Main")
 }

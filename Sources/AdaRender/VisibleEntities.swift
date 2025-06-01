@@ -23,7 +23,6 @@ public struct VisibilitySystem {
     @EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
     private var cameras
     
-    
     @EntityQuery(
         where: .has(Transform.self) && .has(Visibility.self)
         && .has(BoundingComponent.self) && .without(NoFrustumCulling.self)

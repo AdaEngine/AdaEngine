@@ -21,6 +21,10 @@ public final class ResourceQuery<T: Resource>: @unchecked Sendable {
     public init(from world: World) {
         self._value = world.getResource(T.self)
     }
+
+    public func callAsFunction() -> T? {
+        _value
+    }
 }
 
 extension ResourceQuery: SystemQuery {

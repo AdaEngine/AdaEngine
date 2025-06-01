@@ -41,7 +41,7 @@ public final class World: @unchecked Sendable, Codable {
     public private(set) var eventManager: EventManager = EventManager.default
 
     // Scheduler registry and mapping from scheduler to systems
-    public let schedulers = Schedulers(Scheduler.default)
+    public let schedulers = Schedulers(SchedulerName.default)
 
     // MARK: - Methods
 
@@ -92,24 +92,35 @@ public final class World: @unchecked Sendable, Codable {
     // MARK: - Scheduler API
 
     /// Set the order of schedulers for this world.
-    public func setSchedulers(_ schedulers: [Scheduler]) {
+    public func setSchedulers(_ schedulers: [SchedulerName]) {
         self.schedulers.setSchedulers(schedulers)
     }
 
     /// Insert a scheduler before or after another scheduler.
-    public func insertScheduler(_ scheduler: Scheduler, after: Scheduler) {
+    public func insertScheduler(_ scheduler: Scheduler, after: SchedulerName) {
         schedulers.insert(scheduler, after: after)
     }
 
-    public func insertScheduler(_ scheduler: Scheduler, before: Scheduler) {
+    public func insertScheduler(_ scheduler: Scheduler, before: SchedulerName) {
         schedulers.insert(scheduler, before: before)
     }
+
+    public func containsScheduler(_ scheduler: SchedulerName) -> Bool {
+        self.schedulers.contains(scheduler)
+    }
+
+    public func addSchedulers(_ schedulers: SchedulerName...) {
+        schedulers.forEach {
+            self.schedulers.append(Scheduler(name: $0))
+        }
+    }
+
     /// Add new system to the world.
     /// - Warning: System should be added before build.
     /// - Parameter systemType: System type.
     /// Add a system to a specific scheduler.
     @discardableResult
-    public func addSystem<T: System>(_ systemType: T.Type, on scheduler: Scheduler) -> Self {
+    public func addSystem<T: System>(_ systemType: T.Type, on scheduler: SchedulerName) -> Self {
         if self.isReady {
             assertionFailure("Can't insert system if scene was ready")
             return self
@@ -167,6 +178,8 @@ public extension World {
         return nil
     }
 
+    /// Build the world.
+    /// - Note: This method should be called after all systems and resources are added.
     func build() {
         if isReady {
             fatalError("World already configured")
@@ -271,30 +284,43 @@ public extension World {
         return self.updatedComponents[entity]?.contains(T.identifier) ?? false
     }
 
-    /// Update all data in world.
+    /// Run all schedulers in world.
     /// - Parameter deltaTime: Time interval since last update.
     @MainActor
     func update(_ deltaTime: AdaUtils.TimeInterval) async {
         self.flush()
+        self.clearTrackers()
 
         for label in self.schedulers.schedulerLabels {
             guard let scheduler = self.schedulers.getScheduler(label) else {
                 continue
             }
 
-            await withTaskGroup(of: Void.self) { @MainActor group in
-                let context = WorldUpdateContext(
-                    world: self,
-                    deltaTime: deltaTime,
-                    scheduler: label,
-                    taskGroup: group
-                )
-
-                scheduler.runner.execute(scheduler.systemGraph, context: context)
-            }
-
-            self.flush()
+            await scheduler.graphExecutor.execute(
+                scheduler.systemGraph,
+                world: self,
+                deltaTime: deltaTime,
+                scheduler: scheduler.name
+            )
         }
+    }
+
+    /// Run a specific scheduler.
+    /// - Parameter scheduler: Scheduler name.
+    @MainActor
+    func runScheduler(_ scheduler: SchedulerName, deltaTime: AdaUtils.TimeInterval) async {
+        guard let scheduler = self.schedulers.getScheduler(scheduler) else {
+            fatalError("Scheduler \(scheduler) not found")
+        }
+
+        await scheduler.graphExecutor.execute(
+            scheduler.systemGraph,
+            world: self,
+            deltaTime: deltaTime,
+            scheduler: scheduler.name
+        )
+
+        self.clearTrackers()
     }
 
     /// Update all data in world.
@@ -305,8 +331,9 @@ public extension World {
         for entityId in self.removedEntities {
             self.removeEntityRecord(entityId)
         }
+    }
 
-        // Should think about it
+    func clearTrackers() {
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
         self.updatedComponents.removeAll(keepingCapacity: true)
@@ -424,7 +451,15 @@ extension World {
     }
 }
 
-extension World: EventSource { }
+extension World: EventSource {
+    public func subscribe<E: Event>(
+        to event: E.Type,
+        on eventSource: EventSource?,
+        completion: @escaping @Sendable (E) -> Void
+    ) -> Cancellable {
+        self.eventManager.subscribe(to: event, on: eventSource, completion: completion)
+    }
+}
 
 /// Events the world triggers.
 public enum WorldEvents {

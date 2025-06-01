@@ -25,6 +25,8 @@ public struct DefaultPlugins: Plugin {
 
     private var plugins: OrderedDictionary<String, any Plugin>
 
+    /// Initialize a new instance of `DefaultPlugins` with the given file path.
+    /// - Parameter filePath: The file path to use for the `AssetsPlugin`.
     public init(filePath: StaticString = #filePath) {
         var plugins = OrderedDictionary<String, any Plugin>()
         insertPlugin(AppPlatformPlugin(), into: &plugins)

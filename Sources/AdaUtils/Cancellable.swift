@@ -10,8 +10,8 @@ import Foundation
 /// A protocol indicating that an activity or action supports cancellation.
 ///
 /// Calling cancel() frees up any allocated resources. It also stops side effects such as timers, network access, or disk I/O.
-public protocol Cancellable {
-    
+public protocol Cancellable: Sendable {
+
     /// Cancel the activity.
     func cancel()
 }
@@ -57,7 +57,7 @@ public final class AnyCancellable: Cancellable, Hashable, Equatable {
     }
 
     /// Initializes the cancellable object with the given cancallable callback.
-    public convenience init(_ cancelBlock: @escaping () -> Void) {
+    public convenience init(_ cancelBlock: @escaping @Sendable () -> Void) {
         self.init(CancelBlockHolder(cancelBlock: cancelBlock))
     }
 
@@ -80,7 +80,7 @@ public final class AnyCancellable: Cancellable, Hashable, Equatable {
 
 extension AnyCancellable {
     private struct CancelBlockHolder: Cancellable {
-        let cancelBlock: () -> Void
+        let cancelBlock: @Sendable () -> Void
 
         func cancel() {
             cancelBlock()

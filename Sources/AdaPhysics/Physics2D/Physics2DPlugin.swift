@@ -8,20 +8,25 @@
 import AdaApp
 import AdaECS
 import AdaRender
+import Math
 
 /// Setup 2D physics to the scene.
 public struct Physics2DPlugin: Plugin {
 
-    public init() {}
-    
+    public let gravity: Vector2
+
+    public init(gravity: Vector2 = [0, -9.81]) {
+        self.gravity = gravity
+    }
+
     public func setup(in app: AppWorlds) {
         PhysicsBody2DComponent.registerComponent()
         PhysicsJoint2DComponent.registerComponent()
         Collision2DComponent.registerComponent()
         
         app
-            .insertResource(Physics2DWorldComponent(world: PhysicsWorld2D()))
-            .addSystem(Physics2DSystem.self)
+            .insertResource(Physics2DWorldComponent(world: PhysicsWorld2D(gravity: gravity)))
+            .addSystem(Physics2DSystem.self, on: .fixedUpdate)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return

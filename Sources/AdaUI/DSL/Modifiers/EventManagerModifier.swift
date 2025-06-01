@@ -9,7 +9,10 @@ import AdaUtils
 
 public extension View {
     /// Subscribe to EventManager events.
-    func onEvent<E: Event>(_ event: E.Type, perform action: @escaping (E) -> Void) -> some View {
+    func onEvent<E: Event>(
+        _ event: E.Type,
+        perform action: @escaping @Sendable (E) -> Void
+    ) -> some View {
         self.modifier(
             EventManagerModifier(
                 content: self,
@@ -22,7 +25,7 @@ public extension View {
 struct EventManagerModifier<Content: View, E: Event>: ViewModifier, ViewNodeBuilder {
 
     let content: Content
-    let completion: (E) -> Void
+    let completion: @Sendable (E) -> Void
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
         EventManagerNode(
@@ -38,7 +41,12 @@ private final class EventManagerNode<E: Event>: ViewModifierNode {
 
     let cancellable: any Cancellable
 
-    init<Content: View>(content: Content, contentNode: ViewNode, manager: EventManager, completion: @escaping (E) -> Void) {
+    init<Content: View>(
+        content: Content,
+        contentNode: ViewNode,
+        manager: EventManager,
+        completion: @escaping @Sendable (E) -> Void
+    ) {
         self.cancellable = manager.subscribe(to: E.self, completion: completion)
         super.init(contentNode: contentNode, content: content)
     }

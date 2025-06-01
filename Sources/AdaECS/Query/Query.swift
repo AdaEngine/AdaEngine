@@ -28,6 +28,7 @@
 public struct Query<each T: QueryTarget> {
 
     public typealias Builder = QueryBuilderTargets<repeat each T>
+    
 
     public var wrappedValue: QueryResult<Builder> {
         .init(state: self.state)
@@ -51,6 +52,10 @@ public struct Query<each T: QueryTarget> {
 
     public init(from world: World) {
         self.init(filter: .all)
+    }
+
+    public func callAsFunction() -> QueryResult<Builder> {
+        .init(state: self.state)
     }
 }
 

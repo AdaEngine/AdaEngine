@@ -15,15 +15,16 @@ public final class WorldUpdateContext: @unchecked Sendable {
     /// The number of seconds elapsed since the last update.
     public let deltaTime: AdaUtils.TimeInterval
 
-    public let scheduler: Scheduler
+    /// The scheduler that will be used to schedule tasks.
+    public let scheduler: SchedulerName
 
-    /// Custom task group that will be executed when all system will executed.
+    /// Custom task group that will be executed when system did finish update block.
     public var taskGroup: TaskGroup<Void>
 
     init(
         world: World,
         deltaTime: AdaUtils.TimeInterval,
-        scheduler: Scheduler,
+        scheduler: SchedulerName,
         taskGroup: TaskGroup<Void>
     ) {
         self.world = world

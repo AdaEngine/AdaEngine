@@ -29,7 +29,10 @@ public final class AppContext<T: App> {
             StreamLogHandler.standardError(label: $0)
         }
         let appWorlds = AppWorlds(mainWorld: World(name: "MainWorld"))
-        appWorlds.insertResource(WindowSettings())
+        appWorlds
+            .insertResource(WindowSettings())
+            .addPlugin(MainSchedulerPlugin())
+
         let inputs = _SceneInputs(appWorlds: appWorlds)
         let node = _AppSceneNode(value: app.body)
         let _ = T.Content._makeView(node, inputs: inputs)
