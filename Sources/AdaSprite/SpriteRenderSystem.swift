@@ -20,7 +20,8 @@ import Math
 public struct SpriteRenderSystem: Sendable {
 
     @Query<
-        VisibleEntities,
+        Camera,
+        VisibleEntities?,
         Ref<RenderItems<Transparent2DRenderItem>>
     >
     private var cameras
@@ -46,12 +47,12 @@ public struct SpriteRenderSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        for (visibleEntities, renderItems) in cameras {
-            self.draw(
-                extractedSprites: self.extractedSprites?.sprites ?? [],
-                visibleEntities: visibleEntities,
-                renderItems: &renderItems.wrappedValue
-            )
+        for (_, visibleEntities, renderItems) in cameras {
+//            self.draw(
+//                extractedSprites: self.extractedSprites?.sprites ?? [],
+//                visibleEntities: visibleEntities,
+//                renderItems: &renderItems.wrappedValue
+//            )
         }
     }
 
