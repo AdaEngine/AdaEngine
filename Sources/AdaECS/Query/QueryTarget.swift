@@ -31,7 +31,7 @@ extension Component {
     }
 }
 
-extension Ref: QueryTarget {
+extension Ref: QueryTarget where T: Component {
     
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         T._queryTargetContains(in: entity)

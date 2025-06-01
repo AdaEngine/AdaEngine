@@ -7,23 +7,18 @@
 
 import AdaECS
 import AdaTransform
+import AdaUtils
 import box2d
 import Math
 
 // - TODO: (Vlad) Runtime update shape resource
 
 /// A system for simulate and update physics bodies on the scene.
-@System(dependencies: [
-    .before(TransformSystem.self)
-])
-public class Physics2DSystem: @unchecked Sendable {
-    
-//    private let fixedTimestep: FixedTimestep
-    
-    public required init(world: World) {
-//        self.fixedTimestep = FixedTimestep(stepsPerSecond: Engine.shared.physicsTickPerSecond)
-    }
-    
+@System
+public struct Physics2DSystem: Sendable {
+
+    public init(world: World) { }
+
     @Query<Entity, Ref<PhysicsBody2DComponent>, Ref<Transform>>(filter: [.stored, .added])
     private var physicsBodyQuery
     
@@ -37,20 +32,14 @@ public class Physics2DSystem: @unchecked Sendable {
     private var physicsWorld
 
     public func update(context: UpdateContext) {
-//        let result = self.fixedTimestep.advance(with: context.deltaTime)
-//        let step = fixedTimestep.step
-
         context.taskGroup.addTask { @MainActor in
             guard let world = self.physicsWorld?.world else {
                 return
             }
-            
-//            if result.isFixedTick {
-//                world.updateSimulation(step)
-//                world.processContacts()
-//                world.processSensors()
-//            }
-            
+
+            world.updateSimulation(context.deltaTime)
+            world.processContacts()
+            world.processSensors()
             self.updatePhysicsBodyEntities(in: world)
             self.updateCollisionEntities(in: world)
         }

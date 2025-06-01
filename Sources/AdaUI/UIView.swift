@@ -336,7 +336,7 @@ open class UIView {
 
     private var eventsDisposeBag: Set<AnyCancellable> = []
 
-    public func subscribe<Event: InputEvent>(to event: Event.Type, completion: @escaping (Event) -> Void) {
+    public func subscribe<Event: InputEvent>(to event: Event.Type, completion: @escaping @Sendable (Event) -> Void) {
         self.window?.eventManager.subscribe(to: event, completion: completion)
             .store(in: &eventsDisposeBag)
     }

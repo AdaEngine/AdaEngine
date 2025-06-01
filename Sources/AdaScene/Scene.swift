@@ -176,7 +176,7 @@ extension Scene: EventSource {
     public func subscribe<E>(
         to event: E.Type,
         on eventSource: EventSource?,
-        completion: @escaping (E) -> Void
+        completion: @escaping @Sendable (E) -> Void
     ) -> Cancellable where E : Event {
         return self.eventManager.subscribe(to: event, on: eventSource ?? self, completion: completion)
     }

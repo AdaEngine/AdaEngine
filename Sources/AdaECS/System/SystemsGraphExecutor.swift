@@ -5,12 +5,18 @@
 //  Created by v.prusakov on 2/24/23.
 //
 
+import AdaUtils
 import Collections
 
 struct SystemsGraphExecutor: Sendable {
     public init() {}
     
-    func execute(_ graph: SystemsGraph, context: WorldUpdateContext) {
+    func execute(
+        _ graph: SystemsGraph,
+        world: World,
+        deltaTime: AdaUtils.TimeInterval,
+        scheduler: SchedulerName
+    ) async {
         var completedSystems: Set<String> = []
         completedSystems.reserveCapacity(graph.nodes.count)
         
@@ -31,8 +37,19 @@ struct SystemsGraphExecutor: Sendable {
                 }
             }
             
-            currentNode.system.queries.update(from: context.world)
-            currentNode.system.update(context: context)
+            currentNode.system.queries.update(from: world)
+
+            await withTaskGroup(of: Void.self) { @MainActor group in
+                let context = WorldUpdateContext(
+                    world: world,
+                    deltaTime: deltaTime,
+                    scheduler: scheduler,
+                    taskGroup: group
+                )
+                
+                currentNode.system.update(context: context)
+            }
+            world.flush()
             completedSystems.insert(currentNode.name)
             
             for outputNode in graph.getOuputNodes(for: currentNode.name) {

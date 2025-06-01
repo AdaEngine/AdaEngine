@@ -21,7 +21,7 @@ public struct SpriteRenderSystem: Sendable {
 
     @Query<
         Camera,
-        VisibleEntities?,
+        VisibleEntities,
         Ref<RenderItems<Transparent2DRenderItem>>
     >
     private var cameras
@@ -48,11 +48,11 @@ public struct SpriteRenderSystem: Sendable {
 
     public func update(context: UpdateContext) {
         for (_, visibleEntities, renderItems) in cameras {
-//            self.draw(
-//                extractedSprites: self.extractedSprites?.sprites ?? [],
-//                visibleEntities: visibleEntities,
-//                renderItems: &renderItems.wrappedValue
-//            )
+            self.draw(
+                extractedSprites: self.extractedSprites?.sprites ?? [],
+                visibleEntities: visibleEntities,
+                renderItems: &renderItems.wrappedValue
+            )
         }
     }
 
@@ -221,46 +221,39 @@ public struct ExtractedSprite: Sendable {
 }
 
 /// Exctract sprites to RenderWorld for future rendering.
-@System(dependencies: [
+@SystemFunc(dependencies: [
     .before(SpriteRenderSystem.self)
 ])
-public struct ExtractSpriteSystem {
-
-    @Extract<Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>>
-    private var sprites
-
-    public init(world: World) { }
-
-    public func update(context: UpdateContext) {
-        var extractedSprites = ExtractedSprites(sprites: [])
-
-        self.sprites.wrappedValue.forEach { entity, sprite, globalTransform, transform, visible in
-            if visible == .hidden {
-                return
-            }
-            
-            extractedSprites.sprites.append(
-                ExtractedSprite(
-                    entityId: entity.id,
-                    texture: sprite.texture?.asset,
-                    flipX: sprite.flipX,
-                    flipY: sprite.flipY,
-                    tintColor: sprite.tintColor,
-                    transform: transform,
-                    worldTransform: globalTransform.matrix
-                )
-            )
+public func ExtractSprite(
+    _ world: Ref<World>,
+    _ sprites: Extract<Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>>
+) {
+    var extractedSprites = ExtractedSprites(sprites: [])
+    sprites().wrappedValue.forEach { entity, sprite, globalTransform, transform, visible in
+        if visible == .hidden {
+            return
         }
 
-        context.world.insertResource(extractedSprites)
+        extractedSprites.sprites.append(
+            ExtractedSprite(
+                entityId: entity.id,
+                texture: sprite.texture?.asset,
+                flipX: sprite.flipX,
+                flipY: sprite.flipY,
+                tintColor: sprite.tintColor,
+                transform: transform,
+                worldTransform: globalTransform.matrix
+            )
+        )
     }
+    world.wrappedValue.insertResource(extractedSprites)
 }
 
 @SystemFunc
-func updateBoundings(
-    entitiesWithTransform: Query<Entity, Transform>
+func UpdateBoundings(
+    _ entitiesWithTransform: Query<Entity, Transform>
 ) {
-    entitiesWithTransform.wrappedValue.forEach { entity, transform in
+    entitiesWithTransform().forEach { entity, transform in
         var bounds: BoundingComponent.Bounds?
 
         if entity.components.has(SpriteComponent.self) {
@@ -269,7 +262,6 @@ func updateBoundings(
             }
 
             let transform = entity.components[Transform.self]!
-
             let position = transform.position
             let scale = transform.scale
 

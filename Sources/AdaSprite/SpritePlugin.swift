@@ -6,6 +6,7 @@
 //
 
 import AdaApp
+import AdaECS
 import AdaRender
 
 /// Plugin for exctracting sprites from scene to RenderWorld.
@@ -17,7 +18,7 @@ public struct SpritePlugin: Plugin {
         SpriteComponent.registerComponent()
 
         app
-            .addSystem(updateBoundingsSystem.self)
+            .addSystem(UpdateBoundingsSystem.self, on: .postUpdate)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return

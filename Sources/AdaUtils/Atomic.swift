@@ -36,7 +36,9 @@ public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {
         self._value = try value()
     }
     
-    public subscript<Subject: Sendable>(dynamicMember keyPath: KeyPath<Value, Subject>) -> Subject {
+    public subscript<Subject: Sendable>(
+        dynamicMember keyPath: KeyPath<Value, Subject>
+    ) -> Subject {
         self.lock.sync {
             self._value[keyPath: keyPath]
         }
@@ -56,3 +58,38 @@ extension NSRecursiveLock {
   }
 }
 
+extension LocalIsolated: ExpressibleByBooleanLiteral where Value == Bool {
+    public convenience init(booleanLiteral value: BooleanLiteralType) {
+        self.init(value)
+    }
+}
+
+extension LocalIsolated: ExpressibleByUnicodeScalarLiteral where Value == String {
+    public convenience init(unicodeScalarLiteral value: String) {
+        self.init(value)
+    }
+}
+
+extension LocalIsolated: ExpressibleByExtendedGraphemeClusterLiteral where Value == String {
+    public convenience init(extendedGraphemeClusterLiteral value: String) {
+        self.init(value)
+    }
+}
+
+extension LocalIsolated: ExpressibleByStringLiteral where Value == String {
+    public convenience init(stringLiteral value: StringLiteralType) {
+        self.init(value)
+    }
+}
+
+extension LocalIsolated: ExpressibleByIntegerLiteral where Value == Int {
+    public convenience init(integerLiteral value: IntegerLiteralType) {
+        self.init(value)
+    }
+}
+
+extension LocalIsolated: ExpressibleByFloatLiteral where Value == Float {
+    public convenience init(floatLiteral value: FloatLiteralType) {
+        self.init(Float(value))
+    }
+}

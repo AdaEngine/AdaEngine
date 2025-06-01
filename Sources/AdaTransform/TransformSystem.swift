@@ -8,7 +8,7 @@
 import AdaECS
 import Math
 
-@System()
+@System
 public struct TransformSystem {
     
     @EntityQuery(where: .has(Transform.self))
@@ -18,14 +18,12 @@ public struct TransformSystem {
     
     public func update(context: UpdateContext) {
         self.query.forEach { entity in
-            context.taskGroup.addTask { @MainActor in
-                if entity.components.isComponentChanged(Transform.self)
-                    || !entity.components.has(GlobalTransform.self)
-                {
-                    let transform = entity.components[Transform.self]!
-                    let globalTransform = GlobalTransform(matrix: transform.matrix)
-                    entity.components += globalTransform
-                }
+            if entity.components.isComponentChanged(Transform.self)
+                || !entity.components.has(GlobalTransform.self)
+            {
+                let transform = entity.components[Transform.self]!
+                let globalTransform = GlobalTransform(matrix: transform.matrix)
+                entity.components += globalTransform
             }
         }
     }

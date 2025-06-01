@@ -18,6 +18,7 @@ public struct RenderWorldPlugin: Plugin {
         Visibility.registerComponent()
         NoFrustumCulling.registerComponent()
         BoundingComponent.registerComponent()
+        Texture.registerTypes()
 
         let renderWorld = app.createSubworld(by: .renderWorld)
         renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
@@ -26,6 +27,11 @@ public struct RenderWorldPlugin: Plugin {
             .update,
             .render
         ])
+        renderWorld.insertResource(
+            DefaultSchedulerOrder(
+                order: [.update, .render]
+            )
+        )
 
         renderWorld.mainWorld
             .addSystem(RenderWorldSystem.self, on: .render)
@@ -77,6 +83,10 @@ public final class Extract<T: SystemQuery>: @unchecked Sendable {
     public init(from world: World) {
         self._value = T.init(from: world)
     }
+
+    public func callAsFunction() -> T {
+        self._value
+    }
 }
 
 extension Extract: SystemQuery {
@@ -90,8 +100,8 @@ extension Extract: SystemQuery {
     }
 }
 
-public extension Scheduler {
-    static let render = Scheduler(rawValue: "RenderWorld_Render")
+public extension SchedulerName {
+    static let render = SchedulerName(rawValue: "RenderWorld_Render")
 }
 
 public extension AppWorldName {

@@ -38,7 +38,9 @@
 /// ```
 @propertyWrapper
 @frozen public struct EntityQuery: Sendable {
-    public var wrappedValue: QueryResult<QueryBuilderTargets<Entity>> {
+    public typealias Result = QueryResult<QueryBuilderTargets<Entity>>
+
+    public var wrappedValue: Result {
         return QueryResult(state: self.state)
     }
     
@@ -57,6 +59,10 @@
 
     public init(from world: World) {
         fatalError()
+    }
+
+    public func callAsFunction() -> Result {
+        .init(state: self.state)
     }
 }
 

@@ -60,7 +60,9 @@ class SpaceInvaders: Scene, @unchecked Sendable {
         .store(in: &self.disposeBag)
 
         self.subscribe(to: SceneEvents.OnReady.self) { event in
-            event.scene.world.physicsWorld2D?.gravity = .zero
+            Task { @MainActor in
+                event.scene.world.physicsWorld2D?.gravity = .zero
+            }
         }.store(in: &self.disposeBag)
     }
 
