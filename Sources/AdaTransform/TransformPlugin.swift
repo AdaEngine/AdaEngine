@@ -17,7 +17,7 @@ public struct TransformPlugin: Plugin {
         GlobalTransform.registerComponent()
 
         app
-            .addSystem(TransformSystem.self)
-            .addSystem(ChildTransformSystem.self)
+            .addSystem(TransformSystem.self, on: .postUpdate)
+            .addSystem(ChildTransformSystem.self, on: .postUpdate)
     }
 }

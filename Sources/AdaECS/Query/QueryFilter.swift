@@ -55,3 +55,9 @@ public struct Or<T: Filter, U: Filter>: Filter {
         T.condition(for: archetype) || U.condition(for: archetype)
     }
 }
+
+public struct NoFilter: Filter {
+    public static func condition(for archetype: Archetype) -> Bool {
+        true
+    }
+}

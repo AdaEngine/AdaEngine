@@ -12,9 +12,11 @@ struct MainSchedulerPlugin: Plugin {
     func setup(in app: AppWorlds) {
         let mainScheduler = Scheduler(name: .update)
         let fixedScheduler = Scheduler(name: .fixedUpdate, system: FixedTimeSchedulerSystem.self)
+        let postUpdateScheduler = Scheduler(name: .postUpdate, system: PostUpdateSchedulerRunner.self)
         app.setSchedulers([
             mainScheduler,
-            fixedScheduler
+            fixedScheduler,
+            postUpdateScheduler
         ])
         app.mainWorld.insertResource(DefaultSchedulerOrder())
         app.mainWorld.addSchedulers(
@@ -46,11 +48,29 @@ public struct FixedTimeSchedulerSystem {
 
         if result.isFixedTick {
             let step = self.fixedTimestep.step
-            for scheduler in order {
-                context.taskGroup.addTask {
+            context.taskGroup.addTask { [order] in
+                for scheduler in order {
                     await context.world.runScheduler(scheduler, deltaTime: step)
                 }
             }
+        }
+    }
+}
+
+@System
+public struct PostUpdateSchedulerRunner: Sendable {
+
+    @ResourceQuery
+    private var order: DefaultSchedulerOrder?
+
+    @LocalIsolated
+    private var lastUpdate: LongTimeInterval = 0
+
+    public init(world: World) { }
+
+    public func update(context: UpdateContext) {
+        context.taskGroup.addTask {
+            await context.world.runScheduler(.postUpdate, deltaTime: context.deltaTime)
         }
     }
 }

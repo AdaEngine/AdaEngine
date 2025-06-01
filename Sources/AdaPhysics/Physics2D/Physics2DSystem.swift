@@ -50,6 +50,7 @@ public struct Physics2DSystem: Sendable {
     @MainActor
     private func updatePhysicsBodyEntities(in world: PhysicsWorld2D) {
         for (entity, physicsBody, transform) in self.physicsBodyQuery {
+            print(transform.position)
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
                     body.setTransform(
@@ -162,14 +163,6 @@ public struct Physics2DSystem: Sendable {
                 }
             }
         }
-    }
-    
-    // MARK: - Helpers
-    
-    @MainActor
-    private func getBody(from entity: Entity) -> Body2D? {
-        entity.components[PhysicsBody2DComponent.self]?.runtimeBody ??
-        entity.components[Collision2DComponent.self]?.runtimeBody
     }
 }
 
