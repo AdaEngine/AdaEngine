@@ -19,7 +19,9 @@ public struct SystemMacro: MemberMacro {
         "EntityQuery",
         "Query",
         "ResourceQuery",
-        "Extract"
+        "Extract",
+        "Local",
+        "LocalIsolated"
     ]
     
     public static func expansion(
@@ -161,9 +163,15 @@ extension SystemMacro: PeerMacro {
         var paramNames: [String] = []
         
         for param in params {
-            let paramName = param.firstName.text
+            let paramName = if (param.firstName.text != "_") {
+                param.firstName.text
+            } else { 
+                param.secondName!.text
+            }
+
+            let defaultValue = param.defaultValue?.value.description
             let typeString = param.type.trimmedDescription
-            propertyDecls.append("@\(typeString)\nprivate var \(paramName)")
+            propertyDecls.append("@\(typeString)\nprivate var \(paramName)\(defaultValue != nil ? " = \(defaultValue!)" : "")")
             queryVars.append("_\(paramName)")
             paramNames.append(paramName)
         }
