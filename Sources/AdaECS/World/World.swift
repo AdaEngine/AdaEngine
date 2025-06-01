@@ -101,14 +101,17 @@ public final class World: @unchecked Sendable, Codable {
         schedulers.insert(scheduler, after: after)
     }
 
+    /// Insert a scheduler before or before another scheduler.
     public func insertScheduler(_ scheduler: Scheduler, before: SchedulerName) {
         schedulers.insert(scheduler, before: before)
     }
 
+    /// Contains scheduler
     public func containsScheduler(_ scheduler: SchedulerName) -> Bool {
         self.schedulers.contains(scheduler)
     }
 
+    /// Add schedulers.
     public func addSchedulers(_ schedulers: SchedulerName...) {
         schedulers.forEach {
             self.schedulers.append(Scheduler(name: $0))
@@ -319,8 +322,6 @@ public extension World {
             deltaTime: deltaTime,
             scheduler: scheduler.name
         )
-
-        self.clearTrackers()
     }
 
     /// Update all data in world.
@@ -444,7 +445,7 @@ private extension World {
 
 extension World {
     /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
-    public func performQuery(_ query: EntityQuery) -> QueryResult<QueryBuilderTargets<Entity>> {
+    public func performQuery(_ query: EntityQuery) -> EntityQuery.Result {
         let state = query.state
         state.updateArchetypes(in: self)
         return QueryResult(state: state)

@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
-// TODO: Add support for queries with filters like Without<Component>, OR, AND, etc.
-
 /// A query that can fetch query targets like components or entities.
 ///
 /// Use queries to efficiently access and iterate over entities and their components that match specific criteria.
@@ -24,11 +22,29 @@
 /// @Query<Position, Rotation>
 /// var transforms
 /// ```
-@propertyWrapper
-public struct Query<each T: QueryTarget> {
+public typealias Query<each T: QueryTarget> = FilterQuery<repeat (each T), NoFilter>
 
-    public typealias Builder = QueryBuilderTargets<repeat each T>
-    
+/// A query that can fetch query targets like components or entities with filters.
+///
+/// Use queries to efficiently access and iterate over entities and their components that match specific criteria.
+///
+/// ```swift
+/// // Query for entities with Position or Velocity components
+/// @FilterQuery<Entity, Ref<Position>, Or<Ref<Velocity>>>
+/// var movingEntities
+///
+/// // Query for just Position components
+/// @FilterQuery<Position, NoFilter>
+/// var positions
+///
+/// // Query without Rotation component
+/// @FilterQuery<Position, Without<Rotation>>
+/// var transforms
+/// ```
+@propertyWrapper
+public struct FilterQuery<each T: QueryTarget, F: Filter> {
+
+    public typealias Builder = QueryBuilderTargets<repeat each T, F>
 
     public var wrappedValue: QueryResult<Builder> {
         .init(state: self.state)
@@ -59,7 +75,7 @@ public struct Query<each T: QueryTarget> {
     }
 }
 
-extension Query: SystemQuery {
+extension FilterQuery: SystemQuery {
     public func update(from world: World) {
         self.state.updateArchetypes(in: world)
     }

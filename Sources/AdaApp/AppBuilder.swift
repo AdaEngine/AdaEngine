@@ -90,6 +90,8 @@ public extension AppWorlds {
                 await world.update()
             }
         }
+
+        mainWorld.clearTrackers()
     }
 
     /// Get the subworld builder by name.
