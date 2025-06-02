@@ -13,8 +13,8 @@ struct AdaEditorApp: App {
     var body: some AppScene {
         EmptyWindow()
             .addPlugins(
-//                GameScene2DPlugin(),
-                DefaultPlugins()
+                DefaultPlugins(),
+                GameScene2DPlugin()
             )
             .windowMode(.windowed)
             .windowTitle("AdaEngine")
