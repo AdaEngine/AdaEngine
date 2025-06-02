@@ -18,27 +18,37 @@ public struct UIPlugin: Plugin {
         UIComponent.registerComponent()
 
         app
-            .addPlugin(PrimaryWindowPlugin())
             .addSystem(GraphicsContextInitializedSystem.self)
             .addSystem(UIComponentSystem.self)
     }
 }
 
-struct PrimaryWindowPlugin: Plugin {
-    func setup(in app: AppWorlds) {
+public struct WindowPlugin: Plugin {
+    let primaryWindow: UIWindow?
+
+    public init(primaryWindow: UIWindow? = nil) {
+        self.primaryWindow = primaryWindow
+    }
+
+    public func setup(in app: AppWorlds) {
         guard let windowSettings = app.getResource(WindowSettings.self) else {
             return
         }
 
-        let window = UIWindow()
-        window.title = windowSettings.title ?? "App"
-        window.minSize = windowSettings.minimumSize
-        window.frame = Rect(origin: .zero, size: windowSettings.minimumSize)
-        window.setWindowMode(
-            windowSettings.windowMode == .fullscreen ? .fullscreen : .windowed
-        )
-        window.showWindow(makeFocused: true)
-        app.insertResource(PrimaryWindow(window: window))
+        if let primaryWindow {
+            primaryWindow.showWindow(makeFocused: true)
+            app.insertResource(PrimaryWindow(window: primaryWindow))
+        } else {
+            let window = UIWindow()
+            window.title = windowSettings.title ?? "App"
+            window.minSize = windowSettings.minimumSize
+            window.frame = Rect(origin: .zero, size: windowSettings.minimumSize)
+            window.setWindowMode(
+                windowSettings.windowMode == .fullscreen ? .fullscreen : .windowed
+            )
+            window.showWindow(makeFocused: true)
+            app.insertResource(PrimaryWindow(window: window))
+        }
     }
 }
 

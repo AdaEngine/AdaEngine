@@ -265,6 +265,9 @@ var targets: [Target] = [
             "AdaUtils",
             "Yams"
         ],
+        exclude: [
+            "BUILD.bazel"
+        ],
         swiftSettings: swiftSettings
     ),
     .target(
@@ -278,6 +281,9 @@ var targets: [Target] = [
             "miniaudio",
             "Math"
         ],
+        exclude: [
+            "BUILD.bazel"
+        ],
         swiftSettings: swiftSettings
     ),
     .target(
@@ -286,6 +292,9 @@ var targets: [Target] = [
             "AdaApp",
             "AdaECS",
             "Math"
+        ],
+        exclude: [
+            "BUILD.bazel"
         ],
         swiftSettings: swiftSettings
     ),
@@ -301,6 +310,9 @@ var targets: [Target] = [
             "SPIRVCompiler",
             "libpng",
         ],
+        exclude: [
+            "BUILD.bazel"
+        ],
         resources: [
             .copy("Assets/Shaders")
         ],
@@ -315,6 +327,9 @@ var targets: [Target] = [
             "Math",
             "AdaRender",
             "AtlasFontGenerator",
+        ],
+        exclude: [
+            "BUILD.bazel"
         ],
         resources: [
             .copy("Assets")
@@ -333,6 +348,9 @@ var targets: [Target] = [
             "AdaInput",
             "AdaEngineMacros",
         ],
+        exclude: [
+            "BUILD.bazel"
+        ],
         swiftSettings: swiftSettings
     ),
     .target(
@@ -341,6 +359,9 @@ var targets: [Target] = [
             "AdaApp",
             "AdaECS",
             "AdaTransform",
+        ],
+        exclude: [
+            "BUILD.bazel"
         ],
         swiftSettings: swiftSettings
     ),
@@ -357,6 +378,9 @@ var targets: [Target] = [
             "AdaUI",
             "AdaPhysics"
         ],
+        exclude: [
+            "BUILD.bazel"
+        ],
         swiftSettings: swiftSettings
     ),
     .target(
@@ -368,6 +392,9 @@ var targets: [Target] = [
             "Math",
             "AdaPhysics",
             "AdaSprite"
+        ],
+        exclude: [
+            "BUILD.bazel"
         ],
         swiftSettings: swiftSettings
     ),
@@ -381,6 +408,9 @@ var targets: [Target] = [
             "box2d",
             "AdaRender"
         ],
+        exclude: [
+            "BUILD.bazel"
+        ],
         swiftSettings: swiftSettings
     ),
     .target(
@@ -391,6 +421,9 @@ var targets: [Target] = [
             "AdaECS",
             "Math",
             "AdaRender"
+        ],
+        exclude: [
+            "BUILD.bazel"
         ],
         resources: [
             .copy("Assets")
@@ -463,14 +496,45 @@ targets += [
     ),
     .testTarget(
         name: "AdaAssetsTests",
-        dependencies: ["AdaAssets"],
+        dependencies: [
+            "AdaAssets",
+            "Math"
+        ],
         exclude: [
             "BUILD.bazel"
         ]
     ),
     .testTarget(
         name: "AdaTransformTests",
-        dependencies: ["AdaECS", "AdaTransform"],
+        dependencies: [
+            "AdaECS", 
+            "AdaTransform",
+            "Math"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
+        name: "AdaUITests",
+        dependencies: [
+            "AdaUI",
+            "AdaPlatform",
+            "AdaUtils",
+            "AdaInput",
+            "Math"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
+        name: "AdaInputTests",
+        dependencies: [
+            "AdaInput",
+            "AdaUI",
+            "Math"
+        ],
         exclude: [
             "BUILD.bazel"
         ]

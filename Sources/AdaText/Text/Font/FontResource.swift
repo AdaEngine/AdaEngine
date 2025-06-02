@@ -113,7 +113,7 @@ public extension FontResource {
     /// Returns default font from AdaEngine bundle.
     static func system(weight: FontWeight = .regular, emFontScale: Double? = nil) -> FontResource {
         do {
-            var path = "Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf"
+            var path = "Assets/Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf"
 
             if let scale = emFontScale {
                 path.append("#emSize=\(scale)")

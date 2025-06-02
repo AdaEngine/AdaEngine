@@ -1,18 +1,19 @@
 import Testing
 import AdaECS
 import Math
+@testable import AdaApp
 @testable import AdaTransform
 
 @Suite("AdaTransform Tests")
 struct AdaTransformTests: Sendable {
 
-    let world: World
+    let world: AppWorlds
 
-    init() {
-        self.world = World()
-        self.world
+    init() async throws {
+        self.world = await AppWorlds(mainWorld: World())
             .addPlugin(TransformPlugin())
-            .build()
+
+        try await self.world.build()
     }
 
     @Test("Global transform test")

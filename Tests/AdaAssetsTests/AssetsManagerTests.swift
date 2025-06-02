@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable @_spi(AdaEngine) import AdaAssets
+import Math
 
 @Suite("AssetsManager Tests")
 struct AssetsManagerTests: Sendable {

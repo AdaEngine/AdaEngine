@@ -8,6 +8,7 @@
 #if canImport(MetalKit)
 import MetalKit
 @_spi(Internal) import AdaEngine
+@_spi(Internal) import AdaPlatform
 
 /// Application for apple platfroms.
 /// This application class using for storing game loop and window manager.
