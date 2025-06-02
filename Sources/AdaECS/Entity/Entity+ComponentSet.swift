@@ -99,7 +99,7 @@ public extension Entity {
         }
 
         /// Set the component of the specified type.
-        public mutating func set<T>(_ component: T) where T : Component {
+        public mutating func set<T>(_ component: consuming T) where T : Component {
             lock.lock()
             defer {
                 lock.unlock()
@@ -107,7 +107,7 @@ public extension Entity {
             
             let identifier = T.identifier
             let isChanged = self.buffer[identifier] != nil
-            
+
             self.buffer[identifier] = component
             self.bitset.insert(T.identifier)
             guard let ent = self.entity else {
@@ -115,9 +115,9 @@ public extension Entity {
             }
             
             if isChanged {
-                self.world?.entity(ent, didUpdateComponent: component, with: identifier)
+                self.world?.entity(ent, didUpdateComponent: T.self, with: identifier)
             } else {
-                self.world?.entity(ent, didAddComponent: component, with: identifier)
+                self.world?.entity(ent, didAddComponent: T.self, with: identifier)
             }
         }
 
@@ -139,9 +139,9 @@ public extension Entity {
                     lock.unlock()
                 }
                 if isChanged {
-                    self.world?.entity(ent, didUpdateComponent: component, with: identifier)
+                    self.world?.entity(ent, didUpdateComponent: componentType, with: identifier)
                 } else {
-                    self.world?.entity(ent, didAddComponent: component, with: identifier)
+                    self.world?.entity(ent, didAddComponent: componentType, with: identifier)
                 }
             }
         }
@@ -154,6 +154,11 @@ public extension Entity {
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentType: Component.Type) -> Bool {
             return self.buffer[componentType.identifier] != nil
+        }
+
+        /// Returns `true` if the collections contains a component of the specified type.
+        public func has(_ componentId: ComponentId) -> Bool {
+            return self.buffer[componentId] != nil
         }
 
         /// Removes the component of the specified type from the collection.
@@ -258,7 +263,7 @@ public extension Entity.ComponentSet {
 public extension Entity.ComponentSet {
     /// Add new component to component set.
     @inline(__always)
-    static func += <T: Component>(lhs: inout Self, rhs: T) {
+    static func += <T: Component>(lhs: inout Self, rhs: consuming T) {
         lhs[T.self] = rhs
     }
 }

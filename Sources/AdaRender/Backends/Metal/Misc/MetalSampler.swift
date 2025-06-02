@@ -6,7 +6,6 @@
 //
 
 #if METAL
-
 import Metal
 
 final class MetalSampler: Sampler {

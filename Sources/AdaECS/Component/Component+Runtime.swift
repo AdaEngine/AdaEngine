@@ -33,7 +33,7 @@ extension Component {
     }
     
     /// Return identifier of component based on Component.Type
-    @inline(__always) static var identifier: ComponentId {
+    @inline(__always) public static var identifier: ComponentId {
         ComponentId(id: Int(bitPattern: ObjectIdentifier(self)))
     }
 }

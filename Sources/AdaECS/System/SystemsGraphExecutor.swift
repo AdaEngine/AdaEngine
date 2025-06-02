@@ -22,7 +22,7 @@ public struct SystemsGraphExecutor: Sendable {
     /// - Parameter deltaTime: The delta time to execute the systems graph with.
     /// - Parameter scheduler: The scheduler to execute the systems graph on.
     public func execute(
-        _ graph: SystemsGraph,
+        _ graph: borrowing SystemsGraph,
         world: World,
         deltaTime: AdaUtils.TimeInterval,
         scheduler: SchedulerName

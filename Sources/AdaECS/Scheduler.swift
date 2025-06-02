@@ -50,6 +50,8 @@ public final class Schedulers: @unchecked Sendable {
         )
     }
 
+    /// Set the schedulers.
+    /// - Parameter schedulers: The schedulers to set.
     public func setSchedulers(_ schedulers: [SchedulerName]) {
         self.schedulerLabels = schedulers
         self.schedulers = Dictionary(
@@ -57,11 +59,16 @@ public final class Schedulers: @unchecked Sendable {
         )
     }
 
+    /// Append a scheduler.
+    /// - Parameter scheduler: The scheduler to append.
     public func append(_ scheduler: Scheduler) {
         schedulerLabels.append(scheduler.name)
         schedulers[scheduler.name] = scheduler
     }
 
+    /// Insert a scheduler after a specific scheduler.
+    /// - Parameter scheduler: The scheduler to insert.
+    /// - Parameter after: The scheduler to insert after.
     public func insert(_ scheduler: Scheduler, after: SchedulerName) {
         if schedulers[scheduler.name] != nil {
             fatalError("Already exists")
@@ -74,10 +81,16 @@ public final class Schedulers: @unchecked Sendable {
         }
     }
 
+    /// Check if the schedulers contains a specific scheduler.
+    /// - Parameter scheduler: The scheduler to check.
+    /// - Returns: True if the schedulers contains the scheduler, otherwise false.
     public func contains(_ scheduler: SchedulerName) -> Bool {
         self.schedulers[scheduler] != nil
     }
 
+    /// Insert a scheduler before a specific scheduler.
+    /// - Parameter scheduler: The scheduler to insert.
+    /// - Parameter before: The scheduler to insert before.
     public func insert(_ scheduler: Scheduler, before: SchedulerName) {
         if schedulers[scheduler.name] != nil {
             fatalError("Already exists")
@@ -90,6 +103,9 @@ public final class Schedulers: @unchecked Sendable {
         }
     }
 
+    /// Get a scheduler by its name.
+    /// - Parameter scheduler: The name of the scheduler.
+    /// - Returns: The scheduler if it exists, otherwise nil.
     public func getScheduler(_ scheduler: SchedulerName) -> Scheduler? {
         self.schedulers[scheduler]
     }
@@ -135,7 +151,7 @@ public final class Scheduler: @unchecked Sendable {
     public let name: SchedulerName
 
     /// The system graph of the scheduler.
-    public let systemGraph: SystemsGraph = SystemsGraph()
+    public var systemGraph: SystemsGraph = SystemsGraph()
 
     /// The graph executor of the scheduler.
     let graphExecutor: SystemsGraphExecutor = SystemsGraphExecutor()

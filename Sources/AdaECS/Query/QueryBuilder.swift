@@ -32,12 +32,12 @@ public struct QueryBuilderTargets<each T, F: Filter>: QueryBuilder where repeat 
 
     public static func predicate(in archetype: Archetype) -> Bool {
         for element in repeat (each T).self {
-            if !element._queryContains(in: archetype) && F.condition(for: archetype) {
+            if !element._queryContains(in: archetype) {
                 return false
             }
         }
 
-        return true
+        return F.condition(for: archetype)
     }
 
     public static func getQueryTarget(from entity: Entity) -> Components {

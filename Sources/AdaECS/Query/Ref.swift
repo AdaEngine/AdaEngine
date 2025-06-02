@@ -10,9 +10,14 @@
 @dynamicMemberLookup
 @propertyWrapper
 public final class Ref<T>: @unchecked Sendable {
+
+    /// The getter of the reference.
     public typealias Getter = () -> T
+
+    /// The setter of the reference.
     public typealias Setter = (T) -> Void
 
+    /// The wrapped value of the reference.
     public var wrappedValue: T {
         get {
             return getValue!()
@@ -22,12 +27,16 @@ public final class Ref<T>: @unchecked Sendable {
         }
     }
 
+    /// Initialize a new reference.
     public init() {
         self.getValue = nil
         self.setValue = nil
     }
 
+    /// The getter of the reference.
     var getValue: Getter?
+
+    /// The setter of the reference.
     let setValue: Setter?
 
     /// Create a new reference to a component.

@@ -24,6 +24,9 @@ open class Entity: Identifiable, @unchecked Sendable {
     /// Contains components specific for current entity.
     @LocalIsolated public var components: ComponentSet = ComponentSet()
 
+    /// The dispose bag of the entity.
+    var disposeBag: Set<AnyCancellable> = []
+
     /// A Boolean that indicates whether the entity is active.
     /// - Note:  AdaEngine doesn’t simulate or render inactive entities.
     public var isActive: Bool = true
@@ -122,5 +125,18 @@ extension Entity: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name
         case components
+    }
+}
+
+public extension Cancellable {
+    /// Stores this type-erasing cancellable instance in the entity.
+    /// - Note: This cancellable will be canceled when the entity is removed.
+    /// - Parameter entity: The entity to store the cancellable in.
+    func store(in entity: Entity) {
+        if let anyCancellable = self as? AnyCancellable {
+            entity.disposeBag.insert(anyCancellable)
+        } else {
+            entity.disposeBag.insert(AnyCancellable(self))
+        }
     }
 }

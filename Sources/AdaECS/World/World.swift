@@ -19,18 +19,29 @@ import Foundation
 /// - Warning: Still work in progress.
 public final class World: @unchecked Sendable, Codable {
 
+    /// The unique identifier of the world.
     public typealias ID = RID
 
+    /// The unique identifier of the world.
     public let id = ID()
     public let name: String?
+
+    /// The records of the world.
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 
+    /// The removed entities of the world.
     internal private(set) var removedEntities: Set<Entity.ID> = []
+
+    /// The added entities of the world.
     internal private(set) var addedEntities: Set<Entity.ID> = []
 
+    /// The archetypes of the world.
     private(set) var archetypes: SparseArray<Archetype> = []
+
+    /// The free archetype indices of the world.
     private var freeArchetypeIndices: [Int] = []
 
+    /// The updated entities of the world.
     private var updatedEntities: Set<Entity> = []
     private var updatedComponents: [Entity: Set<ComponentId>] = [:]
 
@@ -48,6 +59,8 @@ public final class World: @unchecked Sendable, Codable {
         self.name = name
     }
 
+    /// Initialize a new world from a decoder.
+    /// - Parameter decoder: The decoder to initialize the world from.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.name = try container.decodeIfPresent(String.self, forKey: .name)
@@ -76,6 +89,8 @@ public final class World: @unchecked Sendable, Codable {
         self.flush()
     }
 
+    /// Encode the world to an encoder.
+    /// - Parameter encoder: The encoder to encode the world to.
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         let entities = (self.getEntities() + updatedEntities).sorted(by: {
@@ -91,6 +106,7 @@ public final class World: @unchecked Sendable, Codable {
     // MARK: - Scheduler API
 
     /// Set the order of schedulers for this world.
+    /// - Parameter schedulers: The schedulers to set.
     public func setSchedulers(_ schedulers: [SchedulerName]) {
         self.schedulers.setSchedulers(schedulers)
     }
@@ -270,7 +286,7 @@ public extension World {
     /// - Parameter resource: The resource to insert.
     /// - Returns: A world instance.
     @discardableResult
-    func insertResource(_ resource: consuming any Resource) -> Self {
+    func insertResource(_ resource: any Resource) -> Self {
         let resource = resource
         let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
         self.componentsStorage.resourceComponents[componentId] = resource
@@ -379,21 +395,30 @@ public extension World {
 // MARK: - Delegate
 
 extension World {
-    func entity(_ entity: Entity, didAddComponent component: Component, with identifier: ComponentId) {
-        let componentType = type(of: component)
-        eventManager.send(ComponentEvents.DidAdd(componentType: componentType, entity: entity))
-
+    /// Entity did add component.
+    /// - Parameter entity: The entity that did add component.
+    /// - Parameter component: The component that did add.
+    /// - Parameter identifier: The identifier of the component.
+    func entity<T: Component>(_ entity: Entity, didAddComponent component: T.Type, with identifier: ComponentId) {
+        eventManager.send(ComponentEvents.DidAdd(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
     }
 
-    func entity(_ entity: Entity, didUpdateComponent component: Component, with identifier: ComponentId) {
-        let componentType = type(of: component)
-        eventManager.send(ComponentEvents.DidChange(componentType: componentType, entity: entity))
+    /// Entity did update component.
+    /// - Parameter entity: The entity that did update component.
+    /// - Parameter component: The component that did update.
+    /// - Parameter identifier: The identifier of the component.
+    func entity<T: Component>(_ entity: Entity, didUpdateComponent component: T.Type, with identifier: ComponentId) {
+        eventManager.send(ComponentEvents.DidChange(componentType: component, entity: entity))
 
         self.updatedEntities.insert(entity)
         self.updatedComponents[entity, default: []].insert(identifier)
     }
 
+    /// Entity did remove component.
+    /// - Parameter entity: The entity that did remove component.
+    /// - Parameter component: The component that did remove.
+    /// - Parameter identifier: The identifier of the component.
     func entity(_ entity: Entity, didRemoveComponent component: Component.Type, with identifier: ComponentId) {
         eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
@@ -401,6 +426,8 @@ extension World {
 }
 
 private extension World {
+    /// Remove entity record.
+    /// - Parameter entity: The entity to remove.
     private func removeEntityRecord(_ entity: Entity.ID) {
         guard let record = self.records[entity] else {
             return
@@ -480,6 +507,11 @@ extension World {
 }
 
 extension World: EventSource {
+    /// Subscribe to an event.
+    /// - Parameter event: The event to subscribe to.
+    /// - Parameter eventSource: The event source to subscribe to.
+    /// - Parameter completion: The completion handler to call when the event is triggered.
+    /// - Returns: A cancellable object that can be used to unsubscribe from the event.
     public func subscribe<E: Event>(
         to event: E.Type,
         on eventSource: EventSource?,

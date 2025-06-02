@@ -68,8 +68,8 @@ public extension AppScene {
     }
 
     /// Add new plugin for app
-    func insertPlugin<T: Plugin>(_ plugin: T) -> some AppScene {
-        return modifier(AddPluginModifier(plugin: plugin))
+    func addPlugins<each T: Plugin>(_ plugin: repeat each T) -> some AppScene {
+        return modifier(AddPluginsModifier(plugins: (repeat (each plugin))))
     }
 }
 

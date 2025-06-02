@@ -40,7 +40,7 @@ open class UIWindowManager {
 
     /// Called each frame to update windows.
     @_spi(Internal)
-    public func update(_ deltaTime: TimeInterval) async {
+    public func update(_ deltaTime: AdaUtils.TimeInterval) async {
         for window in self.windows {
             let menuBuilder = self.menuBuilder(for: window)
             menuBuilder?.updateIfNeeded()

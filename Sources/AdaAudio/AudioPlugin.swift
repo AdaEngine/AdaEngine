@@ -146,7 +146,7 @@ public extension Entity {
             return controller
         }
         
-        let playbackController = AudioServer.shared.prepareAudio(resource)
+        var playbackController = AudioServer.shared.prepareAudio(resource)
         playbackController.entity = self
         controllers.controllers.append(playbackController)
         self.components += controllers

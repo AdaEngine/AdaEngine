@@ -27,7 +27,7 @@ final class GenericUniformBufferSet: UniformBufferSet, @unchecked Sendable {
 
     func initBuffers(length: Int, binding: Int, set: Int) {
         for frame in 0 ..< frames {
-            let buffer = self.device.createUniformBuffer(length: length, binding: binding)
+            var buffer = self.device.createUniformBuffer(length: length, binding: binding)
             buffer.label = self.label
             self.setBuffer(buffer, set: set, frameIndex: frame)
         }

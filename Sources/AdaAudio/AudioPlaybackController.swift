@@ -12,7 +12,7 @@ import AdaUtils
 ///
 /// You receive an audio playback controller by calling an entity’s ``Entity/prepareAudio(_:)`` method.
 /// You typically pass an ``AudioResource`` instance to this call that tells the playback controller how to stream the contents of an audio file.
-public class AudioPlaybackController: @unchecked Sendable {
+public struct AudioPlaybackController: @unchecked Sendable {
 
     /// The resource that provides the audio stream.
     public let resource: AudioResource
@@ -41,7 +41,7 @@ public class AudioPlaybackController: @unchecked Sendable {
             self.sound.volume
         }
         
-        set {
+        nonmutating set {
             self.sound.volume = newValue
         }
     }
@@ -74,11 +74,8 @@ public class AudioPlaybackController: @unchecked Sendable {
     /// A closure that the playback controller executes when it comes to the end of the audio stream.
     @discardableResult
     public func onCompleteHandler(_ block: @escaping () -> Void) -> Self {
-        self.sound.onCompleteHandler { [weak self] in
-            if let self = self {
-                EventManager.default.send(AudioEvents.PlaybackCompleted(playbackController: self))
-            }
-            
+        self.sound.onCompleteHandler {
+            EventManager.default.send(AudioEvents.PlaybackCompleted(playbackController: self))
             block()
         }
         return self

@@ -20,6 +20,7 @@ extension System {
         SystemStorage.register(self)
     }
     
+    /// The Swift name of the system.
     static var swiftName: String {
         return String(reflecting: self)
     }

@@ -6,7 +6,7 @@
 //
 
 /// A protocol that allows to use components and entities as query targets.
-public protocol QueryTarget: Sendable {
+public protocol QueryTarget: Sendable, ~Copyable {
 
     /// Check that entity contains target.
     /// - Parameter entity: The entity to check.

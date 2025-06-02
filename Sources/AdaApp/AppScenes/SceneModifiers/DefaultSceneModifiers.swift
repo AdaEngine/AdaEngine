@@ -57,13 +57,15 @@ struct WindowTitleSceneModifier: SceneModifier {
     }
 }
 
-/// Insert plugin to app.
-struct AddPluginModifier<T: Plugin>: SceneModifier {
-    let plugin: T
+/// Add plugins to app.
+struct AddPluginsModifier<each T: Plugin>: SceneModifier {
+    let plugins: (repeat (each T))
 
     func body(content: Content) -> some AppScene {
         content.transformAppWorlds { worlds in
-            worlds.addPlugin(plugin)
+//            for plugin in repeat (each plugins) {
+//                worlds.addPlugin(plugin)
+//            }
         }
     }
 }

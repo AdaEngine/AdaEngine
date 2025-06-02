@@ -92,7 +92,7 @@ private struct _EmbeddableApp: AdaApp.App {
     
     var body: some AppScene {
         EmptyWindow()
-            .insertPlugin(
+            .addPlugins(
                 DefaultPlugins()
                     .set(WindowPlugin(primaryWindow: window))
             )
