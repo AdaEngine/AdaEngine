@@ -63,9 +63,9 @@ struct AddPluginsModifier<each T: Plugin>: SceneModifier {
 
     func body(content: Content) -> some AppScene {
         content.transformAppWorlds { worlds in
-//            for plugin in repeat (each plugins) {
-//                worlds.addPlugin(plugin)
-//            }
+            for plugin in repeat (each plugins) {
+                worlds.addPlugin(plugin)
+            }
         }
     }
 }
