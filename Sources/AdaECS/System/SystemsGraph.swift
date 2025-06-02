@@ -8,7 +8,7 @@
 import OrderedCollections
 
 /// Contains information about execution order of systems.
-public final class SystemsGraph: @unchecked Sendable {
+public struct SystemsGraph: Sendable, ~Copyable {
 
     /// The edge of the systems graph.
     struct Edge: Equatable {
@@ -56,14 +56,14 @@ public final class SystemsGraph: @unchecked Sendable {
     /// Add a node of the current system. If a node exists with the same type, it will be overridden.
     /// - Note: Systems will be added with nodes without edges.
     /// - Parameter system: The system to add.
-    func addSystem<T: System>(_ system: T) {
+    mutating func addSystem<T: System>(_ system: T) {
         let node = Node(name: T.swiftName, system: system, dependencies: T.dependencies)
         self.nodes[node.name] = node
     }
     
     /// Create an execution order for all systems.
     /// - Complexity: O(n^2)
-    func linkSystems() {
+    mutating func linkSystems() {
         for node in nodes.values {
             let systemName = node.name
             
@@ -119,7 +119,7 @@ public final class SystemsGraph: @unchecked Sendable {
     /// Try to add an edge. If a dependency is cycled, it will be skipped with an error.
     /// - Parameter outputSystemName: The name of the output system.
     /// - Parameter inputSystemName: The name of the input system.
-    private func tryAddEdge(from outputSystemName: String, to inputSystemName: String) {
+    private mutating func tryAddEdge(from outputSystemName: String, to inputSystemName: String) {
         var outputNode = self.nodes[outputSystemName]
         var inputNode = self.nodes[inputSystemName]
         
@@ -166,7 +166,7 @@ public final class SystemsGraph: @unchecked Sendable {
     
 }
 
-extension SystemsGraph: CustomDebugStringConvertible {
+extension SystemsGraph {
     /// The debug description of the systems graph.
     public var debugDescription: String {
         var string = ""

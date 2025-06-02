@@ -29,7 +29,7 @@ public final class MainLoop {
 
     public func setup() {
         let physicsTickPerSecond = Engine.shared.physicsTickPerSecond
-        self.fixedTimestep.step = 1 / TimeInterval(physicsTickPerSecond)
+        self.fixedTimestep.step = 1 / AdaUtils.TimeInterval(physicsTickPerSecond)
     }
     
     public func iterate(_ appWorlds: AppWorlds) async throws {
@@ -41,7 +41,7 @@ public final class MainLoop {
         defer { self.isIterating = false }
 
         let now = Time.absolute
-        let deltaTime = TimeInterval(max(0, now - self.lastUpdate))
+        let deltaTime = AdaUtils.TimeInterval(max(0, now - self.lastUpdate))
         self.lastUpdate = now
 
         // that little hack to avoid big delta in the first tick, because delta is equals Time.absolute value.

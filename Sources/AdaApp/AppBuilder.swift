@@ -20,7 +20,7 @@ public protocol WorldExctractor {
 
 /// A class that represents a collection of worlds.
 @MainActor
-public class AppWorlds {
+public final class AppWorlds {
     /// The main world.
     public var mainWorld: World
 
@@ -147,15 +147,18 @@ public extension AppWorlds {
         return self
     }
 
-    /// Insert a resource to the main world.
+    /// Insert a resource to the world.
     /// - Parameter resource: The resource to insert.
     /// - Returns: The app builder.
     @discardableResult
-    func insertResource<T: Resource>(_ resource: T) -> Self {
+    func insertResource<T: Resource>(_ resource: consuming T) -> Self {
         self.mainWorld.insertResource(resource)
         return self
     }
 
+    /// Get resource from the world.
+    /// - Parameter resource: The resource to insert.
+    /// - Returns: The app builder.
     func getResource<T: Resource>(_ resource: T.Type) -> T? {
         return self.mainWorld.getResource(resource)
     }

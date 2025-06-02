@@ -71,7 +71,7 @@ class ParentMovementSystem: System {
         time += context.deltaTime
         context.world.performQuery(Self.query).forEach { entity in
             var transform = entity.components[Transform.self]!
-            transform.position.x = Math.sin(time) * 1
+            transform.position.x = Float(Math.sin(time)) * 1
             entity.components += transform
         }
     }

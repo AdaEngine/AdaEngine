@@ -150,7 +150,7 @@ public struct SpriteRenderSystem: Sendable {
         }
 
         let device = RenderEngine.shared.renderDevice
-        let vertexBuffer = device.createVertexBuffer(
+        var vertexBuffer = device.createVertexBuffer(
             length: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride,
             binding: 0
         )
@@ -175,7 +175,7 @@ public struct SpriteRenderSystem: Sendable {
 
         vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride)
 
-        let quadIndexBuffer = device.createIndexBuffer(
+        var quadIndexBuffer = device.createIndexBuffer(
             format: .uInt32,
             bytes: &quadIndices,
             length: indicies

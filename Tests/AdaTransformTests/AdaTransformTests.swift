@@ -5,23 +5,25 @@ import Math
 @testable import AdaTransform
 
 @Suite("AdaTransform Tests")
+@MainActor
 struct AdaTransformTests: Sendable {
 
     let world: AppWorlds
 
     init() async throws {
-        self.world = await AppWorlds(mainWorld: World())
+        self.world = AppWorlds(mainWorld: World())
             .addPlugin(TransformPlugin())
 
-        try await self.world.build()
+        try self.world.build()
     }
 
     @Test("Global transform test")
     func globalTransformTest() async throws {
         let entity = Entity()
         entity.components += Transform()
-
-        await world.update()
+        self.world.addEntity(entity)
+        self.world.mainWorld.flush()
+        await world.mainWorld.runScheduler(.postUpdate, deltaTime: 1 / 60)
 
         let globalTransform = try #require(entity.components[GlobalTransform.self])
         #expect(globalTransform.matrix == Transform3D.identity)
@@ -37,7 +39,10 @@ struct AdaTransformTests: Sendable {
         child.components += childLocalTransform
         parent.addChild(child)
 
-        await world.update()
+        self.world.addEntity(parent)
+        self.world.addEntity(child)
+        self.world.mainWorld.flush()
+        await world.mainWorld.runScheduler(.postUpdate, deltaTime: 1 / 60)
 
         let childGlobalTransform = try #require(child.components[GlobalTransform.self])
         let expectedChildGlobalPosition = Vector3(x: 15, y: 20, z: 30)  // parent position + child local position
@@ -46,8 +51,9 @@ struct AdaTransformTests: Sendable {
 
         // Test moving parent
         parent.components[Transform.self]?.position = Vector3(x: 100, y: 200, z: 300)
+        self.world.mainWorld.flush()
 
-        await world.update()
+        await world.mainWorld.runScheduler(.postUpdate, deltaTime: 1 / 60)
 
         let updatedChildGlobalTransform = try #require(child.components[GlobalTransform.self])
         let expectedUpdatedChildGlobalPosition = Vector3(x: 105, y: 200, z: 300)  // new parent position + child local position

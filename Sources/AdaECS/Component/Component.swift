@@ -7,12 +7,12 @@
 
 import AdaUtils
 
-// TODO: (Vlad) looks like codable isn't great solutions
+// TODO: (Vlad) Component doesn't support noncopyable types. we should fix it using macro.
 
 /// The base component in ECS paradigm.
 /// Component contains data described some entity characteristic in the game world, like:
 /// color, transformation and etc.
-public protocol Component: QueryTarget { }
+public protocol Component: QueryTarget, ~Copyable { }
 
 /// Provides the events related to components.
 public enum ComponentEvents {

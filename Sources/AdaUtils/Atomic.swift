@@ -36,6 +36,9 @@ public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {
         self._value = try value()
     }
 
+    /// Get a dynamic member from the isolated value.
+    /// - Parameter keyPath: The key path to the dynamic member.
+    /// - Returns: The dynamic member.
     public subscript<Subject: Sendable>(
         dynamicMember keyPath: KeyPath<Value, Subject>
     ) -> Subject {
@@ -44,6 +47,8 @@ public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {
         }
     }
 
+    /// Initialize a new isolated value.
+    /// - Parameter value: The value to isolate.
     public init(wrappedValue value: consuming Value) {
         self._value = value
     }

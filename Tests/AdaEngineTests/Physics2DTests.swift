@@ -19,6 +19,13 @@ struct Physics2DTests {
     init() async throws {
         let world = AppWorlds(mainWorld: World())
         self.world = world
+        world.insertResource(DefaultSchedulerOrder(order: [.update, .fixedUpdate, .postUpdate]))
+        world.mainWorld.setSchedulers([
+            .update,
+            .fixedUpdate,
+            .postUpdate
+        ])
+
         world
             .addPlugin(Physics2DPlugin())
             .addPlugin(TransformPlugin())
@@ -38,7 +45,8 @@ struct Physics2DTests {
         entity.components += Transform(position: [0, -10, 0])
         
         world.addEntity(entity)
-        await world.update()
+        world.mainWorld.flush()
+        await world.mainWorld.runScheduler(.fixedUpdate, deltaTime: 1 / 60)
         
         let runtimeBody = try #require(entity.components[Collision2DComponent.self]?.runtimeBody)
         #expect(runtimeBody.getPosition() == [0, -10])
@@ -86,7 +94,7 @@ struct Physics2DTests {
         box.components += physicsBody
         box.components += Transform(position: .zero)
         world.addEntity(box)
-        
+        world.mainWorld.flush()
         await world.update()
         
         box.components[PhysicsBody2DComponent.self]?.applyForceToCenter([100, 0], wake: true)

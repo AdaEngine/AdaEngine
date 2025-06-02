@@ -2,9 +2,8 @@ import AdaEngine
 
 @main
 struct MyFirstGameApp: App {
-    var scene: some AppScene {
-        GameAppScene {
-            Scene()
-        }
+    var body: some AppScene {
+        EmptyWindow()
+            .addPlugins(DefaultPlugins())
     }
 }

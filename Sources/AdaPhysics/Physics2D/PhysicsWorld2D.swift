@@ -172,10 +172,10 @@ public final class PhysicsWorld2D: @preconcurrency Codable {
     // MARK: - Internal
     
     @MainActor
-    func updateSimulation(_ delta: Float) {
+    func updateSimulation(_ delta: TimeInterval) {
         b2World_Step(
             worldId,
-            delta, /* timeStep */
+            Float(delta), /* timeStep */
             Int32(self.substepIterations) /* velocityIterations */
         )
     }
