@@ -169,17 +169,20 @@ extension SystemMacro: PeerMacro {
         let structDecl: DeclSyntax = """
         \(availability)struct \(raw: funcName)System: AdaECS.System {
         \(raw: propertyDecls.joined(separator: "\n\n"))
+        
         \(availability)init(world: AdaECS.World) { }
+        
         \(availability)func update(context: UpdateContext) {
             \(raw: funcName)(\(raw: paramNames.map { "\($0 ? "" : "\($1): ")_\($1)" }.joined(separator: ", ")))
         }
+        
         \(availability) var queries: AdaECS.SystemQueries {
             return AdaECS.SystemQueries(queries: [\(raw: queryVars.joined(separator: ", "))])
         }
+        
         \(raw: dependencies.isEmpty ? "" : "\(availability)var dependencies: [AdaECS.SystemDependency] { [\(dependencies.joined(separator: ", "))] }")
         }
         """
-        
         return [structDecl]
     }
 }

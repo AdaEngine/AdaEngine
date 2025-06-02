@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaUtils
+import AdaTransform
 import box2d
 import Math
 @_spi(Internal) import AdaRender
@@ -41,15 +42,13 @@ public struct DebugPhysicsExctract2DSystem {
     )
     private var entities
     
-    @EntityQuery(where:
-        .has(Camera.self) && .has(GlobalViewUniform.self)
-    )
+    @Query<Camera, GlobalTransform>
     private var cameras
     
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        guard let camera = self.cameras.first else {
+        guard let (camera, globalTransform) = self.cameras.first else {
             return
         }
         
@@ -229,7 +228,7 @@ public struct Physics2DDebugDrawSystem: Sendable {
     @Query<ExctractedPhysicsMesh2DDebug>
     private var meshes
 
-//    @ResourceQuery
+//    @ResQuery
 //    private var meshDrawPass: Mesh2DDrawPass?
 
     public init(world: World) {}

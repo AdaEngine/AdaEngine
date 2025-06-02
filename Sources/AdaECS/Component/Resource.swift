@@ -9,7 +9,7 @@ import Foundation
 
 /// The singleton resource that passed to the ecs world.
 /// Only one instance of the resource is allowed in the world.
-public protocol Resource: Sendable { }
+public protocol Resource: Sendable, ~Copyable { }
 
 // TODO: (Vlad) Add components list to editor and generate file with registered components.
 // TODO: (Vlad) We can think about `swift_getMangledTypeName` and `swift_getTypeByMangledNameInContext`

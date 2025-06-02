@@ -8,7 +8,7 @@
 import AdaUtils
 
 /// Contains information about current world update.
-public final class WorldUpdateContext: @unchecked Sendable {
+public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
     /// The updating world.
     public let world: World
 
@@ -79,7 +79,7 @@ public protocol System {
     @preconcurrency init(world: World)
 
     /// Updates entities every frame.
-    func update(context: UpdateContext)
+    func update(context: inout UpdateContext)
 
     /// An array of queries for this system.
     /// That needs to be updated queries results for this system.

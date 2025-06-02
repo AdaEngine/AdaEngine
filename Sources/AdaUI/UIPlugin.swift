@@ -17,8 +17,10 @@ public struct UIPlugin: Plugin {
     public func setup(in app: AppWorlds) {
         UIComponent.registerComponent()
 
-        app.addPlugin(PrimaryWindowPlugin())
-        app.addSystem(UIComponentSystem.self)
+        app
+            .addPlugin(PrimaryWindowPlugin())
+            .addSystem(GraphicsContextInitializedSystem.self)
+            .addSystem(UIComponentSystem.self)
     }
 }
 
@@ -42,4 +44,12 @@ struct PrimaryWindowPlugin: Plugin {
 
 public struct PrimaryWindow: Resource {
     public let window: UIWindow
+}
+
+@SystemFunc
+func GraphicsContextInitialized(
+    _ world: Ref<World>,
+    _ kek: ResQuery<PrimaryWindow>
+) {
+    
 }

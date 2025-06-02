@@ -22,7 +22,7 @@ struct EntityRecord: Sendable {
 
 /// Types for defining Archetypes, collections of entities that have the same set of
 /// components.
-public final class Archetype: Hashable, Identifiable, @unchecked Sendable {
+public struct Archetype: Hashable, Identifiable, Sendable {
     public let id: Int
     public internal(set) var entities: SparseArray<Entity> = []
     
@@ -49,7 +49,7 @@ public final class Archetype: Hashable, Identifiable, @unchecked Sendable {
     }
     
     @inline(__always)
-    func append(_ entity: Entity) -> EntityRecord {
+    mutating func append(_ entity: Entity) -> EntityRecord {
         let row: Int
         
         if !friedEntities.isEmpty {
@@ -68,13 +68,13 @@ public final class Archetype: Hashable, Identifiable, @unchecked Sendable {
     }
     
     @inline(__always)
-    func remove(at index: Int) {
+    mutating func remove(at index: Int) {
         self.entities.remove(at: index)
         self.friedEntities.append(index)
     }
     
     @inline(__always)
-    func clear() {
+    mutating func clear() {
         self.componentsBitMask = BitSet()
         self.friedEntities.removeAll()
         self.entities.removeAll()

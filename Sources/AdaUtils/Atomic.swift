@@ -10,7 +10,7 @@ import Foundation
 @propertyWrapper
 @dynamicMemberLookup
 public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {
-    
+
     /// The lock-isolated value.
     public var wrappedValue: Value {
         get {
@@ -18,24 +18,23 @@ public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {
                 self._value
             }
         }
-        
         set {
             self.lock.sync {
                 self._value = newValue
             }
         }
     }
-    
+
     private var _value: Value
     private let lock = NSRecursiveLock()
-    
+
     /// Initializes lock-isolated state around a value.
     ///
     /// - Parameter value: A value to isolate with a lock.
     public init(_ value: @autoclosure @Sendable () throws -> Value) rethrows {
         self._value = try value()
     }
-    
+
     public subscript<Subject: Sendable>(
         dynamicMember keyPath: KeyPath<Value, Subject>
     ) -> Subject {
@@ -43,19 +42,20 @@ public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {
             self._value[keyPath: keyPath]
         }
     }
-    
-    public init(wrappedValue value: Value) {
+
+    public init(wrappedValue value: consuming Value) {
         self._value = value
     }
 }
 
 extension NSRecursiveLock {
-  @inlinable @discardableResult
-  @_spi(Internal) public func sync<R>(work: () throws -> R) rethrows -> R {
-    self.lock()
-    defer { self.unlock() }
-    return try work()
-  }
+    @inlinable @discardableResult
+    @_spi(Internal)
+    public func sync<R>(work: () throws -> R) rethrows -> R {
+        self.lock()
+        defer { self.unlock() }
+        return try work()
+    }
 }
 
 extension LocalIsolated: ExpressibleByBooleanLiteral where Value == Bool {
