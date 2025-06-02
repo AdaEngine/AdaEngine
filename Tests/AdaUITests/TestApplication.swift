@@ -5,7 +5,7 @@
 //  Created by vladislav.prusakov on 12.08.2024.
 //
 
-@testable import AdaUI
+@_spi(Internal) @testable import AdaUI
 @_spi(Internal) @testable import AdaPlatform
 import AdaInput
 
@@ -28,5 +28,6 @@ extension Application {
     @MainActor
     static func prepareForTest() throws {
         self.shared = try TestApplication()
+        UIWindowManager.setShared(self.shared.windowManager)
     }
 }
