@@ -8,7 +8,9 @@
 /// Create a window with empty content.
 public struct EmptyWindow: AppScene {
 
+    /// Initialize a new empty window.
     public init() {}
 
+    /// The body of the empty window.
     public var body: some AppScene { fatalError() }
 }

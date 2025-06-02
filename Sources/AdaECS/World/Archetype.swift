@@ -7,31 +7,44 @@
 
 import AdaUtils
 
+/// The unique identifier of the component.
 @_spi(Internal)
 public struct ComponentId: Hashable, Equatable, Sendable {
+    /// The unique identifier of the component.
     let id: Int
 }
 
+/// The record of the entity.
 struct EntityRecord: Sendable {
-    // which archetype contains info about an entity
+    /// The unique identifier of the archetype that contains the entity.
     var archetypeId: Archetype.ID
     
-    // index of entity in archetype
+    /// The index of the entity in the archetype.
     var row: Int
 }
 
 /// Types for defining Archetypes, collections of entities that have the same set of
 /// components.
 public struct Archetype: Hashable, Identifiable, Sendable {
+    /// The unique identifier of the archetype.
     public let id: Int
+
+    /// The entities in the archetype.
     public internal(set) var entities: SparseArray<Entity> = []
-    
+
+    /// The fried entities in the archetype.
     @usableFromInline
     private(set) var friedEntities: [Int] = []
     
+    /// The edge of the archetype.
     var edge: Edge = Edge()
+
+    /// The components bit mask of the archetype.
     var componentsBitMask: BitSet = BitSet()
     
+    /// Initialize a new archetype.
+    /// - Parameter id: The unique identifier of the archetype.
+    /// - Parameter entities: The entities in the archetype.
     private init(
         id: Archetype.ID,
         entities: [Entity] = [],
@@ -43,11 +56,17 @@ public struct Archetype: Hashable, Identifiable, Sendable {
         self.friedEntities.reserveCapacity(30)
     }
     
+    /// Create a new archetype.
+    /// - Parameter index: The index of the archetype.
+    /// - Returns: A new archetype.
     @inline(__always)
     static func new(index: Int) -> Archetype {
         return Archetype(id: index)
     }
     
+    /// Append an entity to the archetype.
+    /// - Parameter entity: The entity to append.
+    /// - Returns: The record of the entity.
     @inline(__always)
     mutating func append(_ entity: Entity) -> EntityRecord {
         let row: Int
@@ -67,12 +86,15 @@ public struct Archetype: Hashable, Identifiable, Sendable {
         )
     }
     
+    /// Remove an entity from the archetype.
+    /// - Parameter index: The index of the entity to remove.
     @inline(__always)
     mutating func remove(at index: Int) {
         self.entities.remove(at: index)
         self.friedEntities.append(index)
     }
     
+    /// Clear the archetype.
     @inline(__always)
     mutating func clear() {
         self.componentsBitMask = BitSet()
@@ -83,12 +105,18 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     
     // MARK: - Hashable
     
+    /// Hash the archetype.
+    /// - Parameter hasher: The hasher to hash the archetype.
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(componentsBitMask)
         hasher.combine(entities)
     }
     
+    /// Check if two archetypes are equal.
+    /// - Parameter lhs: The left archetype.
+    /// - Parameter rhs: The right archetype.
+    /// - Returns: True if the two archetypes are equal, otherwise false.
     public static func == (lhs: Archetype, rhs: Archetype) -> Bool {
         return lhs.entities == rhs.entities &&
         lhs.id == rhs.id && lhs.componentsBitMask == rhs.componentsBitMask
@@ -96,6 +124,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
 }
 
 extension Archetype: CustomStringConvertible {
+    /// The description of the archetype.
     public var description: String {
         """
         Archetype(
@@ -108,8 +137,12 @@ extension Archetype: CustomStringConvertible {
 }
 
 extension Archetype {
+    /// The edge of the archetype.
     struct Edge: Hashable, Equatable, Sendable {
+        /// The components to add.
         var add: [ComponentId : Archetype] = [:]
+
+        /// The components to remove.
         var remove: [ComponentId : Archetype] = [:]
     }
 }

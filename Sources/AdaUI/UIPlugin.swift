@@ -56,7 +56,7 @@ public struct PrimaryWindow: Resource {
     public let window: UIWindow
 }
 
-@SystemFunc
+@PlainSystem
 func GraphicsContextInitialized(
     _ world: Ref<World>,
     _ kek: ResQuery<PrimaryWindow>

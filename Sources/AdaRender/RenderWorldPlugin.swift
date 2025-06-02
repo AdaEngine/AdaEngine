@@ -9,10 +9,13 @@ import AdaApp
 import AdaECS
 import AdaUtils
 
+/// The plugin that sets up the render world.
 public struct RenderWorldPlugin: Plugin {
 
     public init() {}
 
+    /// Setup the render world.
+    /// - Parameter app: The app to setup the render world for.
     public func setup(in app: AppWorlds) {
         VisibleEntities.registerComponent()
         Visibility.registerComponent()
@@ -38,6 +41,7 @@ public struct RenderWorldPlugin: Plugin {
     }
 }
 
+/// The system that renders the world.
 @System
 struct RenderWorldSystem {
 
@@ -60,6 +64,7 @@ struct RenderWorldSystem {
     }
 }
 
+/// The extractor that extracts the main world to the render world.
 struct RenderWorldExctractor: WorldExctractor {
     func exctract(from mainWorld: World, to renderWorld: World) {
         renderWorld.clear()
@@ -67,11 +72,12 @@ struct RenderWorldExctractor: WorldExctractor {
     }
 }
 
+/// The resource that contains the main world.
 struct MainWorld: Resource {
     var world: World
 }
 
-/// A property wrapper that allows you to query a resource in a system.
+/// A property wrapper that allows you to extract a resource from the main world.
 @propertyWrapper
 public final class Extract<T: SystemQuery>: @unchecked Sendable {
     private var _value: T!
@@ -79,12 +85,17 @@ public final class Extract<T: SystemQuery>: @unchecked Sendable {
         self._value
     }
 
+    /// Initialize a new extract.
     public init() { }
 
+    /// Initialize a new extract.
+    /// - Parameter from: The world to extract the resource from.
     public init(from world: World) {
         self._value = T.init(from: world)
     }
 
+    /// Call the extract.
+    /// - Returns: The extracted resource.
     public func callAsFunction() -> T {
         self._value
     }
@@ -102,9 +113,11 @@ extension Extract: SystemQuery {
 }
 
 public extension SchedulerName {
+    /// The render scheduler.
     static let render = SchedulerName(rawValue: "RenderWorld_Render")
 }
 
 public extension AppWorldName {
+    /// The render world that will render the scene.
     static let renderWorld = AppWorldName(rawValue: "RenderWorld")
 }

@@ -17,6 +17,9 @@ public struct RelationshipComponent {
     /// Contains identifiers of child entities.
     public var children: OrderedSet<Entity.ID>
     
+    /// Initialize a new relationship component.
+    /// - Parameter parent: The parent entity identifier.
+    /// - Parameter children: The children entity identifiers.
     public init(parent: Entity.ID? = nil, children: OrderedSet<Entity.ID> = []) {
         self.parent = parent
         self.children = children
@@ -47,7 +50,8 @@ public extension Entity {
         return self.world?.getEntityByID(parent)
     }
     
-    /// Add child entity
+    /// Add child entity.
+    /// - Parameter entity: The entity to add as a child.
     /// - Warning: Will throw assert error if entity contains that child.
     func addChild(_ entity: Entity) {
         assert(!self.children.contains { $0 === entity }, "Currently has entity in child")
@@ -62,6 +66,7 @@ public extension Entity {
     }
     
     /// Remove entity from children.
+    /// - Parameter entity: The entity to remove from children.
     func removeChild(_ entity: Entity) {
         guard var relationship = self.components[RelationshipComponent.self] else {
             return

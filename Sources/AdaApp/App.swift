@@ -9,6 +9,7 @@
 @MainActor @preconcurrency
 public protocol App: Sendable {
 
+    /// The content of the app.
     associatedtype Content: AppScene
 
     /// Creates an instance of the app using the body that you define for its content.
