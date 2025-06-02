@@ -41,7 +41,7 @@ public struct VisibilitySystem {
     
     public init(world: World) { }
     
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         self.addVisibilityIfNeeded()
         
         self.cameras.forEach { entity in
@@ -65,7 +65,7 @@ public struct VisibilitySystem {
     }
     
     /// Filter entities for passed camera.
-    private func filterVisibileEntities(context: UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
+    private func filterVisibileEntities(context: borrowing UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()
         let filtredEntities = self.entities.filter { entity in

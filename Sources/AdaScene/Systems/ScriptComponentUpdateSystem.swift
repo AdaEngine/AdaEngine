@@ -19,9 +19,11 @@ public struct ScriptComponentUpdateSystem {
 
     public init(world: World) { }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
+        let scene = context.scene
+        let world = context.world
+        let deltaTime = context.deltaTime
         context.taskGroup.addTask { @MainActor in
-            let scene = context.scene
             let window = scene?.window
             var renderContext: UIGraphicsContext?
 
@@ -30,7 +32,7 @@ public struct ScriptComponentUpdateSystem {
                 renderContext?.beginDraw(in: window.frame.size, scaleFactor: 1)
             }
 
-            context.world.getEntities().forEach { entity in
+            world.getEntities().forEach { entity in
                 let components = entity.components
                 .buffer.values.compactMap { $0 as? ScriptableComponent }
 
@@ -43,17 +45,17 @@ public struct ScriptComponentUpdateSystem {
                         component.isAwaked = true
                     }
 
-                    if let inputManager = context.world.getResource(Input.self) {
+                    if let inputManager = world.getResource(Input.self) {
                         component.onEvent(inputManager.eventsPool)
                     }
-                    component.onUpdate(context.deltaTime)
+                    component.onUpdate(deltaTime)
 
 //                    if fixedTimeResult.isFixedTick {
 //                        component.onPhysicsUpdate(fixedTimeResult.fixedTime)
 //                    }
 
                     if let renderContext {
-                        component.onUpdateGUI(context.deltaTime, context: renderContext)
+                        component.onUpdateGUI(deltaTime, context: renderContext)
                     }
                 }
             }

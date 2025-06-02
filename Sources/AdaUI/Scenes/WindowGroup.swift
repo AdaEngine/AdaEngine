@@ -41,7 +41,7 @@ struct WindowGroupSystem {
 
     init(world: World) { }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         if isAllocated {
             return
         }

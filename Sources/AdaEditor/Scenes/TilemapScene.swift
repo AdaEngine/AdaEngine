@@ -257,7 +257,7 @@ struct CamMovementSystem: System {
     
     init(world: World) { }
     
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
 //        let tileEntity: Entity = context.world.performQuery(Self.tileMap).first!
         

@@ -17,7 +17,7 @@ public struct BatchTransparent2DItemsSystem {
 
     public init(world: World) { }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         self.query.forEach { renderItems in
             let items = renderItems.wrappedValue.sorted().items
             var batchedItems: [Transparent2DRenderItem] = []

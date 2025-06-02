@@ -56,7 +56,7 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
 ///
 ///     init(world: World) {}
 ///
-///     func update(context: UpdateContext) {
+///     func update(context: inout UpdateContext) {
 ///         self.query.forEach { entity in
 ///             // Get transform component from entity
 ///             let transform = entity.components[Transform.self]!

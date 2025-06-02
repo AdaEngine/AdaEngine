@@ -43,14 +43,15 @@ public struct FixedTimeSchedulerSystem {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: 60)
     }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         let result = self.fixedTimestep.advance(with: context.deltaTime)
 
         if result.isFixedTick {
             let step = self.fixedTimestep.step
+            let world = context.world
             context.taskGroup.addTask { [order] in
                 for scheduler in order {
-                    await context.world.runScheduler(scheduler, deltaTime: step)
+                    await world.runScheduler(scheduler, deltaTime: step)
                 }
             }
         }
@@ -68,9 +69,11 @@ public struct PostUpdateSchedulerRunner: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
+        let world = context.world
+        let deltaTime = context.deltaTime
         context.taskGroup.addTask {
-            await context.world.runScheduler(.postUpdate, deltaTime: context.deltaTime)
+            await world.runScheduler(.postUpdate, deltaTime: deltaTime)
         }
     }
 }

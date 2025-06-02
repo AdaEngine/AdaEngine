@@ -163,7 +163,7 @@ struct PlayerMovementSystem {
     init(world: World) { }
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         for (camera, cameraTransform, globalTransform) in cameraQuery {
             let speed: Float = 2 * context.deltaTime
 
@@ -335,7 +335,7 @@ struct SpawnPhysicsBodiesSystem {
     
     init(world: World) { }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         let result = fixedTimestep.advance(with: context.deltaTime)
         if !result.isFixedTick {
             return

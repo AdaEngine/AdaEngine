@@ -67,7 +67,7 @@ class ParentMovementSystem: System {
 
     required init(world: World) { }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         time += context.deltaTime
         context.world.performQuery(Self.query).forEach { entity in
             var transform = entity.components[Transform.self]!

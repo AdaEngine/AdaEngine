@@ -22,7 +22,7 @@ public struct CameraSystem: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         self.query.forEach { entity, camera, globalTransform in
             let viewMatrix = globalTransform.matrix.inverse
             camera.viewMatrix = viewMatrix
@@ -124,7 +124,7 @@ public struct ExtractCameraSystem {
 
     public init(world: World) { }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         self.query.wrappedValue.forEach { entity, camera, _, _ in
             let cameraEntity = Entity(name: "ExtractedCameraEntity")
             if
