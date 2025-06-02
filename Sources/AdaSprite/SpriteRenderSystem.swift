@@ -221,7 +221,7 @@ public struct ExtractedSprite: Sendable {
 }
 
 /// Exctract sprites to RenderWorld for future rendering.
-@SystemFunc(dependencies: [
+@PlainSystem(dependencies: [
     .before(SpriteRenderSystem.self)
 ])
 public func ExtractSprite(
@@ -249,7 +249,7 @@ public func ExtractSprite(
     world.wrappedValue.insertResource(extractedSprites)
 }
 
-@SystemFunc
+@PlainSystem
 func UpdateBoundings(
     _ entitiesWithTransform: Query<Entity, Transform>
 ) {

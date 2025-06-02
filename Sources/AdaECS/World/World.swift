@@ -96,21 +96,28 @@ public final class World: @unchecked Sendable, Codable {
     }
 
     /// Insert a scheduler before or after another scheduler.
+    /// - Parameter scheduler: The scheduler to insert.
+    /// - Parameter after: The scheduler after which to insert the new scheduler.
     public func insertScheduler(_ scheduler: Scheduler, after: SchedulerName) {
         schedulers.insert(scheduler, after: after)
     }
 
     /// Insert a scheduler before or before another scheduler.
+    /// - Parameter scheduler: The scheduler to insert.
+    /// - Parameter before: The scheduler before which to insert the new scheduler.
     public func insertScheduler(_ scheduler: Scheduler, before: SchedulerName) {
         schedulers.insert(scheduler, before: before)
     }
 
     /// Contains scheduler
+    /// - Parameter scheduler: The scheduler to check.
+    /// - Returns: True if the scheduler exists, otherwise false.
     public func containsScheduler(_ scheduler: SchedulerName) -> Bool {
         self.schedulers.contains(scheduler)
     }
 
     /// Add schedulers.
+    /// - Parameter schedulers: The schedulers to add.
     public func addSchedulers(_ schedulers: SchedulerName...) {
         schedulers.forEach {
             self.schedulers.append(Scheduler(name: $0))
@@ -135,6 +142,7 @@ public final class World: @unchecked Sendable, Codable {
     /// Add new system to the world.
     /// - Warning: System should be added before build.
     /// - Parameter systemType: System type.
+    /// - Returns: A world instance.
     @discardableResult
     public func addSystem<T: System>(_ systemType: T.Type) -> Self {
         return addSystem(systemType, on: .update)
@@ -144,6 +152,7 @@ public final class World: @unchecked Sendable, Codable {
 public extension World {
     /// Get all entities in world.
     /// - Complexity: O(n)
+    /// - Returns: All entities in world.
     func getEntities() -> [Entity] {
         return self.records.values.elements
             .map { record in
@@ -197,6 +206,7 @@ public extension World {
     /// Add a new entity to the world. This entity will be available on the next update tick.
     /// - Parameter entity: The entity to add.
     /// - Parameter needsCopy: If true, the entity will be copied before adding to the world.
+    /// - Returns: A world instance.
     @discardableResult
     func addEntity(_ entity: Entity) -> Self {
         entity.world = self
@@ -210,6 +220,7 @@ public extension World {
 
     /// Remove entity from world.
     /// - Parameter recursively: also remove entity child.
+    /// - Returns: A world instance.
     @discardableResult
     func removeEntity(_ entity: Entity, recursively: Bool = false) -> Self {
         self.removeEntityRecord(entity.id)
@@ -247,6 +258,7 @@ public extension World {
 
     /// Insert a resource into the world.
     /// - Parameter resource: The resource to insert.
+    /// - Returns: A world instance.
     @discardableResult
     func insertResource<T: Resource>(_ resource: consuming T) -> Self {
         let componentId = self.componentsStorage.getOrRegisterResource(T.self)
@@ -254,6 +266,9 @@ public extension World {
         return self
     }
 
+    /// Insert a resource into the world.
+    /// - Parameter resource: The resource to insert.
+    /// - Returns: A world instance.
     @discardableResult
     func insertResource(_ resource: consuming any Resource) -> Self {
         let resource = resource
@@ -271,10 +286,14 @@ public extension World {
     /// Get a resource from the world.
     /// - Parameter resource: The resource to get.
     /// - Returns: The resource if it exists, otherwise nil.
+    /// - Complexity: O(1)
+    /// - Returns: The resource if it exists, otherwise nil.
     borrowing func getResource<T: Resource>(_ resource: T.Type) -> T? {
         return self.componentsStorage.getResource(resource)
     }
 
+    /// Get all resources from the world.
+    /// - Returns: All resources in world.
     func getResources() -> [any Resource] {
         return Array(self.componentsStorage.resourceComponents.values)
     }
@@ -282,6 +301,7 @@ public extension World {
     /// Check if component was changed for entity.
     /// - Parameter component: Component identifier.
     /// - Parameter entity: Entity.
+    /// - Complexity: O(1)
     /// - Returns: True if component was changed for entity, otherwise false.
     func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
         return self.updatedComponents[entity]?.contains(T.identifier) ?? false
@@ -310,6 +330,7 @@ public extension World {
 
     /// Run a specific scheduler.
     /// - Parameter scheduler: Scheduler name.
+    /// - Parameter deltaTime: Time interval since last update.
     @MainActor
     func runScheduler(_ scheduler: SchedulerName, deltaTime: AdaUtils.TimeInterval) async {
         guard let scheduler = self.schedulers.getScheduler(scheduler) else {
@@ -334,6 +355,8 @@ public extension World {
         }
     }
 
+    /// Clear trackers for entities, components and resources.
+    /// - Complexity: O(1)
     func clearTrackers() {
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
@@ -341,6 +364,7 @@ public extension World {
     }
 
     /// Remove all data from world.
+    /// - Complexity: O(n)
     func clear() {
         self.records.removeAll(keepingCapacity: true)
         self.updatedComponents.removeAll(keepingCapacity: true)
@@ -489,7 +513,7 @@ private extension World {
 }
 
 extension World {
-    struct ComponentsStorage {
+    struct ComponentsStorage: Sendable {
         var components: [ComponentId] = []
         var resourceIds: [ObjectIdentifier: ComponentId] = [:]
         var resourceComponents: [ComponentId: any Resource] = [:]

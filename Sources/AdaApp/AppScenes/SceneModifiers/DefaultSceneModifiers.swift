@@ -69,6 +69,8 @@ struct AddPluginModifier<T: Plugin>: SceneModifier {
 }
 
 public extension AppScene {
+    /// Transform the app worlds.
+    /// - Parameter transform: The transform to apply to the app worlds.
     @MainActor
     func transformAppWorlds(
         transform: @escaping @MainActor (AppWorlds) -> Void
@@ -81,6 +83,10 @@ public extension AppScene {
         )
     }
 
+    /// Update the resource of the app worlds.
+    /// - Parameter type: The type of the resource to update.
+    /// - Parameter keyPath: The key path of the resource to update.
+    /// - Parameter value: The value to update the resource with.
     @MainActor
     func updateResource<T: Resource, Value>(
         of type: T.Type,

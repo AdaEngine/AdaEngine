@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// A property wrapper that allows you to isolate a value with a lock.
 @propertyWrapper
 @dynamicMemberLookup
 public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {

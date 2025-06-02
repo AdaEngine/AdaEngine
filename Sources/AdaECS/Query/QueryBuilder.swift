@@ -7,11 +7,21 @@
 
 /// A protocol for building queries.
 public protocol QueryBuilder {
+
+    /// The components of the query builder.
     associatedtype Components
+
+    /// The component types of the query builder.
     associatedtype ComponentTypes
 
+    /// Predicate for the query builder.
+    /// - Parameter archetype: The archetype to check.
+    /// - Returns: True if the archetype satisfies the predicate, otherwise false.
     static func predicate(in archetype: Archetype) -> Bool
 
+    /// Get the query target from an entity.
+    /// - Parameter entity: The entity to get the query target from.
+    /// - Returns: The query target.
     static func getQueryTarget(from entity: Entity) -> Components
 }
 

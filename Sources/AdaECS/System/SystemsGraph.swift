@@ -10,41 +10,59 @@ import OrderedCollections
 /// Contains information about execution order of systems.
 public final class SystemsGraph: @unchecked Sendable {
 
+    /// The edge of the systems graph.
     struct Edge: Equatable {
+        /// The output node of the edge.
         let outputNode: String
+
+        /// The input node of the edge.
         let inputNode: String
     }
     
+    /// The node of the systems graph.
     struct Node: @unchecked Sendable {
-        
+        /// The unique identifier of the node.
         typealias ID = String
         
+        /// The name of the node.
         let name: String
+
+        /// The system of the node.
         var system: System
+
+        /// The dependencies of the node.
         var dependencies: [SystemDependency]
         
+        /// The input edges of the node.
         var inputEdges: [Edge] = []
+
+        /// The output edges of the node.
         var outputEdges: [Edge] = []
     }
     
+    /// The systems of the graph.
     var systems: [System] {
         self.nodes.values.elements.map { $0.system }
     }
     
+    /// The nodes of the graph.
     private(set) var nodes: OrderedDictionary<String, Node> = [:]
     
+    /// Initialize a new systems graph.
     public init() { }
     
     // MARK: - Internal methods
     
-    /// Add node of current system. If node exist with same type, than we will override it.
-    /// - Note: Systems will added node without edges.
+    /// Add a node of the current system. If a node exists with the same type, it will be overridden.
+    /// - Note: Systems will be added with nodes without edges.
+    /// - Parameter system: The system to add.
     func addSystem<T: System>(_ system: T) {
         let node = Node(name: T.swiftName, system: system, dependencies: T.dependencies)
         self.nodes[node.name] = node
     }
     
     /// Create an execution order for all systems.
+    /// - Complexity: O(n^2)
     func linkSystems() {
         for node in nodes.values {
             let systemName = node.name
@@ -60,6 +78,10 @@ public final class SystemsGraph: @unchecked Sendable {
         }
     }
     
+    /// Get the output nodes for a given node.
+    /// - Parameter nodeId: The ID of the node.
+    /// - Returns: The output nodes for the given node.
+    /// - Complexity: O(n)
     func getOuputNodes(for nodeId: Node.ID) -> [Node] {
         guard let node = self.nodes[nodeId] else {
             return []
@@ -74,6 +96,10 @@ public final class SystemsGraph: @unchecked Sendable {
         }
     }
     
+    /// Get the input nodes for a given node.
+    /// - Parameter nodeId: The ID of the node.
+    /// - Returns: The input nodes for the given node.
+    /// - Complexity: O(n)
     func getInputNodes(for nodeId: Node.ID) -> [Node] {
         guard let node = self.nodes[nodeId] else {
             return []
@@ -90,7 +116,9 @@ public final class SystemsGraph: @unchecked Sendable {
     
     // MARK: - Private methods
     
-    /// Try to add edge. If some dependency is cycled, than we will skip it with error
+    /// Try to add an edge. If a dependency is cycled, it will be skipped with an error.
+    /// - Parameter outputSystemName: The name of the output system.
+    /// - Parameter inputSystemName: The name of the input system.
     private func tryAddEdge(from outputSystemName: String, to inputSystemName: String) {
         var outputNode = self.nodes[outputSystemName]
         var inputNode = self.nodes[inputSystemName]
@@ -113,6 +141,10 @@ public final class SystemsGraph: @unchecked Sendable {
         self.nodes[outputSystemName] = outputNode
     }
     
+    /// Validate an edge.
+    /// - Parameter edge: The edge to validate.
+    /// - Parameter shouldExists: Whether the edge should exist.
+    /// - Returns: True if the edge is valid, otherwise false.
     private func validateEdge(_ edge: Edge, shouldExists: Bool) -> Bool {
         if shouldExists {
             return hasEdge(edge)
@@ -121,6 +153,9 @@ public final class SystemsGraph: @unchecked Sendable {
         }
     }
     
+    /// Check if an edge exists.
+    /// - Parameter edge: The edge to check.
+    /// - Returns: True if the edge exists, otherwise false.
     private func hasEdge(_ edge: Edge) -> Bool {
         guard let inputNode = self.nodes[edge.inputNode], let outputNode = self.nodes[edge.outputNode] else {
             return false
@@ -132,6 +167,7 @@ public final class SystemsGraph: @unchecked Sendable {
 }
 
 extension SystemsGraph: CustomDebugStringConvertible {
+    /// The debug description of the systems graph.
     public var debugDescription: String {
         var string = ""
         for node in nodes.values.elements {
@@ -151,6 +187,7 @@ extension SystemsGraph: CustomDebugStringConvertible {
         return string
     }
     
+    /// The visualize description of the systems graph.
     public var visualizeDescription: String {
         var string = ""
         for node in nodes.values.elements {

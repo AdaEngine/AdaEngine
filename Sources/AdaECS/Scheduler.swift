@@ -2,20 +2,31 @@ import AdaUtils
 
 /// Represents a scheduler stage in the ECS update loop.
 public struct SchedulerName: Hashable, Equatable, RawRepresentable, CustomStringConvertible, Sendable {
+    /// The raw value of the scheduler name.
     public let rawValue: String
+
+    /// The description of the scheduler name.
     public var description: String { rawValue }
 
+    /// Initialize a new scheduler name.
+    /// - Parameter rawValue: The raw value of the scheduler name.
     public init(rawValue: String) {
         self.rawValue = rawValue
     }
 }
 
+/// Default schedulers.
 public extension SchedulerName {
-    // Default schedulers
+    /// The pre-update scheduler.
     static let preUpdate = SchedulerName(rawValue: "preUpdate")
+
+    /// The update scheduler.
     static let update = SchedulerName(rawValue: "update")
+
+    /// The post-update scheduler.
     static let postUpdate = SchedulerName(rawValue: "postUpdate")
 
+    /// The default scheduler order.
     static var `default`: [SchedulerName] {
         return [
             .preUpdate,
@@ -30,6 +41,8 @@ public final class Schedulers: @unchecked Sendable {
     private(set) var schedulerLabels: [SchedulerName]
     private var schedulers: [SchedulerName: Scheduler]
 
+    /// Initialize a new schedulers.
+    /// - Parameter schedulers: The schedulers to initialize.
     public init(_ schedulers: [SchedulerName]) {
         self.schedulerLabels = schedulers
         self.schedulers = Dictionary(
@@ -82,6 +95,7 @@ public final class Schedulers: @unchecked Sendable {
     }
 }
 
+/// A resource that contains the order of the default scheduler.
 public struct DefaultSchedulerOrder: Resource {
     public let order: [SchedulerName]
 
@@ -90,6 +104,7 @@ public struct DefaultSchedulerOrder: Resource {
     }
 }
 
+/// A system that runs the default scheduler.
 @System
 public struct DefaultSchedulerRunner: Sendable {
 
@@ -112,27 +127,44 @@ public struct DefaultSchedulerRunner: Sendable {
     }
 }
 
+/// A scheduler that runs systems in a specific order.
 public final class Scheduler: @unchecked Sendable {
     public typealias RunnerBlock = (any System) -> Void
 
+    /// The name of the scheduler.
     public let name: SchedulerName
+
+    /// The system graph of the scheduler.
     public let systemGraph: SystemsGraph = SystemsGraph()
+
+    /// The graph executor of the scheduler.
     let graphExecutor: SystemsGraphExecutor = SystemsGraphExecutor()
+
     let runnerSystemsBuilder: (World) -> any System
+
+    /// The runner system of the scheduler.
     var runnerSystem: (any System)?
 
+    /// The last update time of the scheduler.
     @LocalIsolated private var lastUpdate: LongTimeInterval = 0
 
+    /// Initialize a new scheduler.
+    /// - Parameter name: The name of the scheduler.
+    /// - Parameter system: The system type to run.
     public init<T: System>(name: SchedulerName, system: T.Type) {
         self.name = name
         self.runnerSystemsBuilder = { T.init(world: $0) }
     }
 
+    /// Initialize a new scheduler.
+    /// - Parameter name: The name of the scheduler.
     public init(name: SchedulerName) {
         self.name = name
         self.runnerSystemsBuilder = { DefaultSchedulerRunner.init(world: $0) }
     }
 
+    /// Run the scheduler.
+    /// - Parameter world: The world to run the scheduler on.
     @MainActor
     public func run(world: World) async {
         let now = Time.absolute

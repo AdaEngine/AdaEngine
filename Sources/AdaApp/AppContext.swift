@@ -9,20 +9,28 @@ import AdaECS
 import AdaUtils
 import Logging
 
+/// The context of the app.
 @MainActor
 @_spi(Internal)
 public final class AppContext<T: App> {
+    /// The app.
     private let app: T
 
+    /// Initialize a new app context.
+    /// - Throws: An error if the app cannot be initialized.
     init() throws {
         self.app = T.init()
     }
     
+    /// Initialize a new app context.
+    /// - Parameter app: The app to initialize the context with.
     @_spi(Internal)
     public init(_ app: T) {
         self.app = app
     }
 
+    /// Run the app.
+    /// - Throws: An error if the app cannot be run.
     @_spi(Internal)
     public func run() throws {
         LoggingSystem.bootstrap {

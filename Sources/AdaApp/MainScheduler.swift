@@ -8,7 +8,10 @@
 import AdaECS
 import AdaUtils
 
+/// The plugin that sets up the main scheduler.
 struct MainSchedulerPlugin: Plugin {
+    /// Setup the main scheduler.
+    /// - Parameter app: The app to setup the main scheduler for.
     func setup(in app: AppWorlds) {
         let mainScheduler = Scheduler(name: .update)
         let fixedScheduler = Scheduler(name: .fixedUpdate, system: FixedTimeSchedulerSystem.self)
@@ -27,6 +30,7 @@ struct MainSchedulerPlugin: Plugin {
     }
 }
 
+/// The system that runs the fixed time scheduler.
 @System
 public struct FixedTimeSchedulerSystem {
 
@@ -58,6 +62,7 @@ public struct FixedTimeSchedulerSystem {
     }
 }
 
+/// The system that runs the post update scheduler.
 @System
 public struct PostUpdateSchedulerRunner: Sendable {
 
@@ -79,7 +84,12 @@ public struct PostUpdateSchedulerRunner: Sendable {
 }
 
 extension SchedulerName {
+    /// The fixed pre-update scheduler.
     public static let fixedPreUpdate = SchedulerName(rawValue: "fixedPreUpdate")
+
+    /// The fixed update scheduler.
     public static let fixedUpdate = SchedulerName(rawValue: "fixedUpdate")
+
+    /// The fixed post-update scheduler.
     public static let fixedPostUpdate = SchedulerName(rawValue: "fixedPostUpdate")
 }

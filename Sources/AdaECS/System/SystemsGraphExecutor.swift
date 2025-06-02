@@ -10,10 +10,17 @@ import Collections
 
 // TOOD: Parallel execution for non dependent values
 
+/// The executor of the systems graph.
 public struct SystemsGraphExecutor: Sendable {
 
+    /// Initialize a new systems graph executor.
     public init() {}
     
+    /// Execute the systems graph.
+    /// - Parameter graph: The systems graph to execute.
+    /// - Parameter world: The world to execute the systems graph in.
+    /// - Parameter deltaTime: The delta time to execute the systems graph with.
+    /// - Parameter scheduler: The scheduler to execute the systems graph on.
     public func execute(
         _ graph: SystemsGraph,
         world: World,
