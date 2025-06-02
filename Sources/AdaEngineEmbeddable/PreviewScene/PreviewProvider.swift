@@ -24,7 +24,7 @@ public struct ScenePreviewProvider {
 extension ScenePreviewProvider: UIViewRepresentable {
     
     public func makeUIView(in context: Context) -> AEView {
-        return AEView(scene: scene, frame: .zero)
+        return try! AEView(scene: scene, frame: .zero)
     }
     
     public func updateUIView(_ view: AEView, in context: Context) { }
@@ -36,7 +36,7 @@ extension ScenePreviewProvider: UIViewRepresentable {
 
 extension ScenePreviewProvider: NSViewRepresentable {
     public func makeNSView(context: Context) -> AEView {
-        AEView(scene: scene, frame: .zero)
+        try! AEView(scene: scene, frame: .zero)
     }
     
     public func updateNSView(_ nsView: AEView, context: Context) { }

@@ -6,7 +6,10 @@
 //
 
 import Testing
-@testable import AdaEngine
+@testable import AdaUI
+@testable import AdaPlatform
+import AdaInput
+import Math
 
 @MainActor
 struct ViewStoragesTests {

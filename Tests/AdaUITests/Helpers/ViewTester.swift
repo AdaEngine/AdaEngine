@@ -6,7 +6,9 @@
 //
 
 import Math
-@testable import AdaEngine
+@testable import AdaUI
+@testable import AdaPlatform
+import AdaInput
 
 /// Object that test view
 @MainActor
@@ -68,7 +70,7 @@ class ViewTester<Content: View> {
         return self.hitTest(point, event: event)
     }
 
-    func hitTest(_ point: Point, event: InputEvent) -> ViewNode? {
+    func hitTest(_ point: Point, event: any InputEvent) -> ViewNode? {
         self.containerView.viewTree.rootNode.hitTest(point, with: event)
     }
 
