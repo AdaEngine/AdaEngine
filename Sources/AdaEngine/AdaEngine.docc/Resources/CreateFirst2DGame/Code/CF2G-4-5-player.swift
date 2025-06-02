@@ -17,7 +17,7 @@ struct MovementSystem: System {
     
     init(world: World) { }
     
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         context.world.performQuery(Self.playerQuery)
     }
 }

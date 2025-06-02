@@ -31,13 +31,14 @@ public struct Physics2DSystem: Sendable {
     @ResQuery<Physics2DWorldComponent>
     private var physicsWorld
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
+        let deltaTime = context.deltaTime
         context.taskGroup.addTask { @MainActor in
             guard let world = self.physicsWorld?.world else {
                 return
             }
 
-            world.updateSimulation(context.deltaTime)
+            world.updateSimulation(deltaTime)
             world.processContacts()
             world.processSensors()
             self.updatePhysicsBodyEntities(in: world)

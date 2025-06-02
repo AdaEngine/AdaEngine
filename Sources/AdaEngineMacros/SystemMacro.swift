@@ -172,7 +172,7 @@ extension SystemMacro: PeerMacro {
         
         \(availability)init(world: AdaECS.World) { }
         
-        \(availability)func update(context: UpdateContext) {
+        \(availability)func update(context: inout UpdateContext) {
             \(raw: funcName)(\(raw: paramNames.map { "\($0 ? "" : "\($1): ")_\($1)" }.joined(separator: ", ")))
         }
         

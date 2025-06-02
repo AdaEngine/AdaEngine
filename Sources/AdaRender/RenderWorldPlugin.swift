@@ -48,10 +48,11 @@ struct RenderWorldSystem {
     @ResQuery
     private var renderGraph: RenderGraph!
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
+        let world = context.world
         context.taskGroup.addTask {
             do {
-                try await self.renderGraphExecutor.execute(renderGraph, in: context.world)
+                try await self.renderGraphExecutor.execute(renderGraph, in: world)
             } catch {
                 print(error)
             }

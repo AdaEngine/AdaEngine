@@ -108,7 +108,7 @@ public struct AudioSystem {
         self.audioEngine = world.getResource(MiniAudioEngine.self)!
     }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         self.audioPlaybacksControllersQuery.forEach { audioComponent, transform in
             audioComponent.controllers.forEach { controller in
                 controller.sound.position = transform.position

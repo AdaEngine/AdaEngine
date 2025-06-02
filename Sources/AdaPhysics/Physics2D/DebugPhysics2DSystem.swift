@@ -47,20 +47,21 @@ public struct DebugPhysicsExctract2DSystem {
     
     public init(world: World) { }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         guard let (camera, globalTransform) = self.cameras.first else {
             return
         }
-        
+
+        let world = context.world
         context.taskGroup.addTask { @MainActor in    
-            guard context.world.getResource(PhysicsDebugOptions.self)?.contains(.showPhysicsShapes) == true else {
+            guard world.getResource(PhysicsDebugOptions.self)?.contains(.showPhysicsShapes) == true else {
                 return
             }
-            
-            guard let world = context.world.physicsWorld2D else {
+
+            guard let world = world.physicsWorld2D else {
                 return
             }
-            
+
 //            guard let window = scene?.window else {
 //                return
 //            }
@@ -233,7 +234,7 @@ public struct Physics2DDebugDrawSystem: Sendable {
 
     public init(world: World) {}
     
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
 
 //        self.cameras.forEach { visibleEntities, renderItems in
 //            self.draw(

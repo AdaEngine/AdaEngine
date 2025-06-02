@@ -19,7 +19,7 @@ public struct UIComponentSystem: Sendable {
 
     public init(world: World) {}
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
 //        guard let scene = context.scene else {
 //            return
 //        }

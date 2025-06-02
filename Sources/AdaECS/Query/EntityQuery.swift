@@ -12,7 +12,7 @@
 /// struct MovementSystem {
 ///     @EntityQuery(where: .has(Transform.self)) private var query
 ///
-///     func update(context: UpdateContext) {
+///     func update(context: inout UpdateContext) {
 ///         self.query.forEach {
 ///             var transform = entity.components[Transform.self]
 ///             // Do some movement
@@ -29,7 +29,7 @@
 ///     @EntityQuery(where: .has(SpriteComponent.self) && .has(Transform.self))
 ///     private var query
 ///
-///     func update(context: UpdateContext) {
+///     func update(context: inout UpdateContext) {
 ///         for entity in self.query {
 ///             // Get components from entity and do some render
 ///         }

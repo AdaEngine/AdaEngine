@@ -16,7 +16,7 @@ public struct TransformSystem {
     
     public init(world: World) { }
     
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         self.query.forEach { entity in
             if entity.components.isComponentChanged(Transform.self)
                 || !entity.components.has(GlobalTransform.self)
@@ -39,7 +39,7 @@ public struct ChildTransformSystem {
     
     public init(world: World) { }
     
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         self.query.forEach { entity, transform in
             guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
                 return

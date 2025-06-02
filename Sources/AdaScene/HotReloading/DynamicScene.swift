@@ -26,7 +26,7 @@ struct DynamicSceneInitSystem {
 
     init(world: World) {  }
     
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         for (entity, scene, instance) in dynamicScenes {
             guard let instance else {
                 insertScene(to: entity, dynamicScene: scene, world: context.world)

@@ -46,7 +46,7 @@ public struct SpriteRenderSystem: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
         for (_, visibleEntities, renderItems) in cameras {
             self.draw(
                 extractedSprites: self.extractedSprites?.sprites ?? [],
