@@ -45,7 +45,7 @@ struct RenderWorldSystem {
 
     init(world: World) { }
 
-    @ResourceQuery
+    @ResQuery
     private var renderGraph: RenderGraph!
 
     func update(context: UpdateContext) {

@@ -93,7 +93,7 @@ public struct DefaultSchedulerOrder: Resource {
 @System
 public struct DefaultSchedulerRunner: Sendable {
 
-    @ResourceQuery
+    @ResQuery
     private var order: DefaultSchedulerOrder?
 
     @LocalIsolated
@@ -101,10 +101,12 @@ public struct DefaultSchedulerRunner: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: UpdateContext) {
+    public func update(context: inout UpdateContext) {
+        let world = context.world
+        let deltaTime = context.deltaTime
         context.taskGroup.addTask {
             for scheduler in order?.order ?? [] {
-                await context.world.runScheduler(scheduler, deltaTime: context.deltaTime)
+                await world.runScheduler(scheduler, deltaTime: deltaTime)
             }
         }
     }
@@ -143,14 +145,15 @@ public final class Scheduler: @unchecked Sendable {
 
         if let runnerSystem = runnerSystem {
             await withTaskGroup(of: Void.self) { @MainActor group in
-                let context = WorldUpdateContext(
+                var context = WorldUpdateContext(
                     world: world,
                     deltaTime: deltaTime,
                     scheduler: name,
                     taskGroup: group
                 )
                 runnerSystem.queries.queries.forEach { $0.update(from: world) }
-                runnerSystem.update(context: context)
+                runnerSystem.update(context: &context)
+                _ = consume context
             }
         }
     }

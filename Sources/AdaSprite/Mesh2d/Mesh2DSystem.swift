@@ -104,10 +104,10 @@ public struct Mesh2DRenderSystem: Sendable {
     @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>
     private var query
 
-    @ResourceQuery
+    @ResQuery
     private var extractedMeshes: ExctractedMeshes2D!
 
-    @ResourceQuery
+    @ResQuery
     private var meshDrawPass: Mesh2DDrawPass!
 
     public init(world: World) { }

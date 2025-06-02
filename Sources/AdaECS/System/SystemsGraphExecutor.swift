@@ -8,10 +8,13 @@
 import AdaUtils
 import Collections
 
-struct SystemsGraphExecutor: Sendable {
+// TOOD: Parallel execution for non dependent values
+
+public struct SystemsGraphExecutor: Sendable {
+
     public init() {}
     
-    func execute(
+    public func execute(
         _ graph: SystemsGraph,
         world: World,
         deltaTime: AdaUtils.TimeInterval,
@@ -40,14 +43,15 @@ struct SystemsGraphExecutor: Sendable {
             currentNode.system.queries.update(from: world)
 
             await withTaskGroup(of: Void.self) { @MainActor group in
-                let context = WorldUpdateContext(
+                var context = WorldUpdateContext(
                     world: world,
                     deltaTime: deltaTime,
                     scheduler: scheduler,
                     taskGroup: group
                 )
                 
-                currentNode.system.update(context: context)
+                currentNode.system.update(context: &context)
+                _ = consume context
             }
             world.flush()
             completedSystems.insert(currentNode.name)

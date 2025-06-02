@@ -12,7 +12,7 @@ import Collections
 public extension Entity {
     
     /// Hold entity components specific for entity.
-    struct ComponentSet: Codable, @unchecked Sendable {
+    struct ComponentSet: Codable, Sendable {
         @_spi(Internal)
         public weak var entity: Entity?
         
@@ -34,7 +34,7 @@ public extension Entity {
             self.buffer = [:]
         }
 
-        init(from other: Self) {
+        init(from other: borrowing Self) {
             self.buffer = other.buffer
             self.bitset = other.bitset
         }

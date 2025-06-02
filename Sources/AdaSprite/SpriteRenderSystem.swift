@@ -26,13 +26,13 @@ public struct SpriteRenderSystem: Sendable {
     >
     private var cameras
 
-    @ResourceQuery
+    @ResQuery
     private var extractedSprites: ExtractedSprites?
 
-    @ResourceQuery
+    @ResQuery
     private var spriteDrawPass: SpriteDrawPass!
 
-    @ResourceQuery
+    @ResQuery
     private var spriteRenderPipeline: SpriteRenderPipeline!
 
     static let quadPosition: [Vector4] = [

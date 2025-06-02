@@ -11,7 +11,6 @@ import Foundation
 
 /// TODO: (Vlad)
 /// [] Recalculate archetype for removed and added components. Archetype should use graph
-/// [] Archetype to struct?
 
 /// Stores and exposes operations on ``Entity`` and ``Component``.
 ///
@@ -249,14 +248,15 @@ public extension World {
     /// Insert a resource into the world.
     /// - Parameter resource: The resource to insert.
     @discardableResult
-    func insertResource<T: Resource>(_ resource: T) -> Self {
+    func insertResource<T: Resource>(_ resource: consuming T) -> Self {
         let componentId = self.componentsStorage.getOrRegisterResource(T.self)
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
     }
 
     @discardableResult
-    func insertResource(_ resource: any Resource) -> Self {
+    func insertResource(_ resource: consuming any Resource) -> Self {
+        let resource = resource
         let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
@@ -271,7 +271,7 @@ public extension World {
     /// Get a resource from the world.
     /// - Parameter resource: The resource to get.
     /// - Returns: The resource if it exists, otherwise nil.
-    func getResource<T: Resource>(_ resource: T.Type) -> T? {
+    borrowing func getResource<T: Resource>(_ resource: T.Type) -> T? {
         return self.componentsStorage.getResource(resource)
     }
 
@@ -383,7 +383,7 @@ private extension World {
         }
         self.records[entity] = nil
 
-        guard let currentArchetype = self.archetypes[record.archetypeId] else {
+        guard var currentArchetype = self.archetypes[record.archetypeId] else {
             assertionFailure("Incorrect record of archetype \(record)")
             return
         }
@@ -393,6 +393,8 @@ private extension World {
             self.archetypes[record.archetypeId]!.clear()
             self.freeArchetypeIndices.append(record.archetypeId)
         }
+
+        self.archetypes[record.archetypeId] = currentArchetype
     }
 
     /// Find or create matched arhcetypes for all entities that wait update
@@ -404,13 +406,14 @@ private extension World {
         for entity in self.updatedEntities {
             let bitmask = entity.components.bitset
 
-            if let record = self.records[entity.id], let currentArchetype = self.archetypes[record.archetypeId] {
+            if let record = self.records[entity.id], var currentArchetype = self.archetypes[record.archetypeId] {
                 // We currently updated existed components
                 if currentArchetype.componentsBitMask == bitmask {
                     continue
                 }
 
                 currentArchetype.remove(at: record.row)
+                self.archetypes[record.archetypeId] = currentArchetype
             }
 
             // Previous archetype doesn't match for an entity bit mask, try to find a new one
@@ -420,7 +423,7 @@ private extension World {
 
             // We don't have matched archetype -> create a new one
             if archetype == nil {
-                let newArch: Archetype
+                var newArch: Archetype
 
                 if self.freeArchetypeIndices.isEmpty {
                     newArch = Archetype.new(index: self.archetypes.count)
@@ -431,12 +434,12 @@ private extension World {
                     newArch = self.archetypes[index]!
                 }
                 newArch.componentsBitMask = bitmask
-
                 archetype = newArch
             }
 
             let location = archetype?.append(entity)
             self.records[entity.id] = location
+            self.archetypes[archetype!.id] = archetype
         }
 
         self.updatedEntities.removeAll(keepingCapacity: true)

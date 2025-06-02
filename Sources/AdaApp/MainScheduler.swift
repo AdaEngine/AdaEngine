@@ -60,7 +60,7 @@ public struct FixedTimeSchedulerSystem {
 @System
 public struct PostUpdateSchedulerRunner: Sendable {
 
-    @ResourceQuery
+    @ResQuery
     private var order: DefaultSchedulerOrder?
 
     @LocalIsolated
