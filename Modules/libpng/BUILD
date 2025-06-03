@@ -26,11 +26,9 @@ cc_library(
         ],
         "//conditions:default": [],
     }),
-    hdrs = [
-        "Sources/libpng/include/libpng.h",
-        "Sources/libpng/include/png.h",
-        "Sources/libpng/include/pngconf.h",
-    ],
+    hdrs = glob([
+        "Sources/libpng/include/*.h"
+    ]),
     defines = select({
         "@platforms//cpu:arm64": [
             "PNG_ARM_NEON_OPT=2",
