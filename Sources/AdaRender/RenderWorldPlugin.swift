@@ -102,7 +102,8 @@ public final class Extract<T: SystemQuery>: @unchecked Sendable {
 }
 
 extension Extract: SystemQuery {
-    public func update(from world: World) {
+    public func update(from world: consuming World) {
+        let world = world
         if _value == nil {
             _value = T.init(from: world)
         }

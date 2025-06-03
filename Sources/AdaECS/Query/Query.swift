@@ -76,7 +76,7 @@ public struct FilterQuery<each T: QueryTarget, F: Filter> {
 }
 
 extension FilterQuery: SystemQuery {
-    public func update(from world: World) {
+    public func update(from world: consuming World) {
         self.state.updateArchetypes(in: world)
     }
 }
@@ -99,8 +99,8 @@ final class QueryState: @unchecked Sendable {
         self.filter = filter
     }
 
-    func updateArchetypes(in world: World) {
-        self.world = world
+    func updateArchetypes(in world: consuming World) {
         self.archetypes = world.archetypes.filter { self.predicate.evaluate($0) }
+        self.world = world
     }
 }

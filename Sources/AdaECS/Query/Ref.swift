@@ -63,9 +63,8 @@ extension Ref: SystemQuery where T == World {
         fatalError()
     }
 
-    public func update(from world: World) {
-        getValue = {
-            world
-        }
+    public func update(from world: consuming World) {
+        let world = world
+        getValue = { world }
     }
 }
