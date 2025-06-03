@@ -1,5 +1,4 @@
 load("@bazel_gazelle//:def.bzl", "gazelle", "gazelle_binary")
-load("@build_bazel_rules_swift//swift:swift.bzl", "swift_compiler_plugin")
 load("@cgrindel_bazel_starlib//bzltidy:defs.bzl", "tidy")
 
 package(default_visibility = ["//visibility:public"])
@@ -15,9 +14,6 @@ alias(
     name = "AdaEditor",
     actual = "//Sources/AdaEditor",
 )
-
-# Swift Package Manager
-# gazelle:exclude .build
 
 gazelle_binary(
     name = "gazelle_bin",
