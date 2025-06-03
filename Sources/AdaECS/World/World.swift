@@ -224,9 +224,9 @@ public extension World {
     /// - Parameter needsCopy: If true, the entity will be copied before adding to the world.
     /// - Returns: A world instance.
     @discardableResult
-    func addEntity(_ entity: Entity) -> Self {
+    func addEntity(_ entity: consuming Entity) -> Self {
+        let entity = entity
         entity.world = self
-
         self.updatedEntities.insert(entity)
         self.addedEntities.insert(entity.id)
 
@@ -238,7 +238,7 @@ public extension World {
     /// - Parameter recursively: also remove entity child.
     /// - Returns: A world instance.
     @discardableResult
-    func removeEntity(_ entity: Entity, recursively: Bool = false) -> Self {
+    func removeEntity(_ entity: borrowing Entity, recursively: Bool = false) -> Self {
         self.removeEntityRecord(entity.id)
 
         guard recursively && !entity.children.isEmpty else {
@@ -255,12 +255,13 @@ public extension World {
     /// Remove entity from world.
     /// - Note: Entity will removed on next `update` call.
     /// - Parameter recursively: also remove entity child.
-    func removeEntityOnNextTick(_ entity: Entity, recursively: Bool = false) {
+    func removeEntityOnNextTick(_ entity: consuming Entity, recursively: Bool = false) {
         guard self.records[entity.id] != nil else {
             return
         }
 
-        eventManager.send(WorldEvents.WillRemoveEntity(entity: entity), source: self)
+        let entity = entity
+        defer { eventManager.send(WorldEvents.WillRemoveEntity(entity: entity), source: self) }
         self.removedEntities.insert(entity.id)
 
         guard recursively && !entity.children.isEmpty else {
@@ -286,16 +287,23 @@ public extension World {
     /// - Parameter resource: The resource to insert.
     /// - Returns: A world instance.
     @discardableResult
-    func insertResource(_ resource: any Resource) -> Self {
+    func insertResource(_ resource: consuming any Resource) -> Self {
         let resource = resource
         let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
     }
 
+    func createResource<T: Resource & WorldInitable>(of type: T.Type) -> T {
+        let resource = type.init(from: self)
+        let componentId = self.componentsStorage.getOrRegisterResource(T.self)
+        self.componentsStorage.resourceComponents[componentId] = resource
+        return resource
+    }
+
     /// Remove a resource from the world.
     /// - Parameter resource: The resource to remove.
-    func removeResource<T: Resource>(_ resource: T.Type) {
+    consuming func removeResource<T: Resource>(_ resource: T.Type) {
         self.componentsStorage.removeResource(resource)
     }
 
@@ -399,7 +407,12 @@ extension World {
     /// - Parameter entity: The entity that did add component.
     /// - Parameter component: The component that did add.
     /// - Parameter identifier: The identifier of the component.
-    func entity<T: Component>(_ entity: Entity, didAddComponent component: T.Type, with identifier: ComponentId) {
+    func entity<T: Component>(
+        _ entity: consuming Entity,
+        didAddComponent component: T.Type,
+        with identifier: ComponentId
+    ) {
+        let entity = entity
         eventManager.send(ComponentEvents.DidAdd(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
     }
@@ -408,9 +421,13 @@ extension World {
     /// - Parameter entity: The entity that did update component.
     /// - Parameter component: The component that did update.
     /// - Parameter identifier: The identifier of the component.
-    func entity<T: Component>(_ entity: Entity, didUpdateComponent component: T.Type, with identifier: ComponentId) {
+    func entity<T: Component>(
+        _ entity: consuming Entity,
+        didUpdateComponent component: T.Type,
+        with identifier: ComponentId
+    ) {
+        let entity = entity
         eventManager.send(ComponentEvents.DidChange(componentType: component, entity: entity))
-
         self.updatedEntities.insert(entity)
         self.updatedComponents[entity, default: []].insert(identifier)
     }
@@ -419,7 +436,12 @@ extension World {
     /// - Parameter entity: The entity that did remove component.
     /// - Parameter component: The component that did remove.
     /// - Parameter identifier: The identifier of the component.
-    func entity(_ entity: Entity, didRemoveComponent component: Component.Type, with identifier: ComponentId) {
+    func entity(
+        _ entity: consuming Entity,
+        didRemoveComponent component: Component.Type,
+        with identifier: ComponentId
+    ) {
+        let entity = entity
         eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
     }

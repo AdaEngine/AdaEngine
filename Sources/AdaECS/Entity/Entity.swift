@@ -58,7 +58,7 @@ open class Entity: Identifiable, @unchecked Sendable {
         @ComponentsBuilder components: () -> [Component]
     ) {
         self.init(name: name)
-        self.components.set(components())
+        self.components.set(components: components)
     }
 
     // MARK: - Codable

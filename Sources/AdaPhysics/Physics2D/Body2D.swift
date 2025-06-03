@@ -12,13 +12,13 @@ import Math
 
 /// This class is used to hold a box2d body reference.
 public final class Body2D: @unchecked Sendable {
-    
+
     weak var world: PhysicsWorld2D?
     weak var entity: Entity?
     
     let bodyId: b2BodyId
 
-    internal init(world: PhysicsWorld2D, bodyId: b2BodyId, entity: Entity) {
+    internal init(world: consuming PhysicsWorld2D, bodyId: b2BodyId, entity: consuming Entity) {
         self.world = world
         self.bodyId = bodyId
         self.entity = entity
@@ -145,7 +145,7 @@ final class BoxShape2D {
 
     private let shape: b2ShapeId
 
-    init(shape: b2ShapeId) {
+    init(shape: consuming b2ShapeId) {
         self.shape = shape
     }
 

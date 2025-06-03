@@ -11,6 +11,11 @@ import Foundation
 /// Only one instance of the resource is allowed in the world.
 public protocol Resource: Sendable { }
 
+/// Init the object from a world
+public protocol WorldInitable: Sendable {
+    init(from world: World)
+}
+
 // TODO: (Vlad) Add components list to editor and generate file with registered components.
 // TODO: (Vlad) We can think about `swift_getMangledTypeName` and `swift_getTypeByMangledNameInContext`
 
