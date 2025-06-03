@@ -11,7 +11,7 @@ struct PlayerComponent {}
 
 @PlainSystem
 func PlayerMovement(
-    _ playerTransform: Query<Ref<Transform>, With<PlayerComponent>>,
+    _ playerTransform: FIlterQuery<Ref<Transform>, With<PlayerComponent>>,
     _ speed: LocalIsolated<Float> = 3.0,
     _ deltaTime: ResQuery<DeltaTime>
 ) {

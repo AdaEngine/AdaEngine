@@ -9,18 +9,34 @@ import Foundation
 import AdaUtils
 import Yams
 
+/// A decoder for assets that are stored in text format.
 public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
+    /// The resources in the decoder.
     private var resources: [String: WeakBox<AnyObject>] = [:]
+    /// The asset meta info of the decoder.
     public let assetMeta: AssetMeta
+    /// The asset data of the decoder.
     public let assetData: Data
+    /// The decoder of the decoder.
     public let decoder: (any Decoder)?
 
+    /// Initialize a new text asset decoder.
+    ///
+    /// - Parameters:
+    ///   - meta: The asset meta info of the decoder.
+    ///   - data: The asset data of the decoder.
     init(meta: AssetMeta, data: Data, decoder: (any Decoder)? = nil) {
         self.assetMeta = meta
         self.assetData = data
         self.decoder = decoder
     }
     
+    /// Decode an asset from a decoder.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the asset.
+    ///   - decoder: The decoder to decode the asset from.
+    /// - Returns: The decoded asset.
     public func decode<A: Asset>(_ type: A.Type, from decoder: any Decoder) throws -> A {
         let newDecoder = Self(
             meta: self.assetMeta,
@@ -31,6 +47,12 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
         return try A.init(from: newDecoder)
     }
     
+    /// Get or load a resource from the decoder.
+    ///
+    /// - Parameters:
+    ///   - resourceType: The type of the resource.
+    ///   - path: The path to the resource.
+    /// - Returns: The resource.
     public func getOrLoadResource<A>(
         _ resourceType: A.Type,
         at path: String
@@ -45,6 +67,11 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
         }
     }
     
+    /// Decode a decodable from the decoder.
+    ///
+    /// - Parameters:
+    ///   - type: The type of the decodable.
+    /// - Returns: The decoded decodable.
     public func decode<T: Decodable>(_ type: T.Type) throws -> T {
         if let decoder {
             let container = try decoder.singleValueContainer()
@@ -62,6 +89,9 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
         ])
     }
     
+    /// Append a resource to the decoder.
+    ///
+    /// - Parameter resource: The resource to append.
     public func appendResource<A: Asset>(_ resource: A) {
         self.resources[resource.assetPath] = WeakBox(value: resource)
     }

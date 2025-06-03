@@ -10,7 +10,7 @@ import AdaTransform
 import box2d
 import Math
 
-// An object that represents physics 2D body.
+/// This class is used to hold a box2d body reference.
 public final class Body2D: @unchecked Sendable {
     
     weak var world: PhysicsWorld2D?

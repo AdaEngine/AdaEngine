@@ -17,19 +17,47 @@ public struct LayoutProperties {
     }
 }
 
+/// A protocol that defines a layout for views.
 @MainActor
 @preconcurrency
 public protocol Layout: Animatable {
     
+    /// The cache of the layout.
     associatedtype Cache = Void
+
+    /// The subviews of the layout.
     typealias Subviews = LayoutSubviews
 
+    /// The size that fits the layout.
+    ///
+    /// - Parameters:
+    ///   - proposal: The proposed size.
+    ///   - subviews: The subviews.
+    ///   - cache: The cache.
+    /// - Returns: The size that fits the layout.
     func sizeThatFits(_ proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> Size
 
+    /// Place the subviews in the layout.
+    ///
+    /// - Parameters:
+    ///   - bounds: The bounds.
+    ///   - proposal: The proposed size.
+    ///   - subviews: The subviews.
+    ///   - cache: The cache.
     func placeSubviews(in bounds: Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache)
 
+    /// Update the cache of the layout.
+    ///
+    /// - Parameters:
+    ///   - cache: The cache.
+    ///   - subviews: The subviews.
     func updateCache(_ cache: inout Cache, subviews: Subviews)
 
+    /// Make the cache of the layout.
+    ///
+    /// - Parameters:
+    ///   - subviews: The subviews.
+    /// - Returns: The cache.
     func makeCache(subviews: Subviews) -> Cache
 
     /// Properties of a layout container.
@@ -49,6 +77,10 @@ public extension Layout where Cache == Void {
 }
 
 extension Layout {
+    /// Call the layout as a function.
+    ///
+    /// - Parameter content: The content of the layout.
+    /// - Returns: The layout.
     public func callAsFunction<Content: View>(@ViewBuilder _ content: @escaping () -> Content) -> some View {
         CustomLayoutContainer(layout: self, content: content)
     }

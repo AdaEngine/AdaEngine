@@ -13,13 +13,21 @@ import Math
 /// If the texture isn't held by any object, then the GPU resource will freed immediately.
 open class Texture2D: Texture, @unchecked Sendable {
     
+    /// The width of the texture.
     public private(set) var width: Int
+    /// The height of the texture.
     public private(set) var height: Int
     
+    /// The size of the texture.
     public var size: SizeInt {
         return SizeInt(width: self.width, height: self.height)
     }
     
+    /// Initialize a new texture from an image.
+    ///
+    /// - Parameters:
+    ///   - image: The image to initialize the texture from.
+    ///   - samplerDescription: The sampler description of the texture.
     public init(image: Image, samplerDescription: SamplerDescriptor? = nil) {
         let descriptor = TextureDescriptor(
             width: image.width,
@@ -42,6 +50,9 @@ open class Texture2D: Texture, @unchecked Sendable {
         self.assetMetaInfo = image.assetMetaInfo
     }
     
+    /// Initialize a new texture from a descriptor.
+    ///
+    /// - Parameter descriptor: The descriptor to initialize the texture from.
     public init(descriptor: TextureDescriptor) {
         let device = RenderEngine.shared.createLocalRenderDevice()
         let gpuTexture = device.createTexture(from: descriptor)
@@ -54,6 +65,7 @@ open class Texture2D: Texture, @unchecked Sendable {
     }
     
     // FIXME: (Vlad) Should remove it from Texture2D.
+    /// The texture coordinates.
     open internal(set) var textureCoordinates: [Vector2] = [
         [0, 1], [1, 1], [1, 0], [0, 0]
     ]
@@ -67,6 +79,10 @@ open class Texture2D: Texture, @unchecked Sendable {
     
     // MARK: - Resource & Codable
     
+    /// Initialize a new texture from a decoder.
+    ///
+    /// - Parameter decoder: The decoder to initialize the texture from.
+    /// - Throws: An error if the texture cannot be initialized from the decoder.
     public convenience required init(from decoder: any AssetDecoder) throws {
         if Self.extensions().contains(where: { $0 == decoder.assetMeta.filePath.pathExtension }) {
             let dto = try decoder.decode(TextureSerializable.self)
@@ -85,6 +101,10 @@ open class Texture2D: Texture, @unchecked Sendable {
         }
     }
     
+    /// Encode the texture to an encoder.
+    ///
+    /// - Parameter encoder: The encoder to encode the texture to.
+    /// - Throws: An error if the texture cannot be encoded to the encoder.
     public override func encodeContents(with encoder: any AssetEncoder) throws {
         try encoder.encode(
             TextureSerializable(
@@ -96,6 +116,7 @@ open class Texture2D: Texture, @unchecked Sendable {
 }
 
 public extension Texture2D {
+    /// A white texture.
     static let whiteTexture = Texture2D(image: Image(width: 1, height: 1, color: .white))
 }
 

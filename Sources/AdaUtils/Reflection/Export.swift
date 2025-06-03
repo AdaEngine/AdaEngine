@@ -141,7 +141,9 @@ extension CodingUserInfoKey {
     nonisolated(unsafe) static var editorIntrospection = CodingUserInfoKey(rawValue: "export.editor.introspection")!
 }
 
+/// A protocol that defines the default value of a type.
 public protocol DefaultValue: Sendable {
+    /// The default value of the type.
     static var defaultValue: Self { get }
 }
 
@@ -150,19 +152,32 @@ public protocol DefaultValue: Sendable {
 @propertyWrapper
 public struct NoExport<T: DefaultValue>: Codable, Sendable {
 
+    /// The wrapped value.
     public var wrappedValue: T
     
+    /// Initialize a new no export.
+    ///
+    /// - Parameter wrappedValue: The wrapped value.
     public init(wrappedValue: T) {
         self.wrappedValue = wrappedValue
     }
     
+    /// Initialize a new no export.
+    ///
+    /// - Parameter wrappedValue: The wrapped value.
     public init() {
         self.wrappedValue = T.defaultValue
     }
     
+    /// Initialize a new no export.
+    ///
+    /// - Parameter wrappedValue: The wrapped value.
     public init(from decoder: Decoder) throws {
         self.wrappedValue = T.defaultValue
     }
     
+    /// Encode the no export.
+    ///
+    /// - Parameter encoder: The encoder.
     public func encode(to encoder: Encoder) throws { }
 }

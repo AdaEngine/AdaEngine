@@ -1,23 +1,40 @@
 import AdaECS
 
+/// A component that contains a dynamic scene.
+/// 
+/// You can attach you scene to a world dynamically using this component.
+/// Entities from the scene will be added to the world as children of the entity with this component.
 @Component
 public struct DynamicScene {
+    /// The scene.
     let scene: AssetHandle<Scene>
     
+    /// Initialize a new dynamic scene.
+    ///
+    /// - Parameter scene: The scene.
     public init(scene: AssetHandle<Scene>) {
         self.scene = scene
     }
 
+    /// Initialize a new dynamic scene.
+    ///
+    /// - Parameter world: The world.
     public init(world: World) {
         self.scene = AssetHandle(Scene(from: world))
     }
 }
 
+/// A component that contains a dynamic scene instance.
+/// 
+/// This component is used to store the identifier of the scene.
+/// It is used to check if the scene has changed.
 @Component
 public struct DynamicSceneInstance {
+    /// The identifier.
     let identifier: World.ID
 }
 
+/// A system that initializes and reloads a dynamic scene.
 @System
 struct DynamicSceneInitSystem {
 

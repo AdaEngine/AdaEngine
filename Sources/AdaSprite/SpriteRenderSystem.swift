@@ -196,27 +196,42 @@ struct SpriteDataComponent {
 }
 
 @Component
+/// A component that contains the textures for a batch.
 public struct BatchComponent {
+    /// The textures for a batch.
     public var textures: [Texture2D]
 }
 
 // MARK: Extraction to Render World
 
+/// A resource that contains the extracted sprites.
 public struct ExtractedSprites: Resource {
+    /// The extracted sprites.
     public var sprites: [ExtractedSprite]
 
+    /// Initialize a new extracted sprites.
+    ///
+    /// - Parameter sprites: The extracted sprites.
     public init(sprites: [ExtractedSprite]) {
         self.sprites = sprites
     }
 }
 
+/// A sprite that contains the extracted sprite.
 public struct ExtractedSprite: Sendable {
+    /// The entity id of the extracted sprite.
     public var entityId: Entity.ID
+    /// The texture of the extracted sprite.
     public var texture: Texture2D?
+    /// The flip x of the extracted sprite.
     public var flipX: Bool
+    /// The flip y of the extracted sprite.
     public var flipY: Bool
+    /// The tint color of the extracted sprite.
     public var tintColor: Color
+    /// The transform of the extracted sprite.
     public var transform: Transform
+    /// The world transform of the extracted sprite.
     public var worldTransform: Transform3D
 }
 

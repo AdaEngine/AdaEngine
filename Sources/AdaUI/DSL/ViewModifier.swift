@@ -83,11 +83,17 @@ public extension View {
     }
 }
 
+/// A modified content.
 public struct ModifiedContent<Content, Modifier> {
-    
+    /// The content.
     public var content: Content
+    /// The modifier.
     public var modifier: Modifier
     
+    /// Initialize a new modified content.
+    ///
+    /// - Parameter content: The content.
+    /// - Parameter modifier: The modifier.
     @inlinable public init(content: Content, modifier: Modifier) {
         self.content = content
         self.modifier = modifier
@@ -95,14 +101,20 @@ public struct ModifiedContent<Content, Modifier> {
 }
 
 public extension ViewModifier where Body == Never {
+    /// The body of the modifier.
+    ///
+    /// - Parameter content: The content.
+    /// - Returns: The body of the modifier.
     func body(content: Self.Content) -> Never {
         fatalError("We should call body when Body is Never type.")
     }
 }
 
+/// A modified content.
 public struct _ModifiedContent<Content: ViewModifier>: View {
-
+    /// The body type.
     public typealias Body = Never
+    /// The body of the modifier.
     public var body: Never { fatalError() }
 
     enum Storage {

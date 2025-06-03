@@ -10,22 +10,36 @@ import AdaUtils
 
 // TODO: Mode for decoding/encoding files from/into binary format.
 
+/// A query for an asset.
 public struct AssetQuery: Sendable {
+    /// The name of the query.
     public let name: String
+
+    /// The value of the query.
     public let value: String?
 }
 
+/// A meta information about an asset.
 public struct AssetMeta: Sendable {
+    /// The file path of the asset.
     public let filePath: URL
+
+    /// The query parameters of the asset.
     public let queryParams: [AssetQuery]
-    
+
+    /// The file name of the asset.
     public var fileName: String { self.filePath.lastPathComponent }
 }
 
+/// An error that occurs when decoding an asset.
 public enum AssetDecodingError: LocalizedError {
+    /// The invalid asset extension error.
     case invalidAssetExtension(String)
+
+    /// The decoding problem error.
     case decodingProblem(String)
     
+    /// The error description.
     public var errorDescription: String? {
         switch self {
         case .invalidAssetExtension(let string):
@@ -67,14 +81,27 @@ public protocol AssetDecoder: Sendable {
     /// - Returns: decoder.
     var decoder: (any Decoder)? { get }
     
+    /// Get or load a resource.
+    ///
+    /// - Parameter resourceType: The type of the resource.
+    /// - Parameter path: The path to the resource.
+    /// - Returns: The asset handle.
     func getOrLoadResource<A: Asset>(
         _ resourceType: A.Type,
         at path: String
     ) throws -> AssetHandle<A>
     
     /// Use this method to decode content from asset.
+    ///
+    /// - Parameter type: The type of the content.
+    /// - Returns: The decoded content.
     func decode<T: Decodable>(_ type: T.Type) throws -> T
     
+    /// Use this method to decode content from asset.
+    ///
+    /// - Parameter type: The type of the asset.
+    /// - Parameter decoder: The decoder.
+    /// - Returns: The decoded asset.
     func decode<A: Asset>(_ type: A.Type, from decoder: any Decoder) throws -> A
 }
 

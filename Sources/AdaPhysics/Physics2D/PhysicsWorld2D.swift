@@ -10,8 +10,17 @@ import AdaUtils
 import box2d
 import Math
 
+/// A protocol that defines a delegate for the physics world.
 public protocol PhysicsWorld2DDelegate: AnyObject {
     
+    /// Called when the physics world is about to solve a collision.
+    ///
+    /// - Parameters:
+    ///   - world: The physics world.
+    ///   - entityA: The first entity.
+    ///   - entityB: The second entity.
+    ///   - manifold: The manifold.
+    /// - Returns: A Boolean value indicating whether the collision should be solved.
     func physicsWorldOnPreSolve(
         _ world: PhysicsWorld2D,
         entityA: Entity,
@@ -19,6 +28,13 @@ public protocol PhysicsWorld2DDelegate: AnyObject {
         manifold: Manifold2D?
     ) -> Bool
     
+    /// Called when the physics world is about to filter a collision.
+    ///
+    /// - Parameters:
+    ///   - world: The physics world.
+    ///   - entityA: The first entity.
+    ///   - entityB: The second entity.
+    /// - Returns: A Boolean value indicating whether the collision should be filtered.
     func physicsWorldOnCustomFilterCalled(
         _ world: PhysicsWorld2D,
         entityA: Entity,
@@ -26,17 +42,20 @@ public protocol PhysicsWorld2DDelegate: AnyObject {
     ) -> Bool
 }
 
-/// An object that holds and simulate all 2D physics bodies.
+/// An object that holds and simulates all 2D physics bodies.
 @MainActor
 public final class PhysicsWorld2D: @preconcurrency Codable {
 
+    /// The coding keys for the physics world.
     enum CodingKeys: CodingKey {
         case substepIterations
         case gravity
     }
     
+    /// The delegate of the physics world.
     public weak var delegate: PhysicsWorld2DDelegate?
     
+    /// The substep iterations.
     public var substepIterations: Int = 4
     
     /// Contains world gravity.
@@ -557,8 +576,10 @@ fileprivate final class _Raycast2DCallback {
 //    }
 //}
 
+/// A manifold of a collision.
 public struct Manifold2D: Sendable {
+    /// The normal of the manifold.
     public let normal: Vector2
-    
+    /// The rolling impulse of the manifold.
     public let rollingImpulse: Float
 }

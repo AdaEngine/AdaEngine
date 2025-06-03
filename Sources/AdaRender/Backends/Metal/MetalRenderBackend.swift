@@ -329,10 +329,12 @@ final class MetalRenderCommandBuffer: DrawCommandBuffer {
 
 #endif
 
+/// A protocol that defines a command buffer.
 public protocol CommandBuffer {
     
 }
 
+/// A protocol that defines a draw command buffer.
 public protocol DrawCommandBuffer: Sendable {
     
 }

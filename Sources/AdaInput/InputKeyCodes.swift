@@ -7,6 +7,7 @@
 
 // swiftlint:disable all
 
+/// A key code set supported by the engine.
 public enum KeyCode: String, Hashable, CaseIterable, Sendable {
     case none = ""
 
@@ -137,17 +138,27 @@ extension KeyCode {
     }
 }
 
+/// A modifier key.
 public struct KeyModifier: OptionSet, Hashable, Sendable {
+    /// The raw value of the modifier.
     public let rawValue: UInt8
     
+    /// Initialize a new modifier key.
+    ///
+    /// - Parameter rawValue: The raw value of the modifier.
     public init(rawValue: UInt8) {
         self.rawValue = rawValue
     }
     
+    /// The caps lock modifier.
     public static let capsLock = KeyModifier(rawValue: 1 << 0)
+    /// The shift modifier.
     public static let shift = KeyModifier(rawValue: 1 << 1)
+    /// The control modifier.
     public static let control = KeyModifier(rawValue: 1 << 2)
+    /// The main modifier.
     public static let main = KeyModifier(rawValue: 1 << 3)
+    /// The alt modifier.
     public static let alt = KeyModifier(rawValue: 1 << 4)
 }
 
@@ -156,6 +167,9 @@ public struct KeyModifier: OptionSet, Hashable, Sendable {
 import AppKit
 
 public extension KeyModifier {
+    /// Initialize a new modifier key.
+    ///
+    /// - Parameter modifiers: The modifier flags.
     init(modifiers: NSEvent.ModifierFlags) {
         var flags: KeyModifier = []
 

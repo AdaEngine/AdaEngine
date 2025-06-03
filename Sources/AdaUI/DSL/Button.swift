@@ -11,10 +11,13 @@ import Math
 
 /// A control that initiates an action.
 public struct Button: View, ViewNodeBuilder {
-
+    /// A state of the button.
     public struct State: OptionSet, Hashable, Sendable {
         public let rawValue: UInt
 
+        /// Initialize a new state.
+        ///
+        /// - Parameter rawValue: The raw value of the state.
         public init(rawValue: UInt) {
             self.rawValue = rawValue
         }
@@ -34,19 +37,34 @@ public struct Button: View, ViewNodeBuilder {
             self.contains(.highlighted)
         }
 
+        /// The normal state.
         public static let normal = State(rawValue: 1 << 0)
+
+        /// The disabled state.
         public static let disabled = State(rawValue: 1 << 1)
+
+        /// The highlighted state.
         public static let highlighted = State(rawValue: 1 << 2)
+
+        /// The focused state.
         public static let focused = State(rawValue: 1 << 3)
+
+        /// The selected state.
         public static let selected = State(rawValue: 1 << 4)
     }
 
+    /// The body of the button.
     public typealias Body = Never
     public var body: Never { fatalError() }
 
+    /// The action of the button.
     let action: () -> Void
     let label: ButtonStyleConfiguration.Label.Storage
 
+    /// Initialize a new button.
+    ///
+    /// - Parameter action: The action of the button.
+    /// - Parameter label: The label of the button.
     @MainActor
     public init<Label: View>(action: @escaping () -> Void, @ViewBuilder label: () -> Label) {
         self.action = action
@@ -54,6 +72,10 @@ public struct Button: View, ViewNodeBuilder {
         self.label = .makeView({ Label._makeView(_ViewGraphNode(value: label), inputs: $0) })
     }
 
+    /// Initialize a new button.
+    ///
+    /// - Parameter text: The text of the button.
+    /// - Parameter action: The action of the button.
     @MainActor
     public init(_ text: String, action: @escaping () -> Void) {
         self.action = action
@@ -61,7 +83,7 @@ public struct Button: View, ViewNodeBuilder {
     }
 
     // MARK: - ViewNodeBuilder
-
+    
     func buildViewNode(in context: BuildContext) -> ViewNode {
         ButtonViewNode(
             content: self,
