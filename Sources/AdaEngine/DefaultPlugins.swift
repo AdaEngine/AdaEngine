@@ -1,5 +1,5 @@
 //
-//  DefaultWorldPlugin.swift
+//  DefaultPlugins.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 8/11/22.
@@ -52,7 +52,6 @@ public struct DefaultPlugins: Plugin {
     public func setup(in app: AppWorlds) {
         // FIXME: Move out this components..
         ScriptableComponent.registerComponent()
-        Circle2DComponent.registerComponent()
 
         for plugin in plugins.elements.values {
             app.addPlugin(plugin)
@@ -62,12 +61,18 @@ public struct DefaultPlugins: Plugin {
             .addSystem(ScriptComponentUpdateSystem.self)
     }
 
+    /// Set a plugin.
+    /// - Parameter plugin: The plugin to set.
+    /// - Returns: A new instance of `DefaultPlugins` with the plugin set.
     public func set<T: Plugin>(_ plugin: T) -> DefaultPlugins {
         var newValue = self
         insertPlugin(plugin, into: &newValue.plugins)
         return newValue
     }
 
+    /// Disable a plugin.
+    /// - Parameter plugin: The plugin to disable.
+    /// - Returns: A new instance of `DefaultPlugins` with the plugin disabled.
     public func disable<T: Plugin>(_ plugin: T.Type) -> DefaultPlugins {
         var newValue = self
         newValue.plugins[String(reflecting: T.self)] = nil

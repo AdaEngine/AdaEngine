@@ -111,6 +111,18 @@ public final class Schedulers: @unchecked Sendable {
     }
 }
 
+/// A resource that contains the delta time.
+public struct DeltaTime: Resource {
+    /// The delta time.
+    public let deltaTime: AdaUtils.TimeInterval
+
+    /// Initialize a new delta time.
+    /// - Parameter deltaTime: The delta time.
+    public init(deltaTime: AdaUtils.TimeInterval) {
+        self.deltaTime = deltaTime
+    }
+}
+
 /// A resource that contains the order of the default scheduler.
 public struct DefaultSchedulerOrder: Resource {
     public let order: [SchedulerName]
@@ -190,6 +202,8 @@ public final class Scheduler: @unchecked Sendable {
         if self.runnerSystem == nil {
             self.runnerSystem = self.runnerSystemsBuilder(world)
         }
+
+        world.insertResource(DeltaTime(deltaTime: deltaTime))
 
         if let runnerSystem = runnerSystem {
             await withTaskGroup(of: Void.self) { @MainActor group in
