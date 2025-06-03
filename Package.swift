@@ -303,6 +303,7 @@ var targets: [Target] = [
         dependencies: [
             "AdaApp",
             "AdaECS",
+            "AdaAssets",
             "AdaTransform",
             "Math",
             "Yams",
