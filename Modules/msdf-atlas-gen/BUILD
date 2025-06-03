@@ -90,7 +90,6 @@ cc_library(
         "MSDFGEN_USE_CPP11",
     ],
     includes = ["msdfgen"],
-    aspect_hints = ["msdfgen_cxx"],
     deps = [
         ":freetype",
         ":tinyxml",
@@ -113,4 +112,10 @@ cc_library(
     visibility = ["//visibility:public"],
     aspect_hints = ["msdf-atlas-gen_cxx"],
     deps = [":msdfgen"],
+)
+
+swift_interop_hint(
+    name = "msdf-atlas-gen_cxx",
+    module_name = "msdf-atlas-gen",
+    visibility = ["//visibility:public"]
 )
