@@ -90,7 +90,7 @@ struct CustomButtonStyle: ButtonStyle {
         configuration
             .label
             .foregroundColor(.white)
-            .font(Font.system(size: 13, weight: .bold))
+            .font(Font.system(size: 13))
             .background(self.background(in: configuration))
             .border(.black)
     }
