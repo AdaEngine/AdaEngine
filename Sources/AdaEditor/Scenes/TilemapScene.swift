@@ -9,7 +9,6 @@ import AdaEngine
 
 final class LdtkTilemapScene: Scene, TileMapDelegate, @unchecked Sendable {
     override func sceneDidMove(to view: SceneView) {
-        self.debugOptions = [.showPhysicsShapes]
         
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
@@ -85,8 +84,6 @@ final class TilemapScene: Scene, @unchecked Sendable {
             at: "/Users/vprusakov/Downloads/tilemap.res", 
             from: .editor
         ).asset
-        
-        self.debugOptions = [.showPhysicsShapes]
         
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
@@ -181,8 +178,6 @@ final class TilemapScene: Scene, @unchecked Sendable {
             )
         }
         
-        self.debugOptions = [.showPhysicsShapes]
-        
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraEntity.camera.clearFlags = .solid
@@ -262,7 +257,7 @@ struct CamMovementSystem: System {
     
     init(world: World) { }
     
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
 //        let tileEntity: Entity = context.world.performQuery(Self.tileMap).first!
         

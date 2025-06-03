@@ -1,7 +1,7 @@
 import AdaEngine
 
-class FirstScene: Scene {
-    override func sceneDidMove(to view: SceneView) {
+struct FirstScene: Plugin {
+    func setup(in app: AppWorlds) {
         /** Collapsed code */
     }
 }
@@ -9,17 +9,13 @@ class FirstScene: Scene {
 @Component
 struct PlayerComponent {}
 
-struct MovementSystem: System {
-    
-    private static let playerQuery = EntityQuery(where: .has(PlayerComponent.self) && .has(Transform.self))
-    
-    let speed: Float = 3
-    
-    init(world: World) { }
-    
-    func update(context: UpdateContext) {
-        context.world.performQuery(Self.playerQuery).forEach { entity in
-            var transform = entity.components[Transform.self]!
-        }
+@PlainSystem
+func PlayerMovement(
+    _ playerTransform: FIlterQuery<Ref<Transform>, With<PlayerComponent>>,
+    _ speed: LocalIsolated<Float> = 3.0,
+    _ deltaTime: ResQuery<DeltaTime>
+) {
+    if Input.isKeyPressed(.w) {
+        playerTransform.position.y += speed.wrappedValue * deltaTime.wrappedValue.deltaTime
     }
 }

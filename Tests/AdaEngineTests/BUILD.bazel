@@ -5,12 +5,6 @@ swift_test(
     srcs = [
         "FixedTimestepTests.swift",
         "Physics2DTests.swift",
-        "TestApplication.swift",
-        "UIWidgetTest/Helpers/ViewTester.swift",
-        "UIWidgetTest/ViewHitTests.swift",
-        "UIWidgetTest/ViewModifiersTests.swift",
-        "UIWidgetTest/ViewStoragesTests.swift",
-        "UIWidgetTest/ViewVisibilityTest.swift",
     ],
     module_name = "AdaEngineTests",
     visibility = ["//visibility:public"],

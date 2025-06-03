@@ -6,14 +6,21 @@
 //
 
 /// A protocol that allows to use components and entities as query targets.
-public protocol QueryTarget: Sendable {
-    /// Check that entity contains target
+public protocol QueryTarget: Sendable, ~Copyable {
+
+    /// Check that entity contains target.
+    /// - Parameter entity: The entity to check.
+    /// - Returns: True if the entity contains the target, otherwise false.
     static func _queryTargetContains(in entity: Entity) -> Bool
-    
+
     /// Create a new query target from an entity.
+    /// - Parameter entity: The entity to create a query target from.
+    /// - Returns: A new query target.
     static func _queryTarget(from entity: Entity) -> Self
 
     /// Check if an archetype contains the target.
+    /// - Parameter archetype: The archetype to check.
+    /// - Returns: True if the archetype contains the target, otherwise false.
     static func _queryContains(in archetype: Archetype) -> Bool
 }
 
@@ -31,7 +38,7 @@ extension Component {
     }
 }
 
-extension Ref: QueryTarget {
+extension Ref: QueryTarget where T: Component {
     
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         T._queryTargetContains(in: entity)

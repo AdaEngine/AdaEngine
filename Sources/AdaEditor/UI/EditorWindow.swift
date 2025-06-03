@@ -90,7 +90,7 @@ struct CustomButtonStyle: ButtonStyle {
         configuration
             .label
             .foregroundColor(.white)
-            .font(Font.system(size: 13, weight: .bold))
+            .font(Font.system(size: 13))
             .background(self.background(in: configuration))
             .border(.black)
     }
@@ -192,7 +192,7 @@ class LayoutInspectableView: UIView {
     var inspectLayout = false
     var drawDebugBorders = false
 
-    override func hitTest(_ point: Point, with event: InputEvent) -> UIView? {
+    override func hitTest(_ point: Point, with event: any InputEvent) -> UIView? {
         if let event = (event as? MouseEvent), inspectLayout {
             if event.button == .scrollWheel && event.modifierKeys.contains(.main) {
                 return self

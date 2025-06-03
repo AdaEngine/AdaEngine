@@ -7,10 +7,10 @@
 
 import AdaUtils
 import Collections
+import Foundation
 
 /// TODO: (Vlad)
 /// [] Recalculate archetype for removed and added components. Archetype should use graph
-/// [] Archetype to struct?
 
 /// Stores and exposes operations on ``Entity`` and ``Component``.
 ///
@@ -19,38 +19,52 @@ import Collections
 /// - Warning: Still work in progress.
 public final class World: @unchecked Sendable, Codable {
 
+    /// The unique identifier of the world.
     public typealias ID = RID
 
+    /// The unique identifier of the world.
     public let id = ID()
+    public let name: String?
+
+    /// The records of the world.
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 
+    /// The removed entities of the world.
     internal private(set) var removedEntities: Set<Entity.ID> = []
+
+    /// The added entities of the world.
     internal private(set) var addedEntities: Set<Entity.ID> = []
 
+    /// The archetypes of the world.
     private(set) var archetypes: SparseArray<Archetype> = []
+
+    /// The free archetype indices of the world.
     private var freeArchetypeIndices: [Int] = []
 
+    /// The updated entities of the world.
     private var updatedEntities: Set<Entity> = []
     private var updatedComponents: [Entity: Set<ComponentId>] = [:]
 
     private var componentsStorage = ComponentsStorage()
-
-    internal let systemGraph = SystemsGraph()
-    internal let systemGraphExecutor = SystemsGraphExecutor()
     private var isReady = false
 
-    private var plugins: [WorldPlugin] = []
     public private(set) var eventManager: EventManager = EventManager.default
+
+    // Scheduler registry and mapping from scheduler to systems
+    public let schedulers = Schedulers(SchedulerName.default)
 
     // MARK: - Methods
 
-    public init() {}
+    public init(name: String? = nil) {
+        self.name = name
+    }
 
+    /// Initialize a new world from a decoder.
+    /// - Parameter decoder: The decoder to initialize the world from.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decodeIfPresent(String.self, forKey: .name)
         let entities = try container.decode([Entity].self, forKey: .entities)
-        let systems = try container.decode([String].self, forKey: .systems)
-        let plugins = try container.decode([String].self, forKey: .plugins)
 
         for entity in entities {
             self.addEntity(entity)
@@ -73,48 +87,89 @@ public final class World: @unchecked Sendable, Codable {
         }
 
         self.flush()
-
-        for system in systems {
-            guard let systemType = SystemStorage.getRegistredSystem(for: system) else {
-                throw DecodingError.dataCorruptedError(
-                    forKey: .systems,
-                    in: container,
-                    debugDescription: "System \(system) not found"
-                )
-            }
-            self.addSystem(systemType)
-        }
-
-        for plugin in plugins {
-            guard let pluginType = WorldPluginStorage.getRegistredPlugin(for: plugin) else {
-                throw DecodingError.dataCorruptedError(
-                    forKey: .plugins,
-                    in: container,
-                    debugDescription: "Plugin \(plugin) not found"
-                )
-            }
-
-            self.addPlugin(pluginType.init())
-        }
     }
 
+    /// Encode the world to an encoder.
+    /// - Parameter encoder: The encoder to encode the world to.
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         let entities = (self.getEntities() + updatedEntities).sorted(by: {
             $0.id < $1.id
         })
         try container.encode(entities, forKey: .entities)
-        try container.encode(self.systemGraph.systems.map { type(of: $0).swiftName }, forKey: .systems)
-        try container.encode(self.plugins.map { type(of: $0).swiftName }, forKey: .plugins)
         var unkeyedContainer = container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
         for resource in self.componentsStorage.resourceComponents.values {
             try unkeyedContainer.encode(AnyEncodable(resource), forKey: CodingName(stringValue: type(of: resource).swiftName))
         }
     }
 
+    // MARK: - Scheduler API
+
+    /// Set the order of schedulers for this world.
+    /// - Parameter schedulers: The schedulers to set.
+    public func setSchedulers(_ schedulers: [SchedulerName]) {
+        self.schedulers.setSchedulers(schedulers)
+    }
+
+    /// Insert a scheduler before or after another scheduler.
+    /// - Parameter scheduler: The scheduler to insert.
+    /// - Parameter after: The scheduler after which to insert the new scheduler.
+    public func insertScheduler(_ scheduler: Scheduler, after: SchedulerName) {
+        schedulers.insert(scheduler, after: after)
+    }
+
+    /// Insert a scheduler before or before another scheduler.
+    /// - Parameter scheduler: The scheduler to insert.
+    /// - Parameter before: The scheduler before which to insert the new scheduler.
+    public func insertScheduler(_ scheduler: Scheduler, before: SchedulerName) {
+        schedulers.insert(scheduler, before: before)
+    }
+
+    /// Contains scheduler
+    /// - Parameter scheduler: The scheduler to check.
+    /// - Returns: True if the scheduler exists, otherwise false.
+    public func containsScheduler(_ scheduler: SchedulerName) -> Bool {
+        self.schedulers.contains(scheduler)
+    }
+
+    /// Add schedulers.
+    /// - Parameter schedulers: The schedulers to add.
+    public func addSchedulers(_ schedulers: SchedulerName...) {
+        schedulers.forEach {
+            self.schedulers.append(Scheduler(name: $0))
+        }
+    }
+
+    /// Add new system to the world.
+    /// - Warning: System should be added before build.
+    /// - Parameter systemType: System type.
+    /// Add a system to a specific scheduler.
+    @discardableResult
+    public func addSystem<T: System>(_ systemType: T.Type, on scheduler: SchedulerName) -> Self {
+        if self.isReady {
+            assertionFailure("Can't insert system if scene was ready")
+            return self
+        }
+        let system = systemType.init(world: self)
+        self.schedulers.getScheduler(scheduler)?.systemGraph.addSystem(system)
+        return self
+    }
+
+    /// Add new system to the world.
+    /// - Warning: System should be added before build.
+    /// - Parameter systemType: System type.
+    /// - Returns: A world instance.
+    @discardableResult
+    public func addSystem<T: System>(_ systemType: T.Type) -> Self {
+        return addSystem(systemType, on: .update)
+    }
+}
+
+public extension World {
     /// Get all entities in world.
     /// - Complexity: O(n)
-    public func getEntities() -> [Entity] {
+    /// - Returns: All entities in world.
+    func getEntities() -> [Entity] {
         return self.records.values.elements
             .map { record in
                 let archetype = self.archetypes[record.archetypeId]!
@@ -127,7 +182,7 @@ public final class World: @unchecked Sendable, Codable {
     /// - Parameter id: Entity identifier.
     /// - Complexity: O(1)
     /// - Returns: Returns nil if entity not registed in scene world.
-    public func getEntityByID(_ entityID: Entity.ID) -> Entity? {
+    func getEntityByID(_ entityID: Entity.ID) -> Entity? {
         guard let record = self.records[entityID] else {
             return nil
         }
@@ -140,7 +195,7 @@ public final class World: @unchecked Sendable, Codable {
     /// - Note: Not efficient way to find an entity.
     /// - Complexity: O(n)
     /// - Returns: An entity with matched name or nil if entity with given name not exists.
-    public func getEntityByName(_ name: String) -> Entity? {
+    func getEntityByName(_ name: String) -> Entity? {
         for arch in archetypes {
             if let ent = arch.entities.first(where: { $0.name == name }) {
                 return ent
@@ -150,48 +205,26 @@ public final class World: @unchecked Sendable, Codable {
         return nil
     }
 
-    /// Add new system to the world.
-    /// - Warning: System should be added before build.
-    /// - Parameter systemType: System type.
-    @discardableResult
-    public func addSystem<T: System>(_ systemType: T.Type) -> Self {
-        if self.isReady {
-            assertionFailure("Can't insert system if scene was ready")
-            return self
-        }
-        let system = systemType.init(world: self)
-        self.systemGraph.addSystem(system)
-        return self
-    }
-
-    /// Add new scene plugin to the scene.
-    /// - Warning: Plugin should be added before build.
-    /// - Parameter plugin: Plugin instance.
-    @discardableResult
-    public func addPlugin<T: WorldPlugin>(_ plugin: T) -> Self {
-        if self.isReady {
-            assertionFailure("Can't insert plugin if scene was ready")
-            return self
-        }
-        plugin.setup(in: self)
-        self.plugins.append(plugin)
-        return self
-    }
-
-    public func build() {
+    /// Build the world.
+    /// - Note: This method should be called after all systems and resources are added.
+    func build() {
         if isReady {
             fatalError("World already configured")
         }
         isReady = true
-        self.systemGraph.linkSystems()
+        for label in self.schedulers.schedulerLabels {
+            let scheduler = self.schedulers.getScheduler(label)
+            scheduler?.systemGraph.linkSystems()
+        }
         self.flush()
     }
 
     /// Add a new entity to the world. This entity will be available on the next update tick.
     /// - Parameter entity: The entity to add.
     /// - Parameter needsCopy: If true, the entity will be copied before adding to the world.
+    /// - Returns: A world instance.
     @discardableResult
-    public func addEntity(_ entity: Entity) -> Self {
+    func addEntity(_ entity: Entity) -> Self {
         entity.world = self
 
         self.updatedEntities.insert(entity)
@@ -203,8 +236,9 @@ public final class World: @unchecked Sendable, Codable {
 
     /// Remove entity from world.
     /// - Parameter recursively: also remove entity child.
+    /// - Returns: A world instance.
     @discardableResult
-    public func removeEntity(_ entity: Entity, recursively: Bool = false) -> Self {
+    func removeEntity(_ entity: Entity, recursively: Bool = false) -> Self {
         self.removeEntityRecord(entity.id)
 
         guard recursively && !entity.children.isEmpty else {
@@ -221,7 +255,7 @@ public final class World: @unchecked Sendable, Codable {
     /// Remove entity from world.
     /// - Note: Entity will removed on next `update` call.
     /// - Parameter recursively: also remove entity child.
-    public func removeEntityOnNextTick(_ entity: Entity, recursively: Bool = false) {
+    func removeEntityOnNextTick(_ entity: Entity, recursively: Bool = false) {
         guard self.records[entity.id] != nil else {
             return
         }
@@ -240,15 +274,20 @@ public final class World: @unchecked Sendable, Codable {
 
     /// Insert a resource into the world.
     /// - Parameter resource: The resource to insert.
+    /// - Returns: A world instance.
     @discardableResult
-    public func insertResource<T: Resource>(_ resource: T) -> Self {
+    func insertResource<T: Resource>(_ resource: consuming T) -> Self {
         let componentId = self.componentsStorage.getOrRegisterResource(T.self)
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
     }
 
+    /// Insert a resource into the world.
+    /// - Parameter resource: The resource to insert.
+    /// - Returns: A world instance.
     @discardableResult
-    public func insertResource(_ resource: any Resource) -> Self {
+    func insertResource(_ resource: any Resource) -> Self {
+        let resource = resource
         let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
@@ -256,62 +295,93 @@ public final class World: @unchecked Sendable, Codable {
 
     /// Remove a resource from the world.
     /// - Parameter resource: The resource to remove.
-    public func removeResource<T: Resource>(_ resource: T.Type) {
+    func removeResource<T: Resource>(_ resource: T.Type) {
         self.componentsStorage.removeResource(resource)
     }
 
     /// Get a resource from the world.
     /// - Parameter resource: The resource to get.
     /// - Returns: The resource if it exists, otherwise nil.
-    public func getResource<T: Resource>(_ resource: T.Type) -> T? {
+    /// - Complexity: O(1)
+    /// - Returns: The resource if it exists, otherwise nil.
+    borrowing func getResource<T: Resource>(_ resource: T.Type) -> T? {
         return self.componentsStorage.getResource(resource)
     }
 
-    public func getResources() -> [any Resource] {
+    /// Get all resources from the world.
+    /// - Returns: All resources in world.
+    func getResources() -> [any Resource] {
         return Array(self.componentsStorage.resourceComponents.values)
     }
 
     /// Check if component was changed for entity.
     /// - Parameter component: Component identifier.
     /// - Parameter entity: Entity.
+    /// - Complexity: O(1)
     /// - Returns: True if component was changed for entity, otherwise false.
-    public func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
+    func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
         return self.updatedComponents[entity]?.contains(T.identifier) ?? false
     }
 
-    /// Update all data in world.
+    /// Run all schedulers in world.
     /// - Parameter deltaTime: Time interval since last update.
     @MainActor
-    public func update(_ deltaTime: TimeInterval) async {
+    func update(_ deltaTime: AdaUtils.TimeInterval) async {
         self.flush()
+        self.clearTrackers()
 
-        await withTaskGroup(of: Void.self) { @MainActor group in
-            let context = WorldUpdateContext(
+        for label in self.schedulers.schedulerLabels {
+            guard let scheduler = self.schedulers.getScheduler(label) else {
+                continue
+            }
+
+            await scheduler.graphExecutor.execute(
+                scheduler.systemGraph,
                 world: self,
                 deltaTime: deltaTime,
-                scheduler: group
+                scheduler: scheduler.name
             )
-            self.systemGraphExecutor.execute(self.systemGraph, context: context)
         }
+    }
+
+    /// Run a specific scheduler.
+    /// - Parameter scheduler: Scheduler name.
+    /// - Parameter deltaTime: Time interval since last update.
+    @MainActor
+    func runScheduler(_ scheduler: SchedulerName, deltaTime: AdaUtils.TimeInterval) async {
+        guard let scheduler = self.schedulers.getScheduler(scheduler) else {
+            fatalError("Scheduler \(scheduler) not found")
+        }
+
+        await scheduler.graphExecutor.execute(
+            scheduler.systemGraph,
+            world: self,
+            deltaTime: deltaTime,
+            scheduler: scheduler.name
+        )
     }
 
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
-    public func flush() {
+    func flush() {
         self.moveEntitiesToMatchedArchetypesIfNeeded()
 
         for entityId in self.removedEntities {
             self.removeEntityRecord(entityId)
         }
+    }
 
-        // Should think about it
+    /// Clear trackers for entities, components and resources.
+    /// - Complexity: O(1)
+    func clearTrackers() {
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
         self.updatedComponents.removeAll(keepingCapacity: true)
     }
 
     /// Remove all data from world.
-    public func clear() {
+    /// - Complexity: O(n)
+    func clear() {
         self.records.removeAll(keepingCapacity: true)
         self.updatedComponents.removeAll(keepingCapacity: true)
         self.removedEntities.removeAll(keepingCapacity: true)
@@ -325,21 +395,30 @@ public final class World: @unchecked Sendable, Codable {
 // MARK: - Delegate
 
 extension World {
-    func entity(_ entity: Entity, didAddComponent component: Component, with identifier: ComponentId) {
-        let componentType = type(of: component)
-        eventManager.send(ComponentEvents.DidAdd(componentType: componentType, entity: entity))
-
+    /// Entity did add component.
+    /// - Parameter entity: The entity that did add component.
+    /// - Parameter component: The component that did add.
+    /// - Parameter identifier: The identifier of the component.
+    func entity<T: Component>(_ entity: Entity, didAddComponent component: T.Type, with identifier: ComponentId) {
+        eventManager.send(ComponentEvents.DidAdd(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
     }
 
-    func entity(_ entity: Entity, didUpdateComponent component: Component, with identifier: ComponentId) {
-        let componentType = type(of: component)
-        eventManager.send(ComponentEvents.DidChange(componentType: componentType, entity: entity))
+    /// Entity did update component.
+    /// - Parameter entity: The entity that did update component.
+    /// - Parameter component: The component that did update.
+    /// - Parameter identifier: The identifier of the component.
+    func entity<T: Component>(_ entity: Entity, didUpdateComponent component: T.Type, with identifier: ComponentId) {
+        eventManager.send(ComponentEvents.DidChange(componentType: component, entity: entity))
 
         self.updatedEntities.insert(entity)
         self.updatedComponents[entity, default: []].insert(identifier)
     }
 
+    /// Entity did remove component.
+    /// - Parameter entity: The entity that did remove component.
+    /// - Parameter component: The component that did remove.
+    /// - Parameter identifier: The identifier of the component.
     func entity(_ entity: Entity, didRemoveComponent component: Component.Type, with identifier: ComponentId) {
         eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
@@ -347,13 +426,15 @@ extension World {
 }
 
 private extension World {
+    /// Remove entity record.
+    /// - Parameter entity: The entity to remove.
     private func removeEntityRecord(_ entity: Entity.ID) {
         guard let record = self.records[entity] else {
             return
         }
         self.records[entity] = nil
 
-        guard let currentArchetype = self.archetypes[record.archetypeId] else {
+        guard var currentArchetype = self.archetypes[record.archetypeId] else {
             assertionFailure("Incorrect record of archetype \(record)")
             return
         }
@@ -363,6 +444,8 @@ private extension World {
             self.archetypes[record.archetypeId]!.clear()
             self.freeArchetypeIndices.append(record.archetypeId)
         }
+
+        self.archetypes[record.archetypeId] = currentArchetype
     }
 
     /// Find or create matched arhcetypes for all entities that wait update
@@ -374,13 +457,14 @@ private extension World {
         for entity in self.updatedEntities {
             let bitmask = entity.components.bitset
 
-            if let record = self.records[entity.id], let currentArchetype = self.archetypes[record.archetypeId] {
+            if let record = self.records[entity.id], var currentArchetype = self.archetypes[record.archetypeId] {
                 // We currently updated existed components
                 if currentArchetype.componentsBitMask == bitmask {
                     continue
                 }
 
                 currentArchetype.remove(at: record.row)
+                self.archetypes[record.archetypeId] = currentArchetype
             }
 
             // Previous archetype doesn't match for an entity bit mask, try to find a new one
@@ -390,7 +474,7 @@ private extension World {
 
             // We don't have matched archetype -> create a new one
             if archetype == nil {
-                let newArch: Archetype
+                var newArch: Archetype
 
                 if self.freeArchetypeIndices.isEmpty {
                     newArch = Archetype.new(index: self.archetypes.count)
@@ -401,12 +485,12 @@ private extension World {
                     newArch = self.archetypes[index]!
                 }
                 newArch.componentsBitMask = bitmask
-
                 archetype = newArch
             }
 
             let location = archetype?.append(entity)
             self.records[entity.id] = location
+            self.archetypes[archetype!.id] = archetype
         }
 
         self.updatedEntities.removeAll(keepingCapacity: true)
@@ -415,14 +499,27 @@ private extension World {
 
 extension World {
     /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
-    public func performQuery(_ query: EntityQuery) -> QueryResult<QueryBuilderTargets<Entity>> {
+    public func performQuery(_ query: EntityQuery) -> EntityQuery.Result {
         let state = query.state
         state.updateArchetypes(in: self)
         return QueryResult(state: state)
     }
 }
 
-extension World: EventSource { }
+extension World: EventSource {
+    /// Subscribe to an event.
+    /// - Parameter event: The event to subscribe to.
+    /// - Parameter eventSource: The event source to subscribe to.
+    /// - Parameter completion: The completion handler to call when the event is triggered.
+    /// - Returns: A cancellable object that can be used to unsubscribe from the event.
+    public func subscribe<E: Event>(
+        to event: E.Type,
+        on eventSource: EventSource?,
+        completion: @escaping @Sendable (E) -> Void
+    ) -> Cancellable {
+        self.eventManager.subscribe(to: event, on: eventSource, completion: completion)
+    }
+}
 
 /// Events the world triggers.
 public enum WorldEvents {
@@ -439,6 +536,7 @@ public enum WorldEvents {
 
 private extension World {
     enum CodingKeys: String, CodingKey {
+        case name
         case entities
         case resources
         case systems
@@ -447,7 +545,7 @@ private extension World {
 }
 
 extension World {
-    struct ComponentsStorage {
+    struct ComponentsStorage: Sendable {
         var components: [ComponentId] = []
         var resourceIds: [ObjectIdentifier: ComponentId] = [:]
         var resourceComponents: [ComponentId: any Resource] = [:]

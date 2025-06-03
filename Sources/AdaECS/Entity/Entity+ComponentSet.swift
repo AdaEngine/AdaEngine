@@ -12,7 +12,7 @@ import Collections
 public extension Entity {
     
     /// Hold entity components specific for entity.
-    struct ComponentSet: Codable, @unchecked Sendable {
+    struct ComponentSet: Codable, Sendable {
         @_spi(Internal)
         public weak var entity: Entity?
         
@@ -23,7 +23,7 @@ public extension Entity {
         let lock = NSRecursiveLock()
 
         @_spi(Internal)
-        @LockProperty public private(set) var buffer: OrderedDictionary<ComponentId, Component>
+        @LocalIsolated public private(set) var buffer: OrderedDictionary<ComponentId, Component>
         private(set) var bitset: BitSet
         
         // MARK: - Codable
@@ -34,7 +34,9 @@ public extension Entity {
             self.buffer = [:]
         }
 
-        init(from other: Self) {
+        /// Create a component set from another component set.
+        /// - Parameter other: The other component set to create a component set from.
+        init(from other: borrowing Self) {
             self.buffer = other.buffer
             self.bitset = other.bitset
         }
@@ -61,6 +63,8 @@ public extension Entity {
             }
         }
         
+        /// Encode the component set to an encoder.
+        /// - Parameter encoder: The encoder to encode the component set to.
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingName.self)
             for component in self.buffer.elements.values {
@@ -95,7 +99,7 @@ public extension Entity {
         }
 
         /// Set the component of the specified type.
-        public mutating func set<T>(_ component: T) where T : Component {
+        public mutating func set<T>(_ component: consuming T) where T : Component {
             lock.lock()
             defer {
                 lock.unlock()
@@ -103,7 +107,7 @@ public extension Entity {
             
             let identifier = T.identifier
             let isChanged = self.buffer[identifier] != nil
-            
+
             self.buffer[identifier] = component
             self.bitset.insert(T.identifier)
             guard let ent = self.entity else {
@@ -111,9 +115,9 @@ public extension Entity {
             }
             
             if isChanged {
-                self.world?.entity(ent, didUpdateComponent: component, with: identifier)
+                self.world?.entity(ent, didUpdateComponent: T.self, with: identifier)
             } else {
-                self.world?.entity(ent, didAddComponent: component, with: identifier)
+                self.world?.entity(ent, didAddComponent: T.self, with: identifier)
             }
         }
 
@@ -135,9 +139,9 @@ public extension Entity {
                     lock.unlock()
                 }
                 if isChanged {
-                    self.world?.entity(ent, didUpdateComponent: component, with: identifier)
+                    self.world?.entity(ent, didUpdateComponent: componentType, with: identifier)
                 } else {
-                    self.world?.entity(ent, didAddComponent: component, with: identifier)
+                    self.world?.entity(ent, didAddComponent: componentType, with: identifier)
                 }
             }
         }
@@ -150,6 +154,11 @@ public extension Entity {
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentType: Component.Type) -> Bool {
             return self.buffer[componentType.identifier] != nil
+        }
+
+        /// Returns `true` if the collections contains a component of the specified type.
+        public func has(_ componentId: ComponentId) -> Bool {
+            return self.buffer[componentId] != nil
         }
 
         /// Removes the component of the specified type from the collection.
@@ -186,6 +195,9 @@ public extension Entity {
             return self.buffer.isEmpty
         }
   
+        /// Check if a component is changed.
+        /// - Parameter componentType: The type of the component to check.
+        /// - Returns: True if the component is changed, otherwise false.
         public func isComponentChanged<T: Component>(_ componentType: T.Type) -> Bool {
             guard let entity = self.entity else {
                 return false
@@ -194,6 +206,8 @@ public extension Entity {
             return world?.isComponentChanged(componentType, for: entity) ?? false
         }
 
+        /// Copy the component set.
+        /// - Returns: A new component set with the same components.
         public func copy() -> Self {
             return Self(from: self)
         }
@@ -204,6 +218,9 @@ public extension Entity {
 
 public extension Entity.ComponentSet {
     /// Gets the components of the specified types.
+    /// - Parameter a: The type of the first component.
+    /// - Parameter b: The type of the second component.
+    /// - Returns: The components of the specified types.
     @inline(__always)
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
         (
@@ -213,6 +230,10 @@ public extension Entity.ComponentSet {
     }
     
     /// Gets the components of the specified types.
+    /// - Parameter a: The type of the first component.
+    /// - Parameter b: The type of the second component.
+    /// - Parameter c: The type of the third component.
+    /// - Returns: The components of the specified types.
     @inline(__always)
     subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
         (
@@ -223,6 +244,11 @@ public extension Entity.ComponentSet {
     }
     
     /// Gets the components of the specified types.
+    /// - Parameter a: The type of the first component.
+    /// - Parameter b: The type of the second component.
+    /// - Parameter c: The type of the third component.
+    /// - Parameter d: The type of the fourth component.
+    /// - Returns: The components of the specified types.
     @inline(__always)
     subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
         (
@@ -237,7 +263,7 @@ public extension Entity.ComponentSet {
 public extension Entity.ComponentSet {
     /// Add new component to component set.
     @inline(__always)
-    static func += <T: Component>(lhs: inout Self, rhs: T) {
+    static func += <T: Component>(lhs: inout Self, rhs: consuming T) {
         lhs[T.self] = rhs
     }
 }
@@ -253,18 +279,17 @@ extension Entity.ComponentSet: CustomStringConvertible {
     }
 }
 
-private extension Entity.ComponentSet {
-    struct ComponentRepresentable<T: Codable>: Codable {
-        let type: String
-        let value: T
-    }
-}
-
 extension Entity.ComponentSet {
+    /// Get a component by its identifier.
+    /// - Parameter identifier: The identifier of the component.
+    /// - Returns: The component if it exists, otherwise nil.
     func get<T: Component>(by identifier: ComponentId) -> T? {
         return (self.buffer[identifier] as? T)
     }
     
+    /// Get a component by its identifier.
+    /// - Parameter componentId: The identifier of the component.
+    /// - Returns: The component if it exists, otherwise nil.
     subscript<T: Component>(by componentId: ComponentId) -> T? where T : Component {
         get {
             return buffer[T.identifier] as? T

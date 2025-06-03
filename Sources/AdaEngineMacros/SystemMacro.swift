@@ -13,29 +13,20 @@ import SwiftSyntaxMacroExpansion
 import SwiftSyntaxMacros
 
 public struct SystemMacro: MemberMacro {
-    
-    // FIXME: We should avoid comparising `attributeName == "EntityQuery"` because user can have alias.    
-    static let queryAttributes = [
-        "EntityQuery",
-        "Query",
-        "ResourceQuery",
-    ]
-    
+
     public static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        // Find all properties with @EntityQuery attribute
+        // Find all properties with SystemQuery attribute
         let entityQueries = declaration.memberBlock.members.compactMap { member -> String? in
             guard let varDecl = member.decl.as(VariableDeclSyntax.self) else { return nil }
-            
-            // Check if property has @EntityQuery attribute
             let hasEntityQueryAttribute = varDecl.attributes.contains { attribute in
                 guard let attributeName = attribute.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self)?.name.text else {
                     return false
                 }
-                return queryAttributes.contains(attributeName)
+                return attributeName.hasSuffix("Query") || attributeName == "Extract"
             }
             
             guard hasEntityQueryAttribute,
@@ -116,5 +107,82 @@ extension SystemMacro: ExtensionMacro {
         extension \(type.trimmed): \(raw: proto) { }
         """
         return [ext.cast(ExtensionDeclSyntax.self)]
+    }
+}
+
+extension SystemMacro: PeerMacro {
+    public static func expansion(
+        of node: AttributeSyntax,
+        providingPeersOf declaration: some DeclSyntaxProtocol,
+        in context: some MacroExpansionContext
+    ) throws -> [DeclSyntax] {
+        guard let funcDecl = declaration.as(FunctionDeclSyntax.self) else {
+            // Only handle function declarations
+            return []
+        }
+        
+        let funcName = funcDecl.name.text
+        let params = funcDecl.signature.parameterClause.parameters
+        let availability = funcDecl.modifiers
+
+        // Get dependencies from macro arguments
+        var dependencies: [String] = []
+        if let arguments = node.arguments?.as(LabeledExprListSyntax.self) {
+            for argument in arguments where argument.label?.text == "dependencies" {
+                if let arrayExpr = argument.expression.as(ArrayExprSyntax.self) {
+                    for element in arrayExpr.elements {
+                        if let functionCall = element.expression.as(FunctionCallExprSyntax.self),
+                           let memberAccess = functionCall.calledExpression.as(
+                            MemberAccessExprSyntax.self),
+                            let argument = functionCall.arguments.first
+                        {
+                            let dependencyType = memberAccess.declName.baseName.text
+                            let systemType = argument.expression.trimmedDescription
+                            dependencies.append(".\(dependencyType)(\(systemType))")
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Generate property declarations and type list for queries
+        var propertyDecls: [String] = []
+        var queryVars: [String] = []
+        var paramNames: [(Bool, String)] = []
+
+        for param in params {
+            let isAnonymosParam = param.firstName.text == "_"
+            let paramName = if isAnonymosParam {
+                param.secondName!.text
+            } else {
+                param.firstName.text
+            }
+
+            let defaultValue = param.defaultValue?.value.description
+            let typeString = param.type.trimmedDescription
+            propertyDecls.append("@\(typeString)\nprivate var \(paramName)\(defaultValue != nil ? " = \(defaultValue!)" : "")")
+            queryVars.append("_\(paramName)")
+            paramNames.append((isAnonymosParam, paramName))
+        }
+        
+        // Generate struct body
+        let structDecl: DeclSyntax = """
+        \(availability)struct \(raw: funcName)System: AdaECS.System {
+        \(raw: propertyDecls.joined(separator: "\n\n"))
+        
+        \(availability)init(world: AdaECS.World) { }
+        
+        \(availability)func update(context: inout UpdateContext) {
+            \(raw: funcName)(\(raw: paramNames.map { "\($0 ? "" : "\($1): ")_\($1)" }.joined(separator: ", ")))
+        }
+        
+        \(availability) var queries: AdaECS.SystemQueries {
+            return AdaECS.SystemQueries(queries: [\(raw: queryVars.joined(separator: ", "))])
+        }
+        
+        \(raw: dependencies.isEmpty ? "" : "\(availability)var dependencies: [AdaECS.SystemDependency] { [\(dependencies.joined(separator: ", "))] }")
+        }
+        """
+        return [structDecl]
     }
 }

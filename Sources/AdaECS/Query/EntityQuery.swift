@@ -12,7 +12,7 @@
 /// struct MovementSystem {
 ///     @EntityQuery(where: .has(Transform.self)) private var query
 ///
-///     func update(context: UpdateContext) {
+///     func update(context: inout UpdateContext) {
 ///         self.query.forEach {
 ///             var transform = entity.components[Transform.self]
 ///             // Do some movement
@@ -29,7 +29,7 @@
 ///     @EntityQuery(where: .has(SpriteComponent.self) && .has(Transform.self))
 ///     private var query
 ///
-///     func update(context: UpdateContext) {
+///     func update(context: inout UpdateContext) {
 ///         for entity in self.query {
 ///             // Get components from entity and do some render
 ///         }
@@ -38,7 +38,9 @@
 /// ```
 @propertyWrapper
 @frozen public struct EntityQuery: Sendable {
-    public var wrappedValue: QueryResult<QueryBuilderTargets<Entity>> {
+    public typealias Result = QueryResult<QueryBuilderTargets<Entity, NoFilter>>
+
+    public var wrappedValue: Result {
         return QueryResult(state: self.state)
     }
     
@@ -53,6 +55,14 @@
         self.predicate = predicate
         self.filter = filter
         self.state = QueryState(predicate: predicate, filter: filter)
+    }
+
+    public init(from world: World) {
+        fatalError()
+    }
+
+    public func callAsFunction() -> Result {
+        .init(state: self.state)
     }
 }
 

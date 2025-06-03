@@ -8,6 +8,7 @@
 #if canImport(MetalKit)
 import MetalKit
 @_spi(Internal) import AdaEngine
+@_spi(Internal) import AdaPlatform
 
 /// Because we don't have windows, this object is blank and using only for avoid crashes when windows will change their states.
 final class AppleWindowManager: UIWindowManager {

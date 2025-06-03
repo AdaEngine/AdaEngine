@@ -5,8 +5,10 @@
 //  Created by v.prusakov on 5/9/24.
 //
 
-// Contains collection of components.
+/// Contains collection of components.
 private struct ComponentBuilderTuple: Component {
+
+    /// The components of the component builder tuple.
     let components: [any Component]
 }
 
