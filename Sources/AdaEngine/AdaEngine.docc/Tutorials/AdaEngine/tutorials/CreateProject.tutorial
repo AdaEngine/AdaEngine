@@ -134,25 +134,30 @@
             }
             
             @Step {
-                Change `import SwiftUI` to `import AdaEngine` and remove the `body` property.
+                Change `import SwiftUI` to `import AdaEngine` and rename `some Scene` to `some AppScene`.
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-2-app.swift)
             }
             
             @Step {
-                ``App`` protocol requires us to implement a `scene` property where we should pass our ``AppScene`` instance. ``AppScene`` tells the AdaEngine how to configure the application and how to show app windows. 
+                ``App`` protocol requires us to implement a `body` property where we should pass our ``AppScene`` instance. ``AppScene`` tells the AdaEngine how to configure the application and how to show app windows. 
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-3-app.swift)
             }
             
             @Step {
-                Now modify the ``AppScene``. Add the `windowTitle` modifier to add a custom window title for your window. Add the `windowMode` modifier to change the window presentation from fullscreen to windowed.
+                Now modify the ``AppScene``. 
+
+                AdaEngine support modular app architecture. Each piece of logic can be connected to the app using ``addPlugins`` method.
+                Lets add ``DefaultPlugins`` to our app. It contains all game engine logic like rendering, audio, input, etc. 
+                Also add the `windowTitle` modifier to add a custom window title for your window. 
+                Add the `windowMode` modifier to change the window presentation from fullscreen to windowed.
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-4-app.swift)
             }
             
             @Step {
-                Finally, you can run your first project and you will see a black screen. That's ok for an empty scene.
+                Finally, you can run your first project and you will see a black screen. That's ok for an empty window.
                 
                 @Image(source: "CP-2-9.png", alt: "Your first application window")
             }

@@ -53,6 +53,7 @@ public struct FixedTimeSchedulerSystem {
         if result.isFixedTick {
             let step = self.fixedTimestep.step
             let world = context.world
+            world.insertResource(DeltaTime(deltaTime: step))
             context.taskGroup.addTask { [order] in
                 for scheduler in order {
                     await world.runScheduler(scheduler, deltaTime: step)

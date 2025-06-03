@@ -1,10 +1,10 @@
-@Tutorial(time: 20, projectFiles: "CF2G-FirstPackage.zip") {
+@Tutorial(time: 20) {
     @Intro(title: "Create your first 2D scene") {
         
         In this tutorial you can learn how to create your first 2D scene using AdaEngine
     }
     
-    @XcodeRequirement(title: "Xcode 14.3 or later", destination: "https://developer.apple.com/download/")
+    @XcodeRequirement(title: "Xcode 16.2 or later", destination: "https://developer.apple.com/download/")
     
     @Section(title: "Intro") {
         @ContentAndMedia {
@@ -21,21 +21,21 @@
         
         @Steps {
             @Step {
-                In the previous tutorial we've created an app and an empty game scene.
+                In the previous tutorial we've created an app and an empty window scene. 
                 
                 @Code(name: "FirstGameApp.swift", file: CF2G-1-1-app.swift)
             }
             
             @Step {
-                Let's create a game scene. To do this, let's create a file named `FirstScene.swift` and import AdaEngine. After that, create a class named `FirstScene` and add a method named `sceneDidMove(to view: SceneView)` where we will setup entities to our scene.
+                Let's create a game logic. To do this, let's create a file named `FirstScene.swift` and import AdaEngine. 
+                After that, create a struct named `FirstScene` that conforms `Plugin` and add a method named `setup(in app: AppWorlds)` where we will setup entities to our game world.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-1-2-scene.swift)
             }
             
             @Step {
-                Great! Now we can create and return our game scene instance to the ``GameAppScene`` object.
-                
-                ``GameAppScene`` will automatically create a game window with your scene.
+                Now add a ``FirstScene`` plugin to the app using ``addPlugins`` method.
+                ``EmptyWindow`` will automatically create a game window with your scene.
                 
                 @Code(name: "FirstGameApp.swift", file: CF2G-1-4-app.swift)
             }
@@ -46,6 +46,7 @@
         @ContentAndMedia {
             AdaEngine used Entity Component System paradigm where all game objects are called ``Entity``.
             Entities are objects that store user or engine data like position, scale, mesh instance, audio etc. This data is called components and they should inherit from ``Component`` protocol.
+            By default ``Entity`` is an empty object without any components.
             
             @Comment {
                 We should link to ECS article here
@@ -122,8 +123,6 @@
             @Step {
                 And finally let's set the scale for our sprite. Create a special ``Transform`` component with scale equals 0.19. `Vector3.init(_ scalar: Float)` creates a vector with x, y, z components equals scalar value. 
                 
-                By default ``Entity`` has a ``Transform`` component when initialized. 
-                
                 @Code(name: "FirstScene.swift", file: CF2G-3-5-sprite.swift) {
                     @Image(source: "CF2G-3-4.png", alt: "Our sprite sheet")
                 }
@@ -144,57 +143,39 @@
             }
             
             @Step {
-                Create a new system named `MovementSystem`. This system will listen to user inputs and move our player component on the screen. System interface required `init(scene:)` and `update(context:)` methods.
+                Create a new function named `PlayerMovement` and Annotate this function with ``PlainSystem`` macro. This system will listen to user inputs and move our player component on the screen.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-4-2-player.swift)
             }
             
             @Step {
-                Add a new system to our game scene. Our system will be created once the game scene will be active and present on the screen.
+                Add a new system to our game scene. ``PlainSystem`` macro will create a new system with the same name as the function with suffix `System`. Our system will be created once on app launch.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-4-3-player.swift)
             }
             
             @Step {
-                In the `MovementSystem` add a static property named `playerQuery` and set a special ``EntityQuery`` object. This object will request a scene world with a special query and returns entities that conform to your predicate. In our case we will require two components in entity `PlayerComponent` and ``Transform``. 
-                
-                Also add a property named `speed` which will store our player speed value.
+                In the `PlayerMovementSystem` add a new function parameters named `playerTransform` with `FilterQuery<Ref<Transform>, With<PlayerComponent>>` type. 
+                This object will request a world with a special query and returns components that conform to your predicate. In our case we will require one mutable component ``Transform`` and filter that indicates that we need entities with component ``PlayerComponent``.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-4-4-player.swift)
             }
             
             @Step {
-                Now we can make our first request to the scene using the special scene method `performQuery`. This method will return a sequence of entities that conforms to our query. 
-                
-                Add the next query to the update method. 
+                Add a new function parameter named `speed` with `LocalIsolated<Float>` type. This is a special type that will store a value that is only available in the system.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-4-5-player.swift)
             }
+
+            Now we can update our player position. AdaEngine can handle keyboard inputs for us. So that we should listen to keyboard inputs and if some key is pressed, we should change player transform.
             
             @Step {
-                Let's iterate over all founded entities using the `forEach` loop and get the ``Transform`` component.
-                
-                @Code(name: "FirstScene.swift", file: CF2G-4-6-player.swift)
-            }
-            
-            We want to update our player position so that we should listen to keyboard inputs and if some key is pressed, we should change player transform.
-            
-            @Step {
-                Get ``Transform`` component from entity using `components` property from entity. You can do this using subscript.   
-                
-                @Code(name: "FirstScene.swift", file: CF2G-4-6-player.swift)
-            }
-            
-            @Step {
+                Let's add a new function parameter named `deltaTime` with `ResQuery<DeltaTime>` type. This a query to resource in a world.
+
+                Using special ``Input`` object we can check if some key is pressed. 
                 Add `if` condition where we will listen to the `w` key. If the key is pressed, then add multiplication speed by delta time. We do this for smooth transition between frames.   
                 
-                @Code(name: "FirstScene.swift", file: CF2G-4-7-player.swift)
-            }
-            
-            @Step {
-                Now we should set a new, modified transform to our entity, to apply a new transform in the scene.
-                
-                @Code(name: "FirstScene.swift", file: CF2G-4-8-player.swift)
+                @Code(name: "FirstScene.swift", file: CF2G-4-6-player.swift)
             }
             
             @Step {
@@ -202,9 +183,9 @@
                 
                 Run the app and try to move your player
                 
-                
-                @Code(name: "FirstScene.swift", file: CF2G-4-9-player.swift) {
+                @Code(name: "FirstScene.swift", file: CF2G-4-7-player.swift) {
                     @Video(source: "CF2G-3-5.mov", alt: "")
+                }
             }
         }
     }

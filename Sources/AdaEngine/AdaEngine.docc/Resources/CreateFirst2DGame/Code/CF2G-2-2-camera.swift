@@ -1,10 +1,9 @@
 import AdaEngine
 
-class FirstScene: Scene {
-    override func sceneDidMove(to view: SceneView) {
-        
+struct FirstScene: Plugin {
+    func setup(in app: AppWorlds) {
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(45/255, 171/255, 255/255, 1)
-        self.world.addEntity(cameraEntity)
+        app.addEntity(cameraEntity)
     }
 }
