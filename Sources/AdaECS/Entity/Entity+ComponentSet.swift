@@ -19,11 +19,9 @@ public extension Entity {
         var world: World? {
             return self.entity?.world
         }
-        
-        let lock = NSRecursiveLock()
 
         @_spi(Internal)
-        @LocalIsolated public private(set) var buffer: OrderedDictionary<ComponentId, Component>
+        public private(set) var buffer: OrderedDictionary<ComponentId, Component>
         private(set) var bitset: BitSet
         
         // MARK: - Codable
@@ -76,14 +74,8 @@ public extension Entity {
             }
         }
 
-        // FIXME: Replace to subscript??
-        /// Get any count of component types from set.
-        @inline(__always)
-        public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
-            return (repeat self.buffer[(each type).identifier] as! each T)
-        }
-
         /// Gets or sets the component of the specified type.
+        @inline(__always)
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
             get {
                 return buffer[T.identifier] as? T
@@ -98,13 +90,16 @@ public extension Entity {
             }
         }
 
+        // FIXME: Replace to subscript??
+        /// Get any count of component types from set.
+        @inline(__always)
+        public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
+            return (repeat self.buffer[(each type).identifier] as! each T)
+        }
+
         /// Set the component of the specified type.
-        public mutating func set<T>(_ component: consuming T) where T : Component {
-            lock.lock()
-            defer {
-                lock.unlock()
-            }
-            
+        @inline(__always)
+        public mutating func set<T>(_ component: consuming T) where T : Component {            
             let identifier = T.identifier
             let isChanged = self.buffer[identifier] != nil
 
@@ -122,33 +117,19 @@ public extension Entity {
         }
 
         /// Set the components of the specified type.
-        public mutating func set(_ components: [Component]) {
-            for component in components {
-                let componentType = type(of: component)
-                let identifier = componentType.identifier
-                let isChanged = self.buffer[identifier] != nil
-                self.buffer[identifier] = component
-                self.bitset.insert(identifier)
-                
-                guard let ent = self.entity else {
-                    continue
-                }
-
-                lock.lock()
-                defer {
-                    lock.unlock()
-                }
-                if isChanged {
-                    self.world?.entity(ent, didUpdateComponent: componentType, with: identifier)
-                } else {
-                    self.world?.entity(ent, didAddComponent: componentType, with: identifier)
-                }
+        @inline(__always)
+        public mutating func set<each T: Component>(_ components: consuming (repeat (each T))) {
+            for component in repeat (each components) {
+                self.set(component)
             }
         }
 
         /// Set the components of the specified type using ``ComponentsBuilder``.
         public mutating func set(@ComponentsBuilder components: () -> [Component]) {
-            self.set(components())
+            let components = components()
+            for component in components {
+                self.set(component)
+            }
         }
 
         /// Returns `true` if the collections contains a component of the specified type.
