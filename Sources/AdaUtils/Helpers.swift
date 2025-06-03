@@ -27,6 +27,8 @@ public func TODO(
 ) -> Never {
     #if DEBUG
     fatalError("TODO: [\(file):\(functionName):\(line)] \(message()).")
+    #else
+    fatalError("TODO: [\(file):\(functionName):\(line)] \(message()).")
     #endif
 }
 
