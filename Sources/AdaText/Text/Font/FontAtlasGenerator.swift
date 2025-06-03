@@ -10,7 +10,9 @@ import AdaUtils
 import AtlasFontGenerator
 import Foundation
 
+/// A font descriptor.
 public struct FontDescriptor {
+    /// The em font scale.
     public var emFontScale: Double
 }
 
@@ -22,6 +24,10 @@ final class FontAtlasGenerator {
     private init() {}
     
     /// Generate and save to the disk info about font atlas.
+    ///
+    /// - Parameter fontPath: The path to the font.
+    /// - Parameter fontDescriptor: The font descriptor.
+    /// - Returns: The font handle.
     func generateAtlas(fontPath: URL, fontDescriptor: FontDescriptor) -> FontHandle? {
         var atlasFontDescriptor = font_atlas_descriptor()
         atlasFontDescriptor.angleThreshold = 3.0

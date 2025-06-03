@@ -8,6 +8,7 @@
 import AdaECS
 import Math
 
+/// A system that updates the global transform of the entity.
 @System
 public struct TransformSystem {
     
@@ -29,26 +30,31 @@ public struct TransformSystem {
     }
 }
 
+/// A system that updates the global transform of the children of the entity.
 @System(dependencies: [
     .after(TransformSystem.self)
 ])
 public struct ChildTransformSystem {
     
-    @Query<Entity, Ref<GlobalTransform>>(filter: [.stored, .added])
+    @EntityQuery(where: .has(Transform.self))
     private var query
     
     public init(world: World) { }
     
     public func update(context: inout UpdateContext) {
-        self.query.forEach { entity, transform in
+        self.query.forEach { entity in
             guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
                 return
             }
             
-            updateChildren(entity.children, parentTransform: transform.wrappedValue)
+            updateChildren(entity.children, parentTransform: entity.components[GlobalTransform.self]!)
         }
     }
     
+    /// Update the children of the entity.
+    ///
+    /// - Parameter children: The children of the entity.
+    /// - Parameter parentTransform: The parent transform of the entity.
     private func updateChildren(_ children: [Entity], parentTransform: GlobalTransform) {
         for child in children {
             guard let childTransform = child.components[Transform.self] else {

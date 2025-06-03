@@ -39,21 +39,29 @@ open class UIView {
     /// Contains link to parent parent view
     public private(set) weak var parentView: UIView?
 
+    /// The subviews of the view.
     public private(set) var subviews: [UIView] = []
 
+    /// A Boolean value indicating whether the view is interactive.
     open var isInteractionEnabled: Bool = true
 
+    /// A Boolean value indicating whether the view is hidden.
     open var isHidden: Bool = false
 
+    /// The z-index of the view.
     open var zIndex: Int = 0 {
         didSet {
             self.parentView?.needsResortZPositionForChildren = true
         }
     }
 
+    /// The background color of the view.
     public var backgroundColor: Color = .white
+
+    /// The debug view color of the view.
     private let debugViewColor = Color.random()
 
+    /// The window of the view.
     public internal(set) weak var window: UIWindow? {
         willSet {
             willMoveToWindow(newValue)
@@ -63,7 +71,7 @@ open class UIView {
         }
     }
 
-    /// Affine matrix to apply any transformation to current view
+    /// The affine matrix to apply any transformation to current view.
     public var affineTransform: Transform2D {
         get {
             return Transform2D(affineTransformFrom: self.transform3D)
@@ -72,12 +80,16 @@ open class UIView {
             self.transform3D = Transform3D(fromAffineTransform: newValue)
         }
     }
+
+    /// The 3D transform of the view.
     public var transform3D: Transform3D = .identity
 
     // MARK: - Private Fields -
 
+    /// A Boolean value indicating whether the view needs to be laid out.
     private var needsLayout = true
 
+    /// A Boolean value indicating whether the view needs to be resorted by z-index.
     var needsResortZPositionForChildren = false
 
     private var _zSortedChildren: [UIView] = []
@@ -92,20 +104,29 @@ open class UIView {
 
     // MARK: - Init
 
+    /// Initialize a new view.
+    ///
+    /// - Parameter frame: The frame of the view.
     public required init(frame: Rect) {
         self.frame = frame
         self.bounds.size = frame.size
     }
 
+    /// Initialize a new view.
     public init() {
         self.frame = .zero
     }
 
     // MARK: Rendering
 
+    /// Draw the view.
+    ///
+    /// - Parameters:
+    ///   - rect: The rect to draw the view in.
+    ///   - context: The context to draw the view in.
     open func draw(in rect: Rect, with context: UIGraphicsContext) { }
 
-    /// Internal method for drawing
+    /// Internal method for drawing.
     @_spi(AdaEngineEditor)
     open func draw(with context: UIGraphicsContext) {
         if self.isHidden {
@@ -134,6 +155,7 @@ open class UIView {
         }
     }
 
+    /// The world transform of the view.
     private var worldTransform: Transform2D {
         if let parentView = self.parentView {
             return parentView.affineTransform * self.affineTransform
@@ -144,6 +166,9 @@ open class UIView {
 
     // MARK: - Layout
 
+    /// Set the frame of the view.
+    ///
+    /// - Parameter frame: The frame of the view.
     func setFrame(_ frame: Rect) {
         self.bounds.size = frame.size
 
@@ -151,12 +176,15 @@ open class UIView {
         self.setNeedsLayout()
     }
 
+    /// Called when the frame of the view changes.
     open func frameDidChange() { }
 
+    /// Set the needs layout flag.
     public func setNeedsLayout() {
         self.needsLayout = true
     }
 
+    /// Layout the view if needed.
     public func layoutIfNeeded() {
         if needsLayout {
             self.layoutSubviews()
@@ -164,6 +192,7 @@ open class UIView {
         }
     }
 
+    /// Update the autoresizing frame if needed.
     private func updateAutoresizingFrameIfNeeded() {
         guard let parentView = self.parentView else {
             return
@@ -180,6 +209,9 @@ open class UIView {
         }
     }
 
+    /// Build the menu.
+    ///
+    /// - Parameter builder: The builder to build the menu with.
     @_spi(Internal)
     public func _buildMenu(with builder: UIMenuBuilder) {
         self.buildMenu(with: builder)
@@ -189,8 +221,12 @@ open class UIView {
         }
     }
 
+    /// Build the menu.
+    ///
+    /// - Parameter builder: The builder to build the menu with.
     open func buildMenu(with builder: UIMenuBuilder) { }
 
+    /// Layout the subviews.
     open func layoutSubviews() {
         self.updateAutoresizingFrameIfNeeded()
 
@@ -199,10 +235,12 @@ open class UIView {
         }
     }
 
+    /// The minimum content size of the view.
     open var minimumContentSize: Size {
         return .zero
     }
 
+    /// The autoresizing rules of the view.
     public struct AutoresizingRule: OptionSet, Sendable {
 
         public var rawValue: UInt
@@ -215,8 +253,13 @@ open class UIView {
         public static let flexibleHeight = AutoresizingRule(rawValue: 1 << 1)
     }
 
+    /// The autoresizing rules of the view.
     public var autoresizingRules: AutoresizingRule = []
 
+    /// The size that fits the view.
+    ///
+    /// - Parameter proposal: The proposed size.
+    /// - Returns: The size that fits the view.
     open func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
         var newSize = self.bounds.size
 
@@ -241,12 +284,16 @@ open class UIView {
         }
     }
 
+    /// Called when the view is moved to a parent view.
     open func viewDidMoveToParentView() { }
 
+    /// Called when the view is moved to a window.
     open func viewDidMoveToWindow() { }
 
+    /// Called when the view is moved to a window.
     open func viewWillMove(to window: UIWindow?) { }
 
+    /// Called when the view is moved to a window.
     private func willMoveToWindow(_ window: UIWindow?) {
         self.viewWillMove(to: window)
 
@@ -264,6 +311,12 @@ open class UIView {
 
     // MARK: - Interaction
 
+    /// Returns the farthest descendant in the view hierarchy of the current view, including itself, that contains the specified point.
+    ///
+    /// - Parameters:
+    ///   - point: The point to hit test.
+    ///   - event: The event to hit test with.
+    /// - Returns: The view that was hit.
     open func hitTest(_ point: Point, with event: any InputEvent) -> UIView? {
         guard self.isInteractionEnabled && !self.isHidden else {
             return nil
@@ -287,6 +340,11 @@ open class UIView {
         return self
     }
 
+    /// Returns a Boolean value indicating whether the receiver contains the specified point.
+    ///
+    /// - Parameters:
+    ///   - point: The point to check.
+    ///   - event: The event to check with.
     /// - Returns: true if point is inside the receiver’s bounds; otherwise, false.
     open func point(inside point: Point, with event: any InputEvent) -> Bool {
         return self.bounds.contains(point: point)
@@ -309,18 +367,37 @@ open class UIView {
         return point - (viewWorldTransform - currentWorldTransform)
     }
 
+    /// Converts a point from the coordinate system of another view to the coordinate system of the current view.
+    ///
+    /// - Parameters:
+    ///   - point: The point to convert.
+    ///   - view: The view to convert the point from.
+    /// - Returns: The converted point.
     public func convert(_ point: Point, from view: UIView?) -> Point {
         return view?.convert(point, to: self) ?? point
     }
 
+    /// Called when the view can respond to an action.
+    ///
+    /// - Parameter event: The event to check.
+    /// - Returns: A Boolean value indicating whether the view can respond to an action.
     open func canRespondToAction(_ event: any InputEvent) -> Bool {
         return true
     }
 
+    /// Called when the touches event is received.
+    ///
+    /// - Parameter touches: The touches event.
     open func onTouchesEvent(_ touches: Set<TouchEvent>) { }
 
+    /// Called when the mouse event is received.
+    ///
+    /// - Parameter event: The mouse event.
     open func onMouseEvent(_ event: MouseEvent) { }
 
+    /// Called when the event is received.
+    ///
+    /// - Parameter event: The event.
     internal func onEvent(_ event: any InputEvent) {
         switch event {
         case let event as MouseEvent:
@@ -336,11 +413,20 @@ open class UIView {
 
     private var eventsDisposeBag: Set<AnyCancellable> = []
 
+    /// Subscribe to an event.
+    ///
+    /// - Parameters:
+    ///   - event: The event to subscribe to.
+    ///   - completion: The completion handler.
     public func subscribe<Event: InputEvent>(to event: Event.Type, completion: @escaping @Sendable (Event) -> Void) {
         self.window?.eventManager.subscribe(to: event, completion: completion)
             .store(in: &eventsDisposeBag)
     }
 
+    /// Find the first responder for an event.
+    ///
+    /// - Parameter event: The event to find the first responder for.
+    /// - Returns: The first responder.
     func findFirstResponder(for event: any InputEvent) -> UIView? {
         let responder: UIView?
 
@@ -364,6 +450,9 @@ open class UIView {
 
     // MARK: - View Hierarchy
 
+    /// Add a subview to the view.
+    ///
+    /// - Parameter view: The view to add.
     open func addSubview(_ view: UIView) {
         if self === view {
             fatalError("Can't add self as subview")
@@ -389,10 +478,14 @@ open class UIView {
         self.setNeedsLayout()
     }
 
+    /// Remove the view from its parent view.
     open func removeFromParentView() {
         self.parentView?.removeSubview(self)
     }
 
+    /// Remove a subview from the view.
+    ///
+    /// - Parameter view: The view to remove.
     open func removeSubview(_ view: UIView) {
         guard let index = self.subviews.firstIndex(where: { $0 === view }) else { return }
         let deletedView = self.subviews.remove(at: index)
@@ -403,6 +496,9 @@ open class UIView {
         self.needsResortZPositionForChildren = true
     }
 
+    /// Internal update.
+    ///
+    /// - Parameter deltaTime: The delta time.
     func internalUpdate(_ deltaTime: TimeInterval) async {
         self.layoutIfNeeded()
         await self.update(deltaTime)
@@ -413,7 +509,9 @@ open class UIView {
         }
     }
 
-    /// Called each frame
+    /// Called each frame.
+    ///
+    /// - Parameter deltaTime: The delta time.
     open func update(_ deltaTime: TimeInterval) async { }
 }
 

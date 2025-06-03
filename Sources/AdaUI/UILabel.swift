@@ -9,27 +9,32 @@ import AdaText
 import AdaUtils
 import Math
 
+/// A view that displays one or more lines of informational text.
 @MainActor
 open class UILabel: UIView {
 
+    /// The text that the label displays.
     public var text: String = "" {
         didSet {
             updateTextLayoutManager()
         }
     }
 
+    /// The color of the text.
     public var textColor: Color = .white {
         didSet {
             updateTextLayoutManager()
         }
     }
 
+    /// The font of the text.
     public var font: Font = .system(size: 17) {
         didSet {
             updateTextLayoutManager()
         }
     }
 
+    /// The styled text that the label displays.
     public var attributedString: AttributedText? {
         didSet {
             updateTextLayoutManager()

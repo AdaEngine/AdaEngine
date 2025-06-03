@@ -8,11 +8,19 @@
 import CVulkan
 import Foundation
 
+/// A shader module.
 public final class ShaderModule {
     
+    /// The raw pointer to the shader module.
     public let rawPointer: VkShaderModule
+    
+    /// The device that owns the shader module.
     private unowned let device: Device
     
+    /// Initialize a new shader module.
+    ///
+    /// - Parameters:
+    ///   - device: The device that owns the shader module.
     public init(device: Device, shaderData: Data) throws {
         
         var shaderModule: VkShaderModule?

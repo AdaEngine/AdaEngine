@@ -12,14 +12,24 @@ import AdaAssets
 import AdaUtils
 import Math
 
-// A texture using as a render target.
+/// A texture using as a render target.
 public final class RenderTexture: Texture2D, @unchecked Sendable {
     
+    /// The pixel format of the texture.
     public let pixelFormat: PixelFormat
+    
+    /// The scale factor of the texture.
     public let scaleFactor: Float
     
+    /// A Boolean value indicating whether the texture is active.
     public private(set) var isActive: Bool = true
     
+    /// Initialize a new render texture.
+    ///
+    /// - Parameters:
+    ///   - size: The size of the texture.
+    ///   - scaleFactor: The scale factor of the texture.
+    ///   - format: The pixel format of the texture.
     public init(size: SizeInt, scaleFactor: Float, format: PixelFormat, debugLabel: String? = nil) {
         let descriptor = TextureDescriptor(
             width: size.width,
@@ -40,6 +50,10 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
         super.init(gpuTexture: gpuTexture, sampler: sampler, size: size)
     }
 
+    /// Initialize a new render texture from a decoder.
+    ///
+    /// - Parameter decoder: The decoder to initialize the render texture from.
+    /// - Throws: An error if the render texture cannot be initialized from the decoder.
     public required init(from decoder: AssetDecoder) throws {
         fatalError("init(asset:) has not been implemented")
     }

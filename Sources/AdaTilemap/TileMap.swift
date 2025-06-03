@@ -9,22 +9,34 @@ import AdaAssets
 import Math
 @_spi(Runtime) import AdaUtils
 
+/// A tile map.
 public class TileMap: Asset, @unchecked Sendable {
 
+    /// The tile set of the tile map.
     public var tileSet: TileSet = TileSet() {
         didSet {
             self.tileSetDidChange()
         }
     }
 
+    /// The layers of the tile map.
     public internal(set) var layers: [TileMapLayer] = [TileMapLayer()]
+
+    /// The asset meta info of the tile map.
     public nonisolated(unsafe) var assetMetaInfo: AssetMetaInfo?
+
+    /// A Boolean value indicating whether the tile map needs to be updated.
     internal private(set) var needsUpdate: Bool = false
 
+    /// Initialize a new tile map.
     public init() {
         self.tileSetDidChange()
     }
     
+    /// Initialize a new tile map from a decoder.
+    ///
+    /// - Parameter decoder: The decoder to initialize the tile map from.
+    /// - Throws: An error if the tile map cannot be initialized from the decoder.
     public required init(from decoder: AssetDecoder) throws {
         let fileContent = try decoder.decode(FileContent.self)
         self.tileSet = fileContent.tileSet
@@ -43,6 +55,10 @@ public class TileMap: Asset, @unchecked Sendable {
         }
     }
     
+    /// Encode the tile map to an encoder.
+    ///
+    /// - Parameter encoder: The encoder to encode the tile map to.
+    /// - Throws: An error if the tile map cannot be encoded to the encoder.
     public func encodeContents(with encoder: AssetEncoder) throws {
         var layers = [FileContent.Layer]()
         
@@ -64,10 +80,14 @@ public class TileMap: Asset, @unchecked Sendable {
         try encoder.encode(content)
     }
     
+    /// The extensions of the tile map.
     public static func extensions() -> [String] {
         ["tilemap"]
     }
 
+    /// Create a new layer for the tile map.
+    ///
+    /// - Returns: The new layer.
     public func createLayer() -> TileMapLayer {
         let layer = TileMapLayer()
         layer.name = "Layer \(self.layers.count)"
@@ -78,6 +98,9 @@ public class TileMap: Asset, @unchecked Sendable {
         return layer
     }
 
+    /// Remove a layer from the tile map.
+    ///
+    /// - Parameter layer: The layer to remove.
     public func removeLayer(_ layer: TileMapLayer) {
         guard let index = self.layers.firstIndex(where: { $0 === layer }) else {
             return
@@ -86,6 +109,13 @@ public class TileMap: Asset, @unchecked Sendable {
         self.layers.remove(at: index)
     }
 
+    /// Set a cell for a layer.
+    ///
+    /// - Parameters:
+    ///   - layerIndex: The index of the layer.
+    ///   - coordinates: The coordinates of the cell.
+    ///   - sourceId: The source id of the cell.
+    ///   - atlasCoordinates: The atlas coordinates of the cell.
     public func setCell(for layerIndex: Int, coordinates: PointInt, sourceId: TileSource.ID, atlasCoordinates: PointInt) {
         if !layers.indices.contains(layerIndex) {
             return
@@ -95,6 +125,11 @@ public class TileMap: Asset, @unchecked Sendable {
         layer.setCell(at: coordinates, sourceId: sourceId, atlasCoordinates: atlasCoordinates)
     }
 
+    /// Remove a cell from a layer.
+    ///
+    /// - Parameters:
+    ///   - layerIndex: The index of the layer.
+    ///   - coordinates: The coordinates of the cell.
     public func removeCell(for layerIndex: Int, coordinates: PointInt) {
         if !layers.indices.contains(layerIndex) {
             return
@@ -106,7 +141,9 @@ public class TileMap: Asset, @unchecked Sendable {
 
     // MARK: - Internals
 
-    // Update entire tilemap
+    /// Set the tile map needs update.
+    ///
+    /// - Parameter updateLayers: A Boolean value indicating whether the layers need to be updated.
     func setNeedsUpdate(updateLayers: Bool = false) {
         self.needsUpdate = true
 
@@ -115,12 +152,14 @@ public class TileMap: Asset, @unchecked Sendable {
         }
     }
 
+    /// Update the tile map did finish.
     func updateDidFinish() {
         self.needsUpdate = false
     }
 
     // MARK: - Private
 
+    /// The tile set did change.
     private func tileSetDidChange() {
         self.setNeedsUpdate()
 
@@ -136,7 +175,6 @@ public class TileMap: Asset, @unchecked Sendable {
 
 extension TileMap {
     struct FileContent: Codable {
-        
         struct Layer: Codable {
             let name: String
             let id: Int

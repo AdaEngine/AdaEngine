@@ -10,13 +10,19 @@ import AdaECS
 import AdaUtils
 import Math
 
+/// A reference to a window.
 public enum WindowRef: Codable, Sendable, Hashable {
+    /// The primary window.
     case primary
+    /// The window id.
     case windowId(RID)
 }
 
+/// A viewport.
 public struct Viewport: Codable, Equatable {
+    /// The rectangle of the viewport.
     public var rect: Rect
+    /// The depth range of the viewport.
     public var depth: ClosedRange<Float>
 
     public init(rect: Rect = Rect.zero, depth: ClosedRange<Float> = Float(0.0)...Float(1.0)) {
@@ -25,17 +31,25 @@ public struct Viewport: Codable, Equatable {
     }
 }
 
+/// A set of flags that determine the clear behavior of a camera.
 public struct CameraClearFlags: OptionSet, Codable, Sendable {
+    /// The raw value of the flags.
     public var rawValue: UInt8
 
+    /// Initialize a new camera clear flags.
+    ///
+    /// - Parameter rawValue: The raw value of the flags.
     public init(rawValue: UInt8) {
         self.rawValue = rawValue
     }
 
+    /// The solid flag.
     public static let solid = CameraClearFlags(rawValue: 1 << 0)
 
+    /// The depth buffer flag.
     public static let depthBuffer = CameraClearFlags(rawValue: 1 << 1)
 
+    /// The nothing flag.
     public static let nothing: CameraClearFlags = []
 }
 
@@ -107,10 +121,12 @@ public struct Camera: Sendable {
     @_spi(Internal)
     public var renderTarget: RenderTarget
 
+    /// The computed data for the camera.
     @_spi(Internal)
     @NoExport
     public var computedData: CameraComputedData
 
+    /// The render order.
     public var renderOrder: Int = 0
 
     // MARK: - Init
@@ -126,6 +142,9 @@ public struct Camera: Sendable {
         self.renderTarget = .window(.primary)
     }
 
+    /// Create a new camera component with specific window.
+    ///
+    /// - Parameter window: The window.
     public init(window: WindowRef) {
         self.renderTarget = .window(window)
     }
@@ -200,22 +219,37 @@ public extension Camera {
 }
 
 extension Camera {
+    /// A component that contains the computed data for the camera.
     public struct CameraComputedData: DefaultValue, Sendable {
+        /// The default value.
         public static let defaultValue: Camera.CameraComputedData = .init()
 
+        /// The projection matrix.
         public var projectionMatrix: Transform3D = .identity
+        /// The view matrix.
         public var viewMatrix: Transform3D = .identity
+        /// The frustum.
         public var frustum: Frustum = Frustum()
+        /// The target scale factor.
         public var targetScaleFactor: Float = 1
     }
 }
 
+/// A component that contains the global view uniform.
 @Component
 public struct GlobalViewUniform {
+    /// The projection matrix.
     public internal(set) var projectionMatrix: Transform3D
+    /// The view projection matrix.
     public internal(set) var viewProjectionMatrix: Transform3D
+    /// The view matrix.
     public internal(set) var viewMatrix: Transform3D
 
+    /// Initialize a new global view uniform.
+    ///
+    /// - Parameter projectionMatrix: The projection matrix.
+    /// - Parameter viewProjectionMatrix: The view projection matrix.
+    /// - Parameter viewMatrix: The view matrix.
     public init(
         projectionMatrix: Transform3D = .identity,
         viewProjectionMatrix: Transform3D = .identity,
@@ -227,10 +261,15 @@ public struct GlobalViewUniform {
     }
 }
 
+/// A component that contains the global view uniform buffer set.
 @Component
 public struct GlobalViewUniformBufferSet {
+    /// The uniform buffer set.
     public let uniformBufferSet: UniformBufferSet
 
+    /// Initialize a new global view uniform buffer set.
+    ///
+    /// - Parameter label: The label of the uniform buffer set.
     public init(label: String = "Global View Uniform") {
         self.uniformBufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
         self.uniformBufferSet.label = label

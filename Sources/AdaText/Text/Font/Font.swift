@@ -5,12 +5,15 @@
 //  Created by Vladislav Prusakov on 09.06.2024.
 //
 
+/// A font asset.
 public struct Font: Hashable, Equatable, Sendable {
-    
+    /// The name of the font.
     public let name: String
+    /// The family of the font.
     public let familyFont: String
+    /// The point size of the font.
     public var pointSize: Double
-    
+    /// The font resource.
     let fontResource: FontResource
     
     public init(fontResource: FontResource, pointSize: Double) {
@@ -23,7 +26,11 @@ public struct Font: Hashable, Equatable, Sendable {
 }
 
 public extension Font {
-    static func system(size: Double, weight: Weight? = nil) -> Font {
+    /// Create a font from the system resources.
+    ///
+    /// - Parameter size: The size of the font.
+    /// - Returns: The system font.
+    static func system(size: Double) -> Font {
         let resource = FontResource.system(weight: FontWeight.regular, emFontScale: 52)
         return Font(fontResource: resource, pointSize: size)
     }

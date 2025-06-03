@@ -19,11 +19,13 @@ enum RuntimeTypeLoader {
     }
 }
 
-
+/// The main engine class.
 public final class Engine {
     
+    /// The shared engine instance.
     nonisolated(unsafe) public static let shared: Engine = Engine()
     
+    /// Initialize a new engine instance.
     private init() { }
     
     /// Setup physics ticks per second. Default value is equal 60 ticks per second.

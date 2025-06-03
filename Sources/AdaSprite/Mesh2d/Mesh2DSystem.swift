@@ -13,30 +13,44 @@ import Math
 
 // MARK: - Mesh 2D Plugin -
 
-/// Plugin to exctract meshes to RenderWorld
+/// Plugin to exctract meshes to RenderWorld.
 public struct Mesh2DPlugin: Plugin {
 
+    /// Initialize a new mesh 2D plugin.
     public init() {}
 
+    /// Setup the plugin.
+    ///
+    /// - Parameter app: The app.
     public func setup(in app: AppWorlds) {
         let renderWorld = app.getSubworldBuilder(by: .renderWorld)
         renderWorld?.addSystem(ExctractMesh2DSystem.self)
     }
 }
 
+/// A resource that contains extracted meshes.
 public struct ExctractedMeshes2D: Resource {
+    /// The meshes.
     public var meshes: [ExctractedMesh2D] = []
 
+    /// Initialize a new extracted meshes.
+    ///
+    /// - Parameter meshes: The meshes.
     public init(meshes: [ExctractedMesh2D] = []) {
         self.meshes = meshes
     }
 }
 
+/// A component that contains an extracted mesh.
 @Component
 public struct ExctractedMesh2D: Sendable {
+    /// The entity id.
     public var entityId: Entity.ID
+    /// The mesh.
     public var mesh: Mesh2DComponent
+    /// The transform.
     public var transform: Transform
+    /// The world transform.
     public var worldTransform: Transform3D
 
     public init(entityId: Entity.ID, mesh: Mesh2DComponent, transform: Transform, worldTransform: Transform3D) {

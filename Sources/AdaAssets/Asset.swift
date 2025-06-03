@@ -71,11 +71,21 @@ public extension Asset {
     }
 }
 
+/// A meta information about an asset.
+///
+/// This struct is used to store the meta information about an asset.
+/// It is used to get the asset path, name and bundle path.
+///
+/// You can get the asset meta info using the ``Asset/assetMetaInfo`` property.
 public struct AssetMetaInfo: Codable, Sendable {
+    /// The path to the asset.
     public let assetPath: String
+    /// The name of the asset.
     public let assetName: String
+    /// The path to the bundle.
     public let bundlePath: String?
     
+    /// The absolute path to the asset.
     public var assetAbsolutePath: URL {
         return AssetsManager.getFilePath(from: self).url
     }
@@ -91,6 +101,10 @@ public struct AssetMetaInfo: Codable, Sendable {
         self.bundlePath = bundlePath
     }
     
+    /// Initialize a new asset meta info from a decoder.
+    ///
+    /// - Parameter decoder: The decoder to initialize the asset meta info from.
+    /// - Throws: An error if the asset meta info cannot be initialized from the decoder.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.assetPath = try container.decode(String.self, forKey: .assetPath)
@@ -98,6 +112,10 @@ public struct AssetMetaInfo: Codable, Sendable {
         self.assetName = URL(string: assetPath)?.lastPathComponent ?? ""
     }
     
+    /// Encode the asset meta info to an encoder.
+    ///
+    /// - Parameter encoder: The encoder to encode the asset meta info to.
+    /// - Throws: An error if the asset meta info cannot be encoded to the encoder.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.assetPath, forKey: .assetPath)
@@ -105,9 +123,23 @@ public struct AssetMetaInfo: Codable, Sendable {
     }
 }
 
+/// A handle to an asset.
+///
+/// The main reason to use AssetHandle is a hot reloading.
+///
+/// ```swift
+/// let asset = try! AssetsManager.loadSync("@res://characters_packed.png", as: Image.self)
+/// let assetHandle = AssetHandle(asset)
+/// assetHandle.update(newAsset)
+/// ```
+///
 public final class AssetHandle<T: Asset>: Codable, Sendable {
-    public nonisolated(unsafe) var asset: T
+    /// The asset instance.
+    public private(set) nonisolated(unsafe) var asset: T
     
+    /// Initialize a new asset handle from an asset.
+    /// - Parameter asset: The asset to initialize the asset handle from.
+    /// - Warning: Only assets produced by ``AssetsManager`` can be used in hot reloading.
     public init(_ asset: T) {
         self.asset = asset
     }
@@ -118,6 +150,10 @@ public final class AssetHandle<T: Asset>: Codable, Sendable {
         case meta
     }
     
+    /// Initialize a new asset handle from a decoder.
+    ///
+    /// - Parameter decoder: The decoder to initialize the asset handle from.
+    /// - Throws: An error if the asset handle cannot be initialized from the decoder.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let type = try container.decode(String.self, forKey: .type)
@@ -127,6 +163,10 @@ public final class AssetHandle<T: Asset>: Codable, Sendable {
         self.asset = asset as! T
     }
     
+    /// Encode the asset handle to an encoder.
+    ///
+    /// - Parameter encoder: The encoder to encode the asset handle to.
+    /// - Throws: An error if the asset handle cannot be encoded to the encoder.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(String(reflecting: type(of: self.asset)), forKey: .type)
@@ -137,7 +177,6 @@ public final class AssetHandle<T: Asset>: Codable, Sendable {
         try encoder.assetsEncoder.encode(asset, to: superEncoder)
     }
 
-    
     func update(_ newAsset: T) async throws {
         self.asset = newAsset
     }
@@ -154,7 +193,14 @@ extension AssetHandle: AnyAssetHandle {
     }
 }
 
+/// A protocol that represents an asset handle.
+///
+/// This protocol is used to update the asset handle.
 protocol AnyAssetHandle {
+    /// Update the asset handle with a new asset.
+    ///
+    /// - Parameter newAsset: The new asset to update the asset handle with.
+    /// - Throws: An error if the asset handle cannot be updated with the new asset.
     @AssetActor
     func update(_ newAsset: any Asset) throws
 }

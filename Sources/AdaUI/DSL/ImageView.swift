@@ -11,10 +11,14 @@ import AdaUtils
 import Foundation
 import Math
 
+/// A view that displays an image.
 public struct ImageView: View, ViewNodeBuilder {
 
+    /// The storage type.
     public enum _Storage {
+        /// The image.
         case image(Image)
+        /// The texture.
         case texture(Texture2D)
     }
 
@@ -25,10 +29,17 @@ public struct ImageView: View, ViewNodeBuilder {
     var isResizable: Bool = false
     var renderMode: ImageRenderMode = .original
 
+    /// Initialize a new image view.
+    ///
+    /// - Parameter image: The image.
     public init(_ image: Image) {
         self.storage = .image(image)
     }
 
+    /// Initialize a new image view.
+    ///
+    /// - Parameter path: The path to the image.
+    /// - Parameter bundle: The bundle.
     public init(_ path: String, bundle: Bundle) {
         self.storage = .texture(try! AssetsManager.loadSync(
             Texture2D.self, 
@@ -37,10 +48,17 @@ public struct ImageView: View, ViewNodeBuilder {
         ).asset)
     }
 
+    /// Initialize a new image view.
+    ///
+    /// - Parameter texture: The texture.
     public init(_ texture: Texture2D) {
         self.storage = .texture(texture)
     }
 
+    /// Build a view node.
+    ///
+    /// - Parameter context: The build context.
+    /// - Returns: The view node.
     func buildViewNode(in context: BuildContext) -> ViewNode {
         ImageViewNode(
             storage: self.storage,
@@ -53,12 +71,20 @@ public struct ImageView: View, ViewNodeBuilder {
 }
 
 public extension ImageView {
+
+    /// Make the image view resizable.
+    ///
+    /// - Returns: The image view.
     func resizable() -> ImageView {
         var newValue = self
         newValue.isResizable = true
         return newValue
     }
 
+    /// Set the render mode.
+    ///
+    /// - Parameter mode: The render mode.
+    /// - Returns: The image view.
     func renderMode(_ mode: ImageRenderMode) -> ImageView {
         var newValue = self
         newValue.renderMode = mode
@@ -68,9 +94,13 @@ public extension ImageView {
 
 final class ImageViewNode: ViewNode {
 
+    /// The texture.
     let texture: Texture2D
+    /// A Boolean value indicating whether the image view is resizable.
     let isResizable: Bool
+    /// The render mode.
     let renderMode: ImageRenderMode
+    /// The tint color.
     let tintColor: Color?
 
     init<Content: View>(

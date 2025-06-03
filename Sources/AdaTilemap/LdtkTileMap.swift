@@ -253,27 +253,46 @@ extension LDtk {
 // MARK: - Tile Source
 
 extension LDtk {
-    
+    /// A tile source for entities.
     public class EntityTileSource: TileEntityAtlasSource, @unchecked Sendable {
 
+        /// The delegate of the entity tile source.
         weak var delegate: TileMapDelegate?
         
+        /// Initialize a new entity tile source.
         public override init() {
             super.init()
         }
         
+        /// Initialize a new entity tile source from a decoder.
+        ///
+        /// - Parameter decoder: The decoder to initialize the entity tile source from.
+        /// - Throws: An error if the entity tile source cannot be initialized from the decoder.
         public required init(from decoder: any Decoder) throws {
             fatalErrorMethodNotImplemented()
         }
         
+        /// Encode the entity tile source to an encoder.
+        ///
+        /// - Parameter encoder: The encoder to encode the entity tile source to.
+        /// - Throws: An error if the entity tile source cannot be encoded to the encoder.
         public override func encode(to encoder: any Encoder) throws {
             fatalErrorMethodNotImplemented()
         }
 
+        /// Check if the entity tile source has a tile at the given atlas coordinates.
+        ///
+        /// - Parameter atlasCoordinates: The atlas coordinates to check.
+        /// - Returns: A Boolean value indicating whether the entity tile source has a tile at the given atlas coordinates.
         public func hasTile(at atlasCoordinates: PointInt) -> Bool {
             return self.tiles[atlasCoordinates] != nil
         }
         
+        /// Create a tile for the entity tile source.
+        ///
+        /// - Parameters:
+        ///   - atlasCoordinates: The atlas coordinates to create the tile for.
+        ///   - entityInstance: The entity instance to create the tile for.
         public func createTile(at atlasCoordinates: PointInt, entityInstance: LDtk.EntityInstance) {
             let entity = AdaECS.Entity(name: entityInstance.identifier)
 
@@ -453,6 +472,7 @@ extension LDtk {
         }
     }
 
+    /// A tile.
     public struct Tile: Codable, Equatable {
         public let tilesetUid: Int
         public let x: Int
@@ -461,6 +481,7 @@ extension LDtk {
         public let h: Int
     }
     
+    /// A field instance.
     public struct FieldInstance: Codable, Equatable {
         public let identifier: String
         public let type: String
