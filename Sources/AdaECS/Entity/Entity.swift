@@ -11,8 +11,8 @@
 import AdaUtils
 import OrderedCollections
 
-/// Describe an entity and his characteristics.
-/// Entity in ECS based architecture is main object that holds components.
+/// Describe an entity and its characteristics.
+/// Entity in ECS based architecture is the main object that holds components.
 open class Entity: Identifiable, @unchecked Sendable {
 
     /// Contains entity name.
@@ -22,7 +22,10 @@ open class Entity: Identifiable, @unchecked Sendable {
     public private(set) var id: Int
 
     /// Contains components specific for current entity.
-    @LockProperty public var components: ComponentSet = ComponentSet()
+    @LocalIsolated public var components: ComponentSet = ComponentSet()
+
+    /// The dispose bag of the entity.
+    var disposeBag: Set<AnyCancellable> = []
 
     /// A Boolean that indicates whether the entity is active.
     /// - Note:  AdaEngine doesn’t simulate or render inactive entities.
@@ -71,6 +74,8 @@ open class Entity: Identifiable, @unchecked Sendable {
         self.components.entity = self
     }
     
+    /// Encode the entity to an encoder.
+    /// - Parameter encoder: The encoder to encode the entity to.
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.name, forKey: .name)
@@ -86,6 +91,8 @@ open class Entity: Identifiable, @unchecked Sendable {
         self.world?.removeEntityOnNextTick(self, recursively: recursively)
     }
 
+    /// Copy the entity.
+    /// - Returns: A new entity with the same components.
     open func copy() -> Entity {
         let entity = Entity(name: self.name)
         entity.components = self.components.copy()
@@ -98,10 +105,16 @@ open class Entity: Identifiable, @unchecked Sendable {
 // MARK: - Hashable
 
 extension Entity: Hashable {
+    /// Check if two entities are equal.
+    /// - Parameter lhs: The left entity.
+    /// - Parameter rhs: The right entity.
+    /// - Returns: True if the two entities are equal, otherwise false.
     public static func == (lhs: Entity, rhs: Entity) -> Bool {
         return lhs.id == rhs.id && lhs.name == rhs.name
     }
     
+    /// Hash the entity.
+    /// - Parameter hasher: The hasher to hash the entity.
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.name)
         hasher.combine(self.id)
@@ -112,5 +125,18 @@ extension Entity: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name
         case components
+    }
+}
+
+public extension Cancellable {
+    /// Stores this type-erasing cancellable instance in the entity.
+    /// - Note: This cancellable will be canceled when the entity is removed.
+    /// - Parameter entity: The entity to store the cancellable in.
+    func store(in entity: Entity) {
+        if let anyCancellable = self as? AnyCancellable {
+            entity.disposeBag.insert(anyCancellable)
+        } else {
+            entity.disposeBag.insert(AnyCancellable(self))
+        }
     }
 }

@@ -1,7 +1,7 @@
 import AdaEngine
 
-class FirstScene: Scene {
-    override func sceneDidMove(to view: SceneView) {
+struct FirstScene: Plugin {
+    func setup(in app: AppWorlds) {
         
     }
 }

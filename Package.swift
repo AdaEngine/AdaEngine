@@ -90,7 +90,7 @@ var swiftSettings: [SwiftSetting] = [
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
-    .define("WASM", .when(platforms: [.wasi])),
+    .define("WASM", .when(platforms: [.wasi]))
 ]
 
 if isVulkanEnabled {
@@ -133,15 +133,20 @@ var adaEngineDependencies: [Target.Dependency] = [
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
     .product(name: "Logging", package: "swift-log"),
-    "miniaudio",
-    "AtlasFontGenerator",
-    "Yams",
-    "libpng",
-    "SPIRV-Cross",
-    "SPIRVCompiler",
-    "box2d",
+    "AdaApp",
     "AdaECS",
+    "AdaUI",
     "AdaEngineMacros",
+    "AdaAssets",
+    "AdaPlatform",
+    "AdaAudio",
+    "AdaTransform",
+    "AdaRender",
+    "AdaText",
+    "AdaInput",
+    "AdaScene",
+    "AdaTilemap",
+    "AdaPhysics"
 ]
 
 #if os(Linux)
@@ -155,9 +160,8 @@ let adaEngineTarget: Target = .target(
         "BUILD.bazel"
     ],
     resources: [
-        .copy("Assets/Shaders"),
-        .copy("Assets/Fonts"),
-        .copy("Assets/Images")
+        .copy("Assets/Images"),
+        .copy("Assets/Shaders")
     ],
     cSettings: [
         .define("GL_SILENCE_DEPRECATION")
@@ -202,6 +206,33 @@ var targets: [Target] = [
         ]
     ),
     .target(
+        name: "AdaApp",
+        dependencies: [
+            .product(name: "Logging", package: "swift-log"),
+            "AdaUtils",
+            "AdaECS",
+            "Yams"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaPlatform",
+        dependencies: [
+            .product(name: "Logging", package: "swift-log"),
+            "AdaUtils",
+            "AdaECS",
+            "AdaApp",
+            "AdaUI"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
         name: "AdaECS",
         dependencies: [
             .product(name: "Collections", package: "swift-collections"),
@@ -211,18 +242,194 @@ var targets: [Target] = [
         ],
         exclude: [
             "BUILD.bazel"
-        ]
+        ],
+        swiftSettings: swiftSettings
     ),
     .target(
         name: "AdaUtils",
         dependencies: [
             .product(name: "Collections", package: "swift-collections"),
             .product(name: "BitCollections", package: "swift-collections"),
+            "AdaEngineMacros",
         ],
         exclude: [
             "BUILD.bazel"
-        ]
-    )
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaAssets",
+        dependencies: [
+            .product(name: "Logging", package: "swift-log"),
+            "AdaApp",
+            "AdaUtils",
+            "Yams"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaAudio",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "AdaUtils",
+            "AdaAssets",
+            "AdaTransform",
+            "miniaudio",
+            "Math"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaTransform",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "Math"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaRender",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "AdaTransform",
+            "Math",
+            "Yams",
+            "SPIRV-Cross",
+            "SPIRVCompiler",
+            "libpng",
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        resources: [
+            .copy("Assets/Shaders")
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaText",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "AdaTransform",
+            "Math",
+            "AdaRender",
+            "AtlasFontGenerator",
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        resources: [
+            .copy("Assets")
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaUI",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "AdaTransform",
+            "AdaText",
+            "Math",
+            "AdaRender",
+            "AdaInput",
+            "AdaEngineMacros",
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaInput",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "AdaTransform",
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaScene",
+        dependencies: [
+            "AdaApp",
+            "AdaECS",
+            "box2d",
+            "AdaTransform",
+            "AdaText",
+            "AdaAudio",
+            "AdaRender",
+            "AdaUI",
+            "AdaPhysics"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaTilemap",
+        dependencies: [
+            "AdaApp",
+            "AdaAssets",
+            "AdaECS",
+            "Math",
+            "AdaPhysics",
+            "AdaSprite"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaPhysics",
+        dependencies: [
+            "AdaApp",
+            "AdaAssets",
+            "AdaECS",
+            "Math",
+            "box2d",
+            "AdaRender"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .target(
+        name: "AdaSprite",
+        dependencies: [
+            "AdaApp",
+            "AdaAssets",
+            "AdaECS",
+            "Math",
+            "AdaRender"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ],
+        resources: [
+            .copy("Assets")
+        ],
+        swiftSettings: swiftSettings
+    ),
 ]
 
 // MARK: Extra
@@ -283,6 +490,51 @@ targets += [
     .testTarget(
         name: "AdaECSTests",
         dependencies: ["AdaECS", "Math"],
+        exclude: [
+            "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
+        name: "AdaAssetsTests",
+        dependencies: [
+            "AdaAssets",
+            "Math"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
+        name: "AdaTransformTests",
+        dependencies: [
+            "AdaECS", 
+            "AdaTransform",
+            "Math"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
+        name: "AdaUITests",
+        dependencies: [
+            "AdaUI",
+            "AdaPlatform",
+            "AdaUtils",
+            "AdaInput",
+            "Math"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
+        name: "AdaInputTests",
+        dependencies: [
+            "AdaInput",
+            "AdaUI",
+            "Math"
+        ],
         exclude: [
             "BUILD.bazel"
         ]

@@ -7,13 +7,14 @@
 
 import AdaEngine
 
+/// FIXME: This scene has a bug with animated texture. They doesn't dispawned correctly..
+
 class SpaceInvaders: Scene, @unchecked Sendable {
 
     var disposeBag: Set<AnyCancellable> = []
     var characterAtlas: TextureAtlas!
     
     override func sceneDidMove(to view: SceneView) {
-        self.debugOptions = [.showPhysicsShapes]
 //        let sound = try! AssetsManager.loadSync("Assets/WindlessSlopes.wav", from: Bundle.editor) as AudioResource
         let charactersTiles = try! AssetsManager.loadSync(
             Image.self, 
@@ -59,7 +60,9 @@ class SpaceInvaders: Scene, @unchecked Sendable {
         .store(in: &self.disposeBag)
 
         self.subscribe(to: SceneEvents.OnReady.self) { event in
-            event.scene.world.physicsWorld2D?.gravity = .zero
+            Task { @MainActor in
+                event.scene.world.physicsWorld2D?.gravity = .zero
+            }
         }.store(in: &self.disposeBag)
     }
 
@@ -96,7 +99,7 @@ struct MovementSystem: System {
 
     init(world: World) { }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         let cameraEntity = context.world.performQuery(Self.camera).first!
         let camera = cameraEntity.components[Camera.self]!
         guard let globalTransform = cameraEntity.components[GlobalTransform.self]?.matrix else {
@@ -132,7 +135,7 @@ struct FireSystem: System {
         ).asset
     }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         context.world.performQuery(Self.player).forEach { entity in
             let transform = entity.components[Transform.self]!
 
@@ -141,7 +144,6 @@ struct FireSystem: System {
                 let result = fixedTime.advance(with: context.deltaTime)
 
                 if result.isFixedTick {
-
                     let controller = entity.prepareAudio(self.laserAudio)
 
                     if controller.isPlaying {
@@ -157,7 +159,7 @@ struct FireSystem: System {
         }
     }
 
-    func fireBullet(context: UpdateContext, shipTransform: Transform) {
+    func fireBullet(context: borrowing UpdateContext, shipTransform: Transform) {
         let bullet = Entity(name: "Bullet")
 
         let bulletScale = Vector3(0.02, 0.04, 0.04)
@@ -194,7 +196,7 @@ struct BulletSystem: System {
 
     init(world: World) { }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         context.world.performQuery(Self.bullet).forEach { entity in
             var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
 
@@ -237,7 +239,7 @@ struct EnemySpawnerSystem: System {
         }
     }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         let result = fixedTime.advance(with: context.deltaTime)
 
         if result.isFixedTick {
@@ -245,7 +247,7 @@ struct EnemySpawnerSystem: System {
         }
     }
 
-    func spawnEnemy(context: UpdateContext) {
+    func spawnEnemy(context: borrowing UpdateContext) {
         let entity = Entity(name: "Enemy")
 
         var transform = Transform()
@@ -274,7 +276,7 @@ struct EnemyLifetimeSystem: System {
 
     init(world: World) { }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         context.world.performQuery(Self.enemy).forEach { entity in
             var enemy = entity.components[EnemyComponent.self]!
 
@@ -296,7 +298,7 @@ struct EnemyMovementSystem: System {
 
     init(world: World) { }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         context.world.performQuery(Self.enemy).forEach { entity in
             var transform = entity.components[Transform.self]!
             transform.position.y -= Self.speed * context.deltaTime
@@ -340,7 +342,7 @@ struct EnemyExplosionSystem: System {
     static let explosions = EntityQuery(where: .has(ExplosionComponent.self))
     static let scores = EntityQuery(where: .has(GameState.self))
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         let scores = context.world.performQuery(Self.scores).first
 
         // Make expolosions
@@ -404,7 +406,7 @@ struct ScoreSystem: System {
         self.container.foregroundColor = .white
     }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         for entity in context.world.performQuery(Self.scores) {
             var (text, score) = entity.components[Text2DComponent.self, GameState.self]
             text.text = AttributedText("Score: \(score.score)", attributes: self.container)

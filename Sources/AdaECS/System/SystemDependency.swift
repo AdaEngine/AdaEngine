@@ -19,11 +19,18 @@
 /// }
 /// ```
 public enum SystemDependency: Sendable {
+    /// Run the system before the specified system.
     case before(System.Type)
+
+    /// Run the system after the specified system.
     case after(System.Type)
 }
 
 extension SystemDependency: Equatable {
+    /// Check if two system dependencies are equal.
+    /// - Parameter lhs: The left system dependency.
+    /// - Parameter rhs: The right system dependency.
+    /// - Returns: True if the two system dependencies are equal, otherwise false.
     public static func == (lhs: SystemDependency, rhs: SystemDependency) -> Bool {
         switch lhs {
         case .before(let system):

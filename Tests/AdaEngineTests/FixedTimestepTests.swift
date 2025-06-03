@@ -6,7 +6,7 @@
 //
 
 import Testing
-@_spi(Internal) @testable import AdaEngine
+@_spi(Internal) @testable import AdaUtils
 
 struct FixedTimestepTests {
     @Test

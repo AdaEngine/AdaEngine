@@ -12,6 +12,7 @@ struct Velocity {
     var velocity: Vector3 = .zero
 }
 
+@Suite("Query tests")
 struct QueryTests {
     @Test("Query fetch components")
     func queryFetchComponents() {
@@ -29,7 +30,6 @@ struct QueryTests {
 
         let query = Query<Entity, Transform, Velocity>()
         query.update(from: world)
-
 
         #expect(query.wrappedValue.count == 10)
         query.wrappedValue.forEach { entity, transform, velocity in
@@ -134,5 +134,91 @@ struct QueryTests {
         
         query.update(from: world)
         #expect(query.wrappedValue.count == 1)
+    }
+
+    @Test("FilterQuery with With filter")
+    func filterQueryWithWithFilter() {
+        let world = World()
+        for i in 0..<5 {
+            let entity = Entity()
+            if i % 2 == 0 {
+                entity.components += Transform()
+            }
+            world.addEntity(entity)
+        }
+        world.build()
+        let query = FilterQuery<Entity, With<Transform>>()
+        query.update(from: world)
+        #expect(query.wrappedValue.count == 3)
+    }
+
+    @Test("FilterQuery with WithOut filter")
+    func filterQueryWithWithOutFilter() {
+        let world = World()
+        for i in 0..<5 {
+            let entity = Entity()
+            if i % 2 == 0 {
+                entity.components += Transform()
+            }
+            world.addEntity(entity)
+        }
+        world.build()
+        let query = FilterQuery<Entity, WithOut<Transform>>()
+        query.update(from: world)
+        #expect(query.wrappedValue.count == 2)
+    }
+
+    @Test("FilterQuery with And filter")
+    func filterQueryWithAndFilter() {
+        let world = World()
+        for i in 0..<6 {
+            let entity = Entity()
+            if i % 2 == 0 {
+                entity.components += Transform()
+            }
+            if i % 3 == 0 {
+                entity.components += Velocity()
+            }
+            world.addEntity(entity)
+        }
+        world.build()
+        let query = FilterQuery<Entity, And<With<Transform>, With<Velocity>>>()
+        query.update(from: world)
+        // Only entities with both Transform and Velocity (i == 0)
+        #expect(query.wrappedValue.count == 1)
+    }
+
+    @Test("FilterQuery with Or filter")
+    func filterQueryWithOrFilter() {
+        let world = World()
+        for i in 0..<6 {
+            let entity = Entity()
+            if i % 2 == 0 {
+                entity.components += Transform()
+            }
+            if i % 3 == 0 {
+                entity.components += Velocity()
+            }
+            world.addEntity(entity)
+        }
+        world.build()
+        let query = FilterQuery<Entity, Or<With<Transform>, With<Velocity>>>()
+        query.update(from: world)
+        // Entities with either Transform or Velocity (i == 0,1,2,3,4,5 except i==1,4)
+        #expect(query.wrappedValue.count == 4)
+    }
+
+    @Test("FilterQuery with NoFilter")
+    func filterQueryWithNoFilter() {
+        let world = World()
+        for _ in 0..<4 {
+            let entity = Entity()
+            entity.components += Transform()
+            world.addEntity(entity)
+        }
+        world.build()
+        let query = FilterQuery<Entity, NoFilter>()
+        query.update(from: world)
+        #expect(query.wrappedValue.count == 4)
     }
 }

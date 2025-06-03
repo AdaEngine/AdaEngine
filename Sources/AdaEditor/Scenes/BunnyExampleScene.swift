@@ -64,7 +64,7 @@ final class ManySpritesExampleScene: Scene, @unchecked Sendable {
         
         init(world: World) { }
         
-        func update(context: UpdateContext) {
+        func update(context: inout UpdateContext) {
             let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
             
             var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]

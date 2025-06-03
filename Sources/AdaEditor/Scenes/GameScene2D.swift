@@ -7,21 +7,26 @@
 
 import AdaEngine
 
-final class GameScene2D: Scene, @unchecked Sendable {
+@MainActor
+struct GameScene2DPlugin: Plugin {
 
-    var disposeBag: Set<AnyCancellable> = []
+    @LocalIsolated
+    private var textureAtlas: TextureAtlas!
 
-    var textureAtlas: TextureAtlas!
-    var characterAtlas: TextureAtlas!
-    
-    override func sceneDidMove(to view: SceneView) {
+    @LocalIsolated
+    private var characterAtlas: TextureAtlas!
+
+    @LocalIsolated
+    private var disposeBag: Set<AnyCancellable> = []
+
+    func setup(in app: AppWorlds) {
         do {
             let tiles = try AssetsManager.loadSync(
-                Image.self, 
+                Image.self,
                 at: "@res://tiles_packed.png"
             ).asset
             let charactersTiles = try AssetsManager.loadSync(
-                Image.self, 
+                Image.self,
                 at: "@res://characters_packed.png"
             ).asset
 
@@ -34,30 +39,22 @@ final class GameScene2D: Scene, @unchecked Sendable {
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraEntity.camera.clearFlags = .solid
-        cameraEntity.camera.orthographicScale = 1.5
+        cameraEntity.camera.orthographicScale = 1.1
+        app.mainWorld.addEntity(cameraEntity)
 
-        self.world.addEntity(cameraEntity)
-
-        // DEBUG
-        self.debugOptions = [.showPhysicsShapes]
-        // self.makePlayer()
-        self.makeSubsceneAndSave()
-        // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
-        self.collisionHandler()
-        
-        self.world
+        self.makePlayer(app.mainWorld)
+//        self.makeSubsceneAndSave(app)
+        self.loadSubscene(app)
+//        // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
+        self.collisionHandler(app)
+//
+        app
             .addSystem(PlayerMovementSystem.self)
             .addSystem(SpawnPhysicsBodiesSystem.self)
-
-        // Change gravitation
     }
 
-    override func sceneDidLoad() {
-        self.world.physicsWorld2D?.gravity = Vector2(0, -3.62)
-    }
-
-    private func collisionHandler() {
-        self.subscribe(to: CollisionEvents.Began.self) { event in
+    private func collisionHandler(_ app: AppWorlds) {
+        app.mainWorld.subscribe(to: CollisionEvents.Began.self) { event in
             if event.entityA.name == "Player" && (event.entityB.name == "Tube") {
                 //                event.entityA.scene?.removeEntity(event.entityA)
                 //                print("collide with tube")
@@ -67,8 +64,7 @@ final class GameScene2D: Scene, @unchecked Sendable {
         .store(in: &disposeBag)
     }
 
-    private func makePlayer() {
-
+    private func makePlayer(_ world: World) {
         var transform = Transform()
         transform.scale = [0.2, 0.2, 0.2]
 
@@ -89,35 +85,10 @@ final class GameScene2D: Scene, @unchecked Sendable {
             mode: .kinematic
         )
         playerEntity.components += PlayerComponent()
-        self.world.addEntity(playerEntity)
+        world.addEntity(playerEntity)
     }
 
-    func makeCanvasItem(position: Vector3) throws {
-        let dogTexture = try AssetsManager.loadSync(
-            Texture2D.self, 
-            at: "@res://dog.png"
-        ).asset
-
-        @CustomMaterial var material = MyMaterial(color: .red, customTexture: dogTexture)
-
-        let mesh = Mesh2DComponent(
-            mesh: Mesh.generate(from: Quad()),
-            materials: [$material]
-        )
-
-        var transform = Transform()
-        transform.scale = Vector3(0.4)
-        transform.position.z = position.z
-        transform.position.x = position.x
-        transform.position.y = position.y
-
-        let entity = Entity(name: "custom_material")
-        entity.components += mesh
-        entity.components += transform
-        self.world.addEntity(entity)
-    }
-
-    private func makeSubsceneAndSave() {
+    private func makeSubsceneAndSave(_ app: AppWorlds) {
         let scene = Scene()
 
         var transform = Transform()
@@ -153,12 +124,12 @@ final class GameScene2D: Scene, @unchecked Sendable {
             try await AssetsManager.save(scene, at: "@res://", name: "Subscene.ascn")
 
             await MainActor.run {
-                self.loadSubscene()
+                self.loadSubscene(app)
             }
         }
     }
 
-    private func loadSubscene() {
+    private func loadSubscene(_ app: AppWorlds) {
         Task { @MainActor in
             do {
                 let scene = try await AssetsManager.load(
@@ -166,7 +137,7 @@ final class GameScene2D: Scene, @unchecked Sendable {
                     at: "@res://Subscene.ascn",
                     handleChanges: true
                 )
-                self.world.addEntity(
+                app.mainWorld.addEntity(
                     Entity(name: "Subscene") {
                         DynamicScene(scene: scene)
                     }
@@ -176,171 +147,111 @@ final class GameScene2D: Scene, @unchecked Sendable {
             }
         }
     }
-
-    private func gameOver() {
-        print("Game Over")
-    }
-
-    private func fpsCounter(for scene: Scene) {
-        EventManager.default.subscribe(to: EngineEvents.FramesPerSecondEvent.self, completion: { _ in
-            //            print("FPS", event.framesPerSecond)
-        })
-        .store(in: &disposeBag)
-    }
 }
 
-extension GameScene2D {
-    func addText(to scene: Scene) {
-        let entity = Entity()
-        var transform = Transform()
-        transform.scale = Vector3(0.3)
-        transform.position.x = -1
-        transform.position.z = -1
-        transform.position.y = 0
-        entity.components += transform
-        entity.components += NoFrustumCulling()
-
-        var attributes = TextAttributeContainer()
-        attributes.foregroundColor = .red
-        attributes.outlineColor = .black
-        attributes.font = Font.system(size: 0, weight: .ultraLight)
-
-        var text = AttributedText("Hello, Ada Engine!\n", attributes: attributes)
-
-        attributes.font = Font.system(size: 0, weight: .regular)
-        attributes.foregroundColor = .purple
-        attributes.kern = -0.03
-
-        text += AttributedText("And my dear friends!", attributes: attributes)
-
-        attributes.foregroundColor = .brown
-        attributes.font = Font.system(size: 0, weight: .heavy)
-
-        text.setAttributes(
-            attributes,
-            at: text.startIndex..<text.index(text.startIndex, offsetBy: 5)
-        )
-
-        entity.components += Text2DComponent(
-            text: text,
-            bounds: Rect(x: 0, y: 0, width: .infinity, height: .infinity),
-            lineBreakMode: .byWordWrapping
-        )
-
-        scene.world.addEntity(entity)
-    }
-}
-
-struct PlayerMovementSystem: System {
+@System(dependencies: [
+    .before(CameraSystem.self)
+])
+struct PlayerMovementSystem {
 
     static let playerQuery = EntityQuery(where: .has(PlayerComponent.self) && .has(PhysicsBody2DComponent.self))
 
-    static let cameraQuery = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
+    @Query<Ref<Camera>, Ref<Transform>, GlobalTransform>
+    private var cameraQuery
     static let matQuery = EntityQuery(where: .has(Mesh2DComponent.self) && .has(Transform.self))
 
     init(world: World) { }
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
-    func update(context: UpdateContext) {
-        guard let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first else {
-            return
-        }
+    func update(context: inout UpdateContext) {
+        for (camera, cameraTransform, globalTransform) in cameraQuery {
+            let speed: Float = 2 * context.deltaTime
 
-        var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]
-
-        let speed: Float = 2 * context.deltaTime
-
-        // --- Gamepad camera movement ---
-        print("Gamepad connected: \(Input.getConnectedGamepads())")
-        if let gamepad = Input.getConnectedGamepads().first {
-            print("", gamepad.info)
-            let leftStickX = gamepad.getAxisValue(.leftStickX)
-            let leftStickY = gamepad.getAxisValue(.leftStickY)
-            let deadzone: Float = 0.1
-            if abs(leftStickX) > deadzone {
-                cameraTransform.position.x += leftStickX * speed
-            }
-            if abs(leftStickY) > deadzone {
-                cameraTransform.position.y += leftStickY * speed // Invert Y for typical 2D controls
-            }
-
-            let rightStickY = gamepad.getAxisValue(.rightStickY)
-            if abs(rightStickY) > deadzone {
-                camera.orthographicScale -= rightStickY * speed // Invert Y for typical 2D controls
-            }
-        }
-        // --- End gamepad camera movement ---
-
-        if Input.isKeyPressed(.w) {
-            cameraTransform.position.y += speed
-        }
-
-        if Input.isKeyPressed(.s) {
-            cameraTransform.position.y -= speed
-        }
-
-        if Input.isKeyPressed(.a) {
-            cameraTransform.position.x -= speed
-        }
-
-        if Input.isKeyPressed(.d) {
-            cameraTransform.position.x += speed
-        }
-
-        if Input.isKeyPressed(.arrowUp) {
-            camera.orthographicScale -= speed
-        }
-
-        if Input.isKeyPressed(.arrowDown) {
-            camera.orthographicScale += speed
-        }
-        cameraEntity.components += cameraTransform
-        cameraEntity.components += camera
-
-        context.world.performQuery(Self.matQuery).forEach { entity in
-            let meshComponent = entity.components[Mesh2DComponent.self]!
-            if Input.isMouseButtonPressed(.left) {
-                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .mint
-            } else {
-                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .pink
-            }
-
-            (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.time += context.deltaTime
-
-            var transform = entity.components[Transform.self]!
-
-            if Input.isMouseButtonPressed(.left) {
-                guard let globalTransform = cameraEntity.components[GlobalTransform.self]?.matrix else {
-                    return
+            // --- Gamepad camera movement ---
+            if let gamepad = Input.getConnectedGamepads().first {
+                let leftStickX = gamepad.getAxisValue(.leftStickX)
+                let leftStickY = gamepad.getAxisValue(.leftStickY)
+                let deadzone: Float = 0.1
+                if abs(leftStickX) > deadzone {
+                    cameraTransform.position.x += leftStickX * speed
                 }
-                let mousePosition = Input.getMousePosition()
-                if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform, viewportPosition: mousePosition) {
-                    //                    let values = context.scene.physicsWorld2D?.raycast(from: .zero, to: position)
+                if abs(leftStickY) > deadzone {
+                    cameraTransform.position.y += leftStickY * speed // Invert Y for typical 2D controls
+                }
 
-                    transform.position.x = position.x
-                    transform.position.y = -position.y
+                let rightStickY = gamepad.getAxisValue(.rightStickY)
+                if abs(rightStickY) > deadzone {
+                    camera.orthographicScale -= rightStickY * speed // Invert Y for typical 2D controls
                 }
             }
+            // --- End gamepad camera movement ---
 
-            let speed: Float = 3
-
-            if Input.isKeyPressed(.semicolon) {
-                transform.position.x += speed * context.deltaTime
+            if Input.isKeyPressed(.w) {
+                cameraTransform.position.y += speed
             }
 
-            if Input.isKeyPressed(.k) {
-                transform.position.x -= speed * context.deltaTime
+            if Input.isKeyPressed(.s) {
+                cameraTransform.position.y -= speed
             }
 
-            if Input.isKeyPressed(.l) {
-                transform.position.y -= speed * context.deltaTime
+            if Input.isKeyPressed(.a) {
+                cameraTransform.position.x -= speed
             }
 
-            if Input.isKeyPressed(.o) {
-                transform.position.y += speed * context.deltaTime
+            if Input.isKeyPressed(.d) {
+                cameraTransform.position.x += speed
             }
 
-            entity.components += transform
+            if Input.isKeyPressed(.arrowUp) {
+                camera.orthographicScale -= speed
+            }
+
+            if Input.isKeyPressed(.arrowDown) {
+                camera.orthographicScale += speed
+            }
+
+            context.world.performQuery(Self.matQuery).forEach { entity in
+                let meshComponent = entity.components[Mesh2DComponent.self]!
+                if Input.isMouseButtonPressed(.left) {
+                    (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .mint
+                } else {
+                    (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.color = .pink
+                }
+
+                (meshComponent.materials[0] as? CustomMaterial<MyMaterial>)?.time += context.deltaTime
+
+                var transform = entity.components[Transform.self]!
+
+                if Input.isMouseButtonPressed(.left) {
+                    let mousePosition = Input.getMousePosition()
+                    if let position = camera.wrappedValue.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: mousePosition) {
+                        //                    let values = context.scene.physicsWorld2D?.raycast(from: .zero, to: position)
+
+                        transform.position.x = position.x
+                        transform.position.y = -position.y
+                    }
+                }
+
+                let speed: Float = 3
+
+                if Input.isKeyPressed(.semicolon) {
+                    transform.position.x += speed * context.deltaTime
+                }
+
+                if Input.isKeyPressed(.k) {
+                    transform.position.x -= speed * context.deltaTime
+                }
+
+                if Input.isKeyPressed(.l) {
+                    transform.position.y -= speed * context.deltaTime
+                }
+
+                if Input.isKeyPressed(.o) {
+                    transform.position.y += speed * context.deltaTime
+                }
+
+                entity.components += transform
+            }
         }
 
 //        context.world.performQuery(Self.playerQuery).forEach { entity in
@@ -375,7 +286,7 @@ final class PlayerComponent: ScriptableComponent, @unchecked Sendable {
         }
     }
     
-    override func onEvent(_ events: Set<InputEvent>) {
+    override func onEvent(_ events: [any InputEvent]) {
         for event in events {
             if let touch = event as? TouchEvent {
                 if touch.phase == .moved {
@@ -415,22 +326,23 @@ struct MyMaterial: CanvasMaterial {
     }
 }
 
-struct SpawnPhysicsBodiesSystem: System {
-    
-    static let camera = EntityQuery(where: .has(Camera.self))
+@System
+struct SpawnPhysicsBodiesSystem {
+
+    @Query<Camera, GlobalTransform>
+    private var camera
     let fixedTimestep: FixedTimestep = FixedTimestep(stepsPerSecond: 20)
     
     init(world: World) { }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         let result = fixedTimestep.advance(with: context.deltaTime)
         if !result.isFixedTick {
             return
         }
         
-        context.world.performQuery(Self.camera).forEach { entity in
+        self.camera.forEach { camera, globalTransform in
             if Input.isMouseButtonPressed(.left) {
-                let (globalTransform, camera) = entity.components[GlobalTransform.self, Camera.self]
                 let mousePosition = Input.getMousePosition()
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: mousePosition) {
                     self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), world: context.world)
@@ -438,7 +350,6 @@ struct SpawnPhysicsBodiesSystem: System {
             }
 
             if let gamepad = Input.getConnectedGamepads().first, gamepad.isGamepadButtonPressed(.rightTriggerButton) {
-                let (globalTransform, camera) = entity.components[GlobalTransform.self, Camera.self]
                 let centerOfScreen = Vector2(camera.viewport!.rect.width / 2, camera.viewport!.rect.height / 2)
                 if let position = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform.matrix, viewportPosition: centerOfScreen) {
                     self.spawnPhysicsBody(at: Vector3(position.x, -position.y, 1), world: context.world)

@@ -11,7 +11,19 @@
 
 @_exported import Foundation
 @_exported import Math
+@_exported import AdaApp
 @_exported import AdaECS
 @_exported import AdaUtils
+@_exported import AdaAssets
+@_exported import AdaAudio
+@_exported import AdaTransform
+@_exported import AdaRender
+@_exported import AdaText
+@_exported import AdaUI
+@_exported import AdaScene
+@_exported import AdaInput
+@_exported import AdaTilemap
+@_exported import AdaSprite
+@_exported import AdaPhysics
 
 public typealias TimeInterval = AdaUtils.TimeInterval

@@ -1,31 +1,26 @@
 import AdaEngine
 
-class FirstScene: Scene {
-    override func sceneDidMove(to view: SceneView) {
-        
+struct FirstScene: Plugin {
+    func setup(in app: AppWorlds) {
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(45/255, 171/255, 255/255, 1)
-        self.world.addEntity(cameraEntity)
-        
-        let spriteSheetImage = try AssetsManager.loadSync("characters_packed.png", from: Bundle.main) as Image
+        app.addEntity(cameraEntity)
+
+        let spriteSheetImage = try! AssetsManager.loadSync("@res://characters_packed.png") as Image
         let spriteSheet = TextureAtlas(from: spriteSheetImage, size: [20, 23], margin: [4, 1])
-        
+
         let playerEntity = Entity(name: "Player")
         playerEntity.components += SpriteComponent(texture: spriteSheet[7, 1])
         playerEntity.components += Transform(scale: Vector3(0.19))
         playerEntity.components += PlayerComponent()
-        self.world.addEntity(playerEntity)
+        app.addEntity(playerEntity)
     }
 }
 
 @Component
 struct PlayerComponent {}
 
-struct MovementSystem: System {
+@PlainSystem
+func PlayerMovement() {
     
-    init(world: World) { }
-    
-    func update(context: UpdateContext) {
-        
-    }
 }

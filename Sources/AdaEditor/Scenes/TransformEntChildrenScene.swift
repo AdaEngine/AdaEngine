@@ -19,8 +19,6 @@ final class TransformEntChildrenScene: Scene, @unchecked Sendable {
         ).asset
         self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
 
-        self.debugOptions = [.showPhysicsShapes]
-
         let cameraEntity = OrthographicCamera()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraEntity.camera.clearFlags = .solid
@@ -69,11 +67,11 @@ class ParentMovementSystem: System {
 
     required init(world: World) { }
 
-    func update(context: UpdateContext) {
+    func update(context: inout UpdateContext) {
         time += context.deltaTime
         context.world.performQuery(Self.query).forEach { entity in
             var transform = entity.components[Transform.self]!
-            transform.position.x = Math.sin(time) * 1
+            transform.position.x = Float(Math.sin(time)) * 1
             entity.components += transform
         }
     }

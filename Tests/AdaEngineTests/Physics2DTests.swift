@@ -6,20 +6,30 @@
 //
 
 import Testing
-@testable import AdaEngine
+import AdaECS
+@_spi(Internal) @testable import AdaApp
+@testable import AdaPhysics
+import AdaTransform
 
 @MainActor
 struct Physics2DTests {
     
-    let world: World
-    
+    let world: AppWorlds
+
     init() async throws {
-        try Application.prepareForTest()
-        
-        let world = World()
+        let world = AppWorlds(mainWorld: World())
         self.world = world
-        self.world.addPlugin(DefaultWorldPlugin())
-        world.build()
+        world.insertResource(DefaultSchedulerOrder(order: [.update, .fixedUpdate, .postUpdate]))
+        world.mainWorld.setSchedulers([
+            .update,
+            .fixedUpdate,
+            .postUpdate
+        ])
+
+        world
+            .addPlugin(Physics2DPlugin())
+            .addPlugin(TransformPlugin())
+        try world.build()
     }
     
     @Test
@@ -35,7 +45,8 @@ struct Physics2DTests {
         entity.components += Transform(position: [0, -10, 0])
         
         world.addEntity(entity)
-        await world.update(1.0 / 60.0)
+        world.mainWorld.flush()
+        await world.mainWorld.runScheduler(.fixedUpdate, deltaTime: 1 / 60)
         
         let runtimeBody = try #require(entity.components[Collision2DComponent.self]?.runtimeBody)
         #expect(runtimeBody.getPosition() == [0, -10])
@@ -64,7 +75,7 @@ struct Physics2DTests {
         let startY = box.components[Transform.self]?.position.y ?? 0
         
         for _ in 0..<60 {
-            await world.update(1.0 / 60.0)
+            await world.update()
         }
         
         let endY = box.components[Transform.self]?.position.y ?? 0
@@ -83,14 +94,14 @@ struct Physics2DTests {
         box.components += physicsBody
         box.components += Transform(position: .zero)
         world.addEntity(box)
-        
-        await world.update(1.0 / 60.0)
+        world.mainWorld.flush()
+        await world.update()
         
         box.components[PhysicsBody2DComponent.self]?.applyForceToCenter([100, 0], wake: true)
         
         let initialVelocity = box.components[PhysicsBody2DComponent.self]!.linearVelocity.x
         
-        await world.update(1.0 / 60.0)
+        await world.update()
         
         let finalVelocity = box.components[PhysicsBody2DComponent.self]!.linearVelocity.x
         #expect(finalVelocity > initialVelocity)

@@ -1,14 +1,13 @@
 version: 1.0.0
 scene: Scene
-instantiateDefaultPlugin: true
 world:
   entities:
   - name: Ground
-    id: 122206160920790060
+    id: 122210699653662020
     components:
-      AdaEngine.SpriteComponent:
+      AdaSprite.SpriteComponent:
         texture:
-          type: AdaEngine.TextureAtlas.Slice
+          type: AdaRender.TextureAtlas.Slice
           meta:
             textureAtlasResource:
               spriteSize:
@@ -41,7 +40,7 @@ world:
           alpha: 1.0
         flipX: false
         flipY: false
-      AdaEngine.Transform:
+      AdaTransform.Transform:
         rotation:
           x: 0.0
           y: 0.0
@@ -55,7 +54,7 @@ world:
           x: 0.0
           y: -1.0
           z: 0.0
-      AdaEngine.Collision2DComponent:
+      AdaPhysics.Collision2DComponent:
         shapes:
         - fixture:
             box:
@@ -71,9 +70,9 @@ world:
         mode:
           default: {}
   - name: Ground 2
-    id: 122206160920793240
+    id: 122210699653662120
     components:
-      AdaEngine.SpriteComponent:
+      AdaSprite.SpriteComponent:
         tintColor:
           red: 1.0
           green: 0.0
@@ -81,7 +80,7 @@ world:
           alpha: 1.0
         flipX: false
         flipY: false
-      AdaEngine.Transform:
+      AdaTransform.Transform:
         rotation:
           x: 0.0
           y: 0.0
@@ -95,7 +94,7 @@ world:
           x: 0.0
           y: 0.3
           z: 0.0
-      AdaEngine.Collision2DComponent:
+      AdaPhysics.Collision2DComponent:
         shapes:
         - fixture:
             box:
@@ -110,6 +109,4 @@ world:
           collisionBitMask: 18446744073709551615
         mode:
           default: {}
-  systems: []
-  plugins: []
   resources: {}

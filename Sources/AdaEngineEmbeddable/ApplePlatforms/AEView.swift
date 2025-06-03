@@ -3,27 +3,32 @@
 //
 
 #if canImport(MetalKit)
-import MetalKit
+import AdaApp
+@_spi(Internal) import AdaPlatform
 @_spi(Internal) import AdaEngine
+import AdaUI
+import MetalKit
+
+// FIXME: Not works
 
 /// The view for rendering AdaEngine scenes and views.
 /// You can insert this view in your application and just pass scene or view to constructor.
 /// This view will perfectly fit for any sizes.
 @MainActor
 public final class AEView: MetalView {
-    
+
     /// Contains view where all render happens.
     /// You can grab information about all views.
     public let engineWindow: AdaEngine.UIWindow
     
     /// Create AEView with game scene.
-    public convenience init(scene: Scene, frame: CGRect) {
+    public convenience init(scene: Scene, frame: CGRect) throws {
         let sceneView = SceneView(scene: scene, frame: frame.toEngineRect)
-        self.init(view: sceneView, frame: frame)
+        try self.init(view: sceneView, frame: frame)
     }
     
     /// Create AEView with AdaEngine.View.
-    public init(view: UIView, frame: CGRect) {
+    public init(view: UIView, frame: CGRect) throws {
         let rect = frame.toEngineRect
         
         /// We should avoid multiple instancing of this object
@@ -42,15 +47,13 @@ public final class AEView: MetalView {
         
         Application.shared.appleWindowManager.nativeView = self
         self.delegate = self
-        
-        Task { [appContext] in
-            do {
-                try await appContext.setup()
-                try RenderEngine.shared.createWindow(window.id, for: self, size: rect.size.toSizeInt())
-                try AudioServer.shared.start()
-            } catch {
-                print("[AEView Error]", error.localizedDescription)
-            }
+
+        do {
+            try appContext.run()
+            try RenderEngine.shared.createWindow(.windowId(window.id), for: self, size: rect.size.toSizeInt())
+            try AudioServer.shared.start()
+        } catch {
+            print("[AEView Error]", error.localizedDescription)
         }
     }
     
@@ -73,30 +76,26 @@ extension AEView: MTKViewDelegate {
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         do {
             self.engineWindow.frame.size = size.toEngineSize
-            try RenderEngine.shared.resizeWindow(self.engineWindow.id, newSize: size.toEngineSize.toSizeInt())
+            try RenderEngine.shared.resizeWindow(.windowId(self.engineWindow.id), newSize: size.toEngineSize.toSizeInt())
         } catch {
             print("[AEView Error]", error.localizedDescription)
         }
     }
     
     public func draw(in view: MTKView) {
-        Task {
-            do {
-                try await MainLoop.current.iterate()
-            } catch {
-                print("[AEView Error]", error.localizedDescription)
-            }
-        }
+
     }
 }
 
-private struct _EmbeddableApp: AdaEngine.App {
+private struct _EmbeddableApp: AdaApp.App {
     let window: UIWindow
     
-    var scene: some AppScene {
-        GUIAppScene(window: {
-            window
-        })
+    var body: some AppScene {
+        EmptyWindow()
+            .addPlugins(
+                DefaultPlugins()
+                    .set(WindowPlugin(primaryWindow: window))
+            )
     }
 }
 
