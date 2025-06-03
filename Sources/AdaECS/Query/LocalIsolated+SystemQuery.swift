@@ -14,7 +14,7 @@ extension LocalIsolated: SystemQuery {
     }
 
     /// Updates the query state with the given world.
-    public func update(from world: World) {
+    public func update(from world: consuming World) {
 
     }
 }

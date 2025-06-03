@@ -67,7 +67,7 @@
 }
 
 extension EntityQuery: SystemQuery {
-    public func update(from world: World) {
+    public func update(from world: consuming World) {
         self.state.updateArchetypes(in: world)
     }
 }

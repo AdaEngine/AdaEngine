@@ -12,7 +12,7 @@ import Logging
 /// The context of the app.
 @MainActor
 @_spi(Internal)
-public final class AppContext<T: App> {
+public struct AppContext<T: App>: ~Copyable {
     /// The app.
     private let app: T
 

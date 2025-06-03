@@ -27,7 +27,7 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
     /// - Parameter scheduler: The scheduler that will be used to schedule tasks.
     /// - Parameter taskGroup: The task group that will be executed when the system did finish update block.
     init(
-        world: World,
+        world: consuming World,
         deltaTime: AdaUtils.TimeInterval,
         scheduler: SchedulerName,
         taskGroup: TaskGroup<Void>
@@ -120,7 +120,8 @@ public struct SystemQueries {
 
     /// Update the queries from the world.
     /// - Parameter world: The world to update the queries from.
-    public func update(from world: World) {
+    public func update(from world: consuming World) {
+        let world = world
         for query in queries {
             query.update(from: world)
         }

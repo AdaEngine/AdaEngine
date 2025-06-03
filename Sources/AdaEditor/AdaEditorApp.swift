@@ -14,7 +14,7 @@ struct AdaEditorApp: App {
         EmptyWindow()
             .addPlugins(
                 DefaultPlugins(),
-                GameScene2DPlugin()
+                BunnyExample()
             )
             .windowMode(.windowed)
             .windowTitle("AdaEngine")

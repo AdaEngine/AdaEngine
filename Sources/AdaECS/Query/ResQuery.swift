@@ -36,7 +36,7 @@ public final class ResQuery<T: Resource>: @unchecked Sendable {
 }
 
 extension ResQuery: SystemQuery {
-    public func update(from world: World) {
+    public func update(from world: consuming World) {
         let resource = world.getResource(T.self)
         if resource == nil {
             return

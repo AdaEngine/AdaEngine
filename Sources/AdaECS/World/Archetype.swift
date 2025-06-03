@@ -67,7 +67,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     /// - Parameter entity: The entity to append.
     /// - Returns: The record of the entity.
     @inline(__always)
-    mutating func append(_ entity: Entity) -> EntityRecord {
+    mutating func append(_ entity: consuming Entity) -> EntityRecord {
         let row: Int
         
         if !friedEntities.isEmpty {
@@ -164,7 +164,7 @@ public struct BitSet: Equatable, Hashable, Sendable {
         self.mask.insert(T.identifier)
     }
 
-    mutating func insert(_ component: ComponentId) {
+    mutating func insert(_ component: consuming ComponentId) {
         self.mask.insert(component)
     }
 
@@ -172,7 +172,7 @@ public struct BitSet: Equatable, Hashable, Sendable {
         self.mask.remove(T.identifier)
     }
 
-    public func contains(_ identifier: ComponentId) -> Bool {
+    public func contains(_ identifier: consuming ComponentId) -> Bool {
         self.mask.contains(identifier)
     }
 

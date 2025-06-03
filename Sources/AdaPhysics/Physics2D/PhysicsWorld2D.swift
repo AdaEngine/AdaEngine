@@ -102,6 +102,27 @@ public final class PhysicsWorld2D: @preconcurrency Codable {
         }
     }
 
+   /// Adjust the restitution threshold. It is recommended not to make this value very small
+   /// because it will prevent bodies from sleeping. Usually in meters per second.
+    public var restitutionThreshold: Float {
+        get {
+            b2World_GetRestitutionThreshold(worldId)
+        }
+        set {
+            b2World_SetRestitutionThreshold(worldId, newValue)
+        }
+    }
+
+    /// Adjust the hit event threshold. This controls the collision speed needed to generate a b2ContactHitEvent.
+    /// Usually in meters per second.
+    public var hitEventThreshold: Float {
+        get {
+            b2World_GetHitEventThreshold(worldId)
+        }
+        set {
+            b2World_SetHitEventThreshold(worldId, newValue)
+        }
+    }
     private let worldId: b2WorldId
     var eventManager: EventManager = .default
     
