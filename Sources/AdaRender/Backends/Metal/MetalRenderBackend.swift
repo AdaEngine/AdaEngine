@@ -75,7 +75,6 @@ class MetalRenderBackend: RenderBackend {
         self.inFlightSemaphore.wait()
 
         for (_, window) in self.context.windows {
-            window.commandBuffer = self.commandQueue.makeCommandBuffer()
 //            window.drawable = window.view?.currentDrawable
             window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
         }
@@ -83,10 +82,14 @@ class MetalRenderBackend: RenderBackend {
     
     func endFrame() throws {
         for window in self.context.windows.values {
-            guard let drawable = window.drawable, let commandBuffer = window.commandBuffer else {
+            guard let drawable = window.drawable else {
                 return
             }
-            
+
+            guard let commandBuffer = self.commandQueue.makeCommandBuffer() else {
+                return
+            }
+
             commandBuffer.addCompletedHandler { @Sendable [inFlightSemaphore] _ in
                 inFlightSemaphore.signal()
             }

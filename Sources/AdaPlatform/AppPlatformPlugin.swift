@@ -8,6 +8,7 @@
 
 import AdaApp
 import AdaECS
+import AdaUI
 
 public struct AppPlatformPlugin: Plugin {
 
@@ -37,7 +38,10 @@ public struct AppPlatformPlugin: Plugin {
 #endif
             
             Application.shared = application
-            app.mainWorld.insertResource(application)
+            app.insertResource(application)
+            app.insertResource(
+                WindowManagerResource(windowManager: application.windowManager)
+            )
 
             app.setRunner { worlds in
                 do {

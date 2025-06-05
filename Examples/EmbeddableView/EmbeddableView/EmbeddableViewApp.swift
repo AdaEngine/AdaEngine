@@ -148,18 +148,17 @@ struct BunnySpawnerSystem {
         guard Input.isMouseButtonPressed(.left) else { return }
 
         // Get camera for world position conversion
-        for (camera, globalTransform) in cameras {
+        cameras.forEach { (camera, globalTransform) in
             let mousePosition = Input.getMousePosition()
             guard let worldPosition = camera.viewportToWorld2D(
                 cameraGlobalTransform: globalTransform.matrix,
                 viewportPosition: mousePosition
-            ) else { continue }
+            ) else { return }
 
             // Spawn multiple bunnies at mouse position
             for _ in 0 ..< BunnyExampleConstants.bunniesPerClick {
                 spawnBunny(at: Vector3(worldPosition.x, -worldPosition.y, 0), world: context.world)
             }
-            break // Only use first camera
         }
     }
 
@@ -205,7 +204,7 @@ struct BunnyMovementSystem {
     func update(context: inout UpdateContext) {
         if Input.isKeyPressed(.q) {
             // Remove all bunnies when Delete key is pressed
-            for (entity, _, _) in bunnies {
+            bunnies.forEach { (entity, _, _) in
                 entity.removeFromWorld()
             }
 
@@ -214,7 +213,7 @@ struct BunnyMovementSystem {
 
         let deltaTime = context.deltaTime
 
-        for (_, bunny, transform) in bunnies {
+        bunnies.forEach { (_, bunny, transform) in
             var velocity = bunny.velocity
             var position = transform.position
 
@@ -262,7 +261,7 @@ struct BunnyCollisionSystem {
         // Convert to world coordinates (simplified approach)
         let worldHalfExtents = halfExtents * camera.orthographicScale / 100.0
 
-        for (entity, bunny, transform) in bunnies {
+        bunnies.forEach { (entity, bunny, transform) in
             var velocity = bunny.velocity
             var position = transform.position
             let halfBunnySize = BunnyExampleConstants.bunnyScale * 0.5
@@ -317,7 +316,7 @@ struct PerformanceCounterSystem {
         let bunnyCount = bunnies.count
         let deltaTime = context.deltaTime
 
-        for (entity, counter, textComponent) in counters {
+        counters.forEach { (entity, counter, textComponent) in
             counter.bunnyCount = bunnyCount
             counter.frameCount += 1
             counter.lastUpdateTime += deltaTime
