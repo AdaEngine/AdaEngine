@@ -309,11 +309,27 @@ public extension World {
 
     /// Get a resource from the world.
     /// - Parameter resource: The resource to get.
-    /// - Returns: The resource if it exists, otherwise nil.
     /// - Complexity: O(1)
     /// - Returns: The resource if it exists, otherwise nil.
     borrowing func getResource<T: Resource>(_ resource: T.Type) -> T? {
         return self.componentsStorage.getResource(resource)
+    }
+
+    /// Get a resource from the world.
+    /// - Parameter resource: The resource to get.
+    /// - Complexity: O(1)
+    /// - Returns: The resource if it exists, otherwise nil.
+    func getMutableResource<T: Resource>(_ resource: T.Type) -> Ref<T?>? {
+        return Ref { [unowned self] in
+            self.getResource(resource)
+        } set: { [unowned self] newValue in
+            if let newValue {
+                self.insertResource(newValue)
+            } else {
+                self.removeResource(T.self)
+            }
+        }
+
     }
 
     /// Get all resources from the world.
@@ -333,8 +349,7 @@ public extension World {
 
     /// Run all schedulers in world.
     /// - Parameter deltaTime: Time interval since last update.
-    @MainActor
-    func update(_ deltaTime: AdaUtils.TimeInterval) async {
+    func update(_ deltaTime: AdaUtils.TimeInterval) {
         self.flush()
         self.clearTrackers()
 
@@ -343,6 +358,26 @@ public extension World {
                 continue
             }
 
+            Task { @MainActor in
+                await scheduler.graphExecutor.execute(
+                    scheduler.systemGraph,
+                    world: self,
+                    deltaTime: deltaTime,
+                    scheduler: scheduler.name
+                )
+            }
+        }
+    }
+
+    /// Run a specific scheduler.
+    /// - Parameter scheduler: Scheduler name.
+    /// - Parameter deltaTime: Time interval since last update.
+    func runScheduler(_ scheduler: SchedulerName, deltaTime: AdaUtils.TimeInterval) {
+        guard let scheduler = self.schedulers.getScheduler(scheduler) else {
+            fatalError("Scheduler \(scheduler) not found")
+        }
+
+        Task { @MainActor in
             await scheduler.graphExecutor.execute(
                 scheduler.systemGraph,
                 world: self,
@@ -350,23 +385,6 @@ public extension World {
                 scheduler: scheduler.name
             )
         }
-    }
-
-    /// Run a specific scheduler.
-    /// - Parameter scheduler: Scheduler name.
-    /// - Parameter deltaTime: Time interval since last update.
-    @MainActor
-    func runScheduler(_ scheduler: SchedulerName, deltaTime: AdaUtils.TimeInterval) async {
-        guard let scheduler = self.schedulers.getScheduler(scheduler) else {
-            fatalError("Scheduler \(scheduler) not found")
-        }
-
-        await scheduler.graphExecutor.execute(
-            scheduler.systemGraph,
-            world: self,
-            deltaTime: deltaTime,
-            scheduler: scheduler.name
-        )
     }
 
     /// Update all data in world.
@@ -522,6 +540,15 @@ private extension World {
 extension World {
     /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
     public func performQuery(_ query: EntityQuery) -> EntityQuery.Result {
+        let state = query.state
+        state.updateArchetypes(in: self)
+        return QueryResult(state: state)
+    }
+
+    /// Returns all components of the scene which pass the ``FilterQuery``.
+    public func performQuery<each T: QueryTarget, F: Filter>(
+        _ query: FilterQuery<repeat (each T), F>
+    ) -> QueryResult<FilterQuery<repeat (each T), F>.Builder> {
         let state = query.state
         state.updateArchetypes(in: self)
         return QueryResult(state: state)

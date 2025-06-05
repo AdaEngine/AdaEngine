@@ -14,7 +14,7 @@ import MetalKit
 
 extension MetalRenderBackend {
 
-    final class Context {
+    final class Context: @unchecked Sendable {
         private(set) var windows: [RID: RenderWindow] = [:]
         private var primaryWindow: RenderWindow?
         let physicalDevice: MTLDevice
@@ -105,7 +105,7 @@ extension MetalRenderBackend {
         }
     }
     
-    final class RenderWindow {
+    final class RenderWindow: @unchecked Sendable {
         private(set) weak var view: MTKView?
         var drawable: CAMetalDrawable?
         var commandBuffer: MTLCommandBuffer?
