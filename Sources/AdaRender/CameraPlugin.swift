@@ -22,28 +22,26 @@ public struct CameraPlugin: Plugin {
             return
         }
 
-        renderWorld.addSystem(ExtractCameraSystem.self)
-
-        Task {
-            await renderWorld.mainWorld
-                .getResource(RenderGraph.self)?
-                .addNode(CameraRenderNode())
-        }
+        renderWorld.mainWorld
+            .addSystem(ExtractCameraSystem.self)
+            .getMutableResource(RenderGraph.self)?
+            .wrappedValue?
+            .addNode(CameraRenderNode())
     }
 }
 
 struct CameraRenderNode: RenderNode {
-    
-    static let query = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
-    
-    func execute(context: Context) async -> [RenderSlotValue] {
-        await context.world.performQuery(Self.query).concurrent.forEach { entity in
-            let compontents = entity.components
-            guard let camera = compontents[Camera.self], camera.isActive else {
+
+    @Query<Entity, Camera, Transform>
+    private var query
+
+    func execute(context: inout Context) async -> [RenderSlotValue] {
+        context.world.performQuery(_query).forEach { (entity, camera, transform) in
+            guard camera.isActive else {
                 return
             }
 
-            await context.runSubgraph(by: Scene2DPlugin.renderGraph, inputs: [
+             context.runSubgraph(by: Scene2DPlugin.renderGraph, inputs: [
                 RenderSlotValue(name: Scene2DPlugin.InputNode.view, value: .entity(entity))
             ], viewEntity: entity)
         }

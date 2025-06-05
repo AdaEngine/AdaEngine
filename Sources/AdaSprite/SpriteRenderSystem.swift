@@ -47,7 +47,7 @@ public struct SpriteRenderSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: inout UpdateContext) {
-        for (_, visibleEntities, renderItems) in cameras {
+        cameras.forEach { (_, visibleEntities, renderItems) in
             self.draw(
                 extractedSprites: self.extractedSprites?.sprites ?? [],
                 visibleEntities: visibleEntities,
@@ -240,7 +240,7 @@ public struct ExtractedSprite: Sendable {
     .before(SpriteRenderSystem.self)
 ])
 public func ExtractSprite(
-    _ world: Ref<World>,
+    _ world: World,
     _ sprites: Extract<Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>>
 ) {
     var extractedSprites = ExtractedSprites(sprites: [])
@@ -261,14 +261,14 @@ public func ExtractSprite(
             )
         )
     }
-    world.wrappedValue.insertResource(extractedSprites)
+    world.insertResource(extractedSprites)
 }
 
 @PlainSystem
 func UpdateBoundings(
     _ entitiesWithTransform: Query<Entity, Transform>
 ) {
-    entitiesWithTransform().forEach { entity, transform in
+    entitiesWithTransform.forEach { entity, transform in
         var bounds: BoundingComponent.Bounds?
 
         if entity.components.has(SpriteComponent.self) {

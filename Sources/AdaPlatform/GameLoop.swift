@@ -14,10 +14,7 @@ import AdaRender
 
 /// The main class responds to update all systems in engine.
 /// You can have only one MainLoop per app.
-@MainActor
-public final class MainLoop {
-
-    public private(set) static var current: MainLoop = MainLoop()
+public final class MainLoop: @unchecked Sendable {
 
     private var lastUpdate: LongTimeInterval = 0
 
@@ -53,10 +50,9 @@ public final class MainLoop {
         EventManager.default.send(EngineEvents.MainLoopBegan(deltaTime: deltaTime))
         try await AssetsManager.processResources()
 
-        try RenderEngine.shared.beginFrame()
+        try await RenderEngine.shared.beginFrame()
         await Application.shared.windowManager.update(deltaTime)
         await appWorlds.update()
-        try RenderEngine.shared.endFrame()
-        Input.shared.removeEvents()
+        try await RenderEngine.shared.endFrame()
     }
 }

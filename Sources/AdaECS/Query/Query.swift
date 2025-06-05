@@ -42,12 +42,17 @@ public typealias Query<each T: QueryTarget> = FilterQuery<repeat (each T), NoFil
 /// var transforms
 /// ```
 @propertyWrapper
-public struct FilterQuery<each T: QueryTarget, F: Filter> {
+public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
+    /// The element type of the query result.
+    public typealias Element = Builder.Components
+
+    /// The iterator type of the query result.
+    public typealias Iterator = QueryTargetIterator<Builder>
 
     public typealias Builder = QueryBuilderTargets<repeat each T, F>
 
-    public var wrappedValue: QueryResult<Builder> {
-        .init(state: self.state)
+    public var wrappedValue: Self {
+        return self
     }
 
     let state: QueryState
@@ -69,9 +74,29 @@ public struct FilterQuery<each T: QueryTarget, F: Filter> {
     public init(from world: World) {
         self.init(filter: .all)
     }
+}
 
-    public func callAsFunction() -> QueryResult<Builder> {
-        .init(state: self.state)
+/// Contains array of entities matched for the given EntityQuery request.
+extension FilterQuery  {
+
+    /// Returns first element of collection.
+    public var first: Element? {
+        return self.first { _ in return true }
+    }
+
+    /// Calculate count of element in collection
+    /// - Complexity: O(n)
+    public var count: Int {
+        return self.count { _ in return true }
+    }
+
+        /// A Boolean value indicating whether the collection is empty.
+    public var isEmpty: Bool {
+        return self.state.archetypes.isEmpty
+    }
+
+    public func makeIterator() -> Iterator {
+        QueryTargetIterator(state: self.state)
     }
 }
 

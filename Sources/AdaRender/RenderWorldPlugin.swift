@@ -23,7 +23,7 @@ public struct RenderWorldPlugin: Plugin {
         BoundingComponent.registerComponent()
         Texture.registerTypes()
 
-        let renderWorld = app.createSubworld(by: .renderWorld)
+        let renderWorld = AppWorlds(mainWorld: World(name: "RenderWorld"))
         renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
         renderWorld.setExctractor(RenderWorldExctractor())
         renderWorld.mainWorld.setSchedulers([
@@ -37,15 +37,15 @@ public struct RenderWorldPlugin: Plugin {
         )
 
         renderWorld.mainWorld
-            .addSystem(RenderWorldSystem.self, on: .render)
+            .addSystem(RenderWorldRunnerSystem.self, on: .render)
+
+        app.addSubworld(renderWorld, by: .renderWorld)
     }
 }
 
 /// The system that renders the world.
 @System
-struct RenderWorldSystem {
-
-    private let renderGraphExecutor = RenderGraphExecutor()
+struct RenderWorldRunnerSystem {
 
     init(world: World) { }
 
@@ -53,10 +53,14 @@ struct RenderWorldSystem {
     private var renderGraph: RenderGraph!
 
     func update(context: inout UpdateContext) {
+        print("Render World Runner")
         let world = context.world
-        context.taskGroup.addTask {
+        let renderGraph = self.renderGraph
+        context.taskGroup?.addTask {
             do {
-                try await self.renderGraphExecutor.execute(renderGraph, in: world)
+                guard let renderGraph else { return }
+                let renderGraphExecutor = RenderGraphExecutor()
+                try await renderGraphExecutor.execute(renderGraph, in: world)
             } catch {
                 print(error)
             }

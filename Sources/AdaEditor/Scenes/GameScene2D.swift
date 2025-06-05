@@ -164,7 +164,7 @@ struct PlayerMovementSystem {
 
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     func update(context: inout UpdateContext) {
-        for (camera, cameraTransform, globalTransform) in cameraQuery {
+        cameraQuery.forEach { (camera, cameraTransform, globalTransform) in
             let speed: Float = 2 * context.deltaTime
 
             // --- Gamepad camera movement ---

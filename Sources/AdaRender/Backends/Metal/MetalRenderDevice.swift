@@ -7,9 +7,9 @@
 
 #if METAL
 import AdaUtils
-import MetalKit
+@preconcurrency import MetalKit
 
-final class MetalRenderDevice: RenderDevice {
+final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 
     let device: MTLDevice
     let commandQueue: MTLCommandQueue

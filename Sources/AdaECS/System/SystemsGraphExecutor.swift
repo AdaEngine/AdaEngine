@@ -21,6 +21,7 @@ public struct SystemsGraphExecutor: Sendable {
     /// - Parameter world: The world to execute the systems graph in.
     /// - Parameter deltaTime: The delta time to execute the systems graph with.
     /// - Parameter scheduler: The scheduler to execute the systems graph on.
+    @MainActor
     public func execute(
         _ graph: borrowing SystemsGraph,
         world: World,
@@ -29,7 +30,7 @@ public struct SystemsGraphExecutor: Sendable {
     ) async {
         var completedSystems: Set<String> = []
         completedSystems.reserveCapacity(graph.nodes.count)
-        
+
         let values = graph.nodes.values.elements.filter { $0.inputEdges.isEmpty }
         var nodes: Deque<SystemsGraph.Node> = Deque(values)
         
@@ -49,7 +50,7 @@ public struct SystemsGraphExecutor: Sendable {
             
             currentNode.system.queries.update(from: world)
 
-            await withTaskGroup(of: Void.self) { @MainActor group in
+            await withTaskGroup(of: Void.self) { group in
                 var context = WorldUpdateContext(
                     world: world,
                     deltaTime: deltaTime,

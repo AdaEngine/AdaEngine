@@ -38,7 +38,7 @@ final class MacApplication: Application {
     private var task: Task<Void, Never>?
 
     override func run(_ appWorlds: AppWorlds) throws {
-        task = Task { @MainActor in
+        task = Task {
             self.mainLoop.setup()
             do {
                 while true {

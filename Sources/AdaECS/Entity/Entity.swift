@@ -85,9 +85,9 @@ open class Entity: Identifiable, @unchecked Sendable {
     
     // MARK: - Public
     
-    /// Remove entity from scene.
+    /// Remove entity from world.
     /// - Note: Entity will removed on next update tick.
-    public func removeFromScene(recursively: Bool = false) {
+    public func removeFromWorld(recursively: Bool = false) {
         self.world?.removeEntityOnNextTick(self, recursively: recursively)
     }
 

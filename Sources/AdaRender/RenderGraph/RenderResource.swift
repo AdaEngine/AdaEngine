@@ -7,14 +7,14 @@
 
 import AdaECS
 
-public enum RenderResource {
+public enum RenderResource: Sendable {
     case texture(Texture)
     case buffer(Buffer)
     case sampler(Sampler)
     case entity(Entity)
 }
 
-public enum RenderResourceKind {
+public enum RenderResourceKind: Sendable {
     case texture
     case buffer
     case sampler

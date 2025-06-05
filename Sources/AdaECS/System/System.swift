@@ -19,7 +19,7 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
     public let scheduler: SchedulerName
 
     /// Custom task group that will be executed when system did finish update block.
-    public var taskGroup: TaskGroup<Void>
+    public var taskGroup: TaskGroup<Void>?
 
     /// Initialize a new world update context.
     /// - Parameter world: The world that will be updated.
@@ -30,7 +30,7 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
         world: consuming World,
         deltaTime: AdaUtils.TimeInterval,
         scheduler: SchedulerName,
-        taskGroup: TaskGroup<Void>
+        taskGroup: TaskGroup<Void>?
     ) {
         self.world = world
         self.deltaTime = deltaTime

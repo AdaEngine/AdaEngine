@@ -20,7 +20,7 @@ open class Application: Resource {
     /// Contains application instance if application created from ``App``.
     @MainActor public internal(set) static var shared: Application!
 
-    let mainLoop: MainLoop = MainLoop.current
+    let mainLoop: MainLoop = MainLoop()
 
     /// Current runtime platform.
     public var platform: RuntimePlatform {

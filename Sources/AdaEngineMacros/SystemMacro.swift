@@ -148,7 +148,7 @@ extension SystemMacro: PeerMacro {
         // Generate property declarations and type list for queries
         var propertyDecls: [String] = []
         var queryVars: [String] = []
-        var paramNames: [(Bool, String)] = []
+        var paramNames: [SystemInputParameter] = []
 
         for param in params {
             let isAnonymosParam = param.firstName.text == "_"
@@ -160,9 +160,31 @@ extension SystemMacro: PeerMacro {
 
             let defaultValue = param.defaultValue?.value.description
             let typeString = param.type.trimmedDescription
-            propertyDecls.append("@\(typeString)\nprivate var \(paramName)\(defaultValue != nil ? " = \(defaultValue!)" : "")")
-            queryVars.append("_\(paramName)")
-            paramNames.append((isAnonymosParam, paramName))
+            
+            // Check for inout parameter
+            let isInoutParam = typeString.hasPrefix("inout ")
+            
+            // Check for special types that shouldn't be added to propertyDecls
+            var specialType: SystemInputParameter.SpecialType = .none
+            if typeString.hasSuffix("WorldUpdateContext") || typeString.hasSuffix("UpdateContext") {
+                specialType = .context
+            }
+            if typeString.hasSuffix("World") || typeString.hasSuffix(".World") {
+                specialType = .world
+            }
+
+            if specialType == .none {
+                propertyDecls.append("@\(typeString)\nprivate var \(paramName)\(defaultValue != nil ? " = \(defaultValue!)" : "")")
+                queryVars.append("_\(paramName)")
+            }
+            paramNames.append(
+                SystemInputParameter(
+                    isAnonymosParam: isAnonymosParam, 
+                    isInoutParam: isInoutParam, 
+                    paramName: paramName,
+                    specialType: specialType
+                )
+            )
         }
         
         // Generate struct body
@@ -173,7 +195,7 @@ extension SystemMacro: PeerMacro {
         \(availability)init(world: AdaECS.World) { }
         
         \(availability)func update(context: inout UpdateContext) {
-            \(raw: funcName)(\(raw: paramNames.map { "\($0 ? "" : "\($1): ")_\($1)" }.joined(separator: ", ")))
+            \(raw: funcName)(\(raw: paramNames.map { $0.buildParameter() }.joined(separator: ", ")))
         }
         
         \(availability) var queries: AdaECS.SystemQueries {
@@ -184,5 +206,33 @@ extension SystemMacro: PeerMacro {
         }
         """
         return [structDecl]
+    }
+
+    struct SystemInputParameter {
+        enum SpecialType {
+            case world
+            case context
+            case none
+        }
+
+        let isAnonymosParam: Bool
+        let isInoutParam: Bool
+        let paramName: String
+        let specialType: SpecialType
+
+        func buildParameter() -> String {
+            let functionParam = if isAnonymosParam {
+                ""
+            } else {
+                "\(paramName): "
+            }
+            let propertyParam = if isInoutParam {
+                "&\(paramName)"
+            } else {
+                specialType == .world ? "context.\(paramName)" : "_\(paramName)"
+            }
+
+            return "\(functionParam)\(propertyParam)"
+        }
     }
 }

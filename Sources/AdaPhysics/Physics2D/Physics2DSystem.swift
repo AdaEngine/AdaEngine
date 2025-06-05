@@ -33,7 +33,7 @@ public struct Physics2DSystem: Sendable {
 
     public func update(context: inout UpdateContext) {
         let deltaTime = context.deltaTime
-        context.taskGroup.addTask { @MainActor in
+        context.taskGroup?.addTask { @MainActor in
             guard let world = self.physicsWorld?.world else {
                 return
             }
@@ -50,7 +50,7 @@ public struct Physics2DSystem: Sendable {
     
     @MainActor
     private func updatePhysicsBodyEntities(in world: PhysicsWorld2D) {
-        for (entity, physicsBody, transform) in self.physicsBodyQuery {
+        self.physicsBodyQuery.forEach { (entity, physicsBody, transform) in
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
                     body.setTransform(
@@ -116,7 +116,7 @@ public struct Physics2DSystem: Sendable {
 
     @MainActor
     private func updateCollisionEntities(in world: PhysicsWorld2D) {
-        for (entity, collisionBody, transform) in collisionQuery {
+        collisionQuery.forEach { (entity, collisionBody, transform) in
             if let body = collisionBody.runtimeBody {
                 if body.getPosition() != transform.position.xy {
                     body.setTransform(

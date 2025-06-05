@@ -54,7 +54,7 @@ class SpaceInvaders: Scene, @unchecked Sendable {
                 enemy.health -= bullet.damage
 
                 event.entityA.components += enemy
-                event.entityB.removeFromScene()
+                event.entityB.removeFromWorld()
             }
         }
         .store(in: &self.disposeBag)
@@ -206,7 +206,7 @@ struct BulletSystem: System {
             if bullet.lifetime > bullet.currentLifetime {
                 entity.components += bullet
             } else {
-                entity.removeFromScene()
+                entity.removeFromWorld()
             }
         }
     }
@@ -285,7 +285,7 @@ struct EnemyLifetimeSystem: System {
             if enemy.lifetime > enemy.currentLifetime {
                 entity.components += enemy
             } else {
-                entity.removeFromScene()
+                entity.removeFromWorld()
             }
         }
     }
@@ -373,7 +373,7 @@ struct EnemyExplosionSystem: System {
                 explosion.components += ExplosionComponent()
                 context.world.addEntity(explosion)
 
-                entity.removeFromScene()
+                entity.removeFromWorld()
             }
         }
 
@@ -384,7 +384,7 @@ struct EnemyExplosionSystem: System {
             }
 
             if texture.isPaused {
-                entity.removeFromScene()
+                entity.removeFromWorld()
             }
         }
     }

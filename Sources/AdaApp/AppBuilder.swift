@@ -45,7 +45,7 @@ public final class AppWorlds {
     /// - Parameters:
     ///   - mainWorld: The main world.
     ///   - subWorlds: The subworlds.
-    init(
+    public init(
         mainWorld: World,
         subWorlds: [String : AppWorlds] = [:]
     ) {
@@ -77,17 +77,17 @@ public extension AppWorlds {
 
     /// Update the app.
     /// - Parameter deltaTime: The delta time.
-    func update() async {
+    func update() {
         if !isConfigured {
             return
         }
 
         for sceduler in self.scedulers {
-            await sceduler.run(world: mainWorld)
+            sceduler.run(world: mainWorld)
 
             for world in self.subWorlds.values {
                 world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
-                await world.update()
+                world.update()
             }
         }
 
@@ -101,13 +101,11 @@ public extension AppWorlds {
         self.subWorlds[name.rawValue]
     }
 
-    /// Create a new subworld.
+    /// Add a new subworld.
+    /// - Parameter subworld: The subworld.
     /// - Parameter name: The name of the subworld.
-    /// - Returns: The subworld builder.
-    func createSubworld(by name: AppWorldName) -> AppWorlds {
-        let subworld = AppWorlds(mainWorld: World(name: name.rawValue))
+    func addSubworld(_ subworld: consuming AppWorlds, by name: AppWorldName) {
         self.subWorlds[name.rawValue] = subworld
-        return subworld
     }
 
     /// Add a plugin to the app.
@@ -165,7 +163,7 @@ public extension AppWorlds {
 
     func build() throws {
         /// Wait until all plugins is loaded
-        while !self.plugins.allSatisfy({ $0.value.isLoaded() }) {
+        while !self.plugins.allSatisfy({ $0.value.isLoaded(in: self) }) {
             continue
         }
 
@@ -182,30 +180,30 @@ public extension AppWorlds {
 public protocol Plugin: Sendable {
     /// Setup the plugin in the app.
     @MainActor
-    func setup(in app: AppWorlds)
+    func setup(in app: borrowing AppWorlds)
 
     /// Notify the plugin that the app is ready.
     @MainActor
-    func finish()
+    func finish(for app: borrowing AppWorlds)
 
     /// Check if the plugin is loaded. Used for async plugins.
     @MainActor
-    func isLoaded() -> Bool
+    func isLoaded(in app: borrowing AppWorlds) -> Bool
 
     /// Destroy the plugin.
     @MainActor
-    func destroy()
+    func destroy(for app: borrowing AppWorlds)
 }
 
 public extension Plugin {
-    func isLoaded() -> Bool {
+    func isLoaded(in app: borrowing AppWorlds) -> Bool {
         return true
     }
 
-    func finish() { }
+    func finish(for app: borrowing AppWorlds) { }
 
     @MainActor
-    func destroy() { }
+    func destroy(for app: borrowing AppWorlds) { }
 }
 
 public struct AppWorldName: Hashable, Equatable, RawRepresentable, CustomStringConvertible, Sendable {
