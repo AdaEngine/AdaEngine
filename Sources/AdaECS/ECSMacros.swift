@@ -53,7 +53,9 @@ public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "Comp
 /// ```
 @attached(member, names: named(queries), named(dependencies))
 @attached(extension, names: arbitrary, conformances: System)
-public macro System(dependencies: [SystemDependency] = []) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
+public macro System(
+    dependencies: [SystemDependency] = []
+) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
 
 /// A macro for creating a system from a function.
 /// You can pass as many parameters as you want, but they must be a conforms a ``SystemQuery`` protocol.
@@ -76,7 +78,9 @@ public macro System(dependencies: [SystemDependency] = []) = #externalMacro(modu
 /// }
 
 @attached(peer, names: suffixed(System), conformances: System)
-public macro PlainSystem(dependencies: [SystemDependency] = []) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
+public macro PlainSystem(
+    dependencies: [SystemDependency] = []
+) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
 
 #endif
 

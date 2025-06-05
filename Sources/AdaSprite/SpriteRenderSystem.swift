@@ -266,28 +266,26 @@ public func ExtractSprite(
 
 @PlainSystem
 func UpdateBoundings(
-    _ entitiesWithTransform: Query<Entity, Transform>
+    _ entitiesWithTransform: FilterQuery<
+    Entity, Transform,
+    Or<With<SpriteComponent>, With<Mesh2DComponent>>
+    >
 ) {
     entitiesWithTransform.forEach { entity, transform in
         var bounds: BoundingComponent.Bounds?
-
         if entity.components.has(SpriteComponent.self) {
             if !entity.components.isComponentChanged(Transform.self) && entity.components.has(BoundingComponent.self) {
                 return
             }
-
             let transform = entity.components[Transform.self]!
             let position = transform.position
             let scale = transform.scale
-
             let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
             let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
-
             bounds = .aabb(AABB(min: min, max: max))
         } else if let mesh2d = entity.components[Mesh2DComponent.self] {
             bounds = .aabb(mesh2d.mesh.bounds)
         }
-
         if let bounds {
             entity.components += BoundingComponent(bounds: bounds)
         }

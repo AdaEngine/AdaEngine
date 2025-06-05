@@ -145,11 +145,13 @@ public struct DefaultSchedulerRunner: Sendable {
     public init(world: World) { }
 
     public func update(context: inout UpdateContext) {
-        print("\(context.world.name ?? "Default") World Runner")
         let world = context.world
         let deltaTime = context.deltaTime
-        for scheduler in order?.order ?? [] {
-            world.runScheduler(scheduler, deltaTime: deltaTime)
+        let order = order?.order ?? []
+        context.taskGroup.addTask { [order] in
+            for scheduler in order {
+                await world.runScheduler(scheduler, deltaTime: deltaTime)
+            }
         }
     }
 }
@@ -192,7 +194,7 @@ public final class Scheduler: @unchecked Sendable {
 
     /// Run the scheduler.
     /// - Parameter world: The world to run the scheduler on.
-    public func run(world: World) {
+    public func run(world: World) async {
         let now = Time.absolute
         let deltaTime = TimeInterval(max(0, now - self.lastUpdate))
         self.lastUpdate = now
@@ -201,20 +203,20 @@ public final class Scheduler: @unchecked Sendable {
             self.runnerSystem = self.runnerSystemsBuilder(world)
         }
 
+        let name = self.name
         world.insertResource(DeltaTime(deltaTime: deltaTime))
-
         if let runnerSystem = runnerSystem {
-//            await withTaskGroup(of: Void.self) { group in
+            await withTaskGroup(of: Void.self) { group in
                 var context = WorldUpdateContext(
                     world: world,
                     deltaTime: deltaTime,
                     scheduler: name,
-                    taskGroup: nil
+                    taskGroup: group
                 )
-                runnerSystem.queries.queries.forEach { $0.update(from: world) }
+                runnerSystem.queries.update(from: world)
                 runnerSystem.update(context: &context)
                 _ = consume context
-//            }
+            }
         }
     }
 }

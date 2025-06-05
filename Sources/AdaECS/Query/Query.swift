@@ -56,13 +56,11 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
     }
 
     let state: QueryState
-    let filter: QueryFilter
 
     /// Create a new query for specific predicate.
     /// - Parameter predicate: Describe what entity should contains to satisfy query.
     /// - Parameter filter: Describe filter of this query. By default is ``Filter/all``
     public init(filter: QueryFilter = .all) {
-        self.filter = filter
         self.state = QueryState(
             predicate: .init(
                 evaluate: { Builder.predicate(in: $0) }
@@ -72,7 +70,13 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
     }
 
     public init(from world: World) {
-        self.init(filter: .all)
+        self.state = QueryState(
+            predicate: .init(
+                evaluate: { Builder.predicate(in: $0) }
+            ),
+            filter: .all
+        )
+        self.state.updateArchetypes(in: world)
     }
 }
 

@@ -108,14 +108,9 @@ extension MetalRenderBackend {
     final class RenderWindow: @unchecked Sendable {
         private(set) weak var view: MTKView?
         var drawable: CAMetalDrawable?
-        var commandBuffer: MTLCommandBuffer?
-        
-        internal init(
-            view: MTKView? = nil,
-            commandBuffer: MTLCommandBuffer? = nil
-        ) {
+
+        internal init(view: MTKView? = nil) {
             self.view = view
-            self.commandBuffer = commandBuffer
         }
         
         func getRenderPass() -> MTLRenderPassDescriptor? {
