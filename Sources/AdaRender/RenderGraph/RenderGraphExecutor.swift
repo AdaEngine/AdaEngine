@@ -12,10 +12,9 @@ import Logging
 import Collections
 
 /// Execute ``RenderGraph`` objects.
-@RenderGraphActor
-public class RenderGraphExecutor {
+public struct RenderGraphExecutor: Sendable {
 
-    public nonisolated init() {}
+    public init() {}
 
     /// Execute ``RenderGraph`` for specific ``World``.
     public func execute(_ graph: RenderGraph, in world: World) async throws {
@@ -23,7 +22,12 @@ public class RenderGraphExecutor {
     }
     
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    private func executeGraph(_ graph: RenderGraph, world: World, inputResources: [RenderSlotValue], viewEntity: Entity?) async throws {
+    private func executeGraph(
+        _ graph: RenderGraph,
+        world: World,
+        inputResources: [RenderSlotValue],
+        viewEntity: Entity?
+    ) async throws {
         let tracer = Logger(label: "RenderGraph")
         tracer.trace("Begin Render Graph Frame")
 
@@ -78,7 +82,7 @@ public class RenderGraphExecutor {
                 }
             }
             let inputs = inputSlots.sorted(by: { $0.0 > $1.0 }).map { $0.1 }
-            let context = RenderGraphContext(
+            var context = RenderGraphContext(
                 graph: graph,
                 world: world,
                 device: RenderEngine.shared.renderDevice,
@@ -86,7 +90,7 @@ public class RenderGraphExecutor {
                 tracer: tracer,
                 viewEntity: viewEntity
             )
-            let outputs = try await currentNode.node.execute(context: context)
+            let outputs = try await currentNode.node.execute(context: &context)
             for (subGraph, inputValues, viewEntity) in context.pendingSubgraphs {
                 try await self.executeGraph(subGraph, world: world, inputResources: inputValues, viewEntity: viewEntity)
             }

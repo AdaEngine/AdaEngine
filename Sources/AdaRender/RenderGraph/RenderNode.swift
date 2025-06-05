@@ -9,8 +9,7 @@
 ///
 /// Nodes are the fundamental part of the graph and used to extend its functionality, by
 /// generating draw calls and/or running subgraphs.
-@RenderGraphActor
-public protocol RenderNode {
+public protocol RenderNode: Sendable {
 
     typealias Context = RenderGraphContext
     
@@ -25,7 +24,7 @@ public protocol RenderNode {
 
     /// Execute the graph node logic, issues draw calls, updates the output slots and optionally queues up subgraphs for execution. The graph data, input and output values are
     /// passed via the ``RenderGraphContext``.
-    func execute(context: Context) async throws -> [RenderSlotValue]
+    @RenderGraphActor func execute(context: inout Context) async throws -> [RenderSlotValue]
 }
 
 public extension RenderNode {
@@ -45,7 +44,7 @@ public extension RenderNode {
 }
 
 public struct EmptyRenderNode: RenderNode {
-    public func execute(context: Context) async throws -> [RenderSlotValue] {
+    public func execute(context: inout Context) async throws -> [RenderSlotValue] {
         return []
     }
 }

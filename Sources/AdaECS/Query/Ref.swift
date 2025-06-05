@@ -57,14 +57,3 @@ public final class Ref<T>: @unchecked Sendable {
         }
     }
 }
-
-extension Ref: SystemQuery where T == World {
-    public convenience init(from world: World) {
-        fatalError()
-    }
-
-    public func update(from world: consuming World) {
-        let world = world
-        getValue = { world }
-    }
-}

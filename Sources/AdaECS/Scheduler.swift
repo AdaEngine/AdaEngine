@@ -145,12 +145,11 @@ public struct DefaultSchedulerRunner: Sendable {
     public init(world: World) { }
 
     public func update(context: inout UpdateContext) {
+        print("\(context.world.name ?? "Default") World Runner")
         let world = context.world
         let deltaTime = context.deltaTime
-        context.taskGroup.addTask {
-            for scheduler in order?.order ?? [] {
-                await world.runScheduler(scheduler, deltaTime: deltaTime)
-            }
+        for scheduler in order?.order ?? [] {
+            world.runScheduler(scheduler, deltaTime: deltaTime)
         }
     }
 }
@@ -188,13 +187,12 @@ public final class Scheduler: @unchecked Sendable {
     /// - Parameter name: The name of the scheduler.
     public init(name: SchedulerName) {
         self.name = name
-        self.runnerSystemsBuilder = { DefaultSchedulerRunner.init(world: $0) }
+        self.runnerSystemsBuilder = { DefaultSchedulerRunner(world: $0) }
     }
 
     /// Run the scheduler.
     /// - Parameter world: The world to run the scheduler on.
-    @MainActor
-    public func run(world: World) async {
+    public func run(world: World) {
         let now = Time.absolute
         let deltaTime = TimeInterval(max(0, now - self.lastUpdate))
         self.lastUpdate = now
@@ -206,17 +204,17 @@ public final class Scheduler: @unchecked Sendable {
         world.insertResource(DeltaTime(deltaTime: deltaTime))
 
         if let runnerSystem = runnerSystem {
-            await withTaskGroup(of: Void.self) { @MainActor group in
+//            await withTaskGroup(of: Void.self) { group in
                 var context = WorldUpdateContext(
                     world: world,
                     deltaTime: deltaTime,
                     scheduler: name,
-                    taskGroup: group
+                    taskGroup: nil
                 )
                 runnerSystem.queries.queries.forEach { $0.update(from: world) }
                 runnerSystem.update(context: &context)
                 _ = consume context
-            }
+//            }
         }
     }
 }

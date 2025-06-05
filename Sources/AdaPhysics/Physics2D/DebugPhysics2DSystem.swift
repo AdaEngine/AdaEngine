@@ -53,7 +53,7 @@ public struct DebugPhysicsExctract2DSystem {
         }
 
         let world = context.world
-        context.taskGroup.addTask { @MainActor in    
+        context.taskGroup?.addTask { @MainActor in    
             guard world.getResource(PhysicsDebugOptions.self)?.contains(.showPhysicsShapes) == true else {
                 return
             }

@@ -11,8 +11,8 @@ import box2d
 import Math
 
 /// A protocol that defines a delegate for the physics world.
-public protocol PhysicsWorld2DDelegate: AnyObject {
-    
+public protocol PhysicsWorld2DDelegate: AnyObject, Sendable {
+
     /// Called when the physics world is about to solve a collision.
     ///
     /// - Parameters:
@@ -43,8 +43,7 @@ public protocol PhysicsWorld2DDelegate: AnyObject {
 }
 
 /// An object that holds and simulates all 2D physics bodies.
-@MainActor
-public final class PhysicsWorld2D: @preconcurrency Codable {
+public final class PhysicsWorld2D: Codable, @unchecked Sendable {
 
     /// The coding keys for the physics world.
     enum CodingKeys: CodingKey {

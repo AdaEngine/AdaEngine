@@ -6,9 +6,9 @@
 //
 
 #if METAL
-import Metal
+@preconcurrency import Metal
 
-final class MetalSampler: Sampler {
+final class MetalSampler: Sampler, Sendable {
     
     let descriptor: SamplerDescriptor
     let mtlSampler: MTLSamplerState
