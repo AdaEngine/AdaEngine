@@ -45,7 +45,7 @@ public final class World: @unchecked Sendable, Codable {
     private var updatedEntities: Set<Entity> = []
     private var updatedComponents: [Entity: Set<ComponentId>] = [:]
 
-    private var componentsStorage = ComponentsStorage()
+    @LocalIsolated private var componentsStorage = ComponentsStorage()
     private var isReady = false
 
     public private(set) var eventManager: EventManager = EventManager.default
@@ -57,6 +57,13 @@ public final class World: @unchecked Sendable, Codable {
 
     public init(name: String? = nil) {
         self.name = name
+    }
+
+    private init(from world: borrowing World) {
+        self.name = world.name
+        self.archetypes = world.archetypes
+        self.records = world.records
+        self.componentsStorage = world.componentsStorage
     }
 
     /// Initialize a new world from a decoder.
@@ -162,6 +169,10 @@ public final class World: @unchecked Sendable, Codable {
     @discardableResult
     public func addSystem<T: System>(_ systemType: T.Type) -> Self {
         return addSystem(systemType, on: .update)
+    }
+
+    public func copy() -> World {
+        World(from: self)
     }
 }
 
@@ -372,19 +383,17 @@ public extension World {
     /// Run a specific scheduler.
     /// - Parameter scheduler: Scheduler name.
     /// - Parameter deltaTime: Time interval since last update.
-    func runScheduler(_ scheduler: SchedulerName, deltaTime: AdaUtils.TimeInterval) {
+    func runScheduler(_ scheduler: SchedulerName, deltaTime: AdaUtils.TimeInterval) async {
         guard let scheduler = self.schedulers.getScheduler(scheduler) else {
             fatalError("Scheduler \(scheduler) not found")
         }
 
-        Task { @MainActor in
-            await scheduler.graphExecutor.execute(
-                scheduler.systemGraph,
-                world: self,
-                deltaTime: deltaTime,
-                scheduler: scheduler.name
-            )
-        }
+        await scheduler.graphExecutor.execute(
+            scheduler.systemGraph,
+            world: self,
+            deltaTime: deltaTime,
+            scheduler: scheduler.name
+        )
     }
 
     /// Update all data in world.

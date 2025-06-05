@@ -52,7 +52,7 @@ struct WindowGroupSystem {
             return
         }
 
-        context.taskGroup?.addTask { @MainActor in
+        context.taskGroup.addTask { @MainActor in
             let gameSceneView = containerView.view
             gameSceneView.autoresizingRules = [.flexibleWidth, .flexibleHeight]
             resource.window.addSubview(gameSceneView)

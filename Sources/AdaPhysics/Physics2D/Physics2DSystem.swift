@@ -33,7 +33,7 @@ public struct Physics2DSystem: Sendable {
 
     public func update(context: inout UpdateContext) {
         let deltaTime = context.deltaTime
-        context.taskGroup?.addTask { @MainActor in
+        context.taskGroup.addTask { @MainActor in
             guard let world = self.physicsWorld?.world else {
                 return
             }

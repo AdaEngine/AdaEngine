@@ -45,9 +45,9 @@ extension Ref: QueryTarget where T: Component {
     }
     
     public static func _queryTarget(from entity: Entity) -> Ref<T> {
-        Ref {
-            entity.components.get(T.self)
-        } set: {
+        Ref { [unowned entity] in
+            return entity.components.get(T.self) as! T
+        } set: { [unowned entity] in
             entity.components.set($0)
         }
     }

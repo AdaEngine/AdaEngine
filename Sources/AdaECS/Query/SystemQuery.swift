@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
-/// A protocol for system queries.
+/// A protocol that describe a query for world from a system.
 public protocol SystemQuery: Sendable {
 
     /// Initialize a new system query.

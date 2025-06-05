@@ -18,7 +18,7 @@ public struct UIPlugin: Plugin {
         UIComponent.registerComponent()
 
         app
-            .addSystem(GraphicsContextInitializedSystem.self)
+            .addSystem(UpdateWindowManagerSystem.self, on: .preUpdate)
             .addSystem(UIComponentSystem.self)
     }
 }
@@ -56,10 +56,21 @@ public struct PrimaryWindow: Resource {
     public let window: UIWindow
 }
 
+public struct WindowManagerResource: Resource {
+    public let windowManager: UIWindowManager
+
+    public init(windowManager: UIWindowManager) {
+        self.windowManager = windowManager
+    }
+}
+
 @PlainSystem
-func GraphicsContextInitialized(
-    _ world: World,
-    _ kek: ResQuery<PrimaryWindow>
+func UpdateWindowManager(
+    _ context: inout WorldUpdateContext,
+    _ windowManager: ResQuery<WindowManagerResource>
 ) {
-    
+    let deltaTime = context.deltaTime
+    context.taskGroup.addTask {
+        await windowManager.wrappedValue?.windowManager.update(deltaTime)
+    }
 }
