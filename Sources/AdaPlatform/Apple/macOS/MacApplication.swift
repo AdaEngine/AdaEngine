@@ -39,12 +39,11 @@ final class MacApplication: Application {
 
     override func run(_ appWorlds: AppWorlds) throws {
         task = Task {
-            self.mainLoop.setup()
             do {
                 while true {
                     try Task.checkCancellation()
                     self.processEvents()
-                    try await self.mainLoop.iterate(appWorlds)
+                    await appWorlds.update()
                 }
             } catch {
                 let alert = Alert(

@@ -77,17 +77,17 @@ public extension AppWorlds {
 
     /// Update the app.
     /// - Parameter deltaTime: The delta time.
-    func update() {
+    func update() async {
         if !isConfigured {
             return
         }
 
         for sceduler in self.scedulers {
-            sceduler.run(world: mainWorld)
+            await sceduler.run(world: mainWorld)
 
             for world in self.subWorlds.values {
                 world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
-                world.update()
+                await world.update()
             }
         }
 

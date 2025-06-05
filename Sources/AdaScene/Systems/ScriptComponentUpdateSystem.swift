@@ -23,7 +23,7 @@ public struct ScriptComponentUpdateSystem {
         let scene = context.scene
         let world = context.world
         let deltaTime = context.deltaTime
-        context.taskGroup?.addTask { @MainActor in
+        context.taskGroup.addTask { @MainActor in
             let window = scene?.window
             var renderContext: UIGraphicsContext?
 

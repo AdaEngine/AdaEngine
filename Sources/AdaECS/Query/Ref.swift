@@ -12,15 +12,16 @@
 public final class Ref<T>: @unchecked Sendable {
 
     /// The getter of the reference.
-    public typealias Getter = () -> T
+    public typealias Getter = @Sendable () -> T
 
     /// The setter of the reference.
-    public typealias Setter = (T) -> Void
+    public typealias Setter = @Sendable (T) -> Void
 
     /// The wrapped value of the reference.
+    @inline(__always)
     public var wrappedValue: T {
         get {
-            return getValue!()
+            getValue!()
         }
         set {
             setValue?(newValue)

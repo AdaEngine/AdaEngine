@@ -21,13 +21,24 @@ struct MainSchedulerPlugin: Plugin {
             fixedScheduler,
             postUpdateScheduler
         ])
-        app.mainWorld.insertResource(DefaultSchedulerOrder())
+        app.insertResource(DefaultSchedulerOrder())
+
+        app.addSystem(GameLoopBeganSystem.self, on: .preUpdate)
         app.mainWorld.addSchedulers(
             .fixedPreUpdate,
             .fixedUpdate,
             .fixedPostUpdate
         )
     }
+}
+
+// FIXME: Hack to works with AnimatedTexture
+@PlainSystem
+@inline(__always)
+func GameLoopBegan(
+    _ context: inout WorldUpdateContext
+) {
+    EventManager.default.send(EngineEvents.MainLoopBegan(deltaTime: context.deltaTime))
 }
 
 /// The system that runs the fixed time scheduler.
@@ -54,8 +65,10 @@ public struct FixedTimeSchedulerSystem {
             let step = self.fixedTimestep.step
             let world = context.world
             world.insertResource(DeltaTime(deltaTime: step))
-            for scheduler in order {
-                world.runScheduler(scheduler, deltaTime: step)
+            context.taskGroup.addTask { [order] in
+                for scheduler in order {
+                    await world.runScheduler(scheduler, deltaTime: step)
+                }
             }
         }
     }
@@ -64,19 +77,15 @@ public struct FixedTimeSchedulerSystem {
 /// The system that runs the post update scheduler.
 @System
 public struct PostUpdateSchedulerRunner: Sendable {
-
-    @ResQuery
-    private var order: DefaultSchedulerOrder?
-
-    @LocalIsolated
-    private var lastUpdate: LongTimeInterval = 0
-
+    
     public init(world: World) { }
 
     public func update(context: inout UpdateContext) {
         let world = context.world
         let deltaTime = context.deltaTime
-        world.runScheduler(.postUpdate, deltaTime: deltaTime)
+        context.taskGroup.addTask {
+            await world.runScheduler(.postUpdate, deltaTime: deltaTime)
+        }
     }
 }
 

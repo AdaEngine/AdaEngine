@@ -27,8 +27,10 @@ public struct RenderWorldPlugin: Plugin {
         renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
         renderWorld.setExctractor(RenderWorldExctractor())
         renderWorld.mainWorld.setSchedulers([
+            .beginRender,
             .update,
-            .render
+            .render,
+            .endRender
         ])
         renderWorld.insertResource(
             DefaultSchedulerOrder(
@@ -44,26 +46,33 @@ public struct RenderWorldPlugin: Plugin {
 }
 
 /// The system that renders the world.
-@System
-struct RenderWorldRunnerSystem {
+@PlainSystem
+@inline(__always)
+func RenderWorldRunner(
+    _ context: inout WorldUpdateContext,
+    _ renderGraph: ResQuery<RenderGraph>
+) {
+    let world = context.world.copy()
+    let renderGraph = renderGraph.wrappedValue
+    Task.detached {
+        do {
+            try await RenderEngine.shared.beginFrame()
+        } catch {
+            print("Failed begin frame", error)
+        }
 
-    init(world: World) { }
+        do {
+            guard let renderGraph else { return }
+            let renderGraphExecutor = RenderGraphExecutor()
+            try await renderGraphExecutor.execute(renderGraph, in: world)
+        } catch {
+            print("Failed to execute render graph", error)
+        }
 
-    @ResQuery
-    private var renderGraph: RenderGraph!
-
-    func update(context: inout UpdateContext) {
-        print("Render World Runner")
-        let world = context.world
-        let renderGraph = self.renderGraph
-        context.taskGroup?.addTask {
-            do {
-                guard let renderGraph else { return }
-                let renderGraphExecutor = RenderGraphExecutor()
-                try await renderGraphExecutor.execute(renderGraph, in: world)
-            } catch {
-                print(error)
-            }
+        do {
+            try await RenderEngine.shared.endFrame()
+        } catch {
+            print("Failed end frame", error)
         }
     }
 }
@@ -72,7 +81,7 @@ struct RenderWorldRunnerSystem {
 struct RenderWorldExctractor: WorldExctractor {
     func exctract(from mainWorld: World, to renderWorld: World) {
         renderWorld.clear()
-        renderWorld.insertResource(MainWorld(world: mainWorld))
+        renderWorld.insertResource(MainWorld(world: mainWorld.copy()))
     }
 }
 
@@ -120,6 +129,9 @@ extension Extract: SystemQuery {
 public extension SchedulerName {
     /// The render scheduler.
     static let render = SchedulerName(rawValue: "RenderWorld_Render")
+
+    static let beginRender = SchedulerName(rawValue: "RenderWorld_BeginFrame")
+    static let endRender = SchedulerName(rawValue: "RenderWorld_EndFrame")
 }
 
 public extension AppWorldName {
