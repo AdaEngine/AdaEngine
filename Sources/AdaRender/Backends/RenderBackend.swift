@@ -55,7 +55,7 @@ protocol RenderBackend: AnyObject {
 }
 
 /// The GPU device instance resposible for rendering and computing.
-public protocol RenderDevice: AnyObject {
+public protocol RenderDevice: AnyObject, Sendable {
 
     // MARK: - Buffers
 

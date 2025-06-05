@@ -54,10 +54,8 @@ public struct FixedTimeSchedulerSystem {
             let step = self.fixedTimestep.step
             let world = context.world
             world.insertResource(DeltaTime(deltaTime: step))
-            context.taskGroup.addTask { [order] in
-                for scheduler in order {
-                    await world.runScheduler(scheduler, deltaTime: step)
-                }
+            for scheduler in order {
+                world.runScheduler(scheduler, deltaTime: step)
             }
         }
     }
@@ -78,9 +76,7 @@ public struct PostUpdateSchedulerRunner: Sendable {
     public func update(context: inout UpdateContext) {
         let world = context.world
         let deltaTime = context.deltaTime
-        context.taskGroup.addTask {
-            await world.runScheduler(.postUpdate, deltaTime: deltaTime)
-        }
+        world.runScheduler(.postUpdate, deltaTime: deltaTime)
     }
 }
 

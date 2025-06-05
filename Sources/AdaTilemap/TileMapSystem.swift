@@ -27,7 +27,7 @@ public struct TileMapSystem: Sendable {
     public func update(context: inout UpdateContext) {
         let physicsWorld = context.world.getResource(Physics2DWorldComponent.self)?.world
 
-        for (entity, tileMapComponent, transform) in tileMap {
+        tileMap.forEach { (entity, tileMapComponent, transform) in
             let tileMap = tileMapComponent.tileMap
 
             if !tileMap.needsUpdate {
@@ -72,7 +72,7 @@ public struct TileMapSystem: Sendable {
 
         let scale = Vector3(1)
         if layer.needUpdates {
-            tileMapComponent.tileLayers[layer.id]?.removeFromScene(recursively: true)
+            tileMapComponent.tileLayers[layer.id]?.removeFromWorld(recursively: true)
 
             let tileParent = Entity()
 

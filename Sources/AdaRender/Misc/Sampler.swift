@@ -6,7 +6,7 @@
 //
 
 /// Filtering options for determining which pixel value is returned within a mipmap level.
-public enum SamplerMinMagFilter: String, Codable {
+public enum SamplerMinMagFilter: String, Codable, Sendable {
     
     /// Select the single pixel nearest to the sample point.
     case nearest
@@ -16,8 +16,8 @@ public enum SamplerMinMagFilter: String, Codable {
 }
 
 /// Filtering options for determining what pixel value is returned with multiple mipmap levels.
-public enum SamplerMipFilter: String, Codable {
-    
+public enum SamplerMipFilter: String, Codable, Sendable {
+
     /// The nearest mipmap level is selected.
     case nearest
     
@@ -29,8 +29,8 @@ public enum SamplerMipFilter: String, Codable {
 }
 
 /// An object that you use to configure a texture sampler.
-public struct SamplerDescriptor: Codable {
-    
+public struct SamplerDescriptor: Codable, Sendable {
+
     /// The filtering option for combining pixels within one mipmap level when the sample footprint is larger than a pixel (minification).
     public var minFilter: SamplerMinMagFilter
     
@@ -62,7 +62,7 @@ public struct SamplerDescriptor: Codable {
 }
 
 /// Sampler representation in GPU. You can create your own sampler instance for manage how to draw texture.
-public protocol Sampler: AnyObject {
+public protocol Sampler: AnyObject, Sendable {
     
     /// Contains information about sampler descriptor.
     var descriptor: SamplerDescriptor { get }
