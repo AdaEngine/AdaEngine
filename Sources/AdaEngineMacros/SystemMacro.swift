@@ -124,6 +124,17 @@ extension SystemMacro: PeerMacro {
         let funcName = funcDecl.name.text
         let params = funcDecl.signature.parameterClause.parameters
         let availability = funcDecl.modifiers
+        
+        // Check if function is async or has actor attributes
+        let isAsync = funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil
+        let hasActorAttribute = funcDecl.attributes.contains { attribute in
+            guard let attributeName = attribute.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self)?.name.text else {
+                return false
+            }
+            return attributeName.hasSuffix("Actor") || attributeName == "MainActor"
+        }
+        
+        let needsAwait = isAsync || hasActorAttribute
 
         // Get dependencies from macro arguments
         var dependencies: [String] = []
@@ -194,8 +205,8 @@ extension SystemMacro: PeerMacro {
         
         \(availability)init(world: AdaECS.World) { }
         
-        \(availability)func update(context: inout UpdateContext) {
-            \(raw: funcName)(\(raw: paramNames.map { $0.buildParameter() }.joined(separator: ", ")))
+        \(availability)func update(context: inout UpdateContext)\(raw: needsAwait ? " async" : "") {
+            \(raw: needsAwait ? "await " : "")\(raw: funcName)(\(raw: paramNames.map { $0.buildParameter() }.joined(separator: ", ")))
         }
         
         \(availability) var queries: AdaECS.SystemQueries {

@@ -36,9 +36,10 @@ struct MainSchedulerPlugin: Plugin {
 @PlainSystem
 @inline(__always)
 func GameLoopBegan(
-    _ context: inout WorldUpdateContext
+    _ deltaTime: ResQuery<DeltaTime?>
 ) {
-    EventManager.default.send(EngineEvents.MainLoopBegan(deltaTime: context.deltaTime))
+    guard let deltaTime = deltaTime.wrappedValue else { return }
+    EventManager.default.send(EngineEvents.MainLoopBegan(deltaTime: deltaTime.deltaTime))
 }
 
 /// The system that runs the fixed time scheduler.
@@ -58,17 +59,20 @@ public struct FixedTimeSchedulerSystem {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: 60)
     }
 
-    public func update(context: inout UpdateContext) {
-        let result = self.fixedTimestep.advance(with: context.deltaTime)
+    @ResQuery<DeltaTime?>
+    private var deltaTime
+
+    public func update(context: inout UpdateContext) async {
+        let deltaTime = deltaTime?.deltaTime ?? 0
+        let result = self.fixedTimestep.advance(with: deltaTime)
 
         if result.isFixedTick {
             let step = self.fixedTimestep.step
             let world = context.world
-            world.insertResource(DeltaTime(deltaTime: step))
-            context.taskGroup.addTask { [order] in
-                for scheduler in order {
-                    await world.runScheduler(scheduler, deltaTime: step)
-                }
+            world.insertResource(FixedTime(deltaTime: step))
+//            context.taskGroup.addTask(priority: .high) { [order] in
+            for scheduler in order {
+                await world.runScheduler(scheduler)
             }
         }
     }
@@ -80,12 +84,9 @@ public struct PostUpdateSchedulerRunner: Sendable {
     
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: inout UpdateContext) async {
         let world = context.world
-        let deltaTime = context.deltaTime
-        context.taskGroup.addTask {
-            await world.runScheduler(.postUpdate, deltaTime: deltaTime)
-        }
+        await world.runScheduler(.postUpdate)
     }
 }
 

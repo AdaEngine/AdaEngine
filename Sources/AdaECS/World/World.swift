@@ -26,6 +26,8 @@ public final class World: @unchecked Sendable, Codable {
     public let id = ID()
     public let name: String?
 
+    public let lock = NSLock()
+
     /// The records of the world.
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 
@@ -42,10 +44,10 @@ public final class World: @unchecked Sendable, Codable {
     private var freeArchetypeIndices: [Int] = []
 
     /// The updated entities of the world.
-    private var updatedEntities: Set<Entity> = []
-    private var updatedComponents: [Entity: Set<ComponentId>] = [:]
-
+    @LocalIsolated private var updatedEntities: Set<Entity> = []
+    @LocalIsolated private var updatedComponents: [Entity: Set<ComponentId>] = [:]
     @LocalIsolated private var componentsStorage = ComponentsStorage()
+
     private var isReady = false
 
     public private(set) var eventManager: EventManager = EventManager.default
@@ -355,12 +357,14 @@ public extension World {
     /// - Complexity: O(1)
     /// - Returns: True if component was changed for entity, otherwise false.
     func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
         return self.updatedComponents[entity]?.contains(T.identifier) ?? false
     }
 
     /// Run all schedulers in world.
     /// - Parameter deltaTime: Time interval since last update.
-    func update(_ deltaTime: AdaUtils.TimeInterval) {
+    func update() {
         self.flush()
         self.clearTrackers()
 
@@ -373,7 +377,6 @@ public extension World {
                 await scheduler.graphExecutor.execute(
                     scheduler.systemGraph,
                     world: self,
-                    deltaTime: deltaTime,
                     scheduler: scheduler.name
                 )
             }
@@ -383,7 +386,7 @@ public extension World {
     /// Run a specific scheduler.
     /// - Parameter scheduler: Scheduler name.
     /// - Parameter deltaTime: Time interval since last update.
-    func runScheduler(_ scheduler: SchedulerName, deltaTime: AdaUtils.TimeInterval) async {
+    func runScheduler(_ scheduler: SchedulerName) async {
         guard let scheduler = self.schedulers.getScheduler(scheduler) else {
             fatalError("Scheduler \(scheduler) not found")
         }
@@ -391,7 +394,6 @@ public extension World {
         await scheduler.graphExecutor.execute(
             scheduler.systemGraph,
             world: self,
-            deltaTime: deltaTime,
             scheduler: scheduler.name
         )
     }
@@ -399,6 +401,8 @@ public extension World {
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
     func flush() {
+        self.lock.lock()
+        defer { lock.unlock() }
         self.moveEntitiesToMatchedArchetypesIfNeeded()
 
         for entityId in self.removedEntities {
@@ -439,6 +443,8 @@ extension World {
         didAddComponent component: T.Type,
         with identifier: ComponentId
     ) {
+        lock.lock()
+        defer { lock.unlock() }
         let entity = entity
         eventManager.send(ComponentEvents.DidAdd(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
@@ -453,6 +459,8 @@ extension World {
         didUpdateComponent component: T.Type,
         with identifier: ComponentId
     ) {
+        lock.lock()
+        defer { lock.unlock() }
         let entity = entity
         eventManager.send(ComponentEvents.DidChange(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
@@ -468,6 +476,8 @@ extension World {
         didRemoveComponent component: Component.Type,
         with identifier: ComponentId
     ) {
+        lock.lock()
+        defer { lock.unlock() }
         let entity = entity
         eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)

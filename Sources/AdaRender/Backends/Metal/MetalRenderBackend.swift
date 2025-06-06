@@ -81,15 +81,21 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func endFrame() throws {
+        var hasValidWindow = false
+        defer {
+            currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
+        }
+
         for window in self.context.windows.values {
             guard let drawable = window.drawable else {
-                return
+                continue
             }
 
             guard let commandBuffer = self.commandQueue.makeCommandBuffer() else {
-                return
+                continue
             }
 
+            hasValidWindow = true
             commandBuffer.addCompletedHandler { @Sendable [inFlightSemaphore] _ in
                 inFlightSemaphore.signal()
             }
@@ -97,8 +103,10 @@ class MetalRenderBackend: RenderBackend {
             commandBuffer.present(drawable)
             commandBuffer.commit()
         }
-        
-        currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
+
+        if !hasValidWindow {
+            inFlightSemaphore.signal()
+        }
     }
 }
 

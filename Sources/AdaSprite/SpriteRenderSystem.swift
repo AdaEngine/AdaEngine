@@ -13,10 +13,7 @@ import Math
 
 // TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
 
-@System(dependencies: [
-    .after(ExtractCameraSystem.self),
-    .after(BatchTransparent2DItemsSystem.self)
-])
+@System
 public struct SpriteRenderSystem: Sendable {
 
     @Query<
@@ -79,7 +76,7 @@ public struct SpriteRenderSystem: Sendable {
         var textureSlotIndex = 1
 
         var currentBatchEntity = Entity()
-        var currentBatch = BatchComponent(
+        var currentBatch = TextureBatchComponent(
             textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
         )
 
@@ -94,7 +91,7 @@ public struct SpriteRenderSystem: Sendable {
                 currentBatchEntity.components += currentBatch
                 textureSlotIndex = 1
                 currentBatchEntity = Entity()
-                currentBatch = BatchComponent(
+                currentBatch = TextureBatchComponent(
                     textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
                 )
             }
@@ -197,7 +194,7 @@ struct SpriteDataComponent {
 
 @Component
 /// A component that contains the textures for a batch.
-public struct BatchComponent {
+public struct TextureBatchComponent {
     /// The textures for a batch.
     public var textures: [Texture2D]
 }
