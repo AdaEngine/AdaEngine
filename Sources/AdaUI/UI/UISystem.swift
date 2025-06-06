@@ -20,17 +20,21 @@ public struct UIComponentSystem: Sendable {
     @ResMutQuery
     private var input: Input?
 
+    @ResQuery<DeltaTime>
+    private var deltaTime
+
     public init(world: World) {}
 
+    @MainActor
     public func update(context: inout UpdateContext) {
-//        guard let scene = context.scene else {
-//            return
-//        }
-//
-//        for entity in self.uiComponents {
-//            context.taskGroup.addTask {
-//                await update(entity: entity, scene: scene, deltaTime: context.deltaTime)
-//            }
+//        for value in self.uiComponents {
+//            await update(
+//                entity: value.entity,
+//                component: value.component,
+//                globalTransform: value.globalTransform,
+//                window: UIWindow,
+//                deltaTime: deltaTime.deltaTime
+//            )
 //        }
     }
 }
