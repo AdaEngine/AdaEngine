@@ -9,6 +9,8 @@ import AdaUtils
 import Collections
 import Foundation
 
+
+
 /// TODO: (Vlad)
 /// [] Recalculate archetype for removed and added components. Archetype should use graph
 
