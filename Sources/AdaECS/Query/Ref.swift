@@ -35,9 +35,11 @@ public final class Ref<T>: @unchecked Sendable {
     }
 
     /// The getter of the reference.
+    @inline(__always)
     var getValue: Getter?
 
     /// The setter of the reference.
+    @inline(__always)
     let setValue: Setter?
 
     /// Create a new reference to a component.
@@ -49,6 +51,7 @@ public final class Ref<T>: @unchecked Sendable {
         self.setValue = set
     }
 
+    @inline(__always)
     public subscript<U>(dynamicMember dynamicMember: WritableKeyPath<T, U>) -> U {
         get {
             return self.wrappedValue[keyPath: dynamicMember]

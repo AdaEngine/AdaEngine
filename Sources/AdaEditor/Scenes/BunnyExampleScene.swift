@@ -8,18 +8,16 @@
 import AdaEngine
 
 enum BunnyExampleConstants {
-    static let bunniesPerClick: Int = 5
-    static let bunnyScale: Float = 0.6
+    static let bunniesPerClick: Int = 10
+    static let bunnyScale: Float = 1
     static let gravity: Float = -9.8
-    static let maxVelocity: Float = 750.0
+    static let maxVelocity: Float = 2050.0
 }
 
 /// A bunny stress test scene similar to bevymark.
 /// Click to spawn bunnies that bounce around the screen with gravity simulation.
 @MainActor
 struct BunnyExample: Plugin {
-
-    @LocalIsolated private var disposeBag: Set<AnyCancellable> = []
 
     func setup(in app: AppWorlds) {
         setupCamera(in: app)
@@ -94,7 +92,7 @@ struct Bunny {
         self.velocity = Vector3(velocityX, velocityY, 0)
     }
     
-    private static let maxInitialVelocity: Float = 400.0
+    private static let maxInitialVelocity: Float = 9000.0
 }
 
 /// Component for the performance counter UI
@@ -118,14 +116,17 @@ struct BunnySpawnerSystem {
     @ResQuery
     private var bunnyTexture: BunnyTexture!
 
+    @ResQuery
+    private var input: Input!
+
     init(world: World) {}
     
     func update(context: inout UpdateContext) {
-        guard Input.isMouseButtonPressed(.left) else { return }
-        
+        guard input.isMouseButtonPressed(.left) else { return }
+
         // Get camera for world position conversion
         cameras.forEach { (camera, globalTransform) in
-            let mousePosition = Input.getMousePosition()
+            let mousePosition = input.getMousePosition()
             guard let worldPosition = camera.viewportToWorld2D(
                 cameraGlobalTransform: globalTransform.matrix,
                 viewportPosition: mousePosition

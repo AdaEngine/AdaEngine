@@ -29,8 +29,8 @@ public struct SpritePlugin: Plugin {
         renderWorld
             .insertResource(pipeline)
             .insertResource(SpriteDrawPass())
-            .addSystem(ExtractSpriteSystem.self)
-            .addSystem(SpriteRenderSystem.self)
-            .addSystem(ExctractMesh2DSystem.self)
+            .addSystem(ExtractSpriteSystem.self, on: .extract)
+            .addSystem(ExctractMesh2DSystem.self, on: .extract)
+            .addSystem(SpriteRenderSystem.self, on: .render)
     }
 }

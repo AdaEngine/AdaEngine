@@ -14,8 +14,11 @@ import Math
 @System
 public struct UIComponentSystem: Sendable {
     
-    @EntityQuery(where: .has(UIComponent.self) && .has(GlobalTransform.self))
+    @Query<Entity, UIComponent, GlobalTransform>
     private var uiComponents
+
+    @ResMutQuery
+    private var input: Input?
 
     public init(world: World) {}
 
@@ -34,8 +37,14 @@ public struct UIComponentSystem: Sendable {
 
 private extension UIComponentSystem {
     @MainActor
-    func update(entity: Entity, window: UIWindow, deltaTime: TimeInterval) async {
-        let (component, globalTransform) = entity.components[UIComponent.self, GlobalTransform.self]
+    @inline(__always)
+    func update(
+        entity: Entity,
+        component: UIComponent,
+        globalTransform: GlobalTransform,
+        window: UIWindow,
+        deltaTime: TimeInterval
+    ) async {
         let view = component.view
         let behaviour = component.behaviour
         view.window = window
@@ -63,14 +72,18 @@ private extension UIComponentSystem {
             view.transform3D = globalTransform.matrix
         }
 
-        for event in Input.getInputEvents() {
-            guard view.canRespondToAction(event) else {
-                continue
-            }
+        if let input = self.input {
+            for event in input.getInputEvents() {
+                guard view.canRespondToAction(event) else {
+                    continue
+                }
 
-            let responder = view.findFirstResponder(for: event) ?? view
-            responder.onEvent(event)
+                let responder = view.findFirstResponder(for: event) ?? view
+                responder.onEvent(event)
+            }
         }
+
+
 
         await view.update(deltaTime)
     }

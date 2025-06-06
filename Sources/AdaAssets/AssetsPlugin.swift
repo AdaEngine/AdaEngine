@@ -31,7 +31,7 @@ public struct AssetsPlugin: Plugin {
 func AssetsProcess(
     _ context: inout WorldUpdateContext
 ) {
-    context.taskGroup.addTask {
+    Task {
         do {
             try await AssetsManager.processResources()
         } catch {

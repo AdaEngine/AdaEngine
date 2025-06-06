@@ -150,7 +150,7 @@ open class Scene: Asset, @unchecked Sendable {
         self.eventManager.send(SceneEvents.Update(scene: self, deltaTime: deltaTime), source: self)
         self.isUpdating = true
         defer { self.isUpdating = false }
-        await self.world.update(deltaTime)
+        await self.world.update()
     }
 }
 

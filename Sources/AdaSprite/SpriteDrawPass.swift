@@ -35,7 +35,7 @@ public struct SpriteDrawPass: DrawPass {
             frameIndex: RenderEngine.shared.currentFrameIndex
         )
         
-        if let batchSprite = item.batchEntity.components[BatchComponent.self] {
+        if let batchSprite = item.batchEntity.components[TextureBatchComponent.self] {
             batchSprite.textures.enumerated().forEach { (index, texture) in
                 context.drawList.bindTexture(texture, at: index)
             }

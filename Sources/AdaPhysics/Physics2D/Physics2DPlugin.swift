@@ -32,8 +32,8 @@ public struct Physics2DPlugin: Plugin {
             return
         }
         renderWorld
-            .addSystem(Physics2DDebugDrawSystem.self)
-            .addSystem(DebugPhysicsExctract2DSystem.self)
+            .addSystem(Physics2DDebugDrawSystem.self, on: .render)
+            .addSystem(DebugPhysicsExctract2DSystem.self, on: .extract)
     }
 }
 
