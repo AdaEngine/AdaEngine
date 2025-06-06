@@ -12,16 +12,15 @@ public struct InputPlugin: Plugin {
     public init() { }
 
     public func setup(in app: AppWorlds) {
-        app.insertResource(Input.shared)
+        app.insertResource(Input())
         app.addSystem(InputPostUpdateSystem.self, on: .postUpdate)
     }
 }
 
 @PlainSystem
+@MainActor
 func InputPostUpdate(
-    _ input: ResQuery<Input>
-) {
-    Task {
-        await input.wrappedValue?.removeEvents()
-    }
+    _ input: ResMutQuery<Input?>
+) async {
+    input.wrappedValue?.removeEvents()
 }

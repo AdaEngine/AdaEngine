@@ -8,13 +8,13 @@
 import AdaInput
 
 public extension View {
-    func cursorShape(_ shape: Input.CursorShape) -> some View {
-        CursorShapeModifier(shape: shape, content: self)
-    }
+//    func cursorShape(_ shape: Input.CursorShape) -> some View {
+//        CursorShapeModifier(shape: shape, content: self)
+//    }
 
-    func onHover(perform action: (Bool) -> Void) -> some View {
-        EmptyView()
-    }
+//    func onHover(perform action: (Bool) -> Void) -> some View {
+//        EmptyView()
+//    }
 }
 
 struct CursorShapeModifier<Content: View>: View, ViewNodeBuilder {
@@ -43,9 +43,9 @@ class CursorShapeModifierNode: ViewModifierNode {
     override func onMouseEvent(_ event: MouseEvent) {
         // Just moved
         if event.button == .none && event.phase == .changed {
-            Input.pushCursorShape(shape)
+//            Input.pushCursorShape(shape)
         }
 
-        Input.popCursorShape()
+//        Input.popCursorShape()
     }
 }

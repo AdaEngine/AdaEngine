@@ -32,7 +32,7 @@ struct AdaEngineApp: App {
 
 
 enum BunnyExampleConstants {
-    static let bunniesPerClick: Int = 5
+    static let bunniesPerClick: Int = 1
     static let bunnyScale: Float = 0.6
     static let gravity: Float = -9.8
     static let maxVelocity: Float = 750.0
@@ -142,14 +142,17 @@ struct BunnySpawnerSystem {
     @ResQuery
     private var bunnyTexture: BunnyTexture!
 
+    @ResQuery
+    private var input: Input
+
     init(world: World) {}
 
     func update(context: inout UpdateContext) {
-        guard Input.isMouseButtonPressed(.left) else { return }
+        guard input.isMouseButtonPressed(.left) else { return }
 
         // Get camera for world position conversion
         cameras.forEach { (camera, globalTransform) in
-            let mousePosition = Input.getMousePosition()
+            let mousePosition = input.getMousePosition()
             guard let worldPosition = camera.viewportToWorld2D(
                 cameraGlobalTransform: globalTransform.matrix,
                 viewportPosition: mousePosition
@@ -199,10 +202,16 @@ struct BunnyMovementSystem {
     @Query<Entity, Ref<Bunny>, Ref<Transform>>
     private var bunnies
 
+    @ResQuery
+    private var input: Input
+
+    @ResQuery<DeltaTime>
+    private var deltaTime
+
     init(world: World) {}
 
     func update(context: inout UpdateContext) {
-        if Input.isKeyPressed(.q) {
+        if input.isKeyPressed(.q) {
             // Remove all bunnies when Delete key is pressed
             bunnies.forEach { (entity, _, _) in
                 entity.removeFromWorld()
@@ -211,8 +220,7 @@ struct BunnyMovementSystem {
             return
         }
 
-        let deltaTime = context.deltaTime
-
+        let deltaTime = deltaTime.deltaTime
         bunnies.forEach { (_, bunny, transform) in
             var velocity = bunny.velocity
             var position = transform.position
@@ -310,11 +318,15 @@ struct PerformanceCounterSystem {
     @Query<Entity, Ref<PerformanceCounter>, Ref<Text2DComponent>>
     private var counters
 
+    @ResQuery<DeltaTime>
+    private var deltaTime
+
+
     init(world: World) {}
 
     func update(context: inout UpdateContext) {
         let bunnyCount = bunnies.count
-        let deltaTime = context.deltaTime
+        let deltaTime = deltaTime.deltaTime
 
         counters.forEach { (entity, counter, textComponent) in
             counter.bunnyCount = bunnyCount

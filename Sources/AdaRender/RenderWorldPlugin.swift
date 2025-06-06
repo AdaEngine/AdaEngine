@@ -27,18 +27,14 @@ public struct RenderWorldPlugin: Plugin {
         renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
         renderWorld.setExctractor(RenderWorldExctractor())
         renderWorld.mainWorld.setSchedulers([
-            .beginRender,
-            .update,
-            .render,
-            .endRender
+            .extract,
+            .render
         ])
         renderWorld.insertResource(
-            DefaultSchedulerOrder(
-                order: [.update, .render]
-            )
+            DefaultSchedulerOrder(order: [.extract, .render])
         )
 
-        renderWorld.mainWorld
+        renderWorld
             .addSystem(RenderWorldRunnerSystem.self, on: .render)
 
         app.addSubworld(renderWorld, by: .renderWorld)
@@ -50,11 +46,11 @@ public struct RenderWorldPlugin: Plugin {
 @inline(__always)
 func RenderWorldRunner(
     _ context: inout WorldUpdateContext,
-    _ renderGraph: ResQuery<RenderGraph>
+    _ renderGraph: ResQuery<RenderGraph?>
 ) {
-    let world = context.world.copy()
+    let world = context.world
     let renderGraph = renderGraph.wrappedValue
-    Task.detached {
+    Task.detached(priority: .high) {
         do {
             try await RenderEngine.shared.beginFrame()
         } catch {
@@ -79,9 +75,9 @@ func RenderWorldRunner(
 
 /// The extractor that extracts the main world to the render world.
 struct RenderWorldExctractor: WorldExctractor {
-    func exctract(from mainWorld: World, to renderWorld: World) {
+    func exctract(from mainWorld: World, to renderWorld: World) async {
         renderWorld.clear()
-        renderWorld.insertResource(MainWorld(world: mainWorld.copy()))
+        renderWorld.insertResource(MainWorld(world: mainWorld))
     }
 }
 
@@ -129,6 +125,7 @@ extension Extract: SystemQuery {
 public extension SchedulerName {
     /// The render scheduler.
     static let render = SchedulerName(rawValue: "RenderWorld_Render")
+    static let extract = SchedulerName(rawValue: "RenderWorld_Extract")
 
     static let beginRender = SchedulerName(rawValue: "RenderWorld_BeginFrame")
     static let endRender = SchedulerName(rawValue: "RenderWorld_EndFrame")

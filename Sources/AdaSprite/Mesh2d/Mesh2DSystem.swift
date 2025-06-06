@@ -24,7 +24,7 @@ public struct Mesh2DPlugin: Plugin {
     /// - Parameter app: The app.
     public func setup(in app: AppWorlds) {
         let renderWorld = app.getSubworldBuilder(by: .renderWorld)
-        renderWorld?.addSystem(ExctractMesh2DSystem.self)
+        renderWorld?.addSystem(ExctractMesh2DSystem.self, on: .extract)
     }
 }
 
@@ -107,7 +107,7 @@ public struct Mesh2DRenderPlugin: Plugin {
         }
         renderWorld
             .insertResource(Mesh2DDrawPass())
-            .addSystem(Mesh2DRenderSystem.self)
+            .addSystem(Mesh2DRenderSystem.self, on: .render)
     }
 }
 

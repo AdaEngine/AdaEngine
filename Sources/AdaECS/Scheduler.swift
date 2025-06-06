@@ -123,6 +123,18 @@ public struct DeltaTime: Resource {
     }
 }
 
+/// A resource that contains the delta time.
+public struct FixedTime: Resource {
+    /// The delta time.
+    public let deltaTime: AdaUtils.TimeInterval
+
+    /// Initialize a new delta time.
+    /// - Parameter deltaTime: The delta time.
+    public init(deltaTime: AdaUtils.TimeInterval) {
+        self.deltaTime = deltaTime
+    }
+}
+
 /// A resource that contains the order of the default scheduler.
 public struct DefaultSchedulerOrder: Resource {
     public let order: [SchedulerName]
@@ -144,14 +156,11 @@ public struct DefaultSchedulerRunner: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: inout UpdateContext) async {
         let world = context.world
-        let deltaTime = context.deltaTime
         let order = order?.order ?? []
-        context.taskGroup.addTask { [order] in
-            for scheduler in order {
-                await world.runScheduler(scheduler, deltaTime: deltaTime)
-            }
+        for scheduler in order {
+            await world.runScheduler(scheduler)
         }
     }
 }
@@ -206,17 +215,13 @@ public final class Scheduler: @unchecked Sendable {
         let name = self.name
         world.insertResource(DeltaTime(deltaTime: deltaTime))
         if let runnerSystem = runnerSystem {
-            await withTaskGroup(of: Void.self) { group in
-                var context = WorldUpdateContext(
-                    world: world,
-                    deltaTime: deltaTime,
-                    scheduler: name,
-                    taskGroup: group
-                )
-                runnerSystem.queries.update(from: world)
-                runnerSystem.update(context: &context)
-                _ = consume context
-            }
+            var context = WorldUpdateContext(
+                world: world,
+                scheduler: name
+            )
+            runnerSystem.queries.update(from: world)
+            await runnerSystem.update(context: &context)
+            _ = consume context
         }
     }
 }

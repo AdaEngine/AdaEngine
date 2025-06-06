@@ -92,10 +92,14 @@ class SpaceInvaders: Scene, @unchecked Sendable {
     }
 }
 
-struct MovementSystem: System {
+@System
+struct MovementSystem {
 
     static let camera = EntityQuery(where: .has(Camera.self))
     static let player = EntityQuery(where: .has(PlayerComponent.self))
+
+    @ResQuery<Input>
+    private var input
 
     init(world: World) { }
 
@@ -106,7 +110,7 @@ struct MovementSystem: System {
             return
         }
 
-        let mousePosition = Input.getMousePosition()
+        let mousePosition = input.getMousePosition()
 
         let worldPosition = camera.viewportToWorld2D(cameraGlobalTransform: globalTransform, viewportPosition: mousePosition) ?? .zero
 
@@ -124,8 +128,14 @@ struct FireSystem: System {
 
     static let player = EntityQuery(where: .has(PlayerComponent.self))
 
-    let fixedTime = FixedTimestep(stepsPerSecond: 12)
+    @LocalIsolated private var fixedTime = FixedTimestep(stepsPerSecond: 12)
     let laserAudio: AudioResource
+
+    @ResQuery<DeltaTime>
+    private var deltaTime
+
+    @ResQuery<Input>
+    private var input
 
     init(world: World) {
         self.laserAudio = try! AssetsManager.loadSync(
@@ -139,9 +149,9 @@ struct FireSystem: System {
         context.world.performQuery(Self.player).forEach { entity in
             let transform = entity.components[Transform.self]!
 
-            if Input.isMouseButtonPressed(.left) || Input.isKeyPressed(.space) {
+            if input.isMouseButtonPressed(.left) || input.isKeyPressed(.space) {
 
-                let result = fixedTime.advance(with: context.deltaTime)
+                let result = fixedTime.advance(with: deltaTime.deltaTime)
 
                 if result.isFixedTick {
                     let controller = entity.prepareAudio(self.laserAudio)
@@ -189,10 +199,14 @@ struct Bullet {
     var currentLifetime: Float = 0
 }
 
-struct BulletSystem: System {
+@System
+struct BulletSystem {
 
     static let bullet = EntityQuery(where: .has(Bullet.self) && .has(PhysicsBody2DComponent.self))
     static let bulletSpeed: Float = 3
+
+    @ResQuery<DeltaTime>
+    private var deltaTime
 
     init(world: World) { }
 
@@ -201,7 +215,7 @@ struct BulletSystem: System {
             var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
 
             body.linearVelocity = [0, Self.bulletSpeed]
-            bullet.currentLifetime += context.deltaTime
+            bullet.currentLifetime += deltaTime.deltaTime
 
             if bullet.lifetime > bullet.currentLifetime {
                 entity.components += bullet
@@ -219,11 +233,16 @@ struct EnemyComponent {
     var currentLifetime: Float = 0
 }
 
-struct EnemySpawnerSystem: System {
+@System
+struct EnemySpawnerSystem {
 
-    let fixedTime = FixedTimestep(stepsPerSecond: 2)
+    @LocalIsolated
+    private var fixedTime = FixedTimestep(stepsPerSecond: 2)
 
     let textureAtlas: TextureAtlas
+
+    @ResQuery<DeltaTime>
+    private var deltaTime
 
     init(world: World) {
         do {
@@ -240,7 +259,7 @@ struct EnemySpawnerSystem: System {
     }
 
     func update(context: inout UpdateContext) {
-        let result = fixedTime.advance(with: context.deltaTime)
+        let result = fixedTime.advance(with: deltaTime.deltaTime)
 
         if result.isFixedTick {
             self.spawnEnemy(context: context)
@@ -271,8 +290,12 @@ struct EnemySpawnerSystem: System {
     }
 }
 
-struct EnemyLifetimeSystem: System {
+@System
+struct EnemyLifetimeSystem {
     static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))
+
+    @ResQuery<DeltaTime>
+    private var deltaTime
 
     init(world: World) { }
 
@@ -280,7 +303,7 @@ struct EnemyLifetimeSystem: System {
         context.world.performQuery(Self.enemy).forEach { entity in
             var enemy = entity.components[EnemyComponent.self]!
 
-            enemy.currentLifetime += context.deltaTime
+            enemy.currentLifetime += deltaTime.deltaTime
 
             if enemy.lifetime > enemy.currentLifetime {
                 entity.components += enemy
@@ -296,12 +319,15 @@ struct EnemyMovementSystem: System {
     static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))
     static let speed: Float = 0.1
 
+    @ResQuery<DeltaTime>
+    private var deltaTime
+
     init(world: World) { }
 
     func update(context: inout UpdateContext) {
         context.world.performQuery(Self.enemy).forEach { entity in
             var transform = entity.components[Transform.self]!
-            transform.position.y -= Self.speed * context.deltaTime
+            transform.position.y -= Self.speed * deltaTime.deltaTime
             entity.components += transform
         }
     }

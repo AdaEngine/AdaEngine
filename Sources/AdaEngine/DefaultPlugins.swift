@@ -30,9 +30,9 @@ public struct DefaultPlugins: Plugin {
     public init(filePath: StaticString = #filePath) {
         var plugins = OrderedDictionary<String, any Plugin>()
         insertPlugin(AppPlatformPlugin(), into: &plugins)
+        insertPlugin(InputPlugin(), into: &plugins)
         insertPlugin(RenderWorldPlugin(), into: &plugins)
         insertPlugin(CameraPlugin(), into: &plugins)
-        insertPlugin(InputPlugin(), into: &plugins)
         insertPlugin(AssetsPlugin(filePath: filePath), into: &plugins)
         insertPlugin(VisibilityPlugin(), into: &plugins)
         insertPlugin(SpritePlugin(), into: &plugins)

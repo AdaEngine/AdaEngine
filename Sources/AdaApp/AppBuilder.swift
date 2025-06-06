@@ -15,7 +15,7 @@ public protocol WorldExctractor {
     /// - Parameters:
     ///   - mainWorld: The main world.
     ///   - world: The subworld.
-    func exctract(from mainWorld: World, to world: World)
+    func exctract(from mainWorld: World, to world: World) async
 }
 
 /// A class that represents a collection of worlds.
@@ -28,7 +28,7 @@ public final class AppWorlds {
     var subWorlds: [String: AppWorlds]
 
     /// The world extractor.
-    var worldExctractor: (any WorldExctractor)?
+    nonisolated(unsafe) var worldExctractor: (any WorldExctractor)?
 
     /// The plugins.
     var plugins: [ObjectIdentifier: any Plugin] = [:]
@@ -84,11 +84,11 @@ public extension AppWorlds {
 
         for sceduler in self.scedulers {
             await sceduler.run(world: mainWorld)
+        }
 
-            for world in self.subWorlds.values {
-                world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
-                await world.update()
-            }
+        for world in self.subWorlds.values {
+            await world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
+            await world.update()
         }
 
         mainWorld.clearTrackers()

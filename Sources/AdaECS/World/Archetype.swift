@@ -31,6 +31,9 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     /// The entities in the archetype.
     public internal(set) var entities: SparseArray<Entity> = []
 
+    /// The components in the archetype.
+    public internal(set) var components: [ComponentId: any Component] = [:]
+
     /// The fried entities in the archetype.
     @usableFromInline
     private(set) var friedEntities: [Int] = []

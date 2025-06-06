@@ -12,14 +12,11 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
     /// The updating world.
     public let world: World
 
-    /// The number of seconds elapsed since the last update.
-    public let deltaTime: AdaUtils.TimeInterval
-
     /// The scheduler that will be used to schedule tasks.
     public let scheduler: SchedulerName
 
     /// Custom task group that will be executed when system did finish update block.
-    public var taskGroup: TaskGroup<Void>
+//    public var taskGroup: DiscardingTaskGroup
 
     /// Initialize a new world update context.
     /// - Parameter world: The world that will be updated.
@@ -28,14 +25,10 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
     /// - Parameter taskGroup: The task group that will be executed when the system did finish update block.
     init(
         world: consuming World,
-        deltaTime: AdaUtils.TimeInterval,
-        scheduler: SchedulerName,
-        taskGroup: TaskGroup<Void>
+        scheduler: SchedulerName
     ) {
         self.world = world
-        self.deltaTime = deltaTime
         self.scheduler = scheduler
-        self.taskGroup = taskGroup
     }
 }
 
@@ -84,7 +77,7 @@ public protocol System {
     @preconcurrency init(world: World)
 
     /// Updates entities every frame.
-    func update(context: inout UpdateContext)
+    func update(context: inout UpdateContext) async
 
     /// An array of queries for this system.
     /// That needs to be updated queries results for this system.
@@ -109,7 +102,7 @@ public extension System {
 }
 
 /// A collection of queries for a system.
-public struct SystemQueries {
+public struct SystemQueries: Sendable {
     public let queries: [SystemQuery]
 
     /// Initialize a new system queries.

@@ -10,15 +10,15 @@ import AdaUtils
 import CoreHaptics
 import GameController
 
-public final class AppleGameControllerManager {
-
-    @MainActor
-    public static let shared = AppleGameControllerManager()
+public final class AppleGameControllerManager: RumbleGameControllerEngine, @unchecked Sendable {
 
     private var knownGamepadIds: [GCController: Int] = [:]
     private var nextGamepadId: Int = 0
+    private var receiveInputEvents: @Sendable (any InputEvent) -> Void
 
-    private init() {}
+    public init(receiveInputEvents: @escaping @Sendable (any InputEvent) -> Void) {
+        self.receiveInputEvents = receiveInputEvents
+    }
 
     // MARK: - Button and Axis Mapping Helpers
 
@@ -155,8 +155,8 @@ public final class AppleGameControllerManager {
             time: TimeInterval(Date().timeIntervalSince1970)
         )
 
-        Task { @MainActor in
-            Input.shared.receiveEvent(event)
+        Task { @MainActor [receiveInputEvents] in
+            receiveInputEvents(event)
         }
     }
 
@@ -174,7 +174,7 @@ public final class AppleGameControllerManager {
                 microGamepad.buttonMenu.pressedChangedHandler = { [weak self] button, pressure, pressed in
                     self?.handleButtonChange(button: button, controller: controller, gamepadId: gamepadId, pressure: pressure, pressed: pressed)
                 }
-                microGamepad.dpad.xAxis.valueChangedHandler = { [weak self] axis, value in
+                microGamepad.dpad.xAxis.valueChangedHandler = { [weak self, receiveInputEvents] axis, value in
                      // Dpad X on microGamepad could be mapped to left/right buttons or an axis
                      // For simplicity, sending as axis event first, then potentially button events.
                     if let mappedAxis = self?.mapGCAxisToGamepadAxis(axis, controller: controller) {
@@ -186,13 +186,13 @@ public final class AppleGameControllerManager {
                             time: TimeInterval(Date().timeIntervalSince1970)
                         )
                         Task { @MainActor in
-                            Input.shared.receiveEvent(event)
+                            receiveInputEvents(event)
                         }
                     }
                     // Optionally, also simulate dpad left/right button presses based on value
                     // This part can be complex due to thresholds and state management.
                 }
-                 microGamepad.dpad.yAxis.valueChangedHandler = { [weak self] axis, value in
+                 microGamepad.dpad.yAxis.valueChangedHandler = { [weak self, receiveInputEvents] axis, value in
                     // Similar for Dpad Y
                     if let mappedAxis = self?.mapGCAxisToGamepadAxis(axis, controller: controller) {
                         let event = GamepadAxisEvent(
@@ -204,7 +204,7 @@ public final class AppleGameControllerManager {
                         )
 
                         Task { @MainActor in
-                            Input.shared.receiveEvent(event)
+                            receiveInputEvents(event)
                         }
                     }
                 }
@@ -289,8 +289,8 @@ public final class AppleGameControllerManager {
             time: TimeInterval(Date().timeIntervalSince1970)
         )
 
-        Task { @MainActor in
-            Input.shared.receiveEvent(event)
+        Task { @MainActor [receiveInputEvents] in
+            receiveInputEvents(event)
         }
     }
 
@@ -313,8 +313,8 @@ public final class AppleGameControllerManager {
             time: TimeInterval(Date().timeIntervalSince1970)
         )
 
-        Task { @MainActor in
-            Input.shared.receiveEvent(event)
+        Task { @MainActor [receiveInputEvents] in
+            receiveInputEvents(event)
         }
     }
 
@@ -332,8 +332,8 @@ public final class AppleGameControllerManager {
             time: TimeInterval(Date().timeIntervalSince1970)
         )
 
-        Task { @MainActor in
-            Input.shared.receiveEvent(event)
+        Task { @MainActor [receiveInputEvents] in
+            receiveInputEvents(event)
         }
     }
 
@@ -355,8 +355,8 @@ public final class AppleGameControllerManager {
             window: .empty,
             time: TimeInterval(Date().timeIntervalSince1970)
         )
-        Task { @MainActor in
-            Input.shared.receiveEvent(event)
+        Task { @MainActor [receiveInputEvents] in
+            receiveInputEvents(event)
         }
 
         self.knownGamepadIds.removeValue(forKey: controller)
