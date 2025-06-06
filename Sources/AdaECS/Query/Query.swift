@@ -133,3 +133,62 @@ final class QueryState: @unchecked Sendable {
         self.world = world
     }
 }
+
+/// This iterator iterate by each entity in passed archetype array
+public struct FilterQueryIterator: IteratorProtocol {
+    let count: Int
+    let state: QueryState
+
+    private var currentArchetypeIndex = 0
+    private var currentEntityIndex = -1 // We should use -1 for first iterating.
+
+    /// - Parameter pointer: Pointer to archetypes array.
+    /// - Parameter count: Count archetypes in array.
+    init(state: QueryState) {
+        self.count = state.archetypes.count
+        self.state = state
+    }
+
+    public mutating func next() -> Entity? {
+        // swiftlint:disable:next empty_count
+        guard self.count > 0 else {
+            return nil
+        }
+
+        while true {
+            guard self.currentArchetypeIndex < self.count else {
+                return nil
+            }
+
+            let currentEntitiesCount = self.state.archetypes[self.currentArchetypeIndex].entities.count
+            if self.currentEntityIndex < currentEntitiesCount - 1 {
+                self.currentEntityIndex += 1
+            } else {
+                self.currentArchetypeIndex += 1
+                self.currentEntityIndex = -1
+                continue
+            }
+
+            let currentArchetype = self.state.archetypes[self.currentArchetypeIndex]
+            guard let entity = currentArchetype.entities[self.currentEntityIndex], entity.isActive else {
+                continue
+            }
+
+            guard let world = self.state.world else {
+                return nil
+            }
+
+            if self.state.filter.contains(.all) {
+                return entity
+            } else if self.state.filter.contains(.added) && world.addedEntities.contains(entity.id) {
+                return entity
+            } else if self.state.filter.contains(.removed) && world.removedEntities.contains(entity.id) {
+                return entity
+            } else if self.state.filter.contains(.stored) {
+                return entity
+            }
+
+            continue
+        }
+    }
+}
