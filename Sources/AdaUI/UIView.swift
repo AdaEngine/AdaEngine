@@ -404,8 +404,8 @@ open class UIView {
             self.onMouseEvent(event)
         case is TouchEvent:
             let window = self.window?.id
-            let touches = Input.shared.touches.filter({ $0.window == window })
-            self.onTouchesEvent(touches)
+//            let touches = Input.shared.touches.filter({ $0.window == window })
+//            self.onTouchesEvent(touches)
         default:
             return
         }

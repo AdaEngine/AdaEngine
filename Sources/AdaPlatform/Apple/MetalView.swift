@@ -13,7 +13,8 @@ import MetalKit
 open class MetalView: MTKView {
     
     public var windowID: UIWindow.ID
-    
+    weak var windowManager: UIWindowManager?
+
     #if MACOS
     var currentTrackingArea: NSTrackingArea?
     #endif

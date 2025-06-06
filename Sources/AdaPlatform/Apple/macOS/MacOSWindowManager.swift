@@ -34,7 +34,7 @@ final class MacOSWindowManager: UIWindowManager {
         
         /// Register view in engine
         let metalView = MetalView(windowId: window.id, frame: contentRect)
-        
+        metalView.windowManager = self
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
         try? RenderEngine.shared.createWindow(.windowId(window.id), for: metalView, size: sizeInt)
 
