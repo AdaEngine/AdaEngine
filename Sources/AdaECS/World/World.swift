@@ -28,19 +28,19 @@ public final class World: @unchecked Sendable, Codable {
     public let id = ID()
     public let name: String?
 
-    public let lock = NSLock()
 
-    /// The records of the world.
+    /// The archetypes of the world.
+    public var archetypes: Archetypes = Archetypes()
+    public var chunks: Chunks = Chunks(chunkSize: 16)
+
     private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
 
     /// The removed entities of the world.
-    internal private(set) var removedEntities: Set<Entity.ID> = []
+    @LocalIsolated internal private(set) var removedEntities: Set<Entity.ID> = []
 
     /// The added entities of the world.
-    internal private(set) var addedEntities: Set<Entity.ID> = []
+    @LocalIsolated internal private(set) var addedEntities: Set<Entity.ID> = []
 
-    /// The archetypes of the world.
-    private(set) var archetypes: SparseArray<Archetype> = []
 
     /// The free archetype indices of the world.
     private var freeArchetypeIndices: [Int] = []
@@ -187,7 +187,7 @@ public extension World {
     func getEntities() -> [Entity] {
         return self.records.values.elements
             .map { record in
-                let archetype = self.archetypes[record.archetypeId]!
+                let archetype = self.archetypes.archetypes[record.archetypeId]
                 return archetype.entities[record.row]
             }
             .compactMap { $0 }
@@ -202,8 +202,8 @@ public extension World {
             return nil
         }
 
-        let archetype = self.archetypes[record.archetypeId]
-        return archetype?.entities[record.row]
+        let archetype = self.archetypes.archetypes[record.archetypeId]
+        return archetype.entities[record.row]
     }
 
     /// Find an entity by name.
@@ -211,7 +211,7 @@ public extension World {
     /// - Complexity: O(n)
     /// - Returns: An entity with matched name or nil if entity with given name not exists.
     func getEntityByName(_ name: String) -> Entity? {
-        for arch in archetypes {
+        for arch in archetypes.archetypes {
             if let ent = arch.entities.first(where: { $0.name == name }) {
                 return ent
             }
@@ -359,30 +359,7 @@ public extension World {
     /// - Complexity: O(1)
     /// - Returns: True if component was changed for entity, otherwise false.
     func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
         return self.updatedComponents[entity]?.contains(T.identifier) ?? false
-    }
-
-    /// Run all schedulers in world.
-    /// - Parameter deltaTime: Time interval since last update.
-    func update() {
-        self.flush()
-        self.clearTrackers()
-
-        for label in self.schedulers.schedulerLabels {
-            guard let scheduler = self.schedulers.getScheduler(label) else {
-                continue
-            }
-
-            Task { @MainActor in
-                await scheduler.graphExecutor.execute(
-                    scheduler.systemGraph,
-                    world: self,
-                    scheduler: scheduler.name
-                )
-            }
-        }
     }
 
     /// Run a specific scheduler.
@@ -403,8 +380,6 @@ public extension World {
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
     func flush() {
-        self.lock.lock()
-        defer { lock.unlock() }
         self.moveEntitiesToMatchedArchetypesIfNeeded()
 
         for entityId in self.removedEntities {
@@ -427,7 +402,7 @@ public extension World {
         self.updatedComponents.removeAll(keepingCapacity: true)
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
-        self.archetypes.removeAll(keepingCapacity: true)
+        self.archetypes.archetypes.removeAll(keepingCapacity: true)
         self.freeArchetypeIndices.removeAll(keepingCapacity: true)
         self.updatedEntities.removeAll(keepingCapacity: true)
     }
@@ -445,8 +420,6 @@ extension World {
         didAddComponent component: T.Type,
         with identifier: ComponentId
     ) {
-        lock.lock()
-        defer { lock.unlock() }
         let entity = entity
         eventManager.send(ComponentEvents.DidAdd(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
@@ -461,8 +434,6 @@ extension World {
         didUpdateComponent component: T.Type,
         with identifier: ComponentId
     ) {
-        lock.lock()
-        defer { lock.unlock() }
         let entity = entity
         eventManager.send(ComponentEvents.DidChange(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
@@ -478,8 +449,6 @@ extension World {
         didRemoveComponent component: Component.Type,
         with identifier: ComponentId
     ) {
-        lock.lock()
-        defer { lock.unlock() }
         let entity = entity
         eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
         self.updatedEntities.insert(entity)
@@ -495,18 +464,15 @@ private extension World {
         }
         self.records[entity] = nil
 
-        guard var currentArchetype = self.archetypes[record.archetypeId] else {
-            assertionFailure("Incorrect record of archetype \(record)")
-            return
-        }
+        var currentArchetype = self.archetypes.archetypes[record.archetypeId]
         currentArchetype.remove(at: record.row)
 
         if currentArchetype.entities.isEmpty {
-            self.archetypes[record.archetypeId]!.clear()
+            self.archetypes.archetypes[record.archetypeId].clear()
             self.freeArchetypeIndices.append(record.archetypeId)
         }
 
-        self.archetypes[record.archetypeId] = currentArchetype
+        self.archetypes.archetypes[record.archetypeId] = currentArchetype
     }
 
     /// Find or create matched arhcetypes for all entities that wait update
@@ -518,18 +484,19 @@ private extension World {
         for entity in self.updatedEntities {
             let bitmask = entity.components.bitset
 
-            if let record = self.records[entity.id], var currentArchetype = self.archetypes[record.archetypeId] {
+            if let record = self.records[entity.id] {
+                var currentArchetype = self.archetypes.archetypes[record.archetypeId]
                 // We currently updated existed components
                 if currentArchetype.componentsBitMask == bitmask {
                     continue
                 }
 
                 currentArchetype.remove(at: record.row)
-                self.archetypes[record.archetypeId] = currentArchetype
+                self.archetypes.archetypes[record.archetypeId] = currentArchetype
             }
 
             // Previous archetype doesn't match for an entity bit mask, try to find a new one
-            var archetype = self.archetypes.first(where: {
+            var archetype = self.archetypes.archetypes.first(where: {
                 $0.componentsBitMask == bitmask
             })
 
@@ -538,12 +505,12 @@ private extension World {
                 var newArch: Archetype
 
                 if self.freeArchetypeIndices.isEmpty {
-                    newArch = Archetype.new(index: self.archetypes.count)
+                    newArch = Archetype.new(index: self.archetypes.archetypes.count)
 
-                    self.archetypes.append(newArch)
+                    self.archetypes.archetypes.append(newArch)
                 } else {
                     let index = self.freeArchetypeIndices.removeFirst()
-                    newArch = self.archetypes[index]!
+                    newArch = self.archetypes.archetypes[index]
                 }
                 newArch.componentsBitMask = bitmask
                 archetype = newArch
@@ -551,10 +518,34 @@ private extension World {
 
             let location = archetype?.append(entity)
             self.records[entity.id] = location
-            self.archetypes[archetype!.id] = archetype
+            self.archetypes.archetypes[archetype!.id] = archetype!
         }
 
         self.updatedEntities.removeAll(keepingCapacity: true)
+    }
+}
+
+public extension World {
+    func spawn(
+        name: String = "",
+        @ComponentsBuilder components: () -> [any Component]
+    ) -> Entity {
+        let components = components()
+        let archetypeIndex = self.archetypes.getOrCreate(for: components.bitSet)
+        let entity = Entity(name: name)
+        let record = self.archetypes.archetypes[archetypeIndex].append(entity)
+        self.records[entity.id] = record
+        return entity
+    }
+}
+
+extension Array where Element == Component {
+    var bitSet: BitSet {
+        var bitSet = BitSet(reservingCapacity: self.count)
+        for component in self {
+            bitSet.insert(type(of: component).identifier)
+        }
+        return bitSet
     }
 }
 
@@ -616,6 +607,8 @@ private extension World {
 
 extension World {
     struct ComponentsStorage: Sendable {
+        var sparseComponents: [ComponentId: SparseArray<any Component>] = [:]
+
         var components: [ComponentId] = []
         var resourceIds: [ObjectIdentifier: ComponentId] = [:]
         var resourceComponents: [ComponentId: any Resource] = [:]
@@ -672,3 +665,212 @@ extension World {
         }
     }
 }
+
+//
+//extension World {
+//    /// Insert mode for batch operations.
+//    public enum InsertMode {
+//        /// Replace existing components
+//        case replace
+//        /// Insert only if component doesn't exist
+//        case insertOnly
+//        /// Keep existing components if they exist
+//        case keepExisting
+//    }
+//    
+//    /// Error type for batch insertion operations.
+//    public struct TryInsertBatchError: Error {
+//        /// The type name of the bundle that failed to insert.
+//        public let bundleType: String
+//        /// The entities that were invalid during insertion.
+//        public let entities: [Entity.ID]
+//        
+//        public var localizedDescription: String {
+//            "Failed to insert bundle '\(bundleType)' for entities: \(entities)"
+//        }
+//    }
+//    
+//    /// A location in the world that may or may not exist.
+//    public enum MaybeLocation {
+//        case none
+//        case location(EntityRecord)
+//    }
+//    
+//    /// A bundle inserter for optimized batch operations.
+//    private struct BundleInserter {
+//        private let world: World
+//        private let archetypeId: Archetype.ID
+//        private let insertMode: InsertMode
+//        
+//        init(world: World, archetypeId: Archetype.ID, insertMode: InsertMode) {
+//            self.world = world
+//            self.archetypeId = archetypeId
+//            self.insertMode = insertMode
+//        }
+//        
+//        /// Insert components for an entity.
+//        mutating func insert(
+//            entity: Entity,
+//            location: EntityRecord,
+//            components: [any Component],
+//            insertMode: InsertMode,
+//            caller: MaybeLocation
+//        ) {
+//            // Set the components on the entity based on insert mode
+//            for component in components {
+//                switch insertMode {
+//                case .replace:
+//                    entity.components.set(component)
+//                case .insertOnly:
+//                    if !entity.components.has(type(of: component)) {
+//                        entity.components.set(component)
+//                    }
+//                case .keepExisting:
+//                    if !entity.components.has(type(of: component)) {
+//                        entity.components.set(component)
+//                    }
+//                }
+//            }
+//            
+//            // Mark entity as updated so it gets moved to the correct archetype
+//            world.updatedEntities.insert(entity)
+//        }
+//        
+//        /// Get entities from the world.
+//        func entities() -> OrderedDictionary<Entity.ID, EntityRecord> {
+//            return world.records
+//        }
+//    }
+//    
+//    /// Cache for archetype inserters to optimize batch operations.
+//    private struct InserterArchetypeCache {
+//        var inserter: BundleInserter
+//        var archetypeId: Archetype.ID
+//    }
+//    
+//    /// Try to insert a batch of entities with components.
+//    /// - Parameters:
+//    ///   - batch: Sequence of (Entity, [Component]) pairs to insert
+//    ///   - insertMode: How to handle existing components
+//    ///   - caller: Optional caller location for debugging
+//    /// - Returns: Result indicating success or failure with invalid entities
+//    public func tryInsertBatch<S: Sequence>(
+//        _ batch: S,
+//        insertMode: InsertMode = .replace,
+//        caller: MaybeLocation = .none
+//    ) -> Result<Void, TryInsertBatchError> 
+//    where S.Element == (Entity, [any Component]) {
+//        
+//        // Flush pending changes first
+//        self.flush()
+//        
+//        var invalidEntities: [Entity.ID] = []
+//        var batchIterator = batch.makeIterator()
+//        
+//        // Find the first valid entity to initialize the bundle inserter
+//        var cache: InserterArchetypeCache? = nil
+//        
+//        while let (firstEntity, firstComponents) = batchIterator.next() {
+//            if let firstLocation = self.records[firstEntity.id] {
+//                cache = InserterArchetypeCache(
+//                    inserter: BundleInserter(
+//                        world: self,
+//                        archetypeId: firstLocation.archetypeId,
+//                        insertMode: insertMode
+//                    ),
+//                    archetypeId: firstLocation.archetypeId
+//                )
+//                
+//                // Insert the first entity's components
+//                cache!.inserter.insert(
+//                    entity: firstEntity,
+//                    location: firstLocation,
+//                    components: firstComponents,
+//                    insertMode: insertMode,
+//                    caller: caller
+//                )
+//                break
+//            }
+//            invalidEntities.append(firstEntity.id)
+//        }
+//        
+//        // Process the rest of the batch if we have a valid cache
+//        if var cache = cache {
+//            while let (entity, components) = batchIterator.next() {
+//                if let location = self.records[entity.id] {
+//                    // Check if we need to update the cache for a different archetype
+//                    if location.archetypeId != cache.archetypeId {
+//                        cache = InserterArchetypeCache(
+//                            inserter: BundleInserter(
+//                                world: self,
+//                                archetypeId: location.archetypeId,
+//                                insertMode: insertMode
+//                            ),
+//                            archetypeId: location.archetypeId
+//                        )
+//                    }
+//                    
+//                    // Insert the entity's components
+//                    cache.inserter.insert(
+//                        entity: entity,
+//                        location: location,
+//                        components: components,
+//                        insertMode: insertMode,
+//                        caller: caller
+//                    )
+//                } else {
+//                    invalidEntities.append(entity.id)
+//                }
+//            }
+//        }
+//        
+//        // Return result based on whether any entities were invalid
+//        if invalidEntities.isEmpty {
+//            return .success(())
+//        } else {
+//            let bundleTypeName = "ComponentBundle" // Generic name since we don't have specific bundle types
+//            return .failure(TryInsertBatchError(
+//                bundleType: bundleTypeName,
+//                entities: invalidEntities
+//            ))
+//        }
+//    }
+//    
+//    /// Convenience method for batch insertion that throws on error.
+//    /// - Parameters:
+//    ///   - batch: Sequence of (Entity, [Component]) pairs to insert
+//    ///   - insertMode: How to handle existing components
+//    ///   - caller: Optional caller location for debugging
+//    /// - Throws: TryInsertBatchError if any entities are invalid
+//    public func insertBatch<S: Sequence>(
+//        _ batch: S,
+//        insertMode: InsertMode = .replace,
+//        caller: MaybeLocation = .none
+//    ) throws 
+//    where S.Element == (Entity, [any Component]) {
+//        
+//        let result = tryInsertBatch(batch, insertMode: insertMode, caller: caller)
+//        switch result {
+//        case .success:
+//            return
+//        case .failure(let error):
+//            throw error
+//        }
+//    }
+//    
+//    /// Convenience method for inserting a batch of entities with the same components.
+//    /// - Parameters:
+//    ///   - entities: Array of entities to add components to
+//    ///   - components: Components to add to each entity using ComponentsBuilder
+//    ///   - insertMode: How to handle existing components
+//    /// - Throws: TryInsertBatchError if any entities are invalid
+//    public func insertBatch(
+//        entities: [Entity],
+//        @ComponentsBuilder components: () -> [Component],
+//        insertMode: InsertMode = .replace
+//    ) throws {
+//        let componentList = components()
+//        let batch = entities.map { ($0, componentList) }
+//        try insertBatch(batch, insertMode: insertMode)
+//    }
+//}

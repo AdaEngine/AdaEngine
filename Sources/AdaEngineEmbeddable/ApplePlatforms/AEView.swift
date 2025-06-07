@@ -23,7 +23,7 @@ public final class AEView: MetalView {
     
     /// Create AEView with game scene.
     public convenience init(scene: Scene, frame: CGRect) throws {
-        let sceneView = SceneView(scene: scene, frame: frame.toEngineRect)
+        let sceneView = UIView()//SceneView(scene: scene, frame: frame.toEngineRect)
         try self.init(view: sceneView, frame: frame)
     }
     
