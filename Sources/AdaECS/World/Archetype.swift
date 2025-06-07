@@ -14,12 +14,36 @@ public struct ComponentId: Hashable, Equatable, Sendable {
 }
 
 /// The record of the entity.
-struct EntityRecord: Sendable {
+public struct EntityRecord: Sendable {
     /// The unique identifier of the archetype that contains the entity.
-    var archetypeId: Archetype.ID
-    
+    public var archetypeId: Archetype.ID
+
     /// The index of the entity in the archetype.
-    var row: Int
+    public var row: Int
+}
+
+public struct Archetypes: Sendable {
+    public var componentsIndex: [BitSet: Archetype.ID]
+    public var archetypes: [Archetype]
+
+    public init(
+        componentsIndex: [BitSet: Archetype.ID] = [:],
+        archetypes: [Archetype] = []
+    ) {
+        self.componentsIndex = componentsIndex
+        self.archetypes = archetypes
+    }
+
+    public mutating func getOrCreate(for bitSet: BitSet) -> Archetype.ID {
+        if let archetypeIndex = self.componentsIndex[bitSet] {
+            return archetypeIndex
+        }
+
+        let newIndex = archetypes.count
+        let archetype = Archetype.new(index: newIndex)
+        self.archetypes.append(archetype)
+        return newIndex
+    }
 }
 
 /// Types for defining Archetypes, collections of entities that have the same set of
@@ -30,6 +54,8 @@ public struct Archetype: Hashable, Identifiable, Sendable {
 
     /// The entities in the archetype.
     public internal(set) var entities: SparseArray<Entity> = []
+
+    public internal(set) var chunks = Chunks()
 
     /// The fried entities in the archetype.
     @usableFromInline
@@ -78,7 +104,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
             self.entities.append(entity)
             row = self.entities.count - 1
         }
-        
+
         return EntityRecord(
             archetypeId: self.id,
             row: row

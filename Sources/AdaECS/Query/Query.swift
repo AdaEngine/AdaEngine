@@ -129,7 +129,9 @@ final class QueryState: @unchecked Sendable {
     }
 
     func updateArchetypes(in world: consuming World) {
-        self.archetypes = world.archetypes.filter { self.predicate.evaluate($0) }
+        self.archetypes = world.archetypes.archetypes.filter {
+            self.predicate.evaluate($0)
+        }
         self.world = world
     }
 }
@@ -170,7 +172,7 @@ public struct FilterQueryIterator: IteratorProtocol {
             }
 
             let currentArchetype = self.state.archetypes[self.currentArchetypeIndex]
-            guard let entity = currentArchetype.entities[self.currentEntityIndex], entity.isActive else {
+            guard let entity = currentArchetype.entities[self.currentEntityIndex] else {
                 continue
             }
 

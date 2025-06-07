@@ -50,9 +50,9 @@ func WindowGroupUpdate(
         return
     }
 
-    let gameSceneView = containerView.view
-    gameSceneView.autoresizingRules = [.flexibleWidth, .flexibleHeight]
-    resource.window.addSubview(gameSceneView)
+    let view = containerView.view
+    view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
+    resource.window.addSubview(view)
 
     isAllocated.wrappedValue = true
 }

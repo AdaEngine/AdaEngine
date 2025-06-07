@@ -175,12 +175,15 @@ struct BunnyMovementSystem {
     
     @Query<Ref<Bunny>, Ref<Transform>>
     private var bunnies
-    
+
+    @ResQuery<DeltaTime>
+    private var deltaTime
+
     init(world: World) {}
     
     func update(context: inout UpdateContext) {
-        let deltaTime = context.deltaTime
-        
+        let deltaTime = deltaTime.deltaTime
+
         bunnies.forEach { (bunny, transform) in
             var velocity = bunny.velocity
             var position = transform.position
@@ -277,12 +280,15 @@ struct PerformanceCounterSystem {
     
     @Query<Entity, Ref<PerformanceCounter>, Ref<Text2DComponent>>
     private var counters
-    
+
+    @ResQuery<DeltaTime>
+    private var deltaTime
+
     init(world: World) {}
     
     func update(context: inout UpdateContext) {
         let bunnyCount = bunnies.count
-        let deltaTime = context.deltaTime
+        let deltaTime = deltaTime.deltaTime
         
         counters.forEach { (entity, counter, textComponent) in
             counter.bunnyCount = bunnyCount
