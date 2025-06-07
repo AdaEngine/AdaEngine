@@ -44,6 +44,7 @@ public struct SpriteRenderSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: inout UpdateContext) {
+        print("Sprites count", self.extractedSprites?.sprites.count)
         cameras.forEach { (_, visibleEntities, renderItems) in
             self.draw(
                 extractedSprites: self.extractedSprites?.sprites ?? [],

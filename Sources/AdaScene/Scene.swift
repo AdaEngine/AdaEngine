@@ -18,8 +18,6 @@ enum SceneSerializationError: Error {
     case notRegistedObject(String)
 }
 
-// TODO: (Vlad) MainActor can still in problem. Should we use it? 
-
 /// A container that holds the collection of entities for render.
 open class Scene: Asset, @unchecked Sendable {
 
@@ -44,15 +42,6 @@ open class Scene: Asset, @unchecked Sendable {
     
     /// Event manager for scene.
     public private(set) var eventManager: EventManager = EventManager.default
-    
-    /// Instance of scene manager which holds this scene.
-    public internal(set) weak var sceneManager: SceneManager?
-
-    /// Flag indicate that scene is updating right now.
-    private(set) var isUpdating = false
-
-    /// Check the scene will not run earlier.
-    private(set) var isReady = false
 
     // MARK: - Initialization -
     
@@ -103,65 +92,6 @@ open class Scene: Asset, @unchecked Sendable {
     
     public static func extensions() -> [String] {
         ["ascn", "scene", "scn"]
-    }
-
-    public func update(_ newScene: Scene) async throws {
-        self.world = newScene.world
-        self.eventManager = newScene.eventManager
-    }
-    
-    // MARK: - Life Cycle
-
-    /// Tells you when the scene is presented.
-    ///
-    /// - Note: Scene is configured and you can't add new systems to the scene.
-    @MainActor open func sceneDidLoad() { }
-
-    /// Tells you when the scene is about to be removed from a view.
-    @MainActor open func sceneDidMove(to view: SceneView) { }
-
-    /// Tells you when the scene is about to be removed from a view.
-    @MainActor open func sceneWillMove(from view: SceneView) { }
-
-    // MARK: - Internal methods
-
-    @MainActor func readyIfNeeded() {
-        if self.isReady {
-            return
-        }
-
-        self.ready()
-    }
-    
-    @MainActor func ready() {
-        self.isReady = true
-        self.world.build()
-        self.eventManager.send(SceneEvents.OnReady(scene: self), source: self)
-        self.world.insertResource(SceneResource(scene: self))
-        self.sceneDidLoad()
-    }
-    
-    /// Update scene world and systems by delta time.
-    @MainActor func update(_ deltaTime: AdaUtils.TimeInterval) async {
-        if self.isUpdating {
-            assertionFailure("Can't update scene twice")
-            return
-        }
-        self.eventManager.send(SceneEvents.Update(scene: self, deltaTime: deltaTime), source: self)
-        self.isUpdating = true
-        defer { self.isUpdating = false }
-        await self.world.update()
-    }
-}
-
-// MARK: - ECS
-
-public extension Scene {
-    
-    /// Clear all entities from scene
-    @MainActor
-    func clearAllEntities() {
-        return self.world.clear()
     }
 }
 
