@@ -10,7 +10,7 @@ import Foundation
 /// A property wrapper that allows you to isolate a value with a lock.
 @propertyWrapper
 @dynamicMemberLookup
-public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {
+public final class LocalIsolated<Value> {
 
     /// The lock-isolated value.
     public var wrappedValue: Value {
@@ -53,6 +53,8 @@ public final class LocalIsolated<Value: Sendable>: @unchecked Sendable {
         self._value = value
     }
 }
+
+extension LocalIsolated: @unchecked Sendable where Value: Sendable {}
 
 extension NSRecursiveLock {
     @inlinable @discardableResult

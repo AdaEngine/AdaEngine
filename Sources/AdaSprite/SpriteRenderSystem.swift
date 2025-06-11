@@ -47,6 +47,7 @@ public struct SpriteRenderSystem: Sendable {
         print("Sprites count", self.extractedSprites?.sprites.count)
         cameras.forEach { (_, visibleEntities, renderItems) in
             self.draw(
+                world: context.world,
                 extractedSprites: self.extractedSprites?.sprites ?? [],
                 visibleEntities: visibleEntities,
                 renderItems: &renderItems.wrappedValue
@@ -58,11 +59,12 @@ public struct SpriteRenderSystem: Sendable {
 
     // swiftlint:disable:next function_body_length
     private func draw(
+        world: World,
         extractedSprites: [ExtractedSprite],
         visibleEntities: VisibleEntities,
         renderItems: inout RenderItems<Transparent2DRenderItem>
     ) {
-        let spriteData = Entity(name: "sprite_data")
+        let spriteData = world.spawn("sprite_data") {}
 
         let sprites = extractedSprites
             .sorted { lhs, rhs in
@@ -76,7 +78,7 @@ public struct SpriteRenderSystem: Sendable {
 
         var textureSlotIndex = 1
 
-        var currentBatchEntity = Entity()
+        var currentBatchEntity = world.spawn() {}
         var currentBatch = TextureBatchComponent(
             textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
         )
@@ -91,7 +93,7 @@ public struct SpriteRenderSystem: Sendable {
             if textureSlotIndex >= Self.maxTexturesPerBatch {
                 currentBatchEntity.components += currentBatch
                 textureSlotIndex = 1
-                currentBatchEntity = Entity()
+                currentBatchEntity = world.spawn() { }
                 currentBatch = TextureBatchComponent(
                     textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
                 )
