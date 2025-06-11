@@ -376,7 +376,7 @@ public struct AssetsManager: Resource {
         
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = TextAssetDecoder(meta: meta, data: data)
-        let resource = try A.init(from: decoder)
+        var resource = try A.init(from: decoder)
         
         resource.assetMetaInfo = AssetMetaInfo(
             assetPath: originalPath,

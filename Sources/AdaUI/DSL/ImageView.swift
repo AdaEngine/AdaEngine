@@ -6,78 +6,48 @@
 //
 
 import AdaAssets
-import AdaRender
+@_spi(Internal) import AdaRender
 import AdaUtils
 import Foundation
 import Math
 
-/// A view that displays an image.
-public struct ImageView: View, ViewNodeBuilder {
+/// The render mode of the image view.
+public enum ImageRenderMode: Codable, Sendable {
+    /// The original render mode.
+    case original
+    /// The template render mode.
+    case template
+}
 
-    /// The storage type.
-    public enum _Storage {
-        /// The image.
-        case image(Image)
-        /// The texture.
-        case texture(Texture2D)
-    }
-
+extension Image: View, ViewNodeBuilder {
     public typealias Body = Never
     public var body: Never { fatalError() }
 
-    let storage: _Storage
-    var isResizable: Bool = false
-    var renderMode: ImageRenderMode = .original
-
-    /// Initialize a new image view.
-    ///
-    /// - Parameter image: The image.
-    public init(_ image: Image) {
-        self.storage = .image(image)
-    }
-
-    /// Initialize a new image view.
-    ///
-    /// - Parameter path: The path to the image.
-    /// - Parameter bundle: The bundle.
-    public init(_ path: String, bundle: Bundle) {
-        self.storage = .texture(try! AssetsManager.loadSync(
-            Texture2D.self, 
-            at: path, 
-            from: bundle
-        ).asset)
-    }
-
-    /// Initialize a new image view.
-    ///
-    /// - Parameter texture: The texture.
-    public init(_ texture: Texture2D) {
-        self.storage = .texture(texture)
-    }
-
-    /// Build a view node.
-    ///
-    /// - Parameter context: The build context.
-    /// - Returns: The view node.
     func buildViewNode(in context: BuildContext) -> ViewNode {
         ImageViewNode(
-            storage: self.storage,
-            isResizable: self.isResizable,
-            renderMode: self.renderMode,
+            image: self,
+            isResizable: self.options[Keys.resizable.rawValue] as! Bool,
+            renderMode: self.options[Keys.renderMode.rawValue] as! ImageRenderMode,
             tintColor: context.environment.foregroundColor,
             content: self
         )
     }
 }
 
-public extension ImageView {
 
-    /// Make the image view resizable.
+public extension Image {
+
+    private enum Keys: String {
+        case resizable
+        case renderMode
+    }
+
+    /// Make the image resizable.
     ///
     /// - Returns: The image view.
-    func resizable() -> ImageView {
+    func resizable() -> Image {
         var newValue = self
-        newValue.isResizable = true
+        newValue.options[Keys.resizable.rawValue] = true
         return newValue
     }
 
@@ -85,12 +55,13 @@ public extension ImageView {
     ///
     /// - Parameter mode: The render mode.
     /// - Returns: The image view.
-    func renderMode(_ mode: ImageRenderMode) -> ImageView {
+    func renderMode(_ mode: ImageRenderMode) -> Image {
         var newValue = self
-        newValue.renderMode = mode
+        newValue.options[Keys.renderMode.rawValue] = mode
         return newValue
     }
 }
+
 
 final class ImageViewNode: ViewNode {
 
@@ -104,19 +75,13 @@ final class ImageViewNode: ViewNode {
     let tintColor: Color?
 
     init<Content: View>(
-        storage: ImageView._Storage,
+        image: Image,
         isResizable: Bool,
         renderMode: ImageRenderMode,
         tintColor: Color?,
         content: Content
     ) {
-        switch storage {
-        case .image(let image):
-            self.texture = Texture2D(image: image)
-        case .texture(let texture2D):
-            self.texture = texture2D
-        }
-
+        self.texture = Texture2D(image: image)
         self.tintColor = tintColor
         self.renderMode = renderMode
         self.isResizable = isResizable
