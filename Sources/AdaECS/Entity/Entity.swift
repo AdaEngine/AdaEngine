@@ -22,7 +22,7 @@ open class Entity: Identifiable, @unchecked Sendable {
     public private(set) var id: Int
 
     /// Contains components specific for current entity.
-    @LocalIsolated public var components: ComponentSet = ComponentSet()
+    @LocalIsolated public var components: ComponentSet
 
     /// The dispose bag of the entity.
     var disposeBag: Set<AnyCancellable> = []
@@ -41,24 +41,7 @@ open class Entity: Identifiable, @unchecked Sendable {
     public init(name: String = "Entity") {
         self.name = name
         self.id = RID().id
-        // swiftlint:disable:next inert_defer
-        defer {
-            self.components.entity = self
-        }
-    }
-
-    /// Create a new entity and setup components on init.
-    ///
-    /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
-    /// - Note: If you want to use entity without any components use ``EmptyEntity``
-    /// - Parameter name: Name of entity. By default is `Entity`.
-    /// - Parameter components: Collection of components.
-    public convenience init(
-        name: String = "Entity",
-        @ComponentsBuilder components: () -> [Component]
-    ) {
-        self.init(name: name)
-        self.components.set(components: components)
+        self.components = ComponentSet(entity: self.id)
     }
 
     // MARK: - Codable
@@ -71,7 +54,7 @@ open class Entity: Identifiable, @unchecked Sendable {
         self.init(name: name)
         self.id = id
         self.components = try container.decode(ComponentSet.self, forKey: .components)
-        self.components.entity = self
+        self.components.entity = id
     }
     
     /// Encode the entity to an encoder.
@@ -96,7 +79,7 @@ open class Entity: Identifiable, @unchecked Sendable {
     open func copy() -> Entity {
         let entity = Entity(name: self.name)
         entity.components = self.components.copy()
-        entity.components.entity = entity
+        entity.components.entity = entity.id
         entity.isActive = self.isActive
         return entity
     }

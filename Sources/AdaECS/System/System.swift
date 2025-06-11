@@ -69,7 +69,7 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
 /// }
 ///
 /// ```
-public protocol System {
+public protocol System: Sendable {
 
     typealias UpdateContext = WorldUpdateContext
 
