@@ -47,7 +47,7 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
     public typealias Element = Builder.Components
 
     /// The iterator type of the query result.
-    public typealias Iterator = QueryTargetIterator<Builder>
+    public typealias Iterator = FilterQueryIterator<Builder, F>
 
     public typealias Builder = QueryBuilderTargets<repeat each T, F>
 
@@ -100,7 +100,7 @@ extension FilterQuery  {
     }
 
     public func makeIterator() -> Iterator {
-        QueryTargetIterator(state: self.state)
+        FilterQueryIterator(state: self.state)
     }
 }
 
@@ -114,14 +114,13 @@ extension FilterQuery: SystemQuery {
 final class QueryState: @unchecked Sendable {
     @usableFromInline
     private(set) var archetypes: [Archetype] = []
+    private(set) weak var world: World?
 
     @usableFromInline
     let predicate: QueryPredicate
 
     @usableFromInline
     let filter: QueryFilter
-
-    private(set) weak var world: World?
 
     internal init(predicate: QueryPredicate, filter: QueryFilter) {
         self.predicate = predicate
@@ -137,60 +136,68 @@ final class QueryState: @unchecked Sendable {
 }
 
 /// This iterator iterate by each entity in passed archetype array
-public struct FilterQueryIterator: IteratorProtocol {
+public struct FilterQueryIterator<
+    B: QueryBuilder,
+    F: Filter
+>: IteratorProtocol {
+    
+    public typealias Element = B.Components
+
+    struct Cursor {
+        var currentArchetypeIndex = 0
+        var currentChunkIndex = 0
+        var currentRow = 0
+    }
+
     let count: Int
     let state: QueryState
-
-    private var currentArchetypeIndex = 0
-    private var currentEntityIndex = -1 // We should use -1 for first iterating.
+    var cursor: Cursor
 
     /// - Parameter pointer: Pointer to archetypes array.
     /// - Parameter count: Count archetypes in array.
     init(state: QueryState) {
         self.count = state.archetypes.count
         self.state = state
+        self.cursor = Cursor()
     }
 
-    public mutating func next() -> Entity? {
+    @inline(__always)
+    public mutating func next() -> Element? {
         // swiftlint:disable:next empty_count
         guard self.count > 0 else {
             return nil
         }
 
         while true {
-            guard self.currentArchetypeIndex < self.count else {
+            guard self.cursor.currentArchetypeIndex < self.count else {
                 return nil
             }
-
-            let currentEntitiesCount = self.state.archetypes[self.currentArchetypeIndex].entities.count
-            if self.currentEntityIndex < currentEntitiesCount - 1 {
-                self.currentEntityIndex += 1
-            } else {
-                self.currentArchetypeIndex += 1
-                self.currentEntityIndex = -1
+            let archetype = self.state.archetypes[self.cursor.currentArchetypeIndex]
+            if self.cursor.currentRow >= archetype.entities.count {
+                self.cursor.currentArchetypeIndex += 1
+                self.cursor.currentRow = 0
                 continue
             }
 
-            let currentArchetype = self.state.archetypes[self.currentArchetypeIndex]
-            guard let entity = currentArchetype.entities[self.currentEntityIndex] else {
+            guard let entity = archetype.entities[self.cursor.currentRow] else {
+                self.cursor.currentRow += 1
                 continue
             }
 
-            guard let world = self.state.world else {
-                return nil
+            if self.cursor.currentChunkIndex >= archetype.chunks.chunks.count {
+                self.cursor.currentArchetypeIndex += 1
+                self.cursor.currentChunkIndex = 0
+                self.cursor.currentRow = 0
+                continue
             }
 
-            if self.state.filter.contains(.all) {
-                return entity
-            } else if self.state.filter.contains(.added) && world.addedEntities.contains(entity.id) {
-                return entity
-            } else if self.state.filter.contains(.removed) && world.removedEntities.contains(entity.id) {
-                return entity
-            } else if self.state.filter.contains(.stored) {
-                return entity
+            let chunk = archetype.chunks.chunks[self.cursor.currentChunkIndex]
+            if !F.condition(for: archetype) {
+                self.cursor.currentRow += 1
+                continue
             }
 
-            continue
+            return B.getQueryTarget(for: entity, in: chunk, archetype: archetype)
         }
     }
 }

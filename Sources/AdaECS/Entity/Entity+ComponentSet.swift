@@ -14,38 +14,27 @@ public extension Entity {
     /// Hold entity components specific for entity.
     struct ComponentSet: Codable, Sendable {
         @_spi(Internal)
-        public weak var entity: Entity?
-        
-        var world: World? {
-            return self.entity?.world
-        }
+        public var entity: Entity.ID
 
-        @_spi(Internal)
-        public private(set) var buffer: OrderedDictionary<ComponentId, Component>
-        private(set) var bitset: BitSet
+        weak var world: World?
         
         // MARK: - Codable
         
         /// Create an empty component set.
-        init() {
-            self.bitset = BitSet()
-            self.buffer = [:]
+        init(entity: Entity.ID) {
+            self.entity = entity
         }
 
         /// Create a component set from another component set.
         /// - Parameter other: The other component set to create a component set from.
         init(from other: borrowing Self) {
-            self.buffer = other.buffer
-            self.bitset = other.bitset
+            self.entity = other.entity
         }
         
         /// Create component set from decoder.
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
-            self.buffer = OrderedDictionary<ComponentId, Component>(
-                minimumCapacity: container.allKeys.count
-            )
-            self.bitset = BitSet(reservingCapacity: container.allKeys.count)
+            self.entity = RID().id
 
             for key in container.allKeys {
                 guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue)
@@ -55,8 +44,8 @@ public extension Entity {
 
                 if let decodable = type as? Decodable.Type {
                     let component = try decodable.init(from: container.superDecoder(forKey: key))
-                    self.buffer[type.identifier] = component as? Component
-                    self.bitset.insert(type.identifier)
+//                    self.buffer[type.identifier] = component as? Component
+//                    self.bitset.insert(type.identifier)
                 }
             }
         }
@@ -65,20 +54,20 @@ public extension Entity {
         /// - Parameter encoder: The encoder to encode the component set to.
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingName.self)
-            for component in self.buffer.elements.values {
-                do {
-                    try container.encode(AnyEncodable(component), forKey: CodingName(stringValue: type(of: component).swiftName))
-                } catch {
-                    print("Component encoding error: \(error)")
-                }
-            }
+//            for component in self.buffer.elements.values {
+//                do {
+//                    try container.encode(AnyEncodable(component), forKey: CodingName(stringValue: type(of: component).swiftName))
+//                } catch {
+//                    print("Component encoding error: \(error)")
+//                }
+//            }
         }
 
         /// Gets or sets the component of the specified type.
         @inline(__always)
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
             get {
-                return buffer[T.identifier] as? T
+                return world?.get(from: entity)
             }
             
             set {
@@ -94,26 +83,13 @@ public extension Entity {
         /// Get any count of component types from set.
         @inline(__always)
         public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
-            return (repeat self.buffer[(each type).identifier] as! each T)
+            return (repeat self.world!.get((each T).self, from: entity)!)
         }
 
         /// Set the component of the specified type.
         @inline(__always)
         public mutating func set<T>(_ component: consuming T) where T : Component {            
-            let identifier = T.identifier
-            let isChanged = self.buffer[identifier] != nil
-
-            self.buffer[identifier] = component
-            self.bitset.insert(T.identifier)
-            guard let ent = self.entity else {
-                return
-            }
-            
-            if isChanged {
-                self.world?.entity(ent, didUpdateComponent: T.self, with: identifier)
-            } else {
-                self.world?.entity(ent, didAddComponent: T.self, with: identifier)
-            }
+            self.world?.set(component, for: entity)
         }
 
         /// Set the components of the specified type.
@@ -134,56 +110,44 @@ public extension Entity {
 
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentType: Component.Type) -> Bool {
-            return self.buffer[componentType.identifier] != nil
+            return self.world?.has(componentType.identifier, in: entity) ?? false
         }
 
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentId: ComponentId) -> Bool {
-            return self.buffer[componentId] != nil
+            return self.world?.has(componentId, in: entity) ?? false
         }
 
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
-            let identifier = componentType.identifier
-            self.buffer[identifier] = nil
-            
-            self.bitset.remove(componentType)
-            
-            guard let ent = self.entity else { return }
-            world?.entity(ent, didRemoveComponent: componentType, with: identifier)
+            self.world?.remove(componentType.identifier, from: entity)
         }
         
         /// Remove all components from set.
-        public mutating func removeAll(keepingCapacity: Bool = false) {
-            for component in self.buffer.values.elements {
-                let componentType = type(of: component)
-
-                guard let ent = self.entity else { return }
-                world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
-            }
-            
-            self.bitset = BitSet(reservingCapacity: self.buffer.count)
-            self.buffer.removeAll(keepingCapacity: keepingCapacity)
+        public mutating func removeAll() {
+//            for component in self.buffer.values.elements {
+//                let componentType = type(of: component)
+//                world?.remove(componentType.identifier, for: entity)
+//            }
+//            
+//            self.bitset = BitSet(reservingCapacity: self.buffer.count)
+//            self.buffer.removeAll(keepingCapacity: keepingCapacity)
         }
         
         /// The number of components in the set.
         public var count: Int {
-            return self.buffer.count
+            return 0
         }
         
         /// A Boolean value indicating whether the set is empty.
         public var isEmpty: Bool {
-            return self.buffer.isEmpty
+            return false
         }
   
         /// Check if a component is changed.
         /// - Parameter componentType: The type of the component to check.
         /// - Returns: True if the component is changed, otherwise false.
         public func isComponentChanged<T: Component>(_ componentType: T.Type) -> Bool {
-            guard let entity = self.entity else {
-                return false
-            }
-
             return world?.isComponentChanged(componentType, for: entity) ?? false
         }
 
@@ -205,8 +169,8 @@ public extension Entity.ComponentSet {
     @inline(__always)
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
         (
-            buffer[a.identifier] as! A,
-            buffer[b.identifier] as! B
+            world!.get(A.self, from: entity)!,
+            world!.get(B.self, from: entity)!
         )
     }
     
@@ -218,9 +182,9 @@ public extension Entity.ComponentSet {
     @inline(__always)
     subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
         (
-            buffer[a.identifier] as! A,
-            buffer[b.identifier] as! B,
-            buffer[c.identifier] as! C
+            world!.get(A.self, from: entity)!,
+            world!.get(B.self, from: entity)!,
+            world!.get(C.self, from: entity)!
         )
     }
     
@@ -233,10 +197,10 @@ public extension Entity.ComponentSet {
     @inline(__always)
     subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
         (
-            buffer[a.identifier] as! A,
-            buffer[b.identifier] as! B,
-            buffer[c.identifier] as! C,
-            buffer[d.identifier] as! D
+            world!.get(A.self, from: entity)!,
+            world!.get(B.self, from: entity)!,
+            world!.get(C.self, from: entity)!,
+            world!.get(D.self, from: entity)!
         )
     }
 }
@@ -251,12 +215,13 @@ public extension Entity.ComponentSet {
 
 extension Entity.ComponentSet: CustomStringConvertible {
     public var description: String {
-        let result = self.buffer.reduce("") { partialResult, value in
-            let name = type(of: value.value)
-            return partialResult + "\n   ⟐ \(name)"
-        }
-        
-        return "ComponentSet(\(result)\n)"
+        return ""
+//        let result = self.buffer.reduce("") { partialResult, value in
+//            let name = type(of: value.value)
+//            return partialResult + "\n   ⟐ \(name)"
+//        }
+//        
+//        return "ComponentSet(\(result)\n)"
     }
 }
 
@@ -265,22 +230,22 @@ extension Entity.ComponentSet {
     /// - Parameter identifier: The identifier of the component.
     /// - Returns: The component if it exists, otherwise nil.
     func get<T: Component>(by identifier: ComponentId) -> T? {
-        return (self.buffer[identifier] as? T)
+        return self.world?.get(T.self, from: entity)
     }
     
     /// Get a component by its identifier.
     /// - Parameter componentId: The identifier of the component.
     /// - Returns: The component if it exists, otherwise nil.
-    subscript<T: Component>(by componentId: ComponentId) -> T? where T : Component {
+    subscript<T: Component>(by componentId: ComponentId) -> T? {
         get {
-            return buffer[T.identifier] as? T
+            return world?.get(T.self, from: entity)
         }
         
         set {
             if let newValue {
-                self.set(newValue)
+                world?.set(newValue, for: entity)
             } else {
-                self.remove(T.self)
+                world?.remove(T.identifier, from: entity)
             }
         }
     }

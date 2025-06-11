@@ -10,9 +10,10 @@ import Collections
 import Foundation
 
 
-
-/// TODO: (Vlad)
-/// [] Recalculate archetype for removed and added components. Archetype should use graph
+// - [] Moving entities from one archetype to another
+// - [] Remove a lot of LocalIsolated
+// - [] Rewrite system graph to discard access for multithread
+// - [] Commands support
 
 /// Stores and exposes operations on ``Entity`` and ``Component``.
 ///
@@ -28,12 +29,11 @@ public final class World: @unchecked Sendable, Codable {
     public let id = ID()
     public let name: String?
 
+    public let lock: NSLock = NSLock()
 
     /// The archetypes of the world.
-    public var archetypes: Archetypes = Archetypes()
-    public var chunks: Chunks = Chunks(chunkSize: 16)
-
-    private var records: OrderedDictionary<Entity.ID, EntityRecord> = [:]
+    public private(set) var archetypes: Archetypes = Archetypes()
+    public private(set) var entities: Entities = Entities()
 
     /// The removed entities of the world.
     @LocalIsolated internal private(set) var removedEntities: Set<Entity.ID> = []
@@ -47,7 +47,8 @@ public final class World: @unchecked Sendable, Codable {
 
     /// The updated entities of the world.
     @LocalIsolated private var updatedEntities: Set<Entity> = []
-    @LocalIsolated private var updatedComponents: [Entity: Set<ComponentId>] = [:]
+    @LocalIsolated private var updatedComponents: [Entity.ID: Set<ComponentId>] = [:]
+    @LocalIsolated private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
     @LocalIsolated private var componentsStorage = ComponentsStorage()
 
     private var isReady = false
@@ -66,7 +67,7 @@ public final class World: @unchecked Sendable, Codable {
     private init(from world: borrowing World) {
         self.name = world.name
         self.archetypes = world.archetypes
-        self.records = world.records
+        self.entities = world.entities
         self.componentsStorage = world.componentsStorage
     }
 
@@ -185,12 +186,11 @@ public extension World {
     /// - Complexity: O(n)
     /// - Returns: All entities in world.
     func getEntities() -> [Entity] {
-        return self.records.values.elements
-            .map { record in
-                let archetype = self.archetypes.archetypes[record.archetypeId]
-                return archetype.entities[record.row]
+        return self.entities.entities.values
+            .compactMap { location in
+                let archetype = self.archetypes.archetypes[location.archetypeId]
+                return archetype.entities[location.archetypeRow]
             }
-            .compactMap { $0 }
     }
 
     /// Get an entity by their id.
@@ -198,12 +198,12 @@ public extension World {
     /// - Complexity: O(1)
     /// - Returns: Returns nil if entity not registed in scene world.
     func getEntityByID(_ entityID: Entity.ID) -> Entity? {
-        guard let record = self.records[entityID] else {
+        guard let record = self.entities.entities[entityID] else {
             return nil
         }
 
         let archetype = self.archetypes.archetypes[record.archetypeId]
-        return archetype.entities[record.row]
+        return archetype.entities[record.archetypeRow]
     }
 
     /// Find an entity by name.
@@ -271,7 +271,7 @@ public extension World {
     /// - Note: Entity will removed on next `update` call.
     /// - Parameter recursively: also remove entity child.
     func removeEntityOnNextTick(_ entity: consuming Entity, recursively: Bool = false) {
-        guard self.records[entity.id] != nil else {
+        guard self.entities.entities[entity.id] != nil else {
             return
         }
 
@@ -358,7 +358,7 @@ public extension World {
     /// - Parameter entity: Entity.
     /// - Complexity: O(1)
     /// - Returns: True if component was changed for entity, otherwise false.
-    func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity) -> Bool {
+    func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity.ID) -> Bool {
         return self.updatedComponents[entity]?.contains(T.identifier) ?? false
     }
 
@@ -398,78 +398,76 @@ public extension World {
     /// Remove all data from world.
     /// - Complexity: O(n)
     func clear() {
-        self.records.removeAll(keepingCapacity: true)
+        self.entities.entities.removeAll(keepingCapacity: true)
         self.updatedComponents.removeAll(keepingCapacity: true)
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
         self.archetypes.archetypes.removeAll(keepingCapacity: true)
-        self.freeArchetypeIndices.removeAll(keepingCapacity: true)
         self.updatedEntities.removeAll(keepingCapacity: true)
     }
 }
 
 // MARK: - Delegate
 
-extension World {
-    /// Entity did add component.
-    /// - Parameter entity: The entity that did add component.
-    /// - Parameter component: The component that did add.
-    /// - Parameter identifier: The identifier of the component.
-    func entity<T: Component>(
-        _ entity: consuming Entity,
-        didAddComponent component: T.Type,
-        with identifier: ComponentId
-    ) {
-        let entity = entity
-        eventManager.send(ComponentEvents.DidAdd(componentType: component, entity: entity))
-        self.updatedEntities.insert(entity)
-    }
-
-    /// Entity did update component.
-    /// - Parameter entity: The entity that did update component.
-    /// - Parameter component: The component that did update.
-    /// - Parameter identifier: The identifier of the component.
-    func entity<T: Component>(
-        _ entity: consuming Entity,
-        didUpdateComponent component: T.Type,
-        with identifier: ComponentId
-    ) {
-        let entity = entity
-        eventManager.send(ComponentEvents.DidChange(componentType: component, entity: entity))
-        self.updatedEntities.insert(entity)
-        self.updatedComponents[entity, default: []].insert(identifier)
-    }
-
-    /// Entity did remove component.
-    /// - Parameter entity: The entity that did remove component.
-    /// - Parameter component: The component that did remove.
-    /// - Parameter identifier: The identifier of the component.
-    func entity(
-        _ entity: consuming Entity,
-        didRemoveComponent component: Component.Type,
-        with identifier: ComponentId
-    ) {
-        let entity = entity
-        eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
-        self.updatedEntities.insert(entity)
-    }
-}
+//extension World {
+//    /// Entity did add component.
+//    /// - Parameter entity: The entity that did add component.
+//    /// - Parameter component: The component that did add.
+//    /// - Parameter identifier: The identifier of the component.
+//    func entity<T: Component>(
+//        _ entity: consuming Entity,
+//        didAddComponent component: T.Type,
+//        with identifier: ComponentId
+//    ) {
+//        let entity = entity
+//        eventManager.send(ComponentEvents.DidAdd(componentType: component, entity: entity))
+//        self.updatedEntities.insert(entity)
+//    }
+//
+//    /// Entity did update component.
+//    /// - Parameter entity: The entity that did update component.
+//    /// - Parameter component: The component that did update.
+//    /// - Parameter identifier: The identifier of the component.
+//    func entity<T: Component>(
+//        _ entity: consuming Entity,
+//        didUpdateComponent component: T.Type,
+//        with identifier: ComponentId
+//    ) {
+//        let entity = entity
+//        eventManager.send(ComponentEvents.DidChange(componentType: component, entity: entity))
+//        self.updatedEntities.insert(entity)
+//        self.updatedComponents[entity.id, default: []].insert(identifier)
+//    }
+//
+//    /// Entity did remove component.
+//    /// - Parameter entity: The entity that did remove component.
+//    /// - Parameter component: The component that did remove.
+//    /// - Parameter identifier: The identifier of the component.
+//    func entity(
+//        _ entity: consuming Entity,
+//        didRemoveComponent component: Component.Type,
+//        with identifier: ComponentId
+//    ) {
+//        let entity = entity
+//        eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
+//        self.updatedEntities.insert(entity)
+//    }
+//}
 
 private extension World {
     /// Remove entity record.
     /// - Parameter entity: The entity to remove.
     private func removeEntityRecord(_ entity: Entity.ID) {
-        guard let record = self.records[entity] else {
+        guard let record = self.entities.entities[entity] else {
             return
         }
-        self.records[entity] = nil
+        self.entities.entities[entity] = nil
 
         var currentArchetype = self.archetypes.archetypes[record.archetypeId]
-        currentArchetype.remove(at: record.row)
+        currentArchetype.remove(at: record.archetypeRow)
 
         if currentArchetype.entities.isEmpty {
             self.archetypes.archetypes[record.archetypeId].clear()
-            self.freeArchetypeIndices.append(record.archetypeId)
         }
 
         self.archetypes.archetypes[record.archetypeId] = currentArchetype
@@ -477,75 +475,162 @@ private extension World {
 
     /// Find or create matched arhcetypes for all entities that wait update
     private func moveEntitiesToMatchedArchetypesIfNeeded() {
-        guard !self.updatedEntities.isEmpty else {
-            return
-        }
-
-        for entity in self.updatedEntities {
-            let bitmask = entity.components.bitset
-
-            if let record = self.records[entity.id] {
-                var currentArchetype = self.archetypes.archetypes[record.archetypeId]
-                // We currently updated existed components
-                if currentArchetype.componentsBitMask == bitmask {
-                    continue
-                }
-
-                currentArchetype.remove(at: record.row)
-                self.archetypes.archetypes[record.archetypeId] = currentArchetype
-            }
-
-            // Previous archetype doesn't match for an entity bit mask, try to find a new one
-            var archetype = self.archetypes.archetypes.first(where: {
-                $0.componentsBitMask == bitmask
-            })
-
-            // We don't have matched archetype -> create a new one
-            if archetype == nil {
-                var newArch: Archetype
-
-                if self.freeArchetypeIndices.isEmpty {
-                    newArch = Archetype.new(index: self.archetypes.archetypes.count)
-
-                    self.archetypes.archetypes.append(newArch)
-                } else {
-                    let index = self.freeArchetypeIndices.removeFirst()
-                    newArch = self.archetypes.archetypes[index]
-                }
-                newArch.componentsBitMask = bitmask
-                archetype = newArch
-            }
-
-            let location = archetype?.append(entity)
-            self.records[entity.id] = location
-            self.archetypes.archetypes[archetype!.id] = archetype!
-        }
-
-        self.updatedEntities.removeAll(keepingCapacity: true)
+//        guard !self.updatedEntities.isEmpty else {
+//            return
+//        }
+//
+//        for entity in self.updatedEntities {
+//            let bitmask = entity.components.bitset
+//
+//            // Remove entity from current archetype and chunk if it exists
+//            if let record = self.entities.entities[entity.id] {
+//                var currentArchetype = self.archetypes.archetypes[record.archetypeId]
+//                
+//                // If the entity's bitmask hasn't changed, skip migration
+//                if currentArchetype.componentsBitMask == bitmask {
+//                    continue
+//                }
+//
+//                // Remove from current archetype and chunk
+//                currentArchetype.remove(at: record.archetypeRow)
+//                currentArchetype.chunks.removeEntity(entity.id)
+//                self.archetypes.archetypes[record.archetypeId] = currentArchetype
+//            }
+//
+//            // Find or create archetype for the new component set
+//            let components = Array(entity.components.buffer.values)
+//            let componentLayout = ComponentLayout(components: components)
+//            let archetypeIndex = self.archetypes.getOrCreate(for: componentLayout)
+//            var archetype = self.archetypes.archetypes[archetypeIndex]
+//            
+//            // Update the archetype's component bitmask if needed
+//            archetype.componentsBitMask = bitmask
+//            
+//            // Add entity to archetype and chunk
+//            let archetypeRow = archetype.append(entity)
+//            let chunkLocation = archetype.chunks.insertEntity(entity.id, components: components)
+//            
+//            // Update entity location
+//            self.entities.entities[entity.id] = EntityLocation(
+//                archetypeId: archetype.id,
+//                archetypeRow: archetypeRow,
+//                chunkIndex: chunkLocation.chunkIndex,
+//                chunkRow: chunkLocation.entityRow
+//            )
+//            
+//            self.archetypes.archetypes[archetypeIndex] = archetype
+//        }
+//
+//        self.updatedEntities.removeAll(keepingCapacity: true)
     }
 }
 
 public extension World {
+    @discardableResult
     func spawn(
-        name: String = "",
+        _ name: String = "",
         @ComponentsBuilder components: () -> [any Component]
     ) -> Entity {
-        let components = components()
-        let archetypeIndex = self.archetypes.getOrCreate(for: components.bitSet)
-        let entity = Entity(name: name)
-        let record = self.archetypes.archetypes[archetypeIndex].append(entity)
-        self.records[entity.id] = record
-        return entity
-    }
-}
-
-extension Array where Element == Component {
-    var bitSet: BitSet {
-        var bitSet = BitSet(reservingCapacity: self.count)
-        for component in self {
-            bitSet.insert(type(of: component).identifier)
+        self.lock.withLock {
+            let entity = Entity(name: name)
+            let components = components()
+            let componentLayout = ComponentLayout(components: components)
+            let archetypeIndex = self.archetypes.getOrCreate(for: componentLayout)
+            var archetype = self.archetypes.archetypes[archetypeIndex]
+            let row = archetype.append(entity)
+            let chunkLocation = archetype.chunks.insertEntity(entity.id, components: components)
+            self.archetypes.archetypes[archetypeIndex] = archetype
+            self.entities.entities[entity.id] = EntityLocation(
+                archetypeId: archetype.id,
+                archetypeRow: row,
+                chunkIndex: chunkLocation.chunkIndex,
+                chunkRow: chunkLocation.entityRow
+            )
+            entity.world = self
+            return entity
         }
-        return bitSet
+    }
+
+    @discardableResult
+    @inline(__always)
+    func spawn(_ name: String = "") -> Entity {
+        self.spawn(name) {}
+    }
+
+    func get<T: Component>(from entity: Entity.ID) -> T? {
+        guard let location = self.entities.entities[entity] else {
+            return nil
+        }
+        return self.archetypes
+            .archetypes[location.archetypeId]
+            .chunks
+            .chunks[location.chunkIndex]
+            .get(at: location.chunkRow)
+    }
+
+    @inline(__always)
+    func get<T: Component>(_ type: T.Type, from entity: Entity.ID) -> T? {
+        return self.get(from: entity)
+    }
+
+    func set<T: Component>(_ component: consuming T, for entity: Entity.ID) {
+        guard let location = self.entities.entities[entity] else {
+            return
+        }
+        self.archetypes
+            .archetypes[location.archetypeId]
+            .chunks
+            .chunks[location.chunkIndex]
+            .set(component, at: location.chunkRow)
+    }
+
+    @inline(__always)
+    func remove<T: Component>(_ component: consuming T, for entity: Entity.ID) {
+        self.remove(T.identifier, from: entity)
+    }
+    
+    /// Remove a component of the specified type from an entity.
+    /// - Parameter componentType: The type of component to remove.
+    /// - Parameter entity: The entity ID to remove the component from.
+    @inline(__always)
+    func remove<T: Component>(_ componentType: T.Type, from entity: Entity.ID) {
+        self.remove(T.identifier, from: entity)
+    }
+
+    func remove(_ componentId: ComponentId, from entity: Entity.ID) {
+        // Get the entity's current location
+        guard let location = self.entities.entities[entity] else {
+            return // Entity doesn't exist in the world
+        }
+
+        // Get the entity from the archetype
+        let archetype = self.archetypes.archetypes[location.archetypeId]
+        guard let entityInstance = archetype.entities[location.archetypeRow] else {
+            return // Entity doesn't exist in the archetype
+        }
+
+        // Mark the entity as updated so it gets moved to the correct archetype
+        // The existing moveEntitiesToMatchedArchetypesIfNeeded() will handle the archetype migration
+        self.updatedEntities.insert(entityInstance)
+
+        // Track the removed component
+        self.removedComponents[entity, default: []].insert(componentId)
+    }
+
+    @inline(__always)
+    func has<T: Component>(_ type: T.Type, in entity: Entity.ID) -> Bool {
+        self.has(T.identifier, in: entity)
+    }
+
+    func has(_ identifier: ComponentId, in entity: Entity.ID) -> Bool {
+        guard let location = self.entities.entities[entity] else {
+            return false
+        }
+
+        return self.archetypes
+            .archetypes[location.archetypeId]
+            .componentsBitMask
+            .contains(identifier)
     }
 }
 
@@ -874,3 +959,14 @@ extension World {
 //        try insertBatch(batch, insertMode: insertMode)
 //    }
 //}
+
+
+extension Array where Element == Component {
+    var bitSet: BitSet {
+        var bitSet = BitSet(reservingCapacity: self.count)
+        for component in self {
+            bitSet.insert(type(of: component).identifier)
+        }
+        return bitSet
+    }
+}

@@ -119,26 +119,26 @@ public struct CameraSystem: Sendable {
 @PlainSystem
 public func ExtractCamera(
     _ world: World,
-    _ query: Extract<FilterQuery<Entity, Camera, And<With<Transform>, With<VisibleEntities>>>>
+    _ query: Extract<
+        Query<Entity, Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
+    >
 ) {
-    query.wrappedValue.forEach { entity, camera in
-        let cameraEntity = Entity(name: "ExtractedCameraEntity")
-        if
-            let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
-            let uniform = entity.components[GlobalViewUniform.self]
-        {
-            let buffer = bufferSet.uniformBufferSet.getBuffer(
-                binding: GlobalBufferIndex.viewUniform,
-                set: 0,
-                frameIndex: RenderEngine.shared.currentFrameIndex
-            )
+    query.wrappedValue.forEach {
+        entity, camera, transform, visibleEntities, bufferSet, uniform in
 
-            buffer.setData(uniform)
+        let buffer = bufferSet.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
+
+        buffer.setData(uniform)
+
+        world.spawn("ExtractedCameraEntity") {
+            camera
+            transform
+            visibleEntities
+            RenderItems<Transparent2DRenderItem>()
         }
-
-        cameraEntity.components = entity.components
-        cameraEntity.components += RenderItems<Transparent2DRenderItem>()
-        cameraEntity.components.entity = cameraEntity
-        world.addEntity(cameraEntity)
     }
 }

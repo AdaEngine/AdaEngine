@@ -18,7 +18,11 @@ public protocol QueryTarget: Sendable, ~Copyable {
     /// - Parameter entity: The entity to create a query target from.
     /// - Returns: A new query target.
     @inline(__always)
-    static func _queryTarget(from entity: Entity) -> Self
+    static func _queryTarget(
+        for entity: Entity,
+        in chunk: Chunk, // TODO: Should we pass nonmutable chunk? 
+        archetype: Archetype
+    ) -> Self
 
     /// Check if an archetype contains the target.
     /// - Parameter archetype: The archetype to check.
@@ -34,8 +38,12 @@ extension Component {
     }
 
     @inline(__always)
-    public static func _queryTarget(from entity: Entity) -> Self {
-        return entity.components.get(by: Self.identifier)!
+    public static func _queryTarget(
+        for entity: Entity,
+        in chunk: Chunk,
+        archetype: Archetype
+    ) -> Self {
+        return chunk.get(Self.self, for: entity.id)!
     }
 
     @inline(__always)
@@ -52,11 +60,15 @@ extension Ref: QueryTarget where T: Component {
     }
 
     @inline(__always)
-    public static func _queryTarget(from entity: Entity) -> Ref<T> {
-        Ref { [unowned entity] in
-            return entity.components.get(T.self) as! T
-        } set: { [entity] in
-            entity.components.set($0)
+    public static func _queryTarget(
+        for entity: Entity,
+        in chunk: Chunk,
+        archetype: Archetype
+    ) -> Ref<T> {
+        Ref { [id = entity.id] in
+            return chunk.get(T.self, for: id)!
+        } set: { [id = entity.id] in
+            chunk.set($0, at: id)
         }
     }
 
@@ -74,7 +86,11 @@ extension Entity: QueryTarget {
     }
 
     @inline(__always)
-    public static func _queryTarget(from entity: Entity) -> Self {
+    public static func _queryTarget(
+        for entity: Entity,
+        in chunk: Chunk,
+        archetype: Archetype
+    ) -> Self {
         return entity as! Self
     }
     
@@ -92,9 +108,19 @@ extension Optional: QueryTarget where Wrapped: QueryTarget {
     }
 
     @inline(__always)
-    public static func _queryTarget(from entity: Entity) -> Self {
+    public static func _queryTarget(
+        for entity: Entity,
+        in chunk: Chunk,
+        archetype: Archetype
+    ) -> Self {
         if Wrapped._queryTargetContains(in: entity) {
-            return .some(Wrapped._queryTarget(from: entity))
+            return .some(
+                Wrapped._queryTarget(
+                    for: entity,
+                    in: chunk,
+                    archetype: archetype
+                )
+            )
         }
         
         return .none

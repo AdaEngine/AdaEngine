@@ -35,33 +35,33 @@ public struct ScriptComponentUpdateSystem {
             renderContext?.beginDraw(in: window.frame.size, scaleFactor: 1)
         }
 
-        world.getEntities().forEach { entity in
-            let components = entity.components
-                .buffer.values.compactMap { $0 as? ScriptableComponent }
-
-            for component in components {
-                component.entity = entity
-
-                // Initialize component
-                if !component.isAwaked {
-                    component.onReady()
-                    component.isAwaked = true
-                }
-
-                if let inputManager = world.getResource(Input.self) {
-                    component.onEvent(inputManager.eventsPool)
-                }
-                component.onUpdate(deltaTime)
-
-                //                    if fixedTimeResult.isFixedTick {
-                //                        component.onPhysicsUpdate(fixedTimeResult.fixedTime)
-                //                    }
-
-                if let renderContext {
-                    component.onUpdateGUI(deltaTime, context: renderContext)
-                }
-            }
-        }
+//        world.getEntities().forEach { entity in
+//            let components = entity.components
+//                .buffer.values.compactMap { $0 as? ScriptableComponent }
+//
+//            for component in components {
+//                component.entity = entity
+//
+//                // Initialize component
+//                if !component.isAwaked {
+//                    component.onReady()
+//                    component.isAwaked = true
+//                }
+//
+//                if let inputManager = world.getResource(Input.self) {
+//                    component.onEvent(inputManager.eventsPool)
+//                }
+//                component.onUpdate(deltaTime)
+//
+//                //                    if fixedTimeResult.isFixedTick {
+//                //                        component.onPhysicsUpdate(fixedTimeResult.fixedTime)
+//                //                    }
+//
+//                if let renderContext {
+//                    component.onUpdateGUI(deltaTime, context: renderContext)
+//                }
+//            }
+//        }
 
         renderContext?.commitDraw()
     }

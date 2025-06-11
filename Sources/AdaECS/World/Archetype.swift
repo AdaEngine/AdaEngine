@@ -13,13 +13,15 @@ public struct ComponentId: Hashable, Equatable, Sendable {
     let id: Int
 }
 
-/// The record of the entity.
-public struct EntityRecord: Sendable {
-    /// The unique identifier of the archetype that contains the entity.
-    public var archetypeId: Archetype.ID
+public struct EntityLocation: Sendable, Hashable {
+    public let archetypeId: Archetype.ID
+    public let archetypeRow: Int
+    public let chunkIndex: Int
+    public let chunkRow: Int
+}
 
-    /// The index of the entity in the archetype.
-    public var row: Int
+public struct Entities: Sendable {
+    public var entities: [Entity.ID: EntityLocation] = [:]
 }
 
 public struct Archetypes: Sendable {
@@ -34,15 +36,45 @@ public struct Archetypes: Sendable {
         self.archetypes = archetypes
     }
 
-    public mutating func getOrCreate(for bitSet: BitSet) -> Archetype.ID {
-        if let archetypeIndex = self.componentsIndex[bitSet] {
+    public mutating func getOrCreate(for componentLayout: ComponentLayout) -> Archetype.ID {
+        if let archetypeIndex = self.componentsIndex[componentLayout.bitSet] {
             return archetypeIndex
         }
 
         let newIndex = archetypes.count
-        let archetype = Archetype.new(index: newIndex)
+        let archetype = Archetype.new(index: newIndex, componentLayout: componentLayout)
         self.archetypes.append(archetype)
+        componentsIndex[componentLayout.bitSet] = newIndex
         return newIndex
+    }
+}
+
+public struct ComponentLayout: Sendable {
+    public let components: [any Component.Type]
+    public let bitSet: BitSet
+
+    public init(components: [any Component]) {
+        var componentTypes = [any Component.Type]()
+        var bitSet = BitSet(reservingCapacity: components.count)
+        for component in components {
+            let componentType = type(of: component)
+            componentTypes.append(componentType)
+            bitSet.insert(componentType.identifier)
+        }
+        self.bitSet = bitSet
+        self.components = componentTypes
+    }
+
+    public init<each T: Component>(components: repeat each T) {
+        var components = [any Component.Type]()
+        var bitSet = BitSet()
+        for component in repeat (each T).self {
+            let id = component.identifier
+            components.append(component)
+            bitSet.insert(id)
+        }
+        self.components = components
+        self.bitSet = bitSet
     }
 }
 
@@ -52,10 +84,10 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     /// The unique identifier of the archetype.
     public let id: Int
 
+    public internal(set) var chunks: Chunks
+
     /// The entities in the archetype.
     public internal(set) var entities: SparseArray<Entity> = []
-
-    public internal(set) var chunks = Chunks()
 
     /// The fried entities in the archetype.
     @usableFromInline
@@ -73,27 +105,28 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     private init(
         id: Archetype.ID,
         entities: [Entity] = [],
-        componentsBitMask: BitSet = BitSet()
+        componentLayout: ComponentLayout
     ) {
         self.id = id
         self.entities = SparseArray(entities)
-        self.componentsBitMask = componentsBitMask
-        self.friedEntities.reserveCapacity(30)
+        self.componentsBitMask = componentLayout.bitSet
+        self.chunks = Chunks(componentLayout: componentLayout)
+        self.friedEntities.reserveCapacity(32)
     }
     
     /// Create a new archetype.
     /// - Parameter index: The index of the archetype.
     /// - Returns: A new archetype.
     @inline(__always)
-    static func new(index: Int) -> Archetype {
-        return Archetype(id: index)
+    static func new(index: Int, componentLayout: ComponentLayout) -> Archetype {
+        return Archetype(id: index, componentLayout: componentLayout)
     }
     
     /// Append an entity to the archetype.
     /// - Parameter entity: The entity to append.
     /// - Returns: The record of the entity.
     @inline(__always)
-    mutating func append(_ entity: consuming Entity) -> EntityRecord {
+    mutating func append(_ entity: consuming Entity) -> Int {
         let row: Int
         
         if !friedEntities.isEmpty {
@@ -105,10 +138,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
             row = self.entities.count - 1
         }
 
-        return EntityRecord(
-            archetypeId: self.id,
-            row: row
-        )
+        return row
     }
     
     /// Remove an entity from the archetype.
@@ -122,7 +152,6 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     /// Clear the archetype.
     @inline(__always)
     mutating func clear() {
-        self.componentsBitMask = BitSet()
         self.friedEntities.removeAll()
         self.entities.removeAll()
         self.edge = Edge()

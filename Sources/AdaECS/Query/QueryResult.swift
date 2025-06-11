@@ -54,7 +54,7 @@ public struct QueryTargetIterator<B: QueryBuilder>: IteratorProtocol {
     let state: QueryState
 
     /// The entity iterator of the query target iterator.
-    var entityIterator: EntityIterator
+    var entityIterator: FilterQueryIterator<B, NoFilter>
 
     /// Initialize a new query target iterator.
     /// - Parameter state: The state of the query target iterator.
@@ -67,7 +67,6 @@ public struct QueryTargetIterator<B: QueryBuilder>: IteratorProtocol {
         guard let entity = self.entityIterator.next() else {
             return nil
         }
-
-        return B.getQueryTarget(from: entity)
+        return entity
     }
 }

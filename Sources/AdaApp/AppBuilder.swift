@@ -136,15 +136,6 @@ public extension AppWorlds {
         return self
     }
 
-    /// Add an entity to the main world.
-    /// - Parameter entity: The entity to add.
-    /// - Returns: The app builder.
-    @discardableResult
-    func addEntity(_ entity: Entity) -> Self {
-        self.mainWorld.addEntity(entity)
-        return self
-    }
-
     /// Insert a resource to the world.
     /// - Parameter resource: The resource to insert.
     /// - Returns: The app builder.

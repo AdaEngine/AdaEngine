@@ -32,7 +32,7 @@ import Foundation
 ///
 /// Also, your asset can support ``Codable`` behaviour and for this scenario, you should implement only ``init(from decoder: Decoder)`` and ``func encode(to encoder: Encoder)`` methods.
 /// Meta and other information will be available from userInfo. Use `Decoder.assetsDecodingContext`, `Decoder.assetMeta` and `Encoder.assetMeta` properties to get this info.
-public protocol Asset: AnyObject, Sendable {
+public protocol Asset: Sendable {
     
     /// When asset load from the disk, this method will be called.
     ///

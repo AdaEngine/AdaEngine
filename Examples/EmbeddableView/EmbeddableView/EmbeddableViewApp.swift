@@ -53,12 +53,21 @@ struct BunnyExample: Plugin {
     }
 
     private func setupCamera(in app: AppWorlds) {
-        let cameraEntity = OrthographicCamera()
-        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
-        cameraEntity.camera.clearFlags = .solid
-        cameraEntity.camera.orthographicScale = 10
+        var camera = Camera()
+        camera.isActive = true
+        camera.projection = .orthographic
+        camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
+        camera.clearFlags = .solid
+        camera.orthographicScale = 10
 
-        app.addEntity(cameraEntity)
+        app.mainWorld.spawn {
+            camera
+            VisibleEntities()
+            GlobalViewUniform()
+            GlobalViewUniformBufferSet()
+            AudioReceiver()
+            Transform()
+        }
     }
 
     private func loadAssets(in app: AppWorlds) {
@@ -81,14 +90,12 @@ struct BunnyExample: Plugin {
         // Create performance counter UI
         var container = TextAttributeContainer()
         container.foregroundColor = .white
-
-        let counterEntity = Entity(name: "PerformanceCounter")
-        counterEntity.components += Text2DComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
-        counterEntity.components += Transform(scale: Vector3(0.1), position: [-9, 8, 1])
-        counterEntity.components += NoFrustumCulling()
-        counterEntity.components += PerformanceCounter()
-
-        app.addEntity(counterEntity)
+        app.mainWorld.spawn("PerformanceCounter") {
+            Text2DComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
+            Transform(scale: Vector3(0.1), position: [-9, 8, 1])
+            NoFrustumCulling()
+            PerformanceCounter()
+        }
     }
 
     private func setupSystems(in app: AppWorlds) {
@@ -147,6 +154,7 @@ struct BunnySpawnerSystem {
 
     init(world: World) {}
 
+    @MainActor
     func update(context: inout UpdateContext) {
         guard input.isMouseButtonPressed(.left) else { return }
 
@@ -171,18 +179,17 @@ struct BunnySpawnerSystem {
         let offsetY = Float.random(in: -2.5...2.5)
         let bunnyPosition = position + Vector3(offsetX, offsetY, 0)
 
-        let bunny = Entity(name: "Bunny")
-        bunny.components += Bunny()
-        bunny.components += Transform(
-            scale: Vector3(BunnyExampleConstants.bunnyScale),
-            position: bunnyPosition
-        )
-        bunny.components += SpriteComponent(
-            texture: bunnyTexture.texture,
-            tintColor: getRandomColor()
-        )
-
-        world.addEntity(bunny)
+        world.spawn("Bunny") {
+            Bunny()
+            Transform(
+                scale: Vector3(BunnyExampleConstants.bunnyScale),
+                position: bunnyPosition
+            )
+            SpriteComponent(
+                texture: bunnyTexture.texture,
+                tintColor: getRandomColor()
+            )
+        }
     }
 
     private func getRandomColor() -> Color {
