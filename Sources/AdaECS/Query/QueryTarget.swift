@@ -65,11 +65,7 @@ extension Ref: QueryTarget where T: Component {
         in chunk: Chunk,
         archetype: Archetype
     ) -> Ref<T> {
-        Ref { [id = entity.id] in
-            return chunk.get(T.self, for: id)!
-        } set: { [id = entity.id] in
-            chunk.set($0, at: id)
-        }
+        Ref(pointer: chunk.getMutablePointer(T.self, for: entity.id)!)
     }
 
     @inline(__always)
