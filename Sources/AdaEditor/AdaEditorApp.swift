@@ -14,10 +14,36 @@ struct AdaEditorApp: App {
         EmptyWindow()
             .addPlugins(
                 DefaultPlugins(),
-                BunnyExample()
+                TestPlugin()
+//                BunnyExample()
             )
             .windowMode(.windowed)
             .windowTitle("AdaEngine")
+    }
+}
+
+struct TestPlugin: Plugin {
+    func setup(in app: borrowing AppWorlds) {
+        for index in 0..<100 {
+            app.mainWorld.spawn("Entity \(index)") {
+                Transform()
+                    .setPosition([0, Float(index), 0])
+
+//                if index % 2 == 0 {
+                    NoFrustumCulling()
+//                }
+            }
+        }
+
+        let query = app.mainWorld.performQuery(FilterQuery<Transform, NoFrustumCulling, NoFilter>())
+        Task {
+            print("Create query")
+            for (transform, _) in query {
+                print(transform.position)
+            }
+
+            print("Finished")
+        }
     }
 }
 

@@ -22,7 +22,9 @@ public struct TransformSystem {
             if entity.components.isComponentChanged(Transform.self)
                 || !entity.components.has(GlobalTransform.self)
             {
-                let transform = entity.components[Transform.self]!
+                guard let transform = entity.components[Transform.self] else {
+                    return
+                }
                 let globalTransform = GlobalTransform(matrix: transform.matrix)
                 entity.components += globalTransform
             }

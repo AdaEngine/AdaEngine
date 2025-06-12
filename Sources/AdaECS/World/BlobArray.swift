@@ -20,7 +20,6 @@ public struct BlobArray: @unchecked Sendable {
         }
     }
 
-    @LocalIsolated
     public var data: UnsafeMutableRawBufferPointer
     let layout: ElementLayout
     public private(set) var count: Int
@@ -57,7 +56,7 @@ public extension BlobArray {
         self.count = count
     }
 
-    func insert<T: ~Copyable>(element: consuming T, at index: Int) {
+    func insert<T>(element: T, at index: Int) {
         #if DEBUG
         precondition(
             MemoryLayout<T>.size == self.layout.size &&
@@ -65,19 +64,14 @@ public extension BlobArray {
             "Element has different layout"
         )
         #endif
-
-        print("Write pass", T.self)
         withUnsafePointer(to: element) { ptr in
-            self.data.baseAddress?.advanced(by: index)
+            self.data.baseAddress!
+                .advanced(by: index * MemoryLayout<T>.stride)
                 .copyMemory(from: ptr, byteCount: MemoryLayout<T>.size)
         }
     }
 
-    func getPointer<T>(at index: Int, as type: T.Type) -> UnsafeMutablePointer<T> {
-        let offset = index * MemoryLayout<T>.stride
-        guard offset + MemoryLayout<T>.size <= data.count else {
-            fatalError("Offset \(offset) + size \(MemoryLayout<T>.size) exceeds buffer capacity \(data.count)")
-        }
+    func getMutablePointer<T>(at index: Int, as type: T.Type) -> UnsafeMutablePointer<T> {
     #if DEBUG
         precondition(
             MemoryLayout<T>.size == self.layout.size &&
@@ -87,15 +81,11 @@ public extension BlobArray {
     #endif
 
         return self.data.baseAddress!
-            .advanced(by: index)
+            .advanced(by: index * MemoryLayout<T>.stride)
             .assumingMemoryBound(to: T.self)
     }
 
     func get<T>(at index: Int, as type: T.Type) -> T {
-        let offset = index * MemoryLayout<T>.stride
-        guard offset + MemoryLayout<T>.size <= data.count else {
-            fatalError("Offset \(offset) + size \(MemoryLayout<T>.size) exceeds buffer capacity \(data.count)")
-        }
     #if DEBUG
         precondition(
             MemoryLayout<T>.size == self.layout.size &&
@@ -103,7 +93,7 @@ public extension BlobArray {
             "Element has different layout"
         )
     #endif
-        return self.data.load(fromByteOffset: offset, as: type)
+        return self.data.load(fromByteOffset: index * MemoryLayout<T>.size, as: type)
     }
 }
 

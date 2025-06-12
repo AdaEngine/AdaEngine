@@ -14,9 +14,29 @@ struct AdaEngineApp: App {
         EmptyWindow()
             .addPlugins(
                 DefaultPlugins(),
-                BunnyExample()
+                TestPlugin()
             )
             .windowMode(.windowed)
+    }
+}
+
+struct TestPlugin: Plugin {
+    func setup(in app: borrowing AppWorlds) {
+        for index in 0..<100 {
+            app.mainWorld.spawn("Entity \(index)") {
+                Transform()
+                    .setPosition([0, Float(index), 0])
+                NoFrustumCulling()
+            }
+        }
+
+        print("Create query")
+        let query = app.mainWorld.performQuery(FilterQuery<Transform, NoFrustumCulling, NoFilter>())
+        for (transform, _) in query {
+            print(transform.position)
+        }
+
+        print()
     }
 }
 

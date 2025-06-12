@@ -32,7 +32,7 @@ struct BunnyExample: Plugin {
         cameraEntity.camera.clearFlags = .solid
         cameraEntity.camera.orthographicScale = 10
         
-        app.addEntity(cameraEntity)
+//        app.addEntity(cameraEntity)
     }
     
     private func loadAssets(in app: AppWorlds) {
@@ -62,7 +62,7 @@ struct BunnyExample: Plugin {
         counterEntity.components += NoFrustumCulling()
         counterEntity.components += PerformanceCounter()
         
-        app.addEntity(counterEntity)
+//        app.addEntity(counterEntity)
     }
     
     private func setupSystems(in app: AppWorlds) {

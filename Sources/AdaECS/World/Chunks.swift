@@ -7,6 +7,7 @@
 
 import AdaUtils
 import Foundation
+import OrderedCollections
 
 // - [] Remove free chunks
 
@@ -121,7 +122,7 @@ public struct Chunk: Sendable {
     public private(set) var entityCount: Int = 0
     
     /// Entity IDs stored in this chunk
-    public private(set) var entities: [Entity.ID: Int]
+    public private(set) var entities: OrderedDictionary<Entity.ID, Int>
 
     /// Raw component data storage (organized by component type)
     public private(set) var componentData: [ComponentId: BlobArray]
@@ -208,6 +209,13 @@ public struct Chunk: Sendable {
         return self.componentData[T.identifier]?.get(at: index, as: T.self)
     }
 
+    @inline(__always)
+    public func getMutablePointer<T: Component>(_ type: T.Type, for entity: Entity.ID) -> UnsafeMutablePointer<T>? {
+        guard let index = self.entities[entity] else {
+            return nil
+        }
+        return self.componentData[T.identifier]?.getMutablePointer(at: index, as: T.self)
+    }
 
     public func set<T: Component>(_ component: consuming T, at entityIndex: Int) {
         self.componentData[T.identifier]?.insert(element: component, at: entityIndex)

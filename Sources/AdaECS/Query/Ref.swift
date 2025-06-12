@@ -10,6 +10,42 @@
 @dynamicMemberLookup
 @propertyWrapper
 public final class Ref<T>: @unchecked Sendable {
+    private let pointer: UnsafeMutablePointer<T>
+
+    /// The wrapped value of the reference.
+    @inline(__always)
+    public var wrappedValue: T {
+        get {
+            self.pointer.pointee
+        }
+        set {
+            self.pointer.pointee = newValue
+        }
+    }
+
+    /// Create a new reference to a component.
+    /// - Parameters:
+    ///   - get: A closure that returns the component value.
+    ///   - set: A closure that sets the component value.
+    public init(pointer: UnsafeMutablePointer<T>) {
+        self.pointer = pointer
+    }
+
+    @inline(__always)
+    public subscript<U>(dynamicMember dynamicMember: WritableKeyPath<T, U>) -> U {
+        get {
+            return self.wrappedValue[keyPath: dynamicMember]
+        }
+        set {
+            self.wrappedValue[keyPath: dynamicMember] = newValue
+        }
+    }
+}
+
+
+@dynamicMemberLookup
+@propertyWrapper
+public final class Mutable<T>: @unchecked Sendable {
 
     /// The getter of the reference.
     public typealias Getter = @Sendable () -> T

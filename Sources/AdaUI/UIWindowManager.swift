@@ -38,7 +38,7 @@ open class UIWindowManager {
     public private(set) var activeWindow: UIWindow?
 
     @_spi(Internal)
-    public var inputRef: Ref<Input?>?
+    public var inputRef: Mutable<Input?>?
 
     public init() { }
 
