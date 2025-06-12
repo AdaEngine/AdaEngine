@@ -334,8 +334,8 @@ public extension World {
     /// - Parameter resource: The resource to get.
     /// - Complexity: O(1)
     /// - Returns: The resource if it exists, otherwise nil.
-    func getMutableResource<T: Resource>(_ resource: T.Type) -> Ref<T?>? {
-        return Ref { [unowned self] in
+    func getMutableResource<T: Resource>(_ resource: T.Type) -> Mutable<T?>? {
+        return Mutable { [unowned self] in
             self.getResource(resource)
         } set: { [unowned self] newValue in
             if let newValue {
@@ -531,11 +531,12 @@ public extension World {
         _ name: String = "",
         @ComponentsBuilder components: () -> [any Component]
     ) -> Entity {
-        self.lock.withLock {
+//        self.lock.withLock {
             let entity = Entity(name: name)
             let components = components()
-            let componentLayout = ComponentLayout(components: components)
-            let archetypeIndex = self.archetypes.getOrCreate(for: componentLayout)
+            let archetypeIndex = self.archetypes.getOrCreate(
+                for: ComponentLayout(components: components)
+            )
             var archetype = self.archetypes.archetypes[archetypeIndex]
             let row = archetype.append(entity)
             let chunkLocation = archetype.chunks.insertEntity(entity.id, components: components)
@@ -548,7 +549,7 @@ public extension World {
             )
             entity.world = self
             return entity
-        }
+//        }
     }
 
     @discardableResult

@@ -63,7 +63,7 @@ extension Optional: Resource where Wrapped: Resource {
 public final class ResMutQuery<T: Resource>: @unchecked Sendable {
 
     /// The value of the query.
-    private var _value: Ref<T>
+    private var _value: Mutable<T>
 
     /// The wrapped value of the query.
     public var wrappedValue: T {
@@ -73,13 +73,13 @@ public final class ResMutQuery<T: Resource>: @unchecked Sendable {
 
     /// Initialize a new resource query.
     public init() {
-        self._value = Ref(get: { fatalError() }, set: { _ in })
+        self._value = Mutable(get: { fatalError() }, set: { _ in })
     }
 
     /// Initialize a new resource query.
     /// - Parameter world: The world that will be used to initialize the query.
     public init(from world: World) {
-        self._value = Ref { [unowned world] in
+        self._value = Mutable { [unowned world] in
             T.getFromWorld(world)!
         } set: { [weak world] newValue in
             world?.insertResource(newValue)
@@ -88,7 +88,7 @@ public final class ResMutQuery<T: Resource>: @unchecked Sendable {
 
     /// Get the value of the query.
     /// - Returns: The value of the query.
-    public func callAsFunction() -> Ref<T> {
+    public func callAsFunction() -> Mutable<T> {
         _value
     }
 
@@ -104,7 +104,7 @@ public final class ResMutQuery<T: Resource>: @unchecked Sendable {
 
 extension ResMutQuery: SystemQuery {
     public func update(from world: World) {
-        self._value = Ref { [unowned world] in
+        self._value = Mutable { [unowned world] in
             T.getFromWorld(world)!
         } set: { [weak world] newValue in
             world?.insertResource(newValue)

@@ -49,7 +49,7 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
     /// The iterator type of the query result.
     public typealias Iterator = FilterQueryIterator<Builder, F>
 
-    public typealias Builder = QueryBuilderTargets<repeat each T, F>
+    public typealias Builder = QueryBuilderTargets<repeat each T>
 
     public var wrappedValue: Self {
         return self
@@ -140,7 +140,7 @@ public struct FilterQueryIterator<
     B: QueryBuilder,
     F: Filter
 >: IteratorProtocol {
-    
+
     public typealias Element = B.Components
 
     struct Cursor {
@@ -170,20 +170,10 @@ public struct FilterQueryIterator<
 
         while true {
             guard self.cursor.currentArchetypeIndex < self.count else {
+                print("Finished loop")
                 return nil
             }
             let archetype = self.state.archetypes[self.cursor.currentArchetypeIndex]
-            if self.cursor.currentRow >= archetype.entities.count {
-                self.cursor.currentArchetypeIndex += 1
-                self.cursor.currentRow = 0
-                continue
-            }
-
-            guard let entity = archetype.entities[self.cursor.currentRow] else {
-                self.cursor.currentRow += 1
-                continue
-            }
-
             if self.cursor.currentChunkIndex >= archetype.chunks.chunks.count {
                 self.cursor.currentArchetypeIndex += 1
                 self.cursor.currentChunkIndex = 0
@@ -192,11 +182,27 @@ public struct FilterQueryIterator<
             }
 
             let chunk = archetype.chunks.chunks[self.cursor.currentChunkIndex]
+            if self.cursor.currentRow > chunk.entities.count - 1 {
+                self.cursor.currentChunkIndex += 1
+                self.cursor.currentRow = 0
+                continue
+            }
+
+            let entityId = chunk.entities.elements[self.cursor.currentRow].key
+            guard
+                let location = state.world?.entities.entities[entityId],
+                let entity = archetype.entities[location.archetypeRow]
+            else {
+                self.cursor.currentRow += 1
+                continue
+            }
+
             if !F.condition(for: archetype) {
                 self.cursor.currentRow += 1
                 continue
             }
 
+            cursor.currentRow += 1
             return B.getQueryTarget(for: entity, in: chunk, archetype: archetype)
         }
     }
