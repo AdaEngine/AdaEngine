@@ -27,12 +27,6 @@ struct BunnyExample: Plugin {
     }
     
     private func setupCamera(in app: AppWorlds) {
-        let cameraEntity = OrthographicCamera()
-        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
-        cameraEntity.camera.clearFlags = .solid
-        cameraEntity.camera.orthographicScale = 10
-        
-//        app.addEntity(cameraEntity)
     }
     
     private func loadAssets(in app: AppWorlds) {

@@ -101,7 +101,7 @@ public struct Camera: Sendable {
 
     /// Set camera is active
     @Export
-    public var isActive = false
+    public var isActive = true
 
     /// Fill color for unused pixel.
     @Export

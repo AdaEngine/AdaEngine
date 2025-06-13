@@ -14,10 +14,18 @@ struct AdaEngineApp: App {
         EmptyWindow()
             .addPlugins(
                 DefaultPlugins(),
-                TestPlugin()
+                BunnyExample()
+//                TestPlugin()
             )
             .windowMode(.windowed)
     }
+}
+
+@Component
+struct Kek {
+    @Export
+    var index: Int
+    var world: World
 }
 
 struct TestPlugin: Plugin {
@@ -26,14 +34,15 @@ struct TestPlugin: Plugin {
             app.mainWorld.spawn("Entity \(index)") {
                 Transform()
                     .setPosition([0, Float(index), 0])
-                NoFrustumCulling()
+
+                Kek(index: index, world: app.mainWorld)
             }
         }
 
         print("Create query")
-        let query = app.mainWorld.performQuery(FilterQuery<Transform, NoFrustumCulling, NoFilter>())
-        for (transform, _) in query {
-            print(transform.position)
+        let query = app.mainWorld.performQuery(FilterQuery<Transform, Kek, NoFilter>())
+        for (transform, kek) in query {
+            print(kek.index, kek.world.id)
         }
 
         print()
@@ -74,20 +83,11 @@ struct BunnyExample: Plugin {
 
     private func setupCamera(in app: AppWorlds) {
         var camera = Camera()
-        camera.isActive = true
-        camera.projection = .orthographic
         camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         camera.clearFlags = .solid
         camera.orthographicScale = 10
 
-        app.mainWorld.spawn {
-            camera
-            VisibleEntities()
-            GlobalViewUniform()
-            GlobalViewUniformBufferSet()
-            AudioReceiver()
-            Transform()
-        }
+        app.mainWorld.spawn("camera", bundle: OrthographicCameraBundle(camera: camera))
     }
 
     private func loadAssets(in app: AppWorlds) {

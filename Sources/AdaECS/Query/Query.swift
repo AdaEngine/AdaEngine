@@ -91,7 +91,11 @@ extension FilterQuery  {
     /// Calculate count of element in collection
     /// - Complexity: O(n)
     public var count: Int {
-        return self.count { _ in return true }
+        return self.state.archetypes.reduce(0) {
+            $0 + $1.chunks.chunks.reduce(0, { partialResult, chunk in
+                partialResult + chunk.entityCount
+            })
+        }
     }
 
         /// A Boolean value indicating whether the collection is empty.
@@ -170,7 +174,6 @@ public struct FilterQueryIterator<
 
         while true {
             guard self.cursor.currentArchetypeIndex < self.count else {
-                print("Finished loop")
                 return nil
             }
             let archetype = self.state.archetypes[self.cursor.currentArchetypeIndex]

@@ -56,7 +56,7 @@ public extension BlobArray {
         self.count = count
     }
 
-    func insert<T>(element: T, at index: Int) {
+    func insert<T: ~Copyable>(_ element: consuming T, at index: Int) {
         #if DEBUG
         precondition(
             MemoryLayout<T>.size == self.layout.size &&
@@ -64,14 +64,13 @@ public extension BlobArray {
             "Element has different layout"
         )
         #endif
-        withUnsafePointer(to: element) { ptr in
-            self.data.baseAddress!
-                .advanced(by: index * MemoryLayout<T>.stride)
-                .copyMemory(from: ptr, byteCount: MemoryLayout<T>.size)
-        }
+        self.data
+            .assumingMemoryBound(to: T.self)
+            .initializeElement(at: index, to: element)
+
     }
 
-    func getMutablePointer<T>(at index: Int, as type: T.Type) -> UnsafeMutablePointer<T> {
+    func getMutablePointer<T: ~Copyable>(at index: Int, as type: T.Type) -> UnsafeMutablePointer<T> {
     #if DEBUG
         precondition(
             MemoryLayout<T>.size == self.layout.size &&
@@ -93,7 +92,7 @@ public extension BlobArray {
             "Element has different layout"
         )
     #endif
-        return self.data.load(fromByteOffset: index * MemoryLayout<T>.size, as: type)
+        return self.data.load(fromByteOffset: index * MemoryLayout<T>.stride, as: type)
     }
 }
 

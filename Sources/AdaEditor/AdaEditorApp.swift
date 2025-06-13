@@ -47,12 +47,12 @@ struct TestPlugin: Plugin {
     }
 }
 
-public extension Bundle {
-    static var editor: Bundle {
+public extension Foundation.Bundle {
+    static var editor: Foundation.Bundle {
 #if SWIFT_PACKAGE && !BAZEL_BUILD
-        return Bundle.module
+        return Foundation.Bundle.module
 #else
-        return Bundle(for: BundleToken.self)
+        return Foundation.Bundle(for: BundleToken.self)
 #endif
     }
 }

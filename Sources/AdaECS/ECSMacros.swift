@@ -28,6 +28,30 @@
 @attached(extension, names: arbitrary, conformances: Component)
 public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "ComponentMacro")
 
+
+/// A macro for creating a bundle.
+/// A bundle macro is more preffered way to create a bundle.
+/// When you use a bundle macro, you will atomatically conforms ``Bundle`` protocol.
+///
+/// Example:
+/// ```swift
+/// @Bundle
+/// struct PlayerBundle {
+///     var position: Vector3
+///     var player: Player
+/// }
+///
+/// world.spawn(
+///     PlayerBundle(
+///         position: [10, 0, 10],
+///         player: Player(team: .red)
+///     )
+/// )
+/// ```
+@attached(member, names: named(components))
+@attached(extension, names: arbitrary, conformances: Bundle)
+public macro Bundle() = #externalMacro(module: "AdaEngineMacros", type: "BundleMacro")
+
 /// A macro for creating a system.
 /// You can pass as many parameters as you want, but they must be a conforms a ``SystemQuery`` protocol.
 ///

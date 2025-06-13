@@ -19,8 +19,8 @@ import Math
     .after(CameraSystem.self)
 ])
 public struct VisibilitySystem {
-    
-    @EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
+
+    @Query<Camera, Ref<VisibleEntities>>
     private var cameras
     
     @EntityQuery(
@@ -33,10 +33,8 @@ public struct VisibilitySystem {
         where: .has(Transform.self) && .has(Visibility.self) && .has(NoFrustumCulling.self)
     )
     private var entitiesWithNoFrustum
-    
-    @EntityQuery(
-        where: .has(Transform.self) && .without(Visibility.self)
-    )
+
+    @FilterQuery<Entity, And<With<Transform>, WithOut<Visibility>>>
     private var entitiesWithoutVisibility
     
     public init(world: World) { }
@@ -44,9 +42,7 @@ public struct VisibilitySystem {
     public func update(context: inout UpdateContext) {
         self.addVisibilityIfNeeded()
         
-        self.cameras.forEach { entity in
-            var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
-            
+        self.cameras.forEach { camera, visibleEntities in
             if !camera.isActive {
                 return
             }
@@ -54,7 +50,6 @@ public struct VisibilitySystem {
             let (filtredEntities, entityIds) = self.filterVisibileEntities(context: context, for: camera)
             visibleEntities.entities = filtredEntities
             visibleEntities.entityIds = entityIds
-            entity.components[VisibleEntities.self] = visibleEntities
         }
     }
     
