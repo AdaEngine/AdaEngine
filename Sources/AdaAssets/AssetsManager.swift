@@ -145,7 +145,7 @@ public struct AssetsManager: Resource {
     public static func load<A: Asset>(
         _ type: A.Type,
         at path: String,
-        from bundle: Bundle,
+        from bundle: Foundation.Bundle,
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
         let key = self.makeCacheKey(resource: A.self, path: path)
@@ -186,7 +186,7 @@ public struct AssetsManager: Resource {
     public static func loadSync<R: Asset>(
         _ type: R.Type,
         at path: String,
-        from bundle: Bundle
+        from bundle: Foundation.Bundle
     ) throws -> AssetHandle<R> {
         let task = UnsafeTask<AssetHandle<R>> {
             return try await load(type, at: path, from: bundle)
@@ -369,7 +369,7 @@ public struct AssetsManager: Resource {
     }
     
     @AssetActor
-    private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Bundle?) async throws -> A {
+    private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Foundation.Bundle?) async throws -> A {
         guard let data = FileSystem.current.readFile(at: path.url) else {
             throw AssetError.notExistAtPath(path.url.path)
         }

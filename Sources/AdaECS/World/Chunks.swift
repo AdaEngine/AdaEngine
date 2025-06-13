@@ -49,6 +49,14 @@ public struct Chunks: Sendable {
         }
     }
 
+    mutating func insert<T: Component>(_ component: T, for entity: Entity.ID) {
+        guard let location = self.entities[entity] else {
+            return
+        }
+
+        self.chunks[location.chunkIndex].set(component, at: location.chunkIndex)
+    }
+
     @discardableResult
     mutating func insertEntity(_ entity: Entity.ID, components: [any Component]) -> ChunkLocation {
         let location = self.getFreeChunkIndex()
@@ -192,7 +200,7 @@ public struct Chunk: Sendable {
             guard let array = componentData[componentId] else {
                 fatalError()
             }
-            array.insert(element: component, at: entityIndex)
+            array.insert(component, at: entityIndex)
         }
     }
 
@@ -218,7 +226,7 @@ public struct Chunk: Sendable {
     }
 
     public func set<T: Component>(_ component: consuming T, at entityIndex: Int) {
-        self.componentData[T.identifier]?.insert(element: component, at: entityIndex)
+        self.componentData[T.identifier]?.insert(component, at: entityIndex)
     }
 
     /// Get all component data arrays for efficient iteration
