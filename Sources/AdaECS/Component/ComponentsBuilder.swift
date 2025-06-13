@@ -27,7 +27,7 @@ private struct ComponentBuilderTuple: Component {
         ComponentBuilderTuple(components: component == nil ? [] : [component!])
     }
 
-    public static func buildArray(_ components: [Component]) -> Component {
+    public static func buildArray(_ components: [any Component]) -> Component {
         ComponentBuilderTuple(components: components)
     }
 
@@ -45,8 +45,8 @@ private struct ComponentBuilderTuple: Component {
     }
 
     // unwrap all components
-    public static func buildFinalResult(_ component: Component) -> [Component] {
-        return self.unpackComponentBuilderTuple(component)
+    public static func buildFinalResult(_ component: Component) -> Bundle {
+        return ResultBundle(components: self.unpackComponentBuilderTuple(component))
     }
 
     private static func unpackComponentBuilderTuple(_ component: Component) -> [Component] {
@@ -54,7 +54,7 @@ private struct ComponentBuilderTuple: Component {
             return [component]
         }
 
-        var components: [Component] = []
+        var components: [any Component] = []
 
         for item in tuple.components {
             if item is ComponentBuilderTuple {
@@ -65,5 +65,11 @@ private struct ComponentBuilderTuple: Component {
         }
 
         return components
+    }
+}
+
+extension ComponentsBuilder {
+    struct ResultBundle: Bundle {
+        var components: [any Component]
     }
 }

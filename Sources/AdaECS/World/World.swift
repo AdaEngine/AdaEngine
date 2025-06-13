@@ -529,27 +529,33 @@ public extension World {
     @discardableResult
     func spawn(
         _ name: String = "",
-        @ComponentsBuilder components: () -> [any Component]
+        @ComponentsBuilder components: () -> Bundle
     ) -> Entity {
-//        self.lock.withLock {
-            let entity = Entity(name: name)
-            let components = components()
-            let archetypeIndex = self.archetypes.getOrCreate(
-                for: ComponentLayout(components: components)
-            )
-            var archetype = self.archetypes.archetypes[archetypeIndex]
-            let row = archetype.append(entity)
-            let chunkLocation = archetype.chunks.insertEntity(entity.id, components: components)
-            self.archetypes.archetypes[archetypeIndex] = archetype
-            self.entities.entities[entity.id] = EntityLocation(
-                archetypeId: archetype.id,
-                archetypeRow: row,
-                chunkIndex: chunkLocation.chunkIndex,
-                chunkRow: chunkLocation.entityRow
-            )
-            entity.world = self
-            return entity
-//        }
+        self.spawn(name, bundle: components())
+    }
+
+    @discardableResult
+    func spawn<T: Bundle>(
+        _ name: String = "",
+        bundle: consuming T
+    ) -> Entity {
+        let entity = Entity(name: name)
+        let components = bundle.components
+        let archetypeIndex = self.archetypes.getOrCreate(
+            for: ComponentLayout(components: components)
+        )
+        var archetype = self.archetypes.archetypes[archetypeIndex]
+        let row = archetype.append(entity)
+        let chunkLocation = archetype.chunks.insertEntity(entity.id, components: components)
+        self.archetypes.archetypes[archetypeIndex] = archetype
+        self.entities.entities[entity.id] = EntityLocation(
+            archetypeId: archetype.id,
+            archetypeRow: row,
+            chunkIndex: chunkLocation.chunkIndex,
+            chunkRow: chunkLocation.entityRow
+        )
+        entity.world = self
+        return entity
     }
 
     @discardableResult
