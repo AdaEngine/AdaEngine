@@ -5,12 +5,14 @@
 //  Created by vladislav.prusakov on 13.03.2025.
 //
 
-public extension Bundle {
-    static var engineBundle: Bundle {
+import Foundation
+
+public extension Foundation.Bundle {
+    static var engineBundle: Foundation.Bundle {
 #if SWIFT_PACKAGE && !BAZEL_BUILD
-        return Bundle.module
+        return Foundation.Bundle.module
 #else
-        return Bundle(for: BundleToken.self)
+        return Foundation.Bundle(for: BundleToken.self)
 #endif
     }
 }
