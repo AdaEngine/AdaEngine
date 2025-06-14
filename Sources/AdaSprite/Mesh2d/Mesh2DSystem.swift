@@ -24,7 +24,7 @@ public struct Mesh2DPlugin: Plugin {
     /// - Parameter app: The app.
     public func setup(in app: AppWorlds) {
         let renderWorld = app.getSubworldBuilder(by: .renderWorld)
-        renderWorld?.addSystem(ExctractMesh2DSystem.self)
+        renderWorld?.addSystem(ExctractMesh2DSystem.self, on: .extract)
     }
 }
 
@@ -107,7 +107,7 @@ public struct Mesh2DRenderPlugin: Plugin {
         }
         renderWorld
             .insertResource(Mesh2DDrawPass())
-            .addSystem(Mesh2DRenderSystem.self)
+            .addSystem(Mesh2DRenderSystem.self, on: .render)
     }
 }
 
@@ -129,6 +129,7 @@ public struct Mesh2DRenderSystem: Sendable {
     public func update(context: inout UpdateContext) {
         self.query.forEach { visibleEntities, renderItems in
             self.draw(
+                world: context.world,
                 meshes: extractedMeshes.meshes,
                 visibleEntities: visibleEntities,
                 items: &renderItems.items,
@@ -138,6 +139,7 @@ public struct Mesh2DRenderSystem: Sendable {
     }
 
     func draw(
+        world: World,
         meshes: [ExctractedMesh2D],
         visibleEntities: VisibleEntities,
         items: inout [Transparent2DRenderItem],
@@ -162,12 +164,13 @@ public struct Mesh2DRenderSystem: Sendable {
                         continue
                     }
 
-                    let emptyEntity = Entity()
-                    emptyEntity.components += ExctractedMeshPart2d(
-                        part: part,
-                        material: material,
-                        modelUniform: modelUniform
-                    )
+                    let emptyEntity = world.spawn() {
+                        ExctractedMeshPart2d(
+                            part: part,
+                            material: material,
+                            modelUniform: modelUniform
+                        )
+                    }
 
                     items.append(
                         Transparent2DRenderItem(

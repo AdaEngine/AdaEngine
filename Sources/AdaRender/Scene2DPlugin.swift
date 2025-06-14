@@ -31,7 +31,7 @@ public struct Scene2DPlugin: Plugin {
 
         Task { @RenderGraphActor in
             // Add Render graph
-            let graph = RenderGraph(label: "Scene2D")
+            var graph = RenderGraph(label: "Scene2D")
 
             let entryNode = graph.addEntryNode(inputs: [
                 RenderSlot(name: InputNode.view, kind: .entity)
@@ -46,7 +46,8 @@ public struct Scene2DPlugin: Plugin {
             )
 
             await app.mainWorld
-                .getResource(RenderGraph.self)?
+                .getMutableResource(RenderGraph.self)?
+                .wrappedValue?
                 .addSubgraph(graph, name: Self.renderGraph)
         }
     }
@@ -66,7 +67,7 @@ public struct Main2DRenderNode: RenderNode {
         RenderSlot(name: InputNode.view, kind: .entity)
     ]
     
-    public func execute(context: Context) async throws -> [RenderSlotValue] {
+    public func execute(context: inout Context) async throws -> [RenderSlotValue] {
         guard let entity = context.entityResource(by: InputNode.view) else {
             return []
         }

@@ -38,7 +38,8 @@
 /// ```
 @propertyWrapper
 @frozen public struct EntityQuery: Sendable {
-    public typealias Result = QueryResult<QueryBuilderTargets<Entity, NoFilter>>
+    
+    public typealias Result = QueryResult<QueryBuilderTargets<Entity>>
 
     public var wrappedValue: Result {
         return QueryResult(state: self.state)
@@ -58,7 +59,7 @@
     }
 
     public init(from world: World) {
-        fatalError()
+        fatalError("Can't initialize EntityQuery from world")
     }
 
     public func callAsFunction() -> Result {
@@ -67,20 +68,18 @@
 }
 
 extension EntityQuery: SystemQuery {
-    public func update(from world: World) {
+    public func update(from world: consuming World) {
         self.state.updateArchetypes(in: world)
     }
 }
 
 /// This iterator iterate by each entity in passed archetype array
 public struct EntityIterator: IteratorProtocol {
-    // We use pointer to avoid additional allocation in memory
     let count: Int
     let state: QueryState
     
     private var currentArchetypeIndex = 0
     private var currentEntityIndex = -1 // We should use -1 for first iterating.
-    private var canIterateNext: Bool = true
     
     /// - Parameter pointer: Pointer to archetypes array.
     /// - Parameter count: Count archetypes in array.
@@ -101,7 +100,6 @@ public struct EntityIterator: IteratorProtocol {
             }
             
             let currentEntitiesCount = self.state.archetypes[self.currentArchetypeIndex].entities.count
-            
             if self.currentEntityIndex < currentEntitiesCount - 1 {
                 self.currentEntityIndex += 1
             } else {
@@ -111,7 +109,6 @@ public struct EntityIterator: IteratorProtocol {
             }
             
             let currentArchetype = self.state.archetypes[self.currentArchetypeIndex]
-
             guard let entity = currentArchetype.entities[self.currentEntityIndex], entity.isActive else {
                 continue
             }

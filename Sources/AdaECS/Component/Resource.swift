@@ -9,7 +9,20 @@ import Foundation
 
 /// The singleton resource that passed to the ecs world.
 /// Only one instance of the resource is allowed in the world.
-public protocol Resource: Sendable { }
+public protocol Resource: Sendable {
+    static func getFromWorld(_ world: borrowing World) -> Self?
+}
+
+public extension Resource {
+    static func getFromWorld(_ world: borrowing World) -> Self? {
+        world.getResource(Self.self)
+    }
+}
+
+/// Init the object from a world
+public protocol WorldInitable: Sendable {
+    init(from world: World)
+}
 
 // TODO: (Vlad) Add components list to editor and generate file with registered components.
 // TODO: (Vlad) We can think about `swift_getMangledTypeName` and `swift_getTypeByMangledNameInContext`

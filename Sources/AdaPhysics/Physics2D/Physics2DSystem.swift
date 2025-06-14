@@ -31,26 +31,25 @@ public struct Physics2DSystem: Sendable {
     @ResQuery<Physics2DWorldComponent>
     private var physicsWorld
 
-    public func update(context: inout UpdateContext) {
-        let deltaTime = context.deltaTime
-        context.taskGroup.addTask { @MainActor in
-            guard let world = self.physicsWorld?.world else {
-                return
-            }
+    @ResQuery<FixedTime>
+    private var fixedTime
 
-            world.updateSimulation(deltaTime)
-            world.processContacts()
-            world.processSensors()
-            self.updatePhysicsBodyEntities(in: world)
-            self.updateCollisionEntities(in: world)
-        }
+    @MainActor
+    public func update(context: inout UpdateContext) {
+        let deltaTime = fixedTime.deltaTime
+        let world = self.physicsWorld.world
+        world.updateSimulation(deltaTime)
+        world.processContacts()
+        world.processSensors()
+        self.updatePhysicsBodyEntities(in: world)
+        self.updateCollisionEntities(in: world)
     }
     
     // MARK: - Private
     
     @MainActor
     private func updatePhysicsBodyEntities(in world: PhysicsWorld2D) {
-        for (entity, physicsBody, transform) in self.physicsBodyQuery {
+        self.physicsBodyQuery.forEach { (entity, physicsBody, transform) in
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
                     body.setTransform(
@@ -116,7 +115,7 @@ public struct Physics2DSystem: Sendable {
 
     @MainActor
     private func updateCollisionEntities(in world: PhysicsWorld2D) {
-        for (entity, collisionBody, transform) in collisionQuery {
+        collisionQuery.forEach { (entity, collisionBody, transform) in
             if let body = collisionBody.runtimeBody {
                 if body.getPosition() != transform.position.xy {
                     body.setTransform(

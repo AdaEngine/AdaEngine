@@ -11,4 +11,4 @@ module(
     repo_name = "AdaEngine"
 )
 
-bazel_dep(name = "zlib", version = "1.3.1")
+bazel_dep(name = "zlib", version = "1.3.1.bcr.3")

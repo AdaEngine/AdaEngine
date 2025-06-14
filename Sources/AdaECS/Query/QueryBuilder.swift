@@ -22,14 +22,19 @@ public protocol QueryBuilder {
     /// Get the query target from an entity.
     /// - Parameter entity: The entity to get the query target from.
     /// - Returns: The query target.
-    static func getQueryTarget(from entity: Entity) -> Components
+    static func getQueryTarget(
+        for entity: Entity,
+        in chunk: Chunk,
+        archetype: Archetype
+    ) -> Components
 }
 
 /// A type-erased query builder.
-public struct QueryBuilderTargets<each T, F: Filter>: QueryBuilder where repeat each T: QueryTarget {
+public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: QueryTarget {
     public typealias ComponentTypes = (repeat (each T).Type)
     public typealias Components = (repeat each T)
 
+    @inline(__always)
     public static func predicate(in archetype: Archetype) -> Bool {
         for element in repeat (each T).self {
             if !element._queryContains(in: archetype) {
@@ -37,10 +42,15 @@ public struct QueryBuilderTargets<each T, F: Filter>: QueryBuilder where repeat 
             }
         }
 
-        return F.condition(for: archetype)
+        return true
     }
 
-    public static func getQueryTarget(from entity: Entity) -> Components {
-        (repeat (each T)._queryTarget(from: entity))
+    @inline(__always)
+    public static func getQueryTarget(
+        for entity: Entity,
+        in chunk: Chunk,
+        archetype: Archetype
+    ) -> Components {
+        (repeat (each T)._queryTarget(for: entity, in: chunk, archetype: archetype))
     }
 }

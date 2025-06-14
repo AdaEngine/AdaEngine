@@ -7,6 +7,7 @@
 
 import AdaApp
 import AdaECS
+@_spi(Internal) import AdaInput
 import AdaUtils
 import Math
 
@@ -18,7 +19,7 @@ public struct UIPlugin: Plugin {
         UIComponent.registerComponent()
 
         app
-            .addSystem(GraphicsContextInitializedSystem.self)
+            .addSystem(UpdateWindowManagerSystem.self, on: .preUpdate)
             .addSystem(UIComponentSystem.self)
     }
 }
@@ -56,10 +57,40 @@ public struct PrimaryWindow: Resource {
     public let window: UIWindow
 }
 
+public struct WindowManagerResource: Resource {
+    public var windowManager: UIWindowManager
+
+    public init(windowManager: UIWindowManager) {
+        self.windowManager = windowManager
+    }
+}
+
 @PlainSystem
-func GraphicsContextInitialized(
-    _ world: Ref<World>,
-    _ kek: ResQuery<PrimaryWindow>
-) {
-    
+@MainActor
+func UpdateWindowManager(
+    _ context: inout WorldUpdateContext,
+    _ windowManager: ResQuery<WindowManagerResource>,
+    _ input: ResQuery<Input>,
+    _ deltaTime: ResQuery<DeltaTime>
+) async {
+    let windowManager = windowManager.windowManager
+    let deltaTime = deltaTime.deltaTime
+    let windows = windowManager.windows
+    for window in windows {
+        let menuBuilder = windowManager.menuBuilder(for: window)
+        menuBuilder?.updateIfNeeded()
+
+        for event in input.eventsPool where event.window == window.id {
+            window.sendEvent(event)
+        }
+
+        await window.internalUpdate(deltaTime)
+
+        if window.canDraw {
+            var context = UIGraphicsContext(window: window)
+            context.beginDraw(in: window.frame.size, scaleFactor: 1)
+            window.draw(with: context)
+            context.commitDraw()
+        }
+    }
 }

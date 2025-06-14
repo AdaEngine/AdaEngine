@@ -13,10 +13,7 @@ import Math
 
 // TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
 
-@System(dependencies: [
-    .after(ExtractCameraSystem.self),
-    .after(BatchTransparent2DItemsSystem.self)
-])
+@System
 public struct SpriteRenderSystem: Sendable {
 
     @Query<
@@ -47,8 +44,10 @@ public struct SpriteRenderSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: inout UpdateContext) {
-        for (_, visibleEntities, renderItems) in cameras {
+        print("Sprites count", self.extractedSprites?.sprites.count)
+        cameras.forEach { (_, visibleEntities, renderItems) in
             self.draw(
+                world: context.world,
                 extractedSprites: self.extractedSprites?.sprites ?? [],
                 visibleEntities: visibleEntities,
                 renderItems: &renderItems.wrappedValue
@@ -60,11 +59,12 @@ public struct SpriteRenderSystem: Sendable {
 
     // swiftlint:disable:next function_body_length
     private func draw(
+        world: World,
         extractedSprites: [ExtractedSprite],
         visibleEntities: VisibleEntities,
         renderItems: inout RenderItems<Transparent2DRenderItem>
     ) {
-        let spriteData = Entity(name: "sprite_data")
+        let spriteData = world.spawn("sprite_data") {}
 
         let sprites = extractedSprites
             .sorted { lhs, rhs in
@@ -78,8 +78,8 @@ public struct SpriteRenderSystem: Sendable {
 
         var textureSlotIndex = 1
 
-        var currentBatchEntity = Entity()
-        var currentBatch = BatchComponent(
+        var currentBatchEntity = world.spawn() {}
+        var currentBatch = TextureBatchComponent(
             textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
         )
 
@@ -93,8 +93,8 @@ public struct SpriteRenderSystem: Sendable {
             if textureSlotIndex >= Self.maxTexturesPerBatch {
                 currentBatchEntity.components += currentBatch
                 textureSlotIndex = 1
-                currentBatchEntity = Entity()
-                currentBatch = BatchComponent(
+                currentBatchEntity = world.spawn() { }
+                currentBatch = TextureBatchComponent(
                     textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
                 )
             }
@@ -197,7 +197,7 @@ struct SpriteDataComponent {
 
 @Component
 /// A component that contains the textures for a batch.
-public struct BatchComponent {
+public struct TextureBatchComponent {
     /// The textures for a batch.
     public var textures: [Texture2D]
 }
@@ -240,7 +240,7 @@ public struct ExtractedSprite: Sendable {
     .before(SpriteRenderSystem.self)
 ])
 public func ExtractSprite(
-    _ world: Ref<World>,
+    _ world: World,
     _ sprites: Extract<Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>>
 ) {
     var extractedSprites = ExtractedSprites(sprites: [])
@@ -261,33 +261,31 @@ public func ExtractSprite(
             )
         )
     }
-    world.wrappedValue.insertResource(extractedSprites)
+    world.insertResource(extractedSprites)
 }
 
 @PlainSystem
 func UpdateBoundings(
-    _ entitiesWithTransform: Query<Entity, Transform>
+    _ entitiesWithTransform: FilterQuery<
+    Entity, Transform,
+    Or<With<SpriteComponent>, With<Mesh2DComponent>>
+    >
 ) {
-    entitiesWithTransform().forEach { entity, transform in
+    entitiesWithTransform.forEach { entity, transform in
         var bounds: BoundingComponent.Bounds?
-
         if entity.components.has(SpriteComponent.self) {
             if !entity.components.isComponentChanged(Transform.self) && entity.components.has(BoundingComponent.self) {
                 return
             }
-
             let transform = entity.components[Transform.self]!
             let position = transform.position
             let scale = transform.scale
-
             let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
             let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
-
             bounds = .aabb(AABB(min: min, max: max))
         } else if let mesh2d = entity.components[Mesh2DComponent.self] {
             bounds = .aabb(mesh2d.mesh.bounds)
         }
-
         if let bounds {
             entity.components += BoundingComponent(bounds: bounds)
         }

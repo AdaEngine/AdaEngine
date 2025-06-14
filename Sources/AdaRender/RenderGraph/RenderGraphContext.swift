@@ -10,8 +10,7 @@ import Logging
 
 /// The context with all graph information required to run a ``RenderNode``.
 /// This context is created for each node by the ``RenderGraphExecutor``.
-@RenderGraphActor
-public final class RenderGraphContext {
+public struct RenderGraphContext: ~Copyable, Sendable {
     public let graph: RenderGraph
     public let device: RenderDevice
     public let world: World
@@ -34,7 +33,7 @@ public final class RenderGraphContext {
 public extension RenderGraphContext {
     
     // FIXME: Should throws error!
-    func runSubgraph(by name: String, inputs: [RenderSlotValue], viewEntity: Entity? = nil) {
+    mutating func runSubgraph(by name: String, inputs: [RenderSlotValue], viewEntity: Entity? = nil) {
         guard let graph = self.graph.subGraphs[name] else {
             return
         }

@@ -21,13 +21,25 @@ struct MainSchedulerPlugin: Plugin {
             fixedScheduler,
             postUpdateScheduler
         ])
-        app.mainWorld.insertResource(DefaultSchedulerOrder())
+        app.insertResource(DefaultSchedulerOrder())
+
+        app.addSystem(GameLoopBeganSystem.self, on: .preUpdate)
         app.mainWorld.addSchedulers(
             .fixedPreUpdate,
             .fixedUpdate,
-            .fixedPostUpdate,
+            .fixedPostUpdate
         )
     }
+}
+
+// FIXME: Hack to works with AnimatedTexture
+@PlainSystem
+@inline(__always)
+func GameLoopBegan(
+    _ deltaTime: ResQuery<DeltaTime?>
+) {
+    guard let deltaTime = deltaTime.wrappedValue else { return }
+    EventManager.default.send(EngineEvents.MainLoopBegan(deltaTime: deltaTime.deltaTime))
 }
 
 /// The system that runs the fixed time scheduler.
@@ -47,17 +59,20 @@ public struct FixedTimeSchedulerSystem {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: 60)
     }
 
-    public func update(context: inout UpdateContext) {
-        let result = self.fixedTimestep.advance(with: context.deltaTime)
+    @ResQuery<DeltaTime?>
+    private var deltaTime
+
+    public func update(context: inout UpdateContext) async {
+        let deltaTime = deltaTime?.deltaTime ?? 0
+        let result = self.fixedTimestep.advance(with: deltaTime)
 
         if result.isFixedTick {
             let step = self.fixedTimestep.step
             let world = context.world
-            world.insertResource(DeltaTime(deltaTime: step))
-            context.taskGroup.addTask { [order] in
-                for scheduler in order {
-                    await world.runScheduler(scheduler, deltaTime: step)
-                }
+            world.insertResource(FixedTime(deltaTime: step))
+//            context.taskGroup.addTask(priority: .high) { [order] in
+            for scheduler in order {
+                await world.runScheduler(scheduler)
             }
         }
     }
@@ -66,21 +81,12 @@ public struct FixedTimeSchedulerSystem {
 /// The system that runs the post update scheduler.
 @System
 public struct PostUpdateSchedulerRunner: Sendable {
-
-    @ResQuery
-    private var order: DefaultSchedulerOrder?
-
-    @LocalIsolated
-    private var lastUpdate: LongTimeInterval = 0
-
+    
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: inout UpdateContext) async {
         let world = context.world
-        let deltaTime = context.deltaTime
-        context.taskGroup.addTask {
-            await world.runScheduler(.postUpdate, deltaTime: deltaTime)
-        }
+        await world.runScheduler(.postUpdate)
     }
 }
 

@@ -116,34 +116,29 @@ public struct CameraSystem: Sendable {
     }
 }
 
-@System
-public struct ExtractCameraSystem {
+@PlainSystem
+public func ExtractCamera(
+    _ world: World,
+    _ query: Extract<
+        Query<Entity, Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
+    >
+) {
+    query.wrappedValue.forEach {
+        entity, camera, transform, visibleEntities, bufferSet, uniform in
 
-    @Extract<Query<Entity, Camera, Transform, VisibleEntities>>
-    private var query
+        let buffer = bufferSet.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
 
-    public init(world: World) { }
+        buffer.setData(uniform)
 
-    public func update(context: inout UpdateContext) {
-        self.query.wrappedValue.forEach { entity, camera, _, _ in
-            let cameraEntity = Entity(name: "ExtractedCameraEntity")
-            if
-                let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
-                let uniform = entity.components[GlobalViewUniform.self]
-            {
-                let buffer = bufferSet.uniformBufferSet.getBuffer(
-                    binding: GlobalBufferIndex.viewUniform,
-                    set: 0,
-                    frameIndex: RenderEngine.shared.currentFrameIndex
-                )
-
-                buffer.setData(uniform)
-            }
-
-            cameraEntity.components = entity.components
-            cameraEntity.components += RenderItems<Transparent2DRenderItem>()
-            cameraEntity.components.entity = cameraEntity
-            context.world.addEntity(cameraEntity)
+        world.spawn("ExtractedCameraEntity") {
+            camera
+            transform
+            visibleEntities
+            RenderItems<Transparent2DRenderItem>()
         }
     }
 }

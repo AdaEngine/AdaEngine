@@ -23,50 +23,59 @@ public struct RenderWorldPlugin: Plugin {
         BoundingComponent.registerComponent()
         Texture.registerTypes()
 
-        let renderWorld = app.createSubworld(by: .renderWorld)
+        let renderWorld = AppWorlds(mainWorld: World(name: "RenderWorld"))
         renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
         renderWorld.setExctractor(RenderWorldExctractor())
         renderWorld.mainWorld.setSchedulers([
-            .update,
+            .extract,
             .render
         ])
         renderWorld.insertResource(
-            DefaultSchedulerOrder(
-                order: [.update, .render]
-            )
+            DefaultSchedulerOrder(order: [.extract, .render])
         )
 
-        renderWorld.mainWorld
-            .addSystem(RenderWorldSystem.self, on: .render)
+        renderWorld
+            .addSystem(RenderWorldRunnerSystem.self, on: .render)
+
+        app.addSubworld(renderWorld, by: .renderWorld)
     }
 }
 
 /// The system that renders the world.
-@System
-struct RenderWorldSystem {
+@PlainSystem
+@inline(__always)
+func RenderWorldRunner(
+    _ context: inout WorldUpdateContext,
+    _ renderGraph: ResQuery<RenderGraph?>
+) {
+    let world = context.world
+    let renderGraph = renderGraph.wrappedValue
+    Task.detached(priority: .high) {
+        do {
+            try await RenderEngine.shared.beginFrame()
+        } catch {
+            print("Failed begin frame", error)
+        }
 
-    private let renderGraphExecutor = RenderGraphExecutor()
+        do {
+            guard let renderGraph else { return }
+            let renderGraphExecutor = RenderGraphExecutor()
+            try await renderGraphExecutor.execute(renderGraph, in: world)
+        } catch {
+            print("Failed to execute render graph", error)
+        }
 
-    init(world: World) { }
-
-    @ResQuery
-    private var renderGraph: RenderGraph!
-
-    func update(context: inout UpdateContext) {
-        let world = context.world
-        context.taskGroup.addTask {
-            do {
-                try await self.renderGraphExecutor.execute(renderGraph, in: world)
-            } catch {
-                print(error)
-            }
+        do {
+            try await RenderEngine.shared.endFrame()
+        } catch {
+            print("Failed end frame", error)
         }
     }
 }
 
 /// The extractor that extracts the main world to the render world.
 struct RenderWorldExctractor: WorldExctractor {
-    func exctract(from mainWorld: World, to renderWorld: World) {
+    func exctract(from mainWorld: World, to renderWorld: World) async {
         renderWorld.clear()
         renderWorld.insertResource(MainWorld(world: mainWorld))
     }
@@ -102,7 +111,8 @@ public final class Extract<T: SystemQuery>: @unchecked Sendable {
 }
 
 extension Extract: SystemQuery {
-    public func update(from world: World) {
+    public func update(from world: consuming World) {
+        let world = world
         if _value == nil {
             _value = T.init(from: world)
         }
@@ -115,6 +125,10 @@ extension Extract: SystemQuery {
 public extension SchedulerName {
     /// The render scheduler.
     static let render = SchedulerName(rawValue: "RenderWorld_Render")
+    static let extract = SchedulerName(rawValue: "RenderWorld_Extract")
+
+    static let beginRender = SchedulerName(rawValue: "RenderWorld_BeginFrame")
+    static let endRender = SchedulerName(rawValue: "RenderWorld_EndFrame")
 }
 
 public extension AppWorldName {

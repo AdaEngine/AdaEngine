@@ -13,13 +13,12 @@ import Math
 // - TODO: (Vlad) Add actions list and method like `isActionPressed`
 
 /// An object that contains inputs from keyboards, mouse, touch screens and etc.
-public final class Input: Resource, @unchecked Sendable {
+public struct Input: Resource, Sendable {
 
     @_spi(Internal)
-    public static let shared = Input()
-    @_spi(Internal)
     public var mousePosition: Point = .zero
-    private static let lock = NSLock()
+    private let lock = NSLock()
+
     @_spi(Internal)
     public private(set) var eventsPool: [any InputEvent] = []
     // FIXME: (Vlad) Should think about capacity. We should store ~256 keycode events
@@ -32,40 +31,33 @@ public final class Input: Resource, @unchecked Sendable {
     private(set) var gamepads: [Int: Gamepad] = [:]
     var cursorStates: [CursorShape] = [.arrow]
 
+    public var rumbleGameControllerEngine: RumbleGameControllerEngine?
+
     init() {}
 
     // MARK: - Public Methods
 
     /// Returns set of touches on screens.
-    public static func getTouches() -> Set<TouchEvent> {
-        lock.lock()
-        defer { lock.unlock() }
-
-        return self.shared.touches
+    public func getTouches() -> Set<TouchEvent> {
+        return self.touches
     }
 
     /// Returns a set of input events.
-    public static func getInputEvents() -> Array<any InputEvent> {
-        lock.lock()
-        defer { lock.unlock() }
-
-        return self.shared.eventsPool
+    public func getInputEvents() -> Array<any InputEvent> {
+        return self.eventsPool
     }
 
     /// Returns `true` if you are pressing the Latin key in the current keyboard layout.
-    public static func isKeyPressed(_ keyCode: KeyCode) -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-
-        return self.shared.keyEvents.contains(keyCode)
+    public func isKeyPressed(_ keyCode: KeyCode) -> Bool {
+        return self.keyEvents.contains(keyCode)
     }
 
     /// Returns true if you are pressing the mouse button specified with MouseButton.
-    public static func isMouseButtonPressed(_ button: MouseButton) -> Bool {
+    public func isMouseButtonPressed(_ button: MouseButton) -> Bool {
         lock.lock()
         defer { lock.unlock() }
 
-        guard let phase = self.shared.mouseEvents[button]?.phase else {
+        guard let phase = self.mouseEvents[button]?.phase else {
             return false
         }
 
@@ -73,56 +65,56 @@ public final class Input: Resource, @unchecked Sendable {
     }
 
     /// Returns `true` if you are released the mouse button.
-    public static func isMouseButtonRelease(_ button: MouseButton) -> Bool {
+    public func isMouseButtonRelease(_ button: MouseButton) -> Bool {
         lock.lock()
         defer { lock.unlock() }
 
-        return self.shared.mouseEvents[button]?.phase == .ended
+        return self.mouseEvents[button]?.phase == .ended
     }
 
     /// Get mouse position on window.
-    public static func getMousePosition() -> Vector2 {
+    public func getMousePosition() -> Vector2 {
         lock.lock()
         defer { lock.unlock() }
 
-        return self.shared.mousePosition
+        return self.mousePosition
     }
 
     /// Get mouse mode for active window.
     @MainActor
-    public static func getMouseMode() -> MouseMode {
+    public func getMouseMode() -> MouseMode {
 //        Application.shared.windowManager.getMouseMode()
         return .visible
     }
 
     /// Set mouse mode for active window.
     @MainActor
-    public static func setMouseMode(_ mode: MouseMode) {
+    public mutating func setMouseMode(_ mode: MouseMode) {
 //        Application.shared.windowManager.setMouseMode(mode)
     }
 
     /// Set current cursor shape.
     @MainActor
-    public static func setCursorShape(_ shape: CursorShape) {
-        self.shared.cursorStates = [shape]
+    public mutating func setCursorShape(_ shape: CursorShape) {
+        self.cursorStates = [shape]
 //        Application.shared.windowManager.setCursorShape(shape)
     }
 
     /// Pushes a new cursor shape onto the stack and sets it as the current cursor shape.
     @MainActor
-    public static func pushCursorShape(_ shape: CursorShape) {
-        self.shared.cursorStates.append(shape)
+    public mutating func pushCursorShape(_ shape: CursorShape) {
+        self.cursorStates.append(shape)
 //        Application.shared.windowManager.setCursorShape(shape)
     }
 
     /// Pops the last cursor shape from the stack and sets it as the current cursor shape.
     @MainActor
-    public static func popCursorShape() {
-        if self.shared.cursorStates.count > 2 {
-            self.shared.cursorStates.removeLast()
+    public mutating func popCursorShape() {
+        if self.cursorStates.count > 2 {
+            self.cursorStates.removeLast()
         }
 
-        let shape = self.shared.cursorStates.last!
+        let shape = self.cursorStates.last!
 //        Application.shared.windowManager.setCursorShape(shape)
     }
 
@@ -144,12 +136,12 @@ public final class Input: Resource, @unchecked Sendable {
     // MARK: Internal
 
     @MainActor
-    @_spi(Internal) public func removeEvents() {
+    @_spi(Internal) public mutating func removeEvents() {
         self.eventsPool.removeAll()
     }
 
     @MainActor
-    @_spi(Internal) public func receiveEvent<T: InputEvent>(_ event: T) {
+    @_spi(Internal) public mutating func receiveEvent<T: InputEvent>(_ event: T) {
         self.eventsPool.append(event)
         self.parseInputEvent(event)
     }
@@ -157,7 +149,7 @@ public final class Input: Resource, @unchecked Sendable {
     // MARK: - Private
 
     @MainActor
-    private func parseInputEvent<T: InputEvent>(_ event: T) {
+    private mutating func parseInputEvent<T: InputEvent>(_ event: T) {
         switch event {
         case let keyEvent as KeyEvent:
             if keyEvent.keyCode == .none && keyEvent.isRepeated {
@@ -180,7 +172,8 @@ public final class Input: Resource, @unchecked Sendable {
 
                 self.gamepads[gamepadConnectionEvent.gamepadId] = Gamepad(
                     gamepadId: gamepadConnectionEvent.gamepadId,
-                    info: gamepadConnectionEvent.gamepadInfo
+                    info: gamepadConnectionEvent.gamepadInfo,
+                    rumbleGameControllerEngine: self.rumbleGameControllerEngine
                 )
 
                 print("Gamepad connected: ID \(gamepadConnectionEvent.gamepadId), Name: \(controllerName), Type: \(controllerType)")
@@ -217,10 +210,8 @@ public final class Input: Resource, @unchecked Sendable {
     ///
     /// Gamepad IDs are typically assigned by the system.
     /// - Returns: An array of ``Input.Gamepad`` values representing the IDs of connected gamepads.
-    public static func getConnectedGamepads() -> [Gamepad] {
-        lock.lock()
-        defer { lock.unlock() }
-        return Array(self.shared.gamepads.values)
+    public func getConnectedGamepads() -> [Gamepad] {
+        return Array(self.gamepads.values)
     }
 
     /// Retrieves a gamepad by its ID.
@@ -228,10 +219,8 @@ public final class Input: Resource, @unchecked Sendable {
     /// Gamepad IDs are typically assigned by the system.
     /// - Parameter gamepadId: The unique identifier of the gamepad.
     /// - Returns: A ``Gamepad`` value representing the gamepad, or `nil` if the gamepad is not connected.
-    public static func getConnectedGamepad(for gamepadId: Gamepad.ID) -> Gamepad? {
-        lock.lock()
-        defer { lock.unlock() }
-        return self.shared.gamepads[gamepadId]
+    public func getConnectedGamepad(for gamepadId: Gamepad.ID) -> Gamepad? {
+        return self.gamepads[gamepadId]
     }
 }
 
@@ -262,7 +251,7 @@ public extension Input {
     }
 
     /// Available list of cursor shapes.
-    enum CursorShape {
+    enum CursorShape: Sendable {
 
         /// Standard cursor.
         case arrow
@@ -319,7 +308,7 @@ public extension Input {
 
 extension Input {
     /// For test
-    func _removeAllStates() {
+    mutating func _removeAllStates() {
         self.gamepads.removeAll()
         self.cursorStates.removeAll()
         self.eventsPool.removeAll()
@@ -344,7 +333,7 @@ public struct GamepadInfo: Hashable, Sendable {
 }
 
 /// Represents a connected gamepad.
-public struct Gamepad {
+public struct Gamepad: Sendable {
 
     /// The type alias for the gamepad ID.
     public typealias ID = Int
@@ -365,7 +354,13 @@ public struct Gamepad {
     /// - Returns: A `GamepadInfo` struct containing details about the gamepad, or `nil` if the gamepad is not connected.
     public internal(set) var info: GamepadInfo? // TODO: Populate this later
 
-    init(gamepadId: ID, info: GamepadInfo? = nil) {
+    private var rumbleGameControllerEngine: RumbleGameControllerEngine?
+
+    init(
+        gamepadId: ID,
+        info: GamepadInfo? = nil,
+        rumbleGameControllerEngine: RumbleGameControllerEngine?
+    ) {
         self.gamepadId = gamepadId
         self.info = info
         // Initialize all axes to 0.0
@@ -403,21 +398,25 @@ public struct Gamepad {
     ///   - lowFrequency: The intensity of the low-frequency motor (typically 0.0 to 1.0).
     ///   - highFrequency: The intensity of the high-frequency motor (typically 0.0 to 1.0).
     ///   - duration: The duration of the rumble effect in seconds.
-    @MainActor
     public func rumble(
         lowFrequency: Float,
         highFrequency: Float,
         duration: Float
     ) {
-#if canImport(Darwin)
-        AppleGameControllerManager.shared.rumbleGamepad(
+        rumbleGameControllerEngine?.rumbleGamepad(
             gamepadId: gamepadId,
             lowFrequency: lowFrequency,
             highFrequency: highFrequency,
             duration: duration
         )
-#else
-        print("Gamepad rumble not supported on this platform or for this gamepad ID \(gamepadId).")
-#endif
     }
+}
+
+public protocol RumbleGameControllerEngine: AnyObject, Sendable {
+    func rumbleGamepad(
+        gamepadId: Int,
+        lowFrequency: Float,
+        highFrequency: Float,
+        duration: Float
+    )
 }

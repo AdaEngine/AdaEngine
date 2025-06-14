@@ -10,17 +10,54 @@
 @dynamicMemberLookup
 @propertyWrapper
 public final class Ref<T>: @unchecked Sendable {
-
-    /// The getter of the reference.
-    public typealias Getter = () -> T
-
-    /// The setter of the reference.
-    public typealias Setter = (T) -> Void
+    private let pointer: UnsafeMutablePointer<T>
 
     /// The wrapped value of the reference.
+    @inline(__always)
     public var wrappedValue: T {
         get {
-            return getValue!()
+            self.pointer.pointee
+        }
+        set {
+            self.pointer.pointee = newValue
+        }
+    }
+
+    /// Create a new reference to a component.
+    /// - Parameters:
+    ///   - get: A closure that returns the component value.
+    ///   - set: A closure that sets the component value.
+    public init(pointer: UnsafeMutablePointer<T>) {
+        self.pointer = pointer
+    }
+
+    @inline(__always)
+    public subscript<U>(dynamicMember dynamicMember: WritableKeyPath<T, U>) -> U {
+        get {
+            return self.wrappedValue[keyPath: dynamicMember]
+        }
+        set {
+            self.wrappedValue[keyPath: dynamicMember] = newValue
+        }
+    }
+}
+
+
+@dynamicMemberLookup
+@propertyWrapper
+public final class Mutable<T>: @unchecked Sendable {
+
+    /// The getter of the reference.
+    public typealias Getter = @Sendable () -> T
+
+    /// The setter of the reference.
+    public typealias Setter = @Sendable (T) -> Void
+
+    /// The wrapped value of the reference.
+    @inline(__always)
+    public var wrappedValue: T {
+        get {
+            getValue!()
         }
         set {
             setValue?(newValue)
@@ -34,9 +71,11 @@ public final class Ref<T>: @unchecked Sendable {
     }
 
     /// The getter of the reference.
+    @inline(__always)
     var getValue: Getter?
 
     /// The setter of the reference.
+    @inline(__always)
     let setValue: Setter?
 
     /// Create a new reference to a component.
@@ -48,24 +87,13 @@ public final class Ref<T>: @unchecked Sendable {
         self.setValue = set
     }
 
+    @inline(__always)
     public subscript<U>(dynamicMember dynamicMember: WritableKeyPath<T, U>) -> U {
         get {
             return self.wrappedValue[keyPath: dynamicMember]
         }
         set {
             self.wrappedValue[keyPath: dynamicMember] = newValue
-        }
-    }
-}
-
-extension Ref: SystemQuery where T == World {
-    public convenience init(from world: World) {
-        fatalError()
-    }
-
-    public func update(from world: World) {
-        getValue = {
-            world
         }
     }
 }

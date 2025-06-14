@@ -61,7 +61,7 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
             return AssetHandle(value)
         } else {
             let handle = try AssetsManager.loadSync(resourceType, at: path)
-            self.appendResource(handle.asset)
+            self.appendResource(handle)
             
             return handle
         }
@@ -92,8 +92,8 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
     /// Append a resource to the decoder.
     ///
     /// - Parameter resource: The resource to append.
-    public func appendResource<A: Asset>(_ resource: A) {
-        self.resources[resource.assetPath] = WeakBox(value: resource)
+    public func appendResource<A: Asset>(_ resource: AssetHandle<A>) {
+        self.resources[resource.asset.assetPath] = WeakBox(value: resource)
     }
 }
 
