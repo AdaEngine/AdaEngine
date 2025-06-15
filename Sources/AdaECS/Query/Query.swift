@@ -59,13 +59,12 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
 
     /// Create a new query for specific predicate.
     /// - Parameter predicate: Describe what entity should contains to satisfy query.
-    /// - Parameter filter: Describe filter of this query. By default is ``Filter/all``
-    public init(filter: QueryFilter = .all) {
+    public init() {
         self.state = QueryState(
             predicate: .init(
                 evaluate: { Builder.predicate(in: $0) }
             ),
-            filter: filter
+            filter: .all
         )
     }
 
@@ -118,7 +117,9 @@ extension FilterQuery: SystemQuery {
 final class QueryState: @unchecked Sendable {
     @usableFromInline
     private(set) var archetypes: [Archetype] = []
+    private(set) var entities: Entities = Entities()
     private(set) weak var world: World?
+    private(set) var lastTick: Tick = Tick(value: 0)
 
     @usableFromInline
     let predicate: QueryPredicate
@@ -135,6 +136,8 @@ final class QueryState: @unchecked Sendable {
         self.archetypes = world.archetypes.archetypes.filter {
             self.predicate.evaluate($0)
         }
+        self.lastTick = world.lastTick
+        self.entities = world.entities
         self.world = world
     }
 }
@@ -193,14 +196,19 @@ public struct FilterQueryIterator<
 
             let entityId = chunk.entities.elements[self.cursor.currentRow].key
             guard
-                let location = state.world?.entities.entities[entityId],
+                let location = state.entities.entities[entityId],
                 let entity = archetype.entities[location.archetypeRow]
             else {
                 self.cursor.currentRow += 1
                 continue
             }
 
-            if !F.condition(for: archetype) {
+            if !F.condition(
+                for: archetype,
+                in: chunk,
+                entity: entity,
+                lastTick: state.lastTick
+            ) {
                 self.cursor.currentRow += 1
                 continue
             }

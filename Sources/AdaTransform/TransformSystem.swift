@@ -12,22 +12,15 @@ import Math
 @System
 public struct TransformSystem {
     
-    @EntityQuery(where: .has(Transform.self))
+    @FilterQuery<Entity, Transform, Or<Changed<Transform>, Without<GlobalTransform>>>
     private var query
     
     public init(world: World) { }
     
     public func update(context: inout UpdateContext) {
-        self.query.forEach { entity in
-            if entity.components.isComponentChanged(Transform.self)
-                || !entity.components.has(GlobalTransform.self)
-            {
-                guard let transform = entity.components[Transform.self] else {
-                    return
-                }
-                let globalTransform = GlobalTransform(matrix: transform.matrix)
-                entity.components += globalTransform
-            }
+        self.query.forEach { entity, transform in
+            let globalTransform = GlobalTransform(matrix: transform.matrix)
+            entity.components += globalTransform
         }
     }
 }
@@ -38,18 +31,18 @@ public struct TransformSystem {
 ])
 public struct ChildTransformSystem {
     
-    @EntityQuery(where: .has(Transform.self))
+    @FilterQuery<Entity, GlobalTransform, Changed<Transform>>
     private var query
     
     public init(world: World) { }
     
     public func update(context: inout UpdateContext) {
-        self.query.forEach { entity in
-            guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
+        self.query.forEach { entity, globalTransform in
+            guard !entity.children.isEmpty else {
                 return
             }
             
-            updateChildren(entity.children, parentTransform: entity.components[GlobalTransform.self]!)
+            updateChildren(entity.children, parentTransform: globalTransform)
         }
     }
     
@@ -64,7 +57,6 @@ public struct ChildTransformSystem {
             }
             
             let newMatrix = parentTransform.matrix * childTransform.matrix
-//            child.components += Transform(matrix: newMatrix)
             child.components += GlobalTransform(matrix: newMatrix)
             
             if !child.children.isEmpty {

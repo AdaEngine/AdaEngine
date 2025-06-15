@@ -18,7 +18,7 @@ struct TextLayoutComponent {
 @System()
 public struct Text2DLayoutSystem {
     
-    @Query<Entity, Ref<Text2DComponent>, Visibility>(filter: [.stored, .added])
+    @Query<Entity, Ref<Text2DComponent>, Visibility>
     private var textComponents
     
     public init(world: World) { }

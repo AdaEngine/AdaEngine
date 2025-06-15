@@ -32,8 +32,12 @@ open class Entity: Identifiable, @unchecked Sendable {
     public var isActive: Bool = true
 
     /// Contains reference for world where entity placed.
-    public internal(set) weak var world: World?
-    
+    public internal(set) weak var world: World? {
+        didSet {
+            self.components.world = world
+        }
+    }
+
     /// Create a new entity.
     /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
     /// - Note: If you want to use entity without any components use ``EmptyEntity``
@@ -80,6 +84,7 @@ open class Entity: Identifiable, @unchecked Sendable {
         let entity = Entity(name: self.name)
         entity.components = self.components.copy()
         entity.components.entity = entity.id
+        entity.components.world = world
         entity.isActive = self.isActive
         return entity
     }

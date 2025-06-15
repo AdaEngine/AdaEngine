@@ -23,18 +23,13 @@ public struct VisibilitySystem {
     @Query<Camera, Ref<VisibleEntities>>
     private var cameras
     
-    @EntityQuery(
-        where: .has(Transform.self) && .has(Visibility.self)
-        && .has(BoundingComponent.self) && .without(NoFrustumCulling.self)
-    )
+    @FilterQuery<Entity, Visibility, BoundingComponent, And<With<Transform>, Without<NoFrustumCulling>>>
     private var entities
-    
-    @EntityQuery(
-        where: .has(Transform.self) && .has(Visibility.self) && .has(NoFrustumCulling.self)
-    )
+
+    @FilterQuery<Entity, Visibility, And<With<Transform>, With<NoFrustumCulling>>>
     private var entitiesWithNoFrustum
 
-    @FilterQuery<Entity, And<With<Transform>, WithOut<Visibility>>>
+    @FilterQuery<Entity, And<With<Transform>, Without<Visibility>>>
     private var entitiesWithoutVisibility
     
     public init(world: World) { }
@@ -63,13 +58,10 @@ public struct VisibilitySystem {
     private func filterVisibileEntities(context: borrowing UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()
-        let filtredEntities = self.entities.filter { entity in
-            let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
-            
+        let filtredEntities: [Entity] = self.entities.compactMap { entity, visibility, bounding in
             if visibility == .hidden {
-                return false
+                return nil
             }
-            
             switch bounding.bounds {
             case .aabb(let aabb):
                 let isIntersect = frustum.intersectsAABB(aabb)
@@ -78,19 +70,16 @@ public struct VisibilitySystem {
                     entityIds.insert(entity.id)
                 }
                 
-                return isIntersect
+                return isIntersect ? entity : nil
             }
         }
         
-        let withNoFrustumEntities = self.entitiesWithNoFrustum.filter { entity in
-            let visibility = entity.components[Visibility.self]!
-            
+        let withNoFrustumEntities: [Entity] = self.entitiesWithNoFrustum.compactMap { entity, visibility in
             if visibility != .hidden {
                 entityIds.insert(entity.id)
-                return true
+                return entity
             }
-            
-            return false
+            return nil
         }
         let entities = filtredEntities + withNoFrustumEntities
         return (entities, entityIds)
