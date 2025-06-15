@@ -19,10 +19,10 @@ public struct Physics2DSystem: Sendable {
 
     public init(world: World) { }
 
-    @Query<Entity, Ref<PhysicsBody2DComponent>, Ref<Transform>>(filter: [.stored, .added])
+    @Query<Entity, Ref<PhysicsBody2DComponent>, Ref<Transform>>
     private var physicsBodyQuery
     
-    @Query<Entity, Ref<Collision2DComponent>, Ref<Transform>>(filter: [.stored, .added])
+    @Query<Entity, Ref<Collision2DComponent>, Ref<Transform>>
     private var collisionQuery
     
     @Query<Entity, Ref<PhysicsJoint2DComponent>, Ref<Transform>>
