@@ -6,6 +6,7 @@
 //
 
 import AdaUtils
+import Foundation
 
 /// The unique identifier of the component.
 public struct ComponentId: Hashable, Equatable, Sendable {
@@ -47,11 +48,16 @@ public struct Archetypes: Sendable {
         componentsIndex[componentLayout.bitSet] = newIndex
         return newIndex
     }
+
+    public mutating func clear() {
+        self.archetypes.removeAll(keepingCapacity: true)
+        self.componentsIndex.removeAll(keepingCapacity: true)
+    }
 }
 
 public struct ComponentLayout: Sendable {
-    public let components: [any Component.Type]
-    public let bitSet: BitSet
+    public var components: [any Component.Type]
+    public var bitSet: BitSet
 
     public init(components: [any Component]) {
         var componentTypes = [any Component.Type]()
@@ -75,6 +81,16 @@ public struct ComponentLayout: Sendable {
         }
         self.components = components
         self.bitSet = bitSet
+    }
+
+    public mutating func insert<T: Component>(_ component: T.Type) {
+        self.bitSet.insert(component)
+        self.components.append(component)
+    }
+
+    public mutating func remove(_ component: ComponentId) {
+        self.bitSet.remove(component)
+        self.components.removeAll { $0.identifier == component }
     }
 }
 
@@ -127,18 +143,14 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     /// - Returns: The record of the entity.
     @inline(__always)
     mutating func append(_ entity: consuming Entity) -> Int {
-        let row: Int
-        
         if !friedEntities.isEmpty {
             let index = self.friedEntities.removeLast()
             self.entities.insert(entity, at: index)
-            row = index
+            return index
         } else {
             self.entities.append(entity)
-            row = self.entities.count - 1
+            return self.entities.count - 1
         }
-
-        return row
     }
     
     /// Remove an entity from the archetype.
@@ -225,6 +237,10 @@ public struct BitSet: Equatable, Hashable, Sendable {
 
     mutating func remove<T: Component>(_ component: T.Type) {
         self.mask.remove(T.identifier)
+    }
+
+    mutating func remove(_ componentId: ComponentId) {
+        self.mask.remove(componentId)
     }
 
     public func contains(_ identifier: consuming ComponentId) -> Bool {

@@ -45,6 +45,10 @@ public struct BlobArray: @unchecked Sendable {
 
 public extension BlobArray {
 
+    func deallocate() {
+        self.data.deallocate()
+    }
+
     mutating func realloc(_ count: Int) {
         let newBuffer = UnsafeMutableRawBufferPointer.allocate(
             byteCount: count * self.layout.size,
@@ -65,9 +69,10 @@ public extension BlobArray {
         )
         #endif
         self.data
+            .baseAddress!
+            .advanced(by: index * MemoryLayout<T>.stride)
             .assumingMemoryBound(to: T.self)
-            .initializeElement(at: index, to: element)
-
+            .initialize(to: element)
     }
 
     func getMutablePointer<T: ~Copyable>(at index: Int, as type: T.Type) -> UnsafeMutablePointer<T> {
@@ -92,8 +97,38 @@ public extension BlobArray {
             "Element has different layout"
         )
     #endif
-        return self.data.load(fromByteOffset: index * MemoryLayout<T>.stride, as: type)
+        return self.data.baseAddress!
+            .advanced(by: index * self.layout.size)
+            .bindMemory(to: type, capacity: self.layout.size)
+            .pointee
+    }
+
+    func remove<T>(at index: Int) -> T {
+        #if DEBUG
+        precondition(
+            MemoryLayout<T>.size == self.layout.size &&
+            MemoryLayout<T>.alignment == self.layout.alignment,
+            "Element has different layout"
+        )
+        #endif
+        let pointer = self.data.baseAddress!
+            .advanced(by: index * self.layout.size)
+            .assumingMemoryBound(to: T.self)
+        let element = pointer.pointee
+        pointer.deinitialize(count: 1)
+        return element
+    }
+
+    func copyElement(to blobArray: inout BlobArray, from fromIndex: Int, to toIndex: Int) {
+        #if DEBUG
+        precondition(
+            self.layout.size == blobArray.layout.size &&
+            self.layout.alignment == blobArray.layout.alignment,
+            "BlobArray has different layout"
+        )
+        #endif
+        let sourcePointer = self.data.baseAddress!.advanced(by: fromIndex * self.layout.size)
+        let destinationPointer = blobArray.data.baseAddress!.advanced(by: toIndex * self.layout.size)
+        destinationPointer.copyMemory(from: sourcePointer, byteCount: self.layout.size)
     }
 }
-
-

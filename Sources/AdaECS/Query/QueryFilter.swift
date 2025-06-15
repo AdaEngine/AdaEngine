@@ -38,40 +38,112 @@ public protocol Filter: Sendable {
     /// Check if the filter is satisfied for an archetype.
     /// - Parameter archetype: The archetype to check.
     /// - Returns: True if the filter is satisfied for the archetype, otherwise false.
-    static func condition(for archetype: Archetype) -> Bool
+    static func condition(
+        for archetype: Archetype,
+        in chunk: Chunk,
+        entity: Entity,
+        lastTick: Tick
+    ) -> Bool
 }
 
 /// A filter that includes entities with a specific component.
 public struct With<T: Component>: Filter {
-    public static func condition(for archetype: Archetype) -> Bool {
+    public static func condition(
+        for archetype: Archetype,
+        in chunk: Chunk,
+        entity: Entity,
+        lastTick: Tick
+    ) -> Bool {
         archetype.componentsBitMask.contains(T.self)
     }
 }
 
 /// A filter that excludes entities with a specific component.
-public struct WithOut<T: Component>: Filter {
-    public static func condition(for archetype: Archetype) -> Bool {
+public struct Without<T: Component>: Filter {
+    public static func condition(
+        for archetype: Archetype,
+        in chunk: Chunk,
+        entity: Entity,
+        lastTick: Tick
+    ) -> Bool {
         !archetype.componentsBitMask.contains(T.self)
     }
 }
 
 /// A filter that combines two filters with a logical AND operation.
-public struct And<T: Filter, U: Filter>: Filter {
-    public static func condition(for archetype: Archetype) -> Bool {
-        T.condition(for: archetype) && U.condition(for: archetype)
+public struct And<each T: Filter>: Filter {
+    public static func condition(
+        for archetype: Archetype,
+        in chunk: Chunk,
+        entity: Entity,
+        lastTick: Tick
+    ) -> Bool {
+        for element in repeat (each T).self {
+            if !element.condition(
+                for: archetype,
+                in: chunk,
+                entity: entity,
+                lastTick: lastTick
+            ) {
+                return false
+            }
+        }
+        return true
+    }
+}
+
+public struct Not<T: Filter>: Filter {
+    public static func condition(
+        for archetype: Archetype,
+        in chunk: Chunk,
+        entity: Entity,
+        lastTick: Tick
+    ) -> Bool {
+        !T.condition(for: archetype, in: chunk, entity: entity, lastTick: lastTick)
     }
 }
 
 /// A filter that combines two filters with a logical OR operation.
-public struct Or<T: Filter, U: Filter>: Filter {
-    public static func condition(for archetype: Archetype) -> Bool {
-        T.condition(for: archetype) || U.condition(for: archetype)
+public struct Or<each T: Filter>: Filter {
+    public static func condition(
+        for archetype: Archetype,
+        in chunk: Chunk,
+        entity: Entity,
+        lastTick: Tick
+    ) -> Bool {
+        for element in repeat (each T).self {
+            if element.condition(
+                for: archetype,
+                in: chunk,
+                entity: entity,
+                lastTick: lastTick
+            ) {
+                return true
+            }
+        }
+        return false
+    }
+}
+
+public struct Changed<T: Component>: Filter {
+    public static func condition(
+        for archetype: Archetype,
+        in chunk: Chunk,
+        entity: Entity,
+        lastTick: Tick
+    ) -> Bool {
+        chunk.isComponentChanged(T.self, for: entity.id, lastTick: lastTick)
     }
 }
 
 /// A filter that includes all entities.
 public struct NoFilter: Filter {
-    public static func condition(for archetype: Archetype) -> Bool {
+    public static func condition(
+        for archetype: Archetype,
+        in chunk: Chunk,
+        entity: Entity,
+        lastTick: Tick
+    ) -> Bool {
         true
     }
 }

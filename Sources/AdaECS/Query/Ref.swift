@@ -10,6 +10,7 @@
 @dynamicMemberLookup
 @propertyWrapper
 public final class Ref<T>: @unchecked Sendable {
+
     private let pointer: UnsafeMutablePointer<T>
 
     /// The wrapped value of the reference.

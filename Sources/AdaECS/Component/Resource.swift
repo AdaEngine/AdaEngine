@@ -14,6 +14,9 @@ public protocol Resource: Sendable {
 }
 
 public extension Resource {
+    /// Get a resource from the world.
+    /// - Parameter world: The world to get the resource from.
+    /// - Returns: The resource if it exists, otherwise nil.
     static func getFromWorld(_ world: borrowing World) -> Self? {
         world.getResource(Self.self)
     }
@@ -21,6 +24,9 @@ public extension Resource {
 
 /// Init the object from a world
 public protocol WorldInitable: Sendable {
+    /// Initialize the resource from a world.
+    /// - Parameter world: The world to initialize the resource from.
+    /// - Returns: The initialized resource.
     init(from world: World)
 }
 
