@@ -70,7 +70,7 @@ public extension BlobArray {
         #endif
         self.data
             .baseAddress!
-            .advanced(by: index * MemoryLayout<T>.stride)
+            .advanced(by: index * self.layout.size)
             .assumingMemoryBound(to: T.self)
             .initialize(to: element)
     }
@@ -85,8 +85,8 @@ public extension BlobArray {
     #endif
 
         return self.data.baseAddress!
-            .advanced(by: index * MemoryLayout<T>.stride)
-            .assumingMemoryBound(to: T.self)
+            .advanced(by: index * self.layout.size)
+            .bindMemory(to: type, capacity: self.layout.size)
     }
 
     func get<T>(at index: Int, as type: T.Type) -> T {
