@@ -43,7 +43,6 @@ public final class Ref<T>: @unchecked Sendable {
     }
 }
 
-
 @dynamicMemberLookup
 @propertyWrapper
 public final class Mutable<T>: @unchecked Sendable {

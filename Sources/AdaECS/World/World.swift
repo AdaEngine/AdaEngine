@@ -50,6 +50,7 @@ public final class World: @unchecked Sendable, Codable {
     /// The updated entities of the world.
     @LocalIsolated private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
     @LocalIsolated private var componentsStorage = ComponentsStorage()
+    private var commands: WorldCommands = WorldCommands()
 
     private var isReady = false
 
@@ -332,6 +333,8 @@ public extension World {
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
     func flush() {
+        self.commands.flush(to: self)
+        
         for entityId in self.removedEntities {
             self.removeEntityRecord(entityId)
         }
@@ -438,7 +441,7 @@ public extension World {
 extension World {
     func moveEntityToArchetype(
         _ entityId: Entity.ID,
-        location: EntityLocation,
+        oldLocation location: EntityLocation,
         newArchetype: Archetype.ID
     ) {
         var archetype = self.archetypes.archetypes[location.archetypeId]
@@ -540,7 +543,7 @@ public extension World {
         guard let location = self.entities.entities[entityId] else {
             return
         }
-        let archetype = self.archetypes.archetypes[location.archetypeId]
+        var archetype = self.archetypes.archetypes[location.archetypeId]
         if archetype.componentsBitMask.contains(T.identifier) {
             self.archetypes
                 .archetypes[location.archetypeId]
@@ -551,11 +554,22 @@ public extension World {
         }
         var newLayout = archetype.chunks.componentLayout
         newLayout.insert(T.self)
-        self.moveEntityToArchetype(
-            entityId,
-            location: location,
-            newArchetype: self.archetypes.getOrCreate(for: newLayout)
-        )
+        if let newArchetype = archetype.edges.getArchetypeAfterInsertion(for: newLayout) {
+            self.moveEntityToArchetype(
+                entityId,
+                oldLocation: location,
+                newArchetype: newArchetype
+            )
+        } else {
+            let newArchetype = self.archetypes.getOrCreate(for: newLayout)
+            archetype.edges.addArchetypeAfterInsertion(newArchetype, for: newLayout)
+            self.moveEntityToArchetype(
+                entityId,
+                oldLocation: location,
+                newArchetype: newArchetype
+            )
+            self.archetypes.archetypes[location.archetypeId] = archetype
+        }
     }
 
     @inline(__always)
@@ -572,22 +586,36 @@ public extension World {
         self.remove(T.identifier, from: entity)
     }
 
-    func remove(_ componentId: ComponentId, from entity: Entity.ID) {
+    func remove(_ componentId: ComponentId, from entityId: Entity.ID) {
         // Get the entity's current location
-        guard let location = self.entities.entities[entity] else {
+        guard let location = self.entities.entities[entityId] else {
             return // Entity doesn't exist in the world
         }
 
         // Get the entity from the archetype
-        let archetype = self.archetypes.archetypes[location.archetypeId]
+        var archetype = self.archetypes.archetypes[location.archetypeId]
 //        guard let entityInstance = archetype.entities[location.archetypeRow] else {
 //            return // Entity doesn't exist in the archetype
 //        }
         var newLayout = archetype.chunks.componentLayout
         newLayout.remove(componentId)
-        let newArchetype = self.archetypes.getOrCreate(for: newLayout)
-        moveEntityToArchetype(entity, location: location, newArchetype: newArchetype)
-        self.removedComponents[entity, default: []].insert(componentId)
+        if let newArchetype = archetype.edges.getArchetypeAfterRemoval(for: newLayout) {
+            self.moveEntityToArchetype(
+                entityId,
+                oldLocation: location,
+                newArchetype: newArchetype
+            )
+        } else {
+            let newArchetype = self.archetypes.getOrCreate(for: newLayout)
+            archetype.edges.addArchetypeAfterRemoval(newArchetype, for: newLayout)
+            self.moveEntityToArchetype(
+                entityId,
+                oldLocation: location,
+                newArchetype: newArchetype
+            )
+            self.archetypes.archetypes[location.archetypeId] = archetype
+        }
+        self.removedComponents[entityId, default: []].insert(componentId)
     }
 
     @inline(__always)
