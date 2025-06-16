@@ -293,26 +293,29 @@ extension LDtk {
         /// - Parameters:
         ///   - atlasCoordinates: The atlas coordinates to create the tile for.
         ///   - entityInstance: The entity instance to create the tile for.
-        public func createTile(at atlasCoordinates: PointInt, entityInstance: LDtk.EntityInstance) {
-            let entity = AdaECS.Entity(name: entityInstance.identifier)
-
-            if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TextureAtlasTileSource {
-                let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
-                
-                if !source.hasTile(at: tileCoordinate) {
-                    source.createTile(for: tileCoordinate)
-                }
-                
-                let data = source.getTileData(at: tileCoordinate)
-                let texture = source.getTexture(at: tileCoordinate)
-                entity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: data.modulateColor)
-            }
-
-            if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {
-                self.delegate?.tileMap(ldtkTileMap, needsUpdate: entity, from: entityInstance, in: self)
-            }
-
-            self.createTile(at: atlasCoordinates, for: entity)
+        public func createTile(
+            at atlasCoordinates: PointInt,
+            entityInstance: LDtk.EntityInstance
+        ) {
+//            let entity = AdaECS.Entity(name: entityInstance.identifier)
+//
+//            if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TextureAtlasTileSource {
+//                let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
+//                
+//                if !source.hasTile(at: tileCoordinate) {
+//                    source.createTile(for: tileCoordinate)
+//                }
+//                
+//                let data = source.getTileData(at: tileCoordinate)
+//                let texture = source.getTexture(at: tileCoordinate)
+//                entity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: data.modulateColor)
+//            }
+//
+//            if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {
+//                self.delegate?.tileMap(ldtkTileMap, needsUpdate: entity, from: entityInstance, in: self)
+//            }
+//
+//            self.createTile(at: atlasCoordinates, for: entity)
         }
     }
 }

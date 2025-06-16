@@ -20,7 +20,7 @@ struct FixedTimestepTests {
     @Test
     func accumulation() {
         let stepsPerSecond: Float = 1 / 60
-        let timestep = FixedTimestep(stepsPerSecond: 60)
+        var timestep = FixedTimestep(stepsPerSecond: 60)
         
         let result = timestep.advance(with: stepsPerSecond / 2)
         #expect(result.isFixedTick == false)
@@ -32,7 +32,7 @@ struct FixedTimestepTests {
     @Test
     func multipleTicks() {
         let stepsPerSecond: Float = 1.0 / 60.0
-        let timestep = FixedTimestep(stepsPerSecond: 60)
+        var timestep = FixedTimestep(stepsPerSecond: 60)
         
         let result = timestep.advance(with: stepsPerSecond * 3)
         #expect(result.isFixedTick)
@@ -42,7 +42,7 @@ struct FixedTimestepTests {
     @Test
     func maxAccumulation() {
         let stepsPerSecond: Float = 1.0 / 60.0
-        let timestep = FixedTimestep(stepsPerSecond: 60)
+        var timestep = FixedTimestep(stepsPerSecond: 60)
         
         let result = timestep.advance(with: TimeInterval(stepsPerSecond * 20))
         

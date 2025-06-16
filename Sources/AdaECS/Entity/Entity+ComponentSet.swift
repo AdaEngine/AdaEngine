@@ -123,17 +123,6 @@ public extension Entity {
             self.world?.remove(componentType.identifier, from: entity)
         }
         
-        /// Remove all components from set.
-        public mutating func removeAll() {
-//            for component in self.buffer.values.elements {
-//                let componentType = type(of: component)
-//                world?.remove(componentType.identifier, for: entity)
-//            }
-//            
-//            self.bitset = BitSet(reservingCapacity: self.buffer.count)
-//            self.buffer.removeAll(keepingCapacity: keepingCapacity)
-        }
-        
         /// The number of components in the set.
         public var count: Int {
             return 0

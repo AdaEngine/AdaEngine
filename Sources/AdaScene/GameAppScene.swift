@@ -48,8 +48,8 @@ struct GameScenePlugin: Plugin {
     let gameScene: AssetHandle<Scene>
 
     func setup(in app: AppWorlds) {
-        let entity = Entity(name: "GameAppScene")
-        entity.components += DynamicScene(scene: gameScene)
-        app.mainWorld.addEntity(entity)
+        app.mainWorld.spawn {
+            DynamicScene(scene: gameScene)
+        }
     }
 }

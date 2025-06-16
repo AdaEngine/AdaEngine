@@ -22,7 +22,7 @@ open class Entity: Identifiable, @unchecked Sendable {
     public private(set) var id: Int
 
     /// Contains components specific for current entity.
-    @LocalIsolated public var components: ComponentSet
+    public var components: ComponentSet
 
     /// The dispose bag of the entity.
     var disposeBag: Set<AnyCancellable> = []
@@ -42,7 +42,7 @@ open class Entity: Identifiable, @unchecked Sendable {
     /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
     /// - Note: If you want to use entity without any components use ``EmptyEntity``
     /// - Parameter name: Name of entity. By default is `Entity`.
-    public init(name: String = "Entity") {
+    internal init(name: String = "Entity") {
         self.name = name
         self.id = RID().id
         self.components = ComponentSet(entity: self.id)
