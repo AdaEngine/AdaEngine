@@ -55,9 +55,9 @@ public struct Archetypes: Sendable {
     }
 }
 
-public struct ComponentLayout: Sendable {
-    public var components: [any Component.Type]
-    public var bitSet: BitSet
+public struct ComponentLayout: Hashable, Sendable {
+    public private(set) var components: [any Component.Type]
+    public private(set) var bitSet: BitSet
 
     public init(components: [any Component]) {
         var componentTypes = [any Component.Type]()
@@ -92,6 +92,14 @@ public struct ComponentLayout: Sendable {
         self.bitSet.remove(component)
         self.components.removeAll { $0.identifier == component }
     }
+
+    public static func == (lhs: ComponentLayout, rhs: ComponentLayout) -> Bool {
+        lhs.bitSet == rhs.bitSet
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(self.bitSet)
+    }
 }
 
 /// Types for defining Archetypes, collections of entities that have the same set of
@@ -110,7 +118,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     private(set) var friedEntities: [Int] = []
     
     /// The edge of the archetype.
-    var edge: Edge = Edge()
+    var edges: Edges = Edges()
 
     /// The components bit mask of the archetype.
     public internal(set) var componentsBitMask: BitSet = BitSet()
@@ -166,7 +174,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     mutating func clear() {
         self.friedEntities.removeAll()
         self.entities.removeAll()
-        self.edge = Edge()
+        self.edges = Edges()
     }
     
     // MARK: - Hashable
@@ -203,18 +211,48 @@ extension Archetype: CustomStringConvertible {
 }
 
 extension Archetype {
-    /// The edge of the archetype.
-    struct Edge: Hashable, Equatable, Sendable {
+    /// The edges of the archetype.
+    struct Edges: Hashable, Sendable {
         /// The components to add.
-        var add: [ComponentId : Archetype] = [:]
+        private var add: [ComponentLayout: Archetype.ID] = [:]
 
         /// The components to remove.
-        var remove: [ComponentId : Archetype] = [:]
+        private var remove: [ComponentLayout: Archetype.ID] = [:]
+
+        @inline(__always)
+        mutating func addArchetypeAfterInsertion(
+            _ archetype: Archetype.ID,
+            for layout: ComponentLayout
+        ) {
+            self.add[layout] = archetype
+        }
+
+        @inline(__always)
+        mutating func addArchetypeAfterRemoval(
+            _ archetype: Archetype.ID,
+            for layout: ComponentLayout
+        ) {
+            self.remove[layout] = archetype
+        }
+
+        @inline(__always)
+        mutating func getArchetypeAfterInsertion(
+            for layout: ComponentLayout
+        ) -> Archetype.ID? {
+            self.add[layout]
+        }
+
+        @inline(__always)
+        mutating func getArchetypeAfterRemoval(
+            for layout: ComponentLayout
+        ) -> Archetype.ID? {
+            self.remove[layout]
+        }
     }
 }
 
 //// FIXME: (Vlad) not a bit set!
-public struct BitSet: Equatable, Hashable, Sendable {
+public struct BitSet: Hashable, Sendable {
     // TODO: (Vlad) Not efficient in memory layout.
     private var mask: Set<ComponentId>
 

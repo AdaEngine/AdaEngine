@@ -15,14 +15,9 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
     /// The scheduler that will be used to schedule tasks.
     public let scheduler: SchedulerName
 
-    /// Custom task group that will be executed when system did finish update block.
-//    public var taskGroup: DiscardingTaskGroup
-
     /// Initialize a new world update context.
     /// - Parameter world: The world that will be updated.
-    /// - Parameter deltaTime: The delta time that will be used to update the world.
     /// - Parameter scheduler: The scheduler that will be used to schedule tasks.
-    /// - Parameter taskGroup: The task group that will be executed when the system did finish update block.
     init(
         world: consuming World,
         scheduler: SchedulerName
@@ -49,17 +44,17 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
 ///
 ///     // Configure the query to world.
 ///     // We want to recieve entities with `PlayerComponent` and `Transform`
-///     @EntityQuery(where: .has(Transform.self) && .has(PlayerComponent.self))
+///     @FilterQuery<Ref<Transform>, With<PlayerComponent>>
 ///     private var query
+///
+///     @ResQuery<Input>
+///     private var input
 ///
 ///     init(world: World) {}
 ///
 ///     func update(context: inout UpdateContext) {
-///         self.query.forEach { entity in
-///             // Get transform component from entity
-///             let transform = entity.components[Transform.self]!
-///
-///             if Input.isKeyPressed(.space) {
+///         self.query.forEach { transform in
+///             if input.isKeyPressed(.space) {
 ///                 // Add 5 points for vertical direction
 ///                 // if space button pressed
 ///                 transform.position.y += 5
