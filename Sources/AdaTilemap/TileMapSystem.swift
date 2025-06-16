@@ -74,7 +74,7 @@ public struct TileMapSystem: Sendable {
         if layer.needUpdates {
             tileMapComponent.tileLayers[layer.id]?.removeFromWorld(recursively: true)
 
-            let tileParent = Entity()
+            let tileParent = world.spawn()
 
             for (position, tile) in layer.tileCells {
                 guard let source = tileSet.sources[tile.sourceId] else {
@@ -91,9 +91,13 @@ public struct TileMapSystem: Sendable {
                 case let atlasSource as TextureAtlasTileSource:
                     let texture = atlasSource.getTexture(at: tile.atlasCoordinates)
 
-                    tileEntity = Entity()
-                    tileEntity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: tileData.modulateColor)
-                    tileEntity.components += Transform(scale: scale, position: position)
+                    tileEntity = world.spawn {
+                        SpriteComponent(
+                            texture: AssetHandle(texture),
+                            tintColor: tileData.modulateColor
+                        )
+                        Transform(scale: scale, position: position)
+                    }
                 case let entitySource as TileEntityAtlasSource:
                     tileEntity = entitySource.getEntity(at: tile.atlasCoordinates)
                     tileEntity.components += Transform(scale: scale, position: position)

@@ -157,8 +157,7 @@ public extension AppWorlds {
         while !self.plugins.allSatisfy({ $0.value.isLoaded(in: self) }) {
             continue
         }
-
-        self.mainWorld.build()
+        
         try self.subWorlds.values.forEach {
             try $0.build()
         }
