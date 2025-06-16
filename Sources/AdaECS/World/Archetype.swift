@@ -33,8 +33,9 @@ public struct Archetypes: Sendable {
         componentsIndex: [BitSet: Archetype.ID] = [:],
         archetypes: [Archetype] = []
     ) {
-        self.componentsIndex = componentsIndex
-        self.archetypes = archetypes
+        let emptyArchetype = Archetype.new(index: 0, componentLayout: ComponentLayout(components: []))
+        self.componentsIndex = [BitSet(): emptyArchetype.id]
+        self.archetypes = [emptyArchetype]
     }
 
     public mutating func getOrCreate(for componentLayout: ComponentLayout) -> Archetype.ID {
@@ -121,7 +122,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     var edges: Edges = Edges()
 
     /// The components bit mask of the archetype.
-    public internal(set) var componentsBitMask: BitSet = BitSet()
+    public internal(set) var componentLayout: ComponentLayout
 
     /// Initialize a new archetype.
     /// - Parameter id: The unique identifier of the archetype.
@@ -133,7 +134,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     ) {
         self.id = id
         self.entities = SparseArray(entities)
-        self.componentsBitMask = componentLayout.bitSet
+        self.componentLayout = componentLayout
         self.chunks = Chunks(componentLayout: componentLayout)
         self.friedEntities.reserveCapacity(32)
     }
@@ -183,7 +184,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     /// - Parameter hasher: The hasher to hash the archetype.
     public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
-        hasher.combine(componentsBitMask)
+        hasher.combine(componentLayout)
         hasher.combine(entities)
     }
     
@@ -193,7 +194,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     /// - Returns: True if the two archetypes are equal, otherwise false.
     public static func == (lhs: Archetype, rhs: Archetype) -> Bool {
         return lhs.entities == rhs.entities &&
-        lhs.id == rhs.id && lhs.componentsBitMask == rhs.componentsBitMask
+        lhs.id == rhs.id && lhs.componentLayout == rhs.componentLayout
     }
 }
 
@@ -204,7 +205,7 @@ extension Archetype: CustomStringConvertible {
         Archetype(
             id: \(id)
             entityIds: \(entities.compactMap { $0.id })
-            componentsBitMask: \(componentsBitMask)
+            componentsLayout: \(componentLayout)
         )
         """
     }

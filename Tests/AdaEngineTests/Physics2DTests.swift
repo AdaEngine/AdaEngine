@@ -19,12 +19,16 @@ struct Physics2DTests {
     init() async throws {
         let world = AppWorlds(mainWorld: World())
         self.world = world
-        world.insertResource(DefaultSchedulerOrder(order: [.update, .fixedUpdate, .postUpdate]))
-        world.mainWorld.setSchedulers([
-            .update,
-            .fixedUpdate,
-            .postUpdate
+        let scheduler = Scheduler(name: .fixedUpdate, system: FixedTimeSchedulerSystem.self)
+        world.setSchedulers([
+            scheduler
         ])
+
+        world.mainWorld.addSchedulers(
+            .fixedPreUpdate,
+            .fixedUpdate,
+            .fixedPostUpdate
+        )
 
         world
             .addPlugin(Physics2DPlugin())
@@ -34,19 +38,16 @@ struct Physics2DTests {
     
     @Test
     func createStaticBody() async throws {
-        let entity = Entity()
+        let entity = world.mainWorld.spawn {
+            Collision2DComponent(
+                shapes: [.generateBox()],
+                mode: .default
+            )
+            Transform(position: [0, -10, 0])
+        }
         
-        let collision = Collision2DComponent(
-            shapes: [.generateBox()],
-            mode: .default
-        )
-        
-        entity.components += collision
-        entity.components += Transform(position: [0, -10, 0])
-        
-        world.addEntity(entity)
-        world.mainWorld.flush()
-        await world.mainWorld.runScheduler(.fixedUpdate, deltaTime: 1 / 60)
+        world.mainWorld.addEntity(entity)
+        await world.update()
         
         let runtimeBody = try #require(entity.components[Collision2DComponent.self]?.runtimeBody)
         #expect(runtimeBody.getPosition() == [0, -10])
@@ -54,24 +55,23 @@ struct Physics2DTests {
     
     @Test
     func dynamicBodyFalling() async {
-        let ground = Entity()
-        let groundShape = Shape2DResource.generateBox(width: 100, height: 10)
-        let groundCollision = Collision2DComponent(shapes: [groundShape], mode: .default)
-        ground.components.set(groundCollision)
-        ground.components += Transform(position: [0, -10, 0])
-        world.addEntity(ground)
-        
-        let box = Entity()
-        let boxShape = Shape2DResource.generateBox(width: 1, height: 1)
-        let boxCollision = PhysicsBody2DComponent(
-            shapes: [boxShape],
-            mass: 1,
-            mode: .dynamic
-        )
-        box.components += boxCollision
-        box.components += Transform(position: [0, 10, 0])
-        world.addEntity(box)
-        
+        world.mainWorld.spawn {
+            Collision2DComponent(
+                shapes: [Shape2DResource.generateBox(width: 100, height: 10)],
+                mode: .default
+            )
+            Transform(position: [0, -10, 0])
+        }
+
+        let box = world.mainWorld.spawn {
+            PhysicsBody2DComponent(
+                shapes: [Shape2DResource.generateBox(width: 1, height: 1)],
+                mass: 1,
+                mode: .dynamic
+            )
+            Transform(position: [0, 10, 0])
+        }
+
         let startY = box.components[Transform.self]?.position.y ?? 0
         
         for _ in 0..<60 {
@@ -85,20 +85,16 @@ struct Physics2DTests {
     
     @Test
     func applyForce() async {
-        let box = Entity()
-        let physicsBody = PhysicsBody2DComponent(
-            shapes: [.generateBox()],
-            mass: 1,
-            mode: .dynamic
-        )
-        box.components += physicsBody
-        box.components += Transform(position: .zero)
-        world.addEntity(box)
-        world.mainWorld.flush()
+        let box = world.mainWorld.spawn {
+            PhysicsBody2DComponent(
+                shapes: [.generateBox()],
+                mass: 1,
+                mode: .dynamic
+            )
+            Transform(position: .zero)
+        }
         await world.update()
-        
         box.components[PhysicsBody2DComponent.self]?.applyForceToCenter([100, 0], wake: true)
-        
         let initialVelocity = box.components[PhysicsBody2DComponent.self]!.linearVelocity.x
         
         await world.update()

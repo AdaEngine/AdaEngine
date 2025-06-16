@@ -9,7 +9,10 @@ import OrderedCollections
 
 /// Contains information about execution order of systems.
 public struct SystemsGraph: Sendable, ~Copyable {
-    
+
+    /// Indicates that graph is changed and needs recalculate deps
+    private(set) var isChanged: Bool = false
+
     /// The edge of the systems graph.
     struct Edge: Equatable {
         /// The output node of the edge.
@@ -59,6 +62,7 @@ public struct SystemsGraph: Sendable, ~Copyable {
     /// - Note: Systems will be added with nodes without edges.
     /// - Parameter system: The system to add.
     mutating func addSystem<T: System>(_ system: T) {
+        self.isChanged = true
         let node = Node(name: T.swiftName, system: system, dependencies: T.dependencies)
         self.nodes[node.name] = node
     }
@@ -80,6 +84,7 @@ public struct SystemsGraph: Sendable, ~Copyable {
         }
         
         self.dependencyLevels = self.buildDependencyLevels()
+        self.isChanged = false
     }
     
     /// Get the output nodes for a given node.

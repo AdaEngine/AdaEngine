@@ -79,10 +79,11 @@ public struct Chunks: Sendable {
 
     mutating func removeEntity(_ entity: Entity.ID) {
         guard let location = self.entities[entity] else {
+            print("Entity \(entity) not fiund")
             return
         }
         var chunk = self.chunks[location.chunkIndex]
-        chunk.removeEntity(at: location.entityRow)
+        chunk.removeEntity(at: entity)
         if chunk.entityCount == 0 {
             self.chunks.remove(at: location.chunkIndex)
             return

@@ -166,6 +166,12 @@ public extension World {
         }
     }
 
+    /// Add scheduler
+    /// - Parameter scheduler: The scheduler to add.
+    func addScheduler(_ scheduler: Scheduler) {
+        self.schedulers.append(scheduler)
+    }
+
     /// Run a specific scheduler.
     /// - Parameter scheduler: Scheduler name.
     /// - Parameter deltaTime: Time interval since last update.
@@ -173,26 +179,14 @@ public extension World {
         guard let scheduler = self.schedulers.getScheduler(scheduler) else {
             fatalError("Scheduler \(scheduler) not found")
         }
-
+        if scheduler.systemGraph.isChanged {
+            scheduler.systemGraph.linkSystems()
+        }
         await scheduler.graphExecutor.execute(
             scheduler.systemGraph,
             world: self,
             scheduler: scheduler.name
         )
-    }
-
-    /// Build the world.
-    /// - Note: This method should be called after all systems and resources are added.
-    func build() {
-        if isReady {
-            fatalError("World already configured")
-        }
-        isReady = true
-        for label in self.schedulers.schedulerLabels {
-            let scheduler = self.schedulers.getScheduler(label)
-            scheduler?.systemGraph.linkSystems()
-        }
-        self.flush()
     }
 }
 
@@ -267,9 +261,10 @@ public extension World {
     /// - Returns: A world instance.
     @discardableResult
     func addEntity(_ entity: consuming Entity) -> Self {
+        self.flush()
+        
         let entity = entity
         entity.world = self
-        self.addedEntities.insert(entity.id)
 
         eventManager.send(WorldEvents.DidAddEntity(entity: entity), source: self)
         return self
@@ -544,7 +539,7 @@ public extension World {
             return
         }
         var archetype = self.archetypes.archetypes[location.archetypeId]
-        if archetype.componentsBitMask.contains(T.identifier) {
+        if archetype.componentLayout.bitSet.contains(T.identifier) {
             self.archetypes
                 .archetypes[location.archetypeId]
                 .chunks
@@ -552,7 +547,7 @@ public extension World {
                 .set(component, at: location.chunkRow, lastTick: self.lastTick)
             return
         }
-        var newLayout = archetype.chunks.componentLayout
+        var newLayout = archetype.componentLayout
         newLayout.insert(T.self)
         if let newArchetype = archetype.edges.getArchetypeAfterInsertion(for: newLayout) {
             self.moveEntityToArchetype(
@@ -563,12 +558,12 @@ public extension World {
         } else {
             let newArchetype = self.archetypes.getOrCreate(for: newLayout)
             archetype.edges.addArchetypeAfterInsertion(newArchetype, for: newLayout)
+            self.archetypes.archetypes[location.archetypeId] = archetype
             self.moveEntityToArchetype(
                 entityId,
                 oldLocation: location,
                 newArchetype: newArchetype
             )
-            self.archetypes.archetypes[location.archetypeId] = archetype
         }
     }
 
@@ -608,12 +603,12 @@ public extension World {
         } else {
             let newArchetype = self.archetypes.getOrCreate(for: newLayout)
             archetype.edges.addArchetypeAfterRemoval(newArchetype, for: newLayout)
+            self.archetypes.archetypes[location.archetypeId] = archetype
             self.moveEntityToArchetype(
                 entityId,
                 oldLocation: location,
                 newArchetype: newArchetype
             )
-            self.archetypes.archetypes[location.archetypeId] = archetype
         }
         self.removedComponents[entityId, default: []].insert(componentId)
     }
@@ -630,7 +625,8 @@ public extension World {
 
         return self.archetypes
             .archetypes[location.archetypeId]
-            .componentsBitMask
+            .componentLayout
+            .bitSet
             .contains(identifier)
     }
 }
@@ -646,7 +642,7 @@ extension World {
     /// Returns all components of the scene which pass the ``FilterQuery``.
     public func performQuery<each T: QueryTarget, F: Filter>(
         _ query: FilterQuery<repeat (each T), F>
-    ) -> QueryResult<FilterQuery<repeat (each T), F>.Builder> {
+    ) -> QueryResult<FilterQuery<repeat (each T), F>.Builder, F> {
         let state = query.state
         state.updateArchetypes(in: self)
         return QueryResult(state: state)

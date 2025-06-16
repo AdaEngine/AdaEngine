@@ -50,13 +50,12 @@ struct BunnyExample: Plugin {
         var container = TextAttributeContainer()
         container.foregroundColor = .white
         
-        let counterEntity = Entity(name: "PerformanceCounter")
-        counterEntity.components += Text2DComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
-        counterEntity.components += Transform(scale: Vector3(0.1), position: [-9, 8, 1])
-        counterEntity.components += NoFrustumCulling()
-        counterEntity.components += PerformanceCounter()
-        
-//        app.addEntity(counterEntity)
+        app.mainWorld.spawn("PerformanceCounter") {
+            Text2DComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
+            Transform(scale: Vector3(0.1), position: [-9, 8, 1])
+            NoFrustumCulling()
+            PerformanceCounter()
+        }
     }
     
     private func setupSystems(in app: AppWorlds) {
@@ -138,19 +137,18 @@ struct BunnySpawnerSystem {
         let offsetX = Float.random(in: -2.5...2.5)
         let offsetY = Float.random(in: -2.5...2.5)
         let bunnyPosition = position + Vector3(offsetX, offsetY, 0)
-        
-        let bunny = Entity(name: "Bunny")
-        bunny.components += Bunny()
-        bunny.components += Transform(
-            scale: Vector3(BunnyExampleConstants.bunnyScale),
-            position: bunnyPosition
-        )
-        bunny.components += SpriteComponent(
-            texture: bunnyTexture.texture,
-            tintColor: getRandomColor()
-        )
-        
-        world.addEntity(bunny)
+
+        world.spawn("Bunny") {
+            Bunny()
+            Transform(
+                scale: Vector3(BunnyExampleConstants.bunnyScale),
+                position: bunnyPosition
+            )
+            SpriteComponent(
+                texture: bunnyTexture.texture,
+                tintColor: getRandomColor()
+            )
+        }
     }
     
     private func getRandomColor() -> Color {

@@ -103,7 +103,7 @@ extension FilterQuery  {
     }
 
     public func makeIterator() -> Iterator {
-        FilterQueryIterator(state: self.state)
+        Iterator(state: self.state)
     }
 }
 
@@ -203,12 +203,12 @@ public struct FilterQueryIterator<
                 continue
             }
 
-            if !F.condition(
+            guard F.condition(
                 for: archetype,
                 in: chunk,
                 entity: entity,
                 lastTick: state.lastTick
-            ) {
+            ) else {
                 self.cursor.currentRow += 1
                 continue
             }

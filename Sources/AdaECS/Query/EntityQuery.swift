@@ -39,7 +39,7 @@
 @propertyWrapper
 @frozen public struct EntityQuery: Sendable {
     
-    public typealias Result = QueryResult<QueryBuilderTargets<Entity>>
+    public typealias Result = QueryResult<QueryBuilderTargets<Entity>, NoFilter>
 
     public var wrappedValue: Result {
         return QueryResult(state: self.state)
