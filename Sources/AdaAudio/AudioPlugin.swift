@@ -93,7 +93,7 @@ public struct AudioReceiver {
 }
 
 /// A system that manages audio resources for spatial audio.
-@System
+@PlainSystem
 public struct AudioSystem {
     
     @Query<AudioPlaybacksControllers, Transform>

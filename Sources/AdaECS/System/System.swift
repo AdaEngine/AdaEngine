@@ -39,7 +39,7 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
 /// Like example, let's create a movement system:
 ///
 /// ```swift
-/// @System
+/// @PlainSystem
 /// struct MovementSystem {
 ///
 ///     // Configure the query to world.

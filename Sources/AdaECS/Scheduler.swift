@@ -145,7 +145,7 @@ public struct DefaultSchedulerOrder: Resource {
 }
 
 /// A system that runs the default scheduler.
-@System
+@PlainSystem
 public struct DefaultSchedulerRunner: Sendable {
 
     @ResQuery

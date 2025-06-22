@@ -34,7 +34,7 @@ struct InitialContainerView: Resource {
     let view: UIView
 }
 
-@PlainSystem
+@System
 @MainActor
 func WindowGroupUpdate(
     _ context: inout WorldUpdateContext,

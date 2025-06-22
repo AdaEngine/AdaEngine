@@ -18,8 +18,6 @@ public struct Tick: Sendable, Equatable {
     }
 }
 
-// - [] Commands support
-
 /// Stores and exposes operations on ``Entity`` and ``Component``.
 ///
 /// Each ``Entity`` has a set of components. Each component can have up to one instance of each
@@ -34,23 +32,20 @@ public final class World: @unchecked Sendable, Codable {
     public let id = ID()
     public let name: String?
 
-    /// The archetypes of the world.
-    public private(set) var entities: Entities = Entities()
     public private(set) var changeTick = ManagedAtomic<Int>(1)
     public private(set) var lastTick: Tick = Tick(value: 0)
 
+    /// The archetypes of the world.
+    @LocalIsolated public private(set) var entities: Entities = Entities()
     @LocalIsolated public private(set) var archetypes: Archetypes = Archetypes()
-
     /// The removed entities of the world.
     @LocalIsolated internal private(set) var removedEntities: Set<Entity.ID> = []
-
     /// The added entities of the world.
     @LocalIsolated internal private(set) var addedEntities: Set<Entity.ID> = []
-
     /// The updated entities of the world.
     @LocalIsolated private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
     @LocalIsolated private var componentsStorage = ComponentsStorage()
-    private var commands: WorldCommands = WorldCommands()
+    public var commands: WorldCommands = WorldCommands()
 
     private var isReady = false
 
@@ -321,7 +316,9 @@ public extension World {
         return self.archetypes
             .archetypes[location.archetypeId]
             .chunks
-            .chunks[location.chunkIndex]
+            .chunks
+            .getPointer(at: location.chunkIndex)
+            .pointee
             .isComponentChanged(T.self, for: entity, lastTick: self.lastTick)
     }
 
@@ -446,6 +443,7 @@ extension World {
         }
         var toArchetype = self.archetypes.archetypes[newArchetype]
         let row = toArchetype.append(entity)
+        print("Move entity \(entity.id) from archetype \(location.archetypeId) to \(newArchetype)")
         let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks)
         archetype.remove(at: location.archetypeRow)
         self.archetypes.archetypes[location.archetypeId] = archetype
@@ -483,13 +481,13 @@ public extension World {
     @discardableResult
     func spawn(
         _ name: String = "",
-        @ComponentsBuilder components: () -> Bundle
+        @ComponentsBuilder components: () -> ComponentsBundle
     ) -> Entity {
         self.spawn(name, bundle: components())
     }
 
     @discardableResult
-    func spawn<T: Bundle>(
+    func spawn<T: ComponentsBundle>(
         _ name: String = "",
         bundle: consuming T
     ) -> Entity {
@@ -525,7 +523,9 @@ public extension World {
         return self.archetypes
             .archetypes[location.archetypeId]
             .chunks
-            .chunks[location.chunkIndex]
+            .chunks
+            .getPointer(at: location.chunkIndex)
+            .pointee
             .get(at: location.chunkRow)
     }
 
@@ -543,7 +543,9 @@ public extension World {
             self.archetypes
                 .archetypes[location.archetypeId]
                 .chunks
-                .chunks[location.chunkIndex]
+                .chunks
+                .getPointer(at: location.chunkIndex)
+                .pointee
                 .set(component, at: location.chunkRow, lastTick: self.lastTick)
             return
         }

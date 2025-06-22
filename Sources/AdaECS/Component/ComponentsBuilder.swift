@@ -45,7 +45,7 @@ private struct ComponentBuilderTuple: Component {
     }
 
     // unwrap all components
-    public static func buildFinalResult(_ component: Component) -> Bundle {
+    public static func buildFinalResult(_ component: Component) -> ComponentsBundle {
         return ResultBundle(components: self.unpackComponentBuilderTuple(component))
     }
 
@@ -69,7 +69,7 @@ private struct ComponentBuilderTuple: Component {
 }
 
 extension ComponentsBuilder {
-    struct ResultBundle: Bundle {
+    struct ResultBundle: ComponentsBundle {
         var components: [any Component]
     }
 }

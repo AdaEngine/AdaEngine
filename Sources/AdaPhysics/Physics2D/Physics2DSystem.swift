@@ -14,7 +14,7 @@ import Math
 // - TODO: (Vlad) Runtime update shape resource
 
 /// A system for simulate and update physics bodies on the scene.
-@System
+@PlainSystem
 public struct Physics2DSystem: Sendable {
 
     public init(world: World) { }

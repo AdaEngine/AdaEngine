@@ -9,7 +9,7 @@ import AdaECS
 import Math
 
 /// A system that updates the global transform of the entity.
-@System
+@PlainSystem
 public struct TransformSystem {
     
     @FilterQuery<Entity, Transform, Or<Changed<Transform>, Without<GlobalTransform>>>
@@ -20,13 +20,13 @@ public struct TransformSystem {
     public func update(context: inout UpdateContext) {
         self.query.forEach { entity, transform in
             let globalTransform = GlobalTransform(matrix: transform.matrix)
-            entity.components += globalTransform
+            context.world.commands.set(globalTransform, for: entity.id)
         }
     }
 }
 
 /// A system that updates the global transform of the children of the entity.
-@System(dependencies: [
+@PlainSystem(dependencies: [
     .after(TransformSystem.self)
 ])
 public struct ChildTransformSystem {

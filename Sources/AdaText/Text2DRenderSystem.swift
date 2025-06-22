@@ -173,7 +173,7 @@
 //    }
 //}
 //
-//@System(dependencies: [
+//@PlainSystem(dependencies: [
 //    .after(Text2DLayoutSystem.self)
 //])
 //struct ExctractTextSystem {
