@@ -35,7 +35,7 @@ public struct DynamicSceneInstance {
 }
 
 /// A system that initializes and reloads a dynamic scene.
-@System
+@PlainSystem
 struct DynamicSceneInitSystem {
 
     @Query<Entity, DynamicScene, DynamicSceneInstance?>

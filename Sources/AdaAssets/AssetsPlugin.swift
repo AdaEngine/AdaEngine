@@ -26,7 +26,7 @@ public struct AssetsPlugin: Plugin {
     }
 }
 
-@PlainSystem
+@System
 @inline(__always)
 func AssetsProcess(
     _ context: inout WorldUpdateContext

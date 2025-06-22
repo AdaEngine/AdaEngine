@@ -62,7 +62,7 @@ public struct ExctractedMesh2D: Sendable {
 }
 
 /// System to render exctract meshes to RenderWorld.
-@System
+@PlainSystem
 public struct ExctractMesh2DSystem {
 
     @Extract<
@@ -112,7 +112,7 @@ public struct Mesh2DRenderPlugin: Plugin {
 }
 
 /// System in RenderWorld for rendering 2D meshes.
-@System
+@PlainSystem
 public struct Mesh2DRenderSystem: Sendable {
 
     @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>

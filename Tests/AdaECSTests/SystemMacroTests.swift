@@ -62,7 +62,7 @@ struct Gravity: Resource {
     var value: Vector3
 }
 
-@System
+@PlainSystem
 struct BasicSystem {
     @Query<Ref<Transform>, Velocity>
     private var query
@@ -76,7 +76,7 @@ struct BasicSystem {
     }
 }
 
-@PlainSystem
+@System
 func PlainTransform(
     _ query: Query<Ref<Transform>>
 ) {
@@ -85,28 +85,28 @@ func PlainTransform(
     }
 }
 
-@PlainSystem
+@System
 func PlainContext(
     _ context: inout WorldUpdateContext
 ) {
     #expect(context.world.name == "PlainContext")
 }
 
-@PlainSystem
+@System
 func PlainWorld(
     _ world: World
 ) {
     #expect(world.name == "PlainWorld")
 }
 
-@System
+@PlainSystem
 struct PhysicsSystem {
     init(world: World) { }
 
     func update(context: inout UpdateContext) {}
 }
 
-@System(dependencies: [
+@PlainSystem(dependencies: [
     .after(PhysicsSystem.self)
 ])
 struct DependentSystem: System {
@@ -122,7 +122,7 @@ struct DependentSystem: System {
     }
 }
 
-@System
+@PlainSystem
 struct ResourceSystem {
     @ResQuery
     private var gravity: Gravity?
@@ -134,7 +134,7 @@ struct ResourceSystem {
     }
 }
 
-@PlainSystem
+@System
 func PlainResource(
     _ gravity: ResQuery<Gravity>
 ) {

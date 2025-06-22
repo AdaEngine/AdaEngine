@@ -160,7 +160,7 @@ struct PerformanceCounter {
 // MARK: - Systems
 
 /// System that spawns bunnies on mouse click
-@System
+@PlainSystem
 struct BunnySpawnerSystem {
 
     @Query<Camera, GlobalTransform>
@@ -188,12 +188,15 @@ struct BunnySpawnerSystem {
 
             // Spawn multiple bunnies at mouse position
             for _ in 0 ..< BunnyExampleConstants.bunniesPerClick {
-                spawnBunny(at: Vector3(worldPosition.x, -worldPosition.y, 0), world: context.world)
+                spawnBunny(
+                    at: Vector3(worldPosition.x, -worldPosition.y, 0),
+                    world: &context.world.commands
+                )
             }
         }
     }
 
-    private func spawnBunny(at position: Vector3, world: World) {
+    private func spawnBunny(at position: Vector3, world: inout WorldCommands) {
         // Add small random offset to position
         let offsetX = Float.random(in: -2.5...2.5)
         let offsetY = Float.random(in: -2.5...2.5)
@@ -223,7 +226,7 @@ struct BunnySpawnerSystem {
 }
 
 /// System that handles bunny movement with gravity
-@System
+@PlainSystem
 struct BunnyMovementSystem {
 
     @Query<Entity, Ref<Bunny>, Ref<Transform>>
@@ -275,7 +278,7 @@ struct BunnyMovementSystem {
 }
 
 /// System that handles collision with screen boundaries
-@System
+@PlainSystem
 struct BunnyCollisionSystem {
 
     @FilterQuery<Camera, With<GlobalTransform>>
@@ -336,7 +339,7 @@ struct BunnyCollisionSystem {
 }
 
 /// System that updates the performance counter
-@System
+@PlainSystem
 struct PerformanceCounterSystem {
 
     @Query<Entity, Bunny>

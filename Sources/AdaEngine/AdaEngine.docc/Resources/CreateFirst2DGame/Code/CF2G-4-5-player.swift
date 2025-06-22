@@ -9,10 +9,10 @@ struct FirstScene: Plugin {
 @Component
 struct PlayerComponent {}
 
-@PlainSystem
+@System
 func PlayerMovement(
     _ playerTransform: FIlterQuery<Ref<Transform>, With<PlayerComponent>>,
-    _ speed: LocalIsolated<Float> = 3.0
+    _ speed: Local<Float> = 3.0
 ) {
     
 }

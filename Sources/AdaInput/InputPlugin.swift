@@ -17,9 +17,9 @@ public struct InputPlugin: Plugin {
     }
 }
 
-@PlainSystem
-@MainActor
-func InputPostUpdate(
+@System
+@inline(__always)
+@MainActor func InputPostUpdate(
     _ input: ResMutQuery<Input?>
 ) async {
     input.wrappedValue?.removeEvents()

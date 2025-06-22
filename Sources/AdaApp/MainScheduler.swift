@@ -33,7 +33,7 @@ struct MainSchedulerPlugin: Plugin {
 }
 
 // FIXME: Hack to works with AnimatedTexture
-@PlainSystem
+@System
 @inline(__always)
 func GameLoopBegan(
     _ deltaTime: ResQuery<DeltaTime?>
@@ -43,10 +43,10 @@ func GameLoopBegan(
 }
 
 /// The system that runs the fixed time scheduler.
-@System
+@PlainSystem
 public struct FixedTimeSchedulerSystem {
 
-    @LocalIsolated
+    @Local
     private var fixedTimestep: FixedTimestep
 
     let order: [SchedulerName] = [
@@ -79,7 +79,7 @@ public struct FixedTimeSchedulerSystem {
 }
 
 /// The system that runs the post update scheduler.
-@System
+@PlainSystem
 public struct PostUpdateSchedulerRunner: Sendable {
     
     public init(world: World) { }

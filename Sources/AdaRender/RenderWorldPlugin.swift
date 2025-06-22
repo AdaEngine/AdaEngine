@@ -42,7 +42,7 @@ public struct RenderWorldPlugin: Plugin {
 }
 
 /// The system that renders the world.
-@PlainSystem
+@System
 @inline(__always)
 func RenderWorldRunner(
     _ context: inout WorldUpdateContext,
