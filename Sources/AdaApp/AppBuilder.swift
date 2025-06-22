@@ -81,16 +81,13 @@ public extension AppWorlds {
         if !isConfigured {
             return
         }
-
         for sceduler in self.scedulers {
             await sceduler.run(world: mainWorld)
         }
-
         for world in self.subWorlds.values {
             await world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
             await world.update()
         }
-
         mainWorld.clearTrackers()
     }
 

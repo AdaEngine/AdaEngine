@@ -49,7 +49,7 @@ public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "Comp
 /// )
 /// ```
 @attached(member, names: named(components))
-@attached(extension, names: arbitrary, conformances: Bundle)
+@attached(extension, names: arbitrary, conformances: ComponentsBundle)
 public macro Bundle() = #externalMacro(module: "AdaEngineMacros", type: "BundleMacro")
 
 /// A macro for creating a system.
@@ -60,7 +60,7 @@ public macro Bundle() = #externalMacro(module: "AdaEngineMacros", type: "BundleM
 ///
 /// Example:
 /// ```swift
-/// @System(dependencies: [PhysicsSystem.self])
+/// @PlainSystem(dependencies: [PhysicsSystem.self])
 /// struct MovementSystem: System {
 ///     @Query<Ref<Transform>, Velocity>
 ///     private var query
@@ -77,7 +77,7 @@ public macro Bundle() = #externalMacro(module: "AdaEngineMacros", type: "BundleM
 /// ```
 @attached(member, names: named(queries), named(dependencies))
 @attached(extension, names: arbitrary, conformances: System)
-public macro System(
+public macro PlainSystem(
     dependencies: [SystemDependency] = []
 ) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
 
@@ -89,7 +89,7 @@ public macro System(
 ///
 /// Example:
 /// ```swift
-/// @PlainSystem(dependencies: [PhysicsSystem.self])
+/// @System(dependencies: [PhysicsSystem.self])
 /// func Movement(
 ///     query: Query<Ref<Transform>, Velocity>,
 ///     resources: ResQuery<Gravity>,
@@ -102,7 +102,7 @@ public macro System(
 /// }
 
 @attached(peer, names: suffixed(System), conformances: System)
-public macro PlainSystem(
+public macro System(
     dependencies: [SystemDependency] = []
 ) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
 

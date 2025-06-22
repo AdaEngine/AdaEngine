@@ -36,7 +36,6 @@ extension SparseArray {
             precondition(index < self.count, "Index out of range")
             return self.values[index]
         }
-        
         mutating set {
             self.insert(newValue, at: index)
         }

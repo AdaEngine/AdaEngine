@@ -19,7 +19,7 @@ public enum WindowRef: Codable, Sendable, Hashable {
 }
 
 /// A viewport.
-public struct Viewport: Codable, Equatable {
+public struct Viewport: Codable, Equatable, Sendable {
     /// The rectangle of the viewport.
     public var rect: Rect
     /// The depth range of the viewport.
@@ -81,39 +81,39 @@ public struct Camera: Sendable {
     // MARK: Properties
 
     /// The closest point relative to camera that drawing will occur.
-    @Export
+//    @Export
     public var near: Float = -1
 
     /// The closest point relative to camera that drawing will occur
-    @Export
+//    @Export
     public var far: Float = 1
 
     /// Angle of camera view
-    @Export
+//    @Export
     public var fieldOfView: Angle = .degrees(70)
 
     /// Base projection in camera
-    @Export
+//    @Export
     public var projection: Projection = .perspective
 
-    @Export
+//    @Export
     public var viewport: Viewport?
 
     /// Set camera is active
-    @Export
+//    @Export
     public var isActive = true
 
     /// Fill color for unused pixel.
-    @Export
+//    @Export
     public var backgroundColor: Color = .surfaceClearColor
 
     /// Contains information about clear flags.
     /// By default contains ``CameraClearFlags/solid`` flag which fill clear color by ``Camera/backgroundColor``.
-    @Export
+//    @Export
     public var clearFlags: CameraClearFlags = .solid
 
-    @Export
-    @MinValue(0.1)
+//    @Export
+//    @MinValue(0.1)
     public var orthographicScale: Float = 1
 
     /// Render target for camera.
@@ -123,8 +123,8 @@ public struct Camera: Sendable {
 
     /// The computed data for the camera.
     @_spi(Internal)
-    @NoExport
-    public var computedData: CameraComputedData
+//    @NoExport
+    public var computedData: CameraComputedData = .defaultValue
 
     /// The render order.
     public var renderOrder: Int = 0
@@ -229,7 +229,7 @@ extension Camera {
         /// The view matrix.
         public var viewMatrix: Transform3D = .identity
         /// The frustum.
-        public var frustum: Frustum = Frustum()
+        public var frustum: Frustum = .defaultValue
         /// The target scale factor.
         public var targetScaleFactor: Float = 1
     }

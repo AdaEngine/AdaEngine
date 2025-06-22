@@ -17,8 +17,9 @@ public struct WorldCommands {
 }
 
 public struct WorldCommand {
-    public let applyToWorld: (World) -> Void
-    init(applyToWorld: @escaping (World) -> Void) {
+    let applyToWorld: (World) -> Void
+
+    public init(applyToWorld: @escaping (World) -> Void) {
         self.applyToWorld = applyToWorld
     }
 }
@@ -26,14 +27,14 @@ public struct WorldCommand {
 public extension WorldCommands {
     mutating func spawn(
         _ name: String = "",
-        @ComponentsBuilder components: @escaping () -> Bundle
+        @ComponentsBuilder components: @escaping () -> ComponentsBundle
     ) {
         self.commands.append(WorldCommand { world in
             world.spawn(name, bundle: components())
         })
     }
 
-    mutating func spawn<T: Bundle>(
+    mutating func spawn<T: ComponentsBundle>(
         _ name: String = "",
         bundle: consuming T
     ) {

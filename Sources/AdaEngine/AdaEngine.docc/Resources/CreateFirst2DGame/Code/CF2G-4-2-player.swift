@@ -20,7 +20,7 @@ struct FirstScene: Plugin {
 @Component
 struct PlayerComponent {}
 
-@PlainSystem
+@System
 func PlayerMovement() {
     
 }

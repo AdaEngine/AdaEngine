@@ -185,6 +185,7 @@ extension FixedArray {
         }
         
         deinit {
+            pointer.deinitialize()
             pointer.deallocate()
         }
         

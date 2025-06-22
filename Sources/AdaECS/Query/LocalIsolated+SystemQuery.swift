@@ -7,6 +7,8 @@
 
 import AdaUtils
 
+public typealias Local = LocalIsolated
+
 extension LocalIsolated: SystemQuery {
 
     convenience public init(from world: World) {

@@ -60,13 +60,13 @@ public struct BundleMacro: MemberMacro, ExtensionMacro {
         // Only add conformance if not already present
         if let inheritanceClause = declaration.inheritanceClause,
            inheritanceClause.inheritedTypes.contains(where: {
-               ["Bundle", "AdaECS.Bundle"].contains($0.type.trimmedDescription)
+               ["ComponentsBundle", "AdaECS.ComponentsBundle"].contains($0.type.trimmedDescription)
            }) {
             return []
         }
 
         let ext: DeclSyntax = """
-        extension \(type.trimmed): AdaECS.Bundle { }
+        extension \(type.trimmed): AdaECS.ComponentsBundle { }
         """
         return [ext.cast(ExtensionDeclSyntax.self)]
     }

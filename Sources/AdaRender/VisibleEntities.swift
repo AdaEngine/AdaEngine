@@ -15,7 +15,7 @@ import Math
 /// All cameras has frustum and each entity should has ``BoundingComponent`` to be detected.
 /// If entity doesn't has ``BoundingComponent`` than system tries to add it.
 /// If entity has ``NoFrustumCulling`` than it will ignore frustum culling.
-@System(dependencies: [
+@PlainSystem(dependencies: [
     .after(CameraSystem.self)
 ])
 public struct VisibilitySystem {

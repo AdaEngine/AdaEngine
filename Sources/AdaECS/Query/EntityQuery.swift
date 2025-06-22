@@ -8,7 +8,7 @@
 /// This object describe query to ECS world.
 ///
 /// ```swift
-/// @System
+/// @PlainSystem
 /// struct MovementSystem {
 ///     @EntityQuery(where: .has(Transform.self)) private var query
 ///
@@ -24,7 +24,7 @@
 /// Also, you can combine types in query using `&&` and `||` operators.
 ///
 /// ```swift
-/// @System
+/// @PlainSystem
 /// struct RendererSystem {
 ///     @EntityQuery(where: .has(SpriteComponent.self) && .has(Transform.self))
 ///     private var query

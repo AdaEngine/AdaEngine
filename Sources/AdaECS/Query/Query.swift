@@ -90,11 +90,7 @@ extension FilterQuery  {
     /// Calculate count of element in collection
     /// - Complexity: O(n)
     public var count: Int {
-        return self.state.archetypes.reduce(0) {
-            $0 + $1.chunks.chunks.reduce(0, { partialResult, chunk in
-                partialResult + chunk.entityCount
-            })
-        }
+        return self.count { _ in return true }
     }
 
         /// A Boolean value indicating whether the collection is empty.
@@ -133,11 +129,11 @@ final class QueryState: @unchecked Sendable {
     }
 
     func updateArchetypes(in world: consuming World) {
+        self.entities = world.entities
         self.archetypes = world.archetypes.archetypes.filter {
             self.predicate.evaluate($0)
         }
         self.lastTick = world.lastTick
-        self.entities = world.entities
         self.world = world
     }
 }
@@ -171,50 +167,56 @@ public struct FilterQueryIterator<
     @inline(__always)
     public mutating func next() -> Element? {
         // swiftlint:disable:next empty_count
-        guard self.count > 0 else {
+        guard count > 0 else {
             return nil
         }
 
         while true {
-            guard self.cursor.currentArchetypeIndex < self.count else {
+            guard cursor.currentArchetypeIndex < self.count else {
                 return nil
             }
-            let archetype = self.state.archetypes[self.cursor.currentArchetypeIndex]
-            if self.cursor.currentChunkIndex >= archetype.chunks.chunks.count {
-                self.cursor.currentArchetypeIndex += 1
-                self.cursor.currentChunkIndex = 0
-                self.cursor.currentRow = 0
+            let archetype = state.archetypes[cursor.currentArchetypeIndex]
+            if cursor.currentChunkIndex >= archetype.chunks.chunks.count {
+                cursor.currentArchetypeIndex += 1
+                cursor.currentChunkIndex = 0
+                cursor.currentRow = 0
                 continue
             }
 
-            let chunk = archetype.chunks.chunks[self.cursor.currentChunkIndex]
-            if self.cursor.currentRow > chunk.entities.count - 1 {
-                self.cursor.currentChunkIndex += 1
-                self.cursor.currentRow = 0
+            let chunk = archetype.chunks.chunks.getPointer(at: cursor.currentChunkIndex)
+            if chunk.pointee.entities.count > 1000 {
+                fatalError("something get wrong \(archetype.componentLayout.components) \(archetype.chunks.chunks)")
+            }
+            if cursor.currentRow > chunk.pointee.entities.count - 1 {
+                cursor.currentChunkIndex += 1
+                cursor.currentRow = 0
                 continue
             }
 
-            let entityId = chunk.entities.elements[self.cursor.currentRow].key
+            let entityId = chunk.pointee.entities.elements[cursor.currentRow].key
+//            print("Current entity id \(entityId), current row \(cursor.currentRow)")
             guard
                 let location = state.entities.entities[entityId],
                 let entity = archetype.entities[location.archetypeRow]
             else {
-                self.cursor.currentRow += 1
+                cursor.currentRow += 1
                 continue
             }
 
+//            print("location \(location), archetypeRow \(entity)")
+
             guard F.condition(
                 for: archetype,
-                in: chunk,
+                in: chunk.pointee,
                 entity: entity,
                 lastTick: state.lastTick
             ) else {
-                self.cursor.currentRow += 1
+                cursor.currentRow += 1
                 continue
             }
 
             cursor.currentRow += 1
-            return B.getQueryTarget(for: entity, in: chunk, archetype: archetype)
+            return B.getQueryTarget(for: entity, in: chunk.pointee, archetype: archetype)
         }
     }
 }

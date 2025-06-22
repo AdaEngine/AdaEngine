@@ -9,7 +9,7 @@ import AdaECS
 
 /// Batch transparent items which contains batchEntity.
 /// Run each frame before drawing.
-@System
+@PlainSystem
 public struct BatchTransparent2DItemsSystem {
 
     @Query<Ref<RenderItems<Transparent2DRenderItem>>>

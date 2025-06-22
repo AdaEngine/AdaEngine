@@ -20,7 +20,7 @@ public protocol QueryTarget: Sendable, ~Copyable {
     @inline(__always)
     static func _queryTarget(
         for entity: Entity,
-        in chunk: Chunk, // TODO: Should we pass nonmutable chunk? 
+        in chunk: borrowing Chunk,
         archetype: Archetype
     ) -> Self
 
@@ -40,7 +40,7 @@ extension Component {
     @inline(__always)
     public static func _queryTarget(
         for entity: Entity,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         archetype: Archetype
     ) -> Self {
         return chunk.get(Self.self, for: entity.id)!
@@ -62,7 +62,7 @@ extension Ref: QueryTarget where T: Component {
     @inline(__always)
     public static func _queryTarget(
         for entity: Entity,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         archetype: Archetype
     ) -> Ref<T> {
         Ref(pointer: chunk.getMutablePointer(T.self, for: entity.id)!)
@@ -84,7 +84,7 @@ extension Entity: QueryTarget {
     @inline(__always)
     public static func _queryTarget(
         for entity: Entity,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         archetype: Archetype
     ) -> Self {
         return entity as! Self
@@ -106,7 +106,7 @@ extension Optional: QueryTarget where Wrapped: QueryTarget {
     @inline(__always)
     public static func _queryTarget(
         for entity: Entity,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         archetype: Archetype
     ) -> Self {
         if Wrapped._queryTargetContains(in: entity) {

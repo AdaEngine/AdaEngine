@@ -14,6 +14,12 @@ import SwiftSyntaxMacros
 
 public struct SystemMacro: MemberMacro {
 
+    static let specialQueries = [
+        "Extract",
+        "Local",
+        "LocalIsolated"
+    ]
+
     public static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
@@ -26,7 +32,7 @@ public struct SystemMacro: MemberMacro {
                 guard let attributeName = attribute.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self)?.name.text else {
                     return false
                 }
-                return attributeName.hasSuffix("Query") || attributeName == "Extract"
+                return attributeName.hasSuffix("Query") || specialQueries.contains(attributeName)
             }
             
             guard hasEntityQueryAttribute,
@@ -183,6 +189,9 @@ extension SystemMacro: PeerMacro {
             if typeString.hasSuffix("World") || typeString.hasSuffix(".World") {
                 specialType = .world
             }
+            if typeString.hasSuffix("WorldCommands") || typeString.hasSuffix(".WorldCommands") {
+                specialType = .world
+            }
 
             if specialType == .none {
                 propertyDecls.append("@\(typeString)\nprivate var \(paramName)\(defaultValue != nil ? " = \(defaultValue!)" : "")")
@@ -223,6 +232,7 @@ extension SystemMacro: PeerMacro {
         enum SpecialType {
             case world
             case context
+            case commands
             case none
         }
 

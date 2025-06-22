@@ -65,7 +65,8 @@ public struct WindowManagerResource: Resource {
     }
 }
 
-@PlainSystem
+@System
+@inline(__always)
 @MainActor
 func UpdateWindowManager(
     _ context: inout WorldUpdateContext,

@@ -14,8 +14,8 @@ struct AdaEditorApp: App {
         EmptyWindow()
             .addPlugins(
                 DefaultPlugins(),
-                TestPlugin()
-//                BunnyExample()
+                TestPlugin(),
+                // BunnyExample()
             )
             .windowMode(.windowed)
             .windowTitle("AdaEngine")
@@ -25,6 +25,7 @@ struct AdaEditorApp: App {
 struct TestPlugin: Plugin {
     func setup(in app: borrowing AppWorlds) {
         for index in 0..<100 {
+            print("Spawn entity at index", index)
             app.mainWorld.spawn("Entity \(index)") {
                 Transform()
                     .setPosition([0, Float(index), 0])

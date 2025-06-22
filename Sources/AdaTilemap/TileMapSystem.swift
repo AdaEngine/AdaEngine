@@ -14,7 +14,7 @@ import Logging
 import Math
 
 // FIXME: a lot of sprites drop fps.
-@System
+@PlainSystem
 public struct TileMapSystem: Sendable {
     
     let logger = Logger(label: "tilemap")

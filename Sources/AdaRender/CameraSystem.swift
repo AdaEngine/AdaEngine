@@ -14,7 +14,7 @@ import Math
 // TODO: Move window info to ECS system
 
 /// System for updating cameras data on scene.
-@System
+@PlainSystem
 public struct CameraSystem: Sendable {
 
     @Query<Entity, Ref<Camera>, GlobalTransform>
@@ -116,7 +116,8 @@ public struct CameraSystem: Sendable {
     }
 }
 
-@PlainSystem
+@System
+@inline(__always)
 public func ExtractCamera(
     _ world: World,
     _ query: Extract<

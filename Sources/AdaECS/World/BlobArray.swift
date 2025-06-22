@@ -8,9 +8,27 @@
 import AdaUtils
 import Foundation
 
-public struct BlobArray: @unchecked Sendable {
+public struct BlobArray: Sendable {
 
-    public struct ElementLayout {
+    final class _Buffer: @unchecked Sendable {
+        let pointer: UnsafeMutableRawBufferPointer
+        var deallocator: (UnsafeMutableRawBufferPointer) -> Void
+
+        init(
+            pointer: UnsafeMutableRawBufferPointer,
+            deallocator: @escaping (UnsafeMutableRawBufferPointer) -> Void
+        ) {
+            self.pointer = pointer
+            self.deallocator = deallocator
+        }
+
+        deinit {
+            deallocator(pointer)
+            pointer.deallocate()
+        }
+    }
+
+    public struct ElementLayout: Sendable {
         public let size: Int
         public let alignment: Int
 
@@ -20,43 +38,31 @@ public struct BlobArray: @unchecked Sendable {
         }
     }
 
-    public var data: UnsafeMutableRawBufferPointer
-    let layout: ElementLayout
+    var buffer: _Buffer
+    public let layout: ElementLayout
     public private(set) var count: Int
-
-    public init(count: Int, layout: ElementLayout) {
-        self.data = UnsafeMutableRawBufferPointer.allocate(
-            byteCount: count * layout.size,
-            alignment: layout.alignment
-        )
-        self.layout = layout
-        self.count = count
-    }
 
     public init<T: ~Copyable>(count: Int, of type: T.Type) {
         self.count = count
         self.layout = ElementLayout(size: MemoryLayout<T>.size, alignment: MemoryLayout<T>.alignment)
-        self.data = UnsafeMutableRawBufferPointer.allocate(
+        self.buffer = _Buffer(pointer: .allocate(
             byteCount: count * MemoryLayout<T>.size,
             alignment: MemoryLayout<T>.alignment
-        )
+        ), deallocator: { ptr in
+            print("Deinitize \(T.self)")
+//            ptr.bindMemory(to: T.self).deinitialize()
+        })
     }
 }
 
 public extension BlobArray {
-
-    func deallocate() {
-        self.data.deallocate()
-    }
-
     mutating func realloc(_ count: Int) {
-        let newBuffer = UnsafeMutableRawBufferPointer.allocate(
+        let newBuffer = _Buffer(pointer: .allocate(
             byteCount: count * self.layout.size,
             alignment: self.layout.alignment
-        )
-        newBuffer.copyMemory(from: UnsafeRawBufferPointer(self.data))
-        self.data.deallocate()
-        self.data = newBuffer
+        ), deallocator: buffer.deallocator)
+        newBuffer.pointer.copyMemory(from: UnsafeRawBufferPointer(self.buffer.pointer))
+        self.buffer = newBuffer
         self.count = count
     }
 
@@ -68,7 +74,7 @@ public extension BlobArray {
             "Element has different layout"
         )
         #endif
-        self.data
+        self.buffer.pointer
             .baseAddress!
             .advanced(by: index * self.layout.size)
             .assumingMemoryBound(to: T.self)
@@ -84,7 +90,7 @@ public extension BlobArray {
         )
     #endif
 
-        return self.data.baseAddress!
+        return self.buffer.pointer.baseAddress!
             .advanced(by: index * self.layout.size)
             .bindMemory(to: type, capacity: self.layout.size)
     }
@@ -97,7 +103,7 @@ public extension BlobArray {
             "Element has different layout"
         )
     #endif
-        return self.data.baseAddress!
+        return self.buffer.pointer.baseAddress!
             .advanced(by: index * self.layout.size)
             .bindMemory(to: type, capacity: self.layout.size)
             .pointee
@@ -111,7 +117,7 @@ public extension BlobArray {
             "Element has different layout"
         )
         #endif
-        let pointer = self.data.baseAddress!
+        let pointer = self.buffer.pointer.baseAddress!
             .advanced(by: index * self.layout.size)
             .assumingMemoryBound(to: T.self)
         let element = pointer.pointee
@@ -127,8 +133,8 @@ public extension BlobArray {
             "BlobArray has different layout"
         )
         #endif
-        let sourcePointer = self.data.baseAddress!.advanced(by: fromIndex * self.layout.size)
-        let destinationPointer = blobArray.data.baseAddress!.advanced(by: toIndex * self.layout.size)
+        let sourcePointer = self.buffer.pointer.baseAddress!.advanced(by: fromIndex * self.layout.size)
+        let destinationPointer = blobArray.buffer.pointer.baseAddress!.advanced(by: toIndex * self.layout.size)
         destinationPointer.copyMemory(from: sourcePointer, byteCount: self.layout.size)
     }
 }

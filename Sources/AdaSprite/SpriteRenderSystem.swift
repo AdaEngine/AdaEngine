@@ -13,7 +13,7 @@ import Math
 
 // TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
 
-@System
+@PlainSystem
 public struct SpriteRenderSystem: Sendable {
 
     @Query<
@@ -64,8 +64,7 @@ public struct SpriteRenderSystem: Sendable {
         visibleEntities: VisibleEntities,
         renderItems: inout RenderItems<Transparent2DRenderItem>
     ) {
-        let spriteData = world.spawn("sprite_data") {}
-
+        let spriteData = world.spawn("sprite_data")
         let sprites = extractedSprites
             .sorted { lhs, rhs in
                 lhs.transform.position.z < rhs.transform.position.z
@@ -236,7 +235,7 @@ public struct ExtractedSprite: Sendable {
 }
 
 /// Exctract sprites to RenderWorld for future rendering.
-@PlainSystem(dependencies: [
+@System(dependencies: [
     .before(SpriteRenderSystem.self)
 ])
 public func ExtractSprite(
@@ -248,7 +247,6 @@ public func ExtractSprite(
         if visible == .hidden {
             return
         }
-
         extractedSprites.sprites.append(
             ExtractedSprite(
                 entityId: entity.id,
@@ -264,11 +262,12 @@ public func ExtractSprite(
     world.insertResource(extractedSprites)
 }
 
-@PlainSystem
+@System
+@inline(__always)
 func UpdateBoundings(
     _ entitiesWithTransform: FilterQuery<
-    Entity, Transform,
-    Or<With<SpriteComponent>, With<Mesh2DComponent>>
+        Entity, Transform,
+        Or<With<SpriteComponent>, With<Mesh2DComponent>>
     >
 ) {
     entitiesWithTransform.forEach { entity, transform in
@@ -277,7 +276,6 @@ func UpdateBoundings(
             if !entity.components.isComponentChanged(Transform.self) && entity.components.has(BoundingComponent.self) {
                 return
             }
-            let transform = entity.components[Transform.self]!
             let position = transform.position
             let scale = transform.scale
             let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)

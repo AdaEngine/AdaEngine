@@ -11,7 +11,7 @@ import AdaTransform
 import AdaUtils
 import Math
 
-@System
+@PlainSystem
 public struct UIComponentSystem: Sendable {
     
     @Query<Entity, UIComponent, GlobalTransform>

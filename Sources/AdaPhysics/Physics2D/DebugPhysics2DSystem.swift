@@ -34,7 +34,7 @@ struct ExctractedPhysicsMesh2DDebug {
 }
 
 /// System for exctracting physics bodies for debug rendering.
-@System
+@PlainSystem
 public struct DebugPhysicsExctract2DSystem {
 
     @EntityQuery(
@@ -217,7 +217,7 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
 }
 
 /// System for rendering debug physics shape on top of the scene.
-@System
+@PlainSystem
 public struct Physics2DDebugDrawSystem: Sendable {
 
     @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>

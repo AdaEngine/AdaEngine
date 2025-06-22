@@ -42,6 +42,7 @@ public struct SystemsGraphExecutor: Sendable {
         }
     }
 
+    @MainActor
     private func executeSystem(
         node: SystemsGraph.Node,
         world: World,

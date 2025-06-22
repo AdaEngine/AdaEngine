@@ -40,7 +40,7 @@ public protocol Filter: Sendable {
     /// - Returns: True if the filter is satisfied for the archetype, otherwise false.
     static func condition(
         for archetype: Archetype,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
     ) -> Bool
@@ -50,7 +50,7 @@ public protocol Filter: Sendable {
 public struct With<T: Component>: Filter {
     public static func condition(
         for archetype: Archetype,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
     ) -> Bool {
@@ -62,7 +62,7 @@ public struct With<T: Component>: Filter {
 public struct Without<T: Component>: Filter {
     public static func condition(
         for archetype: Archetype,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
     ) -> Bool {
@@ -74,7 +74,7 @@ public struct Without<T: Component>: Filter {
 public struct And<each T: Filter>: Filter {
     public static func condition(
         for archetype: Archetype,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
     ) -> Bool {
@@ -95,7 +95,7 @@ public struct And<each T: Filter>: Filter {
 public struct Not<T: Filter>: Filter {
     public static func condition(
         for archetype: Archetype,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
     ) -> Bool {
@@ -107,7 +107,7 @@ public struct Not<T: Filter>: Filter {
 public struct Or<each T: Filter>: Filter {
     public static func condition(
         for archetype: Archetype,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
     ) -> Bool {
@@ -128,7 +128,7 @@ public struct Or<each T: Filter>: Filter {
 public struct Changed<T: Component>: Filter {
     public static func condition(
         for archetype: Archetype,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
     ) -> Bool {
@@ -140,7 +140,7 @@ public struct Changed<T: Component>: Filter {
 public struct NoFilter: Filter {
     public static func condition(
         for archetype: Archetype,
-        in chunk: Chunk,
+        in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
     ) -> Bool {
