@@ -27,22 +27,21 @@ public struct SystemsGraphExecutor: Sendable {
         scheduler: SchedulerName
     ) async {
         for level in graph.dependencyLevels {
-            await withDiscardingTaskGroup { levelGroup in
+//            await withDiscardingTaskGroup { levelGroup in
                 for node in level {
-                    levelGroup.addTask {
+//                    levelGroup.addTask {
                         await executeSystem(
                             node: node,
                             world: world,
                             scheduler: scheduler
                         )
                     }
-                }
-            }
+//                }
+//            }
             world.flush()
         }
     }
 
-    @MainActor
     private func executeSystem(
         node: SystemsGraph.Node,
         world: World,

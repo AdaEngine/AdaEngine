@@ -10,11 +10,15 @@ import Collections
 import Foundation
 import Atomics
 
-public struct Tick: Sendable, Equatable {
+public struct Tick: Sendable, Comparable {
     public let value: Int
 
     public init(value: Int) {
         self.value = value
+    }
+
+    public static func < (lhs: Tick, rhs: Tick) -> Bool {
+        lhs.value < rhs.value
     }
 }
 
@@ -443,7 +447,7 @@ extension World {
         }
         var toArchetype = self.archetypes.archetypes[newArchetype]
         let row = toArchetype.append(entity)
-        print("Move entity \(entity.id) from archetype \(location.archetypeId) to \(newArchetype)")
+        print("Move entity \(entity.name)(\(entity.id)) from archetype \(location.archetypeId) to \(newArchetype)")
         let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks)
         archetype.remove(at: location.archetypeRow)
         self.archetypes.archetypes[location.archetypeId] = archetype
@@ -454,6 +458,8 @@ extension World {
             chunkIndex: newLocation.chunkIndex,
             chunkRow: newLocation.entityRow
         )
+
+        print("Old location \(location), newLocation: \(self.entities.entities[entityId]!)")
     }
 }
 

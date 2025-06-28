@@ -13,7 +13,12 @@ import Math
 public struct Frustum: Hashable, Codable, Sendable {
     public var planes: FixedArray<Plane>
 
-    public init(planes: FixedArray<Plane> = FixedArray(repeating: Plane(normal: .zero, d: 0), count: 6)) {
+    public init(
+        planes: FixedArray<Plane> = FixedArray(
+            repeating: Plane(normal: .zero, d: 0),
+            count: 6
+        )
+    ) {
         self.planes = planes
     }
 }
