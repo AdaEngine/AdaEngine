@@ -121,11 +121,14 @@ public struct CameraSystem: Sendable {
 public func ExtractCamera(
     _ world: World,
     _ query: Extract<
-        Query<Entity, Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
+        Query<Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
     >
 ) {
     query.wrappedValue.forEach {
-        entity, camera, transform, visibleEntities, bufferSet, uniform in
+        camera, transform,
+        visibleEntities, bufferSet, uniform in
+
+        print("Exctract", camera)
 
         let buffer = bufferSet.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
@@ -134,7 +137,6 @@ public func ExtractCamera(
         )
 
         buffer.setData(uniform)
-
         world.spawn("ExtractedCameraEntity") {
             camera
             transform

@@ -8,16 +8,16 @@
 public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyable {
 
     final class _Buffer {
-        let pointer: UnsafeMutablePointer<Element>
+        let pointer: UnsafeMutableBufferPointer<Element>
         let count: Int
 
-        init(pointer: UnsafeMutablePointer<Element>, count: Int) {
+        init(pointer: UnsafeMutableBufferPointer<Element>, count: Int) {
             self.pointer = pointer
             self.count = count
         }
 
         deinit {
-            pointer.deinitialize(count: count)
+            pointer.deinitialize()
             pointer.deallocate()
         }
     }
@@ -56,7 +56,7 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
 
     public mutating func insert(_ element: consuming Element, at index: Int) {
         precondition(index >= 0 && index < self.header.capacity)
-        (self.buffer.pointer + index).initialize(to: element)
+        self.buffer.pointer.initializeElement(at: index, to: element)
     }
 
     public mutating func append(_ element: consuming Element) {
@@ -74,13 +74,15 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
         precondition(self.header.capacity < capacity)
         let oldCount = self.header.capacity
         let newBuffer = _Buffer(pointer: .allocate(capacity: capacity), count: capacity)
-        newBuffer.pointer.moveInitialize(from: self.buffer.pointer, count: oldCount)
+        let _ = newBuffer.pointer.moveInitialize(fromContentsOf: self.buffer.pointer)
         self.header.capacity = capacity
         self.buffer = newBuffer
     }
 
     public func reborrow<U>(at index: Int, _ block: (inout Element) -> U) -> U {
-        let pointer = (buffer.pointer + index)
+        let pointer = buffer.pointer
+            .baseAddress!
+            .advanced(by: MemoryLayout<Element>.size * index)
         return block(&pointer.pointee)
     }
 
@@ -88,23 +90,29 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
     public mutating func remove(at index: Int) -> Element {
         print("Remove element at index \(index)")
         self.header.count -= 1
-        let pointer = (self.buffer.pointer + index)
-        let pointee = pointer.move()
-        pointer.deinitialize(count: 1)
+        let pointee = self.buffer.pointer.moveElement(from: index)
         return pointee
     }
 
     public func getPointer(at index: Int) -> UnsafeMutablePointer<Element> {
-        (self.buffer.pointer + index)
+        self.buffer.pointer
+            .baseAddress!
+            .advanced(by: MemoryLayout<Element>.size * index)
+
     }
 
     public consuming func take(at index: Int) -> Element {
-        (self.buffer.pointer + index).move()
+        self.buffer.pointer.moveElement(from: index)
     }
 
     public func forEach(_ body: (borrowing Element) -> Void) {
         for i in 0..<self.count {
-            body((self.buffer.pointer + i).pointee)
+            body(
+                buffer.pointer
+                .baseAddress!
+                .advanced(by: MemoryLayout<Element>.size * i)
+                .pointee
+            )
         }
     }
 
@@ -112,7 +120,12 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
         var result: [T] = []
         result.reserveCapacity(self.count)
         for i in 0..<self.count {
-            result.append(transform((self.buffer.pointer + i).pointee))
+            result.append(transform(
+                buffer.pointer
+                .baseAddress!
+                .advanced(by: MemoryLayout<Element>.size * i)
+                .pointee
+            ))
         }
         return result
     }

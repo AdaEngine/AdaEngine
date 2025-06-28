@@ -321,11 +321,9 @@ open class UIView {
         guard self.isInteractionEnabled && !self.isHidden else {
             return nil
         }
-
         if !self.point(inside: point, with: event) {
             return nil
         }
-
         if self.subviews.isEmpty {
             return self
         }
@@ -428,17 +426,19 @@ open class UIView {
     /// - Parameter event: The event to find the first responder for.
     /// - Returns: The first responder.
     func findFirstResponder(for event: any InputEvent) -> UIView? {
-        let responder: UIView?
-
-        switch event {
+        let responder: UIView? = switch event {
         case let event as MouseEvent:
-            let point = convert(event.mousePosition, to: self)
-            responder = self.hitTest(point, with: event)
+            self.hitTest(
+                convert(event.mousePosition, to: self),
+                with: event
+            )
         case let event as TouchEvent:
-            let point = event.location
-            responder = self.hitTest(point, with: event)
+            self.hitTest(
+                event.location,
+                with: event
+            )
         default:
-            return nil
+            nil
         }
 
         if responder?.canRespondToAction(event) == false {
