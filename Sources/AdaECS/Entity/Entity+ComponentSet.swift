@@ -169,7 +169,11 @@ public extension Entity.ComponentSet {
     /// - Parameter c: The type of the third component.
     /// - Returns: The components of the specified types.
     @inline(__always)
-    subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
+    subscript<A, B, C>(
+        _ a: A.Type,
+        _ b: B.Type,
+        _ c: C.Type
+    ) -> (A, B, C) where A : Component, B: Component, C: Component {
         (
             world!.get(A.self, from: entity)!,
             world!.get(B.self, from: entity)!,
@@ -184,7 +188,12 @@ public extension Entity.ComponentSet {
     /// - Parameter d: The type of the fourth component.
     /// - Returns: The components of the specified types.
     @inline(__always)
-    subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
+    subscript<A, B, C, D>(
+        _ a: A.Type,
+        _ b: B.Type,
+        _ c: C.Type,
+        _ d: D.Type
+    ) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
         (
             world!.get(A.self, from: entity)!,
             world!.get(B.self, from: entity)!,
@@ -204,13 +213,22 @@ public extension Entity.ComponentSet {
 
 extension Entity.ComponentSet: CustomStringConvertible {
     public var description: String {
-        return ""
-//        let result = self.buffer.reduce("") { partialResult, value in
-//            let name = type(of: value.value)
-//            return partialResult + "\n   ⟐ \(name)"
-//        }
-//        
-//        return "ComponentSet(\(result)\n)"
+        guard
+            let world,
+            let location = world.entities.entities[entity]
+        else {
+            return "ComponentSet(entity: \(entity), world: nil)"
+        }
+        let chunk = world.archetypes
+            .archetypes[location.archetypeId]
+            .chunks.chunks.getPointer(at: location.chunkIndex)
+        let components = chunk.pointee.getComponents(for: entity)
+        let result = components.reduce("") { partialResult, value in
+            let name = type(of: value.value)
+            return partialResult + "\n   ⟐ \(name)"
+        }
+        
+        return "ComponentSet(\(result)\n)"
     }
 }
 

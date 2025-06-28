@@ -81,39 +81,30 @@ public struct Camera: Sendable {
     // MARK: Properties
 
     /// The closest point relative to camera that drawing will occur.
-//    @Export
     public var near: Float = -1
 
     /// The closest point relative to camera that drawing will occur
-//    @Export
     public var far: Float = 1
 
     /// Angle of camera view
-//    @Export
     public var fieldOfView: Angle = .degrees(70)
 
     /// Base projection in camera
-//    @Export
     public var projection: Projection = .perspective
 
-//    @Export
     public var viewport: Viewport?
 
     /// Set camera is active
-//    @Export
     public var isActive = true
 
     /// Fill color for unused pixel.
-//    @Export
     public var backgroundColor: Color = .surfaceClearColor
 
     /// Contains information about clear flags.
     /// By default contains ``CameraClearFlags/solid`` flag which fill clear color by ``Camera/backgroundColor``.
-//    @Export
     public var clearFlags: CameraClearFlags = .solid
 
-//    @Export
-//    @MinValue(0.1)
+    @MinValue(0.1)
     public var orthographicScale: Float = 1
 
     /// Render target for camera.
@@ -123,7 +114,7 @@ public struct Camera: Sendable {
 
     /// The computed data for the camera.
     @_spi(Internal)
-//    @NoExport
+    @NoExport
     public var computedData: CameraComputedData = .defaultValue
 
     /// The render order.
@@ -205,7 +196,6 @@ public extension Camera {
         guard let viewport = self.viewport else {
             return nil
         }
-
         let size = viewport.rect.size.asVector2
         let ndcSpace = self.worldToNdc(cameraGlobalTransform: cameraGlobalTransform, worldPosition: worldPosition)
 
@@ -273,6 +263,10 @@ public struct GlobalViewUniformBufferSet {
     public init(label: String = "Global View Uniform") {
         self.uniformBufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
         self.uniformBufferSet.label = label
-        self.uniformBufferSet.initBuffers(for: GlobalViewUniform.self, binding: GlobalBufferIndex.viewUniform, set: 0)
+        self.uniformBufferSet.initBuffers(
+            for: GlobalViewUniform.self,
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0
+        )
     }
 }

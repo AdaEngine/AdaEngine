@@ -41,6 +41,7 @@ public struct BlobArray: Sendable {
     var buffer: _Buffer
     public let layout: ElementLayout
     public private(set) var count: Int
+    let label: String?
 
     public init<T: ~Copyable>(count: Int, of type: T.Type) {
         self.count = count
@@ -50,8 +51,9 @@ public struct BlobArray: Sendable {
             alignment: MemoryLayout<T>.alignment
         ), deallocator: { ptr in
             print("Deinitize \(T.self)")
-//            ptr.bindMemory(to: T.self).deinitialize()
+            ptr.bindMemory(to: T.self).deinitialize()
         })
+        self.label = String(describing: T.self)
     }
 }
 
@@ -111,6 +113,7 @@ public extension BlobArray {
 
     func remove<T>(at index: Int) -> T {
         #if DEBUG
+        print("Remove element for buffer \(self.label ?? "") at index: \(index)")
         precondition(
             MemoryLayout<T>.size == self.layout.size &&
             MemoryLayout<T>.alignment == self.layout.alignment,
@@ -125,8 +128,13 @@ public extension BlobArray {
         return element
     }
 
-    func copyElement(to blobArray: inout BlobArray, from fromIndex: Int, to toIndex: Int) {
+    func copyElement(
+        to blobArray: inout BlobArray,
+        from fromIndex: Int,
+        to toIndex: Int
+    ) {
         #if DEBUG
+        print("Copy element from buffer \(self.label ?? "") from index: \(fromIndex) to buffer \(blobArray.label ?? "") to index: \(toIndex)")
         precondition(
             self.layout.size == blobArray.layout.size &&
             self.layout.alignment == blobArray.layout.alignment,

@@ -136,13 +136,15 @@ struct BunnyTexture: Resource {
 /// Component to mark bunny entities and store their velocity
 @Component
 struct Bunny {
+    var texture: AssetHandle<Texture2D>?
     var velocity: Vector3
 
-    init() {
+    init(texture: AssetHandle<Texture2D>?) {
         // Initialize with random velocity
         let velocityX = Float.random(in: -Self.maxInitialVelocity...Self.maxInitialVelocity)
         let velocityY = Float.random(in: 0...Self.maxInitialVelocity)
         self.velocity = Vector3(velocityX, velocityY, 0)
+        self.texture = texture
     }
 
     private static let maxInitialVelocity: Float = 400.0
@@ -203,7 +205,7 @@ struct BunnySpawnerSystem {
         let bunnyPosition = position + Vector3(offsetX, offsetY, 0)
 
         world.spawn("Bunny") {
-            Bunny()
+            Bunny(texture: bunnyTexture.texture)
             Transform(
                 scale: Vector3(BunnyExampleConstants.bunnyScale),
                 position: bunnyPosition
@@ -284,7 +286,7 @@ struct BunnyCollisionSystem {
     @FilterQuery<Camera, With<GlobalTransform>>
     private var cameras
 
-    @Query<Entity, Ref<Bunny>, Transform>
+    @Query<Entity, Ref<Bunny>, Ref<Transform>>
     private var bunnies
 
     init(world: World) {}
@@ -328,12 +330,7 @@ struct BunnyCollisionSystem {
 
             // Update components
             bunny.velocity = velocity
-            entity.components += bunny.wrappedValue
-            entity.components += Transform(
-                rotation: transform.rotation,
-                scale: transform.scale,
-                position: position
-            )
+            transform.position = position
         }
     }
 }

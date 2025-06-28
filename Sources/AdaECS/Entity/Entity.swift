@@ -116,6 +116,19 @@ extension Entity: Codable {
     }
 }
 
+extension Entity: CustomStringConvertible {
+    /// A textual representation of the entity.
+    public var description: String {
+        """
+        Entity(
+            id: \(self.id), 
+            name: \(self.name), 
+            components: \(self.components)
+        )
+        """
+    }
+}
+
 public extension Cancellable {
     /// Stores this type-erasing cancellable instance in the entity.
     /// - Note: This cancellable will be canceled when the entity is removed.

@@ -180,7 +180,6 @@ public struct SpriteRenderSystem: Sendable {
             length: indicies
         )
         quadIndexBuffer.label = "SpriteRenderSystem_IndexBuffer"
-
         spriteData.components += SpriteDataComponent(
             vertexBuffer: vertexBuffer,
             indexBuffer: quadIndexBuffer
@@ -238,12 +237,15 @@ public struct ExtractedSprite: Sendable {
 @System(dependencies: [
     .before(SpriteRenderSystem.self)
 ])
+@inline(__always)
 public func ExtractSprite(
     _ world: World,
-    _ sprites: Extract<Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>>
+    _ sprites: Extract<
+        Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>
+    >
 ) {
     var extractedSprites = ExtractedSprites(sprites: [])
-    sprites().wrappedValue.forEach { entity, sprite, globalTransform, transform, visible in
+    sprites.wrappedValue.forEach { entity, sprite, globalTransform, transform, visible in
         if visible == .hidden {
             return
         }

@@ -70,16 +70,11 @@ public final class Chunks: @unchecked Sendable {
     @discardableResult
     func insertEntity(_ entity: Entity.ID, components: [any Component]) -> ChunkLocation {
         let location = self.getFreeChunkIndex()
-//        print(
-//            "Insert entity \(entity), comp: \(components.map { type(of: $0) }) to chunk \(location), chunks count \(chunks.count)"
-//        )
         return self.chunks.reborrow(at: location) { chunk in
-//            print(
-//                "Chunk capacity \(chunk.capacity), entityCount \(chunk.entityCount), isFull \(chunk.isFull)"
-//            )
             guard let entityLocation = chunk.addEntity(entity) else {
                 fatalError("Failed to add entity to chunk")
             }
+            print("Insert Entity \(entity)")
             chunk.insert(at: entityLocation, components: components)
             let chunkLocation = ChunkLocation(
                 chunkIndex: location,
@@ -92,10 +87,8 @@ public final class Chunks: @unchecked Sendable {
 
     func removeEntity(_ entity: Entity.ID) {
         guard let location = self.entities[entity] else {
-//            print("Entity \(entity) not fiund")
             return
         }
-//        print("Remove entity \(entity) from chunk \(location.chunkIndex)")
         let chunk = self.chunks.getPointer(at: location.chunkIndex)
         chunk.pointee.removeEntity(at: entity)
         if chunk.pointee.entityCount == 0, self.chunks.count > 1 {
@@ -139,7 +132,7 @@ public final class Chunks: @unchecked Sendable {
                             to: chunkLocation.entityRow
                         )
                     chunk.componentsData[component.identifier] = newChunkComponent
-                }
+                 }
                 return chunkLocation
             }
         }
@@ -154,10 +147,12 @@ public struct Chunk: Sendable, ~Copyable {
     public struct ComponentsData: @unchecked Sendable {
         var data: BlobArray
         var changesTicks: BlobArray
+        let componentType: any Component.Type
 
         init<T: Component>(capacity: Int, component: T.Type) {
             self.data = BlobArray(count: capacity, of: T.self)
             self.changesTicks = BlobArray(count: capacity, of: Tick.self)
+            self.componentType = component
         }
     }
 
@@ -228,12 +223,14 @@ public struct Chunk: Sendable, ~Copyable {
     /// - Parameter index: The index of the entity to remove
     mutating func removeEntity(at entityId: Entity.ID) {
         guard let index = self.entities[entityId] else {
+            print("Failed to remove, entities not found")
             return
         }
         guard index < capacity && occupancyMask.get(index) else {
+            print("Failed to remove, not exists in occupance mask")
             return
         }
-        entities[entityId] = 0
+        entities[entityId] = nil
         occupancyMask.set(index, to: false)
         entityCount -= 1
         freeIndices.append(index)
@@ -245,6 +242,7 @@ public struct Chunk: Sendable, ~Copyable {
             guard let array = componentsData[componentId] else {
                 fatalError()
             }
+            print("Insert element for buffer \(array.data.label ?? "") at index: \(entityIndex)")
             array.data.insert(component, at: entityIndex)
         }
     }
@@ -262,9 +260,15 @@ public struct Chunk: Sendable, ~Copyable {
         guard let entity = self.entities[entity] else {
             return false
         }
-        return self.componentsData[T.identifier]?
-            .changesTicks
-            .get(at: entity, as: Tick.self) == lastTick
+        guard
+            let lastChangeTick = self.componentsData[T.identifier]?
+                .changesTicks
+                .get(at: entity, as: Tick.self)
+        else {
+            return false
+        }
+
+        return lastChangeTick > lastTick
     }
 
     @inline(__always)
@@ -320,6 +324,7 @@ public struct Chunk: Sendable, ~Copyable {
             assertionFailure("Component \(T.self) not found in chunk")
             return
         }
+        print("Set component \(T.self) entityIndex: \(entityIndex)")
         componentData.changesTicks.insert(lastTick, at: entityIndex)
         componentData.data.insert(component, at: entityIndex)
     }
@@ -328,6 +333,15 @@ public struct Chunk: Sendable, ~Copyable {
     /// - Returns: Dictionary mapping component IDs to their data arrays
     public func getAllComponentData() -> [ComponentId: ComponentsData] {
         return componentsData
+    }
+
+    public func getComponents(for entity: Entity.ID) -> [ComponentId: any Component] {
+        guard let index = self.entities[entity] else {
+            return [:]
+        }
+        return componentsData.mapValues { data in
+            data.data.get(at: index, as: data.componentType)
+        }
     }
 
     /// Check if an entity slot is occupied

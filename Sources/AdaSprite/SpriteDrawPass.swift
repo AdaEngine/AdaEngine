@@ -19,16 +19,14 @@ struct SpriteVertexData {
 /// Render draw pass for rendering sprites. Support batching.
 public struct SpriteDrawPass: DrawPass {
     public func render(in context: Context, item: Transparent2DRenderItem) throws {
-        guard let spriteData = context.entity.components[SpriteDataComponent.self] else {
-            return
-        }
-        
-        guard let cameraViewUniform = context.view.components[GlobalViewUniformBufferSet.self] else {
+        guard
+            let cameraViewUniform = context.view.components[GlobalViewUniformBufferSet.self],
+            let spriteData = context.entity.components[SpriteDataComponent.self]
+        else {
             return
         }
         
         context.drawList.pushDebugName("SpriteDrawPass")
-        
         let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,

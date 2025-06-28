@@ -143,7 +143,6 @@ public struct FilterQueryIterator<
     B: QueryBuilder,
     F: Filter
 >: IteratorProtocol {
-
     public typealias Element = B.Components
 
     struct Cursor {
@@ -154,6 +153,7 @@ public struct FilterQueryIterator<
 
     let count: Int
     let state: QueryState
+    var currentChunk: UnsafeMutablePointer<Chunk>!
     var cursor: Cursor
 
     /// - Parameter pointer: Pointer to archetypes array.
@@ -180,21 +180,22 @@ public struct FilterQueryIterator<
                 cursor.currentArchetypeIndex += 1
                 cursor.currentChunkIndex = 0
                 cursor.currentRow = 0
+                currentChunk = nil
                 continue
             }
 
-            let chunk = archetype.chunks.chunks.getPointer(at: cursor.currentChunkIndex)
-            if chunk.pointee.entities.count > 1000 {
-                fatalError("something get wrong \(archetype.componentLayout.components) \(archetype.chunks.chunks)")
+            if currentChunk == nil {
+                currentChunk = archetype.chunks.chunks.getPointer(at: cursor.currentChunkIndex)
             }
-            if cursor.currentRow > chunk.pointee.entities.count - 1 {
+
+            if cursor.currentRow > currentChunk.pointee.entities.count - 1 {
                 cursor.currentChunkIndex += 1
                 cursor.currentRow = 0
+                currentChunk = nil
                 continue
             }
 
-            let entityId = chunk.pointee.entities.elements[cursor.currentRow].key
-//            print("Current entity id \(entityId), current row \(cursor.currentRow)")
+            let entityId = currentChunk.pointee.entities.elements[cursor.currentRow].key
             guard
                 let location = state.entities.entities[entityId],
                 let entity = archetype.entities[location.archetypeRow]
@@ -203,11 +204,9 @@ public struct FilterQueryIterator<
                 continue
             }
 
-//            print("location \(location), archetypeRow \(entity)")
-
             guard F.condition(
                 for: archetype,
-                in: chunk.pointee,
+                in: currentChunk.pointee,
                 entity: entity,
                 lastTick: state.lastTick
             ) else {
@@ -216,7 +215,7 @@ public struct FilterQueryIterator<
             }
 
             cursor.currentRow += 1
-            return B.getQueryTarget(for: entity, in: chunk.pointee, archetype: archetype)
+            return B.getQueryTarget(for: entity, in: currentChunk.pointee, archetype: archetype)
         }
     }
 }
