@@ -8,38 +8,51 @@
 import AdaUtils
 import Collections
 
-// TODO: Parallel execution for non dependent values
+protocol SystemsGraphExecutor: Sendable {
+
+    mutating func initialize(_ graph: borrowing SystemsGraph)
+
+    mutating func execute(
+        _ graph: borrowing SystemsGraph,
+        world: World,
+        scheduler: SchedulerName
+    ) async
+}
 
 /// The executor of the systems graph.
-public struct SystemsGraphExecutor: Sendable {
+public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
 
     /// Initialize a new systems graph executor.
     public init() {}
+
+    public mutating func initialize(_ graph: borrowing SystemsGraph) {
+        // Do nothing
+    }
     
     /// Execute the systems graph.
     /// - Parameter graph: The systems graph to execute.
     /// - Parameter world: The world to execute the systems graph in.
     /// - Parameter deltaTime: The delta time to execute the systems graph with.
     /// - Parameter scheduler: The scheduler to execute the systems graph on.
-    public func execute(
+    public mutating func execute(
         _ graph: borrowing SystemsGraph,
         world: World,
         scheduler: SchedulerName
     ) async {
-        for level in graph.dependencyLevels {
-//            await withDiscardingTaskGroup { levelGroup in
-                for node in level {
-//                    levelGroup.addTask {
-                        await executeSystem(
-                            node: node,
-                            world: world,
-                            scheduler: scheduler
-                        )
-                    }
-//                }
-//            }
-            world.flush()
-        }
+        // for level in graph.dependencyLevels {
+        //     await withDiscardingTaskGroup { levelGroup in
+        //         for node in level {
+        //             levelGroup.addTask {
+        //                 await executeSystem(
+        //                     node: node,
+        //                     world: world,
+        //                     scheduler: scheduler
+        //                 )
+        //             }
+        //         }
+        //     }
+        //     world.flush()
+        // }
     }
 
     private func executeSystem(
@@ -57,3 +70,4 @@ public struct SystemsGraphExecutor: Sendable {
         _ = consume context
     }
 }
+

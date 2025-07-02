@@ -24,7 +24,7 @@ public struct CameraPlugin: Plugin {
 
         renderWorld.mainWorld
             .addSystem(ExtractCameraSystem.self, on: .extract)
-            .getMutableResource(RenderGraph.self)?
+            .getMutableResource(RenderGraph.self)
             .wrappedValue?
             .addNode(CameraRenderNode())
     }

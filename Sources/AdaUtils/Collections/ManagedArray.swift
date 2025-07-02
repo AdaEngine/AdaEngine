@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 16.06.2025.
 //
 
+import Foundation
+
 public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyable {
 
     final class _Buffer {
@@ -25,7 +27,6 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
     struct Header {
         var capacity: Int
         var count: Int = 0
-        var currentPointer: Int = -1
     }
 
     private var header: Header
@@ -36,7 +37,7 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
     }
 
     public var endIndex: Int {
-        return self.header.currentPointer + 1
+        return self.header.count
     }
 
     public var count: Int {
@@ -55,54 +56,70 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
     }
 
     public mutating func insert(_ element: consuming Element, at index: Int) {
-        precondition(index >= 0 && index < self.header.capacity)
-        self.buffer.pointer.initializeElement(at: index, to: element)
+        precondition(index >= 0 && index <= self.header.count)
+        if self.header.count == self.header.capacity {
+            increaseCapacity(to: self.header.capacity > 0 ? self.header.capacity * 2 : 8)
+        }
+        let baseAddress = self.buffer.pointer.baseAddress!
+        if index < self.header.count {
+            baseAddress.advanced(by: MemoryLayout<Element>.stride * index + 1).moveInitialize(
+                from: baseAddress.advanced(by: MemoryLayout<Element>.stride * index),
+                count: self.header.count - index
+            )
+        }
+        print(#function, "is main thread", Thread.isMainThread)
+        print("initialize element at index \(index)")
+        baseAddress.advanced(by: MemoryLayout<Element>.stride * index).initialize(to: element)
+        self.header.count += 1
     }
 
     public mutating func append(_ element: consuming Element) {
-        self.header.currentPointer += 1
-//        print("Append element at index \(self.header.currentPointer)")
-        if self.header.currentPointer > self.header.capacity - 1 {
-//            print("Increase capacity \(self.header.capacity) -> \(self.header.capacity + 8)")
-            increaseCapacity(to: self.header.capacity + 8)
-        }
-        self.header.count += 1
-        self.insert(element, at: self.header.currentPointer)
+        insert(element, at: self.header.count)
     }
 
     public mutating func increaseCapacity(to capacity: Int) {
         precondition(self.header.capacity < capacity)
-        let oldCount = self.header.capacity
         let newBuffer = _Buffer(pointer: .allocate(capacity: capacity), count: capacity)
-        let _ = newBuffer.pointer.moveInitialize(fromContentsOf: self.buffer.pointer)
+        newBuffer.pointer.baseAddress!.moveInitialize(from: self.buffer.pointer.baseAddress!, count: self.header.count)
         self.header.capacity = capacity
         self.buffer = newBuffer
     }
 
+    @inline(__always)
     public func reborrow<U>(at index: Int, _ block: (inout Element) -> U) -> U {
         let pointer = buffer.pointer
             .baseAddress!
-            .advanced(by: MemoryLayout<Element>.size * index)
+            .advanced(by: MemoryLayout<Element>.stride * index)
         return block(&pointer.pointee)
     }
 
     @discardableResult
     public mutating func remove(at index: Int) -> Element {
-        print("Remove element at index \(index)")
+        precondition(index >= 0 && index < self.header.count)
+        print("Remove chunk at index \(index)")
+        let baseAddress = self.buffer.pointer.baseAddress!
+        let element = baseAddress.advanced(by: MemoryLayout<Element>.stride * index).move()
+
+        if index < self.header.count - 1 {
+            baseAddress
+                .advanced(by: MemoryLayout<Element>.stride * index)
+                .moveInitialize(from: baseAddress.advanced(by: MemoryLayout<Element>.stride * index + 1), count: self.header.count - 1 - index)
+        }
+        
         self.header.count -= 1
-        let pointee = self.buffer.pointer.moveElement(from: index)
-        return pointee
+        return element
     }
 
     public func getPointer(at index: Int) -> UnsafeMutablePointer<Element> {
         self.buffer.pointer
             .baseAddress!
-            .advanced(by: MemoryLayout<Element>.size * index)
+            .advanced(by: MemoryLayout<Element>.stride * index)
 
     }
 
     public consuming func take(at index: Int) -> Element {
-        self.buffer.pointer.moveElement(from: index)
+        precondition(index >= 0 && index < self.header.count)
+        return (self.getPointer(at: index)).move()
     }
 
     public func forEach(_ body: (borrowing Element) -> Void) {
@@ -110,7 +127,7 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
             body(
                 buffer.pointer
                 .baseAddress!
-                .advanced(by: MemoryLayout<Element>.size * i)
+                .advanced(by: MemoryLayout<Element>.stride * i)
                 .pointee
             )
         }
@@ -123,7 +140,7 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
             result.append(transform(
                 buffer.pointer
                 .baseAddress!
-                .advanced(by: MemoryLayout<Element>.size * i)
+                .advanced(by: MemoryLayout<Element>.stride * i)
                 .pointee
             ))
         }

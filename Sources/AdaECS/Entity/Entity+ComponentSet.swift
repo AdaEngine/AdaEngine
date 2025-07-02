@@ -125,12 +125,23 @@ public extension Entity {
         
         /// The number of components in the set.
         public var count: Int {
-            return 0
+            guard
+                let world,
+                let location = world.entities.entities[entity]
+            else {
+                return 0
+            }
+            return world.archetypes
+                .archetypes[location.archetypeId]
+                .chunks.chunks.getPointer(at: location.chunkIndex)
+                .pointee
+                .getComponents(for: entity)
+                .count
         }
         
         /// A Boolean value indicating whether the set is empty.
         public var isEmpty: Bool {
-            return false
+            return count == 0
         }
   
         /// Check if a component is changed.

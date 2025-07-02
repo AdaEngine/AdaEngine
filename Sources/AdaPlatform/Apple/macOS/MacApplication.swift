@@ -100,11 +100,11 @@ final class MacApplication: Application {
         self.gameControllerManager = AppleGameControllerManager { [unowned app] event in
             Task { @MainActor in
                 let input = app.mainWorld.getMutableResource(Input.self)
-                input?.wrappedValue?.receiveEvent(event)
+                input.wrappedValue?.receiveEvent(event)
             }
         }
         let mutableInput = app.mainWorld.getMutableResource(Input.self)
-        mutableInput?.wrappedValue?.rumbleGameControllerEngine = self.gameControllerManager
+        mutableInput.wrappedValue?.rumbleGameControllerEngine = self.gameControllerManager
         self.windowManager.inputRef = mutableInput
         self.gameControllerManager?.startMonitoring()
     }
