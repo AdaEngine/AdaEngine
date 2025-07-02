@@ -176,7 +176,7 @@ public final class Scheduler: @unchecked Sendable {
     public var systemGraph: SystemsGraph = SystemsGraph()
 
     /// The graph executor of the scheduler.
-    let graphExecutor: SystemsGraphExecutor = SystemsGraphExecutor()
+    var graphExecutor: any SystemsGraphExecutor = SingleThreadedSystemsGraphExecutor()
 
     let runnerSystemsBuilder: (World) -> any System
 
@@ -212,8 +212,14 @@ public final class Scheduler: @unchecked Sendable {
             self.runnerSystem = self.runnerSystemsBuilder(world)
         }
 
+        if self.systemGraph.isChanged {
+            self.systemGraph.linkSystems()
+            self.graphExecutor.initialize(self.systemGraph)
+        }
+
         let name = self.name
         world.insertResource(DeltaTime(deltaTime: deltaTime))
+
         if let runnerSystem = runnerSystem {
             var context = WorldUpdateContext(
                 world: world,

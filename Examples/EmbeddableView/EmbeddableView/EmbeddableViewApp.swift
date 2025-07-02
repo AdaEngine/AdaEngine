@@ -14,8 +14,8 @@ struct AdaEngineApp: App {
         EmptyWindow()
             .addPlugins(
                 DefaultPlugins(),
-                BunnyExample()
-//                TestPlugin()
+//                BunnyExample()
+                TestPlugin()
             )
             .windowMode(.windowed)
     }

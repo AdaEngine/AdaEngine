@@ -1,0 +1,317 @@
+//
+//  ArchetypeTests.swift
+//  AdaEngine
+//
+//  Created by Vladislav Prusakov on 28.06.2025.
+//
+
+import Testing
+@_spi(Internal) @testable import AdaECS
+import Math
+
+struct ComponentA: Component, Equatable {
+    var value: Int
+}
+
+struct ComponentB: Component, Equatable {
+    var value: String
+}
+
+struct ComponentC: Component, Equatable { }
+
+struct TestResource: Resource, Equatable {
+    var value: Int
+}
+
+@Suite("Archetype")
+struct ArchetypeTests {
+
+    let world: World
+
+    init() {
+        self.world = World()
+    }
+
+    @Test("Random Access")
+    func randomAccess() {
+        let e = world.spawn {
+            ComponentA(value: 123)
+            ComponentB(value: "abc")
+        }
+
+        let f = world.spawn {
+            ComponentA(value: 456)
+            ComponentB(value: "def")
+            ComponentC()
+        }
+
+        #expect(world.get(from: e.id) == ComponentA(value: 123))
+        #expect(world.get(from: e.id) == ComponentB(value: "abc"))
+        #expect(world.get(from: f.id) == ComponentA(value: 456))
+        #expect(world.get(from: f.id) == ComponentB(value: "def"))
+        #expect(world.get(from: f.id) == ComponentC())
+
+        world.set(ComponentB(value: "xyz"), for: e.id)
+        #expect(world.get(from: e.id) == ComponentB(value: "xyz"))
+    }
+
+    @Test("Chunk Creation")
+    func chunkCreation() {
+        let entityCount = 100
+        for i in 0..<entityCount {
+            world.spawn {
+                ComponentA(value: i)
+                ComponentB(value: "abc")
+            }
+        }
+
+        let query = Query<ComponentA>()
+        query.update(from: world)
+
+        #expect(query.count == entityCount)
+    }
+
+    @Test("Despawn")
+    func despawn() {
+        let e = world.spawn {
+            ComponentA(value: 123)
+            ComponentB(value: "abc")
+        }
+
+        let f = world.spawn {
+            ComponentA(value: 456)
+            ComponentB(value: "def")
+        }
+        
+        #expect(world.getEntityByID(e.id) != nil)
+
+        world.removeEntity(e)
+
+        #expect(world.getEntityByID(e.id) == nil)
+        #expect(world.get(from: e.id) as ComponentA? == nil)
+        #expect(world.get(from: e.id) as ComponentB? == nil)
+
+        #expect(world.get(from: f.id) == ComponentA(value: 456))
+        #expect(world.get(from: f.id) == ComponentB(value: "def"))
+    }
+
+    @Test("Query all")
+    func queryAll() {
+        let e = world.spawn {
+            ComponentB(value: "abc")
+            ComponentA(value: 123)
+        }
+
+        let f = world.spawn {
+            ComponentB(value: "def")
+            ComponentA(value: 456)
+        }
+
+        let query = Query<Entity, ComponentA, ComponentB>()
+        query.update(from: world)
+
+        var results: [(Entity, ComponentA, ComponentB)] = []
+        query.forEach { item in
+            results.append(item)
+        }
+
+        #expect(results.count == 2)
+
+        // The order is not guaranteed, so we need to check for existence of both.
+        let expected: [(Entity, ComponentA, ComponentB)] = [
+            (e, ComponentA(value: 123), ComponentB(value: "abc")),
+            (f, ComponentA(value: 456), ComponentB(value: "def"))
+        ]
+
+        for expectedItem in expected {
+            #expect(results.contains(where: { $0.0.id == expectedItem.0.id && $0.1 == expectedItem.1 && $0.2 == expectedItem.2 }))
+        }
+    }
+
+    @Test("Query filter with")
+    func queryFilterWith() {
+        world.spawn {
+            ComponentA(value: 123)
+            ComponentB(value: "a")
+        }
+        world.spawn {
+            ComponentA(value: 456)
+        }
+
+        let query = world.performQuery(FilterQuery<ComponentA, With<ComponentB>>())
+        let results = query.map { $0 }
+
+        #expect(results.count == 1)
+        #expect(results.first == ComponentA(value: 123))
+    }
+
+    @Test("Query filter without")
+    func queryFilterWithout() {
+        world.spawn {
+            ComponentA(value: 123)
+            ComponentB(value: "a")
+        }
+        world.spawn {
+            ComponentA(value: 456)
+        }
+
+        let query = world.performQuery(FilterQuery<ComponentA, Without<ComponentB>>())
+        let results = query.map { $0 }
+
+        #expect(results.count == 1)
+        #expect(results.first == ComponentA(value: 456))
+    }
+
+    @Test("Add and remove components")
+    func addRemoveComponents() {
+        let e = world.spawn {
+            ComponentA(value: 1)
+            ComponentB(value: "a")
+        }
+
+        // Check initial state
+        #expect(world.has(ComponentA.self, in: e.id))
+        #expect(world.has(ComponentB.self, in: e.id))
+        #expect(!world.has(ComponentC.self, in: e.id))
+
+        // Add ComponentC
+        world.set(ComponentC(), for: e.id)
+        #expect(world.has(ComponentC.self, in: e.id))
+
+        // Remove ComponentA
+        world.remove(ComponentA.self, from: e.id)
+        #expect(!world.has(ComponentA.self, in: e.id))
+        #expect(world.get(from: e.id) as ComponentA? == nil)
+        #expect(world.has(ComponentB.self, in: e.id))
+        #expect(world.has(ComponentC.self, in: e.id))
+    }
+
+    @Test("Query optional component")
+    func queryOptionalComponent() {
+        let e = world.spawn {
+            ComponentA(value: 123)
+        }
+
+        let f = world.spawn {
+            ComponentA(value: 456)
+            ComponentB(value: "b")
+        }
+
+        let query = FilterQuery<Entity, ComponentA, Optional<ComponentB>, NoFilter>()
+        query.update(from: world)
+
+        var results: [(Entity.ID, ComponentA, Optional<ComponentB>)] = []
+        query.forEach { entity, a, b in
+            results.append((entity.id, a, b))
+        }
+
+        #expect(results.count == 2)
+        
+        let resultE = results.first(where: { $0.0 == e.id })
+        #expect(resultE?.1 == ComponentA(value: 123))
+        #expect(resultE?.2 == nil)
+
+        let resultF = results.first(where: { $0.0 == f.id })
+        #expect(resultF?.1 == ComponentA(value: 456))
+        #expect(resultF?.2 == ComponentB(value: "b"))
+    }
+
+    @Test("Spawn Batch")
+    func spawnBatch() {
+        let entityCount = 100
+        for i in 0..<entityCount {
+            world.spawn {
+                ComponentA(value: i)
+                ComponentB(value: "abc")
+            }
+        }
+
+        let query = Query<ComponentA>()
+        query.update(from: world)
+        
+        #expect(query.count == entityCount)
+
+        var sum = 0
+        query.forEach { a in
+            sum += a.value
+        }
+
+        let expectedSum = (0..<entityCount).reduce(0, +)
+        #expect(sum == expectedSum)
+    }
+
+    @Test("Remove Missing Component")
+    func removeMissingComponent() {
+        let e = world.spawn {
+            ComponentA(value: 123)
+        }
+
+        // This should not crash or fail.
+        world.remove(ComponentB.self, from: e.id)
+        #expect(world.has(ComponentA.self, in: e.id))
+        #expect(!world.has(ComponentB.self, in: e.id))
+    }
+
+    @Test("Resource Management")
+    func resourceManagement() {
+        #expect(world.getResource(TestResource.self) == nil)
+        world.insertResource(TestResource(value: 123))
+
+        #expect(world.getResource(TestResource.self) != nil)
+        #expect(world.getResource(TestResource.self)?.value == 123)
+
+        let mutableResource = world.getMutableResource(TestResource.self)
+        mutableResource.wrappedValue?.value = 456
+
+        #expect(world.getResource(TestResource.self)?.value == 456)
+
+        world.removeResource(TestResource.self)
+        #expect(world.getResource(TestResource.self) == nil)
+    }
+
+    @Test("Added Tracking")
+    func addedTracking() {
+        let e = world.spawn { ComponentA(value: 123) }
+
+        #expect(world.addedEntities.contains(e.id))
+        #expect(world.addedEntities.count == 1)
+
+        world.clearTrackers()
+
+        #expect(world.addedEntities.isEmpty)
+    }
+
+    @Test("Changed Tracking")
+    func changedTracking() {
+        let e1 = world.spawn { ComponentA(value: 0) }
+        let e2 = world.spawn { ComponentA(value: 0) }
+
+        world.clearTrackers()
+
+        let query = Query<Entity, Ref<ComponentA>>()
+        query.update(from: world)
+        
+        for (index, item) in query.enumerated() {
+            if index % 2 == 0 {
+                item.1.wrappedValue.value += 1
+                #expect(item.1.isChanged)
+            }
+        }
+        
+        let changedQuery = world.performQuery(FilterQuery<Entity, Changed<ComponentA>>())
+        let changedEntities = Set(changedQuery.map { $0.id })
+
+        #expect(changedEntities.count == 1)
+        #expect(changedEntities.contains(e1.id))
+        #expect(!changedEntities.contains(e2.id))
+
+        // Ensure moving archetypes preserves change state
+        world.set(ComponentB(value: "moved"), for: e1.id)
+        
+        let changedQueryAfterMove = world.performQuery(FilterQuery<Entity, Changed<ComponentA>>())
+        let changedEntitiesAfterMove = Set(changedQueryAfterMove.map { $0.id })
+
+        #expect(changedEntitiesAfterMove.count == 1)
+        #expect(changedEntitiesAfterMove.contains(e1.id))
+    }
+}

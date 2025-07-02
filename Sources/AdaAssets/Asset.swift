@@ -150,10 +150,6 @@ public final class AssetHandle<T: Asset>: Codable, Sendable {
         case meta
     }
 
-    deinit {
-        print("Deinited", asset)
-    }
-
     /// Initialize a new asset handle from a decoder.
     ///
     /// - Parameter decoder: The decoder to initialize the asset handle from.

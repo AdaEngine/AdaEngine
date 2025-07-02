@@ -16,11 +16,11 @@ public struct ChunkLocation: Sendable {
 
 /// A chunk-based storage system for ECS components
 /// Provides memory-efficient, cache-friendly storage for entities and their components
-public final class Chunks: @unchecked Sendable {
+public struct Chunks: Sendable {
     let componentLayout: ComponentLayout
 
     /// Array of chunks for different archetypes
-    public internal(set) var chunks: ManagedArray<Chunk> = .init()
+    @LocalIsolated public internal(set) var chunks: ManagedArray<Chunk> = .init()
 
     /// Configuration for chunk storage
     public let chunkSize: Int
@@ -35,21 +35,21 @@ public final class Chunks: @unchecked Sendable {
         self.chunks.append(Chunk(capacity: chunkSize, layout: componentLayout))
     }
 
-    func getFreeChunkIndex() -> Int {
+    mutating func getFreeChunkIndex() -> Int {
         if let firstLocation = friedLocation.popLast() {
-//            print("Get free chunk index from friedLocation \(firstLocation.chunkIndex)")
+            print("Get free chunk index from friedLocation \(firstLocation.chunkIndex)")
             return firstLocation.chunkIndex
-        } else if self.chunks.reborrow(at: self.chunks.endIndex - 1, { $0.isFull }) == false {
-//            print(
-//                "Get free chunk index \(self.chunks.endIndex), entityCount \(self.chunks.reborrow(at: self.chunks.endIndex - 1) { $0.entityCount })"
-//            )
+        } else if self.chunks.count > 0, self.chunks.reborrow(at: self.chunks.endIndex - 1, { $0.isFull }) == false {
+            print(
+                "Get free chunk index \(self.chunks.endIndex - 1), entityCount \(self.chunks.reborrow(at: self.chunks.endIndex - 1) { $0.entityCount })"
+            )
             return max(0, self.chunks.endIndex - 1)
         } else {
-//            print("Append chunk \(self.chunks.endIndex)")
-            self.chunks.append(Chunk(capacity: self.chunkSize, layout: componentLayout))
+            let chunk = Chunk(capacity: self.chunkSize, layout: componentLayout)
+            self.chunks.append(chunk)
             return self.chunks.endIndex - 1
         }
-    }
+    } 
 
     func insert<T: Component>(
         _ component: T,
@@ -68,24 +68,25 @@ public final class Chunks: @unchecked Sendable {
     }
 
     @discardableResult
-    func insertEntity(_ entity: Entity.ID, components: [any Component]) -> ChunkLocation {
+    mutating func insertEntity(
+        _ entity: Entity.ID,
+        components: [any Component]
+    ) -> ChunkLocation {
         let location = self.getFreeChunkIndex()
-        return self.chunks.reborrow(at: location) { chunk in
-            guard let entityLocation = chunk.addEntity(entity) else {
-                fatalError("Failed to add entity to chunk")
-            }
-            print("Insert Entity \(entity)")
-            chunk.insert(at: entityLocation, components: components)
-            let chunkLocation = ChunkLocation(
-                chunkIndex: location,
-                entityRow: entityLocation
-            )
-            self.entities[entity] = chunkLocation
-            return chunkLocation
+        let chunk = self.chunks.getPointer(at: location)
+        guard let entityLocation = chunk.pointee.addEntity(entity) else {
+            fatalError("Failed to add entity \(entity) to chunk \(location)")
         }
+        chunk.pointee.insert(at: entityLocation, components: components)
+        let chunkLocation = ChunkLocation(
+            chunkIndex: location,
+            entityRow: entityLocation
+        )
+        self.entities[entity] = chunkLocation
+        return chunkLocation
     }
 
-    func removeEntity(_ entity: Entity.ID) {
+    mutating func removeEntity(_ entity: Entity.ID) {
         guard let location = self.entities[entity] else {
             return
         }
@@ -98,7 +99,7 @@ public final class Chunks: @unchecked Sendable {
         self.friedLocation.append(location)
     }
 
-    func moveEntity(_ entity: Entity.ID, to chunks: inout Chunks) -> ChunkLocation {
+    mutating func moveEntity(_ entity: Entity.ID, to chunks: inout Chunks) -> ChunkLocation {
         guard let location = self.entities[entity] else {
             fatalError("Entity \(entity) not found in chunks")
         }
@@ -184,7 +185,7 @@ public struct Chunk: Sendable, ~Copyable {
     }
 
     public init(capacity: Int, layout: ComponentLayout) {
-        print("New chunk", layout.components)
+        print("New chunk", layout.components, capacity)
         self.capacity = capacity
         self.entities = [:]
         self.occupancyMask = BitArray(size: capacity)
@@ -202,9 +203,10 @@ public struct Chunk: Sendable, ~Copyable {
     /// - Returns: The index where the entity was placed, or nil if chunk is full
     mutating func addEntity(_ entityId: Entity.ID) -> Int? {
         if entityCount >= capacity {
+            print("Chuink is full, cannot add entity \(entityId), self \(self.description)")
             return nil
         }
-
+        
         let index: Int
         if let freeIndex = freeIndices.popLast() {
             index = freeIndex
@@ -242,7 +244,6 @@ public struct Chunk: Sendable, ~Copyable {
             guard let array = componentsData[componentId] else {
                 fatalError()
             }
-            print("Insert element for buffer \(array.data.label ?? "") at index: \(entityIndex)")
             array.data.insert(component, at: entityIndex)
         }
     }
@@ -268,7 +269,7 @@ public struct Chunk: Sendable, ~Copyable {
             return false
         }
 
-        return lastChangeTick > lastTick
+        return lastChangeTick >= lastTick
     }
 
     @inline(__always)
@@ -280,16 +281,6 @@ public struct Chunk: Sendable, ~Copyable {
             .data
             .get(at: index, as: T.self)
     }
-
-//    public func getData<T: Component>(_ type: T.Type, for entityIndex: Int) -> ComponentData<T>? {
-//        guard let data = self.componentsData[T.identifier] else {
-//            return nil
-//        }
-//        return ComponentData(
-//            component: data.data.getMutablePointer(at: entityIndex, as: T.self),
-//            changeTick: data.changesTicks.get(at: entityIndex, as: Tick.self)
-//        )
-//    }
 
     @inline(__always)
     public func getMutablePointer<T: Component>(

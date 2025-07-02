@@ -58,10 +58,6 @@ struct SystemMacroTests {
     }
 }
 
-struct Gravity: Resource {
-    var value: Vector3
-}
-
 @PlainSystem
 struct BasicSystem {
     @Query<Ref<Transform>, Velocity>

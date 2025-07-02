@@ -25,7 +25,8 @@ public protocol QueryBuilder {
     static func getQueryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype
+        archetype: Archetype,
+        world: borrowing World
     ) -> Components
 }
 
@@ -49,8 +50,9 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Que
     public static func getQueryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype
+        archetype: Archetype,
+        world: borrowing World
     ) -> Components {
-        (repeat (each T)._queryTarget(for: entity, in: chunk, archetype: archetype))
+        (repeat (each T)._queryTarget(for: entity, in: chunk, archetype: archetype, world: world))
     }
 }

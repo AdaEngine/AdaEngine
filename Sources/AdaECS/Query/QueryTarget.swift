@@ -21,7 +21,8 @@ public protocol QueryTarget: Sendable, ~Copyable {
     static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype
+        archetype: Archetype,
+        world: borrowing World
     ) -> Self
 
     /// Check if an archetype contains the target.
@@ -41,7 +42,8 @@ extension Component {
     public static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype
+        archetype: Archetype,
+        world: borrowing World
     ) -> Self {
         return chunk.get(Self.self, for: entity.id)!
     }
@@ -63,9 +65,18 @@ extension Ref: QueryTarget where T: Component {
     public static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype
+        archetype: Archetype,
+        world: borrowing World
     ) -> Ref<T> {
-        Ref(pointer: chunk.getMutablePointer(T.self, for: entity.id)!)
+        Ref(
+            pointer: chunk.getMutablePointer(T.self, for: entity.id)!,
+            currentTick: chunk.getMutableTick(T.self, for: entity.id)!,
+            changeTick: .init(
+                change: nil,
+                lastTick: world.lastTick,
+                currentTick: world.lastTick
+            )
+        )
     }
 
     @inline(__always)
@@ -85,7 +96,8 @@ extension Entity: QueryTarget {
     public static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype
+        archetype: Archetype,
+        world: borrowing World
     ) -> Self {
         return entity as! Self
     }
@@ -107,14 +119,16 @@ extension Optional: QueryTarget where Wrapped: QueryTarget {
     public static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype
+        archetype: Archetype,
+        world: borrowing World
     ) -> Self {
         if Wrapped._queryTargetContains(in: entity) {
             return .some(
                 Wrapped._queryTarget(
                     for: entity,
                     in: chunk,
-                    archetype: archetype
+                    archetype: archetype,
+                    world: world
                 )
             )
         }

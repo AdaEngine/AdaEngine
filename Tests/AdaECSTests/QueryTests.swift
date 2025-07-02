@@ -2,16 +2,6 @@ import Testing
 @_spi(Internal) @testable import AdaECS
 import Math
 
-@Component
-struct Transform {
-    var position: Vector3 = .zero
-}
-
-@Component
-struct Velocity {
-    var velocity: Vector3 = .zero
-}
-
 @Suite("Query tests")
 struct QueryTests {
     @Test("Query fetch components")

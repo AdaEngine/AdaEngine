@@ -10,6 +10,18 @@ import Collections
 import Foundation
 import Atomics
 
+public struct ChangeDetectionTick {
+    public var change: Tick?
+    public let lastTick: Tick
+    public let currentTick: Tick
+
+    public init(change: Tick?, lastTick: Tick, currentTick: Tick) {
+        self.change = change
+        self.lastTick = lastTick
+        self.currentTick = currentTick
+    }
+}
+
 public struct Tick: Sendable, Comparable {
     public let value: Int
 
@@ -178,14 +190,7 @@ public extension World {
         guard let scheduler = self.schedulers.getScheduler(scheduler) else {
             fatalError("Scheduler \(scheduler) not found")
         }
-        if scheduler.systemGraph.isChanged {
-            scheduler.systemGraph.linkSystems()
-        }
-        await scheduler.graphExecutor.execute(
-            scheduler.systemGraph,
-            world: self,
-            scheduler: scheduler.name
-        )
+        await scheduler.run(world: self)
     }
 }
 
@@ -361,6 +366,9 @@ public extension World {
     @discardableResult
     func insertResource<T: Resource>(_ resource: consuming T) -> Self {
         let componentId = self.componentsStorage.getOrRegisterResource(T.self)
+        if self.componentsStorage.resourceComponents[componentId] != nil {
+            return self
+        }
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
     }
@@ -372,6 +380,9 @@ public extension World {
     func insertResource(_ resource: consuming any Resource) -> Self {
         let resource = resource
         let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
+        if self.componentsStorage.resourceComponents[componentId] != nil {
+            return self
+        }
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
     }
@@ -415,18 +426,19 @@ public extension World {
     /// - Parameter resource: The resource to get.
     /// - Complexity: O(1)
     /// - Returns: The resource if it exists, otherwise nil.
-    func getMutableResource<T: Resource>(_ resource: T.Type) -> Mutable<T?>? {
+    func getMutableResource<T: Resource>(_ resource: T.Type) -> Mutable<T?> {
         return Mutable { [unowned self] in
             self.getResource(resource)
         } set: { [unowned self] newValue in
             if let newValue {
-                self.insertResource(newValue)
+                let componentId = self.componentsStorage.getOrRegisterResource(T.self)
+                self.componentsStorage.resourceComponents[componentId] = newValue
             } else {
                 self.removeResource(T.self)
             }
         }
     }
-
+    
     /// Get all resources from the world.
     /// - Returns: All resources in world.
     func getResources() -> [any Resource] {
@@ -513,6 +525,7 @@ public extension World {
             chunkRow: chunkLocation.entityRow
         )
         entity.world = self
+        addedEntities.insert(entity.id)
         return entity
     }
 
