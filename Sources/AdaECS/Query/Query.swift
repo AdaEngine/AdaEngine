@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
+import Foundation
+
 /// A query that can fetch query targets like components or entities.
 ///
 /// Use queries to efficiently access and iterate over entities and their components that match specific criteria.
@@ -114,7 +116,7 @@ final class QueryState: @unchecked Sendable {
     @usableFromInline
     private(set) var archetypes: [Archetype] = []
     private(set) var entities: Entities = Entities()
-    private(set) weak var world: World?
+    private(set) weak var world: World!
     private(set) var lastTick: Tick = Tick(value: 0)
 
     @usableFromInline
@@ -187,7 +189,7 @@ public struct FilterQueryIterator<
             if currentChunk == nil {
                 currentChunk = archetype.chunks.chunks.getPointer(at: cursor.currentChunkIndex)
             }
-
+            print("is main thread", Thread.isMainThread)
             if cursor.currentRow > currentChunk.pointee.entities.count - 1 {
                 cursor.currentChunkIndex += 1
                 cursor.currentRow = 0
@@ -215,7 +217,12 @@ public struct FilterQueryIterator<
             }
 
             cursor.currentRow += 1
-            return B.getQueryTarget(for: entity, in: currentChunk.pointee, archetype: archetype)
+            return B.getQueryTarget(
+                for: entity,
+                in: currentChunk.pointee,
+                archetype: archetype,
+                world: state.world
+            )
         }
     }
 }

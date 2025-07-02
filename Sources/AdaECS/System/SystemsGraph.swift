@@ -48,8 +48,6 @@ public struct SystemsGraph: Sendable, ~Copyable {
         self.nodes.values.elements.map { $0.system }
     }
     
-    private(set) var dependencyLevels: [[SystemsGraph.Node]] = []
-    
     /// The nodes of the graph.
     private(set) var nodes: OrderedDictionary<String, Node> = [:]
     
@@ -82,8 +80,6 @@ public struct SystemsGraph: Sendable, ~Copyable {
                 }
             }
         }
-        
-        self.dependencyLevels = self.buildDependencyLevels()
         self.isChanged = false
     }
     
@@ -166,52 +162,55 @@ public struct SystemsGraph: Sendable, ~Copyable {
     /// - Parameter edge: The edge to check.
     /// - Returns: True if the edge exists, otherwise false.
     private func hasEdge(_ edge: Edge) -> Bool {
-        guard let inputNode = self.nodes[edge.inputNode], let outputNode = self.nodes[edge.outputNode] else {
+        guard 
+            let inputNode = self.nodes[edge.inputNode], 
+            let outputNode = self.nodes[edge.outputNode] 
+        else {
             return false
         }
         
         return inputNode.inputEdges.firstIndex(of: edge) != nil && outputNode.outputEdges.firstIndex(of: edge) != nil
     }
     
-    /// Build dependency levels for systems to enable parallel execution of independent systems
-    private func buildDependencyLevels() -> [[SystemsGraph.Node]] {
-        var levels: [[SystemsGraph.Node]] = []
-        var remainingNodes = Set(nodes.values.elements.map { $0.name })
-        var processedNodes: Set<String> = []
+    // /// Build dependency levels for systems to enable parallel execution of independent systems
+    // private func buildDependencyLevels() -> [[SystemsGraph.Node]] {
+    //     var levels: [[SystemsGraph.Node]] = []
+    //     var remainingNodes = Set(nodes.values.elements.map { $0.name })
+    //     var processedNodes: Set<String> = []
         
-        while !remainingNodes.isEmpty {
-            var currentLevel: [SystemsGraph.Node] = []
+    //     while !remainingNodes.isEmpty {
+    //         var currentLevel: [SystemsGraph.Node] = []
             
-            // Find all nodes that have no unprocessed dependencies
-            for nodeName in remainingNodes {
-                guard let node = nodes[nodeName] else { continue }
+    //         // Find all nodes that have no unprocessed dependencies
+    //         for nodeName in remainingNodes {
+    //             guard let node = nodes[nodeName] else { continue }
                 
-                let inputNodes = getInputNodes(for: nodeName)
-                let hasUnprocessedDependencies = inputNodes.contains { inputNode in
-                    !processedNodes.contains(inputNode.name)
-                }
+    //             let inputNodes = getInputNodes(for: nodeName)
+    //             let hasUnprocessedDependencies = inputNodes.contains { inputNode in
+    //                 !processedNodes.contains(inputNode.name)
+    //             }
                 
-                if !hasUnprocessedDependencies {
-                    currentLevel.append(node)
-                }
-            }
+    //             if !hasUnprocessedDependencies {
+    //                 currentLevel.append(node)
+    //             }
+    //         }
             
-            // If no nodes can be processed, there might be a circular dependency
-            guard !currentLevel.isEmpty else {
-                fatalError("Circular dependency detected in systems graph")
-            }
+    //         // If no nodes can be processed, there might be a circular dependency
+    //         guard !currentLevel.isEmpty else {
+    //             fatalError("Circular dependency detected in systems graph")
+    //         }
             
-            // Update tracking sets
-            for node in currentLevel {
-                remainingNodes.remove(node.name)
-                processedNodes.insert(node.name)
-            }
+    //         // Update tracking sets
+    //         for node in currentLevel {
+    //             remainingNodes.remove(node.name)
+    //             processedNodes.insert(node.name)
+    //         }
             
-            levels.append(currentLevel)
-        }
+    //         levels.append(currentLevel)
+    //     }
         
-        return levels
-    }
+    //     return levels
+    // }
 }
 
 extension SystemsGraph {

@@ -9,9 +9,10 @@
 /// Used to mutate component values via ``Query``.
 @dynamicMemberLookup
 @propertyWrapper
-public final class Ref<T>: @unchecked Sendable {
-
+public final class Ref<T>: @unchecked Sendable, ChangeDetectionable {
     private let pointer: UnsafeMutablePointer<T>
+    private let currentTick: UnsafeMutablePointer<Tick>
+    public var changeTick: ChangeDetectionTick
 
     /// The wrapped value of the reference.
     @inline(__always)
@@ -21,6 +22,8 @@ public final class Ref<T>: @unchecked Sendable {
         }
         set {
             self.pointer.pointee = newValue
+            self.currentTick.pointee = self.changeTick.currentTick
+            self.setChanged()
         }
     }
 
@@ -28,8 +31,14 @@ public final class Ref<T>: @unchecked Sendable {
     /// - Parameters:
     ///   - get: A closure that returns the component value.
     ///   - set: A closure that sets the component value.
-    public init(pointer: UnsafeMutablePointer<T>) {
+    public init(
+        pointer: UnsafeMutablePointer<T>,
+        currentTick: UnsafeMutablePointer<Tick>,
+        changeTick: ChangeDetectionTick
+    ) {
         self.pointer = pointer
+        self.changeTick = changeTick
+        self.currentTick = currentTick
     }
 
     @inline(__always)
@@ -95,5 +104,23 @@ public final class Mutable<T>: @unchecked Sendable {
         set {
             self.wrappedValue[keyPath: dynamicMember] = newValue
         }
+    }
+}
+
+public protocol ChangeDetectionable: AnyObject {
+    var changeTick: ChangeDetectionTick { get set }
+
+    var isChanged: Bool { get }
+
+    func setChanged()
+}
+
+public extension ChangeDetectionable {
+    var isChanged: Bool {
+        return self.changeTick.change == self.changeTick.lastTick
+    }
+
+    func setChanged() {
+        self.changeTick.change = self.changeTick.currentTick
     }
 }

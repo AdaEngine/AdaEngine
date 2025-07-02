@@ -10,13 +10,10 @@ import AdaUtils
 public typealias Local = LocalIsolated
 
 extension LocalIsolated: SystemQuery {
-
     convenience public init(from world: World) {
         fatalError("Can't be initialized from world")
     }
 
     /// Updates the query state with the given world.
-    public func update(from world: consuming World) {
-
-    }
+    public func update(from world: consuming World) { }
 }
