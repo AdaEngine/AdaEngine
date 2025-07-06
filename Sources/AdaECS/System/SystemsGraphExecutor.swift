@@ -22,11 +22,13 @@ protocol SystemsGraphExecutor: Sendable {
 /// The executor of the systems graph.
 public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
 
+    var systems: [any System] = []
+
     /// Initialize a new systems graph executor.
     public init() {}
 
     public mutating func initialize(_ graph: borrowing SystemsGraph) {
-        // Do nothing
+        systems = graph.systems
     }
     
     /// Execute the systems graph.
@@ -39,34 +41,24 @@ public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
         world: World,
         scheduler: SchedulerName
     ) async {
-        // for level in graph.dependencyLevels {
-        //     await withDiscardingTaskGroup { levelGroup in
-        //         for node in level {
-        //             levelGroup.addTask {
-        //                 await executeSystem(
-        //                     node: node,
-        //                     world: world,
-        //                     scheduler: scheduler
-        //                 )
-        //             }
-        //         }
-        //     }
-        //     world.flush()
-        // }
+        for system in systems {
+            await executeSystem(system: system, world: world, scheduler: scheduler)
+            world.flush()
+        }
     }
 
     private func executeSystem(
-        node: SystemsGraph.Node,
+        system: any System,
         world: World,
         scheduler: SchedulerName
     ) async {
-        node.system.queries.update(from: world)
+        system.queries.update(from: world)
         var context = WorldUpdateContext(
             world: world,
             scheduler: scheduler
         )
 
-        await node.system.update(context: &context)
+        await system.update(context: &context)
         _ = consume context
     }
 }

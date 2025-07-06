@@ -197,7 +197,7 @@ public struct FilterQueryIterator<
                 continue
             }
 
-            let entityId = currentChunk.pointee.entities.elements[cursor.currentRow].key
+            let entityId = currentChunk.pointee.entities[cursor.currentRow]
             guard
                 let location = state.entities.entities[entityId],
                 let entity = archetype.entities[location.archetypeRow]
