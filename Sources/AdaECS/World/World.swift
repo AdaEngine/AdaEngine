@@ -460,7 +460,7 @@ extension World {
         var toArchetype = self.archetypes.archetypes[newArchetype]
         let row = toArchetype.append(entity)
         print("Move entity \(entity.name)(\(entity.id)) from archetype \(location.archetypeId) to \(newArchetype)")
-        let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks)
+        let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks).newLocation
         archetype.remove(at: location.archetypeRow)
         self.archetypes.archetypes[location.archetypeId] = archetype
         self.archetypes.archetypes[newArchetype] = toArchetype
@@ -470,7 +470,6 @@ extension World {
             chunkIndex: newLocation.chunkIndex,
             chunkRow: newLocation.entityRow
         )
-
         print("Old location \(location), newLocation: \(self.entities.entities[entityId]!)")
     }
 }
