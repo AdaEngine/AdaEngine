@@ -15,6 +15,12 @@ public struct SchedulerName: Hashable, Equatable, RawRepresentable, CustomString
     }
 }
 
+extension SchedulerName: ExpressibleByStringLiteral {
+    public init(stringLiteral value: StringLiteralType) {
+        self.rawValue = value
+    }
+}
+
 /// Default schedulers.
 public extension SchedulerName {
     /// The pre-update scheduler.
@@ -109,6 +115,16 @@ public final class Schedulers: @unchecked Sendable {
     public func getScheduler(_ scheduler: SchedulerName) -> Scheduler? {
         self.schedulers[scheduler]
     }
+
+    /// Add system to scheduler. If scheduler not exists, than we create it.
+    public func addSystem<T: System>(_ system: T, for scheduler: SchedulerName) {
+        if schedulers[scheduler] == nil {
+            schedulerLabels.append(scheduler)
+        }
+        self.schedulers[scheduler, default: Scheduler(name: scheduler)]
+            .systemGraph
+            .addSystem(system)
+    }
 }
 
 /// A resource that contains the delta time.
@@ -178,27 +194,13 @@ public final class Scheduler: @unchecked Sendable {
     /// The graph executor of the scheduler.
     var graphExecutor: any SystemsGraphExecutor = SingleThreadedSystemsGraphExecutor()
 
-    let runnerSystemsBuilder: (World) -> any System
-
-    /// The runner system of the scheduler.
-    var runnerSystem: (any System)?
-
     /// The last update time of the scheduler.
     @LocalIsolated private var lastUpdate: LongTimeInterval = 0
 
     /// Initialize a new scheduler.
     /// - Parameter name: The name of the scheduler.
-    /// - Parameter system: The system type to run.
-    public init<T: System>(name: SchedulerName, system: T.Type) {
-        self.name = name
-        self.runnerSystemsBuilder = { T.init(world: $0) }
-    }
-
-    /// Initialize a new scheduler.
-    /// - Parameter name: The name of the scheduler.
     public init(name: SchedulerName) {
         self.name = name
-        self.runnerSystemsBuilder = { DefaultSchedulerRunner(world: $0) }
     }
 
     /// Run the scheduler.
@@ -208,10 +210,6 @@ public final class Scheduler: @unchecked Sendable {
         let deltaTime = TimeInterval(max(0, now - self.lastUpdate))
         self.lastUpdate = now
 
-        if self.runnerSystem == nil {
-            self.runnerSystem = self.runnerSystemsBuilder(world)
-        }
-
         if self.systemGraph.isChanged {
             self.systemGraph.linkSystems()
             self.graphExecutor.initialize(self.systemGraph)
@@ -220,14 +218,6 @@ public final class Scheduler: @unchecked Sendable {
         let name = self.name
         world.insertResource(DeltaTime(deltaTime: deltaTime))
 
-        if let runnerSystem = runnerSystem {
-            var context = WorldUpdateContext(
-                world: world,
-                scheduler: name
-            )
-            runnerSystem.queries.update(from: world)
-            await runnerSystem.update(context: &context)
-            _ = consume context
-        }
+        await graphExecutor.execute(systemGraph, world: world, scheduler: name)
     }
 }

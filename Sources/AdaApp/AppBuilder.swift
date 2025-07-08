@@ -22,7 +22,7 @@ public protocol WorldExctractor {
 @MainActor
 public final class AppWorlds {
     /// The main world.
-    public var mainWorld: World
+    public var main: World
 
     /// The subworlds.
     var subWorlds: [String: AppWorlds]
@@ -39,19 +39,19 @@ public final class AppWorlds {
     /// The flag that indicates if the app is configured.
     var isConfigured: Bool = false
 
-    var scedulers: [Scheduler]
+    /// Default scheduler that will run first in ``update()`` method
+    public var updateScheduler: SchedulerName?
 
     /// Initialize a new instance of `AppWorlds` with the given main world and subworlds.
     /// - Parameters:
     ///   - mainWorld: The main world.
     ///   - subWorlds: The subworlds.
     public init(
-        mainWorld: World,
+        main: World,
         subWorlds: [String : AppWorlds] = [:]
     ) {
-        self.mainWorld = mainWorld
+        self.main = main
         self.subWorlds = subWorlds
-        self.scedulers = [Scheduler(name: .update)]
     }
 }
 
@@ -61,12 +61,6 @@ public extension AppWorlds {
     /// - Parameter exctractor: The world extractor.
     func setExctractor(_ exctractor: any WorldExctractor) {
         self.worldExctractor = exctractor
-    }
-
-    /// Set the world scheduler
-    /// - Parameter scheduler: The world scheduler.
-    func setSchedulers(_ schedulers: [Scheduler]) {
-        self.scedulers = schedulers
     }
 
     /// Set the runner.
@@ -81,14 +75,16 @@ public extension AppWorlds {
         if !isConfigured {
             return
         }
-        for sceduler in self.scedulers {
-            await sceduler.run(world: mainWorld)
+        guard let updateScheduler else {
+            assertionFailure("Update scheduler is empty")
+            return
         }
+        await main.runScheduler(updateScheduler)
         for world in self.subWorlds.values {
-            await world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
+            await world.worldExctractor?.exctract(from: main, to: world.main)
             await world.update()
         }
-        mainWorld.clearTrackers()
+        main.clearTrackers()
     }
 
     /// Get the subworld builder by name.
@@ -129,7 +125,7 @@ public extension AppWorlds {
         _ system: T.Type,
         on scheduler: AdaECS.SchedulerName = .update
     ) -> Self {
-        self.mainWorld.addSystem(system, on: scheduler)
+        self.main.addSystem(system, on: scheduler)
         return self
     }
 
@@ -138,7 +134,7 @@ public extension AppWorlds {
     /// - Returns: The app builder.
     @discardableResult
     func insertResource<T: Resource>(_ resource: consuming T) -> Self {
-        self.mainWorld.insertResource(resource)
+        self.main.insertResource(resource)
         return self
     }
 
@@ -146,7 +142,7 @@ public extension AppWorlds {
     /// - Parameter resource: The resource to insert.
     /// - Returns: The app builder.
     func getResource<T: Resource>(_ resource: T.Type) -> T? {
-        return self.mainWorld.getResource(resource)
+        return self.main.getResource(resource)
     }
 
     func build() throws {

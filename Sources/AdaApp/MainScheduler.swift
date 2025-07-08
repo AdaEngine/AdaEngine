@@ -13,23 +13,27 @@ struct MainSchedulerPlugin: Plugin {
     /// Setup the main scheduler.
     /// - Parameter app: The app to setup the main scheduler for.
     func setup(in app: AppWorlds) {
-        let mainScheduler = Scheduler(name: .update)
-        let fixedScheduler = Scheduler(name: .fixedUpdate, system: FixedTimeSchedulerSystem.self)
-        let postUpdateScheduler = Scheduler(name: .postUpdate, system: PostUpdateSchedulerRunner.self)
-        app.setSchedulers([
-            mainScheduler,
-            fixedScheduler,
-            postUpdateScheduler
-        ])
-        app.insertResource(DefaultSchedulerOrder())
+        let mainScheduler = Scheduler(name: .main)
+        app.updateScheduler = .main
 
-        app.addSystem(GameLoopBeganSystem.self, on: .preUpdate)
-        app.mainWorld.addSchedulers(
-            .fixedPreUpdate,
-            .fixedUpdate,
-            .fixedPostUpdate
+        app.main.addScheduler(mainScheduler)
+        app.main.addSchedulers(
+            .fixed,
+            .postUpdate
         )
+
+        app
+            .addSystem(DefaultSchedulerRunner.self, on: .main)
+            .addSystem(FixedTimeSchedulerSystem.self, on: .fixed)
+            .addSystem(PostUpdateSchedulerRunner.self, on: .postUpdate)
+        app.insertResource(DefaultSchedulerOrder())
+        app.addSystem(GameLoopBeganSystem.self, on: .preUpdate)
     }
+}
+
+extension SchedulerName {
+    static let main: SchedulerName = "Main"
+    static let fixed: SchedulerName = "FixedMain"
 }
 
 // FIXME: Hack to works with AnimatedTexture
