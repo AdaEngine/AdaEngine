@@ -86,6 +86,7 @@ public struct Chunks: Sendable {
             entityRow: entityLocation
         )
         self.entities[entity] = chunkLocation
+        print("Entity \(entity) inserted at chunk index \(location), row \(entityLocation)")
         return chunkLocation
     }
 

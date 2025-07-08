@@ -51,7 +51,7 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
 
     public init(count: Int) {
         precondition(count > 0)
-        self.buffer = _Buffer(pointer: .allocate(capacity: count), count: 8)
+        self.buffer = _Buffer(pointer: .allocate(capacity: count), count: count)
         self.header = Header(capacity: count)
     }
 

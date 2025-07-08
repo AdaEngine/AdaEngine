@@ -36,7 +36,7 @@ public struct AppContext<T: App>: ~Copyable {
         LoggingSystem.bootstrap {
             StreamLogHandler.standardError(label: $0)
         }
-        let appWorlds = AppWorlds(mainWorld: World(name: "MainWorld"))
+        let appWorlds = AppWorlds(main: World(name: "MainWorld"))
         appWorlds
             .insertResource(WindowSettings())
             .addPlugin(MainSchedulerPlugin())
