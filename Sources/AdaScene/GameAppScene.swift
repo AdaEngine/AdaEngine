@@ -48,7 +48,7 @@ struct GameScenePlugin: Plugin {
     let gameScene: AssetHandle<Scene>
 
     func setup(in app: AppWorlds) {
-        app.mainWorld.spawn {
+        app.main.spawn {
             DynamicScene(scene: gameScene)
         }
     }

@@ -8,7 +8,7 @@
 import OrderedCollections
 
 /// Contains information about execution order of systems.
-public struct SystemsGraph: Sendable, ~Copyable {
+public struct SystemsGraph: Sendable {
 
     /// Indicates that graph is changed and needs recalculate deps
     private(set) var isChanged: Bool = false
@@ -49,20 +49,24 @@ public struct SystemsGraph: Sendable, ~Copyable {
     }
     
     /// The nodes of the graph.
-    private(set) var nodes: OrderedDictionary<String, Node> = [:]
-    
+    private(set) var nodes: OrderedDictionary<String, Node> = [:] {
+        didSet {
+            print("xxx prev count", oldValue.count, "new count", self.nodes.count)
+        }
+    }
+
     /// Initialize a new systems graph.
     public init() { }
-    
+
     // MARK: - Internal methods
     
     /// Add a node of the current system. If a node exists with the same type, it will be overridden.
     /// - Note: Systems will be added with nodes without edges.
     /// - Parameter system: The system to add.
     mutating func addSystem<T: System>(_ system: T) {
-        self.isChanged = true
         let node = Node(name: T.swiftName, system: system, dependencies: T.dependencies)
         self.nodes[node.name] = node
+        self.isChanged = true
     }
     
     /// Create an execution order for all systems.
@@ -96,7 +100,6 @@ public struct SystemsGraph: Sendable, ~Copyable {
             guard let node = self.nodes[edge.inputNode] else {
                 return nil
             }
-            
             return node
         }
     }

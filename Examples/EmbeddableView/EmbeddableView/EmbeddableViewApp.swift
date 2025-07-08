@@ -14,8 +14,8 @@ struct AdaEngineApp: App {
         EmptyWindow()
             .addPlugins(
                 DefaultPlugins(),
-//                BunnyExample()
-                TestPlugin()
+                BunnyExample()
+//                TestPlugin()
             )
             .windowMode(.windowed)
     }
@@ -31,16 +31,16 @@ struct Kek {
 struct TestPlugin: Plugin {
     func setup(in app: borrowing AppWorlds) {
         for index in 0..<100 {
-            app.mainWorld.spawn("Entity \(index)") {
+            app.main.spawn("Entity \(index)") {
                 Transform()
                     .setPosition([0, Float(index), 0])
 
-                Kek(index: index, world: app.mainWorld)
+                Kek(index: index, world: app.main)
             }
         }
 
         print("Create query")
-        let query = app.mainWorld.performQuery(FilterQuery<Transform, Kek, NoFilter>())
+        let query = app.main.performQuery(FilterQuery<Transform, Kek, NoFilter>())
         for (transform, kek) in query {
             print(kek.index, kek.world.id)
         }
@@ -87,7 +87,7 @@ struct BunnyExample: Plugin {
         camera.clearFlags = .solid
         camera.orthographicScale = 10
 
-        app.mainWorld.spawn("camera", bundle: OrthographicCameraBundle(camera: camera))
+        app.main.spawn("camera", bundle: OrthographicCameraBundle(camera: camera))
     }
 
     private func loadAssets(in app: AppWorlds) {
@@ -110,7 +110,7 @@ struct BunnyExample: Plugin {
         // Create performance counter UI
         var container = TextAttributeContainer()
         container.foregroundColor = .white
-        app.mainWorld.spawn("PerformanceCounter") {
+        app.main.spawn("PerformanceCounter") {
             Text2DComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
             Transform(scale: Vector3(0.1), position: [-9, 8, 1])
             NoFrustumCulling()

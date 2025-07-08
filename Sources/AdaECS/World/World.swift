@@ -186,9 +186,9 @@ public extension World {
     /// Run a specific scheduler.
     /// - Parameter scheduler: Scheduler name.
     /// - Parameter deltaTime: Time interval since last update.
-    func runScheduler(_ scheduler: SchedulerName) async {
-        guard let scheduler = self.schedulers.getScheduler(scheduler) else {
-            fatalError("Scheduler \(scheduler) not found")
+    func runScheduler(_ schedulerName: SchedulerName) async {
+        guard let scheduler = self.schedulers.getScheduler(schedulerName) else {
+            fatalError("Scheduler \(schedulerName) not found")
         }
         await scheduler.run(world: self)
     }
@@ -206,7 +206,7 @@ public extension World {
             return self
         }
         let system = systemType.init(world: self)
-        self.schedulers.getScheduler(scheduler)?.systemGraph.addSystem(system)
+        self.schedulers.addSystem(system, for: scheduler)
         return self
     }
 

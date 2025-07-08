@@ -23,10 +23,11 @@ public struct RenderWorldPlugin: Plugin {
         BoundingComponent.registerComponent()
         Texture.registerTypes()
 
-        let renderWorld = AppWorlds(mainWorld: World(name: "RenderWorld"))
+        let renderWorld = AppWorlds(main: World(name: "RenderWorld"))
+        renderWorld.updateScheduler = .render
         renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
         renderWorld.setExctractor(RenderWorldExctractor())
-        renderWorld.mainWorld.setSchedulers([
+        renderWorld.main.setSchedulers([
             .extract,
             .render
         ])
