@@ -42,7 +42,11 @@ public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
         scheduler: SchedulerName
     ) async {
         for system in systems {
-            await executeSystem(system: system, world: world, scheduler: scheduler)
+            await executeSystem(
+                system: system,
+                world: world,
+                scheduler: scheduler
+            )
             world.flush()
         }
     }

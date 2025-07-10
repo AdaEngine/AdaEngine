@@ -45,7 +45,9 @@ extension Component {
         archetype: Archetype,
         world: borrowing World
     ) -> Self {
-        return chunk.get(Self.self, for: entity.id)!
+        let value = chunk.get(Self.self, for: entity.id)
+        assert(value != nil, "Value of type \(Self.self) in chunk \(chunk.description) for entity \(entity.id) not found")
+        return value!
     }
 
     @inline(__always)

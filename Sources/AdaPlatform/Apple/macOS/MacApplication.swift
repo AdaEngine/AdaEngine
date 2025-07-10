@@ -44,6 +44,7 @@ final class MacApplication: Application {
                     try Task.checkCancellation()
                     self.processEvents()
                     await appWorlds.update()
+                    await Task.yield()
                 }
             } catch {
                 let alert = Alert(

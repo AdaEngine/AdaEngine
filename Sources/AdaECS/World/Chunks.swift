@@ -200,7 +200,7 @@ public struct Chunks: Sendable {
 /// A memory-efficient chunk that stores entities and their components in contiguous memory
 public struct Chunk: Sendable, ~Copyable {
 
-    public struct ComponentsData: @unchecked Sendable {
+    public struct ComponentsData: @unchecked Sendable, CustomStringConvertible {
         var data: BlobArray
         var changesTicks: BlobArray
         let componentType: any Component.Type
@@ -209,6 +209,16 @@ public struct Chunk: Sendable, ~Copyable {
             self.data = BlobArray(count: capacity, of: T.self)
             self.changesTicks = BlobArray(count: capacity, of: Tick.self)
             self.componentType = component
+        }
+
+        public var description: String {
+            return """
+            ComponentsData(
+                data: \(data.count),
+                changesTicks: \(changesTicks.count),
+                componentType: \(componentType)
+            )
+            """
         }
     }
 
@@ -489,7 +499,8 @@ extension Chunk: NonCopybaleCustomStringConvertible {
             entityCount: \(entityCount),
             entities: \(entities.map(\.description)),
             entityIndices: \(entityIndices),
-            componentsData: \(componentsData),
+            componentsData:
+                \(componentsData.map { $0.value.description }.joined(separator: "\n")),
             occupancyMask: \(occupancyMask),
         )
         """
