@@ -90,7 +90,7 @@ public struct PostUpdateSchedulerRunner: Sendable {
 
     public func update(context: inout UpdateContext) async {
         let world = context.world
-        await world.runScheduler(.postUpdate)
+//        await world.runScheduler(.postUpdate)
     }
 }
 

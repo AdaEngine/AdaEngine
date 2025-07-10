@@ -31,9 +31,6 @@ public struct RenderWorldPlugin: Plugin {
             .extract,
             .render
         ])
-        renderWorld.insertResource(
-            DefaultSchedulerOrder(order: [.extract, .render])
-        )
 
         renderWorld
             .addSystem(RenderWorldRunnerSystem.self, on: .render)
@@ -79,6 +76,7 @@ struct RenderWorldExctractor: WorldExctractor {
     func exctract(from mainWorld: World, to renderWorld: World) async {
         renderWorld.clear()
         renderWorld.insertResource(MainWorld(world: mainWorld))
+        await renderWorld.runScheduler(.extract)
     }
 }
 
