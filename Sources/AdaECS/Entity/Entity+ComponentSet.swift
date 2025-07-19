@@ -224,12 +224,14 @@ public extension Entity.ComponentSet {
 
 extension Entity.ComponentSet: CustomStringConvertible {
     public var description: String {
-        guard
-            let world,
-            let location = world.entities.entities[entity]
-        else {
+        guard let world else {
             return "ComponentSet(entity: \(entity), world: nil)"
         }
+        guard let location = world.entities.entities[entity] else {
+            print("Location not found for entity")
+            return "ComponentSet(entity: \(entity), world: \(world))"
+        }
+
         let chunk = world.archetypes
             .archetypes[location.archetypeId]
             .chunks.chunks.getPointer(at: location.chunkIndex)
