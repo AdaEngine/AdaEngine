@@ -12,7 +12,17 @@ import AdaUtils
 /// The base component in ECS paradigm.
 /// Component contains data described some entity characteristic in the game world, like:
 /// color, transformation and etc.
-public protocol Component: QueryTarget, ~Copyable { }
+public protocol Component: QueryTarget, ~Copyable, CustomDeallocatable { }
+
+public protocol CustomDeallocatable: ~Copyable {
+    static func deallocate(for ptr: UnsafeMutablePointer<Self>)
+}
+
+public extension CustomDeallocatable {
+    static func deallocate(for ptr: UnsafeMutablePointer<Self>) {
+
+    }
+}
 
 /// Provides the events related to components.
 public enum ComponentEvents {

@@ -50,8 +50,7 @@ public struct BlobArray: Sendable {
             byteCount: count * MemoryLayout<T>.size,
             alignment: MemoryLayout<T>.alignment
         ), deallocator: { ptr in
-            print("Deinitize \(T.self)")
-//            ptr.bindMemory(to: T.self).deinitialize()
+            
         })
         self.label = String(describing: T.self)
     }
