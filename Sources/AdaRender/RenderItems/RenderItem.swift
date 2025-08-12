@@ -40,18 +40,14 @@ public struct RenderItems<T: RenderItem>: Sendable {
     ///   - drawList: The draw list.
     ///   - world: The world.
     ///   - view: The view.
-    public func render(_ drawList: DrawList, world: World, view: Entity) throws {
+    public func render(with renderPass: RenderCommandEncoder, world: World, view: Entity) throws {
         for item in self.items {
-            let context = RenderContext(
-                device: drawList.renderDevice,
-                entity: item.entity,
+            try AnyDrawPass(item.drawPass).render(
+                with: renderPass,
                 world: world,
                 view: view,
-                drawList: drawList
+                item: item
             )
-
-            try AnyDrawPass(item.drawPass).render(in: context, item: item)
-            drawList.clear()
         }
     }
 }

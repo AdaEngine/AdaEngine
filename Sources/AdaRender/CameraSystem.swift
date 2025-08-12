@@ -10,6 +10,14 @@ import AdaTransform
 import AdaUtils
 import Math
 
+@Component
+public struct RenderViewTarget {
+    public var mainTexture: RenderTexture?
+    public var outputTexture: RenderTexture?
+
+    public init() {}
+}
+
 // FIXME: Currently we render on window directly
 // TODO: Move window info to ECS system
 
@@ -127,9 +135,6 @@ public func ExtractCamera(
     query.wrappedValue.forEach {
         camera, transform,
         visibleEntities, bufferSet, uniform in
-
-        print("Exctract", camera)
-
         let buffer = bufferSet.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,
@@ -141,6 +146,9 @@ public func ExtractCamera(
             camera
             transform
             visibleEntities
+            uniform
+            bufferSet,
+            RenderViewTarget(),
             RenderItems<Transparent2DRenderItem>()
         }
     }

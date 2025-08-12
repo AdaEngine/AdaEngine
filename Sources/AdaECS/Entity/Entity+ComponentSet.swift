@@ -71,6 +71,11 @@ public extension Entity {
             }
             
             set {
+                if world == nil {
+                    print("Can't set a component to \(entity), because World reference is nil.")
+                    return
+                }
+                
                 if let newValue {
                     self.set(newValue)
                 } else {
@@ -262,10 +267,15 @@ extension Entity.ComponentSet {
         }
         
         set {
+            guard let world else {
+                print("Can't set a component to \(entity), because World reference is nil.")
+                return
+            }
+
             if let newValue {
-                world?.set(newValue, for: entity)
+                world.set(newValue, for: entity)
             } else {
-                world?.remove(T.identifier, from: entity)
+                world.remove(T.identifier, from: entity)
             }
         }
     }

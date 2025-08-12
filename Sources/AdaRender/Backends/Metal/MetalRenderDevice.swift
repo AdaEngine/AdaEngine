@@ -40,6 +40,10 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
         return MetalFramebuffer(descriptor: descriptor)
     }
 
+    func createCommandQueue() -> CommandQueue {
+        return MetalCommandQueue(commandQueue: self.commandQueue)
+    }
+
     // swiftlint:disable:next function_body_length
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
@@ -90,7 +94,6 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
             depthStencilDescriptor.isDepthWriteEnabled = depthStencilDesc.isDepthWriteEnabled
 
             if depthStencilDesc.isEnableStencil {
-
                 guard let stencilDesc = depthStencilDesc.stencilOperationDescriptor else {
                     fatalError("StencilOperationDescriptor instance not passed to DepthStencilDescriptor object.")
                 }
@@ -142,26 +145,33 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 
     // MARK: - Buffers
 
-    func createIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+    func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         let buffer = self.device.makeBuffer(length: length, options: .storageModeShared)!
         buffer.contents().copyMemory(from: bytes, byteCount: length)
-
-        return MetalIndexBuffer(buffer: buffer, indexFormat: format)
+        let metalBuffer = MetalIndexBuffer(buffer: buffer, indexFormat: format)
+        metalBuffer.label = label
+        return metalBuffer
     }
 
-    func createVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
+    func createVertexBuffer(label: String?, length: Int, binding: Int) -> VertexBuffer {
         let buffer = self.device.makeBuffer(length: length, options: .storageModeShared)!
-        return MetalVertexBuffer(buffer: buffer, binding: 0, offset: 0)
+        let metalBuffer = MetalVertexBuffer(buffer: buffer, binding: 0, offset: 0)
+        metalBuffer.label = label
+        return metalBuffer
     }
 
-    func createBuffer(length: Int, options: ResourceOptions) -> Buffer {
+    func createBuffer(label: String?, length: Int, options: ResourceOptions) -> Buffer {
         let buffer = self.device.makeBuffer(length: length, options: options.metal)!
-        return MetalBuffer(buffer: buffer)
+        let metalBuffer = MetalBuffer(buffer: buffer)
+        metalBuffer.label = label
+        return metalBuffer
     }
 
-    func createBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
+    func createBuffer(label: String?, bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
         let buffer = self.device.makeBuffer(bytes: bytes, length: length, options: options.metal)!
-        return MetalBuffer(buffer: buffer)
+        let metalBuffer = MetalBuffer(buffer: buffer)
+        metalBuffer.label = label
+        return metalBuffer
     }
 }
 

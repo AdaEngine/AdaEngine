@@ -68,12 +68,16 @@ public struct Chunks: Sendable {
             chunk.set(
                 component,
                 at: location.chunkIndex,
-                lastTick: lastTick)
+                lastTick: lastTick
+            )
         }
     }
 
     @discardableResult
-    mutating func insertEntity(_ entity: Entity.ID, components: [any Component]) -> ChunkLocation {
+    mutating func insertEntity(
+        _ entity: Entity.ID,
+        components: [any Component]
+    ) -> ChunkLocation {
         let location = self.getFreeChunkIndex()
         print("Inserting entity \(entity) at chunk index \(location)")
         let chunk = self.chunks.getPointer(at: location)
@@ -153,7 +157,6 @@ public struct Chunks: Sendable {
 
         let chunkPointer = self.chunks.getPointer(at: location.chunkIndex)
         let swappedEntityId = chunkPointer.pointee.swapRemoveEntity(at: entity)
-
         self.entities.removeValue(forKey: entity)
 
         if let swappedEntityId = swappedEntityId {
@@ -186,7 +189,9 @@ public struct Chunks: Sendable {
         return slices
     }
 
-    public func getComponentTicksSlices<T: Component>(for type: T.Type) -> [UnsafeBufferPointer<Tick>] {
+    public func getComponentTicksSlices<T: Component>(
+        for type: T.Type
+    ) -> [UnsafeBufferPointer<Tick>] {
         var slices: [UnsafeBufferPointer<Tick>] = []
         for i in 0..<self.chunks.count {
             if let slice = self.chunks.reborrow(at: i, { $0.getComponentTicksSlice(for: type) }) {
@@ -370,7 +375,8 @@ public struct Chunk: Sendable, ~Copyable {
 
     @inline(__always)
     public func get<T: Component>(at entityIndex: Int) -> T? {
-        self.componentsData[T.identifier]?.data.get(at: entityIndex, as: T.self)
+        print("Get component by type", T.self)
+        return self.componentsData[T.identifier]?.data.get(at: entityIndex, as: T.self)
     }
 
     public func isComponentChanged<T: Component>(

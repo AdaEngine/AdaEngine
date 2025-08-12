@@ -23,21 +23,44 @@ public struct CameraPlugin: Plugin {
         }
 
         renderWorld
-            .main
             .addSystem(ExtractCameraSystem.self, on: .extract)
+            .addSystem(ConfigurateRenderViewTargetSystem.self, on: .update)
             .getMutableResource(RenderGraph.self)
             .wrappedValue?
             .addNode(CameraRenderNode())
     }
 }
 
+@System
+func ConfigurateRenderViewTarget(
+    _ query: Query<Entity, Camera, Ref<RenderViewTarget>>,
+    _ renderDevice: Res<RenderDeviceHandler>
+) {
+    query.forEach { (entity, camera, renderViewTarget) in
+        renderViewTarget.mainTexture = renderDevice.createTexture(
+            size: camera.viewport.size,
+            format: .rgba8Unorm
+        )
+
+
+        renderViewTarget.outputTexture = renderDevice.createTexture(
+            size: camera.viewport.size,
+            format: .rgba8Unorm
+        )
+    }
+}
+
 struct CameraRenderNode: RenderNode {
 
-    @Query<Entity, Camera, Transform>
+    @Query<Entity, Camera>
     private var query
 
-    func execute(context: inout Context) async -> [RenderSlotValue] {
-        context.world.performQuery(_query).forEach { (entity, camera, transform) in
+    func update(from world: World) {
+        query.update(from: world)
+    }
+
+    func execute(context: inout Context, renderContext: RenderContext) async -> [RenderSlotValue] {
+        query.forEach { (entity, camera) in
             guard camera.isActive else {
                 return
             }
