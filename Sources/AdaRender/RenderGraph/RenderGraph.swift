@@ -9,6 +9,22 @@ import AdaECS
 
 // Inspired by Bevy https://github.com/bevyengine/bevy/tree/main/crates/bevy_render/src/render_graph
 
+public struct RenderContext: @unchecked Sendable {
+    public let device: RenderDevice
+    public let commandQueue: CommandQueue
+    public let commandEncoder: CommandBuffer?
+
+    public init(
+        device: RenderDevice,
+        commandQueue: CommandQueue,
+        commandEncoder: CommandBuffer? = nil,
+    ) {
+        self.device = device
+        self.commandEncoder = commandEncoder
+        self.commandQueue = commandQueue
+    }
+}
+
 public struct RenderSlot: Sendable {
     public let name: String
     public let kind: RenderResourceKind
@@ -33,7 +49,7 @@ public struct EmptyNode: RenderNode {
 
     public init() {}
 
-    public func execute(context: inout Context) -> [RenderSlotValue] {
+    public func execute(context: inout Context, renderContext: RenderContext) -> [RenderSlotValue] {
         return []
     }
 }
@@ -47,7 +63,7 @@ struct GraphEntryNode: RenderNode {
         self.outputResources = inputResources
     }
     
-    func execute(context: inout Context) -> [RenderSlotValue] {
+    func execute(context: inout Context, renderContext: RenderContext) -> [RenderSlotValue] {
         return context.inputResources
     }
 }
@@ -59,7 +75,10 @@ public struct RunGraphNode: RenderNode {
         self.graphName = graphName
     }
 
-    public func execute(context: inout Context) async throws -> [RenderSlotValue] {
+    public func execute(
+        context: inout Context,
+        renderContext: RenderContext
+    ) async throws -> [RenderSlotValue] {
         context.runSubgraph(by: graphName, inputs: context.inputResources, viewEntity: context.viewEntity)
         return []
     }
@@ -121,7 +140,17 @@ public struct RenderGraph: Resource {
     internal private(set) var subGraphs: [String: RenderGraph] = [:]
     
     internal private(set) var entryNode: Node?
-    
+
+    public func update(from world: World) {
+        for node in nodes {
+            node.value.node.update(from: world)
+        }
+
+        for graph in self.subGraphs {
+            graph.value.update(from: world)
+        }
+    }
+
     public mutating func addEntryNode(inputs: [RenderSlot]) -> String {
         let node = GraphEntryNode(inputResources: inputs)
         let renderNode = Node(name: Self.entryNodeName, node: node)

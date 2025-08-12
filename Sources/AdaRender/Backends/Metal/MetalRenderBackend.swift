@@ -319,15 +319,6 @@ extension SamplerMinMagFilter {
     }
 }
 
-class MetalCommandBuffer: CommandBuffer {
-    
-    let commandBuffer: MTLCommandBuffer
-    
-    init(commandBuffer: MTLCommandBuffer) {
-        self.commandBuffer = commandBuffer
-    }
-}
-
 final class MetalRenderCommandBuffer: DrawCommandBuffer {
     let encoder: MTLRenderCommandEncoder
     let commandBuffer: MTLCommandBuffer
@@ -339,11 +330,6 @@ final class MetalRenderCommandBuffer: DrawCommandBuffer {
 }
 
 #endif
-
-/// A protocol that defines a command buffer.
-public protocol CommandBuffer {
-    
-}
 
 /// A protocol that defines a draw command buffer.
 public protocol DrawCommandBuffer: Sendable {

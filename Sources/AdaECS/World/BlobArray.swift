@@ -12,18 +12,18 @@ public struct BlobArray: Sendable {
 
     final class _Buffer: @unchecked Sendable {
         let pointer: UnsafeMutableRawBufferPointer
-        var deallocator: (UnsafeMutableRawBufferPointer) -> Void
+        var deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)?
 
         init(
             pointer: UnsafeMutableRawBufferPointer,
-            deallocator: @escaping (UnsafeMutableRawBufferPointer) -> Void
+            deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)? = nil
         ) {
             self.pointer = pointer
-            self.deallocator = deallocator
+            self.deinitializer = deinitializer
         }
 
         deinit {
-            deallocator(pointer)
+            deinitializer?(pointer)
             pointer.deallocate()
         }
     }
@@ -43,25 +43,33 @@ public struct BlobArray: Sendable {
     public private(set) var count: Int
     let label: String?
 
-    public init<T: ~Copyable>(count: Int, of type: T.Type) {
+    public init<T: ~Copyable>(
+        count: Int,
+        of type: T.Type,
+        deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)? = nil
+    ) {
         self.count = count
         self.layout = ElementLayout(size: MemoryLayout<T>.size, alignment: MemoryLayout<T>.alignment)
-        self.buffer = _Buffer(pointer: .allocate(
-            byteCount: count * MemoryLayout<T>.size,
-            alignment: MemoryLayout<T>.alignment
-        ), deallocator: { ptr in
-            
-        })
+        self.buffer = _Buffer(
+            pointer: .allocate(
+                byteCount: count * MemoryLayout<T>.size,
+                alignment: MemoryLayout<T>.alignment
+            ),
+            deinitializer: deinitializer
+        )
         self.label = String(describing: T.self)
     }
 }
 
 public extension BlobArray {
     mutating func realloc(_ count: Int) {
-        let newBuffer = _Buffer(pointer: .allocate(
-            byteCount: count * self.layout.size,
-            alignment: self.layout.alignment
-        ), deallocator: buffer.deallocator)
+        let newBuffer = _Buffer(
+            pointer: .allocate(
+                byteCount: count * self.layout.size,
+                alignment: self.layout.alignment
+            ),
+            deinitializer: buffer.deinitializer
+        )
         newBuffer.pointer.copyMemory(from: UnsafeRawBufferPointer(self.buffer.pointer))
         self.buffer = newBuffer
         self.count = count

@@ -60,16 +60,16 @@ public protocol RenderDevice: AnyObject, Sendable {
     // MARK: - Buffers
 
     /// Create a new GPU buffer with specific length and options.
-    func createBuffer(length: Int, options: ResourceOptions) -> Buffer
+    func createBuffer(label: String?, length: Int, options: ResourceOptions) -> Buffer
 
     /// Create a new GPU buffer with specific data, length and options.
-    func createBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer
+    func createBuffer(label: String?, bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer
 
     /// Create a new index buffer with specific index, format, data and length.
-    func createIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer
+    func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer
 
     /// Create a new vertex buffer for specific length and binding.
-    func createVertexBuffer(length: Int, binding: Int) -> VertexBuffer
+    func createVertexBuffer(label: String?, length: Int, binding: Int) -> VertexBuffer
 
     // MARK: - Shaders
 
@@ -102,30 +102,58 @@ public protocol RenderDevice: AnyObject, Sendable {
     /// Get image from texture rid.
     func getImage(from texture: Texture) -> Image?
 
+    func createCommandQueue() -> CommandQueue
+
     // MARK: - Draw
 
-    /// Begin draw for window.
-    /// - Warning: Local RenderDevice can't render on specific window. Instead, use global ``RenderEngine/renderDevice`` instance.
-    /// - Returns: ``DrawList`` which contains information about drawing.
-    func beginDraw(
-        for window: WindowRef,
-        clearColor: Color,
-        loadAction: AttachmentLoadAction,
-        storeAction: AttachmentStoreAction
-    ) throws -> DrawList
+//    /// Begin draw for window.
+//    /// - Warning: Local RenderDevice can't render on specific window. Instead, use global ``RenderEngine/renderDevice`` instance.
+//    /// - Returns: ``DrawList`` which contains information about drawing.
+//    func beginDraw(
+//        for window: WindowRef,
+//        clearColor: Color,
+//        loadAction: AttachmentLoadAction,
+//        storeAction: AttachmentStoreAction
+//    ) throws -> DrawList
+//
+//    /// Begin draw to framebuffer.
+//    /// - Returns: ``DrawList`` which contains information about drawing.
+//    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) throws -> DrawList
+//
+//    /// Draw all items from ``DrawList``.
+//    /// - Parameter indexCount: For each instance, the number of indices to read from the index buffer.
+//    /// - Parameter indexBufferOffset: Byte offset within indexBuffer to start reading indices from.
+//    /// - Parameter instanceCount: The number of instances to draw.
+//    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int)
+//
+//    /// Commit all draws from ``DrawList``.
+//    func endDrawList(_ drawList: DrawList)
+}
 
-    /// Begin draw to framebuffer.
-    /// - Returns: ``DrawList`` which contains information about drawing.
-    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) throws -> DrawList
+public extension RenderDevice {
+    /// Create a new GPU buffer with specific length and options.
+    @inline(__always)
+    func createBuffer(length: Int, options: ResourceOptions) -> Buffer {
+        createBuffer(label: nil, length: length, options: options)
+    }
 
-    /// Draw all items from ``DrawList``.
-    /// - Parameter indexCount: For each instance, the number of indices to read from the index buffer.
-    /// - Parameter indexBufferOffset: Byte offset within indexBuffer to start reading indices from.
-    /// - Parameter instanceCount: The number of instances to draw.
-    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int)
+    /// Create a new GPU buffer with specific data, length and options.
+    @inline(__always)
+    func createBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
+        createBuffer(label: nil, bytes: bytes, length: length, options: options)
+    }
 
-    /// Commit all draws from ``DrawList``.
-    func endDrawList(_ drawList: DrawList)
+    /// Create a new index buffer with specific index, format, data and length.
+    @inline(__always)
+    func createIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+        createIndexBuffer(label: nil, format: format, bytes: bytes, length: length)
+    }
+
+    /// Create a new vertex buffer for specific length and binding.
+    @inline(__always)
+    func createVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
+        createVertexBuffer(label: nil, length: length, binding: binding)
+    }
 }
 
 enum DrawListError: String, LocalizedError {

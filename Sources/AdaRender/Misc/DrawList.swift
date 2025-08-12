@@ -134,11 +134,11 @@ public final class DrawList: @unchecked Sendable {
         indexBufferOffset: Int = 0,
         instanceCount: Int
     ) {
-        renderDevice.draw(
-            self,
-            indexCount: indexCount,
-            indexBufferOffset: indexBufferOffset,
-            instanceCount: instanceCount
-        )
+//        renderDevice.draw(
+//            self,
+//            indexCount: indexCount,
+//            indexBufferOffset: indexBufferOffset,
+//            instanceCount: instanceCount
+//        )
     }
 }
