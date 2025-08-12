@@ -145,6 +145,13 @@ public extension AppWorlds {
         return self.main.getResource(resource)
     }
 
+    /// Get mutable resource from the world.
+    /// - Parameter resource: The resource to insert.
+    /// - Returns: The app builder.
+    func getMutableResource<T: Resource>(_ resource: T.Type) -> Mutable<T?> {
+        return self.main.getMutableResource(resource)
+    }
+
     func build() throws {
         /// Wait until all plugins is loaded
         while !self.plugins.allSatisfy({ $0.value.isLoaded(in: self) }) {

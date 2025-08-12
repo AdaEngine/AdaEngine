@@ -24,10 +24,14 @@ public struct SpritePlugin: Plugin {
             return
         }
 
-        let pipeline = SpriteRenderPipeline()
-
         renderWorld
-            .insertResource(pipeline)
+            .insertResource(ExtractedSprites(sprites: []))
+            .insertResource(SpriteRenderPipeline())
+//            .insertResource(SpriteDrawData(
+//                vertexBuffer: BufferData<SpriteVertexData>(label: "SpriteRenderSystem_IndexBuffer", elements: []),
+//                indexBuffer: BufferData<UInt32>(elements: [])
+//            )
+//            )
             .insertResource(SpriteDrawPass())
             .addSystem(ExtractSpriteSystem.self, on: .extract)
             .addSystem(ExctractMesh2DSystem.self, on: .extract)

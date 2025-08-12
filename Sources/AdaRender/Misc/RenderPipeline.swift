@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 1/8/23.
 //
 
+import Math
+
 // TODO: (Vlad) Add documentations
 
 /// An object that contains graphics functions and configuration state to use in a render command.
@@ -112,7 +114,27 @@ public struct DepthStencilDescriptor: Sendable {
     }
 }
 
+public struct ColorAttachmentDescriptor_New: Sendable {
+
+    public var texture: Texture
+
+    public var resolveTexture: Texture?
+
+    public var operation: OperationDescriptor?
+
+    public init(
+        texture: Texture,
+        resolveTexture: Texture? = nil,
+        operation: OperationDescriptor? = nil
+    ) {
+        self.texture = texture
+        self.resolveTexture = resolveTexture
+        self.operation = operation
+    }
+}
+
 /// An object that specifies the format and properties of a color attachment.
+@available(*, deprecated, message: "Use ColorAttachmentDescriptor_New instead")
 public struct ColorAttachmentDescriptor: Sendable {
 
     /// The format of the color attachment.
@@ -166,10 +188,63 @@ public struct ColorAttachmentDescriptor: Sendable {
     }
 }
 
+public struct DepthStencilAttachmentDescriptor: Sendable {
+
+    public var texture: Texture
+
+    public var depthOperation: OperationDescriptor?
+
+    public var stencilOperation: OperationDescriptor?
+
+    public init(
+        texture: Texture,
+        depthOperation: OperationDescriptor? = nil,
+        stencilOperation: OperationDescriptor? = nil
+    ) {
+        self.texture = texture
+        self.depthOperation = depthOperation
+        self.stencilOperation = stencilOperation
+    }
+}
+
+public struct OperationDescriptor: Sendable {
+
+    public var loadAction: AttachmentLoadAction
+
+    public var storeAction: AttachmentStoreAction
+
+    public init(
+        loadAction: AttachmentLoadAction,
+        storeAction: AttachmentStoreAction
+    ) {
+        self.loadAction = loadAction
+        self.storeAction = storeAction
+    }
+}
+
+public struct RenderPassDescriptor: Sendable {
+
+    public var label: String?
+
+    public var colorAttachments: [ColorAttachmentDescriptor_New]
+
+    public var depthStencilAttachment: DepthStencilAttachmentDescriptor?
+
+    public init(
+        label: String? = nil,
+        colorAttachments: [ColorAttachmentDescriptor_New],
+        depthStencilAttachment: DepthStencilAttachmentDescriptor? = nil
+    ) {
+        self.colorAttachments = colorAttachments
+        self.depthStencilAttachment = depthStencilAttachment
+    }
+}
+
 /// An object specifies the rendering configuration state to use during a rendering pass,
 /// including rasterization (such as multisampling), visibility, blending, tessellation, and graphics function state.
 ///
 /// To specify the vertex or fragment function in the rendering pipeline descriptor, set the vertex or fragment property.
+@available(*, deprecated, message: "Use RenderPassDescriptor instead")
 public struct RenderPipelineDescriptor: Sendable {
 
     /// The vertex shader the pipeline run to process vertices.

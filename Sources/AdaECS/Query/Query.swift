@@ -189,7 +189,7 @@ public struct FilterQueryIterator<
             if currentChunk == nil {
                 currentChunk = archetype.chunks.chunks.getPointer(at: cursor.currentChunkIndex)
             }
-            print("is main thread", Thread.isMainThread)
+            
             if cursor.currentRow > currentChunk.pointee.entities.count - 1 {
                 cursor.currentChunkIndex += 1
                 cursor.currentRow = 0

@@ -22,7 +22,6 @@ public struct RenderWorldPlugin: Plugin {
         NoFrustumCulling.registerComponent()
         BoundingComponent.registerComponent()
         Texture.registerTypes()
-
         let renderWorld = AppWorlds(main: World(name: "RenderWorld"))
         renderWorld.updateScheduler = .render
         renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
@@ -33,9 +32,18 @@ public struct RenderWorldPlugin: Plugin {
         ])
 
         renderWorld
+            .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
             .addSystem(RenderWorldRunnerSystem.self, on: .render)
 
         app.addSubworld(renderWorld, by: .renderWorld)
+    }
+}
+
+public struct RenderDeviceHandler: Resource {
+    public var renderDevice: RenderDevice
+
+    public init(renderDevice: RenderDevice) {
+        self.renderDevice = renderDevice
     }
 }
 
@@ -44,10 +52,12 @@ public struct RenderWorldPlugin: Plugin {
 @inline(__always)
 func RenderWorldRunner(
     _ context: inout WorldUpdateContext,
-    _ renderGraph: ResQuery<RenderGraph?>
+    _ renderGraph: ResQuery<RenderGraph?>,
+    _ renderDevice: ResQuery<RenderDeviceHandler?>
 ) {
     let world = context.world
     let renderGraph = renderGraph.wrappedValue
+    renderGraph?.update(from: world)
     Task.detached(priority: .high) {
         do {
             try await RenderEngine.shared.beginFrame()
@@ -56,9 +66,14 @@ func RenderWorldRunner(
         }
 
         do {
-            guard let renderGraph else { return }
+            guard
+                let renderGraph,
+                let renderDevice = renderDevice.wrappedValue?.renderDevice
+            else {
+                return
+            }
             let renderGraphExecutor = RenderGraphExecutor()
-            try await renderGraphExecutor.execute(renderGraph, in: world)
+            try await renderGraphExecutor.execute(renderGraph, renderDevice: renderDevice, in: world)
         } catch {
             print("Failed to execute render graph", error)
         }

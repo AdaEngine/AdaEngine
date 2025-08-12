@@ -44,6 +44,14 @@ public extension Buffer {
             self.setData(UnsafeMutableRawPointer(mutating: ptr), byteCount: size)
         }
     }
+
+    /// Set elements to the buffer's storage.
+    /// - Parameter value: A value which will be copied.
+    func setElements<T>(_ elements: inout [T]) {
+        elements.withUnsafeMutableBytes { ptr in
+            self.setData(ptr.baseAddress!, byteCount: ptr.count)
+        }
+    }
 }
 
 /// Options for the memory location and access permissions for a resource.

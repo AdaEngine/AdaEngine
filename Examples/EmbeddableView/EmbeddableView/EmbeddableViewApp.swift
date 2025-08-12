@@ -99,7 +99,13 @@ struct BunnyExample: Plugin {
                 from: Bundle.main
             ).asset
             let atlas = TextureAtlas(from: image, size: [20, 23], margin: [4, 1])
-            app.insertResource(BunnyTexture(texture: AssetHandle(atlas[0, 0])))
+            let bunny = AssetHandle<Texture2D>(atlas[0, 0])
+            app.insertResource(BunnyTexture(texture: bunny))
+
+            app.main.spawn {
+                SpriteComponent(texture: bunny.asset)
+                Transform(scale: [2, 2, 2])
+            }
         } catch {
             print("Could not load bunny texture, using white texture: \(error)")
             app.insertResource(BunnyTexture(texture: AssetHandle(Texture2D.whiteTexture)))
