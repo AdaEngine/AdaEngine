@@ -25,7 +25,7 @@ struct MainSchedulerPlugin: Plugin {
         app.mainWorld.addSchedulers(
             .fixedPreUpdate,
             .fixedUpdate,
-            .fixedPostUpdate,
+            .fixedPostUpdate
         )
     }
 }
