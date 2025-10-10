@@ -59,11 +59,11 @@ func RenderWorldRunner(
     let renderGraph = renderGraph.wrappedValue
     renderGraph?.update(from: world)
     Task.detached(priority: .high) {
-        do {
-            try await RenderEngine.shared.beginFrame()
-        } catch {
-            print("Failed begin frame", error)
-        }
+//        do {
+//            try await RenderEngine.shared.beginFrame()
+//        } catch {
+//            print("Failed begin frame", error)
+//        }
 
         do {
             guard
@@ -77,12 +77,12 @@ func RenderWorldRunner(
         } catch {
             print("Failed to execute render graph", error)
         }
-
-        do {
-            try await RenderEngine.shared.endFrame()
-        } catch {
-            print("Failed end frame", error)
-        }
+//
+//        do {
+//            try await RenderEngine.shared.endFrame()
+//        } catch {
+//            print("Failed end frame", error)
+//        }
     }
 }
 

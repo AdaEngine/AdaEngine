@@ -358,6 +358,12 @@ public extension World {
         self.addedEntities.removeAll(keepingCapacity: true)
         self.archetypes.clear()
     }
+
+    /// Clear all resources from the world.
+    /// - Complexity: O(1)
+    func clearResources() {
+        self.componentsStorage.resourceComponents.removeAll(keepingCapacity: true)
+    }
 }
 
 public extension World {

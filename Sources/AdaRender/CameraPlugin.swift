@@ -9,6 +9,7 @@ import AdaApp
 import AdaECS
 import AdaTransform
 import AdaUtils
+import Math
 
 public struct CameraPlugin: Plugin {
 
@@ -31,22 +32,43 @@ public struct CameraPlugin: Plugin {
     }
 }
 
+@Component
+public struct RenderViewTarget {
+    public var mainTexture: RenderTexture?
+    public var outputTexture: RenderTexture?
+
+    public init() {}
+}
+
+
 @System
 func ConfigurateRenderViewTarget(
     _ query: Query<Entity, Camera, Ref<RenderViewTarget>>,
-    _ renderDevice: Res<RenderDeviceHandler>
+    _ renderDevice: ResQuery<RenderDeviceHandler>
 ) {
     query.forEach { (entity, camera, renderViewTarget) in
-        renderViewTarget.mainTexture = renderDevice.createTexture(
-            size: camera.viewport.size,
-            format: .rgba8Unorm
+        let viewportSize = camera.viewport?.rect.size.toSizeInt() ?? SizeInt(width: 800, height: 600)
+        renderViewTarget.mainTexture = RenderTexture(
+            size: viewportSize,
+            scaleFactor: 1.0,
+            format: .rgba8,
+            debugLabel: "Camera Main Texture"
         )
+    }
+}
 
+struct ExtractedWindow {
+    var size: SizeInt
+}
 
-        renderViewTarget.outputTexture = renderDevice.createTexture(
-            size: camera.viewport.size,
-            format: .rgba8Unorm
-        )
+@System
+func PrepareWindows(
+    _ windows: Extract<
+        Query<Entity, Camera>
+    >
+) {
+    windows().forEach { entity, camera in
+        
     }
 }
 

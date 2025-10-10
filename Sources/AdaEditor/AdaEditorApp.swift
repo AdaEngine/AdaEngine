@@ -26,7 +26,7 @@ struct TestPlugin: Plugin {
     func setup(in app: borrowing AppWorlds) {
         for index in 0..<100 {
             print("Spawn entity at index", index)
-            app.mainWorld.spawn("Entity \(index)") {
+            app.main.spawn("Entity \(index)") {
                 Transform()
                     .setPosition([0, Float(index), 0])
 
@@ -36,7 +36,7 @@ struct TestPlugin: Plugin {
             }
         }
 
-        let query = app.mainWorld.performQuery(FilterQuery<Transform, NoFrustumCulling, NoFilter>())
+        let query = app.main.performQuery(FilterQuery<Transform, NoFrustumCulling, NoFilter>())
         Task {
             print("Create query")
             for (transform, _) in query {
