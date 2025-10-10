@@ -86,8 +86,13 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     public init() {
         self.frames = [Frame].init(repeating: Frame(texture: nil, delay: 0), count: 256)
         let sampler = RenderEngine.shared.renderDevice.createSampler(from: SamplerDescriptor())
-        super.init(gpuTexture: GPUTexture(), sampler: sampler, size: .zero)
-        
+        let texture = RenderEngine.shared.renderDevice.createTexture(
+            from: TextureDescriptor(
+                textureUsage: .read,
+                textureType: .texture2D
+            )
+        )
+        super.init(gpuTexture: texture, sampler: sampler, size: .zero)
         self.mainLoopToken = EventManager.default.subscribe(
             to: EngineEvents.MainLoopBegan.self,
             completion: update(_:)

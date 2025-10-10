@@ -46,12 +46,6 @@ protocol RenderBackend: AnyObject {
     /// Destroy render window from render backend.
     /// - Throws: Throw error if window is not registred.
     @MainActor func destroyWindow(_ windowId: WindowRef) throws
-
-    /// Begin rendering a frame for all windows.
-    @MainActor func beginFrame() throws
-
-    /// Release any data associated with the current frame.
-    @MainActor func endFrame() throws
 }
 
 /// The GPU device instance resposible for rendering and computing.
@@ -104,30 +98,19 @@ public protocol RenderDevice: AnyObject, Sendable {
 
     func createCommandQueue() -> CommandQueue
 
-    // MARK: - Draw
+    /// Create a new swapchain for specific window.
+    @MainActor
+    func createSwapchain(from window: WindowRef) -> Swapchain
+}
 
-//    /// Begin draw for window.
-//    /// - Warning: Local RenderDevice can't render on specific window. Instead, use global ``RenderEngine/renderDevice`` instance.
-//    /// - Returns: ``DrawList`` which contains information about drawing.
-//    func beginDraw(
-//        for window: WindowRef,
-//        clearColor: Color,
-//        loadAction: AttachmentLoadAction,
-//        storeAction: AttachmentStoreAction
-//    ) throws -> DrawList
-//
-//    /// Begin draw to framebuffer.
-//    /// - Returns: ``DrawList`` which contains information about drawing.
-//    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) throws -> DrawList
-//
-//    /// Draw all items from ``DrawList``.
-//    /// - Parameter indexCount: For each instance, the number of indices to read from the index buffer.
-//    /// - Parameter indexBufferOffset: Byte offset within indexBuffer to start reading indices from.
-//    /// - Parameter instanceCount: The number of instances to draw.
-//    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int)
-//
-//    /// Commit all draws from ``DrawList``.
-//    func endDrawList(_ drawList: DrawList)
+public protocol Swapchain: AnyObject {
+    var drawablePixelFormat : PixelFormat { get }
+    func getNextDrawable() -> (any Drawable)?
+}
+
+public protocol Drawable: AnyObject {
+    var texture: any GPUTexture { get }
+    func present() throws
 }
 
 public extension RenderDevice {

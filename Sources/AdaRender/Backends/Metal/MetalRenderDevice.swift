@@ -173,6 +173,65 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
         metalBuffer.label = label
         return metalBuffer
     }
+
+    @MainActor
+    func createSwapchain(from window: WindowRef) -> any Swapchain {
+        guard let context else {
+            fatalError("Context not found")
+        }
+        guard let window = context.getRenderWindow(for: window) else {
+            fatalError("Window not found")
+        }
+        return window.view!.layer as! CAMetalLayer
+    }
+}
+
+extension CAMetalLayer: Swapchain {
+    public var drawablePixelFormat: PixelFormat {
+        self.pixelFormat.toPixelFormat()
+    }
+
+    public func getNextDrawable() -> (any Drawable)? {
+        guard let drawable = self.nextDrawable() else {
+            return nil
+        }
+        return MetalDrawable(drawable: drawable)
+    }
+}
+
+extension MTLPixelFormat {
+    func toPixelFormat() -> PixelFormat {
+        switch self {
+        case .rgba8Unorm:
+            return .rgba8
+        case .rgba8Uint:
+            return .rgba8
+        case .rgba16Float:
+            return .rgba_16f
+        case .rgba32Float:
+            return .rgba_32f
+        case .depth32Float:
+            return .depth_32f
+        default:
+            fatalError("Unsupported pixel format: \(self)")
+        }
+    }
+}
+
+class MetalDrawable: Drawable {
+    private let mtlDrawable: CAMetalDrawable
+
+    public var texture: any GPUTexture {
+        MetalGPUTexture(texture: self.mtlDrawable.texture)
+    }
+
+    public func present() throws {
+        self.mtlDrawable.present()
+    }
+
+    init(drawable: CAMetalDrawable) {
+        self.mtlDrawable = drawable
+    }
 }
 
 // MARK: Texture
@@ -203,24 +262,25 @@ extension MetalRenderDevice {
         guard let window = context.getRenderWindow(for: window) else {
             throw DrawListError.windowNotExists
         }
-        guard let mtlRenderPass = window.getRenderPass() else {
-            throw DrawListError.failedToGetSurfaceTexture
-        }
-        
-        mtlRenderPass.colorAttachments[0].loadAction = loadAction.toMetal
-        mtlRenderPass.colorAttachments[0].storeAction = storeAction.toMetal
-        mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
-        guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
-            throw DrawListError.failedToCreateCommandBuffer
-        }
+        fatalError("Not implemented")
+//        guard let mtlRenderPass = window.getRenderPass() else {
+//            throw DrawListError.failedToGetSurfaceTexture
+//        }
+//        
+//        mtlRenderPass.colorAttachments[0].loadAction = loadAction.toMetal
+//        mtlRenderPass.colorAttachments[0].storeAction = storeAction.toMetal
+//        mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
+//        guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
+//            throw DrawListError.failedToCreateCommandBuffer
+//        }
+//
+//        let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
+//        let commandBuffer = MetalRenderCommandBuffer(
+//            encoder: encoder,
+//            commandBuffer: mtlCommandBuffer
+//        )
 
-        let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
-        let commandBuffer = MetalRenderCommandBuffer(
-            encoder: encoder,
-            commandBuffer: mtlCommandBuffer
-        )
-
-        return DrawList(commandBuffer: commandBuffer, renderDevice: self)
+//        return DrawList(commandBuffer: commandBuffer, renderDevice: self)
     }
 
     func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) throws -> DrawList {

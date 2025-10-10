@@ -545,7 +545,7 @@ extension AssetsManager {
 /// Actor for loading and saving resources.
 @globalActor
 public actor AssetActor {
-    public static var shared = AssetActor()
+    public static let shared = AssetActor()
 }
 
 private extension Asset {

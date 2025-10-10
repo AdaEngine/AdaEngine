@@ -46,7 +46,6 @@ public struct Scene2DPlugin: Plugin {
             )
 
             await app
-                .main
                 .getMutableResource(RenderGraph.self)
                 .wrappedValue?
                 .addSubgraph(graph, name: Self.renderGraph)

@@ -59,4 +59,4 @@ public struct TextureDescriptor {
 }
 
 /// Interface represent platform specific gpu texture.
-public class GPUTexture { }
+public protocol GPUTexture { }

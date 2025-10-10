@@ -10,14 +10,6 @@ import AdaTransform
 import AdaUtils
 import Math
 
-@Component
-public struct RenderViewTarget {
-    public var mainTexture: RenderTexture?
-    public var outputTexture: RenderTexture?
-
-    public init() {}
-}
-
 // FIXME: Currently we render on window directly
 // TODO: Move window info to ECS system
 
@@ -147,8 +139,8 @@ public func ExtractCamera(
             transform
             visibleEntities
             uniform
-            bufferSet,
-            RenderViewTarget(),
+            bufferSet
+            RenderViewTarget()
             RenderItems<Transparent2DRenderItem>()
         }
     }

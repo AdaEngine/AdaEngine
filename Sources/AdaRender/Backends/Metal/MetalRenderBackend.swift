@@ -70,43 +70,14 @@ class MetalRenderBackend: RenderBackend {
         
         self.context.destroyWindow(by: window)
     }
-    
+
     func beginFrame() throws {
         self.inFlightSemaphore.wait()
-
-        for (_, window) in self.context.windows {
-//            window.drawable = window.view?.currentDrawable
-            window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
-        }
     }
-    
+
     func endFrame() throws {
-        var hasValidWindow = false
-        defer {
-            currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
-        }
-
-        for window in self.context.windows.values {
-            guard let drawable = window.drawable else {
-                continue
-            }
-
-            guard let commandBuffer = self.commandQueue.makeCommandBuffer() else {
-                continue
-            }
-
-            hasValidWindow = true
-            commandBuffer.addCompletedHandler { @Sendable [inFlightSemaphore] _ in
-                inFlightSemaphore.signal()
-            }
-
-            commandBuffer.present(drawable)
-            commandBuffer.commit()
-        }
-
-        if !hasValidWindow {
-            inFlightSemaphore.signal()
-        }
+        currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
+        self.inFlightSemaphore.signal()
     }
 }
 

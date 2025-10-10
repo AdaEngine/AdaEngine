@@ -79,16 +79,6 @@ public final class RenderEngine: RenderBackend {
     public func destroyWindow(_ windowRef: WindowRef) throws {
         try self.renderBackend.destroyWindow(windowRef)
     }
-    
-    public func beginFrame() throws {
-        preconditionMainThreadOnly()
-        try self.renderBackend.beginFrame()
-    }
-    
-    public func endFrame() throws {
-        preconditionMainThreadOnly()
-        try self.renderBackend.endFrame()
-    }
 }
 
 public extension RenderDevice {

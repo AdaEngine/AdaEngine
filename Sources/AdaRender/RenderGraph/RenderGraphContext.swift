@@ -79,5 +79,5 @@ public extension RenderGraphContext {
 /// A global actor that is used to run render graph nodes.
 @globalActor
 public actor RenderGraphActor: GlobalActor {
-    public static var shared = RenderGraphActor()
+    public static let shared = RenderGraphActor()
 }

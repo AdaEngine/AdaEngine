@@ -50,7 +50,7 @@ struct BunnyExample: Plugin {
         var container = TextAttributeContainer()
         container.foregroundColor = .white
         
-        app.mainWorld.spawn("PerformanceCounter") {
+        app.main.spawn("PerformanceCounter") {
             Text2DComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
             Transform(scale: Vector3(0.1), position: [-9, 8, 1])
             NoFrustumCulling()
