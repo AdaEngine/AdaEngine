@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/6/23.
 //
 
+import AdaECS
 import AdaUtils
 import Foundation
 import miniaudio
@@ -21,35 +22,48 @@ enum MAError: LocalizedError {
     }
 }
 
-final class MiniAudioEngine: AudioEngine, @unchecked Sendable {
-    private var engine: UnsafeMutablePointer<ma_engine> = .allocate(
-        capacity: MemoryLayout.size(ofValue: ma_engine.self)
-    )
+struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
 
-    init() throws {
-        var config = ma_engine_config_init()
-        config.channels = 2
-        let result = ma_engine_init(&config, engine)
-        if result != MA_SUCCESS {
-            throw AudioError.engineInitializationFailed
-        }
+    static func getFromWorld(_ world: borrowing AdaECS.World) -> MiniAudioEngine? {
+        world.getResource(Self.self)
     }
     
-    deinit {
-        ma_engine_uninit(engine)
+    private final class Engine {
+        var enginePtr: UnsafeMutablePointer<ma_engine> = .allocate(
+            capacity: MemoryLayout.size(ofValue: ma_engine.self)
+        )
+
+        init() throws {
+            var config = ma_engine_config_init()
+            config.channels = 2
+            let result = ma_engine_init(&config, enginePtr)
+            if result != MA_SUCCESS {
+                throw AudioError.engineInitializationFailed
+            }
+        }
+
+        deinit {
+            ma_engine_uninit(enginePtr)
+        }
+    }
+
+    private let engine: Engine
+
+    init() throws {
+        self.engine = try Engine()
     }
     
     // MARK: - AudioEngine
     
     func start() throws {
-        let result = ma_engine_start(engine)
+        let result = ma_engine_start(engine.enginePtr)
         if result != MA_SUCCESS {
             throw MAError.failed("Failed to start", result)
         }
     }
     
     func stop() throws {
-        let result = ma_engine_stop(engine)
+        let result = ma_engine_stop(engine.enginePtr)
         if result != MA_SUCCESS {
             throw MAError.failed("Failed to stop", result)
         }
@@ -58,19 +72,19 @@ final class MiniAudioEngine: AudioEngine, @unchecked Sendable {
     func update(_ deltaTime: AdaUtils.TimeInterval) { }
 
     func makeSound(from url: URL) throws -> Sound {
-        try MiniSound(from: url, engine: engine)
+        try MiniSound(from: url, engine: engine.enginePtr)
     }
     
     func makeSound(from data: Data) throws -> Sound {
-        try MiniSound(from: data, engine: engine)
+        try MiniSound(from: data, engine: engine.enginePtr)
     }
     
     func getAudioListener(at index: Int) -> AudioEngineListener {
-        if index > ma_engine_get_listener_count(engine) - 1 {
+        if index > ma_engine_get_listener_count(engine.enginePtr) - 1 {
             fatalError("[MiniAudioEngine] Listener not found")
         }
         
-        return MiniAudioEngineListener(engine: engine, listenerIndex: UInt32(index))
+        return MiniAudioEngineListener(engine: engine.enginePtr, listenerIndex: UInt32(index))
     }
 }
 

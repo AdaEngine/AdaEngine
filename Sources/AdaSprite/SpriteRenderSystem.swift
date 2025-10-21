@@ -10,6 +10,7 @@ import AdaRender
 import AdaUtils
 import AdaTransform
 import Math
+import AdaAssets
 
 @Component
 /// A component that contains the textures for a batch.

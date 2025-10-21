@@ -13,6 +13,7 @@ import AdaRender
 import Foundation
 import Logging
 import Math
+import OrderedCollections
 
 /// Namespace for LDtk
 public enum LDtk { }

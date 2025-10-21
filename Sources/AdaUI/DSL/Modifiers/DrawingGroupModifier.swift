@@ -5,6 +5,8 @@
 //  Created by vladislav.prusakov on 31.07.2024.
 //
 
+import Math
+
 public extension View {
     func drawingGroup() -> some View {
         self.modifier(DrawingGroupModifier(content: self))

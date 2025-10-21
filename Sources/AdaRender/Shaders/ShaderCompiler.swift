@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 3/10/23.
 //
 
+import AdaUtils
 import Foundation
 import SPIRVCompiler
 import SPIRV_Cross

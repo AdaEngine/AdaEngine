@@ -8,6 +8,7 @@
 import AdaAssets
 import AdaUtils
 import Foundation
+import AtlasFontGenerator
 
 /// Contains font styles.
 public enum FontWeight: String {

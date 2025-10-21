@@ -8,6 +8,7 @@
 #if METAL
 import AdaUtils
 @preconcurrency import MetalKit
+import Math
 
 final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 

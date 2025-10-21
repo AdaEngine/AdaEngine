@@ -8,6 +8,7 @@
 import AdaAssets
 import AdaUtils
 import Math
+import Foundation
 
 // TODO: Make encoding/decoding for scene serialization
 
@@ -104,7 +105,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     struct AssetRepresentation: Codable {
         struct Frame: Codable {
             let texture: AssetHandle<Texture2D> // FIXME: (Vlad) resource id/path
-            let delay: TimeInterval
+            let delay: AdaUtils.TimeInterval
         }
         
         let frames: [Frame]
@@ -190,19 +191,19 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         return self.frames[frame].texture
     }
     
-    public func setDelay(_ delay: TimeInterval, for frame: Int) {
+    public func setDelay(_ delay: AdaUtils.TimeInterval, for frame: Int) {
         self.frames[frame].delay = delay
     }
     
-    public func getDelay(for frame: Int) -> TimeInterval {
+    public func getDelay(for frame: Int) -> AdaUtils.TimeInterval {
         return self.frames[frame].delay
     }
     
     // MARK: - Private
     
     // FIXME: After breakpoint can increase animation speed. 
-    private var time: TimeInterval = 0
-    
+    private var time: AdaUtils.TimeInterval = 0
+
     /// Called each frame to update current frame.
     private func update(_ event: EngineEvents.MainLoopBegan) {
         if self.isPaused {
@@ -216,7 +217,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         
         self.time += event.deltaTime
         
-        let limit: TimeInterval = TimeInterval(self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0)
+        let limit: AdaUtils.TimeInterval = AdaUtils.TimeInterval(self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0)
         let frameTime = limit + self.frames[self.currentFrame].delay
         
         if self.time > frameTime {

@@ -11,6 +11,7 @@ import AdaUtils
 @_spi(Internal) import AdaUI
 import AppKit
 import Math
+import AdaECS
 
 extension MetalView {
 

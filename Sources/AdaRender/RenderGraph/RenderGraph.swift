@@ -120,7 +120,6 @@ public struct RenderGraph: Resource {
     }
     
     struct Node: Sendable {
-
         typealias ID = String
         
         let name: String

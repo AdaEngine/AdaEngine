@@ -8,6 +8,7 @@
 import AdaAssets
 import Math
 @_spi(Runtime) import AdaUtils
+import OrderedCollections
 
 /// A tile map.
 public class TileMap: Asset, @unchecked Sendable {

@@ -7,6 +7,7 @@
 
 import AdaAssets
 import AdaUtils
+import Foundation
 
 protocol MaterialValueDelegate: AnyObject {
     func updateValue(_ value: ShaderUniformValue, for name: String)

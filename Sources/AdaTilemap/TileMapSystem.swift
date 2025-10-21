@@ -12,6 +12,7 @@ import AdaPhysics
 import AdaSprite
 import Logging
 import Math
+import OrderedCollections
 
 // FIXME: a lot of sprites drop fps.
 @PlainSystem

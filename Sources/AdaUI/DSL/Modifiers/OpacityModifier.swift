@@ -5,6 +5,8 @@
 //  Created by vladislav.prusakov on 31.07.2024.
 //
 
+import Math
+
 public extension View {
     func opacity(_ opacity: Float) -> some View {
         modifier(_OpacityView(opacity: opacity, content: self))
