@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaRender
+import Math
 
 /// An object that store text layout manager
 @Component

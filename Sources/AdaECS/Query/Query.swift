@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
+import AdaUtils
 import Foundation
 
 /// A query that can fetch query targets like components or entities.

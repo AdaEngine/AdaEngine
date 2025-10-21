@@ -6,6 +6,7 @@
 //
 
 import AdaApp
+import AdaECS
 
 public struct TileMapPlugin: Plugin {
 

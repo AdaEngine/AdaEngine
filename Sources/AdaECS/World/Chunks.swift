@@ -45,9 +45,9 @@ public struct Chunks: Sendable {
             print("Get free chunk index from friedLocation \(firstLocation.chunkIndex)")
             return firstLocation.chunkIndex
         } else if self.chunks.reborrow(at: self.chunks.endIndex - 1, { $0.isFull }) == false {
-            print(
-                "Get free chunk index \(self.chunks.endIndex), entityCount \(self.chunks.reborrow(at: self.chunks.endIndex) { $0.entityCount })"
-            )
+//            print(
+//                "Get free chunk index \(self.chunks.endIndex), entityCount \(self.chunks.reborrow(at: self.chunks.endIndex) { $0.entityCount })"
+//            )
             return max(0, self.chunks.endIndex - 1)
         } else {
             let chunk = Chunk(capacity: self.chunkSize, layout: componentLayout)

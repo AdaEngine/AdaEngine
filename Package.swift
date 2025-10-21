@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.1
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -90,7 +90,8 @@ var swiftSettings: [SwiftSetting] = [
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
-    .define("WASM", .when(platforms: [.wasi]))
+    .define("WASM", .when(platforms: [.wasi])),
+    .enableUpcomingFeature("MemberImportVisibility")
 ]
 
 if isVulkanEnabled {

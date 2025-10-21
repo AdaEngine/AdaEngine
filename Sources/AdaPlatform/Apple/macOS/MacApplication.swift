@@ -11,6 +11,7 @@ import AppKit
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaUI
 import MetalKit
+import AdaECS
 
 final class MacApplication: Application {
 
