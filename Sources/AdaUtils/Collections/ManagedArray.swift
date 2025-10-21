@@ -7,9 +7,9 @@
 
 import Foundation
 
-public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyable {
+public struct ManagedArray<Element>: Sendable where Element: ~Copyable {
 
-    final class _Buffer {
+    final class _Buffer: @unchecked Sendable {
         let pointer: UnsafeMutableBufferPointer<Element>
         let count: Int
 
@@ -19,6 +19,7 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
         }
 
         deinit {
+            print("deallocated lol")
             pointer.deinitialize()
             pointer.deallocate()
         }
@@ -58,7 +59,17 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
     public mutating func insert(_ element: consuming Element, at index: Int) {
         precondition(index >= 0 && index <= self.header.count)
         if self.header.count == self.header.capacity {
+            if #available(macOS 15.0.0, *) {
+                print("increase capacity", self, buffer)
+            } else {
+                // Fallback on earlier versions
+            }
             increaseCapacity(to: self.header.capacity > 0 ? self.header.capacity * 2 : 8)
+        }
+        if #available(macOS 15.0.0, *) {
+            print("insert", self, buffer)
+        } else {
+            // Fallback on earlier versions
         }
         let baseAddress = self.buffer.pointer.baseAddress!
         if index < self.header.count {

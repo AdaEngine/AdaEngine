@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
+import AdaUtils
+
 /// This object describe query to ECS world.
 ///
 /// ```swift

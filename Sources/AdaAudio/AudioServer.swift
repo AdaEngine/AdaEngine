@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaUtils
+import Foundation
 import Math
 
 enum AudioError: Error {

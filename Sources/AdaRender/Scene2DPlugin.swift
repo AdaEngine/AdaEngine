@@ -7,6 +7,7 @@
 
 import AdaApp
 import AdaECS
+import AdaUtils
 
 /// Plugin for RenderWorld added 2D render capatibilites.
 public struct Scene2DPlugin: Plugin {

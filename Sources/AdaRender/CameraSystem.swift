@@ -9,6 +9,7 @@
 import AdaTransform
 import AdaUtils
 import Math
+import AdaAssets
 
 // FIXME: Currently we render on window directly
 // TODO: Move window info to ECS system

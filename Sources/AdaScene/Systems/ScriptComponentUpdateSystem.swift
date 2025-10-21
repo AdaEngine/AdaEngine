@@ -25,8 +25,8 @@ public struct ScriptComponentUpdateSystem {
     @MainActor
     public func update(context: inout UpdateContext) {
         let scene = context.scene
-        let world = context.world
-        let deltaTime = deltaTime.deltaTime
+//        let world = context.world
+//        let deltaTime = deltaTime.deltaTime
         let window = scene?.window
         var renderContext: UIGraphicsContext?
 
