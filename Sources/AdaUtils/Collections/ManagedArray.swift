@@ -59,18 +59,10 @@ public struct ManagedArray<Element>: Sendable where Element: ~Copyable {
     public mutating func insert(_ element: consuming Element, at index: Int) {
         precondition(index >= 0 && index <= self.header.count)
         if self.header.count == self.header.capacity {
-            if #available(macOS 15.0.0, *) {
-                print("increase capacity", self, buffer)
-            } else {
-                // Fallback on earlier versions
-            }
+            print("increase capacity", self, buffer)
             increaseCapacity(to: self.header.capacity > 0 ? self.header.capacity * 2 : 8)
         }
-        if #available(macOS 15.0.0, *) {
-            print("insert", self, buffer)
-        } else {
-            // Fallback on earlier versions
-        }
+        print("insert", self, buffer)
         let baseAddress = self.buffer.pointer.baseAddress!
         if index < self.header.count {
             baseAddress.advanced(by: MemoryLayout<Element>.stride * index + 1).moveInitialize(

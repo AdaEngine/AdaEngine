@@ -11,7 +11,7 @@ struct AdaTransformTests: Sendable {
     let world: AppWorlds
 
     init() async throws {
-        self.world = AppWorlds(mainWorld: World())
+        self.world = AppWorlds(main: World())
             .addPlugin(TransformPlugin())
 
         try self.world.build()
@@ -19,10 +19,10 @@ struct AdaTransformTests: Sendable {
 
     @Test("Global transform test")
     func globalTransformTest() async throws {
-        let entity = world.mainWorld.spawn {
+        let entity = world.main.spawn {
             Transform()
         }
-        await world.mainWorld.runScheduler(.postUpdate)
+        await world.main.runScheduler(.postUpdate)
 
         let globalTransform = try #require(entity.components[GlobalTransform.self])
         #expect(globalTransform.matrix == Transform3D.identity)
@@ -30,14 +30,14 @@ struct AdaTransformTests: Sendable {
 
     @Test("Parent-child transform propagation test")
     func parentChildTransformPropagationTest() async throws {
-        let parent = world.mainWorld.spawn {
+        let parent = world.main.spawn {
             Transform(position: Vector3(x: 10, y: 20, z: 30))
         }
-        let child = world.mainWorld.spawn {
+        let child = world.main.spawn {
             Transform(position: Vector3(x: 5, y: 0, z: 0))
         }
         parent.addChild(child)
-        await world.mainWorld.runScheduler(.postUpdate)
+        await world.main.runScheduler(.postUpdate)
 
         let childGlobalTransform = try #require(child.components[GlobalTransform.self])
         let expectedChildGlobalPosition = Vector3(x: 15, y: 20, z: 30)  // parent position + child local position
@@ -46,9 +46,9 @@ struct AdaTransformTests: Sendable {
 
         // Test moving parent
         parent.components[Transform.self]?.position = Vector3(x: 100, y: 200, z: 300)
-        self.world.mainWorld.flush()
+        self.world.main.flush()
 
-        await world.mainWorld.runScheduler(.postUpdate)
+        await world.main.runScheduler(.postUpdate)
 
         let updatedChildGlobalTransform = try #require(child.components[GlobalTransform.self])
         let expectedUpdatedChildGlobalPosition = Vector3(x: 105, y: 200, z: 300)  // new parent position + child local position

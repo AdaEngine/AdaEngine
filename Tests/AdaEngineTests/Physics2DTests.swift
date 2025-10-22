@@ -17,14 +17,14 @@ struct Physics2DTests {
     let world: AppWorlds
 
     init() async throws {
-        let world = AppWorlds(mainWorld: World())
+        let world = AppWorlds(main: World())
         self.world = world
-        let scheduler = Scheduler(name: .fixedUpdate, system: FixedTimeSchedulerSystem.self)
-        world.setSchedulers([
-            scheduler
-        ])
+//        let scheduler = Scheduler(name: .fixedUpdate, system: FixedTimeSchedulerSystem.self)
+//        world.setSchedulers([
+//            scheduler
+//        ])
 
-        world.mainWorld.addSchedulers(
+        world.main.addSchedulers(
             .fixedPreUpdate,
             .fixedUpdate,
             .fixedPostUpdate
@@ -38,7 +38,7 @@ struct Physics2DTests {
     
     @Test
     func createStaticBody() async throws {
-        let entity = world.mainWorld.spawn {
+        let entity = world.main.spawn {
             Collision2DComponent(
                 shapes: [.generateBox()],
                 mode: .default
@@ -46,7 +46,7 @@ struct Physics2DTests {
             Transform(position: [0, -10, 0])
         }
         
-        world.mainWorld.addEntity(entity)
+        world.main.addEntity(entity)
         await world.update()
         
         let runtimeBody = try #require(entity.components[Collision2DComponent.self]?.runtimeBody)
@@ -55,7 +55,7 @@ struct Physics2DTests {
     
     @Test
     func dynamicBodyFalling() async {
-        world.mainWorld.spawn {
+        world.main.spawn {
             Collision2DComponent(
                 shapes: [Shape2DResource.generateBox(width: 100, height: 10)],
                 mode: .default
@@ -63,7 +63,7 @@ struct Physics2DTests {
             Transform(position: [0, -10, 0])
         }
 
-        let box = world.mainWorld.spawn {
+        let box = world.main.spawn {
             PhysicsBody2DComponent(
                 shapes: [Shape2DResource.generateBox(width: 1, height: 1)],
                 mass: 1,
@@ -85,7 +85,7 @@ struct Physics2DTests {
     
     @Test
     func applyForce() async {
-        let box = world.mainWorld.spawn {
+        let box = world.main.spawn {
             PhysicsBody2DComponent(
                 shapes: [.generateBox()],
                 mass: 1,

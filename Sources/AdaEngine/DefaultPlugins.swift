@@ -6,23 +6,22 @@
 //
 
 import AdaApp
-import AdaECS
 import AdaAudio
-import AdaText
-import AdaTransform
+import AdaECS
 import AdaInput
-import AdaUI
-import AdaPlatform
-import AdaTilemap
-import AdaSprite
 import AdaPhysics
+import AdaPlatform
 import AdaScene
+import AdaSprite
+import AdaText
+import AdaTilemap
+import AdaTransform
+import AdaUI
 import OrderedCollections
 
 /// Contains base configuration for any scene in the game.
 /// This plugins will applied for each scene in Ada application and should be passed once per scene.
 public struct DefaultPlugins: Plugin {
-
     private var plugins: OrderedDictionary<String, any Plugin>
 
     /// Initialize a new instance of `DefaultPlugins` with the given file path.
@@ -64,7 +63,7 @@ public struct DefaultPlugins: Plugin {
     /// Set a plugin.
     /// - Parameter plugin: The plugin to set.
     /// - Returns: A new instance of `DefaultPlugins` with the plugin set.
-    public func set<T: Plugin>(_ plugin: T) -> DefaultPlugins {
+    public func set<T: Plugin>(_ plugin: T) -> Self {
         var newValue = self
         insertPlugin(plugin, into: &newValue.plugins)
         return newValue
@@ -73,7 +72,7 @@ public struct DefaultPlugins: Plugin {
     /// Disable a plugin.
     /// - Parameter plugin: The plugin to disable.
     /// - Returns: A new instance of `DefaultPlugins` with the plugin disabled.
-    public func disable<T: Plugin>(_ plugin: T.Type) -> DefaultPlugins {
+    public func disable<T: Plugin>(_ plugin: T.Type) -> Self {
         var newValue = self
         newValue.plugins[String(reflecting: T.self)] = nil
         return newValue
