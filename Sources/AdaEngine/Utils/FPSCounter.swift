@@ -8,7 +8,6 @@
 import Math
 
 public class FPSCounter {
-
     private var lastNotificationTime: LongTimeInterval = 0
     private var notificationDelay: TimeInterval = 1.0
     private var numberOfFrames = 0
