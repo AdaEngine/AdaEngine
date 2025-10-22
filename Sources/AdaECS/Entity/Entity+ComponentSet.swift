@@ -10,7 +10,6 @@ import AdaUtils
 import Collections
 
 public extension Entity {
-    
     /// Hold entity components specific for entity.
     struct ComponentSet: Codable, Sendable {
         @_spi(Internal)

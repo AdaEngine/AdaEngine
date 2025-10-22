@@ -18,7 +18,6 @@ enum BunnyExampleConstants {
 /// Click to spawn bunnies that bounce around the screen with gravity simulation.
 @MainActor
 struct BunnyExample: Plugin {
-
     func setup(in app: AppWorlds) {
         setupCamera(in: app)
         loadAssets(in: app)
@@ -26,8 +25,7 @@ struct BunnyExample: Plugin {
         setupSystems(in: app)
     }
     
-    private func setupCamera(in app: AppWorlds) {
-    }
+    private func setupCamera(in app: AppWorlds) {}
     
     private func loadAssets(in app: AppWorlds) {
         // Try to load a bunny texture, fallback to white texture if not available
@@ -76,6 +74,8 @@ struct BunnyTexture: Resource {
 /// Component to mark bunny entities and store their velocity
 @Component
 struct Bunny {
+    private static let maxInitialVelocity: Float = 9000.0
+
     var velocity: Vector3
     
     init() {
@@ -84,8 +84,6 @@ struct Bunny {
         let velocityY = Float.random(in: 0...Self.maxInitialVelocity)
         self.velocity = Vector3(velocityX, velocityY, 0)
     }
-    
-    private static let maxInitialVelocity: Float = 9000.0
 }
 
 /// Component for the performance counter UI
@@ -102,7 +100,6 @@ struct PerformanceCounter {
 /// System that spawns bunnies on mouse click
 @PlainSystem
 struct BunnySpawnerSystem {
-    
     @Query<Camera, GlobalTransform>
     private var cameras
 
@@ -115,10 +112,12 @@ struct BunnySpawnerSystem {
     init(world: World) {}
     
     func update(context: inout UpdateContext) {
-        guard input.isMouseButtonPressed(.left) else { return }
+        guard input.isMouseButtonPressed(.left) else {
+            return
+        }
 
         // Get camera for world position conversion
-        cameras.forEach { (camera, globalTransform) in
+        cameras.forEach { camera, globalTransform in
             let mousePosition = input.getMousePosition()
             guard let worldPosition = camera.viewportToWorld2D(
                 cameraGlobalTransform: globalTransform.matrix,
@@ -164,7 +163,6 @@ struct BunnySpawnerSystem {
 /// System that handles bunny movement with gravity
 @PlainSystem
 struct BunnyMovementSystem {
-    
     @Query<Ref<Bunny>, Ref<Transform>>
     private var bunnies
 
@@ -176,7 +174,7 @@ struct BunnyMovementSystem {
     func update(context: inout UpdateContext) {
         let deltaTime = deltaTime.deltaTime
 
-        bunnies.forEach { (bunny, transform) in
+        bunnies.forEach { bunny, transform in
             var velocity = bunny.velocity
             var position = transform.position
             
@@ -205,7 +203,6 @@ struct BunnyMovementSystem {
 /// System that handles collision with screen boundaries
 @PlainSystem
 struct BunnyCollisionSystem {
-    
     @FilterQuery<Camera, With<GlobalTransform>>
     private var cameras
     
@@ -216,15 +213,17 @@ struct BunnyCollisionSystem {
     
     func update(context: inout UpdateContext) {
         // Get screen bounds from camera
-        guard let camera = cameras.first else { return }
-        
+        guard let camera = cameras.first else {
+            return
+        }
+
         let viewport = camera.viewport?.rect ?? Rect(x: 0, y: 0, width: 800, height: 600)
         let halfExtents = Vector2(Float(viewport.width / 6), Float(viewport.height / 6))
 
         // Convert to world coordinates (simplified approach)
         let worldHalfExtents = halfExtents * camera.orthographicScale / 100.0
         
-        bunnies.forEach { (entity, bunny, transform) in
+        bunnies.forEach { entity, bunny, transform in
             var velocity = bunny.velocity
             var position = transform.position
             let halfBunnySize = BunnyExampleConstants.bunnyScale * 0.5
@@ -246,11 +245,15 @@ struct BunnyCollisionSystem {
             }
             
             // Keep bunny in bounds
-            position.x = max(-worldHalfExtents.x + halfBunnySize, 
-                           min(worldHalfExtents.x - halfBunnySize, position.x))
-            position.y = max(-worldHalfExtents.y + halfBunnySize, 
-                           min(worldHalfExtents.y - halfBunnySize, position.y))
-            
+            position.x = max(
+                -worldHalfExtents.x + halfBunnySize,
+                 min(worldHalfExtents.x - halfBunnySize, position.x)
+            )
+            position.y = max(
+                -worldHalfExtents.y + halfBunnySize,
+                 min(worldHalfExtents.y - halfBunnySize, position.y)
+            )
+
             // Update components
             bunny.velocity = velocity
             entity.components += bunny.wrappedValue
@@ -266,7 +269,6 @@ struct BunnyCollisionSystem {
 /// System that updates the performance counter
 @PlainSystem
 struct PerformanceCounterSystem {
-    
     @Query<Entity, Bunny>
     private var bunnies
     
@@ -282,7 +284,7 @@ struct PerformanceCounterSystem {
         let bunnyCount = bunnies.count
         let deltaTime = deltaTime.deltaTime
         
-        counters.forEach { (entity, counter, textComponent) in
+        counters.forEach { _, counter, _ in
             counter.bunnyCount = bunnyCount
             counter.frameCount += 1
             counter.lastUpdateTime += deltaTime
@@ -308,4 +310,3 @@ struct PerformanceCounterSystem {
         }
     }
 }
-
