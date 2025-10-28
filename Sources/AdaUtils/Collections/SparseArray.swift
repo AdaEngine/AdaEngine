@@ -97,11 +97,12 @@ extension SparseArray: Sequence {
     public var underestimatedCount: Int {
         return self.values.underestimatedCount
     }
-    
-    /// - Complexity: O(1)
+
+    /// - Complexity: O(n)
+    /// - Returns: Count of not null values.
     @inline(__always)
     public var count: Int {
-        return self.values.count
+        return self.values.count(where: { $0 != nil })
     }
     
     /// - Complexity: O(1)

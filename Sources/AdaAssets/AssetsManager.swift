@@ -513,7 +513,6 @@ private extension AssetsManager {
                 } catch {
                     self.result = .failure(error)
                 }
-                
                 semaphore.signal()
             }
         }
