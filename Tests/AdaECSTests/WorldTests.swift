@@ -71,7 +71,7 @@ struct WorldTests {
 
     @Test("Clear world")
     func clearAllWorld() {
-        let entityCount = 100
+        let entityCount = 1000
         for i in 0..<entityCount {
             world.spawn {
                 ComponentA(value: i)

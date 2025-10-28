@@ -218,7 +218,7 @@ struct ArchetypeTests {
 
     @Test("Spawn Batch")
     func spawnBatch() {
-        let entityCount = 100
+        let entityCount = 1000
         for i in 0..<entityCount {
             world.spawn {
                 ComponentA(value: i)

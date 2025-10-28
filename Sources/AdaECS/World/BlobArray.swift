@@ -9,7 +9,6 @@ import AdaUtils
 import Foundation
 
 public struct BlobArray: Sendable {
-
     final class _Buffer: @unchecked Sendable {
         let pointer: UnsafeMutableRawBufferPointer
         var deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)?

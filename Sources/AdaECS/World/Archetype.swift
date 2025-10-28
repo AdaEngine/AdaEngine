@@ -72,6 +72,15 @@ public struct ComponentLayout: Hashable, Sendable {
         self.components = componentTypes
     }
 
+    public init(componentTypes: [any Component.Type]) {
+        var bitSet = BitSet(reservingCapacity: componentTypes.count)
+        for component in componentTypes {
+            bitSet.insert(component.identifier)
+        }
+        self.bitSet = bitSet
+        self.components = componentTypes
+    }
+
     public init<each T: Component>(components: repeat each T) {
         var components = [any Component.Type]()
         var bitSet = BitSet()

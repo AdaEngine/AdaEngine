@@ -205,6 +205,8 @@ public struct Chunks: Sendable {
 /// A memory-efficient chunk that stores entities and their components in contiguous memory
 public struct Chunk: Sendable, ~Copyable {
 
+    public typealias RowIndex = Int
+
     public struct ComponentsData: @unchecked Sendable, CustomStringConvertible {
         var data: BlobArray
         var changesTicks: BlobArray
@@ -239,10 +241,10 @@ public struct Chunk: Sendable, ~Copyable {
     public private(set) var entityCount: Int = 0
 
     /// Entity IDs stored in this chunk
-    public private(set) var entities: [Entity.ID]
+    public private(set) var entities: SparseArray<Entity.ID>
 
     /// Map from entity ID to its index in the chunk
-    public private(set) var entityIndices: [Entity.ID: Int]
+    public private(set) var entityIndices: [Entity.ID: RowIndex]
 
     /// Raw component data storage (organized by component type)
     public internal(set) var componentsData: [ComponentId: ComponentsData]
@@ -251,7 +253,7 @@ public struct Chunk: Sendable, ~Copyable {
     private var occupancyMask: BitArray
 
     /// Free entity indices that can be reused
-    private var freeIndices: [Int] = []
+    private var freeIndices: [RowIndex] = []
 
     public var isFull: Bool {
         self.entityCount == capacity
@@ -260,8 +262,7 @@ public struct Chunk: Sendable, ~Copyable {
     public init(capacity: Int, layout: ComponentLayout) {
         print("New chunk", layout.components, capacity)
         self.capacity = capacity
-        self.entities = []
-        self.entities.reserveCapacity(capacity)
+        self.entities = .init(capacity: capacity)
         self.entityIndices = [:]
         self.entityIndices.reserveCapacity(capacity)
         self.occupancyMask = BitArray(size: capacity)
@@ -277,13 +278,13 @@ public struct Chunk: Sendable, ~Copyable {
     /// Add an entity to this chunk
     /// - Parameter entityId: The entity identifier to add
     /// - Returns: The index where the entity was placed, or nil if chunk is full
-    mutating func addEntity(_ entityId: Entity.ID) -> Int? {
+    mutating func addEntity(_ entityId: Entity.ID) -> RowIndex? {
         if entityCount >= capacity {
             print("Chuink is full, cannot add entity \(entityId), self \(self.description)")
             return nil
         }
 
-        let index: Int
+        let index: RowIndex
         if let freeIndex = freeIndices.popLast() {
             index = freeIndex
         } else {
@@ -306,7 +307,7 @@ public struct Chunk: Sendable, ~Copyable {
     /// Remove an entity from this chunk
     /// - Parameter index: The index of the entity to remove
     mutating func removeEntity(at entityId: Entity.ID) {
-        guard let index = self.entityIndices.removeValue(forKey: entityId) else {
+        guard let index = self.entityIndices[entityId] else {
             print("Failed to remove, entities not found")
             return
         }
@@ -314,6 +315,8 @@ public struct Chunk: Sendable, ~Copyable {
             print("Failed to remove, not exists in occupance mask")
             return
         }
+        entityIndices.removeValue(forKey: entityId)
+        entities.remove(at: index)
         occupancyMask.set(index, to: false)
         entityCount -= 1
         freeIndices.append(index)
@@ -350,7 +353,9 @@ public struct Chunk: Sendable, ~Copyable {
             }
 
             // Update the entity that was in the last slot
-            let swappedEntityId = self.entities[lastIndex]
+            guard let swappedEntityId = self.entities[lastIndex] else {
+                return nil // TODO: Is it correct? 
+            }
             self.entities[removedIndex] = swappedEntityId
             self.entityIndices[swappedEntityId] = removedIndex
             self.entities.removeLast()
@@ -363,7 +368,7 @@ public struct Chunk: Sendable, ~Copyable {
         }
     }
 
-    func insert(at entityIndex: Int, components: [any Component]) {
+    func insert(at entityIndex: RowIndex, components: [any Component]) {
         for component in components {
             let componentId = type(of: component).identifier
             guard let array = componentsData[componentId] else {
@@ -374,7 +379,7 @@ public struct Chunk: Sendable, ~Copyable {
     }
 
     @inline(__always)
-    public func get<T: Component>(at entityIndex: Int) -> T? {
+    public func get<T: Component>(at entityIndex: RowIndex) -> T? {
         print("Get component by type", T.self)
         return self.componentsData[T.identifier]?.data.get(at: entityIndex, as: T.self)
     }
@@ -434,7 +439,7 @@ public struct Chunk: Sendable, ~Copyable {
     }
     public func set<T: Component>(
         _ component: consuming T,
-        at entityIndex: Int,
+        at entityIndex: RowIndex,
         lastTick: Tick
     ) {
         guard let componentData = self.componentsData[T.identifier] else {
@@ -480,19 +485,19 @@ public struct Chunk: Sendable, ~Copyable {
     /// Check if an entity slot is occupied
     /// - Parameter index: The entity index to check
     /// - Returns: true if the slot is occupied
-    public func isOccupied(at index: Int) -> Bool {
+    public func isOccupied(at index: RowIndex) -> Bool {
         return index < capacity && occupancyMask.get(index)
     }
 
     /// Get array of occupied entity indices for efficient iteration
     /// - Returns: Array of indices that contain entities
-    public func getOccupiedIndices() -> [Int] {
+    public func getOccupiedIndices() -> [RowIndex] {
         return (0..<capacity).filter { occupancyMask.get($0) }
     }
 
     /// Get array of occupied entity indices for efficient iteration
     /// - Returns: Array of indices that contain entities
-    public func getFreeIndex() -> Int? {
+    public func getFreeIndex() -> RowIndex? {
         return (0..<capacity).firstIndex { !occupancyMask.get($0) }
     }
 }
