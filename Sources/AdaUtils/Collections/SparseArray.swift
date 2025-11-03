@@ -84,7 +84,9 @@ extension SparseArray {
     @inline(__always)
     public mutating func append(_ element: Element) {
         if count >= values.count {
-            values.append(nil)
+            values.append(
+                contentsOf: [Element?].init(repeating: nil, count: 16)
+            )
         }
         self.insert(element, at: self.count)
     }
