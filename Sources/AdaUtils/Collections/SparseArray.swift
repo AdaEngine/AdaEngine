@@ -49,7 +49,13 @@ extension SparseArray {
     /// - Complexity: O(`count`)
     @inline(__always)
     public mutating func removeAll(keepingCapacity: Bool = false) {
-        self.values.removeAll(keepingCapacity: keepingCapacity)
+        if keepingCapacity {
+            for index in 0 ..< self.values.count {
+                self.values[index] = nil
+            }
+        } else {
+            self.values.removeAll()
+        }
     }
     
     /// - Complexity: O(1)
@@ -64,21 +70,22 @@ extension SparseArray {
     @inline(__always)
     @discardableResult
     public mutating func removeLast() -> Element? {
-        return self.remove(at: self.count - 1)
+        guard let index = self.values.lastIndex(where: { $0 != nil }) else {
+            return nil
+        }
+        return remove(at: index)
     }
     
     @inline(__always)
     public mutating func insert(_ element: Element?, at index: Index) {
-        if index >= self.count {
-            values.reserveCapacity(index + 1)
-            values.append(nil)
-        }
-        
         self.values[index] = element
     }
     
     @inline(__always)
     public mutating func append(_ element: Element) {
+        if count >= values.count {
+            values.append(nil)
+        }
         self.insert(element, at: self.count)
     }
 }
@@ -105,10 +112,10 @@ extension SparseArray: Sequence {
         return self.values.count(where: { $0 != nil })
     }
     
-    /// - Complexity: O(1)
+    /// - Complexity: O(n)
     @inline(__always)
     public var isEmpty: Bool {
-        return self.values.isEmpty
+        return self.count == 0
     }
     
     @inline(__always)
