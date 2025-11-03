@@ -52,15 +52,17 @@ public final class World: @unchecked Sendable, Codable {
     public private(set) var lastTick: Tick = Tick(value: 0)
 
     /// The archetypes of the world.
-    @LocalIsolated public private(set) var entities: Entities = Entities()
-    @LocalIsolated public private(set) var archetypes: Archetypes = Archetypes()
+    /*@LocalIsolated */public private(set) var entities: Entities = Entities()
+    /*@LocalIsolated */public private(set) var archetypes: Archetypes = Archetypes()
+
     /// The removed entities of the world.
-    @LocalIsolated internal private(set) var removedEntities: Set<Entity.ID> = []
+    /*@LocalIsolated */internal private(set) var removedEntities: Set<Entity.ID> = []
     /// The added entities of the world.
-    @LocalIsolated internal private(set) var addedEntities: Set<Entity.ID> = []
+    /*@LocalIsolated */internal private(set) var addedEntities: Set<Entity.ID> = []
     /// The updated entities of the world.
-    @LocalIsolated private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
-    @LocalIsolated private var componentsStorage = ComponentsStorage()
+    /*@LocalIsolated */private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
+
+    /*@LocalIsolated */private var componentsStorage = ComponentsStorage()
     public var commands: WorldCommands = WorldCommands()
 
     private var isReady = false
@@ -326,19 +328,19 @@ public extension World {
         return self.archetypes
             .archetypes[location.archetypeId]
             .chunks
-            .chunks
-            .getPointer(at: location.chunkIndex)
-            .pointee
+            .chunks[location.chunkIndex]
             .isComponentChanged(T.self, for: entity, lastTick: self.lastTick)
     }
 
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
     func flush() {
-        self.commands.flush(to: self)
-        
-        for entityId in self.removedEntities {
-            self.removeEntityRecord(entityId)
+        Task { @MainActor in
+            self.commands.flush(to: self)
+
+            for entityId in self.removedEntities {
+                self.removeEntityRecord(entityId)
+            }
         }
     }
 
@@ -453,8 +455,8 @@ public extension World {
     }
 }
 
-extension World {
-    func moveEntityToArchetype(
+private extension World {
+    private func moveEntityToArchetype(
         _ entityId: Entity.ID,
         oldLocation location: EntityLocation,
         newArchetype: Archetype.ID
@@ -515,11 +517,12 @@ public extension World {
         _ name: String = "",
         bundle: consuming T
     ) -> Entity {
-        let entity = Entity(name: name)
+        let entity = entities.allocate(with: name)
         let components = bundle.components
         let archetypeIndex = self.archetypes.getOrCreate(
             for: ComponentLayout(components: components)
         )
+
         var archetype = self.archetypes.archetypes[archetypeIndex]
         let row = archetype.append(entity)
         let chunkLocation = archetype.chunks.insertEntity(entity.id, components: components)
@@ -548,9 +551,7 @@ public extension World {
         return self.archetypes
             .archetypes[location.archetypeId]
             .chunks
-            .chunks
-            .getPointer(at: location.chunkIndex)
-            .pointee
+            .chunks[location.chunkIndex]
             .get(at: location.chunkRow)
     }
 
@@ -559,19 +560,18 @@ public extension World {
         return self.get(from: entity)
     }
 
-    func set<T: Component>(_ component: consuming T, for entityId: Entity.ID) {
+    func insert<T: Component>(_ component: consuming T, for entityId: Entity.ID) {
         guard let location = self.entities.entities[entityId] else {
             return
         }
+        self.flush()
         var archetype = self.archetypes.archetypes[location.archetypeId]
         if archetype.componentLayout.bitSet.contains(T.identifier) {
             self.archetypes
                 .archetypes[location.archetypeId]
                 .chunks
-                .chunks
-                .getPointer(at: location.chunkIndex)
-                .pointee
-                .set(component, at: location.chunkRow, lastTick: self.lastTick)
+                .chunks[location.chunkIndex]
+                .insert(component, at: location.chunkRow, lastTick: self.lastTick)
             return
         }
         var newLayout = archetype.componentLayout
@@ -616,9 +616,6 @@ public extension World {
 
         // Get the entity from the archetype
         var archetype = self.archetypes.archetypes[location.archetypeId]
-//        guard let entityInstance = archetype.entities[location.archetypeRow] else {
-//            return // Entity doesn't exist in the archetype
-//        }
         var newLayout = archetype.chunks.componentLayout
         newLayout.remove(componentId)
         if let newArchetype = archetype.edges.getArchetypeAfterRemoval(for: newLayout) {
@@ -778,216 +775,6 @@ extension World {
     }
 }
 
-//
-//extension World {
-//    /// Insert mode for batch operations.
-//    public enum InsertMode {
-//        /// Replace existing components
-//        case replace
-//        /// Insert only if component doesn't exist
-//        case insertOnly
-//        /// Keep existing components if they exist
-//        case keepExisting
-//    }
-//    
-//    /// Error type for batch insertion operations.
-//    public struct TryInsertBatchError: Error {
-//        /// The type name of the bundle that failed to insert.
-//        public let bundleType: String
-//        /// The entities that were invalid during insertion.
-//        public let entities: [Entity.ID]
-//        
-//        public var localizedDescription: String {
-//            "Failed to insert bundle '\(bundleType)' for entities: \(entities)"
-//        }
-//    }
-//    
-//    /// A location in the world that may or may not exist.
-//    public enum MaybeLocation {
-//        case none
-//        case location(EntityRecord)
-//    }
-//    
-//    /// A bundle inserter for optimized batch operations.
-//    private struct BundleInserter {
-//        private let world: World
-//        private let archetypeId: Archetype.ID
-//        private let insertMode: InsertMode
-//        
-//        init(world: World, archetypeId: Archetype.ID, insertMode: InsertMode) {
-//            self.world = world
-//            self.archetypeId = archetypeId
-//            self.insertMode = insertMode
-//        }
-//        
-//        /// Insert components for an entity.
-//        mutating func insert(
-//            entity: Entity,
-//            location: EntityRecord,
-//            components: [any Component],
-//            insertMode: InsertMode,
-//            caller: MaybeLocation
-//        ) {
-//            // Set the components on the entity based on insert mode
-//            for component in components {
-//                switch insertMode {
-//                case .replace:
-//                    entity.components.set(component)
-//                case .insertOnly:
-//                    if !entity.components.has(type(of: component)) {
-//                        entity.components.set(component)
-//                    }
-//                case .keepExisting:
-//                    if !entity.components.has(type(of: component)) {
-//                        entity.components.set(component)
-//                    }
-//                }
-//            }
-//            
-//            // Mark entity as updated so it gets moved to the correct archetype
-//            world.updatedEntities.insert(entity)
-//        }
-//        
-//        /// Get entities from the world.
-//        func entities() -> OrderedDictionary<Entity.ID, EntityRecord> {
-//            return world.records
-//        }
-//    }
-//    
-//    /// Cache for archetype inserters to optimize batch operations.
-//    private struct InserterArchetypeCache {
-//        var inserter: BundleInserter
-//        var archetypeId: Archetype.ID
-//    }
-//    
-//    /// Try to insert a batch of entities with components.
-//    /// - Parameters:
-//    ///   - batch: Sequence of (Entity, [Component]) pairs to insert
-//    ///   - insertMode: How to handle existing components
-//    ///   - caller: Optional caller location for debugging
-//    /// - Returns: Result indicating success or failure with invalid entities
-//    public func tryInsertBatch<S: Sequence>(
-//        _ batch: S,
-//        insertMode: InsertMode = .replace,
-//        caller: MaybeLocation = .none
-//    ) -> Result<Void, TryInsertBatchError> 
-//    where S.Element == (Entity, [any Component]) {
-//        
-//        // Flush pending changes first
-//        self.flush()
-//        
-//        var invalidEntities: [Entity.ID] = []
-//        var batchIterator = batch.makeIterator()
-//        
-//        // Find the first valid entity to initialize the bundle inserter
-//        var cache: InserterArchetypeCache? = nil
-//        
-//        while let (firstEntity, firstComponents) = batchIterator.next() {
-//            if let firstLocation = self.records[firstEntity.id] {
-//                cache = InserterArchetypeCache(
-//                    inserter: BundleInserter(
-//                        world: self,
-//                        archetypeId: firstLocation.archetypeId,
-//                        insertMode: insertMode
-//                    ),
-//                    archetypeId: firstLocation.archetypeId
-//                )
-//                
-//                // Insert the first entity's components
-//                cache!.inserter.insert(
-//                    entity: firstEntity,
-//                    location: firstLocation,
-//                    components: firstComponents,
-//                    insertMode: insertMode,
-//                    caller: caller
-//                )
-//                break
-//            }
-//            invalidEntities.append(firstEntity.id)
-//        }
-//        
-//        // Process the rest of the batch if we have a valid cache
-//        if var cache = cache {
-//            while let (entity, components) = batchIterator.next() {
-//                if let location = self.records[entity.id] {
-//                    // Check if we need to update the cache for a different archetype
-//                    if location.archetypeId != cache.archetypeId {
-//                        cache = InserterArchetypeCache(
-//                            inserter: BundleInserter(
-//                                world: self,
-//                                archetypeId: location.archetypeId,
-//                                insertMode: insertMode
-//                            ),
-//                            archetypeId: location.archetypeId
-//                        )
-//                    }
-//                    
-//                    // Insert the entity's components
-//                    cache.inserter.insert(
-//                        entity: entity,
-//                        location: location,
-//                        components: components,
-//                        insertMode: insertMode,
-//                        caller: caller
-//                    )
-//                } else {
-//                    invalidEntities.append(entity.id)
-//                }
-//            }
-//        }
-//        
-//        // Return result based on whether any entities were invalid
-//        if invalidEntities.isEmpty {
-//            return .success(())
-//        } else {
-//            let bundleTypeName = "ComponentBundle" // Generic name since we don't have specific bundle types
-//            return .failure(TryInsertBatchError(
-//                bundleType: bundleTypeName,
-//                entities: invalidEntities
-//            ))
-//        }
-//    }
-//    
-//    /// Convenience method for batch insertion that throws on error.
-//    /// - Parameters:
-//    ///   - batch: Sequence of (Entity, [Component]) pairs to insert
-//    ///   - insertMode: How to handle existing components
-//    ///   - caller: Optional caller location for debugging
-//    /// - Throws: TryInsertBatchError if any entities are invalid
-//    public func insertBatch<S: Sequence>(
-//        _ batch: S,
-//        insertMode: InsertMode = .replace,
-//        caller: MaybeLocation = .none
-//    ) throws 
-//    where S.Element == (Entity, [any Component]) {
-//        
-//        let result = tryInsertBatch(batch, insertMode: insertMode, caller: caller)
-//        switch result {
-//        case .success:
-//            return
-//        case .failure(let error):
-//            throw error
-//        }
-//    }
-//    
-//    /// Convenience method for inserting a batch of entities with the same components.
-//    /// - Parameters:
-//    ///   - entities: Array of entities to add components to
-//    ///   - components: Components to add to each entity using ComponentsBuilder
-//    ///   - insertMode: How to handle existing components
-//    /// - Throws: TryInsertBatchError if any entities are invalid
-//    public func insertBatch(
-//        entities: [Entity],
-//        @ComponentsBuilder components: () -> [Component],
-//        insertMode: InsertMode = .replace
-//    ) throws {
-//        let componentList = components()
-//        let batch = entities.map { ($0, componentList) }
-//        try insertBatch(batch, insertMode: insertMode)
-//    }
-//}
-
-
 extension Array where Element == Component {
     var bitSet: BitSet {
         var bitSet = BitSet(reservingCapacity: self.count)
@@ -997,48 +784,3 @@ extension Array where Element == Component {
         return bitSet
     }
 }
-
-
-//extension World {
-//    /// Entity did add component.
-//    /// - Parameter entity: The entity that did add component.
-//    /// - Parameter component: The component that did add.
-//    /// - Parameter identifier: The identifier of the component.
-//    func entity<T: Component>(
-//        _ entity: consuming Entity,
-//        didAddComponent component: T.Type,
-//        with identifier: ComponentId
-//    ) {
-//        let entity = entity
-//        eventManager.send(ComponentEvents.DidAdd(componentType: component, entity: entity))
-//    }
-//
-//    /// Entity did update component.
-//    /// - Parameter entity: The entity that did update component.
-//    /// - Parameter component: The component that did update.
-//    /// - Parameter identifier: The identifier of the component.
-//    func entity<T: Component>(
-//        _ entity: consuming Entity,
-//        didUpdateComponent component: T.Type,
-//        with identifier: ComponentId
-//    ) {
-//        let entity = entity
-//        eventManager.send(ComponentEvents.DidChange(componentType: component, entity: entity))
-//        self.updatedEntities.insert(entity)
-//        self.updatedComponents[entity.id, default: []].insert(identifier)
-//    }
-//
-//    /// Entity did remove component.
-//    /// - Parameter entity: The entity that did remove component.
-//    /// - Parameter component: The component that did remove.
-//    /// - Parameter identifier: The identifier of the component.
-//    func entity(
-//        _ entity: consuming Entity,
-//        didRemoveComponent component: Component.Type,
-//        with identifier: ComponentId
-//    ) {
-//        let entity = entity
-//        eventManager.send(ComponentEvents.WillRemove(componentType: component, entity: entity))
-//        self.updatedEntities.insert(entity)
-//    }
-//}

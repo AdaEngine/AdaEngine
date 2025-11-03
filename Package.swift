@@ -492,6 +492,15 @@ targets += [
         exclude: [
             "BUILD.bazel"
         ]
+    ),
+    .testTarget(
+        name: "AdaUtilsTests",
+        dependencies: [
+            "AdaUtils"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ]
     )
 ]
 
@@ -511,6 +520,7 @@ let package = Package(
         .macOS(.v15),
     ],
     products: products,
+    traits: [],
     dependencies: [],
     targets: targets,
     cLanguageStandard: .c17,

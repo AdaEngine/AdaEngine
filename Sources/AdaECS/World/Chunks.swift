@@ -21,11 +21,11 @@ public struct MoveEntityResult {
 
 /// A chunk-based storage system for ECS components
 /// Provides memory-efficient, cache-friendly storage for entities and their components
-public struct Chunks: Sendable {
+public struct Chunks: @unchecked Sendable {
     let componentLayout: ComponentLayout
 
     /// Array of chunks for different archetypes
-    public internal(set) var chunks: ManagedArray<Chunk> = .init()
+    public internal(set) var chunks: [Chunk] = []
 
     /// Configuration for chunk storage
     public let chunkSize: Int
@@ -42,12 +42,8 @@ public struct Chunks: Sendable {
 
     mutating func getFreeChunkIndex() -> Int {
         if let firstLocation = friedLocation.popLast() {
-            print("Get free chunk index from friedLocation \(firstLocation.chunkIndex)")
             return firstLocation.chunkIndex
-        } else if self.chunks.reborrow(at: self.chunks.endIndex - 1, { $0.isFull }) == false {
-//            print(
-//                "Get free chunk index \(self.chunks.endIndex), entityCount \(self.chunks.reborrow(at: self.chunks.endIndex) { $0.entityCount })"
-//            )
+        } else if self.chunks[self.chunks.endIndex - 1].isFull == false {
             return max(0, self.chunks.endIndex - 1)
         } else {
             let chunk = Chunk(capacity: self.chunkSize, layout: componentLayout)
@@ -64,13 +60,12 @@ public struct Chunks: Sendable {
         guard let location = self.entities[entity] else {
             return
         }
-        self.chunks.reborrow(at: location.chunkIndex) { chunk in
-            chunk.set(
+        self.chunks[location.chunkIndex]
+            .insert(
                 component,
                 at: location.chunkIndex,
                 lastTick: lastTick
             )
-        }
     }
 
     @discardableResult
@@ -79,18 +74,16 @@ public struct Chunks: Sendable {
         components: [any Component]
     ) -> ChunkLocation {
         let location = self.getFreeChunkIndex()
-        print("Inserting entity \(entity) at chunk index \(location)")
-        let chunk = self.chunks.getPointer(at: location)
-        guard let entityLocation = chunk.pointee.addEntity(entity) else {
+        let chunk = self.chunks[location]
+        guard let entityLocation = chunk.addEntity(entity) else {
             fatalError("Failed to add entity \(entity) to chunk \(location)")
         }
-        chunk.pointee.insert(at: entityLocation, components: components)
+        chunk.insert(at: entityLocation, components: components)
         let chunkLocation = ChunkLocation(
             chunkIndex: location,
             entityRow: entityLocation
         )
         self.entities[entity] = chunkLocation
-        print("Entity \(entity) inserted at chunk index \(location), row \(entityLocation)")
         return chunkLocation
     }
 
@@ -98,9 +91,9 @@ public struct Chunks: Sendable {
         guard let location = self.entities[entity] else {
             return
         }
-        let chunk = self.chunks.getPointer(at: location.chunkIndex)
-        chunk.pointee.removeEntity(at: entity)
-        if chunk.pointee.entityCount == 0, self.chunks.count > 1 {
+        let chunk = self.chunks[location.chunkIndex]
+        chunk.removeEntity(at: entity)
+        if chunk.entityCount == 0, self.chunks.count > 1 {
             self.chunks.remove(at: location.chunkIndex)
             return
         }
@@ -111,40 +104,38 @@ public struct Chunks: Sendable {
         guard let location = self.entities[entity] else {
             fatalError("Entity \(entity) not found in chunks")
         }
-        let chunkLocation = self.chunks.reborrow(at: location.chunkIndex) { oldChunk in
-            let newLocation = chunks.getFreeChunkIndex()
-            return chunks.chunks.reborrow(at: newLocation) { chunk in
-                let entityLocation = chunk.addEntity(entity)!
-                let chunkLocation = ChunkLocation(
-                    chunkIndex: newLocation,
-                    entityRow: entityLocation
-                )
-                chunks.entities[entity] = chunkLocation
-                for component in chunks.componentLayout.components {
-                    guard
-                        let oldChunkComponent = oldChunk.componentsData[component.identifier],
-                        var newChunkComponent = chunk.componentsData[component.identifier]
-                    else {
-                        continue
-                    }
-
-                    oldChunkComponent.data
-                        .copyElement(
-                            to: &newChunkComponent.data,
-                            from: location.entityRow,
-                            to: chunkLocation.entityRow
-                        )
-                    oldChunkComponent.changesTicks
-                        .copyElement(
-                            to: &newChunkComponent.changesTicks,
-                            from: location.entityRow,
-                            to: chunkLocation.entityRow
-                        )
-                    chunk.componentsData[component.identifier] = newChunkComponent
-                }
-                return chunkLocation
+        let oldChunk = self.chunks[location.chunkIndex]
+        let newLocation = chunks.getFreeChunkIndex()
+        let chunk = chunks.chunks[newLocation]
+        let entityLocation = chunk.addEntity(entity)!
+        let chunkLocation = ChunkLocation(
+            chunkIndex: newLocation,
+            entityRow: entityLocation
+        )
+        chunks.entities[entity] = chunkLocation
+        for component in chunks.componentLayout.components {
+            guard
+                let oldChunkComponent = oldChunk.componentsData[component.identifier],
+                var newChunkComponent = chunk.componentsData[component.identifier]
+            else {
+                continue
             }
+
+            oldChunkComponent.data
+                .copyElement(
+                    to: &newChunkComponent.data,
+                    from: location.entityRow,
+                    to: chunkLocation.entityRow
+                )
+            oldChunkComponent.changesTicks
+                .copyElement(
+                    to: &newChunkComponent.changesTicks,
+                    from: location.entityRow,
+                    to: chunkLocation.entityRow
+                )
+            chunk.componentsData[component.identifier] = newChunkComponent
         }
+        chunks.entities[entity] = chunkLocation
         let swappedEntity = self.swapRemoveEntity(entity)
         return MoveEntityResult(newLocation: chunkLocation, swappedEntity: swappedEntity)
     }
@@ -155,15 +146,15 @@ public struct Chunks: Sendable {
             return nil
         }
 
-        let chunkPointer = self.chunks.getPointer(at: location.chunkIndex)
-        let swappedEntityId = chunkPointer.pointee.swapRemoveEntity(at: entity)
+        let chunk = self.chunks[location.chunkIndex]
+        let swappedEntityId = chunk.swapRemoveEntity(at: entity)
         self.entities.removeValue(forKey: entity)
 
         if let swappedEntityId = swappedEntityId {
             self.entities[swappedEntityId] = location
         }
 
-        if chunkPointer.pointee.entityCount == 0, self.chunks.count > 1 {
+        if chunk.entityCount == 0, self.chunks.count > 1 {
             self.chunks.remove(at: location.chunkIndex)
         }
 
@@ -181,8 +172,8 @@ public struct Chunks: Sendable {
 
     public func getComponentSlices<T: Component>(for type: T.Type) -> [UnsafeBufferPointer<T>] {
         var slices: [UnsafeBufferPointer<T>] = []
-        for i in 0..<self.chunks.count {
-            if let slice = self.chunks.reborrow(at: i, { $0.getComponentSlice(for: type) }) {
+        for index in 0..<self.chunks.count {
+            if let slice = self.chunks[index].getComponentSlice(for: type) {
                 slices.append(slice)
             }
         }
@@ -193,8 +184,8 @@ public struct Chunks: Sendable {
         for type: T.Type
     ) -> [UnsafeBufferPointer<Tick>] {
         var slices: [UnsafeBufferPointer<Tick>] = []
-        for i in 0..<self.chunks.count {
-            if let slice = self.chunks.reborrow(at: i, { $0.getComponentTicksSlice(for: type) }) {
+        for index in 0..<self.chunks.count {
+            if let slice = self.chunks[index].getComponentTicksSlice(for: type) {
                 slices.append(slice)
             }
         }
@@ -203,7 +194,7 @@ public struct Chunks: Sendable {
 }
 
 /// A memory-efficient chunk that stores entities and their components in contiguous memory
-public struct Chunk: Sendable, ~Copyable {
+public final class Chunk {
 
     public typealias RowIndex = Int
 
@@ -278,7 +269,7 @@ public struct Chunk: Sendable, ~Copyable {
     /// Add an entity to this chunk
     /// - Parameter entityId: The entity identifier to add
     /// - Returns: The index where the entity was placed, or nil if chunk is full
-    mutating func addEntity(_ entityId: Entity.ID) -> RowIndex? {
+    func addEntity(_ entityId: Entity.ID) -> RowIndex? {
         if entityCount >= capacity {
             print("Chuink is full, cannot add entity \(entityId), self \(self.description)")
             return nil
@@ -306,7 +297,7 @@ public struct Chunk: Sendable, ~Copyable {
 
     /// Remove an entity from this chunk
     /// - Parameter index: The index of the entity to remove
-    mutating func removeEntity(at entityId: Entity.ID) {
+    func removeEntity(at entityId: Entity.ID) {
         guard let index = self.entityIndices[entityId] else {
             print("Failed to remove, entities not found")
             return
@@ -322,7 +313,7 @@ public struct Chunk: Sendable, ~Copyable {
         freeIndices.append(index)
     }
 
-    mutating func clear() {
+    func clear() {
         self.entities.removeAll(keepingCapacity: true)
         self.entityIndices.removeAll(keepingCapacity: true)
         self.entityCount = 0
@@ -334,7 +325,7 @@ public struct Chunk: Sendable, ~Copyable {
     /// - Parameter entityId: The ID of the entity to remove.
     /// - Returns: The ID of the entity that was swapped into the removed entity's place, if any.
     @discardableResult
-    mutating func swapRemoveEntity(at entityId: Entity.ID) -> Entity.ID? {
+    func swapRemoveEntity(at entityId: Entity.ID) -> Entity.ID? {
         guard let removedIndex = self.entityIndices.removeValue(forKey: entityId) else {
             return nil
         }
@@ -354,7 +345,7 @@ public struct Chunk: Sendable, ~Copyable {
 
             // Update the entity that was in the last slot
             guard let swappedEntityId = self.entities[lastIndex] else {
-                return nil // TODO: Is it correct? 
+                return nil // TODO: Is it correct?
             }
             self.entities[removedIndex] = swappedEntityId
             self.entityIndices[swappedEntityId] = removedIndex
@@ -380,7 +371,6 @@ public struct Chunk: Sendable, ~Copyable {
 
     @inline(__always)
     public func get<T: Component>(at entityIndex: RowIndex) -> T? {
-        print("Get component by type", T.self)
         return self.componentsData[T.identifier]?.data.get(at: entityIndex, as: T.self)
     }
 
@@ -437,7 +427,8 @@ public struct Chunk: Sendable, ~Copyable {
             .changesTicks
             .getMutablePointer(at: index, as: Tick.self)
     }
-    public func set<T: Component>(
+    
+    public func insert<T: Component>(
         _ component: consuming T,
         at entityIndex: RowIndex,
         lastTick: Tick
@@ -446,7 +437,6 @@ public struct Chunk: Sendable, ~Copyable {
             assertionFailure("Component \(T.self) not found in chunk")
             return
         }
-        print("Set component \(T.self) entityIndex: \(entityIndex)")
         componentData.changesTicks.insert(lastTick, at: entityIndex)
         componentData.data.insert(component, at: entityIndex)
     }

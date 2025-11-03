@@ -51,7 +51,7 @@ struct ArchetypeTests {
         #expect(world.get(from: f.id) == ComponentB(value: "def"))
         #expect(world.get(from: f.id) == ComponentC())
 
-        world.set(ComponentB(value: "xyz"), for: e.id)
+        world.insert(ComponentB(value: "xyz"), for: e.id)
         #expect(world.get(from: e.id) == ComponentB(value: "xyz"))
     }
 
@@ -175,7 +175,7 @@ struct ArchetypeTests {
         #expect(!world.has(ComponentC.self, in: e.id))
 
         // Add ComponentC
-        world.set(ComponentC(), for: e.id)
+        world.insert(ComponentC(), for: e.id)
         #expect(world.has(ComponentC.self, in: e.id))
 
         // Remove ComponentA
@@ -306,8 +306,8 @@ struct ArchetypeTests {
         #expect(!changedEntities.contains(e2.id))
 
         // Ensure moving archetypes preserves change state
-        world.set(ComponentB(value: "moved"), for: e1.id)
-        
+        world.insert(ComponentB(value: "moved"), for: e1.id)
+
         let changedQueryAfterMove = world.performQuery(FilterQuery<Entity, Changed<ComponentA>>())
         let changedEntitiesAfterMove = Set(changedQueryAfterMove.map { $0.id })
 

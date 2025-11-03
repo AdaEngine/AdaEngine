@@ -42,9 +42,9 @@ open class Entity: Identifiable, @unchecked Sendable {
     /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
     /// - Note: If you want to use entity without any components use ``EmptyEntity``
     /// - Parameter name: Name of entity. By default is `Entity`.
-    internal init(name: String = "Entity") {
+    internal init(name: String = "Entity", id: Int) {
         self.name = name
-        self.id = RID().id
+        self.id = id
         self.components = ComponentSet(entity: self.id)
     }
 
@@ -55,8 +55,7 @@ open class Entity: Identifiable, @unchecked Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let name = try container.decode(String.self, forKey: .name)
         let id = try container.decode(Int.self, forKey: .id)
-        self.init(name: name)
-        self.id = id
+        self.init(name: name, id: id)
         self.components = try container.decode(ComponentSet.self, forKey: .components)
         self.components.entity = id
     }
@@ -81,7 +80,7 @@ open class Entity: Identifiable, @unchecked Sendable {
     /// Copy the entity.
     /// - Returns: A new entity with the same components.
     open func copy() -> Entity {
-        let entity = Entity(name: self.name)
+        let entity = Entity(name: self.name, id: self.id)
         entity.components = self.components.copy()
         entity.components.entity = entity.id
         entity.components.world = world

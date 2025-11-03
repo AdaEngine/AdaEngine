@@ -37,47 +37,59 @@ private struct B: Equatable {
     }
 }
 
-//@Suite("Chunks Tests")
-//struct ChunksTests {
-//    var chunks: Chunks
-//
-//    init() {
-//        self.chunks = Chunks(
-//            chunkSize: 32,
-//            componentLayout: ComponentLayout(
-//                componentTypes: [
-//                    A.self,
-//                    B.self
-//                ]
-//            )
-//        )
-//    }
-//
-//    @Test
-//    mutating func `inserted value returns correctly`() throws {
-//        let a = A()
-//        let b = B()
-//        let location = chunks.insertEntity(1, components: [a, b])
-//
-//        #expect(chunks.entities.count == 1)
-//        #expect(
-//            chunks.chunks.reborrow(at: location.chunkIndex, { chunk in
-//                chunk.get(A.self, for: location.entityRow) == a
-//            })
-//        )
-//        #expect(
-//            chunks.chunks.reborrow(at: location.chunkIndex, { chunk in
-//                chunk.get(B.self, for: location.entityRow) == b
-//            })
-//        )
-//    }
-//}
+@Suite("Chunks Tests")
+struct ChunksTests {
+    var chunks: Chunks
+
+    init() {
+        self.chunks = Chunks(
+            chunkSize: 32,
+            componentLayout: ComponentLayout(
+                componentTypes: [
+                    A.self,
+                    B.self
+                ]
+            )
+        )
+    }
+
+    @Test
+    mutating func `inserted value returns correctly`() throws {
+        let a = A()
+        let b = B()
+        let location = chunks.insertEntity(1, components: [a, b])
+
+        #expect(chunks.entities.count == 1)
+        #expect(chunks.chunks[location.chunkIndex].get(A.self, for: 1) == a)
+        #expect(chunks.chunks[location.chunkIndex].get(B.self, for: 1) == b)
+    }
+
+    @Test
+    mutating func `moves entities works correctly`() throws {
+        let a = A()
+        let b = B()
+        chunks.insertEntity(1, components: [a, b])
+        #expect(chunks.entities.count == 1)
+
+        var newChunks = Chunks(
+            chunkSize: 32,
+            componentLayout: ComponentLayout(componentTypes: [A.self])
+        )
+        let newLocation = chunks.moveEntity(1, to: &newChunks)
+        #expect(chunks.entities.count == 0)
+        #expect(newChunks.entities.count == 1)
+        #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].entityCount == 1)
+        #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].isOccupied(at: newLocation.newLocation.entityRow) == true)
+        #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].get(A.self, for: 1) == a)
+        #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].get(B.self, for: 1) == nil)
+    }
+}
 
 @Suite("Chunk Tests")
 struct ChunkTests {
     @Test
     func `inserted entity in chunk returns correctly`() throws {
-        var chunk = Chunk(
+        let chunk = Chunk(
             capacity: 32,
             layout: ComponentLayout(
                 componentTypes: [
@@ -98,7 +110,7 @@ struct ChunkTests {
 
     @Test
     func `removed entity in chunk returns correctly`() throws {
-        var chunk = Chunk(
+        let chunk = Chunk(
             capacity: 32,
             layout: ComponentLayout(
                 componentTypes: [
@@ -118,7 +130,7 @@ struct ChunkTests {
 
     @Test
     func `updated components returns correctly`() throws {
-        var chunk = Chunk(
+        let chunk = Chunk(
             capacity: 32,
             layout: ComponentLayout(
                 componentTypes: [
@@ -137,11 +149,15 @@ struct ChunkTests {
         chunk.getMutablePointer(A.self, for: 1)?.pointee = newA
         #expect(chunk.get(A.self, for: 1) == newA)
     }
+}
 
+// MARK: Chunk Entities Manage
+
+extension ChunkTests {
     @Test
     func `filled chunk correctly`() {
         let capacity = 128
-        var chunk = Chunk(
+        let chunk = Chunk(
             capacity: capacity,
             layout: ComponentLayout(
                 componentTypes: [
@@ -158,12 +174,13 @@ struct ChunkTests {
         #expect(chunk.entityCount == capacity)
         #expect(chunk.isFull == true)
         #expect(chunk.entities.count == capacity)
+        #expect(chunk.getFreeIndex() == nil)
     }
 
     @Test
     func `clear chunk works correctly`() {
         let capacity = 128
-        var chunk = Chunk(
+        let chunk = Chunk(
             capacity: capacity,
             layout: ComponentLayout(
                 componentTypes: [
@@ -180,16 +197,19 @@ struct ChunkTests {
         #expect(chunk.entityCount == capacity)
         #expect(chunk.isFull == true)
         #expect(chunk.entities.count == capacity)
+
         chunk.clear()
+
         #expect(chunk.isFull == false)
         #expect(chunk.entityCount == 0)
         #expect(chunk.entities.count == 0)
+        #expect(chunk.getFreeIndex() == 0)
     }
 
     @Test
     func `remove entities in different places works correctly`() {
         let capacity = 128
-        var chunk = Chunk(
+        let chunk = Chunk(
             capacity: capacity,
             layout: ComponentLayout(
                 componentTypes: [
@@ -214,5 +234,32 @@ struct ChunkTests {
         #expect(chunk.entityCount == 64)
         #expect(chunk.isFull == false)
         #expect(chunk.entities.count == 64)
+    }
+}
+
+// MARK: Ticks
+
+extension ChunkTests {
+    @Test
+    func `set tick works correctly`() {
+        let chunk = Chunk(
+            capacity: 32,
+            layout: ComponentLayout(
+                componentTypes: [
+                    A.self,
+                    B.self
+                ]
+            )
+        )
+
+        let row = chunk.addEntity(1)!
+        chunk.insert(at: row, components: [A(), B()])
+        #expect(chunk.getMutableTick(A.self, for: 1)?.pointee == Tick(value: 0))
+
+        let newA = A()
+        chunk.insert(newA, at: row, lastTick: Tick(value: 2))
+
+        #expect(chunk.getMutableTick(A.self, for: 1)?.pointee == Tick(value: 2))
+        #expect(chunk.getMutablePointer(A.self, for: 1)?.pointee == newA)
     }
 }

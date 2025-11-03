@@ -7,145 +7,135 @@
 
 import Foundation
 
-public struct ManagedArray<Element>: Sendable where Element: ~Copyable {
-
-    final class _Buffer: @unchecked Sendable {
-        let pointer: UnsafeMutableBufferPointer<Element>
-        let count: Int
-
-        init(pointer: UnsafeMutableBufferPointer<Element>, count: Int) {
-            self.pointer = pointer
-            self.count = count
-        }
-
-        deinit {
-            print("deallocated lol")
-            pointer.deinitialize()
-            pointer.deallocate()
-        }
-    }
+public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyable {
 
     struct Header {
         var capacity: Int
         var count: Int = 0
     }
 
-    private var header: Header
-    private var buffer: _Buffer
+    private var buffer: ManagedBuffer<Header, Element>
 
     public var startIndex: Int {
         return 0
     }
 
     public var endIndex: Int {
-        return self.header.count
+        self.buffer.header.count
     }
 
     public var count: Int {
-        self.header.count
+        self.buffer.header.count
     }
 
     public init() {
-        self.buffer = _Buffer(pointer: .allocate(capacity: 8), count: 8)
-        self.header = Header(capacity: 8)
+        self.buffer = ManagedBuffer<Header, Element>.create(
+            minimumCapacity: 16,
+            makingHeaderWith: { _ in
+                Header(capacity: 16)
+            }
+        )
     }
 
     public init(count: Int) {
         precondition(count > 0)
-        self.buffer = _Buffer(pointer: .allocate(capacity: count), count: count)
-        self.header = Header(capacity: count)
+        self.buffer = ManagedBuffer<Header, Element>.create(
+            minimumCapacity: count * MemoryLayout<Element>.stride,
+            makingHeaderWith: { _ in
+                Header(capacity: count * MemoryLayout<Element>.stride, count: 0)
+            }
+        )
     }
 
-    public mutating func insert(_ element: consuming Element, at index: Int) {
-        precondition(index >= 0 && index <= self.header.count)
-        if self.header.count == self.header.capacity {
-            print("increase capacity", self, buffer)
-            increaseCapacity(to: self.header.capacity > 0 ? self.header.capacity * 2 : 8)
-        }
-        print("insert", self, buffer)
-        let baseAddress = self.buffer.pointer.baseAddress!
-        if index < self.header.count {
-            baseAddress.advanced(by: MemoryLayout<Element>.stride * index + 1).moveInitialize(
-                from: baseAddress.advanced(by: MemoryLayout<Element>.stride * index),
-                count: self.header.count - index
-            )
-        }
-        print(#function, "is main thread", Thread.isMainThread)
-        print("initialize element at index \(index)")
-        baseAddress.advanced(by: MemoryLayout<Element>.stride * index).initialize(to: element)
-        self.header.count += 1
-    }
+//    public mutating func insert(_ element: consuming Element, at index: Int) {
+//        precondition(index >= 0 && index <= self.buffer.header.count)
+//        if buffer.header.count == buffer.header.capacity {
+//            increaseCapacity(to: buffer.header.capacity > 0 ? buffer.header.capacity * 2 : 8)
+//        }
+//        self.buffer.withUnsafeMutablePointers { header, pointer in
+//            header.pointee.count += 1
+//            pointer.advanced(by: index * MemoryLayout<Element>.stride)
+//                .initialize(to: element)
+//        }
+//    }
 
     public mutating func append(_ element: consuming Element) {
-        insert(element, at: self.header.count)
+//         insert(element, at: buffer.header.count)
     }
 
     public mutating func increaseCapacity(to capacity: Int) {
-        precondition(self.header.capacity < capacity)
-        let newBuffer = _Buffer(pointer: .allocate(capacity: capacity), count: capacity)
-        newBuffer.pointer.baseAddress!.moveInitialize(from: self.buffer.pointer.baseAddress!, count: self.header.count)
-        self.header.capacity = capacity
-        self.buffer = newBuffer
+        precondition(self.buffer.header.capacity < capacity)
+        let oldBuffer = self.buffer
+        self.buffer = ManagedBuffer<Header, Element>.create(
+            minimumCapacity: capacity,
+            makingHeaderWith: { _ in
+                Header(capacity: capacity, count: oldBuffer.header.count)
+            }
+        )
+        self.buffer.withUnsafeMutablePointers { (header, elements) in
+            oldBuffer.withUnsafeMutablePointers { oldHeader, oldPtr in
+                elements.moveUpdate(from: oldPtr, count: oldHeader.pointee.count)
+            }
+        }
     }
 
     @inline(__always)
     public func reborrow<U>(at index: Int, _ block: (inout Element) -> U) -> U {
-        let pointer = buffer.pointer
-            .baseAddress!
-            .advanced(by: MemoryLayout<Element>.stride * index)
-        return block(&pointer.pointee)
+        self.buffer.withUnsafeMutablePointerToElements { ptr in
+            block(&ptr[index])
+        }
     }
 
     @discardableResult
     public mutating func remove(at index: Int) -> Element {
-        precondition(index >= 0 && index < self.header.count)
-        print("Remove chunk at index \(index)")
-        let baseAddress = self.buffer.pointer.baseAddress!
-        let element = baseAddress.advanced(by: MemoryLayout<Element>.stride * index).move()
-
-        if index < self.header.count - 1 {
-            baseAddress
-                .advanced(by: MemoryLayout<Element>.stride * index)
-                .moveInitialize(from: baseAddress.advanced(by: MemoryLayout<Element>.stride * index + 1), count: self.header.count - 1 - index)
+        precondition(index >= 0 && index < buffer.header.count)
+        return buffer.withUnsafeMutablePointers { header, pointer in
+            let nextToMove = header.pointee.count - index
+            let place = pointer.advanced(by: index * MemoryLayout<Element>.stride)
+            let value = place.move()
+            let nextPtr = place.successor()
+            place.moveUpdate(from: nextPtr, count: nextToMove)
+            header.pointee.count -= 1
+            return value
         }
-        
-        self.header.count -= 1
-        return element
+//         if index < self.header.count - 1 {
+//             baseAddress
+//                 .advanced(by: MemoryLayout<Element>.stride * index)
+//                 .moveInitialize(from: baseAddress.advanced(by: MemoryLayout<Element>.stride * index + 1), count: self.header.count - 1 - index)
+//         }
     }
 
     public func getPointer(at index: Int) -> UnsafeMutablePointer<Element> {
-        self.buffer.pointer
-            .baseAddress!
-            .advanced(by: MemoryLayout<Element>.stride * index)
 
+        // self.buffer.pointer
+        //     .baseAddress!
+        //     .advanced(by: MemoryLayout<Element>.stride * index)
+        fatalErrorMethodNotImplemented()
     }
 
     public consuming func take(at index: Int) -> Element {
-        precondition(index >= 0 && index < self.header.count)
-        return (self.getPointer(at: index)).move()
+        fatalErrorMethodNotImplemented()
+//        precondition(index >= 0 && index < buffer.header.count)
+//        return self.buffer.withUnsafeMutablePointerToElements { pointer in
+//            pointer[index].move()
+//        }
     }
 
     public func forEach(_ body: (borrowing Element) -> Void) {
-        for i in 0..<self.count {
-            body(
-                buffer.pointer
-                .baseAddress!
-                .advanced(by: MemoryLayout<Element>.stride * i)
-                .pointee
-            )
+        buffer.withUnsafeMutablePointers { header, pointer in
+            for index in 0..<self.count {
+                body(pointer[index])
+            }
         }
     }
 
     public func map<T>(_ transform: (borrowing Element) -> T) -> [T] {
         var result: [T] = []
         result.reserveCapacity(self.count)
-        for i in 0..<self.count {
-            result.append(transform(
-                buffer.pointer
-                .baseAddress!
-                .advanced(by: MemoryLayout<Element>.stride * i)
-                .pointee
-            ))
+        buffer.withUnsafeMutablePointers { header, pointer in
+            for index in 0..<self.count {
+                result.append(transform(pointer[index]))
+            }
         }
         return result
     }
@@ -156,7 +146,7 @@ extension ManagedArray: CustomStringConvertible where Element: NonCopybaleCustom
         return """
         ManagedArray(
             count: \(self.count),
-            capacity: \(self.header.capacity),
+            capacity: \(self.buffer.header.capacity),
             elements: \(map { $0.description }.joined(separator: ", "))
         )
         """
@@ -165,12 +155,4 @@ extension ManagedArray: CustomStringConvertible where Element: NonCopybaleCustom
 
 public protocol NonCopybaleCustomStringConvertible: ~Copyable {
     var description: String { get }
-}
-
-class UnsafeBox<T: ~Copyable> {
-    let value: T
-
-    init(value: consuming T) {
-        self.value = value
-    }
 }
