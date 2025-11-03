@@ -140,8 +140,8 @@ public extension ScriptableComponent {
     }
     
     /// Set component to entity
-    func setComponent<T: Component>(_ component: T) {
-        self.entity?.components.set(component)
+    func insertComponent<T: Component>(_ component: T) {
+        self.entity?.components.insert(component)
     }
 }
 

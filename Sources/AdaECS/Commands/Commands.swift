@@ -43,9 +43,9 @@ public extension WorldCommands {
         })
     }
 
-    mutating func set<T: Component>(_ component: consuming T, for entityId: Entity.ID) {
+    mutating func insert<T: Component>(_ component: consuming T, for entityId: Entity.ID) {
         self.commands.append(WorldCommand { [component] world in
-            world.set(component, for: entityId)
+            world.insert(component, for: entityId)
         })
     }
 
