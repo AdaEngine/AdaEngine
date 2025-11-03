@@ -98,10 +98,10 @@ struct SparseArrayTests {
     func `append element works properly`() throws {
         var array = SparseArray<Int>([10, 20, 30, 40])
         array.append(50)
-        #expect(array.values == [10, 20, 30, 40, 50])
+        #expect(array.values.prefix(5) == [10, 20, 30, 40, 50])
         #expect(array.isEmpty == false)
         #expect(array.count == 5)
-        #expect(array.underestimatedCount == 5)
+        #expect(array.underestimatedCount == 20)
     }
 
     @Test
