@@ -6,6 +6,7 @@
 //
 
 import AdaUtils
+import Atomics
 import Foundation
 
 /// The unique identifier of the component.
@@ -23,6 +24,12 @@ public struct EntityLocation: Sendable, Hashable {
 
 public struct Entities: Sendable {
     public var entities: [Entity.ID: EntityLocation] = [:]
+    private var currentId = ManagedAtomic<Int>(1)
+
+    func allocate(with name: String) -> Entity {
+        let newId = currentId.loadThenWrappingIncrement(ordering: .relaxed)
+        return Entity(name: name, id: newId)
+    }
 }
 
 public struct Archetypes: Sendable {

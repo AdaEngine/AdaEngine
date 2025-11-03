@@ -33,7 +33,7 @@ public extension Entity {
         /// Create component set from decoder.
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
-            self.entity = RID().id
+            self.entity = -1
 
             for key in container.allKeys {
                 guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue)
@@ -76,7 +76,7 @@ public extension Entity {
                 }
                 
                 if let newValue {
-                    self.set(newValue)
+                    self.insert(newValue)
                 } else {
                     self.remove(T.self)
                 }
@@ -92,23 +92,23 @@ public extension Entity {
 
         /// Set the component of the specified type.
         @inline(__always)
-        public mutating func set<T>(_ component: consuming T) where T : Component {            
-            self.world?.set(component, for: entity)
+        public mutating func insert<T>(_ component: consuming T) where T : Component {
+            self.world?.insert(component, for: entity)
         }
 
         /// Set the components of the specified type.
         @inline(__always)
-        public mutating func set<each T: Component>(_ components: consuming (repeat (each T))) {
+        public mutating func insert<each T: Component>(_ components: consuming (repeat (each T))) {
             for component in repeat (each components) {
-                self.set(component)
+                self.insert(component)
             }
         }
 
         /// Set the components of the specified type using ``ComponentsBuilder``.
-        public mutating func set(@ComponentsBuilder components: () -> [Component]) {
+        public mutating func insert(@ComponentsBuilder components: () -> [Component]) {
             let components = components()
             for component in components {
-                self.set(component)
+                self.insert(component)
             }
         }
 
@@ -137,8 +137,7 @@ public extension Entity {
             }
             return world.archetypes
                 .archetypes[location.archetypeId]
-                .chunks.chunks.getPointer(at: location.chunkIndex)
-                .pointee
+                .chunks.chunks[location.chunkIndex]
                 .getComponents(for: entity)
                 .count
         }
@@ -232,14 +231,13 @@ extension Entity.ComponentSet: CustomStringConvertible {
             return "ComponentSet(entity: \(entity), world: nil)"
         }
         guard let location = world.entities.entities[entity] else {
-            print("Location not found for entity")
             return "ComponentSet(entity: \(entity), world: \(world))"
         }
 
         let chunk = world.archetypes
             .archetypes[location.archetypeId]
-            .chunks.chunks.getPointer(at: location.chunkIndex)
-        let components = chunk.pointee.getComponents(for: entity)
+            .chunks.chunks[location.chunkIndex]
+        let components = chunk.getComponents(for: entity)
         let result = components.reduce("") { partialResult, value in
             let name = type(of: value.value)
             return partialResult + "\n   ⟐ \(name)"
@@ -272,7 +270,7 @@ extension Entity.ComponentSet {
             }
 
             if let newValue {
-                world.set(newValue, for: entity)
+                world.insert(newValue, for: entity)
             } else {
                 world.remove(T.identifier, from: entity)
             }

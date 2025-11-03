@@ -33,7 +33,7 @@ extension SparseArray {
     @inline(__always)
     public subscript(_ index: Index) -> Element? {
         get {
-            precondition(index < self.count, "Index out of range")
+            precondition(index < self.underestimatedCount, "Index out of range")
             return self.values[index]
         }
         mutating set {

@@ -156,7 +156,7 @@ public struct FilterQueryIterator<
 
     let count: Int
     let state: QueryState
-    var currentChunk: UnsafeMutablePointer<Chunk>!
+    var currentChunk: Chunk!
     var cursor: Cursor
 
     /// - Parameter pointer: Pointer to archetypes array.
@@ -188,10 +188,10 @@ public struct FilterQueryIterator<
             }
 
             if currentChunk == nil {
-                currentChunk = archetype.chunks.chunks.getPointer(at: cursor.currentChunkIndex)
+                currentChunk = archetype.chunks.chunks[cursor.currentChunkIndex]
             }
             
-            if cursor.currentRow > currentChunk.pointee.entities.count - 1 {
+            if cursor.currentRow > currentChunk.entities.count - 1 {
                 cursor.currentChunkIndex += 1
                 cursor.currentRow = 0
                 currentChunk = nil
@@ -199,7 +199,7 @@ public struct FilterQueryIterator<
             }
 
             guard
-                let entityId = currentChunk.pointee.entities[cursor.currentRow],
+                let entityId = currentChunk.entities[cursor.currentRow],
                 let location = state.entities.entities[entityId],
                 let entity = archetype.entities[location.archetypeRow]
             else {
@@ -209,7 +209,7 @@ public struct FilterQueryIterator<
 
             guard F.condition(
                 for: archetype,
-                in: currentChunk.pointee,
+                in: currentChunk,
                 entity: entity,
                 lastTick: state.lastTick
             ) else {
@@ -220,7 +220,7 @@ public struct FilterQueryIterator<
             cursor.currentRow += 1
             return B.getQueryTarget(
                 for: entity,
-                in: currentChunk.pointee,
+                in: currentChunk,
                 archetype: archetype,
                 world: state.world
             )
