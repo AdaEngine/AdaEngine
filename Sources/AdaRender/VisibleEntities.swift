@@ -59,7 +59,7 @@ public struct VisibilitySystem {
     private func filterVisibileEntities(
         context: borrowing UpdateContext, 
         for camera: Camera
-    ) -> ([Entity], Set<Entity.ID>) {
+    ) -> (entities: [Entity], entityIds: Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()
         let filtredEntities: [Entity] = self.entities.compactMap { entity, visibility, bounding in
