@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://adaengine.github.io">
-    <img src="Assets/ae_github_logo.png" width="400" alt="Ada Engine logo">
+    <img src="Assets/ae_github_logo.png" alt="Ada Engine logo">
   </a>
 </p>
 
@@ -17,7 +17,6 @@ AdaEngine is a game engine fully written on Swift. The main idea is to encourage
   <a href="https://adaengine.github.io">
     <img src="Assets/tilemap.png" width="500" alt="Screenshot from test game SpaceInvaders">
   </a>
-
   <a href="https://adaengine.github.io">
     <img src="Assets/space_invaders.jpeg" width="500" vspace="60" alt="Screenshot from test game SpaceInvaders">
   </a>
@@ -49,7 +48,6 @@ import AdaEngine
 
 @main
 struct AdaEditorApp: App {
-
     var scene: some AppScene {
         EmptyWindow()
             .insertPlugin(DefaultPlugins())
@@ -80,7 +78,7 @@ Currently we use Bazel and Swift Package Manager as build tools.
 
 Use Xcode 16.3 or Visual Studio Code with the [Swift VSCode Extension](https://www.swift.org/blog/vscode-extension/) and then open `Package.swift` file from the root directory. 
 
-#### Bazel 
+#### Bazel (In Early Development)
 
 Bazel optional build system for project. To build project for development download [Bazelisk](https://github.com/bazelbuild/bazelisk). To generate xcproject, use `bazel run generate_xcproj` command in terminal. 
 
