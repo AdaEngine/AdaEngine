@@ -49,7 +49,7 @@ public final class Schedulers: @unchecked Sendable {
 
     /// Initialize a new schedulers.
     /// - Parameter schedulers: The schedulers to initialize.
-    public init(_ schedulers: [SchedulerName]) {
+    public init(_ schedulers: [SchedulerName] = []) {
         self.schedulerLabels = schedulers
         self.schedulers = Dictionary(
             uniqueKeysWithValues: schedulerLabels.map { ($0, Scheduler(name: $0)) }
@@ -117,13 +117,15 @@ public final class Schedulers: @unchecked Sendable {
     }
 
     /// Add system to scheduler. If scheduler not exists, than we create it.
-    public func addSystem<T: System>(_ system: T, for scheduler: SchedulerName) {
-        if schedulers[scheduler] == nil {
-            schedulerLabels.append(scheduler)
+    public func addSystem<T: System>(_ system: T, for schedulerName: SchedulerName) {
+        if schedulers[schedulerName] == nil {
+            schedulerLabels.append(schedulerName)
         }
-        self.schedulers[scheduler, default: Scheduler(name: scheduler)]
+        let scheduler = self.schedulers[schedulerName] ?? Scheduler(name: schedulerName)
+        scheduler
             .systemGraph
             .addSystem(system)
+        self.schedulers[schedulerName] = scheduler
     }
 }
 

@@ -67,13 +67,24 @@ public final class ResMutQuery<T: Resource>: @unchecked Sendable {
 
     /// The wrapped value of the query.
     public var wrappedValue: T {
-        get { self._value.wrappedValue }
-        set { self._value.wrappedValue = newValue }
+        get {
+            self._value.wrappedValue
+        }
+        set {
+            self._value.wrappedValue = newValue
+        }
     }
 
     /// Initialize a new resource query.
     public init() {
-        self._value = Mutable(get: { fatalError() }, set: { _ in })
+        self._value = Mutable(
+            get: {
+                fatalError("ResMutQuery not initialized from the world")
+            },
+            set: { _ in
+                fatalError("ResMutQuery not initialized from the world")
+            }
+        )
     }
 
     /// Initialize a new resource query.
@@ -81,8 +92,8 @@ public final class ResMutQuery<T: Resource>: @unchecked Sendable {
     public init(from world: World) {
         self._value = Mutable { [unowned world] in
             T.getFromWorld(world)!
-        } set: { [weak world] newValue in
-            world?.insertResource(newValue)
+        } set: { [unowned world] newValue in
+            world.insertResource(newValue)
         }
     }
 
@@ -106,8 +117,8 @@ extension ResMutQuery: SystemQuery {
     public func update(from world: World) {
         self._value = Mutable { [unowned world] in
             T.getFromWorld(world)!
-        } set: { [weak world] newValue in
-            world?.insertResource(newValue)
+        } set: { [unowned world] newValue in
+            world.insertResource(newValue)
         }
     }
 }

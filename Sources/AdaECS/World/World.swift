@@ -65,8 +65,6 @@ public final class World: @unchecked Sendable, Codable {
     /*@LocalIsolated */private var componentsStorage = ComponentsStorage()
     public var commands: WorldCommands = WorldCommands()
 
-    private var isReady = false
-
     public private(set) var eventManager: EventManager = EventManager.default
 
     // Scheduler registry and mapping from scheduler to systems
@@ -108,7 +106,7 @@ public final class World: @unchecked Sendable, Codable {
 
             if let decodable = resourceType as? Decodable.Type {
                 let resource = try decodable.init(from: resourcesContainer.superDecoder(forKey: resourceKey))
-                self.insertResource(resource as! Resource)
+                self.insertTypeErasedResource(resource as! Resource)
             }
         }
 
@@ -204,10 +202,6 @@ public extension World {
     /// Add a system to a specific scheduler.
     @discardableResult
     func addSystem<T: System>(_ systemType: T.Type, on scheduler: SchedulerName) -> Self {
-        if self.isReady {
-            assertionFailure("Can't insert system if scene was ready")
-            return self
-        }
         let system = systemType.init(world: self)
         self.schedulers.addSystem(system, for: scheduler)
         return self
@@ -335,12 +329,10 @@ public extension World {
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
     func flush() {
-        Task { @MainActor in
-            self.commands.flush(to: self)
+        self.commands.flush(to: self)
 
-            for entityId in self.removedEntities {
-                self.removeEntityRecord(entityId)
-            }
+        for entityId in self.removedEntities {
+            self.removeEntityRecord(entityId)
         }
     }
 
@@ -375,9 +367,6 @@ public extension World {
     @discardableResult
     func insertResource<T: Resource>(_ resource: consuming T) -> Self {
         let componentId = self.componentsStorage.getOrRegisterResource(T.self)
-        if self.componentsStorage.resourceComponents[componentId] != nil {
-            return self
-        }
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
     }
@@ -386,12 +375,9 @@ public extension World {
     /// - Parameter resource: The resource to insert.
     /// - Returns: A world instance.
     @discardableResult
-    func insertResource(_ resource: consuming any Resource) -> Self {
+    private func insertTypeErasedResource(_ resource: consuming any Resource) -> Self {
         let resource = resource
         let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
-        if self.componentsStorage.resourceComponents[componentId] != nil {
-            return self
-        }
         self.componentsStorage.resourceComponents[componentId] = resource
         return self
     }
@@ -743,22 +729,24 @@ extension World {
             if let componentId = self.resourceIds[id] {
                 return componentId
             }
-            return registerResource(resource)
+            return registerResource(resource, id: id)
         }
 
-        mutating func registerResource<T: Resource>(_ resource: T.Type) -> ComponentId {
+        mutating func registerResource<T: Resource>(
+            _ resource: T.Type,
+            id: ObjectIdentifier
+        ) -> ComponentId {
             Task { @MainActor in
                 T.registerResource()
             }
-            let id = ObjectIdentifier(T.self)
             let componentId = registerComponent()
+            print("Register resource", resource, "object id:", id, "componentId", componentId.id)
             self.resourceIds[id] = componentId
             return componentId
         }
 
         func getResource<T: Resource>(_ resource: T.Type) -> T? {
-            let id = ObjectIdentifier(T.self)
-            guard let componentId = self.resourceIds[id] else {
+            guard let componentId = self.resourceIds[T.identifier] else {
                 return nil
             }
             return self.resourceComponents[componentId] as? T

@@ -9,15 +9,18 @@ import Testing
 @_spi(Internal) @testable import AdaECS
 import Math
 
-struct ComponentA: Component, Equatable {
+@Component
+struct ComponentA: Equatable {
     var value: Int
 }
 
-struct ComponentB: Component, Equatable {
+@Component
+struct ComponentB: Equatable {
     var value: String
 }
 
-struct ComponentC: Component, Equatable { }
+@Component
+struct ComponentC: Equatable { }
 
 struct TestResource: Resource, Equatable {
     var value: Int
