@@ -19,6 +19,9 @@ public struct SpritePlugin: Plugin {
 
         app
             .addSystem(UpdateBoundingsSystem.self, on: .postUpdate)
+            .main
+            .registerRequiredComponent(SpriteComponent.self, Visibility.self)
+            .registerRequiredComponent(Mesh2DComponent.self, Visibility.self)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return

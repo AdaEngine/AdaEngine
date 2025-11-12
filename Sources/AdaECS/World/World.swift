@@ -52,17 +52,17 @@ public final class World: @unchecked Sendable, Codable {
     public private(set) var lastTick: Tick = Tick(value: 0)
 
     /// The archetypes of the world.
-    /*@LocalIsolated */public private(set) var entities: Entities = Entities()
-    /*@LocalIsolated */public private(set) var archetypes: Archetypes = Archetypes()
+    public private(set) var entities: Entities = Entities()
+    public private(set) var archetypes: Archetypes = Archetypes()
 
     /// The removed entities of the world.
-    /*@LocalIsolated */internal private(set) var removedEntities: Set<Entity.ID> = []
+    internal private(set) var removedEntities: Set<Entity.ID> = []
     /// The added entities of the world.
-    /*@LocalIsolated */internal private(set) var addedEntities: Set<Entity.ID> = []
+    internal private(set) var addedEntities: Set<Entity.ID> = []
     /// The updated entities of the world.
-    /*@LocalIsolated */private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
+    private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
 
-    /*@LocalIsolated */private var componentsStorage = ComponentsStorage()
+    private var componentsStorage = ComponentsStorage()
     public var commands: WorldCommands = WorldCommands()
 
     public private(set) var eventManager: EventManager = EventManager.default
@@ -454,7 +454,7 @@ private extension World {
         }
         var toArchetype = self.archetypes.archetypes[newArchetype]
         let row = toArchetype.append(entity)
-        print("Move entity \(entity.name)(\(entity.id)) from archetype \(location.archetypeId) to \(newArchetype)")
+        print("Move entity \(entity.id) from archetype \(location.archetypeId) to \(newArchetype)")
         let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks).newLocation
         archetype.remove(at: location.archetypeRow)
         self.archetypes.archetypes[location.archetypeId] = archetype
@@ -504,9 +504,15 @@ public extension World {
         bundle: consuming T
     ) -> Entity {
         let entity = entities.allocate(with: name)
-        let components = bundle.components
+        let components: [any Component] = bundle.components.reduce(into: []) { partialResult, component in
+            for requiredComponent in componentsStorage.getRequiredComponents(for: component) {
+                partialResult.append(requiredComponent.constructor())
+            }
+            partialResult.append(component)
+        }
+        let componentsLayout = ComponentLayout(components: components)
         let archetypeIndex = self.archetypes.getOrCreate(
-            for: ComponentLayout(components: components)
+            for: componentsLayout
         )
 
         var archetype = self.archetypes.archetypes[archetypeIndex]
@@ -546,11 +552,14 @@ public extension World {
         return self.get(from: entity)
     }
 
+    // TODO: insert doesn't works correctly
+        // - Component not inserted after entity moved to new arch
+        // - Required Component not initialized
     func insert<T: Component>(_ component: consuming T, for entityId: Entity.ID) {
         guard let location = self.entities.entities[entityId] else {
             return
         }
-        self.flush()
+
         var archetype = self.archetypes.archetypes[location.archetypeId]
         if archetype.componentLayout.bitSet.contains(T.identifier) {
             self.archetypes
@@ -562,6 +571,7 @@ public extension World {
         }
         var newLayout = archetype.componentLayout
         newLayout.insert(T.self)
+
         if let newArchetype = archetype.edges.getArchetypeAfterInsertion(for: newLayout) {
             self.moveEntityToArchetype(
                 entityId,
@@ -621,6 +631,32 @@ public extension World {
             )
         }
         self.removedComponents[entityId, default: []].insert(componentId)
+    }
+
+    @inline(__always)
+    @discardableResult
+    func registerRequiredComponent<T: Component, R: Component & DefaultValue>(
+        _ component: T.Type,
+        _ requiredComponent: R.Type
+    ) -> Self {
+        self.registerRequiredComponent(component, requiredComponent, { R.defaultValue })
+    }
+
+    @discardableResult
+    func registerRequiredComponent<T: Component, R: Component>(
+        _ component: T.Type,
+        _ requiredComponent: R.Type,
+        _ requiredComponentConstructor: @Sendable @escaping () -> R
+    ) -> Self {
+        let componentId = self.componentsStorage.getOrRegisterComponent(component)
+        let requiredComponentId = self.componentsStorage.getOrRegisterComponent(requiredComponent)
+        self.componentsStorage.registerRequiredComponent(
+            for: componentId,
+            requiredComponentId: requiredComponentId,
+            constructor: requiredComponentConstructor
+        )
+
+        return self
     }
 
     @inline(__always)
@@ -699,11 +735,35 @@ private extension World {
 
 extension World {
     struct ComponentsStorage: Sendable {
-        var sparseComponents: [ComponentId: SparseArray<any Component>] = [:]
+        struct RequiredComponentInfo: Sendable {
+            let id: ComponentId
+            let constructor: @Sendable () -> any Component
+        }
 
-        var components: [ComponentId] = []
-        var resourceIds: [ObjectIdentifier: ComponentId] = [:]
+        private var components: [ComponentId] = []
+        private var componentsIds: [ObjectIdentifier: ComponentId] = [:]
+        private var resourceIds: [ObjectIdentifier: ComponentId] = [:]
         var resourceComponents: [ComponentId: any Resource] = [:]
+        private var requiredComponents: [ComponentId: [RequiredComponentInfo]] = [:]
+
+        mutating func registerRequiredComponent<T: Component>(
+            for component: ComponentId,
+            requiredComponentId: ComponentId,
+            constructor: @Sendable @escaping () -> T
+        ) {
+            var requiredComponents = self.requiredComponents[component] ?? []
+            let newInfo = RequiredComponentInfo(
+                id: requiredComponentId,
+                constructor: constructor
+            )
+            if let index = requiredComponents.firstIndex(where: { $0.id == requiredComponentId }) {
+                requiredComponents[index] = newInfo
+            } else {
+                requiredComponents.append(newInfo)
+            }
+
+            self.requiredComponents[component] = requiredComponents
+        }
 
         @discardableResult
         mutating func registerComponent() -> ComponentId {
@@ -716,10 +776,12 @@ extension World {
             _ component: T.Type
         ) -> ComponentId {
             let id = ObjectIdentifier(T.self)
-            if let componentId = self.resourceIds[id] {
+            if let componentId = self.componentsIds[id] {
                 return componentId
             }
-            return registerComponent()
+            let componentId = registerComponent()
+            componentsIds[id] = componentId
+            return componentId
         }
 
         mutating func getOrRegisterResource(
@@ -750,6 +812,15 @@ extension World {
                 return nil
             }
             return self.resourceComponents[componentId] as? T
+        }
+
+        @inline(__always)
+        func getComponentId<T: Component>(_ component: T.Type) -> ComponentId? {
+            self.componentsIds[ObjectIdentifier(T.self)]
+        }
+
+        func getRequiredComponents<T: Component>(for component: T) -> [RequiredComponentInfo] {
+            getComponentId(T.self).flatMap { self.requiredComponents[$0] } ?? []
         }
 
         mutating func removeResource<T: Resource>(_ resource: T.Type) {
