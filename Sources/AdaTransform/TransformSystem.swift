@@ -20,9 +20,7 @@ public struct TransformSystem {
     public func update(context: inout UpdateContext) {
         self.query.forEach { entity, transform in
             let globalTransform = GlobalTransform(matrix: transform.matrix)
-            entity.components += globalTransform
-            print(entity)
-//            context.world.commands.set(globalTransform, for: entity.id)
+            context.world.commands.insert(globalTransform, for: entity.id)
         }
     }
 }

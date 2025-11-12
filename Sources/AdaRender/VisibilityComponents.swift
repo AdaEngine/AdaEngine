@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import AdaUtils
 
 /// Contains information about all visible entities on the camera.
 @Component
@@ -27,10 +28,12 @@ public struct VisibleEntities: Sendable {
 /// This component indicates that entity can be rendered on the screen.
 /// - Note: By default visibility is always true.
 @Component
-public enum Visibility: Codable, Sendable {
+public enum Visibility: Codable, Sendable, DefaultValue {
     case visible
     case hidden
     case inherited
+
+    public static let defaultValue: Self = .visible
 }
 
 /// This components indicates that entity will not affected by frustum culling.
