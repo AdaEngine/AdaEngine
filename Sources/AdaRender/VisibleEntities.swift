@@ -34,10 +34,13 @@ public struct VisibilitySystem {
     private var entitiesWithoutVisibility
     
     public init(world: World) { }
-    
+
+    @Local var timesUpdated = 0
+
     public func update(context: inout UpdateContext) {
-        self.addVisibilityIfNeeded()
-        
+        timesUpdated += 1
+        print("times updated", timesUpdated)
+
         self.cameras.forEach { camera, visibleEntities in
             if !camera.isActive {
                 return
@@ -46,12 +49,6 @@ public struct VisibilitySystem {
             let (filtredEntities, entityIds) = self.filterVisibileEntities(context: context, for: camera)
             visibleEntities.entities = filtredEntities
             visibleEntities.entityIds = entityIds
-        }
-    }
-    
-    private func addVisibilityIfNeeded() {
-        self.entitiesWithoutVisibility.forEach { entity in
-            entity.components += Visibility.visible
         }
     }
     
