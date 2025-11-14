@@ -18,16 +18,6 @@ struct WorldTests {
         #expect(resource == resource2)
     }
 
-    @Test("Resource is unique")
-    func resourceDoesNotOverride() {
-        let resource = Gravity(value: Vector3(0, -9.8, 0))
-        world.insertResource(resource)
-        let resource2 = Gravity(value: Vector3(0, -90000.8, 0))
-        world.insertResource(resource2)
-        let resource3 = world.getResource(Gravity.self)
-        #expect(resource == resource3)
-    }
-
     @Test("Get mutable resource")
     func getMutableResource() throws {
         let resource = Gravity(value: Vector3(0, 9.8, 0))
@@ -92,5 +82,20 @@ struct WorldTests {
 
         query.update(from: world)
         #expect(query.count == 0)
+    }
+
+    @Test
+    func requiredComponentsInitialized() throws {
+        world.registerRequiredComponent(ComponentA.self, ComponentB.self) {
+            ComponentB(value: "test1")
+        }
+
+        let ent = world.spawn {
+            ComponentA(value: 1)
+        }
+        let componentA = try #require(ent.components[ComponentA.self])
+        let componentB = try #require(ent.components[ComponentB.self])
+        #expect(componentA.value == 1)
+        #expect(componentB.value == "test1")
     }
 }

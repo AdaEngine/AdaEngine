@@ -35,12 +35,7 @@ public struct VisibilitySystem {
     
     public init(world: World) { }
 
-    @Local var timesUpdated = 0
-
     public func update(context: inout UpdateContext) {
-        timesUpdated += 1
-        print("times updated", timesUpdated)
-
         self.cameras.forEach { camera, visibleEntities in
             if !camera.isActive {
                 return

@@ -100,7 +100,19 @@ extension SparseArray: ExpressibleByArrayLiteral {
 }
 
 extension SparseArray: Sequence {
-    
+
+    public func index(after i: Int) -> Int {
+        self.values.index(after: i)
+    }
+
+    public var startIndex: Int {
+        self.values.startIndex
+    }
+
+    public var endIndex: Int {
+        self.values.endIndex
+    }
+
     /// - Complexity: O(1)
     @inline(__always)
     public var underestimatedCount: Int {
