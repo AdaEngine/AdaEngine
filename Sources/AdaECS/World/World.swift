@@ -190,7 +190,6 @@ public extension World {
         guard let scheduler = self.schedulers.getScheduler(schedulerName) else {
             fatalError("Scheduler \(schedulerName) not found")
         }
-        print("Run scheduler", schedulerName)
         await scheduler.run(world: self)
     }
 }

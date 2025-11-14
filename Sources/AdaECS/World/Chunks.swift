@@ -22,7 +22,6 @@ public struct MoveEntityResult {
 /// A chunk-based storage system for ECS components
 /// Provides memory-efficient, cache-friendly storage for entities and their components
 public struct Chunks: @unchecked Sendable {
-    let componentLayout: ComponentLayout
 
     /// Array of chunks for different archetypes
     public internal(set) var chunks: [Chunk] = []
@@ -34,7 +33,9 @@ public struct Chunks: @unchecked Sendable {
     /// Location entity in chunk
     public private(set) var entities: [Entity.ID: ChunkLocation] = [:]
 
-    public init(chunkSize: Int = 32, componentLayout: ComponentLayout) {
+    let componentLayout: ComponentLayout
+
+    public init(chunkSize: Int = Int(UInt16.max), componentLayout: ComponentLayout) {
         self.chunkSize = chunkSize
         self.componentLayout = componentLayout
         self.chunks.append(Chunk(capacity: chunkSize, layout: componentLayout))
@@ -94,7 +95,7 @@ public struct Chunks: @unchecked Sendable {
         let chunk = self.chunks[location.chunkIndex]
         chunk.removeEntity(at: entity)
         if chunk.entityCount == 0, self.chunks.count > 1 {
-            self.chunks.remove(at: location.chunkIndex)
+            self.chunks[location.chunkIndex] = Chunk(capacity: self.chunkSize, layout: componentLayout)
             return
         }
         self.friedLocation.append(location)
@@ -155,7 +156,7 @@ public struct Chunks: @unchecked Sendable {
         }
 
         if chunk.entityCount == 0, self.chunks.count > 1 {
-            self.chunks.remove(at: location.chunkIndex)
+            self.chunks[location.chunkIndex] = Chunk(capacity: chunkSize, layout: componentLayout)
         }
 
         return swappedEntityId
