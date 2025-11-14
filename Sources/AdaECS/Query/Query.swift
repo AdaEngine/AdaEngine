@@ -197,24 +197,7 @@ public struct FilterQueryIterator<
                 currentChunk = nil
                 continue
             }
-
-            // **
-
-            if let entityId = currentChunk.entities[cursor.currentRow] {
-                print("ent id", entityId)
-
-                if let location = state.entities.entities[entityId] {
-                    print("location", location)
-
-                    if let entity = archetype.entities[location.archetypeRow] {
-                        print("fetched ent", entity)
-                    }
-                }
-            }
-
-            print("----")
-            // **
-
+            
             guard
                 let entityId = currentChunk.entities[cursor.currentRow],
                 let location = state.entities.entities[entityId],
