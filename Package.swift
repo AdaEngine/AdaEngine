@@ -97,7 +97,8 @@ var swiftSettings: [SwiftSetting] = [
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
     .define("WASM", .when(platforms: [.wasi])),
-    .enableUpcomingFeature("MemberImportVisibility")
+    .enableUpcomingFeature("MemberImportVisibility"),
+    .define("ENABLE_DEBUG_DYLIB", .when(configuration: .debug))
 ]
 
 if isVulkanEnabled {
