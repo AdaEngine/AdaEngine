@@ -43,7 +43,7 @@ struct ChunksTests {
 
     init() {
         self.chunks = Chunks(
-            chunkSize: 32,
+            entitiesPerChunk: 32,
             componentLayout: ComponentLayout(
                 componentTypes: [
                     A.self,
@@ -72,14 +72,13 @@ struct ChunksTests {
         #expect(chunks.entities.count == 1)
 
         var newChunks = Chunks(
-            chunkSize: 32,
+            entitiesPerChunk: 32,
             componentLayout: ComponentLayout(componentTypes: [A.self])
         )
         let newLocation = chunks.moveEntity(1, to: &newChunks)
         #expect(chunks.entities.count == 0)
         #expect(newChunks.entities.count == 1)
-        #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].entityCount == 1)
-        #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].isOccupied(at: newLocation.newLocation.entityRow) == true)
+        #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].count == 1)
         #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].get(A.self, for: 1) == a)
         #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].get(B.self, for: 1) == nil)
     }
@@ -89,8 +88,8 @@ struct ChunksTests {
 struct ChunkTests {
     @Test
     func `inserted entity in chunk returns correctly`() throws {
-        let chunk = Chunk(
-            capacity: 32,
+        var chunk = Chunk(
+            entitiesPerChunk: 32,
             layout: ComponentLayout(
                 componentTypes: [
                     A.self,
@@ -102,16 +101,15 @@ struct ChunkTests {
         let b = B()
         let rowId = chunk.addEntity(1)!
         chunk.insert(at: rowId, components: [a, b])
-        #expect(chunk.isOccupied(at: rowId) == true)
-        #expect(chunk.entityCount == 1)
+        #expect(chunk.count == 1)
         #expect(chunk.get(A.self, for: 1) == a)
         #expect(chunk.get(B.self, for: 1) == b)
     }
 
     @Test
     func `removed entity in chunk returns correctly`() throws {
-        let chunk = Chunk(
-            capacity: 32,
+        var chunk = Chunk(
+            entitiesPerChunk: 32,
             layout: ComponentLayout(
                 componentTypes: [
                     A.self,
@@ -122,16 +120,15 @@ struct ChunkTests {
         let rowId = chunk.addEntity(1)!
         chunk.insert(at: rowId, components: [A(), B()])
         chunk.removeEntity(at: 1)
-        #expect(chunk.isOccupied(at: rowId) == false)
         #expect(chunk.get(A.self, for: 1) == nil)
         #expect(chunk.get(B.self, for: 1) == nil)
-        #expect(chunk.entityCount == 0)
+        #expect(chunk.count == 0)
     }
 
     @Test
     func `updated components returns correctly`() throws {
-        let chunk = Chunk(
-            capacity: 32,
+        var chunk = Chunk(
+            entitiesPerChunk: 32,
             layout: ComponentLayout(
                 componentTypes: [
                     A.self,
@@ -157,8 +154,8 @@ extension ChunkTests {
     @Test
     func `filled chunk correctly`() {
         let capacity = 128
-        let chunk = Chunk(
-            capacity: capacity,
+        var chunk = Chunk(
+            entitiesPerChunk: capacity,
             layout: ComponentLayout(
                 componentTypes: [
                     A.self,
@@ -171,17 +168,16 @@ extension ChunkTests {
             let row = chunk.addEntity(index)!
             chunk.insert(at: row, components: [A(), B()])
         }
-        #expect(chunk.entityCount == capacity)
+        #expect(chunk.count == capacity)
         #expect(chunk.isFull == true)
         #expect(chunk.entities.count == capacity)
-        #expect(chunk.getFreeIndex() == nil)
     }
 
     @Test
     func `clear chunk works correctly`() {
         let capacity = 128
-        let chunk = Chunk(
-            capacity: capacity,
+        var chunk = Chunk(
+            entitiesPerChunk: capacity,
             layout: ComponentLayout(
                 componentTypes: [
                     A.self,
@@ -194,23 +190,22 @@ extension ChunkTests {
             let row = chunk.addEntity(index)!
             chunk.insert(at: row, components: [A(), B()])
         }
-        #expect(chunk.entityCount == capacity)
+        #expect(chunk.count == capacity)
         #expect(chunk.isFull == true)
         #expect(chunk.entities.count == capacity)
 
         chunk.clear()
 
         #expect(chunk.isFull == false)
-        #expect(chunk.entityCount == 0)
+        #expect(chunk.count == 0)
         #expect(chunk.entities.count == 0)
-        #expect(chunk.getFreeIndex() == 0)
     }
 
     @Test
     func `remove entities in different places works correctly`() {
         let capacity = 128
-        let chunk = Chunk(
-            capacity: capacity,
+        var chunk = Chunk(
+            entitiesPerChunk: capacity,
             layout: ComponentLayout(
                 componentTypes: [
                     A.self,
@@ -223,7 +218,7 @@ extension ChunkTests {
             let row = chunk.addEntity(index)!
             chunk.insert(at: row, components: [A(), B()])
         }
-        #expect(chunk.entityCount == capacity)
+        #expect(chunk.count == capacity)
         #expect(chunk.isFull == true)
         #expect(chunk.entities.count == capacity)
 
@@ -231,7 +226,7 @@ extension ChunkTests {
             chunk.removeEntity(at: index)
         }
 
-        #expect(chunk.entityCount == 64)
+        #expect(chunk.count == 64)
         #expect(chunk.isFull == false)
         #expect(chunk.entities.count == 64)
     }
@@ -242,8 +237,8 @@ extension ChunkTests {
 extension ChunkTests {
     @Test
     func `set tick works correctly`() {
-        let chunk = Chunk(
-            capacity: 32,
+        var chunk = Chunk(
+            entitiesPerChunk: 32,
             layout: ComponentLayout(
                 componentTypes: [
                     A.self,

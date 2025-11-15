@@ -8,6 +8,7 @@
 @frozen
 public struct SparseSet<Key: Hashable, Value> {
     public typealias Index = Int
+    public typealias Element = Value
     public typealias DenseValue = (key: Key, value: Value)
 
     @usableFromInline
@@ -131,28 +132,6 @@ extension SparseSet: Sequence {
         public mutating func next() -> Element? {
             iterator.next()?.value
         }
-    }
-}
-
-extension SparseSet: Collection {
-    public typealias Element = Value
-
-    public func index(after i: Int) -> Int {
-        self.dense.index(after: i)
-    }
-    
-    public subscript(position: Int) -> Value {
-        _read {
-            yield self.dense[position].value
-        }
-    }
-    
-    public var startIndex: Int {
-        dense.startIndex
-    }
-    
-    public var endIndex: Int {
-        dense.endIndex
     }
 }
 
