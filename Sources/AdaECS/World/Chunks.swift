@@ -30,6 +30,7 @@ public struct Chunks: @unchecked Sendable {
     public let chunkSize: Int
 
     private var friedLocation: [ChunkLocation] = []
+    
     /// Location entity in chunk
     public private(set) var entities: [Entity.ID: ChunkLocation] = [:]
 
