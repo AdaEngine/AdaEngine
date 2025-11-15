@@ -6,19 +6,19 @@
 //
 
 /// Fast collection O(1) for insertion and deletion, but slow for resizing and iterating.
-@frozen public struct SparseArray<Element> {
-    
+@frozen
+public struct SparseArray<Element> {
     public typealias Index = Int
     
     @usableFromInline
     internal var values: [Element?]
     
-    @inline(__always)
+    @inlinable
     public init(capacity: Int) {
         self.values = [Element?].init(repeating: nil, count: capacity)
     }
     
-    @inline(__always)
+    @inlinable
     public init<T: Sequence>(_ sequence: T) where T.Element == Element {
         self.values = [Element?].init(repeating: nil, count: sequence.underestimatedCount)
         
@@ -29,8 +29,7 @@
 }
 
 extension SparseArray {
-    
-    @inline(__always)
+    @inlinable
     public subscript(_ index: Index) -> Element? {
         get {
             precondition(index < self.underestimatedCount, "Index out of range")
@@ -47,7 +46,7 @@ extension SparseArray {
     ///   capacity is preserved. The default is `false`.
     ///
     /// - Complexity: O(`count`)
-    @inline(__always)
+    @inlinable
     public mutating func removeAll(keepingCapacity: Bool = false) {
         if keepingCapacity {
             for index in 0 ..< self.values.count {
@@ -59,7 +58,7 @@ extension SparseArray {
     }
     
     /// - Complexity: O(1)
-    @inline(__always)
+    @inlinable
     @discardableResult
     public mutating func remove(at index: Index) -> Element? {
         let element = self.values[index]
@@ -67,7 +66,7 @@ extension SparseArray {
         return element
     }
     
-    @inline(__always)
+    @inlinable
     @discardableResult
     public mutating func removeLast() -> Element? {
         guard let index = self.values.lastIndex(where: { $0 != nil }) else {
@@ -76,12 +75,12 @@ extension SparseArray {
         return remove(at: index)
     }
     
-    @inline(__always)
+    @inlinable
     public mutating func insert(_ element: Element?, at index: Index) {
         self.values[index] = element
     }
     
-    @inline(__always)
+    @inlinable
     public mutating func append(_ element: Element) {
         if count >= values.count {
             values.append(
@@ -93,56 +92,55 @@ extension SparseArray {
 }
 
 extension SparseArray: ExpressibleByArrayLiteral {
-    @inline(__always)
+    @inlinable
     public init(arrayLiteral elements: Element...) {
         self = SparseArray(elements)
     }
 }
 
 extension SparseArray: Sequence {
-
+    @inlinable
     public func index(after i: Int) -> Int {
         self.values.index(after: i)
     }
 
+    @inlinable
     public var startIndex: Int {
         self.values.startIndex
     }
 
+    @inlinable
     public var endIndex: Int {
         self.values.endIndex
     }
 
     /// - Complexity: O(1)
-    @inline(__always)
+    @inlinable
     public var underestimatedCount: Int {
         return self.values.underestimatedCount
     }
 
     /// - Complexity: O(n)
     /// - Returns: Count of not null values.
-    @inline(__always)
+    @inlinable
     public var count: Int {
         return self.values.count(where: { $0 != nil })
     }
     
     /// - Complexity: O(n)
-    @inline(__always)
+    @inlinable
     public var isEmpty: Bool {
         return self.count == 0
     }
-    
-    @inline(__always)
+
     public func makeIterator() -> Iterator {
-        return Iterator(values: self.values)
+        Iterator(values: self.values)
     }
-    
-    @frozen
+
     public struct Iterator: IteratorProtocol {
-        
-        var pointer: Int = -1
+        private var pointer: Int = -1
         let values: [Element?]
-        
+
         init(values: [Element?]) {
             self.values = values
         }
