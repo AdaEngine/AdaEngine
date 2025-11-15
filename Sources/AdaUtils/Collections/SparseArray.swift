@@ -9,10 +9,9 @@
 @frozen
 public struct SparseArray<Element> {
     public typealias Index = Int
-    
-    @usableFromInline
-    internal var values: [Element?]
-    
+
+    public var values: [Element?]
+
     @inlinable
     public init(capacity: Int) {
         self.values = [Element?].init(repeating: nil, count: capacity)

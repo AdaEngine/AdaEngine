@@ -117,6 +117,28 @@ public extension BlobArray {
             .pointee
     }
 
+    func swap(
+        from fromIndex: Int,
+        to toIndex: Int
+    ) {
+        precondition(fromIndex >= 0 && toIndex >= 0)
+        precondition(layout.size >= 0)
+        precondition(fromIndex + layout.size <= buffer.pointer.count)
+        precondition(toIndex + layout.size <= buffer.pointer.count)
+
+        if fromIndex == toIndex || layout.size == 0 { return }
+        let base = buffer.pointer.baseAddress!
+        let fromPointer = base.advanced(by: fromIndex)
+        let toPointer = base.advanced(by: toIndex)
+
+        withUnsafeTemporaryAllocation(of: UInt8.self, capacity: layout.size) { tmp in
+            let tempPointer = UnsafeMutableRawPointer(tmp.baseAddress!)
+            tempPointer.copyMemory(from: fromPointer, byteCount: layout.size)
+            fromPointer.copyMemory(from: toPointer, byteCount: layout.size)
+            toPointer.copyMemory(from: tempPointer, byteCount: layout.size)
+        }
+    }
+
     func remove<T>(at index: Int) -> T {
         #if DEBUG
         print("Remove element for buffer \(self.label ?? "") at index: \(index)")

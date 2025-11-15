@@ -239,7 +239,7 @@ extension Entity.ComponentSet: CustomStringConvertible {
             .chunks.chunks[location.chunkIndex]
         let components = chunk.getComponents(for: entity)
         let result = components.reduce("") { partialResult, value in
-            let name = type(of: value.value)
+            let name = type(of: value.1)
             return partialResult + "\n   ⟐ \(name)"
         }
         

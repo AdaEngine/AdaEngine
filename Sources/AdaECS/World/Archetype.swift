@@ -10,8 +10,10 @@ import Atomics
 import Foundation
 
 /// The unique identifier of the component.
+@frozen
 public struct ComponentId: Hashable, Equatable, Sendable {
     /// The unique identifier of the component.
+    @usableFromInline
     let id: Int
 }
 
@@ -34,11 +36,11 @@ public struct Entities: Sendable {
 
 public struct Archetypes: Sendable {
     public var componentsIndex: [BitSet: Archetype.ID]
-    public var archetypes: [Archetype]
+    public var archetypes: ContiguousArray<Archetype>
 
     public init(
         componentsIndex: [BitSet: Archetype.ID] = [:],
-        archetypes: [Archetype] = []
+        archetypes: ContiguousArray<Archetype> = []
     ) {
         let emptyArchetype = Archetype.new(index: 0, componentLayout: ComponentLayout(components: []))
         self.componentsIndex = [BitSet(): emptyArchetype.id]
@@ -66,6 +68,11 @@ public struct Archetypes: Sendable {
 public struct ComponentLayout: Hashable, Sendable {
     public private(set) var components: [any Component.Type]
     public private(set) var bitSet: BitSet
+    public var componentsSize: Int {
+        components.reduce(0) { partialResult, type in
+            partialResult + MemoryLayout.size(ofValue: type)
+        }
+    }
 
     public init(components: [any Component]) {
         var componentTypes = [any Component.Type]()
