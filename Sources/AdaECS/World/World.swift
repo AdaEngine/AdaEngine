@@ -801,7 +801,6 @@ extension World {
                 T.registerResource()
             }
             let componentId = registerComponent()
-            print("Register resource", resource, "object id:", id, "componentId", componentId.id)
             self.resourceIds[id] = componentId
             return componentId
         }
