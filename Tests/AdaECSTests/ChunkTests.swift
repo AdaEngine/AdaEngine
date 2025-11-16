@@ -82,6 +82,33 @@ struct ChunksTests {
         #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].get(A.self, for: 1) == a)
         #expect(newChunks.chunks[newLocation.newLocation.chunkIndex].get(B.self, for: 1) == nil)
     }
+
+    @Test
+    mutating func `remove entity in the first chunk`() throws {
+        (0..<64).forEach { index in
+            chunks.insertEntity(index, components: [A(), B()])
+        }
+
+        #expect(chunks.getFreeChunkIndex() == 2)
+        #expect(chunks.count == 3)
+
+        (0..<32).forEach { index in
+            chunks.removeEntity(index)
+        }
+
+        #expect(chunks.count == 3)
+        #expect(chunks.getFreeChunkIndex() == 0)
+
+        (0..<32).forEach { index in
+            chunks.insertEntity(index, components: [A(), B()])
+        }
+
+        #expect(chunks.count == 3)
+        #expect(chunks.getFreeChunkIndex() == 2)
+        #expect(chunks.chunks[0].entities.count == 32)
+        #expect(chunks.chunks[1].entities.count == 32)
+        #expect(chunks.chunks[2].entities.count == 0)
+    }
 }
 
 @Suite("Chunk Tests")

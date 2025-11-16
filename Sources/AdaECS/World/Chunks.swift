@@ -45,14 +45,16 @@ public struct Chunks: Sendable {
         self.componentLayout = componentLayout
         self.chunks.append(Chunk(entitiesPerChunk: entitiesPerChunk, layout: componentLayout))
     }
+}
 
+public extension Chunks {
     mutating func getFreeChunkIndex() -> Int {
         if let firstLocation = friedLocation.popLast() {
             return firstLocation.chunkIndex
-        } else if self.chunks[self.chunks.endIndex - 1].isFull == false {
-            return max(0, self.chunks.endIndex - 1)
+        } else if let possibleIndex = chunks.firstIndex(where: { !$0.isFull }) {
+            return possibleIndex
         } else {
-            let chunk = Chunk(entitiesPerChunk: self.entitiesPerChunk, layout: componentLayout)
+            let chunk = Chunk(entitiesPerChunk: entitiesPerChunk, layout: componentLayout)
             self.chunks.append(chunk)
             return self.chunks.endIndex - 1
         }
@@ -157,10 +159,6 @@ public struct Chunks: Sendable {
         if let swappedEntityId = swappedEntityId {
             self.entities[swappedEntityId] = location
         }
-
-        if chunk.count == 0, self.chunks.count > 1 {
-            self.chunks[location.chunkIndex] = Chunk(entitiesPerChunk: entitiesPerChunk, layout: componentLayout)
-        }
         self.chunks[location.chunkIndex] = chunk
 
         return swappedEntityId
@@ -175,7 +173,7 @@ public struct Chunks: Sendable {
         self.chunks.append(Chunk(entitiesPerChunk: entitiesPerChunk, layout: self.componentLayout))
     }
 
-    public func getComponentSlices<T: Component>(for type: T.Type) -> [UnsafeBufferPointer<T>] {
+    func getComponentSlices<T: Component>(for type: T.Type) -> [UnsafeBufferPointer<T>] {
         var slices: [UnsafeBufferPointer<T>] = []
         for index in 0..<self.chunks.count {
             if let slice = self.chunks[index].getComponentSlice(for: type) {
@@ -185,7 +183,7 @@ public struct Chunks: Sendable {
         return slices
     }
 
-    public func getComponentTicksSlices<T: Component>(
+    func getComponentTicksSlices<T: Component>(
         for type: T.Type
     ) -> [UnsafeBufferPointer<Tick>] {
         var slices: [UnsafeBufferPointer<Tick>] = []

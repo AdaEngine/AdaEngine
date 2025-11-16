@@ -49,11 +49,7 @@ public struct SystemsGraph: Sendable {
     }
     
     /// The nodes of the graph.
-    private(set) var nodes: OrderedDictionary<String, Node> = [:] {
-        didSet {
-            print("xxx prev count", oldValue.count, "new count", self.nodes.count)
-        }
-    }
+    private(set) var nodes: OrderedDictionary<String, Node> = [:]
 
     /// Initialize a new systems graph.
     public init() { }

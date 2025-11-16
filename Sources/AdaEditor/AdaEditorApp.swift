@@ -29,10 +29,11 @@ struct TestPlugin: Plugin {
                 Transform()
                     .setPosition([0, Float(index), 0])
 
-//                if index % 2 == 0 {
+                if index % 2 == 0 {
                     NoFrustumCulling()
-//                }
+                }
             }
+            print("spawn entity", index)
         }
 
         let query = app.main.performQuery(FilterQuery<Transform, NoFrustumCulling, NoFilter>())
