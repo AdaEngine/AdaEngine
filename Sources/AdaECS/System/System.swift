@@ -119,7 +119,7 @@ public struct SystemQueries: Sendable, Equatable {
     public static func == (lhs: SystemQueries, rhs: SystemQueries) -> Bool {
         for lhsItem in lhs.queries {
             let lhsItemType = type(of: lhsItem)
-            if rhs.queries.contains(where: {
+            if !rhs.queries.contains(where: {
                 type(of: $0) == lhsItemType
             }) {
                 return false
