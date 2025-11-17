@@ -5,7 +5,11 @@
 //  Created by Vladislav Prusakov on 16.06.2025.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyable {
 

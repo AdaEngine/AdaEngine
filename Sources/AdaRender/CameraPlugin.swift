@@ -6,6 +6,7 @@
 //
 
 import AdaApp
+import AdaAssets
 import AdaECS
 import AdaTransform
 import AdaUtils
@@ -16,7 +17,7 @@ public struct CameraPlugin: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
-        Camera.registerComponent()        
+        Camera.registerComponent()
         app.addSystem(CameraSystem.self)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
@@ -40,7 +41,6 @@ public struct RenderViewTarget {
     public init() {}
 }
 
-
 @System
 func ConfigurateRenderViewTarget(
     _ query: Query<Entity, Camera, Ref<RenderViewTarget>>,
@@ -54,26 +54,18 @@ func ConfigurateRenderViewTarget(
             format: .rgba8,
             debugLabel: "Camera Main Texture"
         )
-    }
-}
 
-struct ExtractedWindow {
-    var size: SizeInt
-}
-
-@System
-func PrepareWindows(
-    _ windows: Extract<
-        Query<Entity, Camera>
-    >
-) {
-    windows().forEach { entity, camera in
-        
+        switch camera.renderTarget {
+        case .texture(let asset):
+            renderViewTarget.outputTexture = asset.asset
+        case .window(let ref):
+            return
+//            renderDevice.renderDevice.createSwapchain(from: ref)
+        }
     }
 }
 
 struct CameraRenderNode: RenderNode {
-
     @Query<Entity, Camera>
     private var query
 

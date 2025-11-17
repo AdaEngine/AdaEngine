@@ -7,7 +7,11 @@
 
 @testable import AdaECS
 import Testing
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 @Component
 private struct A: Equatable {

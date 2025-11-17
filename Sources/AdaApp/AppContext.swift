@@ -44,6 +44,7 @@ public struct AppContext<T: App>: ~Copyable {
         let inputs = _SceneInputs(appWorlds: appWorlds)
         let node = _AppSceneNode(value: app.body)
         let _ = T.Content._makeView(node, inputs: inputs)
+        
         try appWorlds.build()
         appWorlds.runner?(appWorlds)
     }

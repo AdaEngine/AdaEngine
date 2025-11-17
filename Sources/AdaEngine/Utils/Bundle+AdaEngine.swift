@@ -5,7 +5,11 @@
 //  Created by vladislav.prusakov on 13.03.2025.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 public extension Foundation.Bundle {
     static var engineBundle: Foundation.Bundle {

@@ -5,9 +5,13 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-import Foundation
-import Math
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
+import Math
 
 public enum TriangleFillMode {
     case fill
@@ -104,7 +108,7 @@ public protocol RenderDevice: AnyObject, Sendable {
 }
 
 public protocol Swapchain: AnyObject {
-    var drawablePixelFormat : PixelFormat { get }
+    var drawablePixelFormat: PixelFormat { get }
     func getNextDrawable() -> (any Drawable)?
 }
 

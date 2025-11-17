@@ -19,6 +19,7 @@ public extension Array {
     /// assert(array.swapRemove(at: 0) == "foo")
     /// assert(array == ["baz", "qux"])
     /// ```
+    @discardableResult
     mutating func swapRemove(at index: Int) -> Element {
         let length = self.count
         precondition(index <= length, "swapRemove index is \(index) should be < len (is \(length))")
@@ -43,6 +44,7 @@ public extension ContiguousArray {
     /// assert(array.swapRemove(at: 0) == "foo")
     /// assert(array == ["baz", "qux"])
     /// ```
+    @discardableResult
     mutating func swapRemove(at index: Int) -> Element {
         let length = self.count
         precondition(index <= length, "swapRemove index is \(index) should be < len (is \(length))")

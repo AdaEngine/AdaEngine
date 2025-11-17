@@ -42,6 +42,10 @@ var products: [Product] = [
         targets: ["AdaECS"]
     ),
     .library(
+        name: "AdaRender",
+        targets: ["AdaRender"]
+    ),
+    .library(
         name: "AdaEngineEmbeddable",
         targets: ["AdaEngineEmbeddable"]
     )

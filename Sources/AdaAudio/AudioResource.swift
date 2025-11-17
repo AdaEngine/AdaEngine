@@ -7,7 +7,11 @@
 
 import AdaAssets
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// An audio resource that can be played.
 /// The AudioResource class stores audio data that you can play in your scene or entire app.

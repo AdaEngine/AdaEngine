@@ -7,7 +7,11 @@
 
 import AdaUtils
 import Atomics
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// The unique identifier of the component.
 @frozen
@@ -65,6 +69,9 @@ public struct Archetypes: Sendable {
     }
 
     public mutating func clear() {
+        for index in 0..<archetypes.count {
+            archetypes[index].clear()
+        }
         self.archetypes.removeAll(keepingCapacity: true)
         self.componentsIndex.removeAll(keepingCapacity: true)
     }
@@ -198,7 +205,7 @@ public extension Archetype {
     @inline(__always)
     mutating func swapRemove(at index: Int) -> ArchetypeSwapAndRemoveResult {
         let isLast = index == self.entities.count - 1
-        let entity = self.entities.swapRemove(at: index)
+        _ = self.entities.swapRemove(at: index)
 
         return ArchetypeSwapAndRemoveResult(
             swappedEntity: isLast ? nil : self.entities[index].id,
@@ -209,6 +216,7 @@ public extension Archetype {
     /// Clear the archetype.
     @inline(__always)
     mutating func clear() {
+        self.chunks.clear()
         self.entities.removeAll()
         self.edges = Edges()
     }

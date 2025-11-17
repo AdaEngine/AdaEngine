@@ -5,7 +5,11 @@
 //  Created by Vladislav Prusakov on 23.05.2025.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// The singleton resource that passed to the ecs world.
 /// Only one instance of the resource is allowed in the world.

@@ -8,7 +8,11 @@
 import AdaAssets
 import AdaUtils
 import Math
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 // TODO: Make encoding/decoding for scene serialization
 

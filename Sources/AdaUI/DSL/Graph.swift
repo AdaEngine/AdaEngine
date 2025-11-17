@@ -6,7 +6,11 @@
 //
 
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 @MainActor
 final class ViewGraph {

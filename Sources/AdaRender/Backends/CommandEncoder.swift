@@ -5,7 +5,11 @@
 //  Created by Vladislav Prusakov on 29.07.2025.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 // MARK: - Common Descriptors
 

@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 5/2/24.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import Yams
 
 /// An encoder for assets that are stored in text format.
