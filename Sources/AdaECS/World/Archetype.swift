@@ -117,6 +117,11 @@ public struct ComponentLayout: Hashable, Sendable {
         self.components.append(component)
     }
 
+    public mutating func insert(_ component: any Component.Type) {
+        self.bitSet.insert(component)
+        self.components.append(component)
+    }
+
     public mutating func remove(_ component: ComponentId) {
         self.bitSet.remove(component)
         self.components.removeAll { $0.identifier == component }

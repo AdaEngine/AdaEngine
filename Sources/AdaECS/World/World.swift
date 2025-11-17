@@ -574,27 +574,34 @@ public extension World {
     func get<T: Component>(_ type: T.Type, from entity: Entity.ID) -> T? {
         return self.get(from: entity)
     }
-
-    // TODO: insert doesn't works correctly
-        // - Component not inserted after entity moved to new arch
-        // - Required Component not initialized
     func insert<T: Component>(_ component: consuming T, for entityId: Entity.ID) {
         guard let location = self.entities.entities[entityId] else {
             return
         }
 
+        // We have component in archetype, just update
         var archetype = self.archetypes.archetypes[location.archetypeId]
         if archetype.componentLayout.bitSet.contains(T.identifier) {
             self.archetypes
                 .archetypes[location.archetypeId]
                 .chunks
                 .chunks[location.chunkIndex]
-                .insert(component, at: location.chunkRow, lastTick: self.lastTick)
+                .insert(component, at: location.chunkRow, lastTick: lastTick)
             return
         }
+
+        // Prepare new layout
         var newLayout = archetype.componentLayout
         newLayout.insert(T.self)
 
+        var components: [any Component] = []
+        for requiredComponent in componentsStorage.getRequiredComponents(for: T.self) {
+            let newComponent = requiredComponent.constructor()
+            components.append(newComponent)
+            newLayout.insert(type(of: newComponent))
+        }
+
+        // Move entity to new archetype
         if let newArchetype = archetype.edges.getArchetypeAfterInsertion(for: newLayout) {
             self.moveEntityToArchetype(
                 entityId,
@@ -611,6 +618,24 @@ public extension World {
                 newArchetype: newArchetype
             )
         }
+
+        // Insert components
+        guard let newLocation = self.entities.entities[entityId] else {
+            assertionFailure("Failed to insert component to entity")
+            return
+        }
+
+        for component in components {
+            self.archetypes
+                .archetypes[newLocation.archetypeId]
+                .chunks
+                .insert(component, for: entityId, lastTick: lastTick)
+        }
+
+        self.archetypes
+            .archetypes[newLocation.archetypeId]
+            .chunks
+            .insert(component, for: entityId, lastTick: lastTick)
     }
 
     @inline(__always)
@@ -842,6 +867,10 @@ extension World {
         }
 
         func getRequiredComponents<T: Component>(for component: T) -> [RequiredComponentInfo] {
+            getComponentId(T.self).flatMap { self.requiredComponents[$0] } ?? []
+        }
+
+        func getRequiredComponents<T: Component>(for component: T.Type) -> [RequiredComponentInfo] {
             getComponentId(T.self).flatMap { self.requiredComponents[$0] } ?? []
         }
 
