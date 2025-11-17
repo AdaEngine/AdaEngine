@@ -14,7 +14,7 @@ public struct ChunkLocation: Sendable {
     public let entityRow: Int
 }
 
-public struct MoveEntityResult {
+public struct MoveEntityResult: Sendable {
     public let newLocation: ChunkLocation
     public let swappedEntity: Entity.ID?
 }
@@ -96,14 +96,16 @@ public extension Chunks {
         return chunkLocation
     }
 
-    mutating func removeEntity(_ entity: Entity.ID) {
+    @discardableResult
+    mutating func removeEntity(_ entity: Entity.ID) -> MoveEntityResult? {
         guard let location = self.entities[entity] else {
-            return
+            return nil
         }
         var chunk = self.chunks[location.chunkIndex]
-        chunk.swapRemoveEntity(at: entity)
+        let swappedEntity = chunk.swapRemoveEntity(at: entity)
         self.chunks[location.chunkIndex] = chunk
         self.friedLocation.append(location)
+        return MoveEntityResult(newLocation: location, swappedEntity: swappedEntity)
     }
 
     mutating func moveEntity(_ entity: Entity.ID, to chunks: inout Chunks) -> MoveEntityResult {
@@ -147,7 +149,7 @@ public extension Chunks {
     }
 
     @discardableResult
-    mutating func swapRemoveEntity(_ entity: Entity.ID) -> Entity.ID? {
+    private mutating func swapRemoveEntity(_ entity: Entity.ID) -> Entity.ID? {
         guard let location = self.entities[entity] else {
             return nil
         }
@@ -244,6 +246,10 @@ public struct Chunk: Sendable {
 
     var currentIndex: Int {
         self.count
+    }
+
+    public var isEmpty: Bool {
+        self.count == 0
     }
 
     public var isFull: Bool {

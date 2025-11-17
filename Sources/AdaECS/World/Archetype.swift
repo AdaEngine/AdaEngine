@@ -24,8 +24,13 @@ public struct EntityLocation: Sendable, Hashable {
     public let chunkRow: Int
 }
 
+public struct ArchetypeSwapAndRemoveResult: Sendable {
+    public let swappedEntity: Entity.ID?
+    public let entityRow: Int
+}
+
 public struct Entities: Sendable {
-    public var entities: [Entity.ID: EntityLocation] = [:]
+    public var entities: SparseSet<Entity.ID, EntityLocation> = [:]
     private var currentId = ManagedAtomic<Int>(1)
 
     func allocate(with name: String) -> Entity {
@@ -128,18 +133,14 @@ public struct ComponentLayout: Hashable, Sendable {
 
 /// Types for defining Archetypes, collections of entities that have the same set of
 /// components.
-public struct Archetype: Hashable, Identifiable, Sendable {
+public struct Archetype: Identifiable, Sendable {
     /// The unique identifier of the archetype.
     public let id: Int
 
     public internal(set) var chunks: Chunks
 
     /// The entities in the archetype.
-    public internal(set) var entities: SparseArray<Entity> = []
-
-    /// The fried entities in the archetype.
-    @usableFromInline
-    private(set) var friedEntities: [Int] = []
+    public internal(set) var entities: ContiguousArray<Entity> = []
     
     /// The edge of the archetype.
     var edges: Edges = Edges()
@@ -156,12 +157,19 @@ public struct Archetype: Hashable, Identifiable, Sendable {
         componentLayout: ComponentLayout
     ) {
         self.id = id
-        self.entities = SparseArray(entities)
+        self.entities = ContiguousArray(entities)
         self.componentLayout = componentLayout
         self.chunks = Chunks(componentLayout: componentLayout)
-        self.friedEntities.reserveCapacity(32)
     }
-    
+}
+
+public extension Archetype {
+
+    /// Checks if the archetype has any entities.
+    var isEmpty: Bool {
+        self.entities.isEmpty
+    }
+
     /// Create a new archetype.
     /// - Parameter index: The index of the archetype.
     /// - Returns: A new archetype.
@@ -169,40 +177,42 @@ public struct Archetype: Hashable, Identifiable, Sendable {
     static func new(index: Int, componentLayout: ComponentLayout) -> Archetype {
         return Archetype(id: index, componentLayout: componentLayout)
     }
-    
+
     /// Append an entity to the archetype.
     /// - Parameter entity: The entity to append.
     /// - Returns: The record of the entity.
     @inline(__always)
     mutating func append(_ entity: consuming Entity) -> Int {
-        if !friedEntities.isEmpty {
-            let index = self.friedEntities.removeLast()
-            self.entities.insert(entity, at: index)
-            return index
-        } else {
-            self.entities.append(entity)
-            return self.entities.count - 1
-        }
+        self.entities.append(entity)
+        return self.entities.count - 1
     }
-    
+
     /// Remove an entity from the archetype.
     /// - Parameter index: The index of the entity to remove.
+    @discardableResult
     @inline(__always)
-    mutating func remove(at index: Int) {
-        self.entities.remove(at: index)
-        self.friedEntities.append(index)
+    mutating func swapRemove(at index: Int) -> ArchetypeSwapAndRemoveResult {
+        let isLast = index == self.entities.count - 1
+        let entity = self.entities.swapRemove(at: index)
+
+        return ArchetypeSwapAndRemoveResult(
+            swappedEntity: isLast ? nil : self.entities[index].id,
+            entityRow: index
+        )
     }
-    
+
     /// Clear the archetype.
     @inline(__always)
     mutating func clear() {
-        self.friedEntities.removeAll()
         self.entities.removeAll()
         self.edges = Edges()
     }
-    
-    // MARK: - Hashable
-    
+}
+
+// MARK: - Hashable
+
+extension Archetype: Hashable {
+
     /// Hash the archetype.
     /// - Parameter hasher: The hasher to hash the archetype.
     public func hash(into hasher: inout Hasher) {
@@ -210,7 +220,7 @@ public struct Archetype: Hashable, Identifiable, Sendable {
         hasher.combine(componentLayout)
         hasher.combine(entities)
     }
-    
+
     /// Check if two archetypes are equal.
     /// - Parameter lhs: The left archetype.
     /// - Parameter rhs: The right archetype.

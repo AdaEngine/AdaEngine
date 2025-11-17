@@ -126,10 +126,12 @@ public extension BlobArray {
         precondition(fromIndex + layout.size <= buffer.pointer.count)
         precondition(toIndex + layout.size <= buffer.pointer.count)
 
-        if fromIndex == toIndex || layout.size == 0 { return }
+        if fromIndex == toIndex || layout.size == 0 {
+            return
+        }
         let base = buffer.pointer.baseAddress!
-        let fromPointer = base.advanced(by: fromIndex)
-        let toPointer = base.advanced(by: toIndex)
+        let fromPointer = base.advanced(by: fromIndex * layout.size)
+        let toPointer = base.advanced(by: toIndex * layout.size)
 
         withUnsafeTemporaryAllocation(of: UInt8.self, capacity: layout.size) { tmp in
             let tempPointer = UnsafeMutableRawPointer(tmp.baseAddress!)

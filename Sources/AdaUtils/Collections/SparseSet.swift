@@ -57,6 +57,7 @@ public extension SparseSet {
         let newPair = (key, value)
         if let index = firstIndex(for: key) {
             dense[index] = newPair
+            return newPair
         }
 
         let index = dense.count
