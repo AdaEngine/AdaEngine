@@ -169,6 +169,7 @@ extension WorldTests {
             ComponentB(value: "def")
         }
 
+        #expect(world.getEntityByID(f.id) != nil)
         #expect(world.getEntityByID(e.id) != nil)
 
         world.removeEntity(e)
@@ -177,6 +178,7 @@ extension WorldTests {
         #expect(world.get(from: e.id) as ComponentA? == nil)
         #expect(world.get(from: e.id) as ComponentB? == nil)
 
+        #expect(world.getEntityByID(f.id) != nil)
         #expect(world.get(from: f.id) == ComponentA(value: 456))
         #expect(world.get(from: f.id) == ComponentB(value: "def"))
     }

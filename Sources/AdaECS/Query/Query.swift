@@ -200,12 +200,13 @@ public struct FilterQueryIterator<
             
             guard
                 let entityId = currentChunk.entities[cursor.currentRow],
-                let location = state.entities.entities[entityId],
-                let entity = archetype.entities[location.archetypeRow]
+                let location = state.entities.entities[entityId]
             else {
                 cursor.currentRow += 1
                 continue
             }
+
+            let entity = archetype.entities[location.archetypeRow]
 
             guard F.condition(
                 for: archetype,
