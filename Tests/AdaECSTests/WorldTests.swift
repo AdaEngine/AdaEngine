@@ -402,4 +402,29 @@ extension WorldTests {
         #expect(changedEntitiesAfterMove.count == 1)
         #expect(changedEntitiesAfterMove.contains(e1.id))
     }
+
+    @Test
+    func requiredComponent() {
+        world.registerRequiredComponent(ComponentA.self, RequiredComponentForA.self) {
+            RequiredComponentForA(someValue: "some value")
+        }
+
+        let entity = world.spawn("Some entity") {
+            ComponentB(value: "value")
+        }
+
+        #expect(entity.components[ComponentB.self]?.value == "value")
+        #expect(entity.components[ComponentA.self] == nil)
+        #expect(entity.components[RequiredComponentForA.self] == nil)
+
+        entity.components += ComponentA(value: 1)
+
+        #expect(entity.components[ComponentA.self]?.value == 1)
+        #expect(entity.components[RequiredComponentForA.self]?.someValue == "some value")
+    }
+}
+
+@Component
+struct RequiredComponentForA {
+    let someValue: String
 }

@@ -123,8 +123,6 @@ public extension BlobArray {
     ) {
         precondition(fromIndex >= 0 && toIndex >= 0)
         precondition(layout.size >= 0)
-        precondition(fromIndex + layout.size <= buffer.pointer.count)
-        precondition(toIndex + layout.size <= buffer.pointer.count)
 
         if fromIndex == toIndex || layout.size == 0 {
             return
@@ -164,7 +162,6 @@ public extension BlobArray {
         to toIndex: Int
     ) {
         #if DEBUG
-        print("Copy element from buffer \(self.label ?? "") from index: \(fromIndex) to buffer \(blobArray.label ?? "") to index: \(toIndex)")
         precondition(
             self.layout.size == blobArray.layout.size &&
             self.layout.alignment == blobArray.layout.alignment,
