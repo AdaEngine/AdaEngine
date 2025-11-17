@@ -221,7 +221,7 @@ public extension World {
     /// - Complexity: O(n)
     /// - Returns: All entities in world.
     func getEntities() -> [Entity] {
-        return self.entities.entities.values
+        return self.entities.entities
             .compactMap { location in
                 let archetype = self.archetypes.archetypes[location.archetypeId]
                 return archetype.entities[location.archetypeRow]
@@ -447,15 +447,20 @@ private extension World {
         newArchetype: Archetype.ID
     ) {
         var archetype = self.archetypes.archetypes[location.archetypeId]
-        guard let entity = archetype.entities[location.archetypeRow] else {
-            assertionFailure("Entity \(entityId) not found in archetype")
-            return
-        }
+        let entity = archetype.entities[location.archetypeRow]
         var toArchetype = self.archetypes.archetypes[newArchetype]
         let row = toArchetype.append(entity)
-        print("Move entity \(entity.id) from archetype \(location.archetypeId) to \(newArchetype)")
+        let result = archetype.swapRemove(at: location.archetypeRow)
         let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks).newLocation
-        archetype.remove(at: location.archetypeRow)
+        if let swappedEntity = result.swappedEntity {
+            entities.entities[swappedEntity] = EntityLocation(
+                archetypeId: location.archetypeId,
+                archetypeRow: location.archetypeRow,
+                chunkIndex: location.chunkIndex,
+                chunkRow: location.chunkRow
+            )
+        }
+
         self.archetypes.archetypes[location.archetypeId] = archetype
         self.archetypes.archetypes[newArchetype] = toArchetype
         self.entities.entities[entityId] = EntityLocation(
@@ -464,7 +469,6 @@ private extension World {
             chunkIndex: newLocation.chunkIndex,
             chunkRow: newLocation.entityRow
         )
-        print("Old location \(location), newLocation: \(self.entities.entities[entityId]!)")
     }
 }
 
@@ -478,10 +482,30 @@ private extension World {
         self.entities.entities[entity] = nil
 
         var currentArchetype = self.archetypes.archetypes[record.archetypeId]
-        currentArchetype.remove(at: record.archetypeRow)
+        let removeResult = currentArchetype.swapRemove(at: record.archetypeRow)
 
-        if currentArchetype.entities.isEmpty {
-            self.archetypes.archetypes[record.archetypeId].clear()
+        if
+            let swappedEntity = removeResult.swappedEntity,
+            let swappedLocation = entities.entities[swappedEntity]
+        {
+            entities.entities[swappedEntity] = EntityLocation(
+                archetypeId: swappedLocation.archetypeId,
+                archetypeRow: record.archetypeRow,
+                chunkIndex: swappedLocation.chunkIndex,
+                chunkRow: swappedLocation.chunkRow
+            )
+        }
+
+        let removeChunkResult = currentArchetype.chunks.removeEntity(entity)
+        if let removeChunkResult, let swappedEntity = removeChunkResult.swappedEntity {
+            if let swappedLocation = entities.entities[swappedEntity] {
+                entities.entities[swappedEntity] = EntityLocation(
+                    archetypeId: swappedLocation.archetypeId,
+                    archetypeRow: swappedLocation.archetypeRow,
+                    chunkIndex: removeChunkResult.newLocation.chunkIndex,
+                    chunkRow: removeChunkResult.newLocation.entityRow
+                )
+            }
         }
 
         self.archetypes.archetypes[record.archetypeId] = currentArchetype

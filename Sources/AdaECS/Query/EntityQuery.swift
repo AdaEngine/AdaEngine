@@ -111,7 +111,8 @@ public struct EntityIterator: IteratorProtocol {
             }
             
             let currentArchetype = self.state.archetypes[self.currentArchetypeIndex]
-            guard let entity = currentArchetype.entities[self.currentEntityIndex], entity.isActive else {
+            let entity = currentArchetype.entities[self.currentEntityIndex]
+            guard entity.isActive else {
                 continue
             }
             
