@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 5/21/22.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 // swiftlint:disable all
 

@@ -7,7 +7,11 @@
 
 import AdaAssets
 import Math
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// The atlas, also know as Sprite Sheet is an object contains an image and can provide
 /// a little piece of the texture for specific stride. You can describe size of sprite you expect and grab specific sprite by coordinates.

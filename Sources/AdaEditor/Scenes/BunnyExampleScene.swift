@@ -25,7 +25,9 @@ struct BunnyExample: Plugin {
         setupSystems(in: app)
     }
     
-    private func setupCamera(in app: AppWorlds) {}
+    private func setupCamera(in app: AppWorlds) {
+        app.main.spawn("Camera", bundle: OrthographicCameraBundle(camera: Camera()))
+    }
     
     private func loadAssets(in app: AppWorlds) {
         // Try to load a bunny texture, fallback to white texture if not available

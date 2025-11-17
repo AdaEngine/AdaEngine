@@ -7,7 +7,11 @@
 
 import AdaECS
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import Logging
 
 public enum AssetError: LocalizedError {

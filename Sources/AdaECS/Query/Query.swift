@@ -6,7 +6,11 @@
 //
 
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// A query that can fetch query targets like components or entities.
 ///
@@ -98,7 +102,7 @@ extension FilterQuery  {
 
         /// A Boolean value indicating whether the collection is empty.
     public var isEmpty: Bool {
-        return self.state.archetypes.isEmpty
+        return self.state.archetypeIndecies.isEmpty
     }
 
     public func makeIterator() -> Iterator {
@@ -115,7 +119,7 @@ extension FilterQuery: SystemQuery {
 @usableFromInline
 final class QueryState: @unchecked Sendable {
     @usableFromInline
-    private(set) var archetypes: [Archetype] = []
+    private(set) var archetypeIndecies: [Int] = []
     private(set) var entities: Entities = Entities()
     private(set) weak var world: World!
     private(set) var lastTick: Tick = Tick(value: 0)
@@ -133,8 +137,8 @@ final class QueryState: @unchecked Sendable {
 
     func updateArchetypes(in world: consuming World) {
         self.entities = world.entities
-        self.archetypes = world.archetypes.archetypes.filter {
-            self.predicate.evaluate($0)
+        self.archetypeIndecies = world.archetypes.archetypes.enumerated().compactMap {
+            self.predicate.evaluate($0.element) ? $0.offset : nil
         }
         self.lastTick = world.lastTick
         self.world = world
@@ -156,13 +160,12 @@ public struct FilterQueryIterator<
 
     let count: Int
     let state: QueryState
-    var currentChunk: Chunk!
     var cursor: Cursor
 
     /// - Parameter pointer: Pointer to archetypes array.
     /// - Parameter count: Count archetypes in array.
     init(state: QueryState) {
-        self.count = state.archetypes.count
+        self.count = state.archetypeIndecies.count
         self.state = state
         self.cursor = Cursor()
     }
@@ -174,30 +177,31 @@ public struct FilterQueryIterator<
             return nil
         }
 
+        guard let world = state.world else {
+            return nil
+        }
+
         while true {
             guard cursor.currentArchetypeIndex < self.count else {
                 return nil
             }
-            let archetype = state.archetypes[cursor.currentArchetypeIndex]
+            let archetypeIndex = state.archetypeIndecies[cursor.currentArchetypeIndex]
+            let archetype = world.archetypes.archetypes[archetypeIndex]
             if cursor.currentChunkIndex >= archetype.chunks.chunks.count {
                 cursor.currentArchetypeIndex += 1
                 cursor.currentChunkIndex = 0
                 cursor.currentRow = 0
-                currentChunk = nil
+                continue
+            }
+            
+            if cursor.currentRow > archetype.chunks.chunks[cursor.currentChunkIndex].entities.count - 1 {
+                cursor.currentChunkIndex += 1
+                cursor.currentRow = 0
                 continue
             }
 
-            if currentChunk == nil {
-                currentChunk = archetype.chunks.chunks[cursor.currentChunkIndex]
-            }
-            
-            if cursor.currentRow > currentChunk.entities.count - 1 {
-                cursor.currentChunkIndex += 1
-                cursor.currentRow = 0
-                currentChunk = nil
-                continue
-            }
-            
+            let currentChunk = archetype.chunks.chunks[cursor.currentChunkIndex]
+
             guard
                 let entityId = currentChunk.entities[cursor.currentRow],
                 let location = state.entities.entities[entityId]

@@ -22,12 +22,14 @@ public struct RenderWorldPlugin: Plugin {
         NoFrustumCulling.registerComponent()
         BoundingComponent.registerComponent()
         Texture.registerTypes()
+        
         let renderWorld = AppWorlds(main: World(name: "RenderWorld"))
         renderWorld.updateScheduler = .render
         renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
         renderWorld.setExctractor(RenderWorldExctractor())
         renderWorld.main.setSchedulers([
             .extract,
+            .update,
             .render
         ])
 
@@ -54,17 +56,13 @@ func RenderWorldRunner(
     _ context: inout WorldUpdateContext,
     _ renderGraph: ResQuery<RenderGraph?>,
     _ renderDevice: ResQuery<RenderDeviceHandler?>
-) {
+) async {
     let world = context.world
+    await world.runScheduler(.update)
+
     let renderGraph = renderGraph.wrappedValue
     renderGraph?.update(from: world)
     Task.detached(priority: .high) {
-//        do {
-//            try await RenderEngine.shared.beginFrame()
-//        } catch {
-//            print("Failed begin frame", error)
-//        }
-
         do {
             guard
                 let renderGraph,
@@ -75,14 +73,8 @@ func RenderWorldRunner(
             let renderGraphExecutor = RenderGraphExecutor()
             try await renderGraphExecutor.execute(renderGraph, renderDevice: renderDevice, in: world)
         } catch {
-            print("Failed to execute render graph", error)
+            assertionFailure("Failed to execute render graph \(error)")
         }
-//
-//        do {
-//            try await RenderEngine.shared.endFrame()
-//        } catch {
-//            print("Failed end frame", error)
-//        }
     }
 }
 

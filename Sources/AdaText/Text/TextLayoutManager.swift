@@ -9,7 +9,11 @@ import AdaRender
 import AdaUtils
 import Math
 import AtlasFontGenerator
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 // FIXME: When text container updates each frame, than we have troubles with performance
 // FIXME: Fix TextRun, that should equals AttributedString.Run
