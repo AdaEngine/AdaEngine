@@ -9,9 +9,12 @@
 
 // Take from https://github.com/swiftlang/swift-tools-support-core/blob/main/Sources/TSCUtility/FSWatch.swift
 
-import Foundation
 import Dispatch
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 #if os(Windows)
 import WinSDK
 #endif

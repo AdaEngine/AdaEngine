@@ -62,7 +62,11 @@ public struct Main2DRenderNode: RenderNode {
         public static let view = "view"
     }
 
-    @Query<Camera, RenderItems<Transparent2DRenderItem>>
+    @Query<
+        Camera,
+        RenderItems<Transparent2DRenderItem>,
+        RenderViewTarget
+    >
     private var query
 
     public init() {}
@@ -80,15 +84,26 @@ public struct Main2DRenderNode: RenderNode {
             return []
         }
 
-        try query.forEach { camera, renderItems in
+        try query.forEach { camera, renderItems, target in
             let sortedRenderItems = renderItems.sorted()
             let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
- 
+
+            guard
+                let texture = target.mainTexture
+            else {
+                return
+            }
+
             let renderPass = commandBuffer.beginRenderPass(
                 RenderPassDescriptor(
                     label: "Main 2d Render Pass",
-                    colorAttachments: [],
+                    colorAttachments: [
+                        .init(
+                            texture: texture,
+                            operation: .some(.init(loadAction: .clear, storeAction: .dontCare))
+                        )
+                    ],
                     depthStencilAttachment: nil
                 )
             )

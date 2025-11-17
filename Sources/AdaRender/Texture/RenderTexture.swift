@@ -57,7 +57,7 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
     public required init(from decoder: AssetDecoder) throws {
         fatalError("init(asset:) has not been implemented")
     }
-    
+
     func setActive(_ isActive: Bool) {
         self.isActive = isActive
     }

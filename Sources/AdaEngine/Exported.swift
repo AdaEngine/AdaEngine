@@ -23,7 +23,11 @@
 @_exported import AdaTransform
 @_exported import AdaUI
 @_exported import AdaUtils
+#if canImport(FoundationEssentials)
+@_exported import FoundationEssentials
+#else
 @_exported import Foundation
+#endif
 @_exported import Math
 
 public typealias TimeInterval = AdaUtils.TimeInterval

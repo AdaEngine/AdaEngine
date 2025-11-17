@@ -8,7 +8,11 @@
 import AdaApp
 import AdaECS
 @_spi(Internal) import AdaRender
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import AdaUI
 
 /// The main class represents application instance.

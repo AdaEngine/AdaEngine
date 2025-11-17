@@ -6,7 +6,11 @@
 //
 
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 public struct BlobArray: Sendable {
     final class _Buffer: @unchecked Sendable {

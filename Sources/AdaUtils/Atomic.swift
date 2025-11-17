@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 4/30/24.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// A property wrapper that allows you to isolate a value with a lock.
 @propertyWrapper

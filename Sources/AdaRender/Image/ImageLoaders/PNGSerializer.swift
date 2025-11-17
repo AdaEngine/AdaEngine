@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 6/29/22.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import libpng
 
 /// An object that serialize png raw data to an ``Image``

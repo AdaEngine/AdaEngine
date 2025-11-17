@@ -75,6 +75,8 @@ extension EntityQuery: SystemQuery {
     }
 }
 
+// TODO: Make deprecated
+
 /// This iterator iterate by each entity in passed archetype array
 public struct EntityIterator: IteratorProtocol {
     let count: Int
@@ -86,7 +88,7 @@ public struct EntityIterator: IteratorProtocol {
     /// - Parameter pointer: Pointer to archetypes array.
     /// - Parameter count: Count archetypes in array.
     init(state: QueryState) {
-        self.count = state.archetypes.count
+        self.count = state.archetypeIndecies.count
         self.state = state
     }
     
@@ -95,13 +97,18 @@ public struct EntityIterator: IteratorProtocol {
         guard self.count > 0 else {
             return nil
         }
-        
+
+        guard let world = state.world else {
+            return nil
+        }
+
         while true {
             guard self.currentArchetypeIndex < self.count else {
                 return nil
             }
             
-            let currentEntitiesCount = self.state.archetypes[self.currentArchetypeIndex].entities.count
+            let currentArchetypeIndex = self.state.archetypeIndecies[self.currentArchetypeIndex]
+            let currentEntitiesCount = world.archetypes.archetypes[currentArchetypeIndex].entities.count
             if self.currentEntityIndex < currentEntitiesCount - 1 {
                 self.currentEntityIndex += 1
             } else {
@@ -110,8 +117,8 @@ public struct EntityIterator: IteratorProtocol {
                 continue
             }
             
-            let currentArchetype = self.state.archetypes[self.currentArchetypeIndex]
-            let entity = currentArchetype.entities[self.currentEntityIndex]
+            let currentArchetype = self.state.archetypeIndecies[self.currentArchetypeIndex]
+            let entity = world.archetypes.archetypes[currentArchetype].entities[self.currentEntityIndex]
             guard entity.isActive else {
                 continue
             }

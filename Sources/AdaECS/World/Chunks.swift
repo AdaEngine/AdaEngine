@@ -6,7 +6,11 @@
 //
 
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import OrderedCollections
 
 public struct ChunkLocation: Sendable {
@@ -74,6 +78,11 @@ public extension Chunks {
                 at: location.chunkIndex,
                 lastTick: lastTick
             )
+    }
+
+    subscript(_ index: Int) -> Chunk {
+        _read { yield chunks[index] }
+        _modify { yield &chunks[index] }
     }
 
     @discardableResult

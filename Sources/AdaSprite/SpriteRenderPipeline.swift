@@ -8,7 +8,6 @@
 import AdaECS
 import AdaAssets
 import AdaRender
-import Foundation
 
 struct SpriteRenderPipeline: Resource {
     let renderPipeline: RenderPipeline

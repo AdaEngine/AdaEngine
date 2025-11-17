@@ -7,7 +7,11 @@
 
 import AdaUtils
 import Collections
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import Atomics
 
 public struct ChangeDetectionTick {
@@ -196,7 +200,6 @@ public extension World {
 
 public extension World {
     /// Add new system to the world.
-    /// - Warning: System should be added before build.
     /// - Parameter systemType: System type.
     /// Add a system to a specific scheduler.
     @discardableResult
@@ -206,8 +209,7 @@ public extension World {
         return self
     }
 
-    /// Add new system to the world.
-    /// - Warning: System should be added before build.
+    /// Add new system to the world for `update` scheduler.
     /// - Parameter systemType: System type.
     /// - Returns: A world instance.
     @discardableResult
@@ -574,6 +576,7 @@ public extension World {
     func get<T: Component>(_ type: T.Type, from entity: Entity.ID) -> T? {
         return self.get(from: entity)
     }
+    
     func insert<T: Component>(_ component: consuming T, for entityId: Entity.ID) {
         guard let location = self.entities.entities[entityId] else {
             return

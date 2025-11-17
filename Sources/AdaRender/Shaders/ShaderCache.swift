@@ -6,7 +6,11 @@
 //
 
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 @preconcurrency import Yams
 
 /// Contains information about shader changes and store/load spirv binary in cache folder.

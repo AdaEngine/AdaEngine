@@ -36,7 +36,7 @@ public struct QueryResult<B: QueryBuilder, F: Filter>: Sequence, Sendable {
 
         /// A Boolean value indicating whether the collection is empty.
     public var isEmpty: Bool {
-        return self.state.archetypes.isEmpty
+        return self.state.archetypeIndecies.isEmpty
     }
     
     public func makeIterator() -> Iterator {

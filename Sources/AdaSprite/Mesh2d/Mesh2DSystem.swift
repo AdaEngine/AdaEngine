@@ -10,7 +10,11 @@ import AdaECS
 import AdaTransform
 import Math
 @_spi(Internal) import AdaRender
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 // MARK: - Mesh 2D Plugin -
 
@@ -65,7 +69,6 @@ public struct ExctractedMesh2D: Sendable {
 /// System to render exctract meshes to RenderWorld.
 @PlainSystem
 public struct ExctractMesh2DSystem {
-
     @Extract<
         Query<Entity, Mesh2DComponent, Transform, GlobalTransform, Visibility>
     >
@@ -207,7 +210,6 @@ public class Mesh2dMaterialStorageData: MaterialStorageData {
 
 // TODO: Think about it, maybe we should move it to other dir.
 extension Material {
-
     /// Get Mesh2D material key which has been used for caching.
     func getMesh2dMaterialKey(for vertexDescritor: VertexDescriptor, keys: Set<String>) -> MaterialMesh2dKey {
         let defines = self.collectDefines(for: vertexDescritor, keys: keys)
