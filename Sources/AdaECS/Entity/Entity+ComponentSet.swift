@@ -263,10 +263,10 @@ extension Entity.ComponentSet {
     /// - Parameter componentId: The identifier of the component.
     /// - Returns: The component if it exists, otherwise nil.
     subscript<T: Component>(by componentId: ComponentId) -> T? {
-        get {
-            return world?.get(T.self, from: entity)
+        _read {
+            yield world?.get(T.self, from: entity)
         }
-        
+
         set {
             guard let world else {
                 print("Can't set a component to \(entity), because World reference is nil.")

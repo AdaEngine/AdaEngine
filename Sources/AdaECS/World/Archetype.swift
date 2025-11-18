@@ -41,6 +41,11 @@ public struct Entities: Sendable {
         let newId = currentId.loadThenWrappingIncrement(ordering: .relaxed)
         return Entity(name: name, id: newId)
     }
+
+    mutating func clear() {
+        currentId.store(1, ordering: .relaxed)
+        entities.removeAll(keepingCapacity: true)
+    }
 }
 
 public struct Archetypes: Sendable {
@@ -69,11 +74,13 @@ public struct Archetypes: Sendable {
     }
 
     public mutating func clear() {
-        for index in 0..<archetypes.count {
-            archetypes[index].clear()
-        }
         self.archetypes.removeAll(keepingCapacity: true)
         self.componentsIndex.removeAll(keepingCapacity: true)
+        
+        // Re-initialize with empty archetype
+        let emptyArchetype = Archetype.new(index: 0, componentLayout: ComponentLayout(components: []))
+        self.archetypes.append(emptyArchetype)
+        self.componentsIndex[BitSet()] = emptyArchetype.id
     }
 }
 
