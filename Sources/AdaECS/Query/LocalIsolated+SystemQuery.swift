@@ -9,7 +9,7 @@ import AdaUtils
 
 public typealias Local = LocalIsolated
 
-extension LocalIsolated: SystemQuery {
+extension LocalIsolated: SystemParameter {
     convenience public init(from world: World) {
         fatalError("Can't be initialized from world")
     }

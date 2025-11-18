@@ -53,7 +53,7 @@ public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "Comp
 public macro Bundle() = #externalMacro(module: "AdaEngineMacros", type: "BundleMacro")
 
 /// A macro for creating a system.
-/// You can pass as many parameters as you want, but they must be a conforms a ``SystemQuery`` protocol.
+/// You can pass as many parameters as you want, but they must be a conforms a ``SystemParameter`` protocol.
 ///
 /// - Parameters:
 ///   - dependencies: An array of system dependencies.
@@ -82,7 +82,7 @@ public macro PlainSystem(
 ) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
 
 /// A macro for creating a system from a function.
-/// You can pass as many parameters as you want, but they must be a conforms a ``SystemQuery`` protocol.
+/// You can pass as many parameters as you want, but they must be a conforms a ``SystemParameter`` protocol.
 ///
 /// - Parameters:
 ///   - dependencies: An array of system dependencies.

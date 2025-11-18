@@ -63,6 +63,7 @@ public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
         )
 
         await system.update(context: &context)
+        system.queries.finish(world)
         _ = consume context
     }
 }

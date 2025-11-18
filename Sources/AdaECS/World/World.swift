@@ -67,7 +67,7 @@ public final class World: @unchecked Sendable, Codable {
     private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
 
     private var componentsStorage = ComponentsStorage()
-    public var commands: WorldCommands = WorldCommands()
+    public var commandQueue: WorldCommandQueue = WorldCommandQueue()
 
     public private(set) var eventManager: EventManager = EventManager.default
 
@@ -327,10 +327,24 @@ public extension World {
             .isComponentChanged(T.self, for: entity, lastTick: self.lastTick)
     }
 
+    func commands() -> Commands {
+        Commands(entities: entities, commandsQueue: self.commandQueue)
+    }
+
+    func flushCommands() {
+        guard !commandQueue.isEmpty else {
+            return
+        }
+        
+        Task { @MainActor in
+            self.commandQueue.apply(to: self)
+        }
+    }
+
     /// Update all data in world.
     /// In this step we move entities to matched archetypes and remove pending in delition entities.
     func flush() {
-        self.commands.flush(to: self)
+        self.flushCommands()
 
         for entityId in self.removedEntities {
             self.removeEntityRecord(entityId)
@@ -352,7 +366,7 @@ public extension World {
         self.archetypes.clear()
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
-        self.commands = WorldCommands()
+        self.commandQueue = WorldCommandQueue()
     }
 
     /// Clear all resources from the world.
