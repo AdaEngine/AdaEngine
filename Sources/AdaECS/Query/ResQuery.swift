@@ -42,12 +42,11 @@ public final class ResQuery<T: Resource>: @unchecked Sendable {
 
 extension ResQuery: SystemQuery {
     public func update(from world: consuming World) {
-        let resource = T.getFromWorld(world)
-        if resource == nil {
-            return
+        guard let resource = T.getFromWorld(world) else {
+            fatalError("Resource \(T.self) not found in world. Make sure to call world.insertResource(_:) before using ResQuery.")
         }
 
-        self._value = resource!
+        self._value = resource
     }
 }
 

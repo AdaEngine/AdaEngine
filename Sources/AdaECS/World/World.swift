@@ -345,13 +345,14 @@ public extension World {
         self.lastTick = self.incrementChangeTick()
     }
 
-    /// Remove all data from world.
+    /// Remove all data from world exclude resources.
     /// - Complexity: O(n)
     func clear() {
-        self.entities.entities.removeAll(keepingCapacity: true)
+        self.entities.clear()
+        self.archetypes.clear()
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
-        self.archetypes.clear()
+        self.commands = WorldCommands()
     }
 
     /// Clear all resources from the world.
@@ -858,10 +859,11 @@ extension World {
         }
 
         func getResource<T: Resource>(_ resource: T.Type) -> T? {
-            guard let componentId = self.resourceIds[T.identifier] else {
+            guard let componentId = self.resourceIds[T.identifier],
+                  let resource = self.resourceComponents[componentId] as? T else {
                 return nil
             }
-            return self.resourceComponents[componentId] as? T
+            return resource
         }
 
         @inline(__always)

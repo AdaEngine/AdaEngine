@@ -14,13 +14,16 @@ import Foundation
 
 public struct BlobArray: Sendable {
     final class _Buffer: @unchecked Sendable {
+        let count: Int
         let pointer: UnsafeMutableRawBufferPointer
         var deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)?
 
         init(
+            count: Int,
             pointer: UnsafeMutableRawBufferPointer,
             deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)? = nil
         ) {
+            self.count = count
             self.pointer = pointer
             self.deinitializer = deinitializer
         }
@@ -52,10 +55,11 @@ public struct BlobArray: Sendable {
         deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)? = nil
     ) {
         self.count = count
-        self.layout = ElementLayout(size: MemoryLayout<T>.size, alignment: MemoryLayout<T>.alignment)
+        self.layout = ElementLayout(size: MemoryLayout<T>.stride, alignment: MemoryLayout<T>.alignment)
         self.buffer = _Buffer(
+            count: count,
             pointer: .allocate(
-                byteCount: count * MemoryLayout<T>.size,
+                byteCount: count * MemoryLayout<T>.stride,
                 alignment: MemoryLayout<T>.alignment
             ),
             deinitializer: deinitializer
@@ -67,6 +71,7 @@ public struct BlobArray: Sendable {
 public extension BlobArray {
     mutating func realloc(_ count: Int) {
         let newBuffer = _Buffer(
+            count: count,
             pointer: .allocate(
                 byteCount: count * self.layout.size,
                 alignment: self.layout.alignment
@@ -81,7 +86,7 @@ public extension BlobArray {
     func insert<T: ~Copyable>(_ element: consuming T, at index: Int) {
         #if DEBUG
         precondition(
-            MemoryLayout<T>.size == self.layout.size &&
+            MemoryLayout<T>.stride == self.layout.size &&
             MemoryLayout<T>.alignment == self.layout.alignment,
             "Element has different layout"
         )
@@ -96,7 +101,7 @@ public extension BlobArray {
     func getMutablePointer<T: ~Copyable>(at index: Int, as type: T.Type) -> UnsafeMutablePointer<T> {
     #if DEBUG
         precondition(
-            MemoryLayout<T>.size == self.layout.size &&
+            MemoryLayout<T>.stride == self.layout.size &&
             MemoryLayout<T>.alignment == self.layout.alignment,
             "Element has different layout"
         )
@@ -110,7 +115,7 @@ public extension BlobArray {
     func get<T>(at index: Int, as type: T.Type) -> T {
     #if DEBUG
         precondition(
-            MemoryLayout<T>.size == self.layout.size &&
+            MemoryLayout<T>.stride == self.layout.size &&
             MemoryLayout<T>.alignment == self.layout.alignment,
             "Element has different layout"
         )
@@ -147,7 +152,7 @@ public extension BlobArray {
         #if DEBUG
         print("Remove element for buffer \(self.label ?? "") at index: \(index)")
         precondition(
-            MemoryLayout<T>.size == self.layout.size &&
+            MemoryLayout<T>.stride == self.layout.size &&
             MemoryLayout<T>.alignment == self.layout.alignment,
             "Element has different layout"
         )

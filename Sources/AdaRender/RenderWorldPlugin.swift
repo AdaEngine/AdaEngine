@@ -8,6 +8,7 @@
 import AdaApp
 import AdaECS
 import AdaUtils
+import Foundation
 
 /// The plugin that sets up the render world.
 public struct RenderWorldPlugin: Plugin {
