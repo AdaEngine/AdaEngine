@@ -69,7 +69,9 @@ import AdaUtils
     }
 }
 
-extension EntityQuery: SystemQuery {
+extension EntityQuery: SystemParameter {
+    public func finish(_ world: World) { }
+
     public func update(from world: consuming World) {
         self.state.updateArchetypes(in: world)
     }

@@ -95,7 +95,7 @@ struct MainWorld: Resource {
 
 /// A property wrapper that allows you to extract a resource from the main world.
 @propertyWrapper
-public final class Extract<T: SystemQuery>: @unchecked Sendable {
+public final class Extract<T: SystemParameter>: @unchecked Sendable {
     private var _value: T!
     public var wrappedValue: T {
         self._value
@@ -117,7 +117,7 @@ public final class Extract<T: SystemQuery>: @unchecked Sendable {
     }
 }
 
-extension Extract: SystemQuery {
+extension Extract: SystemParameter {
     public func update(from world: consuming World) {
         let world = world
         if _value == nil {

@@ -13,29 +13,19 @@ import SwiftSyntaxMacroExpansion
 import SwiftSyntaxMacros
 
 public struct SystemMacro: MemberMacro {
-
-    static let specialQueries = [
-        "Extract",
-        "Local",
-        "LocalIsolated"
-    ]
-
     public static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        // Find all properties with SystemQuery attribute
+        // Find all properties with SystemParameter attribute
         let entityQueries = declaration.memberBlock.members.compactMap { member -> String? in
             guard let varDecl = member.decl.as(VariableDeclSyntax.self) else { return nil }
-            let hasEntityQueryAttribute = varDecl.attributes.contains { attribute in
-                guard let attributeName = attribute.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self)?.name.text else {
-                    return false
-                }
-                return attributeName.hasSuffix("Query") || specialQueries.contains(attributeName)
+            let hasPropertyWrapperAttribute = varDecl.attributes.contains { attribute in
+                return attribute.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self) != nil
             }
             
-            guard hasEntityQueryAttribute,
+            guard hasPropertyWrapperAttribute,
                   let binding = varDecl.bindings.first,
                   let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text else {
                 return nil
@@ -187,9 +177,6 @@ extension SystemMacro: PeerMacro {
                 specialType = .context
             }
             if typeString.hasSuffix("World") || typeString.hasSuffix(".World") {
-                specialType = .world
-            }
-            if typeString.hasSuffix("WorldCommands") || typeString.hasSuffix(".WorldCommands") {
                 specialType = .world
             }
 

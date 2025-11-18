@@ -40,7 +40,7 @@ public final class ResQuery<T: Resource>: @unchecked Sendable {
     }
 }
 
-extension ResQuery: SystemQuery {
+extension ResQuery: SystemParameter {
     public func update(from world: consuming World) {
         guard let resource = T.getFromWorld(world) else {
             fatalError("Resource \(T.self) not found in world. Make sure to call world.insertResource(_:) before using ResQuery.")
@@ -112,7 +112,7 @@ public final class ResMutQuery<T: Resource>: @unchecked Sendable {
     }
 }
 
-extension ResMutQuery: SystemQuery {
+extension ResMutQuery: SystemParameter {
     public func update(from world: World) {
         self._value = Mutable { [unowned world] in
             T.getFromWorld(world)!
