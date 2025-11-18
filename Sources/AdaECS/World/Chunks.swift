@@ -217,7 +217,9 @@ public struct Chunk: Sendable {
         let componentType: any Component.Type
 
         init<T: Component>(capacity: Int, component: T.Type) {
-            self.data = BlobArray(count: capacity, of: T.self)
+            self.data = BlobArray(count: capacity, of: T.self) {
+                T.componentsInfo.deinitBlock?($0)
+            }
             self.changesTicks = BlobArray(count: capacity, of: Tick.self)
             self.componentType = component
         }
@@ -245,7 +247,7 @@ public struct Chunk: Sendable {
     public private(set) var count: Int = 0
 
     /// Entity IDs stored in this chunk
-    public private(set) var entities: SparseArray<Entity.ID>
+    public private(set) var entities: ContiguousArray<Entity.ID>
 
     /// Map from entity ID to its index in the chunk
     public private(set) var entityIndices: [Entity.ID: RowIndex]
@@ -267,13 +269,13 @@ public struct Chunk: Sendable {
 
     public init(entitiesPerChunk: Int, layout: ComponentLayout) {
         self.entitiesPerChunk = entitiesPerChunk
-        self.entities = .init(capacity: entitiesPerChunk)
+        self.entities = []
         self.entityIndices = [:]
         self.entityIndices.reserveCapacity(entitiesPerChunk)
         self.componentsData = [:]
         for component in layout.components {
             self.componentsData[component.identifier] = ComponentsData(
-                capacity: entitiesPerChunk * MemoryLayout.size(ofValue: component),
+                capacity: entitiesPerChunk * MemoryLayout.stride(ofValue: component),
                 component: component
             )
         }
@@ -335,9 +337,7 @@ public struct Chunk: Sendable {
             }
 
             // Update the entity that was in the last slot
-            guard let swappedEntityId = self.entities[lastIndex] else {
-                return nil // TODO: Is it correct?
-            }
+            let swappedEntityId = self.entities[lastIndex]
             self.entities[removedIndex] = swappedEntityId
             self.entityIndices[swappedEntityId] = removedIndex
             self.entities.removeLast()

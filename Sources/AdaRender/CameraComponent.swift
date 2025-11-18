@@ -104,7 +104,7 @@ public struct Camera: Sendable {
     /// By default contains ``CameraClearFlags/solid`` flag which fill clear color by ``Camera/backgroundColor``.
     public var clearFlags: CameraClearFlags = .solid
 
-    @MinValue(0.1)
+//    @MinValue(0.1)
     public var orthographicScale: Float = 1
 
     /// Render target for camera.
@@ -114,11 +114,13 @@ public struct Camera: Sendable {
 
     /// The computed data for the camera.
     @_spi(Internal)
-    @NoExport
+//    @NoExport
     public var computedData: CameraComputedData = .defaultValue
 
     /// The render order.
     public var renderOrder: Int = 0
+
+    public var viewMatrix: Transform3D = .identity
 
     // MARK: - Init
 
@@ -139,8 +141,6 @@ public struct Camera: Sendable {
     public init(window: WindowRef) {
         self.renderTarget = .window(window)
     }
-
-    public var viewMatrix: Transform3D = .identity
 }
 
 public extension Camera {

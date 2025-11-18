@@ -120,8 +120,11 @@ extension FilterQuery: SystemQuery {
 final class QueryState: @unchecked Sendable {
     @usableFromInline
     private(set) var archetypeIndecies: [Int] = []
+    @usableFromInline
     private(set) var entities: Entities = Entities()
+    @usableFromInline
     private(set) weak var world: World!
+    @usableFromInline
     private(set) var lastTick: Tick = Tick(value: 0)
 
     @usableFromInline
@@ -158,6 +161,7 @@ public struct FilterQueryIterator<
         var currentRow = 0
     }
 
+    let archetypes: ContiguousArray<Archetype>
     let count: Int
     let state: QueryState
     var cursor: Cursor
@@ -168,6 +172,7 @@ public struct FilterQueryIterator<
         self.count = state.archetypeIndecies.count
         self.state = state
         self.cursor = Cursor()
+        self.archetypes = state.world.archetypes.archetypes
     }
 
     @inline(__always)
@@ -177,7 +182,7 @@ public struct FilterQueryIterator<
             return nil
         }
 
-        guard let world = state.world else {
+        if archetypes.isEmpty {
             return nil
         }
 
@@ -186,7 +191,13 @@ public struct FilterQueryIterator<
                 return nil
             }
             let archetypeIndex = state.archetypeIndecies[cursor.currentArchetypeIndex]
-            let archetype = world.archetypes.archetypes[archetypeIndex]
+
+            if archetypeIndex > self.archetypes.count {
+                cursor.currentArchetypeIndex += 1
+                continue
+            }
+
+            let archetype = self.archetypes[archetypeIndex]
             if cursor.currentChunkIndex >= archetype.chunks.chunks.count {
                 cursor.currentArchetypeIndex += 1
                 cursor.currentChunkIndex = 0
@@ -201,11 +212,9 @@ public struct FilterQueryIterator<
             }
 
             let currentChunk = archetype.chunks.chunks[cursor.currentChunkIndex]
+            let entityId = currentChunk.entities[cursor.currentRow]
 
-            guard
-                let entityId = currentChunk.entities[cursor.currentRow],
-                let location = state.entities.entities[entityId]
-            else {
+            guard let location = state.entities.entities[entityId] else {
                 cursor.currentRow += 1
                 continue
             }
