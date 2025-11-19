@@ -42,7 +42,7 @@ struct CheckSystemMarker: Resource {
 }
 
 @System
-func check(_ res: ResMutQuery<CheckSystemMarker>) {
+func check(_ res: ResMut<CheckSystemMarker>) {
     res.value += 1
     print(res.wrappedValue)
 }

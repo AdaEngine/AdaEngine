@@ -17,10 +17,10 @@ public struct UIComponentSystem: Sendable {
     @Query<Entity, UIComponent, GlobalTransform>
     private var uiComponents
 
-    @ResMutQuery
+    @ResMut
     private var input: Input?
 
-    @ResQuery<DeltaTime>
+    @Res<DeltaTime>
     private var deltaTime
 
     public init(world: World) {}
