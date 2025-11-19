@@ -260,7 +260,6 @@ public extension World {
 
     /// Add a new entity to the world.
     /// - Parameter entity: The entity to add.
-    /// - Parameter needsCopy: If true, the entity will be copied before adding to the world.
     /// - Returns: A world instance.
     @discardableResult
     func addEntity(_ entity: consuming Entity) -> Self {
@@ -705,9 +704,9 @@ extension World: EventSource {
     }
 }
 
-private extension World {
+extension World {
     /// Insert entity to the world. Expect, that entity is already stored in `Entities`.
-    private func insertNewEntity(_ entity: Entity, components: [any Component]) {
+    func insertNewEntity(_ entity: Entity, components: [any Component]) {
         let components: [any Component] = components.reduce(into: []) { partialResult, component in
             for requiredComponent in componentsStorage.getRequiredComponents(for: component) {
                 partialResult.append(requiredComponent.constructor())

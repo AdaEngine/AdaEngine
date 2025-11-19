@@ -91,19 +91,31 @@ public extension Commands {
     func spawn(
         _ name: String = "",
         @ComponentsBuilder components: @escaping @Sendable () -> ComponentsBundle
-    ) {
+    ) -> EntityCommands {
+        let entity = entities.allocate(with: name)
         self.queue.push { world in
-            world.spawn(name, bundle: components())
+            world.insertNewEntity(entity, components: components().components)
         }
+        return EntityCommands(queue: &queue, entityId: entity.id)
     }
 
     func spawn<T: ComponentsBundle>(
         _ name: String = "",
         bundle: consuming T
-    ) {
+    ) -> EntityCommands {
+        let entity = entities.allocate(with: name)
         self.queue.push { [bundle] world in
-            world.spawn(name, bundle: bundle)
+            world.insertNewEntity(entity, components: bundle.components)
         }
+        return EntityCommands(queue: &queue, entityId: entity.id)
+    }
+
+    func insertEntity(_ entity: Entity) -> EntityCommands {
+        entities.addNotAllocatedEntity(entity)
+        queue.push { world in
+            world.addEntity(entity)
+        }
+        return EntityCommands(queue: &queue, entityId: entity.id)
     }
 
     func entity(_ entity: Entity.ID) -> EntityCommands {
