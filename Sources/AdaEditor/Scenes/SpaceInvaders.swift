@@ -98,7 +98,7 @@
 //    static let camera = EntityQuery(where: .has(Camera.self))
 //    static let player = EntityQuery(where: .has(PlayerComponent.self))
 //
-//    @ResQuery<Input>
+//    @Res<Input>
 //    private var input
 //
 //    init(world: World) { }
@@ -131,10 +131,10 @@
 //    @LocalIsolated private var fixedTime = FixedTimestep(stepsPerSecond: 12)
 //    let laserAudio: AudioResource
 //
-//    @ResQuery<DeltaTime>
+//    @Res<DeltaTime>
 //    private var deltaTime
 //
-//    @ResQuery<Input>
+//    @Res<Input>
 //    private var input
 //
 //    init(world: World) {
@@ -205,7 +205,7 @@
 //    static let bullet = EntityQuery(where: .has(Bullet.self) && .has(PhysicsBody2DComponent.self))
 //    static let bulletSpeed: Float = 3
 //
-//    @ResQuery<DeltaTime>
+//    @Res<DeltaTime>
 //    private var deltaTime
 //
 //    init(world: World) { }
@@ -241,7 +241,7 @@
 //
 //    let textureAtlas: TextureAtlas
 //
-//    @ResQuery<DeltaTime>
+//    @Res<DeltaTime>
 //    private var deltaTime
 //
 //    init(world: World) {
@@ -294,7 +294,7 @@
 //struct EnemyLifetimeSystem {
 //    static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))
 //
-//    @ResQuery<DeltaTime>
+//    @Res<DeltaTime>
 //    private var deltaTime
 //
 //    init(world: World) { }
@@ -319,7 +319,7 @@
 //    static let enemy = EntityQuery(where: .has(EnemyComponent.self) && .has(Transform.self))
 //    static let speed: Float = 0.1
 //
-//    @ResQuery<DeltaTime>
+//    @Res<DeltaTime>
 //    private var deltaTime
 //
 //    init(world: World) { }

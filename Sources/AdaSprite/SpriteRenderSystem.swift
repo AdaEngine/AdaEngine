@@ -68,7 +68,7 @@ public func ExtractSprite(
     _ sprites: Extract<
         Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>
     >,
-    _ extractedSprites: ResMutQuery<ExtractedSprites>
+    _ extractedSprites: ResMut<ExtractedSprites>
 ) {
     extractedSprites.sprites.removeAll(keepingCapacity: true)
     sprites.wrappedValue.forEach { entity, sprite, globalTransform, transform, visible in
@@ -129,13 +129,13 @@ public struct SpriteRenderSystem: Sendable {
     >
     private var cameras
 
-    @ResQuery
+    @Res
     private var extractedSprites: ExtractedSprites?
 
-    @ResQuery
+    @Res
     private var spriteDrawPass: SpriteDrawPass!
 
-    @ResQuery
+    @Res
     private var spriteRenderPipeline: SpriteRenderPipeline!
 
     static let quadPosition: [Vector4] = [
@@ -180,7 +180,7 @@ public struct SpriteRenderSystem: Sendable {
 
         var indeciesCount: Int32 = 0
         var textureSlotIndex = 1
-        var currentBatchEntity = world.spawn()
+        var currentBatchEntity = Entity()
         var currentBatch = TextureBatchComponent(
             textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
         )
@@ -194,7 +194,7 @@ public struct SpriteRenderSystem: Sendable {
             if textureSlotIndex >= Self.maxTexturesPerBatch {
                 currentBatchEntity.components += currentBatch
                 textureSlotIndex = 1
-                currentBatchEntity = world.spawn()
+                currentBatchEntity = Entity()
                 currentBatch = TextureBatchComponent(
                     textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
                 )

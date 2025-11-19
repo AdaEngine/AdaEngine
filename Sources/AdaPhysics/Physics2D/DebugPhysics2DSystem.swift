@@ -226,7 +226,7 @@ public struct Physics2DDebugDrawSystem: Sendable {
     @Query<ExctractedPhysicsMesh2DDebug>
     private var meshes
 
-    //    @ResQuery
+    //    @Res
     //    private var meshDrawPass: Mesh2DDrawPass?
 
     public init(world: World) {}

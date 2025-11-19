@@ -258,18 +258,22 @@ public extension World {
         return nil
     }
 
-    /// Add a new entity to the world. This entity will be available on the next update tick.
+    /// Add a new entity to the world.
     /// - Parameter entity: The entity to add.
     /// - Parameter needsCopy: If true, the entity will be copied before adding to the world.
     /// - Returns: A world instance.
     @discardableResult
     func addEntity(_ entity: consuming Entity) -> Self {
         self.flush()
-        
-        let entity = entity
-        entity.world = self
 
-        eventManager.send(WorldEvents.DidAddEntity(entity: entity), source: self)
+        if entity.id != Entity.notAllocatedId {
+            entities.addNotAllocatedEntity(entity)
+        }
+
+        insertNewEntity(
+            entity,
+            components: Array(entity.components.notFlushedComponents)
+        )
         return self
     }
 
@@ -485,29 +489,7 @@ public extension World {
         bundle: consuming T
     ) -> Entity {
         let entity = entities.allocate(with: name)
-        let components: [any Component] = bundle.components.reduce(into: []) { partialResult, component in
-            for requiredComponent in componentsStorage.getRequiredComponents(for: component) {
-                partialResult.append(requiredComponent.constructor())
-            }
-            partialResult.append(component)
-        }
-        let componentsLayout = ComponentLayout(components: components)
-        let archetypeIndex = self.archetypes.getOrCreate(
-            for: componentsLayout
-        )
-
-        var archetype = self.archetypes.archetypes[archetypeIndex]
-        let row = archetype.append(entity)
-        let chunkLocation = archetype.chunks.insertEntity(entity.id, components: components)
-        self.archetypes.archetypes[archetypeIndex] = archetype
-        self.entities.entities[entity.id] = EntityLocation(
-            archetypeId: archetype.id,
-            archetypeRow: row,
-            chunkIndex: chunkLocation.chunkIndex,
-            chunkRow: chunkLocation.entityRow
-        )
-        entity.world = self
-        addedEntities.insert(entity.id)
+        insertNewEntity(entity, components: bundle.components)
         return entity
     }
 
@@ -724,6 +706,34 @@ extension World: EventSource {
 }
 
 private extension World {
+    /// Insert entity to the world. Expect, that entity is already stored in `Entities`.
+    private func insertNewEntity(_ entity: Entity, components: [any Component]) {
+        let components: [any Component] = components.reduce(into: []) { partialResult, component in
+            for requiredComponent in componentsStorage.getRequiredComponents(for: component) {
+                partialResult.append(requiredComponent.constructor())
+            }
+            partialResult.append(component)
+        }
+        let componentsLayout = ComponentLayout(components: components)
+        let archetypeIndex = self.archetypes.getOrCreate(
+            for: componentsLayout
+        )
+
+        var archetype = self.archetypes.archetypes[archetypeIndex]
+        let row = archetype.append(entity)
+        let chunkLocation = archetype.chunks.insertEntity(entity.id, components: components)
+        self.archetypes.archetypes[archetypeIndex] = archetype
+        self.entities.entities[entity.id] = EntityLocation(
+            archetypeId: archetype.id,
+            archetypeRow: row,
+            chunkIndex: chunkLocation.chunkIndex,
+            chunkRow: chunkLocation.entityRow
+        )
+        entity.world = self
+        addedEntities.insert(entity.id)
+        eventManager.send(WorldEvents.DidAddEntity(entity: entity), source: self)
+    }
+
     /// Move entity to new archetype.
     private func moveEntityToArchetype(
         _ entityId: Entity.ID,

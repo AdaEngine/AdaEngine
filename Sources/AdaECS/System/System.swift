@@ -47,7 +47,7 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
 ///     @FilterQuery<Ref<Transform>, With<PlayerComponent>>
 ///     private var query
 ///
-///     @ResQuery<Input>
+///     @Res<Input>
 ///     private var input
 ///
 ///     init(world: World) {}

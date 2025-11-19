@@ -33,22 +33,29 @@ public struct ArchetypeSwapAndRemoveResult: Sendable {
     public let entityRow: Int
 }
 
-public struct Entities: Sendable {
-    public var entities: SparseSet<Entity.ID, EntityLocation> = [:]
-    private var currentId = ManagedAtomic<Int>(1)
+public final class Entities: @unchecked Sendable {
+    @LocalIsolated public var entities: SparseSet<Entity.ID, EntityLocation> = [:]
+    private let currentId = ManagedAtomic<Int>(1)
 
     func allocate(with name: String) -> Entity {
         let newId = currentId.loadThenWrappingIncrement(ordering: .relaxed)
         return Entity(name: name, id: newId)
     }
 
-    mutating func clear() {
+    func addNotAllocatedEntity(_ entity: Entity) {
+        precondition(entity.id == Entity.notAllocatedId)
+        let newId = currentId.loadThenWrappingIncrement(ordering: .relaxed)
+        entity.id = newId
+        entity.components.entity = newId
+    }
+
+    func clear() {
         currentId.store(1, ordering: .relaxed)
         entities.removeAll(keepingCapacity: true)
     }
 }
 
-public struct Archetypes: Sendable {
+public final class Archetypes: @unchecked Sendable {
     public var componentsIndex: [BitSet: Archetype.ID]
     public var archetypes: ContiguousArray<Archetype>
 
@@ -61,7 +68,7 @@ public struct Archetypes: Sendable {
         self.archetypes = [emptyArchetype]
     }
 
-    public mutating func getOrCreate(for componentLayout: ComponentLayout) -> Archetype.ID {
+    public func getOrCreate(for componentLayout: ComponentLayout) -> Archetype.ID {
         if let archetypeIndex = self.componentsIndex[componentLayout.bitSet] {
             return archetypeIndex
         }
@@ -73,7 +80,7 @@ public struct Archetypes: Sendable {
         return newIndex
     }
 
-    public mutating func clear() {
+    public func clear() {
         self.archetypes.removeAll(keepingCapacity: true)
         self.componentsIndex.removeAll(keepingCapacity: true)
         

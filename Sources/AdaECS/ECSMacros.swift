@@ -65,7 +65,7 @@ public macro Bundle() = #externalMacro(module: "AdaEngineMacros", type: "BundleM
 ///     @Query<Ref<Transform>, Velocity>
 ///     private var query
 ///
-///     @ResQuery
+///     @Res
 ///     private var resources: Gravity?
 ///
 ///     func update(context: inout UpdateContext) {
@@ -92,7 +92,7 @@ public macro PlainSystem(
 /// @System(dependencies: [PhysicsSystem.self])
 /// func Movement(
 ///     query: Query<Ref<Transform>, Velocity>,
-///     resources: ResQuery<Gravity>,
+///     resources: Res<Gravity>,
 /// ) {
 ///     // ...
 /// }

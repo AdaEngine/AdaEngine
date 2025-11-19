@@ -70,9 +70,9 @@ public struct WindowManagerResource: Resource {
 @MainActor
 func UpdateWindowManager(
     _ context: inout WorldUpdateContext,
-    _ windowManager: ResQuery<WindowManagerResource>,
-    _ input: ResQuery<Input>,
-    _ deltaTime: ResQuery<DeltaTime>
+    _ windowManager: Res<WindowManagerResource>,
+    _ input: Res<Input>,
+    _ deltaTime: Res<DeltaTime>
 ) async {
     let windowManager = windowManager.windowManager
     let deltaTime = deltaTime.deltaTime

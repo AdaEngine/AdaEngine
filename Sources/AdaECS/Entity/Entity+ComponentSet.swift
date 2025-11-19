@@ -19,8 +19,16 @@ public extension Entity {
         @_spi(Internal)
         public var entity: Entity.ID
 
-        weak var world: World?
-        
+        // Reference to world.
+        weak var world: World? {
+            didSet {
+                self.notFlushedComponents.removeAll()
+            }
+        }
+
+        /// Components that are not flushed to the world.
+        private(set) var notFlushedComponents: SparseSet<ComponentId, any Component> = [:]
+
         // MARK: - Codable
         
         /// Create an empty component set.
@@ -73,11 +81,6 @@ public extension Entity {
                 return world?.get(from: entity)
             }
             set {
-                if world == nil {
-                    print("Can't set a component to \(entity), because World reference is nil.")
-                    return
-                }
-                
                 if let newValue {
                     self.insert(newValue)
                 } else {
@@ -96,7 +99,11 @@ public extension Entity {
         /// Set the component of the specified type.
         @inline(__always)
         public mutating func insert<T>(_ component: consuming T) where T : Component {
-            self.world?.insert(component, for: entity)
+            guard let world else {
+                self.notFlushedComponents[T.identifier] = component
+                return
+            }
+            world.insert(component, for: entity)
         }
 
         /// Set the components of the specified type.
@@ -122,12 +129,19 @@ public extension Entity {
 
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentId: ComponentId) -> Bool {
-            return self.world?.has(componentId, in: entity) ?? false
+            guard let world else {
+                return self.notFlushedComponents.contains(componentId)
+            }
+            return world.has(componentId, in: entity)
         }
 
         /// Removes the component of the specified type from the collection.
         public mutating func remove(_ componentType: Component.Type) {
-            self.world?.remove(componentType.identifier, from: entity)
+            guard let world else {
+                self.notFlushedComponents.remove(for: componentType.identifier)
+                return
+            }
+            world.remove(componentType.identifier, from: entity)
         }
         
         /// The number of components in the set.

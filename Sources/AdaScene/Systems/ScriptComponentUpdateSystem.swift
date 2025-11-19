@@ -19,7 +19,7 @@ public struct ScriptComponentUpdateSystem {
 
     public init(world: World) { }
 
-    @ResQuery<DeltaTime>
+    @Res<DeltaTime>
     private var deltaTime
 
     @MainActor

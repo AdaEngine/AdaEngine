@@ -166,7 +166,7 @@ public struct DefaultSchedulerOrder: Resource {
 @PlainSystem
 public struct DefaultSchedulerRunner: Sendable {
 
-    @ResQuery
+    @Res
     private var order: DefaultSchedulerOrder?
 
     @LocalIsolated

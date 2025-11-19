@@ -120,10 +120,13 @@ extension FilterQuery: SystemParameter {
 final class QueryState: @unchecked Sendable {
     @usableFromInline
     private(set) var archetypeIndecies: [Int] = []
+
     @usableFromInline
     private(set) var entities: Entities = Entities()
+
     @usableFromInline
     private(set) weak var world: World!
+
     @usableFromInline
     private(set) var lastTick: Tick = Tick(value: 0)
 
@@ -161,7 +164,7 @@ public struct FilterQueryIterator<
         var currentRow = 0
     }
 
-    let archetypes: ContiguousArray<Archetype>
+    let archetypes: Archetypes
     let count: Int
     let state: QueryState
     var cursor: Cursor
@@ -172,7 +175,7 @@ public struct FilterQueryIterator<
         self.count = state.archetypeIndecies.count
         self.state = state
         self.cursor = Cursor()
-        self.archetypes = state.world.archetypes.archetypes
+        self.archetypes = state.world.archetypes
     }
 
     @inline(__always)
@@ -182,7 +185,7 @@ public struct FilterQueryIterator<
             return nil
         }
 
-        if archetypes.isEmpty {
+        if archetypes.archetypes.isEmpty {
             return nil
         }
 
@@ -192,12 +195,12 @@ public struct FilterQueryIterator<
             }
             let archetypeIndex = state.archetypeIndecies[cursor.currentArchetypeIndex]
 
-            if archetypeIndex > self.archetypes.count {
+            if archetypeIndex > self.archetypes.archetypes.count {
                 cursor.currentArchetypeIndex += 1
                 continue
             }
 
-            let archetype = self.archetypes[archetypeIndex]
+            let archetype = self.archetypes.archetypes[archetypeIndex]
             if cursor.currentChunkIndex >= archetype.chunks.chunks.count {
                 cursor.currentArchetypeIndex += 1
                 cursor.currentChunkIndex = 0

@@ -20,7 +20,7 @@ public struct InputPlugin: Plugin {
 @System
 @inline(__always)
 @MainActor func InputPostUpdate(
-    _ input: ResMutQuery<Input?>
+    _ input: ResMut<Input?>
 ) async {
     input.wrappedValue?.removeEvents()
 }

@@ -40,7 +40,7 @@ extension SchedulerName {
 @System
 @inline(__always)
 func GameLoopBegan(
-    _ deltaTime: ResQuery<DeltaTime?>
+    _ deltaTime: Res<DeltaTime?>
 ) {
     guard let deltaTime = deltaTime.wrappedValue else { return }
     EventManager.default.send(EngineEvents.MainLoopBegan(deltaTime: deltaTime.deltaTime))
@@ -63,7 +63,7 @@ public struct FixedTimeSchedulerSystem {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: 60)
     }
 
-    @ResQuery<DeltaTime?>
+    @Res<DeltaTime?>
     private var deltaTime
 
     public func update(context: inout UpdateContext) async {
