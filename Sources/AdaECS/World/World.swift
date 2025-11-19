@@ -56,8 +56,8 @@ public final class World: @unchecked Sendable, Codable {
     public private(set) var lastTick: Tick = Tick(value: 0)
 
     /// The archetypes of the world.
-    public private(set) var entities: Entities = Entities()
-    public private(set) var archetypes: Archetypes = Archetypes()
+    @LocalIsolated public private(set) var entities: Entities = Entities()
+    @LocalIsolated public private(set) var archetypes: Archetypes = Archetypes()
 
     /// The removed entities of the world.
     internal private(set) var removedEntities: Set<Entity.ID> = []
@@ -66,7 +66,7 @@ public final class World: @unchecked Sendable, Codable {
     /// The updated entities of the world.
     private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
 
-    private var componentsStorage = ComponentsStorage()
+    @LocalIsolated private var componentsStorage = ComponentsStorage()
     public var commandQueue: WorldCommandQueue = WorldCommandQueue()
 
     public private(set) var eventManager: EventManager = EventManager.default
@@ -134,17 +134,11 @@ public final class World: @unchecked Sendable, Codable {
     public func copy() -> World {
         World(from: self)
     }
-
-    public func incrementChangeTick() -> Tick {
-        let lastValue = self.changeTick.loadThenWrappingIncrement(
-            ordering: .relaxed
-        )
-        return Tick(value: lastValue)
-    }
 }
 
+// MARK: - Scheduler API
+
 public extension World {
-    // MARK: - Scheduler API
 
     /// Set the order of schedulers for this world.
     /// - Parameter schedulers: The schedulers to set.
@@ -198,14 +192,18 @@ public extension World {
     }
 }
 
+// MARK: - Systems API
+
 public extension World {
     /// Add new system to the world.
     /// - Parameter systemType: System type.
     /// Add a system to a specific scheduler.
     @discardableResult
     func addSystem<T: System>(_ systemType: T.Type, on scheduler: SchedulerName) -> Self {
-        let system = systemType.init(world: self)
-        self.schedulers.addSystem(system, for: scheduler)
+        self.schedulers.addSystem(
+            systemType.init(world: self),
+            for: scheduler
+        )
         return self
     }
 
@@ -217,6 +215,8 @@ public extension World {
         return addSystem(systemType, on: .update)
     }
 }
+
+// MARK: - Entities managment
 
 public extension World {
     /// Get all entities in world.
@@ -235,12 +235,13 @@ public extension World {
     /// - Complexity: O(1)
     /// - Returns: Returns nil if entity not registed in scene world.
     func getEntityByID(_ entityID: Entity.ID) -> Entity? {
-        guard let record = self.entities.entities[entityID] else {
+        guard let location = self.entities.entities[entityID] else {
             return nil
         }
 
-        let archetype = self.archetypes.archetypes[record.archetypeId]
-        return archetype.entities[record.archetypeRow]
+        return self.archetypes
+            .archetypes[location.archetypeId]
+            .entities[location.archetypeRow]
     }
 
     /// Find an entity by name.
@@ -326,19 +327,20 @@ public extension World {
             .chunks[location.chunkIndex]
             .isComponentChanged(T.self, for: entity, lastTick: self.lastTick)
     }
+}
 
-    func commands() -> Commands {
-        Commands(entities: entities, commandsQueue: self.commandQueue)
+// MARK: - World utils
+
+public extension World {
+    func makeCommands() -> Commands {
+        Commands(entities: entities, commandsQueue: self.commandQueue.copy())
     }
 
     func flushCommands() {
         guard !commandQueue.isEmpty else {
             return
         }
-        
-        Task { @MainActor in
-            self.commandQueue.apply(to: self)
-        }
+        self.commandQueue.apply(to: self)
     }
 
     /// Update all data in world.
@@ -369,12 +371,15 @@ public extension World {
         self.commandQueue = WorldCommandQueue()
     }
 
-    /// Clear all resources from the world.
-    /// - Complexity: O(1)
-    func clearResources() {
-        self.componentsStorage.resourceComponents.removeAll(keepingCapacity: true)
+    func incrementChangeTick() -> Tick {
+        let lastValue = self.changeTick.loadThenWrappingIncrement(
+            ordering: .relaxed
+        )
+        return Tick(value: lastValue)
     }
 }
+
+// MARK: - Resource API
 
 public extension World {
     /// Insert a resource into the world.
@@ -455,79 +460,15 @@ public extension World {
     func getResources() -> [any Resource] {
         return Array(self.componentsStorage.resourceComponents.values)
     }
-}
 
-private extension World {
-    private func moveEntityToArchetype(
-        _ entityId: Entity.ID,
-        oldLocation location: EntityLocation,
-        newArchetype: Archetype.ID
-    ) {
-        var archetype = self.archetypes.archetypes[location.archetypeId]
-        let entity = archetype.entities[location.archetypeRow]
-        var toArchetype = self.archetypes.archetypes[newArchetype]
-        let row = toArchetype.append(entity)
-        let result = archetype.swapRemove(at: location.archetypeRow)
-        let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks).newLocation
-        if let swappedEntity = result.swappedEntity {
-            entities.entities[swappedEntity] = EntityLocation(
-                archetypeId: location.archetypeId,
-                archetypeRow: location.archetypeRow,
-                chunkIndex: location.chunkIndex,
-                chunkRow: location.chunkRow
-            )
-        }
-
-        self.archetypes.archetypes[location.archetypeId] = archetype
-        self.archetypes.archetypes[newArchetype] = toArchetype
-        self.entities.entities[entityId] = EntityLocation(
-            archetypeId: newArchetype,
-            archetypeRow: row,
-            chunkIndex: newLocation.chunkIndex,
-            chunkRow: newLocation.entityRow
-        )
+    /// Clear all resources from the world.
+    /// - Complexity: O(1)
+    func clearResources() {
+        self.componentsStorage.resourceComponents.removeAll(keepingCapacity: true)
     }
 }
 
-private extension World {
-    /// Remove entity record.
-    /// - Parameter entity: The entity to remove.
-    private func removeEntityRecord(_ entity: Entity.ID) {
-        guard let record = self.entities.entities[entity] else {
-            return
-        }
-        self.entities.entities[entity] = nil
-
-        var currentArchetype = self.archetypes.archetypes[record.archetypeId]
-        let removeResult = currentArchetype.swapRemove(at: record.archetypeRow)
-
-        if
-            let swappedEntity = removeResult.swappedEntity,
-            let swappedLocation = entities.entities[swappedEntity]
-        {
-            entities.entities[swappedEntity] = EntityLocation(
-                archetypeId: swappedLocation.archetypeId,
-                archetypeRow: record.archetypeRow,
-                chunkIndex: swappedLocation.chunkIndex,
-                chunkRow: swappedLocation.chunkRow
-            )
-        }
-
-        let removeChunkResult = currentArchetype.chunks.removeEntity(entity)
-        if let removeChunkResult, let swappedEntity = removeChunkResult.swappedEntity {
-            if let swappedLocation = entities.entities[swappedEntity] {
-                entities.entities[swappedEntity] = EntityLocation(
-                    archetypeId: swappedLocation.archetypeId,
-                    archetypeRow: swappedLocation.archetypeRow,
-                    chunkIndex: removeChunkResult.newLocation.chunkIndex,
-                    chunkRow: removeChunkResult.newLocation.entityRow
-                )
-            }
-        }
-
-        self.archetypes.archetypes[record.archetypeId] = currentArchetype
-    }
-}
+// MARK: - Entities and Components
 
 public extension World {
     @discardableResult
@@ -591,7 +532,7 @@ public extension World {
     func get<T: Component>(_ type: T.Type, from entity: Entity.ID) -> T? {
         return self.get(from: entity)
     }
-    
+
     func insert<T: Component>(_ component: consuming T, for entityId: Entity.ID) {
         guard let location = self.entities.entities[entityId] else {
             return
@@ -660,14 +601,18 @@ public extension World {
     func remove<T: Component>(_ component: consuming T, for entity: Entity.ID) {
         self.remove(T.identifier, from: entity)
     }
-    
+
     /// Remove a component of the specified type from an entity.
     /// - Parameter componentType: The type of component to remove.
     /// - Parameter entity: The entity ID to remove the component from.
     @inline(__always)
-    func remove<T: Component>(_ componentType: T.Type, from entity: Entity.ID) {
-//        eventManager.send(ComponentEvents.WillRemove(componentType: T.self, entity: entity))
-        self.remove(T.identifier, from: entity)
+    func remove<T: Component>(_ componentType: T.Type, from entityId: Entity.ID) {
+        guard let location = entities.entities[entityId] else {
+            return
+        }
+        let entity = self.archetypes.archetypes[location.archetypeId].entities[location.archetypeRow]
+        eventManager.send(ComponentEvents.WillRemove(componentType: T.self, entity: entity))
+        self.remove(T.identifier, from: entityId)
     }
 
     func remove(_ componentId: ComponentId, from entityId: Entity.ID) {
@@ -743,6 +688,8 @@ public extension World {
     }
 }
 
+// MARK: - Queries
+
 extension World {
     /// Returns all entities of the scene which pass the ``QueryPredicate`` of the query.
     public func performQuery(_ query: EntityQuery) -> EntityQuery.Result {
@@ -776,6 +723,77 @@ extension World: EventSource {
     }
 }
 
+private extension World {
+    /// Move entity to new archetype.
+    private func moveEntityToArchetype(
+        _ entityId: Entity.ID,
+        oldLocation location: EntityLocation,
+        newArchetype: Archetype.ID
+    ) {
+        var archetype = self.archetypes.archetypes[location.archetypeId]
+        let entity = archetype.entities[location.archetypeRow]
+        var toArchetype = self.archetypes.archetypes[newArchetype]
+        let row = toArchetype.append(entity)
+        let result = archetype.swapRemove(at: location.archetypeRow)
+        let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks).newLocation
+        if let swappedEntity = result.swappedEntity {
+            entities.entities[swappedEntity] = EntityLocation(
+                archetypeId: location.archetypeId,
+                archetypeRow: location.archetypeRow,
+                chunkIndex: location.chunkIndex,
+                chunkRow: location.chunkRow
+            )
+        }
+
+        self.archetypes.archetypes[location.archetypeId] = archetype
+        self.archetypes.archetypes[newArchetype] = toArchetype
+        self.entities.entities[entityId] = EntityLocation(
+            archetypeId: newArchetype,
+            archetypeRow: row,
+            chunkIndex: newLocation.chunkIndex,
+            chunkRow: newLocation.entityRow
+        )
+    }
+
+    /// Remove entity record.
+    /// - Parameter entity: The entity to remove.
+    private func removeEntityRecord(_ entity: Entity.ID) {
+        guard let record = self.entities.entities[entity] else {
+            return
+        }
+        self.entities.entities[entity] = nil
+
+        var currentArchetype = self.archetypes.archetypes[record.archetypeId]
+        let removeResult = currentArchetype.swapRemove(at: record.archetypeRow)
+
+        if
+            let swappedEntity = removeResult.swappedEntity,
+            let swappedLocation = entities.entities[swappedEntity]
+        {
+            entities.entities[swappedEntity] = EntityLocation(
+                archetypeId: swappedLocation.archetypeId,
+                archetypeRow: record.archetypeRow,
+                chunkIndex: swappedLocation.chunkIndex,
+                chunkRow: swappedLocation.chunkRow
+            )
+        }
+
+        let removeChunkResult = currentArchetype.chunks.removeEntity(entity)
+        if let removeChunkResult, let swappedEntity = removeChunkResult.swappedEntity {
+            if let swappedLocation = entities.entities[swappedEntity] {
+                entities.entities[swappedEntity] = EntityLocation(
+                    archetypeId: swappedLocation.archetypeId,
+                    archetypeRow: swappedLocation.archetypeRow,
+                    chunkIndex: removeChunkResult.newLocation.chunkIndex,
+                    chunkRow: removeChunkResult.newLocation.entityRow
+                )
+            }
+        }
+
+        self.archetypes.archetypes[record.archetypeId] = currentArchetype
+    }
+}
+
 /// Events the world triggers.
 public enum WorldEvents {
     /// Raised after an entity is added to the scene.
@@ -796,120 +814,5 @@ private extension World {
         case resources
         case systems
         case plugins
-    }
-}
-
-extension World {
-    struct ComponentsStorage: Sendable {
-        struct RequiredComponentInfo: Sendable {
-            let id: ComponentId
-            let constructor: @Sendable () -> any Component
-        }
-
-        private var components: [ComponentId] = []
-        private var componentsIds: [ObjectIdentifier: ComponentId] = [:]
-        private var resourceIds: [ObjectIdentifier: ComponentId] = [:]
-        var resourceComponents: [ComponentId: any Resource] = [:]
-        private var requiredComponents: [ComponentId: [RequiredComponentInfo]] = [:]
-
-        mutating func registerRequiredComponent<T: Component>(
-            for component: ComponentId,
-            requiredComponentId: ComponentId,
-            constructor: @Sendable @escaping () -> T
-        ) {
-            var requiredComponents = self.requiredComponents[component] ?? []
-            let newInfo = RequiredComponentInfo(
-                id: requiredComponentId,
-                constructor: constructor
-            )
-            if let index = requiredComponents.firstIndex(where: { $0.id == requiredComponentId }) {
-                requiredComponents[index] = newInfo
-            } else {
-                requiredComponents.append(newInfo)
-            }
-
-            self.requiredComponents[component] = requiredComponents
-        }
-
-        @discardableResult
-        mutating func registerComponent() -> ComponentId {
-            let id = ComponentId(id: components.count)
-            self.components.append(id)
-            return id
-        }
-
-        mutating func getOrRegisterComponent<T: Component>(
-            _ component: T.Type
-        ) -> ComponentId {
-            let id = ObjectIdentifier(T.self)
-            if let componentId = self.componentsIds[id] {
-                return componentId
-            }
-            let componentId = registerComponent()
-            componentsIds[id] = componentId
-            return componentId
-        }
-
-        mutating func getOrRegisterResource(
-            _ resource: any Resource.Type
-        ) -> ComponentId {
-            let id = resource.identifier
-            if let componentId = self.resourceIds[id] {
-                return componentId
-            }
-            return registerResource(resource, id: id)
-        }
-
-        mutating func registerResource<T: Resource>(
-            _ resource: T.Type,
-            id: ObjectIdentifier
-        ) -> ComponentId {
-            Task { @MainActor in
-                T.registerResource()
-            }
-            let componentId = registerComponent()
-            self.resourceIds[id] = componentId
-            return componentId
-        }
-
-        func getResource<T: Resource>(_ resource: T.Type) -> T? {
-            guard let componentId = self.resourceIds[T.identifier],
-                  let resource = self.resourceComponents[componentId] as? T else {
-                return nil
-            }
-            return resource
-        }
-
-        @inline(__always)
-        func getComponentId<T: Component>(_ component: T.Type) -> ComponentId? {
-            self.componentsIds[ObjectIdentifier(T.self)]
-        }
-
-        func getRequiredComponents<T: Component>(for component: T) -> [RequiredComponentInfo] {
-            getComponentId(T.self).flatMap { self.requiredComponents[$0] } ?? []
-        }
-
-        func getRequiredComponents<T: Component>(for component: T.Type) -> [RequiredComponentInfo] {
-            getComponentId(T.self).flatMap { self.requiredComponents[$0] } ?? []
-        }
-
-        mutating func removeResource<T: Resource>(_ resource: T.Type) {
-            let id = ObjectIdentifier(T.self)
-            guard let componentId = self.resourceIds[id] else {
-                return
-            }
-            self.resourceComponents[componentId] = nil
-            self.resourceIds[id] = nil
-        }
-    }
-}
-
-extension Array where Element == Component {
-    var bitSet: BitSet {
-        var bitSet = BitSet(reservingCapacity: self.count)
-        for component in self {
-            bitSet.insert(type(of: component).identifier)
-        }
-        return bitSet
     }
 }

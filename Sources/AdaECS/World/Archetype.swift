@@ -343,3 +343,13 @@ public struct BitSet: Hashable, Sendable {
         return self.mask.contains(T.identifier)
     }
 }
+
+extension Array where Element == Component {
+    var bitSet: BitSet {
+        var bitSet = BitSet(reservingCapacity: self.count)
+        for component in self {
+            bitSet.insert(type(of: component).identifier)
+        }
+        return bitSet
+    }
+}

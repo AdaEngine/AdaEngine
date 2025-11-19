@@ -72,7 +72,6 @@ public extension Entity {
             get {
                 return world?.get(from: entity)
             }
-            
             set {
                 if world == nil {
                     print("Can't set a component to \(entity), because World reference is nil.")

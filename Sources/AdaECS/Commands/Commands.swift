@@ -5,14 +5,20 @@
 //  Created by Vladislav Prusakov on 16.06.2025.
 //
 
+import AdaUtils
+
 public struct WorldCommandQueue: Sendable {
-    var commands: ContiguousArray<WorldCommand> = []
+    @LocalIsolated var commands: ContiguousArray<WorldCommand> = []
 
     public var isEmpty: Bool {
         commands.isEmpty
     }
 
     public init() {}
+
+    init(_ commands: ContiguousArray<WorldCommand>) {
+        self.commands = commands
+    }
 
     public mutating func push(_ command: @escaping @Sendable (World) -> Void) {
         commands.append(WorldCommand(applyToWorld: command))
@@ -24,6 +30,10 @@ public struct WorldCommandQueue: Sendable {
         while let drop = commands.popLast() {
             drop.applyToWorld(world)
         }
+    }
+
+    public func copy() -> WorldCommandQueue {
+        WorldCommandQueue(commands)
     }
 }
 
@@ -39,6 +49,10 @@ public struct WorldCommand: Sendable {
 public final class Commands: @unchecked Sendable {
     public var entities: Entities
     public private(set) var queue: WorldCommandQueue
+
+    public var isEmpty: Bool {
+        self.queue.isEmpty
+    }
 
     public var wrappedValue: Commands {
         self
@@ -120,6 +134,7 @@ public final class EntityCommands {
 }
 
 public extension EntityCommands {
+    @discardableResult
     func insert<T: Component>(_ component: consuming T) -> Self {
         self.queue.pointee.push { [component, entityId] world in
             world.insert(component, for: entityId)
@@ -127,6 +142,7 @@ public extension EntityCommands {
         return self
     }
 
+    @discardableResult
     func remove(_ componentId: ComponentId, from entity: Entity.ID) -> Self {
         self.queue.pointee.push { world in
             world.remove(componentId, from: entity)
@@ -134,6 +150,7 @@ public extension EntityCommands {
         return self
     }
 
+    @discardableResult
     @inline(__always)
     func remove<T: Component>(_ component: consuming T) -> Self {
         self.remove(T.identifier, from: entityId)
@@ -142,6 +159,7 @@ public extension EntityCommands {
     /// Remove a component of the specified type from an entity.
     /// - Parameter componentType: The type of component to remove.
     /// - Parameter entity: The entity ID to remove the component from.
+    @discardableResult
     @inline(__always)
     func remove<T: Component>(_ componentType: T.Type, from entity: Entity.ID) -> Self {
         self.remove(T.identifier, from: entity)

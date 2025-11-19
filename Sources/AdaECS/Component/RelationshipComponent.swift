@@ -32,10 +32,11 @@ public extension Entity {
     
     /// Contains children if has one.
     var children: [Entity] {
-        guard let relationship = self.components[RelationshipComponent.self] else {
+        guard self.components.has(RelationshipComponent.self) else {
             return []
         }
-        
+        let relationship = self.components.get(RelationshipComponent.self)
+
         return relationship.children.compactMap {
             self.world?.getEntityByID($0)
         }
@@ -43,10 +44,14 @@ public extension Entity {
     
     /// Contains reference for parent entity if available.
     var parent: Entity? {
-        guard let relationship = self.components[RelationshipComponent.self], let parent = relationship.parent else {
+        guard self.components.has(RelationshipComponent.self) else {
             return nil
         }
-        
+        let relationship = self.components.get(RelationshipComponent.self)
+        guard let parent = relationship.parent else {
+            return nil
+        }
+
         return self.world?.getEntityByID(parent)
     }
     

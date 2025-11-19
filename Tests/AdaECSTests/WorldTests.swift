@@ -69,7 +69,7 @@ struct WorldTests {
     @Test("Command spawn")
     func commandSpawn() {
         let transform = Transform(position: Vector3(0, 9.8, 0))
-        world.commands.spawn {
+        world.makeCommands().spawn {
             transform
         }
         world.flush()

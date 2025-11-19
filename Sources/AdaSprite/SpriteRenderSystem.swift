@@ -95,7 +95,8 @@ func UpdateBoundings(
     _ entitiesWithTransform: FilterQuery<
         Entity, Transform,
         Or<With<SpriteComponent>, With<Mesh2DComponent>>
-    >
+    >,
+    _ commands: Commands
 ) {
     entitiesWithTransform.forEach { entity, transform in
         var bounds: BoundingComponent.Bounds?
@@ -108,15 +109,15 @@ func UpdateBoundings(
             let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
             let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
             bounds = .aabb(AABB(min: min, max: max))
-        } else if let mesh2d = entity.components[Mesh2DComponent.self] {
-            bounds = .aabb(mesh2d.mesh.bounds)
+        } else if entity.components.has(Mesh2DComponent.self) {
+            bounds = .aabb(entity.components.get(Mesh2DComponent.self).mesh.bounds)
         }
         if let bounds {
-            entity.components += BoundingComponent(bounds: bounds)
+            commands.entity(entity.id)
+                .insert(BoundingComponent(bounds: bounds))
         }
     }
 }
-
 
 @PlainSystem
 public struct SpriteRenderSystem: Sendable {

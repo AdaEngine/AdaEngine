@@ -18,7 +18,7 @@ public struct TransformSystem {
     public init(world: World) { }
     
     public func update(context: inout UpdateContext) {
-        var commands = context.world.commands()
+        var commands = context.world.makeCommands()
         self.query.forEach { entity, transform in
             let globalTransform = GlobalTransform(matrix: transform.matrix)
             commands.entity(entity.id).insert(globalTransform)
@@ -34,7 +34,10 @@ public struct ChildTransformSystem {
     
     @FilterQuery<Entity, GlobalTransform, Changed<Transform>>
     private var query
-    
+
+    @Commands
+    private var commands
+
     public init(world: World) { }
     
     public func update(context: inout UpdateContext) {
@@ -53,12 +56,13 @@ public struct ChildTransformSystem {
     /// - Parameter parentTransform: The parent transform of the entity.
     private func updateChildren(_ children: [Entity], parentTransform: GlobalTransform) {
         for child in children {
-            guard let childTransform = child.components[Transform.self] else {
+            guard child.components.has(Transform.self) else {
                 continue
             }
-            
+
+            let childTransform = child.components.get(Transform.self)
             let newMatrix = parentTransform.matrix * childTransform.matrix
-            child.components += GlobalTransform(matrix: newMatrix)
+            commands.entity(child.id).insert(GlobalTransform(matrix: newMatrix))
             
             if !child.children.isEmpty {
                 updateChildren(child.children, parentTransform: GlobalTransform(matrix: newMatrix))
