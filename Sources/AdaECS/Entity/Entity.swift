@@ -40,9 +40,7 @@ open class Entity: Identifiable, @unchecked Sendable {
         }
     }
 
-    /// Create a new entity.
-    /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
-    /// - Note: If you want to use entity without any components use ``EmptyEntity``
+    /// Create a new entity with not allocated id. To track that entity in the world use ``World/addEntity(_:)``
     /// - Parameter name: Name of entity. By default is `Entity`.
     public init(name: String = "Entity") {
         self.name = name
@@ -50,9 +48,7 @@ open class Entity: Identifiable, @unchecked Sendable {
         self.components = ComponentSet(entity: self.id)
     }
 
-    /// Create a new entity.
-    /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
-    /// - Note: If you want to use entity without any components use ``EmptyEntity``
+    /// Create a new entity with id.
     /// - Parameter name: Name of entity. By default is `Entity`.
     init(name: String = "Entity", id: Int) {
         self.name = name
