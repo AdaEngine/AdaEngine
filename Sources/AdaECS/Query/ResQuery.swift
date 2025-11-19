@@ -8,7 +8,7 @@
 /// A property wrapper that allows you to query a resource from a world.
 @dynamicMemberLookup
 @propertyWrapper
-public final class ResQuery<T: Resource>: @unchecked Sendable {
+public final class Res<T: Resource>: @unchecked Sendable {
 
     /// The value of the query.
     private var _value: T?
@@ -40,10 +40,10 @@ public final class ResQuery<T: Resource>: @unchecked Sendable {
     }
 }
 
-extension ResQuery: SystemParameter {
+extension Res: SystemParameter {
     public func update(from world: consuming World) {
         guard let resource = T.getFromWorld(world) else {
-            fatalError("Resource \(T.self) not found in world. Make sure to call world.insertResource(_:) before using ResQuery.")
+            fatalError("Resource \(T.self) not found in world. Make sure to call world.insertResource(_:) before using Res.")
         }
 
         self._value = resource
@@ -59,7 +59,7 @@ extension Optional: Resource where Wrapped: Resource {
 /// A property wrapper that allows you to query a mutable resource from a world.
 @dynamicMemberLookup
 @propertyWrapper
-public final class ResMutQuery<T: Resource>: @unchecked Sendable {
+public final class ResMut<T: Resource>: @unchecked Sendable {
 
     /// The value of the query.
     private var _value: Mutable<T>
@@ -78,10 +78,10 @@ public final class ResMutQuery<T: Resource>: @unchecked Sendable {
     public init() {
         self._value = Mutable(
             get: {
-                fatalError("ResMutQuery not initialized from the world")
+                fatalError("ResMut not initialized from the world")
             },
             set: { _ in
-                fatalError("ResMutQuery not initialized from the world")
+                fatalError("ResMut not initialized from the world")
             }
         )
     }
@@ -112,7 +112,7 @@ public final class ResMutQuery<T: Resource>: @unchecked Sendable {
     }
 }
 
-extension ResMutQuery: SystemParameter {
+extension ResMut: SystemParameter {
     public func update(from world: World) {
         self._value = Mutable { [unowned world] in
             T.getFromWorld(world)!

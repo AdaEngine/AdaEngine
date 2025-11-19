@@ -105,10 +105,10 @@ struct BunnySpawnerSystem {
     @Query<Camera, GlobalTransform>
     private var cameras
 
-    @ResQuery
+    @Res
     private var bunnyTexture: BunnyTexture!
 
-    @ResQuery
+    @Res
     private var input: Input!
 
     init(world: World) {}
@@ -168,7 +168,7 @@ struct BunnyMovementSystem {
     @Query<Ref<Bunny>, Ref<Transform>>
     private var bunnies
 
-    @ResQuery<DeltaTime>
+    @Res<DeltaTime>
     private var deltaTime
 
     init(world: World) {}
@@ -277,7 +277,7 @@ struct PerformanceCounterSystem {
     @Query<Entity, Ref<PerformanceCounter>, Ref<Text2DComponent>>
     private var counters
 
-    @ResQuery<DeltaTime>
+    @Res<DeltaTime>
     private var deltaTime
 
     init(world: World) {}

@@ -44,7 +44,7 @@ public struct RenderViewTarget {
 @System
 func ConfigurateRenderViewTarget(
     _ query: Query<Entity, Camera, Ref<RenderViewTarget>>,
-    _ renderDevice: ResQuery<RenderDeviceHandler>
+    _ renderDevice: Res<RenderDeviceHandler>
 ) {
     query.forEach { (entity, camera, renderViewTarget) in
         let viewportSize = camera.viewport?.rect.size.toSizeInt() ?? SizeInt(width: 800, height: 600)

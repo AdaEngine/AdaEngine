@@ -28,10 +28,10 @@ public struct Physics2DSystem: Sendable {
     @Query<Entity, Ref<PhysicsJoint2DComponent>, Ref<Transform>>
     private var jointsQuery
     
-    @ResQuery<Physics2DWorldComponent>
+    @Res<Physics2DWorldComponent>
     private var physicsWorld
 
-    @ResQuery<FixedTime>
+    @Res<FixedTime>
     private var fixedTime
 
     @MainActor

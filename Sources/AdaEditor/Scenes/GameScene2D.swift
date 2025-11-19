@@ -160,10 +160,10 @@
 //    private var cameraQuery
 //    static let matQuery = EntityQuery(where: .has(Mesh2DComponent.self) && .has(Transform.self))
 //
-//    @ResQuery<DeltaTime>
+//    @Res<DeltaTime>
 //    private var deltaTime
 //
-//    @ResQuery<Input>
+//    @Res<Input>
 //    private var input
 //
 //    init(world: World) { }

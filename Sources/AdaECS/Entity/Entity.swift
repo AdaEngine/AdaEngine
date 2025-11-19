@@ -15,11 +15,13 @@ import OrderedCollections
 /// Entity in ECS based architecture is the main object that holds components.
 open class Entity: Identifiable, @unchecked Sendable {
 
+    static let notAllocatedId = -25102018
+
     /// Contains entity name.
     public let name: String
 
     /// Contains unique identifier of entity.
-    public private(set) var id: Int
+    public package(set) var id: Int
 
     /// Contains components specific for current entity.
     public var components: ComponentSet
@@ -42,7 +44,17 @@ open class Entity: Identifiable, @unchecked Sendable {
     /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
     /// - Note: If you want to use entity without any components use ``EmptyEntity``
     /// - Parameter name: Name of entity. By default is `Entity`.
-    internal init(name: String = "Entity", id: Int) {
+    public init(name: String = "Entity") {
+        self.name = name
+        self.id = Self.notAllocatedId
+        self.components = ComponentSet(entity: self.id)
+    }
+
+    /// Create a new entity.
+    /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
+    /// - Note: If you want to use entity without any components use ``EmptyEntity``
+    /// - Parameter name: Name of entity. By default is `Entity`.
+    init(name: String = "Entity", id: Int) {
         self.name = name
         self.id = id
         self.components = ComponentSet(entity: self.id)
@@ -80,7 +92,7 @@ open class Entity: Identifiable, @unchecked Sendable {
     /// Copy the entity.
     /// - Returns: A new entity with the same components.
     open func copy() -> Entity {
-        let entity = Entity(name: self.name, id: self.id)
+        let entity = Entity(name: self.name, id: Self.notAllocatedId)
         entity.components = self.components.copy()
         entity.components.entity = entity.id
         entity.components.world = world

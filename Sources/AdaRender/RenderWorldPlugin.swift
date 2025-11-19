@@ -55,8 +55,8 @@ public struct RenderDeviceHandler: Resource {
 @inline(__always)
 func RenderWorldRunner(
     _ context: inout WorldUpdateContext,
-    _ renderGraph: ResQuery<RenderGraph?>,
-    _ renderDevice: ResQuery<RenderDeviceHandler?>
+    _ renderGraph: Res<RenderGraph?>,
+    _ renderDevice: Res<RenderDeviceHandler?>
 ) async {
     let world = context.world
     await world.runScheduler(.update)

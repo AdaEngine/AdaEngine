@@ -170,7 +170,7 @@
             Now we can update our player position. AdaEngine can handle keyboard inputs for us. So that we should listen to keyboard inputs and if some key is pressed, we should change player transform.
             
             @Step {
-                Let's add a new function parameter named `deltaTime` with `ResQuery<DeltaTime>` type. This a query to resource in a world.
+                Let's add a new function parameter named `deltaTime` with `Res<DeltaTime>` type. This a query to resource in a world.
 
                 Using special ``Input`` object we can check if some key is pressed. 
                 Add `if` condition where we will listen to the `w` key. If the key is pressed, then add multiplication speed by delta time. We do this for smooth transition between frames.   

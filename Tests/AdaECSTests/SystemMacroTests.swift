@@ -120,7 +120,7 @@ struct DependentSystem: System {
 
 @PlainSystem
 struct ResourceSystem {
-    @ResQuery
+    @Res
     private var gravity: Gravity?
 
     init(world: World) { }
@@ -132,7 +132,7 @@ struct ResourceSystem {
 
 @System
 func PlainResource(
-    _ gravity: ResQuery<Gravity>
+    _ gravity: Res<Gravity>
 ) {
     #expect(gravity.wrappedValue != nil)
 }
