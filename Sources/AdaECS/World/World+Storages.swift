@@ -1,0 +1,112 @@
+//
+//  World+Storages.swift
+//  AdaEngine
+//
+//  Created by Vladislav Prusakov on 20.11.2025.
+//
+
+extension World {
+    struct ComponentsStorage: Sendable {
+        struct RequiredComponentInfo: Sendable {
+            let id: ComponentId
+            let constructor: @Sendable () -> any Component
+        }
+
+        var resourceComponents: [ComponentId: any Resource] = [:]
+
+        private var components: [ComponentId] = []
+        private var componentsIds: [ObjectIdentifier: ComponentId] = [:]
+        private var resourceIds: [ObjectIdentifier: ComponentId] = [:]
+        private var requiredComponents: [ComponentId: [RequiredComponentInfo]] = [:]
+
+        mutating func registerRequiredComponent<T: Component>(
+            for component: ComponentId,
+            requiredComponentId: ComponentId,
+            constructor: @Sendable @escaping () -> T
+        ) {
+            var requiredComponents = self.requiredComponents[component] ?? []
+            let newInfo = RequiredComponentInfo(
+                id: requiredComponentId,
+                constructor: constructor
+            )
+            if let index = requiredComponents.firstIndex(where: { $0.id == requiredComponentId }) {
+                requiredComponents[index] = newInfo
+            } else {
+                requiredComponents.append(newInfo)
+            }
+
+            self.requiredComponents[component] = requiredComponents
+        }
+
+        @discardableResult
+        mutating func registerComponent() -> ComponentId {
+            let id = ComponentId(id: components.count)
+            self.components.append(id)
+            return id
+        }
+
+        mutating func getOrRegisterComponent<T: Component>(
+            _ component: T.Type
+        ) -> ComponentId {
+            let id = ObjectIdentifier(T.self)
+            if let componentId = self.componentsIds[id] {
+                return componentId
+            }
+            let componentId = registerComponent()
+            componentsIds[id] = componentId
+            return componentId
+        }
+
+        mutating func getOrRegisterResource(
+            _ resource: any Resource.Type
+        ) -> ComponentId {
+            let id = resource.identifier
+            if let componentId = self.resourceIds[id] {
+                return componentId
+            }
+            return registerResource(resource, id: id)
+        }
+
+        mutating func registerResource<T: Resource>(
+            _ resource: T.Type,
+            id: ObjectIdentifier
+        ) -> ComponentId {
+            Task { @MainActor in
+                T.registerResource()
+            }
+            let componentId = registerComponent()
+            self.resourceIds[id] = componentId
+            return componentId
+        }
+
+        func getResource<T: Resource>(_ resource: T.Type) -> T? {
+            guard let componentId = self.resourceIds[T.identifier],
+                  let resource = self.resourceComponents[componentId] as? T else {
+                return nil
+            }
+            return resource
+        }
+
+        @inline(__always)
+        func getComponentId<T: Component>(_ component: T.Type) -> ComponentId? {
+            self.componentsIds[ObjectIdentifier(T.self)]
+        }
+
+        func getRequiredComponents<T: Component>(for component: T) -> [RequiredComponentInfo] {
+            getComponentId(T.self).flatMap { self.requiredComponents[$0] } ?? []
+        }
+
+        func getRequiredComponents<T: Component>(for component: T.Type) -> [RequiredComponentInfo] {
+            getComponentId(T.self).flatMap { self.requiredComponents[$0] } ?? []
+        }
+
+        mutating func removeResource<T: Resource>(_ resource: T.Type) {
+            let id = ObjectIdentifier(T.self)
+            guard let componentId = self.resourceIds[id] else {
+                return
+            }
+            self.resourceComponents[componentId] = nil
+            self.resourceIds[id] = nil
+        }
+    }
+}

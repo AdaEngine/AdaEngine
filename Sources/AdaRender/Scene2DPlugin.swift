@@ -84,6 +84,9 @@ public struct Main2DRenderNode: RenderNode {
             return []
         }
 
+// TODO: test test test
+        return []
+
         try query.forEach { camera, renderItems, target in
             let sortedRenderItems = renderItems.sorted()
             let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor

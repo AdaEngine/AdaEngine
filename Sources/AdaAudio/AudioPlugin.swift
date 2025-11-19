@@ -140,6 +140,7 @@ public extension Entity {
     /// - Note: Audio controller will be automatically freed when entity is removed from memory and nobody own a reference to the playback controller.
     ///
     /// When you create an audio playback controller engine will automatically update position for spatial audio.
+    @MainActor
     func prepareAudio(_ resource: AudioResource) -> AudioPlaybackController {
         var controllers = self.components[AudioPlaybacksControllers.self] ?? AudioPlaybacksControllers()
         if let controller = controllers.controllers.first(where: { $0.resource === resource }) {
@@ -160,6 +161,7 @@ public extension Entity {
     /// Use the controller to set playback characteristics like volume and reverb, and then start or stop playback.
     ///
     /// This method first prepares the audio by calling ``Entity/prepareAudio(_:)``, and then immediately calls the ``AudioPlaybackController/play()`` method on the returned controller.
+    @MainActor
     @discardableResult
     func playAudio(_ resource: AudioResource) -> AudioPlaybackController {
         let controller = self.prepareAudio(resource)
@@ -172,6 +174,7 @@ public extension Entity {
     /// You can stop a specific ``AudioPlaybackController`` instance from playing a particular resource 
     /// by calling the controller’s ``AudioPlaybackController/stop()`` method. 
     /// To stop all controllers associated with a particular Entity instance with a single call, use the ``Entity/stopAllAudio()`` method instead.
+    @MainActor
     func stopAllAudio() {
         self.components[AudioPlaybacksControllers.self]?.controllers.forEach { $0.stop() }
         self.components += AudioPlaybacksControllers()

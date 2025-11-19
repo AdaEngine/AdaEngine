@@ -450,9 +450,7 @@ targets += [
         name: "AdaECSTests",
         dependencies: ["AdaECS", "Math"],
         exclude: [
-            "BUILD.bazel",
-            "CONCURRENCY_TESTS.md",
-            "CONCURRENCY_TESTS_RU.md"
+            "BUILD.bazel"
         ]
     ),
     .testTarget(
