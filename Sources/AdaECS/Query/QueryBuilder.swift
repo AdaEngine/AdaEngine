@@ -6,7 +6,7 @@
 //
 
 /// A protocol for building queries.
-public protocol QueryBuilder {
+public protocol QueryBuilder: Sendable {
 
     /// The components of the query builder.
     associatedtype Components

@@ -38,11 +38,11 @@ public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
         }
     }
 
+    @concurrent
     private func executeSystem(
         system: any System,
         world: World,
-        scheduler: SchedulerName,
-        isolated: (any Actor)? = #isolation
+        scheduler: SchedulerName
     ) async {
         system.queries.update(from: world)
         var context = WorldUpdateContext(
@@ -52,9 +52,7 @@ public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
 
         await system.update(context: &context)
         // TODO: I don't like that sync point
-        await MainActor.run {
-            system.queries.finish(world)
-        }
+        await system.queries.finish(world)
         _ = consume context
     }
 }
