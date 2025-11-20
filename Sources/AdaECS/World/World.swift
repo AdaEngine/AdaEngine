@@ -495,7 +495,9 @@ public extension World {
     @discardableResult
     @inline(__always)
     func spawn(_ name: String = "") -> Entity {
-        self.spawn(name) {}
+        let entity = entities.allocate(with: name)
+        insertNewEntity(entity, components: [])
+        return entity
     }
 
     func get<T: Component>(from entity: Entity.ID) -> T? {

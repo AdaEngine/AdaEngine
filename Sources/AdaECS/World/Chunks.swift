@@ -176,12 +176,11 @@ public extension Chunks {
     }
 
     mutating func clear() {
-        self.chunks = .init()
+        for index in 0..<chunks.count {
+            self.chunks[index].clear()
+        }
         self.entities.removeAll()
         self.friedLocation.removeAll()
-
-        // We should have at least one chunk.
-        self.chunks.append(Chunk(entitiesPerChunk: entitiesPerChunk, layout: self.componentLayout))
     }
 
     func getComponentSlices<T: Component>(for type: T.Type) -> [UnsafeBufferPointer<T>] {
@@ -217,8 +216,9 @@ public struct Chunk: Sendable {
         let componentType: any Component.Type
 
         init<T: Component>(capacity: Int, component: T.Type) {
-            self.data = BlobArray(count: capacity, of: T.self) {
-                T.componentsInfo.deinitBlock?($0)
+            self.data = BlobArray(count: capacity, of: T.self) { pointer, count in
+                let pointer = pointer.assumingMemoryBound(to: T.self)
+                pointer.baseAddress!.deinitialize(count: count)
             }
             self.changesTicks = BlobArray(count: capacity, of: Tick.self)
             self.componentType = component
@@ -310,6 +310,10 @@ public struct Chunk: Sendable {
     }
 
     mutating func clear() {
+        self.componentsData.forEach { data in
+            data.data.clear(entities.count)
+            data.changesTicks.clear(entities.count)
+        }
         self.entities.removeAll(keepingCapacity: true)
         self.entityIndices.removeAll(keepingCapacity: true)
         self.count = 0

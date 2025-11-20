@@ -16,12 +16,12 @@ public struct BlobArray: Sendable {
     final class _Buffer: @unchecked Sendable {
         let count: Int
         let pointer: UnsafeMutableRawBufferPointer
-        var deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)?
+        var deinitializer: ((UnsafeMutableRawBufferPointer, Int) -> Void)?
 
         init(
             count: Int,
             pointer: UnsafeMutableRawBufferPointer,
-            deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)? = nil
+            deinitializer: ((UnsafeMutableRawBufferPointer, Int) -> Void)? = nil
         ) {
             self.count = count
             self.pointer = pointer
@@ -29,8 +29,12 @@ public struct BlobArray: Sendable {
         }
 
         deinit {
-            deinitializer?(pointer)
+            self.clear(count)
             pointer.deallocate()
+        }
+
+        func clear(_ count: Int) {
+            deinitializer?(pointer, count)
         }
     }
 
@@ -52,7 +56,7 @@ public struct BlobArray: Sendable {
     public init<T: ~Copyable>(
         count: Int,
         of type: T.Type,
-        deinitializer: ((UnsafeMutableRawBufferPointer) -> Void)? = nil
+        deinitializer: ((UnsafeMutableRawBufferPointer, Int) -> Void)? = nil
     ) {
         self.count = count
         self.layout = ElementLayout(size: MemoryLayout<T>.stride, alignment: MemoryLayout<T>.alignment)
@@ -81,6 +85,10 @@ public extension BlobArray {
         newBuffer.pointer.copyMemory(from: UnsafeRawBufferPointer(self.buffer.pointer))
         self.buffer = newBuffer
         self.count = count
+    }
+
+    func clear(_ count: Int) {
+        self.buffer.clear(count)
     }
 
     func insert<T: ~Copyable>(_ element: consuming T, at index: Int) {
@@ -150,7 +158,6 @@ public extension BlobArray {
 
     func remove<T>(at index: Int) -> T {
         #if DEBUG
-        print("Remove element for buffer \(self.label ?? "") at index: \(index)")
         precondition(
             MemoryLayout<T>.stride == self.layout.size &&
             MemoryLayout<T>.alignment == self.layout.alignment,
@@ -182,3 +189,18 @@ public extension BlobArray {
         destinationPointer.copyMemory(from: sourcePointer, byteCount: self.layout.size)
     }
 }
+
+extension BlobArray {
+    // Bind BlobArray to specific data and return new sequence.
+    public func bind<T>(to type: T.Type) -> some Sequence<T> {
+#if DEBUG
+        precondition(
+            MemoryLayout<T>.stride == self.layout.size &&
+            MemoryLayout<T>.alignment == self.layout.alignment,
+            "Element has different layout"
+        )
+#endif
+        return self.buffer.pointer.bindMemory(to: type)
+    }
+}
+

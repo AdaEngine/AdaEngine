@@ -81,13 +81,9 @@ public final class Archetypes: @unchecked Sendable {
     }
 
     public func clear() {
-        self.archetypes.removeAll(keepingCapacity: true)
-        self.componentsIndex.removeAll(keepingCapacity: true)
-        
-        // Re-initialize with empty archetype
-        let emptyArchetype = Archetype.new(index: 0, componentLayout: ComponentLayout(components: []))
-        self.archetypes.append(emptyArchetype)
-        self.componentsIndex[BitSet()] = emptyArchetype.id
+        for index in 0..<self.archetypes.count {
+            self.archetypes[index].clear()
+        }
     }
 }
 

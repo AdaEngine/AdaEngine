@@ -19,15 +19,13 @@ public protocol Component: QueryTarget, ~Copyable {
 public extension Component {
     static var componentsInfo: ComponentsInfo {
         ComponentsInfo(
-            componentId: Self.identifier,
-            deinitBlock: nil
+            componentId: Self.identifier
         )
     }
 }
 
 public struct ComponentsInfo {
     public let componentId: ComponentId
-    public let deinitBlock: ((UnsafeMutableRawBufferPointer) -> Void)?
 }
 
 /// Provides the events related to components.
