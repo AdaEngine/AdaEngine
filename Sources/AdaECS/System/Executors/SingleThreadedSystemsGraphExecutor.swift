@@ -1,23 +1,10 @@
 //
-//  SystemsGraphExecutor.swift
+//  SingleThreadedSystemsGraphExecutor.swift
 //  AdaEngine
-//
-//  Created by v.prusakov on 2/24/23.
 //
 
 import AdaUtils
 import Collections
-
-protocol SystemsGraphExecutor: Sendable {
-
-    mutating func initialize(_ graph: borrowing SystemsGraph)
-
-    mutating func execute(
-        _ graph: borrowing SystemsGraph,
-        world: World,
-        scheduler: SchedulerName
-    ) async
-}
 
 /// The executor of the systems graph.
 public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
