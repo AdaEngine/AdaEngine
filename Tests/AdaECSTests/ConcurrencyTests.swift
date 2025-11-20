@@ -369,8 +369,8 @@ struct ConcurrencyTests {
         await withTaskGroup(of: Void.self) { group in
             for i in 0..<10 {
                 group.addTask {
-                    let mutable = world.getMutableResource(Gravity.self)
-                    mutable.wrappedValue?.value.y = Float(-i)
+                    let mutable = world.getRefResource(Gravity.self)
+                    mutable.wrappedValue.value.y = Float(-i)
                 }
             }
         }

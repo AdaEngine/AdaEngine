@@ -173,10 +173,10 @@ struct BunnyMovementSystem {
 
     init(world: World) {}
     
-    func update(context: inout UpdateContext) {
+    func update(context: inout UpdateContext) async {
         let deltaTime = deltaTime.deltaTime
 
-        bunnies.forEach { bunny, transform in
+        await bunnies.concurrent.forEach { bunny, transform in
             var velocity = bunny.velocity
             var position = transform.position
             
@@ -213,7 +213,7 @@ struct BunnyCollisionSystem {
     
     init(world: World) {}
     
-    func update(context: inout UpdateContext) {
+    func update(context: inout UpdateContext) async {
         // Get screen bounds from camera
         guard let camera = cameras.first else {
             return
@@ -225,7 +225,7 @@ struct BunnyCollisionSystem {
         // Convert to world coordinates (simplified approach)
         let worldHalfExtents = halfExtents * camera.orthographicScale / 100.0
         
-        bunnies.forEach { entity, bunny, transform in
+        await bunnies.concurrent.forEach { entity, bunny, transform in
             var velocity = bunny.velocity
             var position = transform.position
             let halfBunnySize = BunnyExampleConstants.bunnyScale * 0.5

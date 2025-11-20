@@ -14,14 +14,17 @@ public struct TransformSystem {
     
     @FilterQuery<Entity, Transform, Or<Changed<Transform>, Without<GlobalTransform>>>
     private var query
-    
+
+    @Commands
+    private var commands
+
     public init(world: World) { }
     
     public func update(context: inout UpdateContext) {
-        var commands = context.world.makeCommands()
         self.query.forEach { entity, transform in
             let globalTransform = GlobalTransform(matrix: transform.matrix)
-            commands.entity(entity.id).insert(globalTransform)
+            commands.entity(entity.id)
+                .insert(globalTransform)
         }
     }
 }
