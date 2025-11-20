@@ -72,6 +72,7 @@ public protocol System: Sendable {
     @preconcurrency init(world: World)
 
     /// Updates entities every frame.
+    @concurrent
     func update(context: inout UpdateContext) async
 
     /// An array of queries for this system.
@@ -116,6 +117,7 @@ public struct SystemQueries: Sendable, Equatable {
         }
     }
 
+    @WorldActor
     public func finish(_ world: World) {
         for query in queries {
             query.finish(world)
@@ -134,4 +136,9 @@ public struct SystemQueries: Sendable, Equatable {
 
         return true
     }
+}
+
+@globalActor
+actor WorldActor {
+    static let shared = WorldActor()
 }

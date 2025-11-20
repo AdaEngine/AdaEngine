@@ -108,6 +108,33 @@ extension FilterQuery  {
     public func makeIterator() -> Iterator {
         Iterator(state: self.state)
     }
+
+    /// Returns a parallel query processor for concurrent iteration over chunks.
+    ///
+    /// Use this method to process query results in parallel across multiple threads.
+    /// The batch size determines how many chunks are grouped together in a single task,
+    /// which helps balance the workload across available CPU cores.
+    ///
+    /// ```swift
+    /// // Process entities in parallel with custom batch size
+    /// await query.parallel(batchSize: 8).forEach { position, velocity in
+    ///     position.x += velocity.x * deltaTime
+    ///     position.y += velocity.y * deltaTime
+    /// }
+    ///
+    /// // Map entities in parallel and collect results
+    /// let distances = await query.parallel().map { position in
+    ///     return sqrt(position.x * position.x + position.y * position.y)
+    /// }
+    /// ```
+    ///
+    /// - Parameter batchSize: Number of chunks to process per task. Default is 4.
+    ///   Larger values reduce task overhead but may cause load imbalance.
+    ///   Smaller values provide better load distribution but increase task overhead.
+    /// - Returns: A ``ParallelQueryResult`` instance for concurrent processing
+    public func parallel(batchSize: Int = 4) -> ParallelQueryResult<Builder, F> {
+        return ParallelQueryResult(state: self.state, batchSize: batchSize)
+    }
 }
 
 extension FilterQuery: SystemParameter {

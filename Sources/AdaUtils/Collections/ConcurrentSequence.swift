@@ -25,6 +25,7 @@ public extension Sequence {
 
 public extension ConcurrentSequence {
     /// Iterate over all elements in sequence and create task for each.
+    @concurrent
     func forEach(
         _ operation: @escaping @Sendable (Element) async -> Void
     ) async where Element: Sendable {
