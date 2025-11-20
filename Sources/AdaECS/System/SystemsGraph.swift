@@ -8,34 +8,37 @@
 import OrderedCollections
 
 /// Contains information about execution order of systems.
-public struct SystemsGraph: Sendable, ~Copyable {
+public struct SystemsGraph: Sendable {
+
+    /// Indicates that graph is changed and needs recalculate deps
+    private(set) var isChanged: Bool = false
 
     /// The edge of the systems graph.
     struct Edge: Equatable {
         /// The output node of the edge.
         let outputNode: String
-
+        
         /// The input node of the edge.
         let inputNode: String
     }
     
     /// The node of the systems graph.
-    struct Node: @unchecked Sendable {
+    struct Node: Sendable {
         /// The unique identifier of the node.
         typealias ID = String
         
         /// The name of the node.
         let name: String
-
+        
         /// The system of the node.
         var system: System
-
+        
         /// The dependencies of the node.
         var dependencies: [SystemDependency]
         
         /// The input edges of the node.
         var inputEdges: [Edge] = []
-
+        
         /// The output edges of the node.
         var outputEdges: [Edge] = []
     }
@@ -47,10 +50,10 @@ public struct SystemsGraph: Sendable, ~Copyable {
     
     /// The nodes of the graph.
     private(set) var nodes: OrderedDictionary<String, Node> = [:]
-    
+
     /// Initialize a new systems graph.
     public init() { }
-    
+
     // MARK: - Internal methods
     
     /// Add a node of the current system. If a node exists with the same type, it will be overridden.
@@ -59,6 +62,7 @@ public struct SystemsGraph: Sendable, ~Copyable {
     mutating func addSystem<T: System>(_ system: T) {
         let node = Node(name: T.swiftName, system: system, dependencies: T.dependencies)
         self.nodes[node.name] = node
+        self.isChanged = true
     }
     
     /// Create an execution order for all systems.
@@ -76,6 +80,7 @@ public struct SystemsGraph: Sendable, ~Copyable {
                 }
             }
         }
+        self.isChanged = false
     }
     
     /// Get the output nodes for a given node.
@@ -91,7 +96,6 @@ public struct SystemsGraph: Sendable, ~Copyable {
             guard let node = self.nodes[edge.inputNode] else {
                 return nil
             }
-            
             return node
         }
     }
@@ -125,7 +129,7 @@ public struct SystemsGraph: Sendable, ~Copyable {
         
         assert(outputNode != nil, "[SystemsGraph] System not exists \(outputSystemName) to \(inputSystemName)")
         assert(inputNode != nil, "[SystemsGraph] System not exists \(inputSystemName) for \(outputSystemName)")
-
+        
         let edge = Edge(outputNode: outputSystemName, inputNode: inputSystemName)
         let reversedEdge = Edge(outputNode: inputSystemName, inputNode: outputSystemName)
         
@@ -157,13 +161,55 @@ public struct SystemsGraph: Sendable, ~Copyable {
     /// - Parameter edge: The edge to check.
     /// - Returns: True if the edge exists, otherwise false.
     private func hasEdge(_ edge: Edge) -> Bool {
-        guard let inputNode = self.nodes[edge.inputNode], let outputNode = self.nodes[edge.outputNode] else {
+        guard 
+            let inputNode = self.nodes[edge.inputNode], 
+            let outputNode = self.nodes[edge.outputNode] 
+        else {
             return false
         }
         
         return inputNode.inputEdges.firstIndex(of: edge) != nil && outputNode.outputEdges.firstIndex(of: edge) != nil
     }
     
+    // /// Build dependency levels for systems to enable parallel execution of independent systems
+    // private func buildDependencyLevels() -> [[SystemsGraph.Node]] {
+    //     var levels: [[SystemsGraph.Node]] = []
+    //     var remainingNodes = Set(nodes.values.elements.map { $0.name })
+    //     var processedNodes: Set<String> = []
+        
+    //     while !remainingNodes.isEmpty {
+    //         var currentLevel: [SystemsGraph.Node] = []
+            
+    //         // Find all nodes that have no unprocessed dependencies
+    //         for nodeName in remainingNodes {
+    //             guard let node = nodes[nodeName] else { continue }
+                
+    //             let inputNodes = getInputNodes(for: nodeName)
+    //             let hasUnprocessedDependencies = inputNodes.contains { inputNode in
+    //                 !processedNodes.contains(inputNode.name)
+    //             }
+                
+    //             if !hasUnprocessedDependencies {
+    //                 currentLevel.append(node)
+    //             }
+    //         }
+            
+    //         // If no nodes can be processed, there might be a circular dependency
+    //         guard !currentLevel.isEmpty else {
+    //             fatalError("Circular dependency detected in systems graph")
+    //         }
+            
+    //         // Update tracking sets
+    //         for node in currentLevel {
+    //             remainingNodes.remove(node.name)
+    //             processedNodes.insert(node.name)
+    //         }
+            
+    //         levels.append(currentLevel)
+    //     }
+        
+    //     return levels
+    // }
 }
 
 extension SystemsGraph {

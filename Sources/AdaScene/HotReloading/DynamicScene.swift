@@ -35,7 +35,7 @@ public struct DynamicSceneInstance {
 }
 
 /// A system that initializes and reloads a dynamic scene.
-@System
+@PlainSystem
 struct DynamicSceneInitSystem {
 
     @Query<Entity, DynamicScene, DynamicSceneInstance?>
@@ -44,7 +44,7 @@ struct DynamicSceneInitSystem {
     init(world: World) {  }
     
     func update(context: inout UpdateContext) {
-        for (entity, scene, instance) in dynamicScenes {
+        dynamicScenes.forEach { (entity, scene, instance) in
             guard let instance else {
                 insertScene(to: entity, dynamicScene: scene, world: context.world)
                 return
@@ -75,7 +75,7 @@ struct DynamicSceneInitSystem {
     
     private func removeChild(from entity: Entity) {
         for child in entity.children {
-            child.removeFromScene(recursively: true)
+            child.removeFromWorld(recursively: true)
         }
     }
 }

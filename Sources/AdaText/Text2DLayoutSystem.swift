@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaRender
+import Math
 
 /// An object that store text layout manager
 @Component
@@ -15,10 +16,10 @@ struct TextLayoutComponent {
 }
 
 /// System for layout text from ``Text2DComponent``.
-@System()
+@PlainSystem
 public struct Text2DLayoutSystem {
     
-    @Query<Entity, Ref<Text2DComponent>, Visibility>(filter: [.stored, .added])
+    @Query<Entity, Ref<Text2DComponent>, Visibility>
     private var textComponents
     
     public init(world: World) { }

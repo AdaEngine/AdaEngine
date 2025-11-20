@@ -7,9 +7,10 @@
 
 #if METAL
 import AdaUtils
-import MetalKit
+@preconcurrency import MetalKit
+import Math
 
-final class MetalRenderDevice: RenderDevice {
+final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 
     let device: MTLDevice
     let commandQueue: MTLCommandQueue
@@ -38,6 +39,10 @@ final class MetalRenderDevice: RenderDevice {
 
     func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
         return MetalFramebuffer(descriptor: descriptor)
+    }
+
+    func createCommandQueue() -> CommandQueue {
+        return MetalCommandQueue(commandQueue: self.commandQueue)
     }
 
     // swiftlint:disable:next function_body_length
@@ -90,7 +95,6 @@ final class MetalRenderDevice: RenderDevice {
             depthStencilDescriptor.isDepthWriteEnabled = depthStencilDesc.isDepthWriteEnabled
 
             if depthStencilDesc.isEnableStencil {
-
                 guard let stencilDesc = depthStencilDesc.stencilOperationDescriptor else {
                     fatalError("StencilOperationDescriptor instance not passed to DepthStencilDescriptor object.")
                 }
@@ -142,26 +146,92 @@ final class MetalRenderDevice: RenderDevice {
 
     // MARK: - Buffers
 
-    func createIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
+    func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         let buffer = self.device.makeBuffer(length: length, options: .storageModeShared)!
         buffer.contents().copyMemory(from: bytes, byteCount: length)
-
-        return MetalIndexBuffer(buffer: buffer, indexFormat: format)
+        let metalBuffer = MetalIndexBuffer(buffer: buffer, indexFormat: format)
+        metalBuffer.label = label
+        return metalBuffer
     }
 
-    func createVertexBuffer(length: Int, binding: Int) -> VertexBuffer {
+    func createVertexBuffer(label: String?, length: Int, binding: Int) -> VertexBuffer {
         let buffer = self.device.makeBuffer(length: length, options: .storageModeShared)!
-        return MetalVertexBuffer(buffer: buffer, binding: 0, offset: 0)
+        let metalBuffer = MetalVertexBuffer(buffer: buffer, binding: 0, offset: 0)
+        metalBuffer.label = label
+        return metalBuffer
     }
 
-    func createBuffer(length: Int, options: ResourceOptions) -> Buffer {
+    func createBuffer(label: String?, length: Int, options: ResourceOptions) -> Buffer {
         let buffer = self.device.makeBuffer(length: length, options: options.metal)!
-        return MetalBuffer(buffer: buffer)
+        let metalBuffer = MetalBuffer(buffer: buffer)
+        metalBuffer.label = label
+        return metalBuffer
     }
 
-    func createBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
+    func createBuffer(label: String?, bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
         let buffer = self.device.makeBuffer(bytes: bytes, length: length, options: options.metal)!
-        return MetalBuffer(buffer: buffer)
+        let metalBuffer = MetalBuffer(buffer: buffer)
+        metalBuffer.label = label
+        return metalBuffer
+    }
+
+    @MainActor
+    func createSwapchain(from window: WindowRef) -> any Swapchain {
+        guard let context else {
+            fatalError("Context not found")
+        }
+        guard let window = context.getRenderWindow(for: window) else {
+            fatalError("Window not found")
+        }
+        return window.view!.layer as! CAMetalLayer
+    }
+}
+
+extension CAMetalLayer: Swapchain {
+    public var drawablePixelFormat: PixelFormat {
+        self.pixelFormat.toPixelFormat()
+    }
+
+    public func getNextDrawable() -> (any Drawable)? {
+        guard let drawable = self.nextDrawable() else {
+            return nil
+        }
+        return MetalDrawable(drawable: drawable)
+    }
+}
+
+extension MTLPixelFormat {
+    func toPixelFormat() -> PixelFormat {
+        switch self {
+        case .rgba8Unorm:
+            return .rgba8
+        case .rgba8Uint:
+            return .rgba8
+        case .rgba16Float:
+            return .rgba_16f
+        case .rgba32Float:
+            return .rgba_32f
+        case .depth32Float:
+            return .depth_32f
+        default:
+            fatalError("Unsupported pixel format: \(self)")
+        }
+    }
+}
+
+class MetalDrawable: Drawable {
+    private let mtlDrawable: CAMetalDrawable
+
+    public var texture: any GPUTexture {
+        MetalGPUTexture(texture: self.mtlDrawable.texture)
+    }
+
+    public func present() throws {
+        self.mtlDrawable.present()
+    }
+
+    init(drawable: CAMetalDrawable) {
+        self.mtlDrawable = drawable
     }
 }
 
@@ -193,24 +263,25 @@ extension MetalRenderDevice {
         guard let window = context.getRenderWindow(for: window) else {
             throw DrawListError.windowNotExists
         }
-        guard let mtlRenderPass = window.getRenderPass() else {
-            throw DrawListError.failedToGetSurfaceTexture
-        }
-        
-        mtlRenderPass.colorAttachments[0].loadAction = loadAction.toMetal
-        mtlRenderPass.colorAttachments[0].storeAction = storeAction.toMetal
-        mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
-        guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
-            throw DrawListError.failedToCreateCommandBuffer
-        }
+        fatalError("Not implemented")
+//        guard let mtlRenderPass = window.getRenderPass() else {
+//            throw DrawListError.failedToGetSurfaceTexture
+//        }
+//        
+//        mtlRenderPass.colorAttachments[0].loadAction = loadAction.toMetal
+//        mtlRenderPass.colorAttachments[0].storeAction = storeAction.toMetal
+//        mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
+//        guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
+//            throw DrawListError.failedToCreateCommandBuffer
+//        }
+//
+//        let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
+//        let commandBuffer = MetalRenderCommandBuffer(
+//            encoder: encoder,
+//            commandBuffer: mtlCommandBuffer
+//        )
 
-        let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
-        let commandBuffer = MetalRenderCommandBuffer(
-            encoder: encoder,
-            commandBuffer: mtlCommandBuffer
-        )
-
-        return DrawList(commandBuffer: commandBuffer, renderDevice: self)
+//        return DrawList(commandBuffer: commandBuffer, renderDevice: self)
     }
 
     func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) throws -> DrawList {

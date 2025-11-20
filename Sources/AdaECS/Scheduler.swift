@@ -15,6 +15,12 @@ public struct SchedulerName: Hashable, Equatable, RawRepresentable, CustomString
     }
 }
 
+extension SchedulerName: ExpressibleByStringLiteral {
+    public init(stringLiteral value: StringLiteralType) {
+        self.rawValue = value
+    }
+}
+
 /// Default schedulers.
 public extension SchedulerName {
     /// The pre-update scheduler.
@@ -43,7 +49,7 @@ public final class Schedulers: @unchecked Sendable {
 
     /// Initialize a new schedulers.
     /// - Parameter schedulers: The schedulers to initialize.
-    public init(_ schedulers: [SchedulerName]) {
+    public init(_ schedulers: [SchedulerName] = []) {
         self.schedulerLabels = schedulers
         self.schedulers = Dictionary(
             uniqueKeysWithValues: schedulerLabels.map { ($0, Scheduler(name: $0)) }
@@ -109,10 +115,34 @@ public final class Schedulers: @unchecked Sendable {
     public func getScheduler(_ scheduler: SchedulerName) -> Scheduler? {
         self.schedulers[scheduler]
     }
+
+    /// Add system to scheduler. If scheduler not exists, than we create it.
+    public func addSystem<T: System>(_ system: T, for schedulerName: SchedulerName) {
+        if schedulers[schedulerName] == nil {
+            schedulerLabels.append(schedulerName)
+        }
+        let scheduler = self.schedulers[schedulerName] ?? Scheduler(name: schedulerName)
+        scheduler
+            .systemGraph
+            .addSystem(system)
+        self.schedulers[schedulerName] = scheduler
+    }
 }
 
 /// A resource that contains the delta time.
 public struct DeltaTime: Resource {
+    /// The delta time.
+    public let deltaTime: AdaUtils.TimeInterval
+
+    /// Initialize a new delta time.
+    /// - Parameter deltaTime: The delta time.
+    public init(deltaTime: AdaUtils.TimeInterval) {
+        self.deltaTime = deltaTime
+    }
+}
+
+/// A resource that contains the delta time.
+public struct FixedTime: Resource {
     /// The delta time.
     public let deltaTime: AdaUtils.TimeInterval
 
@@ -133,10 +163,10 @@ public struct DefaultSchedulerOrder: Resource {
 }
 
 /// A system that runs the default scheduler.
-@System
+@PlainSystem
 public struct DefaultSchedulerRunner: Sendable {
 
-    @ResQuery
+    @Res
     private var order: DefaultSchedulerOrder?
 
     @LocalIsolated
@@ -144,13 +174,11 @@ public struct DefaultSchedulerRunner: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: inout UpdateContext) async {
         let world = context.world
-        let deltaTime = context.deltaTime
-        context.taskGroup.addTask {
-            for scheduler in order?.order ?? [] {
-                await world.runScheduler(scheduler, deltaTime: deltaTime)
-            }
+        let order = order?.order ?? []
+        for scheduler in order {
+            await world.runScheduler(scheduler)
         }
     }
 }
@@ -166,57 +194,32 @@ public final class Scheduler: @unchecked Sendable {
     public var systemGraph: SystemsGraph = SystemsGraph()
 
     /// The graph executor of the scheduler.
-    let graphExecutor: SystemsGraphExecutor = SystemsGraphExecutor()
-
-    let runnerSystemsBuilder: (World) -> any System
-
-    /// The runner system of the scheduler.
-    var runnerSystem: (any System)?
+    var graphExecutor: any SystemsGraphExecutor = SingleThreadedSystemsGraphExecutor()
 
     /// The last update time of the scheduler.
     @LocalIsolated private var lastUpdate: LongTimeInterval = 0
 
     /// Initialize a new scheduler.
     /// - Parameter name: The name of the scheduler.
-    /// - Parameter system: The system type to run.
-    public init<T: System>(name: SchedulerName, system: T.Type) {
-        self.name = name
-        self.runnerSystemsBuilder = { T.init(world: $0) }
-    }
-
-    /// Initialize a new scheduler.
-    /// - Parameter name: The name of the scheduler.
     public init(name: SchedulerName) {
         self.name = name
-        self.runnerSystemsBuilder = { DefaultSchedulerRunner.init(world: $0) }
     }
 
     /// Run the scheduler.
     /// - Parameter world: The world to run the scheduler on.
-    @MainActor
     public func run(world: World) async {
         let now = Time.absolute
         let deltaTime = TimeInterval(max(0, now - self.lastUpdate))
         self.lastUpdate = now
 
-        if self.runnerSystem == nil {
-            self.runnerSystem = self.runnerSystemsBuilder(world)
+        if self.systemGraph.isChanged {
+            self.systemGraph.linkSystems()
+            self.graphExecutor.initialize(self.systemGraph)
         }
 
+        let name = self.name
         world.insertResource(DeltaTime(deltaTime: deltaTime))
 
-        if let runnerSystem = runnerSystem {
-            await withTaskGroup(of: Void.self) { @MainActor group in
-                var context = WorldUpdateContext(
-                    world: world,
-                    deltaTime: deltaTime,
-                    scheduler: name,
-                    taskGroup: group
-                )
-                runnerSystem.queries.queries.forEach { $0.update(from: world) }
-                runnerSystem.update(context: &context)
-                _ = consume context
-            }
-        }
+        await graphExecutor.execute(systemGraph, world: world, scheduler: name)
     }
 }

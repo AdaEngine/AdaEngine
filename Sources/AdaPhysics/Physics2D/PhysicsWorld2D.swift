@@ -11,8 +11,8 @@ import box2d
 import Math
 
 /// A protocol that defines a delegate for the physics world.
-public protocol PhysicsWorld2DDelegate: AnyObject {
-    
+public protocol PhysicsWorld2DDelegate: AnyObject, Sendable {
+
     /// Called when the physics world is about to solve a collision.
     ///
     /// - Parameters:
@@ -43,8 +43,7 @@ public protocol PhysicsWorld2DDelegate: AnyObject {
 }
 
 /// An object that holds and simulates all 2D physics bodies.
-@MainActor
-public final class PhysicsWorld2D: @preconcurrency Codable {
+public final class PhysicsWorld2D: Codable, @unchecked Sendable {
 
     /// The coding keys for the physics world.
     enum CodingKeys: CodingKey {
@@ -102,6 +101,27 @@ public final class PhysicsWorld2D: @preconcurrency Codable {
         }
     }
 
+   /// Adjust the restitution threshold. It is recommended not to make this value very small
+   /// because it will prevent bodies from sleeping. Usually in meters per second.
+    public var restitutionThreshold: Float {
+        get {
+            b2World_GetRestitutionThreshold(worldId)
+        }
+        set {
+            b2World_SetRestitutionThreshold(worldId, newValue)
+        }
+    }
+
+    /// Adjust the hit event threshold. This controls the collision speed needed to generate a b2ContactHitEvent.
+    /// Usually in meters per second.
+    public var hitEventThreshold: Float {
+        get {
+            b2World_GetHitEventThreshold(worldId)
+        }
+        set {
+            b2World_SetHitEventThreshold(worldId, newValue)
+        }
+    }
     private let worldId: b2WorldId
     var eventManager: EventManager = .default
     

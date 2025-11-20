@@ -5,7 +5,12 @@
 //  Created by v.prusakov on 3/10/23.
 //
 
+import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import SPIRVCompiler
 import SPIRV_Cross
 

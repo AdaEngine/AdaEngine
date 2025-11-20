@@ -11,31 +11,44 @@ import AdaTransform
 import AdaUtils
 import Math
 
-@System
+@PlainSystem
 public struct UIComponentSystem: Sendable {
     
-    @EntityQuery(where: .has(UIComponent.self) && .has(GlobalTransform.self))
+    @Query<Entity, UIComponent, GlobalTransform>
     private var uiComponents
+
+    @ResMut
+    private var input: Input?
+
+    @Res<DeltaTime>
+    private var deltaTime
 
     public init(world: World) {}
 
+    @MainActor
     public func update(context: inout UpdateContext) {
-//        guard let scene = context.scene else {
-//            return
-//        }
-//
-//        for entity in self.uiComponents {
-//            context.taskGroup.addTask {
-//                await update(entity: entity, scene: scene, deltaTime: context.deltaTime)
-//            }
+//        for value in self.uiComponents {
+//            await update(
+//                entity: value.entity,
+//                component: value.component,
+//                globalTransform: value.globalTransform,
+//                window: UIWindow,
+//                deltaTime: deltaTime.deltaTime
+//            )
 //        }
     }
 }
 
 private extension UIComponentSystem {
     @MainActor
-    func update(entity: Entity, window: UIWindow, deltaTime: TimeInterval) async {
-        let (component, globalTransform) = entity.components[UIComponent.self, GlobalTransform.self]
+    @inline(__always)
+    func update(
+        entity: Entity,
+        component: UIComponent,
+        globalTransform: GlobalTransform,
+        window: UIWindow,
+        deltaTime: TimeInterval
+    ) async {
         let view = component.view
         let behaviour = component.behaviour
         view.window = window
@@ -63,14 +76,18 @@ private extension UIComponentSystem {
             view.transform3D = globalTransform.matrix
         }
 
-        for event in Input.getInputEvents() {
-            guard view.canRespondToAction(event) else {
-                continue
-            }
+        if let input = self.input {
+            for event in input.getInputEvents() {
+                guard view.canRespondToAction(event) else {
+                    continue
+                }
 
-            let responder = view.findFirstResponder(for: event) ?? view
-            responder.onEvent(event)
+                let responder = view.findFirstResponder(for: event) ?? view
+                responder.onEvent(event)
+            }
         }
+
+
 
         await view.update(deltaTime)
     }

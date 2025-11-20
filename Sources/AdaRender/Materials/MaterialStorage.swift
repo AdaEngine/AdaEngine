@@ -8,6 +8,9 @@
 import AdaAssets
 import AdaUtils
 
+// TODO: I don't like that solution
+// - Remove or replace RenderEngine
+// - Should be a class or be open for inheritance?
 open class MaterialStorageData {
     public var reflectionData: ShaderReflectionData = ShaderReflectionData()
     public var uniformBufferSet: [String : UniformBufferSet] = [:]
@@ -40,9 +43,7 @@ open class MaterialStorageData {
 }
 
 public final class MaterialStorage {
-
     public nonisolated(unsafe) static let shared: MaterialStorage = MaterialStorage()
-    
     private var materialData: [RID: MaterialStorageData] = [:]
     
     private init() {}

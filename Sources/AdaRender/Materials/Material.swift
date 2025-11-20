@@ -85,7 +85,11 @@ public class Material: Asset, Hashable, @unchecked Sendable {
     }
     
     /// Create render pipeline descriptor for passed vertex descriptor, keys and compiled shader module.
-    open func configureRenderPipeline(for vertexDescriptor: VertexDescriptor, keys: Set<String>, shaderModule: ShaderModule) -> RenderPipelineDescriptor? {
+    open func configureRenderPipeline(
+        for vertexDescriptor: VertexDescriptor,
+        keys: Set<String>,
+        shaderModule: ShaderModule
+    ) -> RenderPipelineDescriptor? {
         fatalErrorMethodNotImplemented()
     }
 }

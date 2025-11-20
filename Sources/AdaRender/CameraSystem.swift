@@ -9,12 +9,13 @@
 import AdaTransform
 import AdaUtils
 import Math
+import AdaAssets
 
 // FIXME: Currently we render on window directly
 // TODO: Move window info to ECS system
 
 /// System for updating cameras data on scene.
-@System
+@PlainSystem
 public struct CameraSystem: Sendable {
 
     @Query<Entity, Ref<Camera>, GlobalTransform>
@@ -117,33 +118,32 @@ public struct CameraSystem: Sendable {
 }
 
 @System
-public struct ExtractCameraSystem {
+@inline(__always)
+public func ExtractCamera(
+    _ world: World,
+    _ commands: Commands,
+    _ query: Extract<
+        Query<Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
+    >
+) {
+    query.wrappedValue.forEach {
+        camera, transform,
+        visibleEntities, bufferSet, uniform in
+        let buffer = bufferSet.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
 
-    @Extract<Query<Entity, Camera, Transform, VisibleEntities>>
-    private var query
-
-    public init(world: World) { }
-
-    public func update(context: inout UpdateContext) {
-        self.query.wrappedValue.forEach { entity, camera, _, _ in
-            let cameraEntity = Entity(name: "ExtractedCameraEntity")
-            if
-                let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
-                let uniform = entity.components[GlobalViewUniform.self]
-            {
-                let buffer = bufferSet.uniformBufferSet.getBuffer(
-                    binding: GlobalBufferIndex.viewUniform,
-                    set: 0,
-                    frameIndex: RenderEngine.shared.currentFrameIndex
-                )
-
-                buffer.setData(uniform)
-            }
-
-            cameraEntity.components = entity.components
-            cameraEntity.components += RenderItems<Transparent2DRenderItem>()
-            cameraEntity.components.entity = cameraEntity
-            context.world.addEntity(cameraEntity)
+        buffer.setData(uniform)
+        commands.spawn("ExtractedCameraEntity") {
+            camera
+            transform
+            visibleEntities
+            uniform
+            bufferSet
+            RenderViewTarget()
+            RenderItems<Transparent2DRenderItem>()
         }
     }
 }

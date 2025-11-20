@@ -10,7 +10,6 @@
 /// Create a fixed sized array on a heap.
 @frozen
 public struct FixedArray<T>: Sequence, RandomAccessCollection {
-    
     public typealias Element = T?
     public typealias Index = Int
     
@@ -185,6 +184,7 @@ extension FixedArray {
         }
         
         deinit {
+            pointer.deinitialize()
             pointer.deallocate()
         }
         

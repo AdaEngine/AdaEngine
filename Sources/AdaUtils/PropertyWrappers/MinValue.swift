@@ -34,3 +34,5 @@ public struct MinValue<T: Comparable & Codable>: Codable {
         return max(min, value)
     }
 }
+
+extension MinValue: Sendable where T: Sendable {}

@@ -70,32 +70,14 @@ class MetalRenderBackend: RenderBackend {
         
         self.context.destroyWindow(by: window)
     }
-    
+
     func beginFrame() throws {
         self.inFlightSemaphore.wait()
-
-        for (_, window) in self.context.windows {
-            window.commandBuffer = self.commandQueue.makeCommandBuffer()
-//            window.drawable = window.view?.currentDrawable
-            window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
-        }
     }
-    
-    func endFrame() throws {
-        for window in self.context.windows.values {
-            guard let drawable = window.drawable, let commandBuffer = window.commandBuffer else {
-                return
-            }
-            
-            commandBuffer.addCompletedHandler { @Sendable [inFlightSemaphore] _ in
-                inFlightSemaphore.signal()
-            }
 
-            commandBuffer.present(drawable)
-            commandBuffer.commit()
-        }
-        
+    func endFrame() throws {
         currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
+        self.inFlightSemaphore.signal()
     }
 }
 
@@ -308,15 +290,6 @@ extension SamplerMinMagFilter {
     }
 }
 
-class MetalCommandBuffer: CommandBuffer {
-    
-    let commandBuffer: MTLCommandBuffer
-    
-    init(commandBuffer: MTLCommandBuffer) {
-        self.commandBuffer = commandBuffer
-    }
-}
-
 final class MetalRenderCommandBuffer: DrawCommandBuffer {
     let encoder: MTLRenderCommandEncoder
     let commandBuffer: MTLCommandBuffer
@@ -328,11 +301,6 @@ final class MetalRenderCommandBuffer: DrawCommandBuffer {
 }
 
 #endif
-
-/// A protocol that defines a command buffer.
-public protocol CommandBuffer {
-    
-}
 
 /// A protocol that defines a draw command buffer.
 public protocol DrawCommandBuffer: Sendable {

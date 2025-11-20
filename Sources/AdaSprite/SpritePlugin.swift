@@ -19,18 +19,25 @@ public struct SpritePlugin: Plugin {
 
         app
             .addSystem(UpdateBoundingsSystem.self, on: .postUpdate)
+            .main
+            .registerRequiredComponent(SpriteComponent.self, Visibility.self)
+            .registerRequiredComponent(Mesh2DComponent.self, Visibility.self)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
 
-        let pipeline = SpriteRenderPipeline()
-
         renderWorld
-            .insertResource(pipeline)
+            .insertResource(ExtractedSprites(sprites: []))
+            .insertResource(SpriteRenderPipeline())
+//            .insertResource(SpriteDrawData(
+//                vertexBuffer: BufferData<SpriteVertexData>(label: "SpriteRenderSystem_IndexBuffer", elements: []),
+//                indexBuffer: BufferData<UInt32>(elements: [])
+//            )
+//            )
             .insertResource(SpriteDrawPass())
-            .addSystem(ExtractSpriteSystem.self)
-            .addSystem(SpriteRenderSystem.self)
-            .addSystem(ExctractMesh2DSystem.self)
+            .addSystem(ExtractSpriteSystem.self, on: .extract)
+            .addSystem(ExctractMesh2DSystem.self, on: .extract)
+            .addSystem(SpriteRenderSystem.self, on: .render)
     }
 }

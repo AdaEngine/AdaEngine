@@ -9,7 +9,11 @@
 // Currently Swift Regex doesn't supports on macOS less than 13.0 and that's a problem here.
 // I want to use swift like solution instead of Foundation.
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// Collection of utils for works with shaders.
 enum ShaderUtils {

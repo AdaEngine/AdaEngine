@@ -14,19 +14,46 @@ struct AdaEditorApp: App {
         EmptyWindow()
             .addPlugins(
                 DefaultPlugins(),
-                GameScene2DPlugin()
+//                TestPlugin(),
+                BunnyExample()
             )
             .windowMode(.windowed)
             .windowTitle("AdaEngine")
     }
 }
 
-public extension Bundle {
-    static var editor: Bundle {
+struct TestPlugin: Plugin {
+    func setup(in app: borrowing AppWorlds) {
+        for index in 0..<200 {
+            app.main.spawn("Entity \(index)") {
+                Transform()
+                    .setPosition([0, Float(index), 0])
+
+                if index % 2 == 0 {
+                    NoFrustumCulling()
+                }
+            }
+            print("spawn entity", index)
+        }
+
+        let query = app.main.performQuery(FilterQuery<Transform, NoFrustumCulling, NoFilter>())
+        Task {
+            print("Create query")
+            for (transform, _) in query {
+                print(transform.position)
+            }
+
+            print("Finished")
+        }
+    }
+}
+
+public extension Foundation.Bundle {
+    static var editor: Foundation.Bundle {
 #if SWIFT_PACKAGE && !BAZEL_BUILD
-        return Bundle.module
+        return Foundation.Bundle.module
 #else
-        return Bundle(for: BundleToken.self)
+        return Foundation.Bundle(for: BundleToken.self)
 #endif
     }
 }

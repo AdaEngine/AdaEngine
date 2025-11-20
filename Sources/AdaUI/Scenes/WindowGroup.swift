@@ -35,29 +35,24 @@ struct InitialContainerView: Resource {
 }
 
 @System
-struct WindowGroupSystem {
-
-    @LocalIsolated private var isAllocated = false
-
-    init(world: World) { }
-
-    func update(context: inout UpdateContext) {
-        if isAllocated {
-            return
-        }
-        guard
-            let resource = context.world.getResource(PrimaryWindow.self),
-            let containerView = context.world.getResource(InitialContainerView.self)
-        else {
-            return
-        }
-
-        context.taskGroup.addTask { @MainActor in
-            let gameSceneView = containerView.view
-            gameSceneView.autoresizingRules = [.flexibleWidth, .flexibleHeight]
-            resource.window.addSubview(gameSceneView)
-
-            self.isAllocated = true
-        }
+@MainActor
+func WindowGroupUpdate(
+    _ context: inout WorldUpdateContext,
+    _ isAllocated: LocalIsolated<Bool> = false
+) {
+    if isAllocated.wrappedValue {
+        return
     }
+    guard
+        let resource = context.world.getResource(PrimaryWindow.self),
+        let containerView = context.world.getResource(InitialContainerView.self)
+    else {
+        return
+    }
+
+    let view = containerView.view
+    view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
+    resource.window.addSubview(view)
+
+    isAllocated.wrappedValue = true
 }

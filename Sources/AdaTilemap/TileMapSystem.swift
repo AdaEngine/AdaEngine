@@ -12,9 +12,10 @@ import AdaPhysics
 import AdaSprite
 import Logging
 import Math
+import OrderedCollections
 
 // FIXME: a lot of sprites drop fps.
-@System
+@PlainSystem
 public struct TileMapSystem: Sendable {
     
     let logger = Logger(label: "tilemap")
@@ -27,7 +28,7 @@ public struct TileMapSystem: Sendable {
     public func update(context: inout UpdateContext) {
         let physicsWorld = context.world.getResource(Physics2DWorldComponent.self)?.world
 
-        for (entity, tileMapComponent, transform) in tileMap {
+        tileMap.forEach { (entity, tileMapComponent, transform) in
             let tileMap = tileMapComponent.tileMap
 
             if !tileMap.needsUpdate {
@@ -72,9 +73,9 @@ public struct TileMapSystem: Sendable {
 
         let scale = Vector3(1)
         if layer.needUpdates {
-            tileMapComponent.tileLayers[layer.id]?.removeFromScene(recursively: true)
+            tileMapComponent.tileLayers[layer.id]?.removeFromWorld(recursively: true)
 
-            let tileParent = Entity()
+            let tileParent = world.spawn()
 
             for (position, tile) in layer.tileCells {
                 guard let source = tileSet.sources[tile.sourceId] else {
@@ -91,9 +92,13 @@ public struct TileMapSystem: Sendable {
                 case let atlasSource as TextureAtlasTileSource:
                     let texture = atlasSource.getTexture(at: tile.atlasCoordinates)
 
-                    tileEntity = Entity()
-                    tileEntity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: tileData.modulateColor)
-                    tileEntity.components += Transform(scale: scale, position: position)
+                    tileEntity = world.spawn {
+                        SpriteComponent(
+                            texture: AssetHandle(texture),
+                            tintColor: tileData.modulateColor
+                        )
+                        Transform(scale: scale, position: position)
+                    }
                 case let entitySource as TileEntityAtlasSource:
                     tileEntity = entitySource.getEntity(at: tile.atlasCoordinates)
                     tileEntity.components += Transform(scale: scale, position: position)

@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 1/20/23.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 // TODO: Should we use this instead of NSFileManager thats dilivered by SwiftFoundation?
 

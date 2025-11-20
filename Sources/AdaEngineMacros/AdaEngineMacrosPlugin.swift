@@ -13,6 +13,7 @@ struct AdaEngineMacrosPlugin: CompilerPlugin {
     let providingMacros: [Macro.Type] = [
         ComponentMacro.self,
         EntryMacro.self,
-        SystemMacro.self
+        SystemMacro.self,
+        BundleMacro.self    
     ]
 }

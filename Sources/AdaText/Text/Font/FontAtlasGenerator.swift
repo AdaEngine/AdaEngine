@@ -8,7 +8,11 @@
 import AdaRender
 import AdaUtils
 import AtlasFontGenerator
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// A font descriptor.
 public struct FontDescriptor {

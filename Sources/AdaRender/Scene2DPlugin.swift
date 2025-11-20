@@ -7,6 +7,7 @@
 
 import AdaApp
 import AdaECS
+import AdaUtils
 
 /// Plugin for RenderWorld added 2D render capatibilites.
 public struct Scene2DPlugin: Plugin {
@@ -31,7 +32,7 @@ public struct Scene2DPlugin: Plugin {
 
         Task { @RenderGraphActor in
             // Add Render graph
-            let graph = RenderGraph(label: "Scene2D")
+            var graph = RenderGraph(label: "Scene2D")
 
             let entryNode = graph.addEntryNode(inputs: [
                 RenderSlot(name: InputNode.view, kind: .entity)
@@ -45,8 +46,9 @@ public struct Scene2DPlugin: Plugin {
                 inputSlot: Main2DRenderNode.InputNode.view
             )
 
-            await app.mainWorld
-                .getResource(RenderGraph.self)?
+            await app
+                .getRefResource(RenderGraph.self)
+                .wrappedValue
                 .addSubgraph(graph, name: Self.renderGraph)
         }
     }
@@ -59,65 +61,64 @@ public struct Main2DRenderNode: RenderNode {
     public enum InputNode {
         public static let view = "view"
     }
-    
+
+    @Query<
+        Camera,
+        RenderItems<Transparent2DRenderItem>,
+        RenderViewTarget
+    >
+    private var query
+
     public init() {}
     
     public let inputResources: [RenderSlot] = [
         RenderSlot(name: InputNode.view, kind: .entity)
     ]
-    
-    public func execute(context: Context) async throws -> [RenderSlotValue] {
-        guard let entity = context.entityResource(by: InputNode.view) else {
-            return []
-        }
-        
-        let (camera, renderItems) = entity.components[Camera.self, RenderItems<Transparent2DRenderItem>.self]
-        if
-            case .window(let windowRef) = camera.renderTarget,
-            case .windowId(let id) = windowRef,
-            id == .empty
-        {
-            return []
-        }
-        
-        let sortedRenderItems = renderItems.sorted()
-        let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
 
-        let drawList: DrawList
-        switch camera.renderTarget {
-        case .window(let windowId):
-            drawList = try context.device.beginDraw(
-                for: windowId,
-                clearColor: clearColor,
-                loadAction: .clear,
-                storeAction: .store
-            )
-        case .texture(let textureHandle):
-            let texture = textureHandle.asset
-            let desc = FramebufferDescriptor(
-                scale: texture.scaleFactor,
-                width: texture.width,
-                height: texture.height,
-                attachments: [
-                    FramebufferAttachmentDescriptor(
-                        format: texture.pixelFormat,
-                        texture: texture,
-                        clearColor: clearColor,
-                        loadAction: .clear,
-                        storeAction: .store
-                    )
-                ]
-            )
-            let framebuffer = context.device.createFramebuffer(from: desc)
-            drawList = try context.device.beginDraw(to: framebuffer, clearColors: [])
+    public func update(from world: World) {
+        query.update(from: world)
+    }
+
+    public func execute(context: inout Context, renderContext: RenderContext) async throws -> [RenderSlotValue] {
+        guard let view = context.viewEntity else {
+            return []
         }
-        
-        if let viewport = camera.viewport {
-            drawList.setViewport(viewport)
+
+        try query.forEach { camera, renderItems, target in
+            let sortedRenderItems = renderItems.sorted()
+            let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
+            let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
+
+            guard
+                let texture = target.mainTexture
+            else {
+                return
+            }
+
+            let renderPass = commandBuffer.beginRenderPass(
+                RenderPassDescriptor(
+                    label: "Main 2d Render Pass",
+                    colorAttachments: [
+                        .init(
+                            texture: texture,
+                            operation: .some(.init(loadAction: .clear, storeAction: .dontCare))
+                        )
+                    ],
+                    depthStencilAttachment: nil
+                )
+            )
+
+            if let viewport = camera.viewport {
+                renderPass.setViewport(viewport.rect)
+            }
+
+            if !sortedRenderItems.items.isEmpty {
+                try sortedRenderItems.render(with: renderPass, world: context.world, view: view)
+            }
+
+            renderPass.endRenderPass()
         }
-        
-        try sortedRenderItems.render(drawList, world: context.world, view: entity)
-        context.device.endDrawList(drawList)
+
         return []
     }
 }
@@ -126,8 +127,8 @@ public struct Main2DRenderNode: RenderNode {
 public struct Transparent2DRenderItem: RenderItem {
     
     /// An entity that hold additional information about render item.
-    public var entity: Entity
-    
+    public var entity: Entity.ID
+
     /// An entity for batch rendering.
     public var batchEntity: Entity
     
@@ -144,7 +145,7 @@ public struct Transparent2DRenderItem: RenderItem {
     public var batchRange: Range<Int32>?
 
     public init(
-        entity: Entity,
+        entity: Entity.ID,
         batchEntity: Entity,
         drawPass: any DrawPass,
         renderPipeline: RenderPipeline,

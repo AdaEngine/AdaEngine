@@ -119,7 +119,7 @@
 //                textures[index] = texture
 //            }
 //
-//            currentBatchEntity.components += BatchComponent(textures: textures)
+//            currentBatchEntity.components += TextureBatchComponent(textures: textures)
 //
 //            renderItems.items.append(
 //                Transparent2DRenderItem(
@@ -173,7 +173,7 @@
 //    }
 //}
 //
-//@System(dependencies: [
+//@PlainSystem(dependencies: [
 //    .after(Text2DLayoutSystem.self)
 //])
 //struct ExctractTextSystem {

@@ -8,6 +8,7 @@
 import AdaECS
 import AdaTransform
 import Math
+import AdaUtils
 
 // TODO: (Vlad) add sphere supports
 
@@ -15,38 +16,27 @@ import Math
 /// All cameras has frustum and each entity should has ``BoundingComponent`` to be detected.
 /// If entity doesn't has ``BoundingComponent`` than system tries to add it.
 /// If entity has ``NoFrustumCulling`` than it will ignore frustum culling.
-@System(dependencies: [
+@PlainSystem(dependencies: [
     .after(CameraSystem.self)
 ])
 public struct VisibilitySystem {
-    
-    @EntityQuery(where: .has(VisibleEntities.self) && .has(Camera.self))
+
+    @Query<Camera, Ref<VisibleEntities>>
     private var cameras
     
-    @EntityQuery(
-        where: .has(Transform.self) && .has(Visibility.self)
-        && .has(BoundingComponent.self) && .without(NoFrustumCulling.self)
-    )
+    @FilterQuery<Entity, Visibility, BoundingComponent, And<With<Transform>, Without<NoFrustumCulling>>>
     private var entities
-    
-    @EntityQuery(
-        where: .has(Transform.self) && .has(Visibility.self) && .has(NoFrustumCulling.self)
-    )
+
+    @FilterQuery<Entity, Visibility, And<With<Transform>, With<NoFrustumCulling>>>
     private var entitiesWithNoFrustum
-    
-    @EntityQuery(
-        where: .has(Transform.self) && .without(Visibility.self)
-    )
+
+    @FilterQuery<Entity, And<With<Transform>, Without<Visibility>>>
     private var entitiesWithoutVisibility
     
     public init(world: World) { }
-    
+
     public func update(context: inout UpdateContext) {
-        self.addVisibilityIfNeeded()
-        
-        self.cameras.forEach { entity in
-            var (camera, visibleEntities) = entity.components[Camera.self, VisibleEntities.self]
-            
+        self.cameras.forEach { camera, visibleEntities in
             if !camera.isActive {
                 return
             }
@@ -54,27 +44,20 @@ public struct VisibilitySystem {
             let (filtredEntities, entityIds) = self.filterVisibileEntities(context: context, for: camera)
             visibleEntities.entities = filtredEntities
             visibleEntities.entityIds = entityIds
-            entity.components[VisibleEntities.self] = visibleEntities
-        }
-    }
-    
-    private func addVisibilityIfNeeded() {
-        self.entitiesWithoutVisibility.forEach { entity in
-            entity.components += Visibility.visible
         }
     }
     
     /// Filter entities for passed camera.
-    private func filterVisibileEntities(context: borrowing UpdateContext, for camera: Camera) -> ([Entity], Set<Entity.ID>) {
+    private func filterVisibileEntities(
+        context: borrowing UpdateContext, 
+        for camera: Camera
+    ) -> (entities: [Entity], entityIds: Set<Entity.ID>) {
         let frustum = camera.computedData.frustum
         var entityIds = Set<Entity.ID>()
-        let filtredEntities = self.entities.filter { entity in
-            let (bounding, visibility) = entity.components[BoundingComponent.self, Visibility.self]
-            
+        let filtredEntities: [Entity] = self.entities.compactMap { entity, visibility, bounding in
             if visibility == .hidden {
-                return false
+                return nil
             }
-            
             switch bounding.bounds {
             case .aabb(let aabb):
                 let isIntersect = frustum.intersectsAABB(aabb)
@@ -83,19 +66,16 @@ public struct VisibilitySystem {
                     entityIds.insert(entity.id)
                 }
                 
-                return isIntersect
+                return isIntersect ? entity : nil
             }
         }
         
-        let withNoFrustumEntities = self.entitiesWithNoFrustum.filter { entity in
-            let visibility = entity.components[Visibility.self]!
-            
+        let withNoFrustumEntities: [Entity] = self.entitiesWithNoFrustum.compactMap { entity, visibility in
             if visibility != .hidden {
                 entityIds.insert(entity.id)
-                return true
+                return entity
             }
-            
-            return false
+            return nil
         }
         let entities = filtredEntities + withNoFrustumEntities
         return (entities, entityIds)

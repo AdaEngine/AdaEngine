@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 5/31/22.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 // TODO: Think about it later. Maybe we should use some namespace
 
@@ -26,6 +30,8 @@ public func TODO(
     file: StaticString = #file
 ) -> Never {
     #if DEBUG
+    fatalError("TODO: [\(file):\(functionName):\(line)] \(message()).")
+    #else
     fatalError("TODO: [\(file):\(functionName):\(line)] \(message()).")
     #endif
 }
