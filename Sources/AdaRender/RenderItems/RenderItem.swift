@@ -58,7 +58,7 @@ public protocol RenderItem: Sendable {
     associatedtype SortKey: Comparable
     
     /// The entity of the render item.
-    var entity: Entity { get }
+    var entity: Entity.ID { get }
 
     /// The draw pass of the render item.
     var drawPass: any DrawPass { get }

@@ -168,7 +168,7 @@ public struct Mesh2DRenderSystem: Sendable {
                         continue
                     }
 
-                    let emptyEntity = world.spawn() {
+                    let entity = world.spawn() {
                         ExctractedMeshPart2d(
                             part: part,
                             material: material,
@@ -178,8 +178,8 @@ public struct Mesh2DRenderSystem: Sendable {
 
                     items.append(
                         Transparent2DRenderItem(
-                            entity: emptyEntity,
-                            batchEntity: emptyEntity,
+                            entity: entity.id,
+                            batchEntity: entity,
                             drawPass: self.meshDrawPass,
                             renderPipeline: pipeline,
                             sortKey: mesh.transform.position.z

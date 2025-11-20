@@ -28,7 +28,11 @@ public struct Mesh2DDrawPass: DrawPass {
         view: Entity,
         item: Transparent2DRenderItem
     ) throws {
-        let meshComponent = item.entity.components.get(ExctractedMeshPart2d.self)
+        guard let entity = world.getEntityByID(item.entity) else {
+            return
+        }
+
+        let meshComponent = entity.components.get(ExctractedMeshPart2d.self)
         let part = meshComponent.part
 //        let drawList = context.drawList
 //        

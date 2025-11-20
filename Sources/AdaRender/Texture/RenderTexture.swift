@@ -58,10 +58,6 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
         fatalError("init(asset:) has not been implemented")
     }
 
-    deinit {
-        print("Please deinit")
-    }
-
     func setActive(_ isActive: Bool) {
         self.isActive = isActive
     }

@@ -130,8 +130,8 @@ public struct Main2DRenderNode: RenderNode {
 public struct Transparent2DRenderItem: RenderItem {
     
     /// An entity that hold additional information about render item.
-    public var entity: Entity
-    
+    public var entity: Entity.ID
+
     /// An entity for batch rendering.
     public var batchEntity: Entity
     
@@ -148,7 +148,7 @@ public struct Transparent2DRenderItem: RenderItem {
     public var batchRange: Range<Int32>?
 
     public init(
-        entity: Entity,
+        entity: Entity.ID,
         batchEntity: Entity,
         drawPass: any DrawPass,
         renderPipeline: RenderPipeline,
