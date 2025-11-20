@@ -138,6 +138,9 @@ public struct SpriteRenderSystem: Sendable {
     @Res
     private var spriteRenderPipeline: SpriteRenderPipeline!
 
+    @Commands
+    private var commands
+
     static let quadPosition: [Vector4] = [
         [-0.5, -0.5,  0.0, 1.0],
         [ 0.5, -0.5,  0.0, 1.0],
@@ -169,7 +172,7 @@ public struct SpriteRenderSystem: Sendable {
         visibleEntities: VisibleEntities,
         renderItems: inout RenderItems<Transparent2DRenderItem>
     ) {
-        let spriteData = world.spawn("sprite_data")
+        let spriteData = commands.spawn("sprite_data")
         let sprites = extractedSprites
             .sorted { lhs, rhs in
                 lhs.transform.position.z < rhs.transform.position.z
@@ -234,7 +237,7 @@ public struct SpriteRenderSystem: Sendable {
 
             renderItems.items.append(
                 Transparent2DRenderItem(
-                    entity: spriteData,
+                    entity: spriteData.entityId,
                     batchEntity: currentBatchEntity,
                     drawPass: self.spriteDrawPass,
                     renderPipeline: self.spriteRenderPipeline.renderPipeline,
@@ -286,7 +289,7 @@ public struct SpriteRenderSystem: Sendable {
 //            vertexBuffer: vertexBuffer,
 //            indexBuffer: quadIndexBuffer
 //        )
-        print("Add SpriteDataComponent to entity \(spriteData.id) an data component")
+        print("Add SpriteDataComponent to entity \(spriteData.entityId) an data component")
     }
 }
 

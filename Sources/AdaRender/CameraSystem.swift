@@ -121,6 +121,7 @@ public struct CameraSystem: Sendable {
 @inline(__always)
 public func ExtractCamera(
     _ world: World,
+    _ commands: Commands,
     _ query: Extract<
         Query<Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
     >
@@ -135,7 +136,7 @@ public func ExtractCamera(
         )
 
         buffer.setData(uniform)
-        world.spawn("ExtractedCameraEntity") {
+        commands.spawn("ExtractedCameraEntity") {
             camera
             transform
             visibleEntities

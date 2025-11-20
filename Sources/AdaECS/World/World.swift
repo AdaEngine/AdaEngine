@@ -56,8 +56,8 @@ public final class World: @unchecked Sendable, Codable {
     public private(set) var lastTick: Tick = Tick(value: 0)
 
     /// The archetypes of the world.
-    @LocalIsolated public private(set) var entities: Entities = Entities()
-    @LocalIsolated public private(set) var archetypes: Archetypes = Archetypes()
+    public private(set) var entities: Entities = Entities()
+    public private(set) var archetypes: Archetypes = Archetypes()
 
     /// The removed entities of the world.
     internal private(set) var removedEntities: Set<Entity.ID> = []
@@ -66,7 +66,7 @@ public final class World: @unchecked Sendable, Codable {
     /// The updated entities of the world.
     private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
 
-    @LocalIsolated private var componentsStorage = ComponentsStorage()
+    private var componentsStorage = ComponentsStorage()
     public var commandQueue: WorldCommandQueue = WorldCommandQueue()
 
     public private(set) var eventManager: EventManager = EventManager.default
