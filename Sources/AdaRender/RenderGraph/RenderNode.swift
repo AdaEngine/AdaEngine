@@ -29,7 +29,8 @@ public protocol RenderNode: Sendable {
 
     /// Execute the graph node logic, issues draw calls, updates the output slots and optionally queues up subgraphs for execution. The graph data, input and output values are
     /// passed via the ``RenderGraphContext``.
-    @RenderGraphActor func execute(
+    @RenderGraphActor
+    func execute(
         context: inout Context,
         renderContext: RenderContext
     ) async throws -> [RenderSlotValue]

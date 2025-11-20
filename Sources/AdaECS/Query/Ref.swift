@@ -60,7 +60,7 @@ public protocol ChangeDetectionable {
 
 public extension ChangeDetectionable {
     var isChanged: Bool {
-        return self.changeTick.change?.wrappedValue == self.changeTick.lastTick
+        return self.changeTick.change?.wrappedValue == self.changeTick.currentTick
     }
 
     func setChanged() {
