@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import AdaUtils
 import Math
 
 /// A system that updates the global transform of the entity.
@@ -20,8 +21,8 @@ public struct TransformSystem {
 
     public init(world: World) { }
     
-    public func update(context: inout UpdateContext) {
-        self.query.forEach { entity, transform in
+    public func update(context: inout UpdateContext) async {
+        await self.query.parallel().forEach { entity, transform in
             let globalTransform = GlobalTransform(matrix: transform.matrix)
             commands.entity(entity.id)
                 .insert(globalTransform)
@@ -43,8 +44,8 @@ public struct ChildTransformSystem {
 
     public init(world: World) { }
     
-    public func update(context: inout UpdateContext) {
-        self.query.forEach { entity, globalTransform in
+    public func update(context: inout UpdateContext) async {
+        await self.query.parallel().forEach { entity, globalTransform in
             guard !entity.children.isEmpty else {
                 return
             }
