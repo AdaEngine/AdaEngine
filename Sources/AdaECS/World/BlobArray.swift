@@ -12,6 +12,7 @@ import FoundationEssentials
 import Foundation
 #endif
 
+@unsafe
 public struct BlobArray: Sendable {
     final class _Buffer: @unchecked Sendable {
         let count: Int

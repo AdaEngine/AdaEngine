@@ -96,8 +96,8 @@ public extension AppScene {
         value: Value
     ) -> some AppScene {
         transformAppWorlds { worlds in
-            let resource = worlds.main.getMutableResource(T.self)
-            resource.wrappedValue?[keyPath: keyPath] = value
+            let resource = worlds.main.getRefResource(T.self)
+            resource.wrappedValue[keyPath: keyPath] = value
         }
     }
 }

@@ -148,8 +148,8 @@ public extension AppWorlds {
     /// Get mutable resource from the world.
     /// - Parameter resource: The resource to insert.
     /// - Returns: The app builder.
-    func getMutableResource<T: Resource>(_ resource: T.Type) -> Mutable<T?> {
-        return self.main.getMutableResource(resource)
+    func getRefResource<T: Resource>(_ resource: T.Type) -> Ref<T> {
+        self.main.getRefResource(resource)
     }
 
     func build() throws {

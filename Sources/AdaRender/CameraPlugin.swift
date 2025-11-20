@@ -27,8 +27,8 @@ public struct CameraPlugin: Plugin {
         renderWorld
             .addSystem(ExtractCameraSystem.self, on: .extract)
             .addSystem(ConfigurateRenderViewTargetSystem.self, on: .update)
-            .getMutableResource(RenderGraph.self)
-            .wrappedValue?
+            .getRefResource(RenderGraph.self)
+            .wrappedValue
             .addNode(CameraRenderNode())
     }
 }
