@@ -15,11 +15,11 @@ import Foundation
 import Atomics
 
 public struct ChangeDetectionTick {
-    public var change: Tick?
+    public var change: UnsafeBox<Tick>?
     public let lastTick: Tick
     public let currentTick: Tick
 
-    public init(change: Tick?, lastTick: Tick, currentTick: Tick) {
+    public init(change: UnsafeBox<Tick>?, lastTick: Tick, currentTick: Tick) {
         self.change = change
         self.lastTick = lastTick
         self.currentTick = currentTick
@@ -67,6 +67,7 @@ public final class World: @unchecked Sendable, Codable {
     private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
 
     private var componentsStorage = ComponentsStorage()
+    private var resources = Resources()
     public var commandQueue: WorldCommandQueue = WorldCommandQueue()
 
     public private(set) var eventManager: EventManager = EventManager.default
@@ -99,20 +100,20 @@ public final class World: @unchecked Sendable, Codable {
         }
 
         let resourcesContainer = try container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
-        for resourceKey in resourcesContainer.allKeys {
-            guard let resourceType = ResourceStorage.getRegisteredResource(for: resourceKey.stringValue) else {
-                throw DecodingError.dataCorruptedError(
-                    forKey: .resources,
-                    in: container,
-                    debugDescription: "Resource \(resourceKey) not found"
-                )
-            }
-
-            if let decodable = resourceType as? Decodable.Type {
-                let resource = try decodable.init(from: resourcesContainer.superDecoder(forKey: resourceKey))
-                self.insertTypeErasedResource(resource as! Resource)
-            }
-        }
+//        for resourceKey in resourcesContainer.allKeys {
+//            guard let resourceType = ResourceStorage.getRegisteredResource(for: resourceKey.stringValue) else {
+//                throw DecodingError.dataCorruptedError(
+//                    forKey: .resources,
+//                    in: container,
+//                    debugDescription: "Resource \(resourceKey) not found"
+//                )
+//            }
+//
+//            if let decodable = resourceType as? Decodable.Type {
+//                let resource = try decodable.init(from: resourcesContainer.superDecoder(forKey: resourceKey))
+//                self.insertTypeErasedResource(resource as! Resource)
+//            }
+//        }
 
         self.flush()
     }
@@ -126,9 +127,9 @@ public final class World: @unchecked Sendable, Codable {
         })
         try container.encode(entities, forKey: .entities)
         var unkeyedContainer = container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
-        for resource in self.componentsStorage.resourceComponents.values {
-            try unkeyedContainer.encode(AnyEncodable(resource), forKey: CodingName(stringValue: type(of: resource).swiftName))
-        }
+//        for resource in self.resources.resources.values {
+//            try unkeyedContainer.encode(AnyEncodable(resource), forKey: CodingName(stringValue: type(of: resource).swiftName))
+//        }
     }
 
     public func copy() -> World {
@@ -390,8 +391,7 @@ public extension World {
     /// - Returns: A world instance.
     @discardableResult
     func insertResource<T: Resource>(_ resource: consuming T) -> Self {
-        let componentId = self.componentsStorage.getOrRegisterResource(T.self)
-        self.componentsStorage.resourceComponents[componentId] = resource
+        self.resources.insertResource(resource, tick: lastTick)
         return self
     }
 
@@ -400,23 +400,20 @@ public extension World {
     /// - Returns: A world instance.
     @discardableResult
     private func insertTypeErasedResource(_ resource: consuming any Resource) -> Self {
-        let resource = resource
-        let componentId = self.componentsStorage.getOrRegisterResource(type(of: resource))
-        self.componentsStorage.resourceComponents[componentId] = resource
+        self.resources.insertResource(resource, tick: lastTick)
         return self
     }
 
     func createResource<T: Resource & WorldInitable>(of type: T.Type) -> T {
         let resource = type.init(from: self)
-        let componentId = self.componentsStorage.getOrRegisterResource(T.self)
-        self.componentsStorage.resourceComponents[componentId] = resource
+        self.resources.insertResource(resource, tick: lastTick)
         return resource
     }
 
     /// Remove a resource from the world.
     /// - Parameter resource: The resource to remove.
     consuming func removeResource<T: Resource>(_ resource: T.Type) {
-        self.componentsStorage.removeResource(resource)
+        self.resources.removeResource(resource)
     }
 
     /// Get a resource from the world.
@@ -424,7 +421,7 @@ public extension World {
     /// - Complexity: O(1)
     /// - Returns: The resource if it exists, otherwise nil.
     borrowing func getResource<T: Resource>(_ resource: T.Type) -> T? {
-        return self.componentsStorage.getResource(resource)
+        return self.resources.getResource(resource)
     }
 
     /// Get a resource from the world or initialize it if it doesn't exist.
@@ -432,12 +429,11 @@ public extension World {
     /// - Complexity: O(1)
     /// - Returns: The resource if it exists, otherwise the initialized resource.
     func getOrInitResource<T: Resource & WorldInitable>(of type: T.Type) -> T {
-        if let resource = self.componentsStorage.getResource(T.self) {
+        if let resource = self.resources.getResource(T.self) {
             return resource
         }
         let resource = type.init(from: self)
-        let componentId = self.componentsStorage.getOrRegisterResource(T.self)
-        self.componentsStorage.resourceComponents[componentId] = resource
+        resources.insertResource(resource, tick: lastTick)
         return resource
     }
 
@@ -445,29 +441,28 @@ public extension World {
     /// - Parameter resource: The resource to get.
     /// - Complexity: O(1)
     /// - Returns: The resource if it exists, otherwise nil.
-    func getMutableResource<T: Resource>(_ resource: T.Type) -> Mutable<T?> {
-        return Mutable { [unowned self] in
-            self.getResource(resource)
-        } set: { [unowned self] newValue in
-            if let newValue {
-                let componentId = self.componentsStorage.getOrRegisterResource(T.self)
-                self.componentsStorage.resourceComponents[componentId] = newValue
-            } else {
-                self.removeResource(T.self)
-            }
-        }
+    func getRefResource<T: Resource>(_ resource: T.Type) -> Ref<T> {
+        let resource = self.resources.getResourceData(T.self)?.getWithTick(T.self)
+        return Ref(
+            pointer: resource?.pointer,
+            changeTick: .init(
+                change: resource?.changedTick,
+                lastTick: lastTick,
+                currentTick: lastTick
+            )
+        )
     }
     
     /// Get all resources from the world.
     /// - Returns: All resources in world.
     func getResources() -> [any Resource] {
-        return Array(self.componentsStorage.resourceComponents.values)
+        return self.resources.getResources()
     }
 
     /// Clear all resources from the world.
     /// - Complexity: O(1)
     func clearResources() {
-        self.componentsStorage.resourceComponents.removeAll(keepingCapacity: true)
+        self.resources.clear()
     }
 }
 

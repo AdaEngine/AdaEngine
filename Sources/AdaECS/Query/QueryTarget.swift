@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 22.05.2025.
 //
 
+import AdaUtils
+
 /// A protocol that allows to use components and entities as query targets.
 public protocol QueryTarget: Sendable, ~Copyable {
 
@@ -70,11 +72,10 @@ extension Ref: QueryTarget where T: Component {
         archetype: Archetype,
         world: borrowing World
     ) -> Ref<T> {
-        Ref(
+        unsafe Ref(
             pointer: chunk.getMutablePointer(T.self, for: entity.id)!,
-            currentTick: chunk.getMutableTick(T.self, for: entity.id)!,
             changeTick: .init(
-                change: nil,
+                change: chunk.getMutableTick(T.self, for: entity.id)!.unsafeBox(),
                 lastTick: world.lastTick,
                 currentTick: world.lastTick
             )

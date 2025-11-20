@@ -62,43 +62,32 @@ extension Optional: Resource where Wrapped: Resource {
 public final class ResMut<T: Resource>: @unchecked Sendable {
 
     /// The value of the query.
-    private var _value: Mutable<T>
+    private var _value: Ref<T>?
 
     /// The wrapped value of the query.
     public var wrappedValue: T {
         get {
-            self._value.wrappedValue
+            self._value!.wrappedValue
         }
         set {
-            self._value.wrappedValue = newValue
+            self._value!.wrappedValue = newValue
         }
     }
 
     /// Initialize a new resource query.
     public init() {
-        self._value = Mutable(
-            get: {
-                fatalError("ResMut not initialized from the world")
-            },
-            set: { _ in
-                fatalError("ResMut not initialized from the world")
-            }
-        )
+        self._value = nil
     }
 
     /// Initialize a new resource query.
     /// - Parameter world: The world that will be used to initialize the query.
     public init(from world: World) {
-        self._value = Mutable { [unowned world] in
-            T.getFromWorld(world)!
-        } set: { [unowned world] newValue in
-            world.insertResource(newValue)
-        }
+        self._value = world.getRefResource(T.self)
     }
 
     /// Get the value of the query.
     /// - Returns: The value of the query.
-    public func callAsFunction() -> Mutable<T> {
+    public func callAsFunction() -> Ref<T>? {
         _value
     }
 
@@ -114,10 +103,6 @@ public final class ResMut<T: Resource>: @unchecked Sendable {
 
 extension ResMut: SystemParameter {
     public func update(from world: World) {
-        self._value = Mutable { [unowned world] in
-            T.getFromWorld(world)!
-        } set: { [unowned world] newValue in
-            world.insertResource(newValue)
-        }
+        self._value = world.getRefResource(T.self)
     }
 }
