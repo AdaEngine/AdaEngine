@@ -88,6 +88,7 @@ public extension Commands {
         self.queue.commands.append(contentsOf: commands.queue.commands)
     }
 
+    @discardableResult
     func spawn(
         _ name: String = "",
         @ComponentsBuilder components: @escaping @Sendable () -> ComponentsBundle
@@ -99,6 +100,7 @@ public extension Commands {
         return EntityCommands(queue: &queue, entityId: entity.id)
     }
 
+    @discardableResult
     func spawn<T: ComponentsBundle>(
         _ name: String = "",
         bundle: consuming T
@@ -110,6 +112,16 @@ public extension Commands {
         return EntityCommands(queue: &queue, entityId: entity.id)
     }
 
+    @discardableResult
+    func spawn(_ name: String = "") -> EntityCommands {
+        let entity = entities.allocate(with: name)
+        self.queue.push { world in
+            world.insertNewEntity(entity, components: [])
+        }
+        return EntityCommands(queue: &queue, entityId: entity.id)
+    }
+
+    @discardableResult
     func insertEntity(_ entity: Entity) -> EntityCommands {
         entities.addNotAllocatedEntity(entity)
         queue.push { world in
@@ -118,6 +130,7 @@ public extension Commands {
         return EntityCommands(queue: &queue, entityId: entity.id)
     }
 
+    @discardableResult
     func entity(_ entity: Entity.ID) -> EntityCommands {
         EntityCommands(queue: &queue, entityId: entity)
     }
