@@ -23,9 +23,9 @@ public final class AudioResource: Asset, @unchecked Sendable {
 
     public required init(from decoder: AssetDecoder) throws {
         if Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) {
-            self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetData)
+            self.sound = unsafe try AudioServer.shared.engine.makeSound(from: decoder.assetData)
         } else {
-            self.sound = try AudioServer.shared.engine.makeSound(from: decoder.assetMeta.filePath)
+            self.sound = unsafe try AudioServer.shared.engine.makeSound(from: decoder.assetMeta.filePath)
         }
     }
     
@@ -52,13 +52,13 @@ public final class AudioResource: Asset, @unchecked Sendable {
     /// Create a new instance of audio resource from a file.
     /// - Note: Supports `WAV` format.
     public static func create(from url: URL) throws -> AudioResource {
-        let sound = try AudioServer.shared.engine.makeSound(from: url)
+        let sound = unsafe try AudioServer.shared.engine.makeSound(from: url)
         return AudioResource(sound: sound)
     }
     
     /// Create a new instance of audio resource from a data.
     public static func create(from data: Data) throws -> AudioResource {
-        let sound = try AudioServer.shared.engine.makeSound(from: data)
+        let sound = unsafe try AudioServer.shared.engine.makeSound(from: data)
         return AudioResource(sound: sound)
     }
 }

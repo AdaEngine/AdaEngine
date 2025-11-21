@@ -102,7 +102,7 @@ public final class ResMut<T: Resource>: @unchecked Sendable {
 }
 
 extension ResMut: SystemParameter {
-    public func update(from world: World) {
+    public func update(from world: consuming World) {
         self._value = world.getRefResource(T.self)
     }
 }

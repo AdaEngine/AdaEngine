@@ -19,7 +19,7 @@ final class MacApplication: Application {
     private var gameControllerManager: AppleGameControllerManager?
 
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        try super.init(argc: argc, argv: argv)
+        unsafe try super.init(argc: argc, argv: argv)
         self.windowManager = MacOSWindowManager()
         UIWindowManager.setShared(self.windowManager)
 

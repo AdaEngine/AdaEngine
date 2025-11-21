@@ -73,6 +73,7 @@ extension World {
 
 extension World {
     struct Resources: Sendable {
+        @safe
         struct ResourceData: @unchecked Sendable {
             let pointer: BlobArray
             let resourceType: any Resource.Type
@@ -81,7 +82,7 @@ extension World {
             func getWithTick<T: Resource>(
                 _ type: T.Type
             ) -> (pointer: UnsafeMutablePointer<T>, changedTick: UnsafeBox<Tick>) {
-                (
+                unsafe (
                     pointer.getMutablePointer(at: 0, as: T.self),
                     changedTick
                 )
@@ -97,7 +98,7 @@ extension World {
                   let resource = self.resourceData[componentId] else {
                 return nil
             }
-            return resource.pointer.get(at: 0, as: T.self)
+            return unsafe resource.pointer.get(at: 0, as: T.self)
         }
 
         func getResources() -> Array<any Resource> {
@@ -165,13 +166,13 @@ extension World {
         }
 
         private func makeResourceData<T: Resource>(_ resource: consuming T, tick: Tick) -> ResourceData {
-            let array = BlobArray(count: 1, of: T.self) { pointer, count in
-                pointer.baseAddress?
+            let array = unsafe BlobArray(count: 1, of: T.self) { pointer, count in
+                unsafe pointer.baseAddress?
                     .assumingMemoryBound(to: T.self)
                     .deinitialize(count: count)
             }
-            array.insert(resource, at: 0)
-            return ResourceData(
+            unsafe array.insert(resource, at: 0)
+            return unsafe ResourceData(
                 pointer: array,
                 resourceType: T.self,
                 changedTick: UnsafeBox(tick)

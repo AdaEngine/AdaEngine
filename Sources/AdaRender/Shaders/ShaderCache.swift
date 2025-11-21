@@ -11,7 +11,7 @@ import FoundationEssentials
 #else
 import Foundation
 #endif
-@preconcurrency import Yams
+@unsafe @preconcurrency import Yams
 
 /// Contains information about shader changes and store/load spirv binary in cache folder.
 enum ShaderCache {

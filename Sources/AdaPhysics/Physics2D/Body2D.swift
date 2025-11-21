@@ -34,7 +34,7 @@ public final class Body2D: @unchecked Sendable {
         transform: Transform,
         shapeDef: b2ShapeDef
     ) -> BoxShape2D {
-        let shapeId = BoxShape2D.makeShape(
+        let shapeId = unsafe BoxShape2D.makeShape(
             for: shapeResource,
             transform: transform,
             shapeDef: shapeDef,
@@ -49,8 +49,8 @@ public final class Body2D: @unchecked Sendable {
 
     func getShapes() -> [BoxShape2D] {
         let shapes = UnsafeMutablePointer<b2ShapeId>.allocate(capacity: Int(shapesCount))
-        b2Body_GetShapes(bodyId, shapes, shapesCount)
-        return Array(UnsafeBufferPointer(start: shapes, count: Int(shapesCount))).map {
+        unsafe b2Body_GetShapes(bodyId, shapes, shapesCount)
+        return unsafe Array(UnsafeBufferPointer(start: shapes, count: Int(shapesCount))).map {
             BoxShape2D(shape: $0)
         }
     }
@@ -169,7 +169,7 @@ final class BoxShape2D {
             return nil
         }
         
-        return Unmanaged<Body2D>.fromOpaque(ptr).takeUnretainedValue()
+        return unsafe Unmanaged<Body2D>.fromOpaque(ptr).takeUnretainedValue()
     }
 
     var filter: b2Filter {
@@ -202,21 +202,21 @@ final class BoxShape2D {
     ) -> b2ShapeId {
         switch shape.fixture {
         case .polygon(let shape):
-            var hull = shape.verticies.withUnsafeBytes { ptr in
-                let baseAddress = ptr.assumingMemoryBound(to: b2Vec2.self).baseAddress
-                return b2ComputeHull(baseAddress, Int32(shape.verticies.count))
+            var hull = unsafe shape.verticies.withUnsafeBytes { ptr in
+                let baseAddress = unsafe ptr.assumingMemoryBound(to: b2Vec2.self).baseAddress
+                return unsafe b2ComputeHull(baseAddress, Int32(shape.verticies.count))
             }
 
-            let polygon = b2MakeOffsetPolygon(&hull, shape.offset.b2Vec, b2Rot_identity)
-            return withUnsafePointer(to: shapeDef) { shapeDefPtr in
-                withUnsafePointer(to: polygon) { polygonPtr in
-                    b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
+            let polygon = unsafe b2MakeOffsetPolygon(&hull, shape.offset.b2Vec, b2Rot_identity)
+            return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
+                unsafe withUnsafePointer(to: polygon) { polygonPtr in
+                    unsafe b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
                 }
             }
         case .circle(let shape):
             var circle = b2Circle(center: Vector2.zero.b2Vec, radius: shape.radius * transform.scale.x)
-            return withUnsafePointer(to: shapeDef) { shapeDefPtr in
-                b2CreateCircleShape(bodyId, shapeDefPtr, &circle)
+            return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
+                unsafe b2CreateCircleShape(bodyId, shapeDefPtr, &circle)
             }
         case .box(let shape):
             let polygon = b2MakeBox(
@@ -224,9 +224,9 @@ final class BoxShape2D {
                 transform.scale.y * shape.halfHeight
             )
             
-            return withUnsafePointer(to: shapeDef) { shapeDefPtr in
-                withUnsafePointer(to: polygon) { polygonPtr in
-                    b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
+            return unsafe withUnsafePointer(to: shapeDef) { shapeDefPtr in
+                unsafe withUnsafePointer(to: polygon) { polygonPtr in
+                    unsafe b2CreatePolygonShape(bodyId, shapeDefPtr, polygonPtr)
                 }
             }
         }

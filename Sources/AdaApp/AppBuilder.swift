@@ -161,6 +161,7 @@ public extension AppWorlds {
         try self.subWorlds.values.forEach {
             try $0.build()
         }
+        self.plugins.forEach { $0.value.finish(for: self) }
         self.isConfigured = true
     }
 }

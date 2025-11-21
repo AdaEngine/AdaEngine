@@ -137,9 +137,9 @@ public struct AssetMetaInfo: Codable, Sendable {
 /// assetHandle.update(newAsset)
 /// ```
 ///
-public final class AssetHandle<T: Asset>: Codable, Sendable {
+public final class AssetHandle<T: Asset>: Codable, @unchecked Sendable {
     /// The asset instance.
-    public private(set) nonisolated(unsafe) var asset: T
+    public private(set) var asset: T
     
     /// Initialize a new asset handle from an asset.
     /// - Parameter asset: The asset to initialize the asset handle from.

@@ -7,7 +7,7 @@
 
 /// Holds and manage pointer to instance.
 @propertyWrapper
-@unsafe
+@safe
 public struct UnsafeBox<T> {
 
     @usableFromInline
@@ -16,40 +16,40 @@ public struct UnsafeBox<T> {
     @inlinable
     public var wrappedValue: T {
         _read {
-            yield box.pointer.assumingMemoryBound(to: T.self).pointee
+            yield unsafe box.pointer.assumingMemoryBound(to: T.self).pointee
         }
         _modify {
-            yield &box.pointer.assumingMemoryBound(to: T.self).pointee
+            yield unsafe &box.pointer.assumingMemoryBound(to: T.self).pointee
         }
     }
 
     @inlinable
     public var projectedValue: UnsafeMutablePointer<T> {
-        self.box.pointer.assumingMemoryBound(to: T.self)
+        unsafe self.box.pointer.assumingMemoryBound(to: T.self)
     }
 
     @inlinable
     public init(_ block: () -> T) {
-        self.box = _UnsafeBox(block())
+        unsafe self.box = _UnsafeBox(block())
     }
 
     @inlinable
     public init(_ wrappedValue: consuming T) {
-        self.box = _UnsafeBox(wrappedValue)
+        unsafe self.box = _UnsafeBox(wrappedValue)
     }
 
     @inlinable
     public init(_ pointer: UnsafeMutablePointer<T>) {
-        self.box = _UnsafeBox(pointer)
+        unsafe self.box = _UnsafeBox(pointer)
     }
 
     init(_ box: _UnsafeBox) {
-        self.box = box
+        unsafe self.box = box
     }
 
     @inlinable
     public func getPointer() -> UnsafeMutablePointer<T> {
-        self.box.pointer.assumingMemoryBound(to: T.self)
+        unsafe self.box.pointer.assumingMemoryBound(to: T.self)
     }
 
     @inlinable
@@ -80,7 +80,7 @@ extension UnsafeBox: Hashable where T: Hashable {
 extension UnsafeBox: Codable where T: Codable {
     public init(from decoder: any Decoder) throws {
         let value = try T.init(from: decoder)
-        self.box = _UnsafeBox(value)
+        unsafe self.box = _UnsafeBox(value)
     }
 
     public func encode(to encoder: any Encoder) throws {
@@ -91,7 +91,7 @@ extension UnsafeBox: Codable where T: Codable {
 public extension UnsafeMutablePointer {
     @inlinable
     func unsafeBox() -> UnsafeBox<Pointee> {
-        UnsafeBox(self)
+        unsafe UnsafeBox(self)
     }
 }
 
@@ -106,28 +106,28 @@ final class _UnsafeBox: @unchecked Sendable {
 
     @usableFromInline
     init<T>(_ instance: consuming T) {
-        pointer = .allocate(byteCount: MemoryLayout<T>.stride, alignment: MemoryLayout<T>.alignment)
-        pointer.initializeMemory(as: T.self, to: instance)
-        deallocator = {
-            $0.assumingMemoryBound(to: T.self)
+        unsafe pointer = .allocate(byteCount: MemoryLayout<T>.stride, alignment: MemoryLayout<T>.alignment)
+        unsafe pointer.initializeMemory(as: T.self, to: instance)
+        unsafe deallocator = {
+            unsafe $0.assumingMemoryBound(to: T.self)
                 .deinitialize(count: 1)
         }
-        automanaged = true
+        unsafe automanaged = true
     }
 
     @usableFromInline
     init<T>(_ pointer: UnsafeMutablePointer<T>) {
-        self.pointer = UnsafeMutableRawPointer(pointer)
-        self.deallocator = nil
-        self.automanaged = false
+        unsafe self.pointer = UnsafeMutableRawPointer(pointer)
+        unsafe self.deallocator = nil
+        unsafe self.automanaged = false
     }
 
     deinit {
-        guard self.automanaged else {
+        guard unsafe self.automanaged else {
             return
         }
-        deallocator?(pointer)
-        pointer.deallocate()
+        unsafe deallocator?(pointer)
+        unsafe pointer.deallocate()
     }
 }
 
@@ -138,20 +138,20 @@ public struct UnsafeAnyBox {
 
     @inlinable
     public init<T>(_ block: () -> T) {
-        self.box = _UnsafeBox(block())
+        unsafe self.box = _UnsafeBox(block())
     }
 
     @inlinable
     public init<T>(_ wrappedValue: consuming T) {
-        self.box = _UnsafeBox(wrappedValue)
+        unsafe self.box = _UnsafeBox(wrappedValue)
     }
 
     @inlinable
     public init<T>(_ pointer: UnsafeMutablePointer<T>) {
-        self.box = _UnsafeBox(pointer)
+        unsafe self.box = _UnsafeBox(pointer)
     }
 
     public func bind<T>(to type: T.Type) -> UnsafeBox<T> {
-        return UnsafeBox(box)
+        return unsafe UnsafeBox(box)
     }
 }

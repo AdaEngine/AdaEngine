@@ -8,7 +8,7 @@
 // TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
 #if METAL
-@preconcurrency import Metal
+@unsafe @preconcurrency import Metal
 import ModelIO
 import MetalKit
 import OrderedCollections
@@ -29,7 +29,7 @@ class MetalRenderBackend: RenderBackend {
     init(appName: String) {
         self.context = Context()
         
-        self.inFlightSemaphore = DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
+        self.inFlightSemaphore = unsafe DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
 
         self.renderDevice = MetalRenderDevice(
@@ -76,7 +76,7 @@ class MetalRenderBackend: RenderBackend {
     }
 
     func endFrame() throws {
-        currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
+        currentFrameIndex = unsafe (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
         self.inFlightSemaphore.signal()
     }
 }
