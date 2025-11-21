@@ -16,7 +16,7 @@ public struct AudioPlugin: Plugin {
 
     public init() {
         do {
-            self.engine = try MiniAudioEngine()
+            self.engine = unsafe try MiniAudioEngine()
         } catch {
             print("Error", error)
         }
@@ -66,7 +66,7 @@ public struct AudioComponent {
     ///
     /// - Parameter resource: The audio resource to play.
     public init(resource: AudioResource) {
-        self.playbackController = AudioServer.shared.prepareAudio(resource)
+        self.playbackController = unsafe AudioServer.shared.prepareAudio(resource)
     }
 }
 
@@ -105,7 +105,7 @@ public struct AudioSystem {
     let audioEngine: AudioEngine!
 
     public init(world: World) {
-        self.audioEngine = world.getResource(MiniAudioEngine.self)!
+        self.audioEngine = unsafe world.getResource(MiniAudioEngine.self)!
     }
 
     public func update(context: inout UpdateContext) {
@@ -147,7 +147,7 @@ public extension Entity {
             return controller
         }
         
-        var playbackController = AudioServer.shared.prepareAudio(resource)
+        var playbackController = unsafe AudioServer.shared.prepareAudio(resource)
         playbackController.entity = self
         controllers.controllers.append(playbackController)
         self.components += controllers

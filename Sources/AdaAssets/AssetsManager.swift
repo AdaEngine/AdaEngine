@@ -29,6 +29,7 @@ public enum AssetError: LocalizedError {
 }
 
 // TODO: In the future, we should compile assets into binary
+// TODO: Remove unsafe and statics
 
 /// Manager using for loading and saving assets in file system.
 /// Each asset loaded from manager stored in memory cache.
@@ -272,12 +273,12 @@ public struct AssetsManager: Resource {
     // MARK: - Public methods
     
     public static func getAssetType(for typeName: String) -> (any Asset.Type)? {
-        return registredAssetTypes[typeName]
+        return unsafe registredAssetTypes[typeName]
     }
     
     public static func registerAssetType<T: Asset>(_ type: T.Type) {
         Task { @AssetActor in
-            registredAssetTypes[String(reflecting: type)] = T.self
+            unsafe registredAssetTypes[String(reflecting: type)] = T.self
         }
     }
     
@@ -288,7 +289,7 @@ public struct AssetsManager: Resource {
             try FileSystem.current.createDirectory(at: url, withIntermediateDirectories: true)
         }
         
-        self.resourceDirectory = url
+        unsafe self.resourceDirectory = url
         self.storage.loadedAssets.removeAll()
     }
     
@@ -299,10 +300,10 @@ public struct AssetsManager: Resource {
     @_spi(AdaEngine)
     public static func initialize(filePath: StaticString) throws {
         let projectDirectories = try URL.findProjectDirectories(from: filePath)
-        self.projectDirectories = projectDirectories
-        
+        unsafe self.projectDirectories = projectDirectories
+
 #if DEBUG
-        self.resourceDirectory = projectDirectories.assetsDirectory
+        unsafe self.resourceDirectory = projectDirectories.assetsDirectory
 #else
         let fileSystem = FileSystem.current
         let resources = projectDirectories.assetsDirectory
@@ -431,7 +432,7 @@ private extension AssetsManager {
         
         if path.hasPrefix(self.resKeyWord) {
             path.removeFirst(self.resKeyWord.count)
-            url = self.resourceDirectory.appendingPathComponent(path)
+            url = unsafe self.resourceDirectory.appendingPathComponent(path)
         } else {
             url = URL(fileURLWithPath: path)
         }

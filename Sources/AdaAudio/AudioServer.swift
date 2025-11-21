@@ -33,8 +33,8 @@ public final class AudioServer: Resource {
     @_spi(AdaEngine)
     @MainActor
     public static func initialize() throws {
-        let engine = try MiniAudioEngine()
-        self.shared = AudioServer(engine: engine)
+        let engine = unsafe try MiniAudioEngine()
+        unsafe self.shared = AudioServer(engine: engine)
     }
     
     func update(_ deltaTime: AdaUtils.TimeInterval) {

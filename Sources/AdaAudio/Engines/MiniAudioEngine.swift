@@ -26,48 +26,50 @@ enum MAError: LocalizedError {
     }
 }
 
+@unsafe
 struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
 
     static func getFromWorld(_ world: borrowing AdaECS.World) -> MiniAudioEngine? {
-        world.getResource(Self.self)
+        unsafe world.getResource(Self.self)
     }
-    
+
+    @unsafe
     private final class Engine {
-        var enginePtr: UnsafeMutablePointer<ma_engine> = .allocate(
+        var enginePtr: UnsafeMutablePointer<ma_engine> = unsafe .allocate(
             capacity: MemoryLayout.size(ofValue: ma_engine.self)
         )
 
         init() throws {
             var config = ma_engine_config_init()
-            config.channels = 2
-            let result = ma_engine_init(&config, enginePtr)
+            unsafe config.channels = 2
+            let result = unsafe ma_engine_init(&config, enginePtr)
             if result != MA_SUCCESS {
                 throw AudioError.engineInitializationFailed
             }
         }
 
         deinit {
-            ma_engine_uninit(enginePtr)
+            unsafe ma_engine_uninit(enginePtr)
         }
     }
 
     private let engine: Engine
 
     init() throws {
-        self.engine = try Engine()
+        unsafe self.engine = try Engine()
     }
     
     // MARK: - AudioEngine
     
     func start() throws {
-        let result = ma_engine_start(engine.enginePtr)
+        let result = unsafe ma_engine_start(engine.enginePtr)
         if result != MA_SUCCESS {
             throw MAError.failed("Failed to start", result)
         }
     }
     
     func stop() throws {
-        let result = ma_engine_stop(engine.enginePtr)
+        let result = unsafe ma_engine_stop(engine.enginePtr)
         if result != MA_SUCCESS {
             throw MAError.failed("Failed to stop", result)
         }
@@ -76,59 +78,60 @@ struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
     func update(_ deltaTime: AdaUtils.TimeInterval) { }
 
     func makeSound(from url: URL) throws -> Sound {
-        try MiniSound(from: url, engine: engine.enginePtr)
+        unsafe try MiniSound(from: url, engine: engine.enginePtr)
     }
     
     func makeSound(from data: Data) throws -> Sound {
-        try MiniSound(from: data, engine: engine.enginePtr)
+        unsafe try MiniSound(from: data, engine: engine.enginePtr)
     }
     
     func getAudioListener(at index: Int) -> AudioEngineListener {
-        if index > ma_engine_get_listener_count(engine.enginePtr) - 1 {
+        if unsafe index > ma_engine_get_listener_count(engine.enginePtr) - 1 {
             fatalError("[MiniAudioEngine] Listener not found")
         }
         
-        return MiniAudioEngineListener(engine: engine.enginePtr, listenerIndex: UInt32(index))
+        return unsafe MiniAudioEngineListener(engine: engine.enginePtr, listenerIndex: UInt32(index))
     }
 }
 
 // MARK: - MiniAudioEngineListener -
 
+@unsafe
 final class MiniAudioEngineListener: AudioEngineListener, @unchecked Sendable {
     
     private let engine: UnsafeMutablePointer<ma_engine>
     let listenerIndex: UInt32
-    
+
     init(engine: UnsafeMutablePointer<ma_engine>, listenerIndex: UInt32) {
-        self.engine = engine
-        self.listenerIndex = listenerIndex
+        unsafe self.engine = engine
+        unsafe self.listenerIndex = listenerIndex
     }
     
     var position: Vector3 {
         get {
-            let position = ma_engine_listener_get_position(engine, self.listenerIndex)
+            let position = unsafe ma_engine_listener_get_position(engine, self.listenerIndex)
             return [position.x, position.y, position.z]
         }
         
         set {
-            ma_engine_listener_set_position(engine, listenerIndex, newValue.x, newValue.y, newValue.z)
+            unsafe ma_engine_listener_set_position(engine, listenerIndex, newValue.x, newValue.y, newValue.z)
         }
     }
     
     var direction: Vector3 {
         get {
-            let position = ma_engine_listener_get_direction(engine, listenerIndex)
+            let position = unsafe ma_engine_listener_get_direction(engine, listenerIndex)
             return [position.x, position.y, position.z]
         }
         
         set {
-            ma_engine_listener_set_direction(engine, listenerIndex, newValue.x, newValue.y, newValue.z)
+            unsafe ma_engine_listener_set_direction(engine, listenerIndex, newValue.x, newValue.y, newValue.z)
         }
     }
     
     var velocity: Vector3 {
         get {
-            let position = ma_engine_listener_get_velocity(engine, listenerIndex)
+            let position = unsafe ma_engine_listener_get_velocity(engine, listenerIndex)
             return [position.x, position.y, position.z]
         }
         
@@ -185,18 +188,19 @@ final class MiniAudioEngineListener: AudioEngineListener, @unchecked Sendable {
 
 // MARK: - Sound -
 
+@unsafe
 final class MiniSound: Sound {
     
     private(set) var state: SoundState = .ready
     
     private var completionHandler: (() -> Void)?
     
-    private var sound: UnsafeMutablePointer<ma_sound>? = .allocate(capacity: MemoryLayout.size(ofValue: ma_sound.self))
+    private var sound: UnsafeMutablePointer<ma_sound>? = unsafe .allocate(capacity: MemoryLayout.size(ofValue: ma_sound.self))
 
     init(from fileURL: URL, engine: UnsafeMutablePointer<ma_engine>!) throws {
         let flags = MA_SOUND_FLAG_DECODE.rawValue | MA_SOUND_FLAG_NO_SPATIALIZATION.rawValue
-        let result = fileURL.path.withCString { pFilePath in
-            ma_sound_init_from_file(engine, pFilePath, flags, nil, nil, sound)
+        let result = unsafe fileURL.path.withCString { pFilePath in
+            unsafe ma_sound_init_from_file(engine, pFilePath, flags, nil, nil, sound)
         }
         if result != MA_SUCCESS {
             throw AudioError.soundInitializationFailed
@@ -206,8 +210,8 @@ final class MiniSound: Sound {
     init(from data: Data, engine: UnsafeMutablePointer<ma_engine>!) throws {
         var data = data
         let flags = MA_SOUND_FLAG_DECODE.rawValue | MA_SOUND_FLAG_NO_SPATIALIZATION.rawValue
-        let result = data.withUnsafeMutableBytes { ptr in
-            ma_sound_init_from_data_source(engine, ptr.baseAddress!, flags, nil, sound)
+        let result = unsafe data.withUnsafeMutableBytes { ptr in
+            unsafe ma_sound_init_from_data_source(engine, ptr.baseAddress!, flags, nil, sound)
         }
         
         if result != MA_SUCCESS {
@@ -216,8 +220,8 @@ final class MiniSound: Sound {
     }
     
     private init(prototype: MiniSound) throws {
-        let engine = ma_sound_get_engine(prototype.sound)
-        let result = ma_sound_init_copy(engine, prototype.sound, 0, nil, sound)
+        let engine = unsafe ma_sound_get_engine(prototype.sound)
+        let result = unsafe ma_sound_init_copy(engine, prototype.sound, 0, nil, sound)
 
         if result != MA_SUCCESS {
             throw AudioError.soundInitializationFailed
@@ -225,11 +229,11 @@ final class MiniSound: Sound {
     }
     
     deinit {
-        ma_sound_uninit(sound)
+        unsafe ma_sound_uninit(sound)
     }
     
     func copy() throws -> Sound {
-        return try MiniSound(prototype: self)
+        return unsafe try MiniSound(prototype: self)
     }
     
     func update(_ deltaTime: AdaUtils.TimeInterval) {
@@ -238,47 +242,47 @@ final class MiniSound: Sound {
     
     var volume: Float {
         get {
-            ma_sound_get_volume(sound)
+            unsafe ma_sound_get_volume(sound)
         }
         
         set {
-            ma_sound_set_volume(sound, newValue)
+            unsafe ma_sound_set_volume(sound, newValue)
         }
     }
     
     var pitch: Float {
         get {
-            ma_sound_get_pitch(sound)
+            unsafe ma_sound_get_pitch(sound)
         }
         
         set {
-            ma_sound_set_pitch(sound, newValue)
+            unsafe ma_sound_set_pitch(sound, newValue)
         }
     }
     
     var position: Vector3 {
         get {
-            let position = ma_sound_get_position(sound)
+            let position = unsafe ma_sound_get_position(sound)
             return [position.x, position.y, position.z]
         }
         set {
-            ma_sound_set_position(sound, newValue.x, newValue.y, newValue.z)
+            unsafe ma_sound_set_position(sound, newValue.x, newValue.y, newValue.z)
         }
     }
     
     var isLooping: Bool {
         get {
-            return ma_sound_is_looping(sound) == 1
+            return unsafe ma_sound_is_looping(sound) == 1
         }
         
         set {
-            ma_sound_set_looping(sound, newValue ? 1 : 0)
+            unsafe ma_sound_set_looping(sound, newValue ? 1 : 0)
         }
     }
     
     func start() {
-        self.state = .playing
-        ma_sound_start(sound)
+        unsafe self.state = .playing
+        unsafe ma_sound_start(sound)
     }
     
     func stop() {

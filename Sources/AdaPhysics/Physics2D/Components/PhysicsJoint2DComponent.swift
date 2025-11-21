@@ -33,22 +33,23 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
 }
 
 @Component
+@unsafe
 public struct PhysicsJoint2DComponent: @unchecked Sendable {
     let jointDescriptor: PhysicsJoint2DDescriptor
     
     var runtimeJoint: OpaquePointer?
     
     public init(joint: PhysicsJoint2DDescriptor) {
-        self.jointDescriptor = joint
+        unsafe self.jointDescriptor = joint
     }
     
     public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        self.jointDescriptor = try container.decode(PhysicsJoint2DDescriptor.self)
+        unsafe self.jointDescriptor = try container.decode(PhysicsJoint2DDescriptor.self)
     }
     
     public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
-        try container.encode(self.jointDescriptor)
+        unsafe try container.encode(self.jointDescriptor)
     }
 }
