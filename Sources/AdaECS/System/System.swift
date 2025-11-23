@@ -138,7 +138,8 @@ public struct SystemQueries: Sendable, Equatable {
     }
 }
 
+/// World syncronization actor.
 @globalActor
-actor WorldActor {
-    static let shared = WorldActor()
+public actor WorldActor {
+    public static let shared = WorldActor()
 }

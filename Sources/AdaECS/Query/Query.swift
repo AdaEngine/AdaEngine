@@ -138,7 +138,7 @@ extension FilterQuery  {
 }
 
 extension FilterQuery: SystemParameter {
-    public func update(from world: consuming World) {
+    public func update(from world: World) {
         self.state.updateArchetypes(in: world)
     }
 }

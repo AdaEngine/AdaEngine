@@ -72,7 +72,7 @@ import AdaUtils
 extension EntityQuery: SystemParameter {
     public func finish(_ world: World) { }
 
-    public func update(from world: consuming World) {
+    public func update(from world: World) {
         self.state.updateArchetypes(in: world)
     }
 }
