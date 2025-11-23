@@ -204,7 +204,6 @@ public struct PresentNode: RenderNode {
     }
 }
 
-
 /// An object describe 2D render item.
 public struct Transparent2DRenderItem: RenderItem {
     
