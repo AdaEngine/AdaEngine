@@ -49,12 +49,7 @@ func ConfigurateRenderViewTarget(
     _ query: Query<Entity, Camera, Ref<RenderViewTarget>>,
     _ renderDevice: Res<RenderDeviceHandler>
 ) async {
-    var items: [(Entity, Camera, Ref<RenderViewTarget>)] = []
-    query.forEach { entity, camera, target in
-        items.append((entity, camera, target))
-    }
-
-    for (_, camera, renderViewTarget) in items {
+    await query.forEach { entity, camera, renderViewTarget in
         let viewportSize = camera.viewport?.rect.size.toSizeInt() ?? SizeInt(width: 800, height: 600)
         
         if renderViewTarget.mainTexture == nil {
@@ -70,22 +65,19 @@ func ConfigurateRenderViewTarget(
         case .texture(let asset):
             renderViewTarget.outputTexture = asset.asset
         case .window(let ref):
-            let swapchain: any Swapchain
-            
-            if let existingSwapchain = renderViewTarget.swapchain {
-                swapchain = existingSwapchain
+            let swapchain = if let existingSwapchain = renderViewTarget.swapchain {
+                existingSwapchain
             } else {
-                swapchain = await MainActor.run {
+                await MainActor.run {
                     renderDevice.renderDevice.createSwapchain(from: ref)
                 }
-                renderViewTarget.swapchain = swapchain
             }
-            
+            renderViewTarget.swapchain = swapchain
+
             if let drawable = swapchain.getNextDrawable() {
                 renderViewTarget.currentDrawable = drawable
                 renderViewTarget.outputTexture = RenderTexture(
                     gpuTexture: drawable.texture,
-                    size: viewportSize,
                     format: swapchain.drawablePixelFormat
                 )
             }

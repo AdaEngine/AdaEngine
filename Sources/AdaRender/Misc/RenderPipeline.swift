@@ -129,7 +129,7 @@ public struct ColorAttachmentDescriptor_New: Sendable {
         texture: Texture,
         resolveTexture: Texture? = nil,
         operation: OperationDescriptor? = nil,
-        clearColor: Color?
+        clearColor: Color? = nil
     ) {
         self.texture = texture
         self.resolveTexture = resolveTexture
