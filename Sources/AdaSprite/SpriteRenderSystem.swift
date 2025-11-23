@@ -121,7 +121,6 @@ func UpdateBoundings(
 
 @PlainSystem
 public struct SpriteRenderSystem: Sendable {
-
     @Query<
         Camera,
         VisibleEntities,
@@ -133,10 +132,13 @@ public struct SpriteRenderSystem: Sendable {
     private var extractedSprites: ExtractedSprites?
 
     @Res
-    private var spriteDrawPass: SpriteDrawPass!
+    private var spriteDrawPass: SpriteDrawPass
 
     @Res
-    private var spriteRenderPipeline: SpriteRenderPipeline!
+    private var spriteRenderPipeline: SpriteRenderPipeline
+
+    @Res
+    private var renderDevice: RenderDeviceHandler
 
     @Commands
     private var commands
@@ -152,13 +154,13 @@ public struct SpriteRenderSystem: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         cameras.forEach { (_, visibleEntities, renderItems) in
             self.draw(
                 world: context.world,
                 extractedSprites: self.extractedSprites?.sprites ?? [],
                 visibleEntities: visibleEntities,
-                renderItems: &renderItems.wrappedValue
+                renderItems: renderItems
             )
         }
     }
@@ -170,20 +172,21 @@ public struct SpriteRenderSystem: Sendable {
         world: World,
         extractedSprites: [ExtractedSprite],
         visibleEntities: VisibleEntities,
-        renderItems: inout RenderItems<Transparent2DRenderItem>
+        renderItems: Ref<RenderItems<Transparent2DRenderItem>>
     ) {
+        let device = renderDevice.renderDevice
         let spriteData = commands.spawn("sprite_data")
         let sprites = extractedSprites
             .sorted { lhs, rhs in
                 lhs.transform.position.z < rhs.transform.position.z
             }
 
-        var spriteVerticies = [SpriteVertexData]()
-        spriteVerticies.reserveCapacity(MemoryLayout<SpriteVertexData>.stride * sprites.count)
+        var spriteVerticies: BufferData<SpriteVertexData> = []
+        spriteVerticies.label = "SpriteRenderSystem_VertexBuffer"
 
         var indeciesCount: Int32 = 0
         var textureSlotIndex = 1
-        var currentBatchEntity = Entity()
+        var currentBatchEntity = commands.spawn("Batch entity")
         var currentBatch = TextureBatchComponent(
             textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
         )
@@ -195,9 +198,9 @@ public struct SpriteRenderSystem: Sendable {
 
             let worldTransform = sprite.worldTransform
             if textureSlotIndex >= Self.maxTexturesPerBatch {
-                currentBatchEntity.components += currentBatch
+                currentBatchEntity.insert(currentBatch)
                 textureSlotIndex = 1
-                currentBatchEntity = Entity()
+                currentBatchEntity = commands.spawn("Batch entity")
                 currentBatch = TextureBatchComponent(
                     textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
                 )
@@ -238,7 +241,7 @@ public struct SpriteRenderSystem: Sendable {
             renderItems.items.append(
                 Transparent2DRenderItem(
                     entity: spriteData.entityId,
-                    batchEntity: currentBatchEntity,
+                    batchEntity: currentBatchEntity.entityId,
                     drawPass: self.spriteDrawPass,
                     renderPipeline: self.spriteRenderPipeline.renderPipeline,
                     sortKey: sprite.transform.position.z,
@@ -247,22 +250,15 @@ public struct SpriteRenderSystem: Sendable {
             )
         }
 
-        currentBatchEntity.components += currentBatch
+        currentBatchEntity.insert(currentBatch)
 
         if spriteVerticies.isEmpty {
             return
         }
 
-        let device = unsafe RenderEngine.shared.renderDevice
-        var vertexBuffer = device.createVertexBuffer(
-            length: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride,
-            binding: 0
-        )
-        vertexBuffer.label = "SpriteRenderSystem_VertexBuffer"
-
         let indicies = Int(indeciesCount * 4)
-
-        var quadIndices = [UInt32].init(repeating: 0, count: indicies)
+        var quadIndices: BufferData<UInt32> = .init(elements: [UInt32].init(repeating: 0, count: indicies))
+        quadIndices.label = "SpriteRenderSystem_IndexBuffer"
 
         var offset: UInt32 = 0
         for index in stride(from: 0, to: indicies, by: 6) {
@@ -277,72 +273,14 @@ public struct SpriteRenderSystem: Sendable {
             offset += 4
         }
 
-        unsafe vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride)
-//
-//        var quadIndexBuffer = device.createIndexBuffer(
-//            format: .uInt32,
-//            bytes: &quadIndices,
-//            length: indicies
-//        )
-//        quadIndexBuffer.label = "SpriteRenderSystem_IndexBuffer"
-//        spriteData.components += SpriteDataComponent(
-//            vertexBuffer: vertexBuffer,
-//            indexBuffer: quadIndexBuffer
-//        )
-        print("Add SpriteDataComponent to entity \(spriteData.entityId) an data component")
+        spriteVerticies.write(to: device)
+        quadIndices.write(to: device)
+
+        commands.insertResource(
+            SpriteDrawData(
+                vertexBuffer: spriteVerticies,
+                indexBuffer: quadIndices
+            )
+        )
     }
 }
-
-public struct BufferData<T> {
-    public var elements: [T] {
-        didSet {
-            self.isChanged = true
-        }
-    }
-    public var buffer: (any Buffer)?
-    public let label: String?
-    public var isChanged: Bool = false
-
-    public init(label: String? = nil, elements: [T]) {
-        self.label = label
-        self.elements = elements
-    }
-}
-
-extension BufferData: ExpressibleByArrayLiteral {
-    public init(arrayLiteral elements: T...) {
-        self.label = nil
-        self.elements = elements
-    }
-}
-
-public extension BufferData {
-
-    var bufferLength: Int {
-        self.buffer?.length ?? 0
-    }
-
-    mutating func write(to renderDevice: RenderDevice) {
-        reserveCapacity(self.elements.count, for: renderDevice)
-        guard let buffer else {
-            return
-        }
-        buffer.setElements(&elements)
-    }
-
-    mutating func reserveCapacity(_ count: Int, for renderDevice: RenderDevice) {
-        let newCapacity = MemoryLayout<T>.stride * count
-        if bufferLength >= newCapacity {
-            return
-        }
-        self.buffer = renderDevice.createBuffer(label: label, length: newCapacity, options: .storageShared)
-        self.isChanged = false
-    }
-
-    mutating func removeAll() {
-        self.elements.removeAll()
-    }
-}
-
-extension BufferData: Sendable where T: Sendable { }
-

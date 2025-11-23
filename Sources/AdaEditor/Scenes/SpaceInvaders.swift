@@ -103,7 +103,7 @@
 //
 //    init(world: World) { }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        let cameraEntity = context.world.performQuery(Self.camera).first!
 //        let camera = cameraEntity.components[Camera.self]!
 //        guard let globalTransform = cameraEntity.components[GlobalTransform.self]?.matrix else {
@@ -145,7 +145,7 @@
 //        ).asset
 //    }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        context.world.performQuery(Self.player).forEach { entity in
 //            let transform = entity.components[Transform.self]!
 //
@@ -210,7 +210,7 @@
 //
 //    init(world: World) { }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        context.world.performQuery(Self.bullet).forEach { entity in
 //            var (bullet, body) = entity.components[Bullet.self, PhysicsBody2DComponent.self]
 //
@@ -258,7 +258,7 @@
 //        }
 //    }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        let result = fixedTime.advance(with: deltaTime.deltaTime)
 //
 //        if result.isFixedTick {
@@ -299,7 +299,7 @@
 //
 //    init(world: World) { }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        context.world.performQuery(Self.enemy).forEach { entity in
 //            var enemy = entity.components[EnemyComponent.self]!
 //
@@ -324,7 +324,7 @@
 //
 //    init(world: World) { }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        context.world.performQuery(Self.enemy).forEach { entity in
 //            var transform = entity.components[Transform.self]!
 //            transform.position.y -= Self.speed * deltaTime.deltaTime
@@ -368,7 +368,7 @@
 //    static let explosions = EntityQuery(where: .has(ExplosionComponent.self))
 //    static let scores = EntityQuery(where: .has(GameState.self))
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        let scores = context.world.performQuery(Self.scores).first
 //
 //        // Make expolosions
@@ -432,7 +432,7 @@
 //        self.container.foregroundColor = .white
 //    }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        for entity in context.world.performQuery(Self.scores) {
 //            var (text, score) = entity.components[Text2DComponent.self, GameState.self]
 //            text.text = AttributedText("Score: \(score.score)", attributes: self.container)

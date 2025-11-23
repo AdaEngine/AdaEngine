@@ -113,7 +113,7 @@ struct BunnySpawnerSystem {
 
     init(world: World) {}
     
-    func update(context: inout UpdateContext) {
+    func update(context: UpdateContext) {
         guard input.isMouseButtonPressed(.left) else {
             return
         }
@@ -173,7 +173,7 @@ struct BunnyMovementSystem {
 
     init(world: World) {}
     
-    func update(context: inout UpdateContext) async {
+    func update(context: UpdateContext) async {
         let deltaTime = deltaTime.deltaTime
 
         await bunnies.parallel().forEach { bunny, transform in
@@ -213,7 +213,7 @@ struct BunnyCollisionSystem {
     
     init(world: World) {}
     
-    func update(context: inout UpdateContext) async {
+    func update(context: UpdateContext) async {
         // Get screen bounds from camera
         guard let camera = cameras.first else {
             return
@@ -282,7 +282,7 @@ struct PerformanceCounterSystem {
 
     init(world: World) {}
     
-    func update(context: inout UpdateContext) {
+    func update(context: UpdateContext) {
         let bunnyCount = bunnies.count
         let deltaTime = deltaTime.deltaTime
         

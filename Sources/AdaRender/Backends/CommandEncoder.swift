@@ -51,6 +51,8 @@ public protocol CommandBuffer: AnyObject {
     func beginRenderPass(_ desc: RenderPassDescriptor) -> RenderCommandEncoder
 
     func beginBlitPass(_ desc: BlitPassDescriptor) -> BlitCommandEncoder
+    
+    func commit()
 }
 
 public protocol BlitCommandEncoder: AnyObject {
@@ -123,6 +125,12 @@ public protocol RenderCommandEncoder: CommonCommandEncoder {
 
     func setFragmentBuffer(_ buffer: UniformBuffer, offset: Int, index: Int)
 
+    func setVertexBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int)
+
+    func setFragmentBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int)
+
+    func setIndexBuffer<T>(_ bufferData: BufferData<T>, indexFormat: IndexBufferFormat)
+
     func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, index: Int)
 
     func setFragmentTexture(_ texture: Texture, index: Int)
@@ -168,6 +176,10 @@ final class MetalCommandEncoder: CommandBuffer {
 
     init(commandBuffer: MTLCommandBuffer) {
         self.commandBuffer = commandBuffer
+    }
+
+    func commit() {
+        self.commandBuffer.commit()
     }
 
     func beginRenderPass(_ desc: RenderPassDescriptor) -> RenderCommandEncoder {
@@ -242,6 +254,31 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
             fatalError("UniformBuffer is not a MetalUniformBuffer")
         }
         renderEncoder.setFragmentBuffer(metalBuffer.buffer, offset: offset, index: index)
+    }
+
+
+    func setVertexBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int) {
+        guard let metalBuffer = bufferData.buffer as? MetalBuffer else {
+            fatalError("BufferData is not a MetalBuffer")
+        }
+
+        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: index)
+    }
+
+    func setFragmentBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int) {
+        guard let metalBuffer = bufferData.buffer as? MetalBuffer else {
+            fatalError("UniformBuffer is not a MetalUniformBuffer")
+        }
+
+        renderEncoder.setFragmentBuffer(metalBuffer.buffer, offset: offset, index: index)
+    }
+
+    func setIndexBuffer<T>(_ bufferData: BufferData<T>, indexFormat: IndexBufferFormat) {
+        guard let metalBuffer = bufferData.buffer as? MetalBuffer else {
+            fatalError("UniformBuffer is not a MetalUniformBuffer")
+        }
+        currentIndexBuffer = metalBuffer.buffer
+        currentIndexType = indexFormat == .uInt32 ? .uint32 : .uint16
     }
 
     func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, index: Int) {

@@ -67,7 +67,7 @@
 //        self.textRenderPipeline = quadPipeline
 //    }
 //
-//    public func update(context: inout UpdateContext) {
+//    public func update(context: UpdateContext) {
 //        context.world.performQuery(Self.cameras).forEach { entity in
 //            var (visibleEntities, renderItems) = entity.components[VisibleEntities.self, RenderItems<Transparent2DRenderItem>.self]
 //            self.draw(
@@ -186,7 +186,7 @@
 //
 //    init(world: World) { }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        self.textComponents.forEach { entity in
 //            if entity.components[Visibility.self] == .hidden {
 //                return

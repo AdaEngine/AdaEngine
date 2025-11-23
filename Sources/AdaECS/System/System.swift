@@ -8,7 +8,7 @@
 import AdaUtils
 
 /// Contains information about current world update.
-public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
+public struct WorldUpdateContext: Sendable {
     /// The updating world.
     public let world: World
 
@@ -19,7 +19,7 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
     /// - Parameter world: The world that will be updated.
     /// - Parameter scheduler: The scheduler that will be used to schedule tasks.
     init(
-        world: consuming World,
+        world: World,
         scheduler: SchedulerName
     ) {
         self.world = world
@@ -52,7 +52,7 @@ public struct WorldUpdateContext: @unchecked Sendable, ~Copyable {
 ///
 ///     init(world: World) {}
 ///
-///     func update(context: inout UpdateContext) {
+///     func update(context: UpdateContext) {
 ///         self.query.forEach { transform in
 ///             if input.isKeyPressed(.space) {
 ///                 // Add 5 points for vertical direction
@@ -73,7 +73,7 @@ public protocol System: Sendable {
 
     /// Updates entities every frame.
     @concurrent
-    func update(context: inout UpdateContext) async
+    func update(context: UpdateContext) async
 
     /// An array of queries for this system.
     /// That needs to be updated queries results for this system.
@@ -110,7 +110,7 @@ public struct SystemQueries: Sendable, Equatable {
 
     /// Update the queries from the world.
     /// - Parameter world: The world to update the queries from.
-    public func update(from world: consuming World) {
+    public func update(from world: World) {
         let world = world
         for query in queries {
             query.update(from: world)

@@ -168,9 +168,6 @@ extension SystemMacro: PeerMacro {
             let defaultValue = param.defaultValue?.value.description
             let typeString = param.type.trimmedDescription
             
-            // Check for inout parameter
-            let isInoutParam = typeString.hasPrefix("inout ")
-            
             // Check for special types that shouldn't be added to propertyDecls
             var specialType: SystemInputParameter.SpecialType = .none
             if typeString.hasSuffix("WorldUpdateContext") || typeString.hasSuffix("UpdateContext") {
@@ -187,7 +184,7 @@ extension SystemMacro: PeerMacro {
             paramNames.append(
                 SystemInputParameter(
                     isAnonymosParam: isAnonymosParam, 
-                    isInoutParam: isInoutParam, 
+                    isInoutParam: false,
                     paramName: paramName,
                     specialType: specialType
                 )
@@ -201,7 +198,7 @@ extension SystemMacro: PeerMacro {
         
         \(availability)init(world: AdaECS.World) { }
         
-        \(availability)func update(context: inout UpdateContext)\(raw: needsAwait ? " async" : "") {
+        \(availability)func update(context: UpdateContext)\(raw: needsAwait ? " async" : "") {
             \(raw: needsAwait ? "await " : "")\(raw: funcName)(\(raw: paramNames.map { $0.buildParameter() }.joined(separator: ", ")))
         }
         
@@ -237,7 +234,14 @@ extension SystemMacro: PeerMacro {
             let propertyParam = if isInoutParam {
                 "&\(paramName)"
             } else {
-                specialType == .world ? "context.\(paramName)" : "_\(paramName)"
+                switch specialType {
+                case .world:
+                    "context.\(paramName)"
+                case .context:
+                    "context"
+                default:
+                    "_\(paramName)"
+                }
             }
 
             return "\(functionParam)\(propertyParam)"

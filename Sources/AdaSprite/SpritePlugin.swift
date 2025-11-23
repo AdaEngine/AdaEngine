@@ -38,6 +38,6 @@ public struct SpritePlugin: Plugin {
             .insertResource(SpriteDrawPass())
             .addSystem(ExtractSpriteSystem.self, on: .extract)
             .addSystem(ExctractMesh2DSystem.self, on: .extract)
-            .addSystem(SpriteRenderSystem.self, on: .render)
+            .addSystem(SpriteRenderSystem.self, on: .update)
     }
 }

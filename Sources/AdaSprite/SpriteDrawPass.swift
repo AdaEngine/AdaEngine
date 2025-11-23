@@ -25,36 +25,39 @@ public struct SpriteDrawPass: DrawPass {
         view: Entity,
         item: Transparent2DRenderItem
     ) throws {
-//        guard
-//            let cameraViewUniform = context.view.components[GlobalViewUniformBufferSet.self],
-//            let spriteData = context.world.getResource(SpriteDrawData.self)
-//        else {
-//            return
-//        }
-//        
-//        context.drawList.pushDebugName("SpriteDrawPass")
-//        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-//            binding: GlobalBufferIndex.viewUniform,
-//            set: 0,
-//            frameIndex: RenderEngine.shared.currentFrameIndex
-//        )
-//        
-//        if let batchSprite = item.batchEntity.components[TextureBatchComponent.self] {
-//            batchSprite.textures.enumerated().forEach { (index, texture) in
-//                context.drawList.bindTexture(texture, at: index)
-//            }
-//        }
+        guard
+            let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self],
+            let spritesData = world.getResource(SpriteDrawData.self)
+        else {
+            return
+        }
+
+//        renderEncoder.pushDebugName("SpriteDrawPass")
+        let uniformBuffer = unsafe cameraViewUniform.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
+        guard let batchSprite = world.getEntityByID(item.batchEntity)?.components[TextureBatchComponent.self] else {
+            return
+        }
+        batchSprite.textures.enumerated().forEach { (index, texture) in
+            renderEncoder.setFragmentTexture(texture, index: index)
+            renderEncoder.setFragmentSamplerState(texture.sampler, index: index)
+        }
+
+//        renderEncoder.appendUniformBuffer(uniformBuffer)
+        //        renderEncoder.bindIndexBuffer(spriteData.indexBuffer)
+        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
+        renderEncoder.setVertexBuffer(spritesData.vertexBuffer, offset: 0, index: 0)
+        renderEncoder.setIndexBuffer(spritesData.indexBuffer, indexFormat: .uInt32)
+        renderEncoder.setRenderPipelineState(item.renderPipeline)
+        renderEncoder.drawIndexed(
+            indexCount: item.batchRange?.count ?? 6, // indicies count per quad
+            indexBufferOffset: Int(item.batchRange?.lowerBound ?? 0) * 4, // start position must be multiple by 4
+            instanceCount: 1
+        )
 //
-//        context.drawList.appendUniformBuffer(uniformBuffer)
-//        context.drawList.appendVertexBuffer(spriteData.vertexBuffer)
-//        context.drawList.bindIndexBuffer(spriteData.indexBuffer)
-//        context.drawList.bindRenderPipeline(item.renderPipeline)
-//        context.drawList.drawIndexed(
-//            indexCount: item.batchRange?.count ?? 6, // indicies count per quad
-//            indexBufferOffset: Int(item.batchRange?.lowerBound ?? 0) * 4, // start position must be multiple by 4
-//            instanceCount: 1
-//        )
-//        
 //        context.drawList.popDebugName()
     }
 }

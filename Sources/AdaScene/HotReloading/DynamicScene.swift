@@ -43,7 +43,7 @@ struct DynamicSceneInitSystem {
 
     init(world: World) {  }
     
-    func update(context: inout UpdateContext) {
+    func update(context: UpdateContext) {
         dynamicScenes.forEach { (entity, scene, instance) in
             guard let instance else {
                 insertScene(to: entity, dynamicScene: scene, world: context.world)

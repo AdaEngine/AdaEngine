@@ -257,7 +257,7 @@
 //    
 //    init(world: World) { }
 //    
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
 ////        let tileEntity: Entity = context.world.performQuery(Self.tileMap).first!
 //        

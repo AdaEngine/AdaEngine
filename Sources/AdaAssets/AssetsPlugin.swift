@@ -29,7 +29,7 @@ public struct AssetsPlugin: Plugin {
 @System
 @inline(__always)
 func AssetsProcess(
-    _ context: inout WorldUpdateContext
+    _ context: WorldUpdateContext
 ) {
     Task {
         do {

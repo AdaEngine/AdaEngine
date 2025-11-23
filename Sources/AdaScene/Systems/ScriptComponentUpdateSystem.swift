@@ -23,7 +23,7 @@ public struct ScriptComponentUpdateSystem {
     private var deltaTime
 
     @MainActor
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         let scene = context.scene
 //        let world = context.world
 //        let deltaTime = deltaTime.deltaTime

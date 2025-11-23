@@ -45,15 +45,14 @@ public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
         scheduler: SchedulerName
     ) async {
         system.queries.update(from: world)
-        var context = WorldUpdateContext(
-            world: world,
-            scheduler: scheduler
+        await system.update(
+            context: WorldUpdateContext(
+                world: world,
+                scheduler: scheduler
+            )
         )
-
-        await system.update(context: &context)
         // TODO: I don't like that sync point
         await system.queries.finish(world)
-        _ = consume context
     }
 }
 

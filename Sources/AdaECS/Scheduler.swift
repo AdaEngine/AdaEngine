@@ -174,7 +174,7 @@ public struct DefaultSchedulerRunner: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) async {
+    public func update(context: UpdateContext) async {
         let world = context.world
         let order = order?.order ?? []
         for scheduler in order {

@@ -108,7 +108,7 @@ public struct AudioSystem {
         self.audioEngine = unsafe world.getResource(MiniAudioEngine.self)!
     }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         self.audioPlaybacksControllersQuery.forEach { audioComponent, transform in
             audioComponent.controllers.forEach { controller in
                 controller.sound.position = transform.position
