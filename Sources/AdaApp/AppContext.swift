@@ -32,7 +32,7 @@ public struct AppContext<T: App>: ~Copyable {
     /// Run the app.
     /// - Throws: An error if the app cannot be run.
     @_spi(Internal)
-    public func run() throws {
+    public func run() async throws {
         LoggingSystem.bootstrap {
             StreamLogHandler.standardError(label: $0)
         }
@@ -45,7 +45,7 @@ public struct AppContext<T: App>: ~Copyable {
         let node = _AppSceneNode(value: app.body)
         let _ = T.Content._makeView(node, inputs: inputs)
         
-        try appWorlds.build()
+        try await appWorlds.build()
         appWorlds.runner?(appWorlds)
     }
 }

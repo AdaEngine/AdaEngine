@@ -160,14 +160,14 @@ public extension AppWorlds {
         self.main.getRefResource(resource)
     }
 
-    func build() throws {
+    func build() async throws {
         /// Wait until all plugins is loaded
         while !self.plugins.allSatisfy({ $0.value.isLoaded(in: self) }) {
-            continue
+            await Task.yield()
         }
         
-        try self.subWorlds.values.forEach {
-            try $0.build()
+        for subWorld in self.subWorlds.values {
+            try await subWorld.build()
         }
         self.plugins.forEach { $0.value.finish(for: self) }
         self.isConfigured = true
