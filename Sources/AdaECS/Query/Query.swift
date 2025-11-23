@@ -168,7 +168,7 @@ final class QueryState: @unchecked Sendable {
         self.filter = filter
     }
 
-    func updateArchetypes(in world: consuming World) {
+    func updateArchetypes(in world: World) {
         self.entities = world.entities
         self.archetypeIndecies = world.archetypes.archetypes.enumerated().compactMap {
             self.predicate.evaluate($0.element) ? $0.offset : nil

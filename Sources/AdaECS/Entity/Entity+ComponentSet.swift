@@ -40,6 +40,7 @@ public extension Entity {
         /// - Parameter other: The other component set to create a component set from.
         init(from other: borrowing Self) {
             self.entity = other.entity
+            self.notFlushedComponents = other.notFlushedComponents
         }
         
         /// Create component set from decoder.
@@ -138,7 +139,7 @@ public extension Entity {
 
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentType: Component.Type) -> Bool {
-            return self.world?.has(componentType.identifier, in: entity) ?? false
+            return has(componentType.identifier)
         }
 
         /// Returns `true` if the collections contains a component of the specified type.
@@ -164,7 +165,7 @@ public extension Entity {
                 let world,
                 let location = world.entities.entities[entity]
             else {
-                return 0
+                return self.notFlushedComponents.count
             }
             return world.archetypes
                 .archetypes[location.archetypeId]
