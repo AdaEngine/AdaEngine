@@ -245,7 +245,7 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
     }
 
     func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, index: Int) {
-        renderEncoder.setVertexBytes(bytes, length: length, index: index)
+        unsafe renderEncoder.setVertexBytes(bytes, length: length, index: index)
     }
 
     func setFragmentTexture(_ texture: Texture, index: Int) {

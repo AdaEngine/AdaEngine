@@ -34,7 +34,7 @@ public extension Frustum {
         let aabbMin = aabb.min
         let aabbMax = aabb.max
         
-        for plane in planes {
+        for unsafe plane in planes {
             guard let plane else {
                 continue
             }

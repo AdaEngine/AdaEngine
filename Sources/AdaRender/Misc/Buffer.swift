@@ -32,7 +32,7 @@ public extension Buffer {
     /// - Parameter bytes: A pointer to the data which will be copied.
     /// - Parameter byteCount: Count of bytes which will be copied.
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int) {
-        self.setData(bytes, byteCount: byteCount, offset: 0)
+        unsafe self.setData(bytes, byteCount: byteCount, offset: 0)
     }
     
     /// Set data to the buffer's storage.
@@ -40,16 +40,16 @@ public extension Buffer {
     func setData<T>(_ value: T) {
         let size = MemoryLayout<T>.stride
         
-        withUnsafePointer(to: value) { ptr in
-            self.setData(UnsafeMutableRawPointer(mutating: ptr), byteCount: size)
+        unsafe withUnsafePointer(to: value) { ptr in
+            unsafe self.setData(UnsafeMutableRawPointer(mutating: ptr), byteCount: size)
         }
     }
 
     /// Set elements to the buffer's storage.
     /// - Parameter value: A value which will be copied.
     func setElements<T>(_ elements: inout [T]) {
-        elements.withUnsafeMutableBytes { ptr in
-            self.setData(ptr.baseAddress!, byteCount: ptr.count)
+        unsafe elements.withUnsafeMutableBytes { ptr in
+            unsafe self.setData(ptr.baseAddress!, byteCount: ptr.count)
         }
     }
 }

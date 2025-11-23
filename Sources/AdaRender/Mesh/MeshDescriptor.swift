@@ -238,7 +238,7 @@ public extension MeshDescriptor {
     
     func getIndexBuffer() -> IndexBuffer {
         var indicies = self.indicies
-        let indexBuffer = RenderEngine.shared.renderDevice.createIndexBuffer(
+        let indexBuffer = unsafe RenderEngine.shared.renderDevice.createIndexBuffer(
             format: .uInt32,
             bytes: &indicies,
             length: indicies.count * MemoryLayout<UInt32>.size
@@ -254,16 +254,16 @@ public extension MeshDescriptor {
             vertexSize += buffer.buffer.elementSize
         }
         
-        let vertexBuffer = RenderEngine.shared.renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
+        let vertexBuffer = unsafe RenderEngine.shared.renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
         let vertexBufferContents = vertexBuffer.contents()
         
         var attributeOffset: Int = 0
         for buffer in buffers.elements.values {
             let elementSize = buffer.buffer.elementSize
             
-            buffer.buffer.iterateByElements { index, pointer in
+            unsafe buffer.buffer.iterateByElements { index, pointer in
                 let offset = index * vertexSize + attributeOffset
-                vertexBufferContents
+                unsafe vertexBufferContents
                     .advanced(by: offset)
                     .copyMemory(from: pointer, byteCount: elementSize)
             }

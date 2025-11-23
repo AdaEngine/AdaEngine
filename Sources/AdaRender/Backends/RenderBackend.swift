@@ -127,13 +127,13 @@ public extension RenderDevice {
     /// Create a new GPU buffer with specific data, length and options.
     @inline(__always)
     func createBuffer(bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
-        createBuffer(label: nil, bytes: bytes, length: length, options: options)
+        unsafe createBuffer(label: nil, bytes: bytes, length: length, options: options)
     }
 
     /// Create a new index buffer with specific index, format, data and length.
     @inline(__always)
     func createIndexBuffer(format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
-        createIndexBuffer(label: nil, format: format, bytes: bytes, length: length)
+        unsafe createIndexBuffer(label: nil, format: format, bytes: bytes, length: length)
     }
 
     /// Create a new vertex buffer for specific length and binding.

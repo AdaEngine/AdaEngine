@@ -253,7 +253,7 @@ public struct SpriteRenderSystem: Sendable {
             return
         }
 
-        let device = RenderEngine.shared.renderDevice
+        let device = unsafe RenderEngine.shared.renderDevice
         var vertexBuffer = device.createVertexBuffer(
             length: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride,
             binding: 0
@@ -277,7 +277,7 @@ public struct SpriteRenderSystem: Sendable {
             offset += 4
         }
 
-        vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride)
+        unsafe vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride)
 //
 //        var quadIndexBuffer = device.createIndexBuffer(
 //            format: .uInt32,

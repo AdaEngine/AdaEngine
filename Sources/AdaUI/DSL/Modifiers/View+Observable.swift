@@ -6,7 +6,7 @@
 //
 
 import AdaUtils
-@preconcurrency import Observation
+@unsafe @preconcurrency import Observation
 
 public extension View {
 

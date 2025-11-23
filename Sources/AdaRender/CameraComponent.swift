@@ -261,7 +261,7 @@ public struct GlobalViewUniformBufferSet {
     ///
     /// - Parameter label: The label of the uniform buffer set.
     public init(label: String = "Global View Uniform") {
-        self.uniformBufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
+        self.uniformBufferSet = unsafe RenderEngine.shared.renderDevice.createUniformBufferSet()
         self.uniformBufferSet.label = label
         self.uniformBufferSet.initBuffers(
             for: GlobalViewUniform.self,

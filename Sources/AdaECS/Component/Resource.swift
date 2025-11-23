@@ -71,10 +71,10 @@ enum ResourceStorage {
     
     /// Return registered resource or try to find it by NSClassFromString (works only for objc runtime)
     static func getRegisteredResource(for name: String) -> Resource.Type? {
-        return self.registeredResources[name] ?? (NSClassFromString(name) as? Resource.Type)
+        return unsafe self.registeredResources[name] ?? (NSClassFromString(name) as? Resource.Type)
     }
     
     static func addResource<T: Resource>(_ type: T.Type) {
-        self.registeredResources[T.swiftName] = type
+        unsafe self.registeredResources[T.swiftName] = type
     }
 }

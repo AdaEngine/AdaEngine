@@ -140,13 +140,13 @@ public extension Chunks {
                 continue
             }
 
-            unsafe oldChunkComponent.data
+            oldChunkComponent.data
                 .copyElement(
                     to: &newChunkComponent.data,
                     from: location.entityRow,
                     to: chunkLocation.entityRow
                 )
-            unsafe oldChunkComponent.changesTicks
+            oldChunkComponent.changesTicks
                 .copyElement(
                     to: &newChunkComponent.changesTicks,
                     from: location.entityRow,
@@ -219,17 +219,17 @@ public struct Chunk: Sendable {
         let componentType: any Component.Type
 
         init<T: Component>(capacity: Int, component: T.Type) {
-            unsafe self.data = unsafe BlobArray(count: capacity, of: T.self) { pointer, count in
+            self.data = unsafe BlobArray(count: capacity, of: T.self) { pointer, count in
                 unsafe pointer.assumingMemoryBound(to: T.self)
                     .baseAddress?
                     .deinitialize(count: count)
             }
-            unsafe self.changesTicks = unsafe BlobArray(count: capacity, of: Tick.self)
+            self.changesTicks = BlobArray(count: capacity, of: Tick.self)
             self.componentType = component
         }
 
         public var description: String {
-            return unsafe """
+            return """
             ComponentsData(
                 data: \(data.count),
                 changesTicks: \(changesTicks.count),
@@ -316,8 +316,8 @@ public struct Chunk: Sendable {
 
     mutating func clear() {
         self.componentsData.forEach { data in
-            unsafe data.data.clear(entities.count)
-            unsafe data.changesTicks.clear(entities.count)
+            data.data.clear(entities.count)
+            data.changesTicks.clear(entities.count)
         }
         self.entities.removeAll(keepingCapacity: true)
         self.entityIndices.removeAll(keepingCapacity: true)
@@ -339,9 +339,9 @@ public struct Chunk: Sendable {
         if removedIndex < lastIndex {
             // Move component data from the last element to the removed element's slot
             for componentData in self.componentsData {
-                unsafe componentData.data
+                componentData.data
                     .swap(from: lastIndex, to: removedIndex)
-                unsafe componentData.changesTicks
+                componentData.changesTicks
                     .swap(from: lastIndex, to: removedIndex)
             }
 
@@ -365,13 +365,13 @@ public struct Chunk: Sendable {
             guard let array = componentsData[componentId] else {
                 fatalError("Passed not registred component")
             }
-            unsafe array.data.insert(component, at: entityIndex)
+            array.data.insert(component, at: entityIndex)
         }
     }
 
     @inline(__always)
     public func get<T: Component>(at entityIndex: RowIndex) -> T? {
-        return unsafe self.componentsData[T.identifier]?.data.get(at: entityIndex, as: T.self)
+        return self.componentsData[T.identifier]?.data.get(at: entityIndex, as: T.self)
     }
 
     public func isComponentChanged<T: Component>(
@@ -383,7 +383,7 @@ public struct Chunk: Sendable {
             return false
         }
         guard
-            let lastChangeTick = unsafe self.componentsData[T.identifier]?
+            let lastChangeTick = self.componentsData[T.identifier]?
                 .changesTicks
                 .get(at: entityIndex, as: Tick.self)
         else {
@@ -398,7 +398,7 @@ public struct Chunk: Sendable {
         guard let index = self.entityIndices[entity] else {
             return nil
         }
-        return unsafe self.componentsData[T.identifier]?
+        return self.componentsData[T.identifier]?
             .data
             .get(at: index, as: T.self)
     }
@@ -411,7 +411,7 @@ public struct Chunk: Sendable {
         guard let index = self.entityIndices[entity] else {
             return nil
         }
-        return unsafe self.componentsData[T.identifier]?
+        return self.componentsData[T.identifier]?
             .data
             .getMutablePointer(at: index, as: T.self)
     }
@@ -423,7 +423,7 @@ public struct Chunk: Sendable {
         guard let index = self.entityIndices[entity] else {
             return nil
         }
-        return unsafe self.componentsData[T.identifier]?
+        return self.componentsData[T.identifier]?
             .changesTicks
             .getMutablePointer(at: index, as: Tick.self)
     }
@@ -437,8 +437,8 @@ public struct Chunk: Sendable {
             assertionFailure("Component \(T.self) not found in chunk")
             return
         }
-        unsafe componentData.changesTicks.insert(lastTick, at: entityIndex)
-        unsafe componentData.data.insert(component, at: entityIndex)
+        componentData.changesTicks.insert(lastTick, at: entityIndex)
+        componentData.data.insert(component, at: entityIndex)
     }
 
     /// Get all component data arrays for efficient iteration
@@ -452,7 +452,7 @@ public struct Chunk: Sendable {
             return []
         }
         return componentsData.values.map { (key, data) in
-            unsafe (key, data.data.get(at: index, as: data.componentType))
+            (key, data.data.get(at: index, as: data.componentType))
         }
     }
 
@@ -460,7 +460,7 @@ public struct Chunk: Sendable {
         guard let componentData = self.componentsData[T.identifier], self.count > 0 else {
             return nil
         }
-        let startPointer = unsafe componentData.data.getMutablePointer(at: 0, as: T.self)
+        let startPointer = componentData.data.getMutablePointer(at: 0, as: T.self)
         return unsafe UnsafeBufferPointer(start: startPointer, count: self.count)
     }
 
@@ -468,7 +468,7 @@ public struct Chunk: Sendable {
         guard let componentData = self.componentsData[T.identifier], self.count > 0 else {
             return nil
         }
-        let startPointer = unsafe componentData.changesTicks.getMutablePointer(at: 0, as: Tick.self)
+        let startPointer = componentData.changesTicks.getMutablePointer(at: 0, as: Tick.self)
         return unsafe UnsafeBufferPointer(start: startPointer, count: self.count)
     }
 }

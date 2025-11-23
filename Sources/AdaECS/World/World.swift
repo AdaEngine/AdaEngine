@@ -100,20 +100,20 @@ public final class World: @unchecked Sendable, Codable {
         }
 
         let resourcesContainer = try container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
-//        for resourceKey in resourcesContainer.allKeys {
-//            guard let resourceType = ResourceStorage.getRegisteredResource(for: resourceKey.stringValue) else {
-//                throw DecodingError.dataCorruptedError(
-//                    forKey: .resources,
-//                    in: container,
-//                    debugDescription: "Resource \(resourceKey) not found"
-//                )
-//            }
-//
-//            if let decodable = resourceType as? Decodable.Type {
-//                let resource = try decodable.init(from: resourcesContainer.superDecoder(forKey: resourceKey))
-//                self.insertTypeErasedResource(resource as! Resource)
-//            }
-//        }
+        for resourceKey in resourcesContainer.allKeys {
+            guard let resourceType = ResourceStorage.getRegisteredResource(for: resourceKey.stringValue) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .resources,
+                    in: container,
+                    debugDescription: "Resource \(resourceKey) not found"
+                )
+            }
+
+            if let decodable = resourceType as? Decodable.Type {
+                let resource = try decodable.init(from: resourcesContainer.superDecoder(forKey: resourceKey))
+                self.insertTypeErasedResource(resource as! Resource)
+            }
+        }
 
         self.flush()
     }
@@ -127,9 +127,9 @@ public final class World: @unchecked Sendable, Codable {
         })
         try container.encode(entities, forKey: .entities)
         var unkeyedContainer = container.nestedContainer(keyedBy: CodingName.self, forKey: .resources)
-//        for resource in self.resources.resources.values {
-//            try unkeyedContainer.encode(AnyEncodable(resource), forKey: CodingName(stringValue: type(of: resource).swiftName))
-//        }
+        for resource in self.resources.getResources() {
+            try unkeyedContainer.encode(AnyEncodable(resource), forKey: CodingName(stringValue: type(of: resource).swiftName))
+        }
     }
 
     public func copy() -> World {
@@ -443,7 +443,7 @@ public extension World {
     /// - Returns: The resource if it exists, otherwise nil.
     func getRefResource<T: Resource>(_ resource: T.Type) -> Ref<T> {
         let resource = self.resources.getResourceData(T.self)?.getWithTick(T.self)
-        return Ref(
+        return unsafe Ref(
             pointer: resource?.pointer,
             changeTick: .init(
                 change: resource?.changedTick,

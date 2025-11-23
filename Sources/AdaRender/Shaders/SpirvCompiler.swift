@@ -206,7 +206,7 @@ final class SpirvCompiler {
             unsafe spvc_resources_get_resource_list_for_type(shaderResources, resourceType.spvcResourceType, &reflectedResources, &reflectedResourceCount)
 
             for index in 0..<reflectedResourceCount {
-                let resource = reflectedResources[index]
+                let resource = unsafe reflectedResources[index]
                 let resourceName = unsafe String(cString: resource.name)
 
                 // Skip internal uniforms

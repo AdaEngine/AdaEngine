@@ -55,8 +55,7 @@ public extension Entity {
 
                 if let decodable = type as? Decodable.Type {
                     let component = try decodable.init(from: container.superDecoder(forKey: key))
-//                    self.buffer[type.identifier] = component as? Component
-//                    self.bitset.insert(type.identifier)
+                    self.notFlushedComponents[type.identifier] = component as? Component
                 }
             }
         }
@@ -65,13 +64,28 @@ public extension Entity {
         /// - Parameter encoder: The encoder to encode the component set to.
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingName.self)
-//            for component in self.buffer.elements.values {
-//                do {
-//                    try container.encode(AnyEncodable(component), forKey: CodingName(stringValue: type(of: component).swiftName))
-//                } catch {
-//                    print("Component encoding error: \(error)")
-//                }
-//            }
+            guard let world else {
+                throw CodableError.worldIsNil
+            }
+            guard let location = world.entities.entities[entity] else {
+                throw CodableError.entityNotFoundInWorld
+            }
+
+            let chunk = world.archetypes
+                .archetypes[location.archetypeId]
+                .chunks.chunks[location.chunkIndex]
+            let components = chunk.getComponents(for: entity)
+            for (_, component) in components {
+                do {
+                    try container.encode(
+                        AnyEncodable(component),
+                        forKey: CodingName(stringValue: type(of: component).swiftName)
+                    )
+                } catch {
+                    // TODO: Logging
+                    print("Component encoding error: \(error)")
+                }
+            }
         }
 
         /// Gets or sets the component of the specified type.
@@ -292,6 +306,13 @@ extension Entity.ComponentSet {
                 world.remove(T.identifier, from: entity)
             }
         }
+    }
+}
+
+private extension Entity {
+    enum CodableError: Error {
+        case worldIsNil
+        case entityNotFoundInWorld
     }
 }
 

@@ -155,7 +155,7 @@ private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
     _ color: b2HexColor,
     _ context: UnsafeMutableRawPointer?
 ) {
-    let debugContext = Unmanaged<WorldDebugDrawContext>
+    let debugContext = unsafe Unmanaged<WorldDebugDrawContext>
         .fromOpaque(context!)
         .takeUnretainedValue()
 
@@ -184,17 +184,17 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
     _ color: b2HexColor,
     _ context: UnsafeMutableRawPointer?
 ) {
-    guard let verticies else {
+    guard let verticies = unsafe verticies else {
         return
     }
 
-    let debugContext = Unmanaged<WorldDebugDrawContext>
+    let debugContext = unsafe Unmanaged<WorldDebugDrawContext>
         .fromOpaque(context!)
         .takeUnretainedValue()
     let color = Color.fromHex(Int(color.rawValue))
 
     let vertices = (0..<vertexCount).map { index in
-        let vertex = verticies[Int(index)]
+        let vertex = unsafe verticies[Int(index)]
         return Vector2(vertex.x, vertex.y)
     }
 

@@ -79,10 +79,14 @@ extension World {
             let resourceType: any Resource.Type
             let changedTick: UnsafeBox<Tick>
 
+            var erasedResource: any Resource {
+                pointer.get(at: 0, as: resourceType)
+            }
+
             func getWithTick<T: Resource>(
                 _ type: T.Type
             ) -> (pointer: UnsafeMutablePointer<T>, changedTick: UnsafeBox<Tick>) {
-                unsafe (
+                (
                     pointer.getMutablePointer(at: 0, as: T.self),
                     changedTick
                 )
@@ -98,11 +102,11 @@ extension World {
                   let resource = self.resourceData[componentId] else {
                 return nil
             }
-            return unsafe resource.pointer.get(at: 0, as: T.self)
+            return resource.pointer.get(at: 0, as: T.self)
         }
 
         func getResources() -> Array<any Resource> {
-            []
+            self.resourceData.map { $0.erasedResource }
         }
 
         mutating func getOrRegisterResource(
@@ -171,25 +175,12 @@ extension World {
                     .assumingMemoryBound(to: T.self)
                     .deinitialize(count: count)
             }
-            unsafe array.insert(resource, at: 0)
-            return unsafe ResourceData(
+            array.insert(resource, at: 0)
+            return ResourceData(
                 pointer: array,
                 resourceType: T.self,
                 changedTick: UnsafeBox(tick)
             )
         }
-    }
-}
-
-extension World.Resources.ResourceData: Codable {
-    init(from decoder: any Decoder) throws {
-        fatalError()
-//
-//        ResourceStorage.getRegisteredResource(for: <#T##String#>)
-//        BlobArray(count: 1, of: )
-    }
-
-    func encode(to encoder: any Encoder) throws {
-        fatalError()
     }
 }

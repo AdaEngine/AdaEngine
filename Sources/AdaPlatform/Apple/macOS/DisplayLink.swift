@@ -22,10 +22,10 @@ public final class DisplayLink: @unchecked Sendable {
 
         var timerRef: CVDisplayLink?
         
-        var successLink = CVDisplayLinkCreateWithActiveCGDisplays(&timerRef)
+        var successLink = unsafe CVDisplayLinkCreateWithActiveCGDisplays(&timerRef)
         
         if let timer = timerRef {
-            successLink = CVDisplayLinkSetOutputCallback(timer, { _, _, _, _, _, source -> CVReturn in
+            successLink = unsafe CVDisplayLinkSetOutputCallback(timer, { _, _, _, _, _, source -> CVReturn in
                 if let source = unsafe source {
                     let sourceUnmanaged = unsafe Unmanaged<DisplayLinkEventHandler>.fromOpaque(source)
                     unsafe sourceUnmanaged.takeUnretainedValue().onEvent()

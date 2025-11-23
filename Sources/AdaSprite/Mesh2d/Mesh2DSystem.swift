@@ -220,7 +220,7 @@ extension Material {
     func getOrCreatePipeline(for vertexDescriptor: VertexDescriptor, keys: Set<String>) -> RenderPipeline? {
         let materialKey = self.getMesh2dMaterialKey(for: vertexDescriptor, keys: keys)
 
-        if let data = MaterialStorage.shared.getMaterialData(for: self) as? Mesh2dMaterialStorageData {
+        if let data = unsafe MaterialStorage.shared.getMaterialData(for: self) as? Mesh2dMaterialStorageData {
             if let pipeline = data.pipelines[materialKey] {
                 return pipeline
             }
@@ -243,7 +243,7 @@ extension Material {
             let data = Mesh2dMaterialStorageData()
             data.updateUniformBuffers(from: shaderModule)
             data.pipelines[materialKey] = pipeline
-            MaterialStorage.shared.setMaterialData(data, for: self)
+            unsafe MaterialStorage.shared.setMaterialData(data, for: self)
 
             self.update()
 
@@ -266,7 +266,7 @@ extension Material {
                 return nil
             }
 
-            return (RenderEngine.shared.renderDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
+            return unsafe (RenderEngine.shared.renderDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
         } catch {
             assertionFailure("[Mesh2DRenderSystem] \(error.localizedDescription)")
             return nil

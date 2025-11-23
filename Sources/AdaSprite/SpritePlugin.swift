@@ -29,7 +29,7 @@ public struct SpritePlugin: Plugin {
 
         renderWorld
             .insertResource(ExtractedSprites(sprites: []))
-            .insertResource(SpriteRenderPipeline())
+            .createResource(SpriteRenderPipeline.self)
 //            .insertResource(SpriteDrawData(
 //                vertexBuffer: BufferData<SpriteVertexData>(label: "SpriteRenderSystem_IndexBuffer", elements: []),
 //                indexBuffer: BufferData<UInt32>(elements: [])

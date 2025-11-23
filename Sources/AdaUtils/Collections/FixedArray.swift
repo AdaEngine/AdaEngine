@@ -9,7 +9,8 @@
 
 /// Create a fixed sized array on a heap.
 @frozen
-public struct FixedArray<T>: Sequence, RandomAccessCollection {
+@safe
+public struct FixedArray<T>: @unsafe Sequence, @unsafe RandomAccessCollection {
     public typealias Element = T?
     public typealias Index = Int
     
@@ -28,7 +29,7 @@ public struct FixedArray<T>: Sequence, RandomAccessCollection {
         // swiftlint:disable:next empty_count
         precondition(count > 0, "Can't allocate array with 0 elements.")
         self.buffer = Buffer(count: count)
-        self.buffer.pointer.update(repeating: repeating)
+        unsafe self.buffer.pointer.update(repeating: repeating)
     }
     
     @inline(__always)
@@ -38,7 +39,7 @@ public struct FixedArray<T>: Sequence, RandomAccessCollection {
                 fatalError("Index out of range")
             }
             
-            return self.buffer.pointer[index]
+            return unsafe self.buffer.pointer[index]
         }
         
         set {
@@ -48,7 +49,7 @@ public struct FixedArray<T>: Sequence, RandomAccessCollection {
             
             self._ensureUnique()
             
-            self.buffer.pointer[index] = newValue
+            unsafe self.buffer.pointer[index] = newValue
         }
     }
     
@@ -56,36 +57,36 @@ public struct FixedArray<T>: Sequence, RandomAccessCollection {
     
     @inline(__always)
     public func makeIterator() -> UnsafeMutableBufferPointer<Element>.Iterator {
-        return self.buffer.pointer.makeIterator()
+        return unsafe self.buffer.pointer.makeIterator()
     }
     
     // MARK: - Collection
     
     @inline(__always)
     public var count: Int {
-        return self.buffer.pointer.count
+        return unsafe self.buffer.pointer.count
     }
     
     @inline(__always)
     public var startIndex: Index {
-        return self.buffer.pointer.startIndex
+        return unsafe self.buffer.pointer.startIndex
     }
     
     @inline(__always)
     public var endIndex: Index {
-        return self.buffer.pointer.endIndex
+        return unsafe self.buffer.pointer.endIndex
     }
     
     @inline(__always)
     public func index(after i: Index) -> Index {
-        return self.buffer.pointer.index(after: i)
+        return unsafe self.buffer.pointer.index(after: i)
     }
     
     /// Remove all elements and replace them by nil.
     @inline(__always)
     public mutating func removeAll() {
         self._ensureUnique()
-        self.buffer.pointer.update(repeating: nil)
+        unsafe self.buffer.pointer.update(repeating: nil)
     }
     
     /// Ensures that the sparse data storage buffer is uniquely referenced,
@@ -108,14 +109,14 @@ extension FixedArray: Equatable where T: Equatable {
             return false
         }
         
-        return lhs.buffer.pointer.elementsEqual(rhs.buffer.pointer)
+        return unsafe lhs.buffer.pointer.elementsEqual(rhs.buffer.pointer)
     }
 }
 
 extension FixedArray: Hashable where T: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.count)
-        for element in self {
+        for unsafe element in self {
             hasher.combine(element)
         }
     }
@@ -123,7 +124,7 @@ extension FixedArray: Hashable where T: Hashable {
 
 extension FixedArray: CustomStringConvertible {
     public var description: String {
-        let values: [String] = self.map {
+        let values: [String] = unsafe self.map {
             guard let value = $0 else {
                 return "nil"
             }
@@ -142,7 +143,7 @@ extension FixedArray: Encodable where T: Encodable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.count, forKey: .length)
         
-        let values = Array(self.buffer.pointer)
+        let values = unsafe Array(self.buffer.pointer)
         try container.encode(values, forKey: .values)
     }
 }
@@ -155,7 +156,7 @@ extension FixedArray: Decodable where T: Codable {
         self.buffer = Buffer(count: length)
         
         for (index, value) in values.enumerated() {
-            self.buffer.pointer[index] = value
+            unsafe self.buffer.pointer[index] = value
         }
     }
 }
@@ -171,26 +172,27 @@ extension FixedArray {
 
 extension FixedArray {
     @usableFromInline
+    @safe
     internal final class Buffer: @unchecked Sendable {
         let pointer: UnsafeMutableBufferPointer<Element>
         
         init(count: Int) {
-            self.pointer = UnsafeMutableBufferPointer<Element>.allocate(capacity: count)
-            self.pointer.initialize(repeating: nil)
+            unsafe self.pointer = UnsafeMutableBufferPointer<Element>.allocate(capacity: count)
+            unsafe self.pointer.initialize(repeating: nil)
         }
         
         func moveMemory(to destination: UnsafeMutableBufferPointer<Element>) {
-            self.pointer.baseAddress?.moveUpdate(from: destination.baseAddress!, count: self.pointer.count)
+            unsafe self.pointer.baseAddress?.moveUpdate(from: destination.baseAddress!, count: self.pointer.count)
         }
         
         deinit {
-            pointer.deinitialize()
-            pointer.deallocate()
+            unsafe pointer.deinitialize()
+            unsafe pointer.deallocate()
         }
         
         static func buffer(count: Int, contentsOf buffer: Buffer) -> Buffer {
             let newBuffer = Buffer(count: count)
-            buffer.moveMemory(to: newBuffer.pointer)
+            unsafe buffer.moveMemory(to: newBuffer.pointer)
             return newBuffer
         }
     }

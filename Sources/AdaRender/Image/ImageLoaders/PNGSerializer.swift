@@ -28,11 +28,11 @@ struct PNGImageSerializer: ImageLoaderStrategy {
     }
     
     func decodeImage(from data: Data) throws -> Image {
-        var pngImage = png_image()
-        pngImage.version = png_uint_32(PNG_IMAGE_VERSION)
-        
-        var isSuccess = data.withUnsafeBytes { bufferPtr in
-            return png_image_begin_read_from_memory(&pngImage, bufferPtr.baseAddress, data.count) == 1
+        var pngImage = unsafe png_image()
+        unsafe pngImage.version = png_uint_32(PNG_IMAGE_VERSION)
+
+        var isSuccess = unsafe data.withUnsafeBytes { bufferPtr in
+            return unsafe png_image_begin_read_from_memory(&pngImage, bufferPtr.baseAddress, data.count) == 1
         }
         
         let maskFormat: UInt32 = ~(
@@ -40,12 +40,12 @@ struct PNGImageSerializer: ImageLoaderStrategy {
             PNG_FORMAT_FLAG_LINEAR | PNG_FORMAT_FLAG_COLORMAP
         )
         
-        pngImage.format &= maskFormat
-        pngImage.flags |= UInt32(PNG_IMAGE_FLAG_16BIT_sRGB)
-        
+        unsafe pngImage.format &= maskFormat
+        unsafe pngImage.flags |= UInt32(PNG_IMAGE_FLAG_16BIT_sRGB)
+
         let format: Image.Format
         
-        switch pngImage.format {
+        switch unsafe pngImage.format {
         case PNG_FORMAT_FLAG_COLOR:
             format = .rgb8
         case (PNG_FORMAT_FLAG_COLOR | PNG_FORMAT_FLAG_ALPHA): // rgba
@@ -55,27 +55,27 @@ struct PNGImageSerializer: ImageLoaderStrategy {
         case UInt32(PNG_FORMAT_GRAY):
             format = .gray
         default:
-            png_image_free(&pngImage)
+            unsafe png_image_free(&pngImage)
             throw DecodingError.notSupportedImageFormat
         }
         
         if !isSuccess {
-            png_image_free(&pngImage)
+            unsafe png_image_free(&pngImage)
             throw DecodingError.cannotReadFromMemmory
         }
         
-        let stride = swift_png_image_row_stride(pngImage)
-        var imageBuffer = Data(count: Int(swift_png_image_buffer_size(pngImage, stride)))
-        
-        isSuccess = imageBuffer.withUnsafeMutableBytes {
-            png_image_finish_read(&pngImage, nil, $0.baseAddress, png_int_32(stride), nil) == 1
+        let stride = unsafe swift_png_image_row_stride(pngImage)
+        var imageBuffer = unsafe Data(count: Int(swift_png_image_buffer_size(pngImage, stride)))
+
+        isSuccess = unsafe imageBuffer.withUnsafeMutableBytes {
+            unsafe png_image_finish_read(&pngImage, nil, $0.baseAddress, png_int_32(stride), nil) == 1
         }
         
         if !isSuccess {
             throw DecodingError.cannotFinishReading
         }
         
-        return Image(
+        return unsafe Image(
             width: Int(pngImage.width),
             height: Int(pngImage.height),
             data: imageBuffer,

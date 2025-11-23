@@ -21,7 +21,7 @@ public struct GameAppScene: AppScene {
         EmptyWindow()
             .transformAppWorlds { appWorlds in
                 do {
-                    try appWorlds.addPlugin(
+                    try unsafe appWorlds.addPlugin(
                         GameScenePlugin(gameScene: AssetHandle<Scene>(gameScene()))
                     )
                 } catch {

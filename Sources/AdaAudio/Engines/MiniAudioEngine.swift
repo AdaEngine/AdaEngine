@@ -136,52 +136,52 @@ final class MiniAudioEngineListener: AudioEngineListener, @unchecked Sendable {
         }
         
         set {
-            ma_engine_listener_set_velocity(engine, listenerIndex, newValue.x, newValue.y, newValue.z)
+            unsafe ma_engine_listener_set_velocity(engine, listenerIndex, newValue.x, newValue.y, newValue.z)
         }
     }
     
     var isEnabled: Bool {
         get {
-            return ma_engine_listener_is_enabled(engine, listenerIndex) == 1
+            return unsafe ma_engine_listener_is_enabled(engine, listenerIndex) == 1
         }
         
         set {
-            ma_engine_listener_set_enabled(engine, listenerIndex, newValue ? 1 : 0)
+            unsafe ma_engine_listener_set_enabled(engine, listenerIndex, newValue ? 1 : 0)
         }
     }
     
     var worldUp: Vector3 {
         get {
-            let position = ma_engine_listener_get_world_up(engine, listenerIndex)
+            let position = unsafe ma_engine_listener_get_world_up(engine, listenerIndex)
             return [position.x, position.y, position.z]
         }
         
         set {
-            ma_engine_listener_set_world_up(engine, listenerIndex, newValue.x, newValue.y, newValue.z)
+            unsafe ma_engine_listener_set_world_up(engine, listenerIndex, newValue.x, newValue.y, newValue.z)
         }
     }
     
     func setCone(innerAngle: Angle, outerAngle: Angle, outerGain: Float) {
-        ma_engine_listener_set_cone(engine, listenerIndex, innerAngle.radians, outerAngle.radians, outerGain)
+        unsafe ma_engine_listener_set_cone(engine, listenerIndex, innerAngle.radians, outerAngle.radians, outerGain)
     }
     
     var innerAngle: Angle {
         var radians: Float = 0
-        ma_engine_listener_get_cone(engine, listenerIndex, &radians, nil, nil)
+        unsafe ma_engine_listener_get_cone(engine, listenerIndex, &radians, nil, nil)
 
         return .radians(radians)
     }
     
     var outerAngle: Angle {
         var radians: Float = 0
-        ma_engine_listener_get_cone(engine, listenerIndex, nil, &radians, nil)
+        unsafe ma_engine_listener_get_cone(engine, listenerIndex, nil, &radians, nil)
 
         return .radians(radians)
     }
     
     var outerGain: Float {
         var gain: Float = 0
-        ma_engine_listener_get_cone(engine, listenerIndex, nil, nil, &gain)
+        unsafe ma_engine_listener_get_cone(engine, listenerIndex, nil, nil, &gain)
         return gain
     }
 }
@@ -286,38 +286,38 @@ final class MiniSound: Sound {
     }
     
     func stop() {
-        self.state = .stopped
-        self.stop(resetPlaybackPosition: true, notifyCallback: false)
+        unsafe self.state = .stopped
+        unsafe self.stop(resetPlaybackPosition: true, notifyCallback: false)
     }
     
     func pause() {
-        self.state = .paused
-        self.stop(resetPlaybackPosition: false, notifyCallback: false)
+        unsafe self.state = .paused
+        unsafe self.stop(resetPlaybackPosition: false, notifyCallback: false)
     }
     
     func onCompleteHandler(_ block: @escaping () -> Void) {
-        let pointer = Unmanaged<MiniSound>.passUnretained(self).toOpaque()
+        let pointer = unsafe Unmanaged<MiniSound>.passUnretained(self).toOpaque()
         
-        ma_sound_set_end_callback(sound, { userData, _ in
-            let soundObj = Unmanaged<MiniSound>.fromOpaque(userData!).takeUnretainedValue()
-            soundObj.state = .finished
-            soundObj.completionHandler?()
+        unsafe ma_sound_set_end_callback(sound, { userData, _ in
+            let soundObj = unsafe Unmanaged<MiniSound>.fromOpaque(userData!).takeUnretainedValue()
+            unsafe soundObj.state = .finished
+            unsafe soundObj.completionHandler?()
         }, pointer)
         
-        self.completionHandler = block
+        unsafe self.completionHandler = block
     }
     
     // MARK: - Private
     
     private func stop(resetPlaybackPosition: Bool, notifyCallback: Bool) {
-        ma_sound_stop(sound)
+        unsafe ma_sound_stop(sound)
 
         if resetPlaybackPosition {
-            ma_sound_seek_to_pcm_frame(sound, 0)
+            unsafe ma_sound_seek_to_pcm_frame(sound, 0)
         }
         
         if notifyCallback {
-            self.completionHandler?()
+            unsafe self.completionHandler?()
         }
     }
 }

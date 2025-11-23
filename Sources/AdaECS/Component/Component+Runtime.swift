@@ -48,11 +48,11 @@ enum ComponentStorage {
     
     /// Return registered component or try to find it by NSClassFromString (works only for objc runtime)
     static func getRegisteredComponent(for name: String) -> Component.Type? {
-        return self.registeredComponents[name] ?? (NSClassFromString(name) as? Component.Type)
+        return unsafe self.registeredComponents[name] ?? (NSClassFromString(name) as? Component.Type)
     }
     
     static func addComponent<T: Component>(_ type: T.Type) {
-        self.registeredComponents[T.swiftName] = type
+        unsafe self.registeredComponents[T.swiftName] = type
     }
 }
 
