@@ -15,14 +15,14 @@ public protocol SystemParameter: Sendable {
     /// Updates the query state with the given world.
     /// - Parameter world: The world that will be used to update the query.
     /// Updates the query state with the given world.
-    func update(from world: consuming World)
+    func update(from world: World)
 
     /// Notify query that world finish execution
     func finish(_ world: World)
 }
 
 public extension SystemParameter {
-    func update(from world: consuming World) {
+    func update(from world: World) {
         fatalError("Query should be implemented")
     }
 

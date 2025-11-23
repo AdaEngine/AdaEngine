@@ -74,7 +74,7 @@ extension Commands: SystemParameter {
         self.init(entities: world.entities, commandsQueue: world.commandQueue)
     }
 
-    public func update(from world: consuming World) {
+    public func update(from world: World) {
         self.entities = world.entities
     }
 

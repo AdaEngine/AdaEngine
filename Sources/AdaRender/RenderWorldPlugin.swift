@@ -118,7 +118,7 @@ public final class Extract<T: SystemParameter>: @unchecked Sendable {
 }
 
 extension Extract: SystemParameter {
-    public func update(from world: consuming World) {
+    public func update(from world: World) {
         let world = world
         if _value == nil {
             _value = T.init(from: world)

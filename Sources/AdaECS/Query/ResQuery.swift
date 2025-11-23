@@ -41,7 +41,7 @@ public final class Res<T: Resource>: @unchecked Sendable {
 }
 
 extension Res: SystemParameter {
-    public func update(from world: consuming World) {
+    public func update(from world: World) {
         guard let resource = T.getFromWorld(world) else {
             fatalError("Resource \(T.self) not found in world. Make sure to call world.insertResource(_:) before using Res.")
         }
@@ -102,7 +102,7 @@ public final class ResMut<T: Resource>: @unchecked Sendable {
 }
 
 extension ResMut: SystemParameter {
-    public func update(from world: consuming World) {
+    public func update(from world: World) {
         self._value = world.getRefResource(T.self)
     }
 }

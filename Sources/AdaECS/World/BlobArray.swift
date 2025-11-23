@@ -191,18 +191,3 @@ public extension BlobArray {
         unsafe destinationPointer.copyMemory(from: sourcePointer, byteCount: self.layout.size)
     }
 }
-
-extension BlobArray {
-    // Bind BlobArray to specific data and return new sequence.
-    public func bind<T>(to type: T.Type) -> some Sequence<T> {
-#if DEBUG
-        precondition(
-            MemoryLayout<T>.stride == self.layout.size &&
-            MemoryLayout<T>.alignment == self.layout.alignment,
-            "Element has different layout"
-        )
-#endif
-        return self.buffer.pointer.bindMemory(to: type)
-    }
-}
-
