@@ -7,9 +7,7 @@
 
 import AdaUtils
 
-// TODO: Maybe command queue should be a class?
-
-public struct WorldCommandQueue: Sendable {
+public final class WorldCommandQueue: @unchecked Sendable {
     @LocalIsolated var commands: ContiguousArray<WorldCommand> = []
 
     public var isEmpty: Bool {
@@ -22,11 +20,11 @@ public struct WorldCommandQueue: Sendable {
         self.commands = commands
     }
 
-    public mutating func push(_ command: @escaping @Sendable (World) -> Void) {
+    public func push(_ command: @escaping @Sendable (World) -> Void) {
         commands.append(WorldCommand(applyToWorld: command))
     }
 
-    public mutating func apply(to world: World) {
+    public func apply(to world: World) {
         world.flushCommands()
 
         while let drop = commands.popFirst() {
@@ -99,7 +97,7 @@ public extension Commands {
         self.queue.push { world in
             world.insertNewEntity(entity, components: components().components)
         }
-        return unsafe EntityCommands(queue: &queue, entityId: entity.id)
+        return EntityCommands(queue: queue, entityId: entity.id)
     }
 
     @discardableResult
@@ -111,7 +109,7 @@ public extension Commands {
         self.queue.push { [bundle] world in
             world.insertNewEntity(entity, components: bundle.components)
         }
-        return unsafe EntityCommands(queue: &queue, entityId: entity.id)
+        return EntityCommands(queue: queue, entityId: entity.id)
     }
 
     @discardableResult
@@ -120,7 +118,7 @@ public extension Commands {
         self.queue.push { world in
             world.insertNewEntity(entity, components: [])
         }
-        return unsafe EntityCommands(queue: &queue, entityId: entity.id)
+        return EntityCommands(queue: queue, entityId: entity.id)
     }
 
     @discardableResult
@@ -129,12 +127,12 @@ public extension Commands {
         queue.push { world in
             world.addEntity(entity)
         }
-        return unsafe EntityCommands(queue: &queue, entityId: entity.id)
+        return EntityCommands(queue: queue, entityId: entity.id)
     }
 
     @discardableResult
     func entity(_ entity: Entity.ID) -> EntityCommands {
-        unsafe EntityCommands(queue: &queue, entityId: entity)
+        EntityCommands(queue: queue, entityId: entity)
     }
 
     func insertResource<T: Resource>(_ resource: T) {
@@ -152,11 +150,11 @@ public extension Commands {
 
 @safe
 public final class EntityCommands {
-    var queue: UnsafeMutablePointer<WorldCommandQueue>
+    var queue: WorldCommandQueue
     public let entityId: Entity.ID
 
-    init(queue: UnsafeMutablePointer<WorldCommandQueue>, entityId: Entity.ID) {
-        unsafe self.queue = queue
+    init(queue: WorldCommandQueue, entityId: Entity.ID) {
+        self.queue = queue
         self.entityId = entityId
     }
 }
@@ -164,7 +162,7 @@ public final class EntityCommands {
 public extension EntityCommands {
     @discardableResult
     func insert<T: Component>(_ component: consuming T) -> Self {
-        unsafe self.queue.pointee.push { [component, entityId] world in
+        self.queue.push { [component, entityId] world in
             world.insert(component, for: entityId)
         }
         return self
@@ -172,7 +170,7 @@ public extension EntityCommands {
 
     @discardableResult
     func remove(_ componentId: ComponentId, from entity: Entity.ID) -> Self {
-        unsafe self.queue.pointee.push { world in
+        self.queue.push { world in
             world.remove(componentId, from: entity)
         }
         return self

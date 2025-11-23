@@ -121,6 +121,8 @@ public final class World: @unchecked Sendable, Codable {
     /// Encode the world to an encoder.
     /// - Parameter encoder: The encoder to encode the world to.
     public func encode(to encoder: Encoder) throws {
+        self.flush()
+        
         var container = encoder.container(keyedBy: CodingKeys.self)
         let entities = self.getEntities().sorted(by: {
             $0.id < $1.id
