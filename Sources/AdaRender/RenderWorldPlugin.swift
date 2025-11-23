@@ -54,7 +54,7 @@ public struct RenderDeviceHandler: Resource {
 @System
 @inline(__always)
 func RenderWorldRunner(
-    _ context: inout WorldUpdateContext,
+    _ context: WorldUpdateContext,
     _ renderGraph: Res<RenderGraph?>,
     _ renderDevice: Res<RenderDeviceHandler?>
 ) async {
@@ -63,7 +63,7 @@ func RenderWorldRunner(
 
     let renderGraph = renderGraph.wrappedValue
     renderGraph?.update(from: world)
-    Task.detached(priority: .high) {
+    Task.detached(priority: .high) { [renderGraph] in
         do {
             guard
                 let renderGraph,

@@ -27,7 +27,7 @@
 //
 //    required public init(world: World) { }
 //
-//    public func update(context: inout UpdateContext) {
+//    public func update(context: UpdateContext) {
 //        let entities = context.world.performQuery(Self.query)
 //        let deltaTime = context.deltaTime
 //

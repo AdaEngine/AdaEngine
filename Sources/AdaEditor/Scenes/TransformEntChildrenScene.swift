@@ -67,7 +67,7 @@
 //
 //    required init(world: World) { }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        time += context.deltaTime
 //        context.world.performQuery(Self.query).forEach { entity in
 //            var transform = entity.components[Transform.self]!

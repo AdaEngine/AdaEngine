@@ -26,7 +26,7 @@ public struct UIComponentSystem: Sendable {
     public init(world: World) {}
 
     @MainActor
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
 //        for value in self.uiComponents {
 //            await update(
 //                entity: value.entity,

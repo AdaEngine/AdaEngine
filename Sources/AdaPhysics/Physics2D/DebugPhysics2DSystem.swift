@@ -48,7 +48,7 @@ public struct DebugPhysicsExctract2DSystem {
     public init(world: World) { }
 
     @MainActor
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         guard let (camera, globalTransform) = self.cameras.first else {
             return
         }
@@ -231,7 +231,7 @@ public struct Physics2DDebugDrawSystem: Sendable {
 
     public init(world: World) {}
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
 
         //        self.cameras.forEach { visibleEntities, renderItems in
         //            self.draw(

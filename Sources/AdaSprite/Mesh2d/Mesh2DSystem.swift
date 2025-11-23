@@ -76,7 +76,7 @@ public struct ExctractMesh2DSystem {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         var extractedMeshes = ExctractedMeshes2D()
         self.query.wrappedValue.forEach { entity, mesh, transform, globalTransform, visibility in
             if visibility == .hidden {
@@ -130,7 +130,7 @@ public struct Mesh2DRenderSystem: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         self.query.forEach { visibleEntities, renderItems in
             self.draw(
                 world: context.world,
@@ -179,7 +179,7 @@ public struct Mesh2DRenderSystem: Sendable {
                     items.append(
                         Transparent2DRenderItem(
                             entity: entity.id,
-                            batchEntity: entity,
+                            batchEntity: entity.id,
                             drawPass: self.meshDrawPass,
                             renderPipeline: pipeline,
                             sortKey: mesh.transform.position.z

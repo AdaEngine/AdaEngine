@@ -23,7 +23,7 @@ public struct CameraSystem: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         self.query.forEach { entity, camera, globalTransform in
             let viewMatrix = globalTransform.matrix.inverse
             camera.viewMatrix = viewMatrix

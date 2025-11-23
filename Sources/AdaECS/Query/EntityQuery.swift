@@ -14,7 +14,7 @@ import AdaUtils
 /// struct MovementSystem {
 ///     @EntityQuery(where: .has(Transform.self)) private var query
 ///
-///     func update(context: inout UpdateContext) {
+///     func update(context: UpdateContext) {
 ///         self.query.forEach {
 ///             var transform = entity.components[Transform.self]
 ///             // Do some movement
@@ -31,7 +31,7 @@ import AdaUtils
 ///     @EntityQuery(where: .has(SpriteComponent.self) && .has(Transform.self))
 ///     private var query
 ///
-///     func update(context: inout UpdateContext) {
+///     func update(context: UpdateContext) {
 ///         for entity in self.query {
 ///             // Get components from entity and do some render
 ///         }

@@ -21,7 +21,7 @@ public struct TransformSystem {
 
     public init(world: World) { }
     
-    public func update(context: inout UpdateContext) async {
+    public func update(context: UpdateContext) async {
         await self.query.parallel().forEach { entity, transform in
             let globalTransform = GlobalTransform(matrix: transform.matrix)
             commands.entity(entity.id)
@@ -44,7 +44,7 @@ public struct ChildTransformSystem {
 
     public init(world: World) { }
     
-    public func update(context: inout UpdateContext) async {
+    public func update(context: UpdateContext) async {
         await self.query.parallel().forEach { entity, globalTransform in
             guard !entity.children.isEmpty else {
                 return

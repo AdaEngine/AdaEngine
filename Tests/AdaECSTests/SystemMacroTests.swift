@@ -65,7 +65,7 @@ struct BasicSystem {
 
     init(world: World) {}
 
-    func update(context: inout UpdateContext) {
+    func update(context: UpdateContext) {
         query.forEach { (transform, velocity) in
             transform.position += velocity.velocity
         }
@@ -83,7 +83,7 @@ func PlainTransform(
 
 @System
 func PlainContext(
-    _ context: inout WorldUpdateContext
+    _ context: WorldUpdateContext
 ) {
     #expect(context.world.name == "PlainContext")
 }
@@ -99,7 +99,7 @@ func PlainWorld(
 struct PhysicsSystem {
     init(world: World) { }
 
-    func update(context: inout UpdateContext) {}
+    func update(context: UpdateContext) {}
 }
 
 @PlainSystem(dependencies: [
@@ -111,7 +111,7 @@ struct DependentSystem: System {
 
     init(world: World) {}
 
-    func update(context: inout UpdateContext) {
+    func update(context: UpdateContext) {
         for transform in query {
             transform.position += Vector3(1, 0, 0)
         }
@@ -125,7 +125,7 @@ struct ResourceSystem {
 
     init(world: World) { }
 
-    func update(context: inout UpdateContext) {
+    func update(context: UpdateContext) {
         #expect(gravity != nil)
     }
 }

@@ -69,7 +69,7 @@ public struct WindowManagerResource: Resource {
 @inline(__always)
 @MainActor
 func UpdateWindowManager(
-    _ context: inout WorldUpdateContext,
+    _ context: WorldUpdateContext,
     _ windowManager: Res<WindowManagerResource>,
     _ input: Res<Input>,
     _ deltaTime: Res<DeltaTime>

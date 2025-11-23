@@ -35,7 +35,7 @@ public struct VisibilitySystem {
     
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         self.cameras.forEach { camera, visibleEntities in
             if !camera.isActive {
                 return

@@ -25,7 +25,7 @@ public struct TileMapSystem: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         let physicsWorld = context.world.getResource(Physics2DWorldComponent.self)?.world
 
         tileMap.forEach { (entity, tileMapComponent, transform) in

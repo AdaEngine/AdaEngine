@@ -24,7 +24,7 @@ public struct Text2DLayoutSystem {
     
     public init(world: World) { }
     
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         self.textComponents.forEach { entity, text, visibility in
             if visibility == .hidden {
                 return

@@ -66,7 +66,7 @@ public struct FixedTimeSchedulerSystem {
     @Res<DeltaTime?>
     private var deltaTime
 
-    public func update(context: inout UpdateContext) async {
+    public func update(context: UpdateContext) async {
         let deltaTime = deltaTime?.deltaTime ?? 0
         let result = self.fixedTimestep.advance(with: deltaTime)
 
@@ -88,7 +88,7 @@ public struct PostUpdateSchedulerRunner: Sendable {
     
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) async {
+    public func update(context: UpdateContext) async {
         let world = context.world
 //        await world.runScheduler(.postUpdate)
     }

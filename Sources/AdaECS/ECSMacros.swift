@@ -68,7 +68,7 @@ public macro Bundle() = #externalMacro(module: "AdaEngineMacros", type: "BundleM
 ///     @Res
 ///     private var resources: Gravity?
 ///
-///     func update(context: inout UpdateContext) {
+///     func update(context: UpdateContext) {
 ///         for (transform, velocity) in query {
 ///             transform.position += velocity.value * context.deltaTime
 ///         }

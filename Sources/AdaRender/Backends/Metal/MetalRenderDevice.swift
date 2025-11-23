@@ -203,6 +203,10 @@ extension CAMetalLayer: Swapchain {
 extension MTLPixelFormat {
     func toPixelFormat() -> PixelFormat {
         switch self {
+        case .bgra8Unorm:
+            return .bgra8
+        case .bgra8Unorm_srgb:
+            return .bgra8_srgb
         case .rgba8Unorm:
             return .rgba8
         case .rgba8Uint:
@@ -213,13 +217,15 @@ extension MTLPixelFormat {
             return .rgba_32f
         case .depth32Float:
             return .depth_32f
+        case .depth32Float_stencil8:
+            return .depth_32f_stencil8
         default:
             fatalError("Unsupported pixel format: \(self)")
         }
     }
 }
 
-class MetalDrawable: Drawable {
+final class MetalDrawable: Drawable {
     private let mtlDrawable: CAMetalDrawable
 
     public var texture: any GPUTexture {

@@ -169,7 +169,7 @@
 //    init(world: World) { }
 //
 //    // swiftlint:disable:next function_body_length cyclomatic_complexity
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        cameraQuery.forEach { (camera, cameraTransform, globalTransform) in
 //            let speed: Float = 2 * deltaTime.deltaTime
 //
@@ -341,7 +341,7 @@
 //    
 //    init(world: World) { }
 //
-//    func update(context: inout UpdateContext) {
+//    func update(context: UpdateContext) {
 //        let result = fixedTimestep.advance(with: context.deltaTime)
 //        if !result.isFixedTick {
 //            return

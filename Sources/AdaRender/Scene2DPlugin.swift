@@ -39,12 +39,23 @@ public struct Scene2DPlugin: Plugin {
             ])
 
             graph.addNode(Main2DRenderNode())
+            graph.addNode(PresentNode())
+            
             graph.addSlotEdge(
                 fromNode: entryNode,
                 outputSlot: InputNode.view,
                 toNode: Main2DRenderNode.name,
                 inputSlot: Main2DRenderNode.InputNode.view
             )
+            
+            graph.addSlotEdge(
+                fromNode: entryNode,
+                outputSlot: InputNode.view,
+                toNode: PresentNode.name,
+                inputSlot: PresentNode.InputNode.view
+            )
+            
+            graph.addNodeEdge(from: Main2DRenderNode.name, to: PresentNode.name)
 
             await app
                 .getRefResource(RenderGraph.self)
@@ -63,6 +74,7 @@ public struct Main2DRenderNode: RenderNode {
     }
 
     @Query<
+        Entity,
         Camera,
         RenderItems<Transparent2DRenderItem>,
         RenderViewTarget
@@ -84,8 +96,16 @@ public struct Main2DRenderNode: RenderNode {
             return []
         }
 
-        try query.forEach { camera, renderItems, target in
+        try query.forEach { entity, camera, renderItems, target in
+            if entity != view {
+                return
+            }
+            
             let sortedRenderItems = renderItems.sorted()
+            if sortedRenderItems.items.isEmpty {
+                return
+            }
+
             let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
 
@@ -117,11 +137,73 @@ public struct Main2DRenderNode: RenderNode {
             }
 
             renderPass.endRenderPass()
+            commandBuffer.commit()
         }
 
         return []
     }
 }
+
+/// This node is responsible for presenting the result to the screen.
+public struct PresentNode: RenderNode {
+    
+    public enum InputNode {
+        public static let view = "view"
+    }
+    
+    public let inputResources: [RenderSlot] = [
+        RenderSlot(name: InputNode.view, kind: .entity)
+    ]
+    
+    @Query<Ref<RenderViewTarget>>
+    var renderTargets
+    
+    public init() {}
+    
+    public func update(from world: World) {
+        renderTargets.update(from: world)
+    }
+    
+    public func execute(context: inout Context, renderContext: RenderContext) async throws -> [RenderSlotValue] {
+        guard let viewEntity = context.viewEntity else { return [] }
+        
+        guard let entity = context.world.getEntityByID(viewEntity.id) else {
+            return []
+        }
+        
+        guard let target = entity.components[RenderViewTarget.self] else {
+            return []
+        }
+        
+        if let mainTexture = target.mainTexture,
+           let outputTexture = target.outputTexture,
+           mainTexture !== outputTexture {
+            
+            let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
+            let blitEncoder = commandBuffer.beginBlitPass(BlitPassDescriptor(label: "Present Blit"))
+            
+            blitEncoder.copyTextureToTexture(
+                source: mainTexture,
+                sourceOrigin: Origin3D(),
+                sourceSize: Size3D(width: mainTexture.width, height: mainTexture.height, depth: 1),
+                sourceMipLevel: 0,
+                sourceSlice: 0,
+                destination: outputTexture,
+                destinationOrigin: Origin3D(),
+                destinationMipLevel: 0,
+                destinationSlice: 0
+            )
+            
+            blitEncoder.endBlitPass()
+            commandBuffer.commit()
+        }
+        
+        try target.currentDrawable?.present()
+
+        return []
+    }
+}
+
 
 /// An object describe 2D render item.
 public struct Transparent2DRenderItem: RenderItem {
@@ -130,8 +212,8 @@ public struct Transparent2DRenderItem: RenderItem {
     public var entity: Entity.ID
 
     /// An entity for batch rendering.
-    public var batchEntity: Entity
-    
+    public var batchEntity: Entity.ID
+
     /// Draw pass which will be used for rendering this item.
     public var drawPass: any DrawPass
     
@@ -146,7 +228,7 @@ public struct Transparent2DRenderItem: RenderItem {
 
     public init(
         entity: Entity.ID,
-        batchEntity: Entity,
+        batchEntity: Entity.ID,
         drawPass: any DrawPass,
         renderPipeline: RenderPipeline,
         sortKey: Float,

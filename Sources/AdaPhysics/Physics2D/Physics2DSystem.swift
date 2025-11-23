@@ -35,7 +35,7 @@ public struct Physics2DSystem: Sendable {
     private var fixedTime
 
     @MainActor
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         let deltaTime = fixedTime.deltaTime
         let world = self.physicsWorld.world
         world.updateSimulation(deltaTime)

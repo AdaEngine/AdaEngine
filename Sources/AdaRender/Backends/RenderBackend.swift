@@ -107,12 +107,12 @@ public protocol RenderDevice: AnyObject, Sendable {
     func createSwapchain(from window: WindowRef) -> Swapchain
 }
 
-public protocol Swapchain: AnyObject {
+public protocol Swapchain: AnyObject, Sendable {
     var drawablePixelFormat: PixelFormat { get }
     func getNextDrawable() -> (any Drawable)?
 }
 
-public protocol Drawable: AnyObject {
+public protocol Drawable: AnyObject, Sendable {
     var texture: any GPUTexture { get }
     func present() throws
 }
