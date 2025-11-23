@@ -6,9 +6,14 @@
 //
 
 #if METAL
+import Math
 import Metal
 
 final class MetalGPUTexture: GPUTexture {
+    var size: SizeInt {
+        SizeInt(width: self.texture.width, height: self.texture.height)
+    }
+
     var texture: MTLTexture
 
     init(texture: MTLTexture) {

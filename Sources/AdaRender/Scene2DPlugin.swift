@@ -102,10 +102,6 @@ public struct Main2DRenderNode: RenderNode {
             }
             
             let sortedRenderItems = renderItems.sorted()
-            if sortedRenderItems.items.isEmpty {
-                return
-            }
-
             let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
 
@@ -121,7 +117,11 @@ public struct Main2DRenderNode: RenderNode {
                     colorAttachments: [
                         .init(
                             texture: texture,
-                            operation: .some(.init(loadAction: .clear, storeAction: .dontCare))
+                            operation: OperationDescriptor(
+                                loadAction: .dontCare,
+                                storeAction: .dontCare
+                            ),
+                            clearColor: clearColor
                         )
                     ],
                     depthStencilAttachment: nil

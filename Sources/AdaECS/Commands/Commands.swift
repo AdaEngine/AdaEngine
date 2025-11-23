@@ -194,7 +194,7 @@ public extension EntityCommands {
     }
 }
 
-extension ContiguousArray {
+private extension ContiguousArray {
     mutating func popFirst() -> Element? {
         guard !self.isEmpty else {
             return nil

@@ -26,7 +26,7 @@ struct BunnyExample: Plugin {
     }
     
     private func setupCamera(in app: AppWorlds) {
-        app.main.spawn("Camera", bundle: OrthographicCameraBundle(camera: Camera()))
+        app.main.spawn("Camera", bundle: OrthographicCameraBundle(camera: Camera().setBackgroundColor(.red)))
     }
     
     private func loadAssets(in app: AppWorlds) {
