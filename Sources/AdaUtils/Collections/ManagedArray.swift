@@ -76,30 +76,30 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
                 Header(capacity: capacity, count: oldBuffer.header.count)
             }
         )
-        self.buffer.withUnsafeMutablePointers { (header, elements) in
-            oldBuffer.withUnsafeMutablePointers { oldHeader, oldPtr in
-                elements.moveUpdate(from: oldPtr, count: oldHeader.pointee.count)
+        unsafe self.buffer.withUnsafeMutablePointers { (header, elements) in
+            unsafe oldBuffer.withUnsafeMutablePointers { oldHeader, oldPtr in
+                unsafe elements.moveUpdate(from: oldPtr, count: oldHeader.pointee.count)
             }
         }
     }
 
     @inline(__always)
     public func reborrow<U>(at index: Int, _ block: (inout Element) -> U) -> U {
-        self.buffer.withUnsafeMutablePointerToElements { ptr in
-            block(&ptr[index])
+        unsafe self.buffer.withUnsafeMutablePointerToElements { ptr in
+            unsafe block(&ptr[index])
         }
     }
 
     @discardableResult
     public mutating func remove(at index: Int) -> Element {
         precondition(index >= 0 && index < buffer.header.count)
-        return buffer.withUnsafeMutablePointers { header, pointer in
-            let nextToMove = header.pointee.count - index
-            let place = pointer.advanced(by: index * MemoryLayout<Element>.stride)
-            let value = place.move()
-            let nextPtr = place.successor()
-            place.moveUpdate(from: nextPtr, count: nextToMove)
-            header.pointee.count -= 1
+        return unsafe buffer.withUnsafeMutablePointers { header, pointer in
+            let nextToMove = unsafe header.pointee.count - index
+            let place = unsafe pointer.advanced(by: index * MemoryLayout<Element>.stride)
+            let value = unsafe place.move()
+            let nextPtr = unsafe place.successor()
+            unsafe place.moveUpdate(from: nextPtr, count: nextToMove)
+            unsafe header.pointee.count -= 1
             return value
         }
 //         if index < self.header.count - 1 {
@@ -126,9 +126,9 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
     }
 
     public func forEach(_ body: (borrowing Element) -> Void) {
-        buffer.withUnsafeMutablePointers { header, pointer in
+        unsafe buffer.withUnsafeMutablePointers { header, pointer in
             for index in 0..<self.count {
-                body(pointer[index])
+                unsafe body(pointer[index])
             }
         }
     }
@@ -136,9 +136,9 @@ public struct ManagedArray<Element>: @unchecked Sendable where Element: ~Copyabl
     public func map<T>(_ transform: (borrowing Element) -> T) -> [T] {
         var result: [T] = []
         result.reserveCapacity(self.count)
-        buffer.withUnsafeMutablePointers { header, pointer in
+        unsafe buffer.withUnsafeMutablePointers { header, pointer in
             for index in 0..<self.count {
-                result.append(transform(pointer[index]))
+                unsafe result.append(transform(pointer[index]))
             }
         }
         return result

@@ -23,7 +23,8 @@ enum SceneSerializationError: Error {
 }
 
 /// A container that holds the collection of entities for render.
-open class Scene: Asset, @unchecked Sendable {
+@safe
+open class Scene: @unsafe Asset, @unchecked Sendable {
 
     public typealias ID = UUID
 
@@ -72,7 +73,7 @@ open class Scene: Asset, @unchecked Sendable {
         
         let scene = try assetDecoder.decode(SceneSerialization.self)
         
-        if Self.currentVersion < scene.version {
+        if unsafe Self.currentVersion < scene.version {
             throw SceneSerializationError.unsupportedVersion
         }
         
@@ -85,7 +86,7 @@ open class Scene: Asset, @unchecked Sendable {
             throw SceneSerializationError.invalidExtensionType
         }
         
-        try assetEncoder.encode(
+        unsafe try assetEncoder.encode(
             SceneSerialization(
                 version: Self.currentVersion,
                 scene: name,

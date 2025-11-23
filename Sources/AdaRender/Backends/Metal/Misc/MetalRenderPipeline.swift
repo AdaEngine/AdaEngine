@@ -6,7 +6,7 @@
 //
 
 #if METAL
-@preconcurrency import Metal
+@unsafe @preconcurrency import Metal
 
 final class MetalRenderPipeline: RenderPipeline {
     

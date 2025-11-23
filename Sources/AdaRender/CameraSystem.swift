@@ -129,7 +129,7 @@ public func ExtractCamera(
     query.wrappedValue.forEach {
         camera, transform,
         visibleEntities, bufferSet, uniform in
-        let buffer = bufferSet.uniformBufferSet.getBuffer(
+        let buffer = unsafe bufferSet.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,
             frameIndex: RenderEngine.shared.currentFrameIndex

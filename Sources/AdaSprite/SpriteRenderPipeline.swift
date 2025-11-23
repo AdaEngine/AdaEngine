@@ -12,8 +12,7 @@ import AdaRender
 struct SpriteRenderPipeline: Resource {
     let renderPipeline: RenderPipeline
 
-    init() {
-        let device = RenderEngine.shared.renderDevice
+    init(device: RenderDevice) {
         let spriteShader = try! AssetsManager.loadSync(
             ShaderModule.self,
             at: "Assets/sprite.glsl",
@@ -35,5 +34,12 @@ struct SpriteRenderPipeline: Resource {
         piplineDesc.colorAttachments = [ColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
         let quadPipeline = device.createRenderPipeline(from: piplineDesc)
         self.renderPipeline = quadPipeline
+    }
+}
+
+extension SpriteRenderPipeline: WorldInitable {
+    public init(from world: World) {
+        let renderDevice = world.getResource(RenderDeviceHandler.self)!.renderDevice
+        self = Self.init(device: renderDevice)
     }
 }

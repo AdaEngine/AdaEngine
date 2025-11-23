@@ -20,7 +20,7 @@ public struct DynamicScene {
     ///
     /// - Parameter world: The world.
     public init(world: World) {
-        self.scene = AssetHandle(Scene(from: world))
+        self.scene = unsafe AssetHandle(Scene(from: world))
     }
 }
 
@@ -50,7 +50,7 @@ struct DynamicSceneInitSystem {
                 return
             }
             
-            if instance.identifier != scene.scene.asset.world.id {
+            if unsafe instance.identifier != scene.scene.asset.world.id {
                 removeChild(from: entity)
                 insertScene(to: entity, dynamicScene: scene, world: context.world)
             }
@@ -58,7 +58,7 @@ struct DynamicSceneInitSystem {
     }
     
     private func insertScene(to rootEntity: Entity, dynamicScene: DynamicScene, world: World) {
-        let sceneWorld = dynamicScene.scene.asset.world
+        let sceneWorld = unsafe dynamicScene.scene.asset.world
         for entity in sceneWorld.getEntities() {
             let copy = entity.copy()
             rootEntity.addChild(copy)

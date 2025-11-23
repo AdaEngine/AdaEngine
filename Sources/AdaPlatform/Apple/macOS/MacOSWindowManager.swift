@@ -344,7 +344,7 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
         }
     
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-        try? RenderEngine.shared.resizeWindow(.windowId(window.id), newSize: sizeInt)
+        unsafe try? RenderEngine.shared.resizeWindow(.windowId(window.id), newSize: sizeInt)
     }
     
     func windowDidExitFullScreen(_ notification: Notification) {

@@ -34,7 +34,7 @@ public struct RenderWorldPlugin: Plugin {
             .render
         ])
 
-        renderWorld
+        unsafe renderWorld
             .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
             .addSystem(RenderWorldRunnerSystem.self, on: .render)
 

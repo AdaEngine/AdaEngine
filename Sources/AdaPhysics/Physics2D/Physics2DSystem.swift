@@ -66,29 +66,29 @@ public struct Physics2DSystem: Sendable {
                 body.massData.mass = physicsBody.massProperties.mass
             } else {
                 var def = b2DefaultBodyDef()
-                def.fixedRotation = physicsBody.fixedRotation
-                def.position = transform.position.xy.b2Vec
-                def.type = physicsBody.mode.b2Type
+                unsafe def.fixedRotation = physicsBody.fixedRotation
+                unsafe def.position = transform.position.xy.b2Vec
+                unsafe def.type = physicsBody.mode.b2Type
 
-                let body = world.createBody(with: def, for: entity)
+                let body = unsafe world.createBody(with: def, for: entity)
                 physicsBody.runtimeBody = body
 
                 for shapeResource in physicsBody.wrappedValue.shapes {
                     var shapeDef = b2DefaultShapeDef()
-                    shapeDef.density = physicsBody.material.density
-                    shapeDef.restitution = physicsBody.material.restitution
-                    shapeDef.friction = physicsBody.material.friction
-                    shapeDef.filter = physicsBody.filter.b2Filter
-                    
+                    unsafe shapeDef.density = physicsBody.material.density
+                    unsafe shapeDef.restitution = physicsBody.material.restitution
+                    unsafe shapeDef.friction = physicsBody.material.friction
+                    unsafe shapeDef.filter = physicsBody.filter.b2Filter
+
                     if physicsBody.wrappedValue.isTrigger {
-                        shapeDef.isSensor = true
+                        unsafe shapeDef.isSensor = true
                     }
                     
                     if let debugColor = physicsBody.debugColor {
-                        shapeDef.customColor = UInt32(debugColor.toHex)
+                        unsafe shapeDef.customColor = UInt32(debugColor.toHex)
                     }
                     
-                    body.appendShape(
+                    unsafe body.appendShape(
                         shapeResource,
                         transform: transform.wrappedValue,
                         shapeDef: shapeDef
@@ -125,23 +125,23 @@ public struct Physics2DSystem: Sendable {
                 }
             } else {
                 var def = b2DefaultBodyDef()
-                def.position = transform.position.xy.b2Vec
-                def.type = b2_staticBody
+                unsafe def.position = transform.position.xy.b2Vec
+                unsafe def.type = b2_staticBody
 
-                let body = world.createBody(with: def, for: entity)
+                let body = unsafe world.createBody(with: def, for: entity)
                 collisionBody.runtimeBody = body
 
                 for shapeResource in collisionBody.wrappedValue.shapes {
                     var shapeDef = b2DefaultShapeDef()
-                    shapeDef.density = 1
+                    unsafe shapeDef.density = 1
                     if let debugColor = collisionBody.debugColor {
-                        shapeDef.customColor = UInt32(debugColor.toHex)
+                        unsafe shapeDef.customColor = UInt32(debugColor.toHex)
                     }
-                    shapeDef.filter = collisionBody.filter.b2Filter
+                    unsafe shapeDef.filter = collisionBody.filter.b2Filter
                     if case .trigger = collisionBody.mode {
-                        shapeDef.isSensor = true
+                        unsafe shapeDef.isSensor = true
                     }
-                    body.appendShape(
+                    unsafe body.appendShape(
                         shapeResource,
                         transform: transform.wrappedValue,
                         shapeDef: shapeDef

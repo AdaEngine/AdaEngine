@@ -8,6 +8,8 @@
 import AdaECS
 import AdaUtils
 
+// TODO: Do we need be a Main Actor???
+
 /// A protocol that represents a world extractor.
 /// Used to extract data from main world to subworlds.
 public protocol WorldExctractor {
@@ -60,7 +62,7 @@ public extension AppWorlds {
     /// Set the world extractor.
     /// - Parameter exctractor: The world extractor.
     func setExctractor(_ exctractor: any WorldExctractor) {
-        self.worldExctractor = exctractor
+        unsafe self.worldExctractor = exctractor
     }
 
     /// Set the runner.
@@ -81,7 +83,7 @@ public extension AppWorlds {
         }
         await main.runScheduler(updateScheduler)
         for world in self.subWorlds.values {
-            await world.worldExctractor?.exctract(from: main, to: world.main)
+            unsafe await world.worldExctractor?.exctract(from: main, to: world.main)
             await world.update()
         }
         main.clearTrackers()
@@ -135,6 +137,12 @@ public extension AppWorlds {
     @discardableResult
     func insertResource<T: Resource>(_ resource: consuming T) -> Self {
         self.main.insertResource(resource)
+        return self
+    }
+
+    @discardableResult
+    func createResource<T: Resource & WorldInitable>(_ type: T.Type) -> Self {
+        _ = self.main.createResource(of: type)
         return self
     }
 

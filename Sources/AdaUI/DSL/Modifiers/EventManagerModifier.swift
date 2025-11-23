@@ -53,7 +53,7 @@ private final class EventManagerNode<E: Event>: ViewModifierNode {
 }
 
 struct EventManagerEnvironmentKey: EnvironmentKey {
-    nonisolated(unsafe) static var defaultValue = EventManager.default
+    static let defaultValue = EventManager.default
 }
 
 public extension EnvironmentValues {

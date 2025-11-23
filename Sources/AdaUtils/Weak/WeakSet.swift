@@ -16,27 +16,28 @@ public struct WeakSet<T: AnyObject>: Sequence {
         return self.buffer.count
     }
 
+    @safe
     public final class WeakIterator: IteratorProtocol {
         let buffer: [WeakBox<T>]
         let currentIndex: UnsafeMutablePointer<Int>
         
         init(buffer: Set<WeakBox<T>>) {
             self.buffer = Array(buffer.filter { !$0.isEmpty })
-            self.currentIndex = UnsafeMutablePointer<Int>.allocate(capacity: 1)
-            self.currentIndex.pointee = -1
+            unsafe self.currentIndex = UnsafeMutablePointer<Int>.allocate(capacity: 1)
+            unsafe self.currentIndex.pointee = -1
         }
         
         deinit {
-            self.currentIndex.deallocate()
+            unsafe self.currentIndex.deallocate()
         }
         
         public func next() -> Element? {
-            self.currentIndex.pointee += 1
-            if buffer.endIndex == self.currentIndex.pointee {
+            unsafe self.currentIndex.pointee += 1
+            if unsafe buffer.endIndex == self.currentIndex.pointee {
                 return nil
             }
             
-            return buffer[self.currentIndex.pointee].value
+            return unsafe buffer[self.currentIndex.pointee].value
         }
     }
     

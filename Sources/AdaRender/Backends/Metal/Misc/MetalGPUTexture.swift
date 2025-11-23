@@ -72,10 +72,10 @@ final class MetalGPUTexture: GPUTexture {
 
             let bytesPerRow = descriptor.pixelFormat.bytesPerComponent * image.width
 
-            image.data.withUnsafeBytes { buffer in
-                precondition(buffer.baseAddress != nil, "Image should not contains empty address.")
+            unsafe image.data.withUnsafeBytes { buffer in
+                unsafe precondition(buffer.baseAddress != nil, "Image should not contains empty address.")
 
-                texture.replace(
+                unsafe texture.replace(
                     region: region,
                     mipmapLevel: 0,
                     withBytes: buffer.baseAddress!,
@@ -109,7 +109,7 @@ final class MetalGPUTexture: GPUTexture {
         let pixelCount = self.texture.width * self.texture.height
 
         var imageBytes = [UInt8](repeating: 0, count: pixelCount * bytesInPixel)
-        self.texture.getBytes(
+        unsafe self.texture.getBytes(
             &imageBytes,
             bytesPerRow: bytesPerRow,
             from: MTLRegion(

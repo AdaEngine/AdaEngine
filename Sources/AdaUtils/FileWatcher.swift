@@ -765,10 +765,10 @@ private func callback(
     eventFlags: UnsafePointer<FSEventStreamEventFlags>,
     eventIds: UnsafePointer<FSEventStreamEventId>
 ) {
-    let eventStream = unsafeBitCast(clientCallBackInfo, to: FSEventStream.self)
+    let eventStream = unsafe unsafeBitCast(clientCallBackInfo, to: FSEventStream.self)
 
     // We expect the paths to be reported in an NSArray because we requested CFTypes.
-    let eventPaths = unsafeBitCast(eventPaths, to: NSArray.self) as? [String] ?? []
+    let eventPaths = unsafe unsafeBitCast(eventPaths, to: NSArray.self) as? [String] ?? []
 
     // Compute the set of paths that were changed.
     let paths = eventPaths//.compactMap({ try? AbsolutePath(validating: $0) }) // <- TODO (Vlad): May be ok
@@ -783,6 +783,7 @@ public protocol FSEventStreamDelegate {
 }
 
 /// Wrapper for Darwin's FSEventStream API.
+@safe
 public final class FSEventStream: @unchecked Sendable {
 
     /// The errors encountered during fs event watching.
@@ -817,12 +818,12 @@ public final class FSEventStream: @unchecked Sendable {
         self.delegate = delegate
 
         // Create the context that needs to be passed to the callback.
-        var callbackContext = FSEventStreamContext()
-        callbackContext.info = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
+        var callbackContext = unsafe FSEventStreamContext()
+        unsafe callbackContext.info = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
 
         // Create the stream.
-        self.stream = FSEventStreamCreate(nil,
-            callback, 
+        unsafe self.stream = FSEventStreamCreate(nil,
+            callback,
             &callbackContext, 
             paths as CFArray, 
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
@@ -837,22 +838,22 @@ public final class FSEventStream: @unchecked Sendable {
             guard let `self` = self else { return }
             self.runLoop = CFRunLoopGetCurrent()
             // Schedule the run loop.
-            FSEventStreamScheduleWithRunLoop(
+            unsafe FSEventStreamScheduleWithRunLoop(
                 self.stream,
                 CFRunLoopGetCurrent(),
                 CFRunLoopMode.defaultMode.rawValue
             )
 
             // Start the stream.
-            FSEventStreamScheduleWithRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
-            FSEventStreamStart(self.stream)
+            unsafe FSEventStreamScheduleWithRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
+            unsafe FSEventStreamStart(self.stream)
             CFRunLoopRun()
 
             // Perform cleanup.
-            FSEventStreamStop(self.stream)
-            FSEventStreamUnscheduleFromRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
-            FSEventStreamInvalidate(self.stream)
-            FSEventStreamRelease(self.stream)
+            unsafe FSEventStreamStop(self.stream)
+            unsafe FSEventStreamUnscheduleFromRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
+            unsafe FSEventStreamInvalidate(self.stream)
+            unsafe FSEventStreamRelease(self.stream)
         }
         thread.start()
 		self.thread = thread

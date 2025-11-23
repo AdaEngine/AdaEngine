@@ -7,7 +7,7 @@
 
 #if METAL
 import AdaUtils
-@preconcurrency import MetalKit
+@unsafe @preconcurrency import MetalKit
 import Math
 
 final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
@@ -148,7 +148,7 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 
     func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> IndexBuffer {
         let buffer = self.device.makeBuffer(length: length, options: .storageModeShared)!
-        buffer.contents().copyMemory(from: bytes, byteCount: length)
+        unsafe buffer.contents().copyMemory(from: bytes, byteCount: length)
         let metalBuffer = MetalIndexBuffer(buffer: buffer, indexFormat: format)
         metalBuffer.label = label
         return metalBuffer
@@ -169,7 +169,7 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     func createBuffer(label: String?, bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> Buffer {
-        let buffer = self.device.makeBuffer(bytes: bytes, length: length, options: options.metal)!
+        let buffer = unsafe self.device.makeBuffer(bytes: bytes, length: length, options: options.metal)!
         let metalBuffer = MetalBuffer(buffer: buffer)
         metalBuffer.label = label
         return metalBuffer
@@ -310,7 +310,7 @@ extension MetalRenderDevice {
     // MARK: - Uniforms -
 
     func createUniformBufferSet() -> UniformBufferSet {
-        return GenericUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, device: self)
+        return unsafe GenericUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, device: self)
     }
 
     func createUniformBuffer(length: Int, binding: Int) -> UniformBuffer {

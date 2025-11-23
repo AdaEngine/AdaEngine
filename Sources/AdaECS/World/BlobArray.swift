@@ -12,8 +12,9 @@ import FoundationEssentials
 import Foundation
 #endif
 
-@unsafe
+@safe
 public struct BlobArray: Sendable {
+    @unsafe
     final class _Buffer: @unchecked Sendable {
         let count: Int
         let pointer: UnsafeMutableRawBufferPointer
@@ -24,18 +25,18 @@ public struct BlobArray: Sendable {
             pointer: UnsafeMutableRawBufferPointer,
             deinitializer: ((UnsafeMutableRawBufferPointer, Int) -> Void)? = nil
         ) {
-            self.count = count
-            self.pointer = pointer
-            self.deinitializer = deinitializer
+            unsafe self.count = count
+            unsafe self.pointer = pointer
+            unsafe self.deinitializer = deinitializer
         }
 
         deinit {
-            self.clear(count)
-            pointer.deallocate()
+            unsafe self.clear(count)
+            unsafe pointer.deallocate()
         }
 
         func clear(_ count: Int) {
-            deinitializer?(pointer, count)
+            unsafe deinitializer?(pointer, count)
         }
     }
 
@@ -61,7 +62,7 @@ public struct BlobArray: Sendable {
     ) {
         self.count = count
         self.layout = ElementLayout(size: MemoryLayout<T>.stride, alignment: MemoryLayout<T>.alignment)
-        self.buffer = _Buffer(
+        unsafe self.buffer = _Buffer(
             count: count,
             pointer: .allocate(
                 byteCount: count * MemoryLayout<T>.stride,
@@ -75,7 +76,7 @@ public struct BlobArray: Sendable {
 
 public extension BlobArray {
     mutating func realloc(_ count: Int) {
-        let newBuffer = _Buffer(
+        let newBuffer = unsafe _Buffer(
             count: count,
             pointer: .allocate(
                 byteCount: count * self.layout.size,
@@ -83,13 +84,13 @@ public extension BlobArray {
             ),
             deinitializer: buffer.deinitializer
         )
-        newBuffer.pointer.copyMemory(from: UnsafeRawBufferPointer(self.buffer.pointer))
-        self.buffer = newBuffer
+        unsafe newBuffer.pointer.copyMemory(from: UnsafeRawBufferPointer(self.buffer.pointer))
+        unsafe self.buffer = newBuffer
         self.count = count
     }
 
     func clear(_ count: Int) {
-        self.buffer.clear(count)
+        unsafe self.buffer.clear(count)
     }
 
     func insert<T: ~Copyable>(_ element: consuming T, at index: Int) {
@@ -100,7 +101,7 @@ public extension BlobArray {
             "Element has different layout"
         )
         #endif
-        self.buffer.pointer
+        unsafe self.buffer.pointer
             .baseAddress!
             .advanced(by: index * self.layout.size)
             .assumingMemoryBound(to: T.self)
@@ -116,7 +117,7 @@ public extension BlobArray {
         )
     #endif
 
-        return self.buffer.pointer.baseAddress!
+        return unsafe self.buffer.pointer.baseAddress!
             .advanced(by: index * self.layout.size)
             .bindMemory(to: type, capacity: self.layout.size)
     }
@@ -129,7 +130,7 @@ public extension BlobArray {
             "Element has different layout"
         )
     #endif
-        return self.buffer.pointer.baseAddress!
+        return unsafe self.buffer.pointer.baseAddress!
             .advanced(by: index * self.layout.size)
             .bindMemory(to: type, capacity: self.layout.size)
             .pointee
@@ -145,15 +146,15 @@ public extension BlobArray {
         if fromIndex == toIndex || layout.size == 0 {
             return
         }
-        let base = buffer.pointer.baseAddress!
-        let fromPointer = base.advanced(by: fromIndex * layout.size)
-        let toPointer = base.advanced(by: toIndex * layout.size)
+        let base = unsafe buffer.pointer.baseAddress!
+        let fromPointer = unsafe base.advanced(by: fromIndex * layout.size)
+        let toPointer = unsafe base.advanced(by: toIndex * layout.size)
 
-        withUnsafeTemporaryAllocation(of: UInt8.self, capacity: layout.size) { tmp in
+        unsafe withUnsafeTemporaryAllocation(of: UInt8.self, capacity: layout.size) { tmp in
             let tempPointer = UnsafeMutableRawPointer(tmp.baseAddress!)
-            tempPointer.copyMemory(from: fromPointer, byteCount: layout.size)
-            fromPointer.copyMemory(from: toPointer, byteCount: layout.size)
-            toPointer.copyMemory(from: tempPointer, byteCount: layout.size)
+            unsafe tempPointer.copyMemory(from: fromPointer, byteCount: layout.size)
+            unsafe fromPointer.copyMemory(from: toPointer, byteCount: layout.size)
+            unsafe toPointer.copyMemory(from: tempPointer, byteCount: layout.size)
         }
     }
 
@@ -165,11 +166,11 @@ public extension BlobArray {
             "Element has different layout"
         )
         #endif
-        let pointer = self.buffer.pointer.baseAddress!
+        let pointer = unsafe self.buffer.pointer.baseAddress!
             .advanced(by: index * self.layout.size)
             .assumingMemoryBound(to: T.self)
-        let element = pointer.pointee
-        pointer.deinitialize(count: 1)
+        let element = unsafe pointer.pointee
+        unsafe pointer.deinitialize(count: 1)
         return element
     }
 
@@ -185,9 +186,9 @@ public extension BlobArray {
             "BlobArray has different layout"
         )
         #endif
-        let sourcePointer = self.buffer.pointer.baseAddress!.advanced(by: fromIndex * self.layout.size)
-        let destinationPointer = blobArray.buffer.pointer.baseAddress!.advanced(by: toIndex * self.layout.size)
-        destinationPointer.copyMemory(from: sourcePointer, byteCount: self.layout.size)
+        let sourcePointer = unsafe self.buffer.pointer.baseAddress!.advanced(by: fromIndex * self.layout.size)
+        let destinationPointer = unsafe blobArray.buffer.pointer.baseAddress!.advanced(by: toIndex * self.layout.size)
+        unsafe destinationPointer.copyMemory(from: sourcePointer, byteCount: self.layout.size)
     }
 }
 

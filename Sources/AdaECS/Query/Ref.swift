@@ -11,6 +11,7 @@ import AdaUtils
 /// Used to mutate component values via ``Query``.
 @dynamicMemberLookup
 @propertyWrapper
+@safe
 public final class Ref<T>: @unchecked Sendable, ChangeDetectionable {
     private let pointer: UnsafeMutablePointer<T>?
     public var changeTick: ChangeDetectionTick
@@ -19,10 +20,10 @@ public final class Ref<T>: @unchecked Sendable, ChangeDetectionable {
     @inline(__always)
     public var wrappedValue: T {
         get {
-            self.pointer!.pointee
+            unsafe self.pointer!.pointee
         }
         set {
-            self.pointer!.pointee = newValue
+            unsafe self.pointer?.pointee = newValue
             self.setChanged()
         }
     }
@@ -35,7 +36,7 @@ public final class Ref<T>: @unchecked Sendable, ChangeDetectionable {
         pointer: UnsafeMutablePointer<T>?,
         changeTick: ChangeDetectionTick
     ) {
-        self.pointer = pointer
+        unsafe self.pointer = pointer
         self.changeTick = changeTick
     }
 

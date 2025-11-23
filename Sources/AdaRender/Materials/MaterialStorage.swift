@@ -23,7 +23,7 @@ open class MaterialStorageData {
         
         module.reflectionData.shaderBuffers.forEach { (bufferName, bufferDesc) in
             if self.uniformBufferSet[bufferName] == nil {
-                let bufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
+                let bufferSet = unsafe RenderEngine.shared.renderDevice.createUniformBufferSet()
                 bufferSet.label = "\(module.assetName) \(bufferDesc.name) \(bufferDesc.shaderStage)"
                 bufferSet.initBuffers(length: bufferDesc.size, binding: bufferDesc.binding, set: 0)
                 
@@ -61,15 +61,15 @@ public final class MaterialStorage {
         
         assert(T.shaderValueType == member.type, "Failed to set value with type \(T.shaderValueType) to property with type \(member.type)")
         
-        let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
+        let buffer = unsafe data.uniformBufferSet[bufferDesc.name]?.getBuffer(
             binding: member.binding,
             set: 0,
             frameIndex: RenderEngine.shared.currentFrameIndex
         )
         
-        withUnsafePointer(to: value) { pointer in
-            let dataPtr = UnsafeMutableRawPointer(mutating: UnsafeRawPointer(pointer))
-            buffer?.setData(dataPtr, byteCount: member.size, offset: member.offset)
+        unsafe withUnsafePointer(to: value) { pointer in
+            let dataPtr = unsafe UnsafeMutableRawPointer(mutating: UnsafeRawPointer(pointer))
+            unsafe buffer?.setData(dataPtr, byteCount: member.size, offset: member.offset)
         }
     }
     
@@ -84,13 +84,13 @@ public final class MaterialStorage {
         
         assert(T.shaderValueType == member.type, "Failed to get value with type \(T.shaderValueType) from property with type \(member.type)")
         
-        let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
+        let buffer = unsafe data.uniformBufferSet[bufferDesc.name]?.getBuffer(
             binding: member.binding,
             set: 0,
             frameIndex: RenderEngine.shared.currentFrameIndex
         )
         
-        return buffer?.contents().load(fromByteOffset: member.offset, as: T.self)
+        return unsafe buffer?.contents().load(fromByteOffset: member.offset, as: T.self)
     }
 
     public func getUniformDescription(for name: String, in material: MaterialStorageData) -> ShaderResource.ShaderBuffer? {
