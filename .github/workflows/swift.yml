@@ -12,7 +12,7 @@ jobs:
     name: macOS 26 with Xcode ${{ matrix.xcode_version }}
     strategy:
       matrix:
-        xcode_version: ['26.1']
+        xcode_version: ['26.1.1']
     runs-on: macos-26
     env:
       DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode_version }}.app
