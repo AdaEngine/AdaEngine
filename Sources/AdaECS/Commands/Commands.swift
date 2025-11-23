@@ -29,7 +29,7 @@ public struct WorldCommandQueue: Sendable {
     public mutating func apply(to world: World) {
         world.flushCommands()
 
-        while let drop = commands.popLast() {
+        while let drop = commands.popFirst() {
             drop.applyToWorld(world)
         }
     }
@@ -191,5 +191,14 @@ public extension EntityCommands {
     @inline(__always)
     func remove<T: Component>(_ componentType: T.Type, from entity: Entity.ID) -> Self {
         self.remove(T.identifier, from: entity)
+    }
+}
+
+extension ContiguousArray {
+    mutating func popFirst() -> Element? {
+        guard !self.isEmpty else {
+            return nil
+        }
+        return self.remove(at: 0)
     }
 }

@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 1/8/23.
 //
 
+import AdaUtils
 import Math
 
 // TODO: (Vlad) Add documentations
@@ -122,14 +123,18 @@ public struct ColorAttachmentDescriptor_New: Sendable {
 
     public var operation: OperationDescriptor?
 
+    public var clearColor: Color?
+
     public init(
         texture: Texture,
         resolveTexture: Texture? = nil,
-        operation: OperationDescriptor? = nil
+        operation: OperationDescriptor? = nil,
+        clearColor: Color?
     ) {
         self.texture = texture
         self.resolveTexture = resolveTexture
         self.operation = operation
+        self.clearColor = clearColor
     }
 }
 
