@@ -28,6 +28,6 @@ public extension App {
     // Initializes and runs the app.
     static func main() async throws {
         let appContext = try AppContext<Self>()
-        try appContext.run()
+        try await appContext.run()
     }
 }

@@ -14,7 +14,7 @@ struct AdaTransformTests: Sendable {
         self.world = AppWorlds(main: World())
             .addPlugin(TransformPlugin())
 
-        try self.world.build()
+        try await self.world.build()
     }
 
     @Test("Global transform test")

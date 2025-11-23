@@ -33,7 +33,7 @@ struct Physics2DTests {
         world
             .addPlugin(Physics2DPlugin())
             .addPlugin(TransformPlugin())
-        try world.build()
+        try await world.build()
     }
     
     @Test
