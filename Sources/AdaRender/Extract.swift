@@ -33,12 +33,11 @@ public final class Extract<T: SystemParameter>: @unchecked Sendable {
 
 extension Extract: SystemParameter {
     public func update(from world: World) {
-        let world = world
-        if _value == nil {
-            _value = T.init(from: world)
-        }
-        if let resource = world.getResource(MainWorld.self) {
-            _value?.update(from: resource.world)
+        if let mainWorld = world.getResource(MainWorld.self)?.world {
+            if _value == nil {
+                _value = T.init(from: mainWorld)
+            }
+            _value?.update(from: mainWorld)
         }
     }
 }
