@@ -60,24 +60,20 @@ class MetalRenderBackend: RenderBackend {
     }
     
     func destroyWindow(_ window: WindowRef) throws {
-        guard case(.windowId(let windowId)) = window else {
-            return
-        }
-
-        guard self.context.windows[windowId] != nil else {
-            return
-        }
-        
         self.context.destroyWindow(by: window)
     }
 
-    func beginFrame() throws {
-        self.inFlightSemaphore.wait()
-    }
+    func getRenderWindows() throws -> RenderWindows {
+        var windows = SparseSet<WindowRef, RenderWindow>()
+        for (ref, window) in self.context.windows {
+            windows[ref] = RenderWindow(
+                windowRef: ref,
+                height: window.size.height,
+                width: window.size.width
+            )
+        }
 
-    func endFrame() throws {
-        currentFrameIndex = unsafe (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
-        self.inFlightSemaphore.signal()
+        return RenderWindows(windows: windows)
     }
 }
 

@@ -15,8 +15,7 @@ import MetalKit
 extension MetalRenderBackend {
 
     final class Context: @unchecked Sendable {
-        private(set) var windows: [RID: RenderWindow] = [:]
-        private var primaryWindow: RenderWindow?
+        private(set) var windows: [WindowRef: MetalRenderWindow] = [:]
         let physicalDevice: MTLDevice
         
         init() {
@@ -25,57 +24,42 @@ extension MetalRenderBackend {
             UserDefaults.standard.set(needsShowDebugHUD, forKey: "MetalForceHudEnabled")
         }
 
-        func getRenderWindow(for window: WindowRef) -> RenderWindow? {
-            switch window {
-            case .primary:
-                return primaryWindow
-            case .windowId(let id):
-                return windows[id]
-            }
+        func getRenderWindow(for window: WindowRef) -> MetalRenderWindow? {
+            windows[window]
         }
 
         // MARK: - Methods
-        @MainActor func createRenderWindow(with id: WindowRef, view: MTKView, size: SizeInt) throws {
-            if case(.windowId(let id)) = id, self.windows[id] != nil {
+        @MainActor
+        func createRenderWindow(with id: WindowRef, view: MTKView, size: SizeInt) throws {
+            if windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
-            
-            let window = RenderWindow(view: view)
-            
+
+            let window = MetalRenderWindow(
+                view: view,
+                size: SizeInt(
+                    width: Int(view.frame.size.width),
+                    height: Int(view.frame.size.height)
+                )
+            )
             // TODO: (Vlad) We should setup it in different place?
             view.colorPixelFormat = .bgra8Unorm
             view.device = self.physicalDevice
             view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
             view.framebufferOnly = false
             view.sampleCount = 1
-
-            if self.primaryWindow == nil {
-                self.primaryWindow = window
-            }
-            if case .windowId(let id) = id {
-                self.windows[id] = window
-            }
+            self.windows[id] = window
         }
         
         func updateSizeForRenderWindow(_ windowId: WindowRef, size: SizeInt) {
-//            guard let window = self.windows[windowId] else {
-//                assertionFailure("Not found window by id \(windowId)")
-//                return
-//            }
-            
-//            window.view?.drawableSize = size.toCGSize
+            windows[windowId]?.size = size
         }
         
         func destroyWindow(by id: WindowRef) {
-            guard case .windowId(let id) = id else {
-                return
-            }
-
             guard self.windows[id] != nil else {
                 assertionFailure("Not found window by id \(id)")
                 return
             }
-            
             self.windows[id] = nil
         }
         
@@ -97,19 +81,21 @@ extension MetalRenderBackend {
             var errorDescription: String? {
                 switch self {
                 case .creationWindowAlreadyExists:
-                    return "RenderWindow Creation Failed: Window by given id already exists."
+                    return "MetalRenderWindow Creation Failed: Window by given id already exists."
                 case .commandQueueCreationFailed:
-                    return "RenderWindow Creation Failed: MTLDevice cannot create MTLCommandQueue."
+                    return "MetalRenderWindow Creation Failed: MTLDevice cannot create MTLCommandQueue."
                 }
             }
         }
     }
     
-    final class RenderWindow: @unchecked Sendable {
+    struct MetalRenderWindow: Sendable {
         private(set) weak var view: MTKView?
+        var size: SizeInt
 
-        internal init(view: MTKView? = nil) {
+        init(view: MTKView? = nil, size: SizeInt) {
             self.view = view
+            self.size = size
         }
     }
 }

@@ -82,10 +82,12 @@ public extension AppWorlds {
             return
         }
         await main.runScheduler(updateScheduler)
+
         for world in self.subWorlds.values {
             unsafe await world.worldExctractor?.exctract(from: main, to: world.main)
             await world.update()
         }
+        
         main.clearTrackers()
     }
 

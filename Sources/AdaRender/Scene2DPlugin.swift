@@ -165,20 +165,17 @@ public struct PresentNode: RenderNode {
     }
     
     public func execute(context: inout Context, renderContext: RenderContext) async throws -> [RenderSlotValue] {
-        guard let viewEntity = context.viewEntity else { return [] }
-        
-        guard let entity = context.world.getEntityByID(viewEntity.id) else {
+        guard
+            let viewEntity = context.viewEntity,
+            let entity = context.world.getEntityByID(viewEntity.id),
+            let target = entity.components[RenderViewTarget.self]
+        else {
             return []
         }
-        
-        guard let target = entity.components[RenderViewTarget.self] else {
-            return []
-        }
-        
+
         if let mainTexture = target.mainTexture,
            let outputTexture = target.outputTexture,
            mainTexture !== outputTexture {
-            
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
             let blitEncoder = commandBuffer.beginBlitPass(BlitPassDescriptor(label: "Present Blit"))
             
@@ -197,8 +194,6 @@ public struct PresentNode: RenderNode {
             blitEncoder.endBlitPass()
             commandBuffer.commit()
         }
-        
-        try target.currentDrawable?.present()
 
         return []
     }

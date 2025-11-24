@@ -12,7 +12,6 @@ import AdaUtils
 import Math
 
 public struct UIPlugin: Plugin {
-
     public init() { }
 
     public func setup(in app: AppWorlds) {
@@ -58,7 +57,7 @@ public struct PrimaryWindow: Resource {
 }
 
 public struct WindowManagerResource: Resource {
-    public var windowManager: UIWindowManager
+    public let windowManager: UIWindowManager
 
     public init(windowManager: UIWindowManager) {
         self.windowManager = windowManager
@@ -80,7 +79,7 @@ func UpdateWindowManager(
     for window in windows {
         let menuBuilder = windowManager.menuBuilder(for: window)
         menuBuilder?.updateIfNeeded()
-
+        
         for event in input.eventsPool where event.window == window.id {
             window.sendEvent(event)
         }

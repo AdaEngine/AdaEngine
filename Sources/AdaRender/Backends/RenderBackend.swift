@@ -50,6 +50,9 @@ protocol RenderBackend: AnyObject {
     /// Destroy render window from render backend.
     /// - Throws: Throw error if window is not registred.
     @MainActor func destroyWindow(_ windowId: WindowRef) throws
+
+    /// Returns render windows
+    @MainActor func getRenderWindows() throws -> RenderWindows
 }
 
 /// The GPU device instance resposible for rendering and computing.

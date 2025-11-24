@@ -12,7 +12,6 @@ import Foundation
 
 /// The plugin that sets up the render world.
 public struct RenderWorldPlugin: Plugin {
-
     public init() {}
 
     /// Setup the render world.
@@ -23,20 +22,33 @@ public struct RenderWorldPlugin: Plugin {
         NoFrustumCulling.registerComponent()
         BoundingComponent.registerComponent()
         Texture.registerTypes()
-        
+
         let renderWorld = AppWorlds(main: World(name: "RenderWorld"))
-        renderWorld.updateScheduler = .render
-        renderWorld.insertResource(RenderGraph(label: "RenderWorld_Root"))
+        renderWorld.updateScheduler = .renderRunner
+        renderWorld
+            .insertResource(RenderGraph(label: "RenderWorld_Root"))
+            .insertResource(DefaultSchedulerOrder(order: [
+                .preUpdate,
+                .update,
+                .render,
+                .postUpdate
+            ]))
         renderWorld.setExctractor(RenderWorldExctractor())
         renderWorld.main.setSchedulers([
             .extract,
+            .preUpdate,
+            .prepare,
             .update,
-            .render
+            .render,
+            .postUpdate
         ])
 
         unsafe renderWorld
             .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
-            .addSystem(RenderWorldRunnerSystem.self, on: .render)
+            .insertResource(WindowSurfaces(windows: [:]))
+            .addSystem(CreateWindowSurfacesSystem.self, on: .prepare)
+            .addSystem(DefaultSchedulerRunner.self, on: .renderRunner)
+            .addSystem(RenderSystem.self, on: .render)
 
         app.addSubworld(renderWorld, by: .renderWorld)
     }
@@ -50,17 +62,14 @@ public struct RenderDeviceHandler: Resource {
     }
 }
 
-/// The system that renders the world.
 @System
-@inline(__always)
-func RenderWorldRunner(
+func Render(
     _ context: WorldUpdateContext,
     _ renderGraph: Res<RenderGraph?>,
+    _ surfaces: Res<WindowSurfaces>,
     _ renderDevice: Res<RenderDeviceHandler?>
-) async {
+) {
     let world = context.world
-    await world.runScheduler(.update)
-
     let renderGraph = renderGraph.wrappedValue
     renderGraph?.update(from: world)
     Task.detached(priority: .high) { [renderGraph] in
@@ -73,6 +82,10 @@ func RenderWorldRunner(
             }
             let renderGraphExecutor = RenderGraphExecutor()
             try await renderGraphExecutor.execute(renderGraph, renderDevice: renderDevice, in: world)
+
+            for window in surfaces.windows {
+                try window.currentDrawable?.present()
+            }
         } catch {
             assertionFailure("Failed to execute render graph \(error)")
         }
@@ -93,49 +106,64 @@ struct MainWorld: Resource {
     var world: World
 }
 
-/// A property wrapper that allows you to extract a resource from the main world.
-@propertyWrapper
-public final class Extract<T: SystemParameter>: @unchecked Sendable {
-    private var _value: T!
-    public var wrappedValue: T {
-        self._value
-    }
+public struct WindowSurface: Sendable {
+    public var swapchain: (any Swapchain)?
+    public var currentDrawable: (any Drawable)?
+}
 
-    /// Initialize a new extract.
-    public init() { }
+public struct WindowSurfaces: Resource {
+    public var windows: SparseSet<WindowRef, WindowSurface>
+}
 
-    /// Initialize a new extract.
-    /// - Parameter from: The world to extract the resource from.
-    public init(from world: World) {
-        self._value = T.init(from: world)
-    }
+@System
+func CreateWindowSurfaces(
+    _ surfaces: ResMut<WindowSurfaces>,
+    _ renderDevice: Res<RenderDeviceHandler>
+) async {
+    surfaces.windows.removeAll()
+    let device = renderDevice.renderDevice
 
-    /// Call the extract.
-    /// - Returns: The extracted resource.
-    public func callAsFunction() -> T {
-        self._value
+    do {
+        let renderWindows = unsafe try await RenderEngine.shared.getRenderWindows()
+        for (ref, _) in renderWindows.windows.values {
+            let swapchain = await renderDevice.renderDevice.createSwapchain(from: ref)
+            surfaces.windows[ref] = WindowSurface(
+                swapchain: swapchain,
+                currentDrawable: swapchain.getNextDrawable(device)
+            )
+        }
+    } catch {
+        print("CreateWindowSurfaces", error.localizedDescription)
     }
 }
 
-extension Extract: SystemParameter {
-    public func update(from world: World) {
-        let world = world
-        if _value == nil {
-            _value = T.init(from: world)
-        }
-        if let resource = world.getResource(MainWorld.self) {
-            _value?.update(from: resource.world)
-        }
+public struct RenderWindows: Resource {
+    public var windows: SparseSet<WindowRef, RenderWindow>
+
+    public init(windows: SparseSet<WindowRef, RenderWindow>) {
+        self.windows = windows
+    }
+}
+
+public struct RenderWindow: Sendable, Hashable {
+    public var windowRef: WindowRef
+    public var height: Int
+    public var width: Int
+
+    public init(windowRef: WindowRef, height: Int, width: Int) {
+        self.windowRef = windowRef
+        self.height = height
+        self.width = width
     }
 }
 
 public extension SchedulerName {
     /// The render scheduler.
+    static let renderRunner = SchedulerName(rawValue: "RenderWorld_RenderRunner")
+
+    static let prepare = SchedulerName(rawValue: "RenderWorld_Prepare")
     static let render = SchedulerName(rawValue: "RenderWorld_Render")
     static let extract = SchedulerName(rawValue: "RenderWorld_Extract")
-
-    static let beginRender = SchedulerName(rawValue: "RenderWorld_BeginFrame")
-    static let endRender = SchedulerName(rawValue: "RenderWorld_EndFrame")
 }
 
 public extension AppWorldName {
