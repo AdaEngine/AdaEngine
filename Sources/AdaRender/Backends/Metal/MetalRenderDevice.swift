@@ -266,7 +266,6 @@ extension MetalRenderDevice {
 // MARK: - Drawings
 
 extension MetalRenderDevice {
-
     func beginDraw(
         for window: WindowRef,
         clearColor: Color,

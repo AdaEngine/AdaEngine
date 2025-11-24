@@ -79,6 +79,10 @@ public final class RenderEngine: RenderBackend {
     public func destroyWindow(_ windowRef: WindowRef) throws {
         try self.renderBackend.destroyWindow(windowRef)
     }
+
+    public func getRenderWindows() throws -> RenderWindows {
+        try self.renderBackend.getRenderWindows()
+    }
 }
 
 public extension RenderDevice {

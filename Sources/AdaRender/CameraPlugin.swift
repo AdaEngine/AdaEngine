@@ -10,6 +10,7 @@ import AdaAssets
 import AdaECS
 import AdaTransform
 import AdaUtils
+import Logging
 import Math
 
 public struct CameraPlugin: Plugin {
@@ -37,9 +38,6 @@ public struct CameraPlugin: Plugin {
 public struct RenderViewTarget: @unchecked Sendable {
     public var mainTexture: RenderTexture?
     public var outputTexture: RenderTexture?
-    
-    var swapchain: (any Swapchain)?
-    var currentDrawable: (any Drawable)?
 
     public init() {}
 }
@@ -47,9 +45,11 @@ public struct RenderViewTarget: @unchecked Sendable {
 @System
 func ConfigurateRenderViewTarget(
     _ query: Query<Entity, Camera, Ref<RenderViewTarget>>,
+    _ surfaces: Res<WindowSurfaces>,
     _ renderDevice: Res<RenderDeviceHandler>
-) async {
-    await query.forEach { entity, camera, renderViewTarget in
+) {
+    let logger = Logger(label: "ConfigurateRenderViewTarget")
+    query.forEach { entity, camera, renderViewTarget in
         let viewportSize = camera.viewport?.rect.size.toSizeInt() ?? SizeInt(width: 800, height: 600)
         
         if renderViewTarget.mainTexture == nil {
@@ -65,22 +65,18 @@ func ConfigurateRenderViewTarget(
         case .texture(let asset):
             renderViewTarget.outputTexture = asset.asset
         case .window(let ref):
-            let swapchain = if let existingSwapchain = renderViewTarget.swapchain {
-                existingSwapchain
-            } else {
-                await MainActor.run {
-                    renderDevice.renderDevice.createSwapchain(from: ref)
-                }
+            guard
+                let surface = surfaces.windows[ref],
+                let swapchain = surface.swapchain,
+                let drawable = surface.currentDrawable
+            else {
+                logger.error("Failed to configurate render view target for window \(ref)")
+                return
             }
-            renderViewTarget.swapchain = swapchain
-
-            if let drawable = swapchain.getNextDrawable(renderDevice.renderDevice) {
-                renderViewTarget.currentDrawable = drawable
-                renderViewTarget.outputTexture = RenderTexture(
-                    gpuTexture: drawable.texture,
-                    format: swapchain.drawablePixelFormat
-                )
-            }
+            renderViewTarget.outputTexture = RenderTexture(
+                gpuTexture: drawable.texture,
+                format: swapchain.drawablePixelFormat
+            )
         }
     }
 }
