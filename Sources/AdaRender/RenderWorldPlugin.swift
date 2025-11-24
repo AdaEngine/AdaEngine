@@ -29,6 +29,7 @@ public struct RenderWorldPlugin: Plugin {
             .insertResource(RenderGraph(label: "RenderWorld_Root"))
             .insertResource(DefaultSchedulerOrder(order: [
                 .preUpdate,
+                .prepare,
                 .update,
                 .render,
                 .postUpdate
@@ -72,7 +73,7 @@ func Render(
     let world = context.world
     let renderGraph = renderGraph.wrappedValue
     renderGraph?.update(from: world)
-    Task.detached(priority: .high) { [renderGraph] in
+    Task { @RenderGraphActor [renderGraph] in
         do {
             guard
                 let renderGraph,
@@ -118,7 +119,8 @@ public struct WindowSurfaces: Resource {
 @System
 func CreateWindowSurfaces(
     _ surfaces: ResMut<WindowSurfaces>,
-    _ renderDevice: Res<RenderDeviceHandler>
+    _ renderDevice: Res<RenderDeviceHandler>,
+    _ primaryWindow: Extract<Res<PrimaryWindowId>>
 ) async {
     surfaces.windows.removeAll()
     let device = renderDevice.renderDevice
@@ -126,14 +128,32 @@ func CreateWindowSurfaces(
     do {
         let renderWindows = unsafe try await RenderEngine.shared.getRenderWindows()
         for (ref, _) in renderWindows.windows.values {
+            let normalizedRef: WindowRef
+            if case .windowId(let id) = ref {
+                normalizedRef = if primaryWindow.wrappedValue.windowId == id {
+                    .primary
+                } else {
+                    .windowId(id)
+                }
+            } else {
+                continue
+            }
             let swapchain = await renderDevice.renderDevice.createSwapchain(from: ref)
-            surfaces.windows[ref] = WindowSurface(
+            surfaces.windows[normalizedRef] = WindowSurface(
                 swapchain: swapchain,
                 currentDrawable: swapchain.getNextDrawable(device)
             )
         }
     } catch {
         print("CreateWindowSurfaces", error.localizedDescription)
+    }
+}
+
+public struct PrimaryWindowId: Resource {
+    public var windowId: RID
+
+    public init(windowId: RID) {
+        self.windowId = windowId
     }
 }
 

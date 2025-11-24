@@ -82,7 +82,6 @@ final class MacOSWindowManager: UIWindowManager {
         }
         
         window.windowDidAppear()
-        
         self.setActiveWindow(window)
     }
     
@@ -128,7 +127,10 @@ final class MacOSWindowManager: UIWindowManager {
     }
     
     override func getScreen(for window: UIWindow) -> Screen? {
-        guard let nsWindow = window.systemWindow as? NSWindow, let screen = nsWindow.screen else {
+        guard
+            let nsWindow = window.systemWindow as? NSWindow,
+            let screen = nsWindow.screen
+        else {
             return nil
         }
         

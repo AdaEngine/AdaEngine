@@ -8,6 +8,7 @@
 import AdaApp
 import AdaECS
 @_spi(Internal) import AdaInput
+import AdaRender
 import AdaUtils
 import Math
 
@@ -37,7 +38,9 @@ public struct WindowPlugin: Plugin {
 
         if let primaryWindow {
             primaryWindow.showWindow(makeFocused: true)
-            app.insertResource(PrimaryWindow(window: primaryWindow))
+            app
+                .insertResource(PrimaryWindow(window: primaryWindow))
+                .insertResource(PrimaryWindowId(windowId: primaryWindow.id))
         } else {
             let window = UIWindow()
             window.title = windowSettings.title ?? "App"
@@ -47,7 +50,9 @@ public struct WindowPlugin: Plugin {
                 windowSettings.windowMode == .fullscreen ? .fullscreen : .windowed
             )
             window.showWindow(makeFocused: true)
-            app.insertResource(PrimaryWindow(window: window))
+            app
+                .insertResource(PrimaryWindow(window: window))
+                .insertResource(PrimaryWindowId(windowId: window.id))
         }
     }
 }
