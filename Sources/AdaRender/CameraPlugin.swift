@@ -74,7 +74,7 @@ func ConfigurateRenderViewTarget(
             }
             renderViewTarget.swapchain = swapchain
 
-            if let drawable = swapchain.getNextDrawable() {
+            if let drawable = swapchain.getNextDrawable(renderDevice.renderDevice) {
                 renderViewTarget.currentDrawable = drawable
                 renderViewTarget.outputTexture = RenderTexture(
                     gpuTexture: drawable.texture,
