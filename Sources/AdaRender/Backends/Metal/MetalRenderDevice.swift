@@ -192,11 +192,14 @@ extension CAMetalLayer: Swapchain {
         self.pixelFormat.toPixelFormat()
     }
 
-    public func getNextDrawable() -> (any Drawable)? {
-        guard let drawable = self.nextDrawable() else {
+    public func getNextDrawable(_ renderDevice: RenderDevice) -> (any Drawable)? {
+        guard
+            let drawable = self.nextDrawable(),
+            let mtlDevice = renderDevice as? MetalRenderDevice
+        else {
             return nil
         }
-        return MetalDrawable(drawable: drawable)
+        return MetalDrawable(drawable: drawable, commandQueue: mtlDevice.commandQueue)
     }
 }
 
@@ -226,6 +229,7 @@ extension MTLPixelFormat {
 }
 
 final class MetalDrawable: Drawable {
+    private let commandQueue: MTLCommandQueue
     private let mtlDrawable: CAMetalDrawable
 
     public var texture: any GPUTexture {
@@ -233,10 +237,16 @@ final class MetalDrawable: Drawable {
     }
 
     public func present() throws {
-        self.mtlDrawable.present()
+        guard let commandBuffer = commandQueue.makeCommandBuffer() else {
+            return
+        }
+        commandBuffer.label = "(AdaRender internal) Present"
+        commandBuffer.present(self.mtlDrawable)
+        commandBuffer.commit()
     }
 
-    init(drawable: CAMetalDrawable) {
+    init(drawable: CAMetalDrawable, commandQueue: MTLCommandQueue) {
+        self.commandQueue = commandQueue
         self.mtlDrawable = drawable
     }
 }

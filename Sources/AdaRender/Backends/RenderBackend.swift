@@ -109,7 +109,7 @@ public protocol RenderDevice: AnyObject, Sendable {
 
 public protocol Swapchain: AnyObject, Sendable {
     var drawablePixelFormat: PixelFormat { get }
-    func getNextDrawable() -> (any Drawable)?
+    func getNextDrawable(_ renderDevice: RenderDevice) -> (any Drawable)?
 }
 
 public protocol Drawable: AnyObject, Sendable {
