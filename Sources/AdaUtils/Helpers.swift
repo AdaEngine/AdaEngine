@@ -12,6 +12,25 @@ import Foundation
 #endif
 
 // TODO: Think about it later. Maybe we should use some namespace
+@inlinable
+public func require<T>(
+    _ valueBlock: @autoclosure () -> T?,
+    message: @autoclosure () -> String = String()
+) -> T {
+    guard let value = valueBlock() else {
+        fatalError(message())
+    }
+    return value
+}
+
+public extension Optional {
+    @inlinable
+    func unwrap(
+        message: @autoclosure () -> String = String()
+    ) -> Wrapped {
+        require(self, message: message())
+    }
+}
 
 /// Call fatal error, because method not implemented
 public func fatalErrorMethodNotImplemented(

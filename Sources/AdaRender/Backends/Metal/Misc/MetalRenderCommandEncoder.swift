@@ -133,6 +133,15 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
         )
     }
 
+    func draw(type: IndexPrimitive, vertexStart: Int, vertexCount: Int, instanceCount: Int) {
+        renderEncoder.drawPrimitives(
+            type: type.toMetal,
+            vertexStart: vertexStart,
+            vertexCount: vertexCount,
+            instanceCount: instanceCount
+        )
+    }
+
     func endRenderPass() {
         renderEncoder.endEncoding()
     }

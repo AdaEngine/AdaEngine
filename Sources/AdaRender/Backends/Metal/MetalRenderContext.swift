@@ -15,7 +15,7 @@ import MetalKit
 extension MetalRenderBackend {
 
     final class Context: @unchecked Sendable {
-        private(set) var windows: [WindowRef: MetalRenderWindow] = [:]
+        private(set) var windows: [WindowID: MetalRenderWindow] = [:]
         let physicalDevice: MTLDevice
         
         init() {
@@ -24,38 +24,39 @@ extension MetalRenderBackend {
             UserDefaults.standard.set(needsShowDebugHUD, forKey: "MetalForceHudEnabled")
         }
 
-        func getRenderWindow(for window: WindowRef) -> MetalRenderWindow? {
+        func getRenderWindow(for window: WindowID) -> MetalRenderWindow? {
             windows[window]
         }
 
         // MARK: - Methods
         @MainActor
-        func createRenderWindow(with id: WindowRef, view: MTKView, size: SizeInt) throws {
+        func createRenderWindow(with id: WindowID, view: MTKView, size: SizeInt) throws {
             if windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
 
             let window = MetalRenderWindow(
                 view: view,
-                size: SizeInt(
-                    width: Int(view.frame.size.width),
-                    height: Int(view.frame.size.height)
-                )
+                size: size
             )
-            // TODO: (Vlad) We should setup it in different place?
             view.colorPixelFormat = .bgra8Unorm
             view.device = self.physicalDevice
             view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
             view.framebufferOnly = false
             view.sampleCount = 1
+
+            let layer = view.layer as? CAMetalLayer
+            layer?.maximumDrawableCount = unsafe RenderEngine.configurations.maxFramesInFlight
+            layer?.allowsNextDrawableTimeout = true
+
             self.windows[id] = window
         }
         
-        func updateSizeForRenderWindow(_ windowId: WindowRef, size: SizeInt) {
+        func updateSizeForRenderWindow(_ windowId: WindowID, size: SizeInt) {
             windows[windowId]?.size = size
         }
         
-        func destroyWindow(by id: WindowRef) {
+        func destroyWindow(by id: WindowID) {
             guard self.windows[id] != nil else {
                 assertionFailure("Not found window by id \(id)")
                 return
@@ -90,10 +91,10 @@ extension MetalRenderBackend {
     }
     
     struct MetalRenderWindow: Sendable {
-        private(set) weak var view: MTKView?
+        let view: MTKView
         var size: SizeInt
 
-        init(view: MTKView? = nil, size: SizeInt) {
+        init(view: MTKView, size: SizeInt) {
             self.view = view
             self.size = size
         }

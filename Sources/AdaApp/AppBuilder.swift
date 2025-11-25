@@ -176,6 +176,7 @@ public extension AppWorlds {
     }
 }
 
+// TODO: Maybe setup made async???
 
 /// A protocol that represents a plugin for the app.
 public protocol Plugin: Sendable {
