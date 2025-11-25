@@ -115,32 +115,8 @@ public struct DepthStencilDescriptor: Sendable {
     }
 }
 
-public struct ColorAttachmentDescriptor_New: Sendable {
-
-    public var texture: Texture
-
-    public var resolveTexture: Texture?
-
-    public var operation: OperationDescriptor?
-
-    public var clearColor: Color?
-
-    public init(
-        texture: Texture,
-        resolveTexture: Texture? = nil,
-        operation: OperationDescriptor? = nil,
-        clearColor: Color? = nil
-    ) {
-        self.texture = texture
-        self.resolveTexture = resolveTexture
-        self.operation = operation
-        self.clearColor = clearColor
-    }
-}
-
 /// An object that specifies the format and properties of a color attachment.
-@available(*, deprecated, message: "Use ColorAttachmentDescriptor_New instead")
-public struct ColorAttachmentDescriptor: Sendable {
+public struct RenderPipelineColorAttachmentDescriptor: Sendable {
 
     /// The format of the color attachment.
     public var format: PixelFormat
@@ -227,29 +203,10 @@ public struct OperationDescriptor: Sendable {
     }
 }
 
-public struct RenderPassDescriptor: Sendable {
-
-    public var label: String?
-
-    public var colorAttachments: [ColorAttachmentDescriptor_New]
-
-    public var depthStencilAttachment: DepthStencilAttachmentDescriptor?
-
-    public init(
-        label: String? = nil,
-        colorAttachments: [ColorAttachmentDescriptor_New],
-        depthStencilAttachment: DepthStencilAttachmentDescriptor? = nil
-    ) {
-        self.colorAttachments = colorAttachments
-        self.depthStencilAttachment = depthStencilAttachment
-    }
-}
-
 /// An object specifies the rendering configuration state to use during a rendering pass,
 /// including rasterization (such as multisampling), visibility, blending, tessellation, and graphics function state.
 ///
 /// To specify the vertex or fragment function in the rendering pipeline descriptor, set the vertex or fragment property.
-@available(*, deprecated, message: "Use RenderPassDescriptor instead")
 public struct RenderPipelineDescriptor: Sendable {
 
     /// The vertex shader the pipeline run to process vertices.
@@ -277,8 +234,8 @@ public struct RenderPipelineDescriptor: Sendable {
     public var depthPixelFormat: PixelFormat = .depth_32f_stencil8
     
     /// The color attachments.
-    public var colorAttachments: [ColorAttachmentDescriptor] = []
-    
+    public var colorAttachments: [RenderPipelineColorAttachmentDescriptor] = []
+
     /// Initialize a new render pipeline descriptor.
     ///
     /// - Parameter vertex: The vertex shader.
@@ -294,7 +251,7 @@ public struct RenderPipelineDescriptor: Sendable {
         vertexDescriptor: VertexDescriptor = VertexDescriptor(),
         depthStencilDescriptor: DepthStencilDescriptor? = nil,
         depthPixelFormat: PixelFormat = .depth_32f_stencil8,
-        colorAttachments: [ColorAttachmentDescriptor] = []
+        colorAttachments: [RenderPipelineColorAttachmentDescriptor] = []
     ) {
         self.vertex = vertex
         self.fragment = fragment

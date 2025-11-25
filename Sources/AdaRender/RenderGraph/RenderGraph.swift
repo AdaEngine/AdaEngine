@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import Logging
 
 // Inspired by Bevy https://github.com/bevyengine/bevy/tree/main/crates/bevy_render/src/render_graph
 
@@ -129,16 +130,19 @@ public struct RenderGraph: Resource {
         var outputEdges: [Edge] = []
     }
 
-    public nonisolated init(label: String? = nil) {
-        self.label = label
-    }
-
     let label: String?
+    private let logger: Logger
 
     internal private(set) var nodes: [Node.ID: Node] = [:]
     internal private(set) var subGraphs: [String: RenderGraph] = [:]
     
     internal private(set) var entryNode: Node?
+
+    public nonisolated init(label: String? = nil) {
+        self.label = label
+        self.logger = Logger(label: label.flatMap { "RenderGraph(\($0))" } ?? "RenderGraph")
+    }
+
 
     public func update(from world: World) {
         for node in nodes {
@@ -199,7 +203,6 @@ public struct RenderGraph: Resource {
         
         let outputSlotIndex = oNode.node.outputResources.firstIndex(where: { $0.name == outputSlot })
         let inputSlotIndex = iNode.node.inputResources.firstIndex(where: { $0.name == inputSlot })
-        
         assert(outputSlotIndex != nil, "Can't find slot by name \(outputSlot)")
         assert(inputSlotIndex != nil, "Can't find slot by name \(inputSlot)")
         
@@ -207,8 +210,13 @@ public struct RenderGraph: Resource {
             return
         }
         
-        let edge = Edge.slot(outputNode: outputNodeName, outputSlotIndex: outputSlotIndex, inputNode: inputNodeName, inputSlotIndex: inputSlotIndex)
-        
+        let edge = Edge.slot(
+            outputNode: outputNodeName,
+            outputSlotIndex: outputSlotIndex,
+            inputNode: inputNodeName,
+            inputSlotIndex: inputSlotIndex
+        )
+
         guard self.validateEdge(edge, shouldExsits: false) else {
             return
         }
@@ -290,8 +298,13 @@ public struct RenderGraph: Resource {
             return false
         }
         
-        let edge = Edge.slot(outputNode: outputNodeName, outputSlotIndex: outputSlotIndex, inputNode: inputNodeName, inputSlotIndex: inputSlotIndex)
-        
+        let edge = Edge.slot(
+            outputNode: outputNodeName,
+            outputSlotIndex: outputSlotIndex,
+            inputNode: inputNodeName,
+            inputSlotIndex: inputSlotIndex
+        )
+
         if !self.hasEdge(edge) {
             return false
         }
@@ -372,7 +385,7 @@ public struct RenderGraph: Resource {
         }
         
         guard let oNode = self.nodes[outputNode], let iNode = self.nodes[inputNode] else {
-            // Nodes not exists
+            self.logger.error("[Validation Error] Nodes not exists. Output: \(outputNode), Input: \(inputNode)")
             return false
         }
         
@@ -388,12 +401,12 @@ public struct RenderGraph: Resource {
         })
         
         if isSlotConnected && !shouldExsits {
-            // Slot already connected
+            self.logger.error("[Validation Error] Slot already connected. Output slot: \(outputSlot.name), Input slot: \(inputSlot.name)")
             return false
         }
         
         if outputSlot.kind != inputSlot.kind {
-            // Mismatched types
+            self.logger.error("[Validation Error] Mismatched types. Output slot: \((outputSlot.name, outputSlot.kind.rawValue)), Input slot: \((inputSlot.name, inputSlot.kind.rawValue))")
             return false
         }
         

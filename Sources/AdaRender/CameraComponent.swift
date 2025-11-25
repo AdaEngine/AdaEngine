@@ -15,8 +15,10 @@ public enum WindowRef: Codable, Sendable, Hashable {
     /// The primary window.
     case primary
     /// The window id.
-    case windowId(RID)
+    case windowId(WindowID)
 }
+
+public typealias WindowID = RID
 
 /// A viewport.
 public struct Viewport: Codable, Equatable, Sendable {
@@ -104,7 +106,7 @@ public struct Camera: Sendable {
     /// By default contains ``CameraClearFlags/solid`` flag which fill clear color by ``Camera/backgroundColor``.
     public var clearFlags: CameraClearFlags = .solid
 
-//    @MinValue(0.1)
+    @MinValue(0.1)
     public var orthographicScale: Float = 1
 
     /// Render target for camera.
@@ -114,7 +116,7 @@ public struct Camera: Sendable {
 
     /// The computed data for the camera.
     @_spi(Internal)
-//    @NoExport
+    @NoExport
     public var computedData: CameraComputedData = .defaultValue
 
     /// The render order.

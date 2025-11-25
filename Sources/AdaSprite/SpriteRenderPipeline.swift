@@ -31,7 +31,7 @@ struct SpriteRenderPipeline: Resource {
         ])
 
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<SpriteVertexData>.stride
-        piplineDesc.colorAttachments = [ColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
+        piplineDesc.colorAttachments = [RenderPipelineColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
         let quadPipeline = device.createRenderPipeline(from: piplineDesc)
         self.renderPipeline = quadPipeline
     }

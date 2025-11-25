@@ -67,7 +67,7 @@ public extension CanvasMaterial {
         descriptor.vertexDescriptor = vertexDescriptor
         descriptor.backfaceCulling = true
         descriptor.colorAttachments = [
-            ColorAttachmentDescriptor(
+            RenderPipelineColorAttachmentDescriptor(
                 format: .bgra8,
                 isBlendingEnabled: true
             )

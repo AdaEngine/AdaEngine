@@ -9,7 +9,6 @@
 import Metal
 
 final class MetalCommandQueue: CommandQueue {
-
     let commandQueue: MTLCommandQueue
 
     init(commandQueue: MTLCommandQueue) {
@@ -18,7 +17,7 @@ final class MetalCommandQueue: CommandQueue {
 
     func makeCommandBuffer() -> CommandBuffer {
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
-            fatalError()
+            fatalError("MetalCommandQueue failed. Can't create MTLCommandBuffer.")
         }
         return MetalCommandEncoder(commandBuffer: commandBuffer)
     }

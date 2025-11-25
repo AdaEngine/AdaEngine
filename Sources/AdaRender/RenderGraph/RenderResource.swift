@@ -14,7 +14,7 @@ public enum RenderResource: Sendable {
     case entity(Entity)
 }
 
-public enum RenderResourceKind: Sendable {
+public enum RenderResourceKind: String, Sendable {
     case texture
     case buffer
     case sampler

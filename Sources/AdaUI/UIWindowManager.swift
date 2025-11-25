@@ -124,7 +124,7 @@ open class UIWindowManager {
         }
         
         // Destory window from render window
-        unsafe try? RenderEngine.shared.destroyWindow(.windowId(window.id))
+        unsafe try? RenderEngine.shared.destroyWindow(window.id)
         
         self.windows.remove(at: index)
         window.windowDidDisappear()

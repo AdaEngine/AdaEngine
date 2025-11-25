@@ -145,5 +145,7 @@ public protocol RenderCommandEncoder: CommonCommandEncoder {
 
     func drawIndexed(indexCount: Int, indexBufferOffset: Int, instanceCount: Int)
 
+    func draw(type: IndexPrimitive, vertexStart: Int, vertexCount: Int, instanceCount: Int)
+
     func endRenderPass()
 }

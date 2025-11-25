@@ -41,15 +41,15 @@ protocol RenderBackend: AnyObject {
     /// Register a new render window for render backend.
     /// Window in this case is entity that managed a drawables (aka swapchain).
     /// - Throws: Throw error if something went wrong.
-    @MainActor func createWindow(_ windowId: WindowRef, for surface: RenderSurface, size: SizeInt) throws
+    @MainActor func createWindow(_ windowId: WindowID, for surface: RenderSurface, size: SizeInt) throws
 
     /// Resize registred render window.
     /// - Throws: Throw error if window is not registred.
-    @MainActor func resizeWindow(_ windowId: WindowRef, newSize: SizeInt) throws
+    @MainActor func resizeWindow(_ windowId: WindowID, newSize: SizeInt) throws
 
     /// Destroy render window from render backend.
     /// - Throws: Throw error if window is not registred.
-    @MainActor func destroyWindow(_ windowId: WindowRef) throws
+    @MainActor func destroyWindow(_ windowId: WindowID) throws
 
     /// Returns render windows
     @MainActor func getRenderWindows() throws -> RenderWindows
@@ -107,7 +107,7 @@ public protocol RenderDevice: AnyObject, Sendable {
 
     /// Create a new swapchain for specific window.
     @MainActor
-    func createSwapchain(from window: WindowRef) -> Swapchain
+    func createSwapchain(from window: WindowID) -> Swapchain
 }
 
 public protocol Swapchain: AnyObject, Sendable {

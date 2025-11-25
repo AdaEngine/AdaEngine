@@ -68,16 +68,16 @@ public final class RenderEngine: RenderBackend {
         return self.renderBackend.createLocalRenderDevice()
     }
 
-    public func createWindow(_ windowRef: WindowRef, for surface: RenderSurface, size: SizeInt) throws {
-        try self.renderBackend.createWindow(windowRef, for: surface, size: size)
+    public func createWindow(_ windowId: WindowID, for surface: RenderSurface, size: SizeInt) throws {
+        try self.renderBackend.createWindow(windowId, for: surface, size: size)
     }
     
-    public func resizeWindow(_ windowRef: WindowRef, newSize: SizeInt) throws {
-        try self.renderBackend.resizeWindow(windowRef, newSize: newSize)
+    public func resizeWindow(_ windowId: WindowID, newSize: SizeInt) throws {
+        try self.renderBackend.resizeWindow(windowId, newSize: newSize)
     }
     
-    public func destroyWindow(_ windowRef: WindowRef) throws {
-        try self.renderBackend.destroyWindow(windowRef)
+    public func destroyWindow(_ windowId: WindowID) throws {
+        try self.renderBackend.destroyWindow(windowId)
     }
 
     public func getRenderWindows() throws -> RenderWindows {

@@ -52,6 +52,7 @@ public struct RenderWorldPlugin: Plugin {
             .addSystem(RenderSystem.self, on: .render)
 
         app.addSubworld(renderWorld, by: .renderWorld)
+        app.addPlugin(UpscalePlugin())
     }
 }
 
@@ -73,6 +74,11 @@ func Render(
     let world = context.world
     let renderGraph = renderGraph.wrappedValue
     renderGraph?.update(from: world)
+    
+    // We should capture drawables before we start async task.
+    // Because we can have a situation when we start task, but main thread already cleared surfaces.
+    let windows = surfaces.windows
+    
     Task { @RenderGraphActor [renderGraph] in
         do {
             guard
@@ -84,7 +90,7 @@ func Render(
             let renderGraphExecutor = RenderGraphExecutor()
             try await renderGraphExecutor.execute(renderGraph, renderDevice: renderDevice, in: world)
 
-            for window in surfaces.windows {
+            for window in windows {
                 try window.currentDrawable?.present()
             }
         } catch {
@@ -127,19 +133,15 @@ func CreateWindowSurfaces(
 
     do {
         let renderWindows = unsafe try await RenderEngine.shared.getRenderWindows()
-        for (ref, _) in renderWindows.windows.values {
-            let normalizedRef: WindowRef
-            if case .windowId(let id) = ref {
-                normalizedRef = if primaryWindow.wrappedValue.windowId == id {
+        for (windowId, _) in renderWindows.windows.values {
+            let swapchain = await device.createSwapchain(from: windowId)
+
+            let ref: WindowRef = if primaryWindow.wrappedValue.windowId == windowId {
                     .primary
                 } else {
-                    .windowId(id)
+                    .windowId(windowId)
                 }
-            } else {
-                continue
-            }
-            let swapchain = await renderDevice.renderDevice.createSwapchain(from: ref)
-            surfaces.windows[normalizedRef] = WindowSurface(
+            surfaces.windows[ref] = WindowSurface(
                 swapchain: swapchain,
                 currentDrawable: swapchain.getNextDrawable(device)
             )
@@ -158,19 +160,19 @@ public struct PrimaryWindowId: Resource {
 }
 
 public struct RenderWindows: Resource {
-    public var windows: SparseSet<WindowRef, RenderWindow>
+    public var windows: SparseSet<WindowID, RenderWindow>
 
-    public init(windows: SparseSet<WindowRef, RenderWindow>) {
+    public init(windows: SparseSet<WindowID, RenderWindow>) {
         self.windows = windows
     }
 }
 
 public struct RenderWindow: Sendable, Hashable {
-    public var windowRef: WindowRef
+    public var windowRef: WindowID
     public var height: Int
     public var width: Int
 
-    public init(windowRef: WindowRef, height: Int, width: Int) {
+    public init(windowRef: WindowID, height: Int, width: Int) {
         self.windowRef = windowRef
         self.height = height
         self.width = width

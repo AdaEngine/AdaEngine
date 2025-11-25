@@ -7,6 +7,7 @@
 
 #if METAL
 import AdaUtils
+import Metal
 @unsafe @preconcurrency import MetalKit
 import Math
 
@@ -176,14 +177,14 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     @MainActor
-    func createSwapchain(from window: WindowRef) -> any Swapchain {
+    func createSwapchain(from window: WindowID) -> any Swapchain {
         guard let context else {
             fatalError("Context not found")
         }
-        guard let window = context.getRenderWindow(for: window) else {
-            fatalError("Window not found")
-        }
-        return window.view!.layer as! CAMetalLayer
+        let window = context.getRenderWindow(for: window)
+            .unwrap(message: "RenderWindow not found")
+
+        return require(window.view.layer as? CAMetalLayer, message: "Expected that view layer is CAMetalLayer")
     }
 }
 
@@ -266,64 +267,6 @@ extension MetalRenderDevice {
 // MARK: - Drawings
 
 extension MetalRenderDevice {
-    func beginDraw(
-        for window: WindowRef,
-        clearColor: Color,
-        loadAction: AttachmentLoadAction,
-        storeAction: AttachmentStoreAction
-    ) throws -> DrawList {
-        guard let context else {
-            throw DrawListError.notAGlobalDevice
-        }
-        guard let window = context.getRenderWindow(for: window) else {
-            throw DrawListError.windowNotExists
-        }
-        fatalError("Not implemented")
-//        guard let mtlRenderPass = window.getRenderPass() else {
-//            throw DrawListError.failedToGetSurfaceTexture
-//        }
-//        
-//        mtlRenderPass.colorAttachments[0].loadAction = loadAction.toMetal
-//        mtlRenderPass.colorAttachments[0].storeAction = storeAction.toMetal
-//        mtlRenderPass.colorAttachments[0].clearColor = clearColor.toMetalClearColor
-//        guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
-//            throw DrawListError.failedToCreateCommandBuffer
-//        }
-//
-//        let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPass)!
-//        let commandBuffer = MetalRenderCommandBuffer(
-//            encoder: encoder,
-//            commandBuffer: mtlCommandBuffer
-//        )
-
-//        return DrawList(commandBuffer: commandBuffer, renderDevice: self)
-    }
-
-    func beginDraw(to framebuffer: Framebuffer, clearColors: [Color]?) throws -> DrawList {
-        guard let mtlCommandBuffer = self.commandQueue.makeCommandBuffer() else {
-            throw DrawListError.failedToCreateCommandBuffer
-        }
-        guard let mtlRenderPassDesc = (framebuffer as? MetalFramebuffer)?.renderPassDescriptor else {
-            throw DrawListError.failedToGetRenderPass
-        }
-
-        if let clearColors {
-            for (index, color) in clearColors.enumerated() {
-                mtlRenderPassDesc.colorAttachments[index].clearColor = color.toMetalClearColor
-            }
-        }
-
-        let encoder = mtlCommandBuffer.makeRenderCommandEncoder(descriptor: mtlRenderPassDesc)!
-        let commandBuffer = MetalRenderCommandBuffer(
-            encoder: encoder,
-            commandBuffer: mtlCommandBuffer
-        )
-
-        return DrawList(commandBuffer: commandBuffer, renderDevice: self)
-    }
-
-    // MARK: - Uniforms -
-
     func createUniformBufferSet() -> UniformBufferSet {
         return unsafe GenericUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, device: self)
     }

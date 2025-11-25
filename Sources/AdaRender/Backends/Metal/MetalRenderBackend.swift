@@ -21,15 +21,12 @@ class MetalRenderBackend: RenderBackend {
     let type: RenderBackendType = .metal
     private(set) var currentFrameIndex: Int = 0
     
-    private var inFlightSemaphore: DispatchSemaphore
     private var commandQueue: MTLCommandQueue
 
     private(set) var renderDevice: RenderDevice
 
     init(appName: String) {
         self.context = Context()
-        
-        self.inFlightSemaphore = unsafe DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
 
         self.renderDevice = MetalRenderDevice(
@@ -46,12 +43,12 @@ class MetalRenderBackend: RenderBackend {
         )
     }
 
-    func createWindow(_ windowId: WindowRef, for surface: RenderSurface, size: SizeInt) throws {
+    func createWindow(_ windowId: WindowID, for surface: RenderSurface, size: SizeInt) throws {
         let mtlView = (surface as! MTKView)
         try self.context.createRenderWindow(with: windowId, view: mtlView, size: size)
     }
     
-    func resizeWindow(_ windowId: WindowRef, newSize: SizeInt) throws {
+    func resizeWindow(_ windowId: WindowID, newSize: SizeInt) throws {
         guard newSize.width > 0 && newSize.height > 0 else {
             return
         }
@@ -59,15 +56,15 @@ class MetalRenderBackend: RenderBackend {
         self.context.updateSizeForRenderWindow(windowId, size: newSize)
     }
     
-    func destroyWindow(_ window: WindowRef) throws {
+    func destroyWindow(_ window: WindowID) throws {
         self.context.destroyWindow(by: window)
     }
 
     func getRenderWindows() throws -> RenderWindows {
-        var windows = SparseSet<WindowRef, RenderWindow>()
-        for (ref, window) in self.context.windows {
-            windows[ref] = RenderWindow(
-                windowRef: ref,
+        var windows = SparseSet<WindowID, RenderWindow>()
+        for (id, window) in self.context.windows {
+            windows[id] = RenderWindow(
+                windowRef: id,
                 height: window.size.height,
                 width: window.size.width
             )
