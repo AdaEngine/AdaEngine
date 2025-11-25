@@ -41,14 +41,6 @@ public struct UpscalePipeline: Resource {
 
         descriptor.vertex = spriteShader.asset.getShader(for: .vertex)
         descriptor.fragment = spriteShader.asset.getShader(for: .fragment)
-
-//        descriptor.vertexDescriptor.attributes.append([
-//            .attribute(.vector3, name: "a_Position"),
-//            .attribute(.vector2, name: "a_UV")
-//        ])
-//
-//        descriptor.vertexDescriptor.layouts[0].stride = MemoryLayout<FullscreenVertexData>.stride
-
         descriptor.colorAttachments = [
             RenderPipelineColorAttachmentDescriptor(format: .bgra8)
         ]
