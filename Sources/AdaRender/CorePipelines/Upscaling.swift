@@ -28,6 +28,7 @@ struct UpscalePlugin: Plugin {
 public struct UpscalePipeline: Resource {
 
     public let renderPipeline: RenderPipeline
+    public let sampler: Sampler
 
     public init(device: RenderDevice) {
         let spriteShader = try! AssetsManager.loadSync(
@@ -46,10 +47,6 @@ public struct UpscalePipeline: Resource {
         ]
 
         self.renderPipeline = device.createRenderPipeline(from: descriptor)
+        self.sampler = device.createSampler(from: SamplerDescriptor())
     }
-}
-
-struct FullscreenVertexData {
-    let position: Vector3
-    let uv: Vector2
 }
