@@ -21,18 +21,17 @@ public struct CameraSystem: Sendable {
     @Query<Entity, Ref<Camera>, GlobalTransform>
     private var query
 
+    @Res
+    private var primaryWindow: PrimaryWindowId
+
     public init(world: World) { }
 
+    @MainActor
     public func update(context: UpdateContext) {
         self.query.forEach { entity, camera, globalTransform in
             let viewMatrix = globalTransform.matrix.inverse
             camera.viewMatrix = viewMatrix
-
-                self.updateViewportSizeIfNeeded(
-                    for: &camera.wrappedValue,
-                    screenScale: 2,
-                    windowSize: Size(width: 800, height: 600) // FIXME: Must use actual size
-                )
+            self.updateViewportSizeIfNeeded(for: camera)
             self.updateProjectionMatrix(for: &camera.wrappedValue)
             self.updateFrustum(for: &camera.wrappedValue)
 
@@ -44,23 +43,29 @@ public struct CameraSystem: Sendable {
         }
     }
 
+    @MainActor
     private func updateViewportSizeIfNeeded(
-        for camera: inout Camera, 
-        screenScale: Float,
-        windowSize: Size
+        for camera: Ref<Camera>
     ) {
         switch camera.renderTarget {
         case .window(let windowRef):
             camera.renderTarget = .window(windowRef)
-            camera.computedData.targetScaleFactor = screenScale
 
-            if camera.viewport == nil {
-                camera.viewport = Viewport(rect: Rect(origin: .zero, size: windowSize))
+            guard let renderWindow = RenderEngine.shared
+                .getRenderWindow(for: windowRef.getWindowId(from: primaryWindow))
+            else {
                 return
             }
 
-            if camera.viewport?.rect.size != windowSize {
-                camera.viewport?.rect.size = windowSize
+            camera.computedData.targetScaleFactor = renderWindow.scaleFactor
+
+            if camera.viewport == nil {
+                camera.viewport = Viewport(rect: Rect(origin: .zero, size: renderWindow.physicalSize))
+                return
+            }
+
+            if camera.viewport?.rect.size != renderWindow.physicalSize {
+                camera.viewport?.rect.size = renderWindow.physicalSize
             }
         case .texture(let textureHandle):
             let texture = textureHandle.asset
@@ -129,7 +134,7 @@ public func ExtractCamera(
     query.wrappedValue.forEach {
         camera, transform,
         visibleEntities, bufferSet, uniform in
-        let buffer = unsafe bufferSet.uniformBufferSet.getBuffer(
+        let buffer = bufferSet.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,
             frameIndex: RenderEngine.shared.currentFrameIndex

@@ -41,7 +41,7 @@ public final class Shader: Asset, @unchecked Sendable {
     fileprivate init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
         self.spirvData = spirv.data
         
-        self.spirvCompiler = unsafe try SpirvCompiler(
+        self.spirvCompiler = try SpirvCompiler(
             spriv: spirv.data,
             stage: spirv.stage,
             deviceLang: RenderEngine.shared.type.deviceLang
@@ -63,14 +63,14 @@ public final class Shader: Asset, @unchecked Sendable {
     public func recompile() throws {
         let spirv = try shaderCompiler.compileSpirvBin(for: self.stage)
         self.spirvData = spirv.data
-        self.spirvCompiler = unsafe try SpirvCompiler(
+        self.spirvCompiler = try SpirvCompiler(
             spriv: spirv.data,
             stage: self.stage,
             deviceLang: RenderEngine.shared.type.deviceLang
         )
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
-        self.compiledShader = unsafe try RenderEngine.shared.renderDevice.compileShader(from: self)
+        self.compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: self)
     }
     
     // MARK: Shader
@@ -108,7 +108,7 @@ public final class Shader: Asset, @unchecked Sendable {
     
     static func make(from spirv: SpirvBinary, compiler: ShaderCompiler) throws -> Shader {
         let shader = try Shader(spirv: spirv, compiler: compiler)
-        let compiledShader = unsafe try RenderEngine.shared.renderDevice.compileShader(from: shader)
+        let compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: shader)
         shader.compiledShader = compiledShader
         
         return shader

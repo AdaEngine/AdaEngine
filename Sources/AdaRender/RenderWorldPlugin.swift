@@ -9,6 +9,7 @@ import AdaApp
 import AdaECS
 import AdaUtils
 import Foundation
+import Math
 
 /// The plugin that sets up the render world.
 public struct RenderWorldPlugin: Plugin {
@@ -44,7 +45,7 @@ public struct RenderWorldPlugin: Plugin {
             .postUpdate
         ])
 
-        unsafe renderWorld
+        renderWorld
             .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
             .insertResource(WindowSurfaces(windows: [:]))
             .addSystem(CreateWindowSurfacesSystem.self, on: .prepare)
@@ -61,6 +62,14 @@ public struct RenderDeviceHandler: Resource {
 
     public init(renderDevice: RenderDevice) {
         self.renderDevice = renderDevice
+    }
+}
+
+public struct RenderEngineHandler: Resource {
+    public var renderEngine: RenderEngine
+
+    public init(renderEngine: RenderEngine) {
+        self.renderEngine = renderEngine
     }
 }
 
@@ -132,7 +141,7 @@ func CreateWindowSurfaces(
     let device = renderDevice.renderDevice
 
     do {
-        let renderWindows = unsafe try await RenderEngine.shared.getRenderWindows()
+        let renderWindows = try await RenderEngine.shared.getRenderWindows()
         for (windowId, _) in renderWindows.windows.values {
             let swapchain = await device.createSwapchain(from: windowId)
 
@@ -168,14 +177,27 @@ public struct RenderWindows: Resource {
 }
 
 public struct RenderWindow: Sendable, Hashable {
-    public var windowRef: WindowID
+    public var windowId: WindowID
     public var height: Int
     public var width: Int
+    public var scaleFactor: Float
 
-    public init(windowRef: WindowID, height: Int, width: Int) {
-        self.windowRef = windowRef
+    public var physicalSize: Size {
+        Size(
+            width: Float(width) * scaleFactor,
+            height: Float(height) * scaleFactor
+        )
+    }
+
+    public var logicalSize: SizeInt {
+        SizeInt(width: width, height: height)
+    }
+
+    public init(windowId: WindowID, height: Int, width: Int, scaleFactor: Float) {
+        self.windowId = windowId
         self.height = height
         self.width = width
+        self.scaleFactor = scaleFactor
     }
 }
 

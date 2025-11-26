@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import Math
 
 /// This node is responsible for presenting the result to the screen.
 public struct UpscaleNode: RenderNode {
@@ -57,7 +58,8 @@ public struct UpscaleNode: RenderNode {
                 )
             )
 
-            if let viewport = camera.viewport {
+            // This code doesn't work
+            if let viewport = camera.viewport, Int(viewport.rect.width) == outputTexture.width && Int(viewport.rect.height) == outputTexture.height {
                 renderPass.setScissorRect(viewport.rect)
             }
 

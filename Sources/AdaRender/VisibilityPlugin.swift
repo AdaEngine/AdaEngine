@@ -14,6 +14,6 @@ public struct VisibilityPlugin: Plugin {
     public init() {}
 
     public func setup(in app: AppWorlds) {
-        app.addSystem(VisibilitySystem.self)
+        app.addSystem(VisibilitySystem.self, on: .preUpdate)
     }
 }

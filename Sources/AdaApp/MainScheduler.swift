@@ -25,7 +25,6 @@ struct MainSchedulerPlugin: Plugin {
         app
             .addSystem(DefaultSchedulerRunner.self, on: .main)
             .addSystem(FixedTimeSchedulerSystem.self, on: .fixed)
-            .addSystem(PostUpdateSchedulerRunner.self, on: .postUpdate)
         app.insertResource(DefaultSchedulerOrder())
         app.addSystem(GameLoopBeganSystem.self, on: .preUpdate)
     }
@@ -74,23 +73,10 @@ public struct FixedTimeSchedulerSystem {
             let step = self.fixedTimestep.step
             let world = context.world
             world.insertResource(FixedTime(deltaTime: step))
-//            context.taskGroup.addTask(priority: .high) { [order] in
             for scheduler in order {
                 await world.runScheduler(scheduler)
             }
         }
-    }
-}
-
-/// The system that runs the post update scheduler.
-@PlainSystem
-public struct PostUpdateSchedulerRunner: Sendable {
-    
-    public init(world: World) { }
-
-    public func update(context: UpdateContext) async {
-        let world = context.world
-//        await world.runScheduler(.postUpdate)
     }
 }
 

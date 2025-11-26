@@ -18,14 +18,14 @@ public enum TriangleFillMode {
     case lines
 }
 
-public enum RenderBackendType: String {
+public enum RenderBackendType: String, Sendable {
     case opengl
     case metal
     case vulkan
 }
 
 /// This protocol describe interface for GPU.
-protocol RenderBackend: AnyObject {
+protocol RenderBackend: AnyObject, Sendable {
     
     var type: RenderBackendType { get }
 
@@ -50,6 +50,8 @@ protocol RenderBackend: AnyObject {
     /// Destroy render window from render backend.
     /// - Throws: Throw error if window is not registred.
     @MainActor func destroyWindow(_ windowId: WindowID) throws
+
+    @MainActor func getRenderWindow(for windowId: WindowID) -> RenderWindow?
 
     /// Returns render windows
     @MainActor func getRenderWindows() throws -> RenderWindows

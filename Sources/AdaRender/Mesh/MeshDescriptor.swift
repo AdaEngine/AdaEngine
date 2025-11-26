@@ -254,7 +254,7 @@ public extension MeshDescriptor {
             vertexSize += buffer.buffer.elementSize
         }
         
-        let vertexBuffer = unsafe RenderEngine.shared.renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
+        let vertexBuffer = RenderEngine.shared.renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
         let vertexBufferContents = vertexBuffer.contents()
         
         var attributeOffset: Int = 0

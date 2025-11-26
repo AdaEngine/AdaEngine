@@ -18,6 +18,17 @@ public enum WindowRef: Codable, Sendable, Hashable {
     case windowId(WindowID)
 }
 
+public extension WindowRef {
+    func getWindowId(from primary: PrimaryWindowId) -> WindowID {
+        switch self {
+        case .primary:
+            primary.windowId
+        case .windowId(let windowID):
+            windowID
+        }
+    }
+}
+
 public typealias WindowID = RID
 
 /// A viewport.
@@ -263,7 +274,7 @@ public struct GlobalViewUniformBufferSet {
     ///
     /// - Parameter label: The label of the uniform buffer set.
     public init(label: String = "Global View Uniform") {
-        self.uniformBufferSet = unsafe RenderEngine.shared.renderDevice.createUniformBufferSet()
+        self.uniformBufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
         self.uniformBufferSet.label = label
         self.uniformBufferSet.initBuffers(
             for: GlobalViewUniform.self,
