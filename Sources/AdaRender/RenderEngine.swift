@@ -14,8 +14,8 @@ public enum GlobalBufferIndex {
 }
 
 /// Render Engine is object that manage a GPU.
-public final class RenderEngine: RenderBackend {
-    
+public final class RenderEngine: RenderBackend, Sendable {
+
     public struct Configuration {
         public var maxFramesInFlight: Int = 3
         public init() {}
@@ -25,7 +25,7 @@ public final class RenderEngine: RenderBackend {
     nonisolated(unsafe) public static var configurations: Configuration = Configuration()
     
     /// Return instance of render engine for specific backend.
-    nonisolated(unsafe) public static let shared: RenderEngine = {
+    public static let shared: RenderEngine = {
         let renderBackend: RenderBackend
 
         let appName = "AdaEngine"
@@ -78,6 +78,10 @@ public final class RenderEngine: RenderBackend {
     
     public func destroyWindow(_ windowId: WindowID) throws {
         try self.renderBackend.destroyWindow(windowId)
+    }
+
+    func getRenderWindow(for windowId: WindowID) -> RenderWindow? {
+        self.renderBackend.getRenderWindow(for: windowId)
     }
 
     public func getRenderWindows() throws -> RenderWindows {

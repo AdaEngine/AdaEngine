@@ -19,7 +19,7 @@ public struct CameraPlugin: Plugin {
 
     public func setup(in app: AppWorlds) {
         Camera.registerComponent()
-        app.addSystem(CameraSystem.self)
+        app.addSystem(CameraSystem.self, on: .preUpdate)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return

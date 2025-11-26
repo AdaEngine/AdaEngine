@@ -35,9 +35,18 @@ extension MetalRenderBackend {
                 throw ContextError.creationWindowAlreadyExists
             }
 
+            #if canImport(AppKit)
+            var scaleFactor: Float = unsafe Float(view.window?.screen?.backingScaleFactor ?? 2)
+            #elseif canImport(UIKit)
+            var scaleFactor: Float = unsafe Float(view.window?.screen?.scaleFactor ?? 2)
+            #else
+            var scaleFactor: Float = 2
+            #endif
+
             let window = MetalRenderWindow(
                 view: view,
-                size: size
+                size: size,
+                scaleFactor: scaleFactor
             )
             view.colorPixelFormat = .bgra8Unorm
             view.device = self.physicalDevice
@@ -93,10 +102,12 @@ extension MetalRenderBackend {
     struct MetalRenderWindow: Sendable {
         let view: MTKView
         var size: SizeInt
+        var scaleFactor: Float
 
-        init(view: MTKView, size: SizeInt) {
+        init(view: MTKView, size: SizeInt, scaleFactor: Float) {
             self.view = view
             self.size = size
+            self.scaleFactor = scaleFactor
         }
     }
 }

@@ -12,9 +12,7 @@ import AdaUtils
 import AdaUI
 
 /// A system that updates all scripts components on scene
-@PlainSystem(dependencies: [
-    .before(CameraSystem.self)
-])
+@PlainSystem
 public struct ScriptComponentUpdateSystem {
 
     public init(world: World) { }

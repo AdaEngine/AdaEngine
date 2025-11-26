@@ -266,7 +266,7 @@ extension Material {
                 return nil
             }
 
-            return unsafe (RenderEngine.shared.renderDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
+            return (RenderEngine.shared.renderDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
         } catch {
             assertionFailure("[Mesh2DRenderSystem] \(error.localizedDescription)")
             return nil

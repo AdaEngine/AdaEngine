@@ -28,7 +28,7 @@ open class Texture: Asset, @unchecked Sendable {
     
     /// Returns an ``Image`` instance.
     public var image: Image {
-        if let image = unsafe RenderEngine.shared.renderDevice.getImage(from: self) {
+        if let image = RenderEngine.shared.renderDevice.getImage(from: self) {
             return image
         }
         

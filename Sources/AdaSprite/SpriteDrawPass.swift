@@ -33,7 +33,7 @@ public struct SpriteDrawPass: DrawPass {
         }
 
 //        renderEncoder.pushDebugName("SpriteDrawPass")
-        let uniformBuffer = unsafe cameraViewUniform.uniformBufferSet.getBuffer(
+        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,
             frameIndex: RenderEngine.shared.currentFrameIndex

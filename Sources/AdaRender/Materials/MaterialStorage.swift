@@ -23,7 +23,7 @@ open class MaterialStorageData {
         
         module.reflectionData.shaderBuffers.forEach { (bufferName, bufferDesc) in
             if self.uniformBufferSet[bufferName] == nil {
-                let bufferSet = unsafe RenderEngine.shared.renderDevice.createUniformBufferSet()
+                let bufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
                 bufferSet.label = "\(module.assetName) \(bufferDesc.name) \(bufferDesc.shaderStage)"
                 bufferSet.initBuffers(length: bufferDesc.size, binding: bufferDesc.binding, set: 0)
                 
@@ -61,7 +61,7 @@ public final class MaterialStorage {
         
         assert(T.shaderValueType == member.type, "Failed to set value with type \(T.shaderValueType) to property with type \(member.type)")
         
-        let buffer = unsafe data.uniformBufferSet[bufferDesc.name]?.getBuffer(
+        let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
             binding: member.binding,
             set: 0,
             frameIndex: RenderEngine.shared.currentFrameIndex
@@ -84,7 +84,7 @@ public final class MaterialStorage {
         
         assert(T.shaderValueType == member.type, "Failed to get value with type \(T.shaderValueType) from property with type \(member.type)")
         
-        let buffer = unsafe data.uniformBufferSet[bufferDesc.name]?.getBuffer(
+        let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
             binding: member.binding,
             set: 0,
             frameIndex: RenderEngine.shared.currentFrameIndex

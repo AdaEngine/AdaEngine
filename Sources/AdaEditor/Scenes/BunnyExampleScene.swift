@@ -9,7 +9,7 @@ import AdaEngine
 
 enum BunnyExampleConstants {
     static let bunniesPerClick: Int = 10
-    static let bunnyScale: Float = 1
+    static let bunnyScale: Float = 0.1
     static let gravity: Float = -9.8
     static let maxVelocity: Float = 2050.0
 }

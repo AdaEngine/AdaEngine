@@ -15,8 +15,8 @@ import OrderedCollections
 import Math
 import AdaUtils
 
-class MetalRenderBackend: RenderBackend {
-    
+final class MetalRenderBackend: RenderBackend, @unchecked Sendable {
+
     private let context: Context
     let type: RenderBackendType = .metal
     private(set) var currentFrameIndex: Int = 0
@@ -60,13 +60,27 @@ class MetalRenderBackend: RenderBackend {
         self.context.destroyWindow(by: window)
     }
 
+    func getRenderWindow(for windowId: WindowID) -> RenderWindow? {
+        guard let window = self.context.windows[windowId] else {
+            return nil
+        }
+
+        return RenderWindow(
+            windowId: windowId,
+            height: window.size.height,
+            width: window.size.width,
+            scaleFactor: window.scaleFactor
+        )
+    }
+
     func getRenderWindows() throws -> RenderWindows {
         var windows = SparseSet<WindowID, RenderWindow>()
         for (id, window) in self.context.windows {
             windows[id] = RenderWindow(
-                windowRef: id,
+                windowId: id,
                 height: window.size.height,
-                width: window.size.width
+                width: window.size.width,
+                scaleFactor: window.scaleFactor
             )
         }
 
