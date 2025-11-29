@@ -111,7 +111,8 @@ public extension AppWorlds {
     @discardableResult
     func addPlugin<T: Plugin>(_ plugin: T) -> Self {
         if self.plugins[ObjectIdentifier(T.self)] != nil {
-            fatalError("Plugin already installed")
+            assertionFailure("Plugin already installed")
+            return self
         }
 
         self.plugins[ObjectIdentifier(T.self)] = plugin

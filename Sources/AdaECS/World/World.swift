@@ -188,10 +188,9 @@ public extension World {
     /// - Parameter scheduler: Scheduler name.
     /// - Parameter deltaTime: Time interval since last update.
     func runScheduler(_ schedulerName: SchedulerName) async {
-        guard let scheduler = self.schedulers.getScheduler(schedulerName) else {
-            fatalError("Scheduler \(schedulerName) not found")
+        await self.schedulers.getScope(for: schedulerName) {
+            await $0.run(world: self)
         }
-        await scheduler.run(world: self)
     }
 }
 
