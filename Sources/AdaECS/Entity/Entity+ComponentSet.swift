@@ -93,7 +93,7 @@ public extension Entity {
         @inline(__always)
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
             get {
-                return world?.get(from: entity)
+                return get(for: T.self)
             }
             set {
                 if let newValue {
@@ -105,10 +105,19 @@ public extension Entity {
         }
 
         // FIXME: Replace to subscript??
+
         /// Get any count of component types from set.
         @inline(__always)
         public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
-            return (repeat self.world!.get((each T).self, from: entity)!)
+            return (repeat get(for: (each T).self)!)
+        }
+
+        public func get<T: Component>(for type: T.Type) -> T? {
+            if let world {
+                world.get(from: entity)
+            } else {
+                notFlushedComponents[T.identifier] as? T
+            }
         }
 
         /// Set the component of the specified type.
@@ -204,8 +213,8 @@ public extension Entity.ComponentSet {
     @inline(__always)
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
         (
-            world!.get(A.self, from: entity)!,
-            world!.get(B.self, from: entity)!
+            get(for: A.self)!,
+            get(for: B.self)!
         )
     }
     
@@ -221,9 +230,9 @@ public extension Entity.ComponentSet {
         _ c: C.Type
     ) -> (A, B, C) where A : Component, B: Component, C: Component {
         (
-            world!.get(A.self, from: entity)!,
-            world!.get(B.self, from: entity)!,
-            world!.get(C.self, from: entity)!
+            get(for: A.self)!,
+            get(for: B.self)!,
+            get(for: C.self)!
         )
     }
     
@@ -241,10 +250,10 @@ public extension Entity.ComponentSet {
         _ d: D.Type
     ) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
         (
-            world!.get(A.self, from: entity)!,
-            world!.get(B.self, from: entity)!,
-            world!.get(C.self, from: entity)!,
-            world!.get(D.self, from: entity)!
+            get(for: A.self)!,
+            get(for: B.self)!,
+            get(for: C.self)!,
+            get(for: D.self)!
         )
     }
 }
@@ -284,7 +293,11 @@ extension Entity.ComponentSet {
     /// - Parameter identifier: The identifier of the component.
     /// - Returns: The component if it exists, otherwise nil.
     func get<T: Component>(by identifier: ComponentId) -> T? {
-        return self.world?.get(T.self, from: entity)
+        if let world {
+            world.get(T.self, from: entity)
+        } else {
+            notFlushedComponents[identifier] as? T
+        }
     }
     
     /// Get a component by its identifier.
@@ -292,19 +305,14 @@ extension Entity.ComponentSet {
     /// - Returns: The component if it exists, otherwise nil.
     subscript<T: Component>(by componentId: ComponentId) -> T? {
         _read {
-            yield world?.get(T.self, from: entity)
+            yield get(T.self)
         }
 
         set {
-            guard let world else {
-                print("Can't set a component to \(entity), because World reference is nil.")
-                return
-            }
-
             if let newValue {
-                world.insert(newValue, for: entity)
+                self.insert(newValue)
             } else {
-                world.remove(T.identifier, from: entity)
+                self.remove(T.self)
             }
         }
     }

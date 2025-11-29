@@ -19,13 +19,18 @@ public protocol Component: QueryTarget, ~Copyable {
 public extension Component {
     static var componentsInfo: ComponentsInfo {
         ComponentsInfo(
-            componentId: Self.identifier
+            componentId: Self.identifier,
+            isPlainOldData: _isPOD(Self.self)
         )
     }
 }
 
 public struct ComponentsInfo {
     public let componentId: ComponentId
+
+    /// Plain struct without any references, ARC, etc.
+    /// - SeeAlso: _isPOD
+    public let isPlainOldData: Bool
 }
 
 /// Provides the events related to components.

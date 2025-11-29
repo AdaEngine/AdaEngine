@@ -39,8 +39,8 @@ struct WorldTests {
     func getMutableResource() throws {
         let resource = Gravity(value: Vector3(0, 9.8, 0))
         world.insertResource(resource)
-        world.getMutableResource(Gravity.self).wrappedValue?.value = Vector3(0, -9.8, 0)
-        #expect(world.getMutableResource(Gravity.self).wrappedValue?.value == Vector3(0, -9.8, 0))
+        world.getRefResource(Gravity.self).wrappedValue.value = Vector3(0, -9.8, 0)
+        #expect(world.getRefResource(Gravity.self).wrappedValue.value == Vector3(0, -9.8, 0))
     }
 
     @Test("Spawn empty entity")
@@ -69,9 +69,11 @@ struct WorldTests {
     @Test("Command spawn")
     func commandSpawn() {
         let transform = Transform(position: Vector3(0, 9.8, 0))
-        world.makeCommands().spawn {
+        let commands = world.makeCommands()
+        commands.spawn {
             transform
         }
+        commands.finish(world)
         world.flush()
         #expect(world.entities.entities.count == 1)
     }
@@ -348,8 +350,8 @@ extension WorldTests {
         #expect(world.getResource(TestResource.self) != nil)
         #expect(world.getResource(TestResource.self)?.value == 123)
 
-        let mutableResource = world.getMutableResource(TestResource.self)
-        mutableResource.wrappedValue?.value = 456
+        let mutableResource = world.getRefResource(TestResource.self)
+        mutableResource.wrappedValue.value = 456
 
         #expect(world.getResource(TestResource.self)?.value == 456)
 

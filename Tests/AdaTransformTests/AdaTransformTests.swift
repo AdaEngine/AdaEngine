@@ -12,6 +12,7 @@ struct AdaTransformTests: Sendable {
 
     init() async throws {
         self.world = AppWorlds(main: World())
+            .addPlugin(MainSchedulerPlugin())
             .addPlugin(TransformPlugin())
 
         try await self.world.build()

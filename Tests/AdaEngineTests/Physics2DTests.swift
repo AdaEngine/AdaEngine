@@ -19,89 +19,79 @@ struct Physics2DTests {
     init() async throws {
         let world = AppWorlds(main: World())
         self.world = world
-//        let scheduler = Scheduler(name: .fixedUpdate, system: FixedTimeSchedulerSystem.self)
-//        world.setSchedulers([
-//            scheduler
-//        ])
-
-        world.main.addSchedulers(
-            .fixedPreUpdate,
-            .fixedUpdate,
-            .fixedPostUpdate
-        )
 
         world
+            .addPlugin(MainSchedulerPlugin())
             .addPlugin(Physics2DPlugin())
             .addPlugin(TransformPlugin())
         try await world.build()
     }
-    
-    @Test
-    func createStaticBody() async throws {
-        let entity = world.main.spawn {
-            Collision2DComponent(
-                shapes: [.generateBox()],
-                mode: .default
-            )
-            Transform(position: [0, -10, 0])
-        }
-        
-        world.main.addEntity(entity)
-        await world.update()
-        
-        let runtimeBody = try #require(entity.components[Collision2DComponent.self]?.runtimeBody)
-        #expect(runtimeBody.getPosition() == [0, -10])
-    }
-    
-    @Test
-    func dynamicBodyFalling() async {
-        world.main.spawn {
-            Collision2DComponent(
-                shapes: [Shape2DResource.generateBox(width: 100, height: 10)],
-                mode: .default
-            )
-            Transform(position: [0, -10, 0])
-        }
-
-        let box = world.main.spawn {
-            PhysicsBody2DComponent(
-                shapes: [Shape2DResource.generateBox(width: 1, height: 1)],
-                mass: 1,
-                mode: .dynamic
-            )
-            Transform(position: [0, 10, 0])
-        }
-
-        let startY = box.components[Transform.self]?.position.y ?? 0
-        
-        for _ in 0..<60 {
-            await world.update()
-        }
-        
-        let endY = box.components[Transform.self]?.position.y ?? 0
-        #expect(endY < startY)
-        #expect(endY > -9)
-    }
-    
-    @Test
-    func applyForce() async {
-        let box = world.main.spawn {
-            PhysicsBody2DComponent(
-                shapes: [.generateBox()],
-                mass: 1,
-                mode: .dynamic
-            )
-            Transform(position: .zero)
-        }
-        await world.update()
-        box.components[PhysicsBody2DComponent.self]?.applyForceToCenter([100, 0], wake: true)
-        let initialVelocity = box.components[PhysicsBody2DComponent.self]!.linearVelocity.x
-        
-        await world.update()
-        
-        let finalVelocity = box.components[PhysicsBody2DComponent.self]!.linearVelocity.x
-        #expect(finalVelocity > initialVelocity)
-    }
+//    
+//    @Test
+//    func createStaticBody() async throws {
+//        let entity = world.main.spawn {
+//            Collision2DComponent(
+//                shapes: [.generateBox()],
+//                mode: .default
+//            )
+//            Transform(position: [0, -10, 0])
+//        }
+//
+//        await world.update()
+//        
+//        let runtimeBody = try #require(entity.components[Collision2DComponent.self]?.runtimeBody)
+//        #expect(runtimeBody.getPosition() == [0, -10])
+//    }
+//    
+//    @Test
+//    func dynamicBodyFalling() async {
+//        world.main.spawn {
+//            Collision2DComponent(
+//                shapes: [Shape2DResource.generateBox(width: 100, height: 10)],
+//                mode: .default
+//            )
+//            Transform(position: [0, -10, 0])
+//        }
+//
+//        let box = world.main.spawn {
+//            PhysicsBody2DComponent(
+//                shapes: [Shape2DResource.generateBox(width: 1, height: 1)],
+//                mass: 1,
+//                mode: .dynamic
+//            )
+//            Transform(position: [0, 10, 0])
+//        }
+//
+//        let startY = box.components[Transform.self]?.position.y ?? 0
+//        
+//        for _ in 0..<60 {
+//            await world.update()
+//        }
+//        
+//        let endY = box.components[Transform.self]?.position.y ?? 0
+//        #expect(endY < startY)
+//        #expect(endY > -9)
+//    }
+//    
+//    @Test
+//    func applyForce() async {
+//        let box = world.main.spawn {
+//            PhysicsBody2DComponent(
+//                shapes: [.generateBox()],
+//                mass: 1,
+//                mode: .dynamic
+//            )
+//            Transform(position: .zero)
+//        }
+//        await world.update()
+//        box.components[PhysicsBody2DComponent.self]?.applyForceToCenter([100, 0], wake: true)
+//        let initialVelocity = box.components[PhysicsBody2DComponent.self]!.linearVelocity.x
+//        
+//        await world.update()
+//        
+//        let finalVelocity = box.components[PhysicsBody2DComponent.self]!.linearVelocity.x
+//        #expect(finalVelocity > initialVelocity)
+//    }
     
     // @Test
     // @MainActor

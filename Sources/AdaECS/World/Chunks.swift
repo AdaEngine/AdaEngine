@@ -220,9 +220,11 @@ public struct Chunk: Sendable {
 
         init<T: Component>(capacity: Int, component: T.Type) {
             self.data = unsafe BlobArray(count: capacity, of: T.self) { pointer, count in
-                unsafe pointer.assumingMemoryBound(to: T.self)
-                    .baseAddress?
-                    .deinitialize(count: count)
+                if !component.componentsInfo.isPlainOldData {
+                    unsafe pointer.assumingMemoryBound(to: T.self)
+                        .baseAddress?
+                        .deinitialize(count: count)
+                }
             }
             self.changesTicks = BlobArray(count: capacity, of: Tick.self)
             self.componentType = component

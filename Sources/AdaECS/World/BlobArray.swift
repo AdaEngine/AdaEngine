@@ -31,7 +31,6 @@ public struct BlobArray: Sendable {
         }
 
         deinit {
-            unsafe self.clear(count)
             unsafe pointer.deallocate()
         }
 
