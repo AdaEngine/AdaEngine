@@ -55,6 +55,7 @@ extension Vector2: ExpressibleByArrayLiteral {
 }
 
 public extension Vector2 {
+    @inlinable
     subscript(_ index: Int) -> Float {
         get {
             switch index {

@@ -92,8 +92,8 @@ public extension Entity {
         /// Gets or sets the component of the specified type.
         @inline(__always)
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
-            get {
-                return get(for: T.self)
+            _read {
+                yield get(for: T.self)
             }
             set {
                 if let newValue {

@@ -59,7 +59,7 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
     public typealias Builder = QueryBuilderTargets<repeat each T>
 
     public var wrappedValue: Self {
-        return self
+        _read { yield self }
     }
 
     let state: QueryState

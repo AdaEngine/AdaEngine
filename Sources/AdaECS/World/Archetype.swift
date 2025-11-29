@@ -34,7 +34,7 @@ public struct ArchetypeSwapAndRemoveResult: Sendable {
 }
 
 public final class Entities: @unchecked Sendable {
-    @LocalIsolated public var entities: SparseSet<Entity.ID, EntityLocation> = [:]
+    public package(set) var entities: SparseSet<Entity.ID, EntityLocation> = [:]
     private let currentId = ManagedAtomic<Int>(1)
 
     func allocate(with name: String) -> Entity {
@@ -56,27 +56,27 @@ public final class Entities: @unchecked Sendable {
 }
 
 public final class Archetypes: @unchecked Sendable {
-    public var componentsIndex: [BitSet: Archetype.ID]
+    public var componentsIndex: [ComponentMaskSet: Archetype.ID]
     public var archetypes: ContiguousArray<Archetype>
 
     public init(
-        componentsIndex: [BitSet: Archetype.ID] = [:],
+        componentsIndex: [ComponentMaskSet: Archetype.ID] = [:],
         archetypes: ContiguousArray<Archetype> = []
     ) {
         let emptyArchetype = Archetype.new(index: 0, componentLayout: ComponentLayout(components: []))
-        self.componentsIndex = [BitSet(): emptyArchetype.id]
+        self.componentsIndex = [ComponentMaskSet(): emptyArchetype.id]
         self.archetypes = [emptyArchetype]
     }
 
     public func getOrCreate(for componentLayout: ComponentLayout) -> Archetype.ID {
-        if let archetypeIndex = self.componentsIndex[componentLayout.bitSet] {
+        if let archetypeIndex = self.componentsIndex[componentLayout.maskSet] {
             return archetypeIndex
         }
 
         let newIndex = archetypes.count
         let archetype = Archetype.new(index: newIndex, componentLayout: componentLayout)
         self.archetypes.append(archetype)
-        componentsIndex[componentLayout.bitSet] = newIndex
+        componentsIndex[componentLayout.maskSet] = newIndex
         return newIndex
     }
 
@@ -89,7 +89,7 @@ public final class Archetypes: @unchecked Sendable {
 
 public struct ComponentLayout: Hashable, Sendable {
     public private(set) var components: [any Component.Type]
-    public private(set) var bitSet: BitSet
+    public private(set) var maskSet: ComponentMaskSet
     public var componentsSize: Int {
         components.reduce(0) { partialResult, type in
             partialResult + MemoryLayout.size(ofValue: type)
@@ -98,58 +98,58 @@ public struct ComponentLayout: Hashable, Sendable {
 
     public init(components: [any Component]) {
         var componentTypes = [any Component.Type]()
-        var bitSet = BitSet(reservingCapacity: components.count)
+        var maskSet = ComponentMaskSet(reservingCapacity: components.count)
         for component in components {
             let componentType = type(of: component)
             componentTypes.append(componentType)
-            bitSet.insert(componentType.identifier)
+            maskSet.insert(componentType.identifier)
         }
-        self.bitSet = bitSet
+        self.maskSet = maskSet
         self.components = componentTypes
     }
 
     public init(componentTypes: [any Component.Type]) {
-        var bitSet = BitSet(reservingCapacity: componentTypes.count)
+        var set = ComponentMaskSet(reservingCapacity: componentTypes.count)
         for component in componentTypes {
-            bitSet.insert(component.identifier)
+            set.insert(component.identifier)
         }
-        self.bitSet = bitSet
+        self.maskSet = set
         self.components = componentTypes
     }
 
     public init<each T: Component>(components: repeat each T) {
         var components = [any Component.Type]()
-        var bitSet = BitSet()
+        var maskSet = ComponentMaskSet()
         for component in repeat (each T).self {
             let id = component.identifier
             components.append(component)
-            bitSet.insert(id)
+            maskSet.insert(id)
         }
         self.components = components
-        self.bitSet = bitSet
+        self.maskSet = maskSet
     }
 
     public mutating func insert<T: Component>(_ component: T.Type) {
-        self.bitSet.insert(component)
+        self.maskSet.insert(component)
         self.components.append(component)
     }
 
     public mutating func insert(_ component: any Component.Type) {
-        self.bitSet.insert(component)
+        self.maskSet.insert(component)
         self.components.append(component)
     }
 
     public mutating func remove(_ component: ComponentId) {
-        self.bitSet.remove(component)
+        self.maskSet.remove(component)
         self.components.removeAll { $0.identifier == component }
     }
 
     public static func == (lhs: ComponentLayout, rhs: ComponentLayout) -> Bool {
-        lhs.bitSet == rhs.bitSet
+        lhs.maskSet == rhs.maskSet
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(self.bitSet)
+        hasher.combine(self.maskSet)
     }
 }
 
@@ -308,9 +308,7 @@ extension Archetype {
     }
 }
 
-//// FIXME: (Vlad) not a bit set!
-public struct BitSet: Hashable, Sendable {
-    // TODO: (Vlad) Not efficient in memory layout.
+public struct ComponentMaskSet: Hashable, Sendable {
     private var mask: Set<ComponentId>
 
     var isEmpty: Bool {
@@ -348,11 +346,11 @@ public struct BitSet: Hashable, Sendable {
 }
 
 extension Array where Element == Component {
-    var bitSet: BitSet {
-        var bitSet = BitSet(reservingCapacity: self.count)
+    var maskSet: ComponentMaskSet {
+        var set = ComponentMaskSet(reservingCapacity: self.count)
         for component in self {
-            bitSet.insert(type(of: component).identifier)
+            set.insert(type(of: component).identifier)
         }
-        return bitSet
+        return set
     }
 }

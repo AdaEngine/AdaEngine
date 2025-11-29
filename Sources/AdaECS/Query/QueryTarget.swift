@@ -54,7 +54,7 @@ extension Component {
 
     @inline(__always)
     public static func _queryContains(in archetype: Archetype) -> Bool {
-        archetype.componentLayout.bitSet.contains(Self.identifier)
+        archetype.componentLayout.maskSet.contains(Self.identifier)
     }
 }
 
@@ -84,7 +84,7 @@ extension Ref: QueryTarget where T: Component {
 
     @inline(__always)
     public static func _queryContains(in archetype: Archetype) -> Bool {
-        return archetype.componentLayout.bitSet.contains(T.identifier)
+        return archetype.componentLayout.maskSet.contains(T.identifier)
     }
 }
 
