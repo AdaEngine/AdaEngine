@@ -54,7 +54,7 @@ public struct With<T: Component>: Filter {
         entity: Entity,
         lastTick: Tick
     ) -> Bool {
-        archetype.componentLayout.bitSet.contains(T.self)
+        archetype.componentLayout.maskSet.contains(T.self)
     }
 }
 
@@ -66,7 +66,7 @@ public struct Without<T: Component>: Filter {
         entity: Entity,
         lastTick: Tick
     ) -> Bool {
-        !archetype.componentLayout.bitSet.contains(T.self)
+        !archetype.componentLayout.maskSet.contains(T.self)
     }
 }
 

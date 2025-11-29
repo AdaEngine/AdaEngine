@@ -6,9 +6,15 @@
 //
 
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 public final class WorldCommandQueue: @unchecked Sendable {
-    @LocalIsolated var commands: ContiguousArray<WorldCommand> = []
+    var commands: ContiguousArray<WorldCommand> = []
+    let lock = NSRecursiveLock()
 
     public var isEmpty: Bool {
         commands.isEmpty
@@ -21,6 +27,8 @@ public final class WorldCommandQueue: @unchecked Sendable {
     }
 
     public func push(_ command: @escaping @Sendable (World) -> Void) {
+        lock.lock()
+        defer { lock.unlock() }
         commands.append(WorldCommand(applyToWorld: command))
     }
 

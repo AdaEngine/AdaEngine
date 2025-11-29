@@ -38,6 +38,12 @@ public struct Tick: Sendable, Comparable {
     }
 }
 
+/// World syncronization actor.
+@globalActor
+public actor WorldActor {
+    public static let shared = WorldActor()
+}
+
 /// Stores and exposes operations on ``Entity`` and ``Component``.
 ///
 /// Each ``Entity`` has a set of components. Each component can have up to one instance of each
@@ -519,7 +525,7 @@ public extension World {
 
         // We have component in archetype, just update
         var archetype = self.archetypes.archetypes[location.archetypeId]
-        if archetype.componentLayout.bitSet.contains(T.identifier) {
+        if archetype.componentLayout.maskSet.contains(T.identifier) {
             self.archetypes
                 .archetypes[location.archetypeId]
                 .chunks
@@ -662,7 +668,7 @@ public extension World {
         return self.archetypes
             .archetypes[location.archetypeId]
             .componentLayout
-            .bitSet
+            .maskSet
             .contains(identifier)
     }
 }

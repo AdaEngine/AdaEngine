@@ -12,7 +12,7 @@ import AdaECS
 public final class Extract<T: SystemParameter>: @unchecked Sendable {
     private var _value: T!
     public var wrappedValue: T {
-        self._value
+        _read { yield self._value }
     }
 
     /// Initialize a new extract.

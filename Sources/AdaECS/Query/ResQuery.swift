@@ -15,7 +15,9 @@ public final class Res<T: Resource>: @unchecked Sendable {
 
     /// The wrapped value of the query.
     public var wrappedValue: T {
-        return _value!
+        _read {
+            yield _value!
+        }
     }
 
     /// Initialize a new resource query.
@@ -66,11 +68,11 @@ public final class ResMut<T: Resource>: @unchecked Sendable {
 
     /// The wrapped value of the query.
     public var wrappedValue: T {
-        get {
-            self._value!.wrappedValue
+        _read {
+            yield self._value!.wrappedValue
         }
-        set {
-            self._value!.wrappedValue = newValue
+        _modify {
+            yield &self._value!.wrappedValue
         }
     }
 
@@ -92,11 +94,11 @@ public final class ResMut<T: Resource>: @unchecked Sendable {
     }
 
     public subscript<U>(dynamicMember dynamicMember: WritableKeyPath<T, U>) -> U {
-        get {
-            self.wrappedValue[keyPath: dynamicMember]
+        _read {
+            yield self.wrappedValue[keyPath: dynamicMember]
         }
-        set {
-            self.wrappedValue[keyPath: dynamicMember] = newValue
+        _modify {
+            yield &self.wrappedValue[keyPath: dynamicMember]
         }
     }
 }

@@ -19,11 +19,11 @@ public final class Ref<T>: @unchecked Sendable, ChangeDetectionable {
     /// The wrapped value of the reference.
     @inline(__always)
     public var wrappedValue: T {
-        get {
-            unsafe self.pointer!.pointee
+        _read {
+            yield unsafe self.pointer!.pointee
         }
-        set {
-            unsafe self.pointer?.pointee = newValue
+        _modify {
+            yield unsafe &self.pointer!.pointee
             self.setChanged()
         }
     }
@@ -42,11 +42,11 @@ public final class Ref<T>: @unchecked Sendable, ChangeDetectionable {
 
     @inline(__always)
     public subscript<U>(dynamicMember dynamicMember: WritableKeyPath<T, U>) -> U {
-        get {
-            return self.wrappedValue[keyPath: dynamicMember]
+        _read {
+            yield self.wrappedValue[keyPath: dynamicMember]
         }
-        set {
-            self.wrappedValue[keyPath: dynamicMember] = newValue
+        _modify {
+            yield &self.wrappedValue[keyPath: dynamicMember]
         }
     }
 }

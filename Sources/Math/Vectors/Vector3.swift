@@ -64,6 +64,7 @@ public extension Vector3 {
 }
 
 public extension Vector3 {
+    @inlinable
     subscript(_ index: Int) -> Float {
         get {
             switch index {
@@ -108,6 +109,7 @@ extension Vector3 {
 }
 
 extension Vector3: Comparable {
+    @inlinable
     public static func < (lhs: Vector3, rhs: Vector3) -> Bool {
         lhs.x < rhs.x && lhs.y < rhs.y && lhs.z < rhs.z
     }
@@ -359,6 +361,7 @@ public func max(_ lhs: Vector3, _ rhs: Vector3) -> Vector3 {
 }
 
 /// Linearly interpolates between two points.
+@inlinable
 public func lerp(_ lhs: Vector3, _ rhs: Vector3, _ t: Float) -> Vector3 {
     return lhs + (rhs - lhs) * t
 }
