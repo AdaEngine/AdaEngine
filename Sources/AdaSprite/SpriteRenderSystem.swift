@@ -97,8 +97,8 @@ func UpdateBoundings(
         Or<With<SpriteComponent>, With<Mesh2DComponent>>
     >,
     _ commands: Commands
-) {
-    entitiesWithTransform.forEach { entity, transform in
+) async {
+    await entitiesWithTransform.parallel().forEach { entity, transform in
         var bounds: BoundingComponent.Bounds?
         if entity.components.has(SpriteComponent.self) {
             if !entity.components.isComponentChanged(Transform.self) && entity.components.has(BoundingComponent.self) {

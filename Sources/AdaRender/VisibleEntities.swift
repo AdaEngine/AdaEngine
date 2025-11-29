@@ -23,16 +23,10 @@ public struct VisibilitySystem {
 
     @Query<Camera, Ref<VisibleEntities>>
     private var cameras
-    
-    @FilterQuery<Entity, Visibility, BoundingComponent, And<With<Transform>, Without<NoFrustumCulling>>>
+
+    @FilterQuery<Entity, Visibility, BoundingComponent, With<Transform>>
     private var entities
 
-    @FilterQuery<Entity, Visibility, And<With<Transform>, With<NoFrustumCulling>>>
-    private var entitiesWithNoFrustum
-
-    @FilterQuery<Entity, And<With<Transform>, Without<Visibility>>>
-    private var entitiesWithoutVisibility
-    
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
@@ -40,44 +34,25 @@ public struct VisibilitySystem {
             if !camera.isActive {
                 return
             }
-            
-            let (filtredEntities, entityIds) = self.filterVisibileEntities(context: context, for: camera)
-            visibleEntities.entities = filtredEntities
+
+            let frustum = camera.computedData.frustum
+            var entityIds = Set<Entity.ID>()
+            var entities: [Entity] = []
+            self.entities.forEach { entity, visibility, bounding in
+                if visibility == .hidden {
+                    return
+                }
+                switch bounding.bounds {
+                case .aabb(let aabb):
+                    if !frustum.intersectsAABB(aabb) {
+                        return
+                    }
+                    entityIds.insert(entity.id)
+                    entities.append(entity)
+                }
+            }
+            visibleEntities.entities = entities
             visibleEntities.entityIds = entityIds
         }
-    }
-    
-    /// Filter entities for passed camera.
-    private func filterVisibileEntities(
-        context: borrowing UpdateContext, 
-        for camera: Camera
-    ) -> (entities: [Entity], entityIds: Set<Entity.ID>) {
-        let frustum = camera.computedData.frustum
-        var entityIds = Set<Entity.ID>()
-        let filtredEntities: [Entity] = self.entities.compactMap { entity, visibility, bounding in
-            if visibility == .hidden {
-                return nil
-            }
-            switch bounding.bounds {
-            case .aabb(let aabb):
-                let isIntersect = frustum.intersectsAABB(aabb)
-                
-                if isIntersect {
-                    entityIds.insert(entity.id)
-                }
-                
-                return isIntersect ? entity : nil
-            }
-        }
-        
-        let withNoFrustumEntities: [Entity] = self.entitiesWithNoFrustum.compactMap { entity, visibility in
-            if visibility != .hidden {
-                entityIds.insert(entity.id)
-                return entity
-            }
-            return nil
-        }
-        let entities = filtredEntities + withNoFrustumEntities
-        return (entities, entityIds)
     }
 }

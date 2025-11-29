@@ -165,6 +165,7 @@ public struct Archetype: Identifiable, Sendable {
     public internal(set) var entities: ContiguousArray<Entity> = []
     
     /// The edge of the archetype.
+    @usableFromInline
     var edges: Edges = Edges()
 
     /// The components bit mask of the archetype.
@@ -269,6 +270,7 @@ extension Archetype: CustomStringConvertible {
 
 extension Archetype {
     /// The edges of the archetype.
+    @usableFromInline
     struct Edges: Hashable, Sendable {
         /// The components to add.
         private var add: [ComponentLayout: Archetype.ID] = [:]
@@ -309,7 +311,8 @@ extension Archetype {
 }
 
 public struct ComponentMaskSet: Hashable, Sendable {
-    private var mask: Set<ComponentId>
+    @usableFromInline
+    var mask: Set<ComponentId>
 
     var isEmpty: Bool {
         return self.mask.isEmpty
@@ -320,26 +323,32 @@ public struct ComponentMaskSet: Hashable, Sendable {
         self.mask.reserveCapacity(reservingCapacity)
     }
 
+    @inlinable
     mutating func insert<T: Component>(_ component: T.Type) {
         self.mask.insert(T.identifier)
     }
 
+    @inlinable
     mutating func insert(_ component: consuming ComponentId) {
         self.mask.insert(component)
     }
 
+    @inlinable
     mutating func remove<T: Component>(_ component: T.Type) {
         self.mask.remove(T.identifier)
     }
 
+    @inlinable
     mutating func remove(_ componentId: ComponentId) {
         self.mask.remove(componentId)
     }
 
+    @inlinable
     public func contains(_ identifier: consuming ComponentId) -> Bool {
         self.mask.contains(identifier)
     }
 
+    @inlinable
     func contains<T: Component>(_ component: T.Type) -> Bool {
         return self.mask.contains(T.identifier)
     }

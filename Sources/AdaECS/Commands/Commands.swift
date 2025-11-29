@@ -6,6 +6,7 @@
 //
 
 import AdaUtils
+import Collections
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
@@ -13,7 +14,7 @@ import Foundation
 #endif
 
 public final class WorldCommandQueue: @unchecked Sendable {
-    var commands: ContiguousArray<WorldCommand> = []
+    var commands: Deque<WorldCommand> = []
     let lock = NSRecursiveLock()
 
     public var isEmpty: Bool {
@@ -22,7 +23,7 @@ public final class WorldCommandQueue: @unchecked Sendable {
 
     public init() {}
 
-    init(_ commands: ContiguousArray<WorldCommand>) {
+    init(_ commands: Deque<WorldCommand>) {
         self.commands = commands
     }
 
@@ -197,14 +198,5 @@ public extension EntityCommands {
     @inline(__always)
     func remove<T: Component>(_ componentType: T.Type, from entity: Entity.ID) -> Self {
         self.remove(T.identifier, from: entity)
-    }
-}
-
-private extension ContiguousArray {
-    mutating func popFirst() -> Element? {
-        guard !self.isEmpty else {
-            return nil
-        }
-        return self.remove(at: 0)
     }
 }

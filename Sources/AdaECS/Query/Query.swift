@@ -149,10 +149,10 @@ final class QueryState: @unchecked Sendable {
     private(set) var archetypeIndecies: [Int] = []
 
     @usableFromInline
-    private(set) var entities: Entities = Entities()
+    private(set) unowned var entities: Entities!
 
     @usableFromInline
-    private(set) weak var world: World!
+    private(set) unowned var world: World!
 
     @usableFromInline
     private(set) var lastTick: Tick = Tick(value: 0)
@@ -191,7 +191,7 @@ public struct FilterQueryIterator<
         var currentRow = 0
     }
 
-    let archetypes: Archetypes
+    unowned let archetypes: Archetypes
     let count: Int
     let state: QueryState
     var cursor: Cursor
