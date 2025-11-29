@@ -307,7 +307,6 @@ extension Entity.ComponentSet {
         _read {
             yield get(T.self)
         }
-
         set {
             if let newValue {
                 self.insert(newValue)

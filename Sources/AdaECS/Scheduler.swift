@@ -1,4 +1,5 @@
 import AdaUtils
+import Logging
 
 /// Represents a scheduler stage in the ECS update loop.
 public struct SchedulerName: Hashable, Equatable, RawRepresentable, CustomStringConvertible, Sendable {
@@ -46,6 +47,7 @@ public extension SchedulerName {
 public final class Schedulers: @unchecked Sendable {
     private(set) var schedulerLabels: [SchedulerName]
     private var schedulers: [SchedulerName: Scheduler]
+    private let logger: Logger = Logger(label: "org.adaengine.ecs.schedulers")
 
     /// Initialize a new schedulers.
     /// - Parameter schedulers: The schedulers to initialize.
@@ -77,7 +79,8 @@ public final class Schedulers: @unchecked Sendable {
     /// - Parameter after: The scheduler to insert after.
     public func insert(_ scheduler: Scheduler, after: SchedulerName) {
         if schedulers[scheduler.name] != nil {
-            fatalError("Already exists")
+            logger.error("Scheduler already exists")
+            return
         }
 
         if let idx = schedulerLabels.firstIndex(of: after) {
@@ -99,7 +102,8 @@ public final class Schedulers: @unchecked Sendable {
     /// - Parameter before: The scheduler to insert before.
     public func insert(_ scheduler: Scheduler, before: SchedulerName) {
         if schedulers[scheduler.name] != nil {
-            fatalError("Already exists")
+            logger.error("Scheduler already exists")
+            return
         }
 
         if let idx = schedulerLabels.firstIndex(of: before) {
@@ -116,16 +120,26 @@ public final class Schedulers: @unchecked Sendable {
         self.schedulers[scheduler]
     }
 
+    public func getScope(
+        for schedulerName: SchedulerName,
+        scopeBlock: (inout Scheduler) async -> Void
+    ) async {
+        if var scheduler = self.schedulers[schedulerName] {
+            await scopeBlock(&scheduler)
+            self.schedulers[schedulerName] = scheduler
+        } else {
+            logger.error("Scheduler \(schedulerName) not found")
+        }
+    }
+
     /// Add system to scheduler. If scheduler not exists, than we create it.
     public func addSystem<T: System>(_ system: T, for schedulerName: SchedulerName) {
         if schedulers[schedulerName] == nil {
             schedulerLabels.append(schedulerName)
         }
-        let scheduler = self.schedulers[schedulerName] ?? Scheduler(name: schedulerName)
-        scheduler
+        self.schedulers[schedulerName, default: Scheduler(name: schedulerName)]
             .systemGraph
             .addSystem(system)
-        self.schedulers[schedulerName] = scheduler
     }
 }
 
@@ -184,7 +198,7 @@ public struct DefaultSchedulerRunner: Sendable {
 }
 
 /// A scheduler that runs systems in a specific order.
-public final class Scheduler: @unchecked Sendable {
+public struct Scheduler: Sendable {
     public typealias RunnerBlock = (any System) -> Void
 
     /// The name of the scheduler.
@@ -207,7 +221,7 @@ public final class Scheduler: @unchecked Sendable {
 
     /// Run the scheduler.
     /// - Parameter world: The world to run the scheduler on.
-    public func run(world: World) async {
+    public mutating func run(world: World) async {
         let now = Time.absolute
         let deltaTime = TimeInterval(max(0, now - self.lastUpdate))
         self.lastUpdate = now

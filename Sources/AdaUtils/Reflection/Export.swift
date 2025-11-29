@@ -33,11 +33,11 @@ public struct Export<T: Codable>: Codable, @unchecked Sendable {
     private let storage: Storage
 
     public var wrappedValue: T {
-        get {
-            self.storage.value
+        _read {
+            yield self.storage.value
         }
-        set {
-            self.storage.value = newValue
+        _modify {
+            yield &self.storage.value
         }
     }
     
