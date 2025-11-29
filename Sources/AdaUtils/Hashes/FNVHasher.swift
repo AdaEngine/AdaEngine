@@ -58,32 +58,36 @@ extension String: UniqueHashable {
 
 extension Int: UniqueHashable {
     public func hash(into hasher: inout FNVHasher) {
-        CollectionOfOne(self).withContiguousStorageIfAvailable { pointer in
-            unsafe hasher.combine(bytes: UnsafeRawBufferPointer(pointer))
+        var value = self
+        withUnsafeBytes(of: &value) {
+            hasher.combine(bytes: $0)
         }
     }
 }
 
 extension UInt32: UniqueHashable {
     public func hash(into hasher: inout FNVHasher) {
-        CollectionOfOne(self).withContiguousStorageIfAvailable { pointer in
-            unsafe hasher.combine(bytes: UnsafeRawBufferPointer(pointer))
+        var value = self
+        withUnsafeBytes(of: &value) {
+            hasher.combine(bytes: $0)
         }
     }
 }
 
 extension UInt64: UniqueHashable {
     public func hash(into hasher: inout FNVHasher) {
-        CollectionOfOne(self).withContiguousStorageIfAvailable { pointer in
-            unsafe hasher.combine(bytes: UnsafeRawBufferPointer(pointer))
+        var value = self
+        withUnsafeBytes(of: &value) {
+            hasher.combine(bytes: $0)
         }
     }
 }
 
 extension UInt8: UniqueHashable {
     public func hash(into hasher: inout FNVHasher) {
-        CollectionOfOne(self).withContiguousStorageIfAvailable { pointer in
-            unsafe hasher.combine(bytes: UnsafeRawBufferPointer(pointer))
+        var value = self
+        withUnsafeBytes(of: &value) {
+            hasher.combine(bytes: $0)
         }
     }
 }

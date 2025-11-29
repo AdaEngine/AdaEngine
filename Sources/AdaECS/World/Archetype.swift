@@ -43,7 +43,7 @@ public final class Entities: @unchecked Sendable {
     }
 
     func addNotAllocatedEntity(_ entity: Entity) {
-        precondition(entity.id == Entity.notAllocatedId)
+        guard entity.id == Entity.notAllocatedId else { return }
         let newId = currentId.loadThenWrappingIncrement(ordering: .relaxed)
         entity.id = newId
         entity.components.entity = newId

@@ -55,7 +55,7 @@ func ConfigurateRenderViewTarget(
         if renderViewTarget.mainTexture == nil {
             renderViewTarget.mainTexture = RenderTexture(
                 size: viewportSize,
-                scaleFactor: 1.0,
+                scaleFactor: camera.computedData.targetScaleFactor,
                 format: .bgra8,
                 debugLabel: "Camera Main Texture"
             )

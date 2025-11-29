@@ -48,13 +48,16 @@ public final class AEView: MetalView {
         Application.shared.appleWindowManager.nativeView = self
         self.delegate = self
 
-        do {
-            try appContext.run()
-            try RenderEngine.shared.createWindow(.windowId(window.id), for: self, size: rect.size.toSizeInt())
-            try AudioServer.shared.start()
-        } catch {
-            print("[AEView Error]", error.localizedDescription)
+        Task { @MainActor in
+            do {
+                try await appContext.run()
+                try RenderEngine.shared.createWindow(window.id, for: self, size: rect.size.toSizeInt())
+                try AudioServer.shared.start()
+            } catch {
+                print("[AEView Error]", error.localizedDescription)
+            }
         }
+
     }
     
     public required init(coder: NSCoder) {
@@ -76,7 +79,7 @@ extension AEView: MTKViewDelegate {
     public func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
         do {
             self.engineWindow.frame.size = size.toEngineSize
-            try RenderEngine.shared.resizeWindow(.windowId(self.engineWindow.id), newSize: size.toEngineSize.toSizeInt())
+            try RenderEngine.shared.resizeWindow(self.engineWindow.id, newSize: size.toEngineSize.toSizeInt())
         } catch {
             print("[AEView Error]", error.localizedDescription)
         }
