@@ -88,9 +88,10 @@ public extension SparseSet {
         self.sparse.removeAll(keepingCapacity: keepingCapacity)
     }
 
+    @inlinable
     subscript(_ key: Key) -> Value? {
-        get {
-            firstValue(for: key)
+        _read {
+            yield firstValue(for: key)
         }
         set {
             if let newValue {
@@ -111,25 +112,31 @@ extension SparseSet {
 }
 
 extension SparseSet: Sequence {
+    @inlinable
     public func makeIterator() -> SparseSetIterator {
         SparseSetIterator(collection: dense)
     }
 
+    @inlinable
     public var isEmpty: Bool {
         dense.isEmpty
     }
 
+    @inlinable
     public var count: Int {
         dense.count
     }
 
     public struct SparseSetIterator: IteratorProtocol {
-        private var iterator: IndexingIterator<ContiguousArray<DenseValue>>
+        @usableFromInline
+        var iterator: IndexingIterator<ContiguousArray<DenseValue>>
 
+        @usableFromInline
         init(collection: ContiguousArray<DenseValue>) {
             iterator = collection.makeIterator()
         }
 
+        @inlinable
         public mutating func next() -> Element? {
             iterator.next()?.value
         }

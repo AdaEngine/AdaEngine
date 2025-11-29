@@ -13,38 +13,38 @@ public protocol QueryTarget: Sendable, ~Copyable {
     /// Check that entity contains target.
     /// - Parameter entity: The entity to check.
     /// - Returns: True if the entity contains the target, otherwise false.
-    @inline(__always)
+    @inlinable
     static func _queryTargetContains(in entity: Entity) -> Bool
 
     /// Create a new query target from an entity.
     /// - Parameter entity: The entity to create a query target from.
     /// - Returns: A new query target.
-    @inline(__always)
+    @inlinable
     static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype,
+        archetype: borrowing Archetype,
         world: borrowing World
     ) -> Self
 
     /// Check if an archetype contains the target.
     /// - Parameter archetype: The archetype to check.
     /// - Returns: True if the archetype contains the target, otherwise false.
-    @inline(__always)
-    static func _queryContains(in archetype: Archetype) -> Bool
+    @inlinable
+    static func _queryContains(in archetype: borrowing Archetype) -> Bool
 }
 
 extension Component {
-    @inline(__always)
+    @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         return entity.components.has(Self.self)
     }
 
-    @inline(__always)
+    @inlinable
     public static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype,
+        archetype: borrowing Archetype,
         world: borrowing World
     ) -> Self {
         let value = chunk.get(Self.self, for: entity.id)
@@ -52,24 +52,24 @@ extension Component {
         return value!
     }
 
-    @inline(__always)
-    public static func _queryContains(in archetype: Archetype) -> Bool {
+    @inlinable
+    public static func _queryContains(in archetype: borrowing Archetype) -> Bool {
         archetype.componentLayout.maskSet.contains(Self.identifier)
     }
 }
 
 extension Ref: QueryTarget where T: Component {
 
-    @inline(__always)
+    @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         T._queryTargetContains(in: entity)
     }
 
-    @inline(__always)
+    @inlinable
     public static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype,
+        archetype: borrowing Archetype,
         world: borrowing World
     ) -> Ref<T> {
         unsafe Ref(
@@ -82,47 +82,47 @@ extension Ref: QueryTarget where T: Component {
         )
     }
 
-    @inline(__always)
-    public static func _queryContains(in archetype: Archetype) -> Bool {
+    @inlinable
+    public static func _queryContains(in archetype: borrowing Archetype) -> Bool {
         return archetype.componentLayout.maskSet.contains(T.identifier)
     }
 }
 
 extension Entity: QueryTarget {
 
-    @inline(__always)
+    @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         return true
     }
 
-    @inline(__always)
+    @inlinable
     public static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype,
+        archetype: borrowing Archetype,
         world: borrowing World
     ) -> Self {
         return entity as! Self
     }
     
     /// Always returns true because entity is always present in an archetype.
-    @inline(__always)
-    public static func _queryContains(in archetype: Archetype) -> Bool {
+    @inlinable
+    public static func _queryContains(in archetype: borrowing Archetype) -> Bool {
         return true
     }
 }
 
 extension Optional: QueryTarget where Wrapped: QueryTarget {
-    @inline(__always)
+    @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         Wrapped._queryTargetContains(in: entity)
     }
 
-    @inline(__always)
+    @inlinable
     public static func _queryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype,
+        archetype: borrowing Archetype,
         world: borrowing World
     ) -> Self {
         if Wrapped._queryTargetContains(in: entity) {
@@ -138,10 +138,9 @@ extension Optional: QueryTarget where Wrapped: QueryTarget {
         
         return .none
     }
-    
-    /// Always returns true because optional can be nil.
-    @inline(__always)
-    public static func _queryContains(in archetype: Archetype) -> Bool {
-        return true
+
+    @inlinable
+    public static func _queryContains(in archetype: borrowing Archetype) -> Bool {
+        return Wrapped._queryContains(in: archetype)
     }
 }

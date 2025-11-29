@@ -17,7 +17,7 @@ public protocol QueryBuilder: Sendable {
     /// Predicate for the query builder.
     /// - Parameter archetype: The archetype to check.
     /// - Returns: True if the archetype satisfies the predicate, otherwise false.
-    static func predicate(in archetype: Archetype) -> Bool
+    static func predicate(in archetype: borrowing Archetype) -> Bool
 
     /// Get the query target from an entity.
     /// - Parameter entity: The entity to get the query target from.
@@ -25,7 +25,7 @@ public protocol QueryBuilder: Sendable {
     static func getQueryTarget(
         for entity: Entity,
         in chunk: borrowing Chunk,
-        archetype: Archetype,
+        archetype: borrowing Archetype,
         world: borrowing World
     ) -> Components
 }
@@ -35,6 +35,7 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Que
     public typealias ComponentTypes = (repeat (each T).Type)
     public typealias Components = (repeat each T)
 
+    @inlinable
     @inline(__always)
     public static func predicate(in archetype: Archetype) -> Bool {
         for element in repeat (each T).self {
@@ -46,6 +47,7 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Que
         return true
     }
 
+    @inlinable
     @inline(__always)
     public static func getQueryTarget(
         for entity: Entity,

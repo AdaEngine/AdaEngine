@@ -38,8 +38,9 @@ public protocol Filter: Sendable {
     /// Check if the filter is satisfied for an archetype.
     /// - Parameter archetype: The archetype to check.
     /// - Returns: True if the filter is satisfied for the archetype, otherwise false.
+    @inlinable
     static func condition(
-        for archetype: Archetype,
+        for archetype: borrowing Archetype,
         in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
@@ -48,8 +49,9 @@ public protocol Filter: Sendable {
 
 /// A filter that includes entities with a specific component.
 public struct With<T: Component>: Filter {
+    @inlinable
     public static func condition(
-        for archetype: Archetype,
+        for archetype: borrowing Archetype,
         in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
@@ -60,8 +62,9 @@ public struct With<T: Component>: Filter {
 
 /// A filter that excludes entities with a specific component.
 public struct Without<T: Component>: Filter {
+    @inlinable
     public static func condition(
-        for archetype: Archetype,
+        for archetype: borrowing Archetype,
         in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
@@ -72,8 +75,9 @@ public struct Without<T: Component>: Filter {
 
 /// A filter that combines two filters with a logical AND operation.
 public struct And<each T: Filter>: Filter {
+    @inlinable
     public static func condition(
-        for archetype: Archetype,
+        for archetype: borrowing Archetype,
         in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
@@ -93,8 +97,9 @@ public struct And<each T: Filter>: Filter {
 }
 
 public struct Not<T: Filter>: Filter {
+    @inlinable
     public static func condition(
-        for archetype: Archetype,
+        for archetype: borrowing Archetype,
         in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
@@ -105,8 +110,9 @@ public struct Not<T: Filter>: Filter {
 
 /// A filter that combines two filters with a logical OR operation.
 public struct Or<each T: Filter>: Filter {
+    @inlinable
     public static func condition(
-        for archetype: Archetype,
+        for archetype: borrowing Archetype,
         in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
@@ -126,8 +132,9 @@ public struct Or<each T: Filter>: Filter {
 }
 
 public struct Changed<T: Component>: Filter {
+    @inlinable
     public static func condition(
-        for archetype: Archetype,
+        for archetype: borrowing Archetype,
         in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick
@@ -138,8 +145,9 @@ public struct Changed<T: Component>: Filter {
 
 /// A filter that includes all entities.
 public struct NoFilter: Filter {
+    @inlinable
     public static func condition(
-        for archetype: Archetype,
+        for archetype: borrowing Archetype,
         in chunk: borrowing Chunk,
         entity: Entity,
         lastTick: Tick

@@ -155,6 +155,7 @@ struct BunnySpawnerSystem {
                 texture: bunnyTexture.texture,
                 tintColor: getRandomColor()
             )
+            NoFrustumCulling()
         }
     }
     
@@ -214,7 +215,7 @@ struct BunnyCollisionSystem {
     @FilterQuery<Camera, With<GlobalTransform>>
     private var cameras
     
-    @Query<Entity, Ref<Bunny>, Transform>
+    @Query<Entity, Ref<Bunny>, Ref<Transform>>
     private var bunnies
     
     init(world: World) {}
@@ -264,8 +265,7 @@ struct BunnyCollisionSystem {
 
             // Update components
             bunny.velocity = velocity
-            entity.components += bunny.wrappedValue
-            entity.components += Transform(
+            transform.wrappedValue = Transform(
                 rotation: transform.rotation,
                 scale: transform.scale,
                 position: position
