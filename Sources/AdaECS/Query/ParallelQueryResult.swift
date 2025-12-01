@@ -25,8 +25,9 @@ private struct ChunkInfo: Sendable {
 ///     position.x += velocity.x
 /// }
 /// ```
-public struct ParallelQueryResult<B: QueryBuilder, F: Filter>: Sendable {
+public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
     public typealias Element = B.Components
+    public typealias Filter = QueryBuilderTargets<F>
 
     let state: QueryState
     let batchSize: Int
@@ -127,6 +128,8 @@ public struct ParallelQueryResult<B: QueryBuilder, F: Filter>: Sendable {
 
         let states = B.initState(world: world)
         var fetches = B.initFetches(world: world, states: states, lastTick: world.lastTick)
+        let filterStates = Filter.initState(world: world)
+        var filterFetchs = Filter.initFetches(world: world, states: filterStates, lastTick: world.lastTick)
 
         for chunkInfo in batch {
             let archetypes = world.archetypes
@@ -146,24 +149,29 @@ public struct ParallelQueryResult<B: QueryBuilder, F: Filter>: Sendable {
                 chunk: chunk,
                 archetype: archetype
             )
+            Filter.setChunk(
+                states: filterStates,
+                fetches: &filterFetchs,
+                chunk: chunk,
+                archetype: archetype
+            )
 
             // Iterate over all entities in this chunk
             for row in 0..<chunk.count {
+                guard Filter.condition(
+                    states: filterStates,
+                    fetches: filterFetchs,
+                    at: row
+                ) else {
+                    continue
+                }
+                
                 let entityId = chunk.entities[row]
                 guard let location = state.entities.entities[entityId] else {
                     continue
                 }
 
                 let entity = archetype.entities[location.archetypeRow]
-
-                guard F.condition(
-                    for: archetype,
-                    in: chunk,
-                    entity: entity,
-                    lastTick: state.lastTick
-                ) else {
-                    continue
-                }
 
                 if let element = B.getQueryTargets(
                     for: entity,
@@ -190,6 +198,8 @@ public struct ParallelQueryResult<B: QueryBuilder, F: Filter>: Sendable {
 
         let states = B.initState(world: world)
         var fetches = B.initFetches(world: world, states: states, lastTick: world.lastTick)
+        let filterStates = Filter.initState(world: world)
+        var filterFetchs = Filter.initFetches(world: world, states: filterStates, lastTick: world.lastTick)
 
         var results: [T] = []
 
@@ -211,6 +221,12 @@ public struct ParallelQueryResult<B: QueryBuilder, F: Filter>: Sendable {
                 chunk: chunk,
                 archetype: archetype
             )
+            Filter.setChunk(
+                states: filterStates,
+                fetches: &filterFetchs,
+                chunk: chunk,
+                archetype: archetype
+            )
 
             // Iterate over all entities in this chunk
             for row in 0..<chunk.count {
@@ -221,11 +237,10 @@ public struct ParallelQueryResult<B: QueryBuilder, F: Filter>: Sendable {
 
                 let entity = archetype.entities[location.archetypeRow]
 
-                guard F.condition(
-                    for: archetype,
-                    in: chunk,
-                    entity: entity,
-                    lastTick: state.lastTick
+                guard Filter.condition(
+                    states: filterStates,
+                    fetches: filterFetchs,
+                    at: row
                 ) else {
                     continue
                 }

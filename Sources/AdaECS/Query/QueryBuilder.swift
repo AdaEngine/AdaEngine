@@ -14,14 +14,11 @@ public protocol QueryBuilder: Sendable {
     /// The component types of the query builder.
     associatedtype ComponentTypes
 
+    /// The component fetches of the query builder.
     associatedtype ComponentsFetches
 
+    /// The component states of the query builder.
     associatedtype ComponentsStates
-
-    /// Predicate for the query builder.
-    /// - Parameter archetype: The archetype to check.
-    /// - Returns: True if the archetype satisfies the predicate, otherwise false.
-    static func predicate(in archetype: borrowing Archetype) -> Bool
 
     static func initState(world: World) -> ComponentsStates
 
@@ -37,13 +34,28 @@ public protocol QueryBuilder: Sendable {
         states: ComponentsStates,
         lastTick: Tick
     ) -> ComponentsFetches
+}
 
+public protocol QuertyTargetBuilder: QueryBuilder {
     static func getQueryTargets(
         for entity: Entity,
         states: ComponentsStates,
         fetches: ComponentsFetches,
         at row: Int
     ) -> Components?
+
+    /// Predicate for the query builder.
+    /// - Parameter archetype: The archetype to check.
+    /// - Returns: True if the archetype satisfies the predicate, otherwise false.
+    static func predicate(in archetype: borrowing Archetype) -> Bool
+}
+
+public protocol FilterTargetBuilder: QueryBuilder {
+    static func condition(
+        states: ComponentsStates,
+        fetches: ComponentsFetches,
+        at row: Int
+    ) -> Bool
 }
 
 @usableFromInline
@@ -52,23 +64,11 @@ enum QueryBuilderTargetsError: Swift.Error {
 }
 
 /// A type-erased query builder.
-public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: QueryTarget {
+public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: WorldQueryTarget {
     public typealias ComponentTypes = (repeat (each T).Type)
     public typealias Components = (repeat each T)
     public typealias ComponentsFetches = (repeat (each T).Fetch)
     public typealias ComponentsStates = (repeat (each T).State)
-
-    @inlinable
-    @inline(__always)
-    public static func predicate(in archetype: Archetype) -> Bool {
-        for element in repeat (each T).self {
-            if !element._queryContains(in: archetype) {
-                return false
-            }
-        }
-
-        return true
-    }
 
     @inlinable
     @inline(__always)
@@ -106,6 +106,20 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Que
             archetype: archetype
         ))
     }
+}
+
+extension QueryBuilderTargets: QuertyTargetBuilder where repeat each T: QueryTarget {
+    @inlinable
+    @inline(__always)
+    public static func predicate(in archetype: Archetype) -> Bool {
+        for element in repeat (each T).self {
+            if !element._queryContains(in: archetype) {
+                return false
+            }
+        }
+
+        return true
+    }
 
     @inlinable
     @inline(__always)
@@ -127,5 +141,22 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Que
         } catch {
             return nil
         }
+    }
+}
+
+extension QueryBuilderTargets: FilterTargetBuilder where repeat each T: Filter {
+    @inlinable
+    @inline(__always)
+    public static func condition(
+        states: ComponentsStates,
+        fetches: ComponentsFetches,
+        at row: Int
+    ) -> Bool {
+        for (value, state, fetch) in repeat ((each T).self, each states, each fetches) {
+            if !value.condition(state: state, fetch: fetch, at: row) {
+                return false
+            }
+        }
+        return true
     }
 }
