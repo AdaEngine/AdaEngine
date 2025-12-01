@@ -108,11 +108,28 @@ extension Component {
 
 @safe
 public struct RefFetch<T> {
+    @usableFromInline
     var data: UnsafeMutableBufferPointer<T>?
 
     @usableFromInline
-    init(data: UnsafeMutableBufferPointer<T>?) {
+    var ticks: UnsafeMutableBufferPointer<Tick>?
+
+    @usableFromInline
+    var lastTick: Tick
+    @usableFromInline
+    var currentTick: Tick
+
+    @usableFromInline
+    init(
+        data: UnsafeMutableBufferPointer<T>?,
+        ticks: UnsafeMutableBufferPointer<Tick>?,
+        lastTick: Tick,
+        currentTick: Tick
+    ) {
         unsafe self.data = data
+        unsafe self.ticks = ticks
+        self.lastTick = lastTick
+        self.currentTick = currentTick
     }
 }
 
@@ -133,7 +150,12 @@ extension Ref: QueryTarget where T: Component {
         lastTick: Tick,
         currentTick: Tick
     ) -> RefFetch<T> {
-        RefFetch(data: nil)
+        RefFetch(
+            data: nil,
+            ticks: nil,
+            lastTick: lastTick,
+            currentTick: currentTick
+        )
     }
 
     public static func _initState(world: World) -> ComponentId {
@@ -151,15 +173,22 @@ extension Ref: QueryTarget where T: Component {
         chunk: Chunk,
         archetype: Archetype
     ) -> RefFetch<T> {
-        guard let slice = chunk.getMutableComponentSlice(for: T.self) else {
+        var newFetch = fetch
+        guard
+            let slice = chunk.getMutableComponentSlice(for: T.self),
+            let ticks = chunk.getMutableComponentTicksSlice(for: T.self)
+        else {
             return fetch
         }
-        return unsafe RefFetch(
-            data: UnsafeMutableBufferPointer(
-                start: slice,
-                count: chunk.count
-            )
+        unsafe newFetch.data = UnsafeMutableBufferPointer(
+            start: slice,
+            count: chunk.count
         )
+        unsafe newFetch.ticks = UnsafeMutableBufferPointer(
+            start: ticks,
+            count: chunk.count
+        )
+        return newFetch
     }
 
     public static func _queryFetch(
@@ -168,20 +197,12 @@ extension Ref: QueryTarget where T: Component {
         fetch: RefFetch<T>,
         at row: Int
     ) -> Ref<T>? {
-//        unsafe Ref(
-        //            pointer: chunk.getMutablePointer(T.self, for: entity.id)!,
-        //            changeTick: .init(
-        //                change: chunk.getMutableTick(T.self, for: entity.id)!.unsafeBox(),
-        //                lastTick: world.lastTick,
-        //                currentTick: world.lastTick
-        //            )
-        //        )
         return unsafe Ref(
             pointer: unsafe fetch.data?.baseAddress?.advanced(by: row),
             changeTick: ChangeDetectionTick(
-                change: nil,
-                lastTick: Tick.init(value: 0),
-                currentTick: Tick.init(value: 0)
+                change: fetch.ticks?.baseAddress?.advanced(by: row).unsafeBox(),
+                lastTick: fetch.lastTick,
+                currentTick: fetch.currentTick
             )
         )
     }
