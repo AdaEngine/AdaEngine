@@ -318,6 +318,7 @@ public struct ComponentMaskSet: Hashable, Sendable {
         return self.mask.isEmpty
     }
 
+    @usableFromInline
     init(reservingCapacity: Int = 0) {
         self.mask = []
         self.mask.reserveCapacity(reservingCapacity)

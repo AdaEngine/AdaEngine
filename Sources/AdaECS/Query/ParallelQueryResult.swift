@@ -165,14 +165,13 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
                 ) else {
                     continue
                 }
-                
+
                 let entityId = chunk.entities[row]
                 guard let location = state.entities.entities[entityId] else {
                     continue
                 }
 
                 let entity = archetype.entities[location.archetypeRow]
-
                 if let element = B.getQueryTargets(
                     for: entity,
                     states: states,

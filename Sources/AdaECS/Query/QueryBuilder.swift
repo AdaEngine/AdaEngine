@@ -36,6 +36,7 @@ public protocol QueryBuilder: Sendable {
     ) -> ComponentsFetches
 }
 
+/// A protocol for building target queries.
 public protocol QuertyTargetBuilder: QueryBuilder {
     static func getQueryTargets(
         for entity: Entity,
@@ -50,6 +51,7 @@ public protocol QuertyTargetBuilder: QueryBuilder {
     static func predicate(in archetype: borrowing Archetype) -> Bool
 }
 
+/// A protocol for building filter queries.
 public protocol FilterTargetBuilder: QueryBuilder {
     static func condition(
         states: ComponentsStates,
@@ -152,8 +154,8 @@ extension QueryBuilderTargets: FilterTargetBuilder where repeat each T: Filter {
         fetches: ComponentsFetches,
         at row: Int
     ) -> Bool {
-        for (value, state, fetch) in repeat ((each T).self, each states, each fetches) {
-            if !value.condition(state: state, fetch: fetch, at: row) {
+        for (filter, state, fetch) in repeat ((each T).self, each states, each fetches) {
+            if !filter.condition(state: state, fetch: fetch, at: row) {
                 return false
             }
         }
