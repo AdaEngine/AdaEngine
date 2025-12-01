@@ -313,7 +313,7 @@ public struct FilterQueryIterator<
 
             if let value = B.getQueryTargets(
                 for: entity,
-                states: &states,
+                states: states,
                 fetches: fetches,
                 at: cursor.currentRow
             ) {

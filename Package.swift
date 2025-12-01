@@ -234,6 +234,7 @@ var targets: [Target] = [
             .product(name: "Collections", package: "swift-collections"),
             .product(name: "BitCollections", package: "swift-collections"),
             .product(name: "Atomics", package: "swift-atomics"),
+            .product(name: "Logging", package: "swift-log"),
             "AdaEngineMacros",
             "AdaUtils"
         ],
