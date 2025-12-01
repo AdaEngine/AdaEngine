@@ -40,20 +40,10 @@ public protocol QueryBuilder: Sendable {
 
     static func getQueryTargets(
         for entity: Entity,
-        states: inout ComponentsStates,
+        states: ComponentsStates,
         fetches: ComponentsFetches,
         at row: Int
     ) -> Components?
-
-    /// Get the query target from an entity.
-    /// - Parameter entity: The entity to get the query target from.
-    /// - Returns: The query target.
-    static func getQueryTarget(
-        for entity: Entity,
-        in chunk: borrowing Chunk,
-        archetype: borrowing Archetype,
-        world: borrowing World
-    ) -> Components
 }
 
 @usableFromInline
@@ -121,7 +111,7 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Que
     @inline(__always)
     public static func getQueryTargets(
         for entity: Entity,
-        states: inout ComponentsStates,
+        states: ComponentsStates,
         fetches: ComponentsFetches,
         at row: Int
     ) -> Components? {
@@ -137,16 +127,5 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Que
         } catch {
             return nil
         }
-    }
-
-    @inlinable
-    @inline(__always)
-    public static func getQueryTarget(
-        for entity: Entity,
-        in chunk: borrowing Chunk,
-        archetype: Archetype,
-        world: borrowing World
-    ) -> Components {
-        (repeat (each T)._queryFetch(for: entity, in: chunk, archetype: archetype, world: world))
     }
 }

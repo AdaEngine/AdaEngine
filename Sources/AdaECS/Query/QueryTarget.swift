@@ -45,17 +45,6 @@ public protocol QueryTarget: Sendable, ~Copyable {
     @inlinable
     static func _queryFetch(
         for entity: Entity,
-        in chunk: borrowing Chunk,
-        archetype: borrowing Archetype,
-        world: borrowing World
-    ) -> Self
-
-    /// Create a new query target from an entity.
-    /// - Parameter entity: The entity to create a query target from.
-    /// - Returns: A new query target.
-    @inlinable
-    static func _queryFetch(
-        for entity: Entity,
         state: State,
         fetch: Fetch,
         at row: Int
@@ -109,18 +98,6 @@ extension Component {
     @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         return entity.components.has(Self.self)
-    }
-
-    @inlinable
-    public static func _queryFetch(
-        for entity: Entity,
-        in chunk: borrowing Chunk,
-        archetype: borrowing Archetype,
-        world: borrowing World
-    ) -> Self {
-        let value = chunk.get(Self.self, for: entity.id)
-        assert(value != nil, "Value of type \(Self.self) in chunk \(chunk.description) for entity \(entity.id) not found")
-        return value!
     }
 
     @inlinable
@@ -191,29 +168,20 @@ extension Ref: QueryTarget where T: Component {
         fetch: RefFetch<T>,
         at row: Int
     ) -> Ref<T>? {
+//        unsafe Ref(
+        //            pointer: chunk.getMutablePointer(T.self, for: entity.id)!,
+        //            changeTick: .init(
+        //                change: chunk.getMutableTick(T.self, for: entity.id)!.unsafeBox(),
+        //                lastTick: world.lastTick,
+        //                currentTick: world.lastTick
+        //            )
+        //        )
         return unsafe Ref(
             pointer: unsafe fetch.data?.baseAddress?.advanced(by: row),
             changeTick: ChangeDetectionTick(
                 change: nil,
                 lastTick: Tick.init(value: 0),
                 currentTick: Tick.init(value: 0)
-            )
-        )
-    }
-
-    @inlinable
-    public static func _queryFetch(
-        for entity: Entity,
-        in chunk: borrowing Chunk,
-        archetype: borrowing Archetype,
-        world: borrowing World
-    ) -> Ref<T> {
-        unsafe Ref(
-            pointer: chunk.getMutablePointer(T.self, for: entity.id)!,
-            changeTick: .init(
-                change: chunk.getMutableTick(T.self, for: entity.id)!.unsafeBox(),
-                lastTick: world.lastTick,
-                currentTick: world.lastTick
             )
         )
     }
@@ -254,16 +222,6 @@ extension Entity: QueryTarget {
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         return true
     }
-
-    @inlinable
-    public static func _queryFetch(
-        for entity: Entity,
-        in chunk: borrowing Chunk,
-        archetype: borrowing Archetype,
-        world: borrowing World
-    ) -> Self {
-        entity as! Self
-    }
     
     /// Always returns true because entity is always present in an archetype.
     @inlinable
@@ -293,7 +251,9 @@ extension Optional: QueryTarget where Wrapped: QueryTarget {
         fetch: Wrapped.Fetch,
         at row: Int
     ) -> Optional<Wrapped>? {
-        Wrapped._queryFetch(for: entity, state: state, fetch: fetch, at: row)
+        .some(
+            Wrapped._queryFetch(for: entity, state: state, fetch: fetch, at: row)
+        )
     }
 
     @inlinable
@@ -309,27 +269,6 @@ extension Optional: QueryTarget where Wrapped: QueryTarget {
     @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         Wrapped._queryTargetContains(in: entity)
-    }
-
-    @inlinable
-    public static func _queryFetch(
-        for entity: Entity,
-        in chunk: borrowing Chunk,
-        archetype: borrowing Archetype,
-        world: borrowing World
-    ) -> Self {
-        if Wrapped._queryTargetContains(in: entity) {
-            return .some(
-                Wrapped._queryFetch(
-                    for: entity,
-                    in: chunk,
-                    archetype: archetype,
-                    world: world
-                )
-            )
-        }
-        
-        return .none
     }
 
     @inlinable

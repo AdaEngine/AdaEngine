@@ -215,7 +215,7 @@ struct BunnyCollisionSystem {
     @FilterQuery<Camera, With<GlobalTransform>>
     private var cameras
     
-    @Query<Entity, Ref<Bunny>, Ref<Transform>>
+    @Query<Ref<Bunny>, Ref<Transform>>
     private var bunnies
     
     init(world: World) {}
@@ -232,7 +232,7 @@ struct BunnyCollisionSystem {
         // Convert to world coordinates (simplified approach)
         let worldHalfExtents = halfExtents * camera.orthographicScale / 100.0
         
-        await bunnies.parallel().forEach { entity, bunny, transform in
+        await bunnies.parallel().forEach { bunny, transform in
             var velocity = bunny.velocity
             var position = transform.position
             let halfBunnySize = BunnyExampleConstants.bunnyScale * 0.5
