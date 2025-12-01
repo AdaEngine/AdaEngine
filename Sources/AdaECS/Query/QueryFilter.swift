@@ -51,12 +51,15 @@ public struct With<T: Component>: Filter {
     public typealias State = Void
     public typealias Fetch = ComponentMaskSet
 
+    @inlinable
     public static func _initState(world: World) -> Void { }
 
+    @inlinable
     public static func _initFetch(world: World, state: Void, lastTick: Tick, currentTick: Tick) -> ComponentMaskSet {
         ComponentMaskSet()
     }
-    
+
+    @inlinable
     public static func _setData(
         state: Void,
         fetch: ComponentMaskSet,
@@ -82,12 +85,15 @@ public struct Without<T: Component>: Filter {
     public typealias State = Void
     public typealias Fetch = ComponentMaskSet
 
+    @inlinable
     public static func _initState(world: World) -> Void { }
 
+    @inlinable
     public static func _initFetch(world: World, state: Void, lastTick: Tick, currentTick: Tick) -> ComponentMaskSet {
         ComponentMaskSet()
     }
 
+    @inlinable
     public static func _setData(
         state: Void,
         fetch: ComponentMaskSet,
@@ -156,7 +162,12 @@ public struct And<each T: Filter>: Filter {
         archetype: Archetype
     ) -> _Fetch {
         var newFetch = fetch
-        newFetch.fetches = (repeat (each T)._setData(state: each state.states, fetch: each fetch.fetches, chunk: chunk, archetype: archetype))
+        newFetch.fetches = (repeat (each T)._setData(
+            state: each state.states,
+            fetch: each fetch.fetches,
+            chunk: chunk,
+            archetype: archetype)
+        )
         return newFetch
     }
 
@@ -167,8 +178,8 @@ public struct And<each T: Filter>: Filter {
         fetch: Fetch,
         at row: Int
     ) -> Bool {
-        for (value, state, fetch) in repeat ((each T).self, each state.states, each fetch.fetches) {
-            if !value.condition(state: state, fetch: fetch, at: row) {
+        for (filter, state, fetch) in repeat ((each T).self, each state.states, each fetch.fetches) {
+            if !filter.condition(state: state, fetch: fetch, at: row) {
                 return false
             }
         }
@@ -246,9 +257,15 @@ public struct Or<each T: Filter>: Filter {
         )
     }
 
+    @inlinable
     public static func _setData(state: _State, fetch: _Fetch, chunk: Chunk, archetype: Archetype) -> _Fetch {
         var newFetch = fetch
-        newFetch.fetches = (repeat (each T)._setData(state: each state.states, fetch: each fetch.fetches, chunk: chunk, archetype: archetype))
+        newFetch.fetches = (repeat (each T)._setData(
+            state: each state.states,
+            fetch: each fetch.fetches,
+            chunk: chunk,
+            archetype: archetype)
+        )
         return newFetch
     }
 
@@ -259,8 +276,8 @@ public struct Or<each T: Filter>: Filter {
         fetch: Fetch,
         at row: Int
     ) -> Bool {
-        for (value, state, fetch) in repeat ((each T).self, each state.states, each fetch.fetches) {
-            if value.condition(state: state, fetch: fetch, at: row) {
+        for (filter, state, fetch) in repeat ((each T).self, each state.states, each fetch.fetches) {
+            if filter.condition(state: state, fetch: fetch, at: row) {
                 return true
             }
         }
@@ -269,7 +286,6 @@ public struct Or<each T: Filter>: Filter {
 }
 
 public struct Changed<T: Component>: Filter {
-
     @safe
     public struct ChangedFetch {
         @usableFromInline
@@ -337,10 +353,13 @@ public struct NoFilter: Filter {
     public typealias State = Void
     public typealias Fetch = Void
 
+    @inlinable
     public static func _initState(world: World) -> Void { }
 
+    @inlinable
     public static func _initFetch(world: World, state: Void, lastTick: Tick, currentTick: Tick) -> Void { }
 
+    @inlinable
     public static func _setData(state: Void, fetch: Void, chunk: Chunk, archetype: Archetype) -> Void { }
 
     @inlinable
