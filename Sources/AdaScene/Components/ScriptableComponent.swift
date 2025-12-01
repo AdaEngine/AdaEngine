@@ -10,6 +10,14 @@ import AdaUtils
 import AdaTransform
 import AdaInput
 
+public struct ScriptableComponent<T: ScriptableObject>: Component {
+    public let object: ScriptableObject
+
+    public init(object: ScriptableObject) {
+        self.object = object
+    }
+}
+
 /// Base class describe some unit of game logic.
 ///
 /// - Note: We don't recomend use a lot of scriptable objects, instead use ECS paradigm.
@@ -18,7 +26,7 @@ import AdaInput
 ///
 /// - Warning: AdaEngine doesn't has execution order for `ScriptableComponent`.
 ///
-open class ScriptableComponent: Component, @unchecked Sendable {
+open class ScriptableObject: @unchecked Sendable {
 
     internal var isAwaked: Bool = false
     
@@ -62,7 +70,6 @@ open class ScriptableComponent: Component, @unchecked Sendable {
     
     public required init(from decoder: Decoder) throws {
         var mirror: Mirror? = Mirror(reflecting: self)
-        
         let container = try decoder.container(keyedBy: CodingName.self)
         
         // Go through all mirrors (till top most superclass)
@@ -89,9 +96,7 @@ open class ScriptableComponent: Component, @unchecked Sendable {
     }
     
     public func encode(to encoder: Encoder) throws {
-        
         var container = encoder.container(keyedBy: CodingName.self)
-        
         var mirror: Mirror? = Mirror(reflecting: self)
         
         // Go through all mirrors (till top most superclass)
@@ -117,11 +122,9 @@ open class ScriptableComponent: Component, @unchecked Sendable {
             mirror = mirror?.superclassMirror
         } while mirror != nil
     }
-    
 }
 
-public extension ScriptableComponent {
-    
+public extension ScriptableObject {
     /// Get collection of components in entity
     /// - Warning: Crashed if component not connected to entity.
     var components: Entity.ComponentSet {
@@ -145,8 +148,7 @@ public extension ScriptableComponent {
     }
 }
 
-public extension ScriptableComponent {
-
+public extension ScriptableObject {
     /// Return transform component for current entity.
     var transform: Transform {
         get {

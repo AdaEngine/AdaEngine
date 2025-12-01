@@ -42,7 +42,7 @@ public struct RequiredComponent<T: Component> {
     
     // Currently private method to get parent component 
     @MainActor
-    public static subscript<EnclosingSelf: ScriptableComponent>(
+    public static subscript<EnclosingSelf: ScriptableObject>(
         _enclosingInstance object: EnclosingSelf,
         wrapped wrappedKeyPath: KeyPath<EnclosingSelf, T>,
         storage storageKeyPath: ReferenceWritableKeyPath<EnclosingSelf, RequiredComponent>

@@ -10,6 +10,29 @@ import AdaUtils
 /// A protocol that allows to use components and entities as query targets.
 public protocol QueryTarget: Sendable, ~Copyable {
 
+    associatedtype Fetch
+
+    associatedtype State: Sendable
+
+    @inlinable
+    static func _initState(world: World) -> State
+
+    @inlinable
+    static func _initFetch(
+        world: World,
+        state: State,
+        lastTick: Tick,
+        currentTick: Tick
+    ) -> Fetch
+
+    @inlinable
+    static func _setData(
+        state: State,
+        fetch: Fetch,
+        chunk: Chunk,
+        archetype: Archetype,
+    ) -> Fetch
+
     /// Check that entity contains target.
     /// - Parameter entity: The entity to check.
     /// - Returns: True if the entity contains the target, otherwise false.
@@ -20,12 +43,23 @@ public protocol QueryTarget: Sendable, ~Copyable {
     /// - Parameter entity: The entity to create a query target from.
     /// - Returns: A new query target.
     @inlinable
-    static func _queryTarget(
+    static func _queryFetch(
         for entity: Entity,
         in chunk: borrowing Chunk,
         archetype: borrowing Archetype,
         world: borrowing World
     ) -> Self
+
+    /// Create a new query target from an entity.
+    /// - Parameter entity: The entity to create a query target from.
+    /// - Returns: A new query target.
+    @inlinable
+    static func _queryFetch(
+        for entity: Entity,
+        state: State,
+        fetch: Fetch,
+        at row: Int
+    ) -> Self?
 
     /// Check if an archetype contains the target.
     /// - Parameter archetype: The archetype to check.
@@ -35,13 +69,50 @@ public protocol QueryTarget: Sendable, ~Copyable {
 }
 
 extension Component {
+
+    @inlinable
+    public static func _initState(world: World) -> ComponentId {
+        return Self.identifier
+    }
+
+    @inlinable
+    public static func _initFetch(
+        world: World,
+        state: ComponentId,
+        lastTick: Tick,
+        currentTick: Tick
+    ) -> ReadFetch<Self> {
+        ReadFetch(data: nil)
+    }
+
+    public static func _queryFetch(
+        for entity: Entity,
+        state: ComponentId,
+        fetch: ReadFetch<Self>,
+        at row: Int
+    ) -> Self? {
+        unsafe fetch.data?[row]
+    }
+
+    public static func _setData(
+        state: ComponentId,
+        fetch: ReadFetch<Self>,
+        chunk: Chunk,
+        archetype: Archetype
+    ) -> ReadFetch<Self> {
+        guard let slice = chunk.getComponentSlice(for: Self.self) else {
+            return fetch
+        }
+        return unsafe ReadFetch(data: slice)
+    }
+
     @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         return entity.components.has(Self.self)
     }
 
     @inlinable
-    public static func _queryTarget(
+    public static func _queryFetch(
         for entity: Entity,
         in chunk: borrowing Chunk,
         archetype: borrowing Archetype,
@@ -58,15 +129,80 @@ extension Component {
     }
 }
 
+@safe
+public struct RefFetch<T> {
+    var data: UnsafeMutableBufferPointer<T>?
+
+    @usableFromInline
+    init(data: UnsafeMutableBufferPointer<T>?) {
+        unsafe self.data = data
+    }
+}
+
+@safe
+public struct ReadFetch<T> {
+    var data: UnsafeBufferPointer<T>?
+
+    @usableFromInline
+    init(data: UnsafeBufferPointer<T>?) {
+        unsafe self.data = data
+    }
+}
+
 extension Ref: QueryTarget where T: Component {
+    public static func _initFetch(
+        world: World,
+        state: ComponentId,
+        lastTick: Tick,
+        currentTick: Tick
+    ) -> RefFetch<T> {
+        RefFetch(data: nil)
+    }
+
+    public static func _initState(world: World) -> ComponentId {
+        T.identifier
+    }
 
     @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         T._queryTargetContains(in: entity)
     }
 
+    public static func _setData(
+        state: ComponentId,
+        fetch: RefFetch<T>,
+        chunk: Chunk,
+        archetype: Archetype
+    ) -> RefFetch<T> {
+        guard let slice = chunk.getMutableComponentSlice(for: T.self) else {
+            return fetch
+        }
+        return unsafe RefFetch(
+            data: UnsafeMutableBufferPointer(
+                start: slice,
+                count: chunk.count
+            )
+        )
+    }
+
+    public static func _queryFetch(
+        for entity: Entity,
+        state: ComponentId,
+        fetch: RefFetch<T>,
+        at row: Int
+    ) -> Ref<T>? {
+        return unsafe Ref(
+            pointer: unsafe fetch.data?.baseAddress?.advanced(by: row),
+            changeTick: ChangeDetectionTick(
+                change: nil,
+                lastTick: Tick.init(value: 0),
+                currentTick: Tick.init(value: 0)
+            )
+        )
+    }
+
     @inlinable
-    public static func _queryTarget(
+    public static func _queryFetch(
         for entity: Entity,
         in chunk: borrowing Chunk,
         archetype: borrowing Archetype,
@@ -89,6 +225,30 @@ extension Ref: QueryTarget where T: Component {
 }
 
 extension Entity: QueryTarget {
+    public static func _setData(
+        state: Void,
+        fetch: Void,
+        chunk: Chunk,
+        archetype: Archetype
+    ) -> Void { }
+
+    public static func _queryFetch(
+        for entity: Entity,
+        state: (),
+        fetch: (),
+        at row: Int
+    ) -> Self? {
+        entity as? Self
+    }
+
+    public static func _initState(world: World) -> Void { }
+
+    public static func _initFetch(
+        world: World,
+        state: Void,
+        lastTick: Tick,
+        currentTick: Tick
+    ) -> Void { }
 
     @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
@@ -96,13 +256,13 @@ extension Entity: QueryTarget {
     }
 
     @inlinable
-    public static func _queryTarget(
+    public static func _queryFetch(
         for entity: Entity,
         in chunk: borrowing Chunk,
         archetype: borrowing Archetype,
         world: borrowing World
     ) -> Self {
-        return entity as! Self
+        entity as! Self
     }
     
     /// Always returns true because entity is always present in an archetype.
@@ -113,13 +273,46 @@ extension Entity: QueryTarget {
 }
 
 extension Optional: QueryTarget where Wrapped: QueryTarget {
+    public typealias State = Wrapped.State
+    public typealias Fetch = Wrapped.Fetch
+
+    @inlinable
+    public static func _setData(
+        state: Wrapped.State,
+        fetch: Wrapped.Fetch,
+        chunk: Chunk,
+        archetype: Archetype
+    ) -> Wrapped.Fetch {
+        Wrapped._setData(state: state, fetch: fetch, chunk: chunk, archetype: archetype)
+    }
+
+    @inlinable
+    public static func _queryFetch(
+        for entity: Entity,
+        state: Wrapped.State,
+        fetch: Wrapped.Fetch,
+        at row: Int
+    ) -> Optional<Wrapped>? {
+        Wrapped._queryFetch(for: entity, state: state, fetch: fetch, at: row)
+    }
+
+    @inlinable
+    public static func _initState(world: World) -> State {
+        Wrapped._initState(world: world)
+    }
+
+    @inlinable
+    public static func _initFetch(world: World, state: State, lastTick: Tick, currentTick: Tick) -> Fetch {
+        Wrapped._initFetch(world: world, state: state, lastTick: lastTick, currentTick: currentTick)
+    }
+
     @inlinable
     public static func _queryTargetContains(in entity: Entity) -> Bool {
         Wrapped._queryTargetContains(in: entity)
     }
 
     @inlinable
-    public static func _queryTarget(
+    public static func _queryFetch(
         for entity: Entity,
         in chunk: borrowing Chunk,
         archetype: borrowing Archetype,
@@ -127,7 +320,7 @@ extension Optional: QueryTarget where Wrapped: QueryTarget {
     ) -> Self {
         if Wrapped._queryTargetContains(in: entity) {
             return .some(
-                Wrapped._queryTarget(
+                Wrapped._queryFetch(
                     for: entity,
                     in: chunk,
                     archetype: archetype,

@@ -12,7 +12,7 @@ import AdaUtils
 @dynamicMemberLookup
 @propertyWrapper
 @safe
-public final class Ref<T>: @unchecked Sendable, ChangeDetectionable {
+public struct Ref<T>: @unchecked Sendable, ChangeDetectionable {
     private let pointer: UnsafeMutablePointer<T>?
     public var changeTick: ChangeDetectionTick
 
@@ -22,7 +22,7 @@ public final class Ref<T>: @unchecked Sendable, ChangeDetectionable {
         _read {
             yield unsafe self.pointer!.pointee
         }
-        _modify {
+        nonmutating _modify {
             yield unsafe &self.pointer!.pointee
             self.setChanged()
         }
@@ -45,7 +45,7 @@ public final class Ref<T>: @unchecked Sendable, ChangeDetectionable {
         _read {
             yield self.wrappedValue[keyPath: dynamicMember]
         }
-        _modify {
+        nonmutating _modify {
             yield &self.wrappedValue[keyPath: dynamicMember]
         }
     }
