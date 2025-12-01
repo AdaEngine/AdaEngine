@@ -480,6 +480,13 @@ public struct Chunk: Sendable {
         let startPointer = componentData.changesTicks.getMutablePointer(at: 0, as: Tick.self)
         return unsafe UnsafeBufferPointer(start: startPointer, count: self.count)
     }
+
+    public func getMutableComponentTicksSlice<T: Component>(for type: T.Type) -> UnsafeMutablePointer<Tick>? {
+        guard let componentData = self.componentsData[T.identifier], self.count > 0 else {
+            return nil
+        }
+        return componentData.changesTicks.getMutablePointer(at: 0, as: Tick.self)
+    }
 }
 
 extension Chunk: NonCopybaleCustomStringConvertible {
