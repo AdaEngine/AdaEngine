@@ -7,9 +7,7 @@
 
 import AdaUtils
 
-/// A protocol that allows to use components and entities as query targets.
-public protocol QueryTarget: Sendable, ~Copyable {
-
+public protocol WorldQueryTarget: Sendable, ~Copyable {
     associatedtype Fetch
 
     associatedtype State: Sendable
@@ -32,6 +30,10 @@ public protocol QueryTarget: Sendable, ~Copyable {
         chunk: Chunk,
         archetype: Archetype,
     ) -> Fetch
+}
+
+/// A protocol that allows to use components and entities as query targets.
+public protocol QueryTarget: WorldQueryTarget, ~Copyable {
 
     /// Check that entity contains target.
     /// - Parameter entity: The entity to check.
@@ -143,6 +145,7 @@ public struct ReadFetch<T> {
     }
 }
 
+extension Ref: WorldQueryTarget where T: Component {}
 extension Ref: QueryTarget where T: Component {
     public static func _initFetch(
         world: World,
@@ -251,6 +254,7 @@ extension Entity: QueryTarget {
     }
 }
 
+extension Optional: WorldQueryTarget where Wrapped: QueryTarget {}
 extension Optional: QueryTarget where Wrapped: QueryTarget {
     public typealias State = Wrapped.State
     public typealias Fetch = Wrapped.Fetch

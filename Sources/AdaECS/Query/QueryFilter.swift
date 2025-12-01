@@ -33,62 +33,142 @@ public struct QueryFilter: OptionSet, Sendable {
 }
 
 /// A protocol for filters.
-public protocol Filter: Sendable {
+public protocol Filter: Sendable, WorldQueryTarget {
 
     /// Check if the filter is satisfied for an archetype.
     /// - Parameter archetype: The archetype to check.
     /// - Returns: True if the filter is satisfied for the archetype, otherwise false.
     @inlinable
     static func condition(
-        for archetype: borrowing Archetype,
-        in chunk: borrowing Chunk,
-        entity: Entity,
-        lastTick: Tick
+        state: State,
+        fetch: Fetch,
+        at row: Int
     ) -> Bool
 }
 
 /// A filter that includes entities with a specific component.
 public struct With<T: Component>: Filter {
+    public typealias State = Void
+    public typealias Fetch = ComponentMaskSet
+
+    public static func _initState(world: World) -> Void { }
+
+    public static func _initFetch(world: World, state: Void, lastTick: Tick, currentTick: Tick) -> ComponentMaskSet {
+        ComponentMaskSet()
+    }
+    
+    public static func _setData(
+        state: Void,
+        fetch: ComponentMaskSet,
+        chunk: Chunk,
+        archetype: Archetype
+    ) -> ComponentMaskSet {
+        archetype.componentLayout.maskSet
+    }
+
     @inlinable
+    @inline(__always)
     public static func condition(
-        for archetype: borrowing Archetype,
-        in chunk: borrowing Chunk,
-        entity: Entity,
-        lastTick: Tick
+        state: State,
+        fetch: ComponentMaskSet,
+        at row: Int
     ) -> Bool {
-        archetype.componentLayout.maskSet.contains(T.self)
+        return fetch.contains(T.self)
     }
 }
 
 /// A filter that excludes entities with a specific component.
 public struct Without<T: Component>: Filter {
+    public typealias State = Void
+    public typealias Fetch = ComponentMaskSet
+
+    public static func _initState(world: World) -> Void { }
+
+    public static func _initFetch(world: World, state: Void, lastTick: Tick, currentTick: Tick) -> ComponentMaskSet {
+        ComponentMaskSet()
+    }
+
+    public static func _setData(
+        state: Void,
+        fetch: ComponentMaskSet,
+        chunk: Chunk,
+        archetype: Archetype
+    ) -> ComponentMaskSet {
+        archetype.componentLayout.maskSet
+    }
+
     @inlinable
-    public static func condition(
-        for archetype: borrowing Archetype,
-        in chunk: borrowing Chunk,
-        entity: Entity,
-        lastTick: Tick
-    ) -> Bool {
-        !archetype.componentLayout.maskSet.contains(T.self)
+    @inline(__always)
+    public static func condition(state: Void, fetch: ComponentMaskSet, at row: Int) -> Bool {
+        return !fetch.contains(T.self)
     }
 }
 
 /// A filter that combines two filters with a logical AND operation.
 public struct And<each T: Filter>: Filter {
+    public typealias State = _State
+    public typealias Fetch = _Fetch
+
+    public struct _State: Sendable {
+        @usableFromInline
+        var states: (repeat (each T).State)
+
+        @usableFromInline
+        init(states: (repeat (each T).State)) {
+            self.states = states
+        }
+    }
+
+    public struct _Fetch {
+        @usableFromInline
+        var fetches: (repeat (each T).Fetch)
+
+        @usableFromInline
+        init(fetches: (repeat (each T).Fetch)) {
+            self.fetches = fetches
+        }
+    }
+
     @inlinable
+    public static func _initState(world: World) -> _State {
+        _State(
+            states: (repeat (each T)._initState(world: world))
+        )
+    }
+
+    @inlinable
+    public static func _initFetch(world: World, state: _State, lastTick: Tick, currentTick: Tick) -> _Fetch {
+        _Fetch(
+            fetches: (repeat (each T)._initFetch(
+                world: world,
+                state: each state.states,
+                lastTick: lastTick,
+                currentTick: currentTick)
+            )
+        )
+    }
+
+    @inlinable
+    public static func _setData(
+        state: _State,
+        fetch: _Fetch,
+        chunk: Chunk,
+        archetype: Archetype
+    ) -> _Fetch {
+        var newFetch = fetch
+        newFetch.fetches = (repeat (each T)._setData(state: each state.states, fetch: each fetch.fetches, chunk: chunk, archetype: archetype))
+        return newFetch
+    }
+
+    @inlinable
+    @inline(__always)
     public static func condition(
-        for archetype: borrowing Archetype,
-        in chunk: borrowing Chunk,
-        entity: Entity,
-        lastTick: Tick
+        state: State,
+        fetch: Fetch,
+        at row: Int
     ) -> Bool {
-        for element in repeat (each T).self {
-            if !element.condition(
-                for: archetype,
-                in: chunk,
-                entity: entity,
-                lastTick: lastTick
-            ) {
+        for (value, state, fetch) in repeat ((each T).self, each state.states, each fetch.fetches) {
+            if !value.condition(state: state, fetch: fetch, at: row) {
                 return false
             }
         }
@@ -97,33 +177,90 @@ public struct And<each T: Filter>: Filter {
 }
 
 public struct Not<T: Filter>: Filter {
+    public typealias State = T.State
+    public typealias Fetch = T.Fetch
+
     @inlinable
-    public static func condition(
-        for archetype: borrowing Archetype,
-        in chunk: borrowing Chunk,
-        entity: Entity,
-        lastTick: Tick
-    ) -> Bool {
-        !T.condition(for: archetype, in: chunk, entity: entity, lastTick: lastTick)
+    public static func _initState(world: World) -> T.State {
+        T._initState(world: world)
+    }
+
+    @inlinable
+    public static func _initFetch(world: World, state: T.State, lastTick: Tick, currentTick: Tick) -> T.Fetch {
+        T._initFetch(world: world, state: state, lastTick: lastTick, currentTick: currentTick)
+    }
+
+    @inlinable
+    public static func _setData(state: T.State, fetch: T.Fetch, chunk: Chunk, archetype: Archetype) -> T.Fetch {
+        T._setData(state: state, fetch: fetch, chunk: chunk, archetype: archetype)
+    }
+
+    @inlinable
+    @inline(__always)
+    public static func condition(state: T.State, fetch: T.Fetch, at row: Int) -> Bool {
+        !T.condition(state: state, fetch: fetch, at: row)
     }
 }
 
 /// A filter that combines two filters with a logical OR operation.
 public struct Or<each T: Filter>: Filter {
+    public typealias State = _State
+    public typealias Fetch = _Fetch
+
+    public struct _State: Sendable {
+        @usableFromInline
+        var states: (repeat (each T).State)
+
+        @usableFromInline
+        init(states: (repeat (each T).State)) {
+            self.states = states
+        }
+    }
+
+    public struct _Fetch {
+        @usableFromInline
+        var fetches: (repeat (each T).Fetch)
+
+        @usableFromInline
+        init(fetches: (repeat (each T).Fetch)) {
+            self.fetches = fetches
+        }
+    }
+
     @inlinable
+    public static func _initState(world: World) -> _State {
+        _State(
+            states: (repeat (each T)._initState(world: world))
+        )
+    }
+
+    @inlinable
+    public static func _initFetch(world: World, state: _State, lastTick: Tick, currentTick: Tick) -> _Fetch {
+        _Fetch(
+            fetches: (repeat (each T)._initFetch(
+                world: world,
+                state: each state.states,
+                lastTick: lastTick,
+                currentTick: currentTick)
+            )
+        )
+    }
+
+    public static func _setData(state: _State, fetch: _Fetch, chunk: Chunk, archetype: Archetype) -> _Fetch {
+        var newFetch = fetch
+        newFetch.fetches = (repeat (each T)._setData(state: each state.states, fetch: each fetch.fetches, chunk: chunk, archetype: archetype))
+        return newFetch
+    }
+
+    @inlinable
+    @inline(__always)
     public static func condition(
-        for archetype: borrowing Archetype,
-        in chunk: borrowing Chunk,
-        entity: Entity,
-        lastTick: Tick
+        state: State,
+        fetch: Fetch,
+        at row: Int
     ) -> Bool {
-        for element in repeat (each T).self {
-            if element.condition(
-                for: archetype,
-                in: chunk,
-                entity: entity,
-                lastTick: lastTick
-            ) {
+        for (value, state, fetch) in repeat ((each T).self, each state.states, each fetch.fetches) {
+            if value.condition(state: state, fetch: fetch, at: row) {
                 return true
             }
         }
@@ -132,26 +269,83 @@ public struct Or<each T: Filter>: Filter {
 }
 
 public struct Changed<T: Component>: Filter {
+
+    @safe
+    public struct ChangedFetch {
+        @usableFromInline
+        var ticks: UnsafeMutablePointer<Tick>?
+        @usableFromInline
+        var lastTick: Tick
+        @usableFromInline
+        var currentTick: Tick
+
+        @usableFromInline
+        init(
+            ticks: UnsafeMutablePointer<Tick>? = nil,
+            lastTick: Tick,
+            currentTick: Tick
+        ) {
+            unsafe self.ticks = ticks
+            self.lastTick = lastTick
+            self.currentTick = currentTick
+        }
+    }
+
+    public typealias State = Void
+    public typealias Fetch = ChangedFetch
+
     @inlinable
-    public static func condition(
-        for archetype: borrowing Archetype,
-        in chunk: borrowing Chunk,
-        entity: Entity,
-        lastTick: Tick
-    ) -> Bool {
-        chunk.isComponentChanged(T.self, for: entity.id, lastTick: lastTick)
+    public static func _initState(world: World) -> Void { }
+
+    @inlinable
+    public static func _initFetch(
+        world: World,
+        state: Void,
+        lastTick: Tick,
+        currentTick: Tick
+    ) -> ChangedFetch {
+        ChangedFetch(lastTick: lastTick, currentTick: currentTick)
+    }
+
+    @inlinable
+    public static func _setData(
+        state: Void,
+        fetch: ChangedFetch,
+        chunk: Chunk,
+        archetype: Archetype
+    ) -> ChangedFetch {
+        var newFetch = fetch
+        guard let slice = chunk.getMutableComponentTicksSlice(for: T.self) else {
+            return fetch
+        }
+        unsafe newFetch.ticks = slice
+        return newFetch
+    }
+
+    @inlinable
+    @inline(__always)
+    public static func condition(state: Void, fetch: ChangedFetch, at row: Int) -> Bool {
+        guard let tick = unsafe fetch.ticks?.advanced(by: row).pointee else {
+            return false
+        }
+        return tick >= fetch.lastTick
     }
 }
 
 /// A filter that includes all entities.
 public struct NoFilter: Filter {
+    public typealias State = Void
+    public typealias Fetch = Void
+
+    public static func _initState(world: World) -> Void { }
+
+    public static func _initFetch(world: World, state: Void, lastTick: Tick, currentTick: Tick) -> Void { }
+
+    public static func _setData(state: Void, fetch: Void, chunk: Chunk, archetype: Archetype) -> Void { }
+
     @inlinable
-    public static func condition(
-        for archetype: borrowing Archetype,
-        in chunk: borrowing Chunk,
-        entity: Entity,
-        lastTick: Tick
-    ) -> Bool {
+    @inline(__always)
+    public static func condition(state: Void, fetch: Void, at row: Int) -> Bool {
         true
     }
 }

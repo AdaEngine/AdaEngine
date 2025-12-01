@@ -54,7 +54,7 @@ public struct FilterQuery<each T: QueryTarget, F: Filter>: Sequence, Sendable {
     public typealias Element = Builder.Components
 
     /// The iterator type of the query result.
-    public typealias Iterator = FilterQueryIterator<Builder, F>
+    public typealias Iterator = FilterQueryIterator<Builder, QueryBuilderTargets<F>>
 
     public typealias Builder = QueryBuilderTargets<repeat each T>
 
@@ -182,8 +182,8 @@ final class QueryState: @unchecked Sendable {
 
 /// This iterator iterate by each entity in passed archetype array
 public struct FilterQueryIterator<
-    B: QueryBuilder,
-    F: Filter
+    B: QuertyTargetBuilder,
+    F: FilterTargetBuilder
 >: IteratorProtocol {
     public typealias Element = B.Components
 
@@ -223,6 +223,12 @@ public struct FilterQueryIterator<
     var states: B.ComponentsStates
 
     @usableFromInline
+    var filterStates: F.ComponentsStates
+
+    @usableFromInline
+    var filterFetches: F.ComponentsFetches
+
+    @usableFromInline
     var needsUpdateData = true
 
     @usableFromInline
@@ -236,6 +242,12 @@ public struct FilterQueryIterator<
         self.fetches = B.initFetches(
             world: state.world,
             states: self.states,
+            lastTick: state.lastTick
+        )
+        self.filterStates = F.initState(world: state.world)
+        self.filterFetches = F.initFetches(
+            world: state.world,
+            states: filterStates,
             lastTick: state.lastTick
         )
     }
@@ -287,6 +299,12 @@ public struct FilterQueryIterator<
                     chunk: currentChunk,
                     archetype: archetype
                 )
+                F.setChunk(
+                    states: filterStates,
+                    fetches: &filterFetches,
+                    chunk: currentChunk,
+                    archetype: archetype
+                )
                 needsUpdateData = false
             }
 
@@ -296,21 +314,19 @@ public struct FilterQueryIterator<
                 cursor.currentRow += 1
             }
 
-            guard let location = state.entities.entities[entityId] else {
-                continue
-            }
-
-            let entity = archetype.entities[location.archetypeRow]
-
             guard F.condition(
-                for: archetype,
-                in: currentChunk,
-                entity: entity,
-                lastTick: state.lastTick
+                states: filterStates,
+                fetches: filterFetches,
+                at: cursor.currentRow
             ) else {
                 continue
             }
 
+            guard let location = state.entities.entities[entityId] else {
+                continue
+            }
+            let entity = archetype.entities[location.archetypeRow]
+            
             if let value = B.getQueryTargets(
                 for: entity,
                 states: states,
@@ -325,6 +341,16 @@ public struct FilterQueryIterator<
     @usableFromInline
     mutating func updateStates() {
         states = B.initState(world: state.world)
-        fetches = B.initFetches(world: state.world, states: states, lastTick: state.lastTick)
+        fetches = B.initFetches(
+            world: state.world,
+            states: states,
+            lastTick: state.lastTick
+        )
+        filterStates = F.initState(world: state.world)
+        filterFetches = F.initFetches(
+            world: state.world,
+            states: filterStates,
+            lastTick: state.lastTick
+        )
     }
 }
