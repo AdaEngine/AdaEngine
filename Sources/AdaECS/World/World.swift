@@ -14,7 +14,7 @@ import Foundation
 #endif
 import Atomics
 
-public struct ChangeDetectionTick {
+public struct ChangeDetectionTick: Sendable {
     public var change: UnsafeBox<Tick>?
     public let lastTick: Tick
     public let currentTick: Tick

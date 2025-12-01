@@ -466,6 +466,13 @@ public struct Chunk: Sendable {
         return unsafe UnsafeBufferPointer(start: startPointer, count: self.count)
     }
 
+    public func getMutableComponentSlice<T: Component>(for type: T.Type) -> UnsafeMutablePointer<T>? {
+        guard let componentData = self.componentsData[T.identifier], self.count > 0 else {
+            return nil
+        }
+        return componentData.data.getMutablePointer(at: 0, as: T.self)
+    }
+
     public func getComponentTicksSlice<T: Component>(for type: T.Type) -> UnsafeBufferPointer<Tick>? {
         guard let componentData = self.componentsData[T.identifier], self.count > 0 else {
             return nil

@@ -163,11 +163,13 @@ final class QueryState: @unchecked Sendable {
     @usableFromInline
     let filter: QueryFilter
 
+    @usableFromInline
     internal init(predicate: QueryPredicate, filter: QueryFilter) {
         self.predicate = predicate
         self.filter = filter
     }
 
+    @usableFromInline
     func updateArchetypes(in world: World) {
         self.entities = world.entities
         self.archetypeIndecies = world.archetypes.archetypes.enumerated().compactMap {
@@ -185,34 +187,63 @@ public struct FilterQueryIterator<
 >: IteratorProtocol {
     public typealias Element = B.Components
 
+    @usableFromInline
     struct Cursor {
+        @usableFromInline
         var currentArchetypeIndex = 0
+
+        @usableFromInline
         var currentChunkIndex = 0
+
+        /// Current row in chunk
+        @usableFromInline
         var currentRow = 0
+
+        /// Current length in chunk
+        @usableFromInline
+        var currentLength = 0
     }
 
+    @usableFromInline
     unowned let archetypes: Archetypes
+
+    @usableFromInline
     let count: Int
+
+    @usableFromInline
     let state: QueryState
+
+    @usableFromInline
     var cursor: Cursor
 
-    /// - Parameter pointer: Pointer to archetypes array.
-    /// - Parameter count: Count archetypes in array.
+    @usableFromInline
+    var fetches: B.ComponentsFetches
+
+    @usableFromInline
+    var states: B.ComponentsStates
+
+    @usableFromInline
+    var needsUpdateData = true
+
+    @usableFromInline
     init(state: QueryState) {
         self.count = state.archetypeIndecies.count
         self.state = state
         self.cursor = Cursor()
         self.archetypes = state.world.archetypes
+
+        self.states = B.initState(world: state.world)
+        self.fetches = B.initFetches(
+            world: state.world,
+            states: self.states,
+            lastTick: state.lastTick
+        )
     }
 
-    @inline(__always)
+    @inlinable
     public mutating func next() -> Element? {
         // swiftlint:disable:next empty_count
-        guard count > 0 else {
-            return nil
-        }
-
-        if archetypes.archetypes.isEmpty {
+        guard count > 0 && !archetypes.archetypes.isEmpty else {
             return nil
         }
 
@@ -220,32 +251,52 @@ public struct FilterQueryIterator<
             guard cursor.currentArchetypeIndex < self.count else {
                 return nil
             }
-            let archetypeIndex = state.archetypeIndecies[cursor.currentArchetypeIndex]
 
-            if archetypeIndex > self.archetypes.archetypes.count {
+            let archetypeIndex = state.archetypeIndecies[cursor.currentArchetypeIndex]
+            let archetype = self.archetypes.archetypes[archetypeIndex]
+
+            if archetype.isEmpty {
                 cursor.currentArchetypeIndex += 1
+                cursor.currentChunkIndex = 0
+                needsUpdateData = true
                 continue
             }
 
-            let archetype = self.archetypes.archetypes[archetypeIndex]
             if cursor.currentChunkIndex >= archetype.chunks.chunks.count {
                 cursor.currentArchetypeIndex += 1
                 cursor.currentChunkIndex = 0
                 cursor.currentRow = 0
+                needsUpdateData = true
+                updateStates()
                 continue
             }
-            
-            if cursor.currentRow > archetype.chunks.chunks[cursor.currentChunkIndex].entities.count - 1 {
+
+            if cursor.currentRow >= archetype.chunks.chunks[cursor.currentChunkIndex].count {
                 cursor.currentChunkIndex += 1
                 cursor.currentRow = 0
+                needsUpdateData = true
+                updateStates()
                 continue
             }
 
             let currentChunk = archetype.chunks.chunks[cursor.currentChunkIndex]
+            if needsUpdateData {
+                B.setChunk(
+                    states: states,
+                    fetches: &fetches,
+                    chunk: currentChunk,
+                    archetype: archetype
+                )
+                needsUpdateData = false
+            }
+
             let entityId = currentChunk.entities[cursor.currentRow]
 
-            guard let location = state.entities.entities[entityId] else {
+            defer {
                 cursor.currentRow += 1
+            }
+
+            guard let location = state.entities.entities[entityId] else {
                 continue
             }
 
@@ -257,17 +308,23 @@ public struct FilterQueryIterator<
                 entity: entity,
                 lastTick: state.lastTick
             ) else {
-                cursor.currentRow += 1
                 continue
             }
 
-            cursor.currentRow += 1
-            return B.getQueryTarget(
+            if let value = B.getQueryTargets(
                 for: entity,
-                in: currentChunk,
-                archetype: archetype,
-                world: state.world
-            )
+                states: &states,
+                fetches: fetches,
+                at: cursor.currentRow
+            ) {
+                return value
+            }
         }
+    }
+
+    @usableFromInline
+    mutating func updateStates() {
+        states = B.initState(world: state.world)
+        fetches = B.initFetches(world: state.world, states: states, lastTick: state.lastTick)
     }
 }
