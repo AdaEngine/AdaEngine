@@ -19,6 +19,14 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
         self.renderEncoder = renderEncoder
     }
 
+    func pushDebugName(_ string: String) {
+        renderEncoder.pushDebugGroup(string)
+    }
+
+    func popDebugName() {
+        renderEncoder.popDebugGroup()
+    }
+
     func setRenderPipelineState(_ pipeline: RenderPipeline) {
         guard let metalPipeline = pipeline as? MetalRenderPipeline else {
             fatalError("RenderPipeline is not a MetalRenderPipeline")

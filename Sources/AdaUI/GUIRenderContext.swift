@@ -22,7 +22,8 @@ public struct UIGraphicsContext {
 
     /// Returns current transform.
     public private(set) var transform: Transform3D = .identity
-//    private(set) var currentDrawContext: Renderer2D.DrawContext?
+    private var renderEncoder: RenderCommandEncoder!
+    private unowned let renderDevice: RenderDevice
     private var clipPath: Path?
 
     public var opacity: Float = 1
@@ -31,23 +32,22 @@ public struct UIGraphicsContext {
     public var environment: EnvironmentValues = EnvironmentValues()
 
     // Used for internal and debug values.
-    @_spi(AdaEngineEditor) public var _environment: EnvironmentValues = EnvironmentValues()
+    package var _environment: EnvironmentValues = EnvironmentValues()
 
     private var viewMatrix: Transform3D = .identity
 
     @MainActor
-    public init(window: UIWindow) {
-        var camera = Camera(window: .windowId(window.id))
-        camera.isActive = true
-        camera.projection = .orthographic
+    public init(camera: Camera, renderDevice: RenderDevice) {
         self.camera = camera
+        self.renderDevice = renderDevice
     }
     
-    public init(texture: RenderTexture) {
+    public init(texture: RenderTexture, renderDevice: RenderDevice) {
         var camera = Camera(renderTarget: texture)
         camera.isActive = true
         camera.projection = .orthographic
         self.camera = camera
+        self.renderDevice = renderDevice
     }
     
     public mutating func beginDraw(in size: Size, scaleFactor: Float) {

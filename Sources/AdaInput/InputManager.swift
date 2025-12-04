@@ -21,7 +21,7 @@ public struct Input: Resource, Sendable {
 
     @_spi(Internal)
     public var mousePosition: Point = .zero
-    private let lock = NSLock()
+    private let lock = NSRecursiveLock()
 
     @_spi(Internal)
     public private(set) var eventsPool: [any InputEvent] = []

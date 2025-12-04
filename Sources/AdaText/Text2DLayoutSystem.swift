@@ -17,9 +17,9 @@ struct TextLayoutComponent {
 
 /// System for layout text from ``Text2DComponent``.
 @PlainSystem
-public struct Text2DLayoutSystem {
+public struct TextLayoutSystem {
     
-    @Query<Entity, Ref<Text2DComponent>, Visibility>
+    @Query<Entity, Ref<TextComponent>, Visibility>
     private var textComponents
     
     public init(world: World) { }

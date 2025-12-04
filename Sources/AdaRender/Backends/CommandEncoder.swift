@@ -57,7 +57,7 @@ public protocol CommandBuffer: AnyObject {
     func commit()
 }
 
-public protocol BlitCommandEncoder: AnyObject {
+public protocol BlitCommandEncoder: CommonCommandEncoder {
     func copyTextureToTexture(
         source: Texture,
         sourceOrigin: Origin3D,
@@ -113,7 +113,11 @@ public protocol CommandQueue: AnyObject {
     func makeCommandBuffer() -> CommandBuffer
 }
 
-public protocol CommonCommandEncoder: AnyObject { }
+public protocol CommonCommandEncoder: AnyObject {
+    func pushDebugName(_ string: String)
+
+    func popDebugName()
+}
 
 public protocol RenderCommandEncoder: CommonCommandEncoder {
 

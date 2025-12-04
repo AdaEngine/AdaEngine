@@ -16,6 +16,14 @@ final class MetalBlitCommandEncoder: BlitCommandEncoder {
         self.blitEncoder = blitEncoder
     }
 
+    func pushDebugName(_ string: String) {
+        blitEncoder.pushDebugGroup(string)
+    }
+
+    func popDebugName() {
+        blitEncoder.popDebugGroup()
+    }
+
     func copyTextureToTexture(
         source: Texture,
         sourceOrigin: Origin3D,

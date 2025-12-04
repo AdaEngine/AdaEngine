@@ -29,8 +29,8 @@ public struct ScriptComponentUpdateSystem {
         var renderContext: UIGraphicsContext?
 
         if let window {
-            renderContext = UIGraphicsContext(window: window)
-            renderContext?.beginDraw(in: window.frame.size, scaleFactor: 1)
+//            renderContext = UIGraphicsContext(window: window)
+//            renderContext?.beginDraw(in: window.frame.size, scaleFactor: 1)
         }
 
 //        world.getEntities().forEach { entity in

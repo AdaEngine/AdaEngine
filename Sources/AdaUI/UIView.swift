@@ -393,6 +393,8 @@ open class UIView {
     /// - Parameter event: The mouse event.
     open func onMouseEvent(_ event: MouseEvent) { }
 
+    open func onKeyPressed(_ event: Set<KeyEvent>) { }
+
     /// Called when the event is received.
     ///
     /// - Parameter event: The event.

@@ -29,7 +29,7 @@ public struct ExtractedSprites: Resource {
     /// Initialize a new extracted sprites.
     ///
     /// - Parameter sprites: The extracted sprites.
-    public init(sprites: [ExtractedSprite]) {
+    public init(sprites: [ExtractedSprite] = []) {
         self.sprites = sprites
     }
 }
@@ -134,8 +134,8 @@ public struct SpriteRenderSystem: Sendable {
     @Res
     private var spriteDrawPass: SpriteDrawPass
 
-    @Res
-    private var spriteRenderPipeline: SpriteRenderPipeline
+    @ResMut
+    private var spriteRenderPipeline: RenderPipelines<SpriteRenderPipeline>
 
     @Res
     private var renderDevice: RenderDeviceHandler
@@ -238,12 +238,13 @@ public struct SpriteRenderSystem: Sendable {
             indeciesCount += 6
             let itemEnd = indeciesCount
 
+            let pipeline = spriteRenderPipeline.pipeline(device: device)
             renderItems.items.append(
                 Transparent2DRenderItem(
                     entity: spriteData.entityId,
                     batchEntity: currentBatchEntity.entityId,
                     drawPass: self.spriteDrawPass,
-                    renderPipeline: self.spriteRenderPipeline.renderPipeline,
+                    renderPipeline: pipeline,
                     sortKey: sprite.transform.position.z,
                     batchRange: itemStart..<itemEnd
                 )

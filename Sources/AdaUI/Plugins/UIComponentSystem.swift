@@ -8,6 +8,7 @@
 import AdaECS
 import AdaInput
 import AdaTransform
+import AdaRender
 import AdaUtils
 import Math
 
@@ -23,19 +24,25 @@ public struct UIComponentSystem: Sendable {
     @Res<DeltaTime>
     private var deltaTime
 
+    @Res<WindowManagerResource>
+    private var windowManager
+
+    @ResMut<UIDrawPendingViews>
+    private var pendingViews
+
     public init(world: World) {}
 
     @MainActor
     public func update(context: UpdateContext) {
-//        for value in self.uiComponents {
-//            await update(
-//                entity: value.entity,
-//                component: value.component,
-//                globalTransform: value.globalTransform,
+        self.uiComponents.forEach { entity, component, transform in
+//            update(
+//                entity: entity,
+//                component: component,
+//                globalTransform: transform,
 //                window: UIWindow,
 //                deltaTime: deltaTime.deltaTime
 //            )
-//        }
+        }
     }
 }
 
@@ -55,7 +62,6 @@ private extension UIComponentSystem {
 
         if let viewOwner = (view as? ViewOwner) {
             var environment = EnvironmentValues()
-//            environment.scene = WeakBox(value: scene)
             environment.entity = WeakBox(value: entity)
             viewOwner.updateEnvironment(environment)
         }
@@ -68,10 +74,7 @@ private extension UIComponentSystem {
                 view.layoutSubviews()
             }
 
-            var renderContext = UIGraphicsContext(window: window)
-            renderContext.beginDraw(in: window.frame.size, scaleFactor: 1)
-            view.draw(with: renderContext)
-            renderContext.commitDraw()
+            pendingViews.views.append(view)
         case .default:
             view.transform3D = globalTransform.matrix
         }
@@ -87,8 +90,6 @@ private extension UIComponentSystem {
             }
         }
 
-
-
         await view.update(deltaTime)
     }
 }
@@ -100,4 +101,6 @@ public extension EnvironmentValues {
 
     /// The game scene where view attached.
     @Entry internal(set) var entity: WeakBox<Entity>?
+
+    @Entry internal(set) var input: Ref<Input>?
 }
