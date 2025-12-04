@@ -632,24 +632,26 @@ public extension World {
     @inline(__always)
     @discardableResult
     func registerRequiredComponent<T: Component, R: Component & DefaultValue>(
-        _ component: T.Type,
-        _ requiredComponent: R.Type
+        _ requiredComponent: R.Type,
+        for component: T.Type
     ) -> Self {
-        self.registerRequiredComponent(component, requiredComponent, { R.defaultValue })
+        self.registerRequiredComponent(requiredComponent, for: component) {
+            R.defaultValue
+        }
     }
 
     @discardableResult
     func registerRequiredComponent<T: Component, R: Component>(
-        _ component: T.Type,
         _ requiredComponent: R.Type,
-        _ requiredComponentConstructor: @Sendable @escaping () -> R
+        for component: T.Type,
+        constructor: @Sendable @escaping () -> R
     ) -> Self {
         let componentId = self.componentsStorage.getOrRegisterComponent(component)
         let requiredComponentId = self.componentsStorage.getOrRegisterComponent(requiredComponent)
         self.componentsStorage.registerRequiredComponent(
             for: componentId,
             requiredComponentId: requiredComponentId,
-            constructor: requiredComponentConstructor
+            constructor: constructor
         )
 
         return self

@@ -21,7 +21,7 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
         _read {
             yield _storage.value
         }
-        _modify {
+        nonmutating _modify {
             yield &_storage.value
             _storage.update()
         }

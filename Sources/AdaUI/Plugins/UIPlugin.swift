@@ -75,6 +75,7 @@ public struct WindowManagerResource: Resource {
 func UpdateWindowManager(
     _ context: WorldUpdateContext,
     _ windowManager: Res<WindowManagerResource>,
+    _ pendingViews: ResMut<UIDrawPendingViews>,
     _ input: Res<Input>,
     _ deltaTime: Res<DeltaTime>
 ) async {
@@ -90,12 +91,12 @@ func UpdateWindowManager(
         }
 
         await window.internalUpdate(deltaTime)
-
         if window.canDraw {
-            var context = UIGraphicsContext(window: window)
-            context.beginDraw(in: window.frame.size, scaleFactor: 1)
-            window.draw(with: context)
-            context.commitDraw()
+            pendingViews.views.append(window)
         }
     }
+}
+
+struct UIDrawPendingViews: Resource {
+    var views: [UIView]
 }

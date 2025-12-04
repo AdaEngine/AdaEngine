@@ -11,7 +11,7 @@ enum BunnyExampleConstants {
     static let bunniesPerClick: Int = 10
     static let bunnyScale: Float = 0.1
     static let gravity: Float = -9.8
-    static let maxVelocity: Float = 2050.0
+    static let maxVelocity: Float = 3050.0
 }
 
 /// A bunny stress test scene similar to bevymark.
@@ -57,7 +57,7 @@ struct BunnyExample: Plugin {
         container.foregroundColor = .white
         
         app.main.spawn("PerformanceCounter") {
-            Text2DComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
+            TextComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
             Transform(scale: Vector3(0.1), position: [-9, 8, 1])
             NoFrustumCulling()
             PerformanceCounter()
@@ -117,6 +117,9 @@ struct BunnySpawnerSystem {
     @Res
     private var input: Input!
 
+    @Commands
+    private var commands
+
     init(world: World) {}
     
     func update(context: UpdateContext) {
@@ -145,7 +148,7 @@ struct BunnySpawnerSystem {
         let offsetY = Float.random(in: -2.5...2.5)
         let bunnyPosition = position + Vector3(offsetX, offsetY, 0)
 
-        world.spawn("Bunny") {
+        commands.spawn("Bunny") {
             Bunny()
             Transform(
                 scale: Vector3(BunnyExampleConstants.bunnyScale),
@@ -227,7 +230,7 @@ struct BunnyCollisionSystem {
         }
 
         let viewport = camera.viewport?.rect ?? Rect(x: 0, y: 0, width: 800, height: 600)
-        let halfExtents = Vector2(Float(viewport.width / 6), Float(viewport.height / 6))
+        let halfExtents = Vector2(Float(viewport.width / 8), Float(viewport.height / 8))
 
         // Convert to world coordinates (simplified approach)
         let worldHalfExtents = halfExtents * camera.orthographicScale / 100.0
@@ -280,7 +283,7 @@ struct PerformanceCounterSystem {
     @Query<Entity, Bunny>
     private var bunnies
     
-    @Query<Entity, Ref<PerformanceCounter>, Ref<Text2DComponent>>
+    @Query<Entity, Ref<PerformanceCounter>, Ref<TextComponent>>
     private var counters
 
     @Res<DeltaTime>
@@ -292,7 +295,7 @@ struct PerformanceCounterSystem {
         let bunnyCount = bunnies.count
         let deltaTime = deltaTime.deltaTime
         
-        counters.forEach { _, counter, _ in
+        counters.forEach { _, counter, textComponent in
             counter.bunnyCount = bunnyCount
             counter.frameCount += 1
             counter.lastUpdateTime += deltaTime
@@ -305,16 +308,12 @@ struct PerformanceCounterSystem {
             }
             
             // Update text
-//            var container = TextAttributeContainer()
-//            container.foregroundColor = .white
+            var container = TextAttributeContainer()
+            container.foregroundColor = .white
             
             let text = unsafe "Bunnies: \(bunnyCount)\nFPS: \(String(format: "%.1f", counter.fps))"
             print(text)
-//            textComponent.text = AttributedText(text, attributes: container)
-            
-            // Update entity components
-//            entity.components += counter.wrappedValue
-//            entity.components += textComponent.wrappedValue
+            textComponent.text = AttributedText(text, attributes: container)
         }
     }
 }

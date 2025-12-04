@@ -36,7 +36,7 @@ public struct DefaultPlugins: Plugin {
         insertPlugin(VisibilityPlugin(), into: &plugins)
         insertPlugin(SpritePlugin(), into: &plugins)
         insertPlugin(Mesh2DPlugin(), into: &plugins)
-        insertPlugin(Text2DPlugin(), into: &plugins)
+        insertPlugin(TextPlugin(), into: &plugins)
         insertPlugin(ScenePlugin(), into: &plugins)
         insertPlugin(AudioPlugin(), into: &plugins)
         insertPlugin(UIPlugin(), into: &plugins)

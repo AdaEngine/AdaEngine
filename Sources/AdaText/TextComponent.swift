@@ -1,5 +1,5 @@
 //
-//  Text2DComponent.swift
+//  TextComponent.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 3/5/23.
@@ -8,9 +8,9 @@
 import AdaECS
 import Math
 
-/// Component for rendering 2D text on scene.
+/// Component for rendering text on scene.
 @Component
-public struct Text2DComponent {
+public struct TextComponent {
     
     /// Text with style attributes.
     public var text: AttributedText
