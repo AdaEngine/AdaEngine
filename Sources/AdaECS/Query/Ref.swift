@@ -12,17 +12,19 @@ import AdaUtils
 @dynamicMemberLookup
 @propertyWrapper
 @safe
-public struct Ref<T>: @unchecked Sendable, ChangeDetectionable {
-    private let pointer: UnsafeMutablePointer<T>?
+public struct Ref<T>: Sendable, ChangeDetectionable {
+    private nonisolated(unsafe) let pointer: UnsafeMutablePointer<T>?
     public var changeTick: ChangeDetectionTick
 
     /// The wrapped value of the reference.
     @inline(__always)
     public var wrappedValue: T {
         _read {
+            unsafe assert(self.pointer != nil, "Value \(T.self) is not stored in world.")
             yield unsafe self.pointer!.pointee
         }
         nonmutating _modify {
+            unsafe assert(self.pointer != nil, "Value \(T.self) is not stored in world.")
             yield unsafe &self.pointer!.pointee
             self.setChanged()
         }
@@ -48,23 +50,5 @@ public struct Ref<T>: @unchecked Sendable, ChangeDetectionable {
         nonmutating _modify {
             yield &self.wrappedValue[keyPath: dynamicMember]
         }
-    }
-}
-
-public protocol ChangeDetectionable {
-    var changeTick: ChangeDetectionTick { get set }
-
-    var isChanged: Bool { get }
-
-    func setChanged()
-}
-
-public extension ChangeDetectionable {
-    var isChanged: Bool {
-        return self.changeTick.change?.wrappedValue == self.changeTick.currentTick
-    }
-
-    func setChanged() {
-        self.changeTick.change?.getPointer().pointee = self.changeTick.currentTick
     }
 }

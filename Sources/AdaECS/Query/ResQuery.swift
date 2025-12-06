@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 22.05.2025.
 //
 
+import AdaUtils
+
 /// A property wrapper that allows you to query a resource from a world.
 @dynamicMemberLookup
 @propertyWrapper
@@ -28,7 +30,8 @@ public final class Res<T: Resource>: @unchecked Sendable {
     /// Initialize a new resource query.
     /// - Parameter world: The world that will be used to initialize the query.
     public init(from world: World) {
-        self._value = world.getResource(T.self)!
+        self._value = world.getResource(T.self)
+            .unwrap(message: "Resource \(T.self) not found in world. Make sure to call world.insertResource(_:) before using Res.")
     }
 
     /// Get the value of the query.
@@ -40,6 +43,7 @@ public final class Res<T: Resource>: @unchecked Sendable {
     public subscript<U>(dynamicMember dynamicMember: KeyPath<T, U>) -> U {
         self.wrappedValue[keyPath: dynamicMember]
     }
+    
 }
 
 extension Res: SystemParameter {

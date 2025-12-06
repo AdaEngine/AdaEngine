@@ -50,12 +50,14 @@ public struct ParallelQueryResult<B: QuertyTargetBuilder, F: Filter>: Sendable {
         let batches = collectBatches()
         let state = self.state
 
-        await withThrowingTaskGroup(of: Void.self) { group in
+        try await withThrowingTaskGroup(of: Void.self) { group in
             for batch in batches {
                 group.addTask { [state] in
                     try await Self.processBatch(batch, state: state, operation: operation)
                 }
             }
+
+            for try await _ in group { }
         }
     }
 

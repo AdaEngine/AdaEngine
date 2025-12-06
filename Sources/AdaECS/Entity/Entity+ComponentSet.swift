@@ -187,13 +187,6 @@ public extension Entity {
         public var isEmpty: Bool {
             return count == 0
         }
-  
-        /// Check if a component is changed.
-        /// - Parameter componentType: The type of the component to check.
-        /// - Returns: True if the component is changed, otherwise false.
-        public func isComponentChanged<T: Component>(_ componentType: T.Type) -> Bool {
-            return world?.isComponentChanged(componentType, for: entity) ?? false
-        }
 
         /// Copy the component set.
         /// - Returns: A new component set with the same components.

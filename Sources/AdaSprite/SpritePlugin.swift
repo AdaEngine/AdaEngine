@@ -22,6 +22,8 @@ public struct SpritePlugin: Plugin {
             .main
             .registerRequiredComponent(Visibility.self, for: SpriteComponent.self)
             .registerRequiredComponent(Visibility.self, for: Mesh2DComponent.self)
+            .registerRequiredComponent(BoundingComponent.self, for: SpriteComponent.self)
+            .registerRequiredComponent(BoundingComponent.self, for: Mesh2DComponent.self)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return

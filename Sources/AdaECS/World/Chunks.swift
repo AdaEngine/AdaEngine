@@ -90,14 +90,15 @@ public extension Chunks {
     @discardableResult
     mutating func insertEntity(
         _ entity: Entity.ID,
-        components: [any Component]
+        components: [any Component],
+        tick: Tick
     ) -> ChunkLocation {
         let location = self.getFreeChunkIndex()
         var chunk = self.chunks[location]
         guard let entityLocation = chunk.addEntity(entity) else {
             fatalError("Failed to add entity \(entity) to chunk \(location)")
         }
-        chunk.insert(at: entityLocation, components: components)
+        chunk.insert(at: entityLocation, components: components, tick: tick)
         let chunkLocation = ChunkLocation(
             chunkIndex: location,
             entityRow: entityLocation
@@ -361,13 +362,14 @@ public struct Chunk: Sendable {
         }
     }
 
-    func insert(at entityIndex: RowIndex, components: [any Component]) {
+    func insert(at entityIndex: RowIndex, components: [any Component], tick: Tick) {
         for component in components {
             let componentId = type(of: component).identifier
             guard let array = componentsData[componentId] else {
                 fatalError("Passed not registred component")
             }
             array.data.insert(component, at: entityIndex)
+            array.changesTicks.insert(tick, at: entityIndex)
         }
     }
 
