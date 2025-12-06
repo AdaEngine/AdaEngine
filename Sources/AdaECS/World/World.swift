@@ -273,7 +273,7 @@ public extension World {
     func addEntity(_ entity: consuming Entity) -> Self {
         self.flush()
 
-        if entity.id != Entity.notAllocatedId {
+        if entity.id == Entity.notAllocatedId {
             entities.addNotAllocatedEntity(entity)
         }
 
@@ -322,22 +322,6 @@ public extension World {
             self.removeEntityOnNextTick(child, recursively: recursively)
         }
     }
-
-    /// Check if component was changed for entity.
-    /// - Parameter component: Component identifier.
-    /// - Parameter entity: Entity.
-    /// - Complexity: O(1)
-    /// - Returns: True if component was changed for entity, otherwise false.
-    func isComponentChanged<T: Component>(_ component: T.Type, for entity: Entity.ID) -> Bool {
-        guard let location = self.entities.entities[entity] else {
-            return false
-        }
-        return self.archetypes
-            .archetypes[location.archetypeId]
-            .chunks
-            .chunks[location.chunkIndex]
-            .isComponentChanged(T.self, for: entity, lastTick: self.lastTick)
-    }
 }
 
 // MARK: - World utils
@@ -351,7 +335,7 @@ public extension World {
         guard !commandQueue.isEmpty else {
             return
         }
-        self.commandQueue.apply(to: self)
+        self.commandQueue.applyAndDrop(to: self)
     }
 
     /// Update all data in world.
@@ -726,7 +710,11 @@ extension World {
 
         var archetype = self.archetypes.archetypes[archetypeIndex]
         let row = archetype.append(entity)
-        let chunkLocation = archetype.chunks.insertEntity(entity.id, components: components)
+        let chunkLocation = archetype.chunks.insertEntity(
+            entity.id,
+            components: components,
+            tick: self.lastTick
+        )
         self.archetypes.archetypes[archetypeIndex] = archetype
         self.entities.entities[entity.id] = EntityLocation(
             archetypeId: archetype.id,

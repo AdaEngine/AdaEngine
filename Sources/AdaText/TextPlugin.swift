@@ -20,6 +20,9 @@ public struct TextPlugin: Plugin {
 
         app
             .main
+            .registerRequiredComponent(TextLayoutComponent.self, for: TextComponent.self) {
+                TextLayoutComponent(textLayout: TextLayoutManager())
+            }
             .insertResource(RenderPipelines<TextPipeline>(configurator: TextPipeline()))
             .addSystem(TextLayoutSystem.self)
     }

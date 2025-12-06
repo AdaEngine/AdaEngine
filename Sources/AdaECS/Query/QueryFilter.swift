@@ -348,6 +348,69 @@ public struct Changed<T: Component>: Filter {
     }
 }
 
+public struct Added<T: Component>: Filter {
+    @safe
+    public struct AddedFetch {
+        @usableFromInline
+        var ticks: UnsafeMutablePointer<Tick>?
+        @usableFromInline
+        var lastTick: Tick
+        @usableFromInline
+        var currentTick: Tick
+
+        @usableFromInline
+        init(
+            ticks: UnsafeMutablePointer<Tick>? = nil,
+            lastTick: Tick,
+            currentTick: Tick
+        ) {
+            unsafe self.ticks = ticks
+            self.lastTick = lastTick
+            self.currentTick = currentTick
+        }
+    }
+
+    public typealias State = Void
+    public typealias Fetch = AddedFetch
+
+    @inlinable
+    public static func _initState(world: World) -> Void { }
+
+    @inlinable
+    public static func _initFetch(
+        world: World,
+        state: Void,
+        lastTick: Tick,
+        currentTick: Tick
+    ) -> AddedFetch {
+        AddedFetch(lastTick: lastTick, currentTick: currentTick)
+    }
+
+    @inlinable
+    public static func _setData(
+        state: Void,
+        fetch: AddedFetch,
+        chunk: Chunk,
+        archetype: Archetype
+    ) -> AddedFetch {
+        var newFetch = fetch
+        guard let slice = chunk.getMutableComponentTicksSlice(for: T.self) else {
+            return fetch
+        }
+        unsafe newFetch.ticks = slice
+        return newFetch
+    }
+
+    @inlinable
+    @inline(__always)
+    public static func condition(state: Void, fetch: AddedFetch, at row: Int) -> Bool {
+        guard let tick = unsafe fetch.ticks?.advanced(by: row).pointee else {
+            return false
+        }
+        return tick == fetch.lastTick
+    }
+}
+
 /// A filter that includes all entities.
 public struct NoFilter: Filter {
     public typealias State = Void

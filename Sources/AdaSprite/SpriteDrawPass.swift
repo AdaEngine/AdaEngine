@@ -32,7 +32,10 @@ public struct SpriteDrawPass: DrawPass {
             return
         }
 
-//        renderEncoder.pushDebugName("SpriteDrawPass")
+        renderEncoder.pushDebugName("SpriteDrawPass")
+        defer {
+            renderEncoder.popDebugName()
+        }
         let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,
@@ -45,9 +48,6 @@ public struct SpriteDrawPass: DrawPass {
             renderEncoder.setFragmentTexture(texture, index: index)
             renderEncoder.setFragmentSamplerState(texture.sampler, index: index)
         }
-
-//        renderEncoder.appendUniformBuffer(uniformBuffer)
-        //        renderEncoder.bindIndexBuffer(spriteData.indexBuffer)
         renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
         renderEncoder.setVertexBuffer(spritesData.vertexBuffer, offset: 0, index: 0)
         renderEncoder.setIndexBuffer(spritesData.indexBuffer, indexFormat: .uInt32)
@@ -57,7 +57,5 @@ public struct SpriteDrawPass: DrawPass {
             indexBufferOffset: Int(item.batchRange?.lowerBound ?? 0) * 4, // start position must be multiple by 4
             instanceCount: 1
         )
-//
-//        context.drawList.popDebugName()
     }
 }

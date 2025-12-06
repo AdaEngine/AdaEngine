@@ -21,12 +21,6 @@ public final class AEView: MetalView {
     /// You can grab information about all views.
     public let engineWindow: AdaEngine.UIWindow
     
-    /// Create AEView with game scene.
-    public convenience init(scene: Scene, frame: CGRect) throws {
-        let sceneView = UIView()//SceneView(scene: scene, frame: frame.toEngineRect)
-        try self.init(view: sceneView, frame: frame)
-    }
-    
     /// Create AEView with AdaEngine.View.
     public init(view: UIView, frame: CGRect) throws {
         let rect = frame.toEngineRect
@@ -57,7 +51,6 @@ public final class AEView: MetalView {
                 print("[AEView Error]", error.localizedDescription)
             }
         }
-
     }
     
     public required init(coder: NSCoder) {
@@ -107,5 +100,4 @@ private extension Application {
         self.windowManager as! AppleWindowManager
     }
 }
-
 #endif

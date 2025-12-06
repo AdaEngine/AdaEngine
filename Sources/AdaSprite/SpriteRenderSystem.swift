@@ -92,30 +92,24 @@ public func ExtractSprite(
 @System
 @inline(__always)
 func UpdateBoundings(
-    _ entitiesWithTransform: FilterQuery<
-        Entity, Transform,
-        Or<With<SpriteComponent>, With<Mesh2DComponent>>
+    _ sprites: FilterQuery<
+        Entity, Transform, Ref<BoundingComponent>,
+        And<With<SpriteComponent>, Changed<Transform>>,
     >,
-    _ commands: Commands
+    _ meshes: Query<
+        Mesh2DComponent, Ref<BoundingComponent>
+    >
 ) async {
-    await entitiesWithTransform.parallel().forEach { entity, transform in
-        var bounds: BoundingComponent.Bounds?
-        if entity.components.has(SpriteComponent.self) {
-            if !entity.components.isComponentChanged(Transform.self) && entity.components.has(BoundingComponent.self) {
-                return
-            }
-            let position = transform.position
-            let scale = transform.scale
-            let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
-            let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
-            bounds = .aabb(AABB(min: min, max: max))
-        } else if entity.components.has(Mesh2DComponent.self) {
-            bounds = .aabb(entity.components.get(Mesh2DComponent.self).mesh.bounds)
-        }
-        if let bounds {
-            commands.entity(entity.id)
-                .insert(BoundingComponent(bounds: bounds))
-        }
+    await sprites.parallel().forEach { entity, transform, bounds in
+        let position = transform.position
+        let scale = transform.scale
+        let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
+        let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
+        bounds.bounds = .aabb(AABB(min: min, max: max))
+    }
+
+    await meshes.parallel().forEach { mesh2d, bounds in
+        bounds.bounds = .aabb(mesh2d.mesh.bounds)
     }
 }
 

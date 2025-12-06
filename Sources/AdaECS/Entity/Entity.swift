@@ -91,7 +91,6 @@ open class Entity: Identifiable, @unchecked Sendable {
         let entity = Entity(name: self.name, id: Self.notAllocatedId)
         entity.components = self.components.copy()
         entity.components.entity = entity.id
-        entity.components.world = world
         entity.isActive = self.isActive
         return entity
     }

@@ -35,14 +35,17 @@ public final class WorldCommandQueue: @unchecked Sendable {
 
     public func apply(to world: World) {
         world.flushCommands()
-
-        while let drop = commands.popFirst() {
-            drop.applyToWorld(world)
-        }
+        applyAndDrop(to: world)
     }
 
     public func copy() -> WorldCommandQueue {
         WorldCommandQueue(commands)
+    }
+
+    func applyAndDrop(to world: World) {
+        while let drop = commands.popFirst() {
+            drop.applyToWorld(world)
+        }
     }
 }
 

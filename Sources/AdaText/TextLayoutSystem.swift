@@ -1,5 +1,5 @@
 //
-//  Text2DLayoutSystem.swift
+//  TextLayoutSystem.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 3/7/23.
@@ -7,30 +7,38 @@
 
 import AdaECS
 import AdaRender
+import AdaTransform
 import Math
 
 /// An object that store text layout manager
 @Component
-struct TextLayoutComponent {
-    let textLayout: TextLayoutManager
+public struct TextLayoutComponent {
+    public let textLayout: TextLayoutManager
 }
 
 /// System for layout text from ``Text2DComponent``.
 @PlainSystem
 public struct TextLayoutSystem {
     
-    @Query<Entity, Ref<TextComponent>, Visibility>
+    @FilterQuery<
+        Ref<TextComponent>,
+        Ref<TextLayoutComponent>,
+        Visibility,
+        Or<
+            Changed<TextComponent>,
+            Added<Transform>,
+            Changed<Transform>
+        >
+    >
     private var textComponents
-    
+
     public init(world: World) { }
     
     public func update(context: UpdateContext) {
-        self.textComponents.forEach { entity, text, visibility in
+        self.textComponents.forEach { text, layout, visibility in
             if visibility == .hidden {
                 return
             }
-            
-            let textLayout = entity.components[TextLayoutComponent.self] ?? TextLayoutComponent(textLayout: TextLayoutManager())
             
             let textContainer = TextContainer(
                 text: text.text,
@@ -38,11 +46,8 @@ public struct TextLayoutSystem {
                 lineBreakMode: text.lineBreakMode,
                 lineSpacing: text.lineSpacing
             )
-
-            textLayout.textLayout.setTextContainer(textContainer)
-            textLayout.textLayout.fitToSize(text.bounds.size)
-
-            entity.components += textLayout
+            layout.wrappedValue.textLayout.setTextContainer(textContainer)
+            layout.wrappedValue.textLayout.fitToSize(text.bounds.size)
         }
     }
 }

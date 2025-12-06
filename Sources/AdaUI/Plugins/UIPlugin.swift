@@ -21,6 +21,7 @@ public struct UIPlugin: Plugin {
         app
             .addSystem(UpdateWindowManagerSystem.self, on: .preUpdate)
             .addSystem(UIComponentSystem.self)
+            .insertResource(UIDrawPendingViews(views: []))
     }
 }
 
