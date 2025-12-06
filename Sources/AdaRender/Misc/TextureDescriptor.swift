@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 1/25/23.
 //
 
+import Math
+
 /// An object that you use to configure new texture objects.
 public struct TextureDescriptor {
     
@@ -59,4 +61,6 @@ public struct TextureDescriptor {
 }
 
 /// Interface represent platform specific gpu texture.
-public class GPUTexture { }
+public protocol GPUTexture {
+    var size: SizeInt { get }
+}

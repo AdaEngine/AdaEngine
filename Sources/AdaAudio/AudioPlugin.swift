@@ -16,7 +16,7 @@ public struct AudioPlugin: Plugin {
 
     public init() {
         do {
-            self.engine = try MiniAudioEngine()
+            self.engine = unsafe try MiniAudioEngine()
         } catch {
             print("Error", error)
         }
@@ -66,7 +66,7 @@ public struct AudioComponent {
     ///
     /// - Parameter resource: The audio resource to play.
     public init(resource: AudioResource) {
-        self.playbackController = AudioServer.shared.prepareAudio(resource)
+        self.playbackController = unsafe AudioServer.shared.prepareAudio(resource)
     }
 }
 
@@ -93,7 +93,7 @@ public struct AudioReceiver {
 }
 
 /// A system that manages audio resources for spatial audio.
-@System
+@PlainSystem
 public struct AudioSystem {
     
     @Query<AudioPlaybacksControllers, Transform>
@@ -105,10 +105,10 @@ public struct AudioSystem {
     let audioEngine: AudioEngine!
 
     public init(world: World) {
-        self.audioEngine = world.getResource(MiniAudioEngine.self)!
+        self.audioEngine = unsafe world.getResource(MiniAudioEngine.self)!
     }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         self.audioPlaybacksControllersQuery.forEach { audioComponent, transform in
             audioComponent.controllers.forEach { controller in
                 controller.sound.position = transform.position
@@ -140,13 +140,14 @@ public extension Entity {
     /// - Note: Audio controller will be automatically freed when entity is removed from memory and nobody own a reference to the playback controller.
     ///
     /// When you create an audio playback controller engine will automatically update position for spatial audio.
+    @MainActor
     func prepareAudio(_ resource: AudioResource) -> AudioPlaybackController {
         var controllers = self.components[AudioPlaybacksControllers.self] ?? AudioPlaybacksControllers()
         if let controller = controllers.controllers.first(where: { $0.resource === resource }) {
             return controller
         }
         
-        var playbackController = AudioServer.shared.prepareAudio(resource)
+        var playbackController = unsafe AudioServer.shared.prepareAudio(resource)
         playbackController.entity = self
         controllers.controllers.append(playbackController)
         self.components += controllers
@@ -160,6 +161,7 @@ public extension Entity {
     /// Use the controller to set playback characteristics like volume and reverb, and then start or stop playback.
     ///
     /// This method first prepares the audio by calling ``Entity/prepareAudio(_:)``, and then immediately calls the ``AudioPlaybackController/play()`` method on the returned controller.
+    @MainActor
     @discardableResult
     func playAudio(_ resource: AudioResource) -> AudioPlaybackController {
         let controller = self.prepareAudio(resource)
@@ -172,6 +174,7 @@ public extension Entity {
     /// You can stop a specific ``AudioPlaybackController`` instance from playing a particular resource 
     /// by calling the controller’s ``AudioPlaybackController/stop()`` method. 
     /// To stop all controllers associated with a particular Entity instance with a single call, use the ``Entity/stopAllAudio()`` method instead.
+    @MainActor
     func stopAllAudio() {
         self.components[AudioPlaybacksControllers.self]?.controllers.forEach { $0.stop() }
         self.components += AudioPlaybacksControllers()

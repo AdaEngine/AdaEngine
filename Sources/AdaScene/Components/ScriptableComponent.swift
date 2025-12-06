@@ -7,8 +7,17 @@
 
 import AdaECS
 import AdaUtils
+import AdaUI
 import AdaTransform
 import AdaInput
+
+public struct ScriptableComponent<T: ScriptableObject>: Component {
+    public let object: ScriptableObject
+
+    public init(object: ScriptableObject) {
+        self.object = object
+    }
+}
 
 /// Base class describe some unit of game logic.
 ///
@@ -18,7 +27,7 @@ import AdaInput
 ///
 /// - Warning: AdaEngine doesn't has execution order for `ScriptableComponent`.
 ///
-open class ScriptableComponent: Component, @unchecked Sendable {
+open class ScriptableObject: @unchecked Sendable {
 
     internal var isAwaked: Bool = false
     
@@ -62,7 +71,6 @@ open class ScriptableComponent: Component, @unchecked Sendable {
     
     public required init(from decoder: Decoder) throws {
         var mirror: Mirror? = Mirror(reflecting: self)
-        
         let container = try decoder.container(keyedBy: CodingName.self)
         
         // Go through all mirrors (till top most superclass)
@@ -89,9 +97,7 @@ open class ScriptableComponent: Component, @unchecked Sendable {
     }
     
     public func encode(to encoder: Encoder) throws {
-        
         var container = encoder.container(keyedBy: CodingName.self)
-        
         var mirror: Mirror? = Mirror(reflecting: self)
         
         // Go through all mirrors (till top most superclass)
@@ -117,11 +123,9 @@ open class ScriptableComponent: Component, @unchecked Sendable {
             mirror = mirror?.superclassMirror
         } while mirror != nil
     }
-    
 }
 
-public extension ScriptableComponent {
-    
+public extension ScriptableObject {
     /// Get collection of components in entity
     /// - Warning: Crashed if component not connected to entity.
     var components: Entity.ComponentSet {
@@ -140,13 +144,12 @@ public extension ScriptableComponent {
     }
     
     /// Set component to entity
-    func setComponent<T: Component>(_ component: T) {
-        self.entity?.components.set(component)
+    func insertComponent<T: Component>(_ component: T) {
+        self.entity?.components.insert(component)
     }
 }
 
-public extension ScriptableComponent {
-
+public extension ScriptableObject {
     /// Return transform component for current entity.
     var transform: Transform {
         get {

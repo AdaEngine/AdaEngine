@@ -10,6 +10,11 @@ import AdaECS
 import AdaTransform
 import Math
 @_spi(Internal) import AdaRender
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 // MARK: - Mesh 2D Plugin -
 
@@ -24,7 +29,7 @@ public struct Mesh2DPlugin: Plugin {
     /// - Parameter app: The app.
     public func setup(in app: AppWorlds) {
         let renderWorld = app.getSubworldBuilder(by: .renderWorld)
-        renderWorld?.addSystem(ExctractMesh2DSystem.self)
+        renderWorld?.addSystem(ExctractMesh2DSystem.self, on: .extract)
     }
 }
 
@@ -62,9 +67,8 @@ public struct ExctractedMesh2D: Sendable {
 }
 
 /// System to render exctract meshes to RenderWorld.
-@System
+@PlainSystem
 public struct ExctractMesh2DSystem {
-
     @Extract<
         Query<Entity, Mesh2DComponent, Transform, GlobalTransform, Visibility>
     >
@@ -72,7 +76,7 @@ public struct ExctractMesh2DSystem {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         var extractedMeshes = ExctractedMeshes2D()
         self.query.wrappedValue.forEach { entity, mesh, transform, globalTransform, visibility in
             if visibility == .hidden {
@@ -107,28 +111,29 @@ public struct Mesh2DRenderPlugin: Plugin {
         }
         renderWorld
             .insertResource(Mesh2DDrawPass())
-            .addSystem(Mesh2DRenderSystem.self)
+            .addSystem(Mesh2DRenderSystem.self, on: .render)
     }
 }
 
 /// System in RenderWorld for rendering 2D meshes.
-@System
+@PlainSystem
 public struct Mesh2DRenderSystem: Sendable {
 
     @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>
     private var query
 
-    @ResQuery
+    @Res
     private var extractedMeshes: ExctractedMeshes2D!
 
-    @ResQuery
+    @Res
     private var meshDrawPass: Mesh2DDrawPass!
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         self.query.forEach { visibleEntities, renderItems in
             self.draw(
+                world: context.world,
                 meshes: extractedMeshes.meshes,
                 visibleEntities: visibleEntities,
                 items: &renderItems.items,
@@ -138,6 +143,7 @@ public struct Mesh2DRenderSystem: Sendable {
     }
 
     func draw(
+        world: World,
         meshes: [ExctractedMesh2D],
         visibleEntities: VisibleEntities,
         items: inout [Transparent2DRenderItem],
@@ -162,17 +168,18 @@ public struct Mesh2DRenderSystem: Sendable {
                         continue
                     }
 
-                    let emptyEntity = Entity()
-                    emptyEntity.components += ExctractedMeshPart2d(
-                        part: part,
-                        material: material,
-                        modelUniform: modelUniform
-                    )
+                    let entity = world.spawn() {
+                        ExctractedMeshPart2d(
+                            part: part,
+                            material: material,
+                            modelUniform: modelUniform
+                        )
+                    }
 
                     items.append(
                         Transparent2DRenderItem(
-                            entity: emptyEntity,
-                            batchEntity: emptyEntity,
+                            entity: entity.id,
+                            batchEntity: entity.id,
                             drawPass: self.meshDrawPass,
                             renderPipeline: pipeline,
                             sortKey: mesh.transform.position.z
@@ -203,7 +210,6 @@ public class Mesh2dMaterialStorageData: MaterialStorageData {
 
 // TODO: Think about it, maybe we should move it to other dir.
 extension Material {
-
     /// Get Mesh2D material key which has been used for caching.
     func getMesh2dMaterialKey(for vertexDescritor: VertexDescriptor, keys: Set<String>) -> MaterialMesh2dKey {
         let defines = self.collectDefines(for: vertexDescritor, keys: keys)
@@ -214,7 +220,7 @@ extension Material {
     func getOrCreatePipeline(for vertexDescriptor: VertexDescriptor, keys: Set<String>) -> RenderPipeline? {
         let materialKey = self.getMesh2dMaterialKey(for: vertexDescriptor, keys: keys)
 
-        if let data = MaterialStorage.shared.getMaterialData(for: self) as? Mesh2dMaterialStorageData {
+        if let data = unsafe MaterialStorage.shared.getMaterialData(for: self) as? Mesh2dMaterialStorageData {
             if let pipeline = data.pipelines[materialKey] {
                 return pipeline
             }
@@ -237,7 +243,7 @@ extension Material {
             let data = Mesh2dMaterialStorageData()
             data.updateUniformBuffers(from: shaderModule)
             data.pipelines[materialKey] = pipeline
-            MaterialStorage.shared.setMaterialData(data, for: self)
+            unsafe MaterialStorage.shared.setMaterialData(data, for: self)
 
             self.update()
 

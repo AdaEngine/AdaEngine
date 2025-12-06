@@ -7,7 +7,11 @@
 
 import AdaECS
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import Logging
 
 public enum AssetError: LocalizedError {
@@ -25,6 +29,7 @@ public enum AssetError: LocalizedError {
 }
 
 // TODO: In the future, we should compile assets into binary
+// TODO: Remove unsafe and statics
 
 /// Manager using for loading and saving assets in file system.
 /// Each asset loaded from manager stored in memory cache.
@@ -145,7 +150,7 @@ public struct AssetsManager: Resource {
     public static func load<A: Asset>(
         _ type: A.Type,
         at path: String,
-        from bundle: Bundle,
+        from bundle: Foundation.Bundle,
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
         let key = self.makeCacheKey(resource: A.self, path: path)
@@ -186,7 +191,7 @@ public struct AssetsManager: Resource {
     public static func loadSync<R: Asset>(
         _ type: R.Type,
         at path: String,
-        from bundle: Bundle
+        from bundle: Foundation.Bundle
     ) throws -> AssetHandle<R> {
         let task = UnsafeTask<AssetHandle<R>> {
             return try await load(type, at: path, from: bundle)
@@ -268,12 +273,12 @@ public struct AssetsManager: Resource {
     // MARK: - Public methods
     
     public static func getAssetType(for typeName: String) -> (any Asset.Type)? {
-        return registredAssetTypes[typeName]
+        return unsafe registredAssetTypes[typeName]
     }
     
     public static func registerAssetType<T: Asset>(_ type: T.Type) {
         Task { @AssetActor in
-            registredAssetTypes[String(reflecting: type)] = T.self
+            unsafe registredAssetTypes[String(reflecting: type)] = T.self
         }
     }
     
@@ -284,7 +289,7 @@ public struct AssetsManager: Resource {
             try FileSystem.current.createDirectory(at: url, withIntermediateDirectories: true)
         }
         
-        self.resourceDirectory = url
+        unsafe self.resourceDirectory = url
         self.storage.loadedAssets.removeAll()
     }
     
@@ -295,10 +300,10 @@ public struct AssetsManager: Resource {
     @_spi(AdaEngine)
     public static func initialize(filePath: StaticString) throws {
         let projectDirectories = try URL.findProjectDirectories(from: filePath)
-        self.projectDirectories = projectDirectories
-        
+        unsafe self.projectDirectories = projectDirectories
+
 #if DEBUG
-        self.resourceDirectory = projectDirectories.assetsDirectory
+        unsafe self.resourceDirectory = projectDirectories.assetsDirectory
 #else
         let fileSystem = FileSystem.current
         let resources = projectDirectories.assetsDirectory
@@ -369,14 +374,14 @@ public struct AssetsManager: Resource {
     }
     
     @AssetActor
-    private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Bundle?) async throws -> A {
+    private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Foundation.Bundle?) async throws -> A {
         guard let data = FileSystem.current.readFile(at: path.url) else {
             throw AssetError.notExistAtPath(path.url.path)
         }
         
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = TextAssetDecoder(meta: meta, data: data)
-        let resource = try A.init(from: decoder)
+        var resource = try A.init(from: decoder)
         
         resource.assetMetaInfo = AssetMetaInfo(
             assetPath: originalPath,
@@ -427,7 +432,7 @@ private extension AssetsManager {
         
         if path.hasPrefix(self.resKeyWord) {
             path.removeFirst(self.resKeyWord.count)
-            url = self.resourceDirectory.appendingPathComponent(path)
+            url = unsafe self.resourceDirectory.appendingPathComponent(path)
         } else {
             url = URL(fileURLWithPath: path)
         }
@@ -513,7 +518,6 @@ private extension AssetsManager {
                 } catch {
                     self.result = .failure(error)
                 }
-                
                 semaphore.signal()
             }
         }
@@ -545,7 +549,7 @@ extension AssetsManager {
 /// Actor for loading and saving resources.
 @globalActor
 public actor AssetActor {
-    public static var shared = AssetActor()
+    public static let shared = AssetActor()
 }
 
 private extension Asset {

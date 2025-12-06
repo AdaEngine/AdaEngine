@@ -9,13 +9,16 @@ import Testing
 @testable import AdaUI
 @_spi(Internal) @testable import AdaInput
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import Math
 
 @Suite("Gamepad Input Tests")
-final class GamepadInputTests: Sendable {
-
-    let input: Input
+struct GamepadInputTests: Sendable {
+    var input: Input
 
     init() async {
         // Clear gamepad states and events before each test
@@ -25,7 +28,7 @@ final class GamepadInputTests: Sendable {
     }
 
     @Test("Gamepad Connection and Disconnection")
-    func testGamepadConnectionAndDisconnection() async {
+    mutating func testGamepadConnectionAndDisconnection() async {
         #expect(self.input.getConnectedGamepads().count == 0, "Gamepads should be empty.")
 
         let gamepadId = 0
@@ -61,7 +64,7 @@ final class GamepadInputTests: Sendable {
     }
 
     @Test("Gamepad Button Press and Release")
-    func testGamepadButtonPressAndRelease() async throws {
+    mutating func testGamepadButtonPressAndRelease() async throws {
         #expect(self.input.getConnectedGamepads().count == 0, "Gamepads should be empty.")
 
         let gamepadId = 1
@@ -106,7 +109,7 @@ final class GamepadInputTests: Sendable {
     }
 
     @Test("Gamepad Axis Value")
-    func testGamepadAxisValue() async {
+    mutating func testGamepadAxisValue() async {
         let gamepadId = 2
         let windowId = UIWindow.ID.empty
         var time = AdaUtils.TimeInterval(Date().timeIntervalSince1970)
@@ -138,7 +141,7 @@ final class GamepadInputTests: Sendable {
     }
 
    @Test("Multiple Gamepads")
-   func testMultipleGamepads() async {
+    mutating func testMultipleGamepads() async {
        let gamepadId0 = 0
        let gamepadId1 = 1
        let windowId = UIWindow.ID.empty

@@ -7,7 +7,11 @@
 
 import AdaAssets
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import SPIRVCompiler
 
 public enum ShaderLanguage: String {

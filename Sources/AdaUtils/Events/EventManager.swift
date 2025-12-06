@@ -9,12 +9,13 @@
 public protocol Event: Sendable { }
 
 /// An object on which events can be published and subscribed.
-public final class EventManager {
+public final class EventManager: @unchecked Sendable {
 
-    nonisolated(unsafe) public static let `default`: EventManager = EventManager()
+    public static let `default`: EventManager = EventManager()
     
     public init() {}
-    
+
+    @LocalIsolated
     private var subscribers: [ObjectIdentifier : WeakSet<EventSubscriber>] = [:]
     
     public func subscribe<T: Event>(

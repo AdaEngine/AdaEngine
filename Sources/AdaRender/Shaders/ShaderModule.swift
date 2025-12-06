@@ -7,7 +7,11 @@
 
 import AdaAssets
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// A shader module that stores shaders.
 public final class ShaderModule: Asset, @unchecked Sendable {

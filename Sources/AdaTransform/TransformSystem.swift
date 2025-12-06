@@ -6,48 +6,51 @@
 //
 
 import AdaECS
+import AdaUtils
 import Math
 
 /// A system that updates the global transform of the entity.
-@System
+@PlainSystem
 public struct TransformSystem {
     
-    @EntityQuery(where: .has(Transform.self))
+    @FilterQuery<Entity, Transform, Or<Changed<Transform>, Without<GlobalTransform>>>
     private var query
-    
+
+    @Commands
+    private var commands
+
     public init(world: World) { }
     
-    public func update(context: inout UpdateContext) {
-        self.query.forEach { entity in
-            if entity.components.isComponentChanged(Transform.self)
-                || !entity.components.has(GlobalTransform.self)
-            {
-                let transform = entity.components[Transform.self]!
-                let globalTransform = GlobalTransform(matrix: transform.matrix)
-                entity.components += globalTransform
-            }
+    public func update(context: UpdateContext) async {
+        await self.query.parallel().forEach { entity, transform in
+            let globalTransform = GlobalTransform(matrix: transform.matrix)
+            commands.entity(entity.id)
+                .insert(globalTransform)
         }
     }
 }
 
 /// A system that updates the global transform of the children of the entity.
-@System(dependencies: [
+@PlainSystem(dependencies: [
     .after(TransformSystem.self)
 ])
 public struct ChildTransformSystem {
     
-    @EntityQuery(where: .has(Transform.self))
+    @FilterQuery<Entity, GlobalTransform, Changed<Transform>>
     private var query
-    
+
+    @Commands
+    private var commands
+
     public init(world: World) { }
     
-    public func update(context: inout UpdateContext) {
-        self.query.forEach { entity in
-            guard entity.components.isComponentChanged(Transform.self) && !entity.children.isEmpty else {
+    public func update(context: UpdateContext) async {
+        await self.query.parallel().forEach { entity, globalTransform in
+            guard !entity.children.isEmpty else {
                 return
             }
             
-            updateChildren(entity.children, parentTransform: entity.components[GlobalTransform.self]!)
+            updateChildren(entity.children, parentTransform: globalTransform)
         }
     }
     
@@ -57,13 +60,13 @@ public struct ChildTransformSystem {
     /// - Parameter parentTransform: The parent transform of the entity.
     private func updateChildren(_ children: [Entity], parentTransform: GlobalTransform) {
         for child in children {
-            guard let childTransform = child.components[Transform.self] else {
+            guard child.components.has(Transform.self) else {
                 continue
             }
-            
+
+            let childTransform = child.components.get(Transform.self)
             let newMatrix = parentTransform.matrix * childTransform.matrix
-//            child.components += Transform(matrix: newMatrix)
-            child.components += GlobalTransform(matrix: newMatrix)
+            commands.entity(child.id).insert(GlobalTransform(matrix: newMatrix))
             
             if !child.children.isEmpty {
                 updateChildren(child.children, parentTransform: GlobalTransform(matrix: newMatrix))

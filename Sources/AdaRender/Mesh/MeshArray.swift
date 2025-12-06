@@ -73,24 +73,25 @@ public struct MeshBuffer<Element>: Sequence {
 }
 
 extension MeshBuffer {
-    
+
+    @safe
     public struct ChunkIterator<T>: IteratorProtocol {
         private let buffer: _MeshBuffer
         private let currentChunk: UnsafeMutablePointer<Int>
         
         internal init(buffer: _MeshBuffer) {
             self.buffer = buffer
-            self.currentChunk = UnsafeMutablePointer<Int>.allocate(capacity: MemoryLayout<Int>.size)
-            self.currentChunk.pointee = 0
+            unsafe self.currentChunk = UnsafeMutablePointer<Int>.allocate(capacity: MemoryLayout<Int>.size)
+            unsafe self.currentChunk.pointee = 0
         }
         
         public func next() -> T? {
-            let nextElement = self.buffer.getChunk(withOffset: currentChunk.pointee, type: T.self)
-            currentChunk.pointee += MemoryLayout<T>.stride
-            
+            let nextElement = unsafe self.buffer.getChunk(withOffset: currentChunk.pointee, type: T.self)
+            unsafe currentChunk.pointee += MemoryLayout<T>.stride
+
             if nextElement == nil {
-                currentChunk.deinitialize(count: 1)
-                currentChunk.deallocate()
+                unsafe currentChunk.deinitialize(count: 1)
+                unsafe currentChunk.deallocate()
                 return nil
             }
             
@@ -138,6 +139,7 @@ extension MeshBuffer: ExpressibleByArrayLiteral {
     }
 }
 
+@safe
 class _MeshBuffer: Equatable, @unchecked Sendable {
     
     internal let bytes: UnsafeMutableRawBufferPointer
@@ -155,33 +157,33 @@ class _MeshBuffer: Equatable, @unchecked Sendable {
             alignment: MemoryLayout<Element>.alignment
         )
 
-        withUnsafePointer(to: elements) { pointer in
-            bytes.baseAddress?.copyMemory(
+        unsafe withUnsafePointer(to: elements) { pointer in
+            unsafe bytes.baseAddress?.copyMemory(
                 from: pointer,
                 byteCount: elementSize * elements.count
             )
         }
 
-        self.bytes = bytes
-        self.indicesPointer = UnsafeMutableBufferPointer<UInt32>.allocate(capacity: indices.count)
-        _ = self.indicesPointer.initialize(from: indices)
+        unsafe self.bytes = bytes
+        unsafe self.indicesPointer = UnsafeMutableBufferPointer<UInt32>.allocate(capacity: indices.count)
+        _ = unsafe self.indicesPointer.initialize(from: indices)
     }
     
     deinit {
-        self.bytes.deallocate()
-        self.indicesPointer.deallocate()
+        unsafe self.bytes.deallocate()
+        unsafe self.indicesPointer.deallocate()
     }
     
     // MARK: - Internal
     
     static func == (lhs: _MeshBuffer, rhs: _MeshBuffer) -> Bool {
-        lhs.bytes.elementsEqual(rhs.bytes) &&
+        unsafe lhs.bytes.elementsEqual(rhs.bytes) &&
         lhs.indicesPointer.elementsEqual(rhs.indicesPointer) &&
         lhs.elementSize == rhs.elementSize
     }
     
     var count: Int {
-        return self.bytes.count / self.elementSize
+        return unsafe self.bytes.count / self.elementSize
     }
     
     func iterateByElements(_ block: (Int, UnsafeMutableRawPointer) -> Void) {
@@ -189,27 +191,27 @@ class _MeshBuffer: Equatable, @unchecked Sendable {
         let count = self.count
         
         while currentIndex < count {
-            let pointer = self.bytes.baseAddress!.advanced(by: currentIndex * self.elementSize)
-            
-            block(currentIndex, pointer)
-            
+            let pointer = unsafe self.bytes.baseAddress!.advanced(by: currentIndex * self.elementSize)
+
+            unsafe block(currentIndex, pointer)
+
             currentIndex += 1
         }
     }
     
     func getChunk<T>(withOffset offset: Int, type: T.Type) -> T? {
-        guard offset < self.bytes.endIndex else {
+        guard unsafe offset < self.bytes.endIndex else {
             return nil
         }
-        return self.bytes.load(fromByteOffset: offset, as: T.self)
+        return unsafe self.bytes.load(fromByteOffset: offset, as: T.self)
     }
     
     func getIndices() -> [UInt32] {
-        Array(self.indicesPointer)
+        unsafe Array(self.indicesPointer)
     }
     
     func getData<Element>() -> [Element] {
-        Array(self.bytes.bindMemory(to: Element.self))
+        unsafe Array(self.bytes.bindMemory(to: Element.self))
     }
 }
 

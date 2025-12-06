@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 11/10/21.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// The interface describe asset in a system.
 /// Asset describe information needed to your game, like Audio, Mesh, Texture and etc.
@@ -32,7 +36,7 @@ import Foundation
 ///
 /// Also, your asset can support ``Codable`` behaviour and for this scenario, you should implement only ``init(from decoder: Decoder)`` and ``func encode(to encoder: Encoder)`` methods.
 /// Meta and other information will be available from userInfo. Use `Decoder.assetsDecodingContext`, `Decoder.assetMeta` and `Encoder.assetMeta` properties to get this info.
-public protocol Asset: AnyObject, Sendable {
+public protocol Asset: Sendable {
     
     /// When asset load from the disk, this method will be called.
     ///
@@ -133,9 +137,9 @@ public struct AssetMetaInfo: Codable, Sendable {
 /// assetHandle.update(newAsset)
 /// ```
 ///
-public final class AssetHandle<T: Asset>: Codable, Sendable {
+public final class AssetHandle<T: Asset>: Codable, @unchecked Sendable {
     /// The asset instance.
-    public private(set) nonisolated(unsafe) var asset: T
+    public private(set) var asset: T
     
     /// Initialize a new asset handle from an asset.
     /// - Parameter asset: The asset to initialize the asset handle from.
@@ -149,7 +153,7 @@ public final class AssetHandle<T: Asset>: Codable, Sendable {
         case assetPath
         case meta
     }
-    
+
     /// Initialize a new asset handle from a decoder.
     ///
     /// - Parameter decoder: The decoder to initialize the asset handle from.

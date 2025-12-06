@@ -14,8 +14,8 @@ public enum GlobalBufferIndex {
 }
 
 /// Render Engine is object that manage a GPU.
-public final class RenderEngine: RenderBackend {
-    
+public final class RenderEngine: RenderBackend, Sendable {
+
     public struct Configuration {
         public var maxFramesInFlight: Int = 3
         public init() {}
@@ -25,7 +25,7 @@ public final class RenderEngine: RenderBackend {
     nonisolated(unsafe) public static var configurations: Configuration = Configuration()
     
     /// Return instance of render engine for specific backend.
-    nonisolated(unsafe) public static let shared: RenderEngine = {
+    public static let shared: RenderEngine = {
         let renderBackend: RenderBackend
 
         let appName = "AdaEngine"
@@ -68,26 +68,24 @@ public final class RenderEngine: RenderBackend {
         return self.renderBackend.createLocalRenderDevice()
     }
 
-    public func createWindow(_ windowRef: WindowRef, for surface: RenderSurface, size: SizeInt) throws {
-        try self.renderBackend.createWindow(windowRef, for: surface, size: size)
+    public func createWindow(_ windowId: WindowID, for surface: RenderSurface, size: SizeInt) throws {
+        try self.renderBackend.createWindow(windowId, for: surface, size: size)
     }
     
-    public func resizeWindow(_ windowRef: WindowRef, newSize: SizeInt) throws {
-        try self.renderBackend.resizeWindow(windowRef, newSize: newSize)
+    public func resizeWindow(_ windowId: WindowID, newSize: SizeInt) throws {
+        try self.renderBackend.resizeWindow(windowId, newSize: newSize)
     }
     
-    public func destroyWindow(_ windowRef: WindowRef) throws {
-        try self.renderBackend.destroyWindow(windowRef)
+    public func destroyWindow(_ windowId: WindowID) throws {
+        try self.renderBackend.destroyWindow(windowId)
     }
-    
-    public func beginFrame() throws {
-        preconditionMainThreadOnly()
-        try self.renderBackend.beginFrame()
+
+    func getRenderWindow(for windowId: WindowID) -> RenderWindow? {
+        self.renderBackend.getRenderWindow(for: windowId)
     }
-    
-    public func endFrame() throws {
-        preconditionMainThreadOnly()
-        try self.renderBackend.endFrame()
+
+    public func getRenderWindows() throws -> RenderWindows {
+        try self.renderBackend.getRenderWindows()
     }
 }
 

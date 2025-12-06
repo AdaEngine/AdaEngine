@@ -95,7 +95,7 @@ final class iOSApplication: Application {
     
     @objc private func update() {
         do {
-            try self.mainLoop.iterate()
+//            try self.mainLoop.iterate()
         } catch {
             print(error.localizedDescription)
             exit(-1)

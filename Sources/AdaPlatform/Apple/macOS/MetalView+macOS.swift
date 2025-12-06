@@ -8,11 +8,17 @@
 #if MACOS
 import AdaUtils
 @_spi(Internal) import AdaInput
+@_spi(Internal) import AdaUI
 import AppKit
 import Math
+import AdaECS
 
 extension MetalView {
-    
+
+    var input: Ref<Input>? {
+        self.windowManager?.inputRef
+    }
+
     public override var acceptsFirstResponder: Bool {
         return true
     }
@@ -60,8 +66,8 @@ extension MetalView {
             time: TimeInterval(event.timestamp)
         )
         
-        Input.shared.mousePosition = position
-        Input.shared.receiveEvent(mouseEvent)
+        input?.mousePosition = position
+        input?.wrappedValue.receiveEvent(mouseEvent)
     }
     
     open override func cursorUpdate(with event: NSEvent) {
@@ -71,8 +77,8 @@ extension MetalView {
     public override func mouseDown(with event: NSEvent) {
         let position = self.mousePosition(for: event)
         
-        let isContinious = Input.shared.mouseEvents[.left]?.phase == .began
-        
+        let isContinious = input?.wrappedValue.mouseEvents[.left]?.phase == .began
+
         let mouseEvent = MouseEvent(
             window: self.windowID,
             button: .left,
@@ -82,13 +88,13 @@ extension MetalView {
             time: TimeInterval(event.timestamp)
         )
         
-        Input.shared.mousePosition = position
-        Input.shared.receiveEvent(mouseEvent)
+        input?.mousePosition = position
+        input?.wrappedValue.receiveEvent(mouseEvent)
     }
     
     public override func mouseMoved(with event: NSEvent) {
         let position = self.mousePosition(for: event)
-        Input.shared.mousePosition = position
+        input?.mousePosition = position
 
         let event = MouseEvent(
             window: self.windowID,
@@ -98,12 +104,12 @@ extension MetalView {
             modifierKeys: KeyModifier(modifiers: event.modifierFlags),
             time: TimeInterval(event.timestamp)
         )
-        Input.shared.receiveEvent(event)
+        input?.wrappedValue.receiveEvent(event)
     }
 
     open override func mouseDragged(with event: NSEvent) {
         let position = self.mousePosition(for: event)
-        Input.shared.mousePosition = position
+        input?.mousePosition = position
 
         let event = MouseEvent(
             window: self.windowID,
@@ -113,7 +119,7 @@ extension MetalView {
             modifierKeys: KeyModifier(modifiers: event.modifierFlags),
             time: TimeInterval(event.timestamp)
         )
-        Input.shared.receiveEvent(event)
+        input?.wrappedValue.receiveEvent(event)
     }
     
     public override func scrollWheel(with event: NSEvent) {
@@ -135,7 +141,7 @@ extension MetalView {
             time: TimeInterval(event.timestamp)
         )
 
-        Input.shared.receiveEvent(mouseEvent)
+        input?.wrappedValue.receiveEvent(mouseEvent)
     }
     
     public override func keyUp(with event: NSEvent) {
@@ -151,7 +157,7 @@ extension MetalView {
             isRepeated: event.isARepeat
         )
         
-        Input.shared.receiveEvent(keyEvent)
+        input?.wrappedValue.receiveEvent(keyEvent)
     }
     
     public override func keyDown(with event: NSEvent) {
@@ -167,7 +173,7 @@ extension MetalView {
             isRepeated: event.isARepeat
         )
         
-        Input.shared.receiveEvent(keyEvent)
+        input?.wrappedValue.receiveEvent(keyEvent)
     }
     
     // MARK: - Private

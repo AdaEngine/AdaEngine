@@ -8,9 +8,10 @@
 import AdaAssets
 import Math
 @_spi(Runtime) import AdaUtils
+import OrderedCollections
 
 /// A tile map.
-public class TileMap: Asset, @unchecked Sendable {
+public class TileMap: @unsafe Asset, @unchecked Sendable {
 
     /// The tile set of the tile map.
     public var tileSet: TileSet = TileSet() {

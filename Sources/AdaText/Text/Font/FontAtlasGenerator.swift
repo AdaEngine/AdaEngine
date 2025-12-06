@@ -8,7 +8,11 @@
 import AdaRender
 import AdaUtils
 import AtlasFontGenerator
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// A font descriptor.
 public struct FontDescriptor {
@@ -17,9 +21,9 @@ public struct FontDescriptor {
 }
 
 /// Generate MTSDF atlas texture from font.
-final class FontAtlasGenerator {
-    
-    nonisolated(unsafe) static let shared = FontAtlasGenerator()
+final class FontAtlasGenerator: Sendable {
+
+    static let shared = FontAtlasGenerator()
     
     private init() {}
     
@@ -42,42 +46,42 @@ final class FontAtlasGenerator {
         let fontPathString = fontPath.path
         let fontName = fontPath.lastPathComponent
         
-        let generator = fontPathString.withCString { fontPathPtr in
-            fontName.withCString { fontNamePtr in
-                font_atlas_generator_create(fontPathPtr, fontNamePtr, atlasFontDescriptor)!
+        let generator = unsafe fontPathString.withCString { fontPathPtr in
+            unsafe fontName.withCString { fontNamePtr in
+                unsafe font_atlas_generator_create(fontPathPtr, fontNamePtr, atlasFontDescriptor)!
             }
         }
         
         defer {
-            generator.deallocate()
+            unsafe generator.deallocate()
         }
         
-        let fontData = font_atlas_generator_get_font_data(generator)!
+        let fontData = unsafe font_atlas_generator_get_font_data(generator)!
         let fileName = "\(fontName)-\(atlasFontDescriptor.emFontScale.rounded()).fontbin"
 
         if let (atlasHeader, data) = self.getAtlas(by: fileName) {
             let texture = self.makeTextureAtlas(from: data, width: atlasHeader.width, height: atlasHeader.height)
-            return FontHandle(atlasTexture: texture, fontData: fontData)
+            return unsafe FontHandle(atlasTexture: texture, fontData: fontData)
         } else {
-            let bitmap = font_atlas_generator_generate_bitmap(generator)!
-            
+            let bitmap = unsafe font_atlas_generator_generate_bitmap(generator)!
+
             defer {
-                bitmap.deallocate()
+                unsafe bitmap.deallocate()
             }
             
-            let bitmapValue = bitmap.pointee
-            let data = Data(bytesNoCopy: bitmapValue.pixels, count: Int(bitmapValue.pixelsCount), deallocator: .free)
+            let bitmapValue = unsafe bitmap.pointee
+            let data = unsafe Data(bytesNoCopy: bitmapValue.pixels, count: Int(bitmapValue.pixelsCount), deallocator: .free)
 
-            let width = Int(bitmapValue.bitmapWidth)
-            let height = Int(bitmapValue.bitmapHeight)
-            
+            let width = unsafe Int(bitmapValue.bitmapWidth)
+            let height = unsafe Int(bitmapValue.bitmapHeight)
+
             assert(width > 0, "Invalid width of atlas")
             assert(height > 0, "Invalid width of atlas")
 
             self.saveAtlas(data, width: width, height: height, fileName: fileName)
 
             let texture = self.makeTextureAtlas(from: data, width: width, height: height)
-            return FontHandle(atlasTexture: texture, fontData: fontData)
+            return unsafe FontHandle(atlasTexture: texture, fontData: fontData)
         }
     }
     
@@ -145,14 +149,14 @@ final class FontAtlasGenerator {
             stream.open()
             
             var header = AtlasHeader(width: width, height: height, dataSize: data.count)
-            withUnsafeBytes(of: &header) { ptr in
-                let bytes = ptr.baseAddress!.assumingMemoryBound(to: UInt8.self)
-                stream.write(bytes, maxLength: MemoryLayout<AtlasHeader>.stride)
+            unsafe withUnsafeBytes(of: &header) { ptr in
+                let bytes = unsafe ptr.baseAddress!.assumingMemoryBound(to: UInt8.self)
+                unsafe stream.write(bytes, maxLength: MemoryLayout<AtlasHeader>.stride)
             }
             
-            data.withUnsafeBytes { (bufferPtr: UnsafeRawBufferPointer) in
-                let bytes = bufferPtr.baseAddress!.assumingMemoryBound(to: UInt8.self)
-                stream.write(bytes, maxLength: data.count)
+            unsafe data.withUnsafeBytes { (bufferPtr: UnsafeRawBufferPointer) in
+                let bytes = unsafe bufferPtr.baseAddress!.assumingMemoryBound(to: UInt8.self)
+                unsafe stream.write(bytes, maxLength: data.count)
             }
             
             stream.close()
@@ -178,17 +182,17 @@ final class FontAtlasGenerator {
             stream.open()
             
             let headerData: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer<UInt8>.allocate(capacity: MemoryLayout<AtlasHeader>.stride)
-            stream.read(headerData, maxLength: MemoryLayout<AtlasHeader>.size)
-            let atlasHeader = UnsafeRawPointer(headerData).load(as: AtlasHeader.self)
-            
+            unsafe stream.read(headerData, maxLength: MemoryLayout<AtlasHeader>.size)
+            let atlasHeader = unsafe UnsafeRawPointer(headerData).load(as: AtlasHeader.self)
+
             let atlasData: UnsafeMutablePointer<UInt8> = UnsafeMutablePointer<UInt8>.allocate(capacity: atlasHeader.dataSize)
-            stream.read(atlasData, maxLength: atlasHeader.dataSize)
-            let data = Data(bytes: UnsafeRawPointer(atlasData), count: atlasHeader.dataSize)
-            
+            unsafe stream.read(atlasData, maxLength: atlasHeader.dataSize)
+            let data = unsafe Data(bytes: UnsafeRawPointer(atlasData), count: atlasHeader.dataSize)
+
             defer {
-                headerData.deallocate()
-                atlasData.deallocate()
-                
+                unsafe headerData.deallocate()
+                unsafe atlasData.deallocate()
+
                 stream.close()
             }
             

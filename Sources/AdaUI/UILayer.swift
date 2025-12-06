@@ -65,11 +65,11 @@ extension UIGraphicsContext {
             debugLabel: layer.debugLabel.flatMap { "Layer \($0)" }
         )
 
-        var context = UIGraphicsContext(texture: renderTexture)
-        context.environment = self.environment
-        context.beginDraw(in: layer.frame.size, scaleFactor: 1)
-        drawBlock(&context)
-        context.commitDraw()
+//        var context = UIGraphicsContext(texture: renderTexture)
+//        context.environment = self.environment
+//        context.beginDraw(in: layer.frame.size, scaleFactor: 1)
+//        drawBlock(&context)
+//        context.commitDraw()
 
         return renderTexture
     }

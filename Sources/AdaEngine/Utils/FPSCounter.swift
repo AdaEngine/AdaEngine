@@ -7,20 +7,19 @@
 
 import Math
 
-class FPSCounter {
-    
-    nonisolated(unsafe) static let shared = FPSCounter()
-    
+public class FPSCounter {
     private var lastNotificationTime: LongTimeInterval = 0
     private var notificationDelay: TimeInterval = 1.0
     private var numberOfFrames = 0
-    
-    func stop() {
+
+    public init() { }
+
+    public func stop() {
         self.lastNotificationTime = 0
         self.numberOfFrames = 0
     }
     
-    func tick() {
+    public func tick() {
         if self.lastNotificationTime == 0.0 {
             self.lastNotificationTime = Time.absolute
             return
@@ -41,6 +40,7 @@ class FPSCounter {
     private func notifyUpdateForElapsedTime(_ elapsedTime: TimeInterval) {
         let rounded = Math.round(Double(self.numberOfFrames) / Double(elapsedTime))
         let fps = Int(rounded)
+        print(fps)
         EventManager.default.send(EngineEvents.FramesPerSecondEvent(framesPerSecond: fps))
     }
 }

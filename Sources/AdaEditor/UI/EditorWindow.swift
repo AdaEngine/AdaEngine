@@ -15,7 +15,6 @@ class ViewModel {
 }
 
 struct NestedContent: View {
-
     @State var innerColor: Color = .red
 
     var body: some View {
@@ -41,7 +40,6 @@ extension Text.Layout {
 }
 
 struct AnimatedSineWaveOffsetRender: TextRenderer {
-    
     let timeOffset: Double // Time offset
 
     init(timeOffset: Double) {
@@ -107,7 +105,6 @@ struct CustomButtonStyle: ButtonStyle {
 }
 
 struct ContentView: View {
-
     @State private var isAnimated: Bool = false
 
     var body: some View {
@@ -130,7 +127,6 @@ struct ContentView: View {
 }
 
 class EditorWindow: UIWindow {
-
     weak var inspectableView: LayoutInspectableView?
 
     override func windowDidReady() {
@@ -177,7 +173,6 @@ class EditorWindow: UIWindow {
 }
 
 class LayoutInspectableView: UIView {
-
     var speed: Float = 0.2
     var pitch: Angle = Angle.radians(0)
     var yaw: Angle = Angle.radians(-90)
@@ -219,8 +214,6 @@ class LayoutInspectableView: UIView {
 
             isViewMatrixDirty = false
         }
-
-        self.handleView(deltaTime)
     }
 
     override func draw(with context: UIGraphicsContext) {
@@ -242,35 +235,12 @@ class LayoutInspectableView: UIView {
 
         self.cameraTransform.origin += event.scrollDelta.y * sensitivity * speed * cameraFront
         self.isViewMatrixDirty = true
-    }
 
-    private func handleView(_ deltaTime: TimeInterval) {
-
-        if Input.isKeyPressed(.w) {
-            cameraTransform.origin += speed * cameraFront * deltaTime
-            self.isViewMatrixDirty = true
-        }
-
-        if Input.isKeyPressed(.a) {
-            cameraTransform.origin -= cross(cameraFront, cameraUp).normalized * speed * deltaTime
-            self.isViewMatrixDirty = true
-        }
-
-        if Input.isKeyPressed(.d) {
-            cameraTransform.origin += cross(cameraFront, cameraUp).normalized * speed * deltaTime
-            self.isViewMatrixDirty = true
-        }
-
-        if Input.isKeyPressed(.s) {
-            cameraTransform.origin -= speed * cameraFront * deltaTime
-            self.isViewMatrixDirty = true
-        }
-
-        guard Input.isMouseButtonPressed(.left) else {
+        guard event.button == .left && event.phase != .began else {
             return
         }
 
-        let position = Input.getMousePosition()
+        let position = event.mousePosition
         var xoffset = position.x - self.lastMousePosition.x
         var yoffset = self.lastMousePosition.y - position.y
         self.lastMousePosition = position
@@ -285,7 +255,7 @@ class LayoutInspectableView: UIView {
         if pitch.radians > 89.0 {
             pitch = 89.0
         } else if(pitch.radians < -89.0) {
-           pitch = -89.0
+            pitch = -89.0
         }
 
         var direction = Vector3()
@@ -296,5 +266,26 @@ class LayoutInspectableView: UIView {
         self.cameraFront = direction.normalized
 
         self.isViewMatrixDirty = true
+    }
+
+    override func onKeyPressed(_ event: Set<KeyEvent>) {
+        for key in event where key.status == .down {
+            switch key.keyCode {
+            case .w:
+                cameraTransform.origin += speed * cameraFront
+                self.isViewMatrixDirty = true
+            case .a:
+                cameraTransform.origin -= cross(cameraFront, cameraUp).normalized * speed
+                self.isViewMatrixDirty = true
+            case .d:
+                cameraTransform.origin += cross(cameraFront, cameraUp).normalized * speed
+                self.isViewMatrixDirty = true
+            case .s:
+                cameraTransform.origin -= speed * cameraFront
+                self.isViewMatrixDirty = true
+            default:
+                return
+            }
+        }
     }
 }

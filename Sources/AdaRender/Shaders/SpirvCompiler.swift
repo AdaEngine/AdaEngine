@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 3/13/23.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import SPIRV_Cross
 import Logging
 
@@ -22,6 +26,7 @@ struct SpirvShader {
 }
 
 /// Create High Level Shading Language from SPIR-V for specific shader language.
+@safe
 final class SpirvCompiler {
 
     let deviceLang: ShaderLanguage
@@ -53,25 +58,25 @@ final class SpirvCompiler {
         self.stage = stage
 
         var context: spvc_context!
-        spvc_context_create(&context)
+        unsafe spvc_context_create(&context)
 
         var ir: spvc_parsed_ir!
 
-        let result = spriv.withUnsafeBytes { spvPtr in
-            let spv = spvPtr.bindMemory(to: SpvId.self)
-            return spvc_context_parse_spirv(context, spv.baseAddress, spv.count, &ir)
+        let result = unsafe spriv.withUnsafeBytes { spvPtr in
+            let spv = unsafe spvPtr.bindMemory(to: SpvId.self)
+            return unsafe spvc_context_parse_spirv(context, spv.baseAddress, spv.count, &ir)
         }
 
         if result != SPVC_SUCCESS {
-            throw Error(String(cString: spvc_context_get_last_error_string(context)))
+            throw unsafe Error(String(cString: spvc_context_get_last_error_string(context)))
         }
 
-        self.ir = ir
-        self.context = context
-        
+        unsafe self.ir = ir
+        unsafe self.context = context
+
         self.deviceLang = deviceLang
         var spvcCompiler: spvc_compiler?
-        spvc_context_create_compiler(
+        unsafe spvc_context_create_compiler(
             context,
             deviceLang.spvcBackend,
             ir,
@@ -79,34 +84,34 @@ final class SpirvCompiler {
             &spvcCompiler
         )
 
-        guard let spvcCompiler else {
-            throw Error(String(cString: spvc_context_get_last_error_string(context)))
+        guard let spvcCompiler = unsafe spvcCompiler else {
+            throw unsafe Error(String(cString: spvc_context_get_last_error_string(context)))
         }
 
-        self.spvcCompiler = spvcCompiler
+        unsafe self.spvcCompiler = spvcCompiler
     }
 
     deinit {
-        spvc_context_destroy(context)
+        unsafe spvc_context_destroy(context)
     }
 
     /// Compile shader to device specific language
     func compile() throws -> SpirvShader {
         var spvcCompilerOptions: spvc_compiler_options?
-        if spvc_compiler_create_compiler_options(spvcCompiler, &spvcCompilerOptions) != SPVC_SUCCESS {
-            let errorMessage = String(cString: spvc_context_get_last_error_string(context))
+        if unsafe spvc_compiler_create_compiler_options(spvcCompiler, &spvcCompilerOptions) != SPVC_SUCCESS {
+            let errorMessage = unsafe String(cString: spvc_context_get_last_error_string(context))
             loggerShader.critical("⚠️ SPIRV-Cross compiler options creation failed: \(errorMessage)")
             throw Error(errorMessage)
         }
 
-        Self.makeCompileOptions(spvcCompilerOptions, deviceLang: deviceLang)
+        unsafe Self.makeCompileOptions(spvcCompilerOptions, deviceLang: deviceLang)
 
-        spvc_compiler_install_compiler_options(spvcCompiler, spvcCompilerOptions)
+        unsafe spvc_compiler_install_compiler_options(spvcCompiler, spvcCompilerOptions)
 
         var compilerOutputSourcePtr: UnsafePointer<CChar>?
-        let result = spvc_compiler_compile(spvcCompiler, &compilerOutputSourcePtr)
+        let result = unsafe spvc_compiler_compile(spvcCompiler, &compilerOutputSourcePtr)
         if result != SPVC_SUCCESS {
-            let errorMessage = String(cString: spvc_context_get_last_error_string(context))
+            let errorMessage = unsafe String(cString: spvc_context_get_last_error_string(context))
             loggerShader.critical("⚠️ SPIRV-Cross compilation failed: \(errorMessage)")
             
             // Print detailed diagnostic info
@@ -116,13 +121,13 @@ final class SpirvCompiler {
             // If we have entry points, print them
             var numberOfEntryPoints: Int = 0
             var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
-            spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
-            
+            unsafe spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
+
             if numberOfEntryPoints > 0 {
                 loggerShader.critical("🔍 Entry points:")
                 for index in 0..<numberOfEntryPoints {
-                    let entryPoint = spvcEntryPoints![index]
-                    loggerShader.critical("  - \(String(cString: entryPoint.name)) (execution model: \(entryPoint.execution_model))")
+                    let entryPoint = unsafe spvcEntryPoints![index]
+                    unsafe loggerShader.critical("  - \(String(cString: entryPoint.name)) (execution model: \(entryPoint.execution_model))")
                 }
             } else {
                 loggerShader.critical("⚠️ No entry points found in shader")
@@ -131,24 +136,24 @@ final class SpirvCompiler {
             throw Error(errorMessage)
         }
 
-        let source = String(cString: compilerOutputSourcePtr!)
+        let source = unsafe String(cString: compilerOutputSourcePtr!)
 
         var numberOfEntryPoints: Int = 0
         var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
-        spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
+        unsafe spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
 
         var entryPoints: [SpirvShader.EntryPoint] = []
 
         for index in 0..<numberOfEntryPoints {
-            let entryPoint = spvcEntryPoints![index]
+            let entryPoint = unsafe spvcEntryPoints![index]
 
-            let name = spvc_compiler_get_cleansed_entry_point_name(
+            let name = unsafe spvc_compiler_get_cleansed_entry_point_name(
                 spvcCompiler, /* compiler */
                 entryPoint.name, /* entry point name */
                 entryPoint.execution_model /* execution model */
             )!
 
-            entryPoints.append(
+            unsafe entryPoints.append(
                 SpirvShader.EntryPoint(
                     name: String(cString: name),
                     stage: ShaderStage(from: entryPoint.execution_model)
@@ -167,13 +172,13 @@ final class SpirvCompiler {
     func renameEntryPoint(_ entryPointName: String) {
         var numberOfEntryPoints: Int = 0
         var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
-        spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
+        unsafe spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
 
         for index in 0..<numberOfEntryPoints {
-            let entryPoint = spvcEntryPoints![index]
+            let entryPoint = unsafe spvcEntryPoints![index]
 
-            let result = entryPointName.withCString { entryPtr in
-                spvc_compiler_rename_entry_point(
+            let result = unsafe entryPointName.withCString { entryPtr in
+                unsafe spvc_compiler_rename_entry_point(
                     spvcCompiler, /* compiler */
                     entryPoint.name, /* old_name */
                     entryPtr, /* new_name */
@@ -182,7 +187,7 @@ final class SpirvCompiler {
             }
 
             if result != SPVC_SUCCESS {
-                assertionFailure("Can't set entry point \(entryPointName) for \(ShaderStage(from: entryPoint.execution_model))")
+                unsafe assertionFailure("Can't set entry point \(entryPointName) for \(ShaderStage(from: entryPoint.execution_model))")
             }
         }
     }
@@ -190,7 +195,7 @@ final class SpirvCompiler {
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     func reflection() -> ShaderReflectionData {
         var shaderResources: spvc_resources!
-        spvc_compiler_create_shader_resources(self.spvcCompiler, &shaderResources)
+        unsafe spvc_compiler_create_shader_resources(self.spvcCompiler, &shaderResources)
 
         var reflectionData = ShaderReflectionData()
 
@@ -198,23 +203,23 @@ final class SpirvCompiler {
             var reflectedResources : UnsafePointer<spvc_reflected_resource>!
             var reflectedResourceCount = 0
 
-            spvc_resources_get_resource_list_for_type(shaderResources, resourceType.spvcResourceType, &reflectedResources, &reflectedResourceCount)
+            unsafe spvc_resources_get_resource_list_for_type(shaderResources, resourceType.spvcResourceType, &reflectedResources, &reflectedResourceCount)
 
             for index in 0..<reflectedResourceCount {
-                let resource = reflectedResources[index]
-                let resourceName = String(cString: resource.name)
+                let resource = unsafe reflectedResources[index]
+                let resourceName = unsafe String(cString: resource.name)
 
                 // Skip internal uniforms
                 if resourceName.hasPrefix("AE_") {
                     continue
                 }
 
-                let type = spvc_compiler_get_type_handle(self.spvcCompiler, resource.base_type_id)
+                let type = unsafe spvc_compiler_get_type_handle(self.spvcCompiler, resource.base_type_id)
                 var size: Int = 0
-                spvc_compiler_get_declared_struct_size(self.spvcCompiler, type, &size)
+                unsafe spvc_compiler_get_declared_struct_size(self.spvcCompiler, type, &size)
 
-                let binding = spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationBinding)
-                let descriptorSetIndex = spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationDescriptorSet)
+                let binding = unsafe spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationBinding)
+                let descriptorSetIndex = unsafe spvc_compiler_get_decoration(self.spvcCompiler, resource.id, SpvDecorationDescriptorSet)
 
                 if descriptorSetIndex >= reflectionData.descriptorSets.count {
                     reflectionData.descriptorSets.append(ShaderResource.DescriptorSet())
@@ -226,18 +231,18 @@ final class SpirvCompiler {
                 case .uniformBuffer, .pushConstantBuffer:
                     var members = [String: ShaderResource.ShaderBufferMember]()
 
-                    let memberTypesCount = spvc_type_get_num_member_types(type)
+                    let memberTypesCount = unsafe spvc_type_get_num_member_types(type)
 
                     for index in 0 ..< memberTypesCount {
-                        let memberType = spvc_type_get_member_type(type, index)
-                        let memberName = String(cString: spvc_compiler_get_member_name(self.spvcCompiler, resource.base_type_id, index))
+                        let memberType = unsafe spvc_type_get_member_type(type, index)
+                        let memberName = unsafe String(cString: spvc_compiler_get_member_name(self.spvcCompiler, resource.base_type_id, index))
                         var memberSize: Int = 0
-                        spvc_compiler_get_declared_struct_member_size(self.spvcCompiler, type, index, &memberSize)
+                        unsafe spvc_compiler_get_declared_struct_member_size(self.spvcCompiler, type, index, &memberSize)
 
                         var memberOffset: UInt32 = 0
-                        spvc_compiler_type_struct_member_offset(self.spvcCompiler, type, index, &memberOffset)
+                        unsafe spvc_compiler_type_struct_member_offset(self.spvcCompiler, type, index, &memberOffset)
 
-                        members[memberName] = ShaderResource.ShaderBufferMember(
+                        members[memberName] = unsafe ShaderResource.ShaderBufferMember(
                             name: memberName,
                             size: memberSize,
                             binding: Int(binding),
@@ -258,11 +263,11 @@ final class SpirvCompiler {
                     descriptorSet.uniformsBuffers[Int(binding)] = buffer
                     reflectionData.shaderBuffers[resourceName] = buffer
                 case .image, .sampler, .inputAttachment, .storageImage, .sampledImage:
-                    let access = spvc_type_get_image_access_qualifier(type)
-                    let isArray = spvc_type_get_image_arrayed(type) == 1
-                    let isMultisampled = spvc_type_get_image_multisampled(type) == 1
-                    let dimension = spvc_type_get_image_dimension(type)
-                    let arraySize = spvc_type_get_array_dimension(type, 0)
+                    let access = unsafe spvc_type_get_image_access_qualifier(type)
+                    let isArray = unsafe spvc_type_get_image_arrayed(type) == 1
+                    let isMultisampled = unsafe spvc_type_get_image_multisampled(type) == 1
+                    let dimension = unsafe spvc_type_get_image_dimension(type)
+                    let arraySize = unsafe spvc_type_get_array_dimension(type, 0)
 
                     let resourceAccess: ShaderResource.ResourceAccess
 
@@ -326,8 +331,8 @@ extension SpirvCompiler {
         }
         
         if deviceLang == .msl {
-            spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_VERSION, version(2, 1, 0))
-            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_POINT_SIZE_BUILTIN, 1)
+            unsafe spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_VERSION, version(2, 1, 0))
+            unsafe spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_POINT_SIZE_BUILTIN, 1)
 
 #if os(macOS)
             let platform = SPVC_MSL_PLATFORM_MACOS
@@ -335,18 +340,18 @@ extension SpirvCompiler {
             let platform = SPVC_MSL_PLATFORM_IOS
 #endif
 
-            spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_PLATFORM, platform.rawValue)
-            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_DECORATION_BINDING, 1)
+            unsafe spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_PLATFORM, platform.rawValue)
+            unsafe spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_DECORATION_BINDING, 1)
         }
 
         if deviceLang == .glsl {
             // Set GLSL version to 4.10, matching our OpenGL context
-            spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_GLSL_VERSION, 410)
-        
+            unsafe spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_GLSL_VERSION, 410)
+
             // Enable GLSL specific options for better compatibility
-            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_SEPARATE_SHADER_OBJECTS, 1)
-            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_ENABLE_420PACK_EXTENSION, 1)
-            spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_ES, 0) // Use desktop GLSL, not GLSL ES
+            unsafe spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_SEPARATE_SHADER_OBJECTS, 1)
+            unsafe spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_ENABLE_420PACK_EXTENSION, 1)
+            unsafe spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_GLSL_ES, 0) // Use desktop GLSL, not GLSL ES
         }
     }
 }

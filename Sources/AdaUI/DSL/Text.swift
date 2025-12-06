@@ -24,7 +24,6 @@ public struct Text {
     init(_ storage: Storage) {
         self.storage = storage
     }
-
 }
 
 extension Text: View, ViewNodeBuilder {

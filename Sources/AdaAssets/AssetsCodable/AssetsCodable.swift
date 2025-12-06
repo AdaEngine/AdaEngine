@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 3/9/23.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import AdaUtils
 
 // TODO: Mode for decoding/encoding files from/into binary format.
