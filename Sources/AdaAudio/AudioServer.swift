@@ -33,7 +33,7 @@ public final class AudioServer: Resource {
     @_spi(AdaEngine)
     @MainActor
     public static func initialize() throws {
-        let engine = unsafe try MiniAudioEngine()
+        let engine = try MiniAudioEngine()
         unsafe self.shared = AudioServer(engine: engine)
     }
     

@@ -204,7 +204,7 @@ public extension EntityCommands {
     @inline(__always)
     func removeFromWorld(recursively: Bool = false) {
         self.queue.push { [entityId] world in
-            world.removeEntity(entityId)
+            world.removeEntity(entityId, recursively: recursively)
         }
     }
 

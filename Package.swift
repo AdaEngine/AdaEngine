@@ -672,7 +672,10 @@ let examplesTargets: [Target] = [
 
     // MARK: Scene
     .exampleTarget(name: "scene_load", path: "Scene"),
-    .exampleTarget(name: "LdtkTilemap", path: "Scene")
+    .exampleTarget(name: "LdtkTilemap", path: "Scene"),
+
+    // MARK: Games
+    .exampleTarget(name: "SpaceInvaders", path: "Games")
 ]
 
 package.targets.append(contentsOf: examplesTargets)
