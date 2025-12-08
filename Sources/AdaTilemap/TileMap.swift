@@ -38,7 +38,7 @@ public class TileMap: @unsafe Asset, @unchecked Sendable {
     ///
     /// - Parameter decoder: The decoder to initialize the tile map from.
     /// - Throws: An error if the tile map cannot be initialized from the decoder.
-    public required init(from decoder: AssetDecoder) throws {
+    public required init(from decoder: AssetDecoder) async throws {
         let fileContent = try decoder.decode(FileContent.self)
         self.tileSet = fileContent.tileSet
         
@@ -60,7 +60,7 @@ public class TileMap: @unsafe Asset, @unchecked Sendable {
     ///
     /// - Parameter encoder: The encoder to encode the tile map to.
     /// - Throws: An error if the tile map cannot be encoded to the encoder.
-    public func encodeContents(with encoder: AssetEncoder) throws {
+    public func encodeContents(with encoder: AssetEncoder) async throws {
         var layers = [FileContent.Layer]()
         
         for layer in self.layers {

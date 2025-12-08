@@ -238,8 +238,8 @@ public struct AssetsManager: Resource {
         
         let meta = AssetMeta(filePath: processedPath.url, queryParams: processedPath.query)
         let defaultEncoder = TextAssetEncoder(meta: meta)
-        try asset.encodeContents(with: defaultEncoder)
-        
+        try await asset.encodeContents(with: defaultEncoder)
+
         let intermediateDirs = processedPath.url.deletingLastPathComponent()
         
         if !fileSystem.itemExists(at: intermediateDirs) {
@@ -370,7 +370,7 @@ public struct AssetsManager: Resource {
         }
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = TextAssetDecoder(meta: meta, data: data)
-        try assetType.loadAndUpdateInternal(from: decoder, oldResource: oldResource)
+        try await assetType.loadAndUpdateInternal(from: decoder, oldResource: oldResource)
     }
     
     @AssetActor
@@ -381,8 +381,8 @@ public struct AssetsManager: Resource {
         
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = TextAssetDecoder(meta: meta, data: data)
-        var resource = try A.init(from: decoder)
-        
+        var resource = try await A.init(from: decoder)
+
         resource.assetMetaInfo = AssetMetaInfo(
             assetPath: originalPath,
             assetName: path.url.lastPathComponent,
@@ -429,12 +429,12 @@ private extension AssetsManager {
     private static func processPath(_ path: String) -> Path {
         var path = path
         var url: URL
-        
-        if path.hasPrefix(self.resKeyWord) {
+
+        if path.hasPrefix(self.resKeyWord) && !path.hasPrefix("file://") {
             path.removeFirst(self.resKeyWord.count)
             url = unsafe self.resourceDirectory.appendingPathComponent(path)
         } else {
-            url = URL(fileURLWithPath: path)
+            url = path.hasPrefix("file://") ? URL(string: path)! : URL(fileURLWithPath: path)
         }
         
         let splitComponents = url.lastPathComponent.split(separator: "#")
@@ -557,8 +557,8 @@ private extension Asset {
     static func loadAndUpdateInternal(
         from asset: any AssetDecoder,
         oldResource: any AnyAssetHandle
-    ) throws {
-        let resource = try Self.init(from: asset)
+    ) async throws {
+        let resource = try await Self.init(from: asset)
         try oldResource.update(resource)
     }
 }

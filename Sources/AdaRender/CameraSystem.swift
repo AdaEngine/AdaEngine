@@ -68,7 +68,7 @@ public struct CameraSystem: Sendable {
                 camera.viewport?.rect.size = renderWindow.physicalSize
             }
         case .texture(let textureHandle):
-            let texture = textureHandle.asset
+            let texture = textureHandle.asset!
             let size = Size(width: Float(texture.width), height: Float(texture.height))
 
             if camera.viewport == nil {

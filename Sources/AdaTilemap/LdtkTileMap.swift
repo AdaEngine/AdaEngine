@@ -54,7 +54,7 @@ extension LDtk {
         /// - Note: Use ``TileMap/resourcePath`` field to get runtime path to your LDtk file.
         public private(set) var isHotReloadingEnabled: Bool = false
 
-        public required init(from decoder: AssetDecoder) throws {
+        public required init(from decoder: AssetDecoder) async throws {
             let pathExt = decoder.assetMeta.filePath.pathExtension
 
             guard pathExt == "ldtk" || pathExt == "json" else {
@@ -69,13 +69,11 @@ extension LDtk {
                 self?.onLDtkFileMapChanged(paths: paths)
             }
 
-            Task {
-                try await self.loadLdtkProject(from: decoder.assetData)
-            }
+            try await self.loadLdtkProject(from: decoder.assetData)
         }
         
-        public override func encodeContents(with encoder: AssetEncoder) throws {
-            try super.encodeContents(with: encoder)
+        public override func encodeContents(with encoder: AssetEncoder) async throws {
+            try await super.encodeContents(with: encoder)
         }
         
         /// Load level from LDtk project at index.

@@ -48,6 +48,20 @@ open class Entity: Identifiable, @unchecked Sendable {
         self.components = ComponentSet(entity: self.id)
     }
 
+    /// Create a new entity with not allocated id. To track that entity in the world use ``World/addEntity(_:)``
+    /// - Parameter name: Name of entity. By default is `Entity`.
+    public init(
+        name: String = "Entity",
+        @ComponentsBuilder components: () -> ComponentsBundle
+    ) {
+        self.name = name
+        self.id = Self.notAllocatedId
+        self.components = ComponentSet(entity: self.id)
+        for component in components().components {
+            self.components.notFlushedComponents[type(of: component).identifier] = component
+        }
+    }
+
     /// Create a new entity with id.
     /// - Parameter name: Name of entity. By default is `Entity`.
     init(name: String = "Entity", id: Int) {

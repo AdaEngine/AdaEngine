@@ -41,14 +41,14 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
     ///   - type: The type of the asset.
     ///   - decoder: The decoder to decode the asset from.
     /// - Returns: The decoded asset.
-    public func decode<A: Asset>(_ type: A.Type, from decoder: any Decoder) throws -> A {
+    public func decode<A: Asset>(_ type: A.Type, from decoder: any Decoder) async throws -> A {
         let newDecoder = Self(
             meta: self.assetMeta,
             data: self.assetData,
             decoder: decoder
         )
         
-        return try A.init(from: newDecoder)
+        return try await A.init(from: newDecoder)
     }
     
     /// Get or load a resource from the decoder.

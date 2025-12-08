@@ -101,6 +101,20 @@ public extension SparseSet {
             }
         }
     }
+
+    @inlinable
+    subscript(_ key: Key, default value: Value) -> Value? {
+        _read {
+            yield firstValue(for: key) ?? value
+        }
+        set {
+            if let newValue {
+                insert(newValue, for: key)
+            } else {
+                remove(for: key)
+            }
+        }
+    }
 }
 
 extension SparseSet {

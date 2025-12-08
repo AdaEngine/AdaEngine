@@ -190,6 +190,26 @@ public extension EntityCommands {
 
     @discardableResult
     @inline(__always)
+    func addChild(
+        _ child: Entity
+    ) -> Self {
+        self.queue.push { [entityId] world in
+            let entity = world.getEntityByID(entityId)
+            entity?.addChild(child)
+            world.addEntity(child)
+        }
+        return self
+    }
+
+    @inline(__always)
+    func removeFromWorld(recursively: Bool = false) {
+        self.queue.push { [entityId] world in
+            world.removeEntity(entityId)
+        }
+    }
+
+    @discardableResult
+    @inline(__always)
     func remove<T: Component>(_ component: consuming T) -> Self {
         self.remove(T.identifier, from: entityId)
     }

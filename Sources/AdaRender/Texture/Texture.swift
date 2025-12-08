@@ -35,11 +35,11 @@ open class Texture: Asset, @unchecked Sendable {
         return Image()
     }
     
-    public required init(from assetDecoder: any AssetDecoder) throws {
+    public required init(from assetDecoder: any AssetDecoder) async throws {
         fatalErrorMethodNotImplemented()
     }
     
-    public func encodeContents(with encoder: any AssetEncoder) throws {
+    public func encodeContents(with encoder: any AssetEncoder) async throws {
         fatalErrorMethodNotImplemented()
     }
     
