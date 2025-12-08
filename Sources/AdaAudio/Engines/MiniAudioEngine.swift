@@ -26,11 +26,11 @@ enum MAError: LocalizedError {
     }
 }
 
-@unsafe
+@safe
 struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
 
     static func getFromWorld(_ world: borrowing AdaECS.World) -> MiniAudioEngine? {
-        unsafe world.getResource(Self.self)
+        world.getResource(Self.self)
     }
 
     @unsafe

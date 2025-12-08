@@ -12,28 +12,19 @@ import AdaTransform
 /// A plugin that adds audio capabilities to the world.
 public struct AudioPlugin: Plugin {
 
-    var engine: AudioEngine?
-
-    public init() {
-        do {
-            self.engine = unsafe try MiniAudioEngine()
-        } catch {
-            print("Error", error)
-        }
-    }
+    public init() {}
 
     public func setup(in app: AppWorlds) {
-        guard let engine else {
-            return
-        }
         do {
-            try engine.start()
+            try AudioServer.initialize()
+            unsafe try AudioServer.shared.engine.start()
             AudioComponent.registerComponent()
             AudioReceiver.registerComponent()
             AudioPlaybacksControllers.registerComponent()
 
-            app
-                .insertResource(engine)
+            unsafe app
+                .insertResource(AudioServer.shared.engine as! MiniAudioEngine)
+                .insertResource(AudioServer.shared)
                 .addSystem(AudioSystem.self)
         } catch {
             print("Error", error)
@@ -42,7 +33,7 @@ public struct AudioPlugin: Plugin {
 
     public func finish() {
         do {
-            try engine?.stop()
+            unsafe try AudioServer.shared.stop()
         } catch {
             print("Error", error)
         }
@@ -102,11 +93,10 @@ public struct AudioSystem {
     @Query<Ref<AudioReceiver>, Transform>
     private var audioReceiverQuery
 
-    let audioEngine: AudioEngine!
+    @Res<MiniAudioEngine>
+    private var audioEngine
 
-    public init(world: World) {
-        self.audioEngine = unsafe world.getResource(MiniAudioEngine.self)!
-    }
+    public init(world: World) { }
 
     public func update(context: UpdateContext) {
         self.audioPlaybacksControllersQuery.forEach { audioComponent, transform in

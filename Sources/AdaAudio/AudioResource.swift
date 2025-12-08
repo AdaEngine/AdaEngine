@@ -21,7 +21,7 @@ public final class AudioResource: Asset, @unchecked Sendable {
     
     private var sound: Sound
 
-    public required init(from decoder: AssetDecoder) throws {
+    public required init(from decoder: AssetDecoder) async throws {
         if Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) {
             self.sound = unsafe try AudioServer.shared.engine.makeSound(from: decoder.assetData)
         } else {

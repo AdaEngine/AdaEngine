@@ -183,7 +183,7 @@ public struct DefaultSchedulerRunner: Sendable {
     @Res
     private var order: DefaultSchedulerOrder?
 
-    @LocalIsolated
+    @Local
     private var lastUpdate: LongTimeInterval = 0
 
     public init(world: World) { }

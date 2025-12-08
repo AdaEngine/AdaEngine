@@ -38,7 +38,7 @@ struct InitialContainerView: Resource {
 @MainActor
 func WindowGroupUpdate(
     _ context: WorldUpdateContext,
-    _ isAllocated: LocalIsolated<Bool> = false
+    _ isAllocated: Local<Bool> = false
 ) {
     if isAllocated.wrappedValue {
         return
