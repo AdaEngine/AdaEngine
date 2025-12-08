@@ -643,4 +643,38 @@ private extension Target {
             plugins: plugins
         )
     }
+
+    static func exampleTarget(
+        name: String,
+        path: String,
+    ) -> Target {
+        .executableTarget(
+            name: name,
+            dependencies: [
+                "AdaEngine"
+            ],
+            path: "Assets/Examples/\(path)/\(name)",
+            resources: [
+                .copy("../../Resources/")
+            ]
+        )
+    }
 }
+
+// MARK: - Examples
+
+let examplesTargets: [Target] = [
+    // MARK: 2d
+    .exampleTarget(name: "BunniesStress", path: "2d"),
+
+    // MARK: Input
+    .exampleTarget(name: "GamepadExampleScene", path: "Input"),
+
+    // MARK: Scene
+    .exampleTarget(name: "scene_load", path: "Scene"),
+    .exampleTarget(name: "LdtkTilemap", path: "Scene")
+]
+
+package.targets.append(contentsOf: examplesTargets)
+
+// MARK:  Examples -
