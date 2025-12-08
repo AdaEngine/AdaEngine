@@ -1,11 +1,24 @@
 //
-//  BunnyExampleScene.swift
+//  BunniesStressApp.swift
+//  AdaEngine
 //
-//
-//  Created by Vladislav Prusakov on 06.06.2024.
+//  Created by Vladislav Prusakov on 07.12.2025.
 //
 
 import AdaEngine
+
+@main
+struct AdaEditorApp: App {
+    var body: some AppScene {
+        EmptyWindow()
+            .addPlugins(
+                DefaultPlugins(),
+                BunnyExample()
+            )
+            .windowMode(.windowed)
+            .windowTitle("AdaEngine")
+    }
+}
 
 enum BunnyExampleConstants {
     static let bunniesPerClick: Int = 10
@@ -24,7 +37,7 @@ struct BunnyExample: Plugin {
         setupUI(in: app)
         setupSystems(in: app)
     }
-    
+
     private func setupCamera(in app: AppWorlds) {
         app.main.spawn(
             "Camera",
@@ -34,14 +47,14 @@ struct BunnyExample: Plugin {
             )
         )
     }
-    
+
     private func loadAssets(in app: AppWorlds) {
         // Try to load a bunny texture, fallback to white texture if not available
         do {
             let image = try AssetsManager.loadSync(
                 Image.self,
-                at: "Assets/characters_packed.png",
-                from: Bundle.editor
+                at: "Resources/characters_packed.png",
+                from: Bundle.module
             ).asset
             let atlas = TextureAtlas(from: image, size: [20, 23], margin: [4, 1])
             app.insertResource(BunnyTexture(texture: AssetHandle(atlas[0, 0])))
@@ -50,12 +63,12 @@ struct BunnyExample: Plugin {
             app.insertResource(BunnyTexture(texture: AssetHandle(Texture2D.whiteTexture)))
         }
     }
-    
+
     private func setupUI(in app: AppWorlds) {
         // Create performance counter UI
         var container = TextAttributeContainer()
         container.foregroundColor = .white
-        
+
         app.main.spawn("PerformanceCounter") {
             TextComponent(text: AttributedText("Bunnies: 0\nFPS: 0", attributes: container))
             Transform(scale: Vector3(0.1), position: [-9, 8, 1])
@@ -63,7 +76,7 @@ struct BunnyExample: Plugin {
             PerformanceCounter()
         }
     }
-    
+
     private func setupSystems(in app: AppWorlds) {
         app
             .addSystem(BunnySpawnerSystem.self)
@@ -85,7 +98,7 @@ struct Bunny {
     private static let maxInitialVelocity: Float = 9000.0
 
     var velocity: Vector3
-    
+
     init() {
         // Initialize with random velocity
         let velocityX = Float.random(in: -Self.maxInitialVelocity...Self.maxInitialVelocity)
@@ -121,7 +134,7 @@ struct BunnySpawnerSystem {
     private var commands
 
     init(world: World) {}
-    
+
     func update(context: UpdateContext) {
         guard input.isMouseButtonPressed(.left) else {
             return
@@ -161,7 +174,7 @@ struct BunnySpawnerSystem {
             NoFrustumCulling()
         }
     }
-    
+
     private func getRandomColor() -> Color {
         return Color(
             red: Float.random(in: 0.3...1.0),
@@ -182,14 +195,14 @@ struct BunnyMovementSystem {
     private var deltaTime
 
     init(world: World) {}
-    
+
     func update(context: UpdateContext) async {
         let deltaTime = deltaTime.deltaTime
 
         await bunnies.parallel().forEach { bunny, transform in
             var velocity = bunny.velocity
             var position = transform.position
-            
+
             // Apply gravity
             velocity.y += BunnyExampleConstants.gravity * deltaTime
 
@@ -197,7 +210,7 @@ struct BunnyMovementSystem {
             if velocity.length > BunnyExampleConstants.maxVelocity {
                 velocity = velocity.normalized * BunnyExampleConstants.maxVelocity
             }
-            
+
             // Update position
             position += velocity * deltaTime
 
@@ -217,12 +230,12 @@ struct BunnyMovementSystem {
 struct BunnyCollisionSystem {
     @FilterQuery<Camera, With<GlobalTransform>>
     private var cameras
-    
+
     @Query<Ref<Bunny>, Ref<Transform>>
     private var bunnies
-    
+
     init(world: World) {}
-    
+
     func update(context: UpdateContext) async {
         // Get screen bounds from camera
         guard let camera = cameras.first else {
@@ -234,7 +247,7 @@ struct BunnyCollisionSystem {
 
         // Convert to world coordinates (simplified approach)
         let worldHalfExtents = halfExtents * camera.orthographicScale / 100.0
-        
+
         await bunnies.parallel().forEach { bunny, transform in
             var velocity = bunny.velocity
             var position = transform.position
@@ -245,17 +258,17 @@ struct BunnyCollisionSystem {
                (velocity.x <= 0 && position.x - halfBunnySize < -worldHalfExtents.x) {
                 velocity.x = -velocity.x
             }
-            
+
             // Check vertical bounds
             if velocity.y < 0 && position.y - halfBunnySize < -worldHalfExtents.y {
                 velocity.y = -velocity.y
             }
-            
+
             // Check top bound (stop upward velocity)
             if position.y + halfBunnySize > worldHalfExtents.y && velocity.y > 0 {
                 velocity.y = 0
             }
-            
+
             // Keep bunny in bounds
             position.x = max(
                 -worldHalfExtents.x + halfBunnySize,
@@ -282,7 +295,7 @@ struct BunnyCollisionSystem {
 struct PerformanceCounterSystem {
     @Query<Entity, Bunny>
     private var bunnies
-    
+
     @Query<Entity, Ref<PerformanceCounter>, Ref<TextComponent>>
     private var counters
 
@@ -290,27 +303,27 @@ struct PerformanceCounterSystem {
     private var deltaTime
 
     init(world: World) {}
-    
+
     func update(context: UpdateContext) {
         let bunnyCount = bunnies.count
         let deltaTime = deltaTime.deltaTime
-        
+
         counters.forEach { _, counter, textComponent in
             counter.bunnyCount = bunnyCount
             counter.frameCount += 1
             counter.lastUpdateTime += deltaTime
-            
+
             // Update FPS calculation every second
             if counter.lastUpdateTime >= 1.0 {
                 counter.fps = Float(counter.frameCount) / Float(counter.lastUpdateTime)
                 counter.frameCount = 0
                 counter.lastUpdateTime = 0
             }
-            
+
             // Update text
             var container = TextAttributeContainer()
             container.foregroundColor = .white
-            
+
             let text = unsafe "Bunnies: \(bunnyCount)\nFPS: \(String(format: "%.1f", counter.fps))"
             print(text)
             textComponent.text = AttributedText(text, attributes: container)

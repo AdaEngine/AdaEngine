@@ -84,6 +84,7 @@ extension LDtk {
         // swiftlint:disable:next cyclomatic_complexity function_body_length
         public func loadLevel(at index: Int) {
             guard let project else {
+                assertionFailure("LDtk Project is empty at path \(filePath)")
                 return
             }
 
@@ -97,11 +98,13 @@ extension LDtk {
 
             for layerInstance in level.layerInstances where layerInstance.visible {
                 guard let layer = self.layers.first(where: { $0.id == layerInstance.layerDefUid }) else {
-                    fatalError("Could not find a layer for id \(layerInstance.layerDefUid)")
+                    assertionFailure("Could not find a layer for id \(layerInstance.layerDefUid)")
+                    return
                 }
 
                 guard let projectLayer = project.defs.layers.first(where: { $0.uid == layerInstance.layerDefUid }) else {
-                    fatalError("Could not find a layer in project for id: \(layerInstance.layerDefUid)")
+                    assertionFailure("Could not find a layer in project for id: \(layerInstance.layerDefUid)")
+                    return
                 }
 
                 switch layerInstance.__type {
@@ -302,25 +305,25 @@ extension LDtk {
             at atlasCoordinates: PointInt,
             entityInstance: LDtk.EntityInstance
         ) {
-//            let entity = AdaECS.Entity(name: entityInstance.identifier)
-//
-//            if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TextureAtlasTileSource {
-//                let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
-//                
-//                if !source.hasTile(at: tileCoordinate) {
-//                    source.createTile(for: tileCoordinate)
-//                }
-//                
-//                let data = source.getTileData(at: tileCoordinate)
-//                let texture = source.getTexture(at: tileCoordinate)
-//                entity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: data.modulateColor)
-//            }
-//
-//            if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {
-//                self.delegate?.tileMap(ldtkTileMap, needsUpdate: entity, from: entityInstance, in: self)
-//            }
-//
-//            self.createTile(at: atlasCoordinates, for: entity)
+            let entity = AdaECS.Entity(name: entityInstance.identifier)
+
+            if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TextureAtlasTileSource {
+                let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
+                
+                if !source.hasTile(at: tileCoordinate) {
+                    source.createTile(for: tileCoordinate)
+                }
+                
+                let data = source.getTileData(at: tileCoordinate)
+                let texture = source.getTexture(at: tileCoordinate)
+                entity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: data.modulateColor)
+            }
+
+            if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {
+                self.delegate?.tileMap(ldtkTileMap, needsUpdate: entity, from: entityInstance, in: self)
+            }
+
+            self.createTile(at: atlasCoordinates, for: entity)
         }
     }
 }

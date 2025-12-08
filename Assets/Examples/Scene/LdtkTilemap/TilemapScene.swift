@@ -1,56 +1,72 @@
-////
-////  TilemapScene.swift
-////
-////
-////  Created by v.prusakov on 5/4/24.
-////
 //
-//import AdaEngine
+//  TilemapScene.swift
 //
-//final class LdtkTilemapScene: Scene, TileMapDelegate, @unchecked Sendable {
-//    override func sceneDidMove(to view: SceneView) {
-//        
-//        let cameraEntity = OrthographicCamera()
-//        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
-//        cameraEntity.camera.clearFlags = .solid
-//        cameraEntity.camera.orthographicScale = 10.5
-//        
-//        self.world.addEntity(cameraEntity)
-//        
-//        var transform = Transform()
-//        transform.position.y = -0.5
-//        transform.scale = Vector3(0.5)
-//        
-//        do {
-//            let tileMap = try AssetsManager.loadSync(
-//                LDtk.TileMap.self, 
-//                at: "Assets/TestTileMap.ldtk", 
-//                from: .editor
-//            ).asset
-//            tileMap.delegate = self
-//            tileMap.loadLevel(at: 0)
-//            
-//            let tilemapEnt = Entity {
-//                TileMapComponent(tileMap: tileMap)
-//                NoFrustumCulling()
-//                transform
-//            }
-//            
-//            self.world.addEntity(tilemapEnt)
-//        } catch {
-//            fatalError("Failed to load \(error)")
-//        }
-//        
-//        self.world.addSystem(CamMovementSystem.self)
-//    }
-//    
-//    // MARK: - LDtk.EntityTileSourceDelegate
-//    
-//    func tileMap(_ tileMap: LDtk.TileMap, needsUpdate entity: Entity, from instance: LDtk.EntityInstance, in tileSource: LDtk.EntityTileSource) {
-//        
-//    }
-//}
 //
+//  Created by v.prusakov on 5/4/24.
+//
+
+import AdaEngine
+
+@main
+struct LdtkTilemapApp: App {
+    var body: some AppScene {
+        EmptyWindow()
+            .addPlugins(
+                LdtkTilemapPlugin(),
+                DefaultPlugins()
+            )
+            .windowMode(.windowed)
+    }
+}
+
+
+final class LdtkTilemapPlugin: Plugin {
+    func setup(in app: borrowing AppWorlds) {
+        app.main.spawn(
+            bundle: OrthographicCameraBundle(
+                camera: Camera()
+                    .setBackgroundColor(Color(135/255, 206/255, 235/255, 1))
+                    .setOrthographicScale(10.5)
+            )
+        )
+
+        var transform = Transform()
+        transform.position.y = -0.5
+        transform.scale = Vector3(0.5)
+
+        do {
+            let tileMap = try AssetsManager.loadSync(
+                LDtk.TileMap.self,
+                at: "Resources/TestTileMap.ldtk",
+                from: .module
+            ).asset
+            tileMap.delegate = self
+            tileMap.loadLevel(at: 0)
+
+            app.main.spawn {
+                TileMapComponent(tileMap: tileMap)
+                NoFrustumCulling()
+                transform
+            }
+        } catch {
+            fatalError("Failed to load \(error)")
+        }
+
+        app.main.addSystem(CamMovementSystem.self)
+    }
+}
+
+extension LdtkTilemapPlugin: TileMapDelegate {
+    func tileMap(
+        _ tileMap: LDtk.TileMap,
+        needsUpdate entity: Entity,
+        from instance: LDtk.EntityInstance,
+        in tileSource: LDtk.EntityTileSource
+    ) {
+
+    }
+}
+
 //final class TilemapScene: Scene, @unchecked Sendable {
 //    
 //    enum TileAtlasCoordinates {
@@ -249,52 +265,57 @@
 //        return TileAtlasCoordinates.plain
 //    }
 //}
-//
-//struct CamMovementSystem: System {
-//    
-//    static let cameraQuery = EntityQuery(where: .has(Camera.self) && .has(Transform.self))
-//    static let tileMap = EntityQuery(where: .has(TileMapComponent.self))
-//    
-//    init(world: World) { }
-//    
-//    func update(context: UpdateContext) {
-//        let cameraEntity: Entity = context.world.performQuery(Self.cameraQuery).first!
-////        let tileEntity: Entity = context.world.performQuery(Self.tileMap).first!
-//        
-////        if Input.isKeyPressed(.m) {
-////            tileEntity.components[TileMapComponent.self]!.tileMap.layers[0].isEnabled.toggle()
-////        }
-//        
-//        var (camera, cameraTransform) = cameraEntity.components[Camera.self, Transform.self]
-//        
-//        let speed: Float = Input.isKeyPressed(.space) ? 5 : 2
-//        let speedNormalized: Float = speed * context.deltaTime
-//        
-//        if Input.isKeyPressed(.w) {
-//            cameraTransform.position.y += speedNormalized
-//        }
-//        
-//        if Input.isKeyPressed(.s) {
-//            cameraTransform.position.y -= speedNormalized
-//        }
-//        
-//        if Input.isKeyPressed(.a) {
-//            cameraTransform.position.x -= speedNormalized
-//        }
-//        
-//        if Input.isKeyPressed(.d) {
-//            cameraTransform.position.x += speedNormalized
-//        }
-//        
-//        if Input.isKeyPressed(.arrowUp) {
-//            camera.orthographicScale -= speedNormalized
-//        }
-//        
-//        if Input.isKeyPressed(.arrowDown) {
-//            camera.orthographicScale += speedNormalized
-//        }
-//        
-//        cameraEntity.components += cameraTransform
-//        cameraEntity.components += camera
-//    }
-//}
+
+@PlainSystem
+struct CamMovementSystem {
+
+    @Query<Ref<Camera>, Ref<Transform>>
+    private var cameras
+
+    @Query<TileMapComponent>
+    private var tileMaps
+
+    @Res<Input>
+    private var input
+
+    @Res<DeltaTime>
+    private var deltaTime
+
+    init(world: World) { }
+    
+    func update(context: UpdateContext) {
+        let (camera, cameraTransform) = cameras.first!
+        let tileMap = tileMaps.first!
+
+        if input.isKeyPressed(.m) {
+            tileMap.tileMap.layers[0].isEnabled.toggle()
+        }
+        
+        let speed: Float = input.isKeyPressed(.space) ? 5 : 2
+        let speedNormalized: Float = speed * deltaTime.deltaTime
+
+        if input.isKeyPressed(.w) {
+            cameraTransform.position.y += speedNormalized
+        }
+        
+        if input.isKeyPressed(.s) {
+            cameraTransform.position.y -= speedNormalized
+        }
+        
+        if input.isKeyPressed(.a) {
+            cameraTransform.position.x -= speedNormalized
+        }
+        
+        if input.isKeyPressed(.d) {
+            cameraTransform.position.x += speedNormalized
+        }
+        
+        if input.isKeyPressed(.arrowUp) {
+            camera.orthographicScale -= speedNormalized
+        }
+        
+        if input.isKeyPressed(.arrowDown) {
+            camera.orthographicScale += speedNormalized
+        }
+    }
+}

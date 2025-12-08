@@ -10,10 +10,10 @@ struct SceneLoadApp: App {
         ComponentC.registerComponent()
 
         // Register system to be able to load it from the scene file
-        PlayerSystem.registerSystem()
+//        PlayerSystem.registerSystem()
     }
 
-    var scene: some AppScene {
+    var body: some AppScene {
         WindowGroup {
             SceneLoadView()
         }
@@ -36,10 +36,10 @@ struct SceneLoadView: View {
         Task {
             do {
                 // Load scene from the bundle in `Resources` directory.
-                let scene: Scene = try await AssetsManager.load("TestScene.ascn", from: Bundle.module)
-                let entities = scene.world.getEntities()
-                print("scene: \(scene.name) entities: \(entities.count)")
-                print("entities:", entities.map { 
+                let scene = try await AssetsManager.load(Scene.self, at: "TestScene.ascn", from: Bundle.module)
+                let entities = scene.asset.world.getEntities()
+                print("scene: \(scene.asset.name) entities: \(entities.count)")
+                print("entities:", entities.map {
                     "\n- name: \($0.name)\n  components: -\n\($0.components)\n"
                 })
             } catch {
@@ -50,24 +50,22 @@ struct SceneLoadView: View {
 
     private func saveScene() {
         let scene = Scene(name: "TestScene")
-        scene.world.addEntity(
-            Entity(name: "Player") {
-                Transform(position: [10, 10, 0])
-                ComponentA(value: 10)
-                ComponentB(value: "Hello", ignoredValue: .init(wrappedValue: 10))
-            }
-        )
-        scene.world.addEntity(Entity(name: "Enemy") {
+        scene.world.spawn("Player") {
+            Transform(position: [10, 10, 0])
+            ComponentA(value: 10)
+            ComponentB(value: "Hello", ignoredValue: .init(wrappedValue: 10))
+        }
+        scene.world.spawn("Enemy") {
             Transform(position: [20, 20, 0])
             ComponentA(value: 20)
             ComponentB(value: "World", ignoredValue: .init(wrappedValue: 20))
-        })
-        scene.world.addEntity(Entity(name: "Enemy") {
+        }
+        scene.world.spawn("Enemy") {
             Transform(position: [30, 30, 0])
             ComponentA(value: 30)
             ComponentC(value: "Enemy 2")
             ComponentB(value: "Enemy", ignoredValue: .init(wrappedValue: 30))
-        })
+        }
 
         scene.world.addSystem(PlayerSystem.self)
 
@@ -103,16 +101,18 @@ struct ComponentC {
 }
 
 
-extension Int: @retroactive DefaultValue {
+extension Int: DefaultValue {
     public static var defaultValue: Int {
         return 0
     }
 }
 
-struct PlayerSystem: System {
+@PlainSystem
+struct PlayerSystem {
 
     init(world: World) { }
 
-    func update(context: UpdateContext) { }
-}
+    func update(context: UpdateContext) async {
 
+    }
+}
