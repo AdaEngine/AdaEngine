@@ -39,7 +39,7 @@ final class LdtkTilemapPlugin: Plugin {
                 LDtk.TileMap.self,
                 at: "Resources/TestTileMap.ldtk",
                 from: .module
-            ).asset
+            ).asset!
             tileMap.delegate = self
             tileMap.loadLevel(at: 0)
 

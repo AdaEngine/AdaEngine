@@ -35,7 +35,10 @@ public extension Entity {
         guard self.components.has(RelationshipComponent.self) else {
             return []
         }
-        let relationship = self.components.get(RelationshipComponent.self)
+        let relationship = self.components.getOrCreate(
+            for: RelationshipComponent.self,
+            default: RelationshipComponent()
+        )
 
         return relationship.children.compactMap {
             self.world?.getEntityByID($0)
@@ -47,7 +50,11 @@ public extension Entity {
         guard self.components.has(RelationshipComponent.self) else {
             return nil
         }
-        let relationship = self.components.get(RelationshipComponent.self)
+        let relationship = self.components.getOrCreate(
+            for: RelationshipComponent.self,
+            default: RelationshipComponent()
+        )
+        
         guard let parent = relationship.parent else {
             return nil
         }

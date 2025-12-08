@@ -302,6 +302,28 @@ public extension World {
         return self
     }
 
+    /// Remove entity by id from world.
+    /// - Parameter recursively: also remove entity child.
+    /// - Returns: A world instance.
+    @discardableResult
+    func removeEntity(_ entity: borrowing Entity.ID, recursively: Bool = false) -> Self {
+        guard let entity = self.getEntityByID(entity) else {
+            return self
+        }
+
+        self.removeEntityRecord(entity.id)
+
+        guard recursively && !entity.children.isEmpty else {
+            return self
+        }
+
+        for child in entity.children {
+            self.removeEntity(child, recursively: recursively)
+        }
+
+        return self
+    }
+
     /// Remove entity from world.
     /// - Note: Entity will removed on next `update` call.
     /// - Parameter recursively: also remove entity child.

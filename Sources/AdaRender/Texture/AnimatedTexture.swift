@@ -118,13 +118,13 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         let options: Options
     }
     
-    public convenience required init(from decoder: AssetDecoder) throws {
+    public convenience required init(from decoder: AssetDecoder) async throws {
         guard Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) else {
             throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
         }
         
         let asset = try decoder.decode(AssetRepresentation.self)
-        
+
         self.init()
         
         self.framesCount = asset.framesCount
@@ -137,7 +137,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         }
     }
     
-    public override func encodeContents(with encoder: any AssetEncoder) throws {
+    public override func encodeContents(with encoder: any AssetEncoder) async throws {
         guard var container = encoder.encoder?.singleValueContainer() else {
             return
         }

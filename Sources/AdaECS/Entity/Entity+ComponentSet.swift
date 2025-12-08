@@ -27,7 +27,7 @@ public extension Entity {
         }
 
         /// Components that are not flushed to the world.
-        private(set) var notFlushedComponents: SparseSet<ComponentId, any Component> = [:]
+        var notFlushedComponents: SparseSet<ComponentId, any Component> = [:]
 
         // MARK: - Codable
         
@@ -120,6 +120,23 @@ public extension Entity {
             }
         }
 
+
+        public func getOrCreate<T: Component>(
+            for type: T.Type,
+            default: T
+        ) -> T {
+            if let world {
+                if let value = world.get(T.self, from: entity) {
+                    return value
+                } else {
+                    world.insert(`default`, for: entity)
+                    return `default`
+                }
+            } else {
+                return notFlushedComponents[T.identifier, default: `default`] as! T
+            }
+        }
+
         /// Set the component of the specified type.
         @inline(__always)
         public mutating func insert<T>(_ component: consuming T) where T : Component {
@@ -147,7 +164,7 @@ public extension Entity {
         }
 
         /// Returns `true` if the collections contains a component of the specified type.
-        public func has(_ componentType: Component.Type) -> Bool {
+        public func has(_ componentType: any Component.Type) -> Bool {
             return has(componentType.identifier)
         }
 
@@ -160,7 +177,7 @@ public extension Entity {
         }
 
         /// Removes the component of the specified type from the collection.
-        public mutating func remove(_ componentType: Component.Type) {
+        public mutating func remove(_ componentType: any Component.Type) {
             guard let world else {
                 self.notFlushedComponents.remove(for: componentType.identifier)
                 return

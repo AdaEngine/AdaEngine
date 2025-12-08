@@ -55,7 +55,7 @@ struct BunnyExample: Plugin {
                 Image.self,
                 at: "Resources/characters_packed.png",
                 from: Bundle.module
-            ).asset
+            ).asset!
             let atlas = TextureAtlas(from: image, size: [20, 23], margin: [4, 1])
             app.insertResource(BunnyTexture(texture: AssetHandle(atlas[0, 0])))
         } catch {
