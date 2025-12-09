@@ -12,18 +12,34 @@ import Logging
 import Collections
 
 /// Execute ``RenderGraph`` objects.
-@RenderGraphActor
-public class RenderGraphExecutor {
+public struct RenderGraphExecutor: Sendable {
 
-    public nonisolated init() {}
+    public init() {}
 
     /// Execute ``RenderGraph`` for specific ``World``.
-    public func execute(_ graph: RenderGraph, in world: World) async throws {
-        try await self.executeGraph(graph, world: world, inputResources: [], viewEntity: nil)
+    public func execute(
+        _ graph: RenderGraph,
+        renderDevice: RenderDevice,
+        in world: World
+    ) async throws {
+        let renderContext = RenderContext(device: renderDevice, commandQueue: renderDevice.createCommandQueue())
+        try await self.executeGraph(
+            graph,
+            renderContext: renderContext,
+            world: world,
+            inputResources: [],
+            viewEntity: nil
+        )
     }
     
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    private func executeGraph(_ graph: RenderGraph, world: World, inputResources: [RenderSlotValue], viewEntity: Entity?) async throws {
+    private func executeGraph(
+        _ graph: RenderGraph,
+        renderContext: RenderContext,
+        world: World,
+        inputResources: [RenderSlotValue],
+        viewEntity: Entity?
+    ) async throws {
         let tracer = Logger(label: "RenderGraph")
         tracer.trace("Begin Render Graph Frame")
 
@@ -78,17 +94,22 @@ public class RenderGraphExecutor {
                 }
             }
             let inputs = inputSlots.sorted(by: { $0.0 > $1.0 }).map { $0.1 }
-            let context = RenderGraphContext(
+            var context = RenderGraphContext(
                 graph: graph,
                 world: world,
-                device: RenderEngine.shared.renderDevice,
                 inputResources: inputs,
                 tracer: tracer,
                 viewEntity: viewEntity
             )
-            let outputs = try await currentNode.node.execute(context: context)
-            for (subGraph, inputValues, viewEntity) in context.pendingSubgraphs {
-                try await self.executeGraph(subGraph, world: world, inputResources: inputValues, viewEntity: viewEntity)
+            let outputs = try await currentNode.node.execute(context: &context, renderContext: renderContext)
+            for subGraph in context.pendingSubgraphs {
+                try await self.executeGraph(
+                    subGraph.graph,
+                    renderContext: renderContext,
+                    world: world,
+                    inputResources: subGraph.inputs,
+                    viewEntity: subGraph.viewEntity
+                )
             }
 
             precondition(outputs.count == currentNode.node.outputResources.count)

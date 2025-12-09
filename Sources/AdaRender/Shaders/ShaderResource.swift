@@ -124,8 +124,8 @@ extension ShaderResource.ResourceType {
 extension ShaderValueType {
     // swiftlint:disable:next cyclomatic_complexity
     init?(typeId: spvc_type_id, compiler: spvc_compiler) {
-        let type = spvc_compiler_get_type_handle(compiler, typeId)
-        let baseType = spvc_type_get_basetype(type)
+        let type = unsafe spvc_compiler_get_type_handle(compiler, typeId)
+        let baseType = unsafe spvc_type_get_basetype(type)
         switch baseType {
         case SPVC_BASETYPE_BOOLEAN:
             self = .bool
@@ -134,8 +134,8 @@ extension ShaderValueType {
         case SPVC_BASETYPE_UINT8:
             self = .char
         case SPVC_BASETYPE_FP32:
-            let vectorCount = spvc_type_get_vector_size(type)
-            let columnCount = spvc_type_get_columns(type)
+            let vectorCount = unsafe spvc_type_get_vector_size(type)
+            let columnCount = unsafe spvc_type_get_columns(type)
             
             if columnCount == 3 {
                 self = .mat3

@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 4/2/23.
 //
 
+import AdaECS
 @_spi(Internal) import AdaRender
 import Math
 
@@ -15,45 +16,56 @@ struct Mesh2DUniform {
 
 /// Contians logic for drawing 2D Meshes.
 public struct Mesh2DDrawPass: DrawPass {
-    
+    public typealias Item = Transparent2DRenderItem
+
     public static let meshUniformBinding: Int = 2
     
     public init() { }
     
-    public func render(in context: Context, item: Transparent2DRenderItem) throws {
-        let meshComponent = item.entity.components[ExctractedMeshPart2d.self]!
-        
+    public func render(
+        with renderEncoder: RenderCommandEncoder,
+        world: World,
+        view: Entity,
+        item: Transparent2DRenderItem
+    ) throws {
+        guard let entity = world.getEntityByID(item.entity) else {
+            return
+        }
+
+        let meshComponent = entity.components.get(ExctractedMeshPart2d.self)
         let part = meshComponent.part
-        let drawList = context.drawList
-        
-        guard let materialData = MaterialStorage.shared.getMaterialData(for: meshComponent.material) else {
+        guard let materialData = unsafe MaterialStorage.shared.getMaterialData(for: meshComponent.material) else {
             return
         }
         
-        guard let cameraViewUniform = context.view.components[GlobalViewUniformBufferSet.self] else {
+        guard let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self] else {
             return
         }
-        
+
+        renderEncoder.pushDebugName("Mesh 2D Render")
+        defer {
+            renderEncoder.popDebugName()
+        }
+
         let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,
             frameIndex: RenderEngine.shared.currentFrameIndex
         )
-        drawList.appendUniformBuffer(uniformBuffer, for: .vertex)
         
-        drawList.pushDebugName("Mesh 2D Render")
-        
+        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
+
         for (uniformName, buffer) in materialData.reflectionData.shaderBuffers {
             guard let uniformBuffer = materialData.uniformBufferSet[uniformName]?.getBuffer(binding: buffer.binding, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex) else {
                 continue
             }
             
             if buffer.shaderStage.contains(.vertex) {
-                drawList.appendUniformBuffer(uniformBuffer, for: .vertex)
+                renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: buffer.binding)
             }
             
             if buffer.shaderStage.contains(.fragment) {
-                drawList.appendUniformBuffer(uniformBuffer, for: .fragment)
+                renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, index: buffer.binding)
             }
         }
         
@@ -63,23 +75,20 @@ public struct Mesh2DDrawPass: DrawPass {
             }
             
             for texture in textures {
-                drawList.bindTexture(texture, at: resource.binding)
+                renderEncoder.setFragmentTexture(texture, index: resource.binding)
+                renderEncoder.setFragmentSamplerState(texture.sampler, index: resource.binding)
             }
         }
         
-        let meshUniformBuffer = context.device.createUniformBuffer(Mesh2DUniform.self, binding: Self.meshUniformBinding)
-        meshUniformBuffer.setData(meshComponent.modelUniform)
+        unsafe withUnsafeBytes(of: meshComponent.modelUniform) { buffer in
+            unsafe renderEncoder.setVertexBytes(buffer.baseAddress!, length: buffer.count, index: Self.meshUniformBinding)
+        }
         
-        meshUniformBuffer.setData(meshComponent.modelUniform)
+        renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, index: 0)
+        renderEncoder.setIndexBuffer(part.indexBuffer, offset: 0)
+        renderEncoder.setRenderPipelineState(item.renderPipeline)
         
-        drawList.appendUniformBuffer(meshUniformBuffer, for: .vertex)
-        
-        drawList.appendVertexBuffer(part.vertexBuffer)
-        drawList.bindIndexBuffer(part.indexBuffer)
-        drawList.bindIndexPrimitive(part.primitiveTopology.indexPrimitive)
-        drawList.bindRenderPipeline(item.renderPipeline)
-        
-        drawList.drawIndexed(indexCount: part.indexCount, instanceCount: 1)
+        renderEncoder.drawIndexed(indexCount: part.indexCount, indexBufferOffset: 0, instanceCount: 1)
     }
 }
 

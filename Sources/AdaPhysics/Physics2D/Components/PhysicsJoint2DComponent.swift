@@ -33,6 +33,7 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
 }
 
 @Component
+@safe
 public struct PhysicsJoint2DComponent: @unchecked Sendable {
     let jointDescriptor: PhysicsJoint2DDescriptor
     

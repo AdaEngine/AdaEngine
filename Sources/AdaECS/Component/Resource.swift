@@ -5,11 +5,34 @@
 //  Created by Vladislav Prusakov on 23.05.2025.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// The singleton resource that passed to the ecs world.
 /// Only one instance of the resource is allowed in the world.
-public protocol Resource: Sendable { }
+public protocol Resource: Sendable {
+    static func getFromWorld(_ world: borrowing World) -> Self?
+}
+
+public extension Resource {
+    /// Get a resource from the world.
+    /// - Parameter world: The world to get the resource from.
+    /// - Returns: The resource if it exists, otherwise nil.
+    static func getFromWorld(_ world: borrowing World) -> Self? {
+        world.getResource(Self.self)
+    }
+}
+
+/// Init the object from a world
+public protocol WorldInitable: Sendable {
+    /// Initialize the resource from a world.
+    /// - Parameter world: The world to initialize the resource from.
+    /// - Returns: The initialized resource.
+    init(from world: World)
+}
 
 // TODO: (Vlad) Add components list to editor and generate file with registered components.
 // TODO: (Vlad) We can think about `swift_getMangledTypeName` and `swift_getTypeByMangledNameInContext`
@@ -48,10 +71,10 @@ enum ResourceStorage {
     
     /// Return registered resource or try to find it by NSClassFromString (works only for objc runtime)
     static func getRegisteredResource(for name: String) -> Resource.Type? {
-        return self.registeredResources[name] ?? (NSClassFromString(name) as? Resource.Type)
+        return unsafe self.registeredResources[name] ?? (NSClassFromString(name) as? Resource.Type)
     }
     
     static func addResource<T: Resource>(_ type: T.Type) {
-        self.registeredResources[T.swiftName] = type
+        unsafe self.registeredResources[T.swiftName] = type
     }
 }

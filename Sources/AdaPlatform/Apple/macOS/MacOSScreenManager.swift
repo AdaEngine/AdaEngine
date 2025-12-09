@@ -40,12 +40,12 @@ class MacOSScreenManager: ScreenManager {
         var service: io_object_t = 1
         var brighntess: Float = 1.0
         
-        let dict: CFDictionary = IOServiceMatching("IODisplayConnect")!
-        let result = IOServiceGetMatchingServices(kIOMainPortDefault, dict, &iterator)
+        let dict: CFDictionary = unsafe IOServiceMatching("IODisplayConnect")!
+        let result = unsafe IOServiceGetMatchingServices(kIOMainPortDefault, dict, &iterator)
         if result == KERN_SUCCESS {
             while service != 0 {
                 service = IOIteratorNext(iterator)
-                IODisplayGetFloatParameter(service, 0, kIODisplayBrightnessKey as CFString, &brighntess)
+                unsafe IODisplayGetFloatParameter(service, 0, kIODisplayBrightnessKey as CFString, &brighntess)
                 IOObjectRelease(service)
             }
         }

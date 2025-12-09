@@ -13,23 +13,19 @@ import SwiftSyntaxMacroExpansion
 import SwiftSyntaxMacros
 
 public struct SystemMacro: MemberMacro {
-
     public static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
         in context: some MacroExpansionContext
     ) throws -> [DeclSyntax] {
-        // Find all properties with SystemQuery attribute
+        // Find all properties with SystemParameter attribute
         let entityQueries = declaration.memberBlock.members.compactMap { member -> String? in
             guard let varDecl = member.decl.as(VariableDeclSyntax.self) else { return nil }
-            let hasEntityQueryAttribute = varDecl.attributes.contains { attribute in
-                guard let attributeName = attribute.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self)?.name.text else {
-                    return false
-                }
-                return attributeName.hasSuffix("Query") || attributeName == "Extract"
+            let hasPropertyWrapperAttribute = varDecl.attributes.contains { attribute in
+                return attribute.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self) != nil
             }
             
-            guard hasEntityQueryAttribute,
+            guard hasPropertyWrapperAttribute,
                   let binding = varDecl.bindings.first,
                   let identifier = binding.pattern.as(IdentifierPatternSyntax.self)?.identifier.text else {
                 return nil
@@ -124,6 +120,17 @@ extension SystemMacro: PeerMacro {
         let funcName = funcDecl.name.text
         let params = funcDecl.signature.parameterClause.parameters
         let availability = funcDecl.modifiers
+        
+        // Check if function is async or has actor attributes
+        let isAsync = funcDecl.signature.effectSpecifiers?.asyncSpecifier != nil
+        let hasActorAttribute = funcDecl.attributes.contains { attribute in
+            guard let attributeName = attribute.as(AttributeSyntax.self)?.attributeName.as(IdentifierTypeSyntax.self)?.name.text else {
+                return false
+            }
+            return attributeName.hasSuffix("Actor") || attributeName == "MainActor"
+        }
+        
+        let needsAwait = isAsync || hasActorAttribute
 
         // Get dependencies from macro arguments
         var dependencies: [String] = []
@@ -148,7 +155,7 @@ extension SystemMacro: PeerMacro {
         // Generate property declarations and type list for queries
         var propertyDecls: [String] = []
         var queryVars: [String] = []
-        var paramNames: [(Bool, String)] = []
+        var paramNames: [SystemInputParameter] = []
 
         for param in params {
             let isAnonymosParam = param.firstName.text == "_"
@@ -160,9 +167,28 @@ extension SystemMacro: PeerMacro {
 
             let defaultValue = param.defaultValue?.value.description
             let typeString = param.type.trimmedDescription
-            propertyDecls.append("@\(typeString)\nprivate var \(paramName)\(defaultValue != nil ? " = \(defaultValue!)" : "")")
-            queryVars.append("_\(paramName)")
-            paramNames.append((isAnonymosParam, paramName))
+            
+            // Check for special types that shouldn't be added to propertyDecls
+            var specialType: SystemInputParameter.SpecialType = .none
+            if typeString.hasSuffix("WorldUpdateContext") || typeString.hasSuffix("UpdateContext") {
+                specialType = .context
+            }
+            if typeString.hasSuffix("World") || typeString.hasSuffix(".World") {
+                specialType = .world
+            }
+
+            if specialType == .none {
+                propertyDecls.append("@\(typeString)\nprivate var \(paramName)\(defaultValue != nil ? " = \(defaultValue!)" : "")")
+                queryVars.append("_\(paramName)")
+            }
+            paramNames.append(
+                SystemInputParameter(
+                    isAnonymosParam: isAnonymosParam, 
+                    isInoutParam: false,
+                    paramName: paramName,
+                    specialType: specialType
+                )
+            )
         }
         
         // Generate struct body
@@ -172,8 +198,8 @@ extension SystemMacro: PeerMacro {
         
         \(availability)init(world: AdaECS.World) { }
         
-        \(availability)func update(context: inout UpdateContext) {
-            \(raw: funcName)(\(raw: paramNames.map { "\($0 ? "" : "\($1): ")_\($1)" }.joined(separator: ", ")))
+        \(availability)func update(context: UpdateContext)\(raw: needsAwait ? " async" : "") {
+            \(raw: needsAwait ? "await " : "")\(raw: funcName)(\(raw: paramNames.map { $0.buildParameter() }.joined(separator: ", ")))
         }
         
         \(availability) var queries: AdaECS.SystemQueries {
@@ -184,5 +210,41 @@ extension SystemMacro: PeerMacro {
         }
         """
         return [structDecl]
+    }
+
+    struct SystemInputParameter {
+        enum SpecialType {
+            case world
+            case context
+            case commands
+            case none
+        }
+
+        let isAnonymosParam: Bool
+        let isInoutParam: Bool
+        let paramName: String
+        let specialType: SpecialType
+
+        func buildParameter() -> String {
+            let functionParam = if isAnonymosParam {
+                ""
+            } else {
+                "\(paramName): "
+            }
+            let propertyParam = if isInoutParam {
+                "&\(paramName)"
+            } else {
+                switch specialType {
+                case .world:
+                    "context.\(paramName)"
+                case .context:
+                    "context"
+                default:
+                    "_\(paramName)"
+                }
+            }
+
+            return "\(functionParam)\(propertyParam)"
+        }
     }
 }

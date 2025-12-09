@@ -14,43 +14,42 @@ import Math
 // - TODO: (Vlad) Runtime update shape resource
 
 /// A system for simulate and update physics bodies on the scene.
-@System
+@PlainSystem
 public struct Physics2DSystem: Sendable {
 
     public init(world: World) { }
 
-    @Query<Entity, Ref<PhysicsBody2DComponent>, Ref<Transform>>(filter: [.stored, .added])
+    @Query<Entity, Ref<PhysicsBody2DComponent>, Ref<Transform>>
     private var physicsBodyQuery
     
-    @Query<Entity, Ref<Collision2DComponent>, Ref<Transform>>(filter: [.stored, .added])
+    @Query<Entity, Ref<Collision2DComponent>, Ref<Transform>>
     private var collisionQuery
     
     @Query<Entity, Ref<PhysicsJoint2DComponent>, Ref<Transform>>
     private var jointsQuery
     
-    @ResQuery<Physics2DWorldComponent>
+    @Res<Physics2DWorldComponent>
     private var physicsWorld
 
-    public func update(context: inout UpdateContext) {
-        let deltaTime = context.deltaTime
-        context.taskGroup.addTask { @MainActor in
-            guard let world = self.physicsWorld?.world else {
-                return
-            }
+    @Res<FixedTime>
+    private var fixedTime
 
-            world.updateSimulation(deltaTime)
-            world.processContacts()
-            world.processSensors()
-            self.updatePhysicsBodyEntities(in: world)
-            self.updateCollisionEntities(in: world)
-        }
+    @MainActor
+    public func update(context: UpdateContext) {
+        let deltaTime = fixedTime.deltaTime
+        let world = self.physicsWorld.world
+        world.updateSimulation(deltaTime)
+        world.processContacts()
+        world.processSensors()
+        self.updatePhysicsBodyEntities(in: world)
+        self.updateCollisionEntities(in: world)
     }
     
     // MARK: - Private
     
     @MainActor
     private func updatePhysicsBodyEntities(in world: PhysicsWorld2D) {
-        for (entity, physicsBody, transform) in self.physicsBodyQuery {
+        self.physicsBodyQuery.forEach { (entity, physicsBody, transform) in
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
                     body.setTransform(
@@ -67,29 +66,29 @@ public struct Physics2DSystem: Sendable {
                 body.massData.mass = physicsBody.massProperties.mass
             } else {
                 var def = b2DefaultBodyDef()
-                def.fixedRotation = physicsBody.fixedRotation
-                def.position = transform.position.xy.b2Vec
-                def.type = physicsBody.mode.b2Type
+                unsafe def.fixedRotation = physicsBody.fixedRotation
+                unsafe def.position = transform.position.xy.b2Vec
+                unsafe def.type = physicsBody.mode.b2Type
 
-                let body = world.createBody(with: def, for: entity)
+                let body = unsafe world.createBody(with: def, for: entity)
                 physicsBody.runtimeBody = body
 
                 for shapeResource in physicsBody.wrappedValue.shapes {
                     var shapeDef = b2DefaultShapeDef()
-                    shapeDef.density = physicsBody.material.density
-                    shapeDef.restitution = physicsBody.material.restitution
-                    shapeDef.friction = physicsBody.material.friction
-                    shapeDef.filter = physicsBody.filter.b2Filter
-                    
+                    unsafe shapeDef.density = physicsBody.material.density
+                    unsafe shapeDef.restitution = physicsBody.material.restitution
+                    unsafe shapeDef.friction = physicsBody.material.friction
+                    unsafe shapeDef.filter = physicsBody.filter.b2Filter
+
                     if physicsBody.wrappedValue.isTrigger {
-                        shapeDef.isSensor = true
+                        unsafe shapeDef.isSensor = true
                     }
                     
                     if let debugColor = physicsBody.debugColor {
-                        shapeDef.customColor = UInt32(debugColor.toHex)
+                        unsafe shapeDef.customColor = UInt32(debugColor.toHex)
                     }
                     
-                    body.appendShape(
+                    unsafe body.appendShape(
                         shapeResource,
                         transform: transform.wrappedValue,
                         shapeDef: shapeDef
@@ -116,7 +115,7 @@ public struct Physics2DSystem: Sendable {
 
     @MainActor
     private func updateCollisionEntities(in world: PhysicsWorld2D) {
-        for (entity, collisionBody, transform) in collisionQuery {
+        collisionQuery.forEach { (entity, collisionBody, transform) in
             if let body = collisionBody.runtimeBody {
                 if body.getPosition() != transform.position.xy {
                     body.setTransform(
@@ -126,23 +125,23 @@ public struct Physics2DSystem: Sendable {
                 }
             } else {
                 var def = b2DefaultBodyDef()
-                def.position = transform.position.xy.b2Vec
-                def.type = b2_staticBody
+                unsafe def.position = transform.position.xy.b2Vec
+                unsafe def.type = b2_staticBody
 
-                let body = world.createBody(with: def, for: entity)
+                let body = unsafe world.createBody(with: def, for: entity)
                 collisionBody.runtimeBody = body
 
                 for shapeResource in collisionBody.wrappedValue.shapes {
                     var shapeDef = b2DefaultShapeDef()
-                    shapeDef.density = 1
+                    unsafe shapeDef.density = 1
                     if let debugColor = collisionBody.debugColor {
-                        shapeDef.customColor = UInt32(debugColor.toHex)
+                        unsafe shapeDef.customColor = UInt32(debugColor.toHex)
                     }
-                    shapeDef.filter = collisionBody.filter.b2Filter
+                    unsafe shapeDef.filter = collisionBody.filter.b2Filter
                     if case .trigger = collisionBody.mode {
-                        shapeDef.isSensor = true
+                        unsafe shapeDef.isSensor = true
                     }
-                    body.appendShape(
+                    unsafe body.appendShape(
                         shapeResource,
                         transform: transform.wrappedValue,
                         shapeDef: shapeDef

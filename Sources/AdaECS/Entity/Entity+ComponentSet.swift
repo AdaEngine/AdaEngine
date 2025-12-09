@@ -5,49 +5,48 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import AdaUtils
 import Collections
 
 public extension Entity {
-    
     /// Hold entity components specific for entity.
     struct ComponentSet: Codable, Sendable {
         @_spi(Internal)
-        public weak var entity: Entity?
-        
-        var world: World? {
-            return self.entity?.world
-        }
-        
-        let lock = NSRecursiveLock()
+        public var entity: Entity.ID
 
-        @_spi(Internal)
-        @LocalIsolated public private(set) var buffer: OrderedDictionary<ComponentId, Component>
-        private(set) var bitset: BitSet
-        
+        // Reference to world.
+        weak var world: World? {
+            didSet {
+                self.notFlushedComponents.removeAll()
+            }
+        }
+
+        /// Components that are not flushed to the world.
+        var notFlushedComponents: SparseSet<ComponentId, any Component> = [:]
+
         // MARK: - Codable
         
         /// Create an empty component set.
-        init() {
-            self.bitset = BitSet()
-            self.buffer = [:]
+        init(entity: Entity.ID) {
+            self.entity = entity
         }
 
         /// Create a component set from another component set.
         /// - Parameter other: The other component set to create a component set from.
         init(from other: borrowing Self) {
-            self.buffer = other.buffer
-            self.bitset = other.bitset
+            self.entity = other.entity
+            self.notFlushedComponents = other.notFlushedComponents
         }
         
         /// Create component set from decoder.
         public init(from decoder: Decoder) throws {
             let container = try decoder.container(keyedBy: CodingName.self)
-            self.buffer = OrderedDictionary<ComponentId, Component>(
-                minimumCapacity: container.allKeys.count
-            )
-            self.bitset = BitSet(reservingCapacity: container.allKeys.count)
+            self.entity = -1
 
             for key in container.allKeys {
                 guard let type = ComponentStorage.getRegisteredComponent(for: key.stringValue)
@@ -57,8 +56,7 @@ public extension Entity {
 
                 if let decodable = type as? Decodable.Type {
                     let component = try decodable.init(from: container.superDecoder(forKey: key))
-                    self.buffer[type.identifier] = component as? Component
-                    self.bitset.insert(type.identifier)
+                    self.notFlushedComponents[type.identifier] = component as? Component
                 }
             }
         }
@@ -67,143 +65,144 @@ public extension Entity {
         /// - Parameter encoder: The encoder to encode the component set to.
         public func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingName.self)
-            for component in self.buffer.elements.values {
+            guard let world else {
+                throw CodableError.worldIsNil
+            }
+            guard let location = world.entities.entities[entity] else {
+                throw CodableError.entityNotFoundInWorld
+            }
+
+            let chunk = world.archetypes
+                .archetypes[location.archetypeId]
+                .chunks.chunks[location.chunkIndex]
+            let components = chunk.getComponents(for: entity)
+            for (_, component) in components {
                 do {
-                    try container.encode(AnyEncodable(component), forKey: CodingName(stringValue: type(of: component).swiftName))
+                    try container.encode(
+                        AnyEncodable(component),
+                        forKey: CodingName(stringValue: type(of: component).swiftName)
+                    )
                 } catch {
+                    // TODO: Logging
                     print("Component encoding error: \(error)")
                 }
             }
         }
 
-        // FIXME: Replace to subscript??
-        /// Get any count of component types from set.
-        @inline(__always)
-        public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
-            return (repeat self.buffer[(each type).identifier] as! each T)
-        }
-
         /// Gets or sets the component of the specified type.
+        @inline(__always)
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
-            get {
-                return buffer[T.identifier] as? T
+            _read {
+                yield get(for: T.self)
             }
-            
             set {
                 if let newValue {
-                    self.set(newValue)
+                    self.insert(newValue)
                 } else {
                     self.remove(T.self)
                 }
             }
         }
 
-        /// Set the component of the specified type.
-        public mutating func set<T>(_ component: consuming T) where T : Component {
-            lock.lock()
-            defer {
-                lock.unlock()
-            }
-            
-            let identifier = T.identifier
-            let isChanged = self.buffer[identifier] != nil
+        // FIXME: Replace to subscript??
 
-            self.buffer[identifier] = component
-            self.bitset.insert(T.identifier)
-            guard let ent = self.entity else {
-                return
-            }
-            
-            if isChanged {
-                self.world?.entity(ent, didUpdateComponent: T.self, with: identifier)
+        /// Get any count of component types from set.
+        @inline(__always)
+        public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
+            return (repeat get(for: (each T).self)!)
+        }
+
+        public func get<T: Component>(for type: T.Type) -> T? {
+            if let world {
+                world.get(from: entity)
             } else {
-                self.world?.entity(ent, didAddComponent: T.self, with: identifier)
+                notFlushedComponents[T.identifier] as? T
             }
         }
 
-        /// Set the components of the specified type.
-        public mutating func set(_ components: [Component]) {
-            for component in components {
-                let componentType = type(of: component)
-                let identifier = componentType.identifier
-                let isChanged = self.buffer[identifier] != nil
-                self.buffer[identifier] = component
-                self.bitset.insert(identifier)
-                
-                guard let ent = self.entity else {
-                    continue
-                }
 
-                lock.lock()
-                defer {
-                    lock.unlock()
-                }
-                if isChanged {
-                    self.world?.entity(ent, didUpdateComponent: componentType, with: identifier)
+        public func getOrCreate<T: Component>(
+            for type: T.Type,
+            default: T
+        ) -> T {
+            if let world {
+                if let value = world.get(T.self, from: entity) {
+                    return value
                 } else {
-                    self.world?.entity(ent, didAddComponent: componentType, with: identifier)
+                    world.insert(`default`, for: entity)
+                    return `default`
                 }
+            } else {
+                return notFlushedComponents[T.identifier, default: `default`] as! T
+            }
+        }
+
+        /// Set the component of the specified type.
+        @inline(__always)
+        public mutating func insert<T>(_ component: consuming T) where T : Component {
+            guard let world else {
+                self.notFlushedComponents[T.identifier] = component
+                return
+            }
+            world.insert(component, for: entity)
+        }
+
+        /// Set the components of the specified type.
+        @inline(__always)
+        public mutating func insert<each T: Component>(_ components: consuming (repeat (each T))) {
+            for component in repeat (each components) {
+                self.insert(component)
             }
         }
 
         /// Set the components of the specified type using ``ComponentsBuilder``.
-        public mutating func set(@ComponentsBuilder components: () -> [Component]) {
-            self.set(components())
+        public mutating func insert(@ComponentsBuilder components: () -> [Component]) {
+            let components = components()
+            for component in components {
+                self.insert(component)
+            }
         }
 
         /// Returns `true` if the collections contains a component of the specified type.
-        public func has(_ componentType: Component.Type) -> Bool {
-            return self.buffer[componentType.identifier] != nil
+        public func has(_ componentType: any Component.Type) -> Bool {
+            return has(componentType.identifier)
         }
 
         /// Returns `true` if the collections contains a component of the specified type.
         public func has(_ componentId: ComponentId) -> Bool {
-            return self.buffer[componentId] != nil
+            guard let world else {
+                return self.notFlushedComponents.contains(componentId)
+            }
+            return world.has(componentId, in: entity)
         }
 
         /// Removes the component of the specified type from the collection.
-        public mutating func remove(_ componentType: Component.Type) {
-            let identifier = componentType.identifier
-            self.buffer[identifier] = nil
-            
-            self.bitset.remove(componentType)
-            
-            guard let ent = self.entity else { return }
-            world?.entity(ent, didRemoveComponent: componentType, with: identifier)
-        }
-        
-        /// Remove all components from set.
-        public mutating func removeAll(keepingCapacity: Bool = false) {
-            for component in self.buffer.values.elements {
-                let componentType = type(of: component)
-
-                guard let ent = self.entity else { return }
-                world?.entity(ent, didRemoveComponent: componentType, with: componentType.identifier)
+        public mutating func remove(_ componentType: any Component.Type) {
+            guard let world else {
+                self.notFlushedComponents.remove(for: componentType.identifier)
+                return
             }
-            
-            self.bitset = BitSet(reservingCapacity: self.buffer.count)
-            self.buffer.removeAll(keepingCapacity: keepingCapacity)
+            world.remove(componentType.identifier, from: entity)
         }
         
         /// The number of components in the set.
         public var count: Int {
-            return self.buffer.count
+            guard
+                let world,
+                let location = world.entities.entities[entity]
+            else {
+                return self.notFlushedComponents.count
+            }
+            return world.archetypes
+                .archetypes[location.archetypeId]
+                .chunks.chunks[location.chunkIndex]
+                .getComponents(for: entity)
+                .count
         }
         
         /// A Boolean value indicating whether the set is empty.
         public var isEmpty: Bool {
-            return self.buffer.isEmpty
-        }
-  
-        /// Check if a component is changed.
-        /// - Parameter componentType: The type of the component to check.
-        /// - Returns: True if the component is changed, otherwise false.
-        public func isComponentChanged<T: Component>(_ componentType: T.Type) -> Bool {
-            guard let entity = self.entity else {
-                return false
-            }
-
-            return world?.isComponentChanged(componentType, for: entity) ?? false
+            return count == 0
         }
 
         /// Copy the component set.
@@ -224,8 +223,8 @@ public extension Entity.ComponentSet {
     @inline(__always)
     subscript<A, B>(_ a: A.Type, _ b: B.Type) -> (A, B) where A : Component, B: Component {
         (
-            buffer[a.identifier] as! A,
-            buffer[b.identifier] as! B
+            get(for: A.self)!,
+            get(for: B.self)!
         )
     }
     
@@ -235,11 +234,15 @@ public extension Entity.ComponentSet {
     /// - Parameter c: The type of the third component.
     /// - Returns: The components of the specified types.
     @inline(__always)
-    subscript<A, B, C>(_ a: A.Type, _ b: B.Type, _ c: C.Type) -> (A, B, C) where A : Component, B: Component, C: Component {
+    subscript<A, B, C>(
+        _ a: A.Type,
+        _ b: B.Type,
+        _ c: C.Type
+    ) -> (A, B, C) where A : Component, B: Component, C: Component {
         (
-            buffer[a.identifier] as! A,
-            buffer[b.identifier] as! B,
-            buffer[c.identifier] as! C
+            get(for: A.self)!,
+            get(for: B.self)!,
+            get(for: C.self)!
         )
     }
     
@@ -250,12 +253,17 @@ public extension Entity.ComponentSet {
     /// - Parameter d: The type of the fourth component.
     /// - Returns: The components of the specified types.
     @inline(__always)
-    subscript<A, B, C, D>(_ a: A.Type, _ b: B.Type, _ c: C.Type, _ d: D.Type) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
+    subscript<A, B, C, D>(
+        _ a: A.Type,
+        _ b: B.Type,
+        _ c: C.Type,
+        _ d: D.Type
+    ) -> (A, B, C, D) where A : Component, B: Component, C: Component, D: Component {
         (
-            buffer[a.identifier] as! A,
-            buffer[b.identifier] as! B,
-            buffer[c.identifier] as! C,
-            buffer[d.identifier] as! D
+            get(for: A.self)!,
+            get(for: B.self)!,
+            get(for: C.self)!,
+            get(for: D.self)!
         )
     }
 }
@@ -270,8 +278,19 @@ public extension Entity.ComponentSet {
 
 extension Entity.ComponentSet: CustomStringConvertible {
     public var description: String {
-        let result = self.buffer.reduce("") { partialResult, value in
-            let name = type(of: value.value)
+        guard let world else {
+            return "ComponentSet(entity: \(entity), world: nil)"
+        }
+        guard let location = world.entities.entities[entity] else {
+            return "ComponentSet(entity: \(entity), world: \(world))"
+        }
+
+        let chunk = world.archetypes
+            .archetypes[location.archetypeId]
+            .chunks.chunks[location.chunkIndex]
+        let components = chunk.getComponents(for: entity)
+        let result = components.reduce("") { partialResult, value in
+            let name = type(of: value.1)
             return partialResult + "\n   ⟐ \(name)"
         }
         
@@ -284,24 +303,34 @@ extension Entity.ComponentSet {
     /// - Parameter identifier: The identifier of the component.
     /// - Returns: The component if it exists, otherwise nil.
     func get<T: Component>(by identifier: ComponentId) -> T? {
-        return (self.buffer[identifier] as? T)
+        if let world {
+            world.get(T.self, from: entity)
+        } else {
+            notFlushedComponents[identifier] as? T
+        }
     }
     
     /// Get a component by its identifier.
     /// - Parameter componentId: The identifier of the component.
     /// - Returns: The component if it exists, otherwise nil.
-    subscript<T: Component>(by componentId: ComponentId) -> T? where T : Component {
-        get {
-            return buffer[T.identifier] as? T
+    subscript<T: Component>(by componentId: ComponentId) -> T? {
+        _read {
+            yield get(T.self)
         }
-        
         set {
             if let newValue {
-                self.set(newValue)
+                self.insert(newValue)
             } else {
                 self.remove(T.self)
             }
         }
+    }
+}
+
+private extension Entity {
+    enum CodableError: Error {
+        case worldIsNil
+        case entityNotFoundInWorld
     }
 }
 

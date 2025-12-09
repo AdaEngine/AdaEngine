@@ -81,7 +81,7 @@ public class _Gesture {
 }
 
 extension Never: Gesture {
-    public typealias Value = Void
+    public typealias Value = Never
 }
 
 public extension Gesture where Body == Never {

@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 11/10/21.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// The interface describe asset in a system.
 /// Asset describe information needed to your game, like Audio, Mesh, Texture and etc.
@@ -32,18 +36,18 @@ import Foundation
 ///
 /// Also, your asset can support ``Codable`` behaviour and for this scenario, you should implement only ``init(from decoder: Decoder)`` and ``func encode(to encoder: Encoder)`` methods.
 /// Meta and other information will be available from userInfo. Use `Decoder.assetsDecodingContext`, `Decoder.assetMeta` and `Encoder.assetMeta` properties to get this info.
-public protocol Asset: AnyObject, Sendable {
+public protocol Asset: Sendable {
     
     /// When asset load from the disk, this method will be called.
     ///
     /// - Parameter data: Asset's data.
     /// - Returns: Return instance of asset
-    init(from assetDecoder: AssetDecoder) throws
+    init(from assetDecoder: AssetDecoder) async throws
 
     /// To store asset on the disk, you should implement this method.
     ///
     /// - Returns: the asset data to be saved
-    func encodeContents(with assetEncoder: AssetEncoder) throws
+    func encodeContents(with assetEncoder: AssetEncoder) async throws
 
     /// Extensions for asset.
     static func extensions() -> [String]
@@ -133,15 +137,22 @@ public struct AssetMetaInfo: Codable, Sendable {
 /// assetHandle.update(newAsset)
 /// ```
 ///
-public final class AssetHandle<T: Asset>: Codable, Sendable {
+public final class AssetHandle<T: Asset>: Codable, @unchecked Sendable {
     /// The asset instance.
-    public private(set) nonisolated(unsafe) var asset: T
-    
+    public private(set) var asset: T!
+
+    public var isLoaded: Bool {
+        self.asset != nil
+    }
+
     /// Initialize a new asset handle from an asset.
     /// - Parameter asset: The asset to initialize the asset handle from.
     /// - Warning: Only assets produced by ``AssetsManager`` can be used in hot reloading.
     public init(_ asset: T) {
         self.asset = asset
+        self.type = String(reflecting: Swift.type(of: self.asset))
+        self.assetMeta = asset.assetMetaInfo
+        self.assetPath = asset.assetPath
     }
     
     enum CodingKeys: CodingKey {
@@ -149,32 +160,47 @@ public final class AssetHandle<T: Asset>: Codable, Sendable {
         case assetPath
         case meta
     }
-    
+
+    private let type: String
+    private let assetPath: String
+    private let assetMeta: AssetMetaInfo?
+
     /// Initialize a new asset handle from a decoder.
     ///
     /// - Parameter decoder: The decoder to initialize the asset handle from.
     /// - Throws: An error if the asset handle cannot be initialized from the decoder.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let type = try container.decode(String.self, forKey: .type)
-        let assetType = AssetsManager.getAssetType(for: type) ?? T.self
-        let superDecoder = try container.superDecoder(forKey: .meta)
-        let asset = try decoder.assetsDecoder.decode(assetType, from: superDecoder)
-        self.asset = asset as! T
+        self.type = try container.decode(String.self, forKey: .type)
+        self.assetPath = try container.decode(String.self, forKey: .assetPath)
+        self.assetMeta = try container.decode(AssetMetaInfo.self, forKey: .meta)
     }
-    
+
+    public func load() async throws {
+        let asset = if let assetMeta, let path = assetMeta.bundlePath, let bundle = Bundle(path: path) {
+            try await AssetsManager.load(
+                T.self,
+                at: assetPath,
+                from: bundle
+            )
+        } else {
+            try await AssetsManager.load(
+                T.self,
+                at: assetPath
+            )
+        }
+        self.asset = asset.asset
+    }
+
     /// Encode the asset handle to an encoder.
     ///
     /// - Parameter encoder: The encoder to encode the asset handle to.
     /// - Throws: An error if the asset handle cannot be encoded to the encoder.
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(String(reflecting: type(of: self.asset)), forKey: .type)
-        if !asset.assetPath.isEmpty {
-            try container.encode(asset.assetPath, forKey: .assetPath)
-        }
-        let superEncoder = container.superEncoder(forKey: .meta)
-        try encoder.assetsEncoder.encode(asset, to: superEncoder)
+        try container.encode(type, forKey: .type)
+        try container.encode(assetPath, forKey: .assetPath)
+        try container.encode(assetMeta, forKey: .meta)
     }
 
     func update(_ newAsset: T) async throws {
@@ -189,7 +215,7 @@ extension AssetHandle: AnyAssetHandle {
             throw AssetError.message("Asset \(newAsset) is not of type \(T.self)")
         }
 
-        self.asset = newAsset as! T
+        self.asset = newAsset as? T
     }
 }
 

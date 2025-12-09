@@ -8,6 +8,7 @@
 
 import AdaApp
 import AdaECS
+import AdaUI
 
 public struct AppPlatformPlugin: Plugin {
 
@@ -16,28 +17,31 @@ public struct AppPlatformPlugin: Plugin {
     @MainActor
     public func setup(in app: AppWorlds) {
         let argc = CommandLine.argc
-        let argv = CommandLine.unsafeArgv
+        let argv = unsafe CommandLine.unsafeArgv
 
         do {
             let application: Application
 #if os(macOS)
-            application = try MacApplication(argc: argc, argv: argv)
+            application = unsafe try MacApplication(argc: argc, argv: argv)
 #endif
 
 #if os(iOS) || os(tvOS)
-            application = try iOSApplication(argc: argc, argv: argv)
+            application = unsafe try iOSApplication(argc: argc, argv: argv)
 #endif
 
 #if os(Android)
-            application = try AndroidApplication(argc: argc, argv: argv)
+            application = unsafe try AndroidApplication(argc: argc, argv: argv)
 #endif
 
 #if os(Linux)
-            application = try LinuxApplication(argc: argc, argv: argv)
+            application = unsafe try LinuxApplication(argc: argc, argv: argv)
 #endif
             
             Application.shared = application
-            app.mainWorld.insertResource(application)
+            app.insertResource(application)
+            app.insertResource(
+                WindowManagerResource(windowManager: application.windowManager)
+            )
 
             app.setRunner { worlds in
                 do {

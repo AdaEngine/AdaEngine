@@ -7,7 +7,11 @@
 
 import AdaAssets
 import Math
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// The atlas, also know as Sprite Sheet is an object contains an image and can provide
 /// a little piece of the texture for specific stride. You can describe size of sprite you expect and grab specific sprite by coordinates.
@@ -46,8 +50,8 @@ public final class TextureAtlas: Texture2D, @unchecked Sendable {
         case spriteSize
     }
     
-    public required init(from assetDecoder: any AssetDecoder) throws {
-        let representation = try assetDecoder.decode(TextureAtlasAssetRepresentation.self)
+    public required init(from assetDecoder: any AssetDecoder) async throws {
+        let representation = try await assetDecoder.decode(TextureAtlasAssetRepresentation.self)
 
         self.spriteSize = representation.spriteSize
         self.margin = representation.margin
@@ -60,7 +64,7 @@ public final class TextureAtlas: Texture2D, @unchecked Sendable {
         super.init(image: image, samplerDescription: representation.sampler)
     }
 
-    public override func encodeContents(with assetEncoder: any AssetEncoder) throws {
+    public override func encodeContents(with assetEncoder: any AssetEncoder) async throws {
         try assetEncoder.encode(
             TextureAtlasAssetRepresentation(
                 spriteSize: self.spriteSize,
@@ -147,7 +151,7 @@ public extension TextureAtlas {
             case size
         }
         
-        public convenience required init(from assetDecoder: any AssetDecoder) throws {
+        public convenience required init(from assetDecoder: any AssetDecoder) async throws {
             guard let container = try assetDecoder.decoder?.container(keyedBy: CodingKeys.self) else {
                 throw DecodingError.dataCorrupted(
                     DecodingError.Context(
@@ -160,11 +164,11 @@ public extension TextureAtlas {
             let max = try container.decode(Vector2.self, forKey: .max)
             let size = try container.decode(SizeInt.self, forKey: .size)
             let textureAtlasDecoder = try container.superDecoder(forKey: .textureAtlasResource)
-            let textureAtlas = try assetDecoder.decode(TextureAtlas.self, from: textureAtlasDecoder)
+            let textureAtlas = try await assetDecoder.decode(TextureAtlas.self, from: textureAtlasDecoder)
             self.init(atlas: textureAtlas, min: min, max: max, size: size)
         }
         
-        public override func encodeContents(with encoder: any AssetEncoder) throws {
+        public override func encodeContents(with encoder: any AssetEncoder) async throws {
             if self.atlas.assetPath.isEmpty {
                 throw AssetDecodingError.decodingProblem("Can't encode TextureAtlas.Slice, because TextureAtlas doesn't have resource path on disk.")
             }
@@ -173,7 +177,7 @@ public extension TextureAtlas {
                 throw AssetDecodingError.decodingProblem("Can't encode TextureAtlas.Slice, because not encoder passed")
             }
 
-            try encoder.encode(self.atlas, to: container.superEncoder(forKey: .textureAtlasResource))
+            try await encoder.encode(self.atlas, to: container.superEncoder(forKey: .textureAtlasResource))
             try container.encode(self.min, forKey: .min)
             try container.encode(self.max, forKey: .max)
             try container.encode(SizeInt(width: self.width, height: self.height), forKey: .size)

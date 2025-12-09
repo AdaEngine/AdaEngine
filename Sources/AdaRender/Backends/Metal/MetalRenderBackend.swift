@@ -8,28 +8,25 @@
 // TODO: (Vlad) We should support bgra8Unorm_srgb (Should we?)
 
 #if METAL
-@preconcurrency import Metal
+@unsafe @preconcurrency import Metal
 import ModelIO
 import MetalKit
 import OrderedCollections
 import Math
 import AdaUtils
 
-class MetalRenderBackend: RenderBackend {
-    
+final class MetalRenderBackend: RenderBackend, @unchecked Sendable {
+
     private let context: Context
     let type: RenderBackendType = .metal
     private(set) var currentFrameIndex: Int = 0
     
-    private var inFlightSemaphore: DispatchSemaphore
     private var commandQueue: MTLCommandQueue
 
     private(set) var renderDevice: RenderDevice
 
     init(appName: String) {
         self.context = Context()
-        
-        self.inFlightSemaphore = DispatchSemaphore(value: RenderEngine.configurations.maxFramesInFlight)
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
 
         self.renderDevice = MetalRenderDevice(
@@ -46,12 +43,12 @@ class MetalRenderBackend: RenderBackend {
         )
     }
 
-    func createWindow(_ windowId: WindowRef, for surface: RenderSurface, size: SizeInt) throws {
+    func createWindow(_ windowId: WindowID, for surface: RenderSurface, size: SizeInt) throws {
         let mtlView = (surface as! MTKView)
         try self.context.createRenderWindow(with: windowId, view: mtlView, size: size)
     }
     
-    func resizeWindow(_ windowId: WindowRef, newSize: SizeInt) throws {
+    func resizeWindow(_ windowId: WindowID, newSize: SizeInt) throws {
         guard newSize.width > 0 && newSize.height > 0 else {
             return
         }
@@ -59,43 +56,35 @@ class MetalRenderBackend: RenderBackend {
         self.context.updateSizeForRenderWindow(windowId, size: newSize)
     }
     
-    func destroyWindow(_ window: WindowRef) throws {
-        guard case(.windowId(let windowId)) = window else {
-            return
-        }
-
-        guard self.context.windows[windowId] != nil else {
-            return
-        }
-        
+    func destroyWindow(_ window: WindowID) throws {
         self.context.destroyWindow(by: window)
     }
-    
-    func beginFrame() throws {
-        self.inFlightSemaphore.wait()
 
-        for (_, window) in self.context.windows {
-            window.commandBuffer = self.commandQueue.makeCommandBuffer()
-//            window.drawable = window.view?.currentDrawable
-            window.drawable = (window.view?.layer as? CAMetalLayer)?.nextDrawable()
+    func getRenderWindow(for windowId: WindowID) -> RenderWindow? {
+        guard let window = self.context.windows[windowId] else {
+            return nil
         }
+
+        return RenderWindow(
+            windowId: windowId,
+            height: window.size.height,
+            width: window.size.width,
+            scaleFactor: window.scaleFactor
+        )
     }
-    
-    func endFrame() throws {
-        for window in self.context.windows.values {
-            guard let drawable = window.drawable, let commandBuffer = window.commandBuffer else {
-                return
-            }
-            
-            commandBuffer.addCompletedHandler { @Sendable [inFlightSemaphore] _ in
-                inFlightSemaphore.signal()
-            }
 
-            commandBuffer.present(drawable)
-            commandBuffer.commit()
+    func getRenderWindows() throws -> RenderWindows {
+        var windows = SparseSet<WindowID, RenderWindow>()
+        for (id, window) in self.context.windows {
+            windows[id] = RenderWindow(
+                windowId: id,
+                height: window.size.height,
+                width: window.size.width,
+                scaleFactor: window.scaleFactor
+            )
         }
-        
-        currentFrameIndex = (currentFrameIndex + 1) % RenderEngine.configurations.maxFramesInFlight
+
+        return RenderWindows(windows: windows)
     }
 }
 
@@ -308,15 +297,6 @@ extension SamplerMinMagFilter {
     }
 }
 
-class MetalCommandBuffer: CommandBuffer {
-    
-    let commandBuffer: MTLCommandBuffer
-    
-    init(commandBuffer: MTLCommandBuffer) {
-        self.commandBuffer = commandBuffer
-    }
-}
-
 final class MetalRenderCommandBuffer: DrawCommandBuffer {
     let encoder: MTLRenderCommandEncoder
     let commandBuffer: MTLCommandBuffer
@@ -328,11 +308,6 @@ final class MetalRenderCommandBuffer: DrawCommandBuffer {
 }
 
 #endif
-
-/// A protocol that defines a command buffer.
-public protocol CommandBuffer {
-    
-}
 
 /// A protocol that defines a draw command buffer.
 public protocol DrawCommandBuffer: Sendable {

@@ -30,6 +30,7 @@ open class UIWindow: UIView {
     public var windowManager: UIWindowManager {
         UIWindowManager.shared
     }
+    
     @_spi(Internal) public var systemWindow: SystemWindow?
     internal let eventManager = EventManager()
 

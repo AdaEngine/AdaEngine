@@ -5,67 +5,50 @@
 //  Created by Vladislav Prusakov on 22.05.2025.
 //
 
+import AdaUtils
+
 /// A reference to a component.
 /// Used to mutate component values via ``Query``.
 @dynamicMemberLookup
 @propertyWrapper
-public final class Ref<T>: @unchecked Sendable {
-
-    /// The getter of the reference.
-    public typealias Getter = () -> T
-
-    /// The setter of the reference.
-    public typealias Setter = (T) -> Void
+@safe
+public struct Ref<T>: Sendable, ChangeDetectionable {
+    private nonisolated(unsafe) let pointer: UnsafeMutablePointer<T>?
+    public var changeTick: ChangeDetectionTick
 
     /// The wrapped value of the reference.
+    @inline(__always)
     public var wrappedValue: T {
-        get {
-            return getValue!()
+        _read {
+            unsafe assert(self.pointer != nil, "Value \(T.self) is not stored in world.")
+            yield unsafe self.pointer!.pointee
         }
-        set {
-            setValue?(newValue)
+        nonmutating _modify {
+            unsafe assert(self.pointer != nil, "Value \(T.self) is not stored in world.")
+            yield unsafe &self.pointer!.pointee
+            self.setChanged()
         }
     }
-
-    /// Initialize a new reference.
-    public init() {
-        self.getValue = nil
-        self.setValue = nil
-    }
-
-    /// The getter of the reference.
-    var getValue: Getter?
-
-    /// The setter of the reference.
-    let setValue: Setter?
 
     /// Create a new reference to a component.
     /// - Parameters:
     ///   - get: A closure that returns the component value.
     ///   - set: A closure that sets the component value.
-    public init(get: @escaping Getter, set: @escaping Setter) {
-        self.getValue = get
-        self.setValue = set
+    public init(
+        pointer: UnsafeMutablePointer<T>?,
+        changeTick: ChangeDetectionTick
+    ) {
+        unsafe self.pointer = pointer
+        self.changeTick = changeTick
     }
 
+    @inline(__always)
     public subscript<U>(dynamicMember dynamicMember: WritableKeyPath<T, U>) -> U {
-        get {
-            return self.wrappedValue[keyPath: dynamicMember]
+        _read {
+            yield self.wrappedValue[keyPath: dynamicMember]
         }
-        set {
-            self.wrappedValue[keyPath: dynamicMember] = newValue
-        }
-    }
-}
-
-extension Ref: SystemQuery where T == World {
-    public convenience init(from world: World) {
-        fatalError()
-    }
-
-    public func update(from world: World) {
-        getValue = {
-            world
+        nonmutating _modify {
+            yield &self.wrappedValue[keyPath: dynamicMember]
         }
     }
 }

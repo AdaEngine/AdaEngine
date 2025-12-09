@@ -7,6 +7,11 @@
 
 import AdaECS
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 import Math
 
 enum AudioError: Error {
@@ -29,7 +34,7 @@ public final class AudioServer: Resource {
     @MainActor
     public static func initialize() throws {
         let engine = try MiniAudioEngine()
-        self.shared = AudioServer(engine: engine)
+        unsafe self.shared = AudioServer(engine: engine)
     }
     
     func update(_ deltaTime: AdaUtils.TimeInterval) {

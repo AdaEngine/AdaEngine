@@ -8,16 +8,18 @@
 #if MACOS
 import AdaApp
 import AppKit
-import AdaInput
+@_spi(Internal) import AdaInput
 @_spi(Internal) import AdaUI
 import MetalKit
+import AdaECS
 
 final class MacApplication: Application {
 
     private let delegate = MacAppDelegate()
+    private var gameControllerManager: AppleGameControllerManager?
 
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
-        try super.init(argc: argc, argv: argv)
+        unsafe try super.init(argc: argc, argv: argv)
         self.windowManager = MacOSWindowManager()
         UIWindowManager.setShared(self.windowManager)
 
@@ -28,8 +30,6 @@ final class MacApplication: Application {
 
         app.finishLaunching()
         app.delegate = self.delegate
-        
-        AppleGameControllerManager.shared.startMonitoring()
 
         self.processEvents()
         app.activate(ignoringOtherApps: true)
@@ -38,20 +38,21 @@ final class MacApplication: Application {
     private var task: Task<Void, Never>?
 
     override func run(_ appWorlds: AppWorlds) throws {
-        task = Task { @MainActor in
-            self.mainLoop.setup()
+        setupInput(for: appWorlds)
+        task = Task(priority: .userInitiated) {
             do {
                 while true {
                     try Task.checkCancellation()
                     self.processEvents()
-                    try await self.mainLoop.iterate(appWorlds)
+                    await appWorlds.update()
+                    await Task.yield()
                 }
             } catch {
                 let alert = Alert(
                     title: "AdaEngine finished with Error",
                     message: error.localizedDescription,
                     buttons: [
-                        .cancel("OK", action: { exit(EXIT_FAILURE)})
+                        .cancel("OK", action: { exit(EXIT_FAILURE) })
                     ]
                 )
                 Application.shared.showAlert(alert)
@@ -97,7 +98,20 @@ final class MacApplication: Application {
 
     // MARK: - Private
 
-    func processEvents() {
+    private func setupInput(for app: AppWorlds) {
+        self.gameControllerManager = AppleGameControllerManager { [unowned app] event in
+            Task { @MainActor in
+                let input = app.main.getRefResource(Input.self)
+                input.wrappedValue.receiveEvent(event)
+            }
+        }
+        let mutableInput = app.main.getRefResource(Input.self)
+        mutableInput.wrappedValue.rumbleGameControllerEngine = self.gameControllerManager
+        self.windowManager.inputRef = mutableInput
+        self.gameControllerManager?.startMonitoring()
+    }
+
+    private func processEvents() {
         while true {
             let event = NSApp.nextEvent(
                 matching: .any,

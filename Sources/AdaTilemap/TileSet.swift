@@ -10,7 +10,7 @@ import AdaPhysics
 import OrderedCollections
 import Math
 
-public class TileSet: Asset, Codable, @unchecked Sendable {
+public class TileSet: @unsafe Asset, Codable, @unchecked Sendable {
 
     struct PhysicsLayer {
         var collisionLayer: CollisionGroup = .default
@@ -103,7 +103,7 @@ extension TileSet {
                 let sourceContainer = try sourcesContainer.nestedContainer(keyedBy: SourceCodingKeys.self)
                 let sourceType = try sourceContainer.decode(String.self, forKey: .type)
                 
-                guard let value = TileSource.types[sourceType] else {
+                guard let value = unsafe TileSource.types[sourceType] else {
                     continue
                 }
                 

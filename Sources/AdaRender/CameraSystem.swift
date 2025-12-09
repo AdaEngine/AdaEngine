@@ -9,29 +9,29 @@
 import AdaTransform
 import AdaUtils
 import Math
+import AdaAssets
 
 // FIXME: Currently we render on window directly
 // TODO: Move window info to ECS system
 
 /// System for updating cameras data on scene.
-@System
+@PlainSystem
 public struct CameraSystem: Sendable {
 
     @Query<Entity, Ref<Camera>, GlobalTransform>
     private var query
 
+    @Res
+    private var primaryWindow: PrimaryWindowId
+
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    @MainActor
+    public func update(context: UpdateContext) {
         self.query.forEach { entity, camera, globalTransform in
             let viewMatrix = globalTransform.matrix.inverse
             camera.viewMatrix = viewMatrix
-
-                self.updateViewportSizeIfNeeded(
-                    for: &camera.wrappedValue,
-                    screenScale: 2,
-                    windowSize: Size(width: 800, height: 600) // FIXME: Must use actual size
-                )
+            self.updateViewportSizeIfNeeded(for: camera)
             self.updateProjectionMatrix(for: &camera.wrappedValue)
             self.updateFrustum(for: &camera.wrappedValue)
 
@@ -43,26 +43,32 @@ public struct CameraSystem: Sendable {
         }
     }
 
+    @MainActor
     private func updateViewportSizeIfNeeded(
-        for camera: inout Camera, 
-        screenScale: Float,
-        windowSize: Size
+        for camera: Ref<Camera>
     ) {
         switch camera.renderTarget {
         case .window(let windowRef):
             camera.renderTarget = .window(windowRef)
-            camera.computedData.targetScaleFactor = screenScale
 
-            if camera.viewport == nil {
-                camera.viewport = Viewport(rect: Rect(origin: .zero, size: windowSize))
+            guard let renderWindow = RenderEngine.shared
+                .getRenderWindow(for: windowRef.getWindowId(from: primaryWindow))
+            else {
                 return
             }
 
-            if camera.viewport?.rect.size != windowSize {
-                camera.viewport?.rect.size = windowSize
+            camera.computedData.targetScaleFactor = renderWindow.scaleFactor
+
+            if camera.viewport == nil {
+                camera.viewport = Viewport(rect: Rect(origin: .zero, size: renderWindow.physicalSize))
+                return
+            }
+
+            if camera.viewport?.rect.size != renderWindow.physicalSize {
+                camera.viewport?.rect.size = renderWindow.physicalSize
             }
         case .texture(let textureHandle):
-            let texture = textureHandle.asset
+            let texture = textureHandle.asset!
             let size = Size(width: Float(texture.width), height: Float(texture.height))
 
             if camera.viewport == nil {
@@ -117,33 +123,32 @@ public struct CameraSystem: Sendable {
 }
 
 @System
-public struct ExtractCameraSystem {
+@inline(__always)
+public func ExtractCamera(
+    _ world: World,
+    _ commands: Commands,
+    _ query: Extract<
+        Query<Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
+    >
+) {
+    query.wrappedValue.forEach {
+        camera, transform,
+        visibleEntities, bufferSet, uniform in
+        let buffer = bufferSet.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
 
-    @Extract<Query<Entity, Camera, Transform, VisibleEntities>>
-    private var query
-
-    public init(world: World) { }
-
-    public func update(context: inout UpdateContext) {
-        self.query.wrappedValue.forEach { entity, camera, _, _ in
-            let cameraEntity = Entity(name: "ExtractedCameraEntity")
-            if
-                let bufferSet = entity.components[GlobalViewUniformBufferSet.self],
-                let uniform = entity.components[GlobalViewUniform.self]
-            {
-                let buffer = bufferSet.uniformBufferSet.getBuffer(
-                    binding: GlobalBufferIndex.viewUniform,
-                    set: 0,
-                    frameIndex: RenderEngine.shared.currentFrameIndex
-                )
-
-                buffer.setData(uniform)
-            }
-
-            cameraEntity.components = entity.components
-            cameraEntity.components += RenderItems<Transparent2DRenderItem>()
-            cameraEntity.components.entity = cameraEntity
-            context.world.addEntity(cameraEntity)
+        buffer.setData(uniform)
+        commands.spawn("ExtractedCameraEntity") {
+            camera
+            transform
+            visibleEntities
+            uniform
+            bufferSet
+            RenderViewTarget()
+            RenderItems<Transparent2DRenderItem>()
         }
     }
 }

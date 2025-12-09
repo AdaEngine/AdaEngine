@@ -69,7 +69,7 @@ public class TileSource: Codable, @unchecked Sendable {
     
     /// Call this function if you inherited from TileSource.
     public static func registerTileSource() {
-        self.types[String(reflecting: self)] = Self.self
+        unsafe self.types[String(reflecting: self)] = Self.self
     }
 }
 

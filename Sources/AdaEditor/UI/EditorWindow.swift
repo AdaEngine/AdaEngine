@@ -15,7 +15,6 @@ class ViewModel {
 }
 
 struct NestedContent: View {
-
     @State var innerColor: Color = .red
 
     var body: some View {
@@ -28,55 +27,6 @@ struct NestedContent: View {
     }
 }
 
-extension Text.Layout {
-    var runs: some RandomAccessCollection<TextRun> {
-        flatMap { line in
-            line
-        }
-    }
-
-    var flattenedRuns: some RandomAccessCollection<Glyph> {
-        runs.flatMap { $0 }
-    }
-}
-
-struct AnimatedSineWaveOffsetRender: TextRenderer {
-    
-    let timeOffset: Double // Time offset
-
-    init(timeOffset: Double) {
-        self.timeOffset = timeOffset
-    }
-
-    func draw(layout: Text.Layout, in context: inout UIGraphicsContext) {
-        let count = layout.flattenedRuns.count // Count all RunSlices in the text layout
-        let width = layout.first?.typographicBounds.rect.width ?? 0 // Get the width of the text line
-        let height = layout.first?.typographicBounds.rect.height ?? 0 // Get the height of the text line
-        // Iterate through each RunSlice and its index
-        for (index, glyph) in layout.flattenedRuns.enumerated() {
-            // Calculate the sine wave offset for the current character
-            let offset = animatedSineWaveOffset(
-                forCharacterAt: index,
-                amplitude: Double(height) / 2, // Set amplitude to half the line height
-                wavelength: Double(width),
-                phaseOffset: timeOffset,
-                totalCharacters: count
-            )
-            // Create a copy of the context and translate it
-            var copy = context
-            copy.translateBy(x: 0, y: Float(offset))
-            // Draw the current RunSlice in the modified context
-            copy.draw(glyph)
-        }
-
-        func animatedSineWaveOffset(forCharacterAt index: Int, amplitude: Double, wavelength: Double, phaseOffset: Double, totalCharacters: Int) -> Double {
-            let x = Double(index)
-            let position = (x / Double(totalCharacters)) * wavelength
-            let radians = ((position + phaseOffset) / wavelength) * 2 * .pi
-            return Math.sin(radians) * amplitude
-        }
-    }
-}
 
 struct SomeKey: PreferenceKey {
     static let defaultValue: String = ""
@@ -107,7 +57,6 @@ struct CustomButtonStyle: ButtonStyle {
 }
 
 struct ContentView: View {
-
     @State private var isAnimated: Bool = false
 
     var body: some View {
@@ -130,7 +79,6 @@ struct ContentView: View {
 }
 
 class EditorWindow: UIWindow {
-
     weak var inspectableView: LayoutInspectableView?
 
     override func windowDidReady() {
@@ -145,12 +93,6 @@ class EditorWindow: UIWindow {
         let view = UIContainerView(rootView: ContentView())
         view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
         inspectableView.addSubview(view)
-
-        // FIXME: SceneView doesnt render when UI does
-        //        let scene = TilemapScene()
-        //        let sceneView = SceneView(scene: scene, frame: Rect(origin: Point(x: 60, y: 60), size: Size(width: 250, height: 250)))
-        //        sceneView.backgroundColor = .red
-        //        self.addSubview(sceneView)
     }
 
     override func buildMenu(with builder: UIMenuBuilder) {
@@ -177,7 +119,6 @@ class EditorWindow: UIWindow {
 }
 
 class LayoutInspectableView: UIView {
-
     var speed: Float = 0.2
     var pitch: Angle = Angle.radians(0)
     var yaw: Angle = Angle.radians(-90)
@@ -219,8 +160,6 @@ class LayoutInspectableView: UIView {
 
             isViewMatrixDirty = false
         }
-
-        self.handleView(deltaTime)
     }
 
     override func draw(with context: UIGraphicsContext) {
@@ -242,35 +181,12 @@ class LayoutInspectableView: UIView {
 
         self.cameraTransform.origin += event.scrollDelta.y * sensitivity * speed * cameraFront
         self.isViewMatrixDirty = true
-    }
 
-    private func handleView(_ deltaTime: TimeInterval) {
-
-        if Input.isKeyPressed(.w) {
-            cameraTransform.origin += speed * cameraFront * deltaTime
-            self.isViewMatrixDirty = true
-        }
-
-        if Input.isKeyPressed(.a) {
-            cameraTransform.origin -= cross(cameraFront, cameraUp).normalized * speed * deltaTime
-            self.isViewMatrixDirty = true
-        }
-
-        if Input.isKeyPressed(.d) {
-            cameraTransform.origin += cross(cameraFront, cameraUp).normalized * speed * deltaTime
-            self.isViewMatrixDirty = true
-        }
-
-        if Input.isKeyPressed(.s) {
-            cameraTransform.origin -= speed * cameraFront * deltaTime
-            self.isViewMatrixDirty = true
-        }
-
-        guard Input.isMouseButtonPressed(.left) else {
+        guard event.button == .left && event.phase != .began else {
             return
         }
 
-        let position = Input.getMousePosition()
+        let position = event.mousePosition
         var xoffset = position.x - self.lastMousePosition.x
         var yoffset = self.lastMousePosition.y - position.y
         self.lastMousePosition = position
@@ -285,7 +201,7 @@ class LayoutInspectableView: UIView {
         if pitch.radians > 89.0 {
             pitch = 89.0
         } else if(pitch.radians < -89.0) {
-           pitch = -89.0
+            pitch = -89.0
         }
 
         var direction = Vector3()
@@ -296,5 +212,26 @@ class LayoutInspectableView: UIView {
         self.cameraFront = direction.normalized
 
         self.isViewMatrixDirty = true
+    }
+
+    override func onKeyPressed(_ event: Set<KeyEvent>) {
+        for key in event where key.status == .down {
+            switch key.keyCode {
+            case .w:
+                cameraTransform.origin += speed * cameraFront
+                self.isViewMatrixDirty = true
+            case .a:
+                cameraTransform.origin -= cross(cameraFront, cameraUp).normalized * speed
+                self.isViewMatrixDirty = true
+            case .d:
+                cameraTransform.origin += cross(cameraFront, cameraUp).normalized * speed
+                self.isViewMatrixDirty = true
+            case .s:
+                cameraTransform.origin -= speed * cameraFront
+                self.isViewMatrixDirty = true
+            default:
+                return
+            }
+        }
     }
 }

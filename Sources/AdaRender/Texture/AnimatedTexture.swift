@@ -8,6 +8,11 @@
 import AdaAssets
 import AdaUtils
 import Math
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 // TODO: Make encoding/decoding for scene serialization
 
@@ -86,8 +91,13 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     public init() {
         self.frames = [Frame].init(repeating: Frame(texture: nil, delay: 0), count: 256)
         let sampler = RenderEngine.shared.renderDevice.createSampler(from: SamplerDescriptor())
-        super.init(gpuTexture: GPUTexture(), sampler: sampler, size: .zero)
-        
+        let texture = RenderEngine.shared.renderDevice.createTexture(
+            from: TextureDescriptor(
+                textureUsage: .read,
+                textureType: .texture2D
+            )
+        )
+        super.init(gpuTexture: texture, sampler: sampler, size: .zero)
         self.mainLoopToken = EventManager.default.subscribe(
             to: EngineEvents.MainLoopBegan.self,
             completion: update(_:)
@@ -99,7 +109,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     struct AssetRepresentation: Codable {
         struct Frame: Codable {
             let texture: AssetHandle<Texture2D> // FIXME: (Vlad) resource id/path
-            let delay: TimeInterval
+            let delay: AdaUtils.TimeInterval
         }
         
         let frames: [Frame]
@@ -108,13 +118,13 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         let options: Options
     }
     
-    public convenience required init(from decoder: AssetDecoder) throws {
+    public convenience required init(from decoder: AssetDecoder) async throws {
         guard Self.extensions().contains(where: { decoder.assetMeta.filePath.pathExtension == $0 }) else {
             throw AssetDecodingError.invalidAssetExtension(decoder.assetMeta.filePath.pathExtension)
         }
         
         let asset = try decoder.decode(AssetRepresentation.self)
-        
+
         self.init()
         
         self.framesCount = asset.framesCount
@@ -127,7 +137,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         }
     }
     
-    public override func encodeContents(with encoder: any AssetEncoder) throws {
+    public override func encodeContents(with encoder: any AssetEncoder) async throws {
         guard var container = encoder.encoder?.singleValueContainer() else {
             return
         }
@@ -185,19 +195,19 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         return self.frames[frame].texture
     }
     
-    public func setDelay(_ delay: TimeInterval, for frame: Int) {
+    public func setDelay(_ delay: AdaUtils.TimeInterval, for frame: Int) {
         self.frames[frame].delay = delay
     }
     
-    public func getDelay(for frame: Int) -> TimeInterval {
+    public func getDelay(for frame: Int) -> AdaUtils.TimeInterval {
         return self.frames[frame].delay
     }
     
     // MARK: - Private
     
     // FIXME: After breakpoint can increase animation speed. 
-    private var time: TimeInterval = 0
-    
+    private var time: AdaUtils.TimeInterval = 0
+
     /// Called each frame to update current frame.
     private func update(_ event: EngineEvents.MainLoopBegan) {
         if self.isPaused {
@@ -211,7 +221,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
         
         self.time += event.deltaTime
         
-        let limit: TimeInterval = TimeInterval(self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0)
+        let limit: AdaUtils.TimeInterval = AdaUtils.TimeInterval(self.framesPerSecond != 0 ? 1 / self.framesPerSecond : 0)
         let frameTime = limit + self.frames[self.currentFrame].delay
         
         if self.time > frameTime {

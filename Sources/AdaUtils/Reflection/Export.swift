@@ -15,7 +15,6 @@
 /// - Note: You can use `private`, `fileprivate` modifiers, because `@Export` use reflection
 @propertyWrapper
 public struct Export<T: Codable>: Codable, @unchecked Sendable {
-
     private final class Storage {
         var skipped: Bool = false
         var hasChanges: Bool = false
@@ -34,11 +33,11 @@ public struct Export<T: Codable>: Codable, @unchecked Sendable {
     private let storage: Storage
 
     public var wrappedValue: T {
-        get {
-            self.storage.value
+        _read {
+            yield self.storage.value
         }
-        set {
-            self.storage.value = newValue
+        _modify {
+            yield &self.storage.value
         }
     }
     
@@ -138,7 +137,7 @@ extension Export {
 
 extension CodingUserInfoKey {
     /// It will be used for editor feature. If type will be reflected with this key, we want to collect and show their properties on the editor screen.
-    nonisolated(unsafe) static var editorIntrospection = CodingUserInfoKey(rawValue: "export.editor.introspection")!
+    static let editorIntrospection = CodingUserInfoKey(rawValue: "export.editor.introspection")!
 }
 
 /// A protocol that defines the default value of a type.

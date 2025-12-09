@@ -11,22 +11,23 @@ import Logging
 @main
 struct AdaEditorApp: App {
     var body: some AppScene {
-        EmptyWindow()
-            .addPlugins(
-                DefaultPlugins(),
-                GameScene2DPlugin()
-            )
-            .windowMode(.windowed)
-            .windowTitle("AdaEngine")
+        WindowGroup {
+            Text("See you later")
+        }
+        .addPlugins(
+            DefaultPlugins()
+        )
+        .windowMode(.windowed)
+        .windowTitle("AdaEngine")
     }
 }
 
-public extension Bundle {
-    static var editor: Bundle {
+public extension Foundation.Bundle {
+    static var editor: Foundation.Bundle {
 #if SWIFT_PACKAGE && !BAZEL_BUILD
-        return Bundle.module
+        return Foundation.Bundle.module
 #else
-        return Bundle(for: BundleToken.self)
+        return Foundation.Bundle(for: BundleToken.self)
 #endif
     }
 }

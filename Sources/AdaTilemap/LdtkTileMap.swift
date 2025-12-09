@@ -10,9 +10,14 @@ import AdaAssets
 import AdaUtils
 import AdaSprite
 import AdaRender
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import Logging
 import Math
+import OrderedCollections
 
 /// Namespace for LDtk
 public enum LDtk { }
@@ -49,7 +54,7 @@ extension LDtk {
         /// - Note: Use ``TileMap/resourcePath`` field to get runtime path to your LDtk file.
         public private(set) var isHotReloadingEnabled: Bool = false
 
-        public required init(from decoder: AssetDecoder) throws {
+        public required init(from decoder: AssetDecoder) async throws {
             let pathExt = decoder.assetMeta.filePath.pathExtension
 
             guard pathExt == "ldtk" || pathExt == "json" else {
@@ -64,13 +69,11 @@ extension LDtk {
                 self?.onLDtkFileMapChanged(paths: paths)
             }
 
-            Task {
-                try await self.loadLdtkProject(from: decoder.assetData)
-            }
+            try await self.loadLdtkProject(from: decoder.assetData)
         }
         
-        public override func encodeContents(with encoder: AssetEncoder) throws {
-            try super.encodeContents(with: encoder)
+        public override func encodeContents(with encoder: AssetEncoder) async throws {
+            try await super.encodeContents(with: encoder)
         }
         
         /// Load level from LDtk project at index.
@@ -79,6 +82,7 @@ extension LDtk {
         // swiftlint:disable:next cyclomatic_complexity function_body_length
         public func loadLevel(at index: Int) {
             guard let project else {
+                assertionFailure("LDtk Project is empty at path \(filePath)")
                 return
             }
 
@@ -92,11 +96,13 @@ extension LDtk {
 
             for layerInstance in level.layerInstances where layerInstance.visible {
                 guard let layer = self.layers.first(where: { $0.id == layerInstance.layerDefUid }) else {
-                    fatalError("Could not find a layer for id \(layerInstance.layerDefUid)")
+                    assertionFailure("Could not find a layer for id \(layerInstance.layerDefUid)")
+                    return
                 }
 
                 guard let projectLayer = project.defs.layers.first(where: { $0.uid == layerInstance.layerDefUid }) else {
-                    fatalError("Could not find a layer in project for id: \(layerInstance.layerDefUid)")
+                    assertionFailure("Could not find a layer in project for id: \(layerInstance.layerDefUid)")
+                    return
                 }
 
                 switch layerInstance.__type {
@@ -293,7 +299,10 @@ extension LDtk {
         /// - Parameters:
         ///   - atlasCoordinates: The atlas coordinates to create the tile for.
         ///   - entityInstance: The entity instance to create the tile for.
-        public func createTile(at atlasCoordinates: PointInt, entityInstance: LDtk.EntityInstance) {
+        public func createTile(
+            at atlasCoordinates: PointInt,
+            entityInstance: LDtk.EntityInstance
+        ) {
             let entity = AdaECS.Entity(name: entityInstance.identifier)
 
             if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TextureAtlasTileSource {

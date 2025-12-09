@@ -15,11 +15,24 @@ public enum WindowRef: Codable, Sendable, Hashable {
     /// The primary window.
     case primary
     /// The window id.
-    case windowId(RID)
+    case windowId(WindowID)
 }
 
+public extension WindowRef {
+    func getWindowId(from primary: PrimaryWindowId) -> WindowID {
+        switch self {
+        case .primary:
+            primary.windowId
+        case .windowId(let windowID):
+            windowID
+        }
+    }
+}
+
+public typealias WindowID = RID
+
 /// A viewport.
-public struct Viewport: Codable, Equatable {
+public struct Viewport: Codable, Equatable, Sendable {
     /// The rectangle of the viewport.
     public var rect: Rect
     /// The depth range of the viewport.
@@ -81,38 +94,29 @@ public struct Camera: Sendable {
     // MARK: Properties
 
     /// The closest point relative to camera that drawing will occur.
-    @Export
     public var near: Float = -1
 
     /// The closest point relative to camera that drawing will occur
-    @Export
     public var far: Float = 1
 
     /// Angle of camera view
-    @Export
     public var fieldOfView: Angle = .degrees(70)
 
     /// Base projection in camera
-    @Export
     public var projection: Projection = .perspective
 
-    @Export
     public var viewport: Viewport?
 
     /// Set camera is active
-    @Export
-    public var isActive = false
+    public var isActive = true
 
     /// Fill color for unused pixel.
-    @Export
     public var backgroundColor: Color = .surfaceClearColor
 
     /// Contains information about clear flags.
     /// By default contains ``CameraClearFlags/solid`` flag which fill clear color by ``Camera/backgroundColor``.
-    @Export
     public var clearFlags: CameraClearFlags = .solid
 
-    @Export
     @MinValue(0.1)
     public var orthographicScale: Float = 1
 
@@ -124,10 +128,12 @@ public struct Camera: Sendable {
     /// The computed data for the camera.
     @_spi(Internal)
     @NoExport
-    public var computedData: CameraComputedData
+    public var computedData: CameraComputedData = .defaultValue
 
     /// The render order.
     public var renderOrder: Int = 0
+
+    public var viewMatrix: Transform3D = .identity
 
     // MARK: - Init
 
@@ -148,8 +154,6 @@ public struct Camera: Sendable {
     public init(window: WindowRef) {
         self.renderTarget = .window(window)
     }
-
-    public var viewMatrix: Transform3D = .identity
 }
 
 public extension Camera {
@@ -205,7 +209,6 @@ public extension Camera {
         guard let viewport = self.viewport else {
             return nil
         }
-
         let size = viewport.rect.size.asVector2
         let ndcSpace = self.worldToNdc(cameraGlobalTransform: cameraGlobalTransform, worldPosition: worldPosition)
 
@@ -229,7 +232,7 @@ extension Camera {
         /// The view matrix.
         public var viewMatrix: Transform3D = .identity
         /// The frustum.
-        public var frustum: Frustum = Frustum()
+        public var frustum: Frustum = .defaultValue
         /// The target scale factor.
         public var targetScaleFactor: Float = 1
     }
@@ -273,6 +276,10 @@ public struct GlobalViewUniformBufferSet {
     public init(label: String = "Global View Uniform") {
         self.uniformBufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
         self.uniformBufferSet.label = label
-        self.uniformBufferSet.initBuffers(for: GlobalViewUniform.self, binding: GlobalBufferIndex.viewUniform, set: 0)
+        self.uniformBufferSet.initBuffers(
+            for: GlobalViewUniform.self,
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0
+        )
     }
 }

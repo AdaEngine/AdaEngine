@@ -12,7 +12,7 @@ import Logging
 /// The context of the app.
 @MainActor
 @_spi(Internal)
-public final class AppContext<T: App> {
+public struct AppContext<T: App>: ~Copyable {
     /// The app.
     private let app: T
 
@@ -32,11 +32,11 @@ public final class AppContext<T: App> {
     /// Run the app.
     /// - Throws: An error if the app cannot be run.
     @_spi(Internal)
-    public func run() throws {
+    public func run() async throws {
         LoggingSystem.bootstrap {
             StreamLogHandler.standardError(label: $0)
         }
-        let appWorlds = AppWorlds(mainWorld: World(name: "MainWorld"))
+        let appWorlds = AppWorlds(main: World(name: "MainWorld"))
         appWorlds
             .insertResource(WindowSettings())
             .addPlugin(MainSchedulerPlugin())
@@ -44,7 +44,8 @@ public final class AppContext<T: App> {
         let inputs = _SceneInputs(appWorlds: appWorlds)
         let node = _AppSceneNode(value: app.body)
         let _ = T.Content._makeView(node, inputs: inputs)
-        try appWorlds.build()
+        
+        try await appWorlds.build()
         appWorlds.runner?(appWorlds)
     }
 }
