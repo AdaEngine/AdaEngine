@@ -5,14 +5,16 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
+import AdaUtils
+
 /// This object describe query to ECS world.
 ///
 /// ```swift
-/// @System
+/// @PlainSystem
 /// struct MovementSystem {
 ///     @EntityQuery(where: .has(Transform.self)) private var query
 ///
-///     func update(context: inout UpdateContext) {
+///     func update(context: UpdateContext) {
 ///         self.query.forEach {
 ///             var transform = entity.components[Transform.self]
 ///             // Do some movement
@@ -24,12 +26,12 @@
 /// Also, you can combine types in query using `&&` and `||` operators.
 ///
 /// ```swift
-/// @System
+/// @PlainSystem
 /// struct RendererSystem {
 ///     @EntityQuery(where: .has(SpriteComponent.self) && .has(Transform.self))
 ///     private var query
 ///
-///     func update(context: inout UpdateContext) {
+///     func update(context: UpdateContext) {
 ///         for entity in self.query {
 ///             // Get components from entity and do some render
 ///         }
@@ -38,7 +40,8 @@
 /// ```
 @propertyWrapper
 @frozen public struct EntityQuery: Sendable {
-    public typealias Result = QueryResult<QueryBuilderTargets<Entity, NoFilter>>
+    
+    public typealias Result = QueryResult<QueryBuilderTargets<Entity>, NoFilter>
 
     public var wrappedValue: Result {
         return QueryResult(state: self.state)
@@ -58,7 +61,7 @@
     }
 
     public init(from world: World) {
-        fatalError()
+        fatalError("Can't initialize EntityQuery from world")
     }
 
     public func callAsFunction() -> Result {
@@ -66,26 +69,28 @@
     }
 }
 
-extension EntityQuery: SystemQuery {
+extension EntityQuery: SystemParameter {
+    public func finish(_ world: World) { }
+
     public func update(from world: World) {
         self.state.updateArchetypes(in: world)
     }
 }
 
+// TODO: Make deprecated
+
 /// This iterator iterate by each entity in passed archetype array
 public struct EntityIterator: IteratorProtocol {
-    // We use pointer to avoid additional allocation in memory
     let count: Int
     let state: QueryState
     
     private var currentArchetypeIndex = 0
     private var currentEntityIndex = -1 // We should use -1 for first iterating.
-    private var canIterateNext: Bool = true
     
     /// - Parameter pointer: Pointer to archetypes array.
     /// - Parameter count: Count archetypes in array.
     init(state: QueryState) {
-        self.count = state.archetypes.count
+        self.count = state.archetypeIndecies.count
         self.state = state
     }
     
@@ -94,14 +99,25 @@ public struct EntityIterator: IteratorProtocol {
         guard self.count > 0 else {
             return nil
         }
-        
+
+        guard let world = state.world else {
+            return nil
+        }
+
         while true {
             guard self.currentArchetypeIndex < self.count else {
                 return nil
             }
             
-            let currentEntitiesCount = self.state.archetypes[self.currentArchetypeIndex].entities.count
+            let currentArchetypeIndex = self.state.archetypeIndecies[self.currentArchetypeIndex]
             
+            // Validate archetype index is within bounds
+            guard currentArchetypeIndex < world.archetypes.archetypes.count else {
+                self.currentArchetypeIndex += 1
+                continue
+            }
+            
+            let currentEntitiesCount = world.archetypes.archetypes[currentArchetypeIndex].entities.count
             if self.currentEntityIndex < currentEntitiesCount - 1 {
                 self.currentEntityIndex += 1
             } else {
@@ -110,9 +126,9 @@ public struct EntityIterator: IteratorProtocol {
                 continue
             }
             
-            let currentArchetype = self.state.archetypes[self.currentArchetypeIndex]
-
-            guard let entity = currentArchetype.entities[self.currentEntityIndex], entity.isActive else {
+            let currentArchetype = self.state.archetypeIndecies[self.currentArchetypeIndex]
+            let entity = world.archetypes.archetypes[currentArchetype].entities[self.currentEntityIndex]
+            guard entity.isActive else {
                 continue
             }
             

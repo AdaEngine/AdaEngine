@@ -6,7 +6,7 @@
 //
 
 #if METAL
-@preconcurrency import Metal
+@unsafe @preconcurrency import Metal
 
 class MetalBuffer: Buffer, @unchecked Sendable {
     let buffer: MTLBuffer
@@ -30,7 +30,7 @@ class MetalBuffer: Buffer, @unchecked Sendable {
     func contents() -> UnsafeMutableRawPointer { return self.buffer.contents() }
     
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
-        self.buffer.contents().advanced(by: offset).copyMemory(from: bytes, byteCount: byteCount)
+        unsafe self.buffer.contents().advanced(by: offset).copyMemory(from: bytes, byteCount: byteCount)
     }
 }
 

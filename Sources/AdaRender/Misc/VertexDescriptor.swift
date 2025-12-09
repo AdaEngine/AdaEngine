@@ -220,7 +220,7 @@ extension VertexDescriptor: CustomStringConvertible {
             let newDesc = value.element.description + (shouldInsertColumn ? "," : "")
             return result + " " + newDesc + "\n"
         })
-        return String(format: "VertexDescriptor: attributes(\n%@) layots: {\n%@}", attributesDesc, layoutsDesc)
+        return unsafe String(format: "VertexDescriptor: attributes(\n%@) layots: {\n%@}", attributesDesc, layoutsDesc)
     }
 }
 

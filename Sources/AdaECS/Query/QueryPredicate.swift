@@ -28,7 +28,7 @@ public extension QueryPredicate {
     /// - Returns: A new predicate that checks if the entity contains the given component.
     static func has<T: Component>(_ type: T.Type) -> QueryPredicate {
         QueryPredicate { archetype in
-            return archetype.componentsBitMask.contains(type.identifier)
+            return archetype.componentLayout.maskSet.contains(type.identifier)
         }
     }
     
@@ -37,7 +37,7 @@ public extension QueryPredicate {
     /// - Returns: A new predicate that checks if the entity does not contain the given component.
     static func without<T: Component>(_ type: T.Type) -> QueryPredicate {
         QueryPredicate { archetype in
-            return !archetype.componentsBitMask.contains(type.identifier)
+            return !archetype.componentLayout.maskSet.contains(type.identifier)
         }
     }
     

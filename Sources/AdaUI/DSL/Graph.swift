@@ -6,7 +6,11 @@
 //
 
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 @MainActor
 final class ViewGraph {
@@ -102,9 +106,9 @@ public struct _ViewGraphNode<Value>: Equatable {
         // if its pod, we can compare it together using memcmp.
         if _isPOD(Value.self) {
             let memSize = MemoryLayout<Value>.size
-            return withUnsafePointer(to: lhs.value) { lhsPtr in
-                withUnsafePointer(to: rhs.value) { rhsPtr in
-                    memcmp(lhsPtr, rhsPtr, memSize) == 0
+            return unsafe withUnsafePointer(to: lhs.value) { lhsPtr in
+                unsafe withUnsafePointer(to: rhs.value) { rhsPtr in
+                    unsafe memcmp(lhsPtr, rhsPtr, memSize) == 0
                 }
             }
         } else {

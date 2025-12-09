@@ -7,8 +7,8 @@
 
 /// FixedTimestep enable your systems run at a fixed timestep between executions.
 /// This does not guarentee you that the elapsed time will be exactly fixed.
-public final class FixedTimestep: @unchecked Sendable {
-    
+public struct FixedTimestep: Sendable {
+
     public struct AdvanceResult: Sendable {
         /// The elapsed time between executions.
         public internal(set) var fixedTime: TimeInterval
@@ -34,7 +34,7 @@ public final class FixedTimestep: @unchecked Sendable {
     
     /// - Parameter deltaTime: The delta time between frame updates.
     /// - Returns: Advanced result with elapsed time and flag. Advance result can returns zero if that isn't fixed update.
-    public func advance(with deltaTime: TimeInterval) -> AdvanceResult {
+    public mutating func advance(with deltaTime: TimeInterval) -> AdvanceResult {
         var result = AdvanceResult(fixedTime: 0, isFixedTick: false)
         
         if deltaTime > 1 {

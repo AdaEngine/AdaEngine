@@ -15,7 +15,7 @@ single_version_override(
     version = "2.8.2",
 )
 
-bazel_dep(name = "cgrindel_bazel_starlib", version = "0.23.0")
+bazel_dep(name = "cgrindel_bazel_starlib", version = "0.27.0")
 bazel_dep(
     name = "rules_apple",
     version = "3.16.1",
@@ -26,7 +26,7 @@ bazel_dep(name = "apple_support", version = "1.17.1", repo_name = "build_bazel_a
 bazel_dep(name = "rules_xcodeproj", version = "2.12.0", dev_dependency = True, repo_name = "rules_xcodeproj")
 
 bazel_dep(name = "swift-syntax", version = "600.0.0", repo_name = "SwiftSyntax")
-bazel_dep(name = "zlib", version = "1.3.1")
+bazel_dep(name = "zlib", version = "1.3.1.bcr.3")
 
 bazel_dep(
     name = "bazel_skylib_gazelle_plugin",
@@ -51,8 +51,8 @@ swift_deps = use_extension(
 )
 swift_deps.from_package(
     declare_swift_deps_info = True,
-    resolved = "Package.resolved",
-    swift = "Package.swift",
+    resolved = "//:Package.resolved",
+    swift = "//:Package.swift",
 )
 use_repo(
     swift_deps,

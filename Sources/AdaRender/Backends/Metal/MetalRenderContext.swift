@@ -14,9 +14,8 @@ import MetalKit
 
 extension MetalRenderBackend {
 
-    final class Context {
-        private(set) var windows: [RID: RenderWindow] = [:]
-        private var primaryWindow: RenderWindow?
+    final class Context: @unchecked Sendable {
+        private(set) var windows: [WindowID: MetalRenderWindow] = [:]
         let physicalDevice: MTLDevice
         
         init() {
@@ -25,57 +24,52 @@ extension MetalRenderBackend {
             UserDefaults.standard.set(needsShowDebugHUD, forKey: "MetalForceHudEnabled")
         }
 
-        func getRenderWindow(for window: WindowRef) -> RenderWindow? {
-            switch window {
-            case .primary:
-                return primaryWindow
-            case .windowId(let id):
-                return windows[id]
-            }
+        func getRenderWindow(for window: WindowID) -> MetalRenderWindow? {
+            windows[window]
         }
 
         // MARK: - Methods
-        @MainActor func createRenderWindow(with id: WindowRef, view: MTKView, size: SizeInt) throws {
-            if case(.windowId(let id)) = id, self.windows[id] != nil {
+        @MainActor
+        func createRenderWindow(with id: WindowID, view: MTKView, size: SizeInt) throws {
+            if windows[id] != nil {
                 throw ContextError.creationWindowAlreadyExists
             }
-            
-            let window = RenderWindow(view: view)
-            
-            // TODO: (Vlad) We should setup it in different place?
+
+            #if canImport(AppKit)
+            var scaleFactor: Float = unsafe Float(view.window?.screen?.backingScaleFactor ?? 2)
+            #elseif canImport(UIKit)
+            var scaleFactor: Float = unsafe Float(view.window?.screen?.scaleFactor ?? 2)
+            #else
+            var scaleFactor: Float = 2
+            #endif
+
+            let window = MetalRenderWindow(
+                view: view,
+                size: size,
+                scaleFactor: scaleFactor
+            )
             view.colorPixelFormat = .bgra8Unorm
             view.device = self.physicalDevice
             view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
             view.framebufferOnly = false
             view.sampleCount = 1
 
-            if self.primaryWindow == nil {
-                self.primaryWindow = window
-            }
-            if case .windowId(let id) = id {
-                self.windows[id] = window
-            }
-        }
-        
-        func updateSizeForRenderWindow(_ windowId: WindowRef, size: SizeInt) {
-//            guard let window = self.windows[windowId] else {
-//                assertionFailure("Not found window by id \(windowId)")
-//                return
-//            }
-            
-//            window.view?.drawableSize = size.toCGSize
-        }
-        
-        func destroyWindow(by id: WindowRef) {
-            guard case .windowId(let id) = id else {
-                return
-            }
+            let layer = view.layer as? CAMetalLayer
+            layer?.maximumDrawableCount = unsafe RenderEngine.configurations.maxFramesInFlight
+            layer?.allowsNextDrawableTimeout = true
 
+            self.windows[id] = window
+        }
+        
+        func updateSizeForRenderWindow(_ windowId: WindowID, size: SizeInt) {
+            windows[windowId]?.size = size
+        }
+        
+        func destroyWindow(by id: WindowID) {
             guard self.windows[id] != nil else {
                 assertionFailure("Not found window by id \(id)")
                 return
             }
-            
             self.windows[id] = nil
         }
         
@@ -97,35 +91,23 @@ extension MetalRenderBackend {
             var errorDescription: String? {
                 switch self {
                 case .creationWindowAlreadyExists:
-                    return "RenderWindow Creation Failed: Window by given id already exists."
+                    return "MetalRenderWindow Creation Failed: Window by given id already exists."
                 case .commandQueueCreationFailed:
-                    return "RenderWindow Creation Failed: MTLDevice cannot create MTLCommandQueue."
+                    return "MetalRenderWindow Creation Failed: MTLDevice cannot create MTLCommandQueue."
                 }
             }
         }
     }
     
-    final class RenderWindow {
-        private(set) weak var view: MTKView?
-        var drawable: CAMetalDrawable?
-        var commandBuffer: MTLCommandBuffer?
-        
-        internal init(
-            view: MTKView? = nil,
-            commandBuffer: MTLCommandBuffer? = nil
-        ) {
+    struct MetalRenderWindow: Sendable {
+        let view: MTKView
+        var size: SizeInt
+        var scaleFactor: Float
+
+        init(view: MTKView, size: SizeInt, scaleFactor: Float) {
             self.view = view
-            self.commandBuffer = commandBuffer
-        }
-        
-        func getRenderPass() -> MTLRenderPassDescriptor? {
-            guard let drawable else {
-                return nil
-            }
-            
-            let mtlRenderPass = MTLRenderPassDescriptor()
-            mtlRenderPass.colorAttachments[0].texture = drawable.texture
-            return mtlRenderPass
+            self.size = size
+            self.scaleFactor = scaleFactor
         }
     }
 }

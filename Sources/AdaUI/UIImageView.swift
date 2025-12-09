@@ -9,14 +9,6 @@ import AdaUtils
 import AdaRender
 import Math
 
-/// The render mode of the image view.
-public enum ImageRenderMode {
-    /// The original render mode.
-    case original
-    /// The template render mode.
-    case template
-}
-
 /// A view that displays a single image or a sequence of animated images in your interface.
 public class UIImageView: UIView {
 

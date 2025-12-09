@@ -17,7 +17,7 @@ public struct TileMapComponent {
     /// Contains information about entities
     ///
     /// Each tile layer contains root entity that holds tile sprite entitis with physic bodies.
-    internal var tileLayers: [TileMapLayer.ID: Entity] = [:]
+    internal var tileLayers: [TileMapLayer.ID: Entity.ID] = [:]
 
     public init(tileMap: TileMap) {
         self.tileMap = tileMap

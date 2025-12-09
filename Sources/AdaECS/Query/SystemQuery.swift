@@ -5,8 +5,8 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
-/// A protocol for system queries.
-public protocol SystemQuery: Sendable {
+/// A protocol that describe a query for world from a system.
+public protocol SystemParameter: Sendable {
 
     /// Initialize a new system query.
     /// - Parameter world: The world that will be used to initialize the query.
@@ -16,10 +16,15 @@ public protocol SystemQuery: Sendable {
     /// - Parameter world: The world that will be used to update the query.
     /// Updates the query state with the given world.
     func update(from world: World)
+
+    /// Notify query that world finish execution
+    func finish(_ world: World)
 }
 
-public extension SystemQuery {
+public extension SystemParameter {
     func update(from world: World) {
         fatalError("Query should be implemented")
     }
+
+    func finish(_ world: World) { }
 }

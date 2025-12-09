@@ -7,17 +7,24 @@
 
 import AdaAssets
 import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import Math
 
 /// An object that manages image data in your app.
-public final class Image: @unchecked Sendable {
-    
+public struct Image: Sendable {
+
     public private(set) var data: Data
     
     public private(set) var height: Int
     public private(set) var width: Int
-    
+
+    @_spi(Internal)
+    public var options: [String: any Sendable] = [:]
+
     // TODO: Replace it to PixelFormat
     public private(set) var format: Format
     
@@ -58,7 +65,7 @@ public final class Image: @unchecked Sendable {
     }
     
     /// Set pixel color for specific X and Y position.
-    public func setPixel(in position: Point, color: Color) {
+    public mutating func setPixel(in position: Point, color: Color) {
         let offset = Int(position.y) * self.width + Int(position.x)
         
         Self.setPixel(with: offset, color: color, in: &self.data, format: self.format)
@@ -92,7 +99,7 @@ public final class Image: @unchecked Sendable {
 }
 
 public extension Image {
-    enum Format: UInt16, Codable {
+    enum Format: UInt16, Codable, Sendable {
         case rgba8
         case rgb8
         case bgra8
@@ -121,7 +128,7 @@ public extension Image {
         PNGImageSerializer()
     ]
     
-    convenience init(contentsOf file: URL) throws {
+    init(contentsOf file: URL) throws {
         guard let loader = Self.loaders.first(where: { $0.canDecodeImage(with: file.pathExtension) }) else {
             throw LoadingError.formatNotSupported(file.pathExtension)
         }
@@ -150,11 +157,11 @@ extension Image: Asset {
         let sampler: SamplerDescriptor
     }
     
-    public convenience init(from assetDecoder: AssetDecoder) throws {
+    public init(from assetDecoder: AssetDecoder) async throws {
         let pathExt = assetDecoder.assetMeta.filePath.pathExtension
         
         if pathExt.isEmpty || pathExt == "res" {
-            let rep = try assetDecoder.decode(ImageRepresentation.self)
+            let rep = try await assetDecoder.decode(ImageRepresentation.self)
             
             self.init(
                 width: Int(rep.imageSize.width),
@@ -188,13 +195,6 @@ extension Image: Asset {
     
     public static func extensions() -> [String] {
         ["png", "jpg", "jpeg", "gif", "bmp", "tiff", "webp"]
-    }
-
-    public func update(_ newImage: Image) async throws {
-        self.data = newImage.data
-        self.width = newImage.width
-        self.height = newImage.height
-        self.format = newImage.format
     }
 }
 

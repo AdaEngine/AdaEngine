@@ -8,8 +8,9 @@
 import AdaApp
 import AdaECS
 import AdaTransform
-import Math
+import AdaUtils
 @_spi(Internal) import AdaRender
+import Math
 
 // MARK: - Mesh 2D Plugin -
 
@@ -23,8 +24,18 @@ public struct Mesh2DPlugin: Plugin {
     ///
     /// - Parameter app: The app.
     public func setup(in app: AppWorlds) {
+        Mesh2DComponent.registerComponent()
+
+        app.main.registerRequiredComponent(Visibility.self, for: Mesh2DComponent.self)
+        app.main.registerRequiredComponent(BoundingComponent.self, for: Mesh2DComponent.self)
+
         let renderWorld = app.getSubworldBuilder(by: .renderWorld)
-        renderWorld?.addSystem(ExctractMesh2DSystem.self)
+            .unwrap(message: "RenderWorld not found")
+        renderWorld
+            .insertResource(ExctractedMeshes2D())
+            .insertResource(Mesh2DDrawPass())
+            .addSystem(ExctractMesh2DSystem.self, on: .extract)
+            .addSystem(Mesh2DRenderSystem.self, on: .update)
     }
 }
 
@@ -62,18 +73,20 @@ public struct ExctractedMesh2D: Sendable {
 }
 
 /// System to render exctract meshes to RenderWorld.
-@System
+@PlainSystem
 public struct ExctractMesh2DSystem {
-
     @Extract<
         Query<Entity, Mesh2DComponent, Transform, GlobalTransform, Visibility>
     >
     private var query
 
+    @ResMut<ExctractedMeshes2D>
+    private var extractedMeshes
+
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
-        var extractedMeshes = ExctractedMeshes2D()
+    public func update(context: UpdateContext) {
+        extractedMeshes.meshes.removeAll(keepingCapacity: true)
         self.query.wrappedValue.forEach { entity, mesh, transform, globalTransform, visibility in
             if visibility == .hidden {
                 return
@@ -88,62 +101,50 @@ public struct ExctractMesh2DSystem {
                 )
             )
         }
-        context.world.insertResource(extractedMeshes)
     }
 }
 
 // MARK: - Mesh 2D Render Plugin -
 
-/// Plugin for RenderWorld for rendering 2D meshes.
-public struct Mesh2DRenderPlugin: Plugin {
-
-    public init() {}
-
-    public func setup(in app: AppWorlds) {
-        Mesh2DComponent.registerComponent()
-
-        guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
-            return
-        }
-        renderWorld
-            .insertResource(Mesh2DDrawPass())
-            .addSystem(Mesh2DRenderSystem.self)
-    }
-}
-
 /// System in RenderWorld for rendering 2D meshes.
-@System
+@PlainSystem
 public struct Mesh2DRenderSystem: Sendable {
 
     @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>
     private var query
 
-    @ResQuery
-    private var extractedMeshes: ExctractedMeshes2D!
+    @Res<ExctractedMeshes2D>
+    private var extractedMeshes
 
-    @ResQuery
-    private var meshDrawPass: Mesh2DDrawPass!
+    @Res<Mesh2DDrawPass>
+    private var meshDrawPass
+
+    @Res<RenderDeviceHandler>
+    private var renderDevice
+
+    @Commands
+    private var commands
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
+    public func update(context: UpdateContext) {
         self.query.forEach { visibleEntities, renderItems in
             self.draw(
-                meshes: extractedMeshes.meshes,
+                world: context.world,
                 visibleEntities: visibleEntities,
-                items: &renderItems.items,
+                items: renderItems,
                 keys: []
             )
         }
     }
 
     func draw(
-        meshes: [ExctractedMesh2D],
+        world: World,
         visibleEntities: VisibleEntities,
-        items: inout [Transparent2DRenderItem],
+        items: Ref<RenderItems<Transparent2DRenderItem>>,
         keys: Set<String>
     ) {
-        for mesh in meshes {
+        for mesh in extractedMeshes.meshes {
             guard visibleEntities.entityIds.contains(mesh.entityId) else {
                 continue
             }
@@ -157,22 +158,27 @@ public struct Mesh2DRenderSystem: Sendable {
                 for part in model.parts {
                     let material = mesh.mesh.materials[part.materialIndex]
 
-                    guard let pipeline = material.getOrCreatePipeline(for: part.vertexDescriptor, keys: keys) else {
+                    guard let pipeline = material.getOrCreatePipeline(
+                        for: part.vertexDescriptor,
+                        keys: keys,
+                        device: renderDevice.renderDevice
+                    ) else {
                         assertionFailure("No render pipeline for mesh")
                         continue
                     }
 
-                    let emptyEntity = Entity()
-                    emptyEntity.components += ExctractedMeshPart2d(
-                        part: part,
-                        material: material,
-                        modelUniform: modelUniform
-                    )
+                    let entity = commands.spawn() {
+                        ExctractedMeshPart2d(
+                            part: part,
+                            material: material,
+                            modelUniform: modelUniform
+                        )
+                    }.entityId
 
-                    items.append(
+                    items.items.append(
                         Transparent2DRenderItem(
-                            entity: emptyEntity,
-                            batchEntity: emptyEntity,
+                            entity: entity,
+                            batchEntity: entity,
                             drawPass: self.meshDrawPass,
                             renderPipeline: pipeline,
                             sortKey: mesh.transform.position.z
@@ -203,7 +209,6 @@ public class Mesh2dMaterialStorageData: MaterialStorageData {
 
 // TODO: Think about it, maybe we should move it to other dir.
 extension Material {
-
     /// Get Mesh2D material key which has been used for caching.
     func getMesh2dMaterialKey(for vertexDescritor: VertexDescriptor, keys: Set<String>) -> MaterialMesh2dKey {
         let defines = self.collectDefines(for: vertexDescritor, keys: keys)
@@ -211,15 +216,19 @@ extension Material {
     }
 
     /// Get or create Mesh2D Material render pipeline from vertex and keys.
-    func getOrCreatePipeline(for vertexDescriptor: VertexDescriptor, keys: Set<String>) -> RenderPipeline? {
+    func getOrCreatePipeline(
+        for vertexDescriptor: VertexDescriptor,
+        keys: Set<String>,
+        device: RenderDevice
+    ) -> RenderPipeline? {
         let materialKey = self.getMesh2dMaterialKey(for: vertexDescriptor, keys: keys)
 
-        if let data = MaterialStorage.shared.getMaterialData(for: self) as? Mesh2dMaterialStorageData {
+        if let data = unsafe MaterialStorage.shared.getMaterialData(for: self) as? Mesh2dMaterialStorageData {
             if let pipeline = data.pipelines[materialKey] {
                 return pipeline
             }
 
-            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey) else {
+            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey, device: device) else {
                 return nil
             }
 
@@ -230,14 +239,14 @@ extension Material {
 
             return pipeline
         } else {
-            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey) else {
+            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey, device: device) else {
                 return nil
             }
 
             let data = Mesh2dMaterialStorageData()
             data.updateUniformBuffers(from: shaderModule)
             data.pipelines[materialKey] = pipeline
-            MaterialStorage.shared.setMaterialData(data, for: self)
+            unsafe MaterialStorage.shared.setMaterialData(data, for: self)
 
             self.update()
 
@@ -245,7 +254,10 @@ extension Material {
         }
     }
 
-    private func createPipeline(for materialKey: MaterialMesh2dKey) -> (RenderPipeline, ShaderModule)? {
+    private func createPipeline(
+        for materialKey: MaterialMesh2dKey,
+        device: RenderDevice
+    ) -> (RenderPipeline, ShaderModule)? {
         let compiler = ShaderCompiler(shaderSource: self.shaderSource)
 
         for define in materialKey.defines {
@@ -260,9 +272,9 @@ extension Material {
                 return nil
             }
 
-            return (RenderEngine.shared.renderDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
+            return (device.createRenderPipeline(from: pipelineDesc), shaderModule)
         } catch {
-            assertionFailure("[Mesh2DRenderSystem] \(error.localizedDescription)")
+            assertionFailure("[Mesh2DRenderSystem] \(error)")
             return nil
         }
     }

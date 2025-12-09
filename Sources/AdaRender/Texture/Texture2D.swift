@@ -8,6 +8,11 @@
 import AdaAssets
 import AdaUtils
 import Math
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
+import Foundation
+#endif
 
 /// The base class represents a 2D texture.
 /// If the texture isn't held by any object, then the GPU resource will freed immediately.
@@ -83,10 +88,10 @@ open class Texture2D: Texture, @unchecked Sendable {
     ///
     /// - Parameter decoder: The decoder to initialize the texture from.
     /// - Throws: An error if the texture cannot be initialized from the decoder.
-    public convenience required init(from decoder: any AssetDecoder) throws {
+    public convenience required init(from decoder: any AssetDecoder) async throws {
         if Self.extensions().contains(where: { $0 == decoder.assetMeta.filePath.pathExtension }) {
-            let dto = try decoder.decode(TextureSerializable.self)
-            
+            let dto = try await decoder.decode(TextureSerializable.self)
+
             let filePath = dto.info?.assetAbsolutePath.path() ?? decoder.assetMeta.filePath.path()
             let samplerDesc = dto.sampler
             
@@ -96,7 +101,7 @@ open class Texture2D: Texture, @unchecked Sendable {
             )
             self.init(image: image.asset, samplerDescription: samplerDesc)
         } else {
-            let image = try Image(from: decoder)
+            let image = try await Image(from: decoder)
             self.init(image: image, samplerDescription: image.samplerDescription)
         }
     }
@@ -105,7 +110,7 @@ open class Texture2D: Texture, @unchecked Sendable {
     ///
     /// - Parameter encoder: The encoder to encode the texture to.
     /// - Throws: An error if the texture cannot be encoded to the encoder.
-    public override func encodeContents(with encoder: any AssetEncoder) throws {
+    public override func encodeContents(with encoder: any AssetEncoder) async throws {
         try encoder.encode(
             TextureSerializable(
                 info: self.assetMetaInfo,

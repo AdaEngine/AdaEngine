@@ -8,6 +8,8 @@
 import AdaECS
 import AdaUtils
 
+// TODO: Do we need be a Main Actor???
+
 /// A protocol that represents a world extractor.
 /// Used to extract data from main world to subworlds.
 public protocol WorldExctractor {
@@ -15,20 +17,20 @@ public protocol WorldExctractor {
     /// - Parameters:
     ///   - mainWorld: The main world.
     ///   - world: The subworld.
-    func exctract(from mainWorld: World, to world: World)
+    func exctract(from mainWorld: World, to world: World) async
 }
 
 /// A class that represents a collection of worlds.
 @MainActor
 public final class AppWorlds {
     /// The main world.
-    public var mainWorld: World
+    public var main: World
 
     /// The subworlds.
     var subWorlds: [String: AppWorlds]
 
     /// The world extractor.
-    var worldExctractor: (any WorldExctractor)?
+    nonisolated(unsafe) var worldExctractor: (any WorldExctractor)?
 
     /// The plugins.
     var plugins: [ObjectIdentifier: any Plugin] = [:]
@@ -39,19 +41,19 @@ public final class AppWorlds {
     /// The flag that indicates if the app is configured.
     var isConfigured: Bool = false
 
-    var scedulers: [Scheduler]
+    /// Default scheduler that will run first in ``update()`` method
+    public var updateScheduler: SchedulerName?
 
     /// Initialize a new instance of `AppWorlds` with the given main world and subworlds.
     /// - Parameters:
     ///   - mainWorld: The main world.
     ///   - subWorlds: The subworlds.
-    init(
-        mainWorld: World,
+    public init(
+        main: World,
         subWorlds: [String : AppWorlds] = [:]
     ) {
-        self.mainWorld = mainWorld
+        self.main = main
         self.subWorlds = subWorlds
-        self.scedulers = [Scheduler(name: .update)]
     }
 }
 
@@ -60,13 +62,7 @@ public extension AppWorlds {
     /// Set the world extractor.
     /// - Parameter exctractor: The world extractor.
     func setExctractor(_ exctractor: any WorldExctractor) {
-        self.worldExctractor = exctractor
-    }
-
-    /// Set the world scheduler
-    /// - Parameter scheduler: The world scheduler.
-    func setSchedulers(_ schedulers: [Scheduler]) {
-        self.scedulers = schedulers
+        unsafe self.worldExctractor = exctractor
     }
 
     /// Set the runner.
@@ -81,17 +77,18 @@ public extension AppWorlds {
         if !isConfigured {
             return
         }
-
-        for sceduler in self.scedulers {
-            await sceduler.run(world: mainWorld)
-
-            for world in self.subWorlds.values {
-                world.worldExctractor?.exctract(from: mainWorld, to: world.mainWorld)
-                await world.update()
-            }
+        guard let updateScheduler else {
+            assertionFailure("Update scheduler is empty")
+            return
         }
+        await main.runScheduler(updateScheduler)
 
-        mainWorld.clearTrackers()
+        for world in self.subWorlds.values {
+            unsafe await world.worldExctractor?.exctract(from: main, to: world.main)
+            await world.update()
+        }
+        
+        main.clearTrackers()
     }
 
     /// Get the subworld builder by name.
@@ -101,13 +98,11 @@ public extension AppWorlds {
         self.subWorlds[name.rawValue]
     }
 
-    /// Create a new subworld.
+    /// Add a new subworld.
+    /// - Parameter subworld: The subworld.
     /// - Parameter name: The name of the subworld.
-    /// - Returns: The subworld builder.
-    func createSubworld(by name: AppWorldName) -> AppWorlds {
-        let subworld = AppWorlds(mainWorld: World(name: name.rawValue))
+    func addSubworld(_ subworld: consuming AppWorlds, by name: AppWorldName) {
         self.subWorlds[name.rawValue] = subworld
-        return subworld
     }
 
     /// Add a plugin to the app.
@@ -116,7 +111,8 @@ public extension AppWorlds {
     @discardableResult
     func addPlugin<T: Plugin>(_ plugin: T) -> Self {
         if self.plugins[ObjectIdentifier(T.self)] != nil {
-            fatalError("Plugin already installed")
+            assertionFailure("Plugin already installed")
+            return self
         }
 
         self.plugins[ObjectIdentifier(T.self)] = plugin
@@ -134,16 +130,7 @@ public extension AppWorlds {
         _ system: T.Type,
         on scheduler: AdaECS.SchedulerName = .update
     ) -> Self {
-        self.mainWorld.addSystem(system, on: scheduler)
-        return self
-    }
-
-    /// Add an entity to the main world.
-    /// - Parameter entity: The entity to add.
-    /// - Returns: The app builder.
-    @discardableResult
-    func addEntity(_ entity: Entity) -> Self {
-        self.mainWorld.addEntity(entity)
+        self.main.addSystem(system, on: scheduler)
         return self
     }
 
@@ -152,7 +139,13 @@ public extension AppWorlds {
     /// - Returns: The app builder.
     @discardableResult
     func insertResource<T: Resource>(_ resource: consuming T) -> Self {
-        self.mainWorld.insertResource(resource)
+        self.main.insertResource(resource)
+        return self
+    }
+
+    @discardableResult
+    func createResource<T: Resource & WorldInitable>(_ type: T.Type) -> Self {
+        _ = self.main.createResource(of: type)
         return self
     }
 
@@ -160,52 +153,60 @@ public extension AppWorlds {
     /// - Parameter resource: The resource to insert.
     /// - Returns: The app builder.
     func getResource<T: Resource>(_ resource: T.Type) -> T? {
-        return self.mainWorld.getResource(resource)
+        return self.main.getResource(resource)
     }
 
-    func build() throws {
-        /// Wait until all plugins is loaded
-        while !self.plugins.allSatisfy({ $0.value.isLoaded() }) {
-            continue
-        }
+    /// Get mutable resource from the world.
+    /// - Parameter resource: The resource to insert.
+    /// - Returns: The app builder.
+    func getRefResource<T: Resource>(_ resource: T.Type) -> Ref<T> {
+        self.main.getRefResource(resource)
+    }
 
-        self.mainWorld.build()
-        try self.subWorlds.values.forEach {
-            try $0.build()
+    func build() async throws {
+        /// Wait until all plugins is loaded
+        while !self.plugins.allSatisfy({ $0.value.isLoaded(in: self) }) {
+            await Task.yield()
         }
+        
+        for subWorld in self.subWorlds.values {
+            try await subWorld.build()
+        }
+        self.plugins.forEach { $0.value.finish(for: self) }
         self.isConfigured = true
     }
 }
 
+// TODO: Maybe setup made async???
 
 /// A protocol that represents a plugin for the app.
 public protocol Plugin: Sendable {
     /// Setup the plugin in the app.
     @MainActor
-    func setup(in app: AppWorlds)
+    func setup(in app: borrowing AppWorlds)
 
     /// Notify the plugin that the app is ready.
     @MainActor
-    func finish()
+    func finish(for app: borrowing AppWorlds)
 
     /// Check if the plugin is loaded. Used for async plugins.
     @MainActor
-    func isLoaded() -> Bool
+    func isLoaded(in app: borrowing AppWorlds) -> Bool
 
     /// Destroy the plugin.
     @MainActor
-    func destroy()
+    func destroy(for app: borrowing AppWorlds)
 }
 
 public extension Plugin {
-    func isLoaded() -> Bool {
+    func isLoaded(in app: borrowing AppWorlds) -> Bool {
         return true
     }
 
-    func finish() { }
+    func finish(for app: borrowing AppWorlds) { }
 
     @MainActor
-    func destroy() { }
+    func destroy(for app: borrowing AppWorlds) { }
 }
 
 public struct AppWorldName: Hashable, Equatable, RawRepresentable, CustomStringConvertible, Sendable {

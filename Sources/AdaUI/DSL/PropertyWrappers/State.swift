@@ -18,11 +18,11 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
     let _storage: StateStorage<Value>
 
     public var wrappedValue: Value {
-        get {
-            return _storage.value
+        _read {
+            yield _storage.value
         }
-        nonmutating set {
-            _storage.value = newValue
+        nonmutating _modify {
+            yield &_storage.value
             _storage.update()
         }
     }
@@ -31,7 +31,8 @@ public struct State<Value>: UpdatableProperty, PropertyStoragable {
         Binding<Value> {
             self.wrappedValue
         } set: { newValue in
-            self.wrappedValue = newValue
+            self._storage.value = newValue
+            self._storage.update()
         }
     }
 

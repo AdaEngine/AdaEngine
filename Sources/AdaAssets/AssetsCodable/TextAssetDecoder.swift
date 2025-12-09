@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 5/2/24.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import AdaUtils
 import Yams
 
@@ -37,14 +41,14 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
     ///   - type: The type of the asset.
     ///   - decoder: The decoder to decode the asset from.
     /// - Returns: The decoded asset.
-    public func decode<A: Asset>(_ type: A.Type, from decoder: any Decoder) throws -> A {
+    public func decode<A: Asset>(_ type: A.Type, from decoder: any Decoder) async throws -> A {
         let newDecoder = Self(
             meta: self.assetMeta,
             data: self.assetData,
             decoder: decoder
         )
         
-        return try A.init(from: newDecoder)
+        return try await A.init(from: newDecoder)
     }
     
     /// Get or load a resource from the decoder.
@@ -61,7 +65,7 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
             return AssetHandle(value)
         } else {
             let handle = try AssetsManager.loadSync(resourceType, at: path)
-            self.appendResource(handle.asset)
+            self.appendResource(handle)
             
             return handle
         }
@@ -92,8 +96,8 @@ public final class TextAssetDecoder: AssetDecoder, @unchecked Sendable {
     /// Append a resource to the decoder.
     ///
     /// - Parameter resource: The resource to append.
-    public func appendResource<A: Asset>(_ resource: A) {
-        self.resources[resource.assetPath] = WeakBox(value: resource)
+    public func appendResource<A: Asset>(_ resource: AssetHandle<A>) {
+        self.resources[resource.asset.assetPath] = WeakBox(value: resource)
     }
 }
 

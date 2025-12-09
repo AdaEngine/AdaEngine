@@ -9,6 +9,7 @@
 import AdaRender
 import AdaUtils
 import Math
+import AdaECS
 
 /// Base protocol describes platform specific window.
 @MainActor
@@ -36,29 +37,10 @@ open class UIWindowManager {
     /// Contains active window if available.
     public private(set) var activeWindow: UIWindow?
 
-    public init() { }
-
-    /// Called each frame to update windows.
     @_spi(Internal)
-    public func update(_ deltaTime: AdaUtils.TimeInterval) async {
-        for window in self.windows {
-            let menuBuilder = self.menuBuilder(for: window)
-            menuBuilder?.updateIfNeeded()
+    public var inputRef: Ref<Input>?
 
-            for event in Input.shared.eventsPool where event.window == window.id {
-                window.sendEvent(event)
-            }
-            
-            await window.internalUpdate(deltaTime)
-
-            if window.canDraw {
-                var context = UIGraphicsContext(window: window)
-                context.beginDraw(in: window.frame.size, scaleFactor: 1)
-                window.draw(with: context)
-                context.commitDraw()
-            }
-        }
-    }
+    public init() { }
 
     open func menuBuilder(for window: UIWindow) -> UIMenuBuilder? {
         return nil
@@ -142,7 +124,7 @@ open class UIWindowManager {
         }
         
         // Destory window from render window
-        try? RenderEngine.shared.destroyWindow(.windowId(window.id))
+        try? RenderEngine.shared.destroyWindow(window.id)
         
         self.windows.remove(at: index)
         window.windowDidDisappear()

@@ -13,28 +13,43 @@ struct MainSchedulerPlugin: Plugin {
     /// Setup the main scheduler.
     /// - Parameter app: The app to setup the main scheduler for.
     func setup(in app: AppWorlds) {
-        let mainScheduler = Scheduler(name: .update)
-        let fixedScheduler = Scheduler(name: .fixedUpdate, system: FixedTimeSchedulerSystem.self)
-        let postUpdateScheduler = Scheduler(name: .postUpdate, system: PostUpdateSchedulerRunner.self)
-        app.setSchedulers([
-            mainScheduler,
-            fixedScheduler,
-            postUpdateScheduler
-        ])
-        app.mainWorld.insertResource(DefaultSchedulerOrder())
-        app.mainWorld.addSchedulers(
-            .fixedPreUpdate,
-            .fixedUpdate,
-            .fixedPostUpdate
+        let mainScheduler = Scheduler(name: .main)
+        app.updateScheduler = .main
+
+        app.main.addScheduler(mainScheduler)
+        app.main.addSchedulers(
+            .fixed,
+            .postUpdate
         )
+
+        app
+            .addSystem(DefaultSchedulerRunner.self, on: .main)
+            .addSystem(FixedTimeSchedulerSystem.self, on: .fixed)
+        app.insertResource(DefaultSchedulerOrder())
+        app.addSystem(GameLoopBeganSystem.self, on: .preUpdate)
     }
 }
 
-/// The system that runs the fixed time scheduler.
+extension SchedulerName {
+    static let main: SchedulerName = "Main"
+    static let fixed: SchedulerName = "FixedMain"
+}
+
+// FIXME: Hack to works with AnimatedTexture
 @System
+@inline(__always)
+func GameLoopBegan(
+    _ deltaTime: Res<DeltaTime?>
+) {
+    guard let deltaTime = deltaTime.wrappedValue else { return }
+    EventManager.default.send(EngineEvents.MainLoopBegan(deltaTime: deltaTime.deltaTime))
+}
+
+/// The system that runs the fixed time scheduler.
+@PlainSystem
 public struct FixedTimeSchedulerSystem {
 
-    @LocalIsolated
+    @Local
     private var fixedTimestep: FixedTimestep
 
     let order: [SchedulerName] = [
@@ -47,39 +62,20 @@ public struct FixedTimeSchedulerSystem {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: 60)
     }
 
-    public func update(context: inout UpdateContext) {
-        let result = self.fixedTimestep.advance(with: context.deltaTime)
+    @Res<DeltaTime?>
+    private var deltaTime
+
+    public func update(context: UpdateContext) async {
+        let deltaTime = deltaTime?.deltaTime ?? 0
+        let result = self.fixedTimestep.advance(with: deltaTime)
 
         if result.isFixedTick {
             let step = self.fixedTimestep.step
             let world = context.world
-            world.insertResource(DeltaTime(deltaTime: step))
-            context.taskGroup.addTask { [order] in
-                for scheduler in order {
-                    await world.runScheduler(scheduler, deltaTime: step)
-                }
+            world.insertResource(FixedTime(deltaTime: step))
+            for scheduler in order {
+                await world.runScheduler(scheduler)
             }
-        }
-    }
-}
-
-/// The system that runs the post update scheduler.
-@System
-public struct PostUpdateSchedulerRunner: Sendable {
-
-    @ResQuery
-    private var order: DefaultSchedulerOrder?
-
-    @LocalIsolated
-    private var lastUpdate: LongTimeInterval = 0
-
-    public init(world: World) { }
-
-    public func update(context: inout UpdateContext) {
-        let world = context.world
-        let deltaTime = context.deltaTime
-        context.taskGroup.addTask {
-            await world.runScheduler(.postUpdate, deltaTime: deltaTime)
         }
     }
 }

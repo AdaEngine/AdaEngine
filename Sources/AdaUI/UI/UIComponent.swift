@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import AdaUtils
 
 /// - Warning: Work in progress component
 @Component

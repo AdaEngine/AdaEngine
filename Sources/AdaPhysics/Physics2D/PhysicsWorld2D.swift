@@ -11,8 +11,8 @@ import box2d
 import Math
 
 /// A protocol that defines a delegate for the physics world.
-public protocol PhysicsWorld2DDelegate: AnyObject {
-    
+public protocol PhysicsWorld2DDelegate: AnyObject, Sendable {
+
     /// Called when the physics world is about to solve a collision.
     ///
     /// - Parameters:
@@ -43,8 +43,7 @@ public protocol PhysicsWorld2DDelegate: AnyObject {
 }
 
 /// An object that holds and simulates all 2D physics bodies.
-@MainActor
-public final class PhysicsWorld2D: @preconcurrency Codable {
+public final class PhysicsWorld2D: Codable, @unchecked Sendable {
 
     /// The coding keys for the physics world.
     enum CodingKeys: CodingKey {
@@ -102,21 +101,42 @@ public final class PhysicsWorld2D: @preconcurrency Codable {
         }
     }
 
+   /// Adjust the restitution threshold. It is recommended not to make this value very small
+   /// because it will prevent bodies from sleeping. Usually in meters per second.
+    public var restitutionThreshold: Float {
+        get {
+            b2World_GetRestitutionThreshold(worldId)
+        }
+        set {
+            b2World_SetRestitutionThreshold(worldId, newValue)
+        }
+    }
+
+    /// Adjust the hit event threshold. This controls the collision speed needed to generate a b2ContactHitEvent.
+    /// Usually in meters per second.
+    public var hitEventThreshold: Float {
+        get {
+            b2World_GetHitEventThreshold(worldId)
+        }
+        set {
+            b2World_SetHitEventThreshold(worldId, newValue)
+        }
+    }
     private let worldId: b2WorldId
     var eventManager: EventManager = .default
     
     /// - Parameter gravity: default gravity is 9.8.
     nonisolated init(gravity: Vector2 = [0, -9.81]) {
         var worldDef = b2DefaultWorldDef()
-        worldDef.gravity = gravity.b2Vec
-        worldDef.enableSleep = true
-        worldDef.enableContinuous = true
-        self.worldId = b2CreateWorld(&worldDef)
+        unsafe worldDef.gravity = gravity.b2Vec
+        unsafe worldDef.enableSleep = true
+        unsafe worldDef.enableContinuous = true
+        self.worldId = unsafe b2CreateWorld(&worldDef)
         b2World_EnableWarmStarting(worldId, true)
         
-        let unsafeWorldPtr = Unmanaged.passUnretained(self).toOpaque()
-        b2World_SetPreSolveCallback(worldId, PhysicsWorld2D_PreSolve, unsafeWorldPtr)
-        b2World_SetCustomFilterCallback(worldId, PhysicsWorld2D_CustomFilterCallback, unsafeWorldPtr)
+        let unsafeWorldPtr = unsafe Unmanaged.passUnretained(self).toOpaque()
+        unsafe b2World_SetPreSolveCallback(worldId, PhysicsWorld2D_PreSolve, unsafeWorldPtr)
+        unsafe b2World_SetCustomFilterCallback(worldId, PhysicsWorld2D_CustomFilterCallback, unsafeWorldPtr)
     }
     
     deinit {
@@ -201,26 +221,26 @@ public final class PhysicsWorld2D: @preconcurrency Codable {
 
     @MainActor
     func debugDraw(with definitions: b2DebugDraw) {
-        var definitions = definitions
-        b2World_Draw(worldId, &definitions)
+        var definitions = unsafe definitions
+        unsafe b2World_Draw(worldId, &definitions)
     }
 
     @MainActor
     func processContacts() {
         let contactEvents = b2World_GetContactEvents(self.worldId)
 
-        for index in 0..<contactEvents.beginCount {
-            let contact = contactEvents.beginEvents[Int(index)]
+        for index in unsafe 0..<contactEvents.beginCount {
+            let contact = unsafe contactEvents.beginEvents[Int(index)]
             onBeginContact(contact)
         }
 
-        for index in 0..<contactEvents.endCount {
-            let contact = contactEvents.endEvents[Int(index)]
+        for index in unsafe 0..<contactEvents.endCount {
+            let contact = unsafe contactEvents.endEvents[Int(index)]
             onEndContact(contact)
         }
 
-        for index in 0..<contactEvents.hitCount {
-            let contact = contactEvents.hitEvents[Int(index)]
+        for index in unsafe 0..<contactEvents.hitCount {
+            let contact = unsafe contactEvents.hitEvents[Int(index)]
             onHitContact(contact)
         }
     }
@@ -229,13 +249,13 @@ public final class PhysicsWorld2D: @preconcurrency Codable {
     func processSensors() {
         let sensorEvents = b2World_GetSensorEvents(self.worldId)
 
-        for index in 0..<sensorEvents.beginCount {
-            let contact = sensorEvents.beginEvents[Int(index)]
+        for index in unsafe 0..<sensorEvents.beginCount {
+            let contact = unsafe sensorEvents.beginEvents[Int(index)]
             onSensorBeginContact(contact)
         }
 
-        for index in 0..<sensorEvents.endCount {
-            let contact = sensorEvents.endEvents[Int(index)]
+        for index in unsafe 0..<sensorEvents.endCount {
+            let contact = unsafe sensorEvents.endEvents[Int(index)]
             onSensorEndContact(contact)
         }
     }
@@ -245,13 +265,13 @@ public final class PhysicsWorld2D: @preconcurrency Codable {
     }
     
     func createBody(with definition: b2BodyDef, for entity: Entity) -> Body2D {
-        let body = withUnsafePointer(to: definition) {
-            b2CreateBody(self.worldId, $0)
+        let body = unsafe withUnsafePointer(to: definition) {
+            unsafe b2CreateBody(self.worldId, $0)
         }
         
         let body2d = Body2D(world: self, bodyId: body, entity: entity)
-        let pointer = Unmanaged.passUnretained(body2d).toOpaque()
-        b2Body_SetUserData(body, pointer)
+        let pointer = unsafe Unmanaged.passUnretained(body2d).toOpaque()
+        unsafe b2Body_SetUserData(body, pointer)
 
         return body2d
     }
@@ -358,12 +378,12 @@ private func PhysicsWorld2D_PreSolve(
     _ manifold: UnsafeMutablePointer<b2Manifold>?,
     _ context: UnsafeMutableRawPointer?
 ) -> Bool {
-    guard let context else {
+    guard let context = unsafe context else {
         return false
     }
-    let world = Unmanaged<PhysicsWorld2D>.fromOpaque(context).takeUnretainedValue()
-    let manifold = manifold.flatMap { ptr in
-        Manifold2D(
+    let world = unsafe Unmanaged<PhysicsWorld2D>.fromOpaque(context).takeUnretainedValue()
+    let manifold = unsafe manifold.flatMap { ptr in
+        unsafe Manifold2D(
             normal: ptr.pointee.normal.asVector2,
             rollingImpulse: ptr.pointee.rollingImpulse
         )
@@ -398,10 +418,10 @@ private func PhysicsWorld2D_CustomFilterCallback(
     _ shapeB: b2ShapeId,
     _ context: UnsafeMutableRawPointer?
 ) -> Bool {
-    guard let context else {
+    guard let context = unsafe context else {
         return true
     }
-    let world = Unmanaged<PhysicsWorld2D>.fromOpaque(context).takeUnretainedValue()
+    let world = unsafe Unmanaged<PhysicsWorld2D>.fromOpaque(context).takeUnretainedValue()
     return MainActor.assumeIsolated {
         
         let shapeIdA = BoxShape2D(shape: shapeA)
@@ -431,18 +451,18 @@ private func PhysicsWorld2D_CustomFilterCallback(
 extension Vector2 {
     var b2Vec: b2Vec2 {
         get {
-            return unsafeBitCast(self, to: b2Vec2.self)
+            return unsafe unsafeBitCast(self, to: b2Vec2.self)
         }
         
         set {
-            self = unsafeBitCast(newValue, to: Vector2.self)
+            self = unsafe unsafeBitCast(newValue, to: Vector2.self)
         }
     }
 }
 
 extension b2Vec2 {
     var asVector2: Vector2 {
-        return unsafeBitCast(self, to: Vector2.self)
+        return unsafe unsafeBitCast(self, to: Vector2.self)
     }
 }
 

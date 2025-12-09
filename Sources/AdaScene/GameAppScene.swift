@@ -21,7 +21,7 @@ public struct GameAppScene: AppScene {
         EmptyWindow()
             .transformAppWorlds { appWorlds in
                 do {
-                    try appWorlds.addPlugin(
+                    try unsafe appWorlds.addPlugin(
                         GameScenePlugin(gameScene: AssetHandle<Scene>(gameScene()))
                     )
                 } catch {
@@ -48,8 +48,8 @@ struct GameScenePlugin: Plugin {
     let gameScene: AssetHandle<Scene>
 
     func setup(in app: AppWorlds) {
-        let entity = Entity(name: "GameAppScene")
-        entity.components += DynamicScene(scene: gameScene)
-        app.mainWorld.addEntity(entity)
+        app.main.spawn {
+            DynamicScene(scene: gameScene)
+        }
     }
 }

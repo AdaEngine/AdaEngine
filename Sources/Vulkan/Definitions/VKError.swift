@@ -6,7 +6,11 @@
 //
 
 import CVulkan
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 public struct VKError: LocalizedError {
 

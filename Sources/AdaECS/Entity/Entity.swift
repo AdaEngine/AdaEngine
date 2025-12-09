@@ -15,14 +15,16 @@ import OrderedCollections
 /// Entity in ECS based architecture is the main object that holds components.
 open class Entity: Identifiable, @unchecked Sendable {
 
+    static let notAllocatedId = -25102018
+
     /// Contains entity name.
     public let name: String
 
     /// Contains unique identifier of entity.
-    public private(set) var id: Int
+    public package(set) var id: Int
 
     /// Contains components specific for current entity.
-    @LocalIsolated public var components: ComponentSet = ComponentSet()
+    public var components: ComponentSet
 
     /// The dispose bag of the entity.
     var disposeBag: Set<AnyCancellable> = []
@@ -32,33 +34,40 @@ open class Entity: Identifiable, @unchecked Sendable {
     public var isActive: Bool = true
 
     /// Contains reference for world where entity placed.
-    public internal(set) weak var world: World?
-    
-    /// Create a new entity.
-    /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
-    /// - Note: If you want to use entity without any components use ``EmptyEntity``
-    /// - Parameter name: Name of entity. By default is `Entity`.
-    public init(name: String = "Entity") {
-        self.name = name
-        self.id = RID().id
-        // swiftlint:disable:next inert_defer
-        defer {
-            self.components.entity = self
+    public internal(set) weak var world: World? {
+        didSet {
+            self.components.world = world
         }
     }
 
-    /// Create a new entity and setup components on init.
-    ///
-    /// Also entity contains next components ``Transform``, ``RelationshipComponent`` and ``Visibility``.
-    /// - Note: If you want to use entity without any components use ``EmptyEntity``
+    /// Create a new entity with not allocated id. To track that entity in the world use ``World/addEntity(_:)``
     /// - Parameter name: Name of entity. By default is `Entity`.
-    /// - Parameter components: Collection of components.
-    public convenience init(
+    public init(name: String = "Entity") {
+        self.name = name
+        self.id = Self.notAllocatedId
+        self.components = ComponentSet(entity: self.id)
+    }
+
+    /// Create a new entity with not allocated id. To track that entity in the world use ``World/addEntity(_:)``
+    /// - Parameter name: Name of entity. By default is `Entity`.
+    public init(
         name: String = "Entity",
-        @ComponentsBuilder components: () -> [Component]
+        @ComponentsBuilder components: () -> ComponentsBundle
     ) {
-        self.init(name: name)
-        self.components.set(components())
+        self.name = name
+        self.id = Self.notAllocatedId
+        self.components = ComponentSet(entity: self.id)
+        for component in components().components {
+            self.components.notFlushedComponents[type(of: component).identifier] = component
+        }
+    }
+
+    /// Create a new entity with id.
+    /// - Parameter name: Name of entity. By default is `Entity`.
+    init(name: String = "Entity", id: Int) {
+        self.name = name
+        self.id = id
+        self.components = ComponentSet(entity: self.id)
     }
 
     // MARK: - Codable
@@ -68,10 +77,9 @@ open class Entity: Identifiable, @unchecked Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let name = try container.decode(String.self, forKey: .name)
         let id = try container.decode(Int.self, forKey: .id)
-        self.init(name: name)
-        self.id = id
+        self.init(name: name, id: id)
         self.components = try container.decode(ComponentSet.self, forKey: .components)
-        self.components.entity = self
+        self.components.entity = id
     }
     
     /// Encode the entity to an encoder.
@@ -85,18 +93,18 @@ open class Entity: Identifiable, @unchecked Sendable {
     
     // MARK: - Public
     
-    /// Remove entity from scene.
+    /// Remove entity from world.
     /// - Note: Entity will removed on next update tick.
-    public func removeFromScene(recursively: Bool = false) {
+    public func removeFromWorld(recursively: Bool = false) {
         self.world?.removeEntityOnNextTick(self, recursively: recursively)
     }
 
     /// Copy the entity.
     /// - Returns: A new entity with the same components.
     open func copy() -> Entity {
-        let entity = Entity(name: self.name)
+        let entity = Entity(name: self.name, id: Self.notAllocatedId)
         entity.components = self.components.copy()
-        entity.components.entity = entity
+        entity.components.entity = entity.id
         entity.isActive = self.isActive
         return entity
     }
@@ -125,6 +133,19 @@ extension Entity: Codable {
     enum CodingKeys: String, CodingKey {
         case id, name
         case components
+    }
+}
+
+extension Entity: CustomStringConvertible {
+    /// A textual representation of the entity.
+    public var description: String {
+        """
+        Entity(
+            id: \(self.id), 
+            name: \(self.name), 
+            components: \(self.components)
+        )
+        """
     }
 }
 

@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 @frozen public struct AnyEncodable: Encodable {
     public let value: Any
@@ -86,7 +90,7 @@ extension _AnyEncodable {
 
     #if canImport(Foundation)
     private func encode(nsnumber: NSNumber, into container: inout SingleValueEncodingContainer) throws {
-        switch Character(Unicode.Scalar(UInt8(nsnumber.objCType.pointee)))  {
+        switch unsafe Character(Unicode.Scalar(UInt8(nsnumber.objCType.pointee)))  {
         case "B":
             try container.encode(nsnumber.boolValue)
         case "c":

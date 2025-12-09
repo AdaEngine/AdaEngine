@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 5/2/24.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import Yams
 
 /// An encoder for assets that are stored in text format.
@@ -61,9 +65,9 @@ public final class TextAssetEncoder: AssetEncoder, @unchecked Sendable {
     ///   - asset: The asset to encode.
     ///   - encoder: The encoder to encode the asset to.
     /// - Throws: An error if the asset cannot be encoded to the encoder.
-    public func encode<A: Asset>(_ asset: A, to encoder: any Encoder) throws {
+    public func encode<A: Asset>(_ asset: A, to encoder: any Encoder) async throws {
         let newEncoder = Self(meta: self.assetMeta, encoder: encoder)
-        try asset.encodeContents(with: newEncoder)
+        try await asset.encodeContents(with: newEncoder)
     }
 }
 

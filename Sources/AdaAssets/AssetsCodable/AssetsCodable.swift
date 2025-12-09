@@ -5,13 +5,17 @@
 //  Created by v.prusakov on 3/9/23.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import AdaUtils
 
 // TODO: Mode for decoding/encoding files from/into binary format.
 
 /// A query for an asset.
-public struct AssetQuery: Sendable {
+public struct AssetQuery: Sendable, Codable {
     /// The name of the query.
     public let name: String
 
@@ -20,7 +24,7 @@ public struct AssetQuery: Sendable {
 }
 
 /// A meta information about an asset.
-public struct AssetMeta: Sendable {
+public struct AssetMeta: Sendable, Codable {
     /// The file path of the asset.
     public let filePath: URL
 
@@ -64,7 +68,7 @@ public protocol AssetEncoder: Sendable {
     /// - Note: If you call this method more than once, than previous encode data will overwritten.
     func encode<T: Encodable>(_ value: T) throws
     
-    func encode<A: Asset>(_ asset: A, to encoder: any Encoder) throws
+    func encode<A: Asset>(_ asset: A, to encoder: any Encoder) async throws
 }
 
 // MARK: - Decoder -
@@ -96,13 +100,13 @@ public protocol AssetDecoder: Sendable {
     /// - Parameter type: The type of the content.
     /// - Returns: The decoded content.
     func decode<T: Decodable>(_ type: T.Type) throws -> T
-    
+
     /// Use this method to decode content from asset.
     ///
     /// - Parameter type: The type of the asset.
     /// - Parameter decoder: The decoder.
     /// - Returns: The decoded asset.
-    func decode<A: Asset>(_ type: A.Type, from decoder: any Decoder) throws -> A
+    func decode<A: Asset>(_ type: A.Type, from decoder: any Decoder) async throws -> A
 }
 
 // MARK: Asset Decoding Context

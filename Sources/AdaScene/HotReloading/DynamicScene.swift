@@ -20,7 +20,7 @@ public struct DynamicScene {
     ///
     /// - Parameter world: The world.
     public init(world: World) {
-        self.scene = AssetHandle(Scene(from: world))
+        self.scene = unsafe AssetHandle(Scene(from: world))
     }
 }
 
@@ -35,7 +35,7 @@ public struct DynamicSceneInstance {
 }
 
 /// A system that initializes and reloads a dynamic scene.
-@System
+@PlainSystem
 struct DynamicSceneInitSystem {
 
     @Query<Entity, DynamicScene, DynamicSceneInstance?>
@@ -43,14 +43,14 @@ struct DynamicSceneInitSystem {
 
     init(world: World) {  }
     
-    func update(context: inout UpdateContext) {
-        for (entity, scene, instance) in dynamicScenes {
+    func update(context: UpdateContext) {
+        dynamicScenes.forEach { (entity, scene, instance) in
             guard let instance else {
                 insertScene(to: entity, dynamicScene: scene, world: context.world)
                 return
             }
             
-            if instance.identifier != scene.scene.asset.world.id {
+            if unsafe instance.identifier != scene.scene.asset.world.id {
                 removeChild(from: entity)
                 insertScene(to: entity, dynamicScene: scene, world: context.world)
             }
@@ -58,7 +58,7 @@ struct DynamicSceneInitSystem {
     }
     
     private func insertScene(to rootEntity: Entity, dynamicScene: DynamicScene, world: World) {
-        let sceneWorld = dynamicScene.scene.asset.world
+        let sceneWorld = unsafe dynamicScene.scene.asset.world
         for entity in sceneWorld.getEntities() {
             let copy = entity.copy()
             rootEntity.addChild(copy)
@@ -75,7 +75,7 @@ struct DynamicSceneInitSystem {
     
     private func removeChild(from entity: Entity) {
         for child in entity.children {
-            child.removeFromScene(recursively: true)
+            child.removeFromWorld(recursively: true)
         }
     }
 }

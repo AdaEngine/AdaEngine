@@ -28,23 +28,47 @@
 @attached(extension, names: arbitrary, conformances: Component)
 public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "ComponentMacro")
 
+
+/// A macro for creating a bundle.
+/// A bundle macro is more preffered way to create a bundle.
+/// When you use a bundle macro, you will atomatically conforms ``Bundle`` protocol.
+///
+/// Example:
+/// ```swift
+/// @Bundle
+/// struct PlayerBundle {
+///     var position: Vector3
+///     var player: Player
+/// }
+///
+/// world.spawn(
+///     PlayerBundle(
+///         position: [10, 0, 10],
+///         player: Player(team: .red)
+///     )
+/// )
+/// ```
+@attached(member, names: named(components))
+@attached(extension, names: arbitrary, conformances: ComponentsBundle)
+public macro Bundle() = #externalMacro(module: "AdaEngineMacros", type: "BundleMacro")
+
 /// A macro for creating a system.
-/// You can pass as many parameters as you want, but they must be a conforms a ``SystemQuery`` protocol.
+/// You can pass as many parameters as you want, but they must be a conforms a ``SystemParameter`` protocol.
 ///
 /// - Parameters:
 ///   - dependencies: An array of system dependencies.
 ///
 /// Example:
 /// ```swift
-/// @System(dependencies: [PhysicsSystem.self])
+/// @PlainSystem(dependencies: [PhysicsSystem.self])
 /// struct MovementSystem: System {
 ///     @Query<Ref<Transform>, Velocity>
 ///     private var query
 ///
-///     @ResQuery
+///     @Res
 ///     private var resources: Gravity?
 ///
-///     func update(context: inout UpdateContext) {
+///     func update(context: UpdateContext) {
 ///         for (transform, velocity) in query {
 ///             transform.position += velocity.value * context.deltaTime
 ///         }
@@ -53,20 +77,22 @@ public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "Comp
 /// ```
 @attached(member, names: named(queries), named(dependencies))
 @attached(extension, names: arbitrary, conformances: System)
-public macro System(dependencies: [SystemDependency] = []) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
+public macro PlainSystem(
+    dependencies: [SystemDependency] = []
+) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
 
 /// A macro for creating a system from a function.
-/// You can pass as many parameters as you want, but they must be a conforms a ``SystemQuery`` protocol.
+/// You can pass as many parameters as you want, but they must be a conforms a ``SystemParameter`` protocol.
 ///
 /// - Parameters:
 ///   - dependencies: An array of system dependencies.
 ///
 /// Example:
 /// ```swift
-/// @PlainSystem(dependencies: [PhysicsSystem.self])
+/// @System(dependencies: [PhysicsSystem.self])
 /// func Movement(
 ///     query: Query<Ref<Transform>, Velocity>,
-///     resources: ResQuery<Gravity>,
+///     resources: Res<Gravity>,
 /// ) {
 ///     // ...
 /// }
@@ -76,7 +102,9 @@ public macro System(dependencies: [SystemDependency] = []) = #externalMacro(modu
 /// }
 
 @attached(peer, names: suffixed(System), conformances: System)
-public macro PlainSystem(dependencies: [SystemDependency] = []) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
+public macro System(
+    dependencies: [SystemDependency] = []
+) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
 
 #endif
 

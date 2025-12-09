@@ -5,6 +5,9 @@
 //  Created by v.prusakov on 1/8/23.
 //
 
+import AdaUtils
+import Math
+
 // TODO: (Vlad) Add documentations
 
 /// An object that contains graphics functions and configuration state to use in a render command.
@@ -113,7 +116,7 @@ public struct DepthStencilDescriptor: Sendable {
 }
 
 /// An object that specifies the format and properties of a color attachment.
-public struct ColorAttachmentDescriptor: Sendable {
+public struct RenderPipelineColorAttachmentDescriptor: Sendable {
 
     /// The format of the color attachment.
     public var format: PixelFormat
@@ -166,6 +169,40 @@ public struct ColorAttachmentDescriptor: Sendable {
     }
 }
 
+public struct DepthStencilAttachmentDescriptor: Sendable {
+
+    public var texture: Texture
+
+    public var depthOperation: OperationDescriptor?
+
+    public var stencilOperation: OperationDescriptor?
+
+    public init(
+        texture: Texture,
+        depthOperation: OperationDescriptor? = nil,
+        stencilOperation: OperationDescriptor? = nil
+    ) {
+        self.texture = texture
+        self.depthOperation = depthOperation
+        self.stencilOperation = stencilOperation
+    }
+}
+
+public struct OperationDescriptor: Sendable {
+
+    public var loadAction: AttachmentLoadAction
+
+    public var storeAction: AttachmentStoreAction
+
+    public init(
+        loadAction: AttachmentLoadAction,
+        storeAction: AttachmentStoreAction
+    ) {
+        self.loadAction = loadAction
+        self.storeAction = storeAction
+    }
+}
+
 /// An object specifies the rendering configuration state to use during a rendering pass,
 /// including rasterization (such as multisampling), visibility, blending, tessellation, and graphics function state.
 ///
@@ -197,8 +234,8 @@ public struct RenderPipelineDescriptor: Sendable {
     public var depthPixelFormat: PixelFormat = .depth_32f_stencil8
     
     /// The color attachments.
-    public var colorAttachments: [ColorAttachmentDescriptor] = []
-    
+    public var colorAttachments: [RenderPipelineColorAttachmentDescriptor] = []
+
     /// Initialize a new render pipeline descriptor.
     ///
     /// - Parameter vertex: The vertex shader.
@@ -214,7 +251,7 @@ public struct RenderPipelineDescriptor: Sendable {
         vertexDescriptor: VertexDescriptor = VertexDescriptor(),
         depthStencilDescriptor: DepthStencilDescriptor? = nil,
         depthPixelFormat: PixelFormat = .depth_32f_stencil8,
-        colorAttachments: [ColorAttachmentDescriptor] = []
+        colorAttachments: [RenderPipelineColorAttachmentDescriptor] = []
     ) {
         self.vertex = vertex
         self.fragment = fragment

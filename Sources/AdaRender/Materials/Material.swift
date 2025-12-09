@@ -44,22 +44,22 @@ public class Material: Asset, Hashable, @unchecked Sendable {
     
     /// Set the new value for material.
     public func setValue<T: ShaderUniformValue>(_ value: T, for name: String) {
-        MaterialStorage.shared.setValue(value, for: name, in: self)
+        unsafe MaterialStorage.shared.setValue(value, for: name, in: self)
     }
     
     /// Get value from material.
     public func getValue<T: ShaderUniformValue>(for name: String) -> T? {
-        return MaterialStorage.shared.getValue(for: name, in: self)
+        return unsafe MaterialStorage.shared.getValue(for: name, in: self)
     }
     
     /// Set one or more textures for material.
     public func setResources(_ textures: [Texture], for name: String) {
-        MaterialStorage.shared.setResources(textures, for: name, in: self)
+        unsafe MaterialStorage.shared.setResources(textures, for: name, in: self)
     }
     
     /// Get textures from material.
     public func getResources(for name: String) -> [Texture] {
-        return MaterialStorage.shared.getResources(for: name, in: self)
+        return unsafe MaterialStorage.shared.getResources(for: name, in: self)
     }
     
     /// Updates material values.
@@ -85,7 +85,11 @@ public class Material: Asset, Hashable, @unchecked Sendable {
     }
     
     /// Create render pipeline descriptor for passed vertex descriptor, keys and compiled shader module.
-    open func configureRenderPipeline(for vertexDescriptor: VertexDescriptor, keys: Set<String>, shaderModule: ShaderModule) -> RenderPipelineDescriptor? {
+    open func configureRenderPipeline(
+        for vertexDescriptor: VertexDescriptor,
+        keys: Set<String>,
+        shaderModule: ShaderModule
+    ) -> RenderPipelineDescriptor? {
         fatalErrorMethodNotImplemented()
     }
 }

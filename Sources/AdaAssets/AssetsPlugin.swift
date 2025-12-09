@@ -6,6 +6,7 @@
 //
 
 import AdaApp
+import AdaECS
 
 public struct AssetsPlugin: Plugin {
 
@@ -18,8 +19,23 @@ public struct AssetsPlugin: Plugin {
     public func setup(in app: AppWorlds) {
         do {
             try AssetsManager.initialize(filePath: filePath)
+            app.addSystem(AssetsProcessSystem.self, on: .preUpdate)
         } catch {
             print(error)
+        }
+    }
+}
+
+@System
+@inline(__always)
+func AssetsProcess(
+    _ context: WorldUpdateContext
+) {
+    Task {
+        do {
+            try await AssetsManager.processResources()
+        } catch {
+            print("Failed to process")
         }
     }
 }

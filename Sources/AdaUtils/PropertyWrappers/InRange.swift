@@ -32,7 +32,7 @@ public struct InRange<T: Comparable & Codable>: Codable {
     }
     
     public init(wrappedValue: T, _ range: ClosedRange<T>) {
-        self.range = Range(uncheckedBounds: (range.lowerBound, range.upperBound))
+        self.range = unsafe Range(uncheckedBounds: (range.lowerBound, range.upperBound))
         self.wrappedValue = Self.applyRange(self.range, for: wrappedValue)
     }
     

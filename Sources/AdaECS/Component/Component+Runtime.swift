@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 5/24/22.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 // TODO: (Vlad) Add components list to editor and generate file with registered components.
 // TODO: (Vlad) We can think about `swift_getMangledTypeName` and `swift_getTypeByMangledNameInContext`
@@ -44,11 +48,11 @@ enum ComponentStorage {
     
     /// Return registered component or try to find it by NSClassFromString (works only for objc runtime)
     static func getRegisteredComponent(for name: String) -> Component.Type? {
-        return self.registeredComponents[name] ?? (NSClassFromString(name) as? Component.Type)
+        return unsafe self.registeredComponents[name] ?? (NSClassFromString(name) as? Component.Type)
     }
     
     static func addComponent<T: Component>(_ type: T.Type) {
-        self.registeredComponents[T.swiftName] = type
+        unsafe self.registeredComponents[T.swiftName] = type
     }
 }
 

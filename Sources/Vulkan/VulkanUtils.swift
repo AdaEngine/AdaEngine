@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 3/19/24.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 public enum VulkanUtils {
 

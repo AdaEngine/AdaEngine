@@ -9,6 +9,7 @@ import AtlasFontGenerator
 import AdaRender
 
 /// Hold information about font data and atlas.
+@safe
 final class FontHandle: Hashable, @unchecked Sendable {
     
     let atlasTexture: Texture2D
@@ -20,33 +21,34 @@ final class FontHandle: Hashable, @unchecked Sendable {
     
     init(
         atlasTexture: Texture2D,
-        fontData: OpaquePointer) {
+        fontData: OpaquePointer
+    ) {
         self.atlasTexture = atlasTexture
-        self.fontData = fontData
-            
-        self.metrics = font_geometry_get_metrics(fontData)
-        self.fontName = String(cString: font_geometry_get_name(fontData)!)
-        self.geometryScale = font_geometry_get_scale(fontData)
+        unsafe self.fontData = fontData
+
+        self.metrics = unsafe font_geometry_get_metrics(fontData)
+        self.fontName = unsafe String(cString: font_geometry_get_name(fontData)!)
+        self.geometryScale = unsafe font_geometry_get_scale(fontData)
     }
     
     deinit {
-        font_handle_destroy(self.fontData)
+        unsafe font_handle_destroy(self.fontData)
     }
     
     func getGlyph(for scalar: UInt32) -> Glyph? {
-        guard let glyph = font_handle_get_glyph_unicode(self.fontData, scalar) else {
+        guard let glyph = unsafe font_handle_get_glyph_unicode(self.fontData, scalar) else {
             return nil
         }
         
-        return Glyph(ref: glyph)
+        return unsafe Glyph(ref: glyph)
     }
     
     func getAdvance(_ advance: inout Double, _ currentUnicode: UInt32, _ nextUnicode: UInt32) {
-        font_handle_get_advance(self.fontData, &advance, currentUnicode, nextUnicode)
+        unsafe font_handle_get_advance(self.fontData, &advance, currentUnicode, nextUnicode)
     }
     
     var glyphsCount: Int {
-        return Int(font_handle_get_glyphs_count(self.fontData))
+        unsafe Int(font_handle_get_glyphs_count(self.fontData))
     }
     
     // MARK: Hashable
@@ -76,37 +78,36 @@ final class FontHandle: Hashable, @unchecked Sendable {
 }
 
 extension FontHandle {
-    
+    @safe
     final class Glyph {
         let ref: OpaquePointer
         
         init(ref: OpaquePointer) {
-            self.ref = ref
+            unsafe self.ref = ref
         }
         
         deinit {
-            self.ref.deallocate()
+            unsafe self.ref.deallocate()
         }
         
         var advance: Double {
-            return font_glyph_get_advance(self.ref)
+            unsafe font_glyph_get_advance(self.ref)
         }
         
         func getQuadAtlasBounds(_ l: inout Double, _ b: inout Double, _ r: inout Double, _ t: inout Double) {
-            font_glyph_get_quad_atlas_bounds(self.ref, &l, &b, &r, &t)
+            unsafe font_glyph_get_quad_atlas_bounds(self.ref, &l, &b, &r, &t)
         }
         
         func getQuadPlaneBounds(_ pl: inout Double, _ pb: inout Double, _ pr: inout Double, _ pt: inout Double) {
-            font_glyph_get_quad_plane_bounds(self.ref, &pl, &pb, &pr, &pt)
+            unsafe font_glyph_get_quad_plane_bounds(self.ref, &pl, &pb, &pr, &pt)
         }
     }
-    
 }
 
 extension OpaquePointer {
 
     // TODO: Should we deallocate it in this place?
     func deallocate() {
-        UnsafeRawPointer(self).deallocate()
+        unsafe UnsafeRawPointer(self).deallocate()
     }
 }

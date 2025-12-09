@@ -8,19 +8,27 @@
 import AdaECS
 import AdaAssets
 import AdaRender
-import Foundation
 
-struct SpriteRenderPipeline: Resource {
-    let renderPipeline: RenderPipeline
+public struct SpriteRenderPipeline: RenderPipelineConfigurator {
+    public let spriteShader: AssetHandle<ShaderModule>
 
-    init() {
-        let device = RenderEngine.shared.renderDevice
-        let spriteShader = try! AssetsManager.loadSync(
+    public init() {
+        self.spriteShader = try! AssetsManager.loadSync(
             ShaderModule.self,
             at: "Assets/sprite.glsl",
             from: .module
         )
+    }
+}
 
+extension SpriteRenderPipeline: WorldInitable {
+    public init(from world: World) {
+        self = Self.init()
+    }
+}
+
+extension SpriteRenderPipeline {
+    public func configurate(with configuration: RenderPipelineEmptyConfiguration) -> RenderPipelineDescriptor {
         var piplineDesc = RenderPipelineDescriptor()
         piplineDesc.vertex = spriteShader.asset.getShader(for: .vertex)
         piplineDesc.fragment = spriteShader.asset.getShader(for: .fragment)
@@ -33,8 +41,7 @@ struct SpriteRenderPipeline: Resource {
         ])
 
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<SpriteVertexData>.stride
-        piplineDesc.colorAttachments = [ColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
-        let quadPipeline = device.createRenderPipeline(from: piplineDesc)
-        self.renderPipeline = quadPipeline
+        piplineDesc.colorAttachments = [RenderPipelineColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
+        return piplineDesc
     }
 }

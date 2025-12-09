@@ -58,6 +58,17 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
         fatalError("init(asset:) has not been implemented")
     }
     
+    /// Initialize a new render texture from a GPU texture.
+    internal init(gpuTexture: GPUTexture, format: PixelFormat, scaleFactor: Float = 1.0) {
+        self.pixelFormat = format
+        self.scaleFactor = scaleFactor
+        
+        let device = RenderEngine.shared.renderDevice
+        let sampler = device.createSampler(from: SamplerDescriptor())
+        
+        super.init(gpuTexture: gpuTexture, sampler: sampler, size: gpuTexture.size)
+    }
+
     func setActive(_ isActive: Bool) {
         self.isActive = isActive
     }

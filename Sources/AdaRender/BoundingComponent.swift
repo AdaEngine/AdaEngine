@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import AdaUtils
 import Math
 
 /// Contains information about bounds of entity.
@@ -22,3 +23,8 @@ public struct BoundingComponent {
         self.bounds = bounds
     }
 }
+
+extension BoundingComponent: DefaultValue {
+    public static let defaultValue: BoundingComponent = .init(bounds: .aabb(.empty))
+}
+

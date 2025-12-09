@@ -5,6 +5,8 @@
 //  Created by Vladislav Prusakov on 24.06.2024.
 //
 
+import Math
+
 public extension View {
     /// Adds an action to perform before this view appears.
     /// - Parameter action: The action to perform. If action is nil, the call has no effect.

@@ -5,7 +5,12 @@
 //  Created by v.prusakov on 3/10/23.
 //
 
+import AdaUtils
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import SPIRVCompiler
 import SPIRV_Cross
 
@@ -165,11 +170,11 @@ public final class ShaderCompiler {
         
         var error: UnsafePointer<CChar>?
         let defines = self.getDefines(for: stage)
-        let binary = defines.withCString { definesPtr in
-            let options = spirv_options(preamble: definesPtr)
+        let binary = unsafe defines.withCString { definesPtr in
+            let options = unsafe spirv_options(preamble: definesPtr)
             
-            return code.withCString { sourcePtr in
-                compile_shader_glsl(
+            return unsafe code.withCString { sourcePtr in
+                unsafe compile_shader_glsl(
                     sourcePtr, /* source */
                     stage.toShaderCompiler, /* stage */
                     options, /* options */
@@ -178,14 +183,14 @@ public final class ShaderCompiler {
             }
         }
         
-        if let error {
-            let message = String(cString: error, encoding: .utf8) ?? "Failed to compile"
+        if let error = unsafe error {
+            let message = unsafe String(cString: error, encoding: .utf8) ?? "Failed to compile"
             throw CompileError.glslError(message)
         }
         
-        let data = Data(bytes: binary.bytes, count: Int(binary.length))
-        binary.bytes.deallocate()
-        
+        let data = unsafe Data(bytes: binary.bytes, count: Int(binary.length))
+        unsafe binary.bytes.deallocate()
+
         return SpirvBinary(
             stage: stage,
             data: data,

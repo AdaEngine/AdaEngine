@@ -10,15 +10,112 @@ import AdaRender
 import AdaUtils
 import AdaTransform
 import Math
+import AdaAssets
 
-// TODO: Rewrite sprite batch if needed. Too much drawcalls, I think
+@Component
+/// A component that contains the textures for a batch.
+public struct TextureBatchComponent {
+    /// The textures for a batch.
+    public var textures: [Texture2D]
+}
 
+// MARK: Extraction to Render World
+
+/// A resource that contains the extracted sprites.
+public struct ExtractedSprites: Resource {
+    /// The extracted sprites.
+    public var sprites: [ExtractedSprite]
+
+    /// Initialize a new extracted sprites.
+    ///
+    /// - Parameter sprites: The extracted sprites.
+    public init(sprites: [ExtractedSprite] = []) {
+        self.sprites = sprites
+    }
+}
+
+/// A sprite that contains the extracted sprite.
+public struct ExtractedSprite: Sendable {
+    /// The entity id of the extracted sprite.
+    public var entityId: Entity.ID
+    /// The texture of the extracted sprite.
+    public var texture: Texture2D?
+    /// The flip x of the extracted sprite.
+    public var flipX: Bool
+    /// The flip y of the extracted sprite.
+    public var flipY: Bool
+    /// The tint color of the extracted sprite.
+    public var tintColor: Color
+    /// The transform of the extracted sprite.
+    public var transform: Transform
+    /// The world transform of the extracted sprite.
+    public var worldTransform: Transform3D
+}
+
+/// A data for drawing sprites.
+public struct SpriteDrawData: Resource {
+    let vertexBuffer: BufferData<SpriteVertexData>
+    let indexBuffer: BufferData<UInt32>
+}
+
+/// Exctract sprites to RenderWorld for future rendering.
 @System(dependencies: [
-    .after(ExtractCameraSystem.self),
-    .after(BatchTransparent2DItemsSystem.self)
+    .before(SpriteRenderSystem.self)
 ])
-public struct SpriteRenderSystem: Sendable {
+@inline(__always)
+public func ExtractSprite(
+    _ world: World,
+    _ sprites: Extract<
+        Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>
+    >,
+    _ extractedSprites: ResMut<ExtractedSprites>
+) {
+    extractedSprites.sprites.removeAll(keepingCapacity: true)
+    sprites.wrappedValue.forEach { entity, sprite, globalTransform, transform, visible in
+        if visible == .hidden {
+            return
+        }
+        extractedSprites.sprites.append(
+            ExtractedSprite(
+                entityId: entity.id,
+                texture: sprite.texture?.asset,
+                flipX: sprite.flipX,
+                flipY: sprite.flipY,
+                tintColor: sprite.tintColor,
+                transform: transform,
+                worldTransform: globalTransform.matrix
+            )
+        )
+    }
+}
 
+@System
+@inline(__always)
+func UpdateBoundings(
+    _ sprites: FilterQuery<
+        Entity, Transform, Ref<BoundingComponent>,
+        And<With<SpriteComponent>, Changed<Transform>>,
+    >,
+    _ meshes: FilterQuery<
+        Mesh2DComponent, Ref<BoundingComponent>,
+        Changed<Mesh2DComponent>
+    >
+) async {
+    await sprites.parallel().forEach { entity, transform, bounds in
+        let position = transform.position
+        let scale = transform.scale
+        let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
+        let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
+        bounds.bounds = .aabb(AABB(min: min, max: max))
+    }
+
+    await meshes.parallel().forEach { mesh2d, bounds in
+        bounds.bounds = .aabb(mesh2d.mesh.bounds)
+    }
+}
+
+@PlainSystem
+public struct SpriteRenderSystem: Sendable {
     @Query<
         Camera,
         VisibleEntities,
@@ -26,14 +123,20 @@ public struct SpriteRenderSystem: Sendable {
     >
     private var cameras
 
-    @ResQuery
+    @Res
     private var extractedSprites: ExtractedSprites?
 
-    @ResQuery
-    private var spriteDrawPass: SpriteDrawPass!
+    @Res
+    private var spriteDrawPass: SpriteDrawPass
 
-    @ResQuery
-    private var spriteRenderPipeline: SpriteRenderPipeline!
+    @ResMut
+    private var spriteRenderPipeline: RenderPipelines<SpriteRenderPipeline>
+
+    @Res
+    private var renderDevice: RenderDeviceHandler
+
+    @Commands
+    private var commands
 
     static let quadPosition: [Vector4] = [
         [-0.5, -0.5,  0.0, 1.0],
@@ -46,12 +149,13 @@ public struct SpriteRenderSystem: Sendable {
 
     public init(world: World) { }
 
-    public func update(context: inout UpdateContext) {
-        for (_, visibleEntities, renderItems) in cameras {
+    public func update(context: UpdateContext) {
+        cameras.forEach { (_, visibleEntities, renderItems) in
             self.draw(
+                world: context.world,
                 extractedSprites: self.extractedSprites?.sprites ?? [],
                 visibleEntities: visibleEntities,
-                renderItems: &renderItems.wrappedValue
+                renderItems: renderItems
             )
         }
     }
@@ -60,26 +164,25 @@ public struct SpriteRenderSystem: Sendable {
 
     // swiftlint:disable:next function_body_length
     private func draw(
+        world: World,
         extractedSprites: [ExtractedSprite],
         visibleEntities: VisibleEntities,
-        renderItems: inout RenderItems<Transparent2DRenderItem>
+        renderItems: Ref<RenderItems<Transparent2DRenderItem>>
     ) {
-        let spriteData = Entity(name: "sprite_data")
-
+        let device = renderDevice.renderDevice
+        let spriteData = commands.spawn("sprite_data")
         let sprites = extractedSprites
             .sorted { lhs, rhs in
                 lhs.transform.position.z < rhs.transform.position.z
             }
 
-        var spriteVerticies = [SpriteVertexData]()
-        spriteVerticies.reserveCapacity(MemoryLayout<SpriteVertexData>.stride * sprites.count)
+        var spriteVerticies: BufferData<SpriteVertexData> = []
+        spriteVerticies.label = "SpriteRenderSystem_VertexBuffer"
 
         var indeciesCount: Int32 = 0
-
         var textureSlotIndex = 1
-
-        var currentBatchEntity = Entity()
-        var currentBatch = BatchComponent(
+        var currentBatchEntity = commands.spawn("Batch entity")
+        var currentBatch = TextureBatchComponent(
             textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
         )
 
@@ -89,12 +192,11 @@ public struct SpriteRenderSystem: Sendable {
             }
 
             let worldTransform = sprite.worldTransform
-
             if textureSlotIndex >= Self.maxTexturesPerBatch {
-                currentBatchEntity.components += currentBatch
+                currentBatchEntity.insert(currentBatch)
                 textureSlotIndex = 1
-                currentBatchEntity = Entity()
-                currentBatch = BatchComponent(
+                currentBatchEntity = commands.spawn("Batch entity")
+                currentBatch = TextureBatchComponent(
                     textures: [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
                 )
             }
@@ -131,34 +233,28 @@ public struct SpriteRenderSystem: Sendable {
             indeciesCount += 6
             let itemEnd = indeciesCount
 
+            let pipeline = spriteRenderPipeline.pipeline(device: device)
             renderItems.items.append(
                 Transparent2DRenderItem(
-                    entity: spriteData,
-                    batchEntity: currentBatchEntity,
+                    entity: spriteData.entityId,
+                    batchEntity: currentBatchEntity.entityId,
                     drawPass: self.spriteDrawPass,
-                    renderPipeline: self.spriteRenderPipeline.renderPipeline,
+                    renderPipeline: pipeline,
                     sortKey: sprite.transform.position.z,
                     batchRange: itemStart..<itemEnd
                 )
             )
         }
 
-        currentBatchEntity.components += currentBatch
+        currentBatchEntity.insert(currentBatch)
 
         if spriteVerticies.isEmpty {
             return
         }
 
-        let device = RenderEngine.shared.renderDevice
-        var vertexBuffer = device.createVertexBuffer(
-            length: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride,
-            binding: 0
-        )
-        vertexBuffer.label = "SpriteRenderSystem_VertexBuffer"
-
         let indicies = Int(indeciesCount * 4)
-
-        var quadIndices = [UInt32].init(repeating: 0, count: indicies)
+        var quadIndices: BufferData<UInt32> = .init(elements: [UInt32].init(repeating: 0, count: indicies))
+        quadIndices.label = "SpriteRenderSystem_IndexBuffer"
 
         var offset: UInt32 = 0
         for index in stride(from: 0, to: indicies, by: 6) {
@@ -173,123 +269,14 @@ public struct SpriteRenderSystem: Sendable {
             offset += 4
         }
 
-        vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<SpriteVertexData>.stride)
+        spriteVerticies.write(to: device)
+        quadIndices.write(to: device)
 
-        var quadIndexBuffer = device.createIndexBuffer(
-            format: .uInt32,
-            bytes: &quadIndices,
-            length: indicies
-        )
-        quadIndexBuffer.label = "SpriteRenderSystem_IndexBuffer"
-
-        spriteData.components += SpriteDataComponent(
-            vertexBuffer: vertexBuffer,
-            indexBuffer: quadIndexBuffer
-        )
-    }
-}
-
-@Component
-struct SpriteDataComponent {
-    let vertexBuffer: VertexBuffer
-    let indexBuffer: IndexBuffer
-}
-
-@Component
-/// A component that contains the textures for a batch.
-public struct BatchComponent {
-    /// The textures for a batch.
-    public var textures: [Texture2D]
-}
-
-// MARK: Extraction to Render World
-
-/// A resource that contains the extracted sprites.
-public struct ExtractedSprites: Resource {
-    /// The extracted sprites.
-    public var sprites: [ExtractedSprite]
-
-    /// Initialize a new extracted sprites.
-    ///
-    /// - Parameter sprites: The extracted sprites.
-    public init(sprites: [ExtractedSprite]) {
-        self.sprites = sprites
-    }
-}
-
-/// A sprite that contains the extracted sprite.
-public struct ExtractedSprite: Sendable {
-    /// The entity id of the extracted sprite.
-    public var entityId: Entity.ID
-    /// The texture of the extracted sprite.
-    public var texture: Texture2D?
-    /// The flip x of the extracted sprite.
-    public var flipX: Bool
-    /// The flip y of the extracted sprite.
-    public var flipY: Bool
-    /// The tint color of the extracted sprite.
-    public var tintColor: Color
-    /// The transform of the extracted sprite.
-    public var transform: Transform
-    /// The world transform of the extracted sprite.
-    public var worldTransform: Transform3D
-}
-
-/// Exctract sprites to RenderWorld for future rendering.
-@PlainSystem(dependencies: [
-    .before(SpriteRenderSystem.self)
-])
-public func ExtractSprite(
-    _ world: Ref<World>,
-    _ sprites: Extract<Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>>
-) {
-    var extractedSprites = ExtractedSprites(sprites: [])
-    sprites().wrappedValue.forEach { entity, sprite, globalTransform, transform, visible in
-        if visible == .hidden {
-            return
-        }
-
-        extractedSprites.sprites.append(
-            ExtractedSprite(
-                entityId: entity.id,
-                texture: sprite.texture?.asset,
-                flipX: sprite.flipX,
-                flipY: sprite.flipY,
-                tintColor: sprite.tintColor,
-                transform: transform,
-                worldTransform: globalTransform.matrix
+        commands.insertResource(
+            SpriteDrawData(
+                vertexBuffer: spriteVerticies,
+                indexBuffer: quadIndices
             )
         )
-    }
-    world.wrappedValue.insertResource(extractedSprites)
-}
-
-@PlainSystem
-func UpdateBoundings(
-    _ entitiesWithTransform: Query<Entity, Transform>
-) {
-    entitiesWithTransform().forEach { entity, transform in
-        var bounds: BoundingComponent.Bounds?
-
-        if entity.components.has(SpriteComponent.self) {
-            if !entity.components.isComponentChanged(Transform.self) && entity.components.has(BoundingComponent.self) {
-                return
-            }
-
-            let transform = entity.components[Transform.self]!
-            let position = transform.position
-            let scale = transform.scale
-
-            let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
-            let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
-
-            bounds = .aabb(AABB(min: min, max: max))
-        } else if let mesh2d = entity.components[Mesh2DComponent.self] {
-            bounds = .aabb(mesh2d.mesh.bounds)
-        }
-
-        if let bounds {
-            entity.components += BoundingComponent(bounds: bounds)
-        }
     }
 }

@@ -11,6 +11,7 @@ import AdaRender
 import AppKit
 import AdaInput
 import Math
+import AdaUtils
 
 // swiftlint:disable cyclomatic_complexity
 final class MacOSWindowManager: UIWindowManager {
@@ -34,9 +35,9 @@ final class MacOSWindowManager: UIWindowManager {
         
         /// Register view in engine
         let metalView = MetalView(windowId: window.id, frame: contentRect)
-        
+        metalView.windowManager = self
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-        try? RenderEngine.shared.createWindow(.windowId(window.id), for: metalView, size: sizeInt)
+        try? RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
 
         let systemWindow = NSWindow(
             contentRect: contentRect,
@@ -81,7 +82,6 @@ final class MacOSWindowManager: UIWindowManager {
         }
         
         window.windowDidAppear()
-        
         self.setActiveWindow(window)
     }
     
@@ -127,7 +127,10 @@ final class MacOSWindowManager: UIWindowManager {
     }
     
     override func getScreen(for window: UIWindow) -> Screen? {
-        guard let nsWindow = window.systemWindow as? NSWindow, let screen = nsWindow.screen else {
+        guard
+            let nsWindow = window.systemWindow as? NSWindow,
+            let screen = nsWindow.screen
+        else {
             return nil
         }
         
@@ -234,7 +237,7 @@ final class MacOSWindowManager: UIWindowManager {
             return
         }
         
-        guard let pixels = bitmap.bitmapData else {
+        guard let pixels = unsafe bitmap.bitmapData else {
             return
         }
         
@@ -246,10 +249,10 @@ final class MacOSWindowManager: UIWindowManager {
             
             let color = image.getPixel(x: columnIndex, y: rowIndex)
             
-            pixels[index * 4 + 0] = UInt8(clamp(color.red * 255.0, 0, 255))
-            pixels[index * 4 + 1] = UInt8(clamp(color.green * 255.0, 0, 255))
-            pixels[index * 4 + 2] = UInt8(clamp(color.blue * 255.0, 0, 255))
-            pixels[index * 4 + 3] = UInt8(clamp(color.alpha * 255.0, 0, 255))
+            unsafe pixels[index * 4 + 0] = UInt8(clamp(color.red * 255.0, 0, 255))
+            unsafe pixels[index * 4 + 1] = UInt8(clamp(color.green * 255.0, 0, 255))
+            unsafe pixels[index * 4 + 2] = UInt8(clamp(color.blue * 255.0, 0, 255))
+            unsafe pixels[index * 4 + 3] = UInt8(clamp(color.alpha * 255.0, 0, 255))
         }
         
         let nsImage = NSImage(size: CGSize(width: CGFloat(texture.width), height: CGFloat(texture.height)))
@@ -343,7 +346,7 @@ final class NSWindowDelegateObject: NSObject, NSWindowDelegate {
         }
     
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-        try? RenderEngine.shared.resizeWindow(.windowId(window.id), newSize: sizeInt)
+        try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
     }
     
     func windowDidExitFullScreen(_ notification: Notification) {

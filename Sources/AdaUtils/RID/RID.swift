@@ -5,7 +5,11 @@
 //  Created by v.prusakov on 5/21/22.
 //
 
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 // swiftlint:disable all
 
@@ -18,8 +22,8 @@ public struct RID: Equatable, Hashable, Codable, Sendable {
 
 public extension RID {
     
-    nonisolated(unsafe) static var empty = RID(id: -1)
-    
+    static let empty = RID(id: -1)
+
     /// Generate random unique rid
     init() {
         self.id = Self.readTime()
@@ -27,7 +31,7 @@ public extension RID {
     
     private static func readTime() -> Int {
         var time = timespec(tv_sec: 0, tv_nsec: 0)
-        clock_gettime(CLOCK_MONOTONIC, &time)
+        unsafe clock_gettime(CLOCK_MONOTONIC, &time)
         
         return (time.tv_sec * 10000000) + (time.tv_nsec / 100) + 0x01B21DD213814000;
     }

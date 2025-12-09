@@ -11,47 +11,33 @@ import AdaRender
 import AdaTransform
 
 /// A virtual camera that establishes the rendering perspective.
-public final class PerspectiveCamera: Entity, @unchecked Sendable {
-    
-    /// A camera component for the perspective camera entity.
-    public var camera: Camera {
-        get {
-            self.components[Camera.self]!
-        }
-        
-        set {
-            self.components[Camera.self] = newValue
-        }
-    }
-    
+@Bundle
+public struct PerspectiveCameraBundle {
+    public var camera: Camera
+    public var visibleEntities = VisibleEntities()
+    public var globalViewUniform = GlobalViewUniform()
+    public var globalViewUniformBufferSet = GlobalViewUniformBufferSet()
+    public var audioReceiver = AudioReceiver()
+    public var transform = Transform()
+    public var renderItems = RenderItems<Transparent2DRenderItem>()
+
     /// Create a new perspective camera for rendering 2D and 3D items on screen.
-    public override init(name: String = "PerspectiveCamera") {
-        super.init(name: name)
-        
-        var camera = Camera()
-        camera.isActive = true
-        camera.projection = .perspective
-        self.components += camera
-        self.components += VisibleEntities()
-        self.components += GlobalViewUniform()
-        self.components += GlobalViewUniformBufferSet()
-        self.components += AudioReceiver()
-        self.components += Transform() 
-        self.components += RenderItems<Transparent2DRenderItem>()
-    }
-    
-    /// Create a new perspective camera for rendering 2D and 3D items on screen.
-    public init(name: String = "PerspectiveCamera", camera: Camera) {
-        super.init(name: name)
-        
-        var camera = camera
-        camera.isActive = true
-        camera.projection = .perspective
-        self.components += camera
-        self.components += GlobalViewUniform()
-        self.components += GlobalViewUniformBufferSet()
-        self.components += VisibleEntities()
-        self.components += Transform()
-        self.components += RenderItems<Transparent2DRenderItem>()
+    public init(
+        camera: Camera,
+         visibleEntities: VisibleEntities = VisibleEntities(),
+         globalViewUniform: GlobalViewUniform = GlobalViewUniform(),
+         globalViewUniformBufferSet: GlobalViewUniformBufferSet = GlobalViewUniformBufferSet(),
+         audioReceiver: AudioReceiver = AudioReceiver(),
+         transform: Transform = Transform(),
+        renderItems: RenderItems<Transparent2DRenderItem> = RenderItems<Transparent2DRenderItem>()
+    ) {
+        self.camera = camera
+        self.camera.projection = .perspective
+        self.visibleEntities = visibleEntities
+        self.globalViewUniform = globalViewUniform
+        self.globalViewUniformBufferSet = globalViewUniformBufferSet
+        self.audioReceiver = audioReceiver
+        self.transform = transform
+        self.renderItems = renderItems
     }
 }

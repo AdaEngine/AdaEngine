@@ -8,6 +8,9 @@
 import AdaAssets
 import AdaUtils
 
+// TODO: I don't like that solution
+// - Remove or replace RenderEngine
+// - Should be a class or be open for inheritance?
 open class MaterialStorageData {
     public var reflectionData: ShaderReflectionData = ShaderReflectionData()
     public var uniformBufferSet: [String : UniformBufferSet] = [:]
@@ -40,9 +43,7 @@ open class MaterialStorageData {
 }
 
 public final class MaterialStorage {
-
     public nonisolated(unsafe) static let shared: MaterialStorage = MaterialStorage()
-    
     private var materialData: [RID: MaterialStorageData] = [:]
     
     private init() {}
@@ -66,9 +67,9 @@ public final class MaterialStorage {
             frameIndex: RenderEngine.shared.currentFrameIndex
         )
         
-        withUnsafePointer(to: value) { pointer in
-            let dataPtr = UnsafeMutableRawPointer(mutating: UnsafeRawPointer(pointer))
-            buffer?.setData(dataPtr, byteCount: member.size, offset: member.offset)
+        unsafe withUnsafePointer(to: value) { pointer in
+            let dataPtr = unsafe UnsafeMutableRawPointer(mutating: UnsafeRawPointer(pointer))
+            unsafe buffer?.setData(dataPtr, byteCount: member.size, offset: member.offset)
         }
     }
     
@@ -89,7 +90,7 @@ public final class MaterialStorage {
             frameIndex: RenderEngine.shared.currentFrameIndex
         )
         
-        return buffer?.contents().load(fromByteOffset: member.offset, as: T.self)
+        return unsafe buffer?.contents().load(fromByteOffset: member.offset, as: T.self)
     }
 
     public func getUniformDescription(for name: String, in material: MaterialStorageData) -> ShaderResource.ShaderBuffer? {

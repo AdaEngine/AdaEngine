@@ -12,7 +12,26 @@ import AdaUtils
 /// The base component in ECS paradigm.
 /// Component contains data described some entity characteristic in the game world, like:
 /// color, transformation and etc.
-public protocol Component: QueryTarget, ~Copyable { }
+public protocol Component: QueryTarget, ~Copyable {
+    static var componentsInfo: ComponentsInfo { get }
+}
+
+public extension Component {
+    static var componentsInfo: ComponentsInfo {
+        ComponentsInfo(
+            componentId: Self.identifier,
+            isPlainOldData: _isPOD(Self.self)
+        )
+    }
+}
+
+public struct ComponentsInfo {
+    public let componentId: ComponentId
+
+    /// Plain struct without any references, ARC, etc.
+    /// - SeeAlso: _isPOD
+    public let isPlainOldData: Bool
+}
 
 /// Provides the events related to components.
 public enum ComponentEvents {

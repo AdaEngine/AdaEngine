@@ -8,7 +8,11 @@
 import AdaApp
 import AdaECS
 @_spi(Internal) import AdaRender
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 import AdaUI
 
 /// The main class represents application instance.
@@ -19,8 +23,6 @@ open class Application: Resource {
     
     /// Contains application instance if application created from ``App``.
     @MainActor public internal(set) static var shared: Application!
-
-    let mainLoop: MainLoop = MainLoop.current
 
     /// Current runtime platform.
     public var platform: RuntimePlatform {

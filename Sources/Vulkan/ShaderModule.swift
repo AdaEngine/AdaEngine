@@ -6,7 +6,11 @@
 //
 
 import CVulkan
+#if canImport(FoundationEssentials)
+import FoundationEssentials
+#else
 import Foundation
+#endif
 
 /// A shader module.
 public final class ShaderModule {
