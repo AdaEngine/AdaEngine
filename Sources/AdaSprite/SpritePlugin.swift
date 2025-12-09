@@ -21,9 +21,7 @@ public struct SpritePlugin: Plugin {
             .addSystem(UpdateBoundingsSystem.self, on: .postUpdate)
             .main
             .registerRequiredComponent(Visibility.self, for: SpriteComponent.self)
-            .registerRequiredComponent(Visibility.self, for: Mesh2DComponent.self)
             .registerRequiredComponent(BoundingComponent.self, for: SpriteComponent.self)
-            .registerRequiredComponent(BoundingComponent.self, for: Mesh2DComponent.self)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -34,7 +32,6 @@ public struct SpritePlugin: Plugin {
             .createResource(RenderPipelines<SpriteRenderPipeline>.self)
             .insertResource(SpriteDrawPass())
             .addSystem(ExtractSpriteSystem.self, on: .extract)
-            .addSystem(ExctractMesh2DSystem.self, on: .extract)
             .addSystem(SpriteRenderSystem.self, on: .update)
     }
 }

@@ -666,6 +666,8 @@ private extension Target {
 let examplesTargets: [Target] = [
     // MARK: 2d
     .exampleTarget(name: "BunniesStress", path: "2d"),
+    .exampleTarget(name: "TransformEntChildren", path: "2d"),
+    .exampleTarget(name: "CustomMaterial", path: "2d"),
 
     // MARK: Input
     .exampleTarget(name: "GamepadExampleScene", path: "Input"),
@@ -675,7 +677,11 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "LdtkTilemap", path: "Scene"),
 
     // MARK: Games
-    .exampleTarget(name: "SpaceInvaders", path: "Games")
+    .exampleTarget(name: "SnowmanAttacks", path: "Games"),
+
+    // MARK: UI
+    .exampleTarget(name: "UITestScene", path: "UI"),
+    .exampleTarget(name: "AnimatedTextRenderer", path: "UI")
 ]
 
 package.targets.append(contentsOf: examplesTargets)

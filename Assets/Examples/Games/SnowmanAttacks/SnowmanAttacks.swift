@@ -7,22 +7,20 @@
 
 import AdaEngine
 
-/// FIXME: This scene has a bug with animated texture. They doesn't dispawned correctly..
-
 @main
-struct SpaceInvadersApp: App {
+struct SnowmanAttacksApp: App {
     var body: some AppScene {
         EmptyWindow()
             .addPlugins(
                 DefaultPlugins(),
-                SpaceInvaders(),
+                SnowmanAttacks()
             )
             .windowMode(.windowed)
     }
 }
 
 @MainActor
-struct SpaceInvaders: Plugin {
+struct SnowmanAttacks: Plugin {
     @Local var disposeBag: Set<AnyCancellable> = []
     @Local var characterAtlas: TextureAtlas!
 

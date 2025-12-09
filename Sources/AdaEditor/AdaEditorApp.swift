@@ -11,40 +11,14 @@ import Logging
 @main
 struct AdaEditorApp: App {
     var body: some AppScene {
-        EmptyWindow()
-            .addPlugins(
-                DefaultPlugins(),
-//                TestPlugin(),
-                BunnyExample()
-            )
-            .windowMode(.windowed)
-            .windowTitle("AdaEngine")
-    }
-}
-
-struct TestPlugin: Plugin {
-    func setup(in app: borrowing AppWorlds) {
-        for index in 0..<200 {
-            app.main.spawn("Entity \(index)") {
-                Transform()
-                    .setPosition([0, Float(index), 0])
-
-                if index % 2 == 0 {
-                    NoFrustumCulling()
-                }
-            }
-            print("spawn entity", index)
+        WindowGroup {
+            Text("See you later")
         }
-
-        let query = app.main.performQuery(FilterQuery<Transform, NoFrustumCulling, NoFilter>())
-        Task {
-            print("Create query")
-            for (transform, _) in query {
-                print(transform.position)
-            }
-
-            print("Finished")
-        }
+        .addPlugins(
+            DefaultPlugins()
+        )
+        .windowMode(.windowed)
+        .windowTitle("AdaEngine")
     }
 }
 
