@@ -24,11 +24,11 @@
 //            let tiles = try AssetsManager.loadSync(
 //                Image.self,
 //                at: "@res://tiles_packed.png"
-//            ).asset
+//            ).asset!
 //            let charactersTiles = try AssetsManager.loadSync(
 //                Image.self,
 //                at: "@res://characters_packed.png"
-//            ).asset
+//            ).asset!
 //
 //            self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
 //            self.characterAtlas = TextureAtlas(from: charactersTiles, size: [20, 23], margin: [4, 1])
@@ -40,9 +40,9 @@
 //        cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
 //        cameraEntity.camera.clearFlags = .solid
 //        cameraEntity.camera.orthographicScale = 1.1
-//        app.mainWorld.addEntity(cameraEntity)
+//        app.main.addEntity(cameraEntity)
 //
-//        self.makePlayer(app.mainWorld)
+//        self.makePlayer(app.main)
 ////        self.makeSubsceneAndSave(app)
 //        self.loadSubscene(app)
 ////        // try! self.makeCanvasItem(position: [-0.3, 0.4, -1])
@@ -305,32 +305,6 @@
 //
 //// @Component
 //// struct PlayerComponent { }
-//
-//struct MyMaterial: CanvasMaterial {
-//
-//    @Uniform(binding: 2, propertyName: "u_Time")
-//    var time: Float
-//
-//    @Uniform(binding: 2, propertyName: "u_Color")
-//    var color: Color
-//
-//    @FragmentTexture(binding: 0)
-//    var customTexture: Texture2D
-//
-//    init(color: Color, customTexture: Texture2D) {
-//        self.time = 0
-//        self.color = color
-//        self.customTexture = customTexture
-//    }
-//
-//    static func fragmentShader() throws -> AssetHandle<ShaderSource> {
-//        try AssetsManager.loadSync(
-//            ShaderSource.self, 
-//            at: "Assets/custom_material.glsl", 
-//            from: .editor
-//        )
-//    }
-//}
 //
 //@System
 //struct SpawnPhysicsBodiesSystem {

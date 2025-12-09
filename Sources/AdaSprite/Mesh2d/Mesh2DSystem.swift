@@ -8,13 +8,9 @@
 import AdaApp
 import AdaECS
 import AdaTransform
-import Math
+import AdaUtils
 @_spi(Internal) import AdaRender
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
-import Foundation
-#endif
+import Math
 
 // MARK: - Mesh 2D Plugin -
 
@@ -28,8 +24,18 @@ public struct Mesh2DPlugin: Plugin {
     ///
     /// - Parameter app: The app.
     public func setup(in app: AppWorlds) {
+        Mesh2DComponent.registerComponent()
+
+        app.main.registerRequiredComponent(Visibility.self, for: Mesh2DComponent.self)
+        app.main.registerRequiredComponent(BoundingComponent.self, for: Mesh2DComponent.self)
+
         let renderWorld = app.getSubworldBuilder(by: .renderWorld)
-        renderWorld?.addSystem(ExctractMesh2DSystem.self, on: .extract)
+            .unwrap(message: "RenderWorld not found")
+        renderWorld
+            .insertResource(ExctractedMeshes2D())
+            .insertResource(Mesh2DDrawPass())
+            .addSystem(ExctractMesh2DSystem.self, on: .extract)
+            .addSystem(Mesh2DRenderSystem.self, on: .update)
     }
 }
 
@@ -74,10 +80,13 @@ public struct ExctractMesh2DSystem {
     >
     private var query
 
+    @ResMut<ExctractedMeshes2D>
+    private var extractedMeshes
+
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        var extractedMeshes = ExctractedMeshes2D()
+        extractedMeshes.meshes.removeAll(keepingCapacity: true)
         self.query.wrappedValue.forEach { entity, mesh, transform, globalTransform, visibility in
             if visibility == .hidden {
                 return
@@ -92,28 +101,10 @@ public struct ExctractMesh2DSystem {
                 )
             )
         }
-        context.world.insertResource(extractedMeshes)
     }
 }
 
 // MARK: - Mesh 2D Render Plugin -
-
-/// Plugin for RenderWorld for rendering 2D meshes.
-public struct Mesh2DRenderPlugin: Plugin {
-
-    public init() {}
-
-    public func setup(in app: AppWorlds) {
-        Mesh2DComponent.registerComponent()
-
-        guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
-            return
-        }
-        renderWorld
-            .insertResource(Mesh2DDrawPass())
-            .addSystem(Mesh2DRenderSystem.self, on: .render)
-    }
-}
 
 /// System in RenderWorld for rendering 2D meshes.
 @PlainSystem
@@ -122,11 +113,14 @@ public struct Mesh2DRenderSystem: Sendable {
     @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>
     private var query
 
-    @Res
-    private var extractedMeshes: ExctractedMeshes2D!
+    @Res<ExctractedMeshes2D>
+    private var extractedMeshes
 
     @Res
     private var meshDrawPass: Mesh2DDrawPass!
+
+    @Commands
+    private var commands
 
     public init(world: World) { }
 
@@ -134,9 +128,8 @@ public struct Mesh2DRenderSystem: Sendable {
         self.query.forEach { visibleEntities, renderItems in
             self.draw(
                 world: context.world,
-                meshes: extractedMeshes.meshes,
                 visibleEntities: visibleEntities,
-                items: &renderItems.items,
+                items: renderItems,
                 keys: []
             )
         }
@@ -144,12 +137,11 @@ public struct Mesh2DRenderSystem: Sendable {
 
     func draw(
         world: World,
-        meshes: [ExctractedMesh2D],
         visibleEntities: VisibleEntities,
-        items: inout [Transparent2DRenderItem],
+        items: Ref<RenderItems<Transparent2DRenderItem>>,
         keys: Set<String>
     ) {
-        for mesh in meshes {
+        for mesh in extractedMeshes.meshes {
             guard visibleEntities.entityIds.contains(mesh.entityId) else {
                 continue
             }
@@ -168,18 +160,18 @@ public struct Mesh2DRenderSystem: Sendable {
                         continue
                     }
 
-                    let entity = world.spawn() {
+                    let entity = commands.spawn() {
                         ExctractedMeshPart2d(
                             part: part,
                             material: material,
                             modelUniform: modelUniform
                         )
-                    }
+                    }.entityId
 
-                    items.append(
+                    items.items.append(
                         Transparent2DRenderItem(
-                            entity: entity.id,
-                            batchEntity: entity.id,
+                            entity: entity,
+                            batchEntity: entity,
                             drawPass: self.meshDrawPass,
                             renderPipeline: pipeline,
                             sortKey: mesh.transform.position.z
@@ -268,7 +260,7 @@ extension Material {
 
             return (RenderEngine.shared.renderDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
         } catch {
-            assertionFailure("[Mesh2DRenderSystem] \(error.localizedDescription)")
+            assertionFailure("[Mesh2DRenderSystem] \(error)")
             return nil
         }
     }

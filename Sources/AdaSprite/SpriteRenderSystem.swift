@@ -96,8 +96,9 @@ func UpdateBoundings(
         Entity, Transform, Ref<BoundingComponent>,
         And<With<SpriteComponent>, Changed<Transform>>,
     >,
-    _ meshes: Query<
-        Mesh2DComponent, Ref<BoundingComponent>
+    _ meshes: FilterQuery<
+        Mesh2DComponent, Ref<BoundingComponent>,
+        Changed<Mesh2DComponent>
     >
 ) async {
     await sprites.parallel().forEach { entity, transform, bounds in

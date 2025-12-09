@@ -125,6 +125,8 @@ public protocol RenderCommandEncoder: CommonCommandEncoder {
 
     func setVertexBuffer(_ buffer: UniformBuffer, offset: Int, index: Int)
 
+    func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, index: Int)
+
     func setFragmentBuffer(_ buffer: UniformBuffer, offset: Int, index: Int)
 
     func setVertexBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int)

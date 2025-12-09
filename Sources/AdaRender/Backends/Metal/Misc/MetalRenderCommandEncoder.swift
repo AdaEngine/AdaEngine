@@ -41,6 +41,13 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
         renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: index)
     }
 
+    func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, index: Int) {
+        guard let metalBuffer = buffer as? MetalVertexBuffer else {
+            fatalError("VertexBuffer is not a MetalVertexBuffer")
+        }
+        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: index)
+    }
+
     func setFragmentBuffer(_ buffer: UniformBuffer, offset: Int, index: Int) {
         guard let metalBuffer = buffer as? MetalUniformBuffer else {
             fatalError("UniformBuffer is not a MetalUniformBuffer")

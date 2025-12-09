@@ -37,6 +37,8 @@ AdaEngine is a game engine fully written on Swift. The main idea is to encourage
 
 * **[AdaEngine Awesome Projects](https://github.com/AdaEngine/AdaEngineAwesome)**: AdaEngine's offical Awesome Projects page. Feel free to explore.
 
+* **[AdaEngine Examples](https://github.com/AdaEngine/AdaEngine/tree/main/Assets/Examples/)**: AdaEngine's internal examples.
+
 ## Getting started
 
 We recommend checking out the **[Create your first project guide](https://adaengine.github.io/adaengine-docs/tutorials/adaengine/createproject)** for a brief introduction.

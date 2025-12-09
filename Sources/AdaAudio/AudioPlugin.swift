@@ -23,8 +23,7 @@ public struct AudioPlugin: Plugin {
             AudioPlaybacksControllers.registerComponent()
 
             unsafe app
-                .insertResource(AudioServer.shared.engine as! MiniAudioEngine)
-                .insertResource(AudioServer.shared)
+                .insertResource(AudioServer.shared!)
                 .addSystem(AudioSystem.self)
         } catch {
             print("Error", error)
@@ -93,8 +92,8 @@ public struct AudioSystem {
     @Query<Ref<AudioReceiver>, Transform>
     private var audioReceiverQuery
 
-    @Res<MiniAudioEngine>
-    private var audioEngine
+    @Res<AudioServer>
+    private var audioServer
 
     public init(world: World) { }
 
@@ -109,7 +108,7 @@ public struct AudioSystem {
             if let listener = audioReceiver.audioListener, listener.position != transform.position {
                 listener.position = transform.position
             } else {
-                audioReceiver.audioListener = self.audioEngine.getAudioListener(at: 0)
+                audioReceiver.audioListener = audioServer.engine.getAudioListener(at: 0)
             }
         }
     }
