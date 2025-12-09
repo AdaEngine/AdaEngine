@@ -142,7 +142,7 @@ public final class AssetHandle<T: Asset>: Codable, @unchecked Sendable {
     public private(set) var asset: T!
 
     public var isLoaded: Bool {
-        self.asset == nil
+        self.asset != nil
     }
 
     /// Initialize a new asset handle from an asset.

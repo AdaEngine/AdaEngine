@@ -14,7 +14,7 @@ public struct AudioPlugin: Plugin {
 
     public init() {}
 
-    public func setup(in app: AppWorlds) {
+    public func setup(in app: borrowing AppWorlds) {
         do {
             try AudioServer.initialize()
             unsafe try AudioServer.shared.engine.start()
@@ -30,7 +30,7 @@ public struct AudioPlugin: Plugin {
         }
     }
 
-    public func finish() {
+    public func finish(for app: borrowing AppWorlds) {
         do {
             unsafe try AudioServer.shared.stop()
         } catch {

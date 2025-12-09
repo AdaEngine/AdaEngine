@@ -116,8 +116,11 @@ public struct Mesh2DRenderSystem: Sendable {
     @Res<ExctractedMeshes2D>
     private var extractedMeshes
 
-    @Res
-    private var meshDrawPass: Mesh2DDrawPass!
+    @Res<Mesh2DDrawPass>
+    private var meshDrawPass
+
+    @Res<RenderDeviceHandler>
+    private var renderDevice
 
     @Commands
     private var commands
@@ -155,7 +158,11 @@ public struct Mesh2DRenderSystem: Sendable {
                 for part in model.parts {
                     let material = mesh.mesh.materials[part.materialIndex]
 
-                    guard let pipeline = material.getOrCreatePipeline(for: part.vertexDescriptor, keys: keys) else {
+                    guard let pipeline = material.getOrCreatePipeline(
+                        for: part.vertexDescriptor,
+                        keys: keys,
+                        device: renderDevice.renderDevice
+                    ) else {
                         assertionFailure("No render pipeline for mesh")
                         continue
                     }
@@ -209,7 +216,11 @@ extension Material {
     }
 
     /// Get or create Mesh2D Material render pipeline from vertex and keys.
-    func getOrCreatePipeline(for vertexDescriptor: VertexDescriptor, keys: Set<String>) -> RenderPipeline? {
+    func getOrCreatePipeline(
+        for vertexDescriptor: VertexDescriptor,
+        keys: Set<String>,
+        device: RenderDevice
+    ) -> RenderPipeline? {
         let materialKey = self.getMesh2dMaterialKey(for: vertexDescriptor, keys: keys)
 
         if let data = unsafe MaterialStorage.shared.getMaterialData(for: self) as? Mesh2dMaterialStorageData {
@@ -217,7 +228,7 @@ extension Material {
                 return pipeline
             }
 
-            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey) else {
+            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey, device: device) else {
                 return nil
             }
 
@@ -228,7 +239,7 @@ extension Material {
 
             return pipeline
         } else {
-            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey) else {
+            guard let (pipeline, shaderModule) = self.createPipeline(for: materialKey, device: device) else {
                 return nil
             }
 
@@ -243,7 +254,10 @@ extension Material {
         }
     }
 
-    private func createPipeline(for materialKey: MaterialMesh2dKey) -> (RenderPipeline, ShaderModule)? {
+    private func createPipeline(
+        for materialKey: MaterialMesh2dKey,
+        device: RenderDevice
+    ) -> (RenderPipeline, ShaderModule)? {
         let compiler = ShaderCompiler(shaderSource: self.shaderSource)
 
         for define in materialKey.defines {
@@ -258,7 +272,7 @@ extension Material {
                 return nil
             }
 
-            return (RenderEngine.shared.renderDevice.createRenderPipeline(from: pipelineDesc), shaderModule)
+            return (device.createRenderPipeline(from: pipelineDesc), shaderModule)
         } catch {
             assertionFailure("[Mesh2DRenderSystem] \(error)")
             return nil
