@@ -158,11 +158,13 @@ class _MeshBuffer: Equatable, @unchecked Sendable {
             alignment: MemoryLayout<Element>.alignment
         )
 
-        unsafe elements.withUnsafeBufferPointer { pointer in
-            unsafe bytes.baseAddress?.copyMemory(
-                from: pointer.baseAddress!,
-                byteCount: elementSize * elements.count
-            )
+        if !elements.isEmpty {
+            unsafe elements.withUnsafeBufferPointer { pointer in
+                unsafe bytes.baseAddress?.copyMemory(
+                    from: pointer.baseAddress!,
+                    byteCount: elementSize * elements.count
+                )
+            }
         }
 
         unsafe self.bytes = bytes

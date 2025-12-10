@@ -21,7 +21,6 @@ import Testing
 enum TestUtils {
 
     #if canImport(simd)
-
         static func assertEqual(
             _ simd_matrix: matrix_float4x4, _ transform: Transform3D, accuracy: Float = 0.00001
         ) {

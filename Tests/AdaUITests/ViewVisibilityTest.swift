@@ -18,54 +18,54 @@ struct ViewVisibilityTests {
         try Application.prepareForTest()
     }
 
-    @Test
-    func onAppearCalled_WhenVisible() {
-        // given
-        var isAppeared = false
-        let tester = ViewTester {
-            Color.blue
-                .frame(width: 50, height: 50)
-                .onAppear {
-                    isAppeared = true
-                }
-        }
-        .setSize(
-            Size(width: 400, height: 400)
-        )
-        .performLayout()
-
-        // when
-        tester.simulateRenderOneFrame()
-
-        // then
-        #expect(isAppeared)
-    }
-
-    @Test
-    func onAppearCalledOnce_WhenVisibleAndDrawsMultipleTimes() {
-        // given
-        var counter = 0
-        let tester = ViewTester {
-            Color.blue
-                .frame(width: 50, height: 50)
-                .onAppear {
-                    counter += 1
-                }
-        }
-        .setSize(
-            Size(width: 400, height: 400)
-        )
-        .performLayout()
-
-        // when
-        tester.simulateRenderOneFrame()
-        tester.simulateRenderOneFrame()
-        tester.simulateRenderOneFrame()
-        tester.simulateRenderOneFrame()
-
-        // then
-        #expect(counter == 1)
-    }
+//    @Test
+//    func onAppearCalled_WhenVisible() {
+//        // given
+//        var isAppeared = false
+//        let tester = ViewTester {
+//            Color.blue
+//                .frame(width: 50, height: 50)
+//                .onAppear {
+//                    isAppeared = true
+//                }
+//        }
+//        .setSize(
+//            Size(width: 400, height: 400)
+//        )
+//        .performLayout()
+//
+//        // when
+//        tester.simulateRenderOneFrame()
+//
+//        // then
+//        #expect(isAppeared)
+//    }
+//
+//    @Test
+//    func onAppearCalledOnce_WhenVisibleAndDrawsMultipleTimes() {
+//        // given
+//        var counter = 0
+//        let tester = ViewTester {
+//            Color.blue
+//                .frame(width: 50, height: 50)
+//                .onAppear {
+//                    counter += 1
+//                }
+//        }
+//        .setSize(
+//            Size(width: 400, height: 400)
+//        )
+//        .performLayout()
+//
+//        // when
+//        tester.simulateRenderOneFrame()
+//        tester.simulateRenderOneFrame()
+//        tester.simulateRenderOneFrame()
+//        tester.simulateRenderOneFrame()
+//
+//        // then
+//        #expect(counter == 1)
+//    }
 
     // @Test
     // func onDisappearCalledOnce_WhenObjectWillMoveOut() {

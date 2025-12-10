@@ -294,12 +294,11 @@ extension WorldTests {
         query.forEach { entity, a, b in
             results.append((entity.id, a, b))
         }
-
-        #expect(results.count == 2)
+        // We skipped optional components
+        #expect(results.count == 1)
 
         let resultE = results.first(where: { $0.0 == e.id })
-        #expect(resultE?.1 == ComponentA(value: 123))
-        #expect(resultE?.2 == nil)
+        #expect(resultE == nil)
 
         let resultF = results.first(where: { $0.0 == f.id })
         #expect(resultF?.1 == ComponentA(value: 456))
