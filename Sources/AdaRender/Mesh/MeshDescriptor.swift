@@ -177,12 +177,12 @@ extension MeshDescriptor {
 
     /// The buffer for positions.
     public var positions: MeshDescriptor.Positions {
-        _read {
-            yield self[MeshDescriptor.positions]!
+        get {
+            self[MeshDescriptor.positions]!
         }
 
-        _modify {
-            yield &self[MeshDescriptor.positions]!
+        set {
+            self[MeshDescriptor.positions] = newValue
         }
     }
 
