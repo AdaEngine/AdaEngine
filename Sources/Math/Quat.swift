@@ -100,16 +100,17 @@ public extension Quat {
     }
     
     var normalized: Quat {
-        let normal = sqrt(self.squaredLength)
-        
+        let lengthSq = self.squaredLength
+        guard lengthSq > 0 else { return self }
+
+        let invLength = 1.0 / sqrt(lengthSq)
         return Quat(
-            x: self.x / normal,
-            y: self.y / normal,
-            z: self.z / normal,
-            w: self.w / normal
+            x: self.x * invLength,
+            y: self.y * invLength,
+            z: self.z * invLength,
+            w: self.w * invLength
         )
     }
-    
 }
 
 public extension Quat {

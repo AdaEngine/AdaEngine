@@ -59,8 +59,26 @@ public func atan2(_ lhs: Float, _ rhs: Float) -> Float {
 
 @inlinable
 @inline(__always)
-public func sqrt<T: FloatingPoint>(_ value: T) -> T {
-    return value * value
+public func sqrt(_ value: Float) -> Float {
+#if os(Linux)
+    return Glibc.sqrtf(value)
+#elseif os(Windows)
+    return WinSDK.sqrtf(value)
+#else
+    return Darwin.sqrtf(value)
+#endif
+}
+
+@inlinable
+@inline(__always)
+public func sqrt(_ value: Double) -> Double {
+#if os(Linux)
+    return Glibc.sqrt(value)
+#elseif os(Windows)
+    return WinSDK.sqrt(value)
+#else
+    return Darwin.sqrt(value)
+#endif
 }
 
 @inlinable
