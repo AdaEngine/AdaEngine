@@ -44,11 +44,11 @@ extension Component {
 
 enum ComponentStorage {
     
-    nonisolated(unsafe) private static var registeredComponents: [String: Component.Type] = [:]
-    
+    nonisolated(unsafe) private static var registeredComponents: [String: any Component.Type] = [:]
+
     /// Return registered component or try to find it by NSClassFromString (works only for objc runtime)
-    static func getRegisteredComponent(for name: String) -> Component.Type? {
-        return unsafe self.registeredComponents[name] ?? (NSClassFromString(name) as? Component.Type)
+    static func getRegisteredComponent(for name: String) -> (any Component.Type)? {
+        return unsafe self.registeredComponents[name] ?? (NSClassFromString(name) as? (any Component.Type))
     }
     
     static func addComponent<T: Component>(_ type: T.Type) {

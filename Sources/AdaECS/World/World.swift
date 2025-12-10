@@ -417,6 +417,9 @@ public extension World {
         return self
     }
 
+    /// Create a resource from world.
+    /// - Parameter type: The resource type.
+    /// - Returns: A resource instance.
     func createResource<T: Resource & WorldInitable>(of type: T.Type) -> T {
         let resource = type.init(from: self)
         self.resources.insertResource(resource, tick: lastTick)

@@ -10,6 +10,9 @@ import AdaAudio
 import AdaRender
 
 /// A virtual camera that establishes the rendering orthographic.
+public typealias Camera2D = OrthographicCameraBundle
+
+/// A virtual camera that establishes the rendering orthographic.
 @Bundle
 public struct OrthographicCameraBundle {
     public var camera: Camera
@@ -22,7 +25,7 @@ public struct OrthographicCameraBundle {
 
     /// Create a new orthograpich camera for rendering 2D and 3D items on screen.
     public init(
-        camera: Camera,
+        camera: Camera = Camera(),
         viewUniforms: GlobalViewUniform = GlobalViewUniform(),
         globalViewUniformBufferSet: GlobalViewUniformBufferSet = GlobalViewUniformBufferSet(),
         visibleEntities: VisibleEntities = VisibleEntities(),
