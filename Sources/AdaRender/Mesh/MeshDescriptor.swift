@@ -8,6 +8,9 @@
 import AdaUtils
 import OrderedCollections
 import Math
+#if canImport(Metal) && METAL
+import Metal
+#endif
 
 /// An object that defines a mesh.
 /// This struct contains all the mesh data.
@@ -84,22 +87,6 @@ extension Mesh {
     }
 }
 
-#if METAL
-import Metal
-
-extension Mesh.PrimitiveTopology {
-    var metal: MTLPrimitiveType {
-        switch self {
-        case .lineList: return .line
-        case .lineStrip: return .lineStrip
-        case .points: return .point
-        case .triangleStrip: return .triangleStrip
-        case .triangleList: return .triangle
-        }
-    }
-}
-#endif
-
 public protocol MeshArraySemantic: Identifiable, Sendable {
     associatedtype Element
 
@@ -109,7 +96,6 @@ public protocol MeshArraySemantic: Identifiable, Sendable {
 extension MeshDescriptor {
 
     public struct Identifier: Identifiable, Hashable, Sendable {
-
         public var id: String {
             return self.name
         }
@@ -154,7 +140,6 @@ extension MeshDescriptor {
 }
 
 extension MeshDescriptor {
-
     public typealias Positions = MeshBuffer<Vector3>
 
     public typealias Normals = MeshBuffer<Vector3>
@@ -164,42 +149,40 @@ extension MeshDescriptor {
     public typealias Colors = MeshBuffer<Color>
 
     public var positions: MeshDescriptor.Positions {
-        get {
-            return self[MeshDescriptor.positions]!
+        _read {
+            yield self[MeshDescriptor.positions]!
         }
 
-        set {
-            self[MeshDescriptor.positions] = newValue
+        _modify {
+            yield &self[MeshDescriptor.positions]!
         }
     }
 
     public var normals: MeshDescriptor.Normals? {
-        get {
-            return self[MeshDescriptor.normals]
+        _read {
+            yield self[MeshDescriptor.normals]
         }
-
-        set {
-            self[MeshDescriptor.normals] = newValue
+        _modify {
+            yield &self[MeshDescriptor.normals]
         }
     }
 
     public var textureCoordinates: MeshDescriptor.TextureCoordinates? {
-        get {
-            return self[MeshDescriptor.textureCoordinates]
+        _read {
+            yield self[MeshDescriptor.textureCoordinates]
         }
 
-        set {
-            self[MeshDescriptor.textureCoordinates] = newValue
+        _modify {
+            yield &self[MeshDescriptor.textureCoordinates]
         }
     }
 
     public var colors: MeshDescriptor.Colors? {
-        get {
-            return self[MeshDescriptor.colors]
+        _read {
+            yield self[MeshDescriptor.colors]
         }
-
-        set {
-            self[MeshDescriptor.colors] = newValue
+        _modify {
+            yield &self[MeshDescriptor.colors]
         }
     }
 }
@@ -301,3 +284,18 @@ extension Mesh.ElementType {
         }
     }
 }
+
+
+#if canImport(Metal) && METAL
+extension Mesh.PrimitiveTopology {
+    var metal: MTLPrimitiveType {
+        switch self {
+        case .lineList: return .line
+        case .lineStrip: return .lineStrip
+        case .points: return .point
+        case .triangleStrip: return .triangleStrip
+        case .triangleList: return .triangle
+        }
+    }
+}
+#endif

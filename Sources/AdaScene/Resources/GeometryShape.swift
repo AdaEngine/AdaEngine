@@ -9,13 +9,12 @@ import AdaRender
 
 /// An interface that describe shape and can create mesh descriptor.
 public protocol GeometryShape {
-    func meshDescriptor() -> MeshDescriptor
+    func meshDescriptors() -> [MeshDescriptor]
 }
 
 public extension Mesh {
     /// Create a mesh resource from a shape.
     static func generate(from shape: GeometryShape) -> Mesh {
-        return self.generate(from: [shape.meshDescriptor()])
+        return self.generate(from: shape.meshDescriptors())
     }
-
 }

@@ -10,14 +10,14 @@
 import AdaEngine
 import SwiftUI
 
-@available(iOS 16.0, macOS 14.0, *)
-public struct ScenePreviewProvider {
-    public let scene: AdaEngine.Scene
-    
-    public init(scene: AdaEngine.Scene) {
-        self.scene = scene
-    }
-}
+//@available(iOS 16.0, macOS 14.0, *)
+//public struct ScenePreviewProvider {
+//    public let scene: AdaEngine.Scene
+//    
+//    public init(scene: AdaEngine.Scene) {
+//        self.scene = scene
+//    }
+//}
 
 #if canImport(UIKit)
 
@@ -34,13 +34,13 @@ extension ScenePreviewProvider: UIViewRepresentable {
 
 #if canImport(AppKit)
 
-extension ScenePreviewProvider: NSViewRepresentable {
-    public func makeNSView(context: Context) -> AEView {
-        try! AEView(scene: scene, frame: .zero)
-    }
-    
-    public func updateNSView(_ nsView: AEView, context: Context) { }
-}
+//extension ScenePreviewProvider: NSViewRepresentable {
+//    public func makeNSView(context: Context) -> AEView {
+//        try! AEView(scene: scene, frame: .zero)
+//    }
+//    
+//    public func updateNSView(_ nsView: AEView, context: Context) { }
+//}
 
 #endif
 

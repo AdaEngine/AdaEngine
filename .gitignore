@@ -21,6 +21,9 @@ xcuserdata/
 # Ignore VScode workspace settings and launch configurations
 .vscode
 
+# Cursor
+.cursor/
+
 # Ignore cmake build configuration and output
 build/
 
@@ -38,5 +41,4 @@ Derived/
 .idea/
 
 # Compiled Shaders
-
 /Sources/AdaEngine/Rendering/Shaders/*.spv
