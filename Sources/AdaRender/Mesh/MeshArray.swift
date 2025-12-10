@@ -14,6 +14,7 @@ public struct MeshBuffer<Element>: Sequence {
     /// A type representing the sequence’s elements.
     public typealias Element = Element
     
+    /// A type representing the iterator of the mesh buffer.
     public typealias Iterator = ChunkIterator<Element>
     
     internal var buffer: _MeshBuffer
@@ -29,7 +30,7 @@ public struct MeshBuffer<Element>: Sequence {
         return self.buffer.getData()
     }
     
-    /// The number of elements in the buffer.
+    /// Get the number of elements in the buffer.
     public var count: Int {
         return self.buffer.count
     }

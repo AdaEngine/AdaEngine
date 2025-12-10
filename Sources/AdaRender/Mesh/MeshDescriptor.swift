@@ -33,6 +33,7 @@ public struct MeshDescriptor: Sendable {
     /// The primitives that make up the mesh.
     public var primitiveTopology: Mesh.PrimitiveTopology = .triangleList
     
+    /// The indices of the mesh.
     public var indicies: [UInt32] = []
     
     /// Create an empty mesh descriptor.
@@ -42,7 +43,7 @@ public struct MeshDescriptor: Sendable {
         self.buffers[.positions] = AnyMeshBuffer(MeshBuffer<Vector3>([]))
     }
     
-    /// The buffer for a given semantic. There can only be one buffer for any given ID.
+    /// Get the buffer for a given semantic. There can only be one buffer for any given ID.
     public subscript<S>(semantic: S) -> MeshBuffer<S.Element>? where S : MeshArraySemantic {
         get {
             return self.buffers[semantic.id]?.get(as: S.Element.self)
@@ -54,6 +55,7 @@ public struct MeshDescriptor: Sendable {
 }
 
 extension Mesh {
+    /// The type of the elements in the mesh.
     public enum ElementType: UInt8, Sendable {
         case int8
         case uint8
@@ -69,6 +71,7 @@ extension Mesh {
         case vector4
     }
     
+    /// The type of the array in the mesh.
     public enum ArrayType: UInt8, Sendable {
         case vertex
         case normal
@@ -78,6 +81,7 @@ extension Mesh {
         case index
     }
     
+    /// The primitive topology of the mesh.
     public enum PrimitiveTopology: UInt8, Sendable {
         case points
         case triangleList
@@ -87,33 +91,46 @@ extension Mesh {
     }
 }
 
+/// A protocol that represents a semantic of a mesh array.
 public protocol MeshArraySemantic: Identifiable, Sendable {
+    /// The type of the elements in the mesh array.
     associatedtype Element
+    
+    /// The identifier of the mesh array semantic.
 
     var id: MeshDescriptor.Identifier { get }
 }
 
 extension MeshDescriptor {
-
+    /// An identifier for a mesh attribute.
     public struct Identifier: Identifiable, Hashable, Sendable {
         public var id: String {
             return self.name
         }
 
+        /// The name of the identifier. 
         public let name: String
+
+        /// Whether the identifier is custom.
         public let isCustom: Bool
 
+        /// A position attribute identifier.
         public static let positions: MeshDescriptor.Identifier = MeshDescriptor.Identifier(name: "positions", isCustom: false)
 
+        /// A normal attribute identifier.
         public static let normals: MeshDescriptor.Identifier = MeshDescriptor.Identifier(name: "normals", isCustom: false)
 
+        /// A tangent attribute identifier.
         public static let tangents: MeshDescriptor.Identifier = MeshDescriptor.Identifier(name: "tangents", isCustom: false)
 
+        /// A texture coordinates attribute identifier.
         public static let textureCoordinates: MeshDescriptor.Identifier = MeshDescriptor.Identifier(name: "textureCoordinates", isCustom: false)
 
+        /// A colors attribute identifier.
         public static let colors: MeshDescriptor.Identifier = MeshDescriptor.Identifier(name: "colors", isCustom: false)
     }
 
+    /// A semantic of a mesh array.
     public struct Semantic<Element> : MeshArraySemantic {
 
         /// The stable identity of the entity associated with this instance.
@@ -124,30 +141,41 @@ extension MeshDescriptor {
         public typealias ID = MeshDescriptor.Identifier
     }
 
+    /// A semantic of a mesh array for positions.
     public static let positions: MeshDescriptor.Semantic<Vector3> = MeshDescriptor.Semantic<Vector3>(id: .positions)
 
+    /// A semantic of a mesh array for normals.
     public static let normals: MeshDescriptor.Semantic<Vector3> = MeshDescriptor.Semantic<Vector3>(id: .normals)
 
+    /// A semantic of a mesh array for tangents.
     public static let tangents: MeshDescriptor.Semantic<Vector3> = MeshDescriptor.Semantic<Vector3>(id: .tangents)
 
+    /// A semantic of a mesh array for texture coordinates.
     public static let textureCoordinates: MeshDescriptor.Semantic<Vector2> = MeshDescriptor.Semantic<Vector2>(id: .textureCoordinates)
 
+    /// A semantic of a mesh array for colors.
     public static let colors: MeshDescriptor.Semantic<Color> = MeshDescriptor.Semantic<Color>(id: .colors)
 
+    /// Create a custom semantic of a mesh array.
     public static func custom<Value>(_ name: String, type: Value.Type) -> MeshDescriptor.Semantic<Value> {
         return MeshDescriptor.Semantic<Value>(id: Identifier(name: name, isCustom: true))
     }
 }
 
 extension MeshDescriptor {
+    /// A buffer for positions.
     public typealias Positions = MeshBuffer<Vector3>
 
+    /// A buffer for normals.
     public typealias Normals = MeshBuffer<Vector3>
 
+    /// A buffer for texture coordinates.
     public typealias TextureCoordinates = MeshBuffer<Vector2>
 
+    /// A buffer for colors.
     public typealias Colors = MeshBuffer<Color>
 
+    /// The buffer for positions.
     public var positions: MeshDescriptor.Positions {
         _read {
             yield self[MeshDescriptor.positions]!
@@ -158,6 +186,7 @@ extension MeshDescriptor {
         }
     }
 
+    /// The buffer for normals.
     public var normals: MeshDescriptor.Normals? {
         _read {
             yield self[MeshDescriptor.normals]
@@ -167,6 +196,7 @@ extension MeshDescriptor {
         }
     }
 
+    /// The buffer for texture coordinates.
     public var textureCoordinates: MeshDescriptor.TextureCoordinates? {
         _read {
             yield self[MeshDescriptor.textureCoordinates]
@@ -177,6 +207,7 @@ extension MeshDescriptor {
         }
     }
 
+    /// The buffer for colors.
     public var colors: MeshDescriptor.Colors? {
         _read {
             yield self[MeshDescriptor.colors]
@@ -188,6 +219,7 @@ extension MeshDescriptor {
 }
 
 public extension MeshDescriptor {
+    /// Get the vertex buffer descriptor for the mesh.
     func getMeshVertexBufferDescriptor() -> VertexDescriptor {
         var vertexDescriptor = VertexDescriptor()
         
@@ -210,6 +242,7 @@ public extension MeshDescriptor {
         return vertexDescriptor
     }
     
+    /// Get the size of the vertex buffer.
     func getVertexBufferSize() -> Int {
         var size: Int = 0
         for buffer in buffers.elements.values {
@@ -219,22 +252,22 @@ public extension MeshDescriptor {
         return size
     }
     
+    /// Get the index buffer for the mesh.
     func getIndexBuffer() -> IndexBuffer {
         var indicies = self.indicies
         let indexBuffer = unsafe RenderEngine.shared.renderDevice.createIndexBuffer(
             format: .uInt32,
             bytes: &indicies,
-            length: indicies.count * MemoryLayout<UInt32>.size
+            length: indicies.count * MemoryLayout<UInt32>.stride
         )
         
         return indexBuffer
     }
     
+    /// Get the vertex buffer for the mesh.
     func getVertexBuffer() -> VertexBuffer {
-        var vertexSize = 0
-        
-        for buffer in buffers.elements.values {
-            vertexSize += buffer.buffer.elementSize
+        let vertexSize = buffers.elements.values.reduce(0) { partialResult, buffer in
+            partialResult + buffer.buffer.elementSize
         }
         
         let vertexBuffer = RenderEngine.shared.renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
@@ -259,6 +292,7 @@ public extension MeshDescriptor {
 }
 
 extension Mesh.ElementType {
+    /// Get the vertex format for the element type.
     var vertexFormat: VertexFormat {
         switch self {
         case .int8:
@@ -288,6 +322,7 @@ extension Mesh.ElementType {
 
 #if canImport(Metal) && METAL
 extension Mesh.PrimitiveTopology {
+    /// Get the Metal primitive type for the primitive topology.
     var metal: MTLPrimitiveType {
         switch self {
         case .lineList: return .line
