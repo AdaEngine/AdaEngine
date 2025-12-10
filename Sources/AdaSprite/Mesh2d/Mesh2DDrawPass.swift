@@ -31,9 +31,10 @@ public struct Mesh2DDrawPass: DrawPass {
         guard let entity = world.getEntityByID(item.entity) else {
             return
         }
-
-        let meshComponent = entity.components.get(ExctractedMeshPart2d.self)
-        let part = meshComponent.part
+        guard let meshComponent = entity.components[ExctractedMeshPart2d.self] else {
+            return
+        }
+        var part = meshComponent.part
         guard let materialData = unsafe MaterialStorage.shared.getMaterialData(for: meshComponent.material) else {
             return
         }
@@ -56,7 +57,12 @@ public struct Mesh2DDrawPass: DrawPass {
         renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
 
         for (uniformName, buffer) in materialData.reflectionData.shaderBuffers {
-            guard let uniformBuffer = materialData.uniformBufferSet[uniformName]?.getBuffer(binding: buffer.binding, set: 0, frameIndex: RenderEngine.shared.currentFrameIndex) else {
+            guard let uniformBuffer = materialData.uniformBufferSet[uniformName]?
+                .getBuffer(
+                    binding: buffer.binding,
+                    set: 0,
+                    frameIndex: RenderEngine.shared.currentFrameIndex
+                ) else {
                 continue
             }
             
@@ -79,11 +85,11 @@ public struct Mesh2DDrawPass: DrawPass {
                 renderEncoder.setFragmentSamplerState(texture.sampler, index: resource.binding)
             }
         }
-        
         unsafe withUnsafeBytes(of: meshComponent.modelUniform) { buffer in
             unsafe renderEncoder.setVertexBytes(buffer.baseAddress!, length: buffer.count, index: Self.meshUniformBinding)
         }
-        
+
+        part.vertexBuffer.label = "Part Vertex Buffer"
         renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, index: 0)
         renderEncoder.setIndexBuffer(part.indexBuffer, offset: 0)
         renderEncoder.setRenderPipelineState(item.renderPipeline)

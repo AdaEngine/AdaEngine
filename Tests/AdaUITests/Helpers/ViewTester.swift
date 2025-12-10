@@ -78,8 +78,8 @@ class ViewTester<Content: View> {
 
     @discardableResult
     func simulateRenderOneFrame() -> Self {
-        let context = UIGraphicsContext(window: UIWindow())
-        self.containerView.draw(in: Rect(origin: .zero, size: self.size), with: context)
+//        let context = UIGraphicsContext(window: UIWindow())
+//        self.containerView.draw(in: Rect(origin: .zero, size: self.size), with: context)
         return self
     }
 }

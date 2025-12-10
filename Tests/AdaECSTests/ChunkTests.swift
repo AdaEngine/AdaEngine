@@ -61,7 +61,7 @@ struct ChunksTests {
     mutating func `inserted value returns correctly`() throws {
         let a = A()
         let b = B()
-        let location = chunks.insertEntity(1, components: [a, b])
+        let location = chunks.insertEntity(1, components: [a, b], tick: Tick(value: 0))
 
         #expect(chunks.entities.count == 1)
         #expect(chunks.chunks[location.chunkIndex].get(A.self, for: 1) == a)
@@ -72,7 +72,7 @@ struct ChunksTests {
     mutating func `moves entities works correctly`() throws {
         let a = A()
         let b = B()
-        chunks.insertEntity(1, components: [a, b])
+        chunks.insertEntity(1, components: [a, b], tick: Tick(value: 0))
         #expect(chunks.entities.count == 1)
 
         var newChunks = Chunks(
@@ -90,7 +90,7 @@ struct ChunksTests {
     @Test
     mutating func `remove entity in the first chunk`() throws {
         (0..<64).forEach { index in
-            chunks.insertEntity(index, components: [A(), B()])
+            chunks.insertEntity(index, components: [A(), B()], tick: Tick(value: 0))
         }
 
         #expect(chunks.getFreeChunkIndex() == 2)
@@ -104,7 +104,7 @@ struct ChunksTests {
         #expect(chunks.getFreeChunkIndex() == 0)
 
         (0..<32).forEach { index in
-            chunks.insertEntity(index, components: [A(), B()])
+            chunks.insertEntity(index, components: [A(), B()], tick: Tick(value: 0))
         }
 
         #expect(chunks.count == 3)
@@ -131,7 +131,7 @@ struct ChunkTests {
         let a = A()
         let b = B()
         let rowId = chunk.addEntity(1)!
-        chunk.insert(at: rowId, components: [a, b])
+        chunk.insert(at: rowId, components: [a, b], tick: Tick(value: 0))
         #expect(chunk.count == 1)
         #expect(chunk.get(A.self, for: 1) == a)
         #expect(chunk.get(B.self, for: 1) == b)
@@ -149,7 +149,7 @@ struct ChunkTests {
             )
         )
         let rowId = chunk.addEntity(1)!
-        chunk.insert(at: rowId, components: [A(), B()])
+        chunk.insert(at: rowId, components: [A(), B()], tick: Tick(value: 0))
         chunk.removeEntity(at: 1)
         #expect(chunk.get(A.self, for: 1) == nil)
         #expect(chunk.get(B.self, for: 1) == nil)
@@ -170,7 +170,7 @@ struct ChunkTests {
         let a = A()
         let newA = A()
         let rowId = chunk.addEntity(1)!
-        chunk.insert(at: rowId, components: [a, B()])
+        chunk.insert(at: rowId, components: [a, B()], tick: Tick(value: 0))
         #expect(a != newA)
         #expect(chunk.get(A.self, for: 1) == a)
 
@@ -197,7 +197,7 @@ extension ChunkTests {
 
         for index in 0..<capacity {
             let row = chunk.addEntity(index)!
-            chunk.insert(at: row, components: [A(), B()])
+            chunk.insert(at: row, components: [A(), B()], tick: Tick(value: 0))
         }
         #expect(chunk.count == capacity)
         #expect(chunk.isFull == true)
@@ -219,7 +219,7 @@ extension ChunkTests {
 
         for index in 0..<capacity {
             let row = chunk.addEntity(index)!
-            chunk.insert(at: row, components: [A(), B()])
+            chunk.insert(at: row, components: [A(), B()], tick: Tick(value: 0))
         }
         #expect(chunk.count == capacity)
         #expect(chunk.isFull == true)
@@ -247,7 +247,7 @@ extension ChunkTests {
 
         for index in 0..<capacity {
             let row = chunk.addEntity(index)!
-            chunk.insert(at: row, components: [A(), B()])
+            chunk.insert(at: row, components: [A(), B()], tick: Tick(value: 0))
         }
         #expect(chunk.count == capacity)
         #expect(chunk.isFull == true)
@@ -279,7 +279,7 @@ extension ChunkTests {
         )
 
         let row = chunk.addEntity(1)!
-        chunk.insert(at: row, components: [A(), B()])
+        chunk.insert(at: row, components: [A(), B()], tick: Tick(value: 0))
         #expect(chunk.getMutableTick(A.self, for: 1)?.pointee == Tick(value: 0))
 
         let newA = A()

@@ -491,6 +491,16 @@ targets += [
         ]
     ),
     .testTarget(
+        name: "AdaRenderTests",
+        dependencies: [
+            "AdaRender",
+            "Math"
+        ],
+        exclude: [
+            "BUILD.bazel"
+        ]
+    ),
+    .testTarget(
         name: "AdaInputTests",
         dependencies: [
             "AdaInput",

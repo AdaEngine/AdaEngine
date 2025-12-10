@@ -148,7 +148,7 @@ class _MeshBuffer: Equatable, @unchecked Sendable {
     internal let elementType: Mesh.ElementType
     
     init<Element>(elements: [Element], indices: [UInt32], elementType: Mesh.ElementType) {
-        let elementSize = MemoryLayout<Element>.size
+        let elementSize = MemoryLayout<Element>.stride
         self.elementType = elementType
         self.elementSize = elementSize
 
@@ -157,9 +157,9 @@ class _MeshBuffer: Equatable, @unchecked Sendable {
             alignment: MemoryLayout<Element>.alignment
         )
 
-        unsafe withUnsafePointer(to: elements) { pointer in
+        unsafe elements.withUnsafeBufferPointer { pointer in
             unsafe bytes.baseAddress?.copyMemory(
-                from: pointer,
+                from: pointer.baseAddress!,
                 byteCount: elementSize * elements.count
             )
         }

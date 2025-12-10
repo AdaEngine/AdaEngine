@@ -105,8 +105,8 @@ struct WorldTests {
 
     @Test
     func requiredComponentsInitialized() throws {
-        world.registerRequiredComponent(ComponentA.self, ComponentB.self) {
-            ComponentB(value: "test1")
+        world.registerRequiredComponent(ComponentB.self, for: ComponentA.self) {
+            .init(value: "test1")
         }
 
         let ent = world.spawn {
@@ -407,7 +407,7 @@ extension WorldTests {
 
     @Test
     func requiredComponent() {
-        world.registerRequiredComponent(ComponentA.self, RequiredComponentForA.self) {
+        world.registerRequiredComponent(RequiredComponentForA.self, for: ComponentA.self) {
             RequiredComponentForA(someValue: "some value")
         }
 
