@@ -232,6 +232,8 @@ public extension Transform3D {
     
     /// The rotation of the transform.
     /// - SeeAlso: http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
+    /// - Note: Formula adapted for column-major matrix where self[column, row] accesses elements.
+    ///         Standard formula uses m[row, col], so m_rc = self[c, r].
     var rotation: Quat {
         var quat = Quat.identity
         
@@ -240,26 +242,26 @@ public extension Transform3D {
         if (trace > 0) {
             let s = sqrt(trace + 1.0) * 2
             quat.w = 0.25 * s
-            quat.x = (self[2, 1] - self[1, 2]) / s
-            quat.y = (self[0, 2] - self[2, 0]) / s
-            quat.z = (self[1, 0] - self[0, 1]) / s
+            quat.x = (self[1, 2] - self[2, 1]) / s
+            quat.y = (self[2, 0] - self[0, 2]) / s
+            quat.z = (self[0, 1] - self[1, 0]) / s
         } else if ((self[0, 0] > self[1, 1]) && (self[0, 0] > self[2, 2])) {
             let s = sqrt(1.0 + self[0, 0] - self[1, 1] - self[2, 2]) * 2 // S=4*qx
-            quat.w = (self[2, 1] - self[1, 2]) / s
+            quat.w = (self[1, 2] - self[2, 1]) / s
             quat.x = 0.25 * s
-            quat.y = (self[0, 1] + self[1, 0]) / s
-            quat.z = (self[0, 2] + self[2, 0]) / s
+            quat.y = (self[1, 0] + self[0, 1]) / s
+            quat.z = (self[2, 0] + self[0, 2]) / s
         } else if (self[1, 1] > self[2, 2]) {
             let s = sqrt(1.0 + self[1, 1] - self[0, 0] - self[2, 2]) * 2 // S=4*qy
-            quat.w = (self[0, 2] - self[2, 0]) / s
-            quat.x = (self[0, 1] + self[1, 0]) / s
+            quat.w = (self[2, 0] - self[0, 2]) / s
+            quat.x = (self[1, 0] + self[0, 1]) / s
             quat.y = 0.25 * s
-            quat.z = (self[1, 2] + self[2, 1]) / s
+            quat.z = (self[2, 1] + self[1, 2]) / s
         } else {
             let s = sqrt(1.0 + self[2, 2] - self[0, 0] - self[1, 1]) * 2 // S=4*qz
-            quat.w = (self[1, 0] - self[0, 1]) / s
-            quat.x = (self[0, 2] + self[2, 0]) / s
-            quat.y = (self[1, 2] + self[2, 1]) / s
+            quat.w = (self[0, 1] - self[1, 0]) / s
+            quat.x = (self[2, 0] + self[0, 2]) / s
+            quat.y = (self[2, 1] + self[1, 2]) / s
             quat.z = 0.25 * s
         }
         
@@ -269,36 +271,56 @@ public extension Transform3D {
     ///  The translation offset of the transform
     var origin: Vector3 {
         get {
-            return Vector3(self[0, 3], self[1, 3], self[2, 3])
+            return Vector3(self[3, 0], self[3, 1], self[3, 2])
         }
         
         mutating set {
-            self[0, 3] = newValue.x
-            self[1, 3] = newValue.y
-            self[2, 3] = newValue.z
+            self[3, 0] = newValue.x
+            self[3, 1] = newValue.y
+            self[3, 2] = newValue.z
         }
     }
 }
 
 public extension Transform3D {
-    
     /// - SeeAlso: https://stackoverflow.com/questions/1556260/convert-quaternion-rotation-to-rotation-matrix
+    /// - Note: Formula for non-unit quaternion, compatible with simd_matrix4x4(simd_quatf).
+    ///         Uses column-major matrix where self[column, row] accesses elements.
+    ///         Standard formula uses m[row, col], so m_rc = self[c, r].
     init(quat: Quat) {
         var matrix = Transform3D.identity
         
-        let q = quat.normalized
+        let x = quat.x
+        let y = quat.y
+        let z = quat.z
+        let w = quat.w
         
-        matrix[0, 0] = 1.0 - 2.0 * q.y * q.y - 2.0 * q.z * q.z
-        matrix[0, 1] = 2.0 * q.x * q.y - 2.0 * q.z * q.w
-        matrix[0, 2] = 2.0 * q.x * q.z + 2.0 * q.y * q.w
+        let xx = x * x
+        let yy = y * y
+        let zz = z * z
+        let ww = w * w
         
-        matrix[1, 0] = 2.0 * q.x * q.y + 2.0 * q.z * q.w
-        matrix[1, 1] = 1.0 - 2.0 * q.x * q.x - 2.0 * q.z * q.z
-        matrix[1, 2] = 2.0 * q.y * q.z - 2.0 * q.x * q.w
+        let xy = x * y
+        let xz = x * z
+        let xw = x * w
+        let yz = y * z
+        let yw = y * w
+        let zw = z * w
         
-        matrix[2, 0] = 2.0 * q.x * q.z - 2.0 * q.y * q.w
-        matrix[2, 1] = 2.0 * q.y * q.z + 2.0 * q.x * q.w
-        matrix[2, 2] = 1.0 - 2.0 * q.x * q.x - 2.0 * q.y * q.y
+        // Row 0: R[0,0], R[0,1], R[0,2] → self[0,0], self[1,0], self[2,0]
+        matrix[0, 0] = ww + xx - yy - zz
+        matrix[1, 0] = 2.0 * (xy - zw)
+        matrix[2, 0] = 2.0 * (xz + yw)
+        
+        // Row 1: R[1,0], R[1,1], R[1,2] → self[0,1], self[1,1], self[2,1]
+        matrix[0, 1] = 2.0 * (xy + zw)
+        matrix[1, 1] = ww - xx + yy - zz
+        matrix[2, 1] = 2.0 * (yz - xw)
+        
+        // Row 2: R[2,0], R[2,1], R[2,2] → self[0,2], self[1,2], self[2,2]
+        matrix[0, 2] = 2.0 * (xz - yw)
+        matrix[1, 2] = 2.0 * (yz + xw)
+        matrix[2, 2] = ww - xx - yy + zz
         
         self = matrix
     }

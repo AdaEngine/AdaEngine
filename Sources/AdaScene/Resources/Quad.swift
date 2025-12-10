@@ -16,7 +16,7 @@ public struct Quad: GeometryShape {
         self.size = size
     }
     
-    public func meshDescriptor() -> MeshDescriptor {
+    public func meshDescriptors() -> [MeshDescriptor] {
         let extentX = size.x / 2
         let extentY = size.y / 2
         
@@ -40,6 +40,6 @@ public struct Quad: GeometryShape {
             [0, 1], [1, 1], [1, 0], [0, 0]
         ]
         
-        return mesh
+        return [mesh]
     }
 }

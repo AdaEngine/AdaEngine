@@ -14,6 +14,7 @@ public struct MeshBuffer<Element>: Sequence {
     /// A type representing the sequence’s elements.
     public typealias Element = Element
     
+    /// A type representing the iterator of the mesh buffer.
     public typealias Iterator = ChunkIterator<Element>
     
     internal var buffer: _MeshBuffer
@@ -29,7 +30,7 @@ public struct MeshBuffer<Element>: Sequence {
         return self.buffer.getData()
     }
     
-    /// The number of elements in the buffer.
+    /// Get the number of elements in the buffer.
     public var count: Int {
         return self.buffer.count
     }
@@ -148,7 +149,7 @@ class _MeshBuffer: Equatable, @unchecked Sendable {
     internal let elementType: Mesh.ElementType
     
     init<Element>(elements: [Element], indices: [UInt32], elementType: Mesh.ElementType) {
-        let elementSize = MemoryLayout<Element>.size
+        let elementSize = MemoryLayout<Element>.stride
         self.elementType = elementType
         self.elementSize = elementSize
 
@@ -157,11 +158,13 @@ class _MeshBuffer: Equatable, @unchecked Sendable {
             alignment: MemoryLayout<Element>.alignment
         )
 
-        unsafe withUnsafePointer(to: elements) { pointer in
-            unsafe bytes.baseAddress?.copyMemory(
-                from: pointer,
-                byteCount: elementSize * elements.count
-            )
+        if !elements.isEmpty {
+            unsafe elements.withUnsafeBufferPointer { pointer in
+                unsafe bytes.baseAddress?.copyMemory(
+                    from: pointer.baseAddress!,
+                    byteCount: elementSize * elements.count
+                )
+            }
         }
 
         unsafe self.bytes = bytes
