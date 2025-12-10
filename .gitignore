@@ -39,6 +39,7 @@ Derived/
 
 # Idea
 .idea/
+.ijwb/
 
 # Compiled Shaders
 /Sources/AdaEngine/Rendering/Shaders/*.spv
