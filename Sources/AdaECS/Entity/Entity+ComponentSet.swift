@@ -56,7 +56,7 @@ public extension Entity {
 
                 if let decodable = type as? Decodable.Type {
                     let component = try decodable.init(from: container.superDecoder(forKey: key))
-                    self.notFlushedComponents[type.identifier] = component as? Component
+                    self.notFlushedComponents[type.identifier] = component as? (any Component)
                 }
             }
         }
@@ -92,8 +92,8 @@ public extension Entity {
         /// Gets or sets the component of the specified type.
         @inline(__always)
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
-            _read {
-                yield get(for: T.self)
+            get {
+                return get(for: T.self)
             }
             set {
                 if let newValue {
@@ -156,7 +156,9 @@ public extension Entity {
         }
 
         /// Set the components of the specified type using ``ComponentsBuilder``.
-        public mutating func insert(@ComponentsBuilder components: () -> [Component]) {
+        public mutating func insert(
+            @ComponentsBuilder components: () -> [any Component]
+        ) {
             let components = components()
             for component in components {
                 self.insert(component)

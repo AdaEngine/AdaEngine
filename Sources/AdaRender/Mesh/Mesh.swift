@@ -9,20 +9,51 @@ import AdaAssets
 import AdaUtils
 import Math
 
-// TODO: Add Resource implementation
-
 /// A high-level representation of a collection of vertices and edges that define a shape.
-public class Mesh: Asset, @unchecked Sendable {
+public struct Mesh: Asset, Sendable {
+    @_spi(Internal)
+    public let models: [Mesh.Model]
+
+    internal init(models: [Model]) {
+        self.models = models
+        self.bounds = Self.computeAABB(models: models) ?? .empty
+    }
     
+    enum CodingKeys: String, CodingKey {
+        case vertexDescriptor
+    }
+    
+    /// A box that bounds the mesh.
+    public let bounds: AABB
+
+    // MARK: - Resource
+    
+    public var assetMetaInfo: AssetMetaInfo?
+
+    public init(from decoder: AssetDecoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public func encodeContents(with encoder: AssetEncoder) throws {
+        fatalErrorMethodNotImplemented()
+    }
+    
+    public static func extensions() -> [String] {
+        ["mesh"]
+    }
+}
+
+extension Mesh {
     /// A part of a model consisting of a single material.
     public struct Part: Identifiable, Sendable {
-        
+
         /// The stable identity of the entity associated with this instance.
         public let id: Int
-        
+
         /// Material index for the part.
         public var materialIndex: Int
-        
+
+        /// A mesh topology
         public let primitiveTopology: Mesh.PrimitiveTopology
 
         public let isUInt32: Bool
@@ -38,44 +69,14 @@ public class Mesh: Asset, @unchecked Sendable {
         public var indexCount: Int
         public var vertexBuffer: VertexBuffer
     }
-    
+
     /// A model consists of a list of parts.
-    public struct Model {
-        let name: String
-        
+    public struct Model: Sendable {
+        /// The name of model
+        public var name: String
+
         /// Table of parts composing this mesh.
         public var parts: [Part] = []
-    }
-
-    @_spi(Internal)
-    public internal(set) var models: [Mesh.Model] = []
-
-    internal init(models: [Model]) {
-        self.models = models
-        self.bounds = Self.computeAABB(models: models) ?? .empty
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case vertexDescriptor
-    }
-    
-    /// A box that bounds the mesh.
-    public private(set) var bounds: AABB
-    
-    // MARK: - Resource
-    
-    public var assetMetaInfo: AssetMetaInfo?
-    
-    public required init(from decoder: AssetDecoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public func encodeContents(with encoder: AssetEncoder) throws {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    public static func extensions() -> [String] {
-        ["mesh"]
     }
 }
 
@@ -109,7 +110,6 @@ public extension Mesh {
 fileprivate extension Mesh {
     /// Compute the Axis-Aligned Bounding Box of the mesh vertices in model space
     static func computeAABB(models: [Mesh.Model]) -> AABB? {
-        
         let floatMin = -Float.greatestFiniteMagnitude
         
         var minimum: Vector3 = Vector3(.greatestFiniteMagnitude)
@@ -129,7 +129,7 @@ fileprivate extension Mesh {
             && maximum.y != floatMin && maximum.z != floatMin {
             return AABB(min: minimum, max: maximum)
         }
-        
+
         return nil
     }
 }

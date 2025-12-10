@@ -90,8 +90,8 @@ public extension SparseSet {
 
     @inlinable
     subscript(_ key: Key) -> Value? {
-        _read {
-            yield firstValue(for: key)
+        get {
+            return firstValue(for: key)
         }
         set {
             if let newValue {
@@ -104,8 +104,8 @@ public extension SparseSet {
 
     @inlinable
     subscript(_ key: Key, default value: Value) -> Value? {
-        _read {
-            yield firstValue(for: key) ?? value
+        get {
+            return firstValue(for: key) ?? value
         }
         set {
             if let newValue {

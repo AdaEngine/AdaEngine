@@ -24,9 +24,14 @@ struct CustomMaterialPlugin: Plugin {
         let texture = try! AssetsManager.loadSync(Texture2D.self, at: "Resources/dog.png", from: .module)
         app.main.spawn("Custom Material") {
             Mesh2DComponent(mesh: .generate(from: Quad(size: .one)), materials: [
-                CustomMaterial(MyMaterial(color: .red, customTexture: texture.asset))
+                CustomMaterial(MyMaterial(color: .blue, customTexture: texture.asset))
             ])
             Transform()
+        }
+
+        app.main.spawn("Test Sprite") {
+            SpriteComponent(texture: texture, tintColor: .red)
+            Transform(scale: Vector3(0.5), position: .init(0.5))
         }
         app.main.spawn(bundle: OrthographicCameraBundle(camera: Camera()))
         app.main.addSystem(UpdateMaterialSystem.self)
