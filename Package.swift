@@ -495,9 +495,6 @@ targets += [
         dependencies: [
             "AdaRender",
             "Math"
-        ],
-        exclude: [
-            "BUILD.bazel"
         ]
     ),
     .testTarget(
@@ -666,7 +663,8 @@ private extension Target {
             path: "Assets/Examples/\(path)/\(name)",
             resources: [
                 .copy("../../Resources/")
-            ]
+            ],
+            packageAccess: false
         )
     }
 }
