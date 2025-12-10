@@ -355,7 +355,7 @@ public struct ComponentMaskSet: Hashable, Sendable {
     }
 }
 
-extension Array where Element == Component {
+extension Array where Element == any Component {
     var maskSet: ComponentMaskSet {
         var set = ComponentMaskSet(reservingCapacity: self.count)
         for component in self {

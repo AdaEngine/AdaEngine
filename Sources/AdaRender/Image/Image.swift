@@ -161,7 +161,7 @@ extension Image: Asset {
         let pathExt = assetDecoder.assetMeta.filePath.pathExtension
         
         if pathExt.isEmpty || pathExt == "res" {
-            let rep = try await assetDecoder.decode(ImageRepresentation.self)
+            let rep = try assetDecoder.decode(ImageRepresentation.self)
             
             self.init(
                 width: Int(rep.imageSize.width),

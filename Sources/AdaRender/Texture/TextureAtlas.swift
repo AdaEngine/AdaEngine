@@ -51,7 +51,7 @@ public final class TextureAtlas: Texture2D, @unchecked Sendable {
     }
     
     public required init(from assetDecoder: any AssetDecoder) async throws {
-        let representation = try await assetDecoder.decode(TextureAtlasAssetRepresentation.self)
+        let representation = try assetDecoder.decode(TextureAtlasAssetRepresentation.self)
 
         self.spriteSize = representation.spriteSize
         self.margin = representation.margin

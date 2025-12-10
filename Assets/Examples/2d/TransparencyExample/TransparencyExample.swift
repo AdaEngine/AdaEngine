@@ -1,0 +1,49 @@
+//
+//  TransparencyExample.swift
+//  AdaEngine
+//
+//  Created by Vladislav Prusakov on 10.12.2025.
+//
+
+import AdaEngine
+
+@main
+struct TransparencyExample: App {
+    var body: some AppScene {
+        EmptyWindow()
+            .addPlugins(
+                DefaultPlugins(),
+                TransparencyExamplePlugin()
+            )
+            .windowMode(.windowed)
+    }
+}
+
+struct TransparencyExamplePlugin: Plugin {
+    func setup(in app: borrowing AppWorlds) {
+        app.main.spawn(bundle: Camera2D())
+        let texture = try! AssetsManager.loadSync(Texture2D.self, at: "Resources/dog.png", from: .module)
+
+        app.main.spawn {
+            SpriteComponent(
+                texture: texture,
+                tintColor: Color.red
+            )
+            Transform(position: Vector3(-0.5, 0, 0))
+        }
+        app.main.spawn {
+            SpriteComponent(
+                texture: texture,
+                tintColor: Color.blue.opacity(0.7)
+            )
+            Transform(position: Vector3(0, 0, 0.1))
+        }
+        app.main.spawn {
+            SpriteComponent(
+                texture: texture,
+                tintColor: Color.yellow.opacity(0.3)
+            )
+            Transform(position: Vector3(0.5, 0, 0.2))
+        }
+    }
+}
