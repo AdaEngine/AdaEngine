@@ -197,6 +197,26 @@ public extension AppWorlds {
         return self.main.createResource(of: type)
     }
 
+    /// Create a resource from world.
+    /// - Parameter type: The resource type.
+    /// - Returns: A resource instance.
+    @inlinable
+    @discardableResult
+    func initResource<T: Resource & WorldInitable>(_ type: T.Type) -> Self {
+        _ = self.main.createResource(of: type)
+        return self
+    }
+
+    /// Create a resource from world.
+    /// - Parameter type: The resource type.
+    /// - Returns: A resource instance.
+    @inlinable
+    @discardableResult
+    func initResource<T: Resource & DefaultValue>(_ type: T.Type) -> Self {
+        _ = self.main.insertResource(T.defaultValue)
+        return self
+    }
+
     /// Get resource from the world.
     /// - Parameter resource: The resource to insert.
     /// - Returns: The app builder.

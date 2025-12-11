@@ -13,10 +13,16 @@ public protocol RenderPipelineConfigurator: Resource {
     func configurate(with configuration: Configuration) -> RenderPipelineDescriptor
 }
 
-public struct RenderPipelineEmptyConfiguration: Hashable, Sendable {}
+public struct RenderPipelineEmptyConfiguration: Hashable, Sendable {
+    @usableFromInline
+    init() {}
+}
 
 public struct RenderPipelines<T: RenderPipelineConfigurator>: Resource {
-    private var caches: [T.Configuration: RenderPipeline] = [:]
+    @usableFromInline
+    var caches: [T.Configuration: RenderPipeline] = [:]
+
+    @usableFromInline
     let configurator: T
 
     public init(configurator: T) {
@@ -37,12 +43,14 @@ public struct RenderPipelines<T: RenderPipelineConfigurator>: Resource {
         return pipeline
     }
 
+    @inlinable
     public mutating func dropCache() {
         self.caches.removeAll(keepingCapacity: true)
     }
 }
 
 extension RenderPipelines where T.Configuration == RenderPipelineEmptyConfiguration {
+    @inlinable
     public mutating func pipeline(
         device: RenderDevice
     ) -> any RenderPipeline {
@@ -51,6 +59,7 @@ extension RenderPipelines where T.Configuration == RenderPipelineEmptyConfigurat
 }
 
 extension RenderPipelines: WorldInitable where T: WorldInitable {
+    @inlinable
     public init(from world: World) {
         self.configurator = T.init(from: world)
     }

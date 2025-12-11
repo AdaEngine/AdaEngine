@@ -425,6 +425,35 @@ extension WorldTests {
     }
 }
 
+extension WorldTests {
+    @Test
+    func `when entities move to new archetype inserted component stored correctly`() {
+        let red = world.spawn("Red") {
+            Transform(position: Vector3(-0.5, 0, 0))
+        }
+        let blue = world.spawn("Blue") {
+            Transform(position: Vector3(0, 0, 0.1))
+        }
+        let yellow = world.spawn("Yellow") {
+            Transform(position: Vector3(0.5, 0, 0.2))
+        }
+
+        let commands = world.makeCommands()
+        commands.entity(red.id)
+            .insert(ComponentB(value: red.name))
+        commands.entity(blue.id)
+            .insert(ComponentB(value: blue.name))
+        commands.entity(yellow.id)
+            .insert(ComponentB(value: yellow.name))
+
+        commands.finish(world)
+
+        #expect(world.get(ComponentB.self, from: red.id)!.value == red.name)
+        #expect(world.get(ComponentB.self, from: blue.id)!.value == blue.name)
+        #expect(world.get(ComponentB.self, from: yellow.id)!.value == yellow.name)
+    }
+}
+
 @Component
 struct RequiredComponentForA {
     let someValue: String

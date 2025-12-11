@@ -30,8 +30,11 @@ public struct SpritePlugin: Plugin {
         renderWorld
             .insertResource(ExtractedSprites())
             .insertResource(SpriteDrawPass())
+            .insertResource(SpriteBatches())
+            .initResource(SpriteDrawData.self)
+            .initResource(RenderPipelines<SpriteRenderPipeline>.self)
             .addSystem(ExtractSpriteSystem.self, on: .extract)
+            .addSystem(PrepareSpritesSystem.self, on: .preUpdate)
             .addSystem(SpriteRenderSystem.self, on: .update)
-            .createResource(RenderPipelines<SpriteRenderPipeline>.self)
     }
 }

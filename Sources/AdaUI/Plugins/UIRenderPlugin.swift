@@ -58,6 +58,7 @@ struct UIRenderItem: RenderItem {
     var sortKey: Int
     var entity: AdaECS.Entity.ID
     var drawPass: any AdaRender.DrawPass
+    var batchRange: Range<Int32>? = nil
 }
 
 struct UIRenderDrawPass: DrawPass {

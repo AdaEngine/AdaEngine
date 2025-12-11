@@ -19,19 +19,30 @@ public struct SpriteComponent: Codable {
     public var flipY: Bool = false
 
     /// Create a new sprite component for specific texture and tintColor.
-    /// - Parameter texture: Texture for rendering
+    /// - Parameter texture: Asset that contains texture.
     /// - Parameter tintColor: Color for tinting the texture. By default is white and don't tint a texture.
+    /// - Parameter flipX: Flip texture horizontally
+    /// - Parameter flipY: Flip texture vertically.
     public init(
         texture: AssetHandle<Texture2D>? = nil,
-        tintColor: Color = .white
+        tintColor: Color = .white,
+        flipX: Bool = false,
+        flipY: Bool = false
     ) {
         self.texture = texture
         self.tintColor = tintColor
     }
 
+    /// Create a new sprite component for specific texture and tintColor.
+    /// - Parameter texture: Texture for rendering.
+    /// - Parameter tintColor: Color for tinting the texture. By default is white and don't tint a texture.
+    /// - Parameter flipX: Flip texture horizontally
+    /// - Parameter flipY: Flip texture vertically.
     public init(
         texture: Texture2D,
-        tintColor: Color = .white
+        tintColor: Color = .white,
+        flipX: Bool = false,
+        flipY: Bool = false
     ) {
         self.texture = AssetHandle(texture)
         self.tintColor = tintColor
