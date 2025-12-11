@@ -72,6 +72,7 @@ public extension Chunks {
         lastTick: Tick
     ) {
         guard let location = self.entities[entity] else {
+            print("Can't insert component \(T.self) for entity \(entity)")
             return
         }
         self.chunks[location.chunkIndex]
@@ -127,7 +128,8 @@ public extension Chunks {
         let oldChunk = self.chunks[location.chunkIndex]
         let newLocation = chunks.getFreeChunkIndex()
         var chunk = chunks.chunks[newLocation]
-        let entityLocation = chunk.addEntity(entity)!
+        let entityLocation = chunk.addEntity(entity)
+            .unwrap(message: "Can't add entity to chunk")
         let chunkLocation = ChunkLocation(
             chunkIndex: newLocation,
             entityRow: entityLocation

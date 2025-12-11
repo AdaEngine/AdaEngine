@@ -7,20 +7,32 @@
 
 import AdaECS
 
+public struct SortedRenderItems<T: RenderItem>: Resource {
+    public var items: [T]
+
+    public init(items: [T] = []) {
+        self.items = items
+    }
+}
+
 /// Batch transparent items which contains batchEntity.
 /// Run each frame before drawing.
 @PlainSystem
-public struct BatchTransparent2DItemsSystem {
+public struct BatchAndSortItemsSystem<T: RenderItem> {
 
-    @Query<Ref<RenderItems<Transparent2DRenderItem>>>
+    @Query<Ref<RenderItems<T>>>
     private var query
+
+    @ResMut<SortedRenderItems<T>>
+    private var sortedRenderItems
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
+        sortedRenderItems.items.removeAll(keepingCapacity: true)
         self.query.forEach { renderItems in
             let items = renderItems.wrappedValue.sorted().items
-            var batchedItems: [Transparent2DRenderItem] = []
+            var batchedItems: [T] = []
             batchedItems.reserveCapacity(items.count)
             
             if var currentItem = items.first {
@@ -36,16 +48,16 @@ public struct BatchTransparent2DItemsSystem {
                 batchedItems.append(currentItem)
             }
             
-            renderItems.items = batchedItems
+            sortedRenderItems.items.append(contentsOf: batchedItems)
         }
     }
     
-    private func tryToAddBatch(to currentItem: inout Transparent2DRenderItem, from otherItem: Transparent2DRenderItem) -> Bool {
+    private func tryToAddBatch(to currentItem: inout T, from otherItem: T) -> Bool {
         guard let batch = currentItem.batchRange, let otherBatch = otherItem.batchRange else {
             return false
         }
         
-        if otherItem.batchEntity != currentItem.batchEntity {
+        if otherItem.entity != currentItem.entity {
             return false
         }
         

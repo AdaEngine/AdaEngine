@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 6/21/22.
 //
 
-import AdaUtils
+@_spi(Internal) import AdaUtils
 import Atomics
 #if canImport(FoundationEssentials)
 import FoundationEssentials
@@ -34,8 +34,9 @@ public struct ArchetypeSwapAndRemoveResult: Sendable {
 }
 
 public final class Entities: @unchecked Sendable {
-    public package(set) var entities: SparseSet<Entity.ID, EntityLocation> = [:]
+    public private(set) var entities: SparseSet<Entity.ID, EntityLocation> = [:]
     private let currentId = ManagedAtomic<Int>(1)
+    let lock = NSRecursiveLock()
 
     func allocate(with name: String) -> Entity {
         let newId = currentId.loadThenWrappingIncrement(ordering: .relaxed)
@@ -49,9 +50,23 @@ public final class Entities: @unchecked Sendable {
         entity.components.entity = newId
     }
 
+    func insert(_ location: EntityLocation, for entity: Entity.ID) {
+        lock.sync {
+            entities[entity] = location
+        }
+    }
+
+    func remove(_ entity: Entity.ID) {
+        lock.sync {
+            entities.remove(for: entity)
+        }
+    }
+
     func clear() {
         currentId.store(1, ordering: .relaxed)
-        entities.removeAll(keepingCapacity: true)
+        lock.sync {
+            entities.removeAll(keepingCapacity: true)
+        }
     }
 }
 
