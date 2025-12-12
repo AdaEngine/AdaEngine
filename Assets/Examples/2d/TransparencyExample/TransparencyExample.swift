@@ -45,16 +45,5 @@ struct TransparencyExamplePlugin: Plugin {
             )
             Transform(position: Vector3(0.5, 0, 0.2))
         }
-
-        app.addSystem(TestSpriteSystem.self)
-    }
-}
-
-@System
-func TestSprite(
-    _ sprites: FilterQuery<Entity, Transform, GlobalTransform, With<SpriteComponent>>
-) {
-    sprites.forEach { entity, transform, globalTransform in
-        print(entity.name, globalTransform.matrix, globalTransform.matrix == transform.matrix)
     }
 }

@@ -24,7 +24,6 @@ public struct TransformSystem {
     public func update(context: UpdateContext) async {
         await self.query.parallel().forEach { entity, transform in
             let globalTransform = GlobalTransform(matrix: transform.matrix)
-            print("Update Global transform", entity.name, globalTransform.matrix, globalTransform.matrix == transform.matrix)
             commands.entity(entity.id)
                 .insert(globalTransform)
         }

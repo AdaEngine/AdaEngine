@@ -71,7 +71,7 @@ public struct SpriteDrawPass: DrawPass {
         let indexBufferOffset = Int(batch.range.lowerBound) * MemoryLayout<UInt32>.stride
 
         renderEncoder.drawIndexed(
-            indexCount: spritesData.indexBuffer.count,
+            indexCount: 6 * instanceCount,
             indexBufferOffset: indexBufferOffset,
             instanceCount: instanceCount
         )
