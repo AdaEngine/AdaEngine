@@ -51,7 +51,7 @@ public macro Entry() = #externalMacro(module: "AdaEngineMacros", type: "EntryMac
 /// }
 /// ```
 public protocol EnvironmentKey {
-    associatedtype Value
+    associatedtype Value: Sendable
 
     static var defaultValue: Value { get }
 }
@@ -91,9 +91,9 @@ public protocol EnvironmentKey {
 ///     }
 /// }
 /// ```
-public struct EnvironmentValues {
+public struct EnvironmentValues: Sendable {
 
-    private var values: [ObjectIdentifier: Any] = [:]
+    private var values: [ObjectIdentifier: any Sendable] = [:]
 
     /// Creates an environment values instance.
     public init() { }
@@ -112,4 +112,32 @@ public struct EnvironmentValues {
     public mutating func merge(_ newValue: EnvironmentValues) {
         self.values.merge(newValue.values, uniquingKeysWith: { $1 })
     }
+}
+
+package extension EnvironmentValues {
+    @TaskLocal static var current = EnvironmentValues()
+}
+
+/// Updates the current environment for the duration of an asynchronous operation.
+public func withEnvironmentValues<T>(
+    _ updateValues: @Sendable (inout EnvironmentValues) -> Void,
+    operation: () async throws -> T
+) async rethrows -> T {
+    var current = EnvironmentValues.current
+    updateValues(&current)
+    return try await EnvironmentValues.$current.withValue(current) {
+        try await operation()
+    }
+}
+
+public extension EnvironmentValues {
+    @Entry var context: EnvironmentContext = .runtime
+}
+
+public enum EnvironmentContext: Sendable {
+    /// This context is automatically inferred when running code from an XCTestCase or Swift Testing.
+    case test
+
+    /// This context is the default when a ``test`` context is not detected.
+    case runtime
 }

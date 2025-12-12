@@ -251,6 +251,13 @@ var targets: [Target] = [
         swiftSettings: swiftSettings
     ),
     .adaTarget(
+        name: "AdaUtilsTesting",
+        dependencies: [
+            "AdaUtils"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .adaTarget(
         name: "AdaAssets",
         dependencies: [
             .product(name: "Logging", package: "swift-log"),
@@ -494,7 +501,8 @@ targets += [
         name: "AdaRenderTests",
         dependencies: [
             "AdaRender",
-            "Math"
+            "Math",
+            "AdaUtilsTesting"
         ]
     ),
     .testTarget(
@@ -511,7 +519,8 @@ targets += [
     .testTarget(
         name: "AdaUtilsTests",
         dependencies: [
-            "AdaUtils"
+            "AdaUtils",
+            "Math"
         ],
         exclude: [
             "BUILD.bazel"

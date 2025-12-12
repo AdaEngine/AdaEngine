@@ -10,7 +10,7 @@ import Math
 
 /// A protocol that defines a button style.
 @_typeEraser(AnyButtonStyle)
-@MainActor public protocol ButtonStyle {
+@MainActor public protocol ButtonStyle: Sendable {
     /// The body of the button style.
     associatedtype Body: View
 

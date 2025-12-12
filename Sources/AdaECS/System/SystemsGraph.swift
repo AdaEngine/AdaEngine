@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 2/23/23.
 //
 
+import AdaUtils
 import OrderedCollections
 
 /// Contains information about execution order of systems.
@@ -68,9 +69,11 @@ public struct SystemsGraph: Sendable {
     /// Create an execution order for all systems.
     /// - Complexity: O(n^2)
     mutating func linkSystems() {
+        if !EnvironmentValues.current.useSystemDependencies {
+            return
+        }
         for node in nodes.values {
             let systemName = node.name
-            
             for dependency in node.dependencies {
                 switch dependency {
                 case .after(let system):
@@ -203,4 +206,8 @@ extension SystemsGraph {
         }
         return string
     }
+}
+
+package extension EnvironmentValues {
+    @Entry var useSystemDependencies: Bool = true
 }
