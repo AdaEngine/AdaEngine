@@ -78,7 +78,7 @@ public extension Chunks {
         self.chunks[location.chunkIndex]
             .insert(
                 component,
-                at: location.chunkIndex,
+                at: location.entityRow,
                 lastTick: lastTick
             )
     }
