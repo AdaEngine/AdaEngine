@@ -36,6 +36,7 @@ build/
 .docs/
 
 Derived/
+.derivedData/
 
 # Idea
 .idea/

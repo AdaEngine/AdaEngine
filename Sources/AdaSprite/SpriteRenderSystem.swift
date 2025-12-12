@@ -111,19 +111,21 @@ public func ExtractSprite(
 func UpdateBoundings(
     _ sprites: FilterQuery<
         Entity, Transform, Ref<BoundingComponent>,
-        And<With<SpriteComponent>, Changed<Transform>>,
+        And<With<SpriteComponent>, Changed<Transform>, Without<NoFrustumCulling>>,
     >,
     _ meshes: FilterQuery<
         Mesh2DComponent, Ref<BoundingComponent>,
-        Changed<Mesh2DComponent>
+        Or<Changed<Mesh2DComponent>, Without<NoFrustumCulling>>
     >
 ) async {
     await sprites.parallel().forEach { entity, transform, bounds in
-        let position = transform.position
-        let scale = transform.scale
-        let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
-        let max = Vector3(position.x + scale.x / 2, position.y + scale.y / 2, 0)
-        bounds.bounds = .aabb(AABB(min: min, max: max))
+        let scale = transform.scale.xy
+        bounds.bounds = .aabb(
+            AABB(
+                center: Vector3(scale, 0),
+                halfExtents: Vector3(0.5 * scale, 0)
+            )
+        )
     }
 
     await meshes.parallel().forEach { mesh2d, bounds in
