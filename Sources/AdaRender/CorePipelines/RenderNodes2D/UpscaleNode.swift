@@ -27,8 +27,8 @@ public struct UpscaleNode: RenderNode {
     ) async throws -> [RenderSlotValue] {
         guard
             let viewEntity = context.viewEntity,
-            let target = viewEntity.components[RenderViewTarget.self],
-            let camera = viewEntity.components[Camera.self]
+            let target = context.world.get(RenderViewTarget.self, from: viewEntity.id),
+            let camera = context.world.get(Camera.self, from: viewEntity.id)
         else {
             return []
         }

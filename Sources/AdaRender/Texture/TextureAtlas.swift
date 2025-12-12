@@ -125,7 +125,7 @@ public extension TextureAtlas {
             self.position = [min.x * Float(atlas.width), min.y * Float(atlas.height)]
             
             super.init(gpuTexture: atlas.gpuTexture, sampler: atlas.sampler, size: size)
-            
+            self.assetMetaInfo = atlas.assetMetaInfo
             self.textureCoordinates = [
                 [min.x, max.y],
                 [max.x, max.y],
