@@ -64,9 +64,7 @@ public struct SpriteDrawPass: DrawPass {
         renderEncoder.setVertexBuffer(spritesData.vertexBuffer, offset: 0, index: 0)
         renderEncoder.setIndexBuffer(spritesData.indexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
-
-        // Draw all sprites in the batch with a single draw call
-        // batch.range contains the instance range
+        
         let instanceCount = Int(batch.range.upperBound - batch.range.lowerBound)
         let indexBufferOffset = Int(batch.range.lowerBound) * MemoryLayout<UInt32>.stride
 

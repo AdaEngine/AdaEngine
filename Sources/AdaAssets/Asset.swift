@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 11/10/21.
 //
 
+import AdaUtils
 #if canImport(FoundationEssentials)
 import FoundationEssentials
 #else
@@ -75,6 +76,8 @@ public extension Asset {
     }
 }
 
+public typealias AssetID = RID
+
 /// A meta information about an asset.
 ///
 /// This struct is used to store the meta information about an asset.
@@ -88,7 +91,9 @@ public struct AssetMetaInfo: Codable, Sendable {
     public let assetName: String
     /// The path to the bundle.
     public let bundlePath: String?
-    
+    /// The asset identifier
+    public let assetId: AssetID
+
     /// The absolute path to the asset.
     public var assetAbsolutePath: URL {
         return AssetsManager.getFilePath(from: self).url
@@ -99,7 +104,8 @@ public struct AssetMetaInfo: Codable, Sendable {
         case bundlePath = "bundle"
     }
     
-    init(assetPath: String, assetName: String, bundlePath: String?) {
+    init(assetId: AssetID, assetPath: String, assetName: String, bundlePath: String?) {
+        self.assetId = assetId
         self.assetPath = assetPath
         self.assetName = assetName
         self.bundlePath = bundlePath
@@ -111,6 +117,7 @@ public struct AssetMetaInfo: Codable, Sendable {
     /// - Throws: An error if the asset meta info cannot be initialized from the decoder.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.assetId = RID()
         self.assetPath = try container.decode(String.self, forKey: .assetPath)
         self.bundlePath = try container.decodeIfPresent(String.self, forKey: .bundlePath)
         self.assetName = URL(string: assetPath)?.lastPathComponent ?? ""

@@ -310,9 +310,7 @@ public struct SpriteRenderSystem {
         return coords
     }
 
-    /// Compare two textures to check if they are the same.
     private func isSameTexture(_ lhs: Texture2D, _ rhs: Texture2D) -> Bool {
-        // Compare by object identity (same texture instance)
-        return lhs === rhs
+        return lhs.assetMetaInfo?.assetId != .empty && lhs.assetMetaInfo?.assetId == rhs.assetMetaInfo?.assetId
     }
 }

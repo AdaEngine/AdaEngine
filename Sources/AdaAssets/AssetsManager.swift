@@ -384,6 +384,7 @@ public struct AssetsManager: Resource {
         var resource = try await A.init(from: decoder)
 
         resource.assetMetaInfo = AssetMetaInfo(
+            assetId: RID(),
             assetPath: originalPath,
             assetName: path.url.lastPathComponent,
             bundlePath: bundle?.bundleIdentifier
