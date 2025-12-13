@@ -65,4 +65,7 @@ public protocol RenderItem: Sendable {
 
     /// The sort key of the render item.
     var sortKey: SortKey { get }
+
+    /// The range of instances that the batch cover.
+    var batchRange: Range<Int32>? { get set }
 }

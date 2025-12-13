@@ -4,6 +4,7 @@ import FoundationEssentials
 import Foundation
 #endif
 import Testing
+import AdaUtils
 @testable @_spi(AdaEngine) import AdaAssets
 import Math
 
@@ -148,6 +149,7 @@ private extension AssetsManager {
     static func getFilePath(at path: String) -> URL {
         self.getFilePath(
             from: AssetMetaInfo(
+                assetId: RID(),
                 assetPath: path,
                 assetName: "",
                 bundlePath: nil

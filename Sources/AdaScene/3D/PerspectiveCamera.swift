@@ -11,6 +11,9 @@ import AdaRender
 import AdaTransform
 
 /// A virtual camera that establishes the rendering perspective.
+public typealias Camera3D = PerspectiveCameraBundle
+
+/// A virtual camera that establishes the rendering perspective.
 @Bundle
 public struct PerspectiveCameraBundle {
     public var camera: Camera

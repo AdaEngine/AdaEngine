@@ -19,37 +19,37 @@ private struct ComponentBuilderTuple: Component {
 /// - Note: More profitable for performance use solutions like ``Entity/ComponentSet/+=(lhs:rhs:)`` or ``Entity/ComponentSet/set(_:)-2oz15`` in ``Entity/ComponentSet`` object.
 @resultBuilder public enum ComponentsBuilder {
 
-    public static func buildBlock(_ components: Component...) -> Component {
+    public static func buildBlock(_ components: any Component...) -> any Component {
         ComponentBuilderTuple(components: components)
     }
 
-    public static func buildOptional(_ component: Component?) -> Component {
+    public static func buildOptional(_ component: (any Component)?) -> any Component {
         ComponentBuilderTuple(components: component == nil ? [] : [component!])
     }
 
-    public static func buildArray(_ components: [any Component]) -> Component {
+    public static func buildArray(_ components: [any Component]) -> any Component {
         ComponentBuilderTuple(components: components)
     }
 
     @_alwaysEmitIntoClient
-    public static func buildLimitedAvailability(_ component: Component) -> Component {
+    public static func buildLimitedAvailability(_ component: any Component) -> any Component {
         component
     }
 
-    public static func buildEither(first component: Component) -> Component {
+    public static func buildEither(first component: any Component) -> any Component {
         component
     }
 
-    public static func buildEither(second component: Component) -> Component {
+    public static func buildEither(second component: any Component) -> any Component {
         component
     }
 
     // unwrap all components
-    public static func buildFinalResult(_ component: Component) -> ComponentsBundle {
+    public static func buildFinalResult(_ component: any Component) -> ComponentsBundle {
         return ResultBundle(components: self.unpackComponentBuilderTuple(component))
     }
 
-    private static func unpackComponentBuilderTuple(_ component: Component) -> [Component] {
+    private static func unpackComponentBuilderTuple(_ component: any Component) -> [any Component] {
         guard let tuple = component as? ComponentBuilderTuple else {
             return [component]
         }

@@ -179,7 +179,6 @@ public struct Mesh2DRenderSystem: Sendable {
                     items.items.append(
                         Transparent2DRenderItem(
                             entity: entity,
-                            batchEntity: entity,
                             drawPass: self.meshDrawPass,
                             renderPipeline: pipeline,
                             sortKey: mesh.transform.position.z
