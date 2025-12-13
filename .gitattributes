@@ -1,4 +1,5 @@
 Modules/** linguist-vendored
+Sources/box2d/** linguist-vendored
 
 *.frag text eol=lf
 *.vert text eol=lf
