@@ -2,6 +2,7 @@ Modules/** linguist-vendored
 Sources/box2d/** linguist-vendored
 Sources/libpng/** linguist-vendored
 Sources/miniaudio/** linguist-vendored
+Sources/msdf-atlas-gen/** linguist-vendored
 
 *.frag text eol=lf
 *.vert text eol=lf
