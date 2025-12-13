@@ -549,6 +549,11 @@ targets += [
             }())
         ]
     ),
+    .target(
+        name: "miniaudio",
+        sources: ["miniaudio.c"],
+        publicHeadersPath: "include"
+    ),
 //    .target(
 //        name: "SPIRV-Cross",
 //        exclude: ["CMakeLists.txt",
@@ -800,7 +805,6 @@ package.dependencies += [
     .package(path: "Modules/msdf-atlas-gen"),
     .package(path: "Modules/SPIRV-Cross"),
     .package(path: "Modules/glslang"),
-    .package(path: "Modules/miniaudio"),
 ]
 
 // MARK: - Vulkan -
