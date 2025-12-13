@@ -439,6 +439,8 @@ targets += [
         exclude: [
             "shared",
             "docs",
+            "samples",
+            "test",
             "benchmark",
             "extern",
             "build.bat",
@@ -511,36 +513,42 @@ targets += [
 //            .define("ENABLE_OPT", to: "0"),
 //        ]
 //    ),
-//    .target(
-//        name: "libpng",
-//        dependencies: [
-//            .product(name: "ZLib", package: "zlib"),
-//        ],
-//        sources: [
-//            "png.c",
-//            "pngerror.c",
-//            "pngget.c",
-//            "pngmem.c",
-//            "pngpread.c",
-//            "pngread.c",
-//            "pngrio.c",
-//            "pngrtran.c",
-//            "pngrutil.c",
-//            "pngset.c",
-//            "pngtrans.c",
-//            "pngwio.c",
-//            "pngwrite.c",
-//            "pngwtran.c",
-//            "pngwutil.c",
-//            "arm/arm_init.c",
-//            "arm/filter_neon_intrinsics.c",
-//            "arm/palette_neon_intrinsics.c",
-//        ],
-//        publicHeadersPath: "include",
-//        cSettings: [
-//            .define("PNG_ARM_NEON_OPT", to: useNeon ? "2" : "0")
-//        ]
-//    ),
+    .target(
+        name: "libpng",
+        dependencies: [
+            .product(name: "ZLib", package: "zlib"),
+        ],
+        sources: [
+            "libpng/png.c",
+            "libpng/pngerror.c",
+            "libpng/pngget.c",
+            "libpng/pngmem.c",
+            "libpng/pngpread.c",
+            "libpng/pngread.c",
+            "libpng/pngrio.c",
+            "libpng/pngrtran.c",
+            "libpng/pngrutil.c",
+            "libpng/pngset.c",
+            "libpng/pngtrans.c",
+            "libpng/pngwio.c",
+            "libpng/pngwrite.c",
+            "libpng/pngwtran.c",
+            "libpng/pngwutil.c",
+            "libpng/arm/arm_init.c",
+            "libpng/arm/filter_neon_intrinsics.c",
+            "libpng/arm/palette_neon_intrinsics.c",
+        ],
+        publicHeadersPath: "libpng/include",
+        cSettings: [
+            .define("PNG_ARM_NEON_OPT", to: {
+#if (arch(arm64) || arch(arm))
+                return "2"
+#else
+                return "0"
+#endif
+            }())
+        ]
+    ),
 //    .target(
 //        name: "SPIRV-Cross",
 //        exclude: ["CMakeLists.txt",
@@ -793,7 +801,6 @@ package.dependencies += [
     .package(path: "Modules/SPIRV-Cross"),
     .package(path: "Modules/glslang"),
     .package(path: "Modules/miniaudio"),
-    .package(path: "Modules/libpng")
 ]
 
 // MARK: - Vulkan -
