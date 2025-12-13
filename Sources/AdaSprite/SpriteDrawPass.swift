@@ -70,7 +70,7 @@ public struct SpriteDrawPass: DrawPass {
         renderEncoder.drawIndexed(
             indexCount: 6 * instanceCount,
             indexBufferOffset: 6 * indexBufferOffset,
-            instanceCount: instanceCount
+            instanceCount: 1
         )
     }
 }
