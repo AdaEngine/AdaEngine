@@ -24,6 +24,9 @@ extension SchedulerName: ExpressibleByStringLiteral {
 
 /// Default schedulers.
 public extension SchedulerName {
+    /// The startup scheduler that will run once per world.
+    static let startup = SchedulerName(rawValue: "startup")
+
     /// The pre-update scheduler.
     static let preUpdate = SchedulerName(rawValue: "preUpdate")
 
@@ -186,10 +189,18 @@ public struct DefaultSchedulerRunner: Sendable {
     @Local
     private var lastUpdate: LongTimeInterval = 0
 
+    @Local
+    private var isFirstRun = true
+
     public init(world: World) { }
 
     public func update(context: UpdateContext) async {
         let world = context.world
+        /// Run startup scheduler once per app run.
+        if isFirstRun {
+            await world.runScheduler(.startup)
+            isFirstRun = false
+        }
         let order = order?.order ?? []
         for scheduler in order {
             await world.runScheduler(scheduler)

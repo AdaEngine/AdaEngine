@@ -8,7 +8,7 @@
 import AdaEngine
 
 @main
-struct TransparencyExample: App {
+struct TransparencyExampleApp: App {
     var body: some AppScene {
         EmptyWindow()
             .addPlugins(
