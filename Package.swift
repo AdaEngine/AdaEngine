@@ -438,11 +438,9 @@ targets += [
         name: "box2d",
         exclude: [
             "shared",
-            "samples",
             "docs",
             "benchmark",
             "extern",
-            "test",
             "build.bat",
             "build.sh",
             "build_emscripten.sh",
