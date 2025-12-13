@@ -417,10 +417,23 @@ public extension World {
         return self
     }
 
+    /// Create a resource from world.
+    /// - Parameter type: The resource type.
+    /// - Returns: A resource instance.
     func createResource<T: Resource & WorldInitable>(of type: T.Type) -> T {
         let resource = type.init(from: self)
         self.resources.insertResource(resource, tick: lastTick)
         return resource
+    }
+
+    /// Create a resource from world.
+    /// - Parameter type: The resource type.
+    /// - Returns: A resource instance.
+    @inlinable
+    @discardableResult
+    func initResource<T: Resource & WorldInitable>(_ type: T.Type) -> Self {
+        _ = self.createResource(of: type)
+        return self
     }
 
     /// Remove a resource from the world.
@@ -524,7 +537,7 @@ public extension World {
         return self.get(from: entity)
     }
 
-    func insert<T: Component>(_ component: consuming T, for entityId: Entity.ID) {
+    func insert<T: Component>(_ component: T, for entityId: Entity.ID) {
         guard let location = self.entities.entities[entityId] else {
             return
         }
@@ -738,11 +751,14 @@ extension World {
             tick: self.lastTick
         )
         self.archetypes.archetypes[archetypeIndex] = archetype
-        self.entities.entities[entity.id] = EntityLocation(
-            archetypeId: archetype.id,
-            archetypeRow: row,
-            chunkIndex: chunkLocation.chunkIndex,
-            chunkRow: chunkLocation.entityRow
+        self.entities.insert(
+            EntityLocation(
+                archetypeId: archetype.id,
+                archetypeRow: row,
+                chunkIndex: chunkLocation.chunkIndex,
+                chunkRow: chunkLocation.entityRow
+            ),
+            for: entity.id
         )
         entity.world = self
         addedEntities.insert(entity.id)
@@ -762,21 +778,27 @@ extension World {
         let result = archetype.swapRemove(at: location.archetypeRow)
         let newLocation = archetype.chunks.moveEntity(entityId, to: &toArchetype.chunks).newLocation
         if let swappedEntity = result.swappedEntity {
-            entities.entities[swappedEntity] = EntityLocation(
-                archetypeId: location.archetypeId,
-                archetypeRow: location.archetypeRow,
-                chunkIndex: location.chunkIndex,
-                chunkRow: location.chunkRow
+            entities.insert(
+                EntityLocation(
+                    archetypeId: location.archetypeId,
+                    archetypeRow: location.archetypeRow,
+                    chunkIndex: location.chunkIndex,
+                    chunkRow: location.chunkRow
+                ),
+                for: swappedEntity
             )
         }
 
         self.archetypes.archetypes[location.archetypeId] = archetype
         self.archetypes.archetypes[newArchetype] = toArchetype
-        self.entities.entities[entityId] = EntityLocation(
-            archetypeId: newArchetype,
-            archetypeRow: row,
-            chunkIndex: newLocation.chunkIndex,
-            chunkRow: newLocation.entityRow
+        self.entities.insert(
+            EntityLocation(
+                archetypeId: newArchetype,
+                archetypeRow: row,
+                chunkIndex: newLocation.chunkIndex,
+                chunkRow: newLocation.entityRow
+            ),
+            for: entityId
         )
     }
 
@@ -786,7 +808,7 @@ extension World {
         guard let record = self.entities.entities[entity] else {
             return
         }
-        self.entities.entities[entity] = nil
+        self.entities.remove(entity)
 
         var currentArchetype = self.archetypes.archetypes[record.archetypeId]
         let removeResult = currentArchetype.swapRemove(at: record.archetypeRow)
@@ -795,22 +817,27 @@ extension World {
             let swappedEntity = removeResult.swappedEntity,
             let swappedLocation = entities.entities[swappedEntity]
         {
-            entities.entities[swappedEntity] = EntityLocation(
-                archetypeId: swappedLocation.archetypeId,
-                archetypeRow: record.archetypeRow,
-                chunkIndex: swappedLocation.chunkIndex,
-                chunkRow: swappedLocation.chunkRow
+            entities.insert(
+                EntityLocation(
+                    archetypeId: swappedLocation.archetypeId,
+                    archetypeRow: record.archetypeRow,
+                    chunkIndex: swappedLocation.chunkIndex,
+                    chunkRow: swappedLocation.chunkRow
+                ),
+                for: swappedEntity
             )
         }
 
         let removeChunkResult = currentArchetype.chunks.removeEntity(entity)
         if let removeChunkResult, let swappedEntity = removeChunkResult.swappedEntity {
             if let swappedLocation = entities.entities[swappedEntity] {
-                entities.entities[swappedEntity] = EntityLocation(
-                    archetypeId: swappedLocation.archetypeId,
-                    archetypeRow: swappedLocation.archetypeRow,
-                    chunkIndex: removeChunkResult.newLocation.chunkIndex,
-                    chunkRow: removeChunkResult.newLocation.entityRow
+                entities.insert(
+                    EntityLocation(
+                        archetypeId: swappedLocation.archetypeId,
+                        archetypeRow: swappedLocation.archetypeRow,
+                        chunkIndex: removeChunkResult.newLocation.chunkIndex,
+                        chunkRow: removeChunkResult.newLocation.entityRow
+                    ), for: swappedEntity
                 )
             }
         }

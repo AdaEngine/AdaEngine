@@ -22,7 +22,7 @@ public struct CameraSystem: Sendable {
     private var query
 
     @Res
-    private var primaryWindow: PrimaryWindowId
+    private var primaryWindow: PrimaryWindowId?
 
     public init(world: World) { }
 
@@ -49,6 +49,7 @@ public struct CameraSystem: Sendable {
     ) {
         switch camera.renderTarget {
         case .window(let windowRef):
+            guard let primaryWindow else { return }
             camera.renderTarget = .window(windowRef)
 
             guard let renderWindow = RenderEngine.shared

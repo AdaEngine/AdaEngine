@@ -93,9 +93,6 @@ public struct Transparent2DRenderItem: RenderItem {
     /// An entity that hold additional information about render item.
     public var entity: Entity.ID
 
-    /// An entity for batch rendering.
-    public var batchEntity: Entity.ID
-
     /// Draw pass which will be used for rendering this item.
     public var drawPass: any DrawPass
 
@@ -110,14 +107,12 @@ public struct Transparent2DRenderItem: RenderItem {
 
     public init(
         entity: Entity.ID,
-        batchEntity: Entity.ID,
         drawPass: any DrawPass,
         renderPipeline: RenderPipeline,
         sortKey: Float,
         batchRange: Range<Int32>? = nil
     ) {
         self.entity = entity
-        self.batchEntity = batchEntity
         self.drawPass = drawPass
         self.renderPipeline = renderPipeline
         self.sortKey = sortKey

@@ -90,7 +90,7 @@ public extension Entity {
         }
 
         /// Gets or sets the component of the specified type.
-        @inline(__always)
+        @inlinable
         public subscript<T>(componentType: T.Type) -> T? where T : Component {
             get {
                 return get(for: T.self)

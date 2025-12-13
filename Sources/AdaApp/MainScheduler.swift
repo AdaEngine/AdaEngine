@@ -18,6 +18,7 @@ struct MainSchedulerPlugin: Plugin {
 
         app.main.addScheduler(mainScheduler)
         app.main.addSchedulers(
+            .startup,
             .fixed,
             .postUpdate
         )

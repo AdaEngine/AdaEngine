@@ -51,7 +51,7 @@ public final class TextureAtlas: Texture2D, @unchecked Sendable {
     }
     
     public required init(from assetDecoder: any AssetDecoder) async throws {
-        let representation = try await assetDecoder.decode(TextureAtlasAssetRepresentation.self)
+        let representation = try assetDecoder.decode(TextureAtlasAssetRepresentation.self)
 
         self.spriteSize = representation.spriteSize
         self.margin = representation.margin
@@ -125,7 +125,7 @@ public extension TextureAtlas {
             self.position = [min.x * Float(atlas.width), min.y * Float(atlas.height)]
             
             super.init(gpuTexture: atlas.gpuTexture, sampler: atlas.sampler, size: size)
-            
+            self.assetMetaInfo = atlas.assetMetaInfo
             self.textureCoordinates = [
                 [min.x, max.y],
                 [max.x, max.y],

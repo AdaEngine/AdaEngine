@@ -37,6 +37,7 @@ public struct RenderWorldPlugin: Plugin {
             ]))
         renderWorld.setExctractor(RenderWorldExctractor())
         renderWorld.main.setSchedulers([
+            .startup,
             .extract,
             .preUpdate,
             .prepare,
@@ -73,32 +74,28 @@ public struct RenderEngineHandler: Resource {
     }
 }
 
-@System
-func Render(
-    _ context: WorldUpdateContext,
-    _ renderGraph: Res<RenderGraph?>,
-    _ surfaces: Res<WindowSurfaces>,
-    _ renderDevice: Res<RenderDeviceHandler?>
-) {
-    let world = context.world
-    let renderGraph = renderGraph.wrappedValue
-    renderGraph?.update(from: world)
-    
-    // We should capture drawables before we start async task.
-    // Because we can have a situation when we start task, but main thread already cleared surfaces.
-    let windows = surfaces.windows
-    
-    Task { @RenderGraphActor [renderGraph] in
-        do {
-            guard
-                let renderGraph,
-                let renderDevice = renderDevice.wrappedValue?.renderDevice
-            else {
-                return
-            }
-            let renderGraphExecutor = RenderGraphExecutor()
-            try await renderGraphExecutor.execute(renderGraph, renderDevice: renderDevice, in: world)
+@PlainSystem
+struct RenderSystem {
 
+    @Res<RenderGraph?>
+    private var renderGraph
+
+    @Res<WindowSurfaces>
+    private var surfaces
+
+    @Res<RenderDeviceHandler?>
+    private var renderDevice
+
+    init(world: World) { }
+
+    func update(context: UpdateContext) async {
+        renderGraph?.update(from: context.world)
+
+        // We should capture drawables before we start async task.
+        // Because we can have a situation when we start task, but main thread already cleared surfaces.
+        let windows = surfaces.windows
+        do {
+            try await runRenderGraph(in: context.world)
             for window in windows {
                 try window.currentDrawable?.present()
             }
@@ -106,7 +103,23 @@ func Render(
             assertionFailure("Failed to execute render graph \(error)")
         }
     }
+
+    @RenderGraphActor
+    @inline(__always)
+    private func runRenderGraph(
+        in world: World
+    ) async throws {
+        guard
+            let renderGraph,
+            let renderDevice = renderDevice?.renderDevice
+        else {
+            return
+        }
+        let renderGraphExecutor = RenderGraphExecutor()
+        try await renderGraphExecutor.execute(renderGraph, renderDevice: renderDevice, in: world)
+    }
 }
+
 
 /// The extractor that extracts the main world to the render world.
 struct RenderWorldExctractor: WorldExctractor {

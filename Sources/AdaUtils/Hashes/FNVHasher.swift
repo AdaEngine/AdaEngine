@@ -59,8 +59,8 @@ extension String: UniqueHashable {
 extension Int: UniqueHashable {
     public func hash(into hasher: inout FNVHasher) {
         var value = self
-        withUnsafeBytes(of: &value) {
-            hasher.combine(bytes: $0)
+        unsafe withUnsafeBytes(of: &value) {
+            unsafe hasher.combine(bytes: $0)
         }
     }
 }
@@ -68,8 +68,8 @@ extension Int: UniqueHashable {
 extension UInt32: UniqueHashable {
     public func hash(into hasher: inout FNVHasher) {
         var value = self
-        withUnsafeBytes(of: &value) {
-            hasher.combine(bytes: $0)
+        unsafe withUnsafeBytes(of: &value) {
+            unsafe hasher.combine(bytes: $0)
         }
     }
 }
@@ -77,8 +77,8 @@ extension UInt32: UniqueHashable {
 extension UInt64: UniqueHashable {
     public func hash(into hasher: inout FNVHasher) {
         var value = self
-        withUnsafeBytes(of: &value) {
-            hasher.combine(bytes: $0)
+        unsafe withUnsafeBytes(of: &value) {
+            unsafe hasher.combine(bytes: $0)
         }
     }
 }
@@ -86,8 +86,8 @@ extension UInt64: UniqueHashable {
 extension UInt8: UniqueHashable {
     public func hash(into hasher: inout FNVHasher) {
         var value = self
-        withUnsafeBytes(of: &value) {
-            hasher.combine(bytes: $0)
+        unsafe withUnsafeBytes(of: &value) {
+            unsafe hasher.combine(bytes: $0)
         }
     }
 }

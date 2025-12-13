@@ -22,10 +22,23 @@ public struct SparseSet<Key: Hashable, Value> {
     }
 }
 
+
+extension SparseSet {
+    public init(_ dictionary: [Key: Value]) {
+        var set = SparseSet<Key, Value>()
+        for (key, value) in dictionary {
+            set.insert(value, for: key)
+        }
+        self = set
+    }
+}
+
 public extension SparseSet {
     @inlinable
     var values: ContiguousArray<DenseValue> {
-        self.dense
+        _read {
+            yield self.dense
+        }
     }
 
     @inlinable

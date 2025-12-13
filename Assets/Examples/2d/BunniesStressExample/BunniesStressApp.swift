@@ -24,7 +24,7 @@ enum BunnyExampleConstants {
     static let bunniesPerClick: Int = 10
     static let bunnyScale: Float = 0.1
     static let gravity: Float = -9.8
-    static let maxVelocity: Float = 3050.0
+    static let maxVelocity: Float = 10.0
 }
 
 /// A bunny stress test scene similar to bevymark.

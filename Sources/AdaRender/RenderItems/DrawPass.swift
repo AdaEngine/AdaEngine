@@ -24,12 +24,14 @@ public protocol DrawPass<Item>: Resource {
 
 /// Type-erased draw pass.
 public struct AnyDrawPass<T: RenderItem>: DrawPass {
+    @usableFromInline
     let base: any DrawPass
     
     public init<Value: DrawPass>(_ base: Value) {
         self.base = base
     }
-    
+
+    @inlinable
     public func render(
         with renderEncoder: RenderCommandEncoder,
         world: World,
@@ -45,7 +47,8 @@ public struct AnyDrawPass<T: RenderItem>: DrawPass {
     }
 }
 
-private extension DrawPass {
+extension DrawPass {
+    @inlinable
     func _render(
         with renderEncoder: RenderCommandEncoder,
         world: World,

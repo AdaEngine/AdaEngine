@@ -90,7 +90,7 @@ open class Texture2D: Texture, @unchecked Sendable {
     /// - Throws: An error if the texture cannot be initialized from the decoder.
     public convenience required init(from decoder: any AssetDecoder) async throws {
         if Self.extensions().contains(where: { $0 == decoder.assetMeta.filePath.pathExtension }) {
-            let dto = try await decoder.decode(TextureSerializable.self)
+            let dto = try decoder.decode(TextureSerializable.self)
 
             let filePath = dto.info?.assetAbsolutePath.path() ?? decoder.assetMeta.filePath.path()
             let samplerDesc = dto.sampler

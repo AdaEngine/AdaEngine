@@ -33,6 +33,7 @@ public final class AppWorlds {
     nonisolated(unsafe) var worldExctractor: (any WorldExctractor)?
 
     /// The plugins.
+    @usableFromInline
     var plugins: [ObjectIdentifier: any Plugin] = [:]
 
     /// The runner.
@@ -74,13 +75,14 @@ public extension AppWorlds {
     /// Update the app.
     /// - Parameter deltaTime: The delta time.
     func update() async {
-        if !isConfigured {
+        guard isConfigured else {
             return
         }
         guard let updateScheduler else {
             assertionFailure("Update scheduler is empty")
             return
         }
+        
         await main.runScheduler(updateScheduler)
 
         for world in self.subWorlds.values {
@@ -108,6 +110,7 @@ public extension AppWorlds {
     /// Add a plugin to the app.
     /// - Parameter plugin: The plugin to add.
     /// - Returns: The app builder.
+    @inlinable
     @discardableResult
     func addPlugin<T: Plugin>(_ plugin: T) -> Self {
         if self.plugins[ObjectIdentifier(T.self)] != nil {
@@ -118,49 +121,6 @@ public extension AppWorlds {
         self.plugins[ObjectIdentifier(T.self)] = plugin
         plugin.setup(in: self)
         return self
-    }
-
-    /// Add a system to the main world.
-    /// - Parameters:
-    ///   - system: The system to add.
-    ///   - scheduler: The scheduler to run the system on.
-    /// - Returns: The app builder.
-    @discardableResult
-    func addSystem<T: System>(
-        _ system: T.Type,
-        on scheduler: AdaECS.SchedulerName = .update
-    ) -> Self {
-        self.main.addSystem(system, on: scheduler)
-        return self
-    }
-
-    /// Insert a resource to the world.
-    /// - Parameter resource: The resource to insert.
-    /// - Returns: The app builder.
-    @discardableResult
-    func insertResource<T: Resource>(_ resource: consuming T) -> Self {
-        self.main.insertResource(resource)
-        return self
-    }
-
-    @discardableResult
-    func createResource<T: Resource & WorldInitable>(_ type: T.Type) -> Self {
-        _ = self.main.createResource(of: type)
-        return self
-    }
-
-    /// Get resource from the world.
-    /// - Parameter resource: The resource to insert.
-    /// - Returns: The app builder.
-    func getResource<T: Resource>(_ resource: T.Type) -> T? {
-        return self.main.getResource(resource)
-    }
-
-    /// Get mutable resource from the world.
-    /// - Parameter resource: The resource to insert.
-    /// - Returns: The app builder.
-    func getRefResource<T: Resource>(_ resource: T.Type) -> Ref<T> {
-        self.main.getRefResource(resource)
     }
 
     func build() async throws {
@@ -177,7 +137,103 @@ public extension AppWorlds {
     }
 }
 
-// TODO: Maybe setup made async???
+// MARK: - World Proxy
+
+public extension AppWorlds {
+    /// Add a system to the main world.
+    /// - Parameters:
+    ///   - system: The system to add.
+    ///   - scheduler: The scheduler to run the system on.
+    /// - Returns: The app builder.
+    @inlinable
+    @discardableResult
+    func addSystem<T: System>(
+        _ system: T.Type,
+        on scheduler: AdaECS.SchedulerName = .update
+    ) -> Self {
+        self.main.addSystem(system, on: scheduler)
+        return self
+    }
+
+    @inlinable
+    @discardableResult
+    func spawn(
+        _ name: String = "",
+        @ComponentsBuilder components: () -> ComponentsBundle
+    ) -> Entity {
+        return self.main.spawn(name, components: components)
+    }
+
+    @inlinable
+    @discardableResult
+    func spawn<T: ComponentsBundle>(
+        _ name: String = "",
+        bundle: consuming T
+    ) -> Entity {
+        return self.main.spawn(name, bundle: bundle)
+    }
+
+    @inlinable
+    @discardableResult
+    func spawn(_ name: String = "") -> Entity {
+        return main.spawn(name)
+    }
+
+    /// Insert a resource to the world.
+    /// - Parameter resource: The resource to insert.
+    /// - Returns: The app builder.
+    @inlinable
+    @discardableResult
+    func insertResource<T: Resource>(_ resource: consuming T) -> Self {
+        self.main.insertResource(resource)
+        return self
+    }
+
+    /// Create a resource from world.
+    /// - Parameter type: The resource type.
+    /// - Returns: A resource instance.
+    @inlinable
+    @discardableResult
+    func createResource<T: Resource & WorldInitable>(_ type: T.Type) -> T {
+        return self.main.createResource(of: type)
+    }
+
+    /// Create a resource from world.
+    /// - Parameter type: The resource type.
+    /// - Returns: A resource instance.
+    @inlinable
+    @discardableResult
+    func initResource<T: Resource & WorldInitable>(_ type: T.Type) -> Self {
+        _ = self.main.createResource(of: type)
+        return self
+    }
+
+    /// Create a resource from world.
+    /// - Parameter type: The resource type.
+    /// - Returns: A resource instance.
+    @inlinable
+    @discardableResult
+    func initResource<T: Resource & DefaultValue>(_ type: T.Type) -> Self {
+        _ = self.main.insertResource(T.defaultValue)
+        return self
+    }
+
+    /// Get resource from the world.
+    /// - Parameter resource: The resource to insert.
+    /// - Returns: The app builder.
+    @inlinable
+    func getResource<T: Resource>(_ resource: T.Type) -> T? {
+        return self.main.getResource(resource)
+    }
+
+    /// Get mutable resource from the world.
+    /// - Parameter resource: The resource to insert.
+    /// - Returns: The app builder.
+    @inlinable
+    func getRefResource<T: Resource>(_ resource: T.Type) -> Ref<T> {
+        self.main.getRefResource(resource)
+    }
+}
 
 /// A protocol that represents a plugin for the app.
 public protocol Plugin: Sendable {
