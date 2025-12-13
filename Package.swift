@@ -417,13 +417,33 @@ targets += [
 // MARK: - CXX Internal Targets
 
 targets += [
-    .adaTarget(
-        name: "AtlasFontGenerator",
-        dependencies: [
-            .product(name: "MSDFAtlasGen", package: "msdf-atlas-gen")
+
+    // Box2d
+
+    .target(
+        name: "box2d",
+        exclude: [
+            "shared",
+            "docs",
+            "samples",
+            "test",
+            "benchmark",
+            "extern",
+            "build.bat",
+            "build.sh",
+            "build_emscripten.sh",
+            "CMakeLists.txt",
+            "deploy_docs.sh",
+            "LICENSE"
         ],
-        publicHeadersPath: "include"
+        publicHeadersPath: "include",
+        cSettings: [
+            .unsafeFlags(["-w"])
+        ]
     ),
+
+    // GLSLang & SPIRV
+
     .adaTarget(
         name: "SPIRVCompiler",
         dependencies: [
@@ -432,6 +452,251 @@ targets += [
         publicHeadersPath: ".",
         linkerSettings: [
             .linkedLibrary("m", .when(platforms: [.linux]))
+        ]
+    ),
+    .target(
+        name: "glslang",
+        sources: {
+            var glslangSources: [String] = [
+                "glslang/MachineIndependent/attribute.cpp",
+                "glslang/MachineIndependent/Constant.cpp",
+                "glslang/MachineIndependent/glslang_tab.cpp",
+                "glslang/MachineIndependent/InfoSink.cpp",
+                "glslang/MachineIndependent/Initialize.cpp",
+                "glslang/MachineIndependent/Intermediate.cpp",
+                "glslang/MachineIndependent/intermOut.cpp",
+                "glslang/MachineIndependent/IntermTraverse.cpp",
+                "glslang/MachineIndependent/iomapper.cpp",
+                "glslang/MachineIndependent/limits.cpp",
+                "glslang/MachineIndependent/linkValidate.cpp",
+                "glslang/MachineIndependent/parseConst.cpp",
+                "glslang/MachineIndependent/ParseContextBase.cpp",
+                "glslang/MachineIndependent/ParseHelper.cpp",
+                "glslang/MachineIndependent/PoolAlloc.cpp",
+                "glslang/MachineIndependent/preprocessor/PpAtom.cpp",
+                "glslang/MachineIndependent/preprocessor/PpContext.cpp",
+                "glslang/MachineIndependent/preprocessor/Pp.cpp",
+                "glslang/MachineIndependent/preprocessor/PpScanner.cpp",
+                "glslang/MachineIndependent/preprocessor/PpTokens.cpp",
+                "glslang/MachineIndependent/propagateNoContraction.cpp",
+                "glslang/MachineIndependent/reflection.cpp",
+                "glslang/MachineIndependent/RemoveTree.cpp",
+                "glslang/MachineIndependent/Scan.cpp",
+                "glslang/MachineIndependent/ShaderLang.cpp",
+                "glslang/MachineIndependent/SpirvIntrinsics.cpp",
+                "glslang/MachineIndependent/SymbolTable.cpp",
+                "glslang/MachineIndependent/Versions.cpp",
+                "glslang/GenericCodeGen/CodeGen.cpp",
+                "glslang/GenericCodeGen/Link.cpp",
+                "OGLCompilersDLL/InitializeDll.cpp",
+                "SPIRV/disassemble.cpp",
+                "SPIRV/doc.cpp",
+                "SPIRV/GlslangToSpv.cpp",
+                "SPIRV/InReadableOrder.cpp",
+                "SPIRV/Logger.cpp",
+                "SPIRV/SpvBuilder.cpp",
+                "SPIRV/SpvPostProcess.cpp",
+                "SPIRV/SPVRemapper.cpp",
+                "SPIRV/SpvTools.cpp"
+            ]
+
+            #if os(Windows)
+            glslangSources.append("glslang/OSDependent/Windows/ossource.cpp")
+            #endif
+
+            #if os(Linux) || os(macOS) || os(iOS) || os(tvOS)
+            glslangSources.append("glslang/OSDependent/Unix/ossource.cpp")
+            #endif
+
+            return glslangSources
+        }(),
+        publicHeadersPath: ".",
+        cxxSettings: [
+            .define("ENABLE_OPT", to: "0"),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+    .target(
+        name: "SPIRV-Cross",
+        exclude: ["CMakeLists.txt",
+                  "CODE_OF_CONDUCT.adoc",
+                  "LICENSE",
+                  "LICENSES",
+                  "Makefile",
+                  "README.md",
+                  "appveyor.yml",
+                  "build_glslang_spirv_tools.sh",
+                  "checkout_glslang_spirv_tools.sh",
+                  "format_all.sh",
+                  "gn",
+                  "pkg-config"
+                 ],
+        sources: ["spirv_cfg.cpp",
+                  "spirv_cpp.cpp",
+                  "spirv_cross.cpp",
+                  "spirv_cross_c.cpp",
+                  "spirv_cross_parsed_ir.cpp",
+                  "spirv_cross_util.cpp",
+                  "spirv_glsl.cpp",
+                  "spirv_hlsl.cpp",
+                  "spirv_msl.cpp",
+                  "spirv_parser.cpp",
+                  "spirv_reflect.cpp"],
+        publicHeadersPath: "include",
+        cxxSettings: [
+            .define("SPIRV_CROSS_C_API_CPP", to: "1"),
+            .define("SPIRV_CROSS_C_API_GLSL", to: "1"),
+            .define("SPIRV_CROSS_C_API_HLSL", to: "1"),
+            .define("SPIRV_CROSS_C_API_MSL", to: "1"),
+            .define("SPIRV_CROSS_C_API_REFLECT", to: "1"),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+
+    // LibPNG
+
+    .target(
+        name: "libpng",
+        dependencies: [
+            .product(name: "ZLib", package: "zlib"),
+        ],
+        sources: [
+            "libpng/png.c",
+            "libpng/pngerror.c",
+            "libpng/pngget.c",
+            "libpng/pngmem.c",
+            "libpng/pngpread.c",
+            "libpng/pngread.c",
+            "libpng/pngrio.c",
+            "libpng/pngrtran.c",
+            "libpng/pngrutil.c",
+            "libpng/pngset.c",
+            "libpng/pngtrans.c",
+            "libpng/pngwio.c",
+            "libpng/pngwrite.c",
+            "libpng/pngwtran.c",
+            "libpng/pngwutil.c",
+            "libpng/arm/arm_init.c",
+            "libpng/arm/filter_neon_intrinsics.c",
+            "libpng/arm/palette_neon_intrinsics.c",
+        ],
+        publicHeadersPath: "libpng/include",
+        cSettings: [
+            .define("PNG_ARM_NEON_OPT", to: {
+#if (arch(arm64) || arch(arm))
+                return "2"
+#else
+                return "0"
+#endif
+            }()),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+    .target(
+        name: "miniaudio",
+        sources: ["miniaudio.c"],
+        publicHeadersPath: "include",
+        cSettings: [
+            .unsafeFlags(["-w"])
+        ]
+    ),
+
+    // MSDF
+
+    .adaTarget(
+        name: "AtlasFontGenerator",
+        dependencies: [
+            "MSDFAtlasGen"
+        ],
+        publicHeadersPath: "include"
+    ),
+    .target(
+        name: "MSDFGen",
+        dependencies: [
+            "freetype",
+            "tinyxml"
+        ],
+        path: "Sources/msdf-atlas-gen/msdfgen",
+        publicHeadersPath: ".",
+        cxxSettings: [
+            .define("MSDFGEN_USE_CPP11"),
+            .headerSearchPath(".."),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+    .target(
+        name: "MSDFAtlasGen",
+        dependencies: [
+            "MSDFGen"
+        ],
+        path: "Sources/msdf-atlas-gen/msdf-atlas-gen",
+        publicHeadersPath: ".",
+        cxxSettings: [
+            .define("_CRT_SECURE_NO_WARNINGS"),
+            .headerSearchPath(".."),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+    .target(
+        name: "freetype",
+        path: "Sources/msdf-atlas-gen/freetype",
+        sources: [
+            "src/autofit/autofit.c",
+            "src/base/ftbase.c",
+            "src/base/ftbbox.c",
+            "src/base/ftbdf.c",
+            "src/base/ftbitmap.c",
+            "src/base/ftcid.c",
+            "src/base/ftdebug.c",
+            "src/base/ftfstype.c",
+            "src/base/ftgasp.c",
+            "src/base/ftglyph.c",
+            "src/base/ftgxval.c",
+            "src/base/ftinit.c",
+            "src/base/ftmm.c",
+            "src/base/ftotval.c",
+            "src/base/ftpatent.c",
+            "src/base/ftpfr.c",
+            "src/base/ftstroke.c",
+            "src/base/ftsynth.c",
+            "src/base/ftsystem.c",
+            "src/base/fttype1.c",
+            "src/base/ftwinfnt.c",
+            "src/bdf/bdf.c",
+            "src/bzip2/ftbzip2.c",
+            "src/cache/ftcache.c",
+            "src/cff/cff.c",
+            "src/cid/type1cid.c",
+            "src/gzip/ftgzip.c",
+            "src/lzw/ftlzw.c",
+            "src/pcf/pcf.c",
+            "src/pfr/pfr.c",
+            "src/psaux/psaux.c",
+            "src/pshinter/pshinter.c",
+            "src/psnames/psnames.c",
+            "src/raster/raster.c",
+            "src/sdf/sdf.c",
+            "src/sfnt/sfnt.c",
+            "src/smooth/smooth.c",
+            "src/truetype/truetype.c",
+            "src/type1/type1.c",
+            "src/type42/type42.c",
+            "src/winfonts/winfnt.c"
+        ],
+        publicHeadersPath: "include",
+        cSettings: [
+            .define("FT2_BUILD_LIBRARY"),
+            .define("_CRT_SECURE_NO_WARNINGS"),
+            .define("_CRT_NONSTDC_NO_WARNINGS"),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+    .target(
+        name: "tinyxml",
+        path: "Sources/msdf-atlas-gen/tinyxml",
+        publicHeadersPath: ".",
+        cSettings: [
+            .unsafeFlags(["-w"])
         ]
     )
 ]
@@ -557,17 +822,11 @@ package.dependencies += [
     .package(url: "https://github.com/apple/swift-log", from: "1.5.4"),
     .package(url: "https://github.com/apple/swift-numerics", from: "1.0.0"),
     .package(url: "https://github.com/apple/swift-atomics", from: "1.3.0"),
+    .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.1"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.1"),
     .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.62.1"),
-
-    .package(path: "Modules/box2d"),
-    .package(path: "Modules/msdf-atlas-gen"),
-    .package(path: "Modules/SPIRV-Cross"),
-    .package(path: "Modules/glslang"),
-    .package(path: "Modules/miniaudio"),
-    .package(path: "Modules/libpng")
 ]
 
 // MARK: - Vulkan -
