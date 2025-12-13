@@ -35,16 +35,16 @@ public struct _EnvironmentTrait: TestScoping, TestTrait, SuiteTrait {
 }
 
 extension Trait where Self == _EnvironmentTrait {
-    /// A trait that quarantines a test's dependencies from other tests.
+    /// A trait that quarantines a test's environments from other tests.
     ///
-    /// When applied to a `@Suite` (or `@Test`), the dependencies used for that suite (or test)
+    /// When applied to a `@Suite` (or `@Test`), the environments used for that suite (or test)
     /// will be kept separate from any other suites (and tests) running in parallel.
     ///
     /// It is recommended to use a base `@Suite` to apply this to all tests. You can do this by
     /// defining a `@Suite` with the trait:
     ///
     /// ```swift
-    /// @Suite(.dependencies) struct BaseSuite {}
+    /// @Suite(.environments) struct BaseSuite {}
     /// ```
     ///
     /// Then any suite or test you write can be nested inside the base suite:
@@ -53,11 +53,11 @@ extension Trait where Self == _EnvironmentTrait {
     /// extension BaseSuite {
     ///   @Suite struct MyTests {
     ///     @Test func login() {
-    ///       // Dependencies accessed in here are independent from 'logout' tests.
+    ///       // EnvironmentValues accessed in here are independent from 'logout' tests.
     ///     }
     ///
     ///     @Test func logout() {
-    ///       // Dependencies accessed in here are independent from 'login' tests.
+    ///       // EnvironmentValues accessed in here are independent from 'login' tests.
     ///     }
     ///   }
     /// }
@@ -66,37 +66,13 @@ extension Trait where Self == _EnvironmentTrait {
         Self { _ in }
     }
 
-    /// A trait that overrides a test's or suite's dependency.
+    /// A trait that overrides a test's or suite's environments.
     ///
-    /// Useful for overriding a dependency in a test without incurring the nesting and
-    /// indentation of ``withDependencies(_:operation:)-4uz6m``.
-    ///
-    /// ```swift
-    /// struct Client: DependencyKey { … }
-    /// @Test(.dependency(Client.mock))
-    /// func feature() {
-    ///   // ...
-    /// }
-    /// ```
-    ///
-    /// - Parameters:
-    ///   - keyPath: A key path to a dependency value.
-    ///   - value: A dependency value to override for the test.
-    //      public static func dependency<Value: TestDependencyKey>(
-    //        _ value: @autoclosure @escaping @Sendable () throws -> Value
-    //      ) -> Self where Value == Value.Value {
-    //        Self { $0[Value.self] = try value() }
-    //      }
-
-    /// A trait that overrides a test's or suite's dependencies.
-    ///
-    /// Useful for overriding a dependency in a test without incurring the nesting and
-    /// indentation of ``withDependencies(_:operation:)-4uz6m``.
+    /// Useful for overriding a environments in a test.
     ///
     /// ```swift
-    /// @Test(.dependencies {
-    ///   $0.date.now = Date(timeIntervalSince1970: 1234567890)
-    ///   $0.uuid = .incrementing
+    /// @Test(.environments {
+    ///   $0.ecs.useSystemDependencies = false
     /// })
     /// func feature() {
     ///   // ...

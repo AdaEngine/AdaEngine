@@ -16,7 +16,7 @@ import Math
 @Suite(
     "Visibility System Tests",
     .environments {
-        $0.useSystemDependencies = false
+        $0.ecs.useSystemDependencies = false
     }
 )
 struct VisibilitySystemTests {
