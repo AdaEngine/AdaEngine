@@ -148,7 +148,7 @@ func PrepareSprites(
     renderItems.forEach { camera, entities, renderItems in
         for sprite in extractedSprites.sprites {
             if !entities.entityIds.contains(sprite.entityId) {
-                return
+                continue
             }
 
             let pipeline = spriteRenderPipeline.wrappedValue.pipeline(device: renderDevice.renderDevice)

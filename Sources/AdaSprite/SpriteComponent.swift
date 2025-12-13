@@ -31,6 +31,8 @@ public struct SpriteComponent: Codable {
     ) {
         self.texture = texture
         self.tintColor = tintColor
+        self.flipX = flipX
+        self.flipY = flipY
     }
 
     /// Create a new sprite component for specific texture and tintColor.
@@ -46,5 +48,7 @@ public struct SpriteComponent: Codable {
     ) {
         self.texture = AssetHandle(texture)
         self.tintColor = tintColor
+        self.flipX = flipX
+        self.flipY = flipY
     }
 }
