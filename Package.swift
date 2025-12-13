@@ -417,23 +417,9 @@ targets += [
 // MARK: - CXX Internal Targets
 
 targets += [
-    .adaTarget(
-        name: "AtlasFontGenerator",
-        dependencies: [
-            "MSDFAtlasGen"
-        ],
-        publicHeadersPath: "include"
-    ),
-    .adaTarget(
-        name: "SPIRVCompiler",
-        dependencies: [
-            "glslang"
-        ],
-        publicHeadersPath: ".",
-        linkerSettings: [
-            .linkedLibrary("m", .when(platforms: [.linux]))
-        ]
-    ),
+
+    // Box2d
+
     .target(
         name: "box2d",
         exclude: [
@@ -450,69 +436,125 @@ targets += [
             "deploy_docs.sh",
             "LICENSE"
         ],
-        publicHeadersPath: "include"
+        publicHeadersPath: "include",
+        cSettings: [
+            .unsafeFlags(["-w"])
+        ]
     ),
-//    .target(
-//        name: "glslang",
-//        sources: {
-//            var glslangSources: [String] = [
-//                "glslang/MachineIndependent/attribute.cpp",
-//                "glslang/MachineIndependent/Constant.cpp",
-//                "glslang/MachineIndependent/glslang_tab.cpp",
-//                "glslang/MachineIndependent/InfoSink.cpp",
-//                "glslang/MachineIndependent/Initialize.cpp",
-//                "glslang/MachineIndependent/Intermediate.cpp",
-//                "glslang/MachineIndependent/intermOut.cpp",
-//                "glslang/MachineIndependent/IntermTraverse.cpp",
-//                "glslang/MachineIndependent/iomapper.cpp",
-//                "glslang/MachineIndependent/limits.cpp",
-//                "glslang/MachineIndependent/linkValidate.cpp",
-//                "glslang/MachineIndependent/parseConst.cpp",
-//                "glslang/MachineIndependent/ParseContextBase.cpp",
-//                "glslang/MachineIndependent/ParseHelper.cpp",
-//                "glslang/MachineIndependent/PoolAlloc.cpp",
-//                "glslang/MachineIndependent/preprocessor/PpAtom.cpp",
-//                "glslang/MachineIndependent/preprocessor/PpContext.cpp",
-//                "glslang/MachineIndependent/preprocessor/Pp.cpp",
-//                "glslang/MachineIndependent/preprocessor/PpScanner.cpp",
-//                "glslang/MachineIndependent/preprocessor/PpTokens.cpp",
-//                "glslang/MachineIndependent/propagateNoContraction.cpp",
-//                "glslang/MachineIndependent/reflection.cpp",
-//                "glslang/MachineIndependent/RemoveTree.cpp",
-//                "glslang/MachineIndependent/Scan.cpp",
-//                "glslang/MachineIndependent/ShaderLang.cpp",
-//                "glslang/MachineIndependent/SpirvIntrinsics.cpp",
-//                "glslang/MachineIndependent/SymbolTable.cpp",
-//                "glslang/MachineIndependent/Versions.cpp",
-//                "glslang/GenericCodeGen/CodeGen.cpp",
-//                "glslang/GenericCodeGen/Link.cpp",
-//                "OGLCompilersDLL/InitializeDll.cpp",
-//                "SPIRV/disassemble.cpp",
-//                "SPIRV/doc.cpp",
-//                "SPIRV/GlslangToSpv.cpp",
-//                "SPIRV/InReadableOrder.cpp",
-//                "SPIRV/Logger.cpp",
-//                "SPIRV/SpvBuilder.cpp",
-//                "SPIRV/SpvPostProcess.cpp",
-//                "SPIRV/SPVRemapper.cpp",
-//                "SPIRV/SpvTools.cpp"
-//            ]
-//
-//            #if os(Windows)
-//            glslangSources.append("glslang/OSDependent/Windows/ossource.cpp")
-//            #endif
-//
-//            #if os(Linux) || os(macOS) || os(iOS) || os(tvOS)
-//            glslangSources.append("glslang/OSDependent/Unix/ossource.cpp")
-//            #endif
-//
-//            return glslangSources
-//        }(),
-//        publicHeadersPath: ".",
-//        cxxSettings: [
-//            .define("ENABLE_OPT", to: "0"),
-//        ]
-//    ),
+
+    // GLSLang & SPIRV
+
+    .adaTarget(
+        name: "SPIRVCompiler",
+        dependencies: [
+            "glslang"
+        ],
+        publicHeadersPath: ".",
+        linkerSettings: [
+            .linkedLibrary("m", .when(platforms: [.linux]))
+        ]
+    ),
+    .target(
+        name: "glslang",
+        sources: {
+            var glslangSources: [String] = [
+                "glslang/MachineIndependent/attribute.cpp",
+                "glslang/MachineIndependent/Constant.cpp",
+                "glslang/MachineIndependent/glslang_tab.cpp",
+                "glslang/MachineIndependent/InfoSink.cpp",
+                "glslang/MachineIndependent/Initialize.cpp",
+                "glslang/MachineIndependent/Intermediate.cpp",
+                "glslang/MachineIndependent/intermOut.cpp",
+                "glslang/MachineIndependent/IntermTraverse.cpp",
+                "glslang/MachineIndependent/iomapper.cpp",
+                "glslang/MachineIndependent/limits.cpp",
+                "glslang/MachineIndependent/linkValidate.cpp",
+                "glslang/MachineIndependent/parseConst.cpp",
+                "glslang/MachineIndependent/ParseContextBase.cpp",
+                "glslang/MachineIndependent/ParseHelper.cpp",
+                "glslang/MachineIndependent/PoolAlloc.cpp",
+                "glslang/MachineIndependent/preprocessor/PpAtom.cpp",
+                "glslang/MachineIndependent/preprocessor/PpContext.cpp",
+                "glslang/MachineIndependent/preprocessor/Pp.cpp",
+                "glslang/MachineIndependent/preprocessor/PpScanner.cpp",
+                "glslang/MachineIndependent/preprocessor/PpTokens.cpp",
+                "glslang/MachineIndependent/propagateNoContraction.cpp",
+                "glslang/MachineIndependent/reflection.cpp",
+                "glslang/MachineIndependent/RemoveTree.cpp",
+                "glslang/MachineIndependent/Scan.cpp",
+                "glslang/MachineIndependent/ShaderLang.cpp",
+                "glslang/MachineIndependent/SpirvIntrinsics.cpp",
+                "glslang/MachineIndependent/SymbolTable.cpp",
+                "glslang/MachineIndependent/Versions.cpp",
+                "glslang/GenericCodeGen/CodeGen.cpp",
+                "glslang/GenericCodeGen/Link.cpp",
+                "OGLCompilersDLL/InitializeDll.cpp",
+                "SPIRV/disassemble.cpp",
+                "SPIRV/doc.cpp",
+                "SPIRV/GlslangToSpv.cpp",
+                "SPIRV/InReadableOrder.cpp",
+                "SPIRV/Logger.cpp",
+                "SPIRV/SpvBuilder.cpp",
+                "SPIRV/SpvPostProcess.cpp",
+                "SPIRV/SPVRemapper.cpp",
+                "SPIRV/SpvTools.cpp"
+            ]
+
+            #if os(Windows)
+            glslangSources.append("glslang/OSDependent/Windows/ossource.cpp")
+            #endif
+
+            #if os(Linux) || os(macOS) || os(iOS) || os(tvOS)
+            glslangSources.append("glslang/OSDependent/Unix/ossource.cpp")
+            #endif
+
+            return glslangSources
+        }(),
+        publicHeadersPath: ".",
+        cxxSettings: [
+            .define("ENABLE_OPT", to: "0"),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+    .target(
+        name: "SPIRV-Cross",
+        exclude: ["CMakeLists.txt",
+                  "CODE_OF_CONDUCT.adoc",
+                  "LICENSE",
+                  "LICENSES",
+                  "Makefile",
+                  "README.md",
+                  "appveyor.yml",
+                  "build_glslang_spirv_tools.sh",
+                  "checkout_glslang_spirv_tools.sh",
+                  "format_all.sh",
+                  "gn",
+                  "pkg-config"
+                 ],
+        sources: ["spirv_cfg.cpp",
+                  "spirv_cpp.cpp",
+                  "spirv_cross.cpp",
+                  "spirv_cross_c.cpp",
+                  "spirv_cross_parsed_ir.cpp",
+                  "spirv_cross_util.cpp",
+                  "spirv_glsl.cpp",
+                  "spirv_hlsl.cpp",
+                  "spirv_msl.cpp",
+                  "spirv_parser.cpp",
+                  "spirv_reflect.cpp"],
+        publicHeadersPath: "include",
+        cxxSettings: [
+            .define("SPIRV_CROSS_C_API_CPP", to: "1"),
+            .define("SPIRV_CROSS_C_API_GLSL", to: "1"),
+            .define("SPIRV_CROSS_C_API_HLSL", to: "1"),
+            .define("SPIRV_CROSS_C_API_MSL", to: "1"),
+            .define("SPIRV_CROSS_C_API_REFLECT", to: "1"),
+            .unsafeFlags(["-w"])
+        ]
+    ),
+
+    // LibPNG
+
     .target(
         name: "libpng",
         dependencies: [
@@ -546,65 +588,42 @@ targets += [
 #else
                 return "0"
 #endif
-            }())
+            }()),
+            .unsafeFlags(["-w"])
         ]
     ),
     .target(
         name: "miniaudio",
         sources: ["miniaudio.c"],
-        publicHeadersPath: "include"
+        publicHeadersPath: "include",
+        cSettings: [
+            .unsafeFlags(["-w"])
+        ]
     ),
-//    .target(
-//        name: "SPIRV-Cross",
-//        exclude: ["CMakeLists.txt",
-//                  "CODE_OF_CONDUCT.adoc",
-//                  "LICENSE",
-//                  "LICENSES",
-//                  "Makefile",
-//                  "README.md",
-//                  "appveyor.yml",
-//                  "build_glslang_spirv_tools.sh",
-//                  "checkout_glslang_spirv_tools.sh",
-//                  "format_all.sh",
-//                  "gn",
-//                  "pkg-config"
-//                 ],
-//        sources: ["spirv_cfg.cpp",
-//                  "spirv_cpp.cpp",
-//                  "spirv_cross.cpp",
-//                  "spirv_cross_c.cpp",
-//                  "spirv_cross_parsed_ir.cpp",
-//                  "spirv_cross_util.cpp",
-//                  "spirv_glsl.cpp",
-//                  "spirv_hlsl.cpp",
-//                  "spirv_msl.cpp",
-//                  "spirv_parser.cpp",
-//                  "spirv_reflect.cpp"],
-//        publicHeadersPath: "include",
-//        cxxSettings: [
-//            .define("SPIRV_CROSS_C_API_CPP", to: "1"),
-//            .define("SPIRV_CROSS_C_API_GLSL", to: "1"),
-//            .define("SPIRV_CROSS_C_API_HLSL", to: "1"),
-//            .define("SPIRV_CROSS_C_API_MSL", to: "1"),
-//            .define("SPIRV_CROSS_C_API_REFLECT", to: "1")
-//        ]
-//    ),
 
     // MSDF
 
-        .target(
-            name: "MSDFGen",
-            dependencies: [
-                "freetype",
-                "tinyxml"
-            ],
-            path: "Sources/msdf-atlas-gen/msdfgen",
-            publicHeadersPath: ".",
-            cxxSettings: [
-                .define("MSDFGEN_USE_CPP11"),
-                .headerSearchPath("..")
-            ]
-        ),
+    .adaTarget(
+        name: "AtlasFontGenerator",
+        dependencies: [
+            "MSDFAtlasGen"
+        ],
+        publicHeadersPath: "include"
+    ),
+    .target(
+        name: "MSDFGen",
+        dependencies: [
+            "freetype",
+            "tinyxml"
+        ],
+        path: "Sources/msdf-atlas-gen/msdfgen",
+        publicHeadersPath: ".",
+        cxxSettings: [
+            .define("MSDFGEN_USE_CPP11"),
+            .headerSearchPath(".."),
+            .unsafeFlags(["-w"])
+        ]
+    ),
     .target(
         name: "MSDFAtlasGen",
         dependencies: [
@@ -614,7 +633,8 @@ targets += [
         publicHeadersPath: ".",
         cxxSettings: [
             .define("_CRT_SECURE_NO_WARNINGS"),
-            .headerSearchPath("..")
+            .headerSearchPath(".."),
+            .unsafeFlags(["-w"])
         ]
     ),
     .target(
@@ -667,13 +687,17 @@ targets += [
         cSettings: [
             .define("FT2_BUILD_LIBRARY"),
             .define("_CRT_SECURE_NO_WARNINGS"),
-            .define("_CRT_NONSTDC_NO_WARNINGS")
+            .define("_CRT_NONSTDC_NO_WARNINGS"),
+            .unsafeFlags(["-w"])
         ]
     ),
     .target(
         name: "tinyxml",
         path: "Sources/msdf-atlas-gen/tinyxml",
-        publicHeadersPath: "."
+        publicHeadersPath: ".",
+        cSettings: [
+            .unsafeFlags(["-w"])
+        ]
     )
 ]
 
@@ -803,9 +827,6 @@ package.dependencies += [
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "600.0.1"),
     .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.62.1"),
-
-    .package(path: "Modules/SPIRV-Cross"),
-    .package(path: "Modules/glslang"),
 ]
 
 // MARK: - Vulkan -
