@@ -75,13 +75,14 @@ public extension AppWorlds {
     /// Update the app.
     /// - Parameter deltaTime: The delta time.
     func update() async {
-        if !isConfigured {
+        guard isConfigured else {
             return
         }
         guard let updateScheduler else {
             assertionFailure("Update scheduler is empty")
             return
         }
+        
         await main.runScheduler(updateScheduler)
 
         for world in self.subWorlds.values {

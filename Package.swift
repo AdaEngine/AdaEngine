@@ -682,24 +682,25 @@ private extension Target {
 
 let examplesTargets: [Target] = [
     // MARK: 2d
-    .exampleTarget(name: "BunniesStress", path: "2d"),
-    .exampleTarget(name: "TransformEntChildren", path: "2d"),
-    .exampleTarget(name: "CustomMaterial", path: "2d"),
+    .exampleTarget(name: "BunniesStressExample", path: "2d"),
+    .exampleTarget(name: "TransformEntChildrenExample", path: "2d"),
+    .exampleTarget(name: "CustomMaterialExample", path: "2d"),
     .exampleTarget(name: "TransparencyExample", path: "2d"),
+    .exampleTarget(name: "ManySpritesExample", path: "2d"),
 
     // MARK: Input
-    .exampleTarget(name: "GamepadExampleScene", path: "Input"),
+    .exampleTarget(name: "GamepadExample", path: "Input"),
 
     // MARK: Scene
-    .exampleTarget(name: "scene_load", path: "Scene"),
-    .exampleTarget(name: "LdtkTilemap", path: "Scene"),
+    .exampleTarget(name: "LoadSceneExample", path: "Scene"),
+    .exampleTarget(name: "LdtkTilemapExample", path: "Scene"),
 
     // MARK: Games
-    .exampleTarget(name: "SnowmanAttacks", path: "Games"),
+    .exampleTarget(name: "SnowmanAttacksExample", path: "Games"),
 
     // MARK: UI
-    .exampleTarget(name: "UITestScene", path: "UI"),
-    .exampleTarget(name: "AnimatedTextRenderer", path: "UI")
+    .exampleTarget(name: "UITestSceneExample", path: "UI"),
+    .exampleTarget(name: "AnimatedTextRendererExample", path: "UI")
 ]
 
 package.targets.append(contentsOf: examplesTargets)

@@ -37,6 +37,7 @@ public struct RenderWorldPlugin: Plugin {
             ]))
         renderWorld.setExctractor(RenderWorldExctractor())
         renderWorld.main.setSchedulers([
+            .startup,
             .extract,
             .preUpdate,
             .prepare,
