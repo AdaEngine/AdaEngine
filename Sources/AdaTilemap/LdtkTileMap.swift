@@ -45,6 +45,7 @@ extension LDtk {
         public private(set) var levelsCount: Int = 0
         private var project: Project?
         private let filePath: URL
+        private let logger = Logger(label: "org.adaengine.tilemap.LDtk")
 
         private var fileWatcher: FileWatcher!
         private var fileWatcherObserver: Cancellable?
@@ -82,12 +83,11 @@ extension LDtk {
         // swiftlint:disable:next cyclomatic_complexity function_body_length
         public func loadLevel(at index: Int) {
             guard let project else {
-                assertionFailure("LDtk Project is empty at path \(filePath)")
+                logger.critical("LDtk Project is empty at path \(filePath)")
                 return
             }
 
             let level = project.levels[index]
-
             self.currentLevelIndex = index
 
             for layer in self.layers {
@@ -96,12 +96,12 @@ extension LDtk {
 
             for layerInstance in level.layerInstances where layerInstance.visible {
                 guard let layer = self.layers.first(where: { $0.id == layerInstance.layerDefUid }) else {
-                    assertionFailure("Could not find a layer for id \(layerInstance.layerDefUid)")
+                    logger.critical("Could not find a layer for id \(layerInstance.layerDefUid)")
                     return
                 }
 
                 guard let projectLayer = project.defs.layers.first(where: { $0.uid == layerInstance.layerDefUid }) else {
-                    assertionFailure("Could not find a layer in project for id: \(layerInstance.layerDefUid)")
+                    logger.critical("Could not find a layer in project for id: \(layerInstance.layerDefUid)")
                     return
                 }
 
@@ -184,7 +184,7 @@ extension LDtk {
 
                     try await loadLdtkProject(from: data)
                 } catch {
-                    Logger(label: "LDtk").critical("Failed to update ldtk file \(error.localizedDescription)")
+                    logger.critical("Failed to update ldtk file \(error.localizedDescription)")
                 }
             }
         }

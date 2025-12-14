@@ -5,7 +5,7 @@ import PackageDescription
 import Foundation
 import CompilerPluginSupport
 
-#if canImport(AppleProductTypes) && os(iOS)
+#if canImport(AppleProductTypes)
 import AppleProductTypes
 #endif
 
@@ -53,8 +53,8 @@ var products: [Product] = [
 
 // Check that we target on vulkan dependency
 
-// TODO: It's works if we wrap sources to .swiftpm container
-#if canImport(AppleProductTypes) && os(iOS)
+// TODO: It's works if we wrap sources to .swiftpm container and run in Swift Plaground App
+#if canImport(AppleProductTypes)
 let ios = Product.iOSApplication(
     name: "AdaEditor",
     targets: ["AdaEditor"],

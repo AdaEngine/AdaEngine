@@ -8,7 +8,7 @@
 import AdaEngine
 
 @main
-struct LdtkTilemapApp: App {
+struct LdtkTilemapExampleApp: App {
     var body: some AppScene {
         EmptyWindow()
             .addPlugins(
@@ -23,7 +23,7 @@ struct LdtkTilemapApp: App {
 final class LdtkTilemapPlugin: Plugin {
     func setup(in app: borrowing AppWorlds) {
         app.main.spawn(
-            bundle: OrthographicCameraBundle(
+            bundle: Camera2D(
                 camera: Camera()
                     .setBackgroundColor(Color(135/255, 206/255, 235/255, 1))
                     .setOrthographicScale(10.5)
