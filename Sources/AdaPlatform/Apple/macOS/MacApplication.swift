@@ -16,7 +16,6 @@ import AdaECS
 final class MacApplication: Application {
 
     private let delegate = MacAppDelegate()
-    private var gameControllerManager: AppleGameControllerManager?
 
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         unsafe try super.init(argc: argc, argv: argv)
@@ -99,16 +98,8 @@ final class MacApplication: Application {
     // MARK: - Private
 
     private func setupInput(for app: AppWorlds) {
-        self.gameControllerManager = AppleGameControllerManager { [unowned app] event in
-            Task { @MainActor in
-                let input = app.main.getRefResource(Input.self)
-                input.wrappedValue.receiveEvent(event)
-            }
-        }
         let mutableInput = app.main.getRefResource(Input.self)
-        mutableInput.wrappedValue.rumbleGameControllerEngine = self.gameControllerManager
         self.windowManager.inputRef = mutableInput
-        self.gameControllerManager?.startMonitoring()
     }
 
     private func processEvents() {
