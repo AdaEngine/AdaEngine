@@ -1,5 +1,5 @@
 //
-//  SpriteComponent.swift
+//  Sprite.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 5/8/22.
@@ -12,7 +12,7 @@ import AdaUtils
 
 /// Contains information about sprite, like texture and tint coloring.
 @Component
-public struct SpriteComponent: Codable {
+public struct Sprite: Codable {
     public var texture: AssetHandle<Texture2D>?
     public var tintColor: Color
     public var flipX: Bool = false

@@ -167,7 +167,7 @@ struct BunnySpawnerSystem {
                 scale: Vector3(BunnyExampleConstants.bunnyScale),
                 position: bunnyPosition
             )
-            SpriteComponent(
+            Sprite(
                 texture: bunnyTexture.texture,
                 tintColor: getRandomColor()
             )

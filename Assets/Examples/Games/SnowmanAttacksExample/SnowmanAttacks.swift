@@ -86,7 +86,7 @@ struct SnowmanAttacks: Plugin {
         app.main.spawn {
             Transform(scale: Vector3(0.2), position: [0, -0.85, 0])
             PlayerComponent()
-            SpriteComponent(texture: characterAtlas[7, 1])
+            Sprite(texture: characterAtlas[7, 1])
         }
     }
 
@@ -219,7 +219,7 @@ struct FireSystem {
 
         commands.spawn("Bullet") { [collision] in
             Transform(scale: bulletScale, position: shipTransform.position)
-            SpriteComponent(tintColor: .red)
+            Sprite(tintColor: .red)
             Bullet(lifetime: 4)
             collision
         }
@@ -304,7 +304,7 @@ struct EnemySpawnerSystem {
                 scale: Vector3(0.25),
                 position: [Float.random(in: -1.8...1.8), 1, -1]
             )
-            SpriteComponent(texture: textureAtlas[5, 7])
+            Sprite(texture: textureAtlas[5, 7])
             EnemyComponent(health: 100, lifetime: 12)
             collision
         }
@@ -382,7 +382,7 @@ struct EnemyExplosionSystem {
     @Query<Entity, EnemyComponent, Transform>
     private var enemies
 
-    @FilterQuery<Entity, SpriteComponent, With<ExplosionComponent>>
+    @FilterQuery<Entity, Sprite, With<ExplosionComponent>>
     private var explosions
 
     @ResMut<GameState>
@@ -409,7 +409,7 @@ struct EnemyExplosionSystem {
                 texture[5] = self.exposionAtlas[5, 0]
 
                 let explosion = context.world.spawn {
-                    SpriteComponent(texture: texture)
+                    Sprite(texture: texture)
                     transform
                     ExplosionComponent()
                 }

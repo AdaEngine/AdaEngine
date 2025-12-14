@@ -123,7 +123,7 @@ public struct TileMapSystem: Sendable {
                     let texture = atlasSource.getTexture(at: tile.atlasCoordinates)
 
                     tileEntity = Entity {
-                        SpriteComponent(
+                        Sprite(
                             texture: AssetHandle(texture),
                             tintColor: tileData.modulateColor
                         )

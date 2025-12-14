@@ -24,21 +24,21 @@ struct TransparencyExamplePlugin: Plugin {
         app.main.spawn(bundle: Camera2D())
         let texture = try! AssetsManager.loadSync(Texture2D.self, at: "Resources/dog.png", from: .module)
         app.spawn("Red") {
-            SpriteComponent(
+            Sprite(
                 texture: texture,
                 tintColor: Color.red.opacity(0.3)
             )
             Transform(position: Vector3(-0.5, 0, 0))
         }
         app.spawn("Blue") {
-            SpriteComponent(
+            Sprite(
                 texture: texture,
                 tintColor: Color.blue.opacity(0.3)
             )
             Transform(position: Vector3(0, 0, 0.1))
         }
         app.spawn("Yellow") {
-            SpriteComponent(
+            Sprite(
                 texture: texture,
                 tintColor: Color.yellow.opacity(0.3)
             )

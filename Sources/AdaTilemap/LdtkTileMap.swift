@@ -314,7 +314,7 @@ extension LDtk {
                 
                 let data = source.getTileData(at: tileCoordinate)
                 let texture = source.getTexture(at: tileCoordinate)
-                entity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: data.modulateColor)
+                entity.components += Sprite(texture: AssetHandle(texture), tintColor: data.modulateColor)
             }
 
             if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {
@@ -329,7 +329,7 @@ extension LDtk {
 /// Delegate that help configure LDtk TileMap.
 public protocol TileMapDelegate: AnyObject {
     
-    /// Configure entity from LDtk project. By default entity has ``Transform`` and ``SpriteComponent``
+    /// Configure entity from LDtk project. By default entity has ``Transform`` and ``Sprite``
     ///
     /// - Parameter tileMap: Instance of TileMap.
     /// - Parameter entity: AdaEngine entity which will store in TileSource.

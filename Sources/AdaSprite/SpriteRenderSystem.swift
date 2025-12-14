@@ -85,7 +85,7 @@ public struct SpriteDrawData: Resource, DefaultValue {
 public func ExtractSprite(
     _ world: World,
     _ sprites: Extract<
-        Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>
+        Query<Entity, Sprite, GlobalTransform, Transform, Visibility>
     >,
     _ extractedSprites: ResMut<ExtractedSprites>
 ) {
@@ -111,7 +111,7 @@ public func ExtractSprite(
 func UpdateBoundings(
     _ sprites: FilterQuery<
         Entity, Transform, Ref<BoundingComponent>,
-        And<With<SpriteComponent>, Changed<Transform>, Without<NoFrustumCulling>>,
+        And<With<Sprite>, Changed<Transform>, Without<NoFrustumCulling>>,
     >,
     _ meshes: FilterQuery<
         Mesh2DComponent, Ref<BoundingComponent>,

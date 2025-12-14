@@ -39,7 +39,7 @@ struct TransformEntChildrenPlugin: Plugin {
 
         let parent = app.main.spawn("parent") {
             Transform(scale: Vector3(0.5), position: [0, 0, 0])
-            SpriteComponent(texture: characterAtlas[0, 0])
+            Sprite(texture: characterAtlas[0, 0])
             ParentComponent()
 
             Collision2DComponent(
@@ -50,7 +50,7 @@ struct TransformEntChildrenPlugin: Plugin {
 
         let child = app.main.spawn("child") {
             Transform(scale: Vector3(0.4), position: [0.5, -0.5, 0])
-            SpriteComponent(texture: characterAtlas[0, 1])
+            Sprite(texture: characterAtlas[0, 1])
             Collision2DComponent(
                 shapes: [.generateBox(width: 0.4, height: 0.4)],
                 mode: .trigger
