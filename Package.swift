@@ -9,7 +9,7 @@ import CompilerPluginSupport
 import AppleProductTypes
 #endif
 
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+#if canImport(Darwin)
 import Darwin.C
 
 let isVulkanEnabled = false
@@ -504,7 +504,7 @@ targets += [
             glslangSources.append("glslang/OSDependent/Windows/ossource.cpp")
             #endif
 
-            #if os(Linux) || os(macOS) || os(iOS) || os(tvOS)
+            #if os(Linux) || os(android) || os(macOS) || os(iOS) || os(tvOS) || os(visionOS) || os(watchOS)
             glslangSources.append("glslang/OSDependent/Unix/ossource.cpp")
             #endif
 

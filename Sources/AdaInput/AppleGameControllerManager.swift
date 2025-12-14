@@ -6,18 +6,62 @@
 //
 
 #if canImport(Darwin)
+import AdaApp
 import AdaUtils
+import Combine
 import CoreHaptics
 import GameController
+import Logging
 
-public final class AppleGameControllerManager: RumbleGameControllerEngine, @unchecked Sendable {
-
+public final class AppleGameControllerManager: GameControllerEngine, @unchecked Sendable {
     private var knownGamepadIds: [GCController: Int] = [:]
     private var nextGamepadId: Int = 0
-    private var receiveInputEvents: @Sendable (any InputEvent) -> Void
+    private var inputEventPublisher: PassthroughSubject<any InputEvent, Never> = .init()
+    private let logger = Logger(label: "org.adaengine.AppleGameControllerManager")
 
-    public init(receiveInputEvents: @escaping @Sendable (any InputEvent) -> Void) {
-        self.receiveInputEvents = receiveInputEvents
+    public init() { }
+
+    public func startMonitoring() {
+        // Process initially connected controllers
+        for controller in GCController.controllers() {
+            self.handleControllerConnected(controller: controller)
+        }
+
+        // Register for connection notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(controllerConnected(_:)),
+            name: .GCControllerDidConnect,
+            object: nil
+        )
+
+        // Register for disconnection notifications
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(controllerDisconnected(_:)),
+            name: .GCControllerDidDisconnect,
+            object: nil
+        )
+    }
+
+    public func stopMonitoring() {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: .GCControllerDidConnect,
+            object: nil
+        )
+
+        NotificationCenter.default.removeObserver(
+            self,
+            name: .GCControllerDidDisconnect,
+            object: nil
+        )
+    }
+
+    public func makeEventStream() -> AsyncStream<(any InputEvent)> {
+        return inputEventPublisher
+            .receive(on: RunLoop.main)
+            .makeStream()
     }
 
     // MARK: - Button and Axis Mapping Helpers
@@ -83,43 +127,6 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
         }
     }
     
-    public func startMonitoring() {
-        // Process initially connected controllers
-        for controller in GCController.controllers() {
-            self.handleControllerConnected(controller: controller)
-        }
-        
-        // Register for connection notifications
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(controllerConnected(_:)),
-            name: .GCControllerDidConnect,
-            object: nil
-        )
-        
-        // Register for disconnection notifications
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(controllerDisconnected(_:)),
-            name: .GCControllerDidDisconnect,
-            object: nil
-        )
-    }
-    
-    public func stopMonitoring() {
-        NotificationCenter.default.removeObserver(
-            self,
-            name: .GCControllerDidConnect,
-            object: nil
-        )
-        
-        NotificationCenter.default.removeObserver(
-            self,
-            name: .GCControllerDidDisconnect,
-            object: nil
-        )
-    }
-    
     @objc private func controllerConnected(_ notification: Notification) {
         guard let controller = notification.object as? GCController else {
             return
@@ -155,15 +162,13 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
             time: TimeInterval(Date().timeIntervalSince1970)
         )
 
-        Task { @MainActor [receiveInputEvents] in
-            receiveInputEvents(event)
-        }
+        inputEventPublisher.send(event)
     }
 
     private func setupInputElementHandlers(for controller: GCController, gamepadId: Int) {
         guard let gamepad = controller.extendedGamepad else {
             // TODO: Add support for other controller types like microGamepad if necessary
-            print("Connected controller is not an ExtendedGamepad, input handling not fully set up.")
+            logger.info("Connected controller is not an ExtendedGamepad, input handling not fully set up.")
             if let microGamepad = controller.microGamepad { // Basic support for microGamepad
                  microGamepad.buttonA.pressedChangedHandler = { [weak self] button, pressure, pressed in
                     self?.handleButtonChange(button: button, controller: controller, gamepadId: gamepadId, pressure: pressure, pressed: pressed)
@@ -174,7 +179,7 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
                 microGamepad.buttonMenu.pressedChangedHandler = { [weak self] button, pressure, pressed in
                     self?.handleButtonChange(button: button, controller: controller, gamepadId: gamepadId, pressure: pressure, pressed: pressed)
                 }
-                microGamepad.dpad.xAxis.valueChangedHandler = { [weak self, receiveInputEvents] axis, value in
+                microGamepad.dpad.xAxis.valueChangedHandler = { [weak self] axis, value in
                      // Dpad X on microGamepad could be mapped to left/right buttons or an axis
                      // For simplicity, sending as axis event first, then potentially button events.
                     if let mappedAxis = self?.mapGCAxisToGamepadAxis(axis, controller: controller) {
@@ -185,14 +190,12 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
                             window: .empty,
                             time: TimeInterval(Date().timeIntervalSince1970)
                         )
-                        Task { @MainActor in
-                            receiveInputEvents(event)
-                        }
+                        self?.inputEventPublisher.send(event)
                     }
                     // Optionally, also simulate dpad left/right button presses based on value
                     // This part can be complex due to thresholds and state management.
                 }
-                 microGamepad.dpad.yAxis.valueChangedHandler = { [weak self, receiveInputEvents] axis, value in
+                 microGamepad.dpad.yAxis.valueChangedHandler = { [weak self] axis, value in
                     // Similar for Dpad Y
                     if let mappedAxis = self?.mapGCAxisToGamepadAxis(axis, controller: controller) {
                         let event = GamepadAxisEvent(
@@ -202,10 +205,7 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
                             window: .empty,
                             time: TimeInterval(Date().timeIntervalSince1970)
                         )
-
-                        Task { @MainActor in
-                            receiveInputEvents(event)
-                        }
+                        self?.inputEventPublisher.send(event)
                     }
                 }
             }
@@ -271,12 +271,12 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
         pressed: Bool
     ) {
         guard let mappedButton = self.mapGCButtonToGamepadButton(button, controller: controller) else {
-            print("Unknown button pressed on gamepad \(gamepadId)")
+            logger.info("Unknown button pressed on gamepad \(gamepadId)")
             return
         }
 
         if mappedButton == .unknown {
-            print("Unknown button pressed (mapped to .unknown) on gamepad \(gamepadId)")
+            logger.info("Unknown button pressed (mapped to .unknown) on gamepad \(gamepadId)")
             return
         }
 
@@ -289,19 +289,17 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
             time: TimeInterval(Date().timeIntervalSince1970)
         )
 
-        Task { @MainActor [receiveInputEvents] in
-            receiveInputEvents(event)
-        }
+        self.inputEventPublisher.send(event)
     }
 
     private func handleAxisChange(axis: GCControllerAxisInput, controller: GCController, gamepadId: Int, value: Float) {
         guard let mappedAxis = self.mapGCAxisToGamepadAxis(axis, controller: controller) else {
-            print("Unknown axis changed on gamepad \(gamepadId)")
+            logger.info("Unknown axis changed on gamepad \(gamepadId)")
             return
         }
 
         if mappedAxis == .unknown {
-            print("Unknown axis changed (mapped to .unknown) on gamepad \(gamepadId)")
+            logger.info("Unknown axis changed (mapped to .unknown) on gamepad \(gamepadId)")
             return
         }
 
@@ -312,13 +310,15 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
             window: .empty,
             time: TimeInterval(Date().timeIntervalSince1970)
         )
-
-        Task { @MainActor [receiveInputEvents] in
-            receiveInputEvents(event)
-        }
+        self.inputEventPublisher.send(event)
     }
 
-    private func handleTriggerAxisChange(button: GCControllerButtonInput, controller: GCController, gamepadId: Int, value: Float) {
+    private func handleTriggerAxisChange(
+        button: GCControllerButtonInput,
+        controller: GCController,
+        gamepadId: Int,
+        value: Float
+    ) {
         guard let mappedAxis = self.mapGCTriggerToGamepadAxis(button, controller: controller) else {
             // This trigger is not mapped as an axis (or shouldn't be)
             return
@@ -332,9 +332,7 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
             time: TimeInterval(Date().timeIntervalSince1970)
         )
 
-        Task { @MainActor [receiveInputEvents] in
-            receiveInputEvents(event)
-        }
+        self.inputEventPublisher.send(event)
     }
 
     @objc private func controllerDisconnected(_ notification: Notification) {
@@ -355,12 +353,10 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
             window: .empty,
             time: TimeInterval(Date().timeIntervalSince1970)
         )
-        Task { @MainActor [receiveInputEvents] in
-            receiveInputEvents(event)
-        }
+        self.inputEventPublisher.send(event)
 
         self.knownGamepadIds.removeValue(forKey: controller)
-        print("Gamepad disconnected: ID \(gamepadId)")
+        logger.info("Gamepad disconnected: ID \(gamepadId)")
     }
 
     // MARK: - Haptics
@@ -372,59 +368,57 @@ public final class AppleGameControllerManager: RumbleGameControllerEngine, @unch
         duration: Float
     ) {
         guard let controller = knownGamepadIds.first(where: { $0.value == gamepadId })?.key else {
-            print("Cannot rumble: Gamepad with ID \(gamepadId) not found.")
+            logger.info("Cannot rumble: Gamepad with ID \(gamepadId) not found.")
             return
         }
 
         guard let haptics = controller.haptics else {
-            print("Cannot rumble: Gamepad \(gamepadId) does not support haptics.")
+            logger.info("Cannot rumble: Gamepad \(gamepadId) does not support haptics.")
             return
         }
 
-//        haptics.createEngine(withLocality: GCHapticsLocality.default)
-//
-//        // Find a suitable engine. Prefer one that supports CHHapticEvent.ParameterID.hapticIntensity and .hapticSharpness
-//        // For simplicity, let's try to find the first available engine that supports general event parameters.
-//        guard let engine = haptics.engines.first(where: { $0.supportsEventParameters }) else {
-//             // Fallback: try any engine if the preferred one is not found
-//            guard let anyEngine = haptics.engines.first else {
-//                print("Cannot rumble: No haptic engines found for gamepad \(gamepadId).")
-//                return
-//            }
-//            // This engine might not support complex events, but try a simple transient event.
-//            let simpleHapticEvent = CHHapticEvent(eventType: .hapticTransient, parameters: [
-//                CHHapticEventParameter(parameterID: .hapticIntensity, value: (lowFrequency + highFrequency) / 2), // Average intensity
-//            ], relativeTime: 0, duration: Foundation.TimeInterval(duration))
-//
-//            do {
-//                try anyEngine.sendEvents([CHHapticEventRequest(event: simpleHapticEvent, parameters: [], relativeTime: 0, duration: duration)])
-//                print("Sent simple haptic event to gamepad \(gamepadId)")
-//            } catch {
-//                print("Error sending simple haptic event to gamepad \(gamepadId): \(error)")
-//            }
-//            return
-//        }
-//
-//
-//        let intensityParam = CHHapticEventParameter(parameterID: .hapticIntensity, value: highFrequency) // Use highFrequency for main intensity
-//        let sharpnessParam = CHHapticEventParameter(parameterID: .hapticSharpness, value: lowFrequency)  // Use lowFrequency for sharpness/feel
-//
-//        let continuousEvent = CHHapticEvent(
-//            eventType: .hapticContinuous,
-//            parameters: [intensityParam, sharpnessParam],
-//            relativeTime: 0,
-//            duration: Foundation.TimeInterval(duration)
-//        )
-//        
-//        let eventRequest = CHHapticEventRequest(event: continuousEvent, parameters: [intensityParam, sharpnessParam], relativeTime: 0, duration: duration)
-//
-//        do {
-//            try engine.sendEvents([eventRequest])
-//            print("Sent haptic event to gamepad \(gamepadId): Intensity \(highFrequency), Sharpness \(lowFrequency), Duration \(duration)")
-//        } catch {
-//            print("Error sending haptic event to gamepad \(gamepadId): \(error)")
-//        }
+        guard let engine = haptics.createEngine(withLocality: GCHapticsLocality.default) else {
+            logger.info("Cannot rumble: Failed to create haptic engine for gamepad \(gamepadId).")
+            return
+        }
+
+        let intensityParam = CHHapticEventParameter(parameterID: .hapticIntensity, value: highFrequency)
+        let sharpnessParam = CHHapticEventParameter(parameterID: .hapticSharpness, value: lowFrequency)
+
+        let continuousEvent = CHHapticEvent(
+            eventType: .hapticContinuous,
+            parameters: [intensityParam, sharpnessParam],
+            relativeTime: 0,
+            duration: Foundation.TimeInterval(duration)
+        )
+
+        do {
+            let pattern = try CHHapticPattern(events: [continuousEvent], parameters: [])
+            try engine.start()
+            let player = try engine.makePlayer(with: pattern)
+            try player.start(atTime: CHHapticTimeImmediate)
+            logger.info("Sent haptic event to gamepad \(gamepadId): Intensity \(highFrequency), Sharpness \(lowFrequency), Duration \(duration)")
+        } catch {
+            logger.error("Error sending haptic event to gamepad \(gamepadId): \(error)")
+        }
     }
 }
+
+extension Publisher where Failure == Never, Output: Sendable {
+  public func makeStream() -> AsyncStream<Output> {
+    var continuation: AsyncStream<Output>.Continuation?
+    let result = AsyncStream<Output> { continuation = $0 }
+    nonisolated(unsafe) let cancellable = sink { _ in
+      continuation?.finish()
+    } receiveValue: { value in
+      continuation?.yield(value)
+    }
+    continuation?.onTermination = { _ in
+      unsafe cancellable.cancel()
+    }
+    return result
+  }
+}
+
 
 #endif

@@ -21,23 +21,29 @@ public struct Input: Resource, Sendable {
 
     @_spi(Internal)
     public var mousePosition: Point = .zero
-    private let lock = NSRecursiveLock()
 
     @_spi(Internal)
-    public private(set) var eventsPool: [any InputEvent] = []
+    public internal(set) var eventsPool: [any InputEvent] = []
+
     // FIXME: (Vlad) Should think about capacity. We should store ~256 keycode events
     @_spi(Internal)
-    public private(set) var keyEvents: Set<KeyCode> = []
+    public internal(set) var keyEvents: Set<KeyCode> = []
+
     @_spi(Internal)
-    public private(set) var mouseEvents: [MouseButton: MouseEvent] = [:]
+    public var mouseEvents: [MouseButton: MouseEvent] = [:]
+
     @_spi(Internal)
-    public private(set) var touches: Set<TouchEvent> = []
-    private(set) var gamepads: [Int: Gamepad] = [:]
+    public var touches: Set<TouchEvent> = []
+
+    var gamepads: [Int: Gamepad] = [:]
+
     var cursorStates: [CursorShape] = [.arrow]
 
-    public var rumbleGameControllerEngine: RumbleGameControllerEngine?
+    public let gameControllerEngine: GameControllerEngine?
 
-    init() {}
+    init(gameControllerEngine: GameControllerEngine?) {
+        self.gameControllerEngine = gameControllerEngine
+    }
 
     // MARK: - Public Methods
 
@@ -58,9 +64,6 @@ public struct Input: Resource, Sendable {
 
     /// Returns true if you are pressing the mouse button specified with MouseButton.
     public func isMouseButtonPressed(_ button: MouseButton) -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-
         guard let phase = self.mouseEvents[button]?.phase else {
             return false
         }
@@ -70,18 +73,12 @@ public struct Input: Resource, Sendable {
 
     /// Returns `true` if you are released the mouse button.
     public func isMouseButtonRelease(_ button: MouseButton) -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-
         return self.mouseEvents[button]?.phase == .ended
     }
 
     /// Get mouse position on window.
     public func getMousePosition() -> Vector2 {
-        lock.lock()
-        defer { lock.unlock() }
-
-        return self.mousePosition
+        self.mousePosition
     }
 
     /// Get mouse mode for active window.
@@ -118,7 +115,7 @@ public struct Input: Resource, Sendable {
             self.cursorStates.removeLast()
         }
 
-        let shape = self.cursorStates.last!
+//        let shape = self.cursorStates.last!
 //        Application.shared.windowManager.setCursorShape(shape)
     }
 
@@ -147,65 +144,6 @@ public struct Input: Resource, Sendable {
     @MainActor
     @_spi(Internal) public mutating func receiveEvent<T: InputEvent>(_ event: T) {
         self.eventsPool.append(event)
-        self.parseInputEvent(event)
-    }
-
-    // MARK: - Private
-
-    @MainActor
-    private mutating func parseInputEvent<T: InputEvent>(_ event: T) {
-        switch event {
-        case let keyEvent as KeyEvent:
-            if keyEvent.keyCode == .none && keyEvent.isRepeated {
-                return
-            }
-
-            if keyEvent.status == .down {
-                self.keyEvents.insert(keyEvent.keyCode)
-            } else {
-                self.keyEvents.remove(keyEvent.keyCode)
-            }
-        case let mouseEvent as MouseEvent:
-            self.mouseEvents[mouseEvent.button] = mouseEvent
-        case let touchEvent as TouchEvent:
-            self.touches.insert(touchEvent)
-        case let gamepadConnectionEvent as GamepadConnectionEvent:
-            if gamepadConnectionEvent.isConnected {
-                let controllerType = gamepadConnectionEvent.gamepadInfo?.type ?? "Unknown"
-                let controllerName = gamepadConnectionEvent.gamepadInfo?.name ?? "Unknown"
-
-                self.gamepads[gamepadConnectionEvent.gamepadId] = Gamepad(
-                    gamepadId: gamepadConnectionEvent.gamepadId,
-                    info: gamepadConnectionEvent.gamepadInfo,
-                    rumbleGameControllerEngine: self.rumbleGameControllerEngine
-                )
-
-                print("Gamepad connected: ID \(gamepadConnectionEvent.gamepadId), Name: \(controllerName), Type: \(controllerType)")
-            } else {
-                self.gamepads.removeValue(forKey: gamepadConnectionEvent.gamepadId)
-                print("Gamepad disconnected: ID \(gamepadConnectionEvent.gamepadId)")
-            }
-        case let gamepadButtonEvent as GamepadButtonEvent:
-            guard var gamepadState = self.gamepads[gamepadButtonEvent.gamepadId] else {
-                return
-            }
-
-            if gamepadButtonEvent.isPressed {
-                gamepadState.buttonsPressed.insert(gamepadButtonEvent.button)
-            } else {
-                gamepadState.buttonsPressed.remove(gamepadButtonEvent.button)
-            }
-            self.gamepads[gamepadButtonEvent.gamepadId] = gamepadState
-        case let gamepadAxisEvent as GamepadAxisEvent:
-            guard var gamepadState = self.gamepads[gamepadAxisEvent.gamepadId] else {
-                return
-            }
-
-            gamepadState.axisValues[gamepadAxisEvent.axis] = gamepadAxisEvent.value
-            self.gamepads[gamepadAxisEvent.gamepadId] = gamepadState
-        default:
-            break
-        }
     }
 
     // MARK: - Gamepad Public Methods
@@ -358,12 +296,12 @@ public struct Gamepad: Sendable {
     /// - Returns: A `GamepadInfo` struct containing details about the gamepad, or `nil` if the gamepad is not connected.
     public internal(set) var info: GamepadInfo? // TODO: Populate this later
 
-    private var rumbleGameControllerEngine: RumbleGameControllerEngine?
+    private let gameControllerEngine: GameControllerEngine?
 
     init(
         gamepadId: ID,
         info: GamepadInfo? = nil,
-        rumbleGameControllerEngine: RumbleGameControllerEngine?
+        gameControllerEngine: GameControllerEngine?
     ) {
         self.gamepadId = gamepadId
         self.info = info
@@ -371,6 +309,7 @@ public struct Gamepad: Sendable {
         for axis in [GamepadAxis.leftStickX, .leftStickY, .rightStickX, .rightStickY, .leftTrigger, .rightTrigger] {
             axisValues[axis] = 0.0
         }
+        self.gameControllerEngine = gameControllerEngine
     }
 
     /// Checks if the specified button is currently pressed on the given gamepad.
@@ -407,7 +346,7 @@ public struct Gamepad: Sendable {
         highFrequency: Float,
         duration: Float
     ) {
-        rumbleGameControllerEngine?.rumbleGamepad(
+        gameControllerEngine?.rumbleGamepad(
             gamepadId: gamepadId,
             lowFrequency: lowFrequency,
             highFrequency: highFrequency,
@@ -416,7 +355,23 @@ public struct Gamepad: Sendable {
     }
 }
 
-public protocol RumbleGameControllerEngine: AnyObject, Sendable {
+
+/// A protocol that defines the interface for a game controller engine.
+public protocol GameControllerEngine: AnyObject, Sendable {
+
+    func startMonitoring()
+
+    func stopMonitoring()
+
+    /// Makes a stream of input events.
+    func makeEventStream() -> AsyncStream<any InputEvent>
+
+    /// Rumbles the gamepad.
+    /// - Parameters:
+    ///   - gamepadId: The ID of the gamepad to rumble.
+    ///   - lowFrequency: The low frequency of the rumble.
+    ///   - highFrequency: The high frequency of the rumble.
+    ///   - duration: The duration of the rumble.
     func rumbleGamepad(
         gamepadId: Int,
         lowFrequency: Float,
