@@ -7,6 +7,7 @@
 
 import AdaEngine
 
+@main
 struct CustomTileMapExample: App {
     var body: some AppScene {
         EmptyWindow()
@@ -65,7 +66,7 @@ struct InputControlSystem {
         transform.position.y = -0.5
         transform.scale = Vector3(0.5)
 
-        let tilemapEnt = commands.spawn { [transform] in
+        commands.spawn { [transform] in
             TileMapComponent(
                 tileMap: tileMap,
                 tileDisplaySize: Size(width: 24, height: 24)
@@ -174,8 +175,11 @@ private extension InputControlSystem {
         transform.position.y = -0.5
         transform.scale = Vector3(0.5)
 
-        let tilemapEnt = commands.spawn { [transform] in
-            TileMapComponent(tileMap: tileMap)
+        commands.spawn { [transform] in
+            TileMapComponent(
+                tileMap: tileMap,
+                tileDisplaySize: Size(width: 24, height: 24)
+            )
             NoFrustumCulling()
             transform
         }
