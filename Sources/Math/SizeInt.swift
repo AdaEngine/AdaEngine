@@ -22,6 +22,10 @@ public struct SizeInt: Equatable, Codable, Hashable, Comparable, Sendable {
 public extension SizeInt {
     @inline(__always)
     static let zero = SizeInt(width: 0, height: 0)
+
+    func toSize() -> Size {
+        Size(width: Float(width), height: Float(height))
+    }
 }
 
 extension SizeInt: ExpressibleByArrayLiteral {

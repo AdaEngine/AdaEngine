@@ -26,13 +26,8 @@ final class LdtkTilemapPlugin: Plugin {
             bundle: Camera2D(
                 camera: Camera()
                     .setBackgroundColor(Color(135/255, 206/255, 235/255, 1))
-                    .setOrthographicScale(10.5)
             )
         )
-
-        var transform = Transform()
-        transform.position.y = -0.5
-        transform.scale = Vector3(0.5)
 
         do {
             let tileMap = try AssetsManager.loadSync(
@@ -44,9 +39,11 @@ final class LdtkTilemapPlugin: Plugin {
             tileMap.loadLevel(at: 0)
 
             app.main.spawn {
-                TileMapComponent(tileMap: tileMap)
-                NoFrustumCulling()
-                transform
+                TileMapComponent(
+                    tileMap: tileMap,
+                    tileDisplaySize: Size(width: 48, height: 48)
+                )
+                Transform()
             }
         } catch {
             fatalError("Failed to load \(error)")
@@ -92,7 +89,7 @@ struct CamMovementSystem {
             tileMap.tileMap.layers[0].isEnabled.toggle()
         }
         
-        let speed: Float = input.isKeyPressed(.space) ? 5 : 2
+        let speed: Float = input.isKeyPressed(.space) ? 500 : 200
         let speedNormalized: Float = speed * deltaTime.deltaTime
 
         if input.isKeyPressed(.w) {
@@ -112,11 +109,11 @@ struct CamMovementSystem {
         }
         
         if input.isKeyPressed(.arrowUp) {
-            camera.orthographicScale -= speedNormalized
+            camera.orthographicScale -= 1 * deltaTime.deltaTime
         }
         
         if input.isKeyPressed(.arrowDown) {
-            camera.orthographicScale += speedNormalized
+            camera.orthographicScale += 1 * deltaTime.deltaTime
         }
     }
 }

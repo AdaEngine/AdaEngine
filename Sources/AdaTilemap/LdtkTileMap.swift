@@ -306,15 +306,21 @@ extension LDtk {
             let entity = AdaECS.Entity(name: entityInstance.identifier)
 
             if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TextureAtlasTileSource {
-                let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
-                
+                let tileCoordinate = Utils.gridCoordinates(
+                    from: [entityInstance.tile.x, entityInstance.tile.y],
+                    gridSize: entityInstance.tile.w
+                )
+
                 if !source.hasTile(at: tileCoordinate) {
                     source.createTile(for: tileCoordinate)
                 }
                 
                 let data = source.getTileData(at: tileCoordinate)
                 let texture = source.getTexture(at: tileCoordinate)
-                entity.components += Sprite(texture: AssetHandle(texture), tintColor: data.modulateColor)
+                entity.components += Sprite(
+                    texture: AssetHandle(texture),
+                    tintColor: data.modulateColor
+                )
             }
 
             if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {

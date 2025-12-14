@@ -28,7 +28,7 @@ struct TransparencyExamplePlugin: Plugin {
                 texture: texture,
                 tintColor: Color.red.opacity(0.3)
             )
-            Transform(position: Vector3(-0.5, 0, 0))
+            Transform(position: Vector3(-256, 0, 0))
         }
         app.spawn("Blue") {
             Sprite(
@@ -42,7 +42,7 @@ struct TransparencyExamplePlugin: Plugin {
                 texture: texture,
                 tintColor: Color.yellow.opacity(0.3)
             )
-            Transform(position: Vector3(0.5, 0, 0.2))
+            Transform(position: Vector3(256, 0, 0.2))
         }
     }
 }

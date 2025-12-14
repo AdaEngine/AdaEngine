@@ -66,7 +66,10 @@ struct InputControlSystem {
         transform.scale = Vector3(0.5)
 
         let tilemapEnt = commands.spawn { [transform] in
-            TileMapComponent(tileMap: tileMap)
+            TileMapComponent(
+                tileMap: tileMap,
+                tileDisplaySize: Size(width: 24, height: 24)
+            )
             NoFrustumCulling()
             transform
         }

@@ -46,7 +46,7 @@ public struct TileMapSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        tileMap.forEach { (entity, tileMapComponent, transform) in
+        tileMap.forEach { entity, tileMapComponent, transform in
             let tileMap = tileMapComponent.tileMap
 
             if !tileMap.needsUpdate {
@@ -88,6 +88,7 @@ public struct TileMapSystem: Sendable {
         entity: Entity,
         world: World
     ) {
+        let tileSize = tileMapComponent.wrappedValue.tileDisplaySize
         guard let tileSet = layer.tileSet else {
             logger.error("TileSet not found for tiles", metadata: [
                 "layer": .string(layer.id.description)
@@ -95,7 +96,6 @@ public struct TileMapSystem: Sendable {
             return
         }
 
-        let scale = Vector3(1)
         if layer.needUpdates {
             if let entity = tileMapComponent.tileLayers[layer.id] {
                 commands.entity(entity).removeFromWorld(recursively: true)
@@ -115,7 +115,11 @@ public struct TileMapSystem: Sendable {
                 }
 
                 let tileData = source.getTileData(at: tile.atlasCoordinates)
-                let position = Vector3(x: Float(position.x), y: Float(position.y), z: Float(layer.zIndex))
+                let position = Vector3(
+                    x: Float(position.x) * tileSize.width,
+                    y: Float(position.y) * tileSize.height,
+                    z: Float(layer.zIndex)
+                )
 
                 let tileEntity: Entity
                 switch source {
@@ -125,13 +129,15 @@ public struct TileMapSystem: Sendable {
                     tileEntity = Entity {
                         Sprite(
                             texture: AssetHandle(texture),
-                            tintColor: tileData.modulateColor
+                            tintColor: tileData.modulateColor,
+                            size: tileSize
                         )
-                        Transform(scale: scale, position: position)
+                        Transform(position: position)
                     }
                 case let entitySource as TileEntityAtlasSource:
                     tileEntity = entitySource.getEntity(at: tile.atlasCoordinates)
-                    tileEntity.components += Transform(scale: scale, position: position)
+                    tileEntity.components += Transform(position: position)
+                    tileEntity.components[Sprite.self]?.size = tileSize
                 default:
                     logger.warning("TileSource isn't supported for id: \(tile.sourceId)")
                     continue

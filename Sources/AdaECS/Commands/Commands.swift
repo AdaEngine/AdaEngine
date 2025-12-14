@@ -195,8 +195,8 @@ public extension EntityCommands {
     ) -> Self {
         self.queue.push { [entityId] world in
             let entity = world.getEntityByID(entityId)
-            entity?.addChild(child)
             world.addEntity(child)
+            entity?.addChild(child)
         }
         return self
     }
