@@ -38,16 +38,20 @@ struct SnowmanAttacks: Plugin {
         )
 
         self.characterAtlas = TextureAtlas(
-            from: charactersTiles.asset!, size: [20, 23], margin: [4, 1])
+            from: charactersTiles.asset!,
+            size: [20, 23],
+            margin: [4, 1]
+        )
 
         var camera = Camera()
         camera.clearFlags = .solid
         camera.backgroundColor = .black
+        camera.orthographicScale = 1.5
 
         try! self.makePlayer(in: app)
         try! self.makeScore(in: app)
 
-        let entity = app.main.spawn(bundle: OrthographicCameraBundle(camera: camera))
+        let entity = app.main.spawn(bundle: Camera2D(camera: camera))
         entity.prepareAudio(sound!)
             .setLoop(true)
             .setVolume(0.6)
@@ -84,9 +88,12 @@ struct SnowmanAttacks: Plugin {
 
     private func makePlayer(in app: borrowing AppWorlds) throws {
         app.main.spawn {
-            Transform(scale: Vector3(0.2), position: [0, -0.85, 0])
+            Transform(position: [0, 0, 0])
             PlayerComponent()
-            Sprite(texture: characterAtlas[7, 1])
+            Sprite(
+                texture: characterAtlas[7, 1],
+                size: .spriteSize
+            )
         }
     }
 
@@ -97,12 +104,16 @@ struct SnowmanAttacks: Plugin {
 
         app.main.spawn("Score") {
             TextComponent(text: attributedText)
-            Transform(scale: Vector3(0.1), position: [-0.2, -0.9, 0])
+            Transform(position: [-0.2, -0.9, 0])
             NoFrustumCulling()
         }
 
         app.insertResource(GameState())
     }
+}
+
+extension Size {
+    static let spriteSize: Size = Size(width: 64, height: 64)
 }
 
 @Component
@@ -206,7 +217,6 @@ struct FireSystem {
     }
 
     func fireBullet(shipTransform: Transform) {
-        let bulletScale = Vector3(0.02, 0.04, 0.04)
         
         var collision = PhysicsBody2DComponent(
             shapes: [
@@ -218,8 +228,11 @@ struct FireSystem {
         collision.filter.categoryBitMask = .bullet
 
         commands.spawn("Bullet") { [collision] in
-            Transform(scale: bulletScale, position: shipTransform.position)
-            Sprite(tintColor: .red)
+            Transform(position: shipTransform.position)
+            Sprite(
+                tintColor: .red,
+                size: Size(width: 8, height: 16)
+            )
             Bullet(lifetime: 4)
             collision
         }
@@ -266,6 +279,9 @@ struct EnemySpawnerSystem {
     @Res<DeltaTime>
     private var deltaTime
 
+    @Query<Camera>
+    private var camera
+
     @Commands
     private var commands
 
@@ -292,6 +308,12 @@ struct EnemySpawnerSystem {
     }
 
     func spawnEnemy() {
+        guard
+            let camera = self.camera.first,
+            let viewportRect = camera.viewport?.rect else {
+            return
+        }
+
         var collision = Collision2DComponent(
             shapes: [
                 .generateBox()
@@ -301,10 +323,12 @@ struct EnemySpawnerSystem {
         collision.filter.collisionBitMask = .bullet
         commands.spawn("Enemy") { [collision] in
             Transform(
-                scale: Vector3(0.25),
-                position: [Float.random(in: -1.8...1.8), 1, -1]
+                position: [Float.random(in: viewportRect.minX / 4...viewportRect.maxX / 4), viewportRect.maxY / 4, -1]
             )
-            Sprite(texture: textureAtlas[5, 7])
+            Sprite(
+                texture: textureAtlas[5, 7],
+                size: .spriteSize
+            )
             EnemyComponent(health: 100, lifetime: 12)
             collision
         }
@@ -409,7 +433,10 @@ struct EnemyExplosionSystem {
                 texture[5] = self.exposionAtlas[5, 0]
 
                 let explosion = context.world.spawn {
-                    Sprite(texture: texture)
+                    Sprite(
+                        texture: texture,
+                        size: .spriteSize
+                    )
                     transform
                     ExplosionComponent()
                 }
