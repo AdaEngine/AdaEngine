@@ -9,23 +9,23 @@ struct GamepadExampleApp: App {
     var body: some AppScene {
         EmptyWindow()
             .transformAppWorlds { appWorld in
-                appWorld.main.spawn(
+                appWorld.spawn(
                     "Camera",
-                    bundle: OrthographicCameraBundle(
+                    bundle: Camera2D(
                         camera: Camera(),
                         transform: Transform(position: [0, 0, 0])
                     )
                 )
 
                 // Create a simple player entity
-                appWorld.main.spawn("Player") {
+                appWorld.spawn("Player") {
                     PlayerComponent()
                     Transform(scale: .init(0.5))
                     SpriteComponent(tintColor: .red)
                 }
 
                 // Add a system to process gamepad input
-                appWorld.main.addSystem(GamepadInputSystem.self)
+                appWorld.addSystem(GamepadInputSystem.self)
             }
             .addPlugins(DefaultPlugins())
             .windowMode(.windowed)
