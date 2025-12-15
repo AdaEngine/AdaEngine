@@ -471,7 +471,9 @@ private extension AssetsManager {
         
         var paths = [String: Int]()
         for (key, asset) in self.storage.hotReloadingAssets {
-            paths[asset.path.url.path()] = key
+            // Resolve symlinks to get canonical path (e.g., /private/var instead of /var on macOS)
+            let resolvedPath = asset.path.url.resolvingSymlinksInPath().path
+            paths[resolvedPath] = key
         }
 
         let watchedPaths = Array(paths.keys)
@@ -483,16 +485,21 @@ private extension AssetsManager {
             paths: watchedPaths,
             latency: 0.1,
             block: { fsPaths in
-                for path in fsPaths {
-                    guard let key = paths[path] else {
-                        logger.error("Asset key not found at path \(path)")
-                        continue
+                // Dispatch to AssetActor to avoid race conditions
+                Task { @AssetActor in
+                    for path in fsPaths {
+                        // Resolve symlinks in incoming paths as well for consistent matching
+                        let resolvedPath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+                        guard let key = paths[resolvedPath] else {
+                            logger.error("Asset key not found at path \(path)")
+                            continue
+                        }
+                        
+                        var asset = self.storage.hotReloadingAssets[key]
+                        asset?.needsUpdate = true
+                        self.storage.hotReloadingAssets[key] = asset
+                        logger.info("Marked asset at path \(path) for hot reload.")
                     }
-                    
-                    var asset = self.storage.hotReloadingAssets[key]
-                    asset?.needsUpdate = true
-                    self.storage.hotReloadingAssets[key] = asset
-                    logger.info("Marked asset at path \(path) for hot reload.")
                 }
             }
         )
