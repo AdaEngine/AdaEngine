@@ -1,6 +1,5 @@
 import AdaEngine
 
-@Component
-struct GameState {
+struct GameState: Resource {
     var score: Int = 0
 }

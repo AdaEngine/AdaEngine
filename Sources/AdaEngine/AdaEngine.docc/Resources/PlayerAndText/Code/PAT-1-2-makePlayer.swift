@@ -1,4 +1,4 @@
 import AdaEngine
 
-func makePlayer(for scene: Scene) throws {
+func makePlayer(in world: World) throws {
 }
