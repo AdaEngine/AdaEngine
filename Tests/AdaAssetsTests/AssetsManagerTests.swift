@@ -8,6 +8,8 @@ import AdaUtils
 @testable @_spi(AdaEngine) import AdaAssets
 import Math
 
+// TODO: We should fix tests
+
 @Suite("AssetsManager Tests")
 struct AssetsManagerTests: Sendable {
 
