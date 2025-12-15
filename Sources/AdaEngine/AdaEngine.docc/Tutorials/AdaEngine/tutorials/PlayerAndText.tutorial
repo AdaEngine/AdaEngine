@@ -4,6 +4,8 @@
         In this tutorial, you will learn how to add a player component that you can control and how to add text and various labels to your game scene.        
     }
     
+    @XcodeRequirement(title: "Xcode 26.2 or later", destination: "https://developer.apple.com/download/")
+    
     @Section(title: "Add Player component") {
         @ContentAndMedia {
             

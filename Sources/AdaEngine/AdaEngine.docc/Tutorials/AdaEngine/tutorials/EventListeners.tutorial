@@ -2,8 +2,9 @@
     @Intro(title: "Event Listeners in Ada Engine") {
         In this tutorial you will learn about the event listeners system in Ada Engine. 
         How can you catch events and process them
-        
     }
+    
+    @XcodeRequirement(title: "Xcode 26.2 or later", destination: "https://developer.apple.com/download/")
     
     @Section(title: "Base of Event-Subscriber pattern") {
         @ContentAndMedia {

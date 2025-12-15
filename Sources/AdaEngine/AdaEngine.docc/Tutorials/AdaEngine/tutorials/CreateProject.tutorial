@@ -7,83 +7,9 @@
         @Comment {
             Add same example to SPM package, currently it doesn't works.
         }
-        
-<!--        @Image(source: <#file#>, alt: "<#accessible description#>")-->
     }
-<!--  This step doesn't works, because SPM doesn't apply C++ interop  -->
-<!--    @Section(title: "Create project using Swift Package Manager") {-->
-<!--        @ContentAndMedia {-->
-<!--            Swift Package Manager is cross platform build system that enable you build and run your game or app on any Operating System like macOS, Linux or Windows.-->
-<!--            -->
-<!--            @Image(source: "CreateProject/1.png", alt: "No one")-->
-<!--        }-->
-<!--        -->
-<!--        @Steps {-->
-<!--            @Step {-->
-<!--                Open Xcode app and select **Create a new Xcode project**-->
-<!--                -->
-<!--                @Image(source: "CP-1-1.png", alt: "You can see Xcode Welcome screen.")-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Xcode will open a new popup window where you should select **Multiplatfrom** tab and then select **Swift Package** project. After that give name for your project and choose location where your project should be created.-->
-<!--                -->
-<!--                @Image(source: "CP-1-2.png", alt: "No one")-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Now you can see a new Swift Package Manager project where you can configure your game targets, dependencies and supported platfroms.-->
-<!--                -->
-<!--                @Code(name: "Package.swift", file: CP-1-1-package.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Let's configure our `Package.swift` file to executable. We rename our target and product to `executable` and it's tell compiler that it should create executable binary instead of library.-->
-<!--                -->
-<!--                @Code(name: "Package.swift", file: CP-1-2-package.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                After that we should add AdaEngine as dependency to our executable target. Add a new remote package to the `dependencies` array in `Package` object and let's it will referenced to **main** branch. After that SPM will automatically download AdaEngine to your project. -->
-<!--                -->
-<!--                Don't forget to add `AdaEngine` as a dependency to our target.-->
-<!--                -->
-<!--                @Code(name: "Package.swift", file: CP-1-3-package.swift)-->
-<!--            }-->
-<!--            -->
-<!--            AdaEngine use a lot of C++ libraries and we should tell the compiler, that we want to add C++ to our app.-->
-<!--            -->
-<!--            @Step {-->
-<!--                -->
-<!--            }-->
-<!--            -->
-<!--            To run our app we should configure an entry point for executable binary. Let's do it now.-->
-<!--            -->
-<!--            @Step {-->
-<!--                Rename our `CreateFirstProject.swift` file to `MyFirstGameApp.swift`.-->
-<!--                -->
-<!--                @Code(name: "CreateFirstProject.swift", file: CP-1-4-app.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Remove all code from old file and first what we should to do it's import AdaEngine to our file. After that, let's create a new struct named `MyFirstGameApp` and annotate it as ``@main``. -->
-<!--                -->
-<!--                @Code(name: "MyFirstGameApp.swift", file: CP-1-5-app.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Then we should tell compiler that our struct is an app instance. Let's inherit our struct using ``App`` protocol.-->
-<!--                -->
-<!--                @Code(name: "MyFirstGameApp.swift", file: CP-1-6-app.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                ``App`` protocol requires us to implement `scene` property where we should pass our ``AppScene`` instance. ``AppScene`` tell the AdaEngine how to configure application and how to show app windows. -->
-<!--                -->
-<!--                @Code(name: "MyFirstGameApp.swift", file: CP-1-7-app.swift)-->
-<!--            }-->
-<!--        }-->
-<!--    }-->
+    
+    @XcodeRequirement(title: "Xcode 26.2 or later", destination: "https://developer.apple.com/download/")
     
     @Section(title: "Create project using Xcode.") {
         @ContentAndMedia {

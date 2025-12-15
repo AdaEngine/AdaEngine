@@ -4,7 +4,7 @@
         In this tutorial you can learn how to create your first 2D scene using AdaEngine
     }
     
-    @XcodeRequirement(title: "Xcode 16.2 or later", destination: "https://developer.apple.com/download/")
+    @XcodeRequirement(title: "Xcode 26.2 or later", destination: "https://developer.apple.com/download/")
     
     @Section(title: "Intro") {
         @ContentAndMedia {
@@ -53,11 +53,11 @@
             }
         }
         
-        ``Camera`` is a component where all entities will render. AdaEngine supports rendering to the texture or to the ``Window``. We recommend you to use engine entities ``OrthographicCamera`` or ``PerspectiveCamera``, because the engine provides additional components for rendering and audio capabilities.
+        ``Camera`` is a component where all entities will render. AdaEngine supports rendering to the texture or to the ``Window``. We recommend you to use engine component bundles like ``Camera2D`` or ``Camera3D``, because the engine provides additional components for rendering and audio capabilities.
         
         @Steps {
             @Step {
-                Let's create our 2D camera. Create an ``OrthographicCamera`` entity and add this entity to the scene using the `addEntity` method. 
+                Let's create our 2D camera. Spawn entity with ``Camera2D`` bundle. 
                 
                 @Code(name: "FirstScene.swift", file: CF2G-2-1-camera.swift)
             }
@@ -74,7 +74,7 @@
         
     @Section(title: "First sprite") {
         @ContentAndMedia {
-            Now we can create our first custom sprite. 
+            Now we can create our first custom sprite.
         }
         
         @Steps {
@@ -85,7 +85,7 @@
             }
             
             @Step {
-                In the end we should have this file structure in our project. AdaEngine doesn't use xcassets and
+                In the end we should have this file structure in our project. AdaEngine doesn't use xcassets.
                 
                 You can download this texture using right click on image from right and save it to the downloads folder. 
                 
@@ -93,7 +93,7 @@
             }
             
             @Step {
-                Create a player entity and then add it to the scene. Player entity will store our sprite component and other player data.
+                Spawn a player entity in the game world. Player entity will store our sprite component and other player data in the future.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-3-1-sprite.swift)
             }
@@ -113,7 +113,7 @@
             @Step {
                 Now we can add our sprite to the player entity using special ``Sprite``. These components are efficient for rendering, because they use a special batching system and require less drawing calls. 
                 
-                Add a new sprite component to entity components using the special `+=` operator. As you can see we use subscripts in our TextureAtlas instance where 7 is the number of columns in our sprite sheet and 1 is the number of rows.
+                Add a new sprite component into entity in `spawn` method. As you can see we use subscripts in our TextureAtlas instance where 7 is the number of column in our sprite sheet and 1 is the number of row.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-3-4-sprite.swift) {
                     @Image(source: "CF2G-3-3.png", alt: "Our sprite sheet")
@@ -121,7 +121,7 @@
             }
             
             @Step {
-                And finally let's set the scale for our sprite. Create a special ``Transform`` component with scale equals 0.19. `Vector3.init(_ scalar: Float)` creates a vector with x, y, z components equals scalar value. 
+                And finally let's add a special ``Transform`` component that describe position of our entity on the screen. 
                 
                 @Code(name: "FirstScene.swift", file: CF2G-3-5-sprite.swift) {
                     @Image(source: "CF2G-3-4.png", alt: "Our sprite sheet")
@@ -143,13 +143,13 @@
             }
             
             @Step {
-                Create a new function named `PlayerMovement` and Annotate this function with ``PlainSystem`` macro. This system will listen to user inputs and move our player component on the screen.
+                Create a new function named `PlayerMovement` and Annotate this function with ``System`` macro. This system will listen to user inputs and move our player component on the screen.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-4-2-player.swift)
             }
             
             @Step {
-                Add a new system to our game scene. ``PlainSystem`` macro will create a new system with the same name as the function with suffix `System`. Our system will be created once on app launch.
+                Add a new system to our game scene. ``System`` macro will create a new system with the same name as the function with suffix `System`. Our system will be initiated once on app launch.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-4-3-player.swift)
             }
@@ -162,7 +162,7 @@
             }
             
             @Step {
-                Add a new function parameter named `speed` with `LocalIsolated<Float>` type. This is a special type that will store a value that is only available in the system.
+                Add a new function parameter named `speed` with `Local<Float>` type. This is a special type that will store a value that is only available in the system.
                 
                 @Code(name: "FirstScene.swift", file: CF2G-4-5-player.swift)
             }
@@ -170,9 +170,9 @@
             Now we can update our player position. AdaEngine can handle keyboard inputs for us. So that we should listen to keyboard inputs and if some key is pressed, we should change player transform.
             
             @Step {
-                Let's add a new function parameter named `deltaTime` with `Res<DeltaTime>` type. This a query to resource in a world.
+                Let's add a new function parameter named `deltaTime` with `Res<DeltaTime>` type and `input` with `Res<Input>`. This a queries to resources in the world.
 
-                Using special ``Input`` object we can check if some key is pressed. 
+                Using special ``Input`` object we can check if some key is pressed.
                 Add `if` condition where we will listen to the `w` key. If the key is pressed, then add multiplication speed by delta time. We do this for smooth transition between frames.   
                 
                 @Code(name: "FirstScene.swift", file: CF2G-4-6-player.swift)
