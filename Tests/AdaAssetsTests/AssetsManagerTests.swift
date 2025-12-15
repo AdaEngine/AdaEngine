@@ -14,12 +14,14 @@ struct AssetsManagerTests: Sendable {
     @AssetActor
     init() async throws {
         // Set up test environment
-        let testDirectory = FileManager.default.temporaryDirectory.appendingPathComponent("AssetsManagerTests")
+        let testDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("AssetsManagerTests")
+
         try? FileManager.default.removeItem(at: testDirectory)
         try FileManager.default.createDirectory(at: testDirectory, withIntermediateDirectories: true)
         
         // Initialize AssetsManager with test directory
-        try AssetsManager.initialize(filePath: #filePath)
         try AssetsManager.setAssetDirectory(testDirectory)
         AssetsManager.registerAssetType(TestAsset.self)
     }
