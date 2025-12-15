@@ -4,6 +4,8 @@
         In this tutorial, you will learn how to add a player component that you can control and how to add text and various labels to your game scene.        
     }
     
+    @XcodeRequirement(title: "Xcode 26.2 or later", destination: "https://developer.apple.com/download/")
+    
     @Section(title: "Add Player component") {
         @ContentAndMedia {
             
@@ -19,38 +21,38 @@
             }
             
             @Step {
-                We must add our player to the scene. To do this we will use ``Entity`` and a couple of helper functions. Follow the code!
+                We must add our player to the scene. To do this we will use ``World/spawn(_:)`` to spawn entities. Follow the code!
                 
-                We will create a separate makePlayer function for our scene where we will add various components.
+                We will create a separate makePlayer function where we will spawn an entity with various components.
                 
                 @Code(name: "MakePlayer.swift", file: PAT-1-2-makePlayer.swift)
             }
             
             @Step {
                 
-                Next, let's declare that our player is an Entity, which can contain several components for various modifications and features in the future. First, let's add the PlayerComponent, which we discussed earlier, so that we can then easily indicate that this entity is our player. At the end, don't forget to add the player entity to the scene.
+                Next, let's spawn an entity with the `PlayerComponent`, which we discussed earlier, so that we can easily identify this entity as our player.
                 
                 @Code(name: "MakePlayer.swift", file: PAT-1-3-makePlayer.swift)
             }
             
             @Step {
-                AdaEngine knows that the player has been added to the scene, but... he can't do anything and doesn't have any properties. Let's fix this! To begin with, we will give the player the opportunity to move and, in general, somehow change his size and position. Let's use the built-in Transform component and set some initial values
+                AdaEngine knows that the player has been added to the scene, but... he can't do anything and doesn't have any properties. Let's fix this! To begin with, we will give the player the opportunity to move and, in general, somehow change his size and position. Let's use the built-in Transform component and set some initial values.
                 
                 @Code(name: "MakePlayer.swift", file: PAT-1-4-makePlayer.swift)
             }
             
             @Step {
     
-                One more component is missing - what will the player look like? To do this, you can use sprites and the corresponding component in AdaEngine
+                One more component is missing - what will the player look like? To do this, you can use sprites and the corresponding component in AdaEngine. We pass a `characterAtlas` parameter to get the texture for our player.
                 
                 @Code(name: "MakePlayer.swift", file: PAT-1-5-makePlayer.swift)
             }
             
             @Step {
                 
-                After all the preparations, let's call our function in ``Scene\sceneDidMove(to:)``
+                After all the preparations, let's create a Plugin that will set up our player. The Plugin pattern is the recommended way to organize game logic in AdaEngine.
                 
-                @Code(name: "MakePlayer.swift", file: PAT-1-6-makeScene.swift)
+                @Code(name: "PlayerAndTextPlugin.swift", file: PAT-1-6-makeScene.swift)
             }
         }
     }
@@ -62,13 +64,13 @@
         
         @Steps {
             @Step {
-                Okay, most likely you want to count some points for your player. Let's start creating the GameState component
+                Okay, most likely you want to count some points for your player. Let's start creating the GameState resource. Note that we use ``Resource`` protocol for global game state.
                 
                 @Code(name: "GameState.swift", file: PAT-2-1-gameState.swift)
             }
             
             @Step {
-                By analogy with the player, we will create a separate function for adding glasses text to the scene. Here, we also create an ``Entity``, add a ``Text2DComponent`` to it - it will help us draw the text. We add our GameState to take updated values ​​from the state and add Transform.
+                By analogy with the player, we will create a separate function for adding score text to the scene. Here, we spawn an entity with a ``TextComponent`` - it will help us draw the text. We also add Transform for positioning and insert our GameState as a resource.
                 
                 To customize the text, you can use TextAttributeContainer.
                 

@@ -1,120 +1,46 @@
 @Tutorial(time: 5) {
     @Intro(title: "Create your first game project") {
-        In this tutorial you learn how to create your first AdaEngine project.
+        In this tutorial, you will learn how to create your first AdaEngine project.
         
         You should have some programming experience and knowledge of basic Swift language syntax.
         
         @Comment {
-            Add same example to SPM package, currently it doesn't works.
+            Add same example to SPM package, currently it doesn't work.
         }
-        
-<!--        @Image(source: <#file#>, alt: "<#accessible description#>")-->
     }
-<!--  This step doesn't works, because SPM doesn't apply C++ interop  -->
-<!--    @Section(title: "Create project using Swift Package Manager") {-->
-<!--        @ContentAndMedia {-->
-<!--            Swift Package Manager is cross platform build system that enable you build and run your game or app on any Operating System like macOS, Linux or Windows.-->
-<!--            -->
-<!--            @Image(source: "CreateProject/1.png", alt: "No one")-->
-<!--        }-->
-<!--        -->
-<!--        @Steps {-->
-<!--            @Step {-->
-<!--                Open Xcode app and select **Create a new Xcode project**-->
-<!--                -->
-<!--                @Image(source: "CP-1-1.png", alt: "You can see Xcode Welcome screen.")-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Xcode will open a new popup window where you should select **Multiplatfrom** tab and then select **Swift Package** project. After that give name for your project and choose location where your project should be created.-->
-<!--                -->
-<!--                @Image(source: "CP-1-2.png", alt: "No one")-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Now you can see a new Swift Package Manager project where you can configure your game targets, dependencies and supported platfroms.-->
-<!--                -->
-<!--                @Code(name: "Package.swift", file: CP-1-1-package.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Let's configure our `Package.swift` file to executable. We rename our target and product to `executable` and it's tell compiler that it should create executable binary instead of library.-->
-<!--                -->
-<!--                @Code(name: "Package.swift", file: CP-1-2-package.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                After that we should add AdaEngine as dependency to our executable target. Add a new remote package to the `dependencies` array in `Package` object and let's it will referenced to **main** branch. After that SPM will automatically download AdaEngine to your project. -->
-<!--                -->
-<!--                Don't forget to add `AdaEngine` as a dependency to our target.-->
-<!--                -->
-<!--                @Code(name: "Package.swift", file: CP-1-3-package.swift)-->
-<!--            }-->
-<!--            -->
-<!--            AdaEngine use a lot of C++ libraries and we should tell the compiler, that we want to add C++ to our app.-->
-<!--            -->
-<!--            @Step {-->
-<!--                -->
-<!--            }-->
-<!--            -->
-<!--            To run our app we should configure an entry point for executable binary. Let's do it now.-->
-<!--            -->
-<!--            @Step {-->
-<!--                Rename our `CreateFirstProject.swift` file to `MyFirstGameApp.swift`.-->
-<!--                -->
-<!--                @Code(name: "CreateFirstProject.swift", file: CP-1-4-app.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Remove all code from old file and first what we should to do it's import AdaEngine to our file. After that, let's create a new struct named `MyFirstGameApp` and annotate it as ``@main``. -->
-<!--                -->
-<!--                @Code(name: "MyFirstGameApp.swift", file: CP-1-5-app.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                Then we should tell compiler that our struct is an app instance. Let's inherit our struct using ``App`` protocol.-->
-<!--                -->
-<!--                @Code(name: "MyFirstGameApp.swift", file: CP-1-6-app.swift)-->
-<!--            }-->
-<!--            -->
-<!--            @Step {-->
-<!--                ``App`` protocol requires us to implement `scene` property where we should pass our ``AppScene`` instance. ``AppScene`` tell the AdaEngine how to configure application and how to show app windows. -->
-<!--                -->
-<!--                @Code(name: "MyFirstGameApp.swift", file: CP-1-7-app.swift)-->
-<!--            }-->
-<!--        }-->
-<!--    }-->
     
-    @Section(title: "Create project using Xcode.") {
+    @XcodeRequirement(title: "Xcode 26.2 or later", destination: "https://developer.apple.com/download/")
+    
+    @Section(title: "Create project using Xcode") {
         @ContentAndMedia {
-            Xcode projects can give you access to build your game on all Apple devices like iOS, macOS and tvOS.
+            Xcode projects can give you access to build your game on all Apple devices like iOS, macOS, and tvOS.
             
 <!--            @Image(source: "CreateProject/1.png", alt: "No one"-->
         }
         
         @Steps {
             @Step {
-                Open Xcode app and select **Create a new Xcode project**
+                Open the Xcode app and select **Create a new Xcode project**.
                 
                 @Image(source: "CP-1-1.png", alt: "You can see Xcode Welcome screen.")
             }
             
             @Step {
-                Xcode will open a new pop-up window where you should select the **Multiplatfrom** tab and then select **App** project. After that give a name for your project and choose a location where your project should be created.
+                Xcode will open a new pop-up window where you should select the **Multiplatform** tab and then select the **App** project. After that, give a name for your project and choose a location where your project should be created.
                 
                 @Image(source: "CP-2-2.png", alt: "Popup when you choose project template")
             }
             
             @Step {
-                Now you can see a new Xcode project where you can configure your game targets, dependencies and supported platfroms. Currently it uses SwiftUI, but we will change it later.
+                Now you can see a new Xcode project where you can configure your game targets, dependencies, and supported platforms. Currently, it uses SwiftUI, but we will change it later.
                 
                 @Image(source: "CP-2-3.png", alt: "You can see an Xcode project for SwiftUI")
             }
             
-            Let's configure our xcode project file. 
+            Let's configure our Xcode project file. 
             
             @Step {
-                First, we should add AdaEngine as a dependency to our project. Select your Xcode project file, and move to `Package Dependencies`. 
+                First, we should add AdaEngine as a dependency to our project. Select your Xcode project file and move to `Package Dependencies`. 
                 
                 @Image(source: "CP-2-4.png", alt: "You can see package dependencies tab in Xcode")
             }
@@ -122,13 +48,13 @@
             @Step {
                 To run your project on macOS, remove `App Sandbox` from the `Capabilities` tab.
                 
-                @Image(source: "CP-2-8.png", alt: "App Sanbox")
+                @Image(source: "CP-2-8.png", alt: "App Sandbox")
             }
             
-            Let's change the SwiftUI project to AdaEngine project.
+            Let's change the SwiftUI project to an AdaEngine project.
             
             @Step {
-                Open the `FirstPackageApp.swift` file and you can see the swift code.
+                Open the `FirstPackageApp.swift` file, and you will see the Swift code.
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-1-app.swift)
             }
@@ -140,7 +66,7 @@
             }
             
             @Step {
-                ``App`` protocol requires us to implement a `body` property where we should pass our ``AppScene`` instance. ``AppScene`` tells the AdaEngine how to configure the application and how to show app windows. 
+                The ``App`` protocol requires us to implement a `body` property where we should pass our ``AppScene`` instance. ``AppScene`` tells AdaEngine how to configure the application and how to show app windows. 
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-3-app.swift)
             }
@@ -148,16 +74,16 @@
             @Step {
                 Now modify the ``AppScene``. 
 
-                AdaEngine support modular app architecture. Each piece of logic can be connected to the app using ``addPlugins`` method.
-                Lets add ``DefaultPlugins`` to our app. It contains all game engine logic like rendering, audio, input, etc. 
-                Also add the `windowTitle` modifier to add a custom window title for your window. 
+                AdaEngine supports modular app architecture. Each piece of logic can be connected to the app using the ``addPlugins`` method.
+                Let's add ``DefaultPlugins`` to our app. It contains all game engine logic like rendering, audio, input, etc. 
+                Also, add the `windowTitle` modifier to add a custom window title for your window. 
                 Add the `windowMode` modifier to change the window presentation from fullscreen to windowed.
                 
                 @Code(name: "FirstPackageApp.swift", file: CP-2-4-app.swift)
             }
             
             @Step {
-                Finally, you can run your first project and you will see a black screen. That's ok for an empty window.
+                Finally, you can run your first project, and you will see a black screen. That's ok for an empty window.
                 
                 @Image(source: "CP-2-9.png", alt: "Your first application window")
             }

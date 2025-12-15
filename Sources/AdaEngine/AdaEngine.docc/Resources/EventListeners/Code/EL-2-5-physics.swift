@@ -1,12 +1,14 @@
 import AdaEngine
 
-class EventListenerScene: Scene {
-    
-    var disposeBag: Set<AnyCancellable> = []
-    
-    override func sceneDidMove(to view: SceneView) {
-        self.subscribe(to: SceneEvents.OnReady.self) { event in
-            event.scene.physicsWorld2D?.gravity = .zero
+@MainActor
+struct EventListenerPlugin: Plugin {
+    @Local var disposeBag: Set<AnyCancellable> = []
+
+    func setup(in app: borrowing AppWorlds) {
+        app.main.subscribe(to: SceneEvents.OnReady.self) { event in
+            Task { @MainActor in
+                event.scene.world.physicsWorld2D?.gravity = .zero
+            }
         }
         .store(in: &self.disposeBag)
     }

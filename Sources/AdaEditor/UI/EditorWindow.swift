@@ -27,7 +27,6 @@ struct NestedContent: View {
     }
 }
 
-
 struct SomeKey: PreferenceKey {
     static let defaultValue: String = ""
     static func reduce(value: inout Value, nextValue: () -> Value) {

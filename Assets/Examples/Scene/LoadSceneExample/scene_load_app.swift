@@ -101,7 +101,7 @@ struct ComponentC {
 }
 
 
-extension Int: DefaultValue {
+extension Int: @retroactive DefaultValue {
     public static var defaultValue: Int {
         return 0
     }
