@@ -102,11 +102,14 @@ public struct CameraSystem: Sendable {
 
         switch camera.projection {
         case .orthographic:
+            // Pixel-based coordinates: position is in pixels with origin at center
+            let halfHeight = viewportSize.height / 2.0 / scale
+            let halfWidth = halfHeight * aspectRation
             projection = Transform3D.orthographic(
-                left: -aspectRation * scale,
-                right: aspectRation * scale,
-                top: scale,
-                bottom: -scale,
+                left: -halfWidth,
+                right: halfWidth,
+                top: halfHeight,
+                bottom: -halfHeight,
                 zNear: near,
                 zFar: far
             )

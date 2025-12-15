@@ -123,7 +123,7 @@ func Setup(
             }
 
             commands.spawn("Sprite") {
-                SpriteComponent(
+                Sprite(
                     texture: texture.wrappedValue.texture,
                     tintColor: tintColor
                 )
@@ -168,7 +168,7 @@ struct PrintSpriteCountSystem {
     @Query<Ref<PrintingTimer>>
     private var timers
     
-    @Query<Entity, SpriteComponent>
+    @Query<Entity, Sprite>
     private var sprites
     
     @Res<DeltaTime>

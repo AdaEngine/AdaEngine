@@ -28,7 +28,7 @@ import AdaUtils
 /// ```swift
 /// @PlainSystem
 /// struct RendererSystem {
-///     @EntityQuery(where: .has(SpriteComponent.self) && .has(Transform.self))
+///     @EntityQuery(where: .has(Sprite.self) && .has(Transform.self))
 ///     private var query
 ///
 ///     func update(context: UpdateContext) {

@@ -75,7 +75,7 @@
 //        playerTexture[1] = self.characterAtlas[1, 0]
 //
 //        let playerEntity = Entity(name: "Player")
-//        playerEntity.components += SpriteComponent(texture: playerTexture)
+//        playerEntity.components += Sprite(texture: playerTexture)
 //        playerEntity.components += transform
 //        playerEntity.components += PhysicsBody2DComponent(
 //            shapes: [
@@ -96,7 +96,7 @@
 //        transform.position.y = -1
 //
 //        let untexturedEntity = Entity(name: "Ground")
-//        untexturedEntity.components += SpriteComponent(texture: self.textureAtlas[0, 0])
+//        untexturedEntity.components += Sprite(texture: self.textureAtlas[0, 0])
 //        untexturedEntity.components += transform
 //        untexturedEntity.components += Collision2DComponent(
 //            shapes: [
@@ -107,7 +107,7 @@
 //        transform.position.y = -1.5
 //
 //        let texturedEntity = Entity(name: "Ground 2")
-//        texturedEntity.components += SpriteComponent(tintColor: .red)
+//        texturedEntity.components += Sprite(tintColor: .red)
 //        texturedEntity.components += Transform()
 //            .setPosition(Vector3(0, 0.3, 0))
 //            .setScale(Vector3(0.49, 0.49, 0.49))
@@ -355,7 +355,7 @@
 //            if isCircle {
 //                Circle2DComponent(color: .red)
 //            } else {
-//                SpriteComponent(tintColor: .blue)
+//                Sprite(tintColor: .blue)
 //            }
 //        }
 //        

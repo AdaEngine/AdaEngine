@@ -10,7 +10,7 @@ struct FirstScene: Plugin {
         let spriteSheet = TextureAtlas(from: spriteSheetImage, size: [20, 23], margin: [4, 1])
 
         let playerEntity = Entity(name: "Player")
-        playerEntity.components += SpriteComponent(texture: spriteSheet[7, 1])
+        playerEntity.components += Sprite(texture: spriteSheet[7, 1])
         playerEntity.components += Transform(scale: Vector3(0.19))
         playerEntity.components += PlayerComponent()
         app.addEntity(playerEntity)

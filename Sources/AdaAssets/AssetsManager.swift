@@ -36,8 +36,8 @@ public enum AssetError: LocalizedError {
 /// If asset was loaded to memory, you recive reference to this resource.
 public struct AssetsManager: Resource {
 
-    private static let logger = Logger(label: "AssetsManager")
-    
+    private static let logger = Logger(label: "org.adaengine.AssetsManager")
+
     nonisolated(unsafe) private static var resourceDirectory: URL!
     private static let resKeyWord = "@res://"
     nonisolated(unsafe) private static var registredAssetTypes: [String: any Asset.Type] = [:]
@@ -299,7 +299,19 @@ public struct AssetsManager: Resource {
     // TODO: (Vlad) We must set current dev path to the asset manager
     @_spi(AdaEngine)
     public static func initialize(filePath: StaticString) throws {
-        let projectDirectories = try URL.findProjectDirectories(from: filePath)
+        let probablyNames = ["Assets", "Resources"]
+        var projectDirectories: ProjectDirectories?
+        for name in probablyNames {
+            if let found = URL.findProjectDirectories(from: filePath, for: name) {
+                projectDirectories = found
+                break
+            }
+        }
+
+        guard let projectDirectories else {
+            throw AssetError.message("Missing package directory")
+        }
+
         unsafe self.projectDirectories = projectDirectories
 
 #if DEBUG
@@ -565,7 +577,10 @@ private extension Asset {
 }
 
 private extension URL {
-    static func findProjectDirectories(from file: StaticString) throws -> ProjectDirectories {
+    static func findProjectDirectories(
+        from file: StaticString,
+        for name: String
+    ) -> ProjectDirectories? {
         var currentURL = URL(filePath: file.description)
         var assetDirectory: URL?
         
@@ -576,17 +591,17 @@ private extension URL {
             if FileManager.default.fileExists(atPath: packageURL.path) {
                 return ProjectDirectories(
                     source: packageURL.deletingLastPathComponent(),
-                    assetsDirectory: assetDirectory ?? currentURL.appending(path: "Assets")
+                    assetsDirectory: assetDirectory ?? currentURL.appending(path: name)
                 )
             }
             
-            let assetsDirectory = currentURL.appending(path: "Assets")
+            let assetsDirectory = currentURL.appending(path: name)
             if FileManager.default.fileExists(atPath: assetsDirectory.path) {
                 assetDirectory = assetsDirectory
             }
         }
         
-        throw AssetError.message("Missing package directory")
+        return nil
     }
 }
 

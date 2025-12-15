@@ -71,10 +71,12 @@ public extension Entity {
         entity.world = self.world
         var relationship = self.components[RelationshipComponent.self] ?? RelationshipComponent()
 
-        entity.components[RelationshipComponent.self]?.parent = self.id
-        _ = relationship.children.unordered.insert(entity.id)
+        var childRel = entity.components[RelationshipComponent.self] ?? RelationshipComponent()
+        childRel.parent = self.id
+        entity.components += childRel
 
-        self.components += relationship
+        _ = relationship.children.unordered.insert(entity.id)
+        self.components.insert(relationship)
     }
     
     /// Remove entity from children.

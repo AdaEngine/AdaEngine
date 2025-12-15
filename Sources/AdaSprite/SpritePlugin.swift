@@ -15,13 +15,13 @@ public struct SpritePlugin: Plugin {
     public init() {}
     
     public func setup(in app: AppWorlds) {
-        SpriteComponent.registerComponent()
+        Sprite.registerComponent()
 
         app
             .addSystem(UpdateBoundingsSystem.self, on: .postUpdate)
             .main
-            .registerRequiredComponent(Visibility.self, for: SpriteComponent.self)
-            .registerRequiredComponent(BoundingComponent.self, for: SpriteComponent.self)
+            .registerRequiredComponent(Visibility.self, for: Sprite.self)
+            .registerRequiredComponent(BoundingComponent.self, for: Sprite.self)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
