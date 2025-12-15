@@ -21,7 +21,7 @@ struct GamepadExampleApp: App {
                 appWorld.spawn("Player") {
                     PlayerComponent()
                     Transform(scale: .init(0.5))
-                    SpriteComponent(tintColor: .red)
+                    Sprite(tintColor: .red)
                 }
 
                 // Add a system to process gamepad input

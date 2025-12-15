@@ -22,9 +22,9 @@ struct AdaEditorApp: App {
 
 enum BunnyExampleConstants {
     static let bunniesPerClick: Int = 10
-    static let bunnyScale: Float = 0.1
+    static let bunnyScale: Float = 4
     static let gravity: Float = -9.8
-    static let maxVelocity: Float = 10.0
+    static let maxVelocity: Float = 100.0
 }
 
 /// A bunny stress test scene similar to bevymark.
@@ -150,15 +150,19 @@ struct BunnySpawnerSystem {
 
             // Spawn multiple bunnies at mouse position
             for _ in 0 ..< BunnyExampleConstants.bunniesPerClick {
-                spawnBunny(at: Vector3(worldPosition.x, -worldPosition.y, 0), world: context.world)
+                spawnBunny(at: Vector3(worldPosition.x, -worldPosition.y, 0), viewport: camera.viewport)
             }
         }
     }
 
-    private func spawnBunny(at position: Vector3, world: World) {
+    private func spawnBunny(
+        at position: Vector3,
+        viewport: Viewport?
+    ) {
+        let viewportRect = viewport?.rect ?? .zero
         // Add small random offset to position
-        let offsetX = Float.random(in: -2.5...2.5)
-        let offsetY = Float.random(in: -2.5...2.5)
+        let offsetX = Float.random(in: viewportRect.minX...viewportRect.maxX)
+        let offsetY = Float.random(in: viewportRect.minY...viewportRect.maxY)
         let bunnyPosition = position + Vector3(offsetX, offsetY, 0)
 
         commands.spawn("Bunny") {
@@ -167,9 +171,9 @@ struct BunnySpawnerSystem {
                 scale: Vector3(BunnyExampleConstants.bunnyScale),
                 position: bunnyPosition
             )
-            SpriteComponent(
+            Sprite(
                 texture: bunnyTexture.texture,
-                tintColor: getRandomColor()
+                tintColor: getRandomColor(),
             )
             NoFrustumCulling()
         }
@@ -188,6 +192,7 @@ struct BunnySpawnerSystem {
 /// System that handles bunny movement with gravity
 @PlainSystem
 struct BunnyMovementSystem {
+
     @Query<Ref<Bunny>, Ref<Transform>>
     private var bunnies
 
@@ -199,7 +204,7 @@ struct BunnyMovementSystem {
     func update(context: UpdateContext) async {
         let deltaTime = deltaTime.deltaTime
 
-        await bunnies.parallel().forEach { bunny, transform in
+        await bunnies.parallel(batchSize: 2).forEach { bunny, transform in
             var velocity = bunny.velocity
             var position = transform.position
 
@@ -212,7 +217,7 @@ struct BunnyMovementSystem {
             }
 
             // Update position
-            position += velocity * deltaTime
+            position += velocity
 
             // Update components
             bunny.velocity = velocity
@@ -243,10 +248,7 @@ struct BunnyCollisionSystem {
         }
 
         let viewport = camera.viewport?.rect ?? Rect(x: 0, y: 0, width: 800, height: 600)
-        let halfExtents = Vector2(Float(viewport.width / 8), Float(viewport.height / 8))
-
-        // Convert to world coordinates (simplified approach)
-        let worldHalfExtents = halfExtents * camera.orthographicScale / 100.0
+        let halfExtents = Vector2(Float(viewport.width / 2), Float(viewport.height / 2))
 
         await bunnies.parallel().forEach { bunny, transform in
             var velocity = bunny.velocity
@@ -254,29 +256,29 @@ struct BunnyCollisionSystem {
             let halfBunnySize = BunnyExampleConstants.bunnyScale * 0.5
 
             // Check horizontal bounds
-            if (velocity.x > 0 && position.x + halfBunnySize > worldHalfExtents.x) ||
-               (velocity.x <= 0 && position.x - halfBunnySize < -worldHalfExtents.x) {
+            if (velocity.x > 0 && position.x + halfBunnySize > halfExtents.x) ||
+               (velocity.x <= 0 && position.x - halfBunnySize < -halfExtents.x) {
                 velocity.x = -velocity.x
             }
 
             // Check vertical bounds
-            if velocity.y < 0 && position.y - halfBunnySize < -worldHalfExtents.y {
+            if velocity.y < 0 && position.y - halfBunnySize < -halfExtents.y {
                 velocity.y = -velocity.y
             }
 
             // Check top bound (stop upward velocity)
-            if position.y + halfBunnySize > worldHalfExtents.y && velocity.y > 0 {
+            if position.y + halfBunnySize > halfExtents.y && velocity.y > 0 {
                 velocity.y = 0
             }
 
             // Keep bunny in bounds
             position.x = max(
-                -worldHalfExtents.x + halfBunnySize,
-                 min(worldHalfExtents.x - halfBunnySize, position.x)
+                -halfExtents.x + halfBunnySize,
+                 min(halfExtents.x - halfBunnySize, position.x)
             )
             position.y = max(
-                -worldHalfExtents.y + halfBunnySize,
-                 min(worldHalfExtents.y - halfBunnySize, position.y)
+                -halfExtents.y + halfBunnySize,
+                 min(halfExtents.y - halfBunnySize, position.y)
             )
 
             // Update components

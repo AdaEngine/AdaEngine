@@ -54,6 +54,8 @@ public struct ExtractedSprite: Sendable {
     public var entityId: Entity.ID
     /// The texture of the extracted sprite.
     public var texture: Texture2D?
+    /// Custom size of extracted sprite.
+    public var size: Size?
     /// The flip x of the extracted sprite.
     public var flipX: Bool
     /// The flip y of the extracted sprite.
@@ -85,7 +87,7 @@ public struct SpriteDrawData: Resource, DefaultValue {
 public func ExtractSprite(
     _ world: World,
     _ sprites: Extract<
-        Query<Entity, SpriteComponent, GlobalTransform, Transform, Visibility>
+        Query<Entity, Sprite, GlobalTransform, Transform, Visibility>
     >,
     _ extractedSprites: ResMut<ExtractedSprites>
 ) {
@@ -97,6 +99,7 @@ public func ExtractSprite(
         extractedSprites.sprites[entity.id] = ExtractedSprite(
             entityId: entity.id,
             texture: sprite.texture?.asset,
+            size: sprite.size,
             flipX: sprite.flipX,
             flipY: sprite.flipY,
             tintColor: sprite.tintColor,
@@ -110,20 +113,22 @@ public func ExtractSprite(
 @inline(__always)
 func UpdateBoundings(
     _ sprites: FilterQuery<
-        Entity, Transform, Ref<BoundingComponent>,
-        And<With<SpriteComponent>, Changed<Transform>, Without<NoFrustumCulling>>,
+        Entity, Sprite, Ref<BoundingComponent>,
+        And<With<Sprite>, Changed<Transform>, Without<NoFrustumCulling>>,
     >,
     _ meshes: FilterQuery<
         Mesh2DComponent, Ref<BoundingComponent>,
         Or<Changed<Mesh2DComponent>, Without<NoFrustumCulling>>
     >
 ) async {
-    await sprites.parallel().forEach { entity, transform, bounds in
-        let scale = transform.scale.xy
+    await sprites.parallel().forEach { entity, sprite, bounds in
+        guard let size = (sprite.size ?? sprite.texture?.asset.size.toSize())?.asVector2 else {
+            return
+        }
         bounds.bounds = .aabb(
             AABB(
-                center: Vector3(scale, 0),
-                halfExtents: Vector3(0.5 * scale, 0)
+                center: Vector3(size, 0),
+                halfExtents: Vector3(0.5 * size, 0)
             )
         )
     }
@@ -208,6 +213,7 @@ public struct SpriteRenderSystem {
 
         var currentTexture: Texture2D?
         var batchStartIndex: Int32 = 0
+        var batchImageSize: Size = .zero
         var instanceCount: Int32 = 0
         var batchEntityId: Entity.ID?
 
@@ -234,6 +240,7 @@ public struct SpriteRenderSystem {
                 // Start new batch
                 currentTexture = texture
                 batchStartIndex = instanceCount
+                batchImageSize = texture.size.toSize()
                 batchEntityId = renderItems.items[index].entity
             }
 
@@ -244,11 +251,15 @@ public struct SpriteRenderSystem {
                 flipY: sprite.flipY
             )
 
+            let size = sprite.size ?? batchImageSize
+
             // Add sprite vertices (4 vertices per quad)
             let vertexOffset = UInt32(spriteData.vertexBuffer.count)
             for vertexIndex in 0..<Self.quadPosition.count {
+                let quadPos = Self.quadPosition[vertexIndex]
+                let scaledPosition = Vector4(quadPos.x * size.width, quadPos.y * size.height, quadPos.z, quadPos.w)
                 let data = SpriteVertexData(
-                    position: worldTransform * Self.quadPosition[vertexIndex],
+                    position: worldTransform * scaledPosition,
                     color: sprite.tintColor,
                     textureCoordinate: textureCoords[vertexIndex]
                 )

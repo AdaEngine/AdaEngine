@@ -45,6 +45,7 @@ extension LDtk {
         public private(set) var levelsCount: Int = 0
         private var project: Project?
         private let filePath: URL
+        private let logger = Logger(label: "org.adaengine.tilemap.LDtk")
 
         private var fileWatcher: FileWatcher!
         private var fileWatcherObserver: Cancellable?
@@ -82,12 +83,11 @@ extension LDtk {
         // swiftlint:disable:next cyclomatic_complexity function_body_length
         public func loadLevel(at index: Int) {
             guard let project else {
-                assertionFailure("LDtk Project is empty at path \(filePath)")
+                logger.critical("LDtk Project is empty at path \(filePath)")
                 return
             }
 
             let level = project.levels[index]
-
             self.currentLevelIndex = index
 
             for layer in self.layers {
@@ -96,12 +96,12 @@ extension LDtk {
 
             for layerInstance in level.layerInstances where layerInstance.visible {
                 guard let layer = self.layers.first(where: { $0.id == layerInstance.layerDefUid }) else {
-                    assertionFailure("Could not find a layer for id \(layerInstance.layerDefUid)")
+                    logger.critical("Could not find a layer for id \(layerInstance.layerDefUid)")
                     return
                 }
 
                 guard let projectLayer = project.defs.layers.first(where: { $0.uid == layerInstance.layerDefUid }) else {
-                    assertionFailure("Could not find a layer in project for id: \(layerInstance.layerDefUid)")
+                    logger.critical("Could not find a layer in project for id: \(layerInstance.layerDefUid)")
                     return
                 }
 
@@ -184,7 +184,7 @@ extension LDtk {
 
                     try await loadLdtkProject(from: data)
                 } catch {
-                    Logger(label: "LDtk").critical("Failed to update ldtk file \(error.localizedDescription)")
+                    logger.critical("Failed to update ldtk file \(error.localizedDescription)")
                 }
             }
         }
@@ -306,15 +306,21 @@ extension LDtk {
             let entity = AdaECS.Entity(name: entityInstance.identifier)
 
             if let source = self.tileSet?.sources[entityInstance.tile.tilesetUid] as? TextureAtlasTileSource {
-                let tileCoordinate = Utils.gridCoordinates(from: [entityInstance.tile.x, entityInstance.tile.y], gridSize: entityInstance.tile.w)
-                
+                let tileCoordinate = Utils.gridCoordinates(
+                    from: [entityInstance.tile.x, entityInstance.tile.y],
+                    gridSize: entityInstance.tile.w
+                )
+
                 if !source.hasTile(at: tileCoordinate) {
                     source.createTile(for: tileCoordinate)
                 }
                 
                 let data = source.getTileData(at: tileCoordinate)
                 let texture = source.getTexture(at: tileCoordinate)
-                entity.components += SpriteComponent(texture: AssetHandle(texture), tintColor: data.modulateColor)
+                entity.components += Sprite(
+                    texture: AssetHandle(texture),
+                    tintColor: data.modulateColor
+                )
             }
 
             if let ldtkTileMap = self.tileSet?.tileMap as? LDtk.TileMap {
@@ -329,7 +335,7 @@ extension LDtk {
 /// Delegate that help configure LDtk TileMap.
 public protocol TileMapDelegate: AnyObject {
     
-    /// Configure entity from LDtk project. By default entity has ``Transform`` and ``SpriteComponent``
+    /// Configure entity from LDtk project. By default entity has ``Transform`` and ``Sprite``
     ///
     /// - Parameter tileMap: Instance of TileMap.
     /// - Parameter entity: AdaEngine entity which will store in TileSource.
