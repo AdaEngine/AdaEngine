@@ -78,12 +78,12 @@ public struct AssetsManager: Resource {
         at path: String,
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
-        let key = self.makeCacheKey(resource: A.self, path: path)
-        if let cachedAsset = self.storage.loadedAssets[key]?.value as? AssetHandle<A> {
+        if let cachedAsset = self.getHandlingResource(path: path, resourceType: A.self)?.value as? AssetHandle<A> {
             return cachedAsset
         }
-        
+
         let processedPath = self.processPath(path)
+
         let hasFileExt = !processedPath.url.pathExtension.isEmpty
         
         if !hasFileExt {
@@ -95,10 +95,12 @@ public struct AssetsManager: Resource {
         }
         
         if handleChanges {
-            self.storage.hotReloadingAssets[key] = HotReloadingAsset(
-                path: processedPath,
-                resource: A.self,
-                needsUpdate: false
+            self.storage.hotReloadingAssets[path, default: []].insert(
+                HotReloadingAsset(
+                    path: processedPath,
+                    resource: A.self,
+                    needsUpdate: false
+                )
             )
 
             self.updateFileWatcher()
@@ -106,8 +108,8 @@ public struct AssetsManager: Resource {
         
         let resource: A = try await self.load(from: processedPath, originalPath: path, bundle: nil)
         let handle = AssetHandle(resource)
-        self.storage.loadedAssets[key] = WeakBox(handle)
-        
+        self.storage.loadedAssets[path, default: []].insert(WeakBox(handle))
+
         return handle
     }
     
@@ -153,10 +155,8 @@ public struct AssetsManager: Resource {
         from bundle: Foundation.Bundle,
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
-        let key = self.makeCacheKey(resource: A.self, path: path)
-        
-        if let cachedAsset = self.storage.loadedAssets[key]?.value as? A {
-            return AssetHandle(cachedAsset)
+        if let cachedAsset = self.getHandlingResource(path: path, resourceType: A.self)?.value as? AssetHandle<A> {
+            return cachedAsset
         }
         
         let processedPath = self.processPath(path)
@@ -170,8 +170,8 @@ public struct AssetsManager: Resource {
             bundle: bundle
         )
         let handle = AssetHandle(resource)
-        self.storage.loadedAssets[key] = WeakBox(handle)
-        
+        self.storage.loadedAssets[path, default: []].insert(WeakBox(handle))
+
         return handle
     }
     
@@ -264,9 +264,11 @@ public struct AssetsManager: Resource {
     /// Unload specific resource type from memory.
     @AssetActor
     public static func unload<R: Asset>(_ res: R.Type, at path: String) {
-        let key = self.makeCacheKey(resource: res, path: path)
-        self.storage.loadedAssets[key] = nil
-        self.storage.hotReloadingAssets[key] = nil
+        let loadedAssetIndex = self.storage.loadedAssets[path, default: []].firstIndex(where: { $0.value is AssetHandle<R> })
+        if let loadedAssetIndex {
+            self.storage.loadedAssets[path]?.remove(at: loadedAssetIndex)
+        }
+        self.storage.hotReloadingAssets[path] = nil
         self.updateFileWatcher()
     }
     
@@ -331,17 +333,36 @@ public struct AssetsManager: Resource {
     @_spi(AdaEngine)
     @AssetActor
     public static func processResources() async throws {
-        for (key, asset) in self.storage.hotReloadingAssets where asset.needsUpdate {
-            guard let oldResource = self.storage.loadedAssets[key]?.value as? AnyAssetHandle else {
-                logger.error("Resource \(asset.resource) is not found")
-                self.storage.hotReloadingAssets[key] = nil
+        for (path, assets) in self.storage.hotReloadingAssets {
+            for asset in assets where asset.needsUpdate {
+                guard let loadedAssets = self.storage.loadedAssets[path] else {
+                    logger.error("Resource \(asset.resource) is not found")
+                    self.storage.hotReloadingAssets[path] = nil
+                    continue
+                }
+
+                await process(loadedAssets: loadedAssets, at: path, asset: asset)
+            }
+        }
+    }
+
+    @AssetActor
+    private static func process(
+        loadedAssets: Set<WeakBox<AnyObject>>,
+        at path: String,
+        asset: AssetsManager.HotReloadingAsset
+    ) async {
+        for oldResources in loadedAssets {
+            guard let oldResource = oldResources.value as? AnyAssetHandle else {
                 continue
             }
 
             defer {
-                self.storage.hotReloadingAssets[key]?.needsUpdate = false
+                var asset = asset
+                asset.needsUpdate = false
+                self.storage.hotReloadingAssets[path]?.insert(asset)
             }
-            
+
             do {
                 try await self.loadAndUpdateInternal(
                     assetType: asset.resource,
@@ -354,7 +375,7 @@ public struct AssetsManager: Resource {
             }
         }
     }
-    
+
     // MARK: - Private
     
     @AssetActor
@@ -407,7 +428,7 @@ public struct AssetsManager: Resource {
 }
 
 extension AssetsManager {
-    struct Path {
+    struct Path: Sendable, Hashable {
         var url: URL
         let query: [AssetQuery]
     }
@@ -426,18 +447,20 @@ extension AssetsManager {
     
     @AssetActor
     static func isAssetExistsInCache<A: Asset>(_ type: A.Type, at path: String) -> Bool {
-        let key = makeCacheKey(resource: A.self, path: path)
-        return self.storage.loadedAssets[key]?.value != nil
+        self.getHandlingResource(path: path, resourceType: type)?.value != nil
     }
 }
 
 private extension AssetsManager {
-    // TODO: (Vlad) looks very unstable
-    private static func makeCacheKey<R: Asset>(resource: R.Type, path: String) -> Int {
-        let cacheKey = path + "\(UInt(bitPattern: ObjectIdentifier(resource)))"
-        return cacheKey.hashValue
+
+    @AssetActor
+    private static func getHandlingResource<A: Asset>(
+        path: String,
+        resourceType: A.Type
+    ) -> WeakBox<AnyObject>? {
+        self.storage.loadedAssets[path]?.first(where: { $0.value is AssetHandle<A> })
     }
-    
+
     /// Replace tag `@res://` to relative path or create url from given path.
     private static func processPath(_ path: String) -> Path {
         var path = path
@@ -469,10 +492,13 @@ private extension AssetsManager {
             return
         }
         
-        var paths = [String: Int]()
+        var paths = [String: String]()
         for (key, asset) in self.storage.hotReloadingAssets {
+            guard let firstAsset = asset.first else {
+                continue
+            }
             // Resolve symlinks to get canonical path (e.g., /private/var instead of /var on macOS)
-            let resolvedPath = asset.path.url.resolvingSymlinksInPath().path
+            let resolvedPath = firstAsset.path.url.resolvingSymlinksInPath().path
             paths[resolvedPath] = key
         }
 
@@ -490,14 +516,15 @@ private extension AssetsManager {
                     for path in fsPaths {
                         // Resolve symlinks in incoming paths as well for consistent matching
                         let resolvedPath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-                        guard let key = paths[resolvedPath] else {
+                        guard let assetPath = paths[resolvedPath] else {
                             logger.error("Asset key not found at path \(path)")
                             continue
                         }
                         
-                        var asset = self.storage.hotReloadingAssets[key]
-                        asset?.needsUpdate = true
-                        self.storage.hotReloadingAssets[key] = asset
+                        for var asset in self.storage.hotReloadingAssets[assetPath, default: []] {
+                            asset.needsUpdate = true
+                            self.storage.hotReloadingAssets[assetPath]?.insert(asset)
+                        }
                         logger.info("Marked asset at path \(path) for hot reload.")
                     }
                 }
@@ -555,14 +582,26 @@ private extension AssetsManager {
 
 extension AssetsManager {
     struct AssetsStorage: Sendable {
-        var loadedAssets: [Int: WeakBox<AnyObject>] = [:]
-        var hotReloadingAssets: [Int: HotReloadingAsset] = [:]
+        var loadedAssets: [String: Set<WeakBox<AnyObject>>] = [:]
+        var hotReloadingAssets: [String: Set<HotReloadingAsset>] = [:]
     }
     
-    struct HotReloadingAsset: Sendable {
+    struct HotReloadingAsset: Sendable, Hashable {
         var path: Path
         var resource: any Asset.Type
         var needsUpdate: Bool = false
+
+        static func == (lhs: AssetsManager.HotReloadingAsset, rhs: AssetsManager.HotReloadingAsset) -> Bool {
+            lhs.path == rhs.path
+            && ObjectIdentifier(lhs.resource) == ObjectIdentifier(rhs.resource)
+            && lhs.needsUpdate == rhs.needsUpdate
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(self.path)
+            hasher.combine(ObjectIdentifier(self.resource))
+            hasher.combine(self.needsUpdate)
+        }
     }
 }
 

@@ -56,7 +56,7 @@ var products: [Product] = [
 // TODO: It's works if we wrap sources to .swiftpm container and run in Swift Plaground App
 #if canImport(AppleProductTypes)
 let ios = Product.iOSApplication(
-    name: "AdaEditor",
+    name: "AdaEditor-iOS",
     targets: ["AdaEditor"],
     bundleIdentifier: "com.adaengine.editor",
     teamIdentifier: "",
@@ -76,7 +76,8 @@ let ios = Product.iOSApplication(
     ]
 )
 
-products.append(ios)
+// Xcode crashed after that move...
+// products.append(ios)
 #endif
 
 // MARK: - Targets

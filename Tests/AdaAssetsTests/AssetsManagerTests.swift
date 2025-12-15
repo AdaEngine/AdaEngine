@@ -12,7 +12,7 @@ import Math
 struct AssetsManagerTests: Sendable {
 
     @AssetActor
-    init() async throws {
+    init() throws {
         // Set up test environment
         let testDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
