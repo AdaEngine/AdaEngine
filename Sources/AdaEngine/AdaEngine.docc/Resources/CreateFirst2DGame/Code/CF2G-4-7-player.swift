@@ -1,7 +1,7 @@
 import AdaEngine
 
-class FirstScene: Scene {
-    override func sceneDidMove(to view: SceneView) {
+struct FirstScene: Plugin {
+    func setup(in app: AppWorlds) {
         /** Collapsed code */
     }
 }
@@ -13,21 +13,24 @@ struct PlayerComponent {}
 func PlayerMovement(
     _ playerTransform: FIlterQuery<Ref<Transform>, With<PlayerComponent>>,
     _ speed: Local<Float> = 3.0,
-    _ deltaTime: Res<DeltaTime>
+    _ deltaTime: Res<DeltaTime>,
+    _ input: Res<Input>
 ) {
-    if Input.isKeyPressed(.w) {
-        playerTransform.position.y += speed.wrappedValue * deltaTime.wrappedValue.deltaTime
-    }
+    playerTransform.forEach { transform in
+        if input.wrappedValue.isKeyPressed(.w) {
+            transform.position.y += speed.wrappedValue * deltaTime.wrappedValue.deltaTime
+        }
 
-    if Input.isKeyPressed(.s) {
-        playerTransform.position.y -= speed.wrappedValue * deltaTime.wrappedValue.deltaTime
-    }
-    
-    if Input.isKeyPressed(.a) {
-        playerTransform.position.x -= speed.wrappedValue * deltaTime.wrappedValue.deltaTime
-    }
-            
-    if Input.isKeyPressed(.d) {
-        playerTransform.position.x += speed.wrappedValue * deltaTime.wrappedValue.deltaTime
+        if input.wrappedValue.isKeyPressed(.s) {
+            transform.position.y -= speed.wrappedValue * deltaTime.wrappedValue.deltaTime
+        }
+
+        if input.wrappedValue.isKeyPressed(.a) {
+            transform.position.x -= speed.wrappedValue * deltaTime.wrappedValue.deltaTime
+        }
+
+        if input.wrappedValue.isKeyPressed(.d) {
+            transform.position.x += speed.wrappedValue * deltaTime.wrappedValue.deltaTime
+        }
     }
 }

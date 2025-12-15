@@ -15,7 +15,7 @@ import AdaUtils
 // TODO: Mode for decoding/encoding files from/into binary format.
 
 /// A query for an asset.
-public struct AssetQuery: Sendable, Codable {
+public struct AssetQuery: Sendable, Codable, Hashable {
     /// The name of the query.
     public let name: String
 
@@ -24,7 +24,7 @@ public struct AssetQuery: Sendable, Codable {
 }
 
 /// A meta information about an asset.
-public struct AssetMeta: Sendable, Codable {
+public struct AssetMeta: Sendable, Codable, Hashable {
     /// The file path of the asset.
     public let filePath: URL
 

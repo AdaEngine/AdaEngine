@@ -1,8 +1,7 @@
 import AdaEngine
 
-class EventListenerScene: Scene {
-    override func sceneDidMove(to view: SceneView) {
+struct EventListenerPlugin: Plugin {
+    func setup(in app: borrowing AppWorlds) {
         
     }
 }
-

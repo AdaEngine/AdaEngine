@@ -1,11 +1,9 @@
 import AdaEngine
 
-func makePlayer(for scene: Scene) throws {
-    let player = Entity()
-
-    player.components += Transform(scale: Vector3(0.2), position: [0, -0.85, 0])
-    player.components += PlayerComponent()
-    player.components += Sprite(texture: characterAtlas[7, 1])
-
-    scene.addEntity(player)
+func makePlayer(in world: World, characterAtlas: TextureAtlas) {
+    world.spawn {
+        PlayerComponent()
+        Transform(position: [0, -300, 0])
+        Sprite(texture: characterAtlas[7, 1], size: Size(width: 24, height: 24))
+    }
 }

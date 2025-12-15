@@ -2,15 +2,16 @@
     @Intro(title: "Event Listeners in Ada Engine") {
         In this tutorial you will learn about the event listeners system in Ada Engine. 
         How can you catch events and process them
-        
     }
+    
+    @XcodeRequirement(title: "Xcode 26.2 or later", destination: "https://developer.apple.com/download/")
     
     @Section(title: "Base of Event-Subscriber pattern") {
         @ContentAndMedia {
             Event listeners in Ada Engine are built on the Observer pattern. 
             Its main concept is based on the fact that there is a certain Subject that can send any events. 
             And there is an Observer that can receive and process this event. 
-            In addition, Observer “subscribes” to events, as if you had subscribed to your favorite blog or magazine - as soon as an event occurs, Observer immediately knows about it. 
+            In addition, Observer "subscribes" to events, as if you had subscribed to your favorite blog or magazine - as soon as an event occurs, Observer immediately knows about it. 
             
             @Image(source: "EL-1.jpg", alt: "Observer pattern scheme")
         }
@@ -18,32 +19,33 @@
     
     @Section(title: "Subscribe to scene events") {
         @ContentAndMedia {
-            Having understood how the Observer pattern works, let's look at how to subscribe to scene events.
+            Having understood how the Observer pattern works, let's look at how to subscribe to scene events using the Plugin pattern.
             
         }
         
         @Steps {            
             @Step {
                 
-                Let's say we have some kind of game scene in which we would like to listen to some events.
+                Let's say we have a plugin in which we would like to listen to some events.
                 
-                @Code(name: "EventListenerScene.swift", file: EL-2-1-scene.swift)
+                @Code(name: "EventListenerPlugin.swift", file: EL-2-1-scene.swift)
             }
             
             @Step {
                 
-                First of all, to control subscription/unsubscription to events and for proper memory management, we must create a disposeBag.
-                Now you don’t need to know its detailed structure.
+                First of all, to control subscription/unsubscription to events and for proper memory management, we must create a `disposeBag` using the `@Local` property wrapper.
+                We also mark our plugin with `@MainActor` to ensure thread safety.
                 
-                @Code(name: "EventListenerScene.swift", file: EL-2-2-scene.swift)
+                @Code(name: "EventListenerPlugin.swift", file: EL-2-2-scene.swift)
             }
             
             @Step {
                 
-                After that, in the ``Scene\sceneDidMove(to:)`` method before the return statement, you can call some code to subscribe to the event. 
-                The ``Scene\subscribe`` method helps with this. 
-                When an event is triggered, our listener subscribes to it and in the callback we can process our event
-                @Code(name: "EventListenerScene.swift", file: EL-2-3-scene.swift)
+                After that, in the `setup(in:)` method you can call some code to subscribe to the event. 
+                The `app.main.subscribe` method helps with this. 
+                When an event is triggered, our listener subscribes to it and in the callback we can process our event.
+                
+                @Code(name: "EventListenerPlugin.swift", file: EL-2-3-scene.swift)
             }
         }
     }
@@ -57,17 +59,17 @@
         
         @Steps {            
             @Step {
-                In the previous section, we saw the SceneEvents.OnReady event. 
+                In the previous section, we saw the `SceneEvents.OnReady` event. 
                 AdaEngine has several available events that you can handle. 
                 For example, you can find out what state your current game scene is in. 
                 You can add your own additional logic when any built-in event occurs.
                 
-                @Code(name: "EventListenerScene.swift", file: EL-2-3-scene.swift)
+                @Code(name: "EventListenerPlugin.swift", file: EL-2-3-scene.swift)
             }
             
             @Step {
                 Here, as an example, are some built-in events that may be useful to you. 
-                Familiar scene events and new collision events
+                Familiar scene events and new collision events.
                 
                 @Code(name: "Events.swift", file: EL-2-4-events.swift)
             }
@@ -77,19 +79,18 @@
     @Section(title: "Additional for physics") {
         @ContentAndMedia {
             Additional information for handling physics in a game engine.
-            By default, our Scene object has a physicsWorld2D component. 
-            With it you can control the physics settings for any objects in our game. 
-            For example, you can set the gravity to zero for the scene creation event
+            With the `physicsWorld2D` component you can control the physics settings for any objects in our game. 
+            For example, you can set the gravity to zero for the scene creation event.
         }
         
         @Steps {            
             @Step {
                 Let's continue with the example we looked at earlier. 
-                We can access our event and assign the necessary parameters to the properties of the physical component
+                We can access our event and assign the necessary parameters to the properties of the physical component.
+                Note that we use `Task { @MainActor in ... }` to ensure we're on the main actor when modifying physics properties.
                 
                 @Code(name: "PhysicsHandler.swift", file: EL-2-5-physics.swift)
             }
         }
     }
 }
-

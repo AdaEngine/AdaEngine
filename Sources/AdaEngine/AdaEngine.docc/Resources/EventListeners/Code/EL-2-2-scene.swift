@@ -1,10 +1,10 @@
 import AdaEngine
 
-class EventListenerScene: Scene {
-    
-    var disposeBag: Set<AnyCancellable> = []
-    
-    override func sceneDidMove(to view: SceneView) {
+@MainActor
+struct EventListenerPlugin: Plugin {
+    @Local var disposeBag: Set<AnyCancellable> = []
+
+    func setup(in app: borrowing AppWorlds) {
         
     }
 }
