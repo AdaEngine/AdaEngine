@@ -8,6 +8,7 @@
 import AdaApp
 import AdaECS
 import AdaRender
+import AdaUtils
 
 public struct UIRenderPlugin: Plugin {
     public func setup(in app: borrowing AdaApp.AppWorlds) {
@@ -15,38 +16,54 @@ public struct UIRenderPlugin: Plugin {
             RenderItems<UIRenderItem>.self,
             for: Camera.self
         ) {
-            RenderItems()
+            RenderItems<UIRenderItem>()
         }
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
+        renderWorld.insertResource(ExtractedUIComponents())
         let renderGraph = renderWorld.getRefResource(RenderGraph.self)
         renderGraph.wrappedValue.addNode(UIRenderNode())
-        renderWorld.addSystem(UIRenderPreparingSystem.self, on: .extract)
+        renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
     }
 }
 
 @System
-func UIRenderPreparing(
-    _ uiComponents: Extract<
-        Query<UIComponent>
-    >
-) {
-    uiComponents.wrappedValue.forEach { component in
-        
+public func UIRenderPreparing(
+    _ cameras: Query<Camera>,
+    _ uiComponents: Res<ExtractedUIComponents>,
+) async {
+    await cameras.forEach { camera in
+        for component in uiComponents.components {
+            var context = await UIGraphicsContext(camera: camera)
+            await component.view.draw(with: context)
+
+            // 1. store context and than render
+            // 2. render context by command in render graph
+        }
     }
 }
 
-func ExtractUIComponents(
-    _ uiComponents: Extract<
-        Query<UIComponent>
-    >
-) {
-
+public struct ExtractedUIComponents: Resource {
+    public var components: ContiguousArray<UIComponent> = []
 }
 
-struct UIRenderNode: RenderNode {
-    func execute(
+@System
+public func ExtractUIComponents(
+    _ uiComponents: Extract<
+        Query<UIComponent>
+    >,
+    _ extractedUIComponents: ResMut<ExtractedUIComponents>
+) {
+    extractedUIComponents.components.removeAll(keepingCapacity: true)
+
+    uiComponents().forEach {
+        extractedUIComponents.components.append($0)
+    }
+}
+
+public struct UIRenderNode: RenderNode {
+    public func execute(
         context: inout Context,
         renderContext: AdaRender.RenderContext
     ) async throws -> [AdaRender.RenderSlotValue] {
@@ -54,11 +71,11 @@ struct UIRenderNode: RenderNode {
     }
 }
 
-struct UIRenderItem: RenderItem {
-    var sortKey: Int
-    var entity: AdaECS.Entity.ID
-    var drawPass: any AdaRender.DrawPass
-    var batchRange: Range<Int32>? = nil
+public struct UIRenderItem: RenderItem {
+    public var sortKey: Int
+    public var entity: AdaECS.Entity.ID
+    public var drawPass: any AdaRender.DrawPass
+    public var batchRange: Range<Int32>? = nil
 }
 
 struct UIRenderDrawPass: DrawPass {

@@ -10,6 +10,7 @@ import AdaText
 import AdaRender
 import AdaUtils
 import Math
+import Collections
 
 // TODO: Clip Mask
 
@@ -17,13 +18,11 @@ import Math
 /// Context use orthogonal projection.
 @MainActor
 public struct UIGraphicsContext {
-    /// Window Identifier related presented window.
+
     private let camera: Camera
 
     /// Returns current transform.
     public private(set) var transform: Transform3D = .identity
-    private var renderEncoder: RenderCommandEncoder!
-    private unowned let renderDevice: RenderDevice
     private var clipPath: Path?
 
     public var opacity: Float = 1
@@ -34,12 +33,10 @@ public struct UIGraphicsContext {
     // Used for internal and debug values.
     package var _environment: EnvironmentValues = EnvironmentValues()
 
-    private var viewMatrix: Transform3D = .identity
+    private(set) var commandQueue = CommandQueue()
 
-    @MainActor
-    public init(camera: Camera, renderDevice: RenderDevice) {
+    public init(camera: Camera) {
         self.camera = camera
-        self.renderDevice = renderDevice
     }
     
     public init(texture: RenderTexture, renderDevice: RenderDevice) {
@@ -47,7 +44,6 @@ public struct UIGraphicsContext {
         camera.isActive = true
         camera.projection = .orthographic
         self.camera = camera
-        self.renderDevice = renderDevice
     }
     
     public mutating func beginDraw(in size: Size, scaleFactor: Float) {
@@ -59,7 +55,6 @@ public struct UIGraphicsContext {
             zNear: 0,
             zFar: 1000
         )
-        self.viewMatrix = view
 //
 //        do {
 //            self.currentDrawContext = try Renderer2D.beginDrawContext(
@@ -105,7 +100,7 @@ public struct UIGraphicsContext {
     /// Paints the area contained within the provided rectangle, using the passed color and texture.
     public func drawRect(_ rect: Rect, texture: Texture2D? = nil, color: Color) {
         let transform = self.transform * rect.toTransform3D
-//        self.currentDrawContext?.drawQuad(transform: transform, texture: texture, color: applyOpacityIfNeeded(color))
+        self.commandQueue.push(.drawQuad(transform: transform, texture: texture, color: applyOpacityIfNeeded(color)))
     }
     
     /// Paints the area of the ellipse that fits inside the provided rectangle, using the fill color in the current graphics state.
@@ -115,13 +110,27 @@ public struct UIGraphicsContext {
         thickness: Float = 1
     ) {
         let transform = self.transform * rect.toTransform3D
-//        self.currentDrawContext?.drawCircle(transform: transform, thickness: thickness, fade: 0.005, color: applyOpacityIfNeeded(color))
+        self.commandQueue.push(
+            .drawCircle(
+                transform: transform,
+                thickness: thickness,
+                fade: 0.005,
+                color: applyOpacityIfNeeded(color)
+            )
+        )
     }
 
     public func drawLine(start: Vector2, end: Vector2, lineWidth: Float, color: Color) {
         let start = (transform * Vector4(start.x, start.y, 0, 1))
         let end = (transform * Vector4(end.x, end.y, 0, 1))
-//        self.currentDrawContext?.drawLine(start: start.xyz, end: end.xyz, lineWidth: lineWidth, color: applyOpacityIfNeeded(color))
+        self.commandQueue.push(
+            .drawLine(
+                start: start.xyz,
+                end: end.xyz,
+                lineWidth: lineWidth,
+                color: applyOpacityIfNeeded(color)
+            )
+        )
     }
 
     private func applyOpacityIfNeeded(_ color: Color) -> Color {
@@ -136,11 +145,11 @@ public struct UIGraphicsContext {
 
     public func drawText(in rect: Rect, from textLayout: TextLayoutManager) {
         let transform = self.transform * rect.toTransform3D
-//        self.currentDrawContext?.drawText(textLayout, transform: transform)
+        self.commandQueue.push(.drawText(textLayout: textLayout, transform: transform))
     }
 
     public func draw(_ path: Path) {
-        
+        self.commandQueue.push(.drawPath(path))
     }
 
     public func draw(_ line: TextLine) {
@@ -161,11 +170,11 @@ public struct UIGraphicsContext {
             size: glyph.size
         )
         let transform = self.transform * rect.toTransform3D
-//        self.currentDrawContext?.drawGlyph(glyph, transform: transform)
+        self.commandQueue.push(.drawGlyph(glyph, transform: transform))
     }
 
     public func commitDraw() {
-//        self.currentDrawContext?.commitContext()
+        self.commandQueue.push(.commit)
     }
 
     func flush() {
@@ -180,5 +189,57 @@ extension Rect {
             rotation: .identity,
             scale: [self.size.width, self.size.height, 1]
         )
+    }
+}
+
+extension UIGraphicsContext {
+    final class CommandQueue {
+        var commands: Deque<DrawCommand> = []
+
+        func push(_ command: DrawCommand) {
+            self.commands.append(command)
+        }
+    }
+
+    enum DrawCommand {
+        case setLineWidth(Float)
+        case drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color)
+
+        case drawQuad(transform: Transform3D, texture: Texture2D? = nil, color: Color)
+        case drawCircle(
+            transform: Transform3D,
+            thickness: Float,
+            fade: Float,
+            color: Color
+        )
+        case drawPath(Path)
+
+        case drawText(textLayout: TextLayoutManager, transform: Transform3D)
+        case drawGlyph(_ glyph: Glyph, transform: Transform3D)
+        case commit
+    }
+}
+
+extension UIGraphicsContext.DrawCommand {
+    static func drawQuad(position: Vector3, size: Vector2, texture: Texture2D?, color: Color) -> Self {
+        let transform = Transform3D(translation: position) * Transform3D(scale: Vector3(size, 1))
+        return .drawQuad(transform: transform, texture: texture, color: color)
+    }
+
+    static func drawCircle(
+        position: Vector3,
+        rotation: Vector3,
+        radius: Float,
+        thickness: Float,
+        fade: Float,
+        color: Color
+    ) -> Self {
+        let transform = Transform3D(translation: position)
+        * Transform3D(quat: Quat(axis: [1, 0, 0], angle: rotation.x))
+        * Transform3D(quat: Quat(axis: [0, 1, 0], angle: rotation.y))
+        * Transform3D(quat: Quat(axis: [0, 0, 1], angle: rotation.z))
+        * Transform3D(scale: Vector3(radius))
+
+        return .drawCircle(transform: transform, thickness: thickness, fade: fade, color: color)
     }
 }
