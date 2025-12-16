@@ -351,7 +351,7 @@ public final class TextLayoutManager: @unchecked Sendable {
     // swiftlint:enable function_body_length
 }
 
-public struct Glyph: Equatable {
+public struct Glyph: Sendable, Equatable {
     public let textureAtlas: Texture2D
 
     /// Coordinates of texturue [x: l, y: b, z: r, w: t]

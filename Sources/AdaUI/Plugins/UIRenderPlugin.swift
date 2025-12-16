@@ -11,6 +11,9 @@ import AdaRender
 import AdaUtils
 
 public struct UIRenderPlugin: Plugin {
+
+    public init() {}
+
     public func setup(in app: borrowing AdaApp.AppWorlds) {
         app.main.registerRequiredComponent(
             RenderItems<UIRenderItem>.self,
@@ -24,7 +27,7 @@ public struct UIRenderPlugin: Plugin {
         renderWorld.insertResource(ExtractedUIComponents())
         let renderGraph = renderWorld.getRefResource(RenderGraph.self)
         renderGraph.wrappedValue.addNode(UIRenderNode())
-        renderGraph.wrappedValue.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
+//        renderGraph.wrappedValue.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
         renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
         renderWorld.addSystem(UIRenderPreparingSystem.self, on: .prepare)
     }
@@ -35,14 +38,13 @@ public func UIRenderPreparing(
     _ cameras: Query<Camera>,
     _ uiComponents: Res<ExtractedUIComponents>,
 ) async {
-    await cameras.forEach { camera in
-        for component in uiComponents.components {
-            var context = await UIGraphicsContext(camera: camera)
-            await component.view.draw(with: context)
+    await uiComponents.components.forEach { component in
+        let context = UIGraphicsContext()
+        await component.view.draw(with: context)
+        print(context.commandQueue.commands.count)
 
-            // 1. store context and than render
-            // 2. render context by command in render graph
-        }
+        // 1. store context and than render
+        // 2. render context by command in render graph
     }
 }
 
@@ -51,7 +53,7 @@ public struct UIRenderDrawSystem {
     public init(world: World) { }
 
     public func update(context: UpdateContext) async {
-        
+
     }
 }
 
@@ -64,10 +66,16 @@ public func ExtractUIComponents(
     _ uiComponents: Extract<
         Query<UIComponent>
     >,
+    _ pendingViews: Extract<
+        Res<UIDrawPendingViews>
+    >,
     _ extractedUIComponents: ResMut<ExtractedUIComponents>
 ) {
     extractedUIComponents.components.removeAll(keepingCapacity: true)
 
+    pendingViews().views.forEach {
+        extractedUIComponents.components.append(UIComponent(view: $0, behaviour: .default))
+    }
     uiComponents().forEach {
         extractedUIComponents.components.append($0)
     }

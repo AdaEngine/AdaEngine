@@ -7,7 +7,7 @@
 
 import Math
 
-public struct Path {
+public struct Path: Sendable {
 
     private var elements: [Element] = []
 
@@ -19,7 +19,7 @@ public struct Path {
         fatalError()
     }
 
-    public enum Element: Equatable {
+    public enum Element: Sendable, Equatable {
         case move(to: Vector2)
 
         case line(to: Vector2)
