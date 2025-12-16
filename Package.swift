@@ -961,7 +961,10 @@ let examplesTargets: [Target] = [
 
     // MARK: UI
     .exampleTarget(name: "UITestSceneExample", path: "UI"),
-    .exampleTarget(name: "AnimatedTextRendererExample", path: "UI")
+    .exampleTarget(name: "AnimatedTextRendererExample", path: "UI"),
+
+    // MARK: Example
+    .exampleTarget(name: "SimpleCollideEventExample", path: "Events")
 ]
 
 package.targets.append(contentsOf: examplesTargets)

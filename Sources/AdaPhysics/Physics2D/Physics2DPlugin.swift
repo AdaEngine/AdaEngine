@@ -8,6 +8,7 @@
 import AdaApp
 import AdaECS
 import AdaRender
+import AdaUtils
 import Math
 
 /// Setup 2D physics to the scene.
@@ -25,8 +26,13 @@ public struct Physics2DPlugin: Plugin {
         Collision2DComponent.registerComponent()
         
         app
-            .insertResource(Physics2DWorldComponent(world: PhysicsWorld2D(gravity: gravity)))
+            .insertResource(
+                Physics2DWorldComponent(
+                    world: PhysicsWorld2D(gravity: gravity)
+                )
+            )
             .addSystem(Physics2DSystem.self, on: .fixedUpdate)
+            .addSystem(PhysicsEventProxySystem.self, on: .startup)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -49,4 +55,21 @@ public extension World {
     var physicsWorld2D: PhysicsWorld2D? {
         return self.getResource(Physics2DWorldComponent.self)?.world
     }
+}
+
+@System
+func PhysicsEventProxy(
+    _ collisionBeganSender: EventsSender<CollisionEvents.Began>,
+    _ collisionEndSender: EventsSender<CollisionEvents.Ended>,
+    _ eventDisposeBag: Local<Set<AnyCancellable>> = .init([])
+) {
+    EventManager.default.subscribe(to: CollisionEvents.Began.self) { event in
+        collisionBeganSender(event)
+    }
+    .store(in: &eventDisposeBag.wrappedValue)
+
+    EventManager.default.subscribe(to: CollisionEvents.Ended.self) { event in
+        collisionEndSender(event)
+    }
+    .store(in: &eventDisposeBag.wrappedValue)
 }

@@ -10,9 +10,8 @@ import AdaEngine
 @main
 struct SnowmanAttacksApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 SnowmanAttacks()
             )
             .windowMode(.windowed)
@@ -21,17 +20,40 @@ struct SnowmanAttacksApp: App {
 
 @MainActor
 struct SnowmanAttacks: Plugin {
+
+    func setup(in app: borrowing AppWorlds) {
+        app.addSystem(SetupSceneSystem.self, on: .startup)
+            .addSystem(MovementSystem.self)
+            .addSystem(FireSystem.self)
+            .addSystem(BulletSystem.self)
+            .addSystem(EnemySpawnerSystem.self)
+            .addSystem(EnemyMovementSystem.self)
+            .addSystem(EnemyLifetimeSystem.self)
+            .addSystem(EnemyExplosionSystem.self)
+            .addSystem(OnCollideSystem.self, on: .postUpdate)
+            .addSystem(ScoreSystem.self)
+    }
+}
+
+@PlainSystem
+struct SetupSceneSystem {
+
     @Local var disposeBag: Set<AnyCancellable> = []
     @Local var characterAtlas: TextureAtlas!
 
-    func setup(in app: borrowing AppWorlds) {
-        let sound = try! AssetsManager.loadSync(
+    @Commands
+    private var commands
+
+    init(world: World) { }
+
+    func update(context: UpdateContext) async {
+        let sound = try! await AssetsManager.load(
             AudioResource.self,
             at: "Resources/WindlessSlopes.wav",
             from: Bundle.module
         ).asset
 
-        let charactersTiles = try! AssetsManager.loadSync(
+        let charactersTiles = try! await AssetsManager.load(
             Image.self,
             at: "Resources/characters_packed.png",
             from: Bundle.module
@@ -48,46 +70,50 @@ struct SnowmanAttacks: Plugin {
         camera.backgroundColor = .black
         camera.orthographicScale = 1.5
 
-        try! self.makePlayer(in: app)
-        try! self.makeScore(in: app)
+        try! self.makePlayer()
+        try! self.makeScore()
 
-        let entity = app.main.spawn(bundle: Camera2D(camera: camera))
-        entity.prepareAudio(sound!)
+        let entity = context.world.spawn(bundle: Camera2D(camera: camera))
+        await entity.prepareAudio(sound!)
             .setLoop(true)
             .setVolume(0.6)
             .play()
 
-        app.main.subscribe(to: CollisionEvents.Began.self) { event in
-            if let bullet = event.entityB.components[Bullet.self],
-                var enemy = event.entityA.components[EnemyComponent.self]
-            {
-                enemy.health -= bullet.damage
-
-                event.entityA.components += enemy
-                event.entityB.removeFromWorld()
-            }
-        }
-        .store(in: &self.disposeBag)
-
-        app.main.subscribe(to: SceneEvents.OnReady.self) { event in
+        context.world.subscribe(to: SceneEvents.OnReady.self) { event in
             Task { @MainActor in
                 event.scene.world.physicsWorld2D?.gravity = .zero
             }
         }.store(in: &self.disposeBag)
 
-        app.main.addSystem(MovementSystem.self)
-        app.main.addSystem(FireSystem.self)
-        app.main.addSystem(BulletSystem.self)
-        app.main.addSystem(EnemySpawnerSystem.self)
-        app.main.addSystem(EnemyMovementSystem.self)
-        app.main.addSystem(EnemyLifetimeSystem.self)
-        app.main.addSystem(EnemyExplosionSystem.self)
+        do {
+            let image = try await AssetsManager.load(
+                Image.self,
+                at: "Resources/explosion.png",
+                from: .module
+            ).asset!
+            let explosionAtlas = TextureAtlas(from: image, size: SizeInt(width: 32, height: 32))
 
-        app.main.addSystem(ScoreSystem.self)
+            let explosionAudio = try await AssetsManager.load(
+                AudioResource.self,
+                at: "Resources/explosion-1.wav",
+                from: .module
+            ).asset!
+
+            let laserAudio = try await AssetsManager.load(
+                AudioResource.self,
+                at: "Resources/laserShoot.wav",
+                from: .module
+            ).asset!
+
+            commands.insertResource(ExplosionResources(texture: explosionAtlas, audio: explosionAudio))
+            commands.insertResource(LaserResource(audio: laserAudio))
+        } catch {
+            fatalError("Can't load assets \(error)")
+        }
     }
 
-    private func makePlayer(in app: borrowing AppWorlds) throws {
-        app.main.spawn {
+    private func makePlayer() throws {
+        commands.spawn {
             Transform(position: [0, 0, 0])
             PlayerComponent()
             Sprite(
@@ -97,18 +123,18 @@ struct SnowmanAttacks: Plugin {
         }
     }
 
-    private func makeScore(in app: borrowing AppWorlds) throws {
+    private func makeScore() throws {
         var container = TextAttributeContainer()
         container.foregroundColor = .white
         let attributedText = AttributedText("Score: 0", attributes: container)
 
-        app.main.spawn("Score") {
+        commands.spawn("Score") {
             TextComponent(text: attributedText)
             Transform(position: [-0.2, -0.9, 0])
             NoFrustumCulling()
         }
 
-        app.insertResource(GameState())
+        commands.insertResource(GameState())
     }
 }
 
@@ -145,6 +171,23 @@ extension CollisionGroup {
 struct ExplosionComponent { }
 
 @System
+func OnCollide(
+    _ commands: Commands,
+    _ events: Events<CollisionEvents.Began>
+) {
+    for event in events {
+        if let bullet = event.entityB.components[Bullet.self],
+            var enemy = event.entityA.components[EnemyComponent.self]
+        {
+            enemy.health -= bullet.damage
+
+            event.entityA.components += enemy
+            commands.entity(event.entityB.id).removeFromWorld()
+        }
+    }
+}
+
+@System
 func Movement(
     _ cameras: Query<GlobalTransform, Camera>,
     _ players: FilterQuery<Ref<Transform>, With<PlayerComponent>>,
@@ -166,6 +209,10 @@ func Movement(
     }
 }
 
+struct LaserResource: Resource {
+    let audio: AudioResource
+}
+
 @PlainSystem
 struct FireSystem {
 
@@ -175,7 +222,8 @@ struct FireSystem {
     @Local
     private var fixedTime = FixedTimestep(stepsPerSecond: 12)
 
-    let laserAudio: AudioResource
+    @Res<LaserResource>
+    private var laserAudio
 
     @Res<DeltaTime>
     private var deltaTime
@@ -187,11 +235,6 @@ struct FireSystem {
     private var commands
 
     init(world: World) {
-        self.laserAudio = try! AssetsManager.loadSync(
-            AudioResource.self,
-            at: "Resources/laserShoot.wav",
-            from: .module
-        ).asset
     }
 
     func update(context: UpdateContext) async {
@@ -201,7 +244,7 @@ struct FireSystem {
                 let result = fixedTime.advance(with: deltaTime.deltaTime)
 
                 if result.isFixedTick {
-                    let controller = await entity.prepareAudio(self.laserAudio)
+                    let controller = await entity.prepareAudio(self.laserAudio.audio)
 
                     if controller.isPlaying {
                         controller.stop()
@@ -378,30 +421,18 @@ struct EnemyMovementSystem {
     }
 }
 
+struct ExplosionResources: Resource {
+    let texture: TextureAtlas
+    let audio: AudioResource
+}
+
 @PlainSystem
 struct EnemyExplosionSystem {
 
-    let exposionAtlas: TextureAtlas
-    let explosionAudio: AudioResource
+    @Res<ExplosionResources>
+    private var exposionResources
 
-    init(world: World) {
-        do {
-            let image = try AssetsManager.loadSync(
-                Image.self,
-                at: "Resources/explosion.png",
-                from: .module
-            ).asset!
-            self.exposionAtlas = TextureAtlas(from: image, size: SizeInt(width: 32, height: 32))
-
-            self.explosionAudio = try AssetsManager.loadSync(
-                AudioResource.self,
-                at: "Resources/explosion-1.wav",
-                from: .module
-            ).asset!
-        } catch {
-            fatalError("Can't load assets \(error)")
-        }
-    }
+    init(world: World) { }
 
     @Query<Entity, EnemyComponent, Transform>
     private var enemies
@@ -425,12 +456,12 @@ struct EnemyExplosionSystem {
                 texture.framesPerSecond = 6
                 texture.framesCount = 6
                 texture.options = []
-                texture[0] = self.exposionAtlas[0, 0]
-                texture[1] = self.exposionAtlas[1, 0]
-                texture[2] = self.exposionAtlas[2, 0]
-                texture[3] = self.exposionAtlas[3, 0]
-                texture[4] = self.exposionAtlas[4, 0]
-                texture[5] = self.exposionAtlas[5, 0]
+                texture[0] = self.exposionResources.texture[0, 0]
+                texture[1] = self.exposionResources.texture[1, 0]
+                texture[2] = self.exposionResources.texture[2, 0]
+                texture[3] = self.exposionResources.texture[3, 0]
+                texture[4] = self.exposionResources.texture[4, 0]
+                texture[5] = self.exposionResources.texture[5, 0]
 
                 let explosion = context.world.spawn {
                     Sprite(
@@ -440,7 +471,7 @@ struct EnemyExplosionSystem {
                     transform
                     ExplosionComponent()
                 }
-                let controller = await explosion.prepareAudio(self.explosionAudio)
+                let controller = await explosion.prepareAudio(self.exposionResources.audio)
                 controller.volume = 0.4
                 controller.play()
                 commands.entity(entity.id).removeFromWorld()
