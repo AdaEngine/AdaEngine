@@ -24,6 +24,7 @@ public struct UIRenderPlugin: Plugin {
         renderWorld.insertResource(ExtractedUIComponents())
         let renderGraph = renderWorld.getRefResource(RenderGraph.self)
         renderGraph.wrappedValue.addNode(UIRenderNode())
+        renderGraph.wrappedValue.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
         renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
     }
 }
