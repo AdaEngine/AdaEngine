@@ -26,6 +26,7 @@ public struct UIRenderPlugin: Plugin {
         renderGraph.wrappedValue.addNode(UIRenderNode())
         renderGraph.wrappedValue.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
         renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
+        renderWorld.addSystem(UIRenderPreparingSystem.self, on: .prepare)
     }
 }
 
@@ -42,6 +43,15 @@ public func UIRenderPreparing(
             // 1. store context and than render
             // 2. render context by command in render graph
         }
+    }
+}
+
+@PlainSystem
+public struct UIRenderDrawSystem {
+    public init(world: World) { }
+
+    public func update(context: UpdateContext) async {
+        
     }
 }
 
