@@ -73,8 +73,9 @@ public final class World: @unchecked Sendable, Codable {
     private var removedComponents: [Entity.ID: Set<ComponentId>] = [:]
 
     private var componentsStorage = ComponentsStorage()
-    private var resources = Resources()
     public var commandQueue: WorldCommandQueue = WorldCommandQueue()
+
+    var resources = Resources()
 
     public private(set) var eventManager: EventManager = EventManager.default
 
@@ -461,6 +462,25 @@ public extension World {
         let resource = type.init(from: self)
         resources.insertResource(resource, tick: lastTick)
         return resource
+    }
+
+    /// Get a or create resource from the world and returns ref.
+    /// - Parameter resource: The resource to get.
+    /// - Complexity: O(1)
+    /// - Returns: The resource if it exists, otherwise nil.
+    func getOrInitRefResource<T: Resource>(_ resource: T.Type, constructor: () -> T) -> Ref<T> {
+        if !self.resources.contains(T.self) {
+            self.insertResource(constructor())
+        }
+        let resource = self.resources.getResourceData(T.self)?.getWithTick(T.self)
+        return unsafe Ref(
+            pointer: resource?.pointer,
+            changeTick: .init(
+                change: resource?.changedTick,
+                lastTick: lastTick,
+                currentTick: lastTick
+            )
+        )
     }
 
     /// Get a resource from the world.

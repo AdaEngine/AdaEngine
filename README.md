@@ -51,8 +51,7 @@ import AdaEngine
 @main
 struct AdaEditorApp: App {
     var scene: some AppScene {
-        EmptyWindow()
-            .insertPlugin(DefaultPlugins())
+        DefaultAppWindow()
             .windowMode(.windowed)
             .windowTitle("AdaEngine")
     }

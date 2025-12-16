@@ -105,6 +105,13 @@ extension World {
             return resource.pointer.get(at: 0, as: T.self)
         }
 
+        func contains<T: Resource>(_ type: T.Type) -> Bool {
+            if let componentId = self.resourceIds[T.identifier] {
+                return self.resourceData.contains(componentId)
+            }
+            return false
+        }
+
         func getResources() -> Array<any Resource> {
             self.resourceData.map { $0.erasedResource }
         }
@@ -132,6 +139,14 @@ extension World {
             let id = ComponentId(id: resources.count)
             self.resources.append(id)
             return id
+        }
+
+        func getResourceId<T: Resource>(for type: T.Type) -> ComponentId? {
+            self.resourceIds[ObjectIdentifier(type)]
+        }
+
+        func getPointer(for resourceId: ComponentId) -> UnsafeMutableRawPointer? {
+            unsafe self.resourceData[resourceId]?.pointer.buffer.pointer.baseAddress
         }
 
         mutating func registerResource<T: Resource>(
