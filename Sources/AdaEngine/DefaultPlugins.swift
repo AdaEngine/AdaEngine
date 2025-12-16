@@ -40,6 +40,7 @@ public struct DefaultPlugins: Plugin {
         insertPlugin(ScenePlugin(), into: &plugins)
         insertPlugin(AudioPlugin(), into: &plugins)
         insertPlugin(UIPlugin(), into: &plugins)
+        insertPlugin(UIRenderPlugin(), into: &plugins)
         insertPlugin(WindowPlugin(), into: &plugins)
         insertPlugin(EventsPlugin(), into: &plugins)
         insertPlugin(Physics2DPlugin(), into: &plugins)

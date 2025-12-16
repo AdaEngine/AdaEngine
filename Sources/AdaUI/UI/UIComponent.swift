@@ -30,4 +30,9 @@ public struct UIComponent: Sendable {
         self.view.backgroundColor = .clear
         self.behaviour = behaviour
     }
+
+    public init(view: UIView, behaviour: Behaviour) {
+        self.view = view
+        self.behaviour = behaviour
+    }
 }

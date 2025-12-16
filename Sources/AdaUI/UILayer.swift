@@ -57,6 +57,7 @@ class UILayer {
 }
 
 extension UIGraphicsContext {
+    @MainActor
     func createLayer(from layer: UILayer, drawBlock: (inout UIGraphicsContext) -> Void) -> RenderTexture {
         let renderTexture = RenderTexture(
             size: SizeInt(width: Int(layer.frame.size.width) , height: Int(layer.frame.size.width)),

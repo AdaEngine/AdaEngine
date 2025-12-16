@@ -98,6 +98,6 @@ func UpdateWindowManager(
     }
 }
 
-struct UIDrawPendingViews: Resource {
-    var views: [UIView]
+public struct UIDrawPendingViews: Resource {
+    public var views: [UIView]
 }

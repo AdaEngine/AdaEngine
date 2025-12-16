@@ -16,10 +16,7 @@ import Collections
 
 /// Special object to render user interface on the screen.
 /// Context use orthogonal projection.
-@MainActor
-public struct UIGraphicsContext {
-
-    private let camera: Camera
+public struct UIGraphicsContext: Sendable {
 
     /// Returns current transform.
     public private(set) var transform: Transform3D = .identity
@@ -35,15 +32,15 @@ public struct UIGraphicsContext {
 
     private(set) var commandQueue = CommandQueue()
 
-    public init(camera: Camera) {
-        self.camera = camera
+    public init() {
+
     }
     
-    public init(texture: RenderTexture, renderDevice: RenderDevice) {
+    public init(texture: RenderTexture) {
         var camera = Camera(renderTarget: texture)
-        camera.isActive = true
-        camera.projection = .orthographic
-        self.camera = camera
+//        camera.isActive = true
+//        camera.projection = .orthographic
+//        self.camera = camera
     }
     
     public mutating func beginDraw(in size: Size, scaleFactor: Float) {
@@ -193,15 +190,18 @@ extension Rect {
 }
 
 extension UIGraphicsContext {
-    final class CommandQueue {
+    final class CommandQueue: @unchecked Sendable {
         var commands: Deque<DrawCommand> = []
 
+        // We expected, that draw commands will be added only on main thread
         func push(_ command: DrawCommand) {
-            self.commands.append(command)
+            MainActor.assumeIsolated { [command] in
+                self.commands.append(command)
+            }
         }
     }
 
-    enum DrawCommand {
+    enum DrawCommand: Sendable {
         case setLineWidth(Float)
         case drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color)
 

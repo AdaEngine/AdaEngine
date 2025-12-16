@@ -18,6 +18,7 @@ public struct WindowGroup<Content: View>: AppScene {
                 appWorld.insertResource(
                     InitialContainerView(view: UIContainerView(rootView: self.content))
                 )
+                appWorld.addSystem(WindowGroupUpdateSystem.self, on: .startup)
             }
     }
 
@@ -38,21 +39,10 @@ struct InitialContainerView: Resource {
 @MainActor
 func WindowGroupUpdate(
     _ context: WorldUpdateContext,
-    _ isAllocated: Local<Bool> = false
+    _ primaryWindow: ResMut<PrimaryWindow>,
+    _ containerView: Res<InitialContainerView>
 ) {
-    if isAllocated.wrappedValue {
-        return
-    }
-    guard
-        let resource = context.world.getResource(PrimaryWindow.self),
-        let containerView = context.world.getResource(InitialContainerView.self)
-    else {
-        return
-    }
-
     let view = containerView.view
     view.autoresizingRules = [.flexibleWidth, .flexibleHeight]
-    resource.window.addSubview(view)
-
-    isAllocated.wrappedValue = true
+    primaryWindow.wrappedValue.window.addSubview(view)
 }
