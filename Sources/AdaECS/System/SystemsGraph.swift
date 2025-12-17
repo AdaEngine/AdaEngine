@@ -36,7 +36,10 @@ public struct SystemsGraph: Sendable {
         
         /// The dependencies of the node.
         var dependencies: [SystemDependency]
-        
+
+        /// The queries
+        var queries: SystemQueries
+
         /// The input edges of the node.
         var inputEdges: [Edge] = []
         
@@ -44,13 +47,8 @@ public struct SystemsGraph: Sendable {
         var outputEdges: [Edge] = []
     }
     
-    /// The systems of the graph.
-    var systems: [System] {
-        self.nodes.values.elements.map { $0.system }
-    }
-    
     /// The nodes of the graph.
-    private(set) var nodes: OrderedDictionary<String, Node> = [:]
+    private(set) var nodes: SparseSet<String, Node> = [:]
 
     /// Initialize a new systems graph.
     public init() { }
@@ -61,7 +59,12 @@ public struct SystemsGraph: Sendable {
     /// - Note: Systems will be added with nodes without edges.
     /// - Parameter system: The system to add.
     mutating func addSystem<T: System>(_ system: T) {
-        let node = Node(name: T.swiftName, system: system, dependencies: T.dependencies)
+        let node = Node(
+            name: T.swiftName,
+            system: system,
+            dependencies: T.dependencies,
+            queries: system.queries
+        )
         self.nodes[node.name] = node
         self.isChanged = true
     }
@@ -74,7 +77,7 @@ public struct SystemsGraph: Sendable {
             return
         }
         #endif
-        for node in nodes.values {
+        for node in nodes {
             let systemName = node.name
             for dependency in node.dependencies {
                 switch dependency {
@@ -181,7 +184,7 @@ extension SystemsGraph {
     /// The debug description of the systems graph.
     public var debugDescription: String {
         var string = ""
-        for node in nodes.values.elements {
+        for node in nodes {
             string += "\(node.name)\n"
             
             string += " in: \n"
@@ -201,7 +204,7 @@ extension SystemsGraph {
     /// The visualize description of the systems graph.
     public var visualizeDescription: String {
         var string = ""
-        for node in nodes.values.elements {
+        for node in nodes {
             for outputNode in getOuputNodes(for: node.name) {
                 string += "\(node.name) --> \(outputNode.name)\n"
             }

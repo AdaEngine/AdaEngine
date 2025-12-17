@@ -219,7 +219,7 @@ public struct Scheduler: Sendable {
     public var systemGraph: SystemsGraph = SystemsGraph()
 
     /// The graph executor of the scheduler.
-    var graphExecutor: any SystemsGraphExecutor = SingleThreadedSystemsGraphExecutor()
+    public var graphExecutor: any SystemsGraphExecutor = SingleThreadedSystemsGraphExecutor()
 
     /// The last update time of the scheduler.
     @LocalIsolated private var lastUpdate: LongTimeInterval = 0

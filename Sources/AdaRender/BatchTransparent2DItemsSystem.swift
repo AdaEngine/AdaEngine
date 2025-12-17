@@ -17,10 +17,9 @@ public struct SortedRenderItems<T: RenderItem>: Resource {
 
 /// Batch transparent items which contains batchEntity.
 /// Run each frame before drawing.
-@PlainSystem
-public struct BatchAndSortItemsSystem<T: RenderItem> {
+public struct BatchAndSortItemsSystem<T: RenderItem>: System {
 
-    @Query<Ref<RenderItems<T>>>
+    @Query<RenderItems<T>>
     private var query
 
     @ResMut<SortedRenderItems<T>>
@@ -28,10 +27,10 @@ public struct BatchAndSortItemsSystem<T: RenderItem> {
 
     public init(world: World) { }
 
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
         sortedRenderItems.items.removeAll(keepingCapacity: true)
         self.query.forEach { renderItems in
-            let items = renderItems.wrappedValue.sorted().items
+            let items = renderItems.sorted().items
             var batchedItems: [T] = []
             batchedItems.reserveCapacity(items.count)
             
@@ -70,5 +69,9 @@ public struct BatchAndSortItemsSystem<T: RenderItem> {
         }
         
         return true
+    }
+
+    public var queries: SystemQueries {
+        return SystemQueries(queries: [_query, _sortedRenderItems])
     }
 }

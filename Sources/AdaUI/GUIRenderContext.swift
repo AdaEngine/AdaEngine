@@ -191,7 +191,7 @@ extension Rect {
 
 extension UIGraphicsContext {
     final class CommandQueue: @unchecked Sendable {
-        var commands: Deque<DrawCommand> = []
+        var commands: [DrawCommand] = []
 
         // We expected, that draw commands will be added only on main thread
         func push(_ command: DrawCommand) {

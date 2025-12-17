@@ -10,7 +10,13 @@ import AdaECS
 import AdaUtils
 import Math
 
+/// A scene that presents a group of identically structured windows.
 public struct WindowGroup<Content: View>: AppScene {
+    /// Content view
+    let content: Content
+
+    /// The file path to use for the `AssetsPlugin`.
+    let filePath: StaticString
 
     public var body: some AppScene {
         EmptyWindow()
@@ -20,11 +26,12 @@ public struct WindowGroup<Content: View>: AppScene {
                 )
                 appWorld.addSystem(WindowGroupUpdateSystem.self, on: .startup)
             }
+            .addPlugins(DefaultPlugins())
     }
 
-    let content: Content
-    let filePath: StaticString
-    
+    /// Creates a window group.
+    /// - Parameter contentView: A closure that creates the content for each instance of the group.
+    /// - Parameter filePath: The file path to use for the `AssetsPlugin`.
     public init(@ViewBuilder content: () -> Content, filePath: StaticString = #filePath) {
         self.content = content()
         self.filePath = filePath
