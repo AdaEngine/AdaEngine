@@ -13,7 +13,6 @@ struct UITestSceneApp: App {
         WindowGroup {
             SomeContent()
         }
-        .addPlugins(DefaultPlugins())
         .windowMode(.windowed)
     }
 }

@@ -34,13 +34,14 @@ public struct UIRenderPlugin: Plugin {
 }
 
 @System
+@MainActor
 public func UIRenderPreparing(
     _ cameras: Query<Camera>,
     _ uiComponents: Res<ExtractedUIComponents>,
 ) async {
-    await uiComponents.components.forEach { component in
+    uiComponents.components.forEach { component in
         let context = UIGraphicsContext()
-        await component.view.draw(with: context)
+        component.view.draw(with: context)
         print(context.commandQueue.commands.count)
 
         // 1. store context and than render
