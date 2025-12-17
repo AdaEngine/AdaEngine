@@ -6,7 +6,8 @@
 import AdaUtils
 import Collections
 
-protocol SystemsGraphExecutor: Sendable {
+/// Protocol that responsible to execute graph of systems.
+public protocol SystemsGraphExecutor: Sendable {
 
     mutating func initialize(_ graph: borrowing SystemsGraph)
 

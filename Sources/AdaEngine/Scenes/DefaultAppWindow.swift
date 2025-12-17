@@ -7,9 +7,10 @@
 
 import AdaApp
 
-/// Create an empty window with attached ``DefaultPlugins``.
+/// Create an empty window scene with attached ``DefaultPlugins``.
 public struct DefaultAppWindow: AppScene {
 
+    /// The file path to use for the `AssetsPlugin`.
     let filePath: StaticString
 
     public var body: some AppScene {
@@ -17,6 +18,7 @@ public struct DefaultAppWindow: AppScene {
             .addPlugins(DefaultPlugins(filePath: filePath))
     }
 
+    /// - Parameter filePath: The file path to use for the `AssetsPlugin`.
     public init(filePath: StaticString = #filePath) {
         self.filePath = filePath
     }

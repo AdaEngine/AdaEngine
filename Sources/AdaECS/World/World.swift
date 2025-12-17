@@ -209,8 +209,9 @@ public extension World {
     /// Add a system to a specific scheduler.
     @discardableResult
     func addSystem<T: System>(_ systemType: T.Type, on scheduler: SchedulerName) -> Self {
+        let system = systemType.init(world: self)
         self.schedulers.addSystem(
-            systemType.init(world: self),
+            system,
             for: scheduler
         )
         return self

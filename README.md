@@ -77,9 +77,9 @@ Currently we use Bazel and Swift Package Manager as build tools.
 
 #### Swift Package Manager
 
-Use Xcode 16.3 or Visual Studio Code with the [Swift VSCode Extension](https://www.swift.org/blog/vscode-extension/) and then open `Package.swift` file from the root directory. 
+Use Xcode 26.2 or Visual Studio Code with the [Swift VSCode Extension](https://www.swift.org/blog/vscode-extension/) and then open `Package.swift` file from the root directory. 
 
-#### Bazel (In Early Development)
+#### Bazel (DOESN'T WORK. In Early Development)
 
 Bazel optional build system for project. To build project for development download [Bazelisk](https://github.com/bazelbuild/bazelisk). To generate xcproject, use `bazel run generate_xcproj` command in terminal. 
 
