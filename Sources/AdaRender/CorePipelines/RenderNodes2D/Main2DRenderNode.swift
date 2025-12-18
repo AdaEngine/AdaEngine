@@ -13,7 +13,7 @@ public struct Main2DRenderNode: RenderNode {
 
     /// Input slots of render node.
     public enum InputNode {
-        public static let view = "view"
+        public static let view: RenderSlot.Label = "view"
     }
 
     @Query<

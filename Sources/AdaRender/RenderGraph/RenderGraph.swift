@@ -27,20 +27,20 @@ public struct RenderContext: @unchecked Sendable {
 }
 
 public struct RenderSlot: Sendable {
-    public let name: String
+    public let name: RenderSlot.Label
     public let kind: RenderResourceKind
 
-    public init(name: String, kind: RenderResourceKind) {
+    public init(name: RenderSlot.Label, kind: RenderResourceKind) {
         self.name = name
         self.kind = kind
     }
 }
 
 public struct RenderSlotValue: Sendable {
-    public let name: String
+    public let name: RenderSlot.Label
     public let value: RenderResource
 
-    public init(name: String, value: RenderResource) {
+    public init(name: RenderSlot.Label, value: RenderResource) {
         self.name = name
         self.value = value
     }
@@ -66,6 +66,37 @@ struct GraphEntryNode: RenderNode {
     
     func execute(context: inout Context, renderContext: RenderContext) -> [RenderSlotValue] {
         return context.inputResources
+    }
+}
+
+public struct RenderNodeLabel: RawRepresentable, Hashable, Sendable {
+    public let rawValue: String
+
+    public init(rawValue: String) {
+        self.rawValue = rawValue
+    }
+}
+
+extension RenderNodeLabel: ExpressibleByStringLiteral {
+    public init(stringLiteral value: StringLiteralType) {
+        self.rawValue = value
+    }
+}
+
+public extension RenderSlot {
+    struct Label: RawRepresentable, Hashable, Sendable {
+        public let rawValue: String
+
+        public init(rawValue: String) {
+            self.rawValue = rawValue
+        }
+    }
+}
+
+
+extension RenderSlot.Label: ExpressibleByStringLiteral {
+    public init(stringLiteral value: StringLiteralType) {
+        self.rawValue = value
     }
 }
 
@@ -95,13 +126,21 @@ public struct RunGraphNode: RenderNode {
 ///
 public struct RenderGraph: Resource {
 
-    static let entryNodeName: String = "_GraphEntryNode"
-    
+    static let entryNodeName: RenderNodeLabel = "_GraphEntryNode"
+
     enum Edge: Equatable, Hashable {
-        case slot(outputNode: String, outputSlotIndex: Int, inputNode: String, inputSlotIndex: Int)
-        case node(outputNode: String, inputNode: String)
-        
-        var inputNode: String {
+        case slot(
+            outputNode: RenderNodeLabel,
+            outputSlotIndex: Int,
+            inputNode: RenderNodeLabel,
+            inputSlotIndex: Int
+        )
+        case node(
+            outputNode: RenderNodeLabel,
+            inputNode: RenderNodeLabel
+        )
+
+        var inputNode: RenderNodeLabel {
             switch self {
             case let .node(_, inputNode):
                 return inputNode
@@ -110,7 +149,7 @@ public struct RenderGraph: Resource {
             }
         }
         
-        var outputNode: String {
+        var outputNode: RenderNodeLabel {
             switch self {
             case let .node(outputNode, _):
                 return outputNode
@@ -121,9 +160,9 @@ public struct RenderGraph: Resource {
     }
     
     struct Node: Sendable {
-        typealias ID = String
-        
-        let name: String
+        typealias ID = RenderNodeLabel
+
+        let name: RenderNodeLabel
         let node: RenderNode
         
         var inputEdges: [Edge] = []
@@ -133,7 +172,7 @@ public struct RenderGraph: Resource {
     let label: String?
     private let logger: Logger
 
-    internal private(set) var nodes: [Node.ID: Node] = [:]
+    internal private(set) var nodes: [RenderNodeLabel: Node] = [:]
     internal private(set) var subGraphs: [String: RenderGraph] = [:]
     
     internal private(set) var entryNode: Node?
@@ -154,7 +193,7 @@ public struct RenderGraph: Resource {
         }
     }
 
-    public mutating func addEntryNode(inputs: [RenderSlot]) -> String {
+    public mutating func addEntryNode(inputs: [RenderSlot]) -> RenderNodeLabel {
         let node = GraphEntryNode(inputResources: inputs)
         let renderNode = Node(name: Self.entryNodeName, node: node)
         self.nodes[Self.entryNodeName] = renderNode
@@ -168,16 +207,16 @@ public struct RenderGraph: Resource {
         self.addNode(node, by: T.name)
     }
 
-    public mutating func addNode(_ node: RenderNode, by name: String) {
+    public mutating func addNode(_ node: RenderNode, by name: RenderNodeLabel) {
         self.nodes[name] = Node(name: name, node: node)
     }
 
     @inline(__always)
     public mutating func addSlotEdge<From: RenderNode, To: RenderNode>(
         from: From.Type,
-        outputSlot: String,
+        outputSlot: RenderSlot.Label,
         to: To.Type,
-        inputSlot: String
+        inputSlot: RenderSlot.Label
     ) {
         self.addSlotEdge(
             fromNode: From.name,
@@ -188,15 +227,15 @@ public struct RenderGraph: Resource {
     }
 
     public mutating func addSlotEdge(
-        fromNode outputNodeName: String,
-        outputSlot: String,
-        toNode inputNodeName: String,
-        inputSlot: String
+        fromNode outputNode: RenderNodeLabel,
+        outputSlot: RenderSlot.Label,
+        toNode inputNode: RenderNodeLabel,
+        inputSlot: RenderSlot.Label
     ) {
-        let oNode = self.nodes[outputNodeName]
-        let iNode = self.nodes[inputNodeName]
-        assert(oNode != nil, "Can't find node by name \(outputNodeName)")
-        assert(iNode != nil, "Can't find node by name \(inputNodeName)")
+        let oNode = self.nodes[outputNode]
+        let iNode = self.nodes[inputNode]
+        assert(oNode != nil, "Can't find node by name \(outputNode)")
+        assert(iNode != nil, "Can't find node by name \(inputNode)")
         guard var iNode, var oNode else {
             return
         }
@@ -211,9 +250,9 @@ public struct RenderGraph: Resource {
         }
         
         let edge = Edge.slot(
-            outputNode: outputNodeName,
+            outputNode: outputNode,
             outputSlotIndex: outputSlotIndex,
-            inputNode: inputNodeName,
+            inputNode: inputNode,
             inputSlotIndex: inputSlotIndex
         )
 
@@ -224,8 +263,8 @@ public struct RenderGraph: Resource {
         oNode.outputEdges.append(edge)
         iNode.inputEdges.append(edge)
         
-        self.nodes[outputNodeName] = oNode
-        self.nodes[inputNodeName] = iNode
+        self.nodes[outputNode] = oNode
+        self.nodes[inputNode] = iNode
     }
 
     @inline(__always)
@@ -233,22 +272,22 @@ public struct RenderGraph: Resource {
         self.addNodeEdge(from: From.name, to: To.name)
     }
 
-    public mutating func addNodeEdge(from outputNodeName: String, to inputNodeName: String) {
-        let oNode = self.nodes[outputNodeName]
-        let iNode = self.nodes[inputNodeName]
-        assert(oNode != nil, "Can't find node by name \(outputNodeName)")
-        assert(iNode != nil, "Can't find node by name \(inputNodeName)")
+    public mutating func addNodeEdge(from outputNode: RenderNodeLabel, to inputNode: RenderNodeLabel) {
+        let oNode = self.nodes[outputNode]
+        let iNode = self.nodes[inputNode]
+        assert(oNode != nil, "Can't find node by name \(outputNode)")
+        assert(iNode != nil, "Can't find node by name \(inputNode)")
         guard var iNode, var oNode else {
             return
         }
         
-        let edge = Edge.node(outputNode: outputNodeName, inputNode: inputNodeName)
+        let edge = Edge.node(outputNode: outputNode, inputNode: inputNode)
         
         oNode.outputEdges.append(edge)
         iNode.inputEdges.append(edge)
         
-        self.nodes[outputNodeName] = oNode
-        self.nodes[inputNodeName] = iNode
+        self.nodes[outputNode] = oNode
+        self.nodes[inputNode] = iNode
     }
 
     @inline(__always)
@@ -256,7 +295,7 @@ public struct RenderGraph: Resource {
         self.removeNode(by: T.name)
     }
 
-    public mutating func removeNode(by name: String) -> Bool {
+    public mutating func removeNode(by name: RenderNodeLabel) -> Bool {
         guard let node = self.nodes.removeValue(forKey: name) else {
             // Node not exists
             return false
@@ -276,32 +315,32 @@ public struct RenderGraph: Resource {
     @inline(__always)
     public mutating func removeSlotEdge<From: RenderNode, To: RenderNode>(
         from: From.Type,
-        outputSlot: String,
+        outputSlot: RenderSlot.Label,
         to: To.Type,
-        inputSlot: String
+        inputSlot: RenderSlot.Label
     ) -> Bool {
         self.removeSlotEdge(fromNode: From.name, outputSlot: outputSlot, toNode: To.name, inputSlot: inputSlot)
     }
 
     public mutating func removeSlotEdge(
-        fromNode outputNodeName: String,
-        outputSlot: String,
-        toNode inputNodeName: String,
-        inputSlot: String
+        fromNode outputNode: RenderNodeLabel,
+        outputSlot: RenderSlot.Label,
+        toNode inputNode: RenderNodeLabel,
+        inputSlot: RenderSlot.Label
     ) -> Bool {
         guard
-            var oNode = self.nodes[outputNodeName],
-            var iNode = self.nodes[inputNodeName],
-            let outputSlotIndex = oNode.node.outputResources.firstIndex(where: { $0.name == outputNodeName }),
-            let inputSlotIndex = iNode.node.inputResources.firstIndex(where: { $0.name == inputNodeName })
+            var oNode = self.nodes[outputNode],
+            var iNode = self.nodes[inputNode],
+            let outputSlotIndex = oNode.node.outputResources.firstIndex(where: { $0.name.rawValue == outputNode.rawValue }),
+            let inputSlotIndex = iNode.node.inputResources.firstIndex(where: { $0.name.rawValue == inputNode.rawValue })
         else {
             return false
         }
         
         let edge = Edge.slot(
-            outputNode: outputNodeName,
+            outputNode: outputNode,
             outputSlotIndex: outputSlotIndex,
-            inputNode: inputNodeName,
+            inputNode: inputNode,
             inputSlotIndex: inputSlotIndex
         )
 
@@ -312,8 +351,8 @@ public struct RenderGraph: Resource {
         oNode.outputEdges.removeAll(where: { $0 == edge })
         iNode.inputEdges.removeAll(where: { $0 == edge })
         
-        self.nodes[outputNodeName] = oNode
-        self.nodes[inputNodeName] = iNode
+        self.nodes[outputNode] = oNode
+        self.nodes[inputNode] = iNode
         
         return true
     }
@@ -417,13 +456,102 @@ public struct RenderGraph: Resource {
 
 extension RenderGraph: CustomDebugStringConvertible {
     public var debugDescription: String {
-        var string = "\(label ?? "RenderGraph"):\n"
+        var lines: [String] = []
+        let graphName = label ?? "RenderGraph"
+        
+        // Header
+        let headerLine = String(repeating: "═", count: graphName.count + 4)
+        lines.append("╔\(headerLine)╗")
+        lines.append("║  \(graphName)  ║")
+        lines.append("╚\(headerLine)╝")
+        lines.append("")
+        
+        // Collect all unique edges for visualization
+        var uniqueEdges: Set<Edge> = []
         for node in self.nodes.values {
-            string += "-\(node.name)\n"
-            string += " in: \(node.inputEdges.debugDescription)\n"
-            string += " out: \(node.outputEdges.debugDescription)\n\n"
+            for edge in node.outputEdges {
+                uniqueEdges.insert(edge)
+            }
         }
         
-        return string
+        // Nodes section
+        lines.append("┌─ Nodes (\(nodes.count)) ─────────────────────────────")
+        for node in self.nodes.values.sorted(by: { $0.name.rawValue < $1.name.rawValue }) {
+            let inputSlots = node.node.inputResources.map { "[\($0.name.rawValue):\($0.kind.rawValue)]" }.joined(separator: ", ")
+            let outputSlots = node.node.outputResources.map { "[\($0.name.rawValue):\($0.kind.rawValue)]" }.joined(separator: ", ")
+            
+            lines.append("│")
+            lines.append("│  ┌─ \(node.name.rawValue)")
+            if !inputSlots.isEmpty {
+                lines.append("│  │  ⬇ in:  \(inputSlots)")
+            }
+            if !outputSlots.isEmpty {
+                lines.append("│  │  ⬆ out: \(outputSlots)")
+            }
+            lines.append("│  └───")
+        }
+        lines.append("│")
+        lines.append("└──────────────────────────────────────────")
+        lines.append("")
+        
+        // Data Flow section
+        lines.append("┌─ Data Flow ──────────────────────────────")
+        
+        if uniqueEdges.isEmpty {
+            lines.append("│  (no connections)")
+        } else {
+            for edge in uniqueEdges.sorted(by: { edgeSortKey($0) < edgeSortKey($1) }) {
+                switch edge {
+                case .slot(let outputNode, let outputSlotIndex, let inputNode, let inputSlotIndex):
+                    let oNode = self.nodes[outputNode]
+                    let iNode = self.nodes[inputNode]
+                    let outputSlotName = oNode?.node.outputResources[safe: outputSlotIndex]?.name.rawValue ?? "?"
+                    let inputSlotName = iNode?.node.inputResources[safe: inputSlotIndex]?.name.rawValue ?? "?"
+                    
+                    lines.append("│")
+                    lines.append("│  \(outputNode.rawValue)")
+                    lines.append("│       │")
+                    lines.append("│       ╰──[\(outputSlotName)]──▶──[\(inputSlotName)]──╮")
+                    lines.append("│                                  │")
+                    lines.append("│                          \(inputNode.rawValue)")
+                    
+                case .node(let outputNode, let inputNode):
+                    lines.append("│")
+                    lines.append("│  \(outputNode.rawValue)")
+                    lines.append("│       │")
+                    lines.append("│       ╰────── (exec) ──────▶ \(inputNode.rawValue)")
+                }
+            }
+        }
+        
+        lines.append("│")
+        lines.append("└──────────────────────────────────────────")
+        
+        // Subgraphs section
+        if !subGraphs.isEmpty {
+            lines.append("")
+            lines.append("┌─ Subgraphs (\(subGraphs.count)) ────────────────────────")
+            for (name, subgraph) in subGraphs.sorted(by: { $0.key < $1.key }) {
+                lines.append("│  • \(name) (\(subgraph.nodes.count) nodes)")
+            }
+            lines.append("└──────────────────────────────────────────")
+        }
+        
+        return lines.joined(separator: "\n")
+    }
+    
+    private func edgeSortKey(_ edge: Edge) -> String {
+        switch edge {
+        case .slot(let outputNode, _, let inputNode, _):
+            return "\(outputNode.rawValue)->\(inputNode.rawValue)"
+        case .node(let outputNode, let inputNode):
+            return "\(outputNode.rawValue)->\(inputNode.rawValue)"
+        }
+    }
+}
+
+private extension Array {
+    subscript(safe index: Index) -> Element? {
+        return indices.contains(index) ? self[index] : nil
     }
 }

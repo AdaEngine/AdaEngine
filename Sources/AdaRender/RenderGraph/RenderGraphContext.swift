@@ -59,19 +59,19 @@ public extension RenderGraphContext {
         self.pendingSubgraphs.append(PendingSubGraph(graph: graph, inputs: inputs, viewEntity: viewEntity))
     }
 
-    func entityResource(by name: String) -> Entity? {
+    func entityResource(by name: RenderSlot.Label) -> Entity? {
         self.inputResources.first(where: { $0.name == name })?.value.entity
     }
 
-    func textureResource(by name: String) -> Texture? {
+    func textureResource(by name: RenderSlot.Label) -> Texture? {
         self.inputResources.first(where: { $0.name == name })?.value.texture
     }
 
-    func bufferResource(by name: String) -> Buffer? {
+    func bufferResource(by name: RenderSlot.Label) -> Buffer? {
         self.inputResources.first(where: { $0.name == name })?.value.buffer
     }
 
-    func samplerResource(by name: String) -> Sampler? {
+    func samplerResource(by name: RenderSlot.Label) -> Sampler? {
         self.inputResources.first(where: { $0.name == name })?.value.sampler
     }
 }
