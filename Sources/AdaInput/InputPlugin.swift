@@ -9,6 +9,7 @@ import AdaECS
 import AdaApp
 import Logging
 
+/// The Input plugin handle system input events and ``Input`` resource to the world.
 public struct InputPlugin: Plugin {
 
     @Local private var controllerEngine: GameControllerEngine?
@@ -35,17 +36,17 @@ public struct InputPlugin: Plugin {
 }
 
 @PlainSystem
-struct InputEventParseSystem {
+public struct InputEventParseSystem {
 
     @ResMut<Input>
     private var input
 
     private let logger = Logger(label: "org.adaengine.AdaInput")
 
-    init(world: World) {}
+    public init(world: World) {}
 
     @MainActor
-    func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) {
         for event in input.eventsPool {
             switch event {
             case let keyEvent as KeyEvent:
@@ -63,7 +64,6 @@ struct InputEventParseSystem {
             case let touchEvent as TouchEvent:
                 input.touches.insert(touchEvent)
             case let gamepadConnectionEvent as GamepadConnectionEvent:
-                print("Parse event", gamepadConnectionEvent.id)
                 if gamepadConnectionEvent.isConnected {
                     let controllerType = gamepadConnectionEvent.gamepadInfo?.type ?? "Unknown"
                     let controllerName = gamepadConnectionEvent.gamepadInfo?.name ?? "Unknown"
@@ -107,7 +107,7 @@ struct InputEventParseSystem {
 
 @System
 @inline(__always)
-func InputStartup(
+public func InputStartup(
     _ input: ResMut<Input>
 ) async {
     input.wrappedValue.gameControllerEngine?.startMonitoring()
