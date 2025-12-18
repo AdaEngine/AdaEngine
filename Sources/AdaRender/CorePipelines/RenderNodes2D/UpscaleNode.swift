@@ -12,7 +12,7 @@ import Math
 public struct UpscaleNode: RenderNode {
 
     public enum InputNode {
-        public static let view = "view"
+        public static let view: RenderSlot.Label = "view"
     }
 
     public let inputResources: [RenderSlot] = [

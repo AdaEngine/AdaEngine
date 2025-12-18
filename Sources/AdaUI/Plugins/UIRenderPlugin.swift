@@ -26,7 +26,7 @@ public struct UIRenderPlugin: Plugin {
         }
         renderWorld.insertResource(ExtractedUIComponents())
         let renderGraph = renderWorld.getRefResource(RenderGraph.self)
-//        renderGraph.wrappedValue.addNode(UIRenderNode())
+        renderGraph.wrappedValue.addNode(UIRenderNode())
 //        renderGraph.wrappedValue.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
         renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
         renderWorld.addSystem(UIRenderPreparingSystem.self, on: .prepare)
@@ -40,9 +40,9 @@ public func UIRenderPreparing(
     _ uiComponents: Res<ExtractedUIComponents>,
 ) async {
     uiComponents.components.forEach { component in
-//        let context = UIGraphicsContext()
-//        component.view.draw(with: context)
-//        print(context.commandQueue.commands.count)
+        let context = UIGraphicsContext()
+        component.view.draw(with: context)
+        print(context.commandQueue.commands.count)
 
         // 1. store context and than render
         // 2. render context by command in render graph

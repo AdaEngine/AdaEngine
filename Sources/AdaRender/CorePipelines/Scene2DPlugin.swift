@@ -20,7 +20,7 @@ public struct Scene2DPlugin: Plugin {
     
     /// Input slots of render graph.
     public enum InputNode {
-        public static let view = "view"
+        public static let view: RenderSlot.Label = "view"
     }
 
     public func setup(in app: AppWorlds) {
@@ -32,27 +32,37 @@ public struct Scene2DPlugin: Plugin {
         app.insertResource(SortedRenderItems<Transparent2DRenderItem>())
         app.addSystem(BatchAndSortTransparent2DRenderItemsSystem.self, on: .prepare)
 
-        Task { @RenderGraphActor in
-            var graph = RenderGraph(label: "Scene 2D Render Graph")
-            let entryNode = graph.addEntryNode(inputs: [
-                RenderSlot(name: InputNode.view, kind: .entity)
-            ])
+        var graph = RenderGraph(label: "Scene 2D Render Graph")
+        let entryNode = graph.addEntryNode(inputs: [
+            RenderSlot(name: InputNode.view, kind: .entity)
+        ])
 
-            graph.addNode(Main2DRenderNode())
-            graph.addNode(UpscaleNode())
+        graph.addNode(EmptyNode(), by: .Main2D.beginPass)
+        graph.addNode(Main2DRenderNode())
+        graph.addNode(EmptyNode(), by: .Main2D.endPass)
+        graph.addNode(UpscaleNode())
 
-            graph.addSlotEdge(
-                fromNode: entryNode,
-                outputSlot: InputNode.view,
-                toNode: Main2DRenderNode.name,
-                inputSlot: Main2DRenderNode.InputNode.view
-            )
-            graph.addNodeEdge(from: Main2DRenderNode.name, to: UpscaleNode.name)
+        graph.addSlotEdge(
+            fromNode: entryNode,
+            outputSlot: InputNode.view,
+            toNode: Main2DRenderNode.name,
+            inputSlot: Main2DRenderNode.InputNode.view
+        )
 
-            await app
-                .getRefResource(RenderGraph.self)
-                .wrappedValue
-                .addSubgraph(graph, name: Self.renderGraph)
-        }
+        graph.addNodeEdge(from: RenderNodeLabel.Main2D.beginPass, to: Main2DRenderNode.name)
+        graph.addNodeEdge(from: Main2DRenderNode.name, to: RenderNodeLabel.Main2D.endPass)
+        graph.addNodeEdge(from: RenderNodeLabel.Main2D.endPass, to: UpscaleNode.name)
+
+        app
+            .getRefResource(RenderGraph.self)
+            .wrappedValue
+            .addSubgraph(graph, name: Self.renderGraph)
+    }
+}
+
+public extension RenderNodeLabel {
+    enum Main2D {
+        public static let beginPass: RenderNodeLabel = "Main2D.BeginPass"
+        public static let endPass: RenderNodeLabel = "Main2D.EndPass"
     }
 }
