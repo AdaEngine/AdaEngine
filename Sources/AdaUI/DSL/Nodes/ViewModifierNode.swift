@@ -60,8 +60,8 @@ class ViewModifierNode: ViewNode {
        contentNode.buildMenu(with: builder)
     }
 
-    override func update(_ deltaTime: TimeInterval) async {
-        await contentNode.update(deltaTime)
+    override func update(_ deltaTime: TimeInterval) {
+        contentNode.update(deltaTime)
     }
 
     override func updateLayoutProperties(_ props: LayoutProperties) {

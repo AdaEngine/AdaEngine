@@ -191,7 +191,7 @@ class ViewNode: Identifiable {
 
     // MARK: - Other
 
-    func update(_ deltaTime: TimeInterval) async { }
+    func update(_ deltaTime: TimeInterval) { }
 
     let debugNodeColor = Color.random()
 

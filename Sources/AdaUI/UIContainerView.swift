@@ -126,8 +126,8 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
     /// Update the container view.
     ///
     /// - Parameter deltaTime: The delta time to update the container view with.
-    public override func update(_ deltaTime: TimeInterval) async {
-        await super.update(deltaTime)
-        await self.viewTree.rootNode.update(deltaTime)
+    public override func update(_ deltaTime: TimeInterval) {
+        super.update(deltaTime)
+        self.viewTree.rootNode.update(deltaTime)
     }
 }

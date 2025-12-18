@@ -70,8 +70,8 @@ final class ViewRootNode: ViewNode {
         contentNode.updateEnvironment(environment)
     }
 
-    override func update(_ deltaTime: AdaUtils.TimeInterval) async {
-        await contentNode.update(deltaTime)
+    override func update(_ deltaTime: AdaUtils.TimeInterval) {
+        contentNode.update(deltaTime)
     }
     
     override func draw(with context: UIGraphicsContext) {

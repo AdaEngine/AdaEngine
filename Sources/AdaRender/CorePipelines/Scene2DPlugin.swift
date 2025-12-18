@@ -12,9 +12,6 @@ import Math
 
 /// Plugin for RenderWorld added 2D render capatibilites.
 public struct Scene2DPlugin: Plugin {
-
-    /// Render graph name.
-    public static let renderGraph = "render_graph_2d"
     
     public init() {}
     
@@ -32,7 +29,7 @@ public struct Scene2DPlugin: Plugin {
         app.insertResource(SortedRenderItems<Transparent2DRenderItem>())
         app.addSystem(BatchAndSortTransparent2DRenderItemsSystem.self, on: .prepare)
 
-        var graph = RenderGraph(label: "Scene 2D Render Graph")
+        var graph = RenderGraph(label: .main2D)
         let entryNode = graph.addEntryNode(inputs: [
             RenderSlot(name: InputNode.view, kind: .entity)
         ])
@@ -56,8 +53,13 @@ public struct Scene2DPlugin: Plugin {
         app
             .getRefResource(RenderGraph.self)
             .wrappedValue
-            .addSubgraph(graph, name: Self.renderGraph)
+            .addSubgraph(graph, name: .main2D)
     }
+}
+
+extension RenderGraph.Label {
+    /// Render graph name.
+    public static let main2D: RenderGraph.Label = "Scene 2D Render Graph"
 }
 
 public extension RenderNodeLabel {

@@ -44,6 +44,7 @@ struct InputEventParseSystem {
 
     init(world: World) {}
 
+    @MainActor
     func update(context: UpdateContext) async {
         for event in input.eventsPool {
             switch event {
@@ -100,7 +101,7 @@ struct InputEventParseSystem {
                 break
             }
         }
-        await input.removeEvents()
+        input.removeEvents()
     }
 }
 
