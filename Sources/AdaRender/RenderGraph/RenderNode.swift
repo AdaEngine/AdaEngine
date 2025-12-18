@@ -22,7 +22,7 @@ public protocol RenderNode: Sendable {
     var outputResources: [RenderSlot] { get }
 
     /// Runtime key for link slot and node together.
-    static var name: String { get }
+    static var name: RenderNodeLabel { get }
 
     /// Update graph states from given world.
     func update(from world: World)
@@ -37,8 +37,8 @@ public protocol RenderNode: Sendable {
 }
 
 public extension RenderNode {
-    static var name: String {
-        String(describing: self)
+    static var name: RenderNodeLabel {
+        RenderNodeLabel(rawValue: String(describing: self))
     }
 }
 
