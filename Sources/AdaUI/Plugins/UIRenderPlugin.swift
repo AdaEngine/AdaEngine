@@ -9,6 +9,7 @@ import AdaApp
 import AdaECS
 import AdaRender
 import AdaUtils
+import Logging
 
 public struct UIRenderPlugin: Plugin {
 
@@ -26,10 +27,16 @@ public struct UIRenderPlugin: Plugin {
         }
         renderWorld.insertResource(ExtractedUIComponents())
         let renderGraph = renderWorld.getRefResource(RenderGraph.self)
-        renderGraph.wrappedValue.addNode(UIRenderNode())
-//        renderGraph.wrappedValue.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
-        renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
-        renderWorld.addSystem(UIRenderPreparingSystem.self, on: .prepare)
+        do {
+            try renderGraph.wrappedValue.updateSubgraph(by: .main2D) { graph in
+                graph.addNode(UIRenderNode())
+                graph.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
+            }
+            renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
+            renderWorld.addSystem(UIRenderPreparingSystem.self, on: .prepare)
+        } catch {
+            Logger(label: "org.adaengine.UIRenderPlugin").error("\(error)")
+        }
     }
 }
 
@@ -42,7 +49,6 @@ public func UIRenderPreparing(
     uiComponents.components.forEach { component in
         let context = UIGraphicsContext()
         component.view.draw(with: context)
-        print(context.commandQueue.commands.count)
 
         // 1. store context and than render
         // 2. render context by command in render graph
@@ -68,13 +74,13 @@ public func ExtractUIComponents(
         Query<UIComponent>
     >,
     _ pendingViews: Extract<
-        Res<UIDrawPendingViews>
+        Res<UIWindowPendingDrawViews>
     >,
     _ extractedUIComponents: ResMut<ExtractedUIComponents>
 ) {
     extractedUIComponents.components.removeAll(keepingCapacity: true)
 
-    pendingViews().views.forEach {
+    pendingViews().windows.forEach {
         extractedUIComponents.components.append(UIComponent(view: $0, behaviour: .default))
     }
     uiComponents().forEach {

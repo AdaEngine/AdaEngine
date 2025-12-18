@@ -92,8 +92,8 @@ class AnimatedViewNode<Value: Equatable>: ViewModifierNode {
         }
     }
 
-    override func update(_ deltaTime: TimeInterval) async {
-        await super.update(deltaTime)
+    override func update(_ deltaTime: TimeInterval) {
+        super.update(deltaTime)
 
         if animationController.isPlaying {
             animationController.update(deltaTime)

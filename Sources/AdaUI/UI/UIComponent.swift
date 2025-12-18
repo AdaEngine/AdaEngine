@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaUtils
+import AdaRender
 
 /// - Warning: Work in progress component
 @Component
@@ -23,16 +24,27 @@ public struct UIComponent: Sendable {
 
     public let view: UIView
     public let behaviour: Behaviour
+    public let windowRef: WindowRef
 
     @MainActor
-    public init<V: View>(view: V, behaviour: Behaviour) {
+    public init<V: View>(
+        view: V,
+        behaviour: Behaviour,
+        windowRef: WindowRef = .primary
+    ) {
         self.view = UIContainerView(rootView: view)
         self.view.backgroundColor = .clear
         self.behaviour = behaviour
+        self.windowRef = windowRef
     }
 
-    public init(view: UIView, behaviour: Behaviour) {
+    public init(
+        view: UIView,
+        behaviour: Behaviour,
+        windowRef: WindowRef = .primary
+    ) {
         self.view = view
         self.behaviour = behaviour
+        self.windowRef = windowRef
     }
 }

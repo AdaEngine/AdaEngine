@@ -41,9 +41,12 @@ public struct RenderGraphContext: ~Copyable, Sendable {
 }
 
 public extension RenderGraphContext {
-    
-    // FIXME: Should throws error!
-    mutating func runSubgraph(by name: String, inputs: [RenderSlotValue], viewEntity: Entity? = nil) {
+
+    mutating func runSubgraph(
+        _ name: RenderGraph.Label,
+        inputs: [RenderSlotValue],
+        viewEntity: Entity? = nil
+    ) {
         guard let graph = self.graph.subGraphs[name] else {
             return
         }

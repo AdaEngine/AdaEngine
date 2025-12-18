@@ -32,8 +32,8 @@ open class UIWindowManager {
     public private(set) static var shared: UIWindowManager!
 
     /// Returns all windows registred in current process.
-    public internal(set) var windows: [UIWindow] = []
-    
+    public internal(set) var windows: SparseSet<UIWindow.ID, UIWindow> = [:]
+
     /// Contains active window if available.
     public private(set) var activeWindow: UIWindow?
 
@@ -49,7 +49,7 @@ open class UIWindowManager {
     /// Create platform window and register app window inside the manager.
     /// - Warning: You should call this method when override this method!
     open func createWindow(for window: UIWindow) {
-        self.windows.append(window)
+        self.windows[window.id] = window
         window.windowDidReady()
     }
     
@@ -118,7 +118,7 @@ open class UIWindowManager {
     }
     
     public final func removeWindow(_ window: UIWindow, setActiveAnotherIfNeeded: Bool = true) {
-        guard let index = self.windows.firstIndex(where: { $0 === window }) else {
+        guard let window = self.windows[window.id] else {
             assertionFailure("We don't have window in windows stack. That strange problem.")
             return
         }
@@ -126,19 +126,18 @@ open class UIWindowManager {
         // Destory window from render window
         try? RenderEngine.shared.destroyWindow(window.id)
         
-        self.windows.remove(at: index)
+        self.windows.remove(for: window.id)
         window.windowDidDisappear()
         
         // Check if we don't have any windows we should shutdown and quit engine process
         guard !self.windows.isEmpty else {
-//            Application.shared.terminate()
             return
         }
         
         if setActiveAnotherIfNeeded {
             // Set last window as active
             // TODO: (Vlad) I think we should have any order
-            let newUIWindow = self.windows.last!
+            let newUIWindow = self.windows.values.last!.value
             self.setActiveWindow(newUIWindow)
         }
     }

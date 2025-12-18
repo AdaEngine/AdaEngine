@@ -21,7 +21,7 @@ public struct UIPlugin: Plugin {
         app
             .addSystem(UpdateWindowManagerSystem.self, on: .preUpdate)
             .addSystem(UIComponentSystem.self)
-            .insertResource(UIDrawPendingViews(views: []))
+            .insertResource(UIWindowPendingDrawViews())
     }
 }
 
@@ -73,13 +73,13 @@ public struct WindowManagerResource: Resource {
 @System
 @inline(__always)
 @MainActor
-func UpdateWindowManager(
+public func UpdateWindowManager(
     _ context: WorldUpdateContext,
     _ windowManager: Res<WindowManagerResource>,
-    _ pendingViews: ResMut<UIDrawPendingViews>,
+    _ pendingViews: ResMut<UIWindowPendingDrawViews>,
     _ input: Res<Input>,
     _ deltaTime: Res<DeltaTime>
-) async {
+) {
     let windowManager = windowManager.windowManager
     let deltaTime = deltaTime.deltaTime
     let windows = windowManager.windows
@@ -91,13 +91,13 @@ func UpdateWindowManager(
             window.sendEvent(event)
         }
 
-        await window.internalUpdate(deltaTime)
+        window.internalUpdate(deltaTime)
         if window.canDraw {
-            pendingViews.views.append(window)
+            pendingViews.windows.append(window)
         }
     }
 }
 
-public struct UIDrawPendingViews: Resource {
-    public var views: [UIView]
+public struct UIWindowPendingDrawViews: Resource {
+    public var windows: [UIWindow] = []
 }

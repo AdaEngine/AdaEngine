@@ -63,7 +63,7 @@ final class UIViewRepresentableNode<Representable: UIViewRepresentable>: ViewNod
         view?.draw(with: context)
     }
 
-    override func update(_ deltaTime: TimeInterval) async {
-        await view?.update(deltaTime)
+    override func update(_ deltaTime: TimeInterval) {
+        view?.update(deltaTime)
     }
 }
