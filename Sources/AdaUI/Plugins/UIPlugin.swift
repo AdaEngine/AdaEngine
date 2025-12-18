@@ -11,6 +11,7 @@ import AdaECS
 import AdaRender
 import AdaUtils
 import Math
+import Logging
 
 public struct UIPlugin: Plugin {
     public init() { }
@@ -22,6 +23,33 @@ public struct UIPlugin: Plugin {
             .addSystem(UpdateWindowManagerSystem.self, on: .preUpdate)
             .addSystem(UIComponentSystem.self)
             .insertResource(UIWindowPendingDrawViews())
+
+        app.main.registerRequiredComponent(
+            RenderItems<UIRenderItem>.self,
+            for: Camera.self
+        ) {
+            RenderItems<UIRenderItem>()
+        }
+
+        guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
+            return
+        }
+        renderWorld
+            .insertResource(ExtractedUIComponents())
+            .insertResource(PendingUIGraphicsContext())
+
+        let renderGraph = renderWorld.getRefResource(RenderGraph.self)
+        do {
+            try renderGraph.wrappedValue.updateSubgraph(by: .main2D) { graph in
+                graph.addNode(UIRenderNode())
+                graph.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
+            }
+            renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
+            renderWorld.addSystem(UIRenderPreparingSystem.self, on: .prepare)
+            renderWorld.addSystem(UIRenderTesselationSystem.self, on: .update)
+        } catch {
+            Logger(label: "org.adaengine.UIRenderPlugin").error("\(error)")
+        }
     }
 }
 
@@ -80,6 +108,7 @@ public func UpdateWindowManager(
     _ input: Res<Input>,
     _ deltaTime: Res<DeltaTime>
 ) {
+    pendingViews.windows.removeAll(keepingCapacity: true)
     let windowManager = windowManager.windowManager
     let deltaTime = deltaTime.deltaTime
     let windows = windowManager.windows
