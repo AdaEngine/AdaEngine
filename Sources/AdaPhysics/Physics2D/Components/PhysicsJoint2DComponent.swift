@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import AdaUtils
 import Math
 
 public final class PhysicsJoint2DDescriptor: Codable, Sendable {
@@ -33,12 +34,11 @@ public final class PhysicsJoint2DDescriptor: Codable, Sendable {
 }
 
 @Component
-@safe
 public struct PhysicsJoint2DComponent: @unchecked Sendable {
     let jointDescriptor: PhysicsJoint2DDescriptor
     
-    var runtimeJoint: OpaquePointer?
-    
+    var runtimeJoint: UnsafeAnyBox?
+
     public init(joint: PhysicsJoint2DDescriptor) {
         self.jointDescriptor = joint
     }

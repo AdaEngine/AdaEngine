@@ -473,7 +473,7 @@ public extension World {
         if !self.resources.contains(T.self) {
             self.insertResource(constructor())
         }
-        let resource = self.resources.getResourceData(T.self)?.getWithTick(T.self)
+        let resource = unsafe self.resources.getResourceData(T.self)?.getWithTick(T.self)
         return unsafe Ref(
             pointer: resource?.pointer,
             changeTick: .init(
@@ -489,7 +489,7 @@ public extension World {
     /// - Complexity: O(1)
     /// - Returns: The resource if it exists, otherwise nil.
     func getRefResource<T: Resource>(_ resource: T.Type) -> Ref<T> {
-        let resource = self.resources.getResourceData(T.self)?.getWithTick(T.self)
+        let resource = unsafe self.resources.getResourceData(T.self)?.getWithTick(T.self)
         return unsafe Ref(
             pointer: resource?.pointer,
             changeTick: .init(

@@ -181,26 +181,6 @@ public struct SystemsGraph: Sendable {
 }
 
 extension SystemsGraph {
-    /// The debug description of the systems graph.
-    public var debugDescription: String {
-        var string = ""
-        for node in nodes {
-            string += "\(node.name)\n"
-            
-            string += " in: \n"
-            for inputNode in getInputNodes(for: node.name) {
-                string += "  \(node.name) --> \(inputNode.name)\n"
-            }
-            
-            string += " out: \n"
-            for ouputNode in getOuputNodes(for: node.name) {
-                string += "  \(node.name) --> \(ouputNode.name)\n"
-            }
-        }
-        
-        return string
-    }
-    
     /// The visualize description of the systems graph.
     public var visualizeDescription: String {
         var string = ""
@@ -209,6 +189,28 @@ extension SystemsGraph {
                 string += "\(node.name) --> \(outputNode.name)\n"
             }
         }
+        return string
+    }
+}
+
+extension SystemsGraph: CustomDebugStringConvertible {
+    /// The debug description of the systems graph.
+    public var debugDescription: String {
+        var string = ""
+        for node in nodes {
+            string += "\(node.name)\n"
+
+            string += " in: \n"
+            for inputNode in getInputNodes(for: node.name) {
+                string += "  \(node.name) --> \(inputNode.name)\n"
+            }
+
+            string += " out: \n"
+            for ouputNode in getOuputNodes(for: node.name) {
+                string += "  \(node.name) --> \(ouputNode.name)\n"
+            }
+        }
+
         return string
     }
 }

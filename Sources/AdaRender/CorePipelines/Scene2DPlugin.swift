@@ -30,7 +30,7 @@ public struct Scene2DPlugin: Plugin {
 
         // Add Systems
         app.insertResource(SortedRenderItems<Transparent2DRenderItem>())
-        app.addSystem(BatchAndSortItemsSystem<Transparent2DRenderItem>.self, on: .prepare)
+        app.addSystem(BatchAndSortTransparent2DRenderItemsSystem.self, on: .prepare)
 
         Task { @RenderGraphActor in
             var graph = RenderGraph(label: "Scene 2D Render Graph")

@@ -116,7 +116,7 @@ extension FixedArray: Equatable where T: Equatable {
 extension FixedArray: Hashable where T: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.count)
-        for unsafe element in self {
+        for unsafe element in unsafe self {
             hasher.combine(element)
         }
     }

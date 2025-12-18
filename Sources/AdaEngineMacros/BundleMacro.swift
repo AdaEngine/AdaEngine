@@ -12,16 +12,14 @@ import SwiftSyntaxBuilder
 import SwiftSyntaxMacroExpansion
 import SwiftSyntaxMacros
 
-public struct BundleMacro: MemberMacro, ExtensionMacro {
+public struct BundleMacro: MemberMacro {
     // Generate the 'components' property
-    public static func expansion<
-        D: DeclGroupSyntax,
-        C: MacroExpansionContext
-    >(
+    public static func expansion(
         of node: AttributeSyntax,
-        providingMembersOf declaration: D,
-        in context: C
-    ) throws -> [DeclSyntax] {
+        providingMembersOf declaration: some DeclGroupSyntax,
+        conformingTo protocols: [TypeSyntax],
+        in context: some MacroExpansionContext
+      ) throws -> [DeclSyntax] {
         guard let structDecl = declaration.as(StructDeclSyntax.self) else {
             throw MacroError.macroUsage("Bundle macro can be applied only to structs.")
         }
@@ -44,7 +42,9 @@ public struct BundleMacro: MemberMacro, ExtensionMacro {
         """
         return [componentsProperty]
     }
+}
 
+extension BundleMacro: ExtensionMacro {
     // Generate the extension to conform to Bundle
     public static func expansion<
         D: DeclGroupSyntax,

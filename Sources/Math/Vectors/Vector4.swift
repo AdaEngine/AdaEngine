@@ -133,44 +133,44 @@ public extension Vector4 {
     
     @inlinable
     @inline(__always)
-    static func * (lhs: Vector4, rhs: Float) -> Vector4 {
-        return [lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs]
+    static func * (lhs: borrowing Vector4, rhs: Float) -> Vector4 {
+        return Vector4(lhs.x * rhs, lhs.y * rhs, lhs.z * rhs, lhs.w * rhs)
     }
     
     @inlinable
     @inline(__always)
-    static func + (lhs: Vector4, rhs: Float) -> Vector4 {
-        return [lhs.x + rhs, lhs.y + rhs, lhs.z + rhs, lhs.w + rhs]
+    static func + (lhs: borrowing Vector4, rhs: Float) -> Vector4 {
+        return Vector4(lhs.x + rhs, lhs.y + rhs, lhs.z + rhs, lhs.w + rhs)
     }
     
     @inlinable
     @inline(__always)
-    static func - (lhs: Vector4, rhs: Float) -> Vector4 {
-        return [lhs.x - rhs, lhs.y - rhs, lhs.z - rhs, lhs.w - rhs]
+    static func - (lhs: borrowing Vector4, rhs: Float) -> Vector4 {
+        return Vector4(lhs.x - rhs, lhs.y - rhs, lhs.z - rhs, lhs.w - rhs)
     }
     
     @inlinable
     @inline(__always)
-    static func * (lhs: Float, rhs: Vector4) -> Vector4 {
-        return [lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w]
+    static func * (lhs: Float, rhs: borrowing Vector4) -> Vector4 {
+        return Vector4(lhs * rhs.x, lhs * rhs.y, lhs * rhs.z, lhs * rhs.w)
     }
     
     @inlinable
     @inline(__always)
     static func + (lhs: Float, rhs: Vector4) -> Vector4 {
-        return [lhs + rhs.x, lhs + rhs.y, lhs + rhs.z, lhs + rhs.w]
+        return Vector4(lhs + rhs.x, lhs + rhs.y, lhs + rhs.z, lhs + rhs.w)
     }
     
     @inlinable
     @inline(__always)
-    static func - (lhs: Float, rhs: Vector4) -> Vector4 {
-        return [lhs - rhs.x, lhs - rhs.y, lhs - rhs.z, lhs - rhs.w]
+    static func - (lhs: Float, rhs: borrowing Vector4) -> Vector4 {
+        return Vector4(lhs - rhs.x, lhs - rhs.y, lhs - rhs.z, lhs - rhs.w)
     }
     
     @inlinable
     @inline(__always)
-    static func / (lhs: Float, rhs: Vector4) -> Vector4 {
-        return [lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w]
+    static func / (lhs: Float, rhs: borrowing Vector4) -> Vector4 {
+        return Vector4(lhs / rhs.x, lhs / rhs.y, lhs / rhs.z, lhs / rhs.w)
     }
     
     @inlinable
@@ -199,57 +199,57 @@ public extension Vector4 {
     
     @inlinable
     @inline(__always)
-    static func / (lhs: Vector4, rhs: Float) -> Vector4 {
-        return [lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs]
+    static func / (lhs: borrowing Vector4, rhs: Float) -> Vector4 {
+        return Vector4(lhs.x / rhs, lhs.y / rhs, lhs.z / rhs, lhs.w / rhs)
     }
     
     @inlinable
     @inline(__always)
-    static func - (lhs: Vector4, rhs: Vector4) -> Vector4 {
-        return [lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w]
+    static func - (lhs: borrowing Vector4, rhs: borrowing Vector4) -> Vector4 {
+        return Vector4(lhs.x - rhs.x, lhs.y - rhs.y, lhs.z - rhs.z, lhs.w - rhs.w)
     }
     
     @inlinable
     @inline(__always)
-    static func + (lhs: Vector4, rhs: Vector4) -> Vector4 {
-        return [lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w]
+    static func + (lhs: borrowing Vector4, rhs: borrowing Vector4) -> Vector4 {
+        return Vector4(lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z, lhs.w + rhs.w)
     }
     
     @inlinable
     @inline(__always)
-    static func * (lhs: Vector4, rhs: Vector4) -> Vector4 {
-        return [lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w]
+    static func * (lhs: borrowing Vector4, rhs: borrowing Vector4) -> Vector4 {
+        return Vector4(lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z, lhs.w * rhs.w)
     }
     
     // MARK: Vector
     
     @inlinable
     @inline(__always)
-    static func / (lhs: Vector4, rhs: Vector4) -> Vector4 {
-        return [lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w]
+    static func / (lhs: borrowing Vector4, rhs: borrowing Vector4) -> Vector4 {
+        return Vector4(lhs.x / rhs.x, lhs.y / rhs.y, lhs.z / rhs.z, lhs.w / rhs.w)
     }
     
     @inlinable
     @inline(__always)
-    static func *= (lhs: inout Vector4, rhs: Vector4) {
+    static func *= (lhs: inout Vector4, rhs: borrowing Vector4) {
         lhs = lhs * rhs
     }
     
     @inlinable
     @inline(__always)
-    static func += (lhs: inout Vector4, rhs: Vector4) {
+    static func += (lhs: inout Vector4, rhs: borrowing Vector4) {
         lhs = lhs + rhs
     }
     
     @inlinable
     @inline(__always)
-    static func -= (lhs: inout Vector4, rhs: Vector4) {
+    static func -= (lhs: inout Vector4, rhs: borrowing Vector4) {
         lhs = lhs - rhs
     }
     
     @inlinable
     @inline(__always)
-    static func /= (lhs: inout Vector4, rhs: Vector4) {
+    static func /= (lhs: inout Vector4, rhs: borrowing Vector4) {
         lhs = lhs / rhs
     }
     
@@ -257,7 +257,7 @@ public extension Vector4 {
     
     @inlinable
     @inline(__always)
-    static func * (lhs: Transform3D, rhs: Vector4) -> Vector4 {
+    static func * (lhs: borrowing Transform3D, rhs: borrowing Vector4) -> Vector4 {
         var rv = lhs.x * rhs.x
         rv = rv + lhs.y * rhs.y
         rv = rv + lhs.z * rhs.z
@@ -267,7 +267,7 @@ public extension Vector4 {
     
     @inlinable
     @inline(__always)
-    static func * (lhs: Vector4, rhs: Transform3D) -> Vector4 {
+    static func * (lhs: borrowing Vector4, rhs: borrowing Transform3D) -> Vector4 {
         var x = lhs.x * rhs.x.x
         x = x + lhs.y * rhs.x.y
         x = x + lhs.z * rhs.x.z
@@ -318,7 +318,7 @@ public extension Vector4 {
     
     @inlinable
     @inline(__always)
-    func dot(_ vector: Vector4) -> Float {
+    func dot(_ vector: borrowing Vector4) -> Float {
         return x * vector.x + y * vector.y + z * vector.z + w * vector.w
     }
 }
@@ -326,7 +326,7 @@ public extension Vector4 {
 public extension Vector4 {
     var xyz: Vector3 {
         get {
-            return [self.x, self.y, self.z]
+            return Vector3(self.x, self.y, self.z)
         }
         
         set {
@@ -342,13 +342,13 @@ public extension Vector4 {
 /// In other words this computes `[min(lhs.x, rhs.x), min(lhs.y, rhs.y), ..]`.
 @inlinable
 @inline(__always)
-public func min(_ lhs: Vector4, _ rhs: Vector4) -> Vector4 {
-    [
+public func min(_ lhs: borrowing Vector4, _ rhs: borrowing Vector4) -> Vector4 {
+    Vector4(
         min(lhs.x, rhs.x),
         min(lhs.y, rhs.y),
         min(lhs.z, rhs.z),
         min(lhs.w, rhs.w)
-    ]
+    )
 }
 
 /// Returns a vector containing the maximum values for each element of `lhs` and `rhs`.
@@ -356,17 +356,17 @@ public func min(_ lhs: Vector4, _ rhs: Vector4) -> Vector4 {
 /// In other words this computes `[max(lhs.x, rhs.x), max(lhs.y, rhs.y), ..]`.
 @inlinable
 @inline(__always)
-public func max(_ lhs: Vector4, _ rhs: Vector4) -> Vector4 {
-    [
+public func max(_ lhs: borrowing Vector4, _ rhs: borrowing Vector4) -> Vector4 {
+    Vector4(
         max(lhs.x, rhs.x),
         max(lhs.y, rhs.y),
         max(lhs.z, rhs.z),
         max(lhs.w, rhs.w)
-    ]
+    )
 }
 
 /// Linearly interpolates between two points.
-public func lerp(_ lhs: Vector4, _ rhs: Vector4, _ t: Float) -> Vector4 {
+public func lerp(_ lhs: borrowing Vector4, _ rhs: borrowing Vector4, _ t: Float) -> Vector4 {
     return lhs + (rhs - lhs) * t
 }
 

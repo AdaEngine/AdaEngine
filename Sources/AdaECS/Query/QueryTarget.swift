@@ -73,7 +73,7 @@ extension Component {
         lastTick: Tick,
         currentTick: Tick
     ) -> ReadFetch<Self> {
-        ReadFetch(data: nil)
+        unsafe ReadFetch(data: nil)
     }
 
     public static func _queryFetch(
@@ -91,7 +91,7 @@ extension Component {
         chunk: Chunk,
         archetype: Archetype
     ) -> ReadFetch<Self> {
-        guard let slice = chunk.getComponentSlice(for: Self.self) else {
+        guard let slice = unsafe chunk.getComponentSlice(for: Self.self) else {
             return fetch
         }
         return unsafe ReadFetch(data: slice)
@@ -153,7 +153,7 @@ extension Ref: QueryTarget where T: Component {
         lastTick: Tick,
         currentTick: Tick
     ) -> RefFetch<T> {
-        RefFetch(
+        unsafe RefFetch(
             data: nil,
             ticks: nil,
             lastTick: lastTick,
@@ -178,8 +178,8 @@ extension Ref: QueryTarget where T: Component {
     ) -> RefFetch<T> {
         var newFetch = fetch
         guard
-            let slice = chunk.getMutableComponentSlice(for: T.self),
-            let ticks = chunk.getMutableComponentTicksSlice(for: T.self)
+            let slice = unsafe chunk.getMutableComponentSlice(for: T.self),
+            let ticks = unsafe chunk.getMutableComponentTicksSlice(for: T.self)
         else {
             return fetch
         }
