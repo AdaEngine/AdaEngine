@@ -101,9 +101,9 @@ extension RenderSlot.Label: ExpressibleByStringLiteral {
 }
 
 public struct RunGraphNode: RenderNode {
-    public let graphName: String
+    public let graphName: RenderGraph.Label
 
-    public init(graphName: String) {
+    public init(graphName: RenderGraph.Label) {
         self.graphName = graphName
     }
 
@@ -111,7 +111,7 @@ public struct RunGraphNode: RenderNode {
         context: inout Context,
         renderContext: RenderContext
     ) async throws -> [RenderSlotValue] {
-        context.runSubgraph(by: graphName, inputs: context.inputResources, viewEntity: context.viewEntity)
+        context.runSubgraph(graphName, inputs: context.inputResources, viewEntity: context.viewEntity)
         return []
     }
 }
@@ -169,15 +169,15 @@ public struct RenderGraph: Resource {
         var outputEdges: [Edge] = []
     }
 
-    let label: String?
+    let label: Label?
     private let logger: Logger
 
     internal private(set) var nodes: [RenderNodeLabel: Node] = [:]
-    internal private(set) var subGraphs: [String: RenderGraph] = [:]
-    
+    internal private(set) var subGraphs: [Label: RenderGraph] = [:]
+
     internal private(set) var entryNode: Node?
 
-    public nonisolated init(label: String? = nil) {
+    public nonisolated init(label: Label? = nil) {
         self.label = label
         self.logger = Logger(label: label.flatMap { "RenderGraph(\($0))" } ?? "RenderGraph")
     }
@@ -357,12 +357,23 @@ public struct RenderGraph: Resource {
         return true
     }
     
-    public mutating func addSubgraph(_ graph: RenderGraph, name: String) {
+    public mutating func addSubgraph(_ graph: RenderGraph, name: Label) {
         self.subGraphs[name] = graph
     }
 
-    public func getSubgraph(by name: String) -> RenderGraph? {
+    public func getSubgraph(by name: Label) -> RenderGraph? {
         return self.subGraphs[name]
+    }
+
+    public mutating func updateSubgraph(
+        by name: Label,
+        block: (inout RenderGraph) -> Void
+    ) throws(RenderGraphError) {
+        guard var graph = self.subGraphs[name] else {
+            throw RenderGraphError.subgraphNotExists(name.rawValue)
+        }
+        block(&graph)
+        self.subGraphs[name] = graph
     }
 
     // MARK: Private
@@ -454,11 +465,36 @@ public struct RenderGraph: Resource {
     
 }
 
+extension RenderGraph {
+    public struct Label: RawRepresentable, Hashable, Sendable, ExpressibleByStringLiteral {
+        public let rawValue: String
+
+        public init(rawValue: String) {
+            self.rawValue = rawValue
+        }
+
+        public init(stringLiteral value: StringLiteralType) {
+            self.rawValue = value
+        }
+    }
+}
+
+public enum RenderGraphError: Error, CustomStringConvertible {
+    case subgraphNotExists(String)
+
+    public var description: String {
+        switch self {
+        case .subgraphNotExists(let string):
+            "Subgraph by name \(string) not exists"
+        }
+    }
+}
+
 extension RenderGraph: CustomDebugStringConvertible {
     public var debugDescription: String {
         var lines: [String] = []
-        let graphName = label ?? "RenderGraph"
-        
+        let graphName = label?.rawValue ?? "RenderGraph"
+
         // Header
         let headerLine = String(repeating: "═", count: graphName.count + 4)
         lines.append("╔\(headerLine)╗")
@@ -531,7 +567,7 @@ extension RenderGraph: CustomDebugStringConvertible {
         if !subGraphs.isEmpty {
             lines.append("")
             lines.append("┌─ Subgraphs (\(subGraphs.count)) ────────────────────────")
-            for (name, subgraph) in subGraphs.sorted(by: { $0.key < $1.key }) {
+            for (name, subgraph) in subGraphs.sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
                 lines.append("│  • \(name) (\(subgraph.nodes.count) nodes)")
             }
             lines.append("└──────────────────────────────────────────")

@@ -501,20 +501,20 @@ open class UIView {
     /// Internal update.
     ///
     /// - Parameter deltaTime: The delta time.
-    func internalUpdate(_ deltaTime: TimeInterval) async {
+    func internalUpdate(_ deltaTime: TimeInterval) {
         self.layoutIfNeeded()
-        await self.update(deltaTime)
+        self.update(deltaTime)
 
         for subview in self.subviews {
-            await subview.internalUpdate(deltaTime)
-            await subview.update(deltaTime)
+            subview.internalUpdate(deltaTime)
+            subview.update(deltaTime)
         }
     }
 
     /// Called each frame.
     ///
     /// - Parameter deltaTime: The delta time.
-    open func update(_ deltaTime: TimeInterval) async { }
+    open func update(_ deltaTime: TimeInterval) { }
 }
 
 /// During layout in AdaEngine UI, views choose their own size, but they do that in response to a size proposal from their parent view.

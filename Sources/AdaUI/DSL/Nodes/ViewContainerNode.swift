@@ -216,9 +216,9 @@ class ViewContainerNode: ViewNode {
         }
     }
 
-    override func update(_ deltaTime: TimeInterval) async {
+    override func update(_ deltaTime: TimeInterval) {
         for node in nodes {
-            await node.update(deltaTime)
+            node.update(deltaTime)
         }
     }
 

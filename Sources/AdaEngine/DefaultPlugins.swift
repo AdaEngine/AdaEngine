@@ -28,9 +28,11 @@ public struct DefaultPlugins: Plugin {
     /// - Parameter filePath: The file path to use for the `AssetsPlugin`.
     public init(filePath: StaticString = #filePath) {
         var plugins = OrderedDictionary<String, any Plugin>()
+        insertPlugin(TransformPlugin(), into: &plugins)
         insertPlugin(AppPlatformPlugin(), into: &plugins)
         insertPlugin(InputPlugin(), into: &plugins)
         insertPlugin(RenderWorldPlugin(), into: &plugins)
+        insertPlugin(EventsPlugin(), into: &plugins)
         insertPlugin(CameraPlugin(), into: &plugins)
         insertPlugin(AssetsPlugin(filePath: filePath), into: &plugins)
         insertPlugin(VisibilityPlugin(), into: &plugins)
@@ -39,14 +41,12 @@ public struct DefaultPlugins: Plugin {
         insertPlugin(TextPlugin(), into: &plugins)
         insertPlugin(ScenePlugin(), into: &plugins)
         insertPlugin(AudioPlugin(), into: &plugins)
+        insertPlugin(WindowPlugin(), into: &plugins)
+        insertPlugin(Scene2DPlugin(), into: &plugins)
         insertPlugin(UIPlugin(), into: &plugins)
         insertPlugin(UIRenderPlugin(), into: &plugins)
-        insertPlugin(WindowPlugin(), into: &plugins)
-        insertPlugin(EventsPlugin(), into: &plugins)
         insertPlugin(Physics2DPlugin(), into: &plugins)
-        insertPlugin(TransformPlugin(), into: &plugins)
         insertPlugin(TileMapPlugin(), into: &plugins)
-        insertPlugin(Scene2DPlugin(), into: &plugins)
         self.plugins = plugins
     }
 

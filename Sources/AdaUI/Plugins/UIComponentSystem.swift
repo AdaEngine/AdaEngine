@@ -18,6 +18,9 @@ public struct UIComponentSystem: Sendable {
     @Query<Entity, UIComponent, GlobalTransform>
     private var uiComponents
 
+    @Query<Camera>
+    private var cameras
+
     @ResMut
     private var input: Input?
 
@@ -27,21 +30,23 @@ public struct UIComponentSystem: Sendable {
     @Res<WindowManagerResource>
     private var windowManager
 
-    @ResMut<UIDrawPendingViews>
+    @ResMut<UIWindowPendingDrawViews>
     private var pendingViews
+
+    @Res<PrimaryWindowId>
+    private var primaryWindowId
 
     public init(world: World) {}
 
     @MainActor
-    public func update(context: UpdateContext) {
+    public func update(context: UpdateContext) async {
         self.uiComponents.forEach { entity, component, transform in
-//            update(
-//                entity: entity,
-//                component: component,
-//                globalTransform: transform,
-//                window: UIWindow,
-//                deltaTime: deltaTime.deltaTime
-//            )
+            update(
+                entity: entity,
+                component: component,
+                globalTransform: transform,
+                deltaTime: deltaTime.deltaTime
+            )
         }
     }
 }
@@ -53,12 +58,10 @@ private extension UIComponentSystem {
         entity: Entity,
         component: UIComponent,
         globalTransform: GlobalTransform,
-        window: UIWindow,
         deltaTime: TimeInterval
-    ) async {
+    ) {
         let view = component.view
         let behaviour = component.behaviour
-        view.window = window
 
         if let viewOwner = (view as? ViewOwner) {
             var environment = EnvironmentValues()
@@ -68,13 +71,16 @@ private extension UIComponentSystem {
 
         switch behaviour {
         case .overlay:
-            let newSize = component.view.sizeThatFits(ProposedViewSize(window.frame.size))
-            if view.frame.size != newSize {
-                view.frame.size = newSize
-                view.layoutSubviews()
+            if let window = windowManager
+                .windowManager
+                .windows[component.windowRef.getWindowId(from: primaryWindowId)] {
+                view.window = window
+                let newSize = component.view.sizeThatFits(ProposedViewSize(window.frame.size))
+                if view.frame.size != newSize {
+                    view.frame.size = newSize
+                    view.layoutSubviews()
+                }
             }
-
-            pendingViews.views.append(view)
         case .default:
             view.transform3D = globalTransform.matrix
         }
@@ -90,7 +96,7 @@ private extension UIComponentSystem {
             }
         }
 
-        await view.update(deltaTime)
+        view.update(deltaTime)
     }
 }
 
