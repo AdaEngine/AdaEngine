@@ -5,7 +5,6 @@
 //  Created by v.prusakov on 3/20/23.
 //
 
-@_spi(Internal) import AdaRender
 import Math
 
 public struct Quad: GeometryShape {

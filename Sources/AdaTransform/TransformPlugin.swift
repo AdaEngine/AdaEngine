@@ -8,6 +8,7 @@
 import AdaApp
 import AdaECS
 
+/// Add support for ``Transform`` and ``GlobalTransform`` components.
 public struct TransformPlugin: Plugin {
 
     public init() {}

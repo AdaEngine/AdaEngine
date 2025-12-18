@@ -44,7 +44,6 @@ public struct DefaultPlugins: Plugin {
         insertPlugin(WindowPlugin(), into: &plugins)
         insertPlugin(Scene2DPlugin(), into: &plugins)
         insertPlugin(UIPlugin(), into: &plugins)
-        insertPlugin(UIRenderPlugin(), into: &plugins)
         insertPlugin(Physics2DPlugin(), into: &plugins)
         insertPlugin(TileMapPlugin(), into: &plugins)
         self.plugins = plugins

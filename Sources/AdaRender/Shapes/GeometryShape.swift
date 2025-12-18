@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 3/30/23.
 //
 
-import AdaRender
-
 /// An interface that describe shape and can create mesh descriptor.
 public protocol GeometryShape {
     func meshDescriptors() -> [MeshDescriptor]
