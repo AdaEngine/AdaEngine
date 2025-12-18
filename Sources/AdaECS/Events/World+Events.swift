@@ -102,7 +102,7 @@ public struct EventsUpdateSystem {
 
     public func update(context: UpdateContext) async {
         for handle in handledEvents.handledEvents {
-            guard let pointer = context.world.resources.getPointer(for: handle.resourceId) else {
+            guard let pointer = unsafe context.world.resources.getPointer(for: handle.resourceId) else {
                 continue
             }
             unsafe handle.update(pointer)

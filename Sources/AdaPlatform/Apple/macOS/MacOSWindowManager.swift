@@ -221,7 +221,7 @@ final class MacOSWindowManager: UIWindowManager {
         }
         
         let image = texture.image
-        guard let bitmap = NSBitmapImageRep(
+        guard let bitmap = unsafe NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: texture.width,
             pixelsHigh: texture.height,

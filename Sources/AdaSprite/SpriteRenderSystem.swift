@@ -323,7 +323,8 @@ public struct SpriteRenderSystem {
         return coords
     }
 
-    private func isSameTexture(_ lhs: Texture2D, _ rhs: Texture2D) -> Bool {
+    @inlinable
+    func isSameTexture(_ lhs: Texture2D, _ rhs: Texture2D) -> Bool {
         return lhs.assetMetaInfo?.assetId != .empty && lhs.assetMetaInfo?.assetId == rhs.assetMetaInfo?.assetId
     }
 }

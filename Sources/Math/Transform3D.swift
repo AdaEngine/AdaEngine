@@ -37,12 +37,12 @@
 public extension Transform3D {
     
     @inline(__always)
-    init(scale: Vector3) {
+    init(scale: borrowing Vector3) {
         self = Transform3D(diagonal: scale)
     }
     
     @inline(__always)
-    init(translation: Vector3) {
+    init(translation: borrowing Vector3) {
         self.x = Vector4(1, 0, 0, 0)
         self.y = Vector4(0, 1, 0, 0)
         self.z = Vector4(0, 0, 1, 0)
@@ -50,7 +50,7 @@ public extension Transform3D {
     }
     
     @inline(__always)
-    init(diagonal: Vector3) {
+    init(diagonal: borrowing Vector3) {
         var matrix = Transform3D.identity
         matrix[0, 0] = diagonal.x
         matrix[1, 1] = diagonal.y
@@ -59,7 +59,7 @@ public extension Transform3D {
     }
     
     @inline(__always)
-    init(columns: [Vector4]) {
+    init(columns: borrowing [Vector4]) {
         precondition(columns.count == 4, "Inconsist columns count")
         self.x = columns[0]
         self.y = columns[1]
@@ -68,7 +68,7 @@ public extension Transform3D {
     }
     
     @inline(__always)
-    init(rows: [Vector4]) {
+    init(rows: borrowing [Vector4]) {
         precondition(rows.count == 4, "Inconsist rows count")
         let x = rows[0]
         let y = rows[1]
@@ -82,7 +82,7 @@ public extension Transform3D {
     }
     
     @inline(__always)
-    init(_ x: Vector4, _ y: Vector4, _ z: Vector4, _ w: Vector4) {
+    init(_ x: consuming Vector4, _ y: consuming Vector4, _ z: consuming Vector4, _ w: consuming Vector4) {
         self.x = x
         self.y = y
         self.z = z
@@ -90,13 +90,13 @@ public extension Transform3D {
     }
     
     @inline(__always)
-    init(x: Vector4, y: Vector4, z: Vector4, w: Vector4) {
+    init(x: consuming Vector4, y: consuming Vector4, z: consuming Vector4, w: consuming Vector4) {
         self.init(x, y, z, w)
     }
     
     // TODO: (Vlad) check that's ok
     @inline(__always)
-    init(basis: Transform2D) {
+    init(basis: borrowing Transform2D) {
         var matrix = Transform3D.identity
         
         matrix[0, 0] = basis.x.x
@@ -127,7 +127,7 @@ public extension Transform3D {
      */
     // FIXME: (Vlad) Looks like it doesn't works
     @inline(__always)
-    init(fromAffineTransform at: Transform2D) {
+    init(fromAffineTransform at: borrowing Transform2D) {
         self = Transform3D(columns: [
             [at[0, 0], at[1, 0], 0, at[2, 0]],
             [at[0, 1], at[1, 1], 0, at[2, 1]],
@@ -327,13 +327,13 @@ public extension Transform3D {
     
     /// Create TRS matrix
     @inline(__always)
-    init(translation: Vector3, rotation: Quat, scale: Vector3) {
+    init(translation: borrowing Vector3, rotation: borrowing Quat, scale: borrowing Vector3) {
         self = Transform3D(translation: translation) * Transform3D(quat: rotation) * Transform3D(scale: scale)
     }
 }
 
 public extension Transform3D {
-    static func * (lhs: Transform3D, rhs: Float) -> Transform3D {
+    static func * (lhs: borrowing Transform3D, rhs: Float) -> Transform3D {
         Transform3D(
             [lhs[0, 0] * rhs, lhs[0, 1] * rhs, lhs[0, 2] * rhs, lhs[0, 3] * rhs],
             [lhs[1, 0] * rhs, lhs[1, 1] * rhs, lhs[1, 2] * rhs, lhs[1, 3] * rhs],
@@ -342,7 +342,7 @@ public extension Transform3D {
         )
     }
     
-    static func * (lhs: Transform3D, rhs: Transform3D) -> Transform3D {
+    static func * (lhs: borrowing Transform3D, rhs: borrowing Transform3D) -> Transform3D {
         var x: Vector4 = lhs.x * rhs[0].x
         x = x + lhs.y * rhs[0].y
         x = x + lhs.z * rhs[0].z
@@ -362,11 +362,11 @@ public extension Transform3D {
         return Transform3D(x, y, z, w)
     }
     
-    static func *= (lhs: inout Transform3D, rhs: Transform3D) {
+    static func *= (lhs: inout Transform3D, rhs: borrowing Transform3D) {
         lhs = lhs * rhs
     }
     
-    static prefix func - (matrix: Transform3D) -> Transform3D {
+    static prefix func - (matrix: borrowing Transform3D) -> Transform3D {
         Transform3D(
             [-matrix[0, 0], -matrix[0, 1], -matrix[0, 2], -matrix[0, 3]],
             [-matrix[1, 0], -matrix[1, 1], -matrix[1, 2], -matrix[1, 3]],
@@ -378,7 +378,7 @@ public extension Transform3D {
 
 public extension Transform3D {
     /// Left-handed
-    static func lookAt(eye: Vector3, center: Vector3, up: Vector3 = .up) -> Transform3D {
+    static func lookAt(eye: borrowing Vector3, center: borrowing Vector3, up: borrowing Vector3 = .up) -> Transform3D {
         let z = (center - eye).normalized
         let x = z.cross(up).normalized
         let y = x.cross(z)
@@ -397,7 +397,7 @@ public extension Transform3D {
 
     /// Create a left-handed perspective projection
     static func perspective(
-        fieldOfView: Angle,
+        fieldOfView: borrowing Angle,
         aspectRatio: Float,
         zNear: Float,
         zFar: Float
@@ -442,7 +442,7 @@ public extension Transform3D {
         ])
     }
     
-    func rotate(angle: Angle, axis: Vector3) -> Transform3D {
+    func rotate(angle: borrowing Angle, axis: borrowing Vector3) -> Transform3D {
         let c = cos(angle.radians)
         let s = sin(angle.radians)
         
@@ -477,11 +477,11 @@ public extension Transform3D {
         ])
     }
 
-    func scaledBy(_ vector: Vector3) -> Transform3D {
+    func scaledBy(_ vector: borrowing Vector3) -> Transform3D {
         Transform3D(scale: vector) * self
     }
 
-    func translatedBy(_ vector: Vector3) -> Transform3D {
+    func translatedBy(_ vector: borrowing Vector3) -> Transform3D {
         Transform3D(translation: vector) * self
     }
 

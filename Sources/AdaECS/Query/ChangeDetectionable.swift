@@ -21,6 +21,6 @@ public extension ChangeDetectionable {
     }
 
     func setChanged() {
-        self.changeTick.change?.getPointer().pointee = self.changeTick.currentTick
+        unsafe self.changeTick.change?.getPointer().pointee = self.changeTick.currentTick
     }
 }

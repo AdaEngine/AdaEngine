@@ -27,7 +27,7 @@ class MetalBuffer: Buffer, @unchecked Sendable {
     
     var length: Int { return buffer.length }
     
-    func contents() -> UnsafeMutableRawPointer { return self.buffer.contents() }
+    func contents() -> UnsafeMutableRawPointer { return unsafe self.buffer.contents() }
     
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
         unsafe self.buffer.contents().advanced(by: offset).copyMemory(from: bytes, byteCount: byteCount)

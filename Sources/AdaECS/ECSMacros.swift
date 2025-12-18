@@ -5,8 +5,6 @@
 //  Created by v.prusakov on 5/18/25.
 //
 
-#if swift(>=5.9)
-
 // TODO: Add reflrection support
 
 /// A macro for creating a component.
@@ -41,7 +39,7 @@ public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "Comp
 ///     var player: Player
 /// }
 ///
-/// world.spawn(
+/// world.spawn(bundle:
 ///     PlayerBundle(
 ///         position: [10, 0, 10],
 ///         player: Player(team: .red)
@@ -60,13 +58,15 @@ public macro Bundle() = #externalMacro(module: "AdaEngineMacros", type: "BundleM
 ///
 /// Example:
 /// ```swift
-/// @PlainSystem(dependencies: [PhysicsSystem.self])
+/// @PlainSystem(dependencies: [.before(PhysicsSystem.self)])
 /// struct MovementSystem: System {
 ///     @Query<Ref<Transform>, Velocity>
 ///     private var query
 ///
 ///     @Res
 ///     private var resources: Gravity?
+///
+///     init(world: World) { }
 ///
 ///     func update(context: UpdateContext) {
 ///         for (transform, velocity) in query {
@@ -89,7 +89,7 @@ public macro PlainSystem(
 ///
 /// Example:
 /// ```swift
-/// @System(dependencies: [PhysicsSystem.self])
+/// @System(dependencies: [.before(PhysicsSystem.self)])
 /// func Movement(
 ///     query: Query<Ref<Transform>, Velocity>,
 ///     resources: Res<Gravity>,
@@ -105,6 +105,4 @@ public macro PlainSystem(
 public macro System(
     dependencies: [SystemDependency] = []
 ) = #externalMacro(module: "AdaEngineMacros", type: "SystemMacro")
-
-#endif
 

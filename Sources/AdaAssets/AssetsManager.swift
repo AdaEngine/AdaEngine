@@ -326,7 +326,7 @@ public struct AssetsManager: Resource {
             try fileSystem.createDirectory(at: resources, withIntermediateDirectories: true)
         }
         
-        self.resourceDirectory = resources
+        unsafe self.resourceDirectory = resources
 #endif
     }
 

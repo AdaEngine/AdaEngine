@@ -40,7 +40,7 @@ struct MiniAudioEngine: AudioEngine, @unchecked Sendable {
         )
 
         init() throws {
-            var config = ma_engine_config_init()
+            var config = unsafe ma_engine_config_init()
             unsafe config.channels = 2
             let result = unsafe ma_engine_init(&config, enginePtr)
             if result != MA_SUCCESS {
