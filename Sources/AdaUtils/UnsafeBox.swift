@@ -122,6 +122,13 @@ final class _UnsafeBox: @unchecked Sendable {
         unsafe self.automanaged = false
     }
 
+    @usableFromInline
+    init(_ pointer: OpaquePointer) {
+        unsafe self.pointer = UnsafeMutableRawPointer(pointer)
+        unsafe self.deallocator = nil
+        unsafe self.automanaged = false
+    }
+
     deinit {
         guard unsafe self.automanaged else {
             return
@@ -131,7 +138,7 @@ final class _UnsafeBox: @unchecked Sendable {
     }
 }
 
-@unsafe
+@safe
 public struct UnsafeAnyBox {
     @usableFromInline
     let box: _UnsafeBox
@@ -144,6 +151,11 @@ public struct UnsafeAnyBox {
     @inlinable
     public init<T>(_ wrappedValue: consuming T) {
         unsafe self.box = _UnsafeBox(wrappedValue)
+    }
+
+    @inlinable
+    public init(_ opaque: OpaquePointer) {
+        unsafe self.box = _UnsafeBox(opaque)
     }
 
     @inlinable

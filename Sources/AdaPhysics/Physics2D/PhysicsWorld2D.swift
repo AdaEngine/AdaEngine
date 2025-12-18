@@ -127,7 +127,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
     
     /// - Parameter gravity: default gravity is 9.8.
     nonisolated init(gravity: Vector2 = [0, -9.81]) {
-        var worldDef = b2DefaultWorldDef()
+        var worldDef = unsafe b2DefaultWorldDef()
         unsafe worldDef.gravity = gravity.b2Vec
         unsafe worldDef.enableSleep = true
         unsafe worldDef.enableContinuous = true
@@ -227,7 +227,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
 
     @MainActor
     func processContacts() {
-        let contactEvents = b2World_GetContactEvents(self.worldId)
+        let contactEvents = unsafe b2World_GetContactEvents(self.worldId)
 
         for index in unsafe 0..<contactEvents.beginCount {
             let contact = unsafe contactEvents.beginEvents[Int(index)]
@@ -247,7 +247,7 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
 
     @MainActor
     func processSensors() {
-        let sensorEvents = b2World_GetSensorEvents(self.worldId)
+        let sensorEvents = unsafe b2World_GetSensorEvents(self.worldId)
 
         for index in unsafe 0..<sensorEvents.beginCount {
             let contact = unsafe sensorEvents.beginEvents[Int(index)]

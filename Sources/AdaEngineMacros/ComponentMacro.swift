@@ -101,11 +101,12 @@ private extension ComponentMacro {
 }
 
 extension ComponentMacro: MemberMacro {
-    public static func expansion<D: DeclGroupSyntax, C: MacroExpansionContext>(
+    public static func expansion(
         of node: AttributeSyntax,
-        providingMembersOf declaration: D,
-        in context: C
-    ) throws -> [DeclSyntax] {
+        providingMembersOf declaration: some DeclGroupSyntax,
+        conformingTo protocols: [TypeSyntax],
+        in context: some MacroExpansionContext
+      ) throws -> [DeclSyntax] {
         return []
     }
 }

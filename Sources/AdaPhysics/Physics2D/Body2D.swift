@@ -165,7 +165,7 @@ final class BoxShape2D {
     }
 
     var body: Body2D? {
-        guard let ptr = b2Body_GetUserData(bodyId) else {
+        guard let ptr = unsafe b2Body_GetUserData(bodyId) else {
             return nil
         }
         

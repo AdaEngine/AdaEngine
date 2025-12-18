@@ -320,7 +320,7 @@ public struct Changed<T: Component>: Filter {
         lastTick: Tick,
         currentTick: Tick
     ) -> ChangedFetch {
-        ChangedFetch(lastTick: lastTick, currentTick: currentTick)
+        unsafe ChangedFetch(lastTick: lastTick, currentTick: currentTick)
     }
 
     @inlinable
@@ -331,7 +331,7 @@ public struct Changed<T: Component>: Filter {
         archetype: Archetype
     ) -> ChangedFetch {
         var newFetch = fetch
-        guard let slice = chunk.getMutableComponentTicksSlice(for: T.self) else {
+        guard let slice = unsafe chunk.getMutableComponentTicksSlice(for: T.self) else {
             return fetch
         }
         unsafe newFetch.ticks = slice
@@ -383,7 +383,7 @@ public struct Added<T: Component>: Filter {
         lastTick: Tick,
         currentTick: Tick
     ) -> AddedFetch {
-        AddedFetch(lastTick: lastTick, currentTick: currentTick)
+        unsafe AddedFetch(lastTick: lastTick, currentTick: currentTick)
     }
 
     @inlinable
@@ -394,7 +394,7 @@ public struct Added<T: Component>: Filter {
         archetype: Archetype
     ) -> AddedFetch {
         var newFetch = fetch
-        guard let slice = chunk.getMutableComponentTicksSlice(for: T.self) else {
+        guard let slice = unsafe chunk.getMutableComponentTicksSlice(for: T.self) else {
             return fetch
         }
         unsafe newFetch.ticks = slice

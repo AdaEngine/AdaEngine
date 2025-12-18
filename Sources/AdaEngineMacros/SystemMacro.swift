@@ -16,8 +16,9 @@ public struct SystemMacro: MemberMacro {
     public static func expansion(
         of node: AttributeSyntax,
         providingMembersOf declaration: some DeclGroupSyntax,
+        conformingTo protocols: [TypeSyntax],
         in context: some MacroExpansionContext
-    ) throws -> [DeclSyntax] {
+      ) throws -> [DeclSyntax] {
         // Find all properties with SystemParameter attribute
         let entityQueries = declaration.memberBlock.members.compactMap { member -> String? in
             guard let varDecl = member.decl.as(VariableDeclSyntax.self) else { return nil }

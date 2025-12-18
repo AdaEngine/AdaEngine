@@ -86,7 +86,7 @@ extension World {
             func getWithTick<T: Resource>(
                 _ type: T.Type
             ) -> (pointer: UnsafeMutablePointer<T>, changedTick: UnsafeBox<Tick>) {
-                (
+                unsafe (
                     pointer.getMutablePointer(at: 0, as: T.self),
                     changedTick
                 )

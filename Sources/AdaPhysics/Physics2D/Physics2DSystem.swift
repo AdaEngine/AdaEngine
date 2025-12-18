@@ -65,7 +65,7 @@ public struct Physics2DSystem: Sendable {
                 
                 body.massData.mass = physicsBody.massProperties.mass
             } else {
-                var def = b2DefaultBodyDef()
+                var def = unsafe b2DefaultBodyDef()
                 unsafe def.fixedRotation = physicsBody.fixedRotation
                 unsafe def.position = transform.position.xy.b2Vec
                 unsafe def.type = physicsBody.mode.b2Type
@@ -74,7 +74,7 @@ public struct Physics2DSystem: Sendable {
                 physicsBody.runtimeBody = body
 
                 for shapeResource in physicsBody.wrappedValue.shapes {
-                    var shapeDef = b2DefaultShapeDef()
+                    var shapeDef = unsafe b2DefaultShapeDef()
                     unsafe shapeDef.density = physicsBody.material.density
                     unsafe shapeDef.restitution = physicsBody.material.restitution
                     unsafe shapeDef.friction = physicsBody.material.friction
@@ -124,7 +124,7 @@ public struct Physics2DSystem: Sendable {
                     )
                 }
             } else {
-                var def = b2DefaultBodyDef()
+                var def = unsafe b2DefaultBodyDef()
                 unsafe def.position = transform.position.xy.b2Vec
                 unsafe def.type = b2_staticBody
 
@@ -132,7 +132,7 @@ public struct Physics2DSystem: Sendable {
                 collisionBody.runtimeBody = body
 
                 for shapeResource in collisionBody.wrappedValue.shapes {
-                    var shapeDef = b2DefaultShapeDef()
+                    var shapeDef = unsafe b2DefaultShapeDef()
                     unsafe shapeDef.density = 1
                     if let debugColor = collisionBody.debugColor {
                         unsafe shapeDef.customColor = UInt32(debugColor.toHex)
