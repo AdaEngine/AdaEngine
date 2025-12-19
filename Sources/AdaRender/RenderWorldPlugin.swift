@@ -9,6 +9,7 @@ import AdaApp
 import AdaECS
 import AdaUtils
 import Foundation
+import Logging
 import Math
 
 /// The plugin that sets up the render world.
@@ -54,7 +55,6 @@ public struct RenderWorldPlugin: Plugin {
             .addSystem(RenderSystem.self, on: .render)
 
         app.addSubworld(renderWorld, by: .renderWorld)
-        app.addPlugin(UpscalePlugin())
     }
 }
 
@@ -169,7 +169,7 @@ func CreateWindowSurfaces(
             )
         }
     } catch {
-        print("CreateWindowSurfaces", error.localizedDescription)
+        Logger(label: "org.adaengine.AdaRender").error("\(error.localizedDescription)")
     }
 }
 

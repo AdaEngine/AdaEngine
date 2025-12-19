@@ -378,28 +378,6 @@ public struct GlyphRenderData {
     public var textures: [Texture2D?] = []
 }
 
-public struct GlyphVertexData {
-    public let position: Vector4
-    public let foregroundColor: Color
-    public let outlineColor: Color
-    public let textureCoordinate: Vector2
-    public let textureIndex: Int
-
-    public init(
-        position: Vector4,
-        foregroundColor: Color,
-        outlineColor: Color,
-        textureCoordinate: Vector2,
-        textureIndex: Int
-    ) {
-        self.position = position
-        self.foregroundColor = foregroundColor
-        self.outlineColor = outlineColor
-        self.textureCoordinate = textureCoordinate
-        self.textureIndex = textureIndex
-    }
-}
-
 public extension String {
     
     /// Calculates and returns the size.

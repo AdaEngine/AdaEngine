@@ -7,6 +7,7 @@
 
 import AdaApp
 import AdaAudio
+import AdaCorePipelines
 import AdaECS
 import AdaInput
 import AdaPhysics
@@ -42,7 +43,8 @@ public struct DefaultPlugins: Plugin {
         insertPlugin(ScenePlugin(), into: &plugins)
         insertPlugin(AudioPlugin(), into: &plugins)
         insertPlugin(WindowPlugin(), into: &plugins)
-        insertPlugin(Scene2DPlugin(), into: &plugins)
+        insertPlugin(Core2DPlugin(), into: &plugins)
+        insertPlugin(UpscalePlugin(), into: &plugins)
         insertPlugin(UIPlugin(), into: &plugins)
         insertPlugin(Physics2DPlugin(), into: &plugins)
         insertPlugin(TileMapPlugin(), into: &plugins)

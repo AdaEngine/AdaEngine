@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaUtils
+import AdaRender
 
 /// This render node responsible for rendering ``Transparent2DRenderItem``.
 public struct Main2DRenderNode: RenderNode {

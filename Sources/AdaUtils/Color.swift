@@ -42,7 +42,7 @@ public struct Color: Codable, Hashable, Sendable {
 public extension Color {
     @inlinable
     @inline(__always)
-    init(_ vector: Vector4) {
+    init(_ vector: borrowing Vector4) {
         self.init(red: vector.x, green: vector.y, blue: vector.z, alpha: vector.w)
     }
     

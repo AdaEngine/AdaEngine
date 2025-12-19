@@ -6,6 +6,7 @@
 //
 
 import AdaECS
+import AdaRender
 import Math
 
 /// This node is responsible for presenting the result to the screen.
