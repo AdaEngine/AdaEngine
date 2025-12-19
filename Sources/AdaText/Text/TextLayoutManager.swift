@@ -15,10 +15,8 @@ import FoundationEssentials
 import Foundation
 #endif
 
-// FIXME: When text container updates each frame, than we have troubles with performance
 // FIXME: Fix TextRun, that should equals AttributedString.Run
 // TODO: Add line break mode by word
-// TODO: Add background thread for calculating all
 
 /// A region where text layout occurs.
 public struct TextContainer: Hashable {
@@ -27,11 +25,13 @@ public struct TextContainer: Hashable {
     public var text: AttributedText
 
     // FIXME: Fix text alignment for multiline text.
+
     /// The alignment of text in the box.
     /// - Warning: Under development.
     public var textAlignment: TextAlignment
     
     // FIXME: Break mode doesn't work currently
+    
     /// The behavior of the last line inside the text container.
     /// - Warning: Under development.
     public var lineBreakMode: LineBreakMode
@@ -107,7 +107,8 @@ public final class TextLayoutManager: @unchecked Sendable {
     }
 
     // swiftlint:disable function_body_length
-    
+
+    // FIXME: TextLayoutManager calculate the wrong position
     /// Invalidate text layout, update text lines and glyphs.
     public func invalidateLayout() {
         var x: Double = 0
@@ -122,7 +123,7 @@ public final class TextLayoutManager: @unchecked Sendable {
 
         let numberOfLines = self.textContainer.numberOfLines ?? lines.count
         if numberOfLines < 0 {
-            print("Line limit can't be less than zero.")
+            assertionFailure("Line limit can't be less than zero.")
             return
         }
 
