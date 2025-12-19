@@ -40,6 +40,7 @@ public struct UIPlugin: Plugin {
             .insertResource(RenderPipelines(configurator: LinePipeline()))
             .insertResource(RenderPipelines(configurator: TextPipeline()))
             .insertResource(UIDrawPass())
+            .insertResource(UIViewUniform())
 
         renderWorld.initResource(UIRenderPipelines.self)
 
