@@ -251,8 +251,13 @@ public final class TextLayoutManager: @unchecked Sendable {
     }
 
     /// Get or create glyphs vertex data relative to transform.
-    public func getGlyphVertexData(transform: Transform3D, textures: inout [Texture2D], textureSlotIndex: inout Int) -> GlyphRenderData {
-        if let glyphsToRender = glyphsToRender, glyphsToRender.transform == transform {
+    public func getGlyphVertexData(
+        transform: Transform3D,
+        textures: inout [Texture2D],
+        textureSlotIndex: inout Int,
+        ignoreCache: Bool = false
+    ) -> GlyphRenderData {
+        if let glyphsToRender = glyphsToRender, glyphsToRender.transform == transform, !ignoreCache {
             return glyphsToRender
         }
         

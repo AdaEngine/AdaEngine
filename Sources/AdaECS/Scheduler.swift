@@ -170,6 +170,18 @@ public struct FixedTime: Resource {
     }
 }
 
+/// A resource that contains the elapsed time from launch.
+public struct ElapsedTime: Resource {
+    /// The elaped time.
+    public let value: AdaUtils.TimeInterval
+
+    /// Initialize a new delta time.
+    /// - Parameter deltaTime: The delta time.
+    public init(value: AdaUtils.TimeInterval = 0.0) {
+        self.value = value
+    }
+}
+
 /// A resource that contains the order of the default scheduler.
 public struct DefaultSchedulerOrder: Resource {
     public let order: [SchedulerName]
@@ -222,7 +234,7 @@ public struct Scheduler: Sendable {
     public var graphExecutor: any SystemsGraphExecutor = SingleThreadedSystemsGraphExecutor()
 
     /// The last update time of the scheduler.
-    @LocalIsolated private var lastUpdate: LongTimeInterval = 0
+    @Local private var lastUpdate: LongTimeInterval = 0
 
     /// Initialize a new scheduler.
     /// - Parameter name: The name of the scheduler.
@@ -244,6 +256,7 @@ public struct Scheduler: Sendable {
 
         let name = self.name
         world.insertResource(DeltaTime(deltaTime: deltaTime))
+        world.insertResource(ElapsedTime(value: TimeInterval(lastUpdate)))
 
         await graphExecutor.execute(systemGraph, world: world, scheduler: name)
     }
