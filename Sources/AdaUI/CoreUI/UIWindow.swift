@@ -34,7 +34,7 @@ open class UIWindow: UIView {
     @_spi(Internal) public var systemWindow: SystemWindow?
     internal let eventManager = EventManager()
 
-    /// Flag indicates that window can draw itself content in method ``draw(in:with:)``.
+    /// Flag indicates that window can draw itself content in method ``UIView/draw(in:with:)``.
     open var canDraw: Bool = true
 
     private var _minSize: Size = .zero
