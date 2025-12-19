@@ -963,6 +963,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "CustomMaterialExample", path: "2d"),
     .exampleTarget(name: "TransparencyExample", path: "2d"),
     .exampleTarget(name: "ManySpritesExample", path: "2d"),
+    .exampleTarget(name: "Text2dExample", path: "2d"),
 
     // MARK: Input
     .exampleTarget(name: "GamepadExample", path: "Input"),

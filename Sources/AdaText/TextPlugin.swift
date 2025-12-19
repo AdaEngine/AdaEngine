@@ -25,8 +25,14 @@ public struct TextPlugin: Plugin {
             .registerRequiredComponent(TextLayoutComponent.self, for: TextComponent.self) {
                 TextLayoutComponent(textLayout: TextLayoutManager())
             }
+            .addSystem(TextLayoutSystem.self, on: .preUpdate)
+
+        guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
+            return
+        }
+
+        renderWorld
             .insertResource(RenderPipelines<TextPipeline>(configurator: TextPipeline()))
-            .addSystem(TextLayoutSystem.self)
     }
 }
 
