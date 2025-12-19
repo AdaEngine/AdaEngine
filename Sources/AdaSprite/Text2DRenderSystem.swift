@@ -179,7 +179,8 @@ public struct Text2DRenderSystem {
             let glyphData = text.textLayout.getGlyphVertexData(
                 transform: worldTransform,
                 textures: &textDrawData.fontAtlases,
-                textureSlotIndex: &textureSlotIndex
+                textureSlotIndex: &textureSlotIndex,
+                ignoreCache: true
             )
 
             if glyphData.verticies.isEmpty {
