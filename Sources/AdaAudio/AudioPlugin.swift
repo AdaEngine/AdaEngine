@@ -8,9 +8,12 @@
 import AdaApp
 import AdaECS
 import AdaTransform
+import Logging
 
 /// A plugin that adds audio capabilities to the world.
 public struct AudioPlugin: Plugin {
+
+    private let logger = Logger(label: "org.adaengine.audioplugin")
 
     public init() {}
 
@@ -26,15 +29,15 @@ public struct AudioPlugin: Plugin {
                 .insertResource(AudioServer.shared!)
                 .addSystem(AudioSystem.self)
         } catch {
-            print("Error", error)
+            logger.error("Failed to setup AudioPlugin with error: \(error)")
         }
     }
 
-    public func finish(for app: borrowing AppWorlds) {
+    public func destroy(for app: borrowing AppWorlds) {
         do {
             unsafe try AudioServer.shared.stop()
         } catch {
-            print("Error", error)
+            logger.error("Failed to destroy AudioServer with error: \(error)")
         }
     }
 }

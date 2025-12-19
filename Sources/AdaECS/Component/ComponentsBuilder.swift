@@ -17,7 +17,8 @@ private struct ComponentBuilderTuple: Component {
 /// We typically use ``ComponentsBuilder`` as a parameter attribute for components bundle.
 ///
 /// - Note: More profitable for performance use solutions like ``Entity/ComponentSet/+=(lhs:rhs:)`` or ``Entity/ComponentSet/set(_:)-2oz15`` in ``Entity/ComponentSet`` object.
-@resultBuilder public enum ComponentsBuilder {
+@resultBuilder
+public enum ComponentsBuilder {
 
     public static func buildBlock(_ components: any Component...) -> any Component {
         ComponentBuilderTuple(components: components)
