@@ -8,8 +8,18 @@
 import AdaECS
 import AdaRender
 import AdaUtils
+import Math
 
 // TODO: - Avoid redrawing if nothing changed.
+
+/// Resource that holds the UI view uniform for rendering.
+/// Uses an orthographic projection with origin at top-left corner.
+public struct UIViewUniform: Resource {
+    public var uniformBufferSet: UniformBufferSet?
+    public var viewProjectionMatrix: Transform3D = .identity
+
+    public init() {}
+}
 
 public struct UIRenderNode: RenderNode {
     /// Input slots of render node.
@@ -20,12 +30,19 @@ public struct UIRenderNode: RenderNode {
     @Query<
         Entity,
         Camera,
-        RenderViewTarget
+        RenderViewTarget,
+        GlobalViewUniformBufferSet
     >
     private var query
 
     @Res<RenderItems<UITransparentRenderItem>>
     private var renderItems
+
+    @ResMut<UIViewUniform>
+    private var uiViewUniform
+
+    @Res<RenderDeviceHandler>
+    private var renderDevice
 
     public init() {}
 
@@ -36,6 +53,8 @@ public struct UIRenderNode: RenderNode {
     public func update(from world: World) {
         query.update(from: world)
         _renderItems.update(from: world)
+        _uiViewUniform.update(from: world)
+        _renderDevice.update(from: world)
     }
 
     public func execute(
@@ -46,49 +65,130 @@ public struct UIRenderNode: RenderNode {
             return []
         }
 
-        try query.forEach { entity, camera, target in
+        try query.forEach { entity, camera, target, cameraUniform in
             if entity != view {
                 return
             }
 
-            let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
 
-            guard
-                let texture = target.mainTexture
-            else {
+            guard let texture = target.mainTexture else {
                 return
             }
 
+            // Get viewport size
+            let viewportSize = camera.viewport?.rect.size ?? Size(
+                width: Float(texture.width),
+                height: Float(texture.height)
+            )
+
+            // Create UI-specific orthographic projection with origin at top-left
+            let uiProjection = Transform3D.createUIProjection(
+                width: viewportSize.width,
+                height: viewportSize.height,
+                scaleFactor: texture.scaleFactor
+            )
+
+            // Update the UI view uniform buffer
+            updateUIViewUniform(
+                projection: uiProjection,
+                device: renderDevice.renderDevice
+            )
+
+
             let renderPass = commandBuffer.beginRenderPass(
                 RenderPassDescriptor(
-                    label: "Main 2d Render Pass",
+                    label: "UI Render Pass",
                     colorAttachments: [
                         .init(
                             texture: texture,
                             operation: OperationDescriptor(
-                                loadAction: .clear,
+                                loadAction: .load,  // Load existing content (don't clear)
                                 storeAction: .store
                             ),
-                            clearColor: clearColor
+                            clearColor: .clear
                         )
                     ],
                     depthStencilAttachment: nil
                 )
             )
 
+
+            let uniformBuffer = uiViewUniform.uniformBufferSet!.getBuffer(
+                binding: GlobalBufferIndex.viewUniform,
+                set: 0,
+                frameIndex: RenderEngine.shared.currentFrameIndex
+            )
+
+            // Set the UI view uniform (not the camera's uniform)
+            renderPass.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
+
             if let viewport = camera.viewport {
                 renderPass.setViewport(viewport.rect)
             }
 
-            if !renderItems.items.isEmpty {
-                try renderItems.render(with: renderPass, world: context.world, view: view)
-            }
+            try renderItems.render(with: renderPass, world: context.world, view: view)
 
             renderPass.endRenderPass()
             commandBuffer.commit()
         }
 
         return []
+    }
+
+    private func updateUIViewUniform(
+        projection: Transform3D,
+        device: RenderDevice
+    ) {
+        // Create uniform buffer set if needed
+        if uiViewUniform.uniformBufferSet == nil {
+            let bufferSet = device.createUniformBufferSet()
+            bufferSet.initBuffers(for: GlobalViewUniform.self, binding: GlobalBufferIndex.viewUniform, set: 0)
+            uiViewUniform.uniformBufferSet = bufferSet
+        }
+
+        uiViewUniform.viewProjectionMatrix = projection
+
+        // Update the uniform buffer with UI projection
+        let uniform = GlobalViewUniform(
+            projectionMatrix: projection,
+            viewProjectionMatrix: projection,
+            viewMatrix: .identity
+        )
+
+        if let buffer = uiViewUniform.uniformBufferSet?.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        ) {
+            buffer.setData(uniform)
+        }
+    }
+}
+
+public extension Transform3D {
+    /// Creates an orthographic projection matrix for UI rendering.
+    /// Origin is at top-left corner, Y increases downward.
+    /// - Parameters:
+    ///   - width: Viewport width in points.
+    ///   - height: Viewport height in points.
+    ///   - scaleFactor: Scale factor for HiDPI displays.
+    /// - Returns: Orthographic projection matrix.
+    static func createUIProjection(
+        width: Float,
+        height: Float,
+        scaleFactor: Float = 1.0
+    ) -> Transform3D {
+        // UI orthographic projection with origin at top-left
+        // X: 0 to width (left to right)
+        // Y: 0 to -height (top to bottom, negated in Rect.toTransform3D)
+        return Transform3D.orthographic(
+            left: 0,
+            right: width / scaleFactor,
+            top: 0,
+            bottom: -height / scaleFactor,
+            zNear: -1000,
+            zFar: 1000
+        )
     }
 }

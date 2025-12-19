@@ -40,17 +40,6 @@ public struct UIGraphicsContext: Sendable {
 //        camera.projection = .orthographic
 //        self.camera = camera
     }
-    
-    public mutating func beginDraw(in size: Size, scaleFactor: Float) {
-        let view = Transform3D.orthographic(
-            left: 0,
-            right: size.width * scaleFactor,
-            top: 0,
-            bottom: -size.height * scaleFactor,
-            zNear: 0,
-            zFar: 1000
-        )
-    }
 
     public mutating func concatenate(_ transform: Transform3D) {
         self.transform = transform * self.transform

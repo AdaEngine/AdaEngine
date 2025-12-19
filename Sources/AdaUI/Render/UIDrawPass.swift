@@ -81,6 +81,7 @@ public struct UIDrawData: Sendable {
 // MARK: - UI Draw Pass
 
 /// Draw pass for rendering UI primitives.
+/// Note: The view uniform buffer is set by UIRenderNode, not here.
 public struct UIDrawPass: DrawPass {
     public typealias Item = UITransparentRenderItem
 
@@ -92,23 +93,10 @@ public struct UIDrawPass: DrawPass {
         view: Entity,
         item: UITransparentRenderItem
     ) throws {
-        guard let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self] else {
-            return
-        }
-
         let uiDrawData = item.drawData
 
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-
-        // Determine which primitive type to render based on the entity
-        // This is a simplified approach - in a full implementation,
-        // you would have separate render items for each primitive type
+        // Note: The uniform buffer is already set by UIRenderNode with the
+        // UI-specific orthographic projection (origin at top-left)
 
         // Render quads
         if !uiDrawData.quadIndexBuffer.isEmpty {
@@ -211,205 +199,6 @@ public struct UIDrawPass: DrawPass {
         renderEncoder: RenderCommandEncoder,
         uiDrawData: UIDrawData
     ) {
-        renderEncoder.pushDebugName("UI Glyph Render")
-        defer { renderEncoder.popDebugName() }
-
-        // Bind font atlas textures
-        for (index, texture) in uiDrawData.fontAtlases.enumerated() {
-            renderEncoder.setFragmentTexture(texture, index: index)
-            renderEncoder.setFragmentSamplerState(texture.sampler, index: index)
-        }
-
-        renderEncoder.setVertexBuffer(uiDrawData.glyphVertexBuffer, offset: 0, index: 0)
-        renderEncoder.setIndexBuffer(uiDrawData.glyphIndexBuffer, indexFormat: .uInt32)
-
-        renderEncoder.drawIndexed(
-            indexCount: uiDrawData.glyphIndexBuffer.count,
-            indexBufferOffset: 0,
-            instanceCount: 1
-        )
-    }
-}
-
-
-/// Draw pass for rendering UI primitives.
-public struct UIQuadDrawPass: DrawPass {
-    public typealias Item = UITransparentRenderItem
-
-    public init() {}
-
-    public func render(
-        with renderEncoder: RenderCommandEncoder,
-        world: World,
-        view: Entity,
-        item: UITransparentRenderItem
-    ) throws {
-        guard let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self] else {
-            return
-        }
-
-        let uiDrawData = item.drawData
-
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-        renderEncoder.setRenderPipelineState(
-            item.renderPipeline.quadPipeline
-        )
-
-        guard !uiDrawData.quadIndexBuffer.isEmpty else {
-            return
-        }
-
-        renderEncoder.pushDebugName("UI Quad Render")
-        defer { renderEncoder.popDebugName() }
-
-        // Bind textures
-        for (index, texture) in uiDrawData.textures.enumerated() {
-            renderEncoder.setFragmentTexture(texture, index: index)
-            renderEncoder.setFragmentSamplerState(texture.sampler, index: index)
-        }
-
-        renderEncoder.setVertexBuffer(uiDrawData.quadVertexBuffer, offset: 0, index: 0)
-        renderEncoder.setIndexBuffer(uiDrawData.quadIndexBuffer, indexFormat: .uInt32)
-
-        renderEncoder.drawIndexed(
-            indexCount: uiDrawData.quadIndexBuffer.count,
-            indexBufferOffset: 0,
-            instanceCount: 1
-        )
-    }
-}
-
-
-/// Draw pass for rendering UI primitives.
-public struct UICircleDrawPass: DrawPass {
-    public typealias Item = UITransparentRenderItem
-
-    public init() {}
-
-    public func render(
-        with renderEncoder: RenderCommandEncoder,
-        world: World,
-        view: Entity,
-        item: UITransparentRenderItem
-    ) throws {
-        guard let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self] else {
-            return
-        }
-
-        let uiDrawData = item.drawData
-
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-        renderEncoder.setRenderPipelineState(item.renderPipeline.circlePipeline)
-
-        guard !uiDrawData.circleIndexBuffer.isEmpty else {
-            return
-        }
-
-        renderEncoder.pushDebugName("UI Circle Render")
-        defer { renderEncoder.popDebugName() }
-
-        renderEncoder.setVertexBuffer(uiDrawData.circleVertexBuffer, offset: 0, index: 0)
-        renderEncoder.setIndexBuffer(uiDrawData.circleIndexBuffer, indexFormat: .uInt32)
-
-        renderEncoder.drawIndexed(
-            indexCount: uiDrawData.circleIndexBuffer.count,
-            indexBufferOffset: 0,
-            instanceCount: 1
-        )
-    }
-}
-
-
-/// Draw pass for rendering UI primitives.
-public struct UILinesDrawPass: DrawPass {
-    public typealias Item = UITransparentRenderItem
-
-    public init() {}
-
-    public func render(
-        with renderEncoder: RenderCommandEncoder,
-        world: World,
-        view: Entity,
-        item: UITransparentRenderItem
-    ) throws {
-        guard let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self] else {
-            return
-        }
-
-        let uiDrawData = item.drawData
-
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-        renderEncoder.setRenderPipelineState(item.renderPipeline.linePipeline)
-
-        guard !uiDrawData.lineIndexBuffer.isEmpty else {
-            return
-        }
-
-        renderEncoder.pushDebugName("UI Line Render")
-        defer { renderEncoder.popDebugName() }
-
-        renderEncoder.setVertexBuffer(uiDrawData.lineVertexBuffer, offset: 0, index: 0)
-        renderEncoder.setIndexBuffer(uiDrawData.lineIndexBuffer, indexFormat: .uInt32)
-
-        // Lines are rendered using line primitive type configured in the pipeline
-        renderEncoder.drawIndexed(
-            indexCount: uiDrawData.lineIndexBuffer.count,
-            indexBufferOffset: 0,
-            instanceCount: 1
-        )
-    }
-}
-
-
-/// Draw pass for rendering UI primitives.
-public struct UIGlyphDrawPass: DrawPass {
-    public typealias Item = UITransparentRenderItem
-
-    public init() {}
-
-    public func render(
-        with renderEncoder: RenderCommandEncoder,
-        world: World,
-        view: Entity,
-        item: UITransparentRenderItem
-    ) throws {
-        guard let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self] else {
-            return
-        }
-
-        let uiDrawData = item.drawData
-
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-        renderEncoder.setRenderPipelineState(item.renderPipeline.textPipeline)
-
-        guard !uiDrawData.glyphIndexBuffer.isEmpty else {
-            return
-        }
-
         renderEncoder.pushDebugName("UI Glyph Render")
         defer { renderEncoder.popDebugName() }
 
