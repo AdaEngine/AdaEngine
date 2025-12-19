@@ -26,13 +26,6 @@ public struct UIPlugin: Plugin {
             .addSystem(UIComponentSystem.self)
             .insertResource(UIWindowPendingDrawViews())
 
-        app.main.registerRequiredComponent(
-            RenderItems<UIRenderItem>.self,
-            for: Camera.self
-        ) {
-            RenderItems<UIRenderItem>()
-        }
-
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
@@ -41,7 +34,7 @@ public struct UIPlugin: Plugin {
         renderWorld
             .insertResource(ExtractedUIComponents())
             .insertResource(PendingUIGraphicsContext())
-            .insertResource(UIRenderData())
+            .insertResource(RenderItems<UITransparentRenderItem>())
             .insertResource(UIDrawData())
             .insertResource(RenderPipelines(configurator: QuadPipeline()))
             .insertResource(RenderPipelines(configurator: CirclePipeline()))

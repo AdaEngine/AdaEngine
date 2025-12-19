@@ -8,9 +8,9 @@
 import AdaECS
 
 public struct SortedRenderItems<T: RenderItem>: Resource {
-    public var items: [T]
+    public var items: RenderItems<T>
 
-    public init(items: [T] = []) {
+    public init(items: RenderItems<T> = .init()) {
         self.items = items
     }
 }
@@ -21,8 +21,8 @@ public struct SortedRenderItems<T: RenderItem>: Resource {
 @PlainSystem
 public struct BatchAndSortItemsSystem<T: RenderItem> {
 
-    @Query<RenderItems<T>>
-    private var query
+    @ResMut<RenderItems<T>>
+    private var renderItems
 
     @ResMut<SortedRenderItems<T>>
     private var sortedRenderItems
@@ -30,27 +30,25 @@ public struct BatchAndSortItemsSystem<T: RenderItem> {
     public init(world: World) { }
 
     public func update(context: UpdateContext) async {
-        sortedRenderItems.items.removeAll(keepingCapacity: true)
-        self.query.forEach { renderItems in
-            let items = renderItems.sorted().items
-            var batchedItems: [T] = []
-            batchedItems.reserveCapacity(items.count)
-            
-            if var currentItem = items.first {
-                for nextItemIndex in 1..<items.count {
-                    let nextItem = items[nextItemIndex]
-                    
-                    if tryToAddBatch(to: &currentItem, from: nextItem) == false {
-                        batchedItems.append(currentItem)
-                        currentItem = nextItem
-                    }
-                }
+        sortedRenderItems.items.items.removeAll(keepingCapacity: true)
+        let items = renderItems.sorted().items
+        var batchedItems: [T] = []
+        batchedItems.reserveCapacity(items.count)
+        
+        if var currentItem = items.first {
+            for nextItemIndex in 1..<items.count {
+                let nextItem = items[nextItemIndex]
                 
-                batchedItems.append(currentItem)
+                if tryToAddBatch(to: &currentItem, from: nextItem) == false {
+                    batchedItems.append(currentItem)
+                    currentItem = nextItem
+                }
             }
             
-            sortedRenderItems.items.append(contentsOf: batchedItems)
+            batchedItems.append(currentItem)
         }
+        
+        sortedRenderItems.items.items.append(contentsOf: batchedItems)
     }
     
     private func tryToAddBatch(to currentItem: inout T, from otherItem: T) -> Bool {

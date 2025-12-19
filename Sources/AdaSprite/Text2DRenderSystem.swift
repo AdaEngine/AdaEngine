@@ -28,8 +28,11 @@ public struct Text2DRenderSystem {
     @Query<TextComponent, TextLayoutComponent, Transform, Visibility>
     private var textComponents
 
-    @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>
+    @FilterQuery<VisibleEntities, With<Camera>>
     private var cameras
+
+    @Res<RenderItems<Transparent2DRenderItem>>
+    private var renderItems
 
     @Res
     private var spriteDraw: SpriteDrawPass
@@ -46,11 +49,10 @@ public struct Text2DRenderSystem {
     public init(world: World) {}
 
     public func update(context: UpdateContext) async {
-        self.cameras.forEach { visibleEntities, renderItems in
+        self.cameras.forEach { visibleEntities in
             self.draw(
                 world: context.world,
-                visibleEntities: visibleEntities.entities,
-                renderItems: renderItems
+                visibleEntities: visibleEntities.entities
             )
         }
     }
@@ -58,8 +60,7 @@ public struct Text2DRenderSystem {
     // swiftlint:disable:next function_body_length
     private func draw(
         world: World,
-        visibleEntities: [Entity],
-        renderItems: Ref<RenderItems<Transparent2DRenderItem>>
+        visibleEntities: [Entity]
     ) {
         let texts = visibleEntities.filter {
             $0.components.has(TextComponent.self) && $0.components.has(TextLayoutComponent.self)

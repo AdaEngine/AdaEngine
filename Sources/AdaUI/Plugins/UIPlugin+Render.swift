@@ -67,11 +67,17 @@ public struct UIRenderTesselationSystem {
     /// Maximum number of textures per batch.
     private static let maxTexturesPerBatch = 16
 
+    @ResMut<RenderItems<UITransparentRenderItem>>
+    private var renderItems
+
     @ResMut<PendingUIGraphicsContext>
     private var contexts
 
-    @ResMut<UIRenderData>
+    @ResMut<UIDrawData>
     private var renderData
+
+    @Res<UIDrawPass>
+    private var uiDrawPass
 
     public init(world: World) { }
 
@@ -102,43 +108,43 @@ public struct UIRenderTesselationSystem {
                         slotIndex: &textureSlotIndex
                     )
 
-                    let vertexOffset = UInt32(renderData.quadVertices.count)
+                    let vertexOffset = UInt32(renderData.quadVertexBuffer.count)
                     let vertices = tessellator.tessellateQuad(
                         transform: transform,
                         texture: texture,
                         color: color,
                         textureIndex: texIndex
                     )
-                    renderData.quadVertices.append(contentsOf: vertices)
+                    renderData.quadVertexBuffer.elements.append(contentsOf: vertices)
 
                     let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
-                    renderData.quadIndices.append(contentsOf: indices)
+                    renderData.quadIndexBuffer.elements.append(contentsOf: indices)
 
                 case let .drawCircle(transform, thickness, fade, color):
-                    let vertexOffset = UInt32(renderData.circleVertices.count)
+                    let vertexOffset = UInt32(renderData.circleVertexBuffer.count)
                     let vertices = tessellator.tessellateCircle(
                         transform: transform,
                         thickness: thickness,
                         fade: fade,
                         color: color
                     )
-                    renderData.circleVertices.append(contentsOf: vertices)
+                    renderData.circleVertexBuffer.elements.append(contentsOf: vertices)
 
                     let indices = tessellator.generateCircleIndices(vertexOffset: vertexOffset)
-                    renderData.circleIndices.append(contentsOf: indices)
+                    renderData.circleIndexBuffer.elements.append(contentsOf: indices)
 
                 case let .drawLine(start, end, lineWidth, color):
-                    let vertexOffset = UInt32(renderData.lineVertices.count)
+                    let vertexOffset = UInt32(renderData.lineVertexBuffer.count)
                     let vertices = tessellator.tessellateLine(
                         start: start,
                         end: end,
                         lineWidth: lineWidth,
                         color: color
                     )
-                    renderData.lineVertices.append(contentsOf: vertices)
+                    renderData.lineVertexBuffer.elements.append(contentsOf: vertices)
 
                     let indices = tessellator.generateLineIndices(vertexOffset: vertexOffset)
-                    renderData.lineIndices.append(contentsOf: indices)
+                    renderData.lineIndexBuffer.elements.append(contentsOf: indices)
 
                 case let .drawPath(path):
                     let result = tessellator.tessellatePath(
@@ -148,11 +154,11 @@ public struct UIRenderTesselationSystem {
                         transform: .identity
                     )
 
-                    let vertexOffset = UInt32(renderData.lineVertices.count)
-                    renderData.lineVertices.append(contentsOf: result.vertices)
+                    let vertexOffset = UInt32(renderData.lineVertexBuffer.count)
+                    renderData.lineVertexBuffer.elements.append(contentsOf: result.vertices)
 
                     let indices = result.indices.map { $0 + vertexOffset }
-                    renderData.lineIndices.append(contentsOf: indices)
+                    renderData.lineIndexBuffer.elements.append(contentsOf: indices)
 
                 case let .drawText(textLayout, transform):
                     // Tessellate all glyphs from the text layout
@@ -225,50 +231,99 @@ public struct UIRenderTesselationSystem {
             slotIndex: &fontAtlasSlotIndex
         )
 
-        let vertexOffset = UInt32(renderData.glyphVertices.count)
+        let vertexOffset = UInt32(renderData.glyphVertexBuffer.count)
         let vertices = tessellator.tessellateGlyph(
             glyph,
             transform: transform,
             textureIndex: texIndex
         )
-        renderData.glyphVertices.append(contentsOf: vertices)
+        renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
 
         let indices = tessellator.generateGlyphIndices(vertexOffset: vertexOffset)
-        renderData.glyphIndices.append(contentsOf: indices)
+        renderData.glyphIndexBuffer.elements.append(contentsOf: indices)
     }
 }
 
-// MARK: - UIRenderNode
+// MARK: - UI Buffer Update System
 
-/// Render node for UI rendering in the render graph.
-public struct UIRenderNode: RenderNode {
+/// System that updates GPU buffers from tessellated UI data.
+@PlainSystem
+public struct UIBufferUpdateSystem {
 
-    public enum InputNode {
-        public static let view: RenderSlot.Label = "view"
+    @ResMut<UIDrawData>
+    private var drawData
+
+    @Res<RenderDeviceHandler>
+    private var renderDevice
+
+    public init(world: World) {}
+
+    public func update(context: UpdateContext) {
+        let device = renderDevice.renderDevice
+
+        // Update quad buffers
+        updateBuffer(
+            &drawData.quadVertexBuffer,
+            device: device
+        )
+        updateBuffer(
+            &drawData.quadIndexBuffer,
+            device: device
+        )
+
+        // Update circle buffers
+        updateBuffer(
+            &drawData.circleVertexBuffer,
+            device: device
+        )
+        updateBuffer(
+            &drawData.circleIndexBuffer,
+            device: device
+        )
+
+        // Update line buffers
+        updateBuffer(
+            &drawData.lineVertexBuffer,
+            device: device
+        )
+        updateBuffer(
+            &drawData.lineIndexBuffer,
+            device: device
+        )
+
+        // Update glyph buffers
+        updateBuffer(
+            &drawData.glyphVertexBuffer,
+            device: device
+        )
+        updateBuffer(
+            &drawData.glyphIndexBuffer,
+            device: device
+        )
     }
 
-    public let inputResources: [RenderSlot] = [
-        RenderSlot(name: InputNode.view, kind: .entity)
-    ]
+    private func updateBuffer<T>(
+        _ bufferData: inout BufferData<T>,
+        device: RenderDevice
+    ) {
+        guard !bufferData.isEmpty else {
+            return
+        }
 
-    public init() {}
-
-    public func execute(
-        context: inout Context,
-        renderContext: AdaRender.RenderContext
-    ) async throws -> [AdaRender.RenderSlotValue] {
-        return []
+        bufferData.write(to: device)
     }
 }
 
 // MARK: - UIRenderItem
 
 /// Render item for UI primitives.
-public struct UIRenderItem: RenderItem {
+public struct UITransparentRenderItem: RenderItem {
     public var sortKey: Float
-    public var entity: AdaECS.Entity.ID
-    public var drawPass: any AdaRender.DrawPass
+    public var entity: Entity.ID
+    public var drawPass: any DrawPass
     public var batchRange: Range<Int32>? = nil
+    public var renderPipeline: RenderPipeline
+    public var drawData: UIDrawData
 
     /// Type of UI primitive being rendered.
     public enum PrimitiveType: Sendable {
@@ -285,12 +340,16 @@ public struct UIRenderItem: RenderItem {
         entity: Entity.ID,
         drawPass: any DrawPass,
         primitiveType: PrimitiveType,
-        batchRange: Range<Int32>? = nil
+        batchRange: Range<Int32>? = nil,
+        renderPipeline: RenderPipeline,
+        drawData: UIDrawData
     ) {
         self.sortKey = sortKey
         self.entity = entity
         self.drawPass = drawPass
         self.primitiveType = primitiveType
         self.batchRange = batchRange
+        self.renderPipeline = renderPipeline
+        self.drawData = drawData
     }
 }
