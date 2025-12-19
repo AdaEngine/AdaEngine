@@ -9,6 +9,8 @@ import AdaApp
 import AdaECS
 @_spi(Internal) import AdaInput
 import AdaRender
+import AdaCorePipelines
+import AdaText
 import AdaUtils
 import Math
 import Logging
@@ -34,9 +36,17 @@ public struct UIPlugin: Plugin {
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }
+
+        // Register resources for UI rendering
         renderWorld
             .insertResource(ExtractedUIComponents())
             .insertResource(PendingUIGraphicsContext())
+            .insertResource(UIRenderData())
+            .insertResource(UIDrawData())
+            .insertResource(RenderPipelines(configurator: QuadPipeline()))
+            .insertResource(RenderPipelines(configurator: CirclePipeline()))
+            .insertResource(RenderPipelines(configurator: LinePipeline()))
+            .insertResource(RenderPipelines(configurator: TextPipeline()))
 
         let renderGraph = renderWorld.getRefResource(RenderGraph.self)
         do {
@@ -44,9 +54,12 @@ public struct UIPlugin: Plugin {
                 graph.addNode(UIRenderNode())
                 graph.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
             }
+
+            // Add UI rendering systems
             renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
             renderWorld.addSystem(UIRenderPreparingSystem.self, on: .prepare)
             renderWorld.addSystem(UIRenderTesselationSystem.self, on: .update)
+            renderWorld.addSystem(UIBufferUpdateSystem.self, on: .update)
         } catch {
             Logger(label: "org.adaengine.UIRenderPlugin").error("\(error)")
         }

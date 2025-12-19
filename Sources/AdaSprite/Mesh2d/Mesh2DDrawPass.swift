@@ -7,6 +7,7 @@
 
 import AdaECS
 @_spi(Internal) import AdaRender
+import AdaCorePipelines
 import Math
 
 struct Mesh2DUniform {

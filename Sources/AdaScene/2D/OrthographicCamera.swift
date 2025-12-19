@@ -8,6 +8,7 @@
 import AdaECS
 import AdaAudio
 import AdaRender
+import AdaCorePipelines
 
 /// A virtual camera that establishes the rendering orthographic.
 public typealias Camera2D = OrthographicCameraBundle
@@ -22,6 +23,7 @@ public struct OrthographicCameraBundle {
     public var audioReceiver: AudioReceiver
     public var transform: Transform
     public var visibility: Visibility
+    public let cameraRenderGraph: CameraRenderGraph
 
     /// Create a new orthograpich camera for rendering 2D and 3D items on screen.
     public init(
@@ -41,5 +43,6 @@ public struct OrthographicCameraBundle {
         self.audioReceiver = audioReceiver
         self.transform = transform
         self.visibility = visibility
+        self.cameraRenderGraph = CameraRenderGraph(subgraphLabel: .main2D, inputSlot: Main2DRenderNode.InputNode.view)
     }
 }

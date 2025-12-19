@@ -9,10 +9,14 @@ import AdaApp
 import AdaAssets
 import AdaECS
 import AdaUtils
+import AdaRender
 import Math
 
-struct UpscalePlugin: Plugin {
-    func setup(in app: borrowing AdaApp.AppWorlds) {
+public struct UpscalePlugin: Plugin {
+
+    public init() {}
+
+    public func setup(in app: borrowing AdaApp.AppWorlds) {
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
         }

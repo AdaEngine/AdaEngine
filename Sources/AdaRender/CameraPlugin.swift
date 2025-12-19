@@ -26,7 +26,6 @@ public struct CameraPlugin: Plugin {
         }
 
         renderWorld
-            .addSystem(ExtractCameraSystem.self, on: .extract)
             .addSystem(ConfigurateRenderViewTargetSystem.self, on: .prepare)
             .getRefResource(RenderGraph.self)
             .wrappedValue
@@ -82,7 +81,7 @@ func ConfigurateRenderViewTarget(
 }
 
 struct CameraRenderNode: RenderNode {
-    @Query<Entity, Camera>
+    @Query<Entity, Camera, CameraRenderGraph>
     private var query
 
     func update(from world: World) {
@@ -90,16 +89,27 @@ struct CameraRenderNode: RenderNode {
     }
 
     func execute(context: inout Context, renderContext: RenderContext) async -> [RenderSlotValue] {
-        query.forEach { (entity, camera) in
+        query.forEach { (entity, camera, renderSubGraph) in
             guard camera.isActive else {
                 return
             }
 
-            context.runSubgraph(.main2D, inputs: [
-                RenderSlotValue(name: Scene2DPlugin.InputNode.view, value: .entity(entity))
+            context.runSubgraph(renderSubGraph.subgraphLabel, inputs: [
+                RenderSlotValue(name: renderSubGraph.inputSlot, value: .entity(entity))
             ], viewEntity: entity)
         }
 
         return []
+    }
+}
+
+@Component
+public struct CameraRenderGraph {
+    public let subgraphLabel: RenderGraph.Label
+    public let inputSlot: RenderSlot.Label
+
+    public init(subgraphLabel: RenderGraph.Label, inputSlot: RenderSlot.Label) {
+        self.subgraphLabel = subgraphLabel
+        self.inputSlot = inputSlot
     }
 }

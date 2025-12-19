@@ -9,6 +9,8 @@ import AdaAssets
 import AdaApp
 import AdaECS
 import AdaRender
+import AdaUtils
+import Math
 
 /// Append text rendering systems to the scene.
 public struct TextPlugin: Plugin {
@@ -63,5 +65,34 @@ public struct TextPipeline: RenderPipelineConfigurator {
             )
         ]
         return piplineDesc
+    }
+}
+
+/// Vertex data for rendering text glyphs.
+/// Matches the layout expected by text.glsl shader.
+public struct GlyphVertexData: Sendable {
+    /// Position in world space (vec4).
+    public let position: Vector4
+    /// Foreground color of the text (vec4).
+    public let foregroundColor: Color
+    /// Outline color of the text (vec4).
+    public let outlineColor: Color
+    /// Texture coordinates for the glyph atlas (vec2).
+    public let textureCoordinate: Vector2
+    /// Index into the font atlas texture array.
+    public let textureIndex: Int
+
+    public init(
+        position: Vector4,
+        foregroundColor: Color,
+        outlineColor: Color,
+        textureCoordinate: Vector2,
+        textureIndex: Int
+    ) {
+        self.position = position
+        self.foregroundColor = foregroundColor
+        self.outlineColor = outlineColor
+        self.textureCoordinate = textureCoordinate
+        self.textureIndex = textureIndex
     }
 }

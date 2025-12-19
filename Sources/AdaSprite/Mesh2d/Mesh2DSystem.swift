@@ -10,6 +10,7 @@ import AdaECS
 import AdaTransform
 import AdaUtils
 @_spi(Internal) import AdaRender
+import AdaCorePipelines
 import Math
 
 // MARK: - Mesh 2D Plugin -

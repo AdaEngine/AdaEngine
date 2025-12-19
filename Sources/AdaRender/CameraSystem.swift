@@ -125,34 +125,3 @@ public struct CameraSystem: Sendable {
         camera.computedData.projectionMatrix = projection
     }
 }
-
-@System
-@inline(__always)
-public func ExtractCamera(
-    _ world: World,
-    _ commands: Commands,
-    _ query: Extract<
-        Query<Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
-    >
-) {
-    query.wrappedValue.forEach {
-        camera, transform,
-        visibleEntities, bufferSet, uniform in
-        let buffer = bufferSet.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        buffer.setData(uniform)
-        commands.spawn("ExtractedCameraEntity") {
-            camera
-            transform
-            visibleEntities
-            uniform
-            bufferSet
-            RenderViewTarget()
-            RenderItems<Transparent2DRenderItem>()
-        }
-    }
-}

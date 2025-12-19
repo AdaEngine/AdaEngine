@@ -9,6 +9,7 @@ import AdaECS
 import AdaAudio
 import AdaRender
 import AdaTransform
+import AdaCorePipelines
 
 /// A virtual camera that establishes the rendering perspective.
 public typealias Camera3D = PerspectiveCameraBundle
