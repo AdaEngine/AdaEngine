@@ -171,8 +171,7 @@ let adaEngineTarget: Target = .adaTarget(
     name: "AdaEngine",
     dependencies: adaEngineDependencies,
     resources: [
-        .copy("Assets/Images"),
-        .copy("Assets/Shaders")
+        .copy("Assets/Images")
     ],
     cSettings: [
         .define("GL_SILENCE_DEPRECATION")
@@ -248,6 +247,19 @@ var targets: [Target] = [
             .product(name: "BitCollections", package: "swift-collections"),
             "AdaEngineMacros",
             "Math"
+        ],
+        swiftSettings: swiftSettings
+    ),
+    .adaTarget(
+        name: "AdaCorePipelines",
+        dependencies: [
+            "AdaECS",
+            "AdaApp",
+            "AdaRender",
+            "Math"
+        ],
+        resources: [
+            .copy("Assets/Shaders")
         ],
         swiftSettings: swiftSettings
     ),
@@ -332,6 +344,7 @@ var targets: [Target] = [
             "AdaText",
             "Math",
             "AdaRender",
+            "AdaCorePipelines",
             "AdaInput",
             "AdaEngineMacros",
         ],
@@ -355,6 +368,7 @@ var targets: [Target] = [
             "AdaTransform",
             "AdaText",
             "AdaAudio",
+            "AdaCorePipelines",
             "AdaRender",
             "AdaUI",
             "AdaPhysics"
@@ -381,7 +395,8 @@ var targets: [Target] = [
             "AdaECS",
             "Math",
             "box2d",
-            "AdaRender"
+            "AdaRender",
+            "AdaCorePipelines"
         ],
         swiftSettings: swiftSettings
     ),
@@ -393,7 +408,8 @@ var targets: [Target] = [
             "AdaECS",
             "AdaText",
             "Math",
-            "AdaRender"
+            "AdaRender",
+            "AdaCorePipelines"
         ],
         resources: [
             .copy("Assets")

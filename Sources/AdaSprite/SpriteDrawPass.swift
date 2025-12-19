@@ -8,6 +8,7 @@
 import AdaECS
 import AdaRender
 import AdaUtils
+import AdaCorePipelines
 import Math
 
 public struct SpriteVertexData: Sendable {

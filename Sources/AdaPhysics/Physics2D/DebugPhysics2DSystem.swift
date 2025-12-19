@@ -8,6 +8,7 @@
 import AdaECS
 import AdaUtils
 import AdaTransform
+import AdaCorePipelines
 import box2d
 import Math
 @_spi(Internal) import AdaRender

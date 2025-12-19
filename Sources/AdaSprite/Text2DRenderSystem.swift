@@ -8,6 +8,7 @@
 import AdaAssets
 import AdaECS
 import AdaRender
+import AdaCorePipelines
 import AdaTransform
 import AdaText
 import Math
