@@ -153,7 +153,8 @@ public final class TextLayoutManager: @unchecked Sendable {
                 let font = attributes.font
                 let fontHandle = font.fontResource.handle
                 let metrics = fontHandle.metrics
-                let fontScale: Double = 1.5
+                // Scale glyph positions based on font point size relative to em size
+                let fontScale: Double = font.pointSize / metrics.emSize
                 let fontSize = font.fontResource.getFontScale(for: font.pointSize)
                 maxLineHeight = max(fontSize, metrics.lineHeight + font.pointSize)
                 ascent = max(metrics.ascenderY, ascent)

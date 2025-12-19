@@ -25,7 +25,8 @@ struct Text2dPlugin: Plugin {
 
         var textAttributes = TextAttributeContainer()
         textAttributes.foregroundColor = .red
-        textAttributes.outlineColor = .blue
+//        textAttributes.outlineColor = .blue
+        textAttributes.font = .system(size: 100)
         app.spawn(
             "Text",
             bundle: Text2D(
