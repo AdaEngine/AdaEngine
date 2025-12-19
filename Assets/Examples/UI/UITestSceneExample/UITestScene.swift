@@ -22,6 +22,8 @@ struct SomeContent: View {
         VStack {
             Color.blue
 
+            Text("Vlad")
+
             Color.green
         }
     }

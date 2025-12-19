@@ -18,7 +18,7 @@ import Math
 
 /// An object that manages the content for a rectangular area on the screen.
 ///
-/// Views are the fundamental building blocks of your app’s user interface, and the ``View`` class defines the behaviors that are common to all views.
+/// Views are the fundamental building blocks of your app’s user interface, and the ``UIView`` class defines the behaviors that are common to all views.
 ///
 /// - Warning: Under development and currently doesn't work as expected.
 @MainActor

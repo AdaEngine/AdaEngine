@@ -9,6 +9,8 @@ import AdaECS
 import AdaRender
 import AdaUtils
 
+// TODO: - Avoid redrawing if nothing changed.
+
 public struct UIRenderNode: RenderNode {
     /// Input slots of render node.
     public enum InputNode {

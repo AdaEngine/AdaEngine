@@ -26,7 +26,6 @@ public struct CameraPlugin: Plugin {
         }
 
         renderWorld
-
             .addSystem(ExtractCameraSystem.self, on: .extract)
             .addSystem(ConfigurateRenderViewTargetSystem.self, on: .prepare)
             .getRefResource(RenderGraph.self)
@@ -51,8 +50,10 @@ func ConfigurateRenderViewTarget(
 ) {
     let logger = Logger(label: "ConfigurateRenderViewTarget")
     query.forEach { entity, camera, renderViewTarget in
-        let viewportSize = camera.viewport?.rect.size.toSizeInt() ?? SizeInt(width: 800, height: 600)
-        
+        guard let viewportSize = camera.viewport?.rect.size.toSizeInt() else {
+            return
+        }
+
         if renderViewTarget.mainTexture == nil {
             renderViewTarget.mainTexture = RenderTexture(
                 size: viewportSize,
@@ -100,7 +101,6 @@ struct CameraRenderNode: RenderNode {
                 RenderSlotValue(name: renderSubGraph.inputSlot, value: .entity(entity))
             ], viewEntity: entity)
         }
-
         return []
     }
 }
