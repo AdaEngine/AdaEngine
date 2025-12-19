@@ -11,7 +11,6 @@ import Math
 /// Component for rendering text on scene.
 @Component
 public struct TextComponent {
-    
     /// Text with style attributes.
     public var text: AttributedText
     

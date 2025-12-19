@@ -9,15 +9,19 @@ import AdaECS
 import AdaRender
 
 @Bundle
-public struct TextBundle {
+public struct Text2D {
     public var textComponent = TextComponent(text: AttributedText(""))
-    let noFrustumCulling: NoFrustumCulling
+    public let noFrustumCulling: NoFrustumCulling
+    public var visibility: Visibility
+
 
     public init(
         textComponent: TextComponent = TextComponent(text: AttributedText("")),
-        noFrustumCulling: NoFrustumCulling
+        noFrustumCulling: NoFrustumCulling = NoFrustumCulling(),
+        visibility: Visibility = .visible
     ) {
         self.textComponent = textComponent
+        self.visibility = visibility
         self.noFrustumCulling = noFrustumCulling
     }
 }

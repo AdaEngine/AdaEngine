@@ -11,159 +11,294 @@ import AdaRender
 import AdaCorePipelines
 import AdaTransform
 import AdaText
+import AdaUtils
 import Math
 
-@PlainSystem
-public struct Text2DRenderSystem {
+// MARK: - Text Data Structures
 
-    static let quadPosition: [Vector4] = [
-        [-0.5, -0.5,  0.0, 1.0],
-        [ 0.5, -0.5,  0.0, 1.0],
-        [ 0.5,  0.5,  0.0, 1.0],
-        [-0.5,  0.5,  0.0, 1.0]
-    ]
+/// A resource that contains the extracted text entities.
+public struct ExtractedTexts: Resource {
+    /// The extracted texts.
+    public var texts: SparseSet<Entity.ID, ExtractedText> = [:]
 
-    static let maxTexturesPerBatch = 16
+    public init() {}
+}
 
-    @Query<TextComponent, TextLayoutComponent, Transform, Visibility>
-    private var textComponents
+/// An extracted text entity ready for rendering.
+public struct ExtractedText: Sendable {
+    /// The entity id of the extracted text.
+    public var entityId: Entity.ID
+    /// The text layout for rendering.
+    public var textLayout: TextLayoutManager
+    /// The transform of the text.
+    public var transform: Transform
+    /// The world transform of the text.
+    public var worldTransform: Transform3D
+}
 
-    @FilterQuery<VisibleEntities, With<Camera>>
-    private var cameras
+/// A batch of text glyphs with the same font atlas texture.
+public struct TextBatch: Sendable {
+    /// The texture for this batch (font atlas).
+    public var texture: Texture2D
+    /// The range of indices in the index buffer for this batch.
+    public var range: Range<Int32>
+}
 
-    @Res<RenderItems<Transparent2DRenderItem>>
-    private var renderItems
+/// A resource that contains all text batches for rendering.
+public struct TextBatches: Resource {
+    /// Map from batch entity ID to text batch data.
+    public var batches: [Entity.ID: TextBatch] = [:]
 
-    @Res
-    private var spriteDraw: SpriteDrawPass
+    public init() {}
+}
 
-    @Commands
-    private var commands
+/// A resource containing GPU buffers for text rendering.
+public struct TextDrawData: Resource, WorldInitable {
+    public var vertexBuffer: BufferData<GlyphVertexData>
+    public var indexBuffer: BufferData<UInt32>
 
-    @ResMut
-    private var pipelines: RenderPipelines<TextPipeline>
+    public init(from world: World) {
+        self.vertexBuffer = BufferData(label: "Text2D_VertexBuffer", elements: [])
+        self.indexBuffer = BufferData(label: "Text2D_IndexBuffer", elements: [])
+    }
+}
 
-    @Res
-    private var renderDevice: RenderDeviceHandler
+// MARK: - Extract Text System
 
-    public init(world: World) {}
+/// Extracts text components to RenderWorld for future rendering.
+@System
+@inline(__always)
+public func ExtractText(
+    _ texts: Extract<
+        Query<Entity, TextComponent, TextLayoutComponent, GlobalTransform, Transform, Visibility>
+    >,
+    _ extractedTexts: ResMut<ExtractedTexts>
+) {
+    extractedTexts.texts.removeAll(keepingCapacity: true)
 
-    public func update(context: UpdateContext) async {
-        self.cameras.forEach { visibleEntities in
-            self.draw(
-                world: context.world,
-                visibleEntities: visibleEntities.entities
+    texts.wrappedValue.forEach { entity, textComponent, textLayoutComponent, globalTransform, transform, visible in
+        if visible == .hidden {
+            return
+        }
+        extractedTexts.texts[entity.id] = ExtractedText(
+            entityId: entity.id,
+            textLayout: textLayoutComponent.textLayout,
+            transform: transform,
+            worldTransform: globalTransform.matrix
+        )
+    }
+}
+
+// MARK: - Prepare Texts System
+
+/// Prepares text render items for rendering.
+@System
+func PrepareTexts(
+    _ camera: Query<Camera, VisibleEntities>,
+    _ renderItems: ResMut<RenderItems<Transparent2DRenderItem>>,
+    _ textRenderPipeline: ResMut<RenderPipelines<TextPipeline>>,
+    _ renderDevice: Res<RenderDeviceHandler>,
+    _ extractedTexts: Res<ExtractedTexts>,
+    _ textDrawPass: Res<TextDrawPass>
+) {
+    camera.forEach { camera, entities in
+        for text in extractedTexts.texts {
+            let pipeline = textRenderPipeline.wrappedValue.pipeline(device: renderDevice.renderDevice)
+            renderItems.items.append(
+                Transparent2DRenderItem(
+                    entity: text.entityId,
+                    drawPass: textDrawPass.wrappedValue,
+                    renderPipeline: pipeline,
+                    sortKey: text.transform.position.z,
+                    batchRange: 0..<0
+                )
             )
         }
     }
+}
 
-    // swiftlint:disable:next function_body_length
-    private func draw(
+// MARK: - Text Render System
+
+/// System that prepares text vertex and index buffers for rendering.
+@PlainSystem
+public struct Text2DRenderSystem {
+
+    static let maxTexturesPerBatch = 16
+
+    @ResMut<SortedRenderItems<Transparent2DRenderItem>>
+    private var renderItems
+
+    @Res<ExtractedTexts>
+    private var extractedTexts
+
+    @ResMut<TextBatches>
+    private var textBatches
+
+    @ResMut<TextDrawData>
+    private var textDrawData
+
+    @Res<RenderDeviceHandler>
+    private var renderDevice
+
+    public init(world: World) {}
+
+    public func update(context: UpdateContext) {
+        textBatches.batches.removeAll(keepingCapacity: true)
+        let device = renderDevice.renderDevice
+
+        // Clear previous frame data
+        textDrawData.vertexBuffer.elements.removeAll(keepingCapacity: true)
+        textDrawData.indexBuffer.elements.removeAll(keepingCapacity: true)
+
+        var currentTexture: Texture2D?
+        var batchStartIndex: Int32 = 0
+        var instanceCount: Int32 = 0
+        var batchEntityId: Entity.ID?
+
+        // Shared texture array for batching
+        var textures: [Texture2D] = Array(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
+        var textureSlotIndex: Int = -1
+
+        for index in renderItems.items.items.indices {
+            let itemEntity = renderItems.items.items[index].entity
+            guard let text = extractedTexts.texts[itemEntity] else {
+                continue
+            }
+
+            let worldTransform = text.worldTransform
+
+            // Get glyph vertex data from text layout
+            let glyphData = text.textLayout.getGlyphVertexData(
+                transform: worldTransform,
+                textures: &textures,
+                textureSlotIndex: &textureSlotIndex
+            )
+
+            if glyphData.verticies.isEmpty {
+                continue
+            }
+
+            // Get the primary texture for this text (first non-white texture)
+            let primaryTexture = glyphData.textures.first { $0 != nil } ?? .whiteTexture
+
+            // Check if we need to start a new batch (texture changed)
+            let needsNewBatch = currentTexture == nil || !isSameTexture(currentTexture!, primaryTexture!)
+
+            if needsNewBatch {
+                // Finish current batch if exists
+                if let batchEntity = batchEntityId, let texture = currentTexture, batchStartIndex < instanceCount {
+                    textBatches.batches[batchEntity] = TextBatch(
+                        texture: texture,
+                        range: batchStartIndex..<instanceCount
+                    )
+                }
+
+                // Start new batch
+                currentTexture = primaryTexture
+                batchStartIndex = instanceCount
+                batchEntityId = itemEntity
+            }
+
+            // Add glyph vertices
+            let vertexOffset = UInt32(textDrawData.vertexBuffer.count)
+            textDrawData.vertexBuffer.elements.append(contentsOf: glyphData.verticies)
+
+            // Generate indices for all glyphs (6 indices per glyph quad)
+            let glyphCount = glyphData.verticies.count / 4
+            for glyphIndex in 0..<glyphCount {
+                let baseVertex = vertexOffset + UInt32(glyphIndex * 4)
+
+                // Triangle 1: 0, 1, 2
+                textDrawData.indexBuffer.append(baseVertex + 0)
+                textDrawData.indexBuffer.append(baseVertex + 1)
+                textDrawData.indexBuffer.append(baseVertex + 2)
+
+                // Triangle 2: 2, 3, 0
+                textDrawData.indexBuffer.append(baseVertex + 2)
+                textDrawData.indexBuffer.append(baseVertex + 3)
+                textDrawData.indexBuffer.append(baseVertex + 0)
+
+                instanceCount += 1
+            }
+        }
+
+        // Finish last batch
+        if let batchEntity = batchEntityId, let texture = currentTexture, batchStartIndex < instanceCount {
+            textBatches.batches[batchEntity] = TextBatch(
+                texture: texture,
+                range: batchStartIndex..<instanceCount
+            )
+        }
+
+        // Early exit if no text to render
+        if textDrawData.vertexBuffer.isEmpty {
+            return
+        }
+
+        // Write buffers to GPU
+        textDrawData.vertexBuffer.write(to: device)
+        textDrawData.indexBuffer.write(to: device)
+    }
+
+    @inlinable
+    func isSameTexture(_ lhs: Texture2D, _ rhs: Texture2D) -> Bool {
+        return lhs.assetMetaInfo?.assetId != .empty && lhs.assetMetaInfo?.assetId == rhs.assetMetaInfo?.assetId
+    }
+}
+
+// MARK: - Text Draw Pass
+
+/// Draw pass for rendering 2D text.
+public struct TextDrawPass: DrawPass {
+    public typealias Item = Transparent2DRenderItem
+
+    public init() {}
+
+    public func render(
+        with renderEncoder: RenderCommandEncoder,
         world: World,
-        visibleEntities: [Entity]
-    ) {
-        let texts = visibleEntities.filter {
-            $0.components.has(TextComponent.self) && $0.components.has(TextLayoutComponent.self)
+        view: Entity,
+        item: Transparent2DRenderItem
+    ) throws {
+        guard
+            let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self],
+            let textDrawData = world.getResource(TextDrawData.self),
+            let textBatches = world.getResource(TextBatches.self)
+        else {
+            return
         }
-            .sorted { lhs, rhs in
-                lhs.components[Transform.self]!.position.z < rhs.components[Transform.self]!.position.z
-            }
 
-        for entity in texts {
-            guard let textLayout = entity.components[TextLayoutComponent.self] else {
-                continue
-            }
-
-            let currentBatchEntity = commands.spawn()
-            let transform = entity.components[Transform.self]!
-            let worldTransform = entity.components[GlobalTransform.self]!.matrix
-            let glyphs = textLayout.textLayout.getGlyphVertexData(transform: worldTransform)
-
-            var spriteVerticies = glyphs.verticies
-
-            if spriteVerticies.isEmpty {
-                continue
-            }
-
-            // TODO: Redesign it latter
-            var textures: [Texture2D] = [Texture2D].init(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
-            glyphs.textures.compactMap { $0 }.enumerated().forEach { index, texture in
-                textures[index] = texture
-            }
-
-//            currentBatchEntity.components += TextureBatchComponent(textures: textures)
-
-//            renderItems.items.append(
-//                Transparent2DRenderItem(
-//                    entity: currentBatchEntity,
-//                    batchEntity: currentBatchEntity,
-//                    drawPassId: spriteDraw,
-//                    renderPipeline: self.textRenderPipeline,
-//                    sortKey: transform.position.z,
-//                    batchRange: 0..<Int32(glyphs.indeciesCount)
-//                )
-//            )
-
-//            let vertexBuffer = device.createVertexBuffer(
-//                length: spriteVerticies.count * MemoryLayout<GlyphVertexData>.stride,
-//                binding: 0
-//            )
-//            vertexBuffer.label = "Text2DRenderSystem_VertexBuffer"
-
-            let indicies = Int(glyphs.indeciesCount * 4)
-
-            var quadIndices = [UInt32].init(repeating: 0, count: indicies)
-
-            var offset: UInt32 = 0
-            for index in stride(from: 0, to: indicies, by: 6) {
-                quadIndices[index + 0] = offset + 0
-                quadIndices[index + 1] = offset + 1
-                quadIndices[index + 2] = offset + 2
-
-                quadIndices[index + 3] = offset + 2
-                quadIndices[index + 4] = offset + 3
-                quadIndices[index + 5] = offset + 0
-
-                offset += 4
-            }
-
-//            vertexBuffer.setData(&spriteVerticies, byteCount: spriteVerticies.count * MemoryLayout<GlyphVertexData>.stride)
-
-//            let quadIndexBuffer = device.createIndexBuffer(
-//                format: .uInt32,
-//                bytes: &quadIndices,
-//                length: indicies
-//            )
-//            quadIndexBuffer.label = "Text2DRenderSystem_IndexBuffer"
-//
-//            currentBatchEntity.components += SpriteDataComponent(
-//                vertexBuffer: vertexBuffer,
-//                indexBuffer: quadIndexBuffer
-//            )
+        guard let batch = textBatches.batches[item.entity] else {
+            return
         }
+
+        renderEncoder.pushDebugName("TextDrawPass")
+        defer {
+            renderEncoder.popDebugName()
+        }
+
+        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
+
+        // Set the font atlas texture
+        renderEncoder.setFragmentTexture(batch.texture, index: 0)
+        renderEncoder.setFragmentSamplerState(batch.texture.sampler, index: 0)
+
+        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
+        renderEncoder.setVertexBuffer(textDrawData.vertexBuffer, offset: 0, index: 0)
+        renderEncoder.setIndexBuffer(textDrawData.indexBuffer, indexFormat: .uInt32)
+        renderEncoder.setRenderPipelineState(item.renderPipeline)
+
+        let instanceCount = Int(batch.range.upperBound - batch.range.lowerBound)
+        let indexBufferOffset = Int(batch.range.lowerBound) * MemoryLayout<UInt32>.stride
+
+        renderEncoder.drawIndexed(
+            indexCount: 6 * instanceCount,
+            indexBufferOffset: 6 * indexBufferOffset,
+            instanceCount: 1
+        )
     }
-}
-
-@PlainSystem(dependencies: [
-    .after(TextLayoutSystem.self)
-])
-struct ExctractTextSystem {
-
-    @Query<TextComponent, TextLayoutComponent, GlobalTransform>
-    private var textComponents
-
-    @ResMut
-    private var extractedSprites: ExtractedSprites
-
-    init(world: World) { }
-
-    func update(context: UpdateContext) {
-        self.textComponents.forEach { textComponent, textLayoutComponent, transform in
-
-        }
-    }
-}
-
-public struct ExctractedText {
-
 }

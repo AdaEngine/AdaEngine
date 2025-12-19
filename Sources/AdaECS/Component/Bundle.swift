@@ -21,3 +21,23 @@ public protocol ComponentsBundle: Sendable, ~Copyable {
     /// The components that are part of the bundle.
     var components: [any Component] { get }
 }
+
+public extension ComponentsBundle {
+    // Extends components bundle with another components bundle.
+    func extend<T: ComponentsBundle>(_ bundle: T) -> ChainedComponentsBundle {
+        ChainedComponentsBundle(self.components + bundle.components)
+    }
+
+    // Extends components bundle with components.
+    func extend(@ComponentsBuilder _ components: () -> ComponentsBundle) -> ChainedComponentsBundle {
+        ChainedComponentsBundle(self.components + components().components)
+    }
+}
+
+public struct ChainedComponentsBundle: ComponentsBundle {
+    public let components: [any Component]
+
+    init(_ components: [any Component]) {
+        self.components = components
+    }
+}
