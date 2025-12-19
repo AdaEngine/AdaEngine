@@ -7,8 +7,8 @@
 
 import AdaApp
 import AdaECS
-import AdaUtils
 import AdaScene
+import AdaUtils
 import Math
 
 /// A scene that presents a group of identically structured windows.

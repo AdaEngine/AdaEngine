@@ -76,18 +76,6 @@ public struct UIRenderTesselationSystem {
     @Res<UIDrawPass>
     private var uiDrawPass
 
-//    @Res<UIGlyphDrawPass>
-//    private var textDrawPass
-//
-//    @Res<UILinesDrawPass>
-//    private var linesDrawPass
-//
-//    @Res<UIQuadDrawPass>
-//    private var quadDrawPass
-//
-//    @Res<UICircleDrawPass>
-//    private var circleDrawPass
-
     @Res<RenderDeviceHandler>
     private var renderDevice
 
@@ -97,6 +85,8 @@ public struct UIRenderTesselationSystem {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
+        renderItems.items.removeAll()
+
         let tessellator = UITessellator()
         var currentLineWidth: Float = 1.0
         var textureSlotIndex: Int = 0
@@ -214,6 +204,8 @@ public struct UIRenderTesselationSystem {
                     renderData = UIDrawData()
                     renderData.textures = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
                     renderData.fontAtlases = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
+                    textureSlotIndex = 0
+                    fontAtlasSlotIndex = 0
                     break
                 }
             }

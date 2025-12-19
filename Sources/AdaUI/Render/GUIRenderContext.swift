@@ -32,10 +32,8 @@ public struct UIGraphicsContext: Sendable {
 
     private(set) var commandQueue = CommandQueue()
 
-    public init() {
+    public init() { }
 
-    }
-    
     public init(texture: RenderTexture) {
         var camera = Camera(renderTarget: texture)
 //        camera.isActive = true
@@ -52,17 +50,6 @@ public struct UIGraphicsContext: Sendable {
             zNear: 0,
             zFar: 1000
         )
-//
-//        do {
-//            self.currentDrawContext = try Renderer2D.beginDrawContext(
-//                for: self.camera,
-//                viewUniform: GlobalViewUniform(
-//                    viewProjectionMatrix: view
-//                )
-//            )
-//        } catch {
-//            print("[Error] \(error)")
-//        }
     }
 
     public mutating func concatenate(_ transform: Transform3D) {
@@ -172,11 +159,6 @@ public struct UIGraphicsContext: Sendable {
 
     public func commitDraw() {
         self.commandQueue.push(.commit)
-    }
-
-    func flush() {
-        print("flush")
-//        self.currentDrawContext?.flush()
     }
 }
 
