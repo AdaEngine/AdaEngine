@@ -141,17 +141,17 @@ func UpdateBoundings(
 
 @System
 func PrepareSprites(
-    _ renderItems: Query<
+    _ camera: Query<
         Camera,
-        VisibleEntities,
-        Ref<RenderItems<Transparent2DRenderItem>>
+        VisibleEntities
     >,
+    _ renderItems: ResMut<RenderItems<Transparent2DRenderItem>>,
     _ spriteRenderPipeline: ResMut<RenderPipelines<SpriteRenderPipeline>>,
     _ renderDevice: Res<RenderDeviceHandler>,
     _ extractedSprites: Res<ExtractedSprites>,
     _ spriteDrawPass: Res<SpriteDrawPass>
 ) {
-    renderItems.forEach { camera, entities, renderItems in
+    camera.forEach { camera, entities in
         for sprite in extractedSprites.sprites {
             if !entities.entityIds.contains(sprite.entityId) {
                 continue
@@ -218,8 +218,8 @@ public struct SpriteRenderSystem {
         var instanceCount: Int32 = 0
         var batchEntityId: Entity.ID?
 
-        for index in renderItems.items.indices {
-            guard let sprite = extractedSprites.sprites[renderItems.items[index].entity] else {
+        for index in renderItems.items.items.indices {
+            guard let sprite = extractedSprites.sprites[renderItems.items.items[index].entity] else {
                 continue
             }
 
@@ -242,7 +242,7 @@ public struct SpriteRenderSystem {
                 currentTexture = texture
                 batchStartIndex = instanceCount
                 batchImageSize = texture.size.toSize()
-                batchEntityId = renderItems.items[index].entity
+                batchEntityId = renderItems.items.items[index].entity
             }
 
             // Get texture coordinates with flip support

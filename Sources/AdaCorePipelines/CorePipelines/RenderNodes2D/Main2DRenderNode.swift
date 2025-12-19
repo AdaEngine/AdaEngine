@@ -20,10 +20,12 @@ public struct Main2DRenderNode: RenderNode {
     @Query<
         Entity,
         Camera,
-        RenderItems<Transparent2DRenderItem>,
         RenderViewTarget
     >
     private var query
+
+    @Res<SortedRenderItems<Transparent2DRenderItem>>
+    private var renderItems
 
     public init() {}
 
@@ -33,6 +35,7 @@ public struct Main2DRenderNode: RenderNode {
 
     public func update(from world: World) {
         query.update(from: world)
+        _renderItems.update(from: world)
     }
 
     public func execute(context: inout Context, renderContext: RenderContext) async throws -> [RenderSlotValue] {
@@ -40,12 +43,11 @@ public struct Main2DRenderNode: RenderNode {
             return []
         }
 
-        try query.forEach { entity, camera, renderItems, target in
+        try query.forEach { entity, camera, target in
             if entity != view {
                 return
             }
 
-            let sortedRenderItems = renderItems.sorted()
             let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
 
@@ -76,8 +78,8 @@ public struct Main2DRenderNode: RenderNode {
                 renderPass.setViewport(viewport.rect)
             }
 
-            if !sortedRenderItems.items.isEmpty {
-                try sortedRenderItems.render(with: renderPass, world: context.world, view: view)
+            if !renderItems.items.items.isEmpty {
+                try renderItems.items.render(with: renderPass, world: context.world, view: view)
             }
 
             renderPass.endRenderPass()

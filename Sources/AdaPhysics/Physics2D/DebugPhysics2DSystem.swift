@@ -221,8 +221,11 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
 @PlainSystem
 public struct Physics2DDebugDrawSystem: Sendable {
 
-    @Query<VisibleEntities, Ref<RenderItems<Transparent2DRenderItem>>>
+    @Query<VisibleEntities>
     private var cameras
+
+    @Res<RenderItems<Transparent2DRenderItem>>
+    private var renderItems
 
     @Query<ExctractedPhysicsMesh2DDebug>
     private var meshes

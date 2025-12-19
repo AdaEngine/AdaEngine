@@ -26,6 +26,8 @@ public struct CameraPlugin: Plugin {
         }
 
         renderWorld
+
+            .addSystem(ExtractCameraSystem.self, on: .extract)
             .addSystem(ConfigurateRenderViewTargetSystem.self, on: .prepare)
             .getRefResource(RenderGraph.self)
             .wrappedValue
@@ -111,5 +113,35 @@ public struct CameraRenderGraph {
     public init(subgraphLabel: RenderGraph.Label, inputSlot: RenderSlot.Label) {
         self.subgraphLabel = subgraphLabel
         self.inputSlot = inputSlot
+    }
+}
+
+@System
+@inline(__always)
+public func ExtractCamera(
+    _ world: World,
+    _ commands: Commands,
+    _ query: Extract<
+        Query<Entity, Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
+    >
+) {
+    query.wrappedValue.forEach {
+        entity, camera, transform,
+        visibleEntities, bufferSet, uniform in
+        let buffer = bufferSet.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
+
+        buffer.setData(uniform)
+        commands.spawn("ExtractedCameraEntity") {
+            camera
+            transform
+            visibleEntities
+            uniform
+            bufferSet
+            RenderViewTarget()
+        }
     }
 }

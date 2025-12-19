@@ -112,11 +112,13 @@ public struct ExctractMesh2DSystem {
 public struct Mesh2DRenderSystem: Sendable {
 
     @FilterQuery<
-        VisibleEntities, 
-        Ref<RenderItems<Transparent2DRenderItem>>,
+        VisibleEntities,
         With<Camera>
     >
     private var query
+
+    @ResMut<RenderItems<Transparent2DRenderItem>>
+    private var renderItems
 
     @Res<ExctractedMeshes2D>
     private var extractedMeshes
@@ -133,10 +135,9 @@ public struct Mesh2DRenderSystem: Sendable {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        self.query.forEach { visibleEntities, renderItems in
+        self.query.forEach { visibleEntities in
             self.draw(
                 visibleEntities: visibleEntities,
-                items: renderItems,
                 keys: []
             )
         }
@@ -144,7 +145,6 @@ public struct Mesh2DRenderSystem: Sendable {
 
     func draw(
         visibleEntities: VisibleEntities,
-        items: Ref<RenderItems<Transparent2DRenderItem>>,
         keys: Set<String>
     ) {
         for mesh in extractedMeshes.meshes {
@@ -177,7 +177,7 @@ public struct Mesh2DRenderSystem: Sendable {
                         )
                     }.entityId
 
-                    items.items.append(
+                    renderItems.items.append(
                         Transparent2DRenderItem(
                             entity: entity,
                             drawPass: self.meshDrawPass,
