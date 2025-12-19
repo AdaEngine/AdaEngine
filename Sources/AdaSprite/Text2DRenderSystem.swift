@@ -36,11 +36,9 @@ public struct ExtractedText: Sendable {
     public var worldTransform: Transform3D
 }
 
-/// A batch of text glyphs with the same font atlas texture.
+/// A batch of text glyphs for a single text entity.
 public struct TextBatch: Sendable {
-    /// The texture for this batch (font atlas).
-    public var texture: Texture2D
-    /// The range of indices in the index buffer for this batch.
+    /// The range of glyph quads in the index buffer for this batch.
     public var range: Range<Int32>
 }
 
@@ -52,14 +50,29 @@ public struct TextBatches: Resource {
     public init() {}
 }
 
+/// Maximum number of font atlas textures per batch (matches shader).
+private let maxFontAtlasTextures = 16
+
 /// A resource containing GPU buffers for text rendering.
 public struct TextDrawData: Resource, WorldInitable {
     public var vertexBuffer: BufferData<GlyphVertexData>
     public var indexBuffer: BufferData<UInt32>
+    /// Font atlas textures used during rendering (max 16).
+    public var fontAtlases: [Texture2D]
 
     public init(from world: World) {
         self.vertexBuffer = BufferData(label: "Text2D_VertexBuffer", elements: [])
         self.indexBuffer = BufferData(label: "Text2D_IndexBuffer", elements: [])
+        self.fontAtlases = Array(repeating: .whiteTexture, count: maxFontAtlasTextures)
+    }
+
+    mutating func clear() {
+        vertexBuffer.elements.removeAll(keepingCapacity: true)
+        indexBuffer.elements.removeAll(keepingCapacity: true)
+        // Reset font atlases to white texture
+        for i in 0..<fontAtlases.count {
+            fontAtlases[i] = .whiteTexture
+        }
     }
 }
 
@@ -123,8 +136,6 @@ func PrepareTexts(
 @PlainSystem
 public struct Text2DRenderSystem {
 
-    static let maxTexturesPerBatch = 16
-
     @ResMut<SortedRenderItems<Transparent2DRenderItem>>
     private var renderItems
 
@@ -147,16 +158,11 @@ public struct Text2DRenderSystem {
         let device = renderDevice.renderDevice
 
         // Clear previous frame data
-        textDrawData.vertexBuffer.elements.removeAll(keepingCapacity: true)
-        textDrawData.indexBuffer.elements.removeAll(keepingCapacity: true)
-
-        var currentTexture: Texture2D?
-        var batchStartIndex: Int32 = 0
+        textDrawData.clear()
+        
         var instanceCount: Int32 = 0
-        var batchEntityId: Entity.ID?
 
-        // Shared texture array for batching
-        var textures: [Texture2D] = Array(repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
+        // Shared texture slot index for all texts in this frame
         var textureSlotIndex: Int = -1
 
         for index in renderItems.items.items.indices {
@@ -166,37 +172,18 @@ public struct Text2DRenderSystem {
             }
 
             let worldTransform = text.worldTransform
+            let batchStart = instanceCount
 
             // Get glyph vertex data from text layout
+            // This populates textDrawData.fontAtlases with actual font textures
             let glyphData = text.textLayout.getGlyphVertexData(
                 transform: worldTransform,
-                textures: &textures,
+                textures: &textDrawData.fontAtlases,
                 textureSlotIndex: &textureSlotIndex
             )
 
             if glyphData.verticies.isEmpty {
                 continue
-            }
-
-            // Get the primary texture for this text (first non-white texture)
-            let primaryTexture = glyphData.textures.first { $0 != nil } ?? .whiteTexture
-
-            // Check if we need to start a new batch (texture changed)
-            let needsNewBatch = currentTexture == nil || !isSameTexture(currentTexture!, primaryTexture!)
-
-            if needsNewBatch {
-                // Finish current batch if exists
-                if let batchEntity = batchEntityId, let texture = currentTexture, batchStartIndex < instanceCount {
-                    textBatches.batches[batchEntity] = TextBatch(
-                        texture: texture,
-                        range: batchStartIndex..<instanceCount
-                    )
-                }
-
-                // Start new batch
-                currentTexture = primaryTexture
-                batchStartIndex = instanceCount
-                batchEntityId = itemEntity
             }
 
             // Add glyph vertices
@@ -220,13 +207,10 @@ public struct Text2DRenderSystem {
 
                 instanceCount += 1
             }
-        }
 
-        // Finish last batch
-        if let batchEntity = batchEntityId, let texture = currentTexture, batchStartIndex < instanceCount {
-            textBatches.batches[batchEntity] = TextBatch(
-                texture: texture,
-                range: batchStartIndex..<instanceCount
+            // Create batch for this text entity
+            textBatches.batches[itemEntity] = TextBatch(
+                range: batchStart..<instanceCount
             )
         }
 
@@ -238,11 +222,6 @@ public struct Text2DRenderSystem {
         // Write buffers to GPU
         textDrawData.vertexBuffer.write(to: device)
         textDrawData.indexBuffer.write(to: device)
-    }
-
-    @inlinable
-    func isSameTexture(_ lhs: Texture2D, _ rhs: Texture2D) -> Bool {
-        return lhs.assetMetaInfo?.assetId != .empty && lhs.assetMetaInfo?.assetId == rhs.assetMetaInfo?.assetId
     }
 }
 
@@ -283,9 +262,11 @@ public struct TextDrawPass: DrawPass {
             frameIndex: RenderEngine.shared.currentFrameIndex
         )
 
-        // Set the font atlas texture
-        renderEncoder.setFragmentTexture(batch.texture, index: 0)
-        renderEncoder.setFragmentSamplerState(batch.texture.sampler, index: 0)
+        // Bind all 16 font atlas textures (shader expects array of 16 samplers)
+        for (index, texture) in textDrawData.fontAtlases.enumerated() {
+            renderEncoder.setFragmentTexture(texture, index: index)
+            renderEncoder.setFragmentSamplerState(texture.sampler, index: index)
+        }
 
         renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
         renderEncoder.setVertexBuffer(textDrawData.vertexBuffer, offset: 0, index: 0)
