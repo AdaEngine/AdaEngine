@@ -8,8 +8,7 @@
 import AdaECS
 
 /// An object that store render items for rendering.
-@Component
-public struct RenderItems<T: RenderItem>: Sendable {
+public struct RenderItems<T: RenderItem>: Sendable, Resource {
     /// The items of the render items.
     public var items: [T]
     

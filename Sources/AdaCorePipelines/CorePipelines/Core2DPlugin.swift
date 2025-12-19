@@ -28,9 +28,11 @@ public struct Core2DPlugin: Plugin {
         }
 
         // Add Systems
-        app.insertResource(SortedRenderItems<Transparent2DRenderItem>())
-        app.addSystem(BatchAndSortTransparent2DRenderItemsSystem.self, on: .prepare)
-            .addSystem(ExtractCameraSystem.self, on: .extract) // FIXME: Move to CorePlugin or smth
+        app
+            .insertResource(RenderItems<Transparent2DRenderItem>())
+            .insertResource(SortedRenderItems<Transparent2DRenderItem>())
+            .addSystem(BatchAndSortTransparent2DRenderItemsSystem.self, on: .prepare)
+            .addSystem(ClearTransparent2dRenderItemsSystem.self, on: .preUpdate)
 
         var graph = RenderGraph(label: .main2D)
         let entryNode = graph.addEntryNode(inputs: [
@@ -72,12 +74,19 @@ public extension RenderNodeLabel {
     }
 }
 
+@System
+func ClearTransparent2dRenderItems(
+    _ renderItems: ResMut<RenderItems<Transparent2DRenderItem>>
+) {
+    renderItems.items.removeAll(keepingCapacity: true)
+}
+
 // - FIXME: Remove when fix generic version of BatchAndSortTransparent<T>
 @PlainSystem
 public struct BatchAndSortTransparent2DRenderItemsSystem {
 
-    @Query<RenderItems<Transparent2DRenderItem>>
-    private var query
+    @ResMut<RenderItems<Transparent2DRenderItem>>
+    private var renderItems
 
     @ResMut<SortedRenderItems<Transparent2DRenderItem>>
     private var sortedRenderItems
@@ -85,27 +94,25 @@ public struct BatchAndSortTransparent2DRenderItemsSystem {
     public init(world: World) { }
 
     public func update(context: UpdateContext) async {
-        sortedRenderItems.items.removeAll(keepingCapacity: true)
-        self.query.forEach { renderItems in
-            let items = renderItems.sorted().items
-            var batchedItems: [Transparent2DRenderItem] = []
-            batchedItems.reserveCapacity(items.count)
+        sortedRenderItems.items.items.removeAll(keepingCapacity: true)
+        let items = renderItems.sorted().items
+        var batchedItems: [Transparent2DRenderItem] = []
+        batchedItems.reserveCapacity(items.count)
 
-            if var currentItem = items.first {
-                for nextItemIndex in 1..<items.count {
-                    let nextItem = items[nextItemIndex]
+        if var currentItem = items.first {
+            for nextItemIndex in 1..<items.count {
+                let nextItem = items[nextItemIndex]
 
-                    if tryToAddBatch(to: &currentItem, from: nextItem) == false {
-                        batchedItems.append(currentItem)
-                        currentItem = nextItem
-                    }
+                if tryToAddBatch(to: &currentItem, from: nextItem) == false {
+                    batchedItems.append(currentItem)
+                    currentItem = nextItem
                 }
-
-                batchedItems.append(currentItem)
             }
 
-            sortedRenderItems.items.append(contentsOf: batchedItems)
+            batchedItems.append(currentItem)
         }
+
+        sortedRenderItems.items.items.append(contentsOf: batchedItems)
     }
 
     private func tryToAddBatch(to currentItem: inout Transparent2DRenderItem, from otherItem: Transparent2DRenderItem) -> Bool {
@@ -126,36 +133,5 @@ public struct BatchAndSortTransparent2DRenderItemsSystem {
         }
 
         return true
-    }
-}
-
-@System
-@inline(__always)
-public func ExtractCamera(
-    _ world: World,
-    _ commands: Commands,
-    _ query: Extract<
-        Query<Entity, Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
-    >
-) {
-    query.wrappedValue.forEach {
-        entity, camera, transform,
-        visibleEntities, bufferSet, uniform in
-        let buffer = bufferSet.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        buffer.setData(uniform)
-        commands.spawn("ExtractedCameraEntity") {
-            camera
-            transform
-            visibleEntities
-            uniform
-            bufferSet
-            RenderViewTarget()
-            RenderItems<Transparent2DRenderItem>()
-        }
     }
 }
