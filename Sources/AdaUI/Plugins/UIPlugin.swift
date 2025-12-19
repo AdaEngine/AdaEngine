@@ -35,24 +35,25 @@ public struct UIPlugin: Plugin {
             .insertResource(ExtractedUIComponents())
             .insertResource(PendingUIGraphicsContext())
             .insertResource(RenderItems<UITransparentRenderItem>())
-            .insertResource(UIDrawData())
             .insertResource(RenderPipelines(configurator: QuadPipeline()))
             .insertResource(RenderPipelines(configurator: CirclePipeline()))
             .insertResource(RenderPipelines(configurator: LinePipeline()))
             .insertResource(RenderPipelines(configurator: TextPipeline()))
+            .insertResource(UIDrawPass())
+
+        renderWorld.initResource(UIRenderPipelines.self)
 
         let renderGraph = renderWorld.getRefResource(RenderGraph.self)
         do {
             try renderGraph.wrappedValue.updateSubgraph(by: .main2D) { graph in
                 graph.addNode(UIRenderNode())
-                graph.addNodeEdge(from: UIRenderNode.self, to: Main2DRenderNode.self)
+                graph.addNodeEdge(from: Main2DRenderNode.self, to: UIRenderNode.self)
             }
 
             // Add UI rendering systems
             renderWorld.addSystem(ExtractUIComponentsSystem.self, on: .extract)
             renderWorld.addSystem(UIRenderPreparingSystem.self, on: .prepare)
             renderWorld.addSystem(UIRenderTesselationSystem.self, on: .update)
-            renderWorld.addSystem(UIBufferUpdateSystem.self, on: .update)
         } catch {
             Logger(label: "org.adaengine.UIRenderPlugin").error("\(error)")
         }

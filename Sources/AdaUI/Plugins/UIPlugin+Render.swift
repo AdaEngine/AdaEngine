@@ -53,7 +53,7 @@ public func UIRenderPreparing(
     uiComponents.components.forEach { component in
         let context = UIGraphicsContext()
         component.view.draw(with: context)
-
+        context.commitDraw()
         contexts.graphicContexts.append(context)
     }
 }
@@ -73,30 +73,42 @@ public struct UIRenderTesselationSystem {
     @ResMut<PendingUIGraphicsContext>
     private var contexts
 
-    @ResMut<UIDrawData>
-    private var renderData
-
     @Res<UIDrawPass>
     private var uiDrawPass
+
+//    @Res<UIGlyphDrawPass>
+//    private var textDrawPass
+//
+//    @Res<UILinesDrawPass>
+//    private var linesDrawPass
+//
+//    @Res<UIQuadDrawPass>
+//    private var quadDrawPass
+//
+//    @Res<UICircleDrawPass>
+//    private var circleDrawPass
+
+    @Res<RenderDeviceHandler>
+    private var renderDevice
+
+    @Res<UIRenderPipelines>
+    private var renderPipelines
 
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
-        // Clear previous frame data
-        renderData.clear()
-
-        // Initialize texture slots
-        renderData.textures = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
-        renderData.fontAtlases = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
-
         let tessellator = UITessellator()
         var currentLineWidth: Float = 1.0
         var textureSlotIndex: Int = 0
         var fontAtlasSlotIndex: Int = 0
 
-        for graphicsContext in contexts.graphicContexts {
+        var renderData = UIDrawData()
+        renderData.textures = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
+        renderData.fontAtlases = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
+
+        contexts.graphicContexts.forEach { context in
             // Process commands in order (not reversed, as draw order matters)
-            for command in graphicsContext.commandQueue.commands {
+            for command in context.commandQueue.commands {
                 switch command {
                 case let .setLineWidth(lineWidth):
                     currentLineWidth = lineWidth
@@ -169,7 +181,8 @@ public struct UIRenderTesselationSystem {
                                     glyph,
                                     transform: transform,
                                     tessellator: tessellator,
-                                    fontAtlasSlotIndex: &fontAtlasSlotIndex
+                                    fontAtlasSlotIndex: &fontAtlasSlotIndex,
+                                    renderData: &renderData
                                 )
                             }
                         }
@@ -180,11 +193,27 @@ public struct UIRenderTesselationSystem {
                         glyph,
                         transform: transform,
                         tessellator: tessellator,
-                        fontAtlasSlotIndex: &fontAtlasSlotIndex
+                        fontAtlasSlotIndex: &fontAtlasSlotIndex,
+                        renderData: &renderData
                     )
 
                 case .commit:
-                    // Commit marks end of a draw batch - could be used for flushing
+                    renderData.write(to: renderDevice.renderDevice)
+
+                    self.renderItems.items.append(
+                        UITransparentRenderItem(
+                            sortKey: 0,
+                            entity: .zero,
+                            drawPass: uiDrawPass,
+                            primitiveType: .quad,
+                            renderPipeline: renderPipelines,
+                            drawData: renderData
+                        )
+                    )
+
+                    renderData = UIDrawData()
+                    renderData.textures = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
+                    renderData.fontAtlases = [Texture2D](repeating: .whiteTexture, count: Self.maxTexturesPerBatch)
                     break
                 }
             }
@@ -223,7 +252,8 @@ public struct UIRenderTesselationSystem {
         _ glyph: Glyph,
         transform: Transform3D,
         tessellator: UITessellator,
-        fontAtlasSlotIndex: inout Int
+        fontAtlasSlotIndex: inout Int,
+        renderData: inout UIDrawData
     ) {
         let texIndex = findOrAddTexture(
             glyph.textureAtlas,
@@ -244,73 +274,29 @@ public struct UIRenderTesselationSystem {
     }
 }
 
-// MARK: - UI Buffer Update System
+public struct UIRenderPipelines: Resource, WorldInitable {
+    public var textPipeline: RenderPipeline
+    public var quadPipeline: RenderPipeline
+    public var linePipeline: RenderPipeline
+    public var circlePipeline: RenderPipeline
 
-/// System that updates GPU buffers from tessellated UI data.
-@PlainSystem
-public struct UIBufferUpdateSystem {
+    public init(from world: World) {
+        let device = world.getResource(RenderDeviceHandler.self).unwrap().renderDevice
+        self.textPipeline = world.getRefResource(RenderPipelines<TextPipeline>.self)
+            .wrappedValue
+            .pipeline(device: device)
 
-    @ResMut<UIDrawData>
-    private var drawData
+        self.quadPipeline = world.getRefResource(RenderPipelines<QuadPipeline>.self)
+            .wrappedValue
+            .pipeline(device: device)
 
-    @Res<RenderDeviceHandler>
-    private var renderDevice
+        self.linePipeline = world.getRefResource(RenderPipelines<LinePipeline>.self)
+            .wrappedValue
+            .pipeline(device: device)
 
-    public init(world: World) {}
-
-    public func update(context: UpdateContext) {
-        let device = renderDevice.renderDevice
-
-        // Update quad buffers
-        updateBuffer(
-            &drawData.quadVertexBuffer,
-            device: device
-        )
-        updateBuffer(
-            &drawData.quadIndexBuffer,
-            device: device
-        )
-
-        // Update circle buffers
-        updateBuffer(
-            &drawData.circleVertexBuffer,
-            device: device
-        )
-        updateBuffer(
-            &drawData.circleIndexBuffer,
-            device: device
-        )
-
-        // Update line buffers
-        updateBuffer(
-            &drawData.lineVertexBuffer,
-            device: device
-        )
-        updateBuffer(
-            &drawData.lineIndexBuffer,
-            device: device
-        )
-
-        // Update glyph buffers
-        updateBuffer(
-            &drawData.glyphVertexBuffer,
-            device: device
-        )
-        updateBuffer(
-            &drawData.glyphIndexBuffer,
-            device: device
-        )
-    }
-
-    private func updateBuffer<T>(
-        _ bufferData: inout BufferData<T>,
-        device: RenderDevice
-    ) {
-        guard !bufferData.isEmpty else {
-            return
-        }
-
-        bufferData.write(to: device)
+        self.circlePipeline = world.getRefResource(RenderPipelines<CirclePipeline>.self)
+            .wrappedValue
+            .pipeline(device: device)
     }
 }
 
@@ -322,7 +308,7 @@ public struct UITransparentRenderItem: RenderItem {
     public var entity: Entity.ID
     public var drawPass: any DrawPass
     public var batchRange: Range<Int32>? = nil
-    public var renderPipeline: RenderPipeline
+    public var renderPipeline: UIRenderPipelines
     public var drawData: UIDrawData
 
     /// Type of UI primitive being rendered.
@@ -341,7 +327,7 @@ public struct UITransparentRenderItem: RenderItem {
         drawPass: any DrawPass,
         primitiveType: PrimitiveType,
         batchRange: Range<Int32>? = nil,
-        renderPipeline: RenderPipeline,
+        renderPipeline: UIRenderPipelines,
         drawData: UIDrawData
     ) {
         self.sortKey = sortKey
