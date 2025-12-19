@@ -122,12 +122,20 @@ public func ExtractCamera(
     _ world: World,
     _ commands: Commands,
     _ query: Extract<
-        Query<Entity, Camera, Transform, VisibleEntities, GlobalViewUniformBufferSet, GlobalViewUniform>
+        Query<
+        Entity,
+        Camera,
+        Transform,
+        VisibleEntities,
+        GlobalViewUniformBufferSet,
+        GlobalViewUniform,
+        CameraRenderGraph
+        >
     >
 ) {
     query.wrappedValue.forEach {
         entity, camera, transform,
-        visibleEntities, bufferSet, uniform in
+        visibleEntities, bufferSet, uniform, graph in
         let buffer = bufferSet.uniformBufferSet.getBuffer(
             binding: GlobalBufferIndex.viewUniform,
             set: 0,
@@ -142,6 +150,7 @@ public func ExtractCamera(
             uniform
             bufferSet
             RenderViewTarget()
+            graph
         }
     }
 }

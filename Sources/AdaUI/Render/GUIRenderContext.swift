@@ -175,6 +175,7 @@ public struct UIGraphicsContext: Sendable {
     }
 
     func flush() {
+        print("flush")
 //        self.currentDrawContext?.flush()
     }
 }

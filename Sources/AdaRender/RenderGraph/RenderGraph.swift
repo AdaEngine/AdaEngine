@@ -126,7 +126,7 @@ public struct RunGraphNode: RenderNode {
 ///
 public struct RenderGraph: Resource {
 
-    static let entryNodeName: RenderNodeLabel = "_GraphEntryNode"
+    public static let entryNodeName: RenderNodeLabel = "_GraphEntryNode"
 
     enum Edge: Equatable, Hashable {
         case slot(
@@ -297,7 +297,9 @@ public struct RenderGraph: Resource {
 
     public mutating func removeNode(by name: RenderNodeLabel) -> Bool {
         guard let node = self.nodes.removeValue(forKey: name) else {
-            // Node not exists
+            logger.error("Node not exists", metadata: [
+                "graph": .string(self.label?.rawValue ?? "Unknonw")
+            ])
             return false
         }
         
