@@ -131,6 +131,8 @@ class LayoutInspectableView: UIView {
     var lastMousePosition: Point = .zero
     var inspectLayout = false
     var drawDebugBorders = false
+    private var zoom: Float = 1
+    private var isViewMatrixDirty = true
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> UIView? {
         if let event = (event as? MouseEvent), inspectLayout {
@@ -142,7 +144,7 @@ class LayoutInspectableView: UIView {
         return super.hitTest(point, with: event)
     }
 
-    override func update(_ deltaTime: TimeInterval) async {
+    override func update(_ deltaTime: TimeInterval) {
         if !inspectLayout {
             self.viewMatrix = .identity
             self.cameraTransform = .identity
@@ -170,9 +172,6 @@ class LayoutInspectableView: UIView {
         super.draw(with: context)
     }
 
-    private var zoom: Float = 1
-    private var isViewMatrixDirty = true
-
     override func onMouseEvent(_ event: MouseEvent) {
         guard event.button == .scrollWheel, event.modifierKeys.contains(.main) else {
             return
@@ -194,7 +193,7 @@ class LayoutInspectableView: UIView {
         xoffset *= sensitivity
         yoffset *= sensitivity
 
-        yaw   += xoffset
+        yaw += xoffset
         pitch += yoffset
 
         if pitch.radians > 89.0 {
