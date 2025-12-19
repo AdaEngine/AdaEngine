@@ -25,19 +25,92 @@ struct Text2dPlugin: Plugin {
 
         var textAttributes = TextAttributeContainer()
         textAttributes.foregroundColor = .red
-//        textAttributes.outlineColor = .blue
-        textAttributes.font = .system(size: 100)
+        textAttributes.font = .system(size: 56)
+
         app.spawn(
-            "Text",
+            "AnimateTranslationText",
             bundle: Text2D(
                 textComponent: TextComponent(
-                    text: AttributedText("AdaEngien", attributes: textAttributes)
+                    text: AttributedText("Translation", attributes: textAttributes)
                 )
             )
             .extend {
-                Transform()
+                AnimateTranslation()
             }
         )
+
+        app.spawn(
+            "AnimateRotationText",
+            bundle: Text2D(
+                textComponent: TextComponent(
+                    text: AttributedText("Rotation", attributes: textAttributes)
+                ),
+                transform: Transform()
+            )
+            .extend {
+                AnimateRotation()
+            }
+        )
+
+        app.spawn(
+            "AnimateScaleText",
+            bundle: Text2D(
+                textComponent: TextComponent(
+                    text: AttributedText("Scale", attributes: textAttributes)
+                ),
+                transform: Transform(position: [400, 0, 0])
+            )
+            .extend {
+                AnimateScale()
+            }
+        )
+
+        app
+            .addSystem(AnimateScaleTextSystem.self)
+            .addSystem(AnimateRotationTextSystem.self)
+            .addSystem(AnimateTranslationTextSystem.self)
     }
 }
 
+@Component
+struct AnimateTranslation {}
+
+@Component
+struct AnimateRotation {}
+
+@Component
+struct AnimateScale {}
+
+
+@System
+func AnimateTranslationText(
+    _ query: FilterQuery<Ref<Transform>, With<AnimateTranslation>>,
+    _ time: Res<ElapsedTime>
+) {
+    query.forEach { transform in
+        transform.position.x = 100 * Math.sin(time.value) - 600
+        transform.position.y = 100 * Math.cos(time.value)
+    }
+}
+
+@System
+func AnimateRotationText(
+    _ query: FilterQuery<Ref<Transform>, With<AnimateRotation>>,
+    _ time: Res<ElapsedTime>
+) {
+    query.forEach { transform in
+        transform.rotation = Quat(axis: [0, 0, 1], angle: Math.cos(time.value))
+    }
+}
+
+@System
+func AnimateScaleText(
+    _ query: FilterQuery<Ref<Transform>, With<AnimateScale>>,
+    _ time: Res<ElapsedTime>
+) {
+    query.forEach { transform in
+        let scale = (Math.sin(time.value) + 1.1) * 2.0
+        transform.scale.x = scale
+        transform.scale.y = scale
+    }
+}

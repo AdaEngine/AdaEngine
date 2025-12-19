@@ -9,11 +9,16 @@ import AdaECS
 import AdaRender
 import AdaTransform
 
+/// Bundle for 2D text.
 @Bundle
 public struct Text2D {
+    /// Text component.
     public var textComponent = TextComponent(text: AttributedText(""))
+    /// Transform component.
     public var transform: Transform
+    /// Visibility component.
     public var visibility: Visibility
+    /// No frustum culling component.
     public let noFrustumCulling: NoFrustumCulling
 
     public init(
