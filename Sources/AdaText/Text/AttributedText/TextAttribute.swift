@@ -35,6 +35,13 @@ public struct OutlineColorTextAttribute: TextAttributeKey {
     public static let defaultValue: Color = .clear
 }
 
+/// A text attribute key for background color.
+public struct BackgroundColorTextAttribute: TextAttributeKey {
+    /// The value type.
+    public typealias Value = Color
+    public static let defaultValue: Color = .clear
+}
+
 /// A text attribute key for kerning.
 public struct KernColorTextAttribute: TextAttributeKey {
     /// The value type.
@@ -74,6 +81,17 @@ public extension TextAttributeContainer {
         
         set {
             self[OutlineColorTextAttribute.self] = newValue
+        }
+    }
+    
+    /// Set background color for text.
+    var backgroundColor: Color {
+        get {
+            self[BackgroundColorTextAttribute.self] ?? BackgroundColorTextAttribute.defaultValue
+        }
+        
+        set {
+            self[BackgroundColorTextAttribute.self] = newValue
         }
     }
     
