@@ -41,7 +41,9 @@ public struct RenderGraphExecutor: Sendable {
         viewEntity: Entity?
     ) async throws {
         let tracer = Logger(label: "RenderGraph")
-        tracer.trace("Begin Render Graph Frame")
+        tracer.trace("Begin Render Graph Frame", metadata: [
+            "graph": .string(graph.label?.rawValue ?? "Unknown")
+        ])
 
         var writtenResources = [RenderGraph.Node.ID: [RenderSlotValue]]()
         
@@ -53,7 +55,14 @@ public struct RenderGraphExecutor: Sendable {
                 let resource = inputResources[index]
                 
                 if resource.value.resourceKind != inputSlot.kind {
-                    fatalError("Mismatched slot type")
+                    assertionFailure("Mismatched slot type for resource kind \(resource.value.resourceKind), and input \(inputSlot.kind)")
+                    tracer.error("Mismatched slot type", metadata: [
+                        "graph": .string(graph.label?.rawValue ?? "Unknown"),
+                        "resourceName": .string(resource.name.rawValue),
+                        "resourceKind": .string(resource.value.resourceKind.rawValue),
+                        "inputSlotName": .string(inputSlot.name.rawValue),
+                        "inputSlotKind": .string(inputSlot.kind.rawValue)
+                    ])
                 }
             }
             

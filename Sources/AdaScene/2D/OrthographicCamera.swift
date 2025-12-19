@@ -43,6 +43,9 @@ public struct OrthographicCameraBundle {
         self.audioReceiver = audioReceiver
         self.transform = transform
         self.visibility = visibility
-        self.cameraRenderGraph = CameraRenderGraph(subgraphLabel: .main2D, inputSlot: Main2DRenderNode.InputNode.view)
+        self.cameraRenderGraph = CameraRenderGraph(
+            subgraphLabel: .main2D,
+            inputSlot: Main2DRenderNode.InputNode.view
+        )
     }
 }

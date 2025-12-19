@@ -13,7 +13,7 @@ import AdaCorePipelines
 // MARK: - UI Draw Data
 
 /// Resource that holds GPU buffers for UI rendering.
-public struct UIDrawData: Resource {
+public struct UIDrawData: Sendable {
     /// Vertex buffer for quads.
     public var quadVertexBuffer: BufferData<QuadVertexData>
     /// Index buffer for quads.
@@ -49,6 +49,17 @@ public struct UIDrawData: Resource {
         self.lineIndexBuffer = BufferData(label: "UI_LineIndexBuffer", elements: [])
         self.glyphVertexBuffer = BufferData(label: "UI_GlyphVertexBuffer", elements: [])
         self.glyphIndexBuffer = BufferData(label: "UI_GlyphIndexBuffer", elements: [])
+    }
+
+    public mutating func write(to device: any RenderDevice) {
+        self.quadVertexBuffer.write(to: device)
+        self.quadIndexBuffer.write(to: device)
+        self.circleVertexBuffer.write(to: device)
+        self.circleIndexBuffer.write(to: device)
+        self.lineVertexBuffer.write(to: device)
+        self.lineIndexBuffer.write(to: device)
+        self.glyphVertexBuffer.write(to: device)
+        self.glyphIndexBuffer.write(to: device)
     }
 
     /// Clears all vertex, index, and texture data while keeping capacity.
@@ -94,7 +105,6 @@ public struct UIDrawPass: DrawPass {
         )
 
         renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-        renderEncoder.setRenderPipelineState(item.renderPipeline)
 
         // Determine which primitive type to render based on the entity
         // This is a simplified approach - in a full implementation,
@@ -102,6 +112,7 @@ public struct UIDrawPass: DrawPass {
 
         // Render quads
         if !uiDrawData.quadIndexBuffer.isEmpty {
+            renderEncoder.setRenderPipelineState(item.renderPipeline.quadPipeline)
             renderQuads(
                 renderEncoder: renderEncoder,
                 uiDrawData: uiDrawData
@@ -110,6 +121,7 @@ public struct UIDrawPass: DrawPass {
 
         // Render circles
         if !uiDrawData.circleIndexBuffer.isEmpty {
+            renderEncoder.setRenderPipelineState(item.renderPipeline.circlePipeline)
             renderCircles(
                 renderEncoder: renderEncoder,
                 uiDrawData: uiDrawData
@@ -118,6 +130,7 @@ public struct UIDrawPass: DrawPass {
 
         // Render lines
         if !uiDrawData.lineIndexBuffer.isEmpty {
+            renderEncoder.setRenderPipelineState(item.renderPipeline.linePipeline)
             renderLines(
                 renderEncoder: renderEncoder,
                 uiDrawData: uiDrawData
@@ -126,6 +139,7 @@ public struct UIDrawPass: DrawPass {
 
         // Render glyphs
         if !uiDrawData.glyphIndexBuffer.isEmpty {
+            renderEncoder.setRenderPipelineState(item.renderPipeline.textPipeline)
             renderGlyphs(
                 renderEncoder: renderEncoder,
                 uiDrawData: uiDrawData
@@ -243,7 +257,9 @@ public struct UIQuadDrawPass: DrawPass {
         )
 
         renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-        renderEncoder.setRenderPipelineState(item.renderPipeline)
+        renderEncoder.setRenderPipelineState(
+            item.renderPipeline.quadPipeline
+        )
 
         guard !uiDrawData.quadIndexBuffer.isEmpty else {
             return
@@ -295,7 +311,7 @@ public struct UICircleDrawPass: DrawPass {
         )
 
         renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-        renderEncoder.setRenderPipelineState(item.renderPipeline)
+        renderEncoder.setRenderPipelineState(item.renderPipeline.circlePipeline)
 
         guard !uiDrawData.circleIndexBuffer.isEmpty else {
             return
@@ -341,7 +357,7 @@ public struct UILinesDrawPass: DrawPass {
         )
 
         renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-        renderEncoder.setRenderPipelineState(item.renderPipeline)
+        renderEncoder.setRenderPipelineState(item.renderPipeline.linePipeline)
 
         guard !uiDrawData.lineIndexBuffer.isEmpty else {
             return
@@ -388,7 +404,7 @@ public struct UIGlyphDrawPass: DrawPass {
         )
 
         renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-        renderEncoder.setRenderPipelineState(item.renderPipeline)
+        renderEncoder.setRenderPipelineState(item.renderPipeline.textPipeline)
 
         guard !uiDrawData.glyphIndexBuffer.isEmpty else {
             return

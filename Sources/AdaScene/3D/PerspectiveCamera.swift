@@ -23,7 +23,6 @@ public struct PerspectiveCameraBundle {
     public var globalViewUniformBufferSet = GlobalViewUniformBufferSet()
     public var audioReceiver = AudioReceiver()
     public var transform = Transform()
-    public var renderItems = RenderItems<Transparent2DRenderItem>()
 
     /// Create a new perspective camera for rendering 2D and 3D items on screen.
     public init(
@@ -32,8 +31,7 @@ public struct PerspectiveCameraBundle {
          globalViewUniform: GlobalViewUniform = GlobalViewUniform(),
          globalViewUniformBufferSet: GlobalViewUniformBufferSet = GlobalViewUniformBufferSet(),
          audioReceiver: AudioReceiver = AudioReceiver(),
-         transform: Transform = Transform(),
-        renderItems: RenderItems<Transparent2DRenderItem> = RenderItems<Transparent2DRenderItem>()
+         transform: Transform = Transform()
     ) {
         self.camera = camera
         self.camera.projection = .perspective
@@ -42,6 +40,5 @@ public struct PerspectiveCameraBundle {
         self.globalViewUniformBufferSet = globalViewUniformBufferSet
         self.audioReceiver = audioReceiver
         self.transform = transform
-        self.renderItems = renderItems
     }
 }

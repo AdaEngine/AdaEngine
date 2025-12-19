@@ -8,6 +8,7 @@
 import AdaApp
 import AdaECS
 import AdaUtils
+import AdaScene
 import Math
 
 /// A scene that presents a group of identically structured windows.
@@ -25,6 +26,7 @@ public struct WindowGroup<Content: View>: AppScene {
                     InitialContainerView(view: UIContainerView(rootView: self.content))
                 )
                 appWorld.addSystem(WindowGroupUpdateSystem.self, on: .startup)
+                appWorld.spawn(bundle: Camera2D())
             }
             .addPlugins(DefaultPlugins())
     }

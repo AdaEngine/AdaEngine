@@ -34,7 +34,10 @@ public struct AppContext<T: App>: ~Copyable {
     @_spi(Internal)
     public func run() async throws {
         LoggingSystem.bootstrap {
-            StreamLogHandler.standardError(label: $0)
+            MultiplexLogHandler([
+                StreamLogHandler.standardError(label: $0),
+                StreamLogHandler.standardOutput(label: $0)
+            ])
         }
         let appWorlds = AppWorlds(main: World(name: "MainWorld"))
         appWorlds
