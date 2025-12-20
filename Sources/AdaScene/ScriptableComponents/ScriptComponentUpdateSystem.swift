@@ -15,8 +15,6 @@ import AdaUI
 @PlainSystem
 public struct ScriptComponentUpdateSystem {
 
-    public init(world: World) { }
-
     @Res<DeltaTime>
     private var time
 
@@ -31,6 +29,8 @@ public struct ScriptComponentUpdateSystem {
 
     @Local
     private var fixedTime = FixedTimestep(stepsPerSecond: 60)
+
+    public init(world: World) { }
 
     @MainActor
     public func update(context: UpdateContext) {
