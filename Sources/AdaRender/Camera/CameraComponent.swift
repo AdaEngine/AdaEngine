@@ -156,7 +156,7 @@ public extension Camera {
 
     /// Return point from viewport to 2D world.
     func viewportToWorld2D(cameraGlobalTransform: Transform3D, viewportPosition: Vector2) -> Vector2? {
-        let ndc = viewportPosition * 2 / viewport.rect.size.asVector2 - Vector2.one
+        let ndc = viewportPosition * 2 / logicalViewport.rect.size.asVector2 - Vector2.one
         let worldPlane = self.ndcToWorld(cameraGlobalTransform: cameraGlobalTransform, ndc: Vector3(ndc, 1))
 
         return worldPlane.xy
