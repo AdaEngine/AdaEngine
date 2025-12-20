@@ -11,29 +11,64 @@ import AdaUI
 import AdaTransform
 import AdaInput
 
+/// Contains collection of ``ScriptableObject``.
 @Component
 public struct ScriptableComponents {
-    public var scripts: [ScriptableObject] = []
+    public var scripts: ContiguousArray<ScriptableObject> = []
 
-    public init(scripts: [ScriptableObject]) {
+    public init(scripts: ContiguousArray<ScriptableObject>) {
         self.scripts = scripts
     }
 }
 
 /// Base class describe some unit of game logic.
+/// This similar as Unity MonoBehaviour object does.
+/// It can be used when you need some Unity-like component with specific behaviour.
+/// ScriptableObject has it's lifecycle and not depends on system execution order. It's always called on `Update` scheduler
 ///
 /// - Note: We don't recomend use a lot of scriptable objects, instead use ECS paradigm.
 ///
-/// It can be used when you need some Unity-like component with specific behaviour.
+/// ```swift
+/// final class Player: ScriptableObject {
+///     func update(_ deltaTime: AdaUtils.TimeInterval) {
+///         // Update player position
+///         if input.isKeyPressed(.w) { ... }
+///     }
+/// }
 ///
-/// - Warning: AdaEngine doesn't has execution order for `ScriptableComponent`.
+/// func setup(in app: AppWorlds) {
+///     // spawn player script in app.
+///     app.spawn("Player") {
+///         ScriptableComponents(scripts: [Player()]),
+///         Transform()
+///     }
+/// }
+/// ```
+/// You also can get any component in entity using special ``RequiredComponent`` property wrapper.
+///
+/// ```swift
+/// final class Player: ScriptableObject {
+///
+///     @RequiredComponent
+///     private var sprite: Sprite
+///
+///     func update(_ deltaTime: AdaUtils.TimeInterval) {
+///         // Update sprite tint color
+///         sprite.tintColor = .random()
+///     }
+/// }
+///
+/// - Note: The execution order depends on ``ScriptableComponents``.
 ///
 open class ScriptableObject: @unchecked Sendable {
 
+    /// Check, that object is awaked.
     internal var isAwaked: Bool = false
-    
+
+    /// Returns entity where ScriptableObject attached.
     public internal(set) weak var entity: Entity?
 
+    /// Contains input manager for handling events.
     public var input: Input {
         _read {
             yield _input.wrappedValue
@@ -59,26 +94,18 @@ open class ScriptableObject: @unchecked Sendable {
     open func update(_ deltaTime: AdaUtils.TimeInterval) { }
 
     /// Called each frame to update gui.
-    @MainActor
-    open func updateGUI(_ deltaTime: AdaUtils.TimeInterval, context: UIGraphicsContext) {
+    /// - Note: ``UIGraphicsContext`` has different view matrix and based on UI Ortho Transform not camera view.
+    open func updateGUI(_ deltaTime: AdaUtils.TimeInterval, context: UIGraphicsContext) { }
 
-    }
-    
-    /// Called each time with interval in seconds for physics and other updates.
-    open func physicsUpdate(_ deltaTime: AdaUtils.TimeInterval) {
-
-    }
+    /// Called 60 times per second for physics and other updates.
+    open func physicsUpdate(_ deltaTime: AdaUtils.TimeInterval) { }
     
     /// Called each time when scene receive events.
-    open func event(_ events: [any InputEvent]) {
+    open func event(_ events: [any InputEvent]) { }
 
-    }
-    
     /// Called once when component removed from entity
-    open func destroy() {
+    open func destroy() { }
 
-    }
-    
     // MARK: - Codable
     
     public required init(from decoder: Decoder) throws {
