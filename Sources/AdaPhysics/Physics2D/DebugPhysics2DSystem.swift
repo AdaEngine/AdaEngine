@@ -26,129 +26,83 @@ public struct PhysicsDebugOptions: OptionSet, Resource {
     public static let showBoundingBoxes = PhysicsDebugOptions(rawValue: 1 << 1)
 }
 
-@Component
-struct ExctractedPhysicsMesh2DDebug {
-    let entityId: Entity.ID
-    let mesh: Mesh
-    let material: Material
-    let transform: Transform3D
-}
+// MARK: - Extracted Debug Shapes
 
-/// System for exctracting physics bodies for debug rendering.
-@PlainSystem
-public struct DebugPhysicsExctract2DSystem {
+/// Contains extracted debug shapes for rendering.
+public struct ExtractedPhysicsDebugShapes: Resource {
+    public var lines: [DebugLine] = []
+    public var circles: [DebugCircle] = []
 
-    @EntityQuery(
-        where: (.has(PhysicsBody2DComponent.self) || .has(Collision2DComponent.self) || .has(PhysicsJoint2DComponent.self)) && .has(Visibility.self)
-    )
-    private var entities
-
-    @Query<Camera, GlobalTransform>
-    private var cameras
-
-    public init(world: World) { }
-
-    @MainActor
-    public func update(context: UpdateContext) {
-        guard let (camera, globalTransform) = self.cameras.first else {
-            return
-        }
-
-        let world = context.world
-        guard world.getResource(PhysicsDebugOptions.self)?.contains(.showPhysicsShapes) == true else {
-            return
-        }
-
-        guard let world = world.physicsWorld2D else {
-            return
-        }
-
-        //            guard let window = scene?.window else {
-        //                return
-        //            }
-        //
-        //            var graphics = UIGraphicsContext(window: window)
-        //            graphics.beginDraw(in: window.frame.size, scaleFactor: 1)
-        //
-        //            if let viewUniform = camera.components[GlobalViewUniform.self] {
-        //                let viewMatrix = viewUniform.viewProjectionMatrix
-        //                graphics.concatenate(viewMatrix)
-        //                graphics.scaleBy(x: window.frame.size.width / 2, y: window.frame.size.height / 2)
-        //                graphics.translateBy(x: window.frame.size.width / 2, y: -window.frame.size.height / 2)
-        //            }
-        //
-        //            let drawContext = WorldDebugDrawContext()
-        //            var debugDraw = b2DefaultDebugDraw()
-        //            debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
-        //            debugDraw.DrawSolidCircle = DebugPhysicsExctract2DSystem_DrawSolidCircle
-        //            debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
-        //            debugDraw.drawShapes = true
-        //            debugDraw.drawAABBs = true
-        //            world.debugDraw(with: debugDraw)
-        //
-        //            drawContext.forEach { item in
-        //                switch item {
-        //                case let .line(start, end, color):
-        //                    graphics.drawLine(
-        //                        start: start,
-        //                        end: end,
-        //                        lineWidth: 2.0,
-        //                        color: color
-        //                    )
-        //                case let .circle(center, radius, color):
-        //                    graphics.drawEllipse(
-        //                        in: Rect(
-        //                            x: center.x - radius,
-        //                            y: -center.y - radius,
-        //                            width: radius * 2,
-        //                            height: radius * 2
-        //                        ),
-        //                        color: color,
-        //                        thickness: 0.1
-        //                    )
-        //                }
-        //            }
-        //
-        //            graphics.commitDraw()
+    public struct DebugLine: Sendable {
+        public let start: Vector2
+        public let end: Vector2
+        public let color: Color
     }
 
-    @MainActor
-    private func getRuntimeBody(from entity: Entity) -> Body2D? {
-        return entity.components[PhysicsBody2DComponent.self]?.runtimeBody
-        ?? entity.components[Collision2DComponent.self]?.runtimeBody
+    public struct DebugCircle: Sendable {
+        public let center: Vector2
+        public let radius: Float
+        public let color: Color
     }
 }
 
-///// Draw a solid capsule.
-//void ( *DrawSolidCapsule )( b2Vec2 p1, b2Vec2 p2, float radius, b2HexColor color, void* context );
+// MARK: - Draw Data Resources
 
-///// Draw a line segment.
-//void ( *DrawSegment )( b2Vec2 p1, b2Vec2 p2, b2HexColor color, void* context );
-//
-///// Draw a string in world space
-//void ( *DrawString )( b2Vec2 p, const char* s, b2HexColor color, void* context );
+/// A data for drawing physics debug shapes.
+public struct PhysicsDebugDrawData: Resource, DefaultValue {
+    public var lineVertexBuffer: BufferData<LineVertexData>
+    public var lineIndexBuffer: BufferData<UInt32>
+    public var circleVertexBuffer: BufferData<CircleVertexData>
+    public var circleIndexBuffer: BufferData<UInt32>
 
+    public static let defaultValue: PhysicsDebugDrawData = {
+        PhysicsDebugDrawData(
+            lineVertexBuffer: .init(label: "PhysicsDebug_LineVertexBuffer", elements: []),
+            lineIndexBuffer: .init(label: "PhysicsDebug_LineIndexBuffer", elements: []),
+            circleVertexBuffer: .init(label: "PhysicsDebug_CircleVertexBuffer", elements: []),
+            circleIndexBuffer: .init(label: "PhysicsDebug_CircleIndexBuffer", elements: [])
+        )
+    }()
+}
+
+/// Batches for physics debug rendering.
+public struct PhysicsDebugBatches: Resource {
+    public struct LineBatch: Sendable {
+        public var range: Range<Int32>
+    }
+
+    public struct CircleBatch: Sendable {
+        public var range: Range<Int32>
+    }
+
+    public var lineBatch: LineBatch?
+    public var circleBatch: CircleBatch?
+
+    public init() {}
+}
+
+// MARK: - Debug Draw Context
+
+/// Context for collecting debug draw calls from Box2D.
 private final class WorldDebugDrawContext {
-
-    enum DebugItem {
-        case line(start: Vector2, end: Vector2, color: Color)
-        case circle(center: Vector2, radius: Float, color: Color)
-    }
-
-    private var drawStack: [DebugItem] = []
+    var lines: [ExtractedPhysicsDebugShapes.DebugLine] = []
+    var circles: [ExtractedPhysicsDebugShapes.DebugCircle] = []
 
     func addLine(start: Vector2, end: Vector2, color: Color) {
-        self.drawStack.append(.line(start: start, end: end, color: color))
+        self.lines.append(.init(start: start, end: end, color: color))
     }
 
     func addCircle(center: Vector2, radius: Float, color: Color) {
-        self.drawStack.append(.circle(center: center, radius: radius, color: color))
+        self.circles.append(.init(center: center, radius: radius, color: color))
     }
 
-    func forEach(_ block: (DebugItem) -> Void) {
-        self.drawStack.forEach(block)
+    func clear() {
+        lines.removeAll(keepingCapacity: true)
+        circles.removeAll(keepingCapacity: true)
     }
 }
+
+// MARK: - Box2D Debug Draw Callbacks
 
 private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
     _ transform: b2Transform,
@@ -166,6 +120,7 @@ private func DebugPhysicsExctract2DSystem_DrawSolidCircle(
 
     debugContext.addCircle(center: center, radius: radius, color: color)
 
+    // Draw direction indicator line
     let direction = Vector2(
         transform.q.c * radius,  // cos(angle) * radius
         transform.q.s * radius   // sin(angle) * radius
@@ -217,70 +172,325 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
     }
 }
 
-/// System for rendering debug physics shape on top of the scene.
+// MARK: - Extract System
+
+/// System for extracting physics bodies for debug rendering.
+@System
+public func ExtractPhysicsDebug(
+    _ extractedShapes: ResMut<ExtractedPhysicsDebugShapes>,
+    _ debugOptions: Extract<Res<PhysicsDebugOptions>>,
+    _ physicsWorld: Extract<
+        Res<Physics2DWorldComponent>
+    >
+) {
+    extractedShapes.lines.removeAll(keepingCapacity: true)
+    extractedShapes.circles.removeAll(keepingCapacity: true)
+
+    guard debugOptions().wrappedValue.contains(.showPhysicsShapes) else {
+        return
+    }
+
+    let drawContext = WorldDebugDrawContext()
+
+    var debugDraw = unsafe b2DefaultDebugDraw()
+    unsafe debugDraw.DrawSolidPolygon = DebugPhysicsExctract2DSystem_DrawSolidPolygon
+    unsafe debugDraw.DrawSolidCircle = DebugPhysicsExctract2DSystem_DrawSolidCircle
+    unsafe debugDraw.context = Unmanaged.passUnretained(drawContext).toOpaque()
+    unsafe debugDraw.drawShapes = true
+    unsafe debugDraw.drawAABBs = false
+
+    unsafe physicsWorld().world.debugDraw(with: debugDraw)
+
+    extractedShapes.lines = drawContext.lines
+    extractedShapes.circles = drawContext.circles
+}
+
+// MARK: - Prepare System
+
+/// System for preparing physics debug render items.
 @PlainSystem
-public struct Physics2DDebugDrawSystem: Sendable {
+public struct PreparePhysicsDebugSystem: Sendable {
 
-    @Query<VisibleEntities>
-    private var cameras
-
-    @Res<RenderItems<Transparent2DRenderItem>>
+    @ResMut<RenderItems<Transparent2DRenderItem>>
     private var renderItems
 
-    @Query<ExctractedPhysicsMesh2DDebug>
-    private var meshes
+    @ResMut
+    private var linePipeline: RenderPipelines<LinePipeline>
 
-    //    @Res
-    //    private var meshDrawPass: Mesh2DDrawPass?
+    @ResMut
+    private var circlePipeline: RenderPipelines<CirclePipeline>
+
+    @Res
+    private var renderDevice: RenderDeviceHandler
+
+    @Res<ExtractedPhysicsDebugShapes>
+    private var extractedShapes
+
+    @Res
+    private var lineDrawPass: PhysicsDebugLineDrawPass
+
+    @Res
+    private var circleDrawPass: PhysicsDebugCircleDrawPass
 
     public init(world: World) {}
 
     public func update(context: UpdateContext) {
+        // Skip if no shapes to render
+        if extractedShapes.lines.isEmpty && extractedShapes.circles.isEmpty {
+            return
+        }
 
-        //        self.cameras.forEach { visibleEntities, renderItems in
-        //            self.draw(
-        //                visibleEntities: visibleEntities,
-        //                items: &renderItems.wrappedValue.items
-        //            )
-        //        }
-        //    }
-        //
-        //    private func draw(
-        //        visibleEntities: VisibleEntities,
-        //        items: inout [Transparent2DRenderItem]
-        //    ) {
-        //    itemIterator:
-        //        for item in self.meshes {
-        //            if !visibleEntities.entityIds.contains(item.entityId) {
-        //                continue
-        //            }
-        //
-        //            let uniform = Mesh2DUniform(
-        //                model: item.transform,
-        //                modelInverseTranspose: .identity
-        //            )
-        //
-        //            for model in item.mesh.models {
-        //                for part in model.parts {
-        //                    guard let pipeline = item.material.getOrCreatePipeline(for: part.vertexDescriptor, keys: []) else {
-        //                        assertionFailure("Failed to create pipeline")
-        //                        continue itemIterator
-        //                    }
-        //
-        //                    let emptyEntity = EmptyEntity()
-        //                    emptyEntity.components += ExctractedMeshPart2d(part: part, material: item.material, modelUniform: uniform)
-        //
-        //                    items.append(
-        //                        Transparent2DRenderItem(
-        //                            entity: emptyEntity,
-        //                            batchEntity: emptyEntity,
-        //                            drawPassId: Self.mesh2dDrawPassIdentifier,
-        //                            renderPipeline: pipeline,
-        //                            sortKey: .greatestFiniteMagnitude // by default we render debug entities on top of scene.
-        //                        )
-        //                    )
-        //                }
-        //            }
-        //        }
+        // Add line render item if we have lines
+        if !extractedShapes.lines.isEmpty {
+            let pipeline = linePipeline.pipeline(device: renderDevice.renderDevice)
+
+            renderItems.items.append(
+                Transparent2DRenderItem(
+                    entity: 0,
+                    drawPass: lineDrawPass,
+                    renderPipeline: pipeline,
+                    sortKey: .greatestFiniteMagnitude,  // Render on top
+                    batchRange: 0..<Int32(extractedShapes.lines.count)
+                )
+            )
+        }
+
+        // Add circle render item if we have circles
+        if !extractedShapes.circles.isEmpty {
+            let pipeline = circlePipeline.pipeline(device: renderDevice.renderDevice)
+
+            renderItems.items.append(
+                Transparent2DRenderItem(
+                    entity: 0,
+                    drawPass: circleDrawPass,
+                    renderPipeline: pipeline,
+                    sortKey: .greatestFiniteMagnitude,  // Render on top
+                    batchRange: 0..<Int32(extractedShapes.circles.count)
+                )
+            )
+        }
+    }
+}
+
+// MARK: - Render System
+
+/// Quad corner positions for circle SDF rendering.
+private let quadPositions: [Vector4] = [
+    [-0.5, -0.5, 0.0, 1.0],
+    [ 0.5, -0.5, 0.0, 1.0],
+    [ 0.5,  0.5, 0.0, 1.0],
+    [-0.5,  0.5, 0.0, 1.0]
+]
+
+/// System for tessellating and batching physics debug shapes.
+@PlainSystem
+public struct PhysicsDebugRenderSystem: Sendable {
+
+    @Res<ExtractedPhysicsDebugShapes>
+    private var extractedShapes
+
+    @ResMut<PhysicsDebugDrawData>
+    private var drawData
+
+    @ResMut<PhysicsDebugBatches>
+    private var batches
+
+    @Res<RenderDeviceHandler>
+    private var renderDevice
+
+    public init(world: World) {}
+
+    public func update(context: UpdateContext) {
+        // Clear previous frame data
+        drawData.lineVertexBuffer.elements.removeAll(keepingCapacity: true)
+        drawData.lineIndexBuffer.elements.removeAll(keepingCapacity: true)
+        drawData.circleVertexBuffer.elements.removeAll(keepingCapacity: true)
+        drawData.circleIndexBuffer.elements.removeAll(keepingCapacity: true)
+        batches.lineBatch = nil
+        batches.circleBatch = nil
+
+        let device = renderDevice.renderDevice
+
+        // Tessellate lines
+        if !extractedShapes.lines.isEmpty {
+            let lineCount = extractedShapes.lines.count
+
+            for line in extractedShapes.lines {
+                let vertexOffset = UInt32(drawData.lineVertexBuffer.count)
+
+                // Add line vertices
+                drawData.lineVertexBuffer.append(
+                    LineVertexData(
+                        position: Vector3(line.start.x, line.start.y, 0),
+                        color: line.color,
+                        lineWidth: 2.0
+                    )
+                )
+                drawData.lineVertexBuffer.append(
+                    LineVertexData(
+                        position: Vector3(line.end.x, line.end.y, 0),
+                        color: line.color,
+                        lineWidth: 2.0
+                    )
+                )
+
+                // Add line indices
+                drawData.lineIndexBuffer.append(vertexOffset)
+                drawData.lineIndexBuffer.append(vertexOffset + 1)
+            }
+
+            batches.lineBatch = .init(range: 0..<Int32(lineCount))
+
+            drawData.lineVertexBuffer.write(to: device)
+            drawData.lineIndexBuffer.write(to: device)
+        }
+
+        // Tessellate circles
+        if !extractedShapes.circles.isEmpty {
+            let circleCount = extractedShapes.circles.count
+
+            for circle in extractedShapes.circles {
+                let vertexOffset = UInt32(drawData.circleVertexBuffer.count)
+
+                // Create a transform for the circle
+                let scale = circle.radius * 2.0
+                let transform = Transform3D(
+                    translation: Vector3(circle.center.x, circle.center.y, 0),
+                    rotation: .identity,
+                    scale: Vector3(scale, scale, 1.0)
+                )
+
+                // Tessellate circle into 4 vertices (SDF rendering)
+                for quadPos in quadPositions {
+                    let worldPos = transform * quadPos
+                    let localPos = quadPos * 2  // Scale to [-1, 1] range for SDF
+
+                    drawData.circleVertexBuffer.append(
+                        CircleVertexData(
+                            worldPosition: worldPos.xyz,
+                            localPosition: Vector2(localPos.x, localPos.y),
+                            thickness: 0.05,  // Stroke thickness
+                            fade: 0.01,       // Anti-aliasing fade
+                            color: circle.color
+                        )
+                    )
+                }
+
+                // Add circle indices (2 triangles forming a quad)
+                drawData.circleIndexBuffer.append(vertexOffset + 0)
+                drawData.circleIndexBuffer.append(vertexOffset + 1)
+                drawData.circleIndexBuffer.append(vertexOffset + 2)
+                drawData.circleIndexBuffer.append(vertexOffset + 2)
+                drawData.circleIndexBuffer.append(vertexOffset + 3)
+                drawData.circleIndexBuffer.append(vertexOffset + 0)
+            }
+
+            batches.circleBatch = .init(range: 0..<Int32(circleCount))
+
+            drawData.circleVertexBuffer.write(to: device)
+            drawData.circleIndexBuffer.write(to: device)
+        }
+    }
+}
+
+// MARK: - Draw Passes
+
+/// Draw pass for rendering physics debug lines.
+public struct PhysicsDebugLineDrawPass: DrawPass, Resource {
+    public typealias Item = Transparent2DRenderItem
+
+    public init() {}
+
+    public func render(
+        with renderEncoder: RenderCommandEncoder,
+        world: World,
+        view: Entity,
+        item: Transparent2DRenderItem
+    ) throws {
+        guard
+            let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self],
+            let drawData = world.getResource(PhysicsDebugDrawData.self),
+            let batches = world.getResource(PhysicsDebugBatches.self),
+            let batch = batches.lineBatch
+        else {
+            return
+        }
+
+        guard !drawData.lineVertexBuffer.isEmpty else {
+            return
+        }
+
+        renderEncoder.pushDebugName("PhysicsDebugLineDrawPass")
+        defer {
+            renderEncoder.popDebugName()
+        }
+
+        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
+
+        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
+        renderEncoder.setVertexBuffer(drawData.lineVertexBuffer, offset: 0, index: 0)
+        renderEncoder.setIndexBuffer(drawData.lineIndexBuffer, indexFormat: .uInt32)
+        renderEncoder.setRenderPipelineState(item.renderPipeline)
+
+        let lineCount = Int(batch.range.upperBound - batch.range.lowerBound)
+        renderEncoder.drawIndexed(
+            indexCount: lineCount * 2,
+            indexBufferOffset: 0,
+            instanceCount: 1
+        )
+    }
+}
+
+/// Draw pass for rendering physics debug circles.
+public struct PhysicsDebugCircleDrawPass: DrawPass, Resource {
+    public typealias Item = Transparent2DRenderItem
+
+    public init() {}
+
+    public func render(
+        with renderEncoder: RenderCommandEncoder,
+        world: World,
+        view: Entity,
+        item: Transparent2DRenderItem
+    ) throws {
+        guard
+            let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self],
+            let drawData = world.getResource(PhysicsDebugDrawData.self),
+            let batches = world.getResource(PhysicsDebugBatches.self),
+            let batch = batches.circleBatch
+        else {
+            return
+        }
+
+        guard !drawData.circleVertexBuffer.isEmpty else {
+            return
+        }
+
+        renderEncoder.pushDebugName("PhysicsDebugCircleDrawPass")
+        defer {
+            renderEncoder.popDebugName()
+        }
+
+        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
+            binding: GlobalBufferIndex.viewUniform,
+            set: 0,
+            frameIndex: RenderEngine.shared.currentFrameIndex
+        )
+
+        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
+        renderEncoder.setVertexBuffer(drawData.circleVertexBuffer, offset: 0, index: 0)
+        renderEncoder.setIndexBuffer(drawData.circleIndexBuffer, indexFormat: .uInt32)
+        renderEncoder.setRenderPipelineState(item.renderPipeline)
+
+        let circleCount = Int(batch.range.upperBound - batch.range.lowerBound)
+        renderEncoder.drawIndexed(
+            indexCount: circleCount * 6,  // 6 indices per circle quad
+            indexBufferOffset: 0,
+            instanceCount: 1
+        )
     }
 }

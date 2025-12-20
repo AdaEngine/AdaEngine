@@ -219,7 +219,6 @@ public final class PhysicsWorld2D: Codable, @unchecked Sendable {
         )
     }
 
-    @MainActor
     func debugDraw(with definitions: b2DebugDraw) {
         var definitions = unsafe definitions
         unsafe b2World_Draw(worldId, &definitions)

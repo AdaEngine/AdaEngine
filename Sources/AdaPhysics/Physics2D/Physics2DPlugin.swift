@@ -9,6 +9,7 @@ import AdaApp
 import AdaECS
 import AdaRender
 import AdaUtils
+import AdaCorePipelines
 import Math
 
 /// Setup 2D physics to the scene.
@@ -31,6 +32,7 @@ public struct Physics2DPlugin: Plugin {
                     world: PhysicsWorld2D(gravity: gravity)
                 )
             )
+            .insertResource(PhysicsDebugOptions())
             .addSystem(Physics2DSystem.self, on: .fixedUpdate)
             .addSystem(PhysicsEventProxySystem.self, on: .startup)
 
@@ -38,8 +40,16 @@ public struct Physics2DPlugin: Plugin {
             return
         }
         renderWorld
-            .addSystem(Physics2DDebugDrawSystem.self, on: .render)
-            .addSystem(DebugPhysicsExctract2DSystem.self, on: .extract)
+            .insertResource(ExtractedPhysicsDebugShapes())
+            .insertResource(PhysicsDebugDrawData.defaultValue)
+            .insertResource(PhysicsDebugBatches())
+            .insertResource(PhysicsDebugLineDrawPass())
+            .insertResource(PhysicsDebugCircleDrawPass())
+            .insertResource(RenderPipelines(configurator: LinePipeline()))
+            .insertResource(RenderPipelines(configurator: CirclePipeline()))
+            .addSystem(ExtractPhysicsDebugSystem.self, on: .extract)
+            .addSystem(PreparePhysicsDebugSystem.self, on: .prepare)
+            .addSystem(PhysicsDebugRenderSystem.self, on: .update)
     }
 }
 
