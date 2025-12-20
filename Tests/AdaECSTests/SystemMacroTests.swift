@@ -106,6 +106,7 @@ struct PhysicsSystem {
     .after(PhysicsSystem.self)
 ])
 struct DependentSystem: System {
+    
     @Query<Ref<Transform>>
     private var query
 

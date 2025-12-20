@@ -18,15 +18,34 @@ struct MainSchedulerPlugin: Plugin {
 
         app.main.addScheduler(mainScheduler)
         app.main.addSchedulers(
+            // Special
             .startup,
             .fixed,
-            .postUpdate
+
+            // Update
+            .preUpdate,
+            .update,
+            .postUpdate,
+
+            // Fixed
+            .fixedPreUpdate,
+            .fixedUpdate,
+            .fixedPostUpdate
         )
 
         app
             .addSystem(DefaultSchedulerRunner.self, on: .main)
             .addSystem(FixedTimeSchedulerSystem.self, on: .fixed)
-        app.insertResource(DefaultSchedulerOrder())
+        app.insertResource(
+            DefaultSchedulerOrder(
+                order: [
+                    .preUpdate,
+                    .update,
+                    .postUpdate,
+                    .fixed
+                ]
+            )
+        )
         app.addSystem(GameLoopBeganSystem.self, on: .preUpdate)
     }
 }
@@ -63,11 +82,11 @@ public struct FixedTimeSchedulerSystem {
         self.fixedTimestep = FixedTimestep(stepsPerSecond: 60)
     }
 
-    @Res<DeltaTime?>
-    private var deltaTime
+    @Res<DeltaTime>
+    private var time
 
     public func update(context: UpdateContext) async {
-        let deltaTime = deltaTime?.deltaTime ?? 0
+        let deltaTime = time.deltaTime
         let result = self.fixedTimestep.advance(with: deltaTime)
 
         if result.isFixedTick {

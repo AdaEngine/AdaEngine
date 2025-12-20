@@ -8,7 +8,7 @@
 import AdaUtils
 import Math
 
-/// View projection for camera
+/// View projection for camera.
 public enum Projection: Sendable, Codable {
     /// Orthographic projection commonly used for 2D space.
     case orthographic(OrthographicProjection)
@@ -29,12 +29,49 @@ public enum Projection: Sendable, Codable {
         }
     }
 
+    enum CodingKeys: String, CodingKey {
+        case type
+        case value
+    }
+
+    enum ProjectionType: String, Codable {
+        case orthographic
+        case perspective
+    }
+
     public init(from decoder: any Decoder) throws {
-        fatalErrorMethodNotImplemented()
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let type = try container.decode(ProjectionType.self, forKey: .type)
+
+        switch type {
+        case .orthographic:
+            let projection = try container.decode(OrthographicProjection.self, forKey: .value)
+            self = .orthographic(projection)
+        case .perspective:
+            let projection = try container.decode(PerspectiveProjection.self, forKey: .value)
+            self = .perspective(projection)
+        }
     }
 
     public func encode(to encoder: any Encoder) throws {
-        fatalErrorMethodNotImplemented()
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        switch self {
+        case .orthographic(let projection):
+            try container.encode(ProjectionType.orthographic, forKey: .type)
+            try container.encode(projection, forKey: .value)
+        case .perspective(let projection):
+            try container.encode(ProjectionType.perspective, forKey: .type)
+            try container.encode(projection, forKey: .value)
+        case .custom:
+            throw EncodingError.invalidValue(
+                self,
+                EncodingError.Context(
+                    codingPath: encoder.codingPath,
+                    debugDescription: "Custom projection cannot be encoded"
+                )
+            )
+        }
     }
 }
 
@@ -77,8 +114,10 @@ public struct OrthographicProjection: CameraProjection {
     /// The closest point relative to camera that drawing will occur
     public var far: Float
 
+    /// Viewport center. By default point of view is center [0.5, 0.5]
     public var viewportOrigin: Vector2
 
+    /// Scale of view.
     @MinValue(0.1)
     public var scale: Float = 1
 
@@ -99,8 +138,8 @@ public struct OrthographicProjection: CameraProjection {
     }
 
     public func makeClipView() -> Transform3D {
-        let totalHeight = (viewportSize.height / scale)
-        let totalWidth = (viewportSize.width / scale)
+        let totalHeight = viewportSize.height / scale
+        let totalWidth = viewportSize.width / scale
         return Transform3D.orthographic(
             left: -totalWidth * viewportOrigin.x,
             right: totalWidth * (1 - viewportOrigin.x),
@@ -173,6 +212,7 @@ public protocol CameraProjection: Sendable, Codable {
 }
 
 public extension CameraProjection {
+    /// Make frustum from transform.
     func makeFrustum(from transform: Transform3D) -> Frustum {
         Frustum.make(from: self.makeClipView() * transform)
     }
