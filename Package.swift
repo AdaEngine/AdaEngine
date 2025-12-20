@@ -972,6 +972,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "LoadSceneExample", path: "Scene"),
     .exampleTarget(name: "LdtkTilemapExample", path: "Scene"),
     .exampleTarget(name: "CustomTileMapExample", path: "Scene"),
+    .exampleTarget(name: "ScriptableComponentExample", path: "Scene"),
 
     // MARK: Games
     .exampleTarget(name: "SnowmanAttacksExample", path: "Games"),
