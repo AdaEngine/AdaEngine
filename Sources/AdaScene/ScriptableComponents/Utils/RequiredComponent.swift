@@ -10,29 +10,31 @@
 /// Get required component from entity. 
 /// If components not exists returns fatal error.
 ///
-/// - Note: Only works in objects that inheritance from ``ScriptableComponent`` class.
+/// - Note: Only works in objects that inheritance from ``ScriptableObject`` class.
 ///
 /// RequiredComponent very useful for scenario when you need components from entity
 /// and you are really sure that that components is exists.
 ///
 /// ```swift
 ///
-/// class PlayerMovementComponent: ScriptableComponent {
+/// class PlayerMovementComponent: ScriptableObject {
 ///
 ///     // Fetch HealthComponent component from entity where PlayerMovementComponent contains
-///     @RequiredComponent private var healthComponent: HealthComponent
+///     @RequiredComponent
+///     private var healthComponent: HealthComponent
 ///
 ///     // Logic code...
 /// }
 ///
-/// let entity = Entity(name: "Player")
-/// entity.components += PlayerMovementComponent()
-/// entity.components += HealthComponent(health: 10)
+/// app.spawn(name: "Player") {
+///     HealthComponent(health: 10)
+///     ScriptableComponents(scripts: [PlayerMovementComponent()])
+/// }
 /// ```
 @propertyWrapper
 public struct RequiredComponent<T: Component> {
     
-    @available(*, unavailable, message: "RequiredComponents should call only inside `Component` classes.")
+    @available(*, unavailable, message: "RequiredComponents should call only inside `ScriptableObject` classes.")
     public var wrappedValue: T {
         get { fatalError() }
         set { fatalError() }
@@ -40,8 +42,7 @@ public struct RequiredComponent<T: Component> {
     
     public init() { }
     
-    // Currently private method to get parent component 
-    @MainActor
+    // Currently private method to get parent component
     public static subscript<EnclosingSelf: ScriptableObject>(
         _enclosingInstance object: EnclosingSelf,
         wrapped wrappedKeyPath: KeyPath<EnclosingSelf, T>,
@@ -55,7 +56,6 @@ public struct RequiredComponent<T: Component> {
             object.components[T.self] = newValue
         }
     }
-    
 }
 
 // swiftlint:enable unused_setter_value
