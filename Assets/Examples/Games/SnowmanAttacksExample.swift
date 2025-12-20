@@ -10,8 +10,9 @@ import AdaEngine
 @main
 struct SnowmanAttacksApp: App {
     var body: some AppScene {
-        DefaultAppWindow()
+        EmptyWindow()
             .addPlugins(
+                DefaultPlugins(),
                 SnowmanAttacks()
             )
             .windowMode(.windowed)
@@ -20,9 +21,9 @@ struct SnowmanAttacksApp: App {
 
 @MainActor
 struct SnowmanAttacks: Plugin {
-
     func setup(in app: borrowing AppWorlds) {
-        app.addSystem(SetupSceneSystem.self, on: .startup)
+        app
+            .addSystem(SetupSceneSystem.self, on: .startup)
             .addSystem(MovementSystem.self)
             .addSystem(FireSystem.self)
             .addSystem(BulletSystem.self)
@@ -32,6 +33,7 @@ struct SnowmanAttacks: Plugin {
             .addSystem(EnemyExplosionSystem.self)
             .addSystem(OnCollideSystem.self, on: .postUpdate)
             .addSystem(ScoreSystem.self)
+            .insertResource(PhysicsDebugOptions([.showPhysicsShapes, .showBoundingBoxes]))
     }
 }
 
@@ -191,17 +193,25 @@ func OnCollide(
 func Movement(
     _ cameras: Query<GlobalTransform, Camera>,
     _ players: FilterQuery<Ref<Transform>, With<PlayerComponent>>,
+    _ debugOptions: ResMut<PhysicsDebugOptions>,
     _ input: Res<Input>
 ) {
     guard let (globalTransform, camera) = cameras.first else {
         return
     }
+
+    if input.wrappedValue.isKeyPressed(.m) {
+        debugOptions.wrappedValue = [.showPhysicsShapes, .showBoundingBoxes]
+    }
+
     let mousePosition = input.wrappedValue.getMousePosition()
     let worldPosition =
         camera.viewportToWorld2D(
             cameraGlobalTransform: globalTransform.matrix,
             viewportPosition: mousePosition
         ) ?? .zero
+
+    print("screen:", mousePosition, "\nworld:", worldPosition)
 
     players.forEach { transform in
         transform.position.x = worldPosition.x
@@ -234,8 +244,7 @@ struct FireSystem {
     @Commands
     private var commands
 
-    init(world: World) {
-    }
+    init(world: World) {}
 
     func update(context: UpdateContext) async {
         await self.players.forEach { entity, transform in
@@ -352,10 +361,11 @@ struct EnemySpawnerSystem {
 
     func spawnEnemy() {
         guard
-            let camera = self.camera.first,
-            let viewportRect = camera.viewport?.rect else {
+            let camera = self.camera.first else {
             return
         }
+
+        let viewportRect = camera.logicalViewport.rect
 
         var collision = Collision2DComponent(
             shapes: [
@@ -407,7 +417,7 @@ struct EnemyMovementSystem {
 
     @FilterQuery<Ref<Transform>, With<EnemyComponent>>
     private var enemies
-    let speed: Float = 0.1
+    let speed: Float = 200
 
     @Res<DeltaTime>
     private var deltaTime
