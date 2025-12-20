@@ -13,6 +13,7 @@ import FoundationEssentials
 #else
 import Foundation
 #endif
+import Logging
 
 /// A font descriptor.
 public struct FontDescriptor {
@@ -24,7 +25,9 @@ public struct FontDescriptor {
 final class FontAtlasGenerator: Sendable {
 
     static let shared = FontAtlasGenerator()
-    
+
+    private let logger = Logger(label: "org.adaengine.Font")
+
     private init() {}
     
     /// Generate and save to the disk info about font atlas.
@@ -161,7 +164,7 @@ final class FontAtlasGenerator: Sendable {
             
             stream.close()
         } catch {
-            print(error.localizedDescription)
+            logger.error("\(error.localizedDescription)")
         }
     }
     
@@ -198,7 +201,7 @@ final class FontAtlasGenerator: Sendable {
             
             return (atlasHeader, data)
         } catch {
-            print(error.localizedDescription)
+            logger.error("\(error.localizedDescription)")
             return nil
         }
     }

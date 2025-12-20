@@ -7,6 +7,7 @@
 
 #if MACOS
 import AppKit
+import Logging
 
 /// This class linked with display and call update method each time when display is updated.
 public final class DisplayLink: @unchecked Sendable {
@@ -35,7 +36,7 @@ public final class DisplayLink: @unchecked Sendable {
             }, unsafe Unmanaged.passUnretained(self.source).toOpaque())
             
             guard successLink == kCVReturnSuccess else {
-                print("Failed to create timer with active display")
+                Logger(label: "org.adaengine.AdaPlatform").error("Failed to create timer with active display")
                 return nil
             }
             

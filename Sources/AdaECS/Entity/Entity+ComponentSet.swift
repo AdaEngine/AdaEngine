@@ -5,13 +5,9 @@
 //  Created by v.prusakov on 5/6/22.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
-import Foundation
-#endif
 import AdaUtils
 import Collections
+import Logging
 
 public extension Entity {
     /// Hold entity components specific for entity.
@@ -83,8 +79,7 @@ public extension Entity {
                         forKey: CodingName(stringValue: type(of: component).swiftName)
                     )
                 } catch {
-                    // TODO: Logging
-                    print("Component encoding error: \(error)")
+                    Logger(label: "org.adaengine.AdaECS.ComponentSet").error("Component encoding error: \(error)")
                 }
             }
         }
@@ -104,8 +99,6 @@ public extension Entity {
             }
         }
 
-        // FIXME: Replace to subscript??
-
         /// Get any count of component types from set.
         @inline(__always)
         public func get<each T: Component>(_ type: repeat (each T).Type) -> (repeat each T) {
@@ -119,7 +112,6 @@ public extension Entity {
                 notFlushedComponents[T.identifier] as? T
             }
         }
-
 
         public func getOrCreate<T: Component>(
             for type: T.Type,

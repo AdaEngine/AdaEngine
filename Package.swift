@@ -146,7 +146,6 @@ var adaEngineDependencies: [Target.Dependency] = [
     "Math",
     .product(name: "Collections", package: "swift-collections"),
     .product(name: "BitCollections", package: "swift-collections"),
-    .product(name: "Logging", package: "swift-log"),
     "AdaApp",
     "AdaECS",
     "AdaUI",
@@ -210,7 +209,6 @@ var targets: [Target] = [
     .adaTarget(
         name: "AdaApp",
         dependencies: [
-            .product(name: "Logging", package: "swift-log"),
             "AdaUtils",
             "AdaECS",
             "Yams"
@@ -220,7 +218,6 @@ var targets: [Target] = [
     .adaTarget(
         name: "AdaPlatform",
         dependencies: [
-            .product(name: "Logging", package: "swift-log"),
             "AdaUtils",
             "AdaECS",
             "AdaApp",
@@ -234,7 +231,6 @@ var targets: [Target] = [
             .product(name: "Collections", package: "swift-collections"),
             .product(name: "BitCollections", package: "swift-collections"),
             .product(name: "Atomics", package: "swift-atomics"),
-            .product(name: "Logging", package: "swift-log"),
             "AdaEngineMacros",
             "AdaUtils"
         ],
@@ -273,7 +269,6 @@ var targets: [Target] = [
     .adaTarget(
         name: "AdaAssets",
         dependencies: [
-            .product(name: "Logging", package: "swift-log"),
             "AdaApp",
             "AdaUtils",
             "Yams"
@@ -921,7 +916,9 @@ private extension Target {
     ) -> Target {
         .target(
             name: name,
-            dependencies: dependencies,
+            dependencies: [
+                .product(name: "Logging", package: "swift-log"),
+            ] + dependencies,
             path: path,
             exclude: ["BUILD.bazel"] + exclude,
             sources: sources,

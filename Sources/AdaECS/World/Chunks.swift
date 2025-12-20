@@ -12,6 +12,7 @@ import FoundationEssentials
 import Foundation
 #endif
 import OrderedCollections
+import Logging
 
 // TODO: A lot of unsafe code. What we can do? Use Span?
 
@@ -72,7 +73,7 @@ public extension Chunks {
         lastTick: Tick
     ) {
         guard let location = self.entities[entity] else {
-            print("Can't insert component \(T.self) for entity \(entity)")
+            Logger(label: "org.adaengine.AdaECS.Chunk").error("Can't insert component \(T.self) for entity \(entity)")
             return
         }
         self.chunks[location.chunkIndex]
