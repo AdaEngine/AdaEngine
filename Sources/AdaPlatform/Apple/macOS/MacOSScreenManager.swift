@@ -12,30 +12,33 @@ import IOKit
 import Math
 
 class MacOSScreenManager: ScreenManager {
-    
-    override func getScreens() -> [Screen] {
+
+    func getScreens() -> [Screen] {
         return NSScreen.screens.map(makeScreen(from:))
     }
     
-    override func getMainScreen() -> Screen? {
+    func getMainScreen() -> Screen? {
         return NSScreen.main.flatMap(makeScreen(from:))
     }
     
-    override func makeScreen(from systemScreen: SystemScreen) -> Screen {
-        Screen(systemScreen: systemScreen as! NSScreen)
+    func makeScreen(from systemScreen: SystemScreen) -> Screen {
+        Screen(
+            systemScreen: systemScreen as! NSScreen,
+            screenManager: self
+        )
     }
     
-    override func getSize(for screen: Screen) -> Size {
+    func getSize(for screen: Screen) -> Size {
         return (screen.systemScreen as? NSScreen)?.frame.toEngineRect.size ?? .zero
     }
     
-    override func getScreenScale(for screen: Screen) -> Float {
+    func getScreenScale(for screen: Screen) -> Float {
         let scale = Float((screen.systemScreen as? NSScreen)?.backingScaleFactor ?? 0.0)
         return max(1.0, scale)
     }
     
     // FIXME: Currently returns birghtness for first screen
-    override func getBrightness(for screen: Screen) -> Float {
+    func getBrightness(for screen: Screen) -> Float {
         var iterator: io_iterator_t = 0
         var service: io_object_t = 1
         var brighntess: Float = 1.0

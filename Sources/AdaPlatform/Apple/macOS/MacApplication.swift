@@ -16,10 +16,13 @@ import AdaECS
 final class MacApplication: Application {
 
     private let delegate = MacAppDelegate()
+    private let screenManager: MacOSScreenManager
 
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
+        self.screenManager = MacOSScreenManager()
+        unsafe Screen.screenManager = screenManager
         unsafe try super.init(argc: argc, argv: argv)
-        self.windowManager = MacOSWindowManager()
+        self.windowManager = MacOSWindowManager(screenManager)
         UIWindowManager.setShared(self.windowManager)
 
 
