@@ -74,9 +74,7 @@ public struct Main2DRenderNode: RenderNode {
                 )
             )
 
-            if let viewport = camera.viewport {
-                renderPass.setViewport(viewport.rect)
-            }
+            renderPass.setViewport(camera.viewport.rect)
 
             if !renderItems.items.items.isEmpty {
                 try renderItems.items.render(with: renderPass, world: context.world, view: view)

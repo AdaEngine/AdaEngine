@@ -77,10 +77,7 @@ public struct UIRenderNode: RenderNode {
             }
 
             // Get viewport size
-            let viewportSize = camera.viewport?.rect.size ?? Size(
-                width: Float(texture.width),
-                height: Float(texture.height)
-            )
+            let viewportSize = camera.viewport.rect.size
 
             // Create UI-specific orthographic projection with origin at top-left
             let uiProjection = Transform3D.createUIProjection(
@@ -94,7 +91,6 @@ public struct UIRenderNode: RenderNode {
                 projection: uiProjection,
                 device: renderDevice.renderDevice
             )
-
 
             let renderPass = commandBuffer.beginRenderPass(
                 RenderPassDescriptor(
@@ -113,7 +109,6 @@ public struct UIRenderNode: RenderNode {
                 )
             )
 
-
             let uniformBuffer = uiViewUniform.uniformBufferSet!.getBuffer(
                 binding: GlobalBufferIndex.viewUniform,
                 set: 0,
@@ -122,10 +117,7 @@ public struct UIRenderNode: RenderNode {
 
             // Set the UI view uniform (not the camera's uniform)
             renderPass.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
-
-            if let viewport = camera.viewport {
-                renderPass.setViewport(viewport.rect)
-            }
+            renderPass.setViewport(camera.viewport.rect)
 
             try renderItems.render(with: renderPass, world: context.world, view: view)
 

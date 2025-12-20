@@ -28,7 +28,7 @@ public struct Physics2DSystem: Sendable {
     @Query<Entity, Ref<PhysicsJoint2DComponent>, Ref<Transform>>
     private var jointsQuery
     
-    @Res<Physics2DWorldComponent>
+    @Res<Physics2DWorldHolder>
     private var physicsWorld
 
     @Res<FixedTime>

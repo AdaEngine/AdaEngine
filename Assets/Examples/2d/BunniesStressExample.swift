@@ -21,7 +21,7 @@ struct AdaEditorApp: App {
 
 enum BunnyExampleConstants {
     static let bunniesPerClick: Int = 10
-    static let bunnyScale: Float = 4
+    static let bunnyScale: Float = 2
     static let gravity: Float = -9.8
     static let maxVelocity: Float = 100.0
 }
@@ -149,7 +149,7 @@ struct BunnySpawnerSystem {
 
             // Spawn multiple bunnies at mouse position
             for _ in 0 ..< BunnyExampleConstants.bunniesPerClick {
-                spawnBunny(at: Vector3(worldPosition.x, -worldPosition.y, 0), viewport: camera.viewport)
+                spawnBunny(at: Vector3(worldPosition.x, -worldPosition.y, 0), viewport: camera.logicalViewport)
             }
         }
     }
@@ -246,8 +246,8 @@ struct BunnyCollisionSystem {
             return
         }
 
-        let viewport = camera.viewport?.rect ?? Rect(x: 0, y: 0, width: 800, height: 600)
-        let halfExtents = Vector2(Float(viewport.width / 2), Float(viewport.height / 2))
+        let viewport = camera.logicalViewport.rect
+        let halfExtents = viewport.size.asVector2
 
         await bunnies.parallel().forEach { bunny, transform in
             var velocity = bunny.velocity

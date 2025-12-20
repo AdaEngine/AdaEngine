@@ -27,14 +27,15 @@ public struct PerspectiveCameraBundle {
     /// Create a new perspective camera for rendering 2D and 3D items on screen.
     public init(
         camera: Camera,
-         visibleEntities: VisibleEntities = VisibleEntities(),
-         globalViewUniform: GlobalViewUniform = GlobalViewUniform(),
-         globalViewUniformBufferSet: GlobalViewUniformBufferSet = GlobalViewUniformBufferSet(),
-         audioReceiver: AudioReceiver = AudioReceiver(),
-         transform: Transform = Transform()
+        perspectiveProjection: PerspectiveProjection = PerspectiveProjection(),
+        visibleEntities: VisibleEntities = VisibleEntities(),
+        globalViewUniform: GlobalViewUniform = GlobalViewUniform(),
+        globalViewUniformBufferSet: GlobalViewUniformBufferSet = GlobalViewUniformBufferSet(),
+        audioReceiver: AudioReceiver = AudioReceiver(),
+        transform: Transform = Transform()
     ) {
         self.camera = camera
-        self.camera.projection = .perspective
+        self.camera.projection = .perspective(perspectiveProjection)
         self.visibleEntities = visibleEntities
         self.globalViewUniform = globalViewUniform
         self.globalViewUniformBufferSet = globalViewUniformBufferSet
