@@ -72,15 +72,6 @@ public struct CameraClearFlags: OptionSet, Codable, Sendable {
 @Component
 public struct Camera: Sendable {
 
-    /// View projection for camera
-    public enum Projection: UInt8, Codable, CaseIterable, Sendable {
-        /// Perspective projection used for 3D space.
-        case perspective
-
-        /// Orthographic projection commonly used for 2D space.
-        case orthographic
-    }
-
     /// Render target where camera will render.
     public enum RenderTarget: Codable, Sendable {
 
@@ -93,19 +84,14 @@ public struct Camera: Sendable {
 
     // MARK: Properties
 
-    /// The closest point relative to camera that drawing will occur.
-    public var near: Float = -1
-
-    /// The closest point relative to camera that drawing will occur
-    public var far: Float = 1
-
-    /// Angle of camera view
-    public var fieldOfView: Angle = .degrees(70)
-
     /// Base projection in camera
-    public var projection: Projection = .perspective
+    public var projection: Projection = .orthographic(OrthographicProjection())
 
-    public var viewport: Viewport?
+    /// Physical viewport (logicalViewport * scale)
+    public var viewport: Viewport = Viewport()
+
+    /// Locial viewport
+    public var logicalViewport: Viewport = Viewport()
 
     /// Set camera is active
     public var isActive = true
@@ -116,9 +102,6 @@ public struct Camera: Sendable {
     /// Contains information about clear flags.
     /// By default contains ``CameraClearFlags/solid`` flag which fill clear color by ``Camera/backgroundColor``.
     public var clearFlags: CameraClearFlags = .solid
-
-    @MinValue(0.1)
-    public var orthographicScale: Float = 1
 
     /// Render target for camera.
     /// - Note: You should check that render target will not change while rendering.
@@ -140,7 +123,8 @@ public struct Camera: Sendable {
     /// Create a new camera component with specific render target and viewport.
     public init(renderTarget: RenderTexture, viewport: Viewport? = nil) {
         self.renderTarget = .texture(AssetHandle(renderTarget))
-        self.viewport = viewport
+        self.viewport = viewport ?? .init()
+        self.logicalViewport = viewport ?? .init()
     }
 
     /// Create a new camera component. By default render target is window.
@@ -172,10 +156,6 @@ public extension Camera {
 
     /// Return point from viewport to 2D world.
     func viewportToWorld2D(cameraGlobalTransform: Transform3D, viewportPosition: Vector2) -> Vector2? {
-        guard let viewport = self.viewport else {
-            return nil
-        }
-
         let ndc = viewportPosition * 2 / viewport.rect.size.asVector2 - Vector2.one
         let worldPlane = self.ndcToWorld(cameraGlobalTransform: cameraGlobalTransform, ndc: Vector3(ndc, 1))
 
@@ -184,11 +164,7 @@ public extension Camera {
 
     /// Return ray from viewport to world. More prefer for 3D space.
     func viewportToWorld(cameraGlobalTransform: Transform3D, point: Vector2) -> Ray? {
-        guard let viewport = self.viewport else {
-            return nil
-        }
-
-        let ndc = point * 2 / viewport.rect.size.asVector2 - Vector2.one
+        let ndc = point * 2 / logicalViewport.rect.size.asVector2 - Vector2.one
         let ndcToWorld = cameraGlobalTransform * self.computedData.projectionMatrix.inverse
 
         let worldPlaneNear = ndcToWorld * Vector4(Vector3(ndc, 1), 1)
@@ -206,10 +182,7 @@ public extension Camera {
 
     /// Return point from world to viewport.
     func worldToViewport(cameraGlobalTransform: Transform3D, worldPosition: Vector3) -> Vector2? {
-        guard let viewport = self.viewport else {
-            return nil
-        }
-        let size = viewport.rect.size.asVector2
+        let size = logicalViewport.rect.size.asVector2
         let ndcSpace = self.worldToNdc(cameraGlobalTransform: cameraGlobalTransform, worldPosition: worldPosition)
 
         if ndcSpace.z < 0 || ndcSpace.z > 1.0 {

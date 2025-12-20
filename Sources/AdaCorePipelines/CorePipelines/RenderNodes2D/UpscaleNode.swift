@@ -59,8 +59,9 @@ public struct UpscaleNode: RenderNode {
                 )
             )
 
+            let viewport = camera.viewport
             // This code doesn't work
-            if let viewport = camera.viewport, Int(viewport.rect.width) == outputTexture.width && Int(viewport.rect.height) == outputTexture.height {
+            if Int(viewport.rect.width) == outputTexture.width && Int(viewport.rect.height) == outputTexture.height {
                 renderPass.setScissorRect(viewport.rect)
             }
 

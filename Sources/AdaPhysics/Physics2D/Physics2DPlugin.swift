@@ -28,7 +28,7 @@ public struct Physics2DPlugin: Plugin {
         
         app
             .insertResource(
-                Physics2DWorldComponent(
+                Physics2DWorldHolder(
                     world: PhysicsWorld2D(gravity: gravity)
                 )
             )
@@ -54,7 +54,7 @@ public struct Physics2DPlugin: Plugin {
 }
 
 /// Resource contains ``PhysicsWorld2D``.
-public struct Physics2DWorldComponent: Resource {
+public struct Physics2DWorldHolder: Resource {
     public let world: PhysicsWorld2D
 }
 
@@ -63,7 +63,7 @@ public extension World {
     /// - Note: ``Physics2DPlugin`` connected by default on first update tick in current scene.
     @MainActor
     var physicsWorld2D: PhysicsWorld2D? {
-        return self.getResource(Physics2DWorldComponent.self)?.world
+        return self.getResource(Physics2DWorldHolder.self)?.world
     }
 }
 
