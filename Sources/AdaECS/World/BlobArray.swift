@@ -135,7 +135,7 @@ public extension BlobArray {
             .pointee
     }
 
-    func swap(
+    func swapAndDrop(
         from fromIndex: Int,
         to toIndex: Int
     ) {
@@ -147,8 +147,9 @@ public extension BlobArray {
         }
         let base = unsafe buffer.pointer.baseAddress!
         let fromPointer = unsafe base.advanced(by: fromIndex * layout.size)
-        let toPointer = unsafe base.advanced(by: toIndex * layout.size)
+        let toPointer: UnsafeMutableRawPointer = unsafe base.advanced(by: toIndex * layout.size)
 
+        unsafe self.buffer.deinitializer?(UnsafeMutableRawBufferPointer(start: toPointer, count: 1), 1)
         unsafe withUnsafeTemporaryAllocation(of: UInt8.self, capacity: layout.size) { tmp in
             let tempPointer = UnsafeMutableRawPointer(tmp.baseAddress!)
             unsafe tempPointer.copyMemory(from: fromPointer, byteCount: layout.size)
