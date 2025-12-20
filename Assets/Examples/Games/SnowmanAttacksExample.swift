@@ -33,6 +33,7 @@ struct SnowmanAttacks: Plugin {
             .addSystem(EnemyExplosionSystem.self)
             .addSystem(OnCollideSystem.self, on: .postUpdate)
             .addSystem(ScoreSystem.self)
+
             .insertResource(PhysicsDebugOptions([.showPhysicsShapes, .showBoundingBoxes]))
     }
 }
@@ -263,10 +264,9 @@ struct FireSystem {
     }
 
     func fireBullet(shipTransform: Transform) {
-        
         var collision = PhysicsBody2DComponent(
             shapes: [
-                .generateBox()
+                .generateBox(width: 8, height: 16)
             ],
             mass: 1,
             mode: .dynamic
@@ -291,7 +291,7 @@ struct BulletSystem {
     @Query<Entity, Ref<Bullet>, Ref<PhysicsBody2DComponent>>
     private var bullets
 
-    let bulletSpeed: Float = 3
+    let bulletSpeed: Float = 400
 
     @Res<DeltaTime>
     private var deltaTime
@@ -303,7 +303,7 @@ struct BulletSystem {
 
     func update(context: UpdateContext) {
         bullets.forEach { entity, bullet, body in
-            body.linearVelocity = [0, bulletSpeed]
+            body.linearVelocity += [0, bulletSpeed * deltaTime.deltaTime]
             bullet.currentLifetime += deltaTime.deltaTime
 
             if bullet.wrappedValue.lifetime < bullet.currentLifetime {
@@ -349,7 +349,7 @@ struct EnemySpawnerSystem {
         let result = fixedTime.advance(with: deltaTime.deltaTime)
 
         if result.isFixedTick {
-            self.spawnEnemy()
+//            self.spawnEnemy()
         }
     }
 
@@ -363,7 +363,7 @@ struct EnemySpawnerSystem {
 
         var collision = Collision2DComponent(
             shapes: [
-                .generateBox()
+                .generateBox(width: Size.spriteSize.width, height: Size.spriteSize.height)
             ],
             mode: .trigger
         )
