@@ -34,13 +34,6 @@ public struct UIGraphicsContext: Sendable {
 
     public init() { }
 
-    public init(texture: RenderTexture) {
-        var camera = Camera(renderTarget: texture)
-//        camera.isActive = true
-//        camera.projection = .orthographic
-//        self.camera = camera
-    }
-
     public mutating func concatenate(_ transform: Transform3D) {
         self.transform = transform * self.transform
     }

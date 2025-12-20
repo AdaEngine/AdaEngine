@@ -942,9 +942,12 @@ private extension Target {
             dependencies: [
                 "AdaEngine"
             ],
-            path: "Assets/Examples/\(path)/\(name)",
+            path: "Assets/Examples/\(path)/",
+            sources: [
+                "\(name).swift"
+            ],
             resources: [
-                .copy("../../Resources/")
+                .copy("../Resources/")
             ],
             packageAccess: false
         )
