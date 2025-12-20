@@ -110,7 +110,6 @@ final class ScrollViewNode: LayoutViewContainerNode {
         self.accumulativePoint.x += event.scrollDelta.x * 100
         self.accumulativePoint.y += event.scrollDelta.y * 100
         if case .dragging(let initialOffset) = state {
-//            print("initial:", initialOffset, "point:", accumulativePoint, "res:", initialOffset - accumulativePoint)
             contentOffset = clampOffset(initialOffset - accumulativePoint)
         }
     }
