@@ -28,6 +28,7 @@ public struct OrthographicCameraBundle {
     /// Create a new orthograpich camera for rendering 2D and 3D items on screen.
     public init(
         camera: Camera = Camera(),
+        orthographicProjection: OrthographicProjection = OrthographicProjection(),
         viewUniforms: GlobalViewUniform = GlobalViewUniform(),
         globalViewUniformBufferSet: GlobalViewUniformBufferSet = GlobalViewUniformBufferSet(),
         visibleEntities: VisibleEntities = VisibleEntities(),
@@ -36,7 +37,7 @@ public struct OrthographicCameraBundle {
         visibility: Visibility = .visible
     ) {
         self.camera = camera
-        self.camera.projection = .orthographic
+        self.camera.projection = .orthographic(orthographicProjection)
         self.viewUniforms = viewUniforms
         self.globalViewUniformBufferSet = globalViewUniformBufferSet
         self.visibleEntities = visibleEntities

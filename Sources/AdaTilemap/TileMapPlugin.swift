@@ -37,7 +37,7 @@ public struct TileMapSystem: Sendable {
     @Query<Entity, Ref<TileMapComponent>, Transform>
     private var tileMap
 
-    @Res<Physics2DWorldComponent?>
+    @Res<Physics2DWorldHolder?>
     private var physicsWorld
 
     @Commands

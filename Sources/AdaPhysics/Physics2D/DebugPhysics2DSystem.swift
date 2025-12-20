@@ -180,7 +180,7 @@ public func ExtractPhysicsDebug(
     _ extractedShapes: ResMut<ExtractedPhysicsDebugShapes>,
     _ debugOptions: Extract<Res<PhysicsDebugOptions>>,
     _ physicsWorld: Extract<
-        Res<Physics2DWorldComponent>
+        Res<Physics2DWorldHolder>
     >
 ) {
     extractedShapes.lines.removeAll(keepingCapacity: true)

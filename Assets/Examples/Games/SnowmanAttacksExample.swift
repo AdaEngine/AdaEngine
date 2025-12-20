@@ -40,8 +40,10 @@ struct SnowmanAttacks: Plugin {
 @PlainSystem
 struct SetupSceneSystem {
 
-    @Local var disposeBag: Set<AnyCancellable> = []
     @Local var characterAtlas: TextureAtlas!
+
+    @Res<Physics2DWorldHolder>
+    private var physicsWorld
 
     @Commands
     private var commands
@@ -68,9 +70,7 @@ struct SetupSceneSystem {
         )
 
         var camera = Camera()
-        camera.clearFlags = .solid
         camera.backgroundColor = .black
-        camera.orthographicScale = 1.5
 
         try! self.makePlayer()
         try! self.makeScore()
@@ -81,11 +81,7 @@ struct SetupSceneSystem {
             .setVolume(0.6)
             .play()
 
-        context.world.subscribe(to: SceneEvents.OnReady.self) { event in
-            Task { @MainActor in
-                event.scene.world.physicsWorld2D?.gravity = .zero
-            }
-        }.store(in: &self.disposeBag)
+        physicsWorld.world.gravity = .zero
 
         do {
             let image = try await AssetsManager.load(
@@ -191,7 +187,7 @@ func OnCollide(
 
 @System
 func Movement(
-    _ cameras: Query<GlobalTransform, Camera>,
+    _ cameras: Query<GlobalTransform, Ref<Camera>>,
     _ players: FilterQuery<Ref<Transform>, With<PlayerComponent>>,
     _ debugOptions: ResMut<PhysicsDebugOptions>,
     _ input: Res<Input>
@@ -206,12 +202,10 @@ func Movement(
 
     let mousePosition = input.wrappedValue.getMousePosition()
     let worldPosition =
-        camera.viewportToWorld2D(
+        camera.wrappedValue.viewportToWorld2D(
             cameraGlobalTransform: globalTransform.matrix,
             viewportPosition: mousePosition
         ) ?? .zero
-
-    print("screen:", mousePosition, "\nworld:", worldPosition)
 
     players.forEach { transform in
         transform.position.x = worldPosition.x
@@ -373,10 +367,11 @@ struct EnemySpawnerSystem {
             ],
             mode: .trigger
         )
+        let position: Vector3 = [0, 0, -1]
         collision.filter.collisionBitMask = .bullet
         commands.spawn("Enemy") { [collision] in
             Transform(
-                position: [Float.random(in: viewportRect.minX / 4...viewportRect.maxX / 4), viewportRect.maxY / 4, -1]
+                position: position
             )
             Sprite(
                 texture: textureAtlas[5, 7],
