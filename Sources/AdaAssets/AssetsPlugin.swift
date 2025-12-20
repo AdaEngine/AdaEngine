@@ -7,6 +7,7 @@
 
 import AdaApp
 import AdaECS
+import Logging
 
 public struct AssetsPlugin: Plugin {
 
@@ -21,21 +22,19 @@ public struct AssetsPlugin: Plugin {
             try AssetsManager.initialize(filePath: filePath)
             app.addSystem(AssetsProcessSystem.self, on: .preUpdate)
         } catch {
-            print(error)
+            Logger(label: "org.adaengine.AssetsPlugin").error("Setup failed with error: \(error)")
         }
     }
 }
 
 @System
 @inline(__always)
-func AssetsProcess(
-    _ context: WorldUpdateContext
-) {
+func AssetsProcess() {
     Task {
         do {
             try await AssetsManager.processResources()
         } catch {
-            print("Failed to process")
+            Logger(label: "org.adaengine.AssetsPlugin").error("Assets processing failed with error: \(error)")
         }
     }
 }

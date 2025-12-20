@@ -8,6 +8,7 @@ import AdaApp
 @_spi(Internal) import AdaEngine
 import AdaUI
 import MetalKit
+import Logging
 
 // FIXME: Not works
 
@@ -20,7 +21,9 @@ public final class AEView: MetalView {
     /// Contains view where all render happens.
     /// You can grab information about all views.
     public let engineWindow: AdaEngine.UIWindow
-    
+
+    private let logger = Logger(label: "org.adaengine.AEView")
+
     /// Create AEView with AdaEngine.View.
     public init(view: UIView, frame: CGRect) throws {
         let rect = frame.toEngineRect
@@ -48,7 +51,7 @@ public final class AEView: MetalView {
                 try RenderEngine.shared.createWindow(window.id, for: self, size: rect.size.toSizeInt())
                 try AudioServer.shared.start()
             } catch {
-                print("[AEView Error]", error.localizedDescription)
+                logger.error("[AEView Error]: \(error.localizedDescription)")
             }
         }
     }
@@ -61,7 +64,7 @@ public final class AEView: MetalView {
         do {
             try AudioServer.shared.stop()
         } catch {
-            print("[AEView Error]", error.localizedDescription)
+            logger.error("[AEView Error]: \(error.localizedDescription)")
         }
     }
 }
@@ -74,7 +77,7 @@ extension AEView: MTKViewDelegate {
             self.engineWindow.frame.size = size.toEngineSize
             try RenderEngine.shared.resizeWindow(self.engineWindow.id, newSize: size.toEngineSize.toSizeInt())
         } catch {
-            print("[AEView Error]", error.localizedDescription)
+            logger.error("[AEView Error]: \(error.localizedDescription)")
         }
     }
     

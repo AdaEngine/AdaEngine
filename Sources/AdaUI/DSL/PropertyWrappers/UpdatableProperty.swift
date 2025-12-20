@@ -40,7 +40,7 @@ class UpdatablePropertyStorage {
     func update() {
         nodes.forEach {
             if $0.shouldNotifyAboutChanges {
-                print("\(type(of: $0.content)): \(propertyName) changed.")
+                Logger(label: "org.adaengine.AdaUI").info("\(type(of: $0.content)): \(propertyName) changed.")
             }
 
             $0.invalidateContent()

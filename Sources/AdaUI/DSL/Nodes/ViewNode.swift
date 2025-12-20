@@ -9,6 +9,7 @@
 import Observation
 import Math
 import AdaInput
+import Logging
 
 // TODO: Add texture for drawing, to avoid rendering each time.
 
@@ -270,7 +271,7 @@ class ViewNode: Identifiable {
     // MARK: - Debug
 
     func _printDebugNode() {
-//        print(self.debugDescription(hierarchy: 0))
+        Logger(label: "org.adaengine.AdaUI").error("\(self.debugDescription(hierarchy: 0))")
     }
 
     func debugDescription(hierarchy: Int = 0, identation: Int = 2) -> String {
