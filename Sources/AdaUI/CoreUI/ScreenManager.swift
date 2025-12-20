@@ -8,28 +8,16 @@
 import AdaUtils
 import Math
 
-open class ScreenManager {
-    open func getMainScreen() -> Screen? {
-        fatalErrorMethodNotImplemented()
-    }
+public protocol ScreenManager: AnyObject {
+    func getMainScreen() -> Screen?
     
-    open func getScreens() -> [Screen] {
-        fatalErrorMethodNotImplemented()
-    }
+    func getScreens() -> [Screen]
     
-    open func getScreenScale(for screen: Screen) -> Float {
-        fatalErrorMethodNotImplemented()
-    }
+    func getScreenScale(for screen: Screen) -> Float
+
+    func getSize(for screen: Screen) -> Size
     
-    open func getSize(for screen: Screen) -> Size {
-        fatalErrorMethodNotImplemented()
-    }
+    func getBrightness(for screen: Screen) -> Float
     
-    open func getBrightness(for screen: Screen) -> Float {
-        fatalErrorMethodNotImplemented()
-    }
-    
-    open func makeScreen(from systemScreen: SystemScreen) -> Screen {
-        fatalErrorMethodNotImplemented()
-    }
+    func makeScreen(from systemScreen: SystemScreen) -> Screen
 }

@@ -17,6 +17,12 @@ import AdaUtils
 final class MacOSWindowManager: UIWindowManager {
 
     private lazy var nsWindowDelegate = NSWindowDelegateObject(windowManager: self)
+    private unowned let screenManager: MacOSScreenManager
+
+    init(_ screenManager: MacOSScreenManager) {
+        self.screenManager = screenManager
+        super.init()
+    }
 
     private var menus: [UIWindow.ID: MacOSUIMenuBuilder] = [:]
 
@@ -134,7 +140,7 @@ final class MacOSWindowManager: UIWindowManager {
             return nil
         }
         
-        return nil//ScreenManager.shared.makeScreen(from: screen)
+        return screenManager.makeScreen(from: screen)
     }
     
     private var currentShape: Input.CursorShape = .arrow
