@@ -11,11 +11,12 @@ import AdaUI
 import AdaTransform
 import AdaInput
 
-public struct ScriptableComponent<T: ScriptableObject>: Component {
-    public let object: ScriptableObject
+@Component
+public struct ScriptableComponents {
+    public var scripts: [ScriptableObject] = []
 
-    public init(object: ScriptableObject) {
-        self.object = object
+    public init(scripts: [ScriptableObject]) {
+        self.scripts = scripts
     }
 }
 
@@ -32,39 +33,50 @@ open class ScriptableObject: @unchecked Sendable {
     internal var isAwaked: Bool = false
     
     public internal(set) weak var entity: Entity?
-    
+
+    public var input: Input {
+        _read {
+            yield _input.wrappedValue
+        }
+        _modify {
+            yield &_input.wrappedValue
+        }
+    }
+
+    package var _input: Ref<Input>!
+
     /// Create a new script component.
     public required init() {}
 
     deinit {
-        self.onDestroy()
+        self.destroy()
     }
     
     /// Called once when component is on scene and ready to use.
-    open func onReady() { }
+    open func ready() { }
 
     /// Called each frame.
-    open func onUpdate(_ deltaTime: AdaUtils.TimeInterval) { }
-    
+    open func update(_ deltaTime: AdaUtils.TimeInterval) { }
+
     /// Called each frame to update gui.
     @MainActor
-    open func onUpdateGUI(_ deltaTime: AdaUtils.TimeInterval, context: UIGraphicsContext) {
+    open func updateGUI(_ deltaTime: AdaUtils.TimeInterval, context: UIGraphicsContext) {
 
     }
     
     /// Called each time with interval in seconds for physics and other updates.
-    open func onPhysicsUpdate(_ deltaTime: AdaUtils.TimeInterval) {
+    open func physicsUpdate(_ deltaTime: AdaUtils.TimeInterval) {
 
     }
     
     /// Called each time when scene receive events.
-    open func onEvent(_ events: [any InputEvent]) {
+    open func event(_ events: [any InputEvent]) {
 
     }
     
     /// Called once when component removed from entity
-    open func onDestroy() {
-        
+    open func destroy() {
+
     }
     
     // MARK: - Codable

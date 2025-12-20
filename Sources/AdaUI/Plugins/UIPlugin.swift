@@ -25,6 +25,7 @@ public struct UIPlugin: Plugin {
             .addSystem(UpdateWindowManagerSystem.self, on: .preUpdate)
             .addSystem(UIComponentSystem.self)
             .insertResource(UIWindowPendingDrawViews())
+            .insertResource(UIContextPendingDraw())
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -33,6 +34,7 @@ public struct UIPlugin: Plugin {
         // Register resources for UI rendering
         renderWorld
             .insertResource(ExtractedUIComponents())
+            .insertResource(ExtractedUIContexts())
             .insertResource(PendingUIGraphicsContext())
             .insertResource(RenderItems<UITransparentRenderItem>())
             .insertResource(RenderPipelines(configurator: QuadPipeline()))
@@ -113,10 +115,12 @@ public func UpdateWindowManager(
     _ context: WorldUpdateContext,
     _ windowManager: Res<WindowManagerResource>,
     _ pendingViews: ResMut<UIWindowPendingDrawViews>,
+    _ contexts: ResMut<UIContextPendingDraw>,
     _ input: Res<Input>,
     _ deltaTime: Res<DeltaTime>
 ) {
     pendingViews.windows.removeAll(keepingCapacity: true)
+    contexts.contexts.removeAll(keepingCapacity: true)
     let windowManager = windowManager.windowManager
     let deltaTime = deltaTime.deltaTime
     let windows = windowManager.windows
@@ -137,4 +141,8 @@ public func UpdateWindowManager(
 
 public struct UIWindowPendingDrawViews: Resource {
     public var windows: [UIWindow] = []
+}
+
+public struct UIContextPendingDraw: Resource {
+    public var contexts: [UIGraphicsContext] = []
 }

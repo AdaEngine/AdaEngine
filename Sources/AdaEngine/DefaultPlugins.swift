@@ -41,6 +41,7 @@ public struct DefaultPlugins: Plugin {
         insertPlugin(Mesh2DPlugin(), into: &plugins)
         insertPlugin(TextPlugin(), into: &plugins)
         insertPlugin(ScenePlugin(), into: &plugins)
+        insertPlugin(ScriptableObjectPlugin(), into: &plugins)
         insertPlugin(AudioPlugin(), into: &plugins)
         insertPlugin(WindowPlugin(), into: &plugins)
         insertPlugin(Core2DPlugin(), into: &plugins)
@@ -52,15 +53,9 @@ public struct DefaultPlugins: Plugin {
     }
 
     public func setup(in app: AppWorlds) {
-        // FIXME: Move out this components..
-        ScriptableComponent.registerComponent()
-
         for plugin in plugins.elements.values {
             app.addPlugin(plugin)
         }
-
-        app
-            .addSystem(ScriptComponentUpdateSystem.self)
     }
 
     /// Set a plugin.

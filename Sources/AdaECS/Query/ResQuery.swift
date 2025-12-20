@@ -80,6 +80,13 @@ public final class ResMut<T: Resource>: @unchecked Sendable {
         }
     }
 
+    /// Return reference to resource
+    public var projectedValue: Ref<T>? {
+        _read {
+            yield _value
+        }
+    }
+
     /// Initialize a new resource query.
     public init() {
         self._value = nil
