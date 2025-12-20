@@ -346,9 +346,9 @@ public struct Chunk: Sendable {
             // Move component data from the last element to the removed element's slot
             for componentData in self.componentsData {
                 componentData.data
-                    .swap(from: lastIndex, to: removedIndex)
+                    .swapAndDrop(from: lastIndex, to: removedIndex)
                 componentData.changesTicks
-                    .swap(from: lastIndex, to: removedIndex)
+                    .swapAndDrop(from: lastIndex, to: removedIndex)
             }
 
             // Update the entity that was in the last slot

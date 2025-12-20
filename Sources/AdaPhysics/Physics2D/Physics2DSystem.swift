@@ -104,8 +104,8 @@ public struct Physics2DSystem: Sendable {
                 for shape in shapes {
                     let filterData = shape.filter
 
-                    if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue &&
-                         filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
+                    if !(filterData.categoryBits == collisionFilter.categoryBitMask.rawValue
+                         && filterData.maskBits == collisionFilter.collisionBitMask.rawValue) {
                         shape.filter = collisionFilter.b2Filter
                     }
                 }
