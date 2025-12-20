@@ -8,6 +8,7 @@
 import AdaApp
 import AdaECS
 
+/// Add support for ``ScriptableObject`` and ``ScriptableComponents`` objects for Unity-Like component system.
 public struct ScriptableObjectPlugin: Plugin {
 
     public init() {}

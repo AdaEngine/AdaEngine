@@ -35,7 +35,6 @@ public struct ScriptComponentUpdateSystem {
     @MainActor
     public func update(context: UpdateContext) {
         let renderContext = UIGraphicsContext()
-
         let result = fixedTime.advance(with: time.deltaTime)
 
         scriptableComponents.forEach { entity, components in
@@ -49,7 +48,9 @@ public struct ScriptComponentUpdateSystem {
                     scriptObject.isAwaked = true
                 }
 
-                scriptObject.event(input.eventsPool)
+                if !input.eventsPool.isEmpty {
+                    scriptObject.event(input.eventsPool)
+                }
                 scriptObject.update(time.deltaTime)
 
                 if result.isFixedTick {
