@@ -50,7 +50,7 @@ func ConfigurateRenderViewTarget(
 ) {
     let logger = Logger(label: "org.adaengine.AdaRender.ConfigurateRenderViewTarget")
     query.forEach { entity, camera, renderViewTarget in
-        let viewportSize = camera.logicalViewport.rect.size.toSizeInt()
+        let viewportSize = camera.viewport.rect.size.toSizeInt()
 
         guard viewportSize.width != 0 && viewportSize.height != 0 else {
             return
@@ -59,7 +59,7 @@ func ConfigurateRenderViewTarget(
         if renderViewTarget.mainTexture == nil {
             renderViewTarget.mainTexture = RenderTexture(
                 size: viewportSize,
-                scaleFactor: 1,
+                scaleFactor: camera.computedData.targetScaleFactor,
                 format: .bgra8,
                 debugLabel: "Camera Main Texture"
             )

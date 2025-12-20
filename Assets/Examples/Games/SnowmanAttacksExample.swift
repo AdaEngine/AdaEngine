@@ -359,7 +359,7 @@ struct EnemySpawnerSystem {
             return
         }
 
-        let viewportRect = camera.logicalViewport.rect
+        let viewportRect = camera.viewport.rect
 
         var collision = Collision2DComponent(
             shapes: [
@@ -367,7 +367,7 @@ struct EnemySpawnerSystem {
             ],
             mode: .trigger
         )
-        let position: Vector3 = [0, 0, -1]
+        let position: Vector3 = [Float.random(in: -viewportRect.midX...viewportRect.midX), viewportRect.midY, -1]
         collision.filter.collisionBitMask = .bullet
         commands.spawn("Enemy") { [collision] in
             Transform(
