@@ -18,6 +18,10 @@ public struct ExtractedUIComponents: Resource {
     public var components: ContiguousArray<UIComponent> = []
 }
 
+public struct ExtractedUIContexts: Resource {
+    public var contexts: ContiguousArray<UIGraphicsContext> = []
+}
+
 @System
 public func ExtractUIComponents(
     _ uiComponents: Extract<
@@ -26,9 +30,14 @@ public func ExtractUIComponents(
     _ pendingViews: Extract<
         Res<UIWindowPendingDrawViews>
     >,
-    _ extractedUIComponents: ResMut<ExtractedUIComponents>
+    _ contexts: Extract<
+        Res<UIContextPendingDraw>
+    >,
+    _ extractedUIComponents: ResMut<ExtractedUIComponents>,
+    _ extractedUIContexts: ResMut<ExtractedUIContexts>
 ) {
     extractedUIComponents.components.removeAll(keepingCapacity: true)
+    extractedUIContexts.contexts.removeAll(keepingCapacity: true)
 
     pendingViews().windows.forEach {
         extractedUIComponents.components.append(UIComponent(view: $0, behaviour: .default))
@@ -36,6 +45,7 @@ public func ExtractUIComponents(
     uiComponents().forEach {
         extractedUIComponents.components.append($0)
     }
+    extractedUIContexts.contexts.append(contentsOf: contexts().contexts)
 }
 
 public struct PendingUIGraphicsContext: Resource {
@@ -47,7 +57,8 @@ public struct PendingUIGraphicsContext: Resource {
 public func UIRenderPreparing(
     _ cameras: Query<Camera>,
     _ uiComponents: Res<ExtractedUIComponents>,
-    _ contexts: ResMut<PendingUIGraphicsContext>
+    _ contexts: ResMut<PendingUIGraphicsContext>,
+    _ extractedUIContexts: ResMut<ExtractedUIContexts>
 ) {
     contexts.graphicContexts.removeAll(keepingCapacity: true)
     uiComponents.components.forEach { component in
@@ -56,6 +67,7 @@ public func UIRenderPreparing(
         context.commitDraw()
         contexts.graphicContexts.append(context)
     }
+    contexts.graphicContexts.append(contentsOf: extractedUIContexts.contexts)
 }
 
 // MARK: - UIRenderTesselationSystem

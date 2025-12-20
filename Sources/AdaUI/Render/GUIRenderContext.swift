@@ -114,6 +114,14 @@ public struct UIGraphicsContext: Sendable {
         self.commandQueue.push(.drawText(textLayout: textLayout, transform: transform))
     }
 
+    public func drawText(_ text: AttributedText, in rect: Rect) {
+        let layout = TextLayoutManager()
+        layout.setTextContainer(TextContainer(text: text))
+        layout.fitToSize(rect.size)
+        let transform = self.transform * rect.toTransform3D
+        self.commandQueue.push(.drawText(textLayout: layout, transform: transform))
+    }
+
     public func draw(_ path: Path) {
         self.commandQueue.push(.drawPath(path))
     }
