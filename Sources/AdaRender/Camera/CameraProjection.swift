@@ -99,13 +99,13 @@ public struct OrthographicProjection: CameraProjection {
     }
 
     public func makeClipView() -> Transform3D {
-        let halfHeight = viewportSize.height / scale
-        let halfWidth = viewportSize.width / scale
+        let totalHeight = (viewportSize.height / scale)
+        let totalWidth = (viewportSize.width / scale)
         return Transform3D.orthographic(
-            left: -halfWidth,
-            right: halfWidth,
-            top: halfHeight,
-            bottom: -halfHeight,
+            left: -totalWidth * viewportOrigin.x,
+            right: totalWidth * (1 - viewportOrigin.x),
+            top: totalHeight * (1 - viewportOrigin.y),
+            bottom: -totalHeight * viewportOrigin.y,
             zNear: near,
             zFar: far
         )
