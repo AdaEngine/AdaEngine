@@ -7,7 +7,7 @@
 
 import AdaUtils
 
-public protocol ChangeDetectionable {
+public protocol ChangeDetectionable: Sendable {
     var changeTick: ChangeDetectionTick { get set }
 
     var isChanged: Bool { get }
@@ -16,11 +16,32 @@ public protocol ChangeDetectionable {
 }
 
 public extension ChangeDetectionable {
+
+    @inline(__always)
+    var isAdded: Bool {
+        return self.changeTick
+            .added?
+            .wrappedValue
+            .isNewerThan(
+                lastTick: self.changeTick.lastTick,
+                currentTick: self.changeTick.currentTick
+            ) ?? false
+    }
+
+    @inline(__always)
     var isChanged: Bool {
-        return self.changeTick.change?.wrappedValue == self.changeTick.currentTick
+        return self.changeTick.change?
+            .wrappedValue
+            .isNewerThan(
+                lastTick: self.changeTick.lastTick,
+                currentTick: self.changeTick.currentTick
+            ) ?? false
     }
 
     func setChanged() {
-        unsafe self.changeTick.change?.getPointer().pointee = self.changeTick.currentTick
+        unsafe self.changeTick
+            .change?
+            .getPointer()
+            .pointee = self.changeTick.currentTick
     }
 }
