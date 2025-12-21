@@ -19,7 +19,8 @@ public struct TransformSystem {
         Ref<GlobalTransform>,
         Or<
             Changed<Transform>,
-            Added<Transform>
+            Added<Transform>,
+            Added<GlobalTransform>
         >
     >
     private var query

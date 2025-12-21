@@ -7,6 +7,10 @@
 
 import AdaEngine
 
+enum GameConfiguration {
+    static let freeMovement = false
+}
+
 @main
 struct SnowmanAttacksApp: App {
     var body: some AppScene {
@@ -33,6 +37,7 @@ struct SnowmanAttacks: Plugin {
             .addSystem(EnemyExplosionSystem.self)
             .addSystem(OnCollideSystem.self, on: .postUpdate)
             .addSystem(ScoreSystem.self)
+            .addSystem(UpdateGameStateSystem.self)
             .insertResource(PhysicsDebugOptions([.showPhysicsShapes, .showBoundingBoxes]))
     }
 }
@@ -112,7 +117,7 @@ struct SetupSceneSystem {
 
     private func makePlayer() throws {
         commands.spawn {
-            Transform(position: [0, 0, 0])
+            Transform(position: [0, -400, 0])
             PlayerComponent()
             Sprite(
                 texture: characterAtlas[7, 1],
@@ -139,6 +144,15 @@ struct SetupSceneSystem {
     }
 }
 
+@System
+func UpdateGameState(
+    _ state: ResMut<GameState>
+) {
+    if (state.score > 10) {
+        state.enemyMovementSpeed = 150
+    }
+}
+
 extension Size {
     static let spriteSize: Size = Size(width: 64, height: 64)
 }
@@ -162,6 +176,7 @@ struct EnemyComponent {
 
 struct GameState: Resource {
     var score: Int = 0
+    var enemyMovementSpeed: Float = 100
 }
 
 extension CollisionGroup {
@@ -205,14 +220,17 @@ func Movement(
 
     let mousePosition = input.wrappedValue.getMousePosition()
     let worldPosition =
-        camera.wrappedValue.viewportToWorld2D(
-            cameraGlobalTransform: globalTransform.matrix,
-            viewportPosition: mousePosition
-        ) ?? .zero
+    camera.wrappedValue.viewportToWorld2D(
+        cameraGlobalTransform: globalTransform.matrix,
+        viewportPosition: mousePosition
+    ) ?? .zero
 
     players.forEach { transform in
         transform.position.x = worldPosition.x
-        transform.position.y = -worldPosition.y
+
+        if GameConfiguration.freeMovement {
+            transform.position.y = -worldPosition.y
+        }
     }
 }
 
@@ -414,7 +432,9 @@ struct EnemyMovementSystem {
 
     @FilterQuery<Ref<Transform>, With<EnemyComponent>>
     private var enemies
-    let speed: Float = 200
+
+    @Res<GameState>
+    private var state
 
     @Res<DeltaTime>
     private var deltaTime
@@ -423,7 +443,7 @@ struct EnemyMovementSystem {
 
     func update(context: UpdateContext) {
         enemies.forEach { transform in
-            transform.position.y -= speed * deltaTime.deltaTime
+            transform.position.y -= state.enemyMovementSpeed * deltaTime.deltaTime
         }
     }
 }

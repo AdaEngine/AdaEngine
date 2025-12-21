@@ -11,13 +11,24 @@ import AdaUtils
 import box2d
 import Math
 
+@MainActor
+@System
+public func Physics2DUpdate(
+    _ physicsWorld: Res<Physics2DWorldHolder>,
+    _ fixedTime: Res<FixedTime>
+) {
+    let deltaTime = fixedTime.deltaTime
+    let world = physicsWorld.world
+    world.updateSimulation(deltaTime)
+    world.processContacts()
+    world.processSensors()
+}
+
 // - TODO: (Vlad) Runtime update shape resource
 
 /// A system for simulate and update physics bodies on the scene.
 @PlainSystem
-public struct Physics2DSystem: Sendable {
-
-    public init(world: World) { }
+public struct Physics2DSyncSystem: Sendable {
 
     @Query<Entity, Ref<PhysicsBody2DComponent>, Ref<Transform>>
     private var physicsBodyQuery
@@ -27,29 +38,21 @@ public struct Physics2DSystem: Sendable {
     
     @Query<Entity, Ref<PhysicsJoint2DComponent>, Ref<Transform>>
     private var jointsQuery
-    
+
     @Res<Physics2DWorldHolder>
     private var physicsWorld
 
-    @Res<FixedTime>
-    private var fixedTime
+    public init(world: World) { }
 
-    @MainActor
     public func update(context: UpdateContext) {
-        let deltaTime = fixedTime.deltaTime
-        let world = self.physicsWorld.world
-        world.updateSimulation(deltaTime)
-        world.processContacts()
-        world.processSensors()
-        self.updatePhysicsBodyEntities(in: world)
-        self.updateCollisionEntities(in: world)
+        self.updatePhysicsBodyEntities(in: physicsWorld.world)
+        self.updateCollisionEntities(in: physicsWorld.world)
     }
     
     // MARK: - Private
-    
-    @MainActor
+
     private func updatePhysicsBodyEntities(in world: PhysicsWorld2D) {
-        self.physicsBodyQuery.forEach { (entity, physicsBody, transform) in
+        self.physicsBodyQuery.forEach { entity, physicsBody, transform in
             if let body = physicsBody.runtimeBody {
                 if physicsBody.mode == .static {
                     body.setTransform(
@@ -113,7 +116,6 @@ public struct Physics2DSystem: Sendable {
         }
     }
 
-    @MainActor
     private func updateCollisionEntities(in world: PhysicsWorld2D) {
         collisionQuery.forEach { (entity, collisionBody, transform) in
             if let body = collisionBody.runtimeBody {
