@@ -34,7 +34,6 @@ struct TransformEntChildrenPlugin: Plugin {
         var camera = Camera()
         camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         camera.clearFlags = .solid
-        camera.orthographicScale = 1.5
         app.main.spawn(bundle: OrthographicCameraBundle(camera: camera))
 
         let parent = app.main.spawn("parent") {
