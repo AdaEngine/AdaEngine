@@ -15,7 +15,6 @@ import Math
 /// Resource that holds the UI view uniform for rendering.
 /// Uses an orthographic projection with origin at top-left corner.
 public struct UIViewUniform: Resource {
-    public var uniformBufferSet: UniformBufferSet?
     public var viewProjectionMatrix: Transform3D = .identity
 
     public init() {}
@@ -31,7 +30,7 @@ public struct UIRenderNode: RenderNode {
         Entity,
         Camera,
         RenderViewTarget,
-        GlobalViewUniformBufferSet
+        GlobalViewUniform
     >
     private var query
 
@@ -87,9 +86,8 @@ public struct UIRenderNode: RenderNode {
             )
 
             // Update the UI view uniform buffer
-            updateUIViewUniform(
-                projection: uiProjection,
-                device: renderDevice.renderDevice
+            let uiViewUniform = makeUIViewUniform(
+                projection: uiProjection
             )
 
             let renderPass = commandBuffer.beginRenderPass(
@@ -109,14 +107,8 @@ public struct UIRenderNode: RenderNode {
                 )
             )
 
-            let uniformBuffer = uiViewUniform.uniformBufferSet!.getBuffer(
-                binding: GlobalBufferIndex.viewUniform,
-                set: 0,
-                frameIndex: RenderEngine.shared.currentFrameIndex
-            )
-
             // Set the UI view uniform (not the camera's uniform)
-            renderPass.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
+            renderPass.setVertexBuffer(uiViewUniform, index: GlobalBufferIndex.viewUniform)
             renderPass.setViewport(camera.viewport.rect)
 
             try renderItems.render(with: renderPass, world: context.world, view: view)
@@ -128,17 +120,9 @@ public struct UIRenderNode: RenderNode {
         return []
     }
 
-    private func updateUIViewUniform(
-        projection: Transform3D,
-        device: RenderDevice
-    ) {
-        // Create uniform buffer set if needed
-        if uiViewUniform.uniformBufferSet == nil {
-            let bufferSet = device.createUniformBufferSet()
-            bufferSet.initBuffers(for: GlobalViewUniform.self, binding: GlobalBufferIndex.viewUniform, set: 0)
-            uiViewUniform.uniformBufferSet = bufferSet
-        }
-
+    private func makeUIViewUniform(
+        projection: Transform3D
+    ) -> GlobalViewUniform {
         uiViewUniform.viewProjectionMatrix = projection
 
         // Update the uniform buffer with UI projection
@@ -148,13 +132,7 @@ public struct UIRenderNode: RenderNode {
             viewMatrix: .identity
         )
 
-        if let buffer = uiViewUniform.uniformBufferSet?.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        ) {
-            buffer.setData(uniform)
-        }
+        return uniform
     }
 }
 

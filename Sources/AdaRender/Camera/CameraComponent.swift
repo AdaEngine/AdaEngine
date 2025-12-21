@@ -236,23 +236,3 @@ public struct GlobalViewUniform {
         self.viewMatrix = viewMatrix
     }
 }
-
-/// A component that contains the global view uniform buffer set.
-@Component
-public struct GlobalViewUniformBufferSet {
-    /// The uniform buffer set.
-    public let uniformBufferSet: UniformBufferSet
-
-    /// Initialize a new global view uniform buffer set.
-    ///
-    /// - Parameter label: The label of the uniform buffer set.
-    public init(label: String = "Global View Uniform") {
-        self.uniformBufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
-        self.uniformBufferSet.label = label
-        self.uniformBufferSet.initBuffers(
-            for: GlobalViewUniform.self,
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0
-        )
-    }
-}

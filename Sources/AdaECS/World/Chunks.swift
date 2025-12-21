@@ -361,6 +361,8 @@ public struct Chunk: Sendable {
         } else {
             // The removed entity was the last one, so no swap is needed
             self.entities.removeLast()
+
+            // FIXME: Should deinitilize stored component data if last entity in first chunk is removed
             return nil
         }
     }

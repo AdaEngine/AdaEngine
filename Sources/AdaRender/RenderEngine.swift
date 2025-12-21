@@ -9,6 +9,7 @@ import AdaUtils
 import OrderedCollections
 import Math
 
+/// Global information about buffer index.
 public enum GlobalBufferIndex {
     public static let viewUniform: Int = 1
 }

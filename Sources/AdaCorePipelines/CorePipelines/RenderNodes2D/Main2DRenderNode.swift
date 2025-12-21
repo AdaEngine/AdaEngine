@@ -20,7 +20,8 @@ public struct Main2DRenderNode: RenderNode {
     @Query<
         Entity,
         Camera,
-        RenderViewTarget
+        RenderViewTarget,
+        GlobalViewUniform
     >
     private var query
 
@@ -43,7 +44,7 @@ public struct Main2DRenderNode: RenderNode {
             return []
         }
 
-        try query.forEach { entity, camera, target in
+        try query.forEach { entity, camera, target, uniform in
             if entity != view {
                 return
             }
@@ -74,6 +75,7 @@ public struct Main2DRenderNode: RenderNode {
                 )
             )
 
+            renderPass.setVertexBuffer(uniform, index: GlobalBufferIndex.viewUniform)
             renderPass.setViewport(camera.viewport.rect)
 
             if !renderItems.items.items.isEmpty {

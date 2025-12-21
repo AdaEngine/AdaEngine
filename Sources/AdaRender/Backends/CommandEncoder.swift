@@ -155,3 +155,11 @@ public protocol RenderCommandEncoder: CommonCommandEncoder {
 
     func endRenderPass()
 }
+
+public extension RenderCommandEncoder {
+    func setVertexBuffer<T>(_ value: T, index: Int) {
+        unsafe withUnsafeBytes(of: value) { ptr in
+            unsafe self.setVertexBytes(ptr.baseAddress!, length: MemoryLayout<T>.stride, index: index)
+        }
+    }
+}
