@@ -384,6 +384,8 @@ extension WorldTests {
             if index % 2 == 0 {
                 item.1.wrappedValue.value += 1
                 #expect(item.1.isChanged)
+            } else {
+                #expect(!item.1.isChanged)
             }
         }
 

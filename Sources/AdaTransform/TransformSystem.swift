@@ -13,7 +13,15 @@ import Math
 @PlainSystem
 public struct TransformSystem {
     
-    @FilterQuery<Entity, Transform, Or<Changed<Transform>, Without<GlobalTransform>>>
+    @FilterQuery<
+        Entity,
+        Transform,
+        Ref<GlobalTransform>,
+        Or<
+            Changed<Transform>,
+            Added<Transform>
+        >
+    >
     private var query
 
     @Commands
@@ -22,10 +30,8 @@ public struct TransformSystem {
     public init(world: World) { }
     
     public func update(context: UpdateContext) async {
-        await self.query.parallel().forEach { entity, transform in
-            let globalTransform = GlobalTransform(matrix: transform.matrix)
-            commands.entity(entity.id)
-                .insert(globalTransform)
+        await self.query.parallel().forEach { entity, transform, globalTransform in
+            globalTransform.wrappedValue = GlobalTransform(matrix: transform.matrix)
         }
     }
 }
@@ -50,7 +56,7 @@ public struct ChildTransformSystem {
                 return
             }
             
-            updateChildren(entity.children, parentTransform: globalTransform)
+            updateChildren(entity.children, world: context.world, parentTransform: globalTransform)
         }
     }
     
@@ -58,18 +64,23 @@ public struct ChildTransformSystem {
     ///
     /// - Parameter children: The children of the entity.
     /// - Parameter parentTransform: The parent transform of the entity.
-    private func updateChildren(_ children: [Entity], parentTransform: GlobalTransform) {
+    private func updateChildren(
+        _ children: [Entity],
+        world: World,
+        parentTransform: GlobalTransform
+    ) {
         for child in children {
-            guard child.components.has(Transform.self) else {
+            guard let childTransform = world.get(Transform.self, from: child.id) else {
                 continue
             }
 
-            let childTransform = child.components.get(Transform.self)
             let newMatrix = parentTransform.matrix * childTransform.matrix
-            commands.entity(child.id).insert(GlobalTransform(matrix: newMatrix))
-            
+            commands
+                .entity(child.id)
+                .insert(GlobalTransform(matrix: newMatrix))
+
             if !child.children.isEmpty {
-                updateChildren(child.children, parentTransform: GlobalTransform(matrix: newMatrix))
+                updateChildren(child.children, world: world, parentTransform: GlobalTransform(matrix: newMatrix))
             }
         }
     }

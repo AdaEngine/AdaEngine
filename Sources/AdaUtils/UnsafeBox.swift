@@ -71,6 +71,14 @@ extension UnsafeBox: Equatable where T: Equatable {
     }
 }
 
+extension UnsafeBox: CustomStringConvertible {
+    public var description: String {
+        return unsafe """
+        UnsafeBox(\(String(describing: self.getPointer().pointee))
+        """
+    }
+}
+
 extension UnsafeBox: Hashable where T: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(self.wrappedValue)

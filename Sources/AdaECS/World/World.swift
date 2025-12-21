@@ -14,32 +14,6 @@ import Foundation
 #endif
 import Atomics
 
-public struct ChangeDetectionTick: Sendable {
-    public var added: UnsafeBox<Tick>?
-    public var change: UnsafeBox<Tick>?
-    public let lastTick: Tick
-    public let currentTick: Tick
-
-    public init(added: UnsafeBox<Tick>?, change: UnsafeBox<Tick>?, lastTick: Tick, currentTick: Tick) {
-        self.added = added
-        self.change = change
-        self.lastTick = lastTick
-        self.currentTick = currentTick
-    }
-}
-
-public struct Tick: Sendable, Comparable {
-    public let value: Int
-
-    public init(value: Int) {
-        self.value = value
-    }
-
-    public static func < (lhs: Tick, rhs: Tick) -> Bool {
-        lhs.value < rhs.value
-    }
-}
-
 /// World syncronization actor.
 @globalActor
 public actor WorldActor {
@@ -62,7 +36,10 @@ public final class World: @unchecked Sendable, Codable {
 
     public private(set) var changeTick = ManagedAtomic<Int>(1)
     public private(set) var lastTick: Tick = Tick(value: 0)
-    public private(set) var currentTick: Tick = Tick(value: 0)
+
+    public var currentTick: Tick {
+        Tick(value: changeTick.load(ordering: .acquiring))
+    }
 
     /// The archetypes of the world.
     public private(set) var entities: Entities = Entities()
@@ -380,8 +357,7 @@ public extension World {
     func clearTrackers() {
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
-        self.lastTick = self.currentTick
-        self.currentTick = self.incrementChangeTick()
+        self.lastTick = self.incrementChangeTick()
     }
 
     /// Remove all data from world exclude resources.
@@ -576,7 +552,7 @@ public extension World {
                 .archetypes[location.archetypeId]
                 .chunks
                 .chunks[location.chunkIndex]
-                .insert(component, at: location.chunkRow, lastTick: lastTick)
+                .insert(component, at: location.chunkRow, lastTick: currentTick)
             return
         }
 
@@ -893,5 +869,37 @@ private extension World {
         case resources
         case systems
         case plugins
+    }
+}
+
+public struct ChangeDetectionTick: Sendable {
+    public var added: UnsafeBox<Tick>?
+    public var change: UnsafeBox<Tick>?
+    public let lastTick: Tick
+    public let currentTick: Tick
+
+    public init(added: UnsafeBox<Tick>?, change: UnsafeBox<Tick>?, lastTick: Tick, currentTick: Tick) {
+        self.added = added
+        self.change = change
+        self.lastTick = lastTick
+        self.currentTick = currentTick
+    }
+}
+
+public struct Tick: Sendable, Comparable {
+    public let value: Int
+
+    public init(value: Int) {
+        self.value = value
+    }
+
+    public static func < (lhs: Tick, rhs: Tick) -> Bool {
+        lhs.value < rhs.value
+    }
+
+    public func isNewerThan(lastTick: Tick, currentTick: Tick) -> Bool {
+        let changeTickSince = currentTick.value &- self.value
+        let lastTickSince = currentTick.value &- lastTick.value
+        return lastTickSince > changeTickSince
     }
 }
