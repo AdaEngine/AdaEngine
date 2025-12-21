@@ -139,6 +139,14 @@ public extension BlobArray {
         from fromIndex: Int,
         to toIndex: Int
     ) {
+        swapAndDrop(from: fromIndex, to: toIndex, shouldDeinitialize: true)
+    }
+
+    func swapAndDrop(
+        from fromIndex: Int,
+        to toIndex: Int,
+        shouldDeinitialize: Bool
+    ) {
         precondition(fromIndex >= 0 && toIndex >= 0)
         precondition(layout.size >= 0)
 
@@ -149,7 +157,9 @@ public extension BlobArray {
         let fromPointer = unsafe base.advanced(by: fromIndex * layout.size)
         let toPointer = unsafe base.advanced(by: toIndex * layout.size)
 
-        unsafe self.buffer.deinitializer?(UnsafeMutableRawBufferPointer(start: toPointer, count: 1), 1)
+        if shouldDeinitialize {
+            unsafe self.buffer.deinitializer?(UnsafeMutableRawBufferPointer(start: toPointer, count: layout.size), 1)
+        }
         unsafe withUnsafeTemporaryAllocation(of: UInt8.self, capacity: layout.size) { tmp in
             let tempPointer = UnsafeMutableRawPointer(tmp.baseAddress!)
             unsafe tempPointer.copyMemory(from: fromPointer, byteCount: layout.size)
@@ -159,10 +169,15 @@ public extension BlobArray {
     }
 
     func remove(at index: Int) {
-        let pointer = unsafe self.buffer.pointer.baseAddress!
-            .advanced(by: index * self.layout.size)
-
-        unsafe self.buffer.deinitializer?(UnsafeMutableRawBufferPointer(start: pointer, count: 1), 1)
+        // Create a buffer pointer starting at the element to remove
+        let basePointer = unsafe self.buffer.pointer.baseAddress!
+        let elementPointer = unsafe basePointer.advanced(by: index * self.layout.size)
+        let elementBuffer = unsafe UnsafeMutableRawBufferPointer(
+            start: elementPointer,
+            count: self.layout.size
+        )
+        // Call deinitializer for 1 element at this position
+        unsafe self.buffer.deinitializer?(elementBuffer, 1)
     }
 
     func copyElement(

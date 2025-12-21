@@ -141,6 +141,56 @@ struct ChunksTests {
     }
 
     @Test
+    mutating func `move entity to new chunk preserves components`() throws {
+        // Scenario: Entity with component A moves to a chunk with [A, B] layout
+        // Component A should be preserved in the new chunk
+        
+        let deinitCounter = DeinitCounter()
+        
+        // Create chunks with only TrackableComponent
+        var sourceChunks = Chunks(
+            entitiesPerChunk: 32,
+            componentLayout: ComponentLayout(componentTypes: [TrackableComponent.self])
+        )
+        
+        // Insert entity with TrackableComponent
+        let entityId: Entity.ID = 42
+        sourceChunks.insertEntity(
+            entityId,
+            components: [TrackableComponent(id: "PreservedComponent", counter: deinitCounter)],
+            tick: Tick(value: 0)
+        )
+        
+        #expect(sourceChunks.entities.count == 1)
+        #expect(sourceChunks.chunks[0].get(TrackableComponent.self, for: entityId)?.id == "PreservedComponent")
+        
+        // Create destination chunks with [TrackableComponent, A] layout
+        var destChunks = Chunks(
+            entitiesPerChunk: 32,
+            componentLayout: ComponentLayout(componentTypes: [TrackableComponent.self, A.self])
+        )
+        
+        // Move entity to destination chunks
+        let moveResult = sourceChunks.moveEntity(entityId, to: &destChunks)
+        
+        // Verify entity was removed from source
+        #expect(sourceChunks.entities.count == 0)
+        #expect(sourceChunks.chunks[0].count == 0)
+        
+        // Verify entity is in destination
+        #expect(destChunks.entities.count == 1)
+        #expect(destChunks.chunks[moveResult.newLocation.chunkIndex].count == 1)
+        
+        // Verify TrackableComponent was preserved (NOT deinitialized during move)
+        #expect(!deinitCounter.deinitializedIds.contains("PreservedComponent"))
+        
+        // Verify the component data is still accessible and correct in the new chunk
+        let movedComponent = destChunks.chunks[moveResult.newLocation.chunkIndex]
+            .get(TrackableComponent.self, for: entityId)
+        #expect(movedComponent?.id == "PreservedComponent")
+    }
+
+    @Test
     mutating func `remove entity in the first chunk`() throws {
         (0..<64).forEach { index in
             chunks.insertEntity(index, components: [A(), B()], tick: Tick(value: 0))
@@ -419,6 +469,38 @@ extension ChunkTests {
 
         // Entity should no longer exist
         #expect(chunk.get(TrackableComponent.self, for: 42) == nil)
+    }
+
+    @Test
+    func `clear chunk deinitializes components`() {
+        // Counter to track deinitializations
+        let deinitCounter = DeinitCounter()
+
+        var chunk = Chunk(
+            entitiesPerChunk: 32,
+            layout: ComponentLayout(
+                componentTypes: [TrackableComponent.self]
+            )
+        )
+
+        // Create single entity
+        let entityId: Entity.ID = 1
+        let row = chunk.addEntity(entityId)!
+        chunk.insert(
+            at: row,
+            components: [TrackableComponent(id: "TestComponent", counter: deinitCounter)],
+            tick: Tick(value: 0)
+        )
+
+        #expect(chunk.count == 1)
+        #expect(deinitCounter.deinitializedIds.isEmpty)
+
+        // Clear the chunk - should deinitialize all components
+        chunk.clear()
+
+        // Verify the component was deinitialized
+        #expect(deinitCounter.deinitializedIds.contains("TestComponent"))
+        #expect(chunk.count == 0)
     }
 }
 
