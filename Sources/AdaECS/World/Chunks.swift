@@ -208,14 +208,14 @@ public extension Chunks {
 
     func getComponentTicksSlices<T: Component>(
         for type: T.Type
-    ) -> [UnsafeBufferPointer<Tick>] {
-        var slices: [UnsafeBufferPointer<Tick>] = unsafe []
+    ) -> [ChangeTickSlices] {
+        var slices: [ChangeTickSlices] = []
         for index in 0..<self.chunks.count {
-            if let slice = unsafe self.chunks[index].getComponentTicksSlice(for: type) {
-                unsafe slices.append(slice)
+            if let slice = self.chunks[index].getComponentTicksSlice(for: type) {
+                slices.append(slice)
             }
         }
-        return unsafe slices
+        return slices
     }
 }
 
@@ -513,20 +513,37 @@ public struct Chunk: Sendable {
         return unsafe componentData.data.getMutablePointer(at: 0, as: T.self)
     }
 
-    public func getComponentTicksSlice<T: Component>(for type: T.Type) -> UnsafeBufferPointer<Tick>? {
+    public func getComponentTicksSlice<T: Component>(for type: T.Type) -> ChangeTickSlices? {
         guard let componentData = self.componentsData[T.identifier], self.count > 0 else {
             return nil
         }
-        let startPointer = unsafe componentData.changeTicks.getMutablePointer(at: 0, as: Tick.self)
-        return unsafe UnsafeBufferPointer(start: startPointer, count: self.count)
+        return unsafe ChangeTickSlices(
+            added: UnsafeBufferPointer(start: componentData.addedTicks.getMutablePointer(at: 0, as: Tick.self), count: self.count),
+            changed: UnsafeBufferPointer(start: componentData.changeTicks.getMutablePointer(at: 0, as: Tick.self), count: self.count)
+        )
     }
 
-    public func getMutableComponentTicksSlice<T: Component>(for type: T.Type) -> UnsafeMutablePointer<Tick>? {
+    public func getMutableComponentTicksSlice<T: Component>(for type: T.Type) -> ChangeMutableTickSlices? {
         guard let componentData = self.componentsData[T.identifier], self.count > 0 else {
             return nil
         }
-        return unsafe componentData.changeTicks.getMutablePointer(at: 0, as: Tick.self)
+        return unsafe ChangeMutableTickSlices(
+            added: componentData.addedTicks.getMutablePointer(at: 0, as: Tick.self),
+            changed: componentData.changeTicks.getMutablePointer(at: 0, as: Tick.self)
+        )
     }
+}
+
+@safe
+public struct ChangeTickSlices {
+    public let added: UnsafeBufferPointer<Tick>
+    public let changed: UnsafeBufferPointer<Tick>
+}
+
+@safe
+public struct ChangeMutableTickSlices {
+    public let added: UnsafeMutablePointer<Tick>
+    public let changed: UnsafeMutablePointer<Tick>
 }
 
 extension Chunk: NonCopybaleCustomStringConvertible {

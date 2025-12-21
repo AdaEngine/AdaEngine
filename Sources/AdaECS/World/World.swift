@@ -15,11 +15,13 @@ import Foundation
 import Atomics
 
 public struct ChangeDetectionTick: Sendable {
+    public var added: UnsafeBox<Tick>?
     public var change: UnsafeBox<Tick>?
     public let lastTick: Tick
     public let currentTick: Tick
 
-    public init(change: UnsafeBox<Tick>?, lastTick: Tick, currentTick: Tick) {
+    public init(added: UnsafeBox<Tick>?, change: UnsafeBox<Tick>?, lastTick: Tick, currentTick: Tick) {
+        self.added = added
         self.change = change
         self.lastTick = lastTick
         self.currentTick = currentTick
@@ -479,6 +481,7 @@ public extension World {
         return unsafe Ref(
             pointer: resource?.pointer,
             changeTick: .init(
+                added: resource?.addedTick,
                 change: resource?.changedTick,
                 lastTick: lastTick,
                 currentTick: currentTick
@@ -495,6 +498,7 @@ public extension World {
         return unsafe Ref(
             pointer: resource?.pointer,
             changeTick: .init(
+                added: resource?.addedTick,
                 change: resource?.changedTick,
                 lastTick: lastTick,
                 currentTick: currentTick
