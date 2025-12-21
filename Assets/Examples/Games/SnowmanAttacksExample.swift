@@ -72,7 +72,7 @@ struct SetupSceneSystem {
         var camera = Camera()
         camera.backgroundColor = .black
 
-//        try! self.makePlayer()
+        try! self.makePlayer()
         try! self.makeScore()
 
         let entity = context.world.spawn(bundle: Camera2D(camera: camera))
@@ -131,7 +131,7 @@ struct SetupSceneSystem {
             "Score",
             bundle: Text2D(
                 textComponent: TextComponent(text: attributedText),
-                transform: Transform.init(position: Vector3.init(0, -500, 0))
+                transform: Transform(position: Vector3(0, -500, 0))
             )
         )
 
@@ -293,7 +293,7 @@ struct BulletSystem {
     @Query<Entity, Ref<Bullet>, Ref<PhysicsBody2DComponent>>
     private var bullets
 
-    let bulletSpeed: Float = 400
+    let bulletSpeed: Float = 0
 
     @Res<DeltaTime>
     private var deltaTime
