@@ -7,6 +7,7 @@
 
 import AdaApp
 import AdaECS
+import Math
 
 /// Add support for ``Transform`` and ``GlobalTransform`` components.
 public struct TransformPlugin: Plugin {
@@ -16,6 +17,10 @@ public struct TransformPlugin: Plugin {
     public func setup(in app: AppWorlds) {
         Transform.registerComponent()
         GlobalTransform.registerComponent()
+
+        app.main.registerRequiredComponent(GlobalTransform.self, for: Transform.self) {
+            GlobalTransform(matrix: .identity)
+        }
 
         app
             .addSystem(TransformSystem.self, on: .postUpdate)

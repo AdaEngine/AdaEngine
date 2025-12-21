@@ -47,8 +47,6 @@ struct AdaTransformTests: Sendable {
 
         // Test moving parent
         parent.components[Transform.self]?.position = Vector3(x: 100, y: 200, z: 300)
-        self.world.main.flush()
-
         await world.main.runScheduler(.postUpdate)
 
         let updatedChildGlobalTransform = try #require(child.components[GlobalTransform.self])

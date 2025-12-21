@@ -344,7 +344,7 @@ public struct Changed<T: Component>: Filter {
         guard let tick = unsafe fetch.ticks?.advanced(by: row).pointee else {
             return false
         }
-        return tick >= fetch.lastTick
+        return tick.isNewerThan(lastTick: fetch.lastTick, currentTick: fetch.currentTick)
     }
 }
 
