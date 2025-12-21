@@ -273,17 +273,17 @@ public struct PreparePhysicsDebugSystem: Sendable {
 
 // MARK: - Render System
 
-/// Quad corner positions for circle SDF rendering.
-private let quadPositions: [Vector4] = [
-    [-0.5, -0.5, 0.0, 1.0],
-    [ 0.5, -0.5, 0.0, 1.0],
-    [ 0.5,  0.5, 0.0, 1.0],
-    [-0.5,  0.5, 0.0, 1.0]
-]
-
 /// System for tessellating and batching physics debug shapes.
 @PlainSystem
 public struct PhysicsDebugRenderSystem: Sendable {
+
+    /// Quad corner positions for circle SDF rendering.
+    private let quadPositions: [Vector4] = [
+        [-0.5, -0.5, 0.0, 1.0],
+        [ 0.5, -0.5, 0.0, 1.0],
+        [ 0.5,  0.5, 0.0, 1.0],
+        [-0.5,  0.5, 0.0, 1.0]
+    ]
 
     @Res<ExtractedPhysicsDebugShapes>
     private var extractedShapes

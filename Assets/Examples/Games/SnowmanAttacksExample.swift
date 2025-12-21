@@ -291,7 +291,7 @@ struct BulletSystem {
     @Query<Entity, Ref<Bullet>, Ref<PhysicsBody2DComponent>>
     private var bullets
 
-    let bulletSpeed: Float = 10//400
+    let bulletSpeed: Float = 0//400
 
     @Res<DeltaTime>
     private var deltaTime
