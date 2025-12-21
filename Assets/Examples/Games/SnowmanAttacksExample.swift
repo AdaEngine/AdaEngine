@@ -33,7 +33,6 @@ struct SnowmanAttacks: Plugin {
             .addSystem(EnemyExplosionSystem.self)
             .addSystem(OnCollideSystem.self, on: .postUpdate)
             .addSystem(ScoreSystem.self)
-
             .insertResource(PhysicsDebugOptions([.showPhysicsShapes, .showBoundingBoxes]))
     }
 }
@@ -73,7 +72,7 @@ struct SetupSceneSystem {
         var camera = Camera()
         camera.backgroundColor = .black
 
-        try! self.makePlayer()
+//        try! self.makePlayer()
         try! self.makeScore()
 
         let entity = context.world.spawn(bundle: Camera2D(camera: camera))
@@ -125,13 +124,16 @@ struct SetupSceneSystem {
     private func makeScore() throws {
         var container = TextAttributeContainer()
         container.foregroundColor = .white
+        container.font = .system(size:  36)
         let attributedText = AttributedText("Score: 0", attributes: container)
 
-        commands.spawn("Score") {
-            TextComponent(text: attributedText)
-            Transform(position: [-0.2, -0.9, 0])
-            NoFrustumCulling()
-        }
+        commands.spawn(
+            "Score",
+            bundle: Text2D(
+                textComponent: TextComponent(text: attributedText),
+                transform: Transform.init(position: Vector3.init(0, -500, 0))
+            )
+        )
 
         commands.insertResource(GameState())
     }
@@ -291,7 +293,7 @@ struct BulletSystem {
     @Query<Entity, Ref<Bullet>, Ref<PhysicsBody2DComponent>>
     private var bullets
 
-    let bulletSpeed: Float = 0//400
+    let bulletSpeed: Float = 400
 
     @Res<DeltaTime>
     private var deltaTime
@@ -303,7 +305,7 @@ struct BulletSystem {
 
     func update(context: UpdateContext) {
         bullets.forEach { entity, bullet, body in
-            body.linearVelocity += [0, bulletSpeed * deltaTime.deltaTime]
+            body.linearVelocity = [0, bulletSpeed]
             bullet.currentLifetime += deltaTime.deltaTime
 
             if bullet.wrappedValue.lifetime < bullet.currentLifetime {
@@ -349,7 +351,7 @@ struct EnemySpawnerSystem {
         let result = fixedTime.advance(with: deltaTime.deltaTime)
 
         if result.isFixedTick {
-//            self.spawnEnemy()
+            self.spawnEnemy()
         }
     }
 
