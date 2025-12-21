@@ -377,6 +377,49 @@ extension ChunkTests {
         // Entity B should no longer exist
         #expect(chunk.get(TrackableComponent.self, for: 1) == nil)
     }
+
+    @Test
+    func `remove single entity deinitializes its components`() {
+        // Counter to track deinitializations
+        let deinitCounter = DeinitCounter()
+
+        var chunk = Chunk(
+            entitiesPerChunk: 32,
+            layout: ComponentLayout(
+                componentTypes: [TrackableComponent.self]
+            )
+        )
+
+        // Create single entity
+        let entityId: Entity.ID = 42
+        let row = chunk.addEntity(entityId)!
+        chunk.insert(
+            at: row,
+            components: [TrackableComponent(id: "SingleEntity", counter: deinitCounter)],
+            tick: Tick(value: 0)
+        )
+
+        #expect(chunk.count == 1)
+        #expect(chunk.entities == [42])
+        #expect(chunk.get(TrackableComponent.self, for: 42)?.id == "SingleEntity")
+
+        // Remove the only entity
+        // This is an edge case: no swap needed since it's the last element
+        let swappedEntity = chunk.swapRemoveEntity(at: entityId)
+
+        // Verify the component was deinitialized
+        #expect(deinitCounter.deinitializedIds.contains("SingleEntity"))
+
+        // No entity was swapped since it was the only one
+        #expect(swappedEntity == nil)
+
+        // Verify chunk is empty
+        #expect(chunk.count == 0)
+        #expect(chunk.entities.isEmpty)
+
+        // Entity should no longer exist
+        #expect(chunk.get(TrackableComponent.self, for: 42) == nil)
+    }
 }
 
 // MARK: Ticks
