@@ -10,8 +10,9 @@ import AdaEngine
 @main
 struct CustomTileMapExample: App {
     var body: some AppScene {
-        DefaultAppWindow()
+        EmptyWindow()
             .addPlugins(
+                DefaultPlugins(),
                 CustomTileMapPlugin()
             )
             .windowMode(.windowed)
