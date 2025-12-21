@@ -14,6 +14,7 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
     let renderEncoder: MTLRenderCommandEncoder
     private var currentIndexBuffer: MTLBuffer?
     private var currentIndexType: MTLIndexType = .uint32
+    private var currentPrimitiveType: MTLPrimitiveType = .triangle
 
     init(renderEncoder: MTLRenderCommandEncoder) {
         self.renderEncoder = renderEncoder
@@ -32,6 +33,7 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
             fatalError("RenderPipeline is not a MetalRenderPipeline")
         }
         renderEncoder.setRenderPipelineState(metalPipeline.renderPipeline)
+        currentPrimitiveType = metalPipeline.descriptor.primitive.toMetal
     }
 
     func setVertexBuffer(_ buffer: UniformBuffer, offset: Int, index: Int) {
@@ -139,7 +141,7 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
             fatalError("Index buffer is not set. Call setIndexBuffer(_:offset:) before drawIndexed().")
         }
         renderEncoder.drawIndexedPrimitives(
-            type: .triangle,
+            type: currentPrimitiveType,
             indexCount: indexCount,
             indexType: self.currentIndexType,
             indexBuffer: indexBuffer,
