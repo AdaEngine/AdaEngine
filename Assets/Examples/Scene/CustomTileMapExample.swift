@@ -57,7 +57,6 @@ struct InputControlSystem {
         var cameraBundle = Camera2D()
         cameraBundle.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraBundle.camera.clearFlags = .solid
-        cameraBundle.camera.orthographicScale = 1.5
 
         commands.spawn(bundle: cameraBundle)
 
@@ -168,7 +167,6 @@ private extension InputControlSystem {
         var cameraEntity = Camera2D()
         cameraEntity.camera.backgroundColor = Color(135/255, 206/255, 235/255, 1)
         cameraEntity.camera.clearFlags = .solid
-        cameraEntity.camera.orthographicScale = 1.5
 
         var transform = Transform()
         transform.position.y = -0.5
