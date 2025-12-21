@@ -129,7 +129,6 @@ public func ExtractCamera(
         Camera,
         Transform,
         VisibleEntities,
-        GlobalViewUniformBufferSet,
         GlobalViewUniform,
         CameraRenderGraph
         >
@@ -137,20 +136,12 @@ public func ExtractCamera(
 ) {
     query.wrappedValue.forEach {
         entity, camera, transform,
-        visibleEntities, bufferSet, uniform, graph in
-        let buffer = bufferSet.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        buffer.setData(uniform)
+        visibleEntities, uniform, graph in
         commands.spawn("ExtractedCameraEntity") {
             camera
             transform
             visibleEntities
             uniform
-            bufferSet
             RenderViewTarget()
             graph
         }

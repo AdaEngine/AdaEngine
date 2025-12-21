@@ -39,23 +39,11 @@ public struct Mesh2DDrawPass: DrawPass {
         guard let materialData = unsafe MaterialStorage.shared.getMaterialData(for: meshComponent.material) else {
             return
         }
-        
-        guard let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self] else {
-            return
-        }
 
         renderEncoder.pushDebugName("Mesh 2D Render")
         defer {
             renderEncoder.popDebugName()
         }
-
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-        
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
 
         for (uniformName, buffer) in materialData.reflectionData.shaderBuffers {
             guard let uniformBuffer = materialData.uniformBufferSet[uniformName]?

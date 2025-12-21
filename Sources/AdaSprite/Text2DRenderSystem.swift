@@ -334,7 +334,6 @@ public struct TextDrawPass: DrawPass {
         item: Transparent2DRenderItem
     ) throws {
         guard
-            let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self],
             let textDrawData = world.getResource(TextDrawData.self),
             let textBatches = world.getResource(TextBatches.self)
         else {
@@ -349,14 +348,6 @@ public struct TextDrawPass: DrawPass {
         defer {
             renderEncoder.popDebugName()
         }
-
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-        
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
         
         // Render background quad first (if exists)
         if batch.hasBackground,
