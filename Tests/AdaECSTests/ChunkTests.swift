@@ -13,6 +13,47 @@ import FoundationEssentials
 import Foundation
 #endif
 
+// MARK: - Deinitialization Tracking Helpers
+
+/// Thread-safe counter to track component deinitializations
+private final class DeinitCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _deinitializedIds: [String] = []
+
+    var deinitializedIds: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return _deinitializedIds
+    }
+
+    func recordDeinit(id: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        _deinitializedIds.append(id)
+    }
+}
+
+/// Tracker object that records its deinitialization
+private final class DeinitTracker: @unchecked Sendable, Equatable {
+    let id: String
+    let counter: DeinitCounter
+
+    init(id: String, counter: DeinitCounter) {
+        self.id = id
+        self.counter = counter
+    }
+
+    deinit {
+        counter.recordDeinit(id: id)
+    }
+
+    static func == (lhs: DeinitTracker, rhs: DeinitTracker) -> Bool {
+        lhs.id == rhs.id
+    }
+}
+
+// MARK: - Test Components
+
 @Component
 private struct A: Equatable {
     let a: Int
@@ -38,6 +79,18 @@ private struct B: Equatable {
         self.b = UUID().uuidString
         self.c = .random()
         self.d = .random(in: 0..<100)
+    }
+}
+
+/// Component that tracks deinitialization via a DeinitTracker
+@Component
+private struct TrackableComponent: Equatable {
+    let id: String
+    let tracker: DeinitTracker
+
+    init(id: String, counter: DeinitCounter) {
+        self.id = id
+        self.tracker = DeinitTracker(id: id, counter: counter)
     }
 }
 
@@ -260,6 +313,69 @@ extension ChunkTests {
         #expect(chunk.count == 64)
         #expect(chunk.isFull == false)
         #expect(chunk.entities.count == 64)
+    }
+
+    @Test
+    func `swap remove entity deinitializes removed component and reorders correctly`() {
+        // Counter to track deinitializations
+        let deinitCounter = DeinitCounter()
+
+        var chunk = Chunk(
+            entitiesPerChunk: 32,
+            layout: ComponentLayout(
+                componentTypes: [TrackableComponent.self]
+            )
+        )
+
+        // Create 5 entities: A(0), B(1), C(2), D(3), E(4)
+        let entityIds: [Entity.ID] = [0, 1, 2, 3, 4]
+        let componentIds = ["A", "B", "C", "D", "E"]
+
+        for (entityId, componentId) in zip(entityIds, componentIds) {
+            let row = chunk.addEntity(entityId)!
+            chunk.insert(
+                at: row,
+                components: [TrackableComponent(id: componentId, counter: deinitCounter)],
+                tick: Tick(value: 0)
+            )
+        }
+
+        #expect(chunk.count == 5)
+        #expect(chunk.entities == [0, 1, 2, 3, 4])
+
+        // Verify initial order
+        #expect(chunk.get(TrackableComponent.self, for: 0)?.id == "A")
+        #expect(chunk.get(TrackableComponent.self, for: 1)?.id == "B")
+        #expect(chunk.get(TrackableComponent.self, for: 2)?.id == "C")
+        #expect(chunk.get(TrackableComponent.self, for: 3)?.id == "D")
+        #expect(chunk.get(TrackableComponent.self, for: 4)?.id == "E")
+
+        // Remove entity B (id=1)
+        // Expected: swap-remove should move E to B's position
+        // Result: [A, E, C, D]
+        let swappedEntity = chunk.swapRemoveEntity(at: 1)
+
+        // Verify B was deinitialized
+        #expect(deinitCounter.deinitializedIds.contains("B"))
+
+        // Verify the swapped entity is E (last element)
+        #expect(swappedEntity == 4)
+
+        // Verify new count
+        #expect(chunk.count == 4)
+        #expect(chunk.entities.count == 4)
+
+        // Verify new entity order: [A, E, C, D] (entity IDs: [0, 4, 2, 3])
+        #expect(chunk.entities == [0, 4, 2, 3])
+
+        // Verify component data is correctly reordered
+        #expect(chunk.get(TrackableComponent.self, for: 0)?.id == "A")
+        #expect(chunk.get(TrackableComponent.self, for: 4)?.id == "E") // E moved to B's slot
+        #expect(chunk.get(TrackableComponent.self, for: 2)?.id == "C")
+        #expect(chunk.get(TrackableComponent.self, for: 3)?.id == "D")
+
+        // Entity B should no longer exist
+        #expect(chunk.get(TrackableComponent.self, for: 1) == nil)
     }
 }
 

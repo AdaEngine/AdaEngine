@@ -106,13 +106,5 @@ struct CamMovementSystem {
         if input.isKeyPressed(.d) {
             cameraTransform.position.x += speedNormalized
         }
-        
-        if input.isKeyPressed(.arrowUp) {
-            camera.orthographicScale -= 1 * deltaTime.deltaTime
-        }
-        
-        if input.isKeyPressed(.arrowDown) {
-            camera.orthographicScale += 1 * deltaTime.deltaTime
-        }
     }
 }

@@ -15,7 +15,9 @@ import MetalKit
 final class AppleApplication: Application {
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         try super.init(argc: argc, argv: argv)
-        self.windowManager = AppleWindowManager()
+        
+        fatalError()
+        // self.windowManager = AppleWindowManager(screenManager: screenManager)
     }
 }
 

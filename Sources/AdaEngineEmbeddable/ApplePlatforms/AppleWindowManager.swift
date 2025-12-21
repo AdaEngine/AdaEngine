@@ -14,8 +14,11 @@ import MetalKit
 final class AppleWindowManager: UIWindowManager {
     
     weak var nativeView: MetalView?
+    var screenManager: ScreenManager
     
-    override init() { }
+    init(screenManager: ScreenManager) {
+        self.screenManager = screenManager
+    }
     
     override func resizeWindow(_ window: UIWindow, size: Size) {
         
@@ -46,7 +49,7 @@ final class AppleWindowManager: UIWindowManager {
             return nil
         }
         
-        return Screen(systemScreen: nativeScreen)
+        return Screen(systemScreen: nativeScreen, screenManager: screenManager)
     }
 }
 
