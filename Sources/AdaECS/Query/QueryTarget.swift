@@ -114,7 +114,10 @@ public struct RefFetch<T> {
     var data: UnsafeMutableBufferPointer<T>?
 
     @usableFromInline
-    var ticks: UnsafeMutableBufferPointer<Tick>?
+    var added: UnsafeMutableBufferPointer<Tick>?
+
+    @usableFromInline
+    var change: UnsafeMutableBufferPointer<Tick>?
 
     @usableFromInline
     var lastTick: Tick
@@ -124,12 +127,14 @@ public struct RefFetch<T> {
     @usableFromInline
     init(
         data: UnsafeMutableBufferPointer<T>?,
-        ticks: UnsafeMutableBufferPointer<Tick>?,
+        added: UnsafeMutableBufferPointer<Tick>?,
+        change: UnsafeMutableBufferPointer<Tick>?,
         lastTick: Tick,
         currentTick: Tick
     ) {
         unsafe self.data = data
-        unsafe self.ticks = ticks
+        unsafe self.added = added
+        unsafe self.change = change
         self.lastTick = lastTick
         self.currentTick = currentTick
     }
@@ -155,7 +160,8 @@ extension Ref: QueryTarget where T: Component {
     ) -> RefFetch<T> {
         unsafe RefFetch(
             data: nil,
-            ticks: nil,
+            added: nil,
+            change: nil,
             lastTick: lastTick,
             currentTick: currentTick
         )
@@ -179,7 +185,7 @@ extension Ref: QueryTarget where T: Component {
         var newFetch = fetch
         guard
             let slice = unsafe chunk.getMutableComponentSlice(for: T.self),
-            let ticks = unsafe chunk.getMutableComponentTicksSlice(for: T.self)
+            let ticks = chunk.getMutableComponentTicksSlice(for: T.self)
         else {
             return fetch
         }
@@ -187,8 +193,12 @@ extension Ref: QueryTarget where T: Component {
             start: slice,
             count: chunk.count
         )
-        unsafe newFetch.ticks = UnsafeMutableBufferPointer(
-            start: ticks,
+        unsafe newFetch.added = UnsafeMutableBufferPointer(
+            start: ticks.added,
+            count: chunk.count
+        )
+        unsafe newFetch.change = UnsafeMutableBufferPointer(
+            start: ticks.changed,
             count: chunk.count
         )
         return newFetch
@@ -203,7 +213,8 @@ extension Ref: QueryTarget where T: Component {
         return unsafe Ref(
             pointer: unsafe fetch.data?.baseAddress?.advanced(by: row),
             changeTick: ChangeDetectionTick(
-                change: fetch.ticks?.baseAddress?.advanced(by: row).unsafeBox(),
+                added: fetch.added?.baseAddress?.advanced(by: row).unsafeBox(),
+                change: fetch.change?.baseAddress?.advanced(by: row).unsafeBox(),
                 lastTick: fetch.lastTick,
                 currentTick: fetch.currentTick
             )

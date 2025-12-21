@@ -331,10 +331,10 @@ public struct Changed<T: Component>: Filter {
         archetype: Archetype
     ) -> ChangedFetch {
         var newFetch = fetch
-        guard let slice = unsafe chunk.getMutableComponentTicksSlice(for: T.self) else {
+        guard let slice = chunk.getMutableComponentTicksSlice(for: T.self) else {
             return fetch
         }
-        unsafe newFetch.ticks = slice
+        unsafe newFetch.ticks = slice.changed
         return newFetch
     }
 
@@ -394,10 +394,10 @@ public struct Added<T: Component>: Filter {
         archetype: Archetype
     ) -> AddedFetch {
         var newFetch = fetch
-        guard let slice = unsafe chunk.getMutableComponentTicksSlice(for: T.self) else {
+        guard let slice = chunk.getMutableComponentTicksSlice(for: T.self) else {
             return fetch
         }
-        unsafe newFetch.ticks = slice
+        unsafe newFetch.ticks = slice.added
         return newFetch
     }
 
