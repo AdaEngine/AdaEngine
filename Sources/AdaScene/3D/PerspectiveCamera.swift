@@ -20,7 +20,6 @@ public struct PerspectiveCameraBundle {
     public var camera: Camera
     public var visibleEntities = VisibleEntities()
     public var globalViewUniform = GlobalViewUniform()
-    public var globalViewUniformBufferSet = GlobalViewUniformBufferSet()
     public var audioReceiver = AudioReceiver()
     public var transform = Transform()
 
@@ -30,7 +29,6 @@ public struct PerspectiveCameraBundle {
         perspectiveProjection: PerspectiveProjection = PerspectiveProjection(),
         visibleEntities: VisibleEntities = VisibleEntities(),
         globalViewUniform: GlobalViewUniform = GlobalViewUniform(),
-        globalViewUniformBufferSet: GlobalViewUniformBufferSet = GlobalViewUniformBufferSet(),
         audioReceiver: AudioReceiver = AudioReceiver(),
         transform: Transform = Transform()
     ) {
@@ -38,7 +36,6 @@ public struct PerspectiveCameraBundle {
         self.camera.projection = .perspective(perspectiveProjection)
         self.visibleEntities = visibleEntities
         self.globalViewUniform = globalViewUniform
-        self.globalViewUniformBufferSet = globalViewUniformBufferSet
         self.audioReceiver = audioReceiver
         self.transform = transform
     }

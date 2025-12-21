@@ -147,7 +147,7 @@ public extension BlobArray {
         }
         let base = unsafe buffer.pointer.baseAddress!
         let fromPointer = unsafe base.advanced(by: fromIndex * layout.size)
-        let toPointer: UnsafeMutableRawPointer = unsafe base.advanced(by: toIndex * layout.size)
+        let toPointer = unsafe base.advanced(by: toIndex * layout.size)
 
         unsafe self.buffer.deinitializer?(UnsafeMutableRawBufferPointer(start: toPointer, count: 1), 1)
         unsafe withUnsafeTemporaryAllocation(of: UInt8.self, capacity: layout.size) { tmp in
@@ -158,20 +158,11 @@ public extension BlobArray {
         }
     }
 
-    func remove<T>(at index: Int) -> T {
-        #if DEBUG
-        precondition(
-            MemoryLayout<T>.stride == self.layout.size &&
-            MemoryLayout<T>.alignment == self.layout.alignment,
-            "Element has different layout"
-        )
-        #endif
+    func remove(at index: Int) {
         let pointer = unsafe self.buffer.pointer.baseAddress!
             .advanced(by: index * self.layout.size)
-            .assumingMemoryBound(to: T.self)
-        let element = unsafe pointer.pointee
-        unsafe pointer.deinitialize(count: 1)
-        return element
+
+        unsafe self.buffer.deinitializer?(UnsafeMutableRawBufferPointer(start: pointer, count: 1), 1)
     }
 
     func copyElement(

@@ -18,7 +18,6 @@ public typealias Camera2D = OrthographicCameraBundle
 public struct OrthographicCameraBundle {
     public var camera: Camera
     public var viewUniforms: GlobalViewUniform
-    public var globalViewUniformBufferSet: GlobalViewUniformBufferSet
     public var visibleEntities: VisibleEntities
     public var audioReceiver: AudioReceiver
     public var transform: Transform
@@ -30,7 +29,6 @@ public struct OrthographicCameraBundle {
         camera: Camera = Camera(),
         orthographicProjection: OrthographicProjection = OrthographicProjection(),
         viewUniforms: GlobalViewUniform = GlobalViewUniform(),
-        globalViewUniformBufferSet: GlobalViewUniformBufferSet = GlobalViewUniformBufferSet(),
         visibleEntities: VisibleEntities = VisibleEntities(),
         audioReceiver: AudioReceiver = AudioReceiver(),
         transform: Transform = Transform(),
@@ -39,7 +37,6 @@ public struct OrthographicCameraBundle {
         self.camera = camera
         self.camera.projection = .orthographic(orthographicProjection)
         self.viewUniforms = viewUniforms
-        self.globalViewUniformBufferSet = globalViewUniformBufferSet
         self.visibleEntities = visibleEntities
         self.audioReceiver = audioReceiver
         self.transform = transform

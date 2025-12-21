@@ -37,7 +37,6 @@ public struct SpriteDrawPass: DrawPass {
         item: Transparent2DRenderItem
     ) throws {
         guard
-            let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self],
             let spritesData = world.getResource(SpriteDrawData.self),
             let spriteBatches = world.getResource(SpriteBatches.self)
         else {
@@ -53,15 +52,8 @@ public struct SpriteDrawPass: DrawPass {
             renderEncoder.popDebugName()
         }
 
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
         renderEncoder.setFragmentTexture(batch.texture, index: 0)
         renderEncoder.setFragmentSamplerState(batch.texture.sampler, index: 0)
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
         renderEncoder.setVertexBuffer(spritesData.vertexBuffer, offset: 0, index: 0)
         renderEncoder.setIndexBuffer(spritesData.indexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)

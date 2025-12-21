@@ -150,8 +150,7 @@ private func DebugPhysicsExctract2DSystem_DrawSolidPolygon(
     let color = Color.fromHex(Int(color.rawValue))
 
     let vertices = (0..<vertexCount).map { index in
-        let vertex = unsafe verticies[Int(index)]
-        return Vector2(vertex.x, vertex.y)
+        unsafe verticies[Int(index)].asVector2
     }
 
     for i in 0..<vertexCount {
@@ -408,7 +407,6 @@ public struct PhysicsDebugLineDrawPass: DrawPass, Resource {
         item: Transparent2DRenderItem
     ) throws {
         guard
-            let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self],
             let drawData = world.getResource(PhysicsDebugDrawData.self),
             let batches = world.getResource(PhysicsDebugBatches.self),
             let batch = batches.lineBatch
@@ -425,13 +423,6 @@ public struct PhysicsDebugLineDrawPass: DrawPass, Resource {
             renderEncoder.popDebugName()
         }
 
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
         renderEncoder.setVertexBuffer(drawData.lineVertexBuffer, offset: 0, index: 0)
         renderEncoder.setIndexBuffer(drawData.lineIndexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
@@ -458,7 +449,6 @@ public struct PhysicsDebugCircleDrawPass: DrawPass, Resource {
         item: Transparent2DRenderItem
     ) throws {
         guard
-            let cameraViewUniform = view.components[GlobalViewUniformBufferSet.self],
             let drawData = world.getResource(PhysicsDebugDrawData.self),
             let batches = world.getResource(PhysicsDebugBatches.self),
             let batch = batches.circleBatch
@@ -475,13 +465,6 @@ public struct PhysicsDebugCircleDrawPass: DrawPass, Resource {
             renderEncoder.popDebugName()
         }
 
-        let uniformBuffer = cameraViewUniform.uniformBufferSet.getBuffer(
-            binding: GlobalBufferIndex.viewUniform,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-
-        renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: GlobalBufferIndex.viewUniform)
         renderEncoder.setVertexBuffer(drawData.circleVertexBuffer, offset: 0, index: 0)
         renderEncoder.setIndexBuffer(drawData.circleIndexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
