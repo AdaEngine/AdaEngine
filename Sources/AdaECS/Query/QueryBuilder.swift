@@ -89,7 +89,7 @@ public struct QueryBuilderTargets<each T>: QueryBuilder where repeat each T: Wor
             world: world,
             state: each states,
             lastTick: lastTick,
-            currentTick: world.lastTick
+            currentTick: world.currentTick
         ))
     }
 

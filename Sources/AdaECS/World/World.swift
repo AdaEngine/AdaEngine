@@ -60,6 +60,7 @@ public final class World: @unchecked Sendable, Codable {
 
     public private(set) var changeTick = ManagedAtomic<Int>(1)
     public private(set) var lastTick: Tick = Tick(value: 0)
+    public private(set) var currentTick: Tick = Tick(value: 0)
 
     /// The archetypes of the world.
     public private(set) var entities: Entities = Entities()
@@ -377,7 +378,8 @@ public extension World {
     func clearTrackers() {
         self.removedEntities.removeAll(keepingCapacity: true)
         self.addedEntities.removeAll(keepingCapacity: true)
-        self.lastTick = self.incrementChangeTick()
+        self.lastTick = self.currentTick
+        self.currentTick = self.incrementChangeTick()
     }
 
     /// Remove all data from world exclude resources.
@@ -406,7 +408,7 @@ public extension World {
     /// - Returns: A world instance.
     @discardableResult
     func insertResource<T: Resource>(_ resource: consuming T) -> Self {
-        self.resources.insertResource(resource, tick: lastTick)
+        self.resources.insertResource(resource, tick: currentTick)
         return self
     }
 
@@ -415,7 +417,7 @@ public extension World {
     /// - Returns: A world instance.
     @discardableResult
     private func insertTypeErasedResource(_ resource: consuming any Resource) -> Self {
-        self.resources.insertResource(resource, tick: lastTick)
+        self.resources.insertResource(resource, tick: currentTick)
         return self
     }
 
@@ -424,7 +426,7 @@ public extension World {
     /// - Returns: A resource instance.
     func createResource<T: Resource & WorldInitable>(of type: T.Type) -> T {
         let resource = type.init(from: self)
-        self.resources.insertResource(resource, tick: lastTick)
+        self.resources.insertResource(resource, tick: currentTick)
         return resource
     }
 
@@ -461,7 +463,7 @@ public extension World {
             return resource
         }
         let resource = type.init(from: self)
-        resources.insertResource(resource, tick: lastTick)
+        resources.insertResource(resource, tick: currentTick)
         return resource
     }
 
@@ -479,7 +481,7 @@ public extension World {
             changeTick: .init(
                 change: resource?.changedTick,
                 lastTick: lastTick,
-                currentTick: lastTick
+                currentTick: currentTick
             )
         )
     }
@@ -495,7 +497,7 @@ public extension World {
             changeTick: .init(
                 change: resource?.changedTick,
                 lastTick: lastTick,
-                currentTick: lastTick
+                currentTick: currentTick
             )
         )
     }
@@ -613,13 +615,13 @@ public extension World {
             self.archetypes
                 .archetypes[newLocation.archetypeId]
                 .chunks
-                .insert(component, for: entityId, lastTick: lastTick)
+                .insert(component, for: entityId, lastTick: currentTick)
         }
 
         self.archetypes
             .archetypes[newLocation.archetypeId]
             .chunks
-            .insert(component, for: entityId, lastTick: lastTick)
+            .insert(component, for: entityId, lastTick: currentTick)
     }
 
     @inline(__always)
@@ -769,7 +771,7 @@ extension World {
         let chunkLocation = archetype.chunks.insertEntity(
             entity.id,
             components: components,
-            tick: self.lastTick
+            tick: self.currentTick
         )
         self.archetypes.archetypes[archetypeIndex] = archetype
         self.entities.insert(
