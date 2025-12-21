@@ -7,6 +7,8 @@
 
 import AdaEngine
 
+// TODO: I see, that sometimes object collides but nothig happens. I think the problem in Physics 2d
+
 enum GameConfiguration {
     static let freeMovement = false
 }
@@ -35,7 +37,7 @@ struct SnowmanAttacks: Plugin {
             .addSystem(EnemyMovementSystem.self)
             .addSystem(EnemyLifetimeSystem.self)
             .addSystem(EnemyExplosionSystem.self)
-            .addSystem(OnCollideSystem.self, on: .postUpdate)
+            .addSystem(OnCollideSystem.self, on: .fixedUpdate)
             .addSystem(ScoreSystem.self)
             .addSystem(UpdateGameStateSystem.self)
             .insertResource(PhysicsDebugOptions([.showPhysicsShapes, .showBoundingBoxes]))
@@ -186,7 +188,7 @@ extension CollisionGroup {
 @Component
 struct ExplosionComponent { }
 
-@System
+@System(dependencies: [.after(Physics2DUpdateSystem.self)])
 func OnCollide(
     _ commands: Commands,
     _ events: Events<CollisionEvents.Began>
