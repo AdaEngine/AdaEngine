@@ -10,8 +10,9 @@ import AdaEngine
 @main
 struct AdaEditorApp: App {
     var body: some AppScene {
-        DefaultAppWindow()
+        EmptyWindow()
             .addPlugins(
+                DefaultPlugins(),
                 BunnyExample()
             )
             .windowMode(.windowed)
