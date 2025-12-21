@@ -150,27 +150,34 @@ public extension Chunks {
                     from: location.entityRow,
                     to: chunkLocation.entityRow
                 )
-            oldChunkComponent.changesTicks
+            oldChunkComponent.addedTicks
                 .copyElement(
-                    to: &newChunkComponent.changesTicks,
+                    to: &newChunkComponent.addedTicks,
+                    from: location.entityRow,
+                    to: chunkLocation.entityRow
+                )
+            oldChunkComponent.changeTicks
+                .copyElement(
+                    to: &newChunkComponent.changeTicks,
                     from: location.entityRow,
                     to: chunkLocation.entityRow
                 )
             chunk.componentsData[component.identifier] = newChunkComponent
         }
         chunks.chunks[newLocation] = chunk
-        let swappedEntity = self.swapRemoveEntity(entity)
+        // Don't deinitialize - data was copied to the new chunk (bitwise copy preserves references)
+        let swappedEntity = self.swapRemoveEntity(entity, deinitialize: false)
         return MoveEntityResult(newLocation: chunkLocation, swappedEntity: swappedEntity)
     }
 
     @discardableResult
-    private mutating func swapRemoveEntity(_ entity: Entity.ID) -> Entity.ID? {
+    private mutating func swapRemoveEntity(_ entity: Entity.ID, deinitialize: Bool = true) -> Entity.ID? {
         guard let location = self.entities[entity] else {
             return nil
         }
 
         var chunk = self.chunks[location.chunkIndex]
-        let swappedEntityId = chunk.swapRemoveEntity(at: entity)
+        let swappedEntityId = chunk.swapRemoveEntity(at: entity, deinitialize: deinitialize)
         self.entities.remove(for: entity)
 
         if let swappedEntityId = swappedEntityId {
@@ -219,18 +226,20 @@ public struct Chunk: Sendable {
     @safe
     public struct ComponentsData: @unchecked Sendable, CustomStringConvertible {
         var data: BlobArray
-        var changesTicks: BlobArray
+        var addedTicks: BlobArray
+        var changeTicks: BlobArray
         let componentType: any Component.Type
 
         init<T: Component>(capacity: Int, component: T.Type) {
             self.data = unsafe BlobArray(count: capacity, of: T.self) { pointer, count in
-                if !component.componentsInfo.isPlainOldData {
-                    unsafe pointer.assumingMemoryBound(to: T.self)
-                        .baseAddress?
-                        .deinitialize(count: count)
-                }
+                // Deinitialize components that contain reference types to ensure proper cleanup
+                guard !T.componentsInfo.isPlainOldData else { return }
+                unsafe pointer.baseAddress?
+                    .assumingMemoryBound(to: T.self)
+                    .deinitialize(count: count)
             }
-            self.changesTicks = unsafe BlobArray(count: capacity, of: Tick.self)
+            self.addedTicks = unsafe BlobArray(count: capacity, of: Tick.self)
+            self.changeTicks = unsafe BlobArray(count: capacity, of: Tick.self)
             self.componentType = component
         }
 
@@ -238,7 +247,8 @@ public struct Chunk: Sendable {
             return """
             ComponentsData(
                 data: \(data.count),
-                changesTicks: \(changesTicks.count),
+                addedTicks: \(addedTicks.count),
+                changeTicks: \(changeTicks.count),
                 componentType: \(componentType)
             )
             """
@@ -248,6 +258,7 @@ public struct Chunk: Sendable {
     @unsafe
     public struct ComponentData<T: Component> {
         public let component: UnsafeMutablePointer<T>
+        public let addedTick: Tick
         public let changeTick: Tick
     }
 
@@ -323,7 +334,8 @@ public struct Chunk: Sendable {
     mutating func clear() {
         self.componentsData.forEach { data in
             data.data.clear(entities.count)
-            data.changesTicks.clear(entities.count)
+            data.addedTicks.clear(entities.count)
+            data.changeTicks.clear(entities.count)
         }
         self.entities.removeAll(keepingCapacity: true)
         self.entityIndices.removeAll(keepingCapacity: true)
@@ -335,6 +347,17 @@ public struct Chunk: Sendable {
     /// - Returns: The ID of the entity that was swapped into the removed entity's place, if any.
     @discardableResult
     mutating func swapRemoveEntity(at entityId: Entity.ID) -> Entity.ID? {
+        return swapRemoveEntity(at: entityId, deinitialize: true)
+    }
+
+    /// Removes an entity from the chunk by swapping it with the last element.
+    /// - Parameters:
+    ///   - entityId: The ID of the entity to remove.
+    ///   - deinitialize: Whether to deinitialize the removed component data.
+    ///     Set to `false` when moving entities to another chunk (data is copied, not moved).
+    /// - Returns: The ID of the entity that was swapped into the removed entity's place, if any.
+    @discardableResult
+    mutating func swapRemoveEntity(at entityId: Entity.ID, deinitialize: Bool) -> Entity.ID? {
         guard let removedIndex = self.entityIndices.removeValue(forKey: entityId) else {
             return nil
         }
@@ -346,9 +369,11 @@ public struct Chunk: Sendable {
             // Move component data from the last element to the removed element's slot
             for componentData in self.componentsData {
                 componentData.data
-                    .swapAndDrop(from: lastIndex, to: removedIndex)
-                componentData.changesTicks
-                    .swapAndDrop(from: lastIndex, to: removedIndex)
+                    .swapAndDrop(from: lastIndex, to: removedIndex, shouldDeinitialize: deinitialize)
+                componentData.addedTicks
+                    .swapAndDrop(from: lastIndex, to: removedIndex, shouldDeinitialize: false)
+                componentData.changeTicks
+                    .swapAndDrop(from: lastIndex, to: removedIndex, shouldDeinitialize: false)
             }
 
             // Update the entity that was in the last slot
@@ -360,9 +385,16 @@ public struct Chunk: Sendable {
             return swappedEntityId
         } else {
             // The removed entity was the last one, so no swap is needed
+            if deinitialize {
+                // Deinitialize the component data for the removed entity
+                for componentData in self.componentsData {
+                    componentData.data.remove(at: removedIndex)
+                    componentData.addedTicks.remove(at: removedIndex)
+                    componentData.changeTicks.remove(at: removedIndex)
+                }
+            }
             self.entities.removeLast()
 
-            // FIXME: Should deinitilize stored component data if last entity in first chunk is removed
             return nil
         }
     }
@@ -374,7 +406,8 @@ public struct Chunk: Sendable {
                 fatalError("Passed not registred component")
             }
             array.data.insert(component, at: entityIndex)
-            array.changesTicks.insert(tick, at: entityIndex)
+            array.addedTicks.insert(tick, at: entityIndex)
+            array.changeTicks.insert(tick, at: entityIndex)
         }
     }
 
@@ -393,7 +426,7 @@ public struct Chunk: Sendable {
         }
         guard
             let lastChangeTick = self.componentsData[T.identifier]?
-                .changesTicks
+                .changeTicks
                 .get(at: entityIndex, as: Tick.self)
         else {
             return false
@@ -433,7 +466,7 @@ public struct Chunk: Sendable {
             return nil
         }
         return unsafe self.componentsData[T.identifier]?
-            .changesTicks
+            .changeTicks
             .getMutablePointer(at: index, as: Tick.self)
     }
 
@@ -446,7 +479,7 @@ public struct Chunk: Sendable {
             assertionFailure("Component \(T.self) not found in chunk")
             return
         }
-        componentData.changesTicks.insert(lastTick, at: entityIndex)
+        componentData.changeTicks.insert(lastTick, at: entityIndex)
         componentData.data.insert(component, at: entityIndex)
     }
 
@@ -484,7 +517,7 @@ public struct Chunk: Sendable {
         guard let componentData = self.componentsData[T.identifier], self.count > 0 else {
             return nil
         }
-        let startPointer = unsafe componentData.changesTicks.getMutablePointer(at: 0, as: Tick.self)
+        let startPointer = unsafe componentData.changeTicks.getMutablePointer(at: 0, as: Tick.self)
         return unsafe UnsafeBufferPointer(start: startPointer, count: self.count)
     }
 
@@ -492,7 +525,7 @@ public struct Chunk: Sendable {
         guard let componentData = self.componentsData[T.identifier], self.count > 0 else {
             return nil
         }
-        return unsafe componentData.changesTicks.getMutablePointer(at: 0, as: Tick.self)
+        return unsafe componentData.changeTicks.getMutablePointer(at: 0, as: Tick.self)
     }
 }
 
