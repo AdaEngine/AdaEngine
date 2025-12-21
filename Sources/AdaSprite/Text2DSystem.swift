@@ -22,7 +22,6 @@ func Text2DUpdateBoundings(
     >
 ) async {
     await texts.parallel().forEach { transform, layout, bounds in
-//        layout.textLayout.size
         let position = transform.position
         let scale = transform.scale
         let min = Vector3(position.x - scale.x / 2, position.y - scale.y / 2, 0)
