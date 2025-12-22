@@ -20,15 +20,8 @@ public struct WindowGroup<Content: View>: AppScene {
     let filePath: StaticString
 
     public var body: some AppScene {
-        EmptyWindow()
-            .transformAppWorlds { appWorld in
-                appWorld.insertResource(
-                    InitialContainerView(view: UIContainerView(rootView: self.content))
-                )
-                appWorld.addSystem(WindowGroupUpdateSystem.self, on: .startup)
-                appWorld.spawn(bundle: Camera2D())
-            }
-            .addPlugins(DefaultPlugins())
+        DefaultAppWindow()
+            .addPlugins(WindowGroupPlugin(content: self.content))
     }
 
     /// Creates a window group.
@@ -37,6 +30,18 @@ public struct WindowGroup<Content: View>: AppScene {
     public init(@ViewBuilder content: () -> Content, filePath: StaticString = #filePath) {
         self.content = content()
         self.filePath = filePath
+    }
+}
+
+package struct WindowGroupPlugin<Content: View>: Plugin, @unchecked Sendable {
+    let content: Content
+
+    package func setup(in app: borrowing AppWorlds) {
+        app.insertResource(
+            InitialContainerView(view: UIContainerView(rootView: self.content))
+        )
+        app.addSystem(WindowGroupUpdateSystem.self, on: .startup)
+        app.spawn(bundle: Camera2D())
     }
 }
 

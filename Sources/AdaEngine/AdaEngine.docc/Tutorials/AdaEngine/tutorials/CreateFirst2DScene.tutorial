@@ -35,7 +35,6 @@
             
             @Step {
                 Now add the `FirstScene` plugin to the app using the `addPlugins` method.
-                `EmptyWindow` will automatically create a game window with your scene.
                 
                 @Code(name: "FirstGameApp.swift", file: CF2G-1-4-app.swift)
             }

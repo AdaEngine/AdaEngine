@@ -3,9 +3,8 @@ import AdaEngine
 @main
 struct FirstPackageApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(), 
                 FirstScene()
             )
             .windowMode(.windowed)
