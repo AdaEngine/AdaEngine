@@ -1,0 +1,4 @@
+module AtlasFontGenerator {
+    umbrella "/home/vladislav/share/Developer/AdaEngine/Modules/msdf-atlas-gen/AtlasFontGenerator/include"
+    export *
+}

@@ -1,0 +1,22 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "SPIRV-Cross-arm64-apple-macosx26.0-debug.module": ["<SPIRV-Cross-arm64-apple-macosx26.0-debug.module>"]
+  "main": []
+  "test": []
+default: "main"
+nodes:
+  "/Users/vprusakov/Developer/AdaEngine/Modules/SPIRV-Cross/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/vprusakov/Developer/AdaEngine/Modules/SPIRV-Cross/","/Users/vprusakov/Developer/AdaEngine/Modules/SPIRV-Cross/Package.swift","/Users/vprusakov/Developer/AdaEngine/Modules/SPIRV-Cross/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

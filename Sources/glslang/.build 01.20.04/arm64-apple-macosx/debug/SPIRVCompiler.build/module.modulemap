@@ -1,0 +1,4 @@
+module SPIRVCompiler {
+    umbrella "/Users/vprusakov/Developer/AdaEngine/Modules/glslang/SPIRVCompiler/include"
+    export *
+}

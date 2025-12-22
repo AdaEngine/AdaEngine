@@ -14,7 +14,12 @@ public struct DefaultAppWindow: AppScene {
 
     public var body: some AppScene {
         EmptyWindow()
-            .addPlugins(DefaultPlugins(filePath: filePath))
+            .transformAppWorlds { world in
+                world.insertPlugin(
+                    DefaultPlugins(filePath: filePath),
+                    after: MainSchedulerPlugin.self
+                )
+            }
     }
 
     /// - Parameter filePath: The file path to use for the `AssetsPlugin`.

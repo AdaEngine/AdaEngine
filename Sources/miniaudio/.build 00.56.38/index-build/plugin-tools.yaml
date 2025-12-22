@@ -1,0 +1,22 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "main": []
+  "miniaudio-arm64-apple-macosx26.0-debug.module": ["<miniaudio-arm64-apple-macosx26.0-debug.module>"]
+  "test": []
+default: "main"
+nodes:
+  "/Users/vprusakov/Developer/AdaEngine/Sources/miniaudio/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/vprusakov/Developer/AdaEngine/Sources/miniaudio/","/Users/vprusakov/Developer/AdaEngine/Sources/miniaudio/Package.swift","/Users/vprusakov/Developer/AdaEngine/Sources/miniaudio/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

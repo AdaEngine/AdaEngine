@@ -1,0 +1,4 @@
+module miniaudio {
+    umbrella header "/Users/vprusakov/Developer/AdaEngine/Sources/miniaudio/include/miniaudio.h"
+    export *
+}

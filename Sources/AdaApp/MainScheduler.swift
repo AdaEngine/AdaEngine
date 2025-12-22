@@ -9,10 +9,10 @@ import AdaECS
 import AdaUtils
 
 /// The plugin that sets up the main scheduler.
-struct MainSchedulerPlugin: Plugin {
+package struct MainSchedulerPlugin: Plugin {
     /// Setup the main scheduler.
     /// - Parameter app: The app to setup the main scheduler for.
-    func setup(in app: AppWorlds) {
+    package func setup(in app: AppWorlds) {
         let mainScheduler = Scheduler(name: .main)
         app.updateScheduler = .main
 

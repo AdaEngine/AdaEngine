@@ -1,0 +1,4 @@
+module box2d {
+    umbrella header "/Users/vprusakov/Developer/AdaEngine/Modules/box2d/include/box2d/box2d.h"
+    export *
+}

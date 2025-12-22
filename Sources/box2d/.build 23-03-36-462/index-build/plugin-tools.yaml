@@ -1,0 +1,22 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "box2d-arm64-apple-macosx26.0-debug.module": ["<box2d-arm64-apple-macosx26.0-debug.module>"]
+  "main": []
+  "test": []
+default: "main"
+nodes:
+  "/Users/vprusakov/Developer/AdaEngine/Sources/box2d/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/vprusakov/Developer/AdaEngine/Sources/box2d/","/Users/vprusakov/Developer/AdaEngine/Sources/box2d/Package.swift","/Users/vprusakov/Developer/AdaEngine/Sources/box2d/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

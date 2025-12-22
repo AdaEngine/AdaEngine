@@ -1,0 +1,22 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "glslang-arm64-apple-macosx26.0-debug.module": ["<glslang-arm64-apple-macosx26.0-debug.module>"]
+  "main": []
+  "test": []
+default: "main"
+nodes:
+  "/Users/vprusakov/Developer/AdaEngine/Modules/glslang/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/vprusakov/Developer/AdaEngine/Modules/glslang/","/Users/vprusakov/Developer/AdaEngine/Modules/glslang/Package.swift","/Users/vprusakov/Developer/AdaEngine/Modules/glslang/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

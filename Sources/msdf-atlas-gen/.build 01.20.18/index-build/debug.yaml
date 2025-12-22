@@ -1,0 +1,34 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "MSDFAtlasGen-arm64-apple-macosx15.0-debug.module": ["<MSDFAtlasGen-arm64-apple-macosx15.0-debug.module>"]
+  "MSDFGen-arm64-apple-macosx15.0-debug.module": ["<MSDFGen-arm64-apple-macosx15.0-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "freetype-arm64-apple-macosx15.0-debug.module": ["<freetype-arm64-apple-macosx15.0-debug.module>"]
+  "main": []
+  "test": []
+  "tinyxml-arm64-apple-macosx15.0-debug.module": ["<tinyxml-arm64-apple-macosx15.0-debug.module>"]
+default: "main"
+nodes:
+  "/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/freetype/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/msdf-atlas-gen/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/msdfgen/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/tinyxml/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/freetype/","/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/msdf-atlas-gen/","/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/msdfgen/","/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/tinyxml/","/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/Package.swift","/Users/vprusakov/Developer/AdaEngine/Modules/msdf-atlas-gen/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+
