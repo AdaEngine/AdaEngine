@@ -1,4 +1,0 @@
-module glslang {
-    umbrella "/home/vladislav/share/Developer/AdaEngine/Modules/glslang/Sources"
-    export *
-}

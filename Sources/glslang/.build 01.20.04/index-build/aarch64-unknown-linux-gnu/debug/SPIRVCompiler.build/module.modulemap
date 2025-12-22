@@ -1,4 +1,0 @@
-module SPIRVCompiler {
-    umbrella "/home/vladislav/share/Developer/AdaEngine/Modules/glslang/SPIRVCompiler/include"
-    export *
-}
