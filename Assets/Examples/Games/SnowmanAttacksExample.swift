@@ -16,9 +16,8 @@ enum GameConfiguration {
 @main
 struct SnowmanAttacksApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 SnowmanAttacks()
             )
             .windowMode(.windowed)

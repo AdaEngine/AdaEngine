@@ -74,8 +74,9 @@
             @Step {
                 Now modify the ``AppScene``. 
 
-                AdaEngine supports modular app architecture. Each piece of logic can be connected to the app using the ``addPlugins`` method.
-                Let's add ``DefaultPlugins`` to our app. It contains all game engine logic like rendering, audio, input, etc. 
+                AdaEngine supports modular app architecture. Each piece of logic can be connected to the app using the plugins. Core engine features implemented by plugins, like rendering, physics, audio, input, etc.
+                Let's add ``DefaultAppWindow`` object as our app scene. This object contains all core game engine plugins logic. But, you want full control which plugin is added, you can use ``EmptyWindow`` scene and add plugins manually.
+                
                 Also, add the `windowTitle` modifier to add a custom window title for your window. 
                 Add the `windowMode` modifier to change the window presentation from fullscreen to windowed.
                 

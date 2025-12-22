@@ -3,6 +3,7 @@
 
 # Ignore Swift Package Manager build artifacts directory.
 .build/
+**/.build/
 
 # Ignore generated Xcode projects
 *.xcodeproj

@@ -10,9 +10,8 @@ import AdaEngine
 @main
 struct LdtkTilemapExampleApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 LdtkTilemapPlugin()
             )
             .windowMode(.windowed)

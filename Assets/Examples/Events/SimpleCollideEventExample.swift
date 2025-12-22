@@ -10,9 +10,8 @@ import AdaEngine
 @main
 struct SimpleCollideEventExampleApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 SimpleCollideEventExamplePlugin()
             )
             .windowMode(.windowed)

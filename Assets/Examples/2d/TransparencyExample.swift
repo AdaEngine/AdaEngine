@@ -10,9 +10,8 @@ import AdaEngine
 @main
 struct TransparencyExampleApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 TransparencyExamplePlugin()
             )
             .windowMode(.windowed)

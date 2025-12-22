@@ -173,12 +173,12 @@ public struct FixedTime: Resource {
 /// A resource that contains the elapsed time from launch.
 public struct ElapsedTime: Resource {
     /// The elaped time.
-    public let value: AdaUtils.TimeInterval
+    public let elapsedTime: AdaUtils.TimeInterval
 
     /// Initialize a new delta time.
     /// - Parameter deltaTime: The delta time.
-    public init(value: AdaUtils.TimeInterval = 0.0) {
-        self.value = value
+    public init(elapsedTime: AdaUtils.TimeInterval = 0.0) {
+        self.elapsedTime = elapsedTime
     }
 }
 
@@ -256,7 +256,7 @@ public struct Scheduler: Sendable {
 
         let name = self.name
         world.insertResource(DeltaTime(deltaTime: deltaTime))
-        world.insertResource(ElapsedTime(value: TimeInterval(lastUpdate)))
+        world.insertResource(ElapsedTime(elapsedTime: TimeInterval(lastUpdate)))
 
         await graphExecutor.execute(systemGraph, world: world, scheduler: name)
     }

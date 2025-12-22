@@ -7,6 +7,7 @@
 
 import AdaECS
 import AdaUtils
+import Logging
 
 // TODO: Do we need be a Main Actor???
 
@@ -34,7 +35,13 @@ public final class AppWorlds {
 
     /// The plugins.
     @usableFromInline
-    var plugins: [ObjectIdentifier: any Plugin] = [:]
+    var plugins: ContiguousArray<any Plugin> = []
+
+    /// Names of installed plugins.
+    @usableFromInline
+    var installedPlugins: [ObjectIdentifier: String] = [:]
+
+    private var pluginDepth = 0
 
     /// The runner.
     var runner: ((AppWorlds) -> Void)?
@@ -44,6 +51,8 @@ public final class AppWorlds {
 
     /// Default scheduler that will run first in ``update()`` method
     public var updateScheduler: SchedulerName?
+
+    let logger: Logger
 
     /// Initialize a new instance of `AppWorlds` with the given main world and subworlds.
     /// - Parameters:
@@ -55,6 +64,7 @@ public final class AppWorlds {
     ) {
         self.main = main
         self.subWorlds = subWorlds
+        self.logger = Logger(label: "org.adaengine.AdaApp.\(main.name ?? "UnknownWorld")")
     }
 }
 
@@ -113,27 +123,74 @@ public extension AppWorlds {
     @inlinable
     @discardableResult
     func addPlugin<T: Plugin>(_ plugin: T) -> Self {
-        if self.plugins[ObjectIdentifier(T.self)] != nil {
-            assertionFailure("Plugin already installed")
+        if let pluginName = self.installedPlugins[ObjectIdentifier(T.self)] {
+            assertionFailure("Plugin \(pluginName) already installed")
             return self
         }
 
-        self.plugins[ObjectIdentifier(T.self)] = plugin
-        plugin.setup(in: self)
+        self.plugins.append(plugin)
         return self
     }
 
-    func build() async throws {
-        /// Wait until all plugins is loaded
-        while !self.plugins.allSatisfy({ $0.value.isLoaded(in: self) }) {
-            await Task.yield()
+    /// Insert plugin to specific index.
+    @inlinable
+    @discardableResult
+    func insertPlugin<T: Plugin, C: Plugin>(_ plugin: T, after pluginType: C.Type) -> Self {
+        if let pluginName = self.installedPlugins[ObjectIdentifier(T.self)] {
+            assertionFailure("Plugin \(pluginName) already installed")
+            return self
         }
-        
+
+        guard let findPluginIndex = self.plugins.firstIndex(where: { type(of: $0) == pluginType }) else {
+            assertionFailure("Can't find plugin with type \(pluginType)")
+            return self
+        }
+        self.plugins.insert(plugin, at: findPluginIndex + 1)
+        return self
+    }
+
+    /// Setup plugins.
+    func build() async throws {
+        self.setupPlugins(self.plugins[...])
+        assert(self.pluginDepth == 0, "Plugins installed recursevly")
+
         for subWorld in self.subWorlds.values {
             try await subWorld.build()
         }
-        self.plugins.forEach { $0.value.finish(for: self) }
+
+        /// Wait until all plugins is loaded
+        while !self.plugins.allSatisfy({ $0.isLoaded(in: self) }) {
+            await Task.yield()
+        }
+    
+        self.plugins.forEach { $0.finish(for: self) }
         self.isConfigured = true
+    }
+}
+
+private extension AppWorlds {
+    private func setupPlugins(_ plugins: ContiguousArray<any Plugin>.SubSequence) {
+        var index = plugins.endIndex
+        plugins.forEach {
+            self.pluginDepth += 1
+
+            if let pluginName = self.installedPlugins[ObjectIdentifier(type(of: $0))] {
+                assertionFailure("Plugin \(pluginName) already setuped")
+            }
+            $0.setup(in: self)
+
+            self.logger.debug("Plugin installed \(type(of: $0))")
+
+            /// If plugin add a new plugins, we should check it.
+            if !self.plugins[index...].isEmpty {
+                setupPlugins(self.plugins[index...])
+                index = self.plugins.endIndex
+            }
+
+            self.pluginDepth -= 1
+
+            self.installedPlugins[ObjectIdentifier(type(of: $0))] = String(reflecting: type(of: $0))
+        }
     }
 }
 
@@ -261,7 +318,6 @@ public extension Plugin {
 
     func finish(for app: borrowing AppWorlds) { }
 
-    @MainActor
     func destroy(for app: borrowing AppWorlds) { }
 }
 

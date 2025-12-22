@@ -10,9 +10,8 @@ import AdaEngine
 @main
 struct ScriptableComponentExampleApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 ScriptableComponentExamplePlugin()
             )
             .windowMode(.windowed)

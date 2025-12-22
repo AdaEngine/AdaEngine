@@ -7,7 +7,7 @@ struct PlayerComponent {}
 @main
 struct GamepadExampleApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .transformAppWorlds { appWorld in
                 appWorld.spawn(
                     "Camera",
@@ -27,7 +27,6 @@ struct GamepadExampleApp: App {
                 // Add a system to process gamepad input
                 appWorld.addSystem(GamepadInputSystem.self)
             }
-            .addPlugins(DefaultPlugins())
             .windowMode(.windowed)
     }
 }

@@ -10,9 +10,8 @@ import AdaEngine
 @main
 struct CustomMaterialApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 CustomMaterialPlugin(),
             )
             .windowMode(.windowed)
