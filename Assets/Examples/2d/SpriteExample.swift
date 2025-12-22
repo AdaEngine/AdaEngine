@@ -10,9 +10,8 @@ import AdaEngine
 @main
 struct SpriteExampleApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 SpriteExamplePlugin()
             )
             .windowMode(.windowed)

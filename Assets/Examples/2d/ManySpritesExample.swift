@@ -14,9 +14,8 @@ let colors: [Color] = [.blue, .white, .red]
 @main
 struct ManySpritesExample: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 ManySpritesExamplePlugin()
             )
             .windowMode(.windowed)

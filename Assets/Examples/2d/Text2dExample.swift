@@ -10,9 +10,8 @@ import AdaEngine
 @main
 struct Text2dExample: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 Text2dPlugin(),
             )
             .windowMode(.windowed)
@@ -89,8 +88,8 @@ func AnimateTranslationText(
     _ time: Res<ElapsedTime>
 ) {
     query.forEach { transform in
-        transform.position.x = 100 * Math.sin(time.value) - 600
-        transform.position.y = 100 * Math.cos(time.value)
+        transform.position.x = 100 * Math.sin(time.elapsedTime) - 600
+        transform.position.y = 100 * Math.cos(time.elapsedTime)
     }
 }
 
@@ -100,7 +99,7 @@ func AnimateRotationText(
     _ time: Res<ElapsedTime>
 ) {
     query.forEach { transform in
-        transform.rotation = Quat(axis: [0, 0, 1], angle: Math.cos(time.value))
+        transform.rotation = Quat(axis: [0, 0, 1], angle: Math.cos(time.elapsedTime))
     }
 }
 
@@ -110,7 +109,7 @@ func AnimateScaleText(
     _ time: Res<ElapsedTime>
 ) {
     query.forEach { transform in
-        let scale = (Math.sin(time.value) + 1.1) * 2.0
+        let scale = (Math.sin(time.elapsedTime) + 1.1) * 2.0
         transform.scale.x = scale
         transform.scale.y = scale
     }
