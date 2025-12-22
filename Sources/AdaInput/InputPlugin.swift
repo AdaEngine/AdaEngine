@@ -29,8 +29,8 @@ public struct InputPlugin: Plugin {
             .addSystem(InputStartupSystem.self, on: .startup)
             .addSystem(InputEventParseSystem.self, on: .preUpdate)
     }
-
-    public func finish(for app: borrowing AppWorlds) {
+    
+    public func destroy(for app: borrowing AppWorlds) {
         controllerEngine?.stopMonitoring()
     }
 }

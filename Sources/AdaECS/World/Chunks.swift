@@ -546,7 +546,7 @@ public struct ChangeMutableTickSlices {
     public let changed: UnsafeMutablePointer<Tick>
 }
 
-extension Chunk: NonCopybaleCustomStringConvertible {
+extension Chunk: CustomStringConvertible {
     public var description: String {
         return """
         Chunk(

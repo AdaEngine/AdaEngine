@@ -10,9 +10,8 @@ import AdaEngine
 @main
 struct TransformEntChildrenApp: App {
     var body: some AppScene {
-        EmptyWindow()
+        DefaultAppWindow()
             .addPlugins(
-                DefaultPlugins(),
                 TransformEntChildrenPlugin()
             )
             .windowMode(.windowed)
@@ -37,23 +36,14 @@ struct TransformEntChildrenPlugin: Plugin {
         app.main.spawn(bundle: OrthographicCameraBundle(camera: camera))
 
         let parent = app.main.spawn("parent") {
-            Transform(scale: Vector3(0.5), position: [0, 0, 0])
-            Sprite(texture: characterAtlas[0, 0])
+            Transform(scale: Vector3(2), position: [0, 0, 0])
+            Sprite(texture: characterAtlas[0, 0], size: Size(width: 56, height: 56))
             ParentComponent()
-
-            Collision2DComponent(
-                shapes: [.generateBox()],
-                mode: .trigger
-            )
         }
 
         let child = app.main.spawn("child") {
-            Transform(scale: Vector3(0.4), position: [0.5, -0.5, 0])
-            Sprite(texture: characterAtlas[0, 1])
-            Collision2DComponent(
-                shapes: [.generateBox(width: 0.4, height: 0.4)],
-                mode: .trigger
-            )
+            Transform(scale: Vector3(2), position: [56, -56, 0])
+            Sprite(texture: characterAtlas[0, 1], size: Size(width: 24, height: 24))
         }
 
         parent.addChild(child)
@@ -71,17 +61,14 @@ struct ParentMovementSystem {
     @FilterQuery<Ref<Transform>, With<ParentComponent>>
     private var parents
 
-    @Res<DeltaTime>
-    private var deltaTime
-
-    @Local var time: TimeInterval = 0
+    @Res<ElapsedTime>
+    private var time
 
     init(world: World) { }
 
     func update(context: UpdateContext) async {
-        time += deltaTime.deltaTime
         parents.forEach { transform in
-            transform.position.x = Float(Math.sin(time)) * 1
+            transform.position.x = Float(Math.sin(time.elapsedTime)) * 100
         }
     }
 }
