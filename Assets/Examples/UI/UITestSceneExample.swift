@@ -22,7 +22,9 @@ struct SomeContent: View {
         VStack {
             Color.blue
 
-            Text("Vlad")
+            Text("UI Test Scene")
+                .font(.system(size: 17))
+                .background(.red)
 
             Color.green
         }

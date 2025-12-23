@@ -75,18 +75,6 @@ final class TextViewNode: ViewNode {
         
 //        self.invalidateLayerIfNeeded()
     }
-
-//    override func createLayer() -> UILayer? {
-//        let layer = UILayer(frame: self.frame, drawBlock: { [weak self] context, size in
-//            guard let self else {
-//                return
-//            }
-//            let layout = Text.Layout(lines: self.layoutManager.textLines)
-//            self.textRenderer.draw(layout: layout, in: &context)
-//        })
-//        layer.debugLabel = self.textContainer.text.text
-//        return layer
-//    }
 }
 
 struct DefaultRichTextRenderer: TextRenderer {
