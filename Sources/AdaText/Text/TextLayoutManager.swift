@@ -82,6 +82,11 @@ public final class TextLayoutManager: @unchecked Sendable {
 
     public private(set) var size: Size = .zero
     public private(set) var textLines: [TextLine] = []
+    
+    /// The text alignment of the text container.
+    public var textAlignment: TextAlignment {
+        textContainer.textAlignment
+    }
 
     /// All glyphs for render in text contaner bounds
     private var glyphs: [Glyph] = []

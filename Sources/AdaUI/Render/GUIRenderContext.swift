@@ -110,15 +110,28 @@ public struct UIGraphicsContext: Sendable {
     // MARK: - Text Drawing
 
     public func drawText(in rect: Rect, from textLayout: TextLayoutManager) {
+        // For text, we only need translation (positioning), not scaling
+        // Text glyphs are already in pixel coordinates
+//        let textTransform = Transform3D(translation: [rect.midX, -rect.midY, 0])
+//        let transform = self.transform * textTransform
         let transform = self.transform * rect.toTransform3D
-        self.commandQueue.push(.drawText(textLayout: textLayout, transform: transform))
+        self.commandQueue.push(
+            .drawText(
+                textLayout: textLayout,
+                transform: transform
+            )
+        )
     }
 
     public func drawText(_ text: AttributedText, in rect: Rect) {
         let layout = TextLayoutManager()
         layout.setTextContainer(TextContainer(text: text))
         layout.fitToSize(rect.size)
-        let transform = self.transform * rect.toTransform3D
+        // For text, we only need translation (positioning), not scaling
+        // Text glyphs are already in pixel coordinates
+        let textTransform = Transform3D(translation: [rect.midX, -rect.midY, 1])
+        let transform = self.transform * textTransform
+//        let transform = self.transform * rect.toTransform3D
         self.commandQueue.push(.drawText(textLayout: layout, transform: transform))
     }
 

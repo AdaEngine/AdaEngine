@@ -56,6 +56,7 @@ final class TextViewNode: ViewNode {
         var context = context
         context.environment = environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
+        context.scaleBy(x: 0.05, y: 0.05)
         let layout = Text.Layout(lines: self.layoutManager.textLines)
         self.textRenderer.draw(layout: layout, in: &context)
 
