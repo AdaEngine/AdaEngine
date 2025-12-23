@@ -14,17 +14,41 @@ import Collections
 
 // TODO: Clip Mask
 
-/// Special object to render user interface on the screen.
-/// Context use orthogonal projection.
+/// An immediate mode drawing destination, and its current state.
+///
+/// Use a context to execute 2D drawing primitives.
+///
+/// ```swift
+/// // Draw plain rect.
+/// func draw(in context: inout UIGraphicsContext) {
+///     context.drawRect(Rect(x: 0, y: 0, width: 100, height: 30), color: .red)
+/// }
+/// ```
+///
+/// ```swift
+/// // Draw rect with scale and opacity
+/// func draw(in context: inout UIGraphicsContext) {
+///     var context = context
+///     context.opacity = 0.5
+///     context.scaledBy(x: 2, y: 2)
+///     context.drawRect(Rect(x: 0, y: 0, width: 100, height: 30), color: .red)
+/// }
+/// ```
+///
+/// The context has access to an ``AdaUtils/EnvironmentValues`` instance called ``environment`` that’s initially copied from the environment of its enclosing view or entity. You can also access values stored in the environment for your own purposes.
 public struct UIGraphicsContext: Sendable {
 
     /// Returns current transform.
     public private(set) var transform: Transform3D = .identity
     private var clipPath: Path?
 
+    /// The opacity of drawing operations in the context.
+    ///
+    /// Set this value to affect the opacity of content that you subsequently draw into the context.
+    /// Changing this value has no impact on the content you previously drew into the context.
     public var opacity: Float = 1
 
-    /// Values passed for render context.
+    /// The environment associated with the graphics context.
     public var environment: EnvironmentValues = EnvironmentValues()
 
     // Used for internal and debug values.
@@ -32,26 +56,38 @@ public struct UIGraphicsContext: Sendable {
 
     private(set) var commandQueue = CommandQueue()
 
+    /// Create graphics context.
     public init() { }
 
+    /// Appends the given transform to the context’s existing transform.
+    /// - Parameter matrix: A transform to append to the existing transform.
     public mutating func concatenate(_ transform: Transform3D) {
         self.transform = transform * self.transform
     }
 
+    /// Moves subsequent drawing operations by an amount in each dimension.
+    /// - Parameter x: The amount to move in the horizontal direction.
+    /// - Parameter y: The amount to move in the vertical direction.
     public mutating func translateBy(x: Float, y: Float) {
         let translationMatrix = Transform3D(translation: [x, y, 0])
         self.transform = translationMatrix * self.transform
     }
-    
+
+    /// Scales subsequent drawing operations by an amount in each dimension.
+    /// - Parameter x: The amount to scale in the horizontal direction.
+    /// - Parameter y: The amount to scale in the vertical direction.
     public mutating func scaleBy(x: Float, y: Float) {
         let scaleMatrix = Transform3D(scale: [x, y, 1])
         self.transform = scaleMatrix * self.transform
     }
 
+    /// Rotates subsequent drawing operations by an angle.
+    /// - Parameter angle: The amount to rotate.
     public mutating func rotate(by angle: Angle) {
         self.transform = Transform3D(quat: Quat(axis: Vector3(0, 0, 1), angle: angle.radians)) * self.transform
     }
 
+    /// Clear any applied transform
     public mutating func clearTransform() {
         self.transform = .identity
     }
@@ -86,6 +122,7 @@ public struct UIGraphicsContext: Sendable {
         )
     }
 
+    /// Draws line into the graphics context.
     public func drawLine(start: Vector2, end: Vector2, lineWidth: Float, color: Color) {
         let start = (transform * Vector4(start.x, start.y, 0, 1))
         let end = (transform * Vector4(end.x, end.y, 0, 1))
@@ -99,21 +136,10 @@ public struct UIGraphicsContext: Sendable {
         )
     }
 
-    private func applyOpacityIfNeeded(_ color: Color) -> Color {
-        if color == .clear {
-            return color
-        }
-
-        return color.opacity(self.opacity)
-    }
-
     // MARK: - Text Drawing
 
+    /// Draws text into the graphics context.
     public func drawText(in rect: Rect, from textLayout: TextLayoutManager) {
-        // For text, we only need translation (positioning), not scaling
-        // Text glyphs are already in pixel coordinates
-//        let textTransform = Transform3D(translation: [rect.midX, -rect.midY, 0])
-//        let transform = self.transform * textTransform
         let transform = self.transform * rect.toTransform3D
         self.commandQueue.push(
             .drawText(
@@ -123,45 +149,53 @@ public struct UIGraphicsContext: Sendable {
         )
     }
 
+    /// Draws attributed text into the graphics context.
     public func drawText(_ text: AttributedText, in rect: Rect) {
         let layout = TextLayoutManager()
         layout.setTextContainer(TextContainer(text: text))
         layout.fitToSize(rect.size)
-        // For text, we only need translation (positioning), not scaling
-        // Text glyphs are already in pixel coordinates
-        let textTransform = Transform3D(translation: [rect.midX, -rect.midY, 1])
-        let transform = self.transform * textTransform
-//        let transform = self.transform * rect.toTransform3D
+        let transform = self.transform * rect.toTransform3D
         self.commandQueue.push(.drawText(textLayout: layout, transform: transform))
     }
 
+    /// Draws path into the graphics context.
     public func draw(_ path: Path) {
         self.commandQueue.push(.drawPath(path))
     }
 
+    /// Draws text line into the graphics context.
     public func draw(_ line: TextLine) {
         for run in line {
             self.draw(run)
         }
     }
 
+    /// Draws text run into the graphics context.
     public func draw(_ run: TextRun) {
         for glyph in run {
             self.draw(glyph)
         }
     }
 
+    /// Draws text glyph into the graphics context.
     public func draw(_ glyph: Glyph) {
-        let rect = Rect(
-            origin: glyph.origin,
-            size: glyph.size
-        )
-        let transform = self.transform * rect.toTransform3D
-        self.commandQueue.push(.drawGlyph(glyph, transform: transform))
+        // Use identity transform - glyph.position already contains correct pixel coordinates
+        // The current context transform will be applied during tessellation
+        self.commandQueue.push(.drawGlyph(glyph, transform: self.transform))
     }
 
+    /// Commits draws.
     public func commitDraw() {
         self.commandQueue.push(.commit)
+    }
+
+    @inlinable
+    func applyOpacityIfNeeded(_ color: Color) -> Color {
+        if color == .clear {
+            return color
+        }
+
+        return color.opacity(self.opacity)
     }
 }
 
@@ -176,6 +210,13 @@ extension Rect {
 }
 
 extension UIGraphicsContext {
+
+    /// Returns recorded draw commands.
+    /// Use it for tesselation.
+    public func getDrawCommands() -> [DrawCommand] {
+        self.commandQueue.commands
+    }
+
     final class CommandQueue: @unchecked Sendable {
         var commands: [DrawCommand] = []
 
@@ -187,7 +228,8 @@ extension UIGraphicsContext {
         }
     }
 
-    enum DrawCommand: Sendable {
+    /// The commands that Graphic Context recorded.
+    public enum DrawCommand: Sendable {
         case setLineWidth(Float)
         case drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color)
 

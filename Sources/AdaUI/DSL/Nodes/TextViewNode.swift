@@ -56,7 +56,26 @@ final class TextViewNode: ViewNode {
         var context = context
         context.environment = environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-        context.scaleBy(x: 0.05, y: 0.05)
+        
+        // Calculate vertical offset to position text correctly within the frame
+        // Text positions are calculated relative to y=0, but we need to offset them down
+        // to account for the top of the first line (which may have positive pt values)
+        var verticalOffset: Float = 0
+        if let firstLine = self.layoutManager.textLines.first, !self.layoutManager.textLines.isEmpty {
+            // Find the maximum pt (top) value among all glyphs in the first line
+            var maxTopY: Float = 0
+            for run in firstLine {
+                for glyph in run {
+                    // glyph.position.w is pt (top Y coordinate)
+                    maxTopY = max(maxTopY, glyph.position.w)
+                }
+            }
+            // Offset down by the maximum top Y to position text correctly
+            verticalOffset = -maxTopY
+        }
+        
+        context.translateBy(x: 0, y: verticalOffset)
+        
         let layout = Text.Layout(lines: self.layoutManager.textLines)
         self.textRenderer.draw(layout: layout, in: &context)
 
