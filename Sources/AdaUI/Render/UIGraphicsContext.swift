@@ -51,9 +51,6 @@ public struct UIGraphicsContext: Sendable {
     /// The environment associated with the graphics context.
     public var environment: EnvironmentValues = EnvironmentValues()
 
-    // Used for internal and debug values.
-    package var _environment: EnvironmentValues = EnvironmentValues()
-
     private(set) var commandQueue = CommandQueue()
 
     /// Create graphics context.

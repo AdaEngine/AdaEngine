@@ -127,7 +127,7 @@ open class UIView {
     open func draw(in rect: Rect, with context: UIGraphicsContext) { }
 
     /// Internal method for drawing.
-    @_spi(AdaEngineEditor)
+    @_spi(AdaEngine)
     open func draw(with context: UIGraphicsContext) {
         if self.isHidden {
             return
@@ -146,7 +146,7 @@ open class UIView {
 
         self.draw(in: self.bounds, with: context)
 
-        if context._environment.drawDebugOutlines {
+        if context.environment.debugViewDrawingOptions.contains(.drawViewOverlays) {
             context.drawDebugBorders(frame.size, color: debugViewColor)
         }
 
