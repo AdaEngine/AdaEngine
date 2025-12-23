@@ -57,25 +57,39 @@ final class TextViewNode: ViewNode {
         context.environment = environment
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         
-        // Calculate vertical offset to position text correctly within the frame
-        // Text positions are calculated relative to y=0, but we need to offset them down
-        // to account for the top of the first line (which may have positive pt values)
+        // Calculate vertical offset to center text within the frame
+        // Text positions are calculated relative to y=0, but we need to center them vertically
         var verticalOffset: Float = 0
-        if let firstLine = self.layoutManager.textLines.first, !self.layoutManager.textLines.isEmpty {
-            // Find the maximum pt (top) value among all glyphs in the first line
-            var maxTopY: Float = 0
-            for run in firstLine {
-                for glyph in run {
-                    // glyph.position.w is pt (top Y coordinate)
-                    maxTopY = max(maxTopY, glyph.position.w)
+        if !self.layoutManager.textLines.isEmpty {
+            // Find the maximum pt (top) and minimum pb (bottom) values among all glyphs
+            var maxTopY: Float = -Float.infinity
+            var minBottomY: Float = Float.infinity
+            
+            for line in self.layoutManager.textLines {
+                for run in line {
+                    for glyph in run {
+                        // glyph.position.w is pt (top Y coordinate), glyph.position.y is pb (bottom Y coordinate)
+                        maxTopY = max(maxTopY, glyph.position.w)
+                        minBottomY = min(minBottomY, glyph.position.y)
+                    }
                 }
             }
-            // Offset down by the maximum top Y to position text correctly
-            verticalOffset = -maxTopY
+            
+            // Calculate text height
+            let textHeight = maxTopY - minBottomY
+            
+            // Center text vertically within the frame
+            // Frame center is at frame.height / 2 from the top
+            // Text center should be at textHeight / 2 from maxTopY
+            // So we need to offset: frame.height / 2 - (maxTopY - textHeight / 2)
+            // Which simplifies to: frame.height / 2 - maxTopY + textHeight / 2
+            let frameCenterY = self.frame.size.height
+            let textCenterY = maxTopY - textHeight / 2
+            verticalOffset = frameCenterY - textCenterY
         }
         
-        context.translateBy(x: 0, y: verticalOffset)
-        
+        context.translateBy(x: 0, y: -verticalOffset)
+
         let layout = Text.Layout(lines: self.layoutManager.textLines)
         self.textRenderer.draw(layout: layout, in: &context)
 
@@ -92,8 +106,6 @@ final class TextViewNode: ViewNode {
         self.textRenderer = textNode.textRenderer
         self.textContainer = textNode.textContainer
         self.updateEnvironment(textNode.environment)
-        
-//        self.invalidateLayerIfNeeded()
     }
 }
 

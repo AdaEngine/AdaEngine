@@ -498,7 +498,7 @@ public struct TextLine: Equatable {
     let characterRange: Range<String.Index>
 
     /// All glyphs for render in text contaner bounds
-    var runs: [TextRun] = []
+    public internal(set) var runs: [TextRun] = []
     public internal(set) var typographicBounds: TypographicBounds = TypographicBounds()
 
     init(attributedText: AttributedText, range: Range<String.Index>) {

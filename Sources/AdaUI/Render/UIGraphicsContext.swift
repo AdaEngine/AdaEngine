@@ -164,6 +164,7 @@ public struct UIGraphicsContext: Sendable {
     }
 
     /// Draws text line into the graphics context.
+    @inlinable
     public func draw(_ line: TextLine) {
         for run in line {
             self.draw(run)
@@ -171,6 +172,7 @@ public struct UIGraphicsContext: Sendable {
     }
 
     /// Draws text run into the graphics context.
+    @inlinable
     public func draw(_ run: TextRun) {
         for glyph in run {
             self.draw(glyph)
@@ -218,9 +220,11 @@ extension UIGraphicsContext {
     }
 
     final class CommandQueue: @unchecked Sendable {
+        @usableFromInline
         var commands: [DrawCommand] = []
 
         // We expected, that draw commands will be added only on main thread
+        @inlinable
         func push(_ command: DrawCommand) {
             MainActor.assumeIsolated { [command] in
                 self.commands.append(command)
