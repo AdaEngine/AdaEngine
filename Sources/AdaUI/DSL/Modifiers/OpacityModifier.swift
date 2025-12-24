@@ -37,7 +37,7 @@ final class OpacityViewNodeModifier: ViewModifierNode {
             layer.drawLayer(in: context)
         }
 
-        if context._environment.drawDebugOutlines {
+        if context.environment.debugViewDrawingOptions.contains(.drawViewOverlays) {
             context.drawDebugBorders(frame.size, color: debugNodeColor)
         }
     }

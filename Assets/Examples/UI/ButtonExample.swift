@@ -12,6 +12,7 @@ struct ButtonExample: App {
     var body: some AppScene {
         WindowGroup {
             ContentView()
+                ._debugDrawing(.drawViewOverlays)
         }
         .windowMode(.windowed)
     }
@@ -23,11 +24,12 @@ struct ContentView: View {
 
     var body: some View {
         Button {
-            buttonText = "Thanks!"
+            buttonText = ["Thanks!", "Best click ever!", "You're best ❤️"].randomElement()!
         } label: {
             Text(buttonText)
+                .foregroundColor(.white)
         }
         .padding(.all, 8)
-        .background(.red)
+        .background(.blue)
     }
 }

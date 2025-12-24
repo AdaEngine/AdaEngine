@@ -175,13 +175,59 @@ public struct UIRenderTesselationSystem {
                     renderData.lineIndexBuffer.elements.append(contentsOf: indices)
 
                 case let .drawText(textLayout, transform):
-                    // Tessellate all glyphs from the text layout
+                    // Calculate text centering offset
+                    let textSize = textLayout.boundingSize()
+                    let textAlignment = textLayout.textAlignment
+                    
+                    var offsetX: Float = 0
+                    var offsetY: Float = 0
+                    
+                    switch textAlignment {
+                    case .center:
+                        offsetX = -textSize.width / 2
+                        if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
+                            let topY = firstLine.typographicBounds.rect.origin.y
+                            let bottomY = topY - textSize.height
+                            offsetY = -(topY + bottomY) / 2
+                        }
+                    case .leading:
+                        offsetX = 0
+                        if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
+                            let topY = firstLine.typographicBounds.rect.origin.y
+                            let bottomY = topY - textSize.height
+                            offsetY = -(topY + bottomY) / 2
+                        }
+                    case .trailing:
+                        offsetX = -textSize.width
+                        if let firstLine = textLayout.textLines.first, !textLayout.textLines.isEmpty {
+                            let topY = firstLine.typographicBounds.rect.origin.y
+                            let bottomY = topY - textSize.height
+                            offsetY = -(topY + bottomY) / 2
+                        }
+                    }
+                    
+                    // Tessellate all glyphs from the text layout with centering
                     for line in textLayout.textLines {
+                        // Calculate line-specific offset for horizontal alignment
+                        var lineOffsetX = offsetX
+                        if textAlignment == .center || textAlignment == .trailing {
+                            let lineWidth = line.typographicBounds.rect.width
+                            if textAlignment == .center {
+                                lineOffsetX = offsetX + (textSize.width - lineWidth) / 2
+                            } else {
+                                lineOffsetX = offsetX + (textSize.width - lineWidth)
+                            }
+                        }
+                        
                         for run in line {
                             for glyph in run {
+                                // Apply centering offset during tessellation
+                                let glyphOffset = Vector2(x: lineOffsetX, y: -offsetY)
+                                
                                 tessellateGlyph(
                                     glyph,
                                     transform: transform,
+                                    offset: glyphOffset,
                                     tessellator: tessellator,
                                     fontAtlasSlotIndex: &fontAtlasSlotIndex,
                                     renderData: &renderData
@@ -255,6 +301,7 @@ public struct UIRenderTesselationSystem {
     private func tessellateGlyph(
         _ glyph: Glyph,
         transform: Transform3D,
+        offset: Vector2 = .zero,
         tessellator: UITessellator,
         fontAtlasSlotIndex: inout Int,
         renderData: inout UIDrawData
@@ -269,7 +316,8 @@ public struct UIRenderTesselationSystem {
         let vertices = tessellator.tessellateGlyph(
             glyph,
             transform: transform,
-            textureIndex: texIndex
+            textureIndex: texIndex,
+            offset: offset
         )
         renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
 

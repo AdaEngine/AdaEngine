@@ -20,9 +20,7 @@ struct _BorderModifier: ViewModifier {
     let lineWidth: Float
 
     func body(content: Content) -> some View {
-        ZStack {
-            content
-
+        content.overlay {
             Canvas { context, size in
                 context.drawLine(start: Vector2(0, 0), end: Vector2(size.width, 0), lineWidth: lineWidth, color: color)
                 context.drawLine(start: Vector2(0, 0), end: Vector2(0, -size.height), lineWidth: lineWidth, color: color)

@@ -23,7 +23,7 @@ public extension EnvironmentValues {
     @Entry var lineLimit: Int?
 }
 
-@_spi(AdaEngineEditor)
+@_spi(AdaEngine)
 public extension EnvironmentValues {
-    @Entry var drawDebugOutlines: Bool = false
+    @Entry var debugViewDrawingOptions: _DebugViewDrawingOptions = []
 }

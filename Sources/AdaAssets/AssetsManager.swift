@@ -38,7 +38,8 @@ public struct AssetsManager: Resource {
 
     private static let logger = Logger(label: "org.adaengine.AssetsManager")
 
-    nonisolated(unsafe) private static var resourceDirectory: URL!
+    private nonisolated(unsafe) static var resourceDirectory: URL!
+
     private static let resKeyWord = "@res://"
     nonisolated(unsafe) private static var registredAssetTypes: [String: any Asset.Type] = [:]
     
