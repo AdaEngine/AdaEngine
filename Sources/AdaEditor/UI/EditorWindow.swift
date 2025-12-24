@@ -5,7 +5,7 @@
 //  Created by v.prusakov on 5/31/22.
 //
 
-@_spi(AdaEngineEditor) import AdaEngine
+@_spi(AdaEngine) import AdaEngine
 import Observation
 
 @Observable
@@ -168,7 +168,7 @@ class LayoutInspectableView: UIView {
         if viewMatrix != .identity {
             context.concatenate(viewMatrix)
         }
-        context._environment.drawDebugOutlines = drawDebugBorders
+        context.environment.debugViewDrawingOptions = .drawViewOverlays
         super.draw(with: context)
     }
 

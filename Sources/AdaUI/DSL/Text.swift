@@ -9,14 +9,17 @@ import AdaText
 import AdaUtils
 import Math
 
+/// A view that displays one or more lines of read-only text.
 public struct Text {
 
     let storage: Storage
 
+    /// Creates a text view that displays plain text.
     public init(_ text: String) {
         self.storage = Storage(string: text)
     }
 
+    /// Creates a text view that displays styled attributed content.
     public init(_ attributedText: AttributedText) {
         self.storage = Storage(attributedText: attributedText)
     }
@@ -45,16 +48,19 @@ public extension Text {
         return self
     }
 
+    /// Sets the color of the text displayed by this view.
     func foregroundColor(_ color: Color) -> Text {
         self.storage.foregroundColor = color
         return self
     }
 
+    /// Sets to a closed range the number of lines that text can occupy in this view.
     func lineLimit(_ number: Int?) -> Text {
         self.storage.lineLimit = number
         return self
     }
 
+    /// Concatenates the text in two text views in a new text view.
     static func + (lhs: Text, rhs: Text) -> Text {
         let newStorage = lhs.storage.concatinating(other: rhs.storage)
         return Text(newStorage)
@@ -114,7 +120,9 @@ extension Text {
                 self.lineLimit = environment.lineLimit
             }
 
-            if self.foregroundColor == nil {
+            if let foregroundColor = self.foregroundColor {
+                self.text.foregroundColor = foregroundColor
+            } else {
                 self.text.foregroundColor = environment.foregroundColor ?? .black
             }
 
@@ -192,10 +200,12 @@ extension Text {
 public protocol TextRenderer: Animatable, Sendable {
 
     /// Draws layout into context.
-    @MainActor func draw(layout: Text.Layout, in context: inout UIGraphicsContext)
+    @MainActor
+    func draw(layout: Text.Layout, in context: inout UIGraphicsContext)
 
     /// Returns the size of the text in proposal. The provided text proxy value may be used to query the sizing behavior of the underlying text layout.
-    @MainActor func sizeThatFits(proposal: ProposedViewSize, text: Text.Proxy) -> Size
+    @MainActor
+    func sizeThatFits(proposal: ProposedViewSize, text: Text.Proxy) -> Size
 }
 
 public extension TextRenderer {

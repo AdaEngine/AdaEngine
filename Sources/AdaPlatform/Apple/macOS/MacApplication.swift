@@ -25,7 +25,6 @@ final class MacApplication: Application {
         self.windowManager = MacOSWindowManager(screenManager)
         UIWindowManager.setShared(self.windowManager)
 
-
         // Create application
         let app = AdaApplication.shared
         app.setActivationPolicy(.regular)

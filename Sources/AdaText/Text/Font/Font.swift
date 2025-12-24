@@ -31,7 +31,7 @@ public extension Font {
     /// - Parameter size: The size of the font.
     /// - Returns: The system font.
     static func system(size: Double) -> Font {
-        let resource = FontResource.system(weight: FontWeight.regular, emFontScale: 52)
+        let resource = FontResource.system(weight: FontWeight.regular, emFontScale: 74)
         return Font(fontResource: resource, pointSize: size)
     }
 }

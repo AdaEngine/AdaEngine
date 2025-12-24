@@ -147,11 +147,13 @@ public struct UITessellator {
     ///   - glyph: The glyph to tessellate.
     ///   - transform: The transformation matrix.
     ///   - textureIndex: Index into the font atlas array.
+    ///   - offset: Optional offset to apply to glyph positions (for centering).
     /// - Returns: Array of 4 glyph vertices.
     public func tessellateGlyph(
         _ glyph: Glyph,
         transform: Transform3D,
-        textureIndex: Int
+        textureIndex: Int,
+        offset: Vector2 = .zero
     ) -> [GlyphVertexData] {
         let foregroundColor = glyph.attributes.foregroundColor
         let outlineColor = glyph.attributes.outlineColor
@@ -159,31 +161,37 @@ public struct UITessellator {
 
         // Glyph position: [x: pl, y: pb, z: pr, w: pt]
         let pos = glyph.position
+        
+        // Apply offset to positions
+        let x1 = pos.x + offset.x
+        let y1 = pos.y + offset.y
+        let x2 = pos.z + offset.x
+        let y2 = pos.w + offset.y
 
         return [
             GlyphVertexData(
-                position: transform * Vector4(x: pos.z, y: pos.y, z: 0, w: 1),
+                position: transform * Vector4(x: x2, y: y1, z: 0, w: 1),
                 foregroundColor: foregroundColor,
                 outlineColor: outlineColor,
                 textureCoordinate: Vector2(texCoord.z, texCoord.y),
                 textureIndex: textureIndex
             ),
             GlyphVertexData(
-                position: transform * Vector4(x: pos.z, y: pos.w, z: 0, w: 1),
+                position: transform * Vector4(x: x2, y: y2, z: 0, w: 1),
                 foregroundColor: foregroundColor,
                 outlineColor: outlineColor,
                 textureCoordinate: Vector2(texCoord.z, texCoord.w),
                 textureIndex: textureIndex
             ),
             GlyphVertexData(
-                position: transform * Vector4(x: pos.x, y: pos.w, z: 0, w: 1),
+                position: transform * Vector4(x: x1, y: y2, z: 0, w: 1),
                 foregroundColor: foregroundColor,
                 outlineColor: outlineColor,
                 textureCoordinate: Vector2(texCoord.x, texCoord.w),
                 textureIndex: textureIndex
             ),
             GlyphVertexData(
-                position: transform * Vector4(x: pos.x, y: pos.y, z: 0, w: 1),
+                position: transform * Vector4(x: x1, y: y1, z: 0, w: 1),
                 foregroundColor: foregroundColor,
                 outlineColor: outlineColor,
                 textureCoordinate: Vector2(texCoord.x, texCoord.y),
