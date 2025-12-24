@@ -184,7 +184,7 @@ extension LDtk {
 
                     try await loadLdtkProject(from: data)
                 } catch {
-                    logger.critical("Failed to update ldtk file \(error.localizedDescription)")
+                    logger.critical("Failed to update ldtk file \(error)")
                 }
             }
         }

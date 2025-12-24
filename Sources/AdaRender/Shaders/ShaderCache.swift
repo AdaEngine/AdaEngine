@@ -217,7 +217,7 @@ enum ShaderCache {
             
             return try fileSystem.createDirectory(at: cacheDir, withIntermediateDirectories: true)
         } catch {
-            fatalError("[ShaderCache] \(error.localizedDescription)")
+            fatalError("[ShaderCache] \(error)")
         }
     }
 }

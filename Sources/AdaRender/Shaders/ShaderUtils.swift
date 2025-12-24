@@ -9,10 +9,9 @@
 // Currently Swift Regex doesn't supports on macOS less than 13.0 and that's a problem here.
 // I want to use swift like solution instead of Foundation.
 
+import Foundation
 #if canImport(FoundationEssentials)
 import FoundationEssentials
-#else
-import Foundation
 #endif
 
 /// Collection of utils for works with shaders.
@@ -67,10 +66,12 @@ enum ShaderUtils {
             }
             
             let regular = try NSRegularExpression(pattern: "((^\\W|^\\w+)|(\\w+)|[:()])", options: [])
+            let rangeLocation = finalSource.utf16.distance(from: finalSource.startIndex, to: pointer)
+            let rangeLength = finalSource.utf16.distance(from: pointer, to: endOfLine)
             let matches = regular.matches(
                 in: finalSource,
                 options: [],
-                range: NSRange(pointer..<endOfLine, in: finalSource)
+                range: NSRange(location: rangeLocation, length: rangeLength)
             )
             
             let firstToken = finalSource.getSubstring(from: matches[1].range)
@@ -242,7 +243,7 @@ enum ShaderUtils {
         guard let firstMatch = regex.firstMatch(
             in: string,
             options: [],
-            range: NSRange(string.startIndex..<string.endIndex, in: string)
+            range: NSRange(location: 0, length: string.utf16.count)
         ) else {
             // We don't find any attributes
             return nil

@@ -111,7 +111,7 @@ extension VulkanRenderBackend {
                     self.drawFences.append(fence)
                 }
             } catch {
-                fatalError("[VulkanRenderBackend] \(error.localizedDescription)")
+                fatalError("[VulkanRenderBackend] \(error)")
             }
         }
 

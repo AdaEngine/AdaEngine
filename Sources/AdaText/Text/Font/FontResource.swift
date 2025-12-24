@@ -130,7 +130,7 @@ public extension FontResource {
                 from: .module
             ).asset
         } catch {
-            fatalError("[Font]: Something went wrong \(error.localizedDescription)")
+            fatalError("[Font]: Something went wrong \(error)")
         }
     }
 }
