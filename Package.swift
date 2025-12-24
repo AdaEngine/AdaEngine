@@ -610,6 +610,9 @@ targets += [
         publicHeadersPath: "include",
         cSettings: [
             .unsafeFlags(["-w"])
+        ],
+        linkerSettings: [
+            .linkedFramework("AVFoundation", .when(platforms: [.iOS]))
         ]
     ),
 
