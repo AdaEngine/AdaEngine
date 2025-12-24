@@ -110,7 +110,7 @@ var swiftSettings: [SwiftSetting] = [
 if isVulkanEnabled {
     swiftSettings.append(.define("VULKAN"))
 } else {
-    swiftSettings.append(.define("METAL"))
+    swiftSettings.append(.define("METAL", .when(platforms: applePlatforms)))
 }
 
 let editorTarget: Target = .executableTarget(

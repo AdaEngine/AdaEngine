@@ -13,6 +13,17 @@ import FoundationEssentials
 import Foundation
 #endif
 import Logging
+import Dispatch
+
+#if os(Windows)
+// Bundle is not available on Windows, create a minimal type to satisfy the API
+public struct Bundle: Sendable {
+    public init() {}
+    public init?(path: String) { return nil }
+    public func url(forResource name: String?, withExtension ext: String?) -> URL? { return nil }
+    public var bundleIdentifier: String? { return nil }
+}
+#endif
 
 public enum AssetError: LocalizedError {
     case notExistAtPath(String)
@@ -153,7 +164,7 @@ public struct AssetsManager: Resource {
     public static func load<A: Asset>(
         _ type: A.Type,
         at path: String,
-        from bundle: Foundation.Bundle,
+        from bundle: Bundle,
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
         if let cachedAsset = self.getHandlingResource(path: path, resourceType: A.self)?.value as? AssetHandle<A> {
@@ -161,9 +172,17 @@ public struct AssetsManager: Resource {
         }
         
         let processedPath = self.processPath(path)
+        #if os(Windows)
+        // On Windows, Bundle is not available, use the path directly
+        let uri = URL(fileURLWithPath: processedPath.url.relativeString)
+        guard FileSystem.current.itemExists(at: uri) else {
+            throw AssetError.notExistAtPath(processedPath.url.relativeString)
+        }
+        #else
         guard let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil), FileSystem.current.itemExists(at: uri) else {
             throw AssetError.notExistAtPath(processedPath.url.relativeString)
         }
+        #endif
         
         let resource: A = try await self.load(
             from: Path(url: uri, query: processedPath.query),
@@ -192,7 +211,7 @@ public struct AssetsManager: Resource {
     public static func loadSync<R: Asset>(
         _ type: R.Type,
         at path: String,
-        from bundle: Foundation.Bundle
+        from bundle: Bundle
     ) throws -> AssetHandle<R> {
         let task = UnsafeTask<AssetHandle<R>> {
             return try await load(type, at: path, from: bundle)
@@ -408,7 +427,10 @@ public struct AssetsManager: Resource {
     }
     
     @AssetActor
-    private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Foundation.Bundle?) async throws -> A {
+    private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Bundle?) async throws -> A {
+        #if os(Windows)
+        // Bundle is not available on Windows, ignore bundle parameter
+        #endif
         guard let data = FileSystem.current.readFile(at: path.url) else {
             throw AssetError.notExistAtPath(path.url.path)
         }
@@ -437,11 +459,13 @@ extension AssetsManager {
     static func getFilePath(from meta: AssetMetaInfo) -> Path {
         let processedPath = self.processPath(meta.assetPath)
         
+        #if !os(Windows)
         if let bundlePath = meta.bundlePath, let bundle = Bundle(path: bundlePath) {
             if let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil) {
                 return Path(url: uri, query: processedPath.query)
             }
         }
+        #endif
         
         return processedPath
     }
