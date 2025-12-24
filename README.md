@@ -50,7 +50,7 @@ import AdaEngine
 
 @main
 struct AdaEditorApp: App {
-    var scene: some AppScene {
+    var body: some AppScene {
         DefaultAppWindow()
             .windowMode(.windowed)
             .windowTitle("AdaEngine")

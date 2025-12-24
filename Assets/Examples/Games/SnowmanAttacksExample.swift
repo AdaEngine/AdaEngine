@@ -339,7 +339,7 @@ struct BulletSystem {
 struct EnemySpawnerSystem {
 
     @Local
-    private var fixedTime = FixedTimestep(stepsPerSecond: 2)
+    private var fixedTime = FixedTimestep(stepsPerSecond: 1)
 
     let textureAtlas: TextureAtlas
 
