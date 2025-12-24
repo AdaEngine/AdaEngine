@@ -30,10 +30,10 @@ public final class WinRecursiveLock: LockProtocol {
 }
 #else
 /// Extension to make NSRecursiveLock conform to LockProtocol
-public extension NSRecursiveLock: LockProtocol {
+extension NSRecursiveLock: LockProtocol {
     @inlinable @discardableResult
     @_spi(Internal)
-    func sync<R>(_ work: () throws -> R) rethrows -> R {
+    public func sync<R>(_ work: () throws -> R) rethrows -> R {
         self.lock()
         defer { self.unlock() }
         return try work()
