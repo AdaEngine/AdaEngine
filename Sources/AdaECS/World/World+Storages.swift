@@ -18,6 +18,7 @@ extension World {
         private var componentsIds: [ObjectIdentifier: ComponentId] = [:]
         private var requiredComponents: [ComponentId: [RequiredComponentInfo]] = [:]
 
+        @inlinable
         mutating func registerRequiredComponent<T: Component>(
             for component: ComponentId,
             requiredComponentId: ComponentId,
@@ -38,12 +39,14 @@ extension World {
         }
 
         @discardableResult
+        @inlinable
         mutating func registerComponent() -> ComponentId {
             let id = ComponentId(id: components.count)
             self.components.append(id)
             return id
         }
 
+        @inlinable
         mutating func getOrRegisterComponent<T: Component>(
             _ component: T.Type
         ) -> ComponentId {
@@ -57,14 +60,17 @@ extension World {
         }
 
         @inline(__always)
+        @inlinable
         func getComponentId<T: Component>(_ component: T.Type) -> ComponentId? {
             self.componentsIds[ObjectIdentifier(T.self)]
         }
 
+        @inlinable
         func getRequiredComponents<T: Component>(for component: T) -> [RequiredComponentInfo] {
             getComponentId(T.self).flatMap { self.requiredComponents[$0] } ?? []
         }
 
+        @inlinable
         func getRequiredComponents<T: Component>(for component: T.Type) -> [RequiredComponentInfo] {
             getComponentId(T.self).flatMap { self.requiredComponents[$0] } ?? []
         }
