@@ -7,23 +7,19 @@
 
 import AdaECS
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Logging
 import Dispatch
 
-#if os(Windows)
-// Bundle is not available on Windows, create a minimal type to satisfy the API
-public struct Bundle: Sendable {
-    public init() {}
-    public init?(path: String) { return nil }
-    public func url(forResource name: String?, withExtension ext: String?) -> URL? { return nil }
-    public var bundleIdentifier: String? { return nil }
-}
-#endif
+// #if os(Windows)
+// // Bundle is not available on Windows, create a minimal type to satisfy the API
+// public struct Bundle: Sendable {
+//     public init() {}
+//     public init?(path: String) { return nil }
+//     public func url(forResource name: String?, withExtension ext: String?) -> URL? { return nil }
+//     public var bundleIdentifier: String? { return nil }
+// }
+// #endif
 
 public enum AssetError: LocalizedError {
     case notExistAtPath(String)

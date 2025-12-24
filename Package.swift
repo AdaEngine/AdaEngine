@@ -105,6 +105,7 @@ var swiftSettings: [SwiftSetting] = [
     .define("ENABLE_DEBUG_DYLIB", .when(configuration: .debug)),
     .enableUpcomingFeature("MemberImportVisibility"),
     .strictMemorySafety(),
+    .unsafeFlags(["-Xfrontend", "-validate-tbd-against-ir=none"]),
 ]
 
 if isVulkanEnabled {

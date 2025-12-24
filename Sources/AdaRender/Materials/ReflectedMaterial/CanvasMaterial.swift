@@ -7,6 +7,7 @@
 
 import AdaAssets
 import AdaUtils
+import Foundation
 
 /// This material can be render Meshes in 2D world.
 public protocol CanvasMaterial: ReflectedMaterial { }
@@ -17,7 +18,7 @@ public extension CanvasMaterial {
         return try AssetsManager.loadSync(
             ShaderSource.self, 
             at: "Shaders/mesh2d/mesh2d.glsl#vert",
-            from: .module
+            from: Bundle.module
         )
     }
     
@@ -25,7 +26,7 @@ public extension CanvasMaterial {
         return try AssetsManager.loadSync(
             ShaderSource.self, 
             at: "Shaders/mesh2d/mesh2d.glsl#frag",
-            from: .module
+            from: Bundle.module
         )
     }
     
@@ -91,7 +92,7 @@ public struct ColorCanvasMaterial: CanvasMaterial {
         return try AssetsManager.loadSync(
             ShaderSource.self, 
             at: "Shaders/Materials/color_canvas_material.glsl",
-            from: .module
+            from: Bundle.module
         )
     }
 }
@@ -118,7 +119,7 @@ struct CircleCanvasMaterial: CanvasMaterial {
         return try AssetsManager.loadSync(
             ShaderSource.self, 
             at: "Shaders/Materials/circle_canvas_material.glsl", 
-            from: .module
+            from: Bundle.module
         )
     }
 }
