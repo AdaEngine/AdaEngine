@@ -121,7 +121,7 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
                 depthState: depthStencilState
             )
         } catch {
-            fatalError("[Metal Render Backend] \(error.localizedDescription)")
+            fatalError("[Metal Render Backend] \(error)")
         }
     }
 

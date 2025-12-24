@@ -169,7 +169,7 @@ func CreateWindowSurfaces(
             )
         }
     } catch {
-        Logger(label: "org.adaengine.AdaRender").error("\(error.localizedDescription)")
+        Logger(label: "org.adaengine.AdaRender").error("\(error)")
     }
 }
 
