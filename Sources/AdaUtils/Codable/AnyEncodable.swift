@@ -34,7 +34,7 @@ extension _AnyEncodable {
         var container = encoder.singleValueContainer()
 
         switch value {
-        #if canImport(Foundation)
+        #if canImport(Darwin)
         case is NSNull:
             try container.encodeNil()
         #endif
@@ -68,7 +68,7 @@ extension _AnyEncodable {
             try container.encode(double)
         case let string as String:
             try container.encode(string)
-        #if canImport(Foundation)
+        #if canImport(Darwin)
         case let number as NSNumber:
             try encode(nsnumber: number, into: &container)
         case let date as Date:
@@ -88,7 +88,7 @@ extension _AnyEncodable {
         }
     }
 
-    #if canImport(Foundation)
+    #if canImport(Darwin)
     private func encode(nsnumber: NSNumber, into container: inout SingleValueEncodingContainer) throws {
         switch unsafe Character(Unicode.Scalar(UInt8(nsnumber.objCType.pointee)))  {
         case "B":

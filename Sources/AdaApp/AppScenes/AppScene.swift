@@ -12,6 +12,15 @@ import FoundationEssentials
 import Foundation
 #endif
 import Math
+#if canImport(Glibc)
+import Glibc
+#endif
+#if canImport(Darwin)
+import Darwin.C
+#endif
+#if os(Windows)
+import WinSDK
+#endif
 
 /// Describe which kind of scene will present on start.
 @MainActor @preconcurrency

@@ -15,7 +15,7 @@ import Foundation
 
 final class FoundationFileSystem: FileSystem, @unchecked Sendable {
     
-    let fileManager: Foundation.FileManager = .default
+    let fileManager: FileManager = .default
     
     // swiftlint:disable force_try
     override var applicationFolderURL: URL {
