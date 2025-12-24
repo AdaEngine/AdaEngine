@@ -32,7 +32,7 @@ extension _AnyDecodable {
         let container = try decoder.singleValueContainer()
 
         if container.decodeNil() {
-            #if canImport(Foundation)
+            #if canImport(Darwin)
                 self.init(NSNull())
             #else
                 self.init(Optional<Self>.none)

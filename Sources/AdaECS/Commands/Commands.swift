@@ -15,7 +15,7 @@ import Foundation
 
 public final class WorldCommandQueue: @unchecked Sendable {
     var commands: Deque<WorldCommand> = []
-    let lock = NSRecursiveLock()
+    let lock = RecursiveLock()
 
     public var isEmpty: Bool {
         commands.isEmpty
@@ -28,9 +28,9 @@ public final class WorldCommandQueue: @unchecked Sendable {
     }
 
     public func push(_ command: @escaping @Sendable (World) -> Void) {
-        lock.lock()
-        defer { lock.unlock() }
-        commands.append(WorldCommand(applyToWorld: command))
+        lock.sync {
+            commands.append(WorldCommand(applyToWorld: command))
+        }
     }
 
     public func apply(to world: World) {

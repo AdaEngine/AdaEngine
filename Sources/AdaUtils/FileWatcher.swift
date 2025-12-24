@@ -25,7 +25,7 @@ public typealias FileWatcher = FSWatch
 /// FSWatch is a cross-platform filesystem watching utility.
 public final class FSWatch: @unchecked Sendable {
 
-    public typealias EventReceivedBlock = (_ paths: [AbsolutePath]) -> Void
+    public typealias EventReceivedBlock = @Sendable (_ paths: [AbsolutePath]) -> Void
 
     /// Delegate for handling events from the underling watcher.
     fileprivate struct _WatcherDelegate {
@@ -145,13 +145,13 @@ public final class NoOpWatcher {
 
 #elseif os(Windows)
 
-public protocol RDCWatcherDelegate {
+public protocol RDCWatcherDelegate: Sendable {
     func pathsDidReceiveEvent(_ paths: [AbsolutePath])
 }
 
 /// Bindings for `ReadDirectoryChangesW` C APIs.
 public final class RDCWatcher {
-    class Watch {
+    class Watch: @unchecked Sendable {
         var hDirectory: HANDLE
         let path: String
         var overlapped: OVERLAPPED
@@ -200,7 +200,7 @@ public final class RDCWatcher {
         self.delegate = delegate
 
         self.watches = paths.map {
-            $0.pathString.withCString(encodedAs: UTF16.self) {
+            $0.withCString(encodedAs: UTF16.self) {
                 let dwDesiredAccess: DWORD = DWORD(FILE_LIST_DIRECTORY)
                 let dwShareMode: DWORD = DWORD(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
                 let dwCreationDisposition: DWORD = DWORD(OPEN_EXISTING)
@@ -254,13 +254,13 @@ public final class RDCWatcher {
                         case WAIT_OBJECT_0: // Terminate Request
                             fallthrough
                         default:
-                            CloseHandle(watch.hDirectory)
-                            watch.hDirectory = INVALID_HANDLE_VALUE
+                            unsafe CloseHandle(watch.hDirectory)
+                            unsafe watch.hDirectory = unsafe INVALID_HANDLE_VALUE
                             return
                     }
 
-                    if !GetOverlappedResult(watch.hDirectory, &watch.overlapped, &dwBytesReturned, false) {
-                        queue.async {
+                    if unsafe !GetOverlappedResult(watch.hDirectory, &watch.overlapped, &dwBytesReturned, false) {
+                        queue.async { [watch] in
                             delegate?.pathsDidReceiveEvent([AbsolutePath(watch.path)])
                         }
                         return
@@ -273,23 +273,26 @@ public final class RDCWatcher {
                     }
 
                     var paths: [AbsolutePath] = []
-                    watch.buffer.withMemoryRebound(to: FILE_NOTIFY_INFORMATION.self) {
+                    unsafe watch.buffer.withMemoryRebound(to: FILE_NOTIFY_INFORMATION.self) {
                         let pNotify: UnsafeMutablePointer<FILE_NOTIFY_INFORMATION>? =
                                 $0.baseAddress
-                        while var pNotify = pNotify {
+                        while var pNotify = unsafe pNotify {
                             // FIXME(compnerd) do we care what type of event was received?
-                            let file: String =
-                                    String(utf16CodeUnitsNoCopy: &pNotify.pointee.FileName,
-                                           count: Int(pNotify.pointee.FileNameLength) / MemoryLayout<WCHAR>.stride,
-                                           freeWhenDone: false)
+                            let fileNameLength = unsafe Int(pNotify.pointee.FileNameLength) / MemoryLayout<WCHAR>.stride
+                            // FileName is a flexible array member at the end of FILE_NOTIFY_INFORMATION
+                            let fileNamePtr = unsafe UnsafeRawPointer(pNotify)
+                                .advanced(by: MemoryLayout<FILE_NOTIFY_INFORMATION>.size)
+                                .assumingMemoryBound(to: WCHAR.self)
+                            let buffer = unsafe UnsafeBufferPointer(start: fileNamePtr, count: fileNameLength)
+                            let file = unsafe String(decoding: buffer, as: UTF16.self)
                             paths.append(AbsolutePath(file))
 
-                            pNotify = (UnsafeMutableRawPointer(pNotify) + Int(pNotify.pointee.NextEntryOffset))
+                            unsafe pNotify = unsafe (UnsafeMutableRawPointer(pNotify) + Int(pNotify.pointee.NextEntryOffset))
                                             .assumingMemoryBound(to: FILE_NOTIFY_INFORMATION.self)
                         }
                     }
 
-                    queue.async {
+                    queue.async { [paths] in
                         delegate?.pathsDidReceiveEvent(paths)
                     }
                 }
@@ -908,7 +911,11 @@ enum TSCBasic {
                 }
             }
             
+            #if canImport(Darwin)
             self.thread = ThreadImpl(block: theTask)
+            #else
+            self.thread = ThreadImpl(task: theTask)
+            #endif
         }
         
         /// Starts the thread execution.
@@ -937,7 +944,7 @@ enum TSCBasic {
 
 #if canImport(Darwin)
     /// A helper subclass of Foundation's Thread with closure support.
-    final private class ThreadImpl: Foundation.Thread {
+    final private class ThreadImpl: Thread {
         
         /// The task to be executed.
         private let task: () -> Void
@@ -952,10 +959,82 @@ enum TSCBasic {
     }
 #else
     // Thread on Linux supports closure so just use it directly.
-    typealias ThreadImpl = Foundation.Thread
+    typealias ThreadImpl = Thread
 #endif
     
     public struct Condition: Sendable {
+        #if os(Windows)
+        // Windows doesn't have NSCondition, use Dispatch-based implementation
+        private let _lock = DispatchQueue(label: "com.adaengine.condition.lock")
+        private let _semaphore = DispatchSemaphore(value: 0)
+        // Use a class wrapper for mutable state since structs are value types
+        private final class WaitersCounter: @unchecked Sendable {
+            var value: Int = 0
+        }
+        private let _waiters = WaitersCounter()
+        
+        /// Create a new condition.
+        public init() {}
+        
+        /// Wait for the condition to become available.
+        public func wait() {
+            _lock.sync {
+                _waiters.value += 1
+            }
+            _semaphore.wait()
+            _lock.sync {
+                _waiters.value -= 1
+            }
+        }
+        
+        /// Blocks the current thread until the condition is signaled or the specified time limit is reached.
+        ///
+        /// - Returns: true if the condition was signaled; otherwise, false if the time limit was reached.
+        public func wait(until limit: Date) -> Bool {
+            let now = Date()
+            let timeout = limit.timeIntervalSince(now)
+            guard timeout > 0 else {
+                return false
+            }
+            let dispatchTime = DispatchTime.now() + timeout
+            _lock.sync {
+                _waiters.value += 1
+            }
+            let result = _semaphore.wait(timeout: dispatchTime)
+            _lock.sync {
+                _waiters.value -= 1
+            }
+            return result == .success
+        }
+        
+        /// Signal the availability of the condition (awake one thread waiting on
+        /// the condition).
+        public func signal() {
+            _lock.sync {
+                if _waiters.value > 0 {
+                    _semaphore.signal()
+                }
+            }
+        }
+        
+        /// Broadcast the availability of the condition (awake all threads waiting
+        /// on the condition).
+        public func broadcast() {
+            _lock.sync {
+                for _ in 0..<_waiters.value {
+                    _semaphore.signal()
+                }
+            }
+        }
+        
+        /// A helper method to execute the given body while condition is locked.
+        /// - Note: Will ensure condition unlocks even if `body` throws.
+        public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
+            return try _lock.sync {
+                return try body()
+            }
+        }
+        #else
         private let _condition = NSCondition()
 
         /// Create a new condition.
@@ -992,5 +1071,6 @@ enum TSCBasic {
             defer { _condition.unlock() }
             return try body()
         }
+        #endif
     }
 }
