@@ -1,0 +1,8 @@
+format_version = 2
+
+[apps.AdaEditor]
+identifier = "org.adaengine.AdaEditor"
+product = "AdaEditor"
+version = "0.1.0"
+license = "MIT"
+description = "AdaEditor is a modern, cross-platform editor for AdaEngine."

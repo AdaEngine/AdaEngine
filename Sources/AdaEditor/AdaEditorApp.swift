@@ -14,9 +14,6 @@ struct AdaEditorApp: App {
         WindowGroup {
             Text("See you later")
         }
-        .addPlugins(
-            DefaultPlugins()
-        )
         .windowMode(.windowed)
         .windowTitle("AdaEngine")
     }
