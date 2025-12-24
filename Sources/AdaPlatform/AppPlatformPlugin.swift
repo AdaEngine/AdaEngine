@@ -41,8 +41,7 @@ public struct AppPlatformPlugin: Plugin {
 #endif
 
 #if os(Windows)
-            // application = unsafe try MacApplication(argc: argc, argv: argv)
-            fatalError("")
+            application = unsafe try WindowsApplication(argc: argc, argv: argv)
 #endif
             
             Application.shared = application
