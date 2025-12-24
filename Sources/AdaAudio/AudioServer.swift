@@ -57,7 +57,7 @@ public final class AudioServer: Resource {
         do {
             return try AudioPlaybackController(resource: resource)
         } catch {
-            fatalError("[AudioServer] Can't create sound from resource \(error.localizedDescription)")
+            fatalError("[AudioServer] Can't create sound from resource \(error)")
         }
     }
 }
