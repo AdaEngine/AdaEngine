@@ -944,7 +944,7 @@ enum TSCBasic {
 
 #if canImport(Darwin)
     /// A helper subclass of Foundation's Thread with closure support.
-    final private class ThreadImpl: Thread {
+    final private class ThreadImpl: Foundation.Thread {
         
         /// The task to be executed.
         private let task: () -> Void
