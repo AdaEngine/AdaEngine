@@ -5,18 +5,14 @@
 //  Created by vladislav.prusakov on 13.03.2025.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
-public extension Foundation.Bundle {
-    static var engineBundle: Foundation.Bundle {
+public extension Bundle {
+    static var engineBundle: Bundle {
 #if SWIFT_PACKAGE && !BAZEL_BUILD
-        return Foundation.Bundle.module
+        return Bundle.module
 #else
-        return Foundation.Bundle(for: BundleToken.self)
+        return Bundle(for: BundleToken.self)
 #endif
     }
 }

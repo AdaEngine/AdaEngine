@@ -54,7 +54,7 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
     ///
     /// - Parameter decoder: The decoder to initialize the render texture from.
     /// - Throws: An error if the render texture cannot be initialized from the decoder.
-    public required init(from decoder: AssetDecoder) throws {
+    public required init(from decoder: any AssetDecoder) async throws {
         fatalError("init(asset:) has not been implemented")
     }
     

@@ -14,6 +14,20 @@ import FoundationEssentials
 import Foundation
 #endif
 import AdaUI
+#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+import Darwin
+#elseif os(Linux) || os(Android)
+import Glibc
+#elseif os(Windows)
+import WinSDK
+#endif
+
+#if os(Windows)
+@_silgen_name("exit")
+func exit(_ code: Int32) -> Never
+
+let EXIT_SUCCESS: Int32 = 0
+#endif
 
 /// The main class represents application instance.
 /// The application cannot be created manualy, instead use an ``App`` protocol.
@@ -66,7 +80,11 @@ open class Application: Resource {
     /// Call this method to terminate app execution with 0 status code.
     @MainActor 
     open func terminate() {
+        #if os(Windows)
+        exit(0)
+        #else
         exit(EXIT_SUCCESS)
+        #endif
     }
     
     /// Method to open url.

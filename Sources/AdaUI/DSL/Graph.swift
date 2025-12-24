@@ -6,10 +6,15 @@
 //
 
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
+#if canImport(Glibc)
+import Glibc
+#endif
+#if canImport(Darwin)
+import Darwin.C
+#endif
+#if os(Windows)
+import WinSDK
 #endif
 
 @MainActor

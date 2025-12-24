@@ -39,6 +39,11 @@ public struct AppPlatformPlugin: Plugin {
 #if os(Linux)
             application = unsafe try LinuxApplication(argc: argc, argv: argv)
 #endif
+
+#if os(Windows)
+            // application = unsafe try MacApplication(argc: argc, argv: argv)
+            fatalError("")
+#endif
             
             Application.shared = application
             app.insertResource(application)
