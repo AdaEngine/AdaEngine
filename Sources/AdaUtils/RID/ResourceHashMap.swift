@@ -7,6 +7,7 @@
 
 #if canImport(FoundationEssentials)
 import FoundationEssentials
+import Dispatch
 #else
 import Foundation
 #endif

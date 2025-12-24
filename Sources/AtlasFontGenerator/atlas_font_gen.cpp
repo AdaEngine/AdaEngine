@@ -55,8 +55,8 @@ double font_geometry_get_scale(font_handle_s* fontData) {
     return fontData->font_data->fontGeometry.getGeometryScale();
 }
 
-size_t font_handle_get_glyphs_count(font_handle_s* fontData) {
-    return fontData->font_data->glyphs.size();
+unsigned long font_handle_get_glyphs_count(struct font_handle_s* fontData) {
+    return static_cast<unsigned long>(fontData->font_data->glyphs.size());
 }
 
 void font_handle_get_advance(font_handle_s* fontData, double* advance, uint32_t currentUnicode, uint32_t nextUnicode) {

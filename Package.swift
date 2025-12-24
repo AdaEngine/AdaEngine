@@ -828,7 +828,7 @@ let package = Package(
     dependencies: [],
     targets: targets,
     cLanguageStandard: .c17,
-    cxxLanguageStandard: .cxx20
+    cxxLanguageStandard: .cxx17
 )
 
 package.dependencies += [

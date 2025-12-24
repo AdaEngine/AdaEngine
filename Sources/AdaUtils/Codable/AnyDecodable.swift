@@ -60,7 +60,7 @@ extension _AnyDecodable {
 extension AnyDecodable: Equatable {
     public static func == (lhs: AnyDecodable, rhs: AnyDecodable) -> Bool {
         switch (lhs.value, rhs.value) {
-#if canImport(Foundation)
+#if canImport(Darwin)
         case is (NSNull, NSNull), is (Void, Void):
             return true
 #endif
