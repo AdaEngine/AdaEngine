@@ -13,6 +13,15 @@ import AdaInput
 import Math
 import AdaUtils
 
+// Windows cursor resource identifiers
+nonisolated(unsafe) private let IDC_ARROW: LPCWSTR = UnsafePointer<WCHAR>(bitPattern: UInt(32512))!
+
+// Static storage for window class name (must persist for RegisterClassW)
+private let windowClassName: [WCHAR] = "AdaEngineWindow".wide
+private var windowClassNamePtr: LPCWSTR {
+    return windowClassName.withUnsafeBufferPointer { $0.baseAddress! }
+}
+
 final class WindowsWindowManager: UIWindowManager {
 
     private unowned let screenManager: WindowsScreenManager
@@ -45,9 +54,9 @@ final class WindowsWindowManager: UIWindowManager {
         var wc = unsafe WNDCLASSW()
         unsafe wc.lpfnWndProc = unsafe WindowsWindowProc
         unsafe wc.hInstance = unsafe hInstance
-        wc.lpszClassName = className.wide
+        wc.lpszClassName = windowClassNamePtr
         wc.hCursor = LoadCursorW(nil, IDC_ARROW)
-        wc.hbrBackground = HBRUSH(COLOR_WINDOW + 1)
+        wc.hbrBackground = UnsafeMutablePointer<HBRUSH__>(bitPattern: UInt(COLOR_WINDOW + 1))!
         RegisterClassW(&wc)
         
         // Calculate window size including non-client area
@@ -76,7 +85,9 @@ final class WindowsWindowManager: UIWindowManager {
         }
         
         // Store window handle
-        SetWindowLongPtrW(hwnd, GWLP_USERDATA, LONG_PTR(bitPattern: Unmanaged.passUnretained(window).toOpaque()))
+        let windowPtr = Unmanaged.passUnretained(window).toOpaque()
+        let ptrValue = UInt64(UInt(bitPattern: OpaquePointer(windowPtr)))
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, LONG_PTR(bitPattern: ptrValue))
         self.windowHandles[window.id] = hwnd
         
         let systemWindow = WindowsSystemWindow(hwnd: hwnd, surface: windowsSurface)
@@ -224,89 +235,96 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
         return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
     }
     
-    guard let rawPtr = UnsafeRawPointer(bitPattern: Int(windowPtr)),
-          let window = Unmanaged<UIWindow>.fromOpaque(rawPtr).takeUnretainedValue() as? UIWindow else {
+    guard let rawPtr = unsafe UnsafeRawPointer(bitPattern: Int(windowPtr)),
+          let window = unsafe Unmanaged<UIWindow>.fromOpaque(rawPtr).takeUnretainedValue() as? UIWindow else {
         return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
     }
     
-    let windowManager = window.windowManager as? WindowsWindowManager
-    
     switch uMsg {
     case UInt32(WM_CLOSE):
-        if window.windowShouldClose() {
+        let shouldClose = MainActor.assumeIsolated {
+            window.windowShouldClose()
+        }
+        if shouldClose {
             return 0
         }
         return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
         
     case UInt32(WM_SIZE):
-        let width = LOWORD(lParam)
-        let height = HIWORD(lParam)
+        let width = UInt16(truncatingIfNeeded: lParam & 0xFFFF)
+        let height = UInt16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF)
         let newSize = Size(width: Float(width), height: Float(height))
-        
-        if window.frame.size != newSize {
-            window.frame = Rect(origin: .zero, size: newSize)
-        }
-        
         let sizeInt = SizeInt(width: Int(width), height: Int(height))
-        try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
+        
+        Task { @MainActor in
+            if window.frame.size != newSize {
+                window.frame = Rect(origin: .zero, size: newSize)
+            }
+            try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
+        }
         return 0
         
-    case WM_SETFOCUS:
-        windowManager?.setActiveWindow(window)
+    case UInt32(WM_SETFOCUS):
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            windowManager?.setActiveWindow(window)
+        }
         return 0
         
-    case WM_KILLFOCUS:
-        window.windowDidResignActive()
+    case UInt32(WM_KILLFOCUS):
+        Task { @MainActor in
+            window.windowDidResignActive()
+        }
         return 0
         
     default:
-        return DefWindowProcW(hwnd, uMsg, wParam, lParam)
+        return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
     }
 }
 
 // MARK: - WindowsSystemWindow
-
+@safe
 final class WindowsSystemWindow: SystemWindow {
     let hwnd: HWND
     let surface: WindowsSurface
     
     init(hwnd: HWND, surface: WindowsSurface) {
-        self.hwnd = hwnd
+        unsafe self.hwnd = unsafe hwnd
         self.surface = surface
     }
     
     var title: String {
         get {
             var buffer = [WCHAR](repeating: 0, count: 256)
-            GetWindowTextW(hwnd, &buffer, 256)
-            return String(decodingCString: buffer, as: UTF16.self)
+            unsafe GetWindowTextW(hwnd, &buffer, 256)
+            return unsafe String(decodingCString: buffer, as: UTF16.self)
         }
         set {
-            SetWindowTextW(hwnd, newValue.wide)
+            unsafe SetWindowTextW(hwnd, newValue.wide)
         }
     }
     
     var size: Size {
         get {
             var rect = RECT()
-            GetClientRect(hwnd, &rect)
+            unsafe GetClientRect(hwnd, &rect)
             return Size(width: Float(rect.right - rect.left), height: Float(rect.bottom - rect.top))
         }
         set {
             var rect = RECT(left: 0, top: 0, right: LONG(newValue.width), bottom: LONG(newValue.height))
-            AdjustWindowRect(&rect, DWORD(WS_OVERLAPPEDWINDOW), false)
-            SetWindowPos(hwnd, nil, 0, 0, rect.right - rect.left, rect.bottom - rect.top, UINT(SWP_NOMOVE | SWP_NOZORDER))
+            unsafe AdjustWindowRect(&rect, DWORD(WS_OVERLAPPEDWINDOW), false)
+            unsafe SetWindowPos(hwnd, nil, 0, 0, rect.right - rect.left, rect.bottom - rect.top, UINT(SWP_NOMOVE | SWP_NOZORDER))
         }
     }
     
     var position: Point {
         get {
             var rect = RECT()
-            GetWindowRect(hwnd, &rect)
+            unsafe GetWindowRect(hwnd, &rect)
             return Point(x: Float(rect.left), y: Float(rect.top))
         }
         set {
-            SetWindowPos(hwnd, nil, LONG(newValue.x), LONG(newValue.y), 0, 0, UINT(SWP_NOSIZE | SWP_NOZORDER))
+            unsafe SetWindowPos(hwnd, nil, LONG(newValue.x), LONG(newValue.y), 0, 0, UINT(SWP_NOSIZE | SWP_NOZORDER))
         }
     }
 }
@@ -315,10 +333,10 @@ final class WindowsSystemWindow: SystemWindow {
 
 final class WindowsScreenManager: ScreenManager {
     func getMainScreen() -> Screen? {
-        guard let hMonitor = MonitorFromWindow(nil, UInt32(MONITOR_DEFAULTTOPRIMARY)) else {
+        guard let hMonitor = unsafe MonitorFromWindow(nil, UInt32(MONITOR_DEFAULTTOPRIMARY)) else {
             return nil
         }
-        return makeScreen(from: hMonitor)
+        return unsafe makeScreen(from: hMonitor)
     }
     
     func getScreens() -> [Screen] {
@@ -327,14 +345,14 @@ final class WindowsScreenManager: ScreenManager {
         }
         
         let collector = ScreensCollector()
-        let collectorPtr = Unmanaged.passUnretained(collector).toOpaque()
+        let collectorPtr = unsafe Unmanaged.passUnretained(collector).toOpaque()
         
-        EnumDisplayMonitors(nil, nil, { hMonitor, _, _, lParam in
-            guard let hMonitor = hMonitor, lParam != 0 else {
+        unsafe EnumDisplayMonitors(nil, nil, { hMonitor, _, _, lParam in
+            guard let hMonitor = unsafe hMonitor, lParam != 0 else {
                 return WindowsBool(true)
             }
-            let collector = Unmanaged<ScreensCollector>.fromOpaque(UnsafeRawPointer(bitPattern: Int(lParam))!).takeUnretainedValue()
-            if let screen = WindowsScreenManager.shared?.makeScreen(from: hMonitor) {
+            let collector = unsafe Unmanaged<ScreensCollector>.fromOpaque(UnsafeRawPointer(bitPattern: Int(lParam))!).takeUnretainedValue()
+            if let screen = unsafe WindowsScreenManager.shared?.makeScreen(from: hMonitor) {
                 collector.screens.append(screen)
             }
             return WindowsBool(true)
@@ -344,18 +362,19 @@ final class WindowsScreenManager: ScreenManager {
     }
     
     func getScreenScale(for screen: Screen) -> Float {
-        guard let hMonitor = (screen.systemScreen as? HMONITOR) else {
+        guard let windowsScreen = screen.systemScreen as? WindowsSystemScreen else {
             return 1.0
         }
+        let hMonitor = windowsScreen.hMonitor
         
         var info = MONITORINFO()
         info.cbSize = DWORD(MemoryLayout<MONITORINFO>.size)
         
-        if GetMonitorInfoW(hMonitor, &info) {
+        if unsafe GetMonitorInfoW(hMonitor, &info) {
             // Get DPI for the monitor
             var dpiX: UINT = 0
             var dpiY: UINT = 0
-            GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY)
+            unsafe GetDpiForMonitor(hMonitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY)
             return Float(dpiX) / 96.0 // 96 DPI is standard
         }
         
@@ -363,14 +382,15 @@ final class WindowsScreenManager: ScreenManager {
     }
     
     func getSize(for screen: Screen) -> Size {
-        guard let hMonitor = (screen.systemScreen as? HMONITOR) else {
+        guard let windowsScreen = screen.systemScreen as? WindowsSystemScreen else {
             return .zero
         }
+        let hMonitor = windowsScreen.hMonitor
         
         var info = MONITORINFO()
         info.cbSize = DWORD(MemoryLayout<MONITORINFO>.size)
         
-        if GetMonitorInfoW(hMonitor, &info) {
+        if unsafe GetMonitorInfoW(hMonitor, &info) {
             let width = Float(info.rcMonitor.right - info.rcMonitor.left)
             let height = Float(info.rcMonitor.bottom - info.rcMonitor.top)
             return Size(width: width, height: height)
@@ -389,13 +409,21 @@ final class WindowsScreenManager: ScreenManager {
     }
     
     func makeScreen(from hMonitor: HMONITOR) -> Screen? {
-        return makeScreen(from: hMonitor as SystemScreen)
+        let systemScreen = WindowsSystemScreen(hMonitor: hMonitor)
+        return makeScreen(from: systemScreen)
     }
     
-    static var shared: WindowsScreenManager?
+    nonisolated(unsafe) static var shared: WindowsScreenManager?
 }
 
-extension HMONITOR: SystemScreen {}
+/// Wrapper class for HMONITOR to conform to SystemScreen protocol
+final class WindowsSystemScreen: SystemScreen {
+    let hMonitor: HMONITOR
+    
+    init(hMonitor: HMONITOR) {
+        self.hMonitor = hMonitor
+    }
+}
 
 extension String {
     var wide: [WCHAR] {
