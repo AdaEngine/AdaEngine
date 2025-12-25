@@ -7,9 +7,6 @@
 
 import AdaUtils
 import Foundation
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#endif
 
 // TODO: Make include depth (with cycle detection)
 // TODO: Optimizations, decrease loops

@@ -10,11 +10,7 @@ import AdaAssets
 import AdaUtils
 import AdaSprite
 import AdaRender
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Logging
 import Math
 import OrderedCollections

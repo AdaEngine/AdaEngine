@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 4/30/24.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Dispatch
 
 /// Protocol for lock operations

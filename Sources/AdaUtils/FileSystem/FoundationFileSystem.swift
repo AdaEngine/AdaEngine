@@ -5,13 +5,7 @@
 //  Created by v.prusakov on 1/22/23.
 //
 
-#if os(macOS) || os(iOS) || os(tvOS) || os(Linux) || os(Windows) || os(Android)
-
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 final class FoundationFileSystem: FileSystem, @unchecked Sendable {
     
@@ -73,5 +67,3 @@ final class FoundationFileSystem: FileSystem, @unchecked Sendable {
         return self.fileManager.contents(atPath: url.path)
     }
 }
-
-#endif

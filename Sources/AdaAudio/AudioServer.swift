@@ -7,11 +7,7 @@
 
 import AdaECS
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Math
 
 enum AudioError: Error {

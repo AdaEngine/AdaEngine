@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 #if os(iOS) || os(tvOS)
 import QuartzCore
 #endif

@@ -16,11 +16,7 @@ import OpenGL.GL3
 import OpenGL
 #endif
 import Math
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 #if DARWIN
 private let GL_DEBUG_OUTPUT = GLenum(0x92E0)

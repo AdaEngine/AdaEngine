@@ -7,9 +7,6 @@
 
 import AdaUtils
 import Foundation
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#endif
 import SPIRVCompiler
 import SPIRV_Cross
 
