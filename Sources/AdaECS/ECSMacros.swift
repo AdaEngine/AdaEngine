@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 5/18/25.
 //
 
+import AdaUtils
+
 // TODO: Add reflrection support
 
 /// A macro for creating a component.
@@ -24,7 +26,9 @@
 /// ```
 @attached(member)
 @attached(extension, names: arbitrary, conformances: Component)
-public macro Component() = #externalMacro(module: "AdaEngineMacros", type: "ComponentMacro")
+public macro Component(
+    required: [any (Component & DefaultValue).Type] = []
+) = #externalMacro(module: "AdaEngineMacros", type: "ComponentMacro")
 
 
 /// A macro for creating a bundle.

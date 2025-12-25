@@ -16,7 +16,7 @@ import Foundation
 // MARK: - Deinitialization Tracking Helpers
 
 /// Thread-safe counter to track component deinitializations
-private final class DeinitCounter: @unchecked Sendable {
+final class DeinitCounter: @unchecked Sendable {
     private let lock = NSLock()
     private var _deinitializedIds: [String] = []
 
@@ -34,7 +34,7 @@ private final class DeinitCounter: @unchecked Sendable {
 }
 
 /// Tracker object that records its deinitialization
-private final class DeinitTracker: @unchecked Sendable, Equatable {
+final class DeinitTracker: @unchecked Sendable, Equatable {
     let id: String
     let counter: DeinitCounter
 
@@ -84,7 +84,7 @@ private struct B: Equatable {
 
 /// Component that tracks deinitialization via a DeinitTracker
 @Component
-private struct TrackableComponent: Equatable {
+struct TrackableComponent: Equatable {
     let id: String
     let tracker: DeinitTracker
 
