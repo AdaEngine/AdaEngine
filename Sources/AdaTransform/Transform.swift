@@ -6,10 +6,11 @@
 //
 
 import AdaECS
+import AdaUtils
 import Math
 
 /// A component that defines the scale, rotation, and translation of an entity.
-@Component
+@Component(required: [GlobalTransform.self])
 public struct Transform: Codable, Hashable, Sendable {
     
     /// The rotation of the entity specified as a unit quaternion.
@@ -57,6 +58,10 @@ public extension Transform {
 @Component
 public struct GlobalTransform: Hashable, Sendable, Codable {
     public internal(set) var matrix: Transform3D
+}
+
+extension GlobalTransform: DefaultValue {
+    public static let defaultValue: GlobalTransform = GlobalTransform(matrix: .identity)
 }
 
 public extension GlobalTransform {

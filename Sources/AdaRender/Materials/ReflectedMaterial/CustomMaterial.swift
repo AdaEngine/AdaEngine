@@ -63,7 +63,7 @@ protocol MaterialValueDelegate: AnyObject {
 /// ```swift
 /// let mesh = Mesh()
 /// let customMaterial = CustomMaterial(MyCanvasMaterial())
-/// let meshComponent = Mesh2DComponent(mesh: mesh, materials: [customMaterial])
+/// let meshComponent = Mesh2D(mesh: mesh, materials: [customMaterial])
 ///
 /// entity.components += meshComponent
 ///
@@ -72,7 +72,7 @@ protocol MaterialValueDelegate: AnyObject {
 /// @CustomMaterial var customMaterial = MyCanvasMaterial()
 ///
 /// // Send custom material using $ symbol. We should pass CustomMaterial<MyCanvasMaterial> instance
-/// let meshComponent = Mesh2DComponent(mesh: mesh, materials: [$customMaterial])
+/// let meshComponent = Mesh2D(mesh: mesh, materials: [$customMaterial])
 ///
 /// entity.components += meshComponent
 /// ```

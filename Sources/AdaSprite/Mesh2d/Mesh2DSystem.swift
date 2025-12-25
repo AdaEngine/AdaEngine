@@ -25,10 +25,7 @@ public struct Mesh2DPlugin: Plugin {
     ///
     /// - Parameter app: The app.
     public func setup(in app: AppWorlds) {
-        Mesh2DComponent.registerComponent()
-
-        app.main.registerRequiredComponent(Visibility.self, for: Mesh2DComponent.self)
-        app.main.registerRequiredComponent(BoundingComponent.self, for: Mesh2DComponent.self)
+        Mesh2D.registerComponent()
 
         let renderWorld = app.getSubworldBuilder(by: .renderWorld)
             .unwrap(message: "RenderWorld not found")
@@ -59,13 +56,13 @@ public struct ExctractedMesh2D: Sendable {
     /// The entity id.
     public var entityId: Entity.ID
     /// The mesh.
-    public var mesh: Mesh2DComponent
+    public var mesh: Mesh2D
     /// The transform.
     public var transform: Transform
     /// The world transform.
     public var worldTransform: Transform3D
 
-    public init(entityId: Entity.ID, mesh: Mesh2DComponent, transform: Transform, worldTransform: Transform3D) {
+    public init(entityId: Entity.ID, mesh: Mesh2D, transform: Transform, worldTransform: Transform3D) {
         self.entityId = entityId
         self.mesh = mesh
         self.transform = transform
@@ -77,7 +74,7 @@ public struct ExctractedMesh2D: Sendable {
 @PlainSystem
 public struct ExctractMesh2DSystem {
     @Extract<
-        Query<Entity, Mesh2DComponent, Transform, GlobalTransform, Visibility>
+        Query<Entity, Mesh2D, Transform, GlobalTransform, Visibility>
     >
     private var query
 

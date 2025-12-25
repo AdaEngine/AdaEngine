@@ -29,13 +29,28 @@ public struct ComponentMacro: ExtensionMacro {
             return []
         }
 
+        // Get dependencies from macro arguments
+        var dependencies: [String] = []
+        if let arguments = node.arguments?.as(LabeledExprListSyntax.self) {
+            for argument in arguments where argument.label?.text == "required" {
+                if let arrayExpr = argument.expression.as(ArrayExprSyntax.self) {
+                    for element in arrayExpr.elements {
+                        if let typeName = extractTypeName(from: element.expression) {
+                            dependencies.append(typeName)
+                        }
+                    }
+                }
+            }
+        }
+
         return if let structDecl = declaration.as(StructDeclSyntax.self) {
-            componentMacroForStruct(structDecl, type: type)
+            componentMacroForStruct(structDecl, type: type, requiredComponents: dependencies)
         } else if let enumDecl = declaration.as(EnumDeclSyntax.self) {
             generateDeclaration(
                 type: type,
-                availability: enumDecl.attributes.availability,
-                functions: []
+                availability: enumDecl.modifiers,
+                functions: [],
+                requiredComponents: dependencies
             )
         } else {
             throw MacroError.macroUsage("Component macro can be applied only for structs or enums.")
@@ -44,9 +59,45 @@ public struct ComponentMacro: ExtensionMacro {
 }
 
 private extension ComponentMacro {
+    /// Extracts type name from expression like Transform.self or AdaTransform.Transform.self
+    private static func extractTypeName(from expression: ExprSyntax) -> String? {
+        // Handle cases like Transform.self or AdaTransform.Transform.self
+        if let memberAccess = expression.as(MemberAccessExprSyntax.self) {
+            // Check if it's a .self access
+            if memberAccess.declName.baseName.text == "self" {
+                // Recursively build the full type name
+                var typeParts: [String] = []
+                var current: ExprSyntax? = memberAccess.base
+                
+                while let expr = current {
+                    if let declRef = expr.as(DeclReferenceExprSyntax.self) {
+                        typeParts.insert(declRef.baseName.text, at: 0)
+                        break
+                    } else if let nestedMember = expr.as(MemberAccessExprSyntax.self) {
+                        typeParts.insert(nestedMember.declName.baseName.text, at: 0)
+                        current = nestedMember.base
+                    } else {
+                        break
+                    }
+                }
+                
+                if !typeParts.isEmpty {
+                    let fullTypeName = typeParts.joined(separator: ".")
+                    return "\(fullTypeName).self"
+                }
+            }
+        }
+        // Handle cases where it might be just a type reference (shouldn't happen, but handle it)
+        else if let declRef = expression.as(DeclReferenceExprSyntax.self) {
+            return "\(declRef.baseName.text).self"
+        }
+        
+        return nil
+    }
     private static func componentMacroForStruct<T: TypeSyntaxProtocol>(
         _ structDecl: StructDeclSyntax,
-        type: T
+        type: T,
+        requiredComponents: [String]
     ) -> [SwiftSyntax.ExtensionDeclSyntax] {
         let properties = structDecl.memberBlock.members.compactMap { member -> (String, TypeSyntax, String)? in
             guard let varDecl = member.decl.as(VariableDeclSyntax.self) else { return nil }
@@ -81,20 +132,28 @@ private extension ComponentMacro {
         
         return generateDeclaration(
             type: type,
-            availability: structDecl.attributes.availability,
-            functions: functions
+            availability: structDecl.modifiers,
+            functions: functions,
+            requiredComponents: requiredComponents
         )
     }
     
     private static func generateDeclaration<T: TypeSyntaxProtocol>(
         type: T,
-        availability: AttributeListSyntax?,
-        functions: [String]
+        availability: DeclModifierListSyntax?,
+        functions: [String],
+        requiredComponents: [String] = []
     ) -> [SwiftSyntax.ExtensionDeclSyntax] {
         let proto = "AdaECS.Component"
         let ext: DeclSyntax =
         """
-        \(availability)extension \(type.trimmed): \(raw: proto) { \n\(raw: functions.joined(separator: "\n")) \n}
+        extension \(type.trimmed): \(raw: proto) { 
+            \(raw: functions.joined(separator: "\n")) \n
+            
+            \(availability)static var requiredComponents: RequiredComponents {
+                RequiredComponents(components: [\(raw: requiredComponents.joined(separator: ", "))])
+            }
+        }
         """
         return [ext.cast(ExtensionDeclSyntax.self)]
     }
