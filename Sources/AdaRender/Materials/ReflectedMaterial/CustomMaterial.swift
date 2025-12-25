@@ -7,11 +7,7 @@
 
 import AdaAssets
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 protocol MaterialValueDelegate: AnyObject {
     func updateValue(_ value: ShaderUniformValue, for name: String)

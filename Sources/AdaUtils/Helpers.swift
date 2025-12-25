@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 5/31/22.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Dispatch
 
 // TODO: Think about it later. Maybe we should use some namespace

@@ -7,11 +7,7 @@
 
 import AdaAssets
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 /// Contains native compiled GPU device shader.
 public protocol CompiledShader: AnyObject {}
 

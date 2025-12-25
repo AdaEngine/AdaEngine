@@ -7,11 +7,7 @@
 
 import AdaUtils
 import Collections
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 public final class WorldCommandQueue: @unchecked Sendable {
     var commands: Deque<WorldCommand> = []

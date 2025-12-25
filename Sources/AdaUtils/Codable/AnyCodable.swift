@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 // Taken from https://github.com/Flight-School/AnyCodable
 

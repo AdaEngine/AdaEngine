@@ -10,11 +10,7 @@
 // Take from https://github.com/swiftlang/swift-tools-support-core/blob/main/Sources/TSCUtility/FSWatch.swift
 
 import Dispatch
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 #if os(Windows)
 import WinSDK
 #endif
@@ -945,7 +941,7 @@ enum TSCBasic {
 #if canImport(Darwin)
     /// A helper subclass of Foundation's Thread with closure support.
     final private class ThreadImpl: Foundation.Thread {
-        
+
         /// The task to be executed.
         private let task: () -> Void
         

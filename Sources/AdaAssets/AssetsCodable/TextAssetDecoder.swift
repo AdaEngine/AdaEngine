@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 5/2/24.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import AdaUtils
 import Yams
 

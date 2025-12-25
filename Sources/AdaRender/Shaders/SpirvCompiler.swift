@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 3/13/23.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import SPIRV_Cross
 import Logging
 

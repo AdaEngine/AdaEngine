@@ -1,8 +1,5 @@
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
+
 import Foundation
-#endif
 import Testing
 import AdaUtils
 @testable @_spi(AdaEngine) import AdaAssets

@@ -10,9 +10,6 @@
 // I want to use swift like solution instead of Foundation.
 
 import Foundation
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#endif
 
 /// Collection of utils for works with shaders.
 enum ShaderUtils {

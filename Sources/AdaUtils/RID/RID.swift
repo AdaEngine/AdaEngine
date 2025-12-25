@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 5/21/22.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 import Darwin
 #elseif os(Android) || os(Linux)

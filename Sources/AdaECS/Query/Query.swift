@@ -6,11 +6,7 @@
 //
 
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 /// A query that can fetch query targets like components or entities.
 ///

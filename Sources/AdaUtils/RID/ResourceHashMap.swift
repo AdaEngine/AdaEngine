@@ -5,12 +5,7 @@
 //  Created by v.prusakov on 5/21/22.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-import Dispatch
-#else
 import Foundation
-#endif
 import Collections
 
 /// The data type contains any values usign RID as key

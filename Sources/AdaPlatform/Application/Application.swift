@@ -8,11 +8,7 @@
 import AdaApp
 import AdaECS
 @_spi(Internal) import AdaRender
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import AdaUI
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
 import Darwin

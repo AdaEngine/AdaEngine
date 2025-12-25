@@ -6,11 +6,7 @@
 //
 
 #if VULKAN
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Vulkan
 import CVulkan
 import Math

@@ -7,11 +7,7 @@
 
 import AdaUtils
 import Collections
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Atomics
 
 /// World syncronization actor.
