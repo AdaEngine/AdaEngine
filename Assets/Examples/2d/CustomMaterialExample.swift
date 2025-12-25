@@ -22,7 +22,7 @@ struct CustomMaterialPlugin: Plugin {
     func setup(in app: borrowing AdaApp.AppWorlds) {
         let texture = try! AssetsManager.loadSync(Texture2D.self, at: "Resources/dog.png", from: .module)
         app.spawn("Custom Material") {
-            Mesh2DComponent(mesh: .generate(from: Quad(size: .one)), materials: [
+            Mesh2D(mesh: .generate(from: Quad(size: .one)), materials: [
                 CustomMaterial(MyMaterial(color: .blue, customTexture: texture.asset))
             ])
             Transform()
@@ -60,7 +60,7 @@ struct MyMaterial: CanvasMaterial {
 
 @System
 func UpdateMaterial(
-    _ meshes: Query<Entity, Mesh2DComponent>,
+    _ meshes: Query<Entity, Mesh2D>,
     _ input: Res<Input>,
     _ delta: Res<DeltaTime>
 ) {

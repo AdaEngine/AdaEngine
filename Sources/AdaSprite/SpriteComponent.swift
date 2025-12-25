@@ -12,7 +12,9 @@ import AdaUtils
 import Math
 
 /// Contains information about sprite, like texture and tint coloring.
-@Component
+@Component(
+    required: [Visibility.self, BoundingComponent.self]
+)
 public struct Sprite: Codable {
     /// The texture of the sprite.
     public var texture: AssetHandle<Texture2D>?

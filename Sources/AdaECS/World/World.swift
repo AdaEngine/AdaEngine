@@ -735,6 +735,9 @@ extension World {
             for requiredComponent in componentsStorage.getRequiredComponents(for: component) {
                 partialResult.append(requiredComponent.constructor())
             }
+            for requiredComponent in type(of: component).requiredComponents.components {
+                partialResult.append(requiredComponent.defaultValue)
+            }
             partialResult.append(component)
         }
         let componentsLayout = ComponentLayout(components: components)

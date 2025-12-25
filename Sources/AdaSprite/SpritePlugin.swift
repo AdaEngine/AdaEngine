@@ -21,9 +21,6 @@ public struct SpritePlugin: Plugin {
 
         app
             .addSystem(UpdateBoundingsSystem.self, on: .postUpdate)
-            .main
-            .registerRequiredComponent(Visibility.self, for: Sprite.self)
-            .registerRequiredComponent(BoundingComponent.self, for: Sprite.self)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
