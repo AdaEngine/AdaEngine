@@ -118,8 +118,8 @@ func UpdateBoundings(
         And<With<Sprite>, Changed<Transform>, Without<NoFrustumCulling>>,
     >,
     _ meshes: FilterQuery<
-        Mesh2DComponent, Ref<BoundingComponent>,
-        Or<Changed<Mesh2DComponent>, Without<NoFrustumCulling>>
+        Mesh2D, Ref<BoundingComponent>,
+        Or<Changed<Mesh2D>, Without<NoFrustumCulling>>
     >
 ) async {
     await sprites.parallel().forEach { entity, sprite, bounds in

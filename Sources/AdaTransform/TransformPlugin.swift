@@ -18,10 +18,6 @@ public struct TransformPlugin: Plugin {
         Transform.registerComponent()
         GlobalTransform.registerComponent()
 
-        app.main.registerRequiredComponent(GlobalTransform.self, for: Transform.self) {
-            GlobalTransform(matrix: .identity)
-        }
-
         app
             .addSystem(TransformSystem.self, on: .postUpdate)
             .addSystem(ChildTransformSystem.self, on: .postUpdate)

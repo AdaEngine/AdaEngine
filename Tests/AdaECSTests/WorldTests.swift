@@ -1,10 +1,13 @@
 import Testing
+import AdaUtils
 @_spi(Internal) @testable import AdaECS
 import Math
 
 @Component
-struct ComponentA: Equatable {
+struct ComponentA: Equatable, DefaultValue {
     var value: Int
+
+    static let defaultValue: ComponentA = .init(value: 0)
 }
 
 @Component
@@ -14,6 +17,9 @@ struct ComponentB: Equatable {
 
 @Component
 struct ComponentC: Equatable { }
+
+@Component(required: [ComponentA.self])
+struct ComponentWithRequirement {}
 
 struct TestResource: Resource, Equatable {
     var value: Int
@@ -183,6 +189,17 @@ extension WorldTests {
         #expect(world.getEntityByID(f.id) != nil)
         #expect(world.get(from: f.id) == ComponentA(value: 456))
         #expect(world.get(from: f.id) == ComponentB(value: "def"))
+    }
+
+    @Test
+    func `component macro with dependencies`() {
+        let entity = world.spawn {
+            ComponentWithRequirement()
+        }
+
+        #expect(world.getEntityByID(entity.id) != nil)
+        #expect(world.get(ComponentWithRequirement.self, from: entity.id) != nil)
+        #expect(world.get(ComponentA.self, from: entity.id) == ComponentA(value: 0))
     }
 
     @Test("Query all")
