@@ -11,16 +11,6 @@ import Foundation
 import Logging
 import Dispatch
 
-// #if os(Windows)
-// // Bundle is not available on Windows, create a minimal type to satisfy the API
-// public struct Bundle: Sendable {
-//     public init() {}
-//     public init?(path: String) { return nil }
-//     public func url(forResource name: String?, withExtension ext: String?) -> URL? { return nil }
-//     public var bundleIdentifier: String? { return nil }
-// }
-// #endif
-
 public enum AssetError: LocalizedError {
     case notExistAtPath(String)
     case message(String)
@@ -168,17 +158,9 @@ public struct AssetsManager: Resource {
         }
         
         let processedPath = self.processPath(path)
-        #if os(Windows)
-        // On Windows, Bundle is not available, use the path directly
-        let uri = URL(fileURLWithPath: processedPath.url.relativeString)
-        guard FileSystem.current.itemExists(at: uri) else {
-            throw AssetError.notExistAtPath(processedPath.url.relativeString)
-        }
-        #else
         guard let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil), FileSystem.current.itemExists(at: uri) else {
             throw AssetError.notExistAtPath(processedPath.url.relativeString)
         }
-        #endif
         
         let resource: A = try await self.load(
             from: Path(url: uri, query: processedPath.query),
@@ -424,9 +406,6 @@ public struct AssetsManager: Resource {
     
     @AssetActor
     private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Bundle?) async throws -> A {
-        #if os(Windows)
-        // Bundle is not available on Windows, ignore bundle parameter
-        #endif
         guard let data = FileSystem.current.readFile(at: path.url) else {
             throw AssetError.notExistAtPath(path.url.path)
         }
@@ -454,14 +433,11 @@ extension AssetsManager {
     
     static func getFilePath(from meta: AssetMetaInfo) -> Path {
         let processedPath = self.processPath(meta.assetPath)
-        
-        #if !os(Windows)
         if let bundlePath = meta.bundlePath, let bundle = Bundle(path: bundlePath) {
             if let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil) {
                 return Path(url: uri, query: processedPath.query)
             }
         }
-        #endif
         
         return processedPath
     }
@@ -523,7 +499,7 @@ private extension AssetsManager {
             paths[resolvedPath] = key
         }
 
-        let watchedPaths = Array(paths.keys)
+        let watchedPaths = Array(paths.keys).compactMap { try? AbsolutePath(validating: $0) }
         if self.fileWatcher?.paths == watchedPaths {
             return
         }
@@ -536,7 +512,7 @@ private extension AssetsManager {
                 Task { @AssetActor in
                     for path in fsPaths {
                         // Resolve symlinks in incoming paths as well for consistent matching
-                        let resolvedPath = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+                        let resolvedPath = URL(fileURLWithPath: path.pathString).resolvingSymlinksInPath().path
                         guard let assetPath = paths[resolvedPath] else {
                             logger.error("Asset key not found at path \(path)")
                             continue

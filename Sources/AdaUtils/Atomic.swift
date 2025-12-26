@@ -8,45 +8,6 @@
 import Foundation
 import Dispatch
 
-/// Protocol for lock operations
-public protocol LockProtocol {
-    func sync<R>(_ work: () throws -> R) rethrows -> R
-}
-
-#if os(Windows)
-/// Windows implementation using DispatchQueue (not truly recursive, but works for most cases)
-public final class WinRecursiveLock: LockProtocol {
-    private let queue = DispatchQueue(label: "com.adaengine.recursive-lock", attributes: .concurrent)
-
-    public init() {}
-    
-    public func sync<R>(_ work: () throws -> R) rethrows -> R {
-        return try queue.sync(flags: .barrier, execute: work)
-    }
-}
-#else
-/// Extension to make NSRecursiveLock conform to LockProtocol
-extension NSRecursiveLock: LockProtocol {
-    @inlinable @discardableResult
-    @_spi(Internal)
-    public func sync<R>(_ work: () throws -> R) rethrows -> R {
-        self.lock()
-        defer { self.unlock() }
-        return try work()
-    }
-}
-#endif
-
-#if os(Windows)
-public typealias RecursiveLock = WinRecursiveLock
-#elseif canImport(Darwin)
-public typealias RecursiveLock = NSRecursiveLock
-#elseif os(Linux) || os(Android)
-public typealias RecursiveLock = NSRecursiveLock
-#else
-public typealias RecursiveLock = NSRecursiveLock
-#endif
-
 /// A property wrapper that allows you to isolate a value with a lock.
 @propertyWrapper
 @dynamicMemberLookup
@@ -67,7 +28,7 @@ public final class LocalIsolated<Value> {
     }
 
     private var _value: Value
-    private let lock: RecursiveLock = RecursiveLock()
+    private let lock: NSRecursiveLock = NSRecursiveLock()
 
     /// Initializes lock-isolated state around a value.
     ///
@@ -129,5 +90,14 @@ extension LocalIsolated: ExpressibleByIntegerLiteral where Value == Int {
 extension LocalIsolated: ExpressibleByFloatLiteral where Value == Float {
     public convenience init(floatLiteral value: FloatLiteralType) {
         self.init(Float(value))
+    }
+}
+
+extension NSRecursiveLock {
+    @inlinable @discardableResult
+    public func sync<R>(_ work: () throws -> R) rethrows -> R {
+        self.lock()
+        defer { self.unlock() }
+        return try work()
     }
 }

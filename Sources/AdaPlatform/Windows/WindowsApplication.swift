@@ -20,7 +20,7 @@ final class WindowsApplication: Application {
 
     override init(argc: Int32, argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>) throws {
         self.screenManager = WindowsScreenManager()
-        WindowsScreenManager.shared = screenManager
+        unsafe WindowsScreenManager.shared = screenManager
         unsafe Screen.screenManager = screenManager
         unsafe try super.init(argc: argc, argv: argv)
         self.windowManager = WindowsWindowManager(screenManager)
@@ -31,17 +31,17 @@ final class WindowsApplication: Application {
         setupInput(for: appWorlds)
         task = Task(priority: .userInitiated) {
             do {
-                var msg = MSG()
+                var msg = unsafe MSG()
                 while true {
                     try Task.checkCancellation()
                     
                     // Process Windows messages
                     var hasMessage: Bool = false
-                    hasMessage = PeekMessageW(&msg, nil, 0, 0, UInt32(1))
+                    hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
                     while hasMessage {
-                        TranslateMessage(&msg)
-                        DispatchMessageW(&msg)
-                        hasMessage = PeekMessageW(&msg, nil, 0, 0, UInt32(1))
+                        unsafe TranslateMessage(&msg)
+                        unsafe DispatchMessageW(&msg)
+                        hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
                     }
                     
                     await appWorlds.update()
@@ -68,7 +68,7 @@ final class WindowsApplication: Application {
     @discardableResult
     override func openURL(_ url: URL) -> Bool {
         let urlString = url.absoluteString
-        let result = ShellExecuteW(
+        let result = unsafe ShellExecuteW(
             nil,
             "open".wide,
             urlString.wide,
@@ -86,7 +86,7 @@ final class WindowsApplication: Application {
         let messageWide = message.wide
         let titleWide = title.wide
         
-        MessageBoxW(nil, messageWide, titleWide, UINT(MB_OK | MB_ICONINFORMATION))
+        unsafe MessageBoxW(nil, messageWide, titleWide, UINT(MB_OK | MB_ICONINFORMATION))
         
         // Execute first button action if available
         alert.buttons.first?.action?()

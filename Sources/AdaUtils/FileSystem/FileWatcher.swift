@@ -15,7 +15,6 @@ import Foundation
 import WinSDK
 #endif
 
-public typealias AbsolutePath = String
 public typealias FileWatcher = FSWatch
 
 /// FSWatch is a cross-platform filesystem watching utility.
@@ -147,6 +146,7 @@ public protocol RDCWatcherDelegate: Sendable {
 
 /// Bindings for `ReadDirectoryChangesW` C APIs.
 public final class RDCWatcher {
+    @safe
     class Watch: @unchecked Sendable {
         var hDirectory: HANDLE
         let path: String
@@ -156,24 +156,24 @@ public final class RDCWatcher {
         var thread: TSCBasic.Thread?
 
         public init(directory handle: HANDLE, _ path: String) {
-            self.hDirectory = handle
+            unsafe self.hDirectory = handle
             self.path = path
-            self.overlapped = OVERLAPPED()
-            self.overlapped.hEvent = CreateEventW(nil, false, false, nil)
-            self.terminate = CreateEventW(nil, true, false, nil)
+            unsafe self.overlapped = OVERLAPPED()
+            unsafe self.overlapped.hEvent = CreateEventW(nil, false, false, nil)
+            unsafe self.terminate = CreateEventW(nil, true, false, nil)
 
             let EntrySize: Int =
                     MemoryLayout<FILE_NOTIFY_INFORMATION>.stride + (Int(MAX_PATH) * MemoryLayout<WCHAR>.stride)
-            self.buffer =
+            unsafe self.buffer =
                     UnsafeMutableBufferPointer<DWORD>.allocate(capacity: EntrySize * 4 / MemoryLayout<DWORD>.stride)
         }
 
         deinit {
-            SetEvent(self.terminate)
-            CloseHandle(self.terminate)
-            CloseHandle(self.overlapped.hEvent)
-            CloseHandle(hDirectory)
-            self.buffer.deallocate()
+            unsafe SetEvent(self.terminate)
+            unsafe CloseHandle(self.terminate)
+            unsafe CloseHandle(self.overlapped.hEvent)
+            unsafe CloseHandle(hDirectory)
+            unsafe self.buffer.deallocate()
         }
     }
 
@@ -196,25 +196,25 @@ public final class RDCWatcher {
         self.delegate = delegate
 
         self.watches = paths.map {
-            $0.withCString(encodedAs: UTF16.self) {
+            unsafe $0.pathString.withCString(encodedAs: UTF16.self) {
                 let dwDesiredAccess: DWORD = DWORD(FILE_LIST_DIRECTORY)
                 let dwShareMode: DWORD = DWORD(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
                 let dwCreationDisposition: DWORD = DWORD(OPEN_EXISTING)
                 let dwFlags: DWORD = DWORD(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED)
 
                 let handle: HANDLE =
-                        CreateFileW($0, dwDesiredAccess, dwShareMode, nil,
+                        unsafe CreateFileW($0, dwDesiredAccess, dwShareMode, nil,
                                     dwCreationDisposition, dwFlags, nil)
-                assert(!(handle == INVALID_HANDLE_VALUE))
+                unsafe assert(!(handle == INVALID_HANDLE_VALUE))
 
-                let dwSize: DWORD = GetFinalPathNameByHandleW(handle, nil, 0, 0)
-                let path: String = String(decodingCString: Array<WCHAR>(unsafeUninitializedCapacity: Int(dwSize) + 1) {
-                    let dwSize: DWORD = GetFinalPathNameByHandleW(handle, $0.baseAddress, DWORD($0.count), 0)
+                let dwSize: DWORD = unsafe GetFinalPathNameByHandleW(handle, nil, 0, 0)
+                let path: String = unsafe String(decodingCString: Array<WCHAR>(unsafeUninitializedCapacity: Int(dwSize) + 1) {
+                    let dwSize: DWORD = unsafe GetFinalPathNameByHandleW(handle, $0.baseAddress, DWORD($0.count), 0)
                     assert(dwSize == $0.count)
                     $1 = Int(dwSize)
                 }, as: UTF16.self)
 
-                return Watch(directory: handle, path)
+                return unsafe Watch(directory: handle, path)
             }
         }
     }
@@ -232,7 +232,7 @@ public final class RDCWatcher {
                                               | DWORD(FILE_NOTIFY_CHANGE_LAST_WRITE)
                                               | DWORD(FILE_NOTIFY_CHANGE_CREATION)
                     var dwBytesReturned: DWORD = 0
-                    if !ReadDirectoryChangesW(watch.hDirectory, &watch.buffer,
+                    if unsafe !ReadDirectoryChangesW(watch.hDirectory, &watch.buffer,
                                               DWORD(watch.buffer.count * MemoryLayout<DWORD>.stride),
                                               true, dwNotifyFilter, &dwBytesReturned,
                                               &watch.overlapped, nil) {
@@ -240,7 +240,7 @@ public final class RDCWatcher {
                     }
 
                     var handles: (HANDLE?, HANDLE?) = (watch.terminate, watch.overlapped.hEvent)
-                    switch WaitForMultipleObjects(2, &handles.0, false, INFINITE) {
+                    switch unsafe WaitForMultipleObjects(2, &handles.0, false, INFINITE) {
                         case WAIT_OBJECT_0 + 1:
                             break
                         case DWORD(WAIT_TIMEOUT):  // Spurious Wakeup?
@@ -251,12 +251,12 @@ public final class RDCWatcher {
                             fallthrough
                         default:
                             unsafe CloseHandle(watch.hDirectory)
-                            unsafe watch.hDirectory = unsafe INVALID_HANDLE_VALUE
+                            unsafe watch.hDirectory = INVALID_HANDLE_VALUE
                             return
                     }
 
                     if unsafe !GetOverlappedResult(watch.hDirectory, &watch.overlapped, &dwBytesReturned, false) {
-                        queue.async { [watch] in
+                        queue.async {
                             delegate?.pathsDidReceiveEvent([AbsolutePath(watch.path)])
                         }
                         return
@@ -274,16 +274,13 @@ public final class RDCWatcher {
                                 $0.baseAddress
                         while var pNotify = unsafe pNotify {
                             // FIXME(compnerd) do we care what type of event was received?
-                            let fileNameLength = unsafe Int(pNotify.pointee.FileNameLength) / MemoryLayout<WCHAR>.stride
-                            // FileName is a flexible array member at the end of FILE_NOTIFY_INFORMATION
-                            let fileNamePtr = unsafe UnsafeRawPointer(pNotify)
-                                .advanced(by: MemoryLayout<FILE_NOTIFY_INFORMATION>.size)
-                                .assumingMemoryBound(to: WCHAR.self)
-                            let buffer = unsafe UnsafeBufferPointer(start: fileNamePtr, count: fileNameLength)
-                            let file = unsafe String(decoding: buffer, as: UTF16.self)
+                            let file: String =
+                                    String(utf16CodeUnitsNoCopy: &pNotify.pointee.FileName,
+                                           count: Int(pNotify.pointee.FileNameLength) / MemoryLayout<WCHAR>.stride,
+                                           freeWhenDone: false)
                             paths.append(AbsolutePath(file))
 
-                            unsafe pNotify = unsafe (UnsafeMutableRawPointer(pNotify) + Int(pNotify.pointee.NextEntryOffset))
+                            unsafe pNotify = (UnsafeMutableRawPointer(pNotify) + Int(pNotify.pointee.NextEntryOffset))
                                             .assumingMemoryBound(to: FILE_NOTIFY_INFORMATION.self)
                         }
                     }
@@ -299,7 +296,7 @@ public final class RDCWatcher {
 
     public func stop() {
         self.watches.forEach {
-            SetEvent($0.terminate)
+            unsafe SetEvent($0.terminate)
             $0.thread?.join()
         }
     }
@@ -872,7 +869,7 @@ enum TSCBasic {
     /// This class bridges the gap between Darwin and Linux Foundation Threading API.
     /// It provides closure based execution and a join method to block the calling thread
     /// until the thread is finished executing.
-    final public class Thread {
+    final public class Thread: @unchecked Sendable {
         
         /// The thread implementation which is Foundation.Thread on Linux and
         /// a Thread subclass which provides closure support on Darwin.
@@ -885,14 +882,14 @@ enum TSCBasic {
         private var isFinished: Bool
         
         /// Creates an instance of thread class with closure to be executed when start() is called.
-        public init(task: @escaping () -> Void) {
+        public init(task: @escaping @Sendable () -> Void) {
             isFinished = false
             finishedCondition = Condition()
             
             // Wrap the task with condition notifying any other threads blocked due to this thread.
             // Capture self weakly to avoid reference cycle. In case Thread is deinited before the task
             // runs, skip the use of finishedCondition.
-            let theTask = { [weak self] in
+            let theTask: @Sendable () -> Void = { [weak self] in
                 if let strongSelf = self {
                     precondition(!strongSelf.isFinished)
                     strongSelf.finishedCondition.whileLocked {
@@ -907,11 +904,7 @@ enum TSCBasic {
                 }
             }
             
-            #if canImport(Darwin)
             self.thread = ThreadImpl(block: theTask)
-            #else
-            self.thread = ThreadImpl(task: theTask)
-            #endif
         }
         
         /// Starts the thread execution.
@@ -941,7 +934,7 @@ enum TSCBasic {
 #if canImport(Darwin)
     /// A helper subclass of Foundation's Thread with closure support.
     final private class ThreadImpl: Foundation.Thread {
-
+        
         /// The task to be executed.
         private let task: () -> Void
         
@@ -955,82 +948,10 @@ enum TSCBasic {
     }
 #else
     // Thread on Linux supports closure so just use it directly.
-    typealias ThreadImpl = Thread
+    typealias ThreadImpl = Foundation.Thread
 #endif
     
     public struct Condition: Sendable {
-        #if os(Windows)
-        // Windows doesn't have NSCondition, use Dispatch-based implementation
-        private let _lock = DispatchQueue(label: "com.adaengine.condition.lock")
-        private let _semaphore = DispatchSemaphore(value: 0)
-        // Use a class wrapper for mutable state since structs are value types
-        private final class WaitersCounter: @unchecked Sendable {
-            var value: Int = 0
-        }
-        private let _waiters = WaitersCounter()
-        
-        /// Create a new condition.
-        public init() {}
-        
-        /// Wait for the condition to become available.
-        public func wait() {
-            _lock.sync {
-                _waiters.value += 1
-            }
-            _semaphore.wait()
-            _lock.sync {
-                _waiters.value -= 1
-            }
-        }
-        
-        /// Blocks the current thread until the condition is signaled or the specified time limit is reached.
-        ///
-        /// - Returns: true if the condition was signaled; otherwise, false if the time limit was reached.
-        public func wait(until limit: Date) -> Bool {
-            let now = Date()
-            let timeout = limit.timeIntervalSince(now)
-            guard timeout > 0 else {
-                return false
-            }
-            let dispatchTime = DispatchTime.now() + timeout
-            _lock.sync {
-                _waiters.value += 1
-            }
-            let result = _semaphore.wait(timeout: dispatchTime)
-            _lock.sync {
-                _waiters.value -= 1
-            }
-            return result == .success
-        }
-        
-        /// Signal the availability of the condition (awake one thread waiting on
-        /// the condition).
-        public func signal() {
-            _lock.sync {
-                if _waiters.value > 0 {
-                    _semaphore.signal()
-                }
-            }
-        }
-        
-        /// Broadcast the availability of the condition (awake all threads waiting
-        /// on the condition).
-        public func broadcast() {
-            _lock.sync {
-                for _ in 0..<_waiters.value {
-                    _semaphore.signal()
-                }
-            }
-        }
-        
-        /// A helper method to execute the given body while condition is locked.
-        /// - Note: Will ensure condition unlocks even if `body` throws.
-        public func whileLocked<T>(_ body: () throws -> T) rethrows -> T {
-            return try _lock.sync {
-                return try body()
-            }
-        }
-        #else
         private let _condition = NSCondition()
 
         /// Create a new condition.
@@ -1067,6 +988,5 @@ enum TSCBasic {
             defer { _condition.unlock() }
             return try body()
         }
-        #endif
     }
 }
