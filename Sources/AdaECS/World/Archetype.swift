@@ -32,7 +32,7 @@ public struct ArchetypeSwapAndRemoveResult: Sendable {
 public final class Entities: @unchecked Sendable {
     public private(set) var entities: SparseSet<Entity.ID, EntityLocation> = [:]
     private let currentId = ManagedAtomic<Int>(1)
-    let lock = RecursiveLock()
+    let lock = NSRecursiveLock()
 
     func allocate(with name: String) -> Entity {
         let newId = currentId.loadThenWrappingIncrement(ordering: .relaxed)
