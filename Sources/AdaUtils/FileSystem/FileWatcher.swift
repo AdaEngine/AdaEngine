@@ -11,6 +11,7 @@
 
 import Dispatch
 import Foundation
+import Logging
 #if os(Windows)
 import WinSDK
 #endif
@@ -30,6 +31,8 @@ public final class FSWatch: @unchecked Sendable {
             block(paths)
         }
     }
+
+    private var isStarted = false
 
     /// The paths being watched.
     public let paths: [AbsolutePath]
@@ -80,14 +83,17 @@ public final class FSWatch: @unchecked Sendable {
     
     deinit {
         _watcher.stop()
+        isStarted = false
     }
 
     /// Start watching the filesystem for events.
     ///
     /// This method should be called only once.
     public func start() throws {
+        precondition(isStarted == false, "FSWatcher must be started only once")
         // FIXME: Write precondition to ensure its called only once.
         try _watcher.start()
+        isStarted = true
     }
 
     /// Stop watching the filesystem. 
@@ -772,10 +778,14 @@ private func callback(
     let eventPaths = unsafe unsafeBitCast(eventPaths, to: NSArray.self) as? [String] ?? []
 
     // Compute the set of paths that were changed.
-    let paths = eventPaths//.compactMap({ try? AbsolutePath(validating: $0) }) // <- TODO (Vlad): May be ok
+    do {
+        let paths = try eventPaths.compactMap { try AbsolutePath(validating: $0) }
 
-    eventStream.callbacksQueue.async {
-        eventStream.delegate.pathsDidReceiveEvent(paths)
+        eventStream.callbacksQueue.async {
+            eventStream.delegate.pathsDidReceiveEvent(paths)
+        }
+    } catch {
+        Logger(label: "org.adaengine.utils.filewatcher").error("\(error.localizedDescription)")
     }
 }
 
@@ -822,11 +832,15 @@ public final class FSEventStream: @unchecked Sendable {
         var callbackContext = unsafe FSEventStreamContext()
         unsafe callbackContext.info = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
 
+        // Convert AbsolutePath array to String array for FSEventStreamCreate
+        let pathStrings = paths.map { $0.pathString }
+        let pathsArray = NSArray(array: pathStrings) as CFArray
+
         // Create the stream.
         unsafe self.stream = FSEventStreamCreate(nil,
             callback,
             &callbackContext, 
-            paths as CFArray, 
+            pathsArray, 
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
             latency,
             flags
@@ -835,26 +849,30 @@ public final class FSEventStream: @unchecked Sendable {
 
     // Start the runloop.
     public func start() throws {
+        // Check if stream was created successfully
+        guard self.stream != nil else {
+            throw Error.unknownError
+        }
+        
         let thread = TSCBasic.Thread { [weak self] in
-            guard let `self` = self else { return }
+            guard let `self` = self, let stream = self.stream else { return }
             self.runLoop = CFRunLoopGetCurrent()
             // Schedule the run loop.
             unsafe FSEventStreamScheduleWithRunLoop(
-                self.stream,
+                stream,
                 CFRunLoopGetCurrent(),
                 CFRunLoopMode.defaultMode.rawValue
             )
 
             // Start the stream.
-            unsafe FSEventStreamScheduleWithRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
-            unsafe FSEventStreamStart(self.stream)
+            unsafe FSEventStreamStart(stream)
             CFRunLoopRun()
 
             // Perform cleanup.
-            unsafe FSEventStreamStop(self.stream)
-            unsafe FSEventStreamUnscheduleFromRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
-            unsafe FSEventStreamInvalidate(self.stream)
-            unsafe FSEventStreamRelease(self.stream)
+            unsafe FSEventStreamStop(stream)
+            unsafe FSEventStreamUnscheduleFromRunLoop(stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
+            unsafe FSEventStreamInvalidate(stream)
+            unsafe FSEventStreamRelease(stream)
         }
         thread.start()
 		self.thread = thread
@@ -875,7 +893,7 @@ enum TSCBasic {
     /// It provides closure based execution and a join method to block the calling thread
     /// until the thread is finished executing.
     final public class Thread: @unchecked Sendable {
-        
+
         /// The thread implementation which is Foundation.Thread on Linux and
         /// a Thread subclass which provides closure support on Darwin.
         private var thread: ThreadImpl!
@@ -941,13 +959,13 @@ enum TSCBasic {
     final private class ThreadImpl: Foundation.Thread {
         
         /// The task to be executed.
-        private let task: () -> Void
-        
+        private let task: @Sendable () -> Void
+
         override func main() {
             task()
         }
         
-        init(block task: @escaping () -> Void) {
+        init(block task: @escaping @Sendable () -> Void) {
             self.task = task
         }
     }
