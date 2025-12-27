@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 3/18/24.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 final class GenericUniformBufferSet: UniformBufferSet, @unchecked Sendable {
     /// Max frames in flight.

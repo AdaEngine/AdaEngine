@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 8/14/21.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import CVulkan
 
 public final class Device {

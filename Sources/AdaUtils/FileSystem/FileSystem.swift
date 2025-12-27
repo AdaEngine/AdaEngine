@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 1/20/23.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 // TODO: Should we use this instead of NSFileManager thats dilivered by SwiftFoundation?
 
@@ -24,11 +20,7 @@ public class FileSystem: @unchecked Sendable {
     
     /// The shared file manager object for the process.
     public static let `current`: FileSystem = {
-        #if os(macOS) || os(iOS) || os(tvOS) || os(Linux) || os(Windows) || os(Android)
         return FoundationFileSystem()
-        #else
-        fatalError("Currently not supported file system")
-        #endif
     }()
     
     /// Returns the path for directory where Ada app located.

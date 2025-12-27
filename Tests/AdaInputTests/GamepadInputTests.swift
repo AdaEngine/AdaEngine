@@ -10,11 +10,7 @@ import Testing
 import AdaECS
 @_spi(Internal) @testable import AdaInput
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Math
 
 @Suite("Gamepad Input Tests")

@@ -80,7 +80,7 @@ final class OpenGLRenderDevice: RenderDevice {
             OpenGLBackend.currentContext?.makeCurrent()
             return try OpenGLTexture(descriptor: descriptor)
         } catch {
-            fatalError(error.localizedDescription)
+            fatalError("\(error)")
         }
     }
 

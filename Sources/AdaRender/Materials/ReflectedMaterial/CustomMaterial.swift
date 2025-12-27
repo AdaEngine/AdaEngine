@@ -7,11 +7,7 @@
 
 import AdaAssets
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 protocol MaterialValueDelegate: AnyObject {
     func updateValue(_ value: ShaderUniformValue, for name: String)
@@ -140,7 +136,7 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
             shaderSource.includeSearchPaths.append(contentsOf: vertexShaderSource.asset.includeSearchPaths)
             shaderSource.includeSearchPaths.append(contentsOf: fragmentShaderSource.asset.includeSearchPaths)
         } catch {
-            assertionFailure("[CustomMaterial] \(error.localizedDescription)")
+            assertionFailure("[CustomMaterial] \(error)")
         }
         
         super.init(shaderSource: shaderSource)
@@ -182,7 +178,7 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
             
             return pipeline
         } catch {
-            assertionFailure("[CustomMaterial] \(error.localizedDescription)")
+            assertionFailure("[CustomMaterial] \(error)")
             return nil
         }
     }

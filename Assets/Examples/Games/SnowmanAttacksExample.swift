@@ -362,7 +362,7 @@ struct EnemySpawnerSystem {
 
             self.textureAtlas = TextureAtlas(from: tiles, size: [18, 18])
         } catch {
-            fatalError(error.localizedDescription)
+            fatalError("\(error)")
         }
     }
 

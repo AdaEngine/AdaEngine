@@ -7,11 +7,7 @@
 
 import AdaECS
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Math
 
 enum AudioError: Error {
@@ -57,7 +53,7 @@ public final class AudioServer: Resource {
         do {
             return try AudioPlaybackController(resource: resource)
         } catch {
-            fatalError("[AudioServer] Can't create sound from resource \(error.localizedDescription)")
+            fatalError("[AudioServer] Can't create sound from resource \(error)")
         }
     }
 }

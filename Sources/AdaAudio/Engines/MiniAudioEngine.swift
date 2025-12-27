@@ -7,11 +7,7 @@
 
 import AdaECS
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import miniaudio
 import Math
 
@@ -200,7 +196,7 @@ final class MiniSound: Sound {
     init(from fileURL: URL, engine: UnsafeMutablePointer<ma_engine>!) throws {
         let flags = MA_SOUND_FLAG_DECODE.rawValue | MA_SOUND_FLAG_NO_SPATIALIZATION.rawValue
         let result = unsafe fileURL.path.withCString { pFilePath in
-            unsafe ma_sound_init_from_file(engine, pFilePath, flags, nil, nil, sound)
+            unsafe ma_sound_init_from_file(engine, pFilePath, UInt32(flags), nil, nil, sound)
         }
         if result != MA_SUCCESS {
             throw AudioError.soundInitializationFailed
@@ -211,7 +207,7 @@ final class MiniSound: Sound {
         var data = data
         let flags = MA_SOUND_FLAG_DECODE.rawValue | MA_SOUND_FLAG_NO_SPATIALIZATION.rawValue
         let result = unsafe data.withUnsafeMutableBytes { ptr in
-            unsafe ma_sound_init_from_data_source(engine, ptr.baseAddress!, flags, nil, sound)
+            unsafe ma_sound_init_from_data_source(engine, ptr.baseAddress!, UInt32(flags), nil, sound)
         }
         
         if result != MA_SUCCESS {

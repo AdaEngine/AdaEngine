@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 3/13/23.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import SPIRV_Cross
 import Logging
 
@@ -340,7 +336,7 @@ extension SpirvCompiler {
             let platform = SPVC_MSL_PLATFORM_IOS
 #endif
 
-            unsafe spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_PLATFORM, platform.rawValue)
+            unsafe spvc_compiler_options_set_uint(options, SPVC_COMPILER_OPTION_MSL_PLATFORM, UInt32(platform.rawValue))
             unsafe spvc_compiler_options_set_bool(options, SPVC_COMPILER_OPTION_MSL_ENABLE_DECORATION_BINDING, 1)
         }
 

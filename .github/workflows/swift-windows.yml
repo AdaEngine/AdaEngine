@@ -1,0 +1,31 @@
+name: SwiftPM Test on Windows
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+defaults:
+    run:  # Use powershell because bash is not supported: https://github.com/compnerd/gha-setup-swift/issues/18#issuecomment-1705524890
+        shell: pwsh
+
+jobs:
+  Windows:
+    name: Windows with SwiftPM
+    runs-on: windows-latest
+    steps:
+        - name: Setup
+          uses: compnerd/gha-setup-swift@v0.2.3
+          with:
+            branch: swift-6.2.3-release
+            tag: 6.2.3-RELEASE
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - name: Swift Version
+          run: swift -version
+
+        - name: Test
+          run: swift test --parallel

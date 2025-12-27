@@ -7,11 +7,7 @@
 
 import AdaAssets
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import AtlasFontGenerator
 
 /// Contains font styles.
@@ -130,7 +126,7 @@ public extension FontResource {
                 from: .module
             ).asset
         } catch {
-            fatalError("[Font]: Something went wrong \(error.localizedDescription)")
+            fatalError("[Font]: Something went wrong \(error)")
         }
     }
 }

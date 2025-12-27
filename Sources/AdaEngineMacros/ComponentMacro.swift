@@ -144,18 +144,55 @@ private extension ComponentMacro {
         functions: [String],
         requiredComponents: [String] = []
     ) -> [SwiftSyntax.ExtensionDeclSyntax] {
+        // Process modifiers: if private or fileprivate, change to internal
+        let processedAvailability = processModifiers(availability)
+        
         let proto = "AdaECS.Component"
         let ext: DeclSyntax =
         """
         extension \(type.trimmed): \(raw: proto) { 
-            \(raw: functions.joined(separator: "\n")) \n
-            
-            \(availability)static var requiredComponents: RequiredComponents {
+            \(raw: functions.joined(separator: "\n"))
+            \(processedAvailability) static var requiredComponents: RequiredComponents {
                 RequiredComponents(components: [\(raw: requiredComponents.joined(separator: ", "))])
             }
         }
         """
         return [ext.cast(ExtensionDeclSyntax.self)]
+    }
+    
+    private static func processModifiers(_ modifiers: DeclModifierListSyntax?) -> DeclModifierListSyntax? {
+        guard let modifiers = modifiers, !modifiers.isEmpty else {
+            return nil
+        }
+        
+        // Check if we have private or fileprivate modifiers that need to be changed to internal
+        var needsReplacement = false
+        for modifier in modifiers {
+            let name = modifier.name.text
+            if name == "private" || name == "fileprivate" {
+                needsReplacement = true
+                break
+            }
+        }
+        
+        // If we found private or fileprivate, replace it with internal
+        if needsReplacement {
+            var newModifiers: [DeclModifierSyntax] = []
+            for modifier in modifiers {
+                let name = modifier.name.text
+                if name == "private" || name == "fileprivate" {
+                    // Replace with internal modifier using with method
+                    let internalModifier = modifier.with(\.name, .keyword(.internal))
+                    newModifiers.append(internalModifier)
+                } else {
+                    newModifiers.append(modifier)
+                }
+            }
+            return DeclModifierListSyntax(newModifiers)
+        }
+        
+        // Otherwise return original modifiers
+        return modifiers
     }
 }
 

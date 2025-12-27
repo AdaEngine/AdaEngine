@@ -7,11 +7,7 @@
 
 @_spi(Internal) import AdaUtils
 import Atomics
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 /// The unique identifier of the component.
 @frozen

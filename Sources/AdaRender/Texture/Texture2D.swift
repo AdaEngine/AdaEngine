@@ -8,11 +8,7 @@
 import AdaAssets
 import AdaUtils
 import Math
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 /// The base class represents a 2D texture.
 /// If the texture isn't held by any object, then the GPU resource will freed immediately.

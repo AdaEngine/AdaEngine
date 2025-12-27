@@ -6,11 +6,7 @@
 //
 
 #if VULKAN
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Vulkan
 import CVulkan
 import Math
@@ -111,7 +107,7 @@ extension VulkanRenderBackend {
                     self.drawFences.append(fence)
                 }
             } catch {
-                fatalError("[VulkanRenderBackend] \(error.localizedDescription)")
+                fatalError("[VulkanRenderBackend] \(error)")
             }
         }
 

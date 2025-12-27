@@ -105,12 +105,13 @@ var swiftSettings: [SwiftSetting] = [
     .define("ENABLE_DEBUG_DYLIB", .when(configuration: .debug)),
     .enableUpcomingFeature("MemberImportVisibility"),
     .strictMemorySafety(),
+    .unsafeFlags(["-Xfrontend", "-validate-tbd-against-ir=none"]),
 ]
 
 if isVulkanEnabled {
     swiftSettings.append(.define("VULKAN"))
 } else {
-    swiftSettings.append(.define("METAL"))
+    swiftSettings.append(.define("METAL", .when(platforms: applePlatforms)))
 }
 
 let editorTarget: Target = .executableTarget(
@@ -828,7 +829,7 @@ let package = Package(
     dependencies: [],
     targets: targets,
     cLanguageStandard: .c17,
-    cxxLanguageStandard: .cxx20
+    cxxLanguageStandard: .cxx17
 )
 
 package.dependencies += [

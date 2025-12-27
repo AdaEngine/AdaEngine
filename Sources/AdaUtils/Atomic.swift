@@ -5,11 +5,8 @@
 //  Created by v.prusakov on 4/30/24.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
+import Dispatch
 
 /// A property wrapper that allows you to isolate a value with a lock.
 @propertyWrapper
@@ -31,7 +28,7 @@ public final class LocalIsolated<Value> {
     }
 
     private var _value: Value
-    private let lock = NSRecursiveLock()
+    private let lock: NSRecursiveLock = NSRecursiveLock()
 
     /// Initializes lock-isolated state around a value.
     ///
@@ -59,16 +56,6 @@ public final class LocalIsolated<Value> {
 }
 
 extension LocalIsolated: @unchecked Sendable where Value: Sendable {}
-
-extension NSRecursiveLock {
-    @inlinable @discardableResult
-    @_spi(Internal)
-    public func sync<R>(work: () throws -> R) rethrows -> R {
-        self.lock()
-        defer { self.unlock() }
-        return try work()
-    }
-}
 
 extension LocalIsolated: ExpressibleByBooleanLiteral where Value == Bool {
     public convenience init(booleanLiteral value: BooleanLiteralType) {
@@ -103,5 +90,14 @@ extension LocalIsolated: ExpressibleByIntegerLiteral where Value == Int {
 extension LocalIsolated: ExpressibleByFloatLiteral where Value == Float {
     public convenience init(floatLiteral value: FloatLiteralType) {
         self.init(Float(value))
+    }
+}
+
+extension NSRecursiveLock {
+    @inlinable @discardableResult
+    public func sync<R>(_ work: () throws -> R) rethrows -> R {
+        self.lock()
+        defer { self.unlock() }
+        return try work()
     }
 }

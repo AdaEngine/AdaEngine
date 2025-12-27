@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 @frozen public struct AnyDecodable: Decodable {
     public let value: Any
@@ -32,7 +28,7 @@ extension _AnyDecodable {
         let container = try decoder.singleValueContainer()
 
         if container.decodeNil() {
-            #if canImport(Foundation)
+            #if canImport(Darwin)
                 self.init(NSNull())
             #else
                 self.init(Optional<Self>.none)
@@ -60,7 +56,7 @@ extension _AnyDecodable {
 extension AnyDecodable: Equatable {
     public static func == (lhs: AnyDecodable, rhs: AnyDecodable) -> Bool {
         switch (lhs.value, rhs.value) {
-#if canImport(Foundation)
+#if canImport(Darwin)
         case is (NSNull, NSNull), is (Void, Void):
             return true
 #endif

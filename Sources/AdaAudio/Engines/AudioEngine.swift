@@ -7,11 +7,7 @@
 
 import AdaECS
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 /// Interface that works with audio.
 protocol AudioEngine: Resource {
