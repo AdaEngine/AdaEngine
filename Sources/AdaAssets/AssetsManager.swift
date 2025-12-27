@@ -489,17 +489,35 @@ private extension AssetsManager {
             return
         }
         
-        var paths = [String: String]()
-        for (key, asset) in self.storage.hotReloadingAssets {
+        // Collect unique directory paths - on Windows, FileWatcher needs directories, not files
+        var watchedDirectories = Set<String>()
+        for (_, asset) in self.storage.hotReloadingAssets {
             guard let firstAsset = asset.first else {
                 continue
             }
-            // Resolve symlinks to get canonical path (e.g., /private/var instead of /var on macOS)
-            let resolvedPath = firstAsset.path.url.resolvingSymlinksInPath().path
-            paths[resolvedPath] = key
+            // Get directory path - on Windows, FileWatcher needs directories, not files
+            let directoryURL = firstAsset.path.url.deletingLastPathComponent().resolvingSymlinksInPath()
+            let directoryPath = directoryURL.path
+            
+            // Ensure directory exists before watching
+            if FileSystem.current.itemExists(at: directoryURL) {
+                watchedDirectories.insert(directoryPath)
+            } else {
+                logger.warning("Directory does not exist for watching: \(directoryPath)")
+            }
         }
 
-        let watchedPaths = Array(paths.keys).compactMap { try? AbsolutePath(validating: $0) }
+        guard !watchedDirectories.isEmpty else {
+            logger.warning("No valid directories to watch")
+            return
+        }
+
+        let watchedPaths = Array(watchedDirectories).compactMap { try? AbsolutePath(validating: $0) }
+        guard !watchedPaths.isEmpty else {
+            logger.warning("No valid absolute paths to watch")
+            return
+        }
+        
         if self.fileWatcher?.paths == watchedPaths {
             return
         }
@@ -512,17 +530,24 @@ private extension AssetsManager {
                 Task { @AssetActor in
                     for path in fsPaths {
                         // Resolve symlinks in incoming paths as well for consistent matching
-                        let resolvedPath = URL(fileURLWithPath: path.pathString).resolvingSymlinksInPath().path
-                        guard let assetPath = paths[resolvedPath] else {
-                            logger.error("Asset key not found at path \(path)")
-                            continue
-                        }
+                        let resolvedDirectoryPath = URL(fileURLWithPath: path.pathString).resolvingSymlinksInPath().path
                         
-                        for var asset in self.storage.hotReloadingAssets[assetPath, default: []] {
-                            asset.needsUpdate = true
-                            self.storage.hotReloadingAssets[assetPath]?.insert(asset)
+                        // Find all assets in this directory and mark them for update
+                        for (assetPath, assets) in self.storage.hotReloadingAssets {
+                            guard let firstAsset = assets.first else {
+                                continue
+                            }
+                            let assetDirectoryPath = firstAsset.path.url.deletingLastPathComponent().resolvingSymlinksInPath().path
+                            
+                            // Check if this asset is in the changed directory
+                            if assetDirectoryPath == resolvedDirectoryPath {
+                                for var asset in assets {
+                                    asset.needsUpdate = true
+                                    self.storage.hotReloadingAssets[assetPath]?.insert(asset)
+                                }
+                                logger.info("Marked asset at path \(assetPath) for hot reload.")
+                            }
                         }
-                        logger.info("Marked asset at path \(path) for hot reload.")
                     }
                 }
             }

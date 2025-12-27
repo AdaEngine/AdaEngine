@@ -208,11 +208,16 @@ public final class RDCWatcher {
                 unsafe assert(!(handle == INVALID_HANDLE_VALUE))
 
                 let dwSize: DWORD = unsafe GetFinalPathNameByHandleW(handle, nil, 0, 0)
-                let path: String = unsafe String(decodingCString: Array<WCHAR>(unsafeUninitializedCapacity: Int(dwSize) + 1) {
-                    let dwSize: DWORD = unsafe GetFinalPathNameByHandleW(handle, $0.baseAddress, DWORD($0.count), 0)
-                    assert(dwSize == $0.count)
-                    $1 = Int(dwSize)
-                }, as: UTF16.self)
+                // GetFinalPathNameByHandleW returns the size including null terminator
+                // Allocate buffer with size + 1 to ensure we have space for null terminator
+                let bufferSize = Int(dwSize) + 1
+                var pathBuffer = Array<WCHAR>(repeating: 0, count: bufferSize)
+                let actualSize: DWORD = unsafe GetFinalPathNameByHandleW(handle, &pathBuffer, DWORD(bufferSize), 0)
+                // actualSize should be <= bufferSize and includes null terminator
+                assert(actualSize <= DWORD(bufferSize), "GetFinalPathNameByHandleW returned size \(actualSize) exceeding buffer size \(bufferSize)")
+                // Ensure null terminator is present
+                pathBuffer[Int(actualSize)] = 0
+                let path: String = unsafe String(decodingCString: pathBuffer, as: UTF16.self)
 
                 return unsafe Watch(directory: handle, path)
             }

@@ -124,6 +124,9 @@ struct AssetsManagerTests: Sendable {
         // Load asset with hot reloading enabled
         let asset = try await AssetsManager.load(TestAsset.self, at: testPath, handleChanges: true)
         
+        // Verify initial asset data
+        #expect(asset.asset.testData == "1234", "Initial asset data should be '1234'")
+        
         // Verify asset is in cache after load
         let isExistsAfterLoad = await AssetsManager.isAssetExistsInCache(TestAsset.self, at: testPath)
         #expect(isExistsAfterLoad, "Asset should be in cache after load")
@@ -132,17 +135,19 @@ struct AssetsManagerTests: Sendable {
         let newData = TestAsset(testData: "12345")
         try await AssetsManager.save(newData, at: "@res://", name: "test_hot_reload.txt")
         
-        // Wait for hot reload
-        try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+        // Wait for file watcher to detect the change (latency is 0.1 seconds, but we wait longer to be safe)
+        try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+        
+        // Process hot reload changes (normally done by AssetsProcessSystem)
+        // This needs to be called to actually process the changes detected by FileWatcher
+        try await AssetsManager.processResources()
         
         // Verify asset is still in cache after hot reload
         let isExistsAfterHotReloading = await AssetsManager.isAssetExistsInCache(TestAsset.self, at: testPath)
         #expect(isExistsAfterHotReloading, "Asset should still be in cache after hot reload")
         
-        // Load asset again to verify hot reload
-        _ = try await AssetsManager.load(TestAsset.self, at: testPath)
-        
-        print(asset)
+        // Verify asset data was updated via hot reload
+        #expect(asset.asset.testData == "12345", "Asset data should be updated to '12345' after hot reload")
     }
 } 
 
