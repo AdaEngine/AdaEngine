@@ -1078,3 +1078,11 @@ extension RelativePath {
         try! self.init(validating: string)
     }
 }
+
+
+extension Collection {
+    /// Returns the only element of the collection or nil.
+    public var spm_only: Element? {
+        return count == 1 ? self[startIndex] : nil
+    }
+}
