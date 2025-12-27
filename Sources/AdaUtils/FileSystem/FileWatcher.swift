@@ -285,11 +285,10 @@ public final class RDCWatcher {
                                 $0.baseAddress
                         while var pNotify = unsafe pNotify {
                             // FIXME(compnerd) do we care what type of event was received?
-                            let file: String =
-                                    String(utf16CodeUnitsNoCopy: &pNotify.pointee.FileName,
-                                           count: Int(pNotify.pointee.FileNameLength) / MemoryLayout<WCHAR>.stride,
-                                           freeWhenDone: false)
-                            paths.append(AbsolutePath(file))
+                            let file = unsafe String(utf16CodeUnits: &pNotify.pointee.FileName, count: Int(pNotify.pointee.FileNameLength) / MemoryLayout<WCHAR>.stride)
+                            if let path = try? AbsolutePath(validating: file) {
+                                paths.append(path)
+                            }
 
                             unsafe pNotify = (UnsafeMutableRawPointer(pNotify) + Int(pNotify.pointee.NextEntryOffset))
                                             .assumingMemoryBound(to: FILE_NOTIFY_INFORMATION.self)
