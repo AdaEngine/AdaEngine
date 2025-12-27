@@ -7,11 +7,7 @@
 
 import AdaUtils
 import Collections
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 public final class WorldCommandQueue: @unchecked Sendable {
     var commands: Deque<WorldCommand> = []
@@ -30,7 +26,7 @@ public final class WorldCommandQueue: @unchecked Sendable {
     public func push(_ command: @escaping @Sendable (World) -> Void) {
         lock.lock()
         defer { lock.unlock() }
-        commands.append(WorldCommand(applyToWorld: command))
+        self.commands.append(WorldCommand(applyToWorld: command))
     }
 
     public func apply(to world: World) {

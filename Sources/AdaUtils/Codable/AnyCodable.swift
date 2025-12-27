@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 5/21/25.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 // Taken from https://github.com/Flight-School/AnyCodable
 
@@ -60,12 +56,14 @@ extension AnyCodable: Equatable {
             return lhs == rhs
         case let (lhs as [AnyCodable], rhs as [AnyCodable]):
             return lhs == rhs
+        #if canImport(Darwin)
         case let (lhs as [String: Any], rhs as [String: Any]):
             return NSDictionary(dictionary: lhs) == NSDictionary(dictionary: rhs)
         case let (lhs as [Any], rhs as [Any]):
             return NSArray(array: lhs) == NSArray(array: rhs)
         case is (NSNull, NSNull):
             return true
+        #endif
         default:
             return false
         }

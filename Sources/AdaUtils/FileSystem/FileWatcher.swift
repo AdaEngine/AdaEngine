@@ -10,22 +10,18 @@
 // Take from https://github.com/swiftlang/swift-tools-support-core/blob/main/Sources/TSCUtility/FSWatch.swift
 
 import Dispatch
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
+import Logging
 #if os(Windows)
 import WinSDK
 #endif
 
-public typealias AbsolutePath = String
 public typealias FileWatcher = FSWatch
 
 /// FSWatch is a cross-platform filesystem watching utility.
 public final class FSWatch: @unchecked Sendable {
 
-    public typealias EventReceivedBlock = (_ paths: [AbsolutePath]) -> Void
+    public typealias EventReceivedBlock = @Sendable (_ paths: [AbsolutePath]) -> Void
 
     /// Delegate for handling events from the underling watcher.
     fileprivate struct _WatcherDelegate {
@@ -35,6 +31,8 @@ public final class FSWatch: @unchecked Sendable {
             block(paths)
         }
     }
+
+    private var isStarted = false
 
     /// The paths being watched.
     public let paths: [AbsolutePath]
@@ -85,14 +83,17 @@ public final class FSWatch: @unchecked Sendable {
     
     deinit {
         _watcher.stop()
+        isStarted = false
     }
 
     /// Start watching the filesystem for events.
     ///
     /// This method should be called only once.
     public func start() throws {
+        precondition(isStarted == false, "FSWatcher must be started only once")
         // FIXME: Write precondition to ensure its called only once.
         try _watcher.start()
+        isStarted = true
     }
 
     /// Stop watching the filesystem. 
@@ -145,13 +146,14 @@ public final class NoOpWatcher {
 
 #elseif os(Windows)
 
-public protocol RDCWatcherDelegate {
+public protocol RDCWatcherDelegate: Sendable {
     func pathsDidReceiveEvent(_ paths: [AbsolutePath])
 }
 
 /// Bindings for `ReadDirectoryChangesW` C APIs.
 public final class RDCWatcher {
-    class Watch {
+    @safe
+    class Watch: @unchecked Sendable {
         var hDirectory: HANDLE
         let path: String
         var overlapped: OVERLAPPED
@@ -160,24 +162,24 @@ public final class RDCWatcher {
         var thread: TSCBasic.Thread?
 
         public init(directory handle: HANDLE, _ path: String) {
-            self.hDirectory = handle
+            unsafe self.hDirectory = handle
             self.path = path
-            self.overlapped = OVERLAPPED()
-            self.overlapped.hEvent = CreateEventW(nil, false, false, nil)
-            self.terminate = CreateEventW(nil, true, false, nil)
+            unsafe self.overlapped = OVERLAPPED()
+            unsafe self.overlapped.hEvent = CreateEventW(nil, false, false, nil)
+            unsafe self.terminate = CreateEventW(nil, true, false, nil)
 
             let EntrySize: Int =
                     MemoryLayout<FILE_NOTIFY_INFORMATION>.stride + (Int(MAX_PATH) * MemoryLayout<WCHAR>.stride)
-            self.buffer =
+            unsafe self.buffer =
                     UnsafeMutableBufferPointer<DWORD>.allocate(capacity: EntrySize * 4 / MemoryLayout<DWORD>.stride)
         }
 
         deinit {
-            SetEvent(self.terminate)
-            CloseHandle(self.terminate)
-            CloseHandle(self.overlapped.hEvent)
-            CloseHandle(hDirectory)
-            self.buffer.deallocate()
+            unsafe SetEvent(self.terminate)
+            unsafe CloseHandle(self.terminate)
+            unsafe CloseHandle(self.overlapped.hEvent)
+            unsafe CloseHandle(hDirectory)
+            unsafe self.buffer.deallocate()
         }
     }
 
@@ -200,25 +202,30 @@ public final class RDCWatcher {
         self.delegate = delegate
 
         self.watches = paths.map {
-            $0.pathString.withCString(encodedAs: UTF16.self) {
+            unsafe $0.pathString.withCString(encodedAs: UTF16.self) {
                 let dwDesiredAccess: DWORD = DWORD(FILE_LIST_DIRECTORY)
                 let dwShareMode: DWORD = DWORD(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
                 let dwCreationDisposition: DWORD = DWORD(OPEN_EXISTING)
                 let dwFlags: DWORD = DWORD(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OVERLAPPED)
 
                 let handle: HANDLE =
-                        CreateFileW($0, dwDesiredAccess, dwShareMode, nil,
+                        unsafe CreateFileW($0, dwDesiredAccess, dwShareMode, nil,
                                     dwCreationDisposition, dwFlags, nil)
-                assert(!(handle == INVALID_HANDLE_VALUE))
+                unsafe assert(!(handle == INVALID_HANDLE_VALUE))
 
-                let dwSize: DWORD = GetFinalPathNameByHandleW(handle, nil, 0, 0)
-                let path: String = String(decodingCString: Array<WCHAR>(unsafeUninitializedCapacity: Int(dwSize) + 1) {
-                    let dwSize: DWORD = GetFinalPathNameByHandleW(handle, $0.baseAddress, DWORD($0.count), 0)
-                    assert(dwSize == $0.count)
-                    $1 = Int(dwSize)
-                }, as: UTF16.self)
+                let dwSize: DWORD = unsafe GetFinalPathNameByHandleW(handle, nil, 0, 0)
+                // GetFinalPathNameByHandleW returns the size including null terminator
+                // Allocate buffer with size + 1 to ensure we have space for null terminator
+                let bufferSize = Int(dwSize) + 1
+                var pathBuffer = Array<WCHAR>(repeating: 0, count: bufferSize)
+                let actualSize: DWORD = unsafe GetFinalPathNameByHandleW(handle, &pathBuffer, DWORD(bufferSize), 0)
+                // actualSize should be <= bufferSize and includes null terminator
+                assert(actualSize <= DWORD(bufferSize), "GetFinalPathNameByHandleW returned size \(actualSize) exceeding buffer size \(bufferSize)")
+                // Ensure null terminator is present
+                pathBuffer[Int(actualSize)] = 0
+                let path: String = unsafe String(decodingCString: pathBuffer, as: UTF16.self)
 
-                return Watch(directory: handle, path)
+                return unsafe Watch(directory: handle, path)
             }
         }
     }
@@ -236,7 +243,7 @@ public final class RDCWatcher {
                                               | DWORD(FILE_NOTIFY_CHANGE_LAST_WRITE)
                                               | DWORD(FILE_NOTIFY_CHANGE_CREATION)
                     var dwBytesReturned: DWORD = 0
-                    if !ReadDirectoryChangesW(watch.hDirectory, &watch.buffer,
+                    if unsafe !ReadDirectoryChangesW(watch.hDirectory, &watch.buffer,
                                               DWORD(watch.buffer.count * MemoryLayout<DWORD>.stride),
                                               true, dwNotifyFilter, &dwBytesReturned,
                                               &watch.overlapped, nil) {
@@ -244,7 +251,7 @@ public final class RDCWatcher {
                     }
 
                     var handles: (HANDLE?, HANDLE?) = (watch.terminate, watch.overlapped.hEvent)
-                    switch WaitForMultipleObjects(2, &handles.0, false, INFINITE) {
+                    switch unsafe WaitForMultipleObjects(2, &handles.0, false, INFINITE) {
                         case WAIT_OBJECT_0 + 1:
                             break
                         case DWORD(WAIT_TIMEOUT):  // Spurious Wakeup?
@@ -254,12 +261,12 @@ public final class RDCWatcher {
                         case WAIT_OBJECT_0: // Terminate Request
                             fallthrough
                         default:
-                            CloseHandle(watch.hDirectory)
-                            watch.hDirectory = INVALID_HANDLE_VALUE
+                            unsafe CloseHandle(watch.hDirectory)
+                            unsafe watch.hDirectory = INVALID_HANDLE_VALUE
                             return
                     }
 
-                    if !GetOverlappedResult(watch.hDirectory, &watch.overlapped, &dwBytesReturned, false) {
+                    if unsafe !GetOverlappedResult(watch.hDirectory, &watch.overlapped, &dwBytesReturned, false) {
                         queue.async {
                             delegate?.pathsDidReceiveEvent([AbsolutePath(watch.path)])
                         }
@@ -273,23 +280,22 @@ public final class RDCWatcher {
                     }
 
                     var paths: [AbsolutePath] = []
-                    watch.buffer.withMemoryRebound(to: FILE_NOTIFY_INFORMATION.self) {
+                    unsafe watch.buffer.withMemoryRebound(to: FILE_NOTIFY_INFORMATION.self) {
                         let pNotify: UnsafeMutablePointer<FILE_NOTIFY_INFORMATION>? =
                                 $0.baseAddress
-                        while var pNotify = pNotify {
+                        while var pNotify = unsafe pNotify {
                             // FIXME(compnerd) do we care what type of event was received?
-                            let file: String =
-                                    String(utf16CodeUnitsNoCopy: &pNotify.pointee.FileName,
-                                           count: Int(pNotify.pointee.FileNameLength) / MemoryLayout<WCHAR>.stride,
-                                           freeWhenDone: false)
-                            paths.append(AbsolutePath(file))
+                            let file = unsafe String(utf16CodeUnits: &pNotify.pointee.FileName, count: Int(pNotify.pointee.FileNameLength) / MemoryLayout<WCHAR>.stride)
+                            if let path = try? AbsolutePath(validating: file) {
+                                paths.append(path)
+                            }
 
-                            pNotify = (UnsafeMutableRawPointer(pNotify) + Int(pNotify.pointee.NextEntryOffset))
+                            unsafe pNotify = (UnsafeMutableRawPointer(pNotify) + Int(pNotify.pointee.NextEntryOffset))
                                             .assumingMemoryBound(to: FILE_NOTIFY_INFORMATION.self)
                         }
                     }
 
-                    queue.async {
+                    queue.async { [paths] in
                         delegate?.pathsDidReceiveEvent(paths)
                     }
                 }
@@ -300,7 +306,7 @@ public final class RDCWatcher {
 
     public func stop() {
         self.watches.forEach {
-            SetEvent($0.terminate)
+            unsafe SetEvent($0.terminate)
             $0.thread?.join()
         }
     }
@@ -771,10 +777,14 @@ private func callback(
     let eventPaths = unsafe unsafeBitCast(eventPaths, to: NSArray.self) as? [String] ?? []
 
     // Compute the set of paths that were changed.
-    let paths = eventPaths//.compactMap({ try? AbsolutePath(validating: $0) }) // <- TODO (Vlad): May be ok
+    do {
+        let paths = try eventPaths.compactMap { try AbsolutePath(validating: $0) }
 
-    eventStream.callbacksQueue.async {
-        eventStream.delegate.pathsDidReceiveEvent(paths)
+        eventStream.callbacksQueue.async {
+            eventStream.delegate.pathsDidReceiveEvent(paths)
+        }
+    } catch {
+        Logger(label: "org.adaengine.utils.filewatcher").error("\(error.localizedDescription)")
     }
 }
 
@@ -821,11 +831,15 @@ public final class FSEventStream: @unchecked Sendable {
         var callbackContext = unsafe FSEventStreamContext()
         unsafe callbackContext.info = unsafeBitCast(self, to: UnsafeMutableRawPointer.self)
 
+        // Convert AbsolutePath array to String array for FSEventStreamCreate
+        let pathStrings = paths.map { $0.pathString }
+        let pathsArray = NSArray(array: pathStrings) as CFArray
+
         // Create the stream.
         unsafe self.stream = FSEventStreamCreate(nil,
             callback,
             &callbackContext, 
-            paths as CFArray, 
+            pathsArray, 
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
             latency,
             flags
@@ -834,26 +848,30 @@ public final class FSEventStream: @unchecked Sendable {
 
     // Start the runloop.
     public func start() throws {
+        // Check if stream was created successfully
+        guard self.stream != nil else {
+            throw Error.unknownError
+        }
+        
         let thread = TSCBasic.Thread { [weak self] in
-            guard let `self` = self else { return }
+            guard let `self` = self, let stream = self.stream else { return }
             self.runLoop = CFRunLoopGetCurrent()
             // Schedule the run loop.
             unsafe FSEventStreamScheduleWithRunLoop(
-                self.stream,
+                stream,
                 CFRunLoopGetCurrent(),
                 CFRunLoopMode.defaultMode.rawValue
             )
 
             // Start the stream.
-            unsafe FSEventStreamScheduleWithRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
-            unsafe FSEventStreamStart(self.stream)
+            unsafe FSEventStreamStart(stream)
             CFRunLoopRun()
 
             // Perform cleanup.
-            unsafe FSEventStreamStop(self.stream)
-            unsafe FSEventStreamUnscheduleFromRunLoop(self.stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
-            unsafe FSEventStreamInvalidate(self.stream)
-            unsafe FSEventStreamRelease(self.stream)
+            unsafe FSEventStreamStop(stream)
+            unsafe FSEventStreamUnscheduleFromRunLoop(stream, CFRunLoopGetCurrent(), CFRunLoopMode.defaultMode.rawValue)
+            unsafe FSEventStreamInvalidate(stream)
+            unsafe FSEventStreamRelease(stream)
         }
         thread.start()
 		self.thread = thread
@@ -873,8 +891,8 @@ enum TSCBasic {
     /// This class bridges the gap between Darwin and Linux Foundation Threading API.
     /// It provides closure based execution and a join method to block the calling thread
     /// until the thread is finished executing.
-    final public class Thread {
-        
+    final public class Thread: @unchecked Sendable {
+
         /// The thread implementation which is Foundation.Thread on Linux and
         /// a Thread subclass which provides closure support on Darwin.
         private var thread: ThreadImpl!
@@ -886,14 +904,14 @@ enum TSCBasic {
         private var isFinished: Bool
         
         /// Creates an instance of thread class with closure to be executed when start() is called.
-        public init(task: @escaping () -> Void) {
+        public init(task: @escaping @Sendable () -> Void) {
             isFinished = false
             finishedCondition = Condition()
             
             // Wrap the task with condition notifying any other threads blocked due to this thread.
             // Capture self weakly to avoid reference cycle. In case Thread is deinited before the task
             // runs, skip the use of finishedCondition.
-            let theTask = { [weak self] in
+            let theTask: @Sendable () -> Void = { [weak self] in
                 if let strongSelf = self {
                     precondition(!strongSelf.isFinished)
                     strongSelf.finishedCondition.whileLocked {
@@ -940,13 +958,13 @@ enum TSCBasic {
     final private class ThreadImpl: Foundation.Thread {
         
         /// The task to be executed.
-        private let task: () -> Void
-        
+        private let task: @Sendable () -> Void
+
         override func main() {
             task()
         }
         
-        init(block task: @escaping () -> Void) {
+        init(block task: @escaping @Sendable () -> Void) {
             self.task = task
         }
     }

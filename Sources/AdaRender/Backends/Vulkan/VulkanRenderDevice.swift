@@ -34,7 +34,7 @@ final class VulkanRenderDevice: RenderDevice {
             indexBuffer.setData(rawPointer, byteCount: length)
             return indexBuffer
         } catch {
-            fatalError("\(error.localizedDescription)")
+            fatalError("\(error)")
         }
     }
 
@@ -48,7 +48,7 @@ final class VulkanRenderDevice: RenderDevice {
                 queueFamilyIndecies: []
             )
         } catch {
-            fatalError("\(error.localizedDescription)")
+            fatalError("\(error)")
         }
     }
 
@@ -65,7 +65,7 @@ final class VulkanRenderDevice: RenderDevice {
 
             return buffer
         } catch {
-            fatalError("\(error.localizedDescription)")
+            fatalError("\(error)")
         }
     }
 
@@ -79,7 +79,7 @@ final class VulkanRenderDevice: RenderDevice {
                 binding: binding
             )
         } catch {
-            fatalError("\(error.localizedDescription)")
+            fatalError("\(error)")
         }
     }
     
@@ -95,7 +95,7 @@ final class VulkanRenderDevice: RenderDevice {
         do {
             return try VulkanRenderPipeline(device: self.context.logicalDevice, descriptor: descriptor)
         } catch {
-            fatalError("\(error.localizedDescription)")
+            fatalError("\(error)")
         }
     }
     
@@ -103,7 +103,7 @@ final class VulkanRenderDevice: RenderDevice {
         do {
             return try VulkanSampler(device: self.context.logicalDevice, descriptor: descriptor)
         } catch {
-            fatalError("\(error.localizedDescription)")
+            fatalError("\(error)")
         }
     }
     
@@ -117,7 +117,7 @@ final class VulkanRenderDevice: RenderDevice {
                 binding: binding
             )
         } catch {
-            fatalError("\(error.localizedDescription)")
+            fatalError("\(error)")
         }
     }
     
@@ -129,7 +129,7 @@ final class VulkanRenderDevice: RenderDevice {
         do {
             return try VulkanGPUTexture(device: self.context.logicalDevice, descriptor: descriptor)
         } catch {
-            fatalError("[VulkanRenderBackend] Failed to create texture: \(error.localizedDescription)")
+            fatalError("[VulkanRenderBackend] Failed to create texture: \(error)")
         }
     }
     

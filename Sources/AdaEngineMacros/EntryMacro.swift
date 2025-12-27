@@ -11,11 +11,7 @@ import SwiftSyntax
 import SwiftSyntaxBuilder
 import SwiftSyntaxMacroExpansion
 import SwiftSyntaxMacros
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 public struct EntryMacro { }
 
@@ -73,7 +69,7 @@ extension EntryMacro: PeerMacro {
             throw MacroError.macroUsage("Value couldn't be nil if type isn't optional.")
         }
         
-        let typeString = typeSyntax.description.trimmingCharacters(in: .whitespacesAndNewlines)
+        let typeString = typeSyntax.trimmedDescription
         
         let newKeyStruct: DeclSyntax =
         """

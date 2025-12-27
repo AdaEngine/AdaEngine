@@ -6,11 +6,7 @@
 //
 
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 @safe
 public struct BlobArray: Sendable {

@@ -5,6 +5,7 @@
 //  Created by v.prusakov on 10/9/21.
 //
 
+import Foundation
 #if os(iOS) || os(tvOS)
 import QuartzCore
 #endif
@@ -28,6 +29,9 @@ public struct Time {
     public static var absolute: LongTimeInterval {
         #if os(iOS) || os(tvOS) || os(OSX) || os(watchOS)
         return LongTimeInterval(CACurrentMediaTime())
+        #elseif os(Windows)
+        // Windows doesn't have clock_gettime, use Foundation's ProcessInfo
+        return LongTimeInterval(ProcessInfo.processInfo.systemUptime)
         #else
         var time = timespec()
         clock_gettime(CLOCK_MONOTONIC, &time)

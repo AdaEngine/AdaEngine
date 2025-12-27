@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 10/12/21.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import CVulkan
 
 public final class DescriptorSetLayout {

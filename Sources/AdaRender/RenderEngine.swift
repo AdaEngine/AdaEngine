@@ -38,7 +38,7 @@ public final class RenderEngine: RenderBackend, Sendable {
         #elseif OPENGL
         renderBackend = OpenGLBackend(appName: appName)
         #else
-        #error("Not supported")
+        fatalError()
         #endif
 
         return RenderEngine(renderBackend: renderBackend)

@@ -9,11 +9,7 @@ import AdaRender
 import AdaUtils
 import Math
 import AtlasFontGenerator
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 // FIXME: Fix TextRun, that should equals AttributedString.Run
 // TODO: Add line break mode by word

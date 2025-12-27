@@ -8,11 +8,7 @@
 import AdaRender
 import AdaUtils
 import AtlasFontGenerator
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Logging
 
 /// A font descriptor.
@@ -132,7 +128,7 @@ final class FontAtlasGenerator: Sendable {
             
             return try FileSystem.current.createDirectory(at: cacheDir, withIntermediateDirectories: true)
         } catch {
-            fatalError("[FontAtlasGenerator] \(error.localizedDescription)")
+            fatalError("[FontAtlasGenerator] \(error)")
         }
     }
     
@@ -164,7 +160,7 @@ final class FontAtlasGenerator: Sendable {
             
             stream.close()
         } catch {
-            logger.error("\(error.localizedDescription)")
+            logger.error("\(error)")
         }
     }
     
@@ -201,7 +197,7 @@ final class FontAtlasGenerator: Sendable {
             
             return (atlasHeader, data)
         } catch {
-            logger.error("\(error.localizedDescription)")
+            logger.error("\(error)")
             return nil
         }
     }

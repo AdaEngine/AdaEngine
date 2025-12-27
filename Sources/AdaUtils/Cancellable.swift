@@ -5,11 +5,7 @@
 //  Created by v.prusakov on 7/3/22.
 //
 
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 /// A protocol indicating that an activity or action supports cancellation.
 ///

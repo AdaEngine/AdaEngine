@@ -1,0 +1,27 @@
+name: SwiftPM Test on macOS
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  macOS:
+    name: macOS 26 with Xcode ${{ matrix.xcode_version }}
+    strategy:
+      matrix:
+        xcode_version: ['26.1.1']
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode_version }}.app
+    steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - name: Swift Version
+          run: swift -version
+
+        - name: Test
+          run: swift test --parallel

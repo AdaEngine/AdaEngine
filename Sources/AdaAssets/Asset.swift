@@ -6,11 +6,7 @@
 //
 
 import AdaUtils
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 
 /// The interface describe asset in a system.
 /// Asset describe information needed to your game, like Audio, Mesh, Texture and etc.

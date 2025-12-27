@@ -10,11 +10,7 @@ import AdaAssets
 import AdaUtils
 import AdaSprite
 import AdaRender
-#if canImport(FoundationEssentials)
-import FoundationEssentials
-#else
 import Foundation
-#endif
 import Logging
 import Math
 import OrderedCollections
@@ -66,8 +62,10 @@ extension LDtk {
 
             super.init()
 
-            self.fileWatcher = FileWatcher(paths: [decoder.assetMeta.filePath.absoluteString]) { [weak self] paths in
-                self?.onLDtkFileMapChanged(paths: paths)
+            let assetPath = try AbsolutePath(validating: decoder.assetMeta.filePath.absoluteString)
+
+            self.fileWatcher = FileWatcher(paths: [assetPath]) { [weak self] paths in
+                self?.onLDtkFileMapChanged(paths: paths.map { $0.pathString })
             }
 
             try await self.loadLdtkProject(from: decoder.assetData)
@@ -184,7 +182,7 @@ extension LDtk {
 
                     try await loadLdtkProject(from: data)
                 } catch {
-                    logger.critical("Failed to update ldtk file \(error.localizedDescription)")
+                    logger.critical("Failed to update ldtk file \(error)")
                 }
             }
         }
