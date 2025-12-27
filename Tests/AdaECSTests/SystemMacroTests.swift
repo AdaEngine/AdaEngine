@@ -133,7 +133,7 @@ struct ResourceSystem {
 
 @System
 func PlainResource(
-    _ gravity: Res<Gravity>
+    _ gravity: Res<Gravity?>
 ) {
     #expect(gravity.wrappedValue != nil)
 }
