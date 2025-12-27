@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import Dispatch
 
 // TODO: Think about it later. Maybe we should use some namespace
 @inlinable
@@ -135,10 +134,5 @@ public func TODO(
     file: StaticString = #file, 
     line: UInt = #line
 ) {
-    #if os(Windows)
-    // On Windows, Thread.isMainThread is not available. Need fix
-    // The assertion is effectively a no-op on Windows
-    #else
     assert(Thread.isMainThread, message(), file: file, line: line)
-    #endif
 }
