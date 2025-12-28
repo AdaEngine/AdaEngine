@@ -946,7 +946,7 @@ private extension Target {
             dependencies: [
                 "AdaEngine"
             ],
-            path: "Assets/Examples/\(path)/",
+            path: "Demos/\(path)/",
             sources: [
                 "\(name).swift"
             ],
