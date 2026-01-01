@@ -46,11 +46,12 @@ public struct Mesh2DDrawPass: DrawPass {
         }
 
         for (uniformName, buffer) in materialData.reflectionData.shaderBuffers {
+            // TODO: remove hardcoded frame index
             guard let uniformBuffer = materialData.uniformBufferSet[uniformName]?
                 .getBuffer(
                     binding: buffer.binding,
                     set: 0,
-                    frameIndex: RenderEngine.shared.currentFrameIndex
+                    frameIndex: 0
                 ) else {
                 continue
             }

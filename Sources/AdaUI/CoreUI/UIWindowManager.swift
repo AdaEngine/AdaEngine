@@ -10,6 +10,7 @@ import AdaRender
 import AdaUtils
 import Math
 import AdaECS
+import Foundation
 
 /// Base protocol describes platform specific window.
 @MainActor
@@ -124,8 +125,11 @@ open class UIWindowManager {
         }
         
         // Destory window from render window
-        try? RenderEngine.shared.destroyWindow(window.id)
-        
+        do {
+            unsafe try RenderEngine.shared!.destroyWindow(window.id)
+        } catch {
+            fatalError(error.localizedDescription)
+        }
         self.windows.remove(for: window.id)
         window.windowDidDisappear()
         

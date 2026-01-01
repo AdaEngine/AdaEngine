@@ -18,12 +18,14 @@ public struct RenderWorldPlugin: Plugin {
 
     /// Setup the render world.
     /// - Parameter app: The app to setup the render world for.
-    public func setup(in app: AppWorlds) {
+    public func setup(in app: AppWorlds) async {
         VisibleEntities.registerComponent()
         Visibility.registerComponent()
         NoFrustumCulling.registerComponent()
         BoundingComponent.registerComponent()
         Texture.registerTypes()
+
+        try! await RenderEngine.setupRenderEngine()
 
         let renderWorld = AppWorlds(main: World(name: "RenderWorld"))
         renderWorld.updateScheduler = .renderRunner

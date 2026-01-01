@@ -310,6 +310,7 @@ var targets: [Target] = [
             "SPIRV-Cross",
             "SPIRVCompiler",
             "libpng",
+            .product(name: "WebGPU", package: "swift-webgpu"),
         ],
         resources: [
             .copy("Assets/Shaders")
@@ -839,6 +840,7 @@ package.dependencies += [
     .package(url: "https://github.com/apple/swift-numerics", from: "1.1.1"),
     .package(url: "https://github.com/apple/swift-atomics", from: "1.3.0"),
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
+    .package(path: "../swift-webgpu"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),
