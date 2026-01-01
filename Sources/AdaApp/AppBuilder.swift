@@ -151,7 +151,7 @@ public extension AppWorlds {
 
     /// Setup plugins.
     func build() async throws {
-        self.setupPlugins(self.plugins[...])
+        await self.setupPlugins(self.plugins[...])
         assert(self.pluginDepth == 0, "Plugins installed recursevly")
 
         for subWorld in self.subWorlds.values {
@@ -169,21 +169,21 @@ public extension AppWorlds {
 }
 
 private extension AppWorlds {
-    private func setupPlugins(_ plugins: ContiguousArray<any Plugin>.SubSequence) {
+    private func setupPlugins(_ plugins: ContiguousArray<any Plugin>.SubSequence) async {
         var index = plugins.endIndex
-        plugins.forEach {
+        await plugins.forEach { @MainActor in
             self.pluginDepth += 1
 
             if let pluginName = self.installedPlugins[ObjectIdentifier(type(of: $0))] {
                 assertionFailure("Plugin \(pluginName) already setuped")
             }
-            $0.setup(in: self)
+            await $0.setup(in: self)
 
             self.logger.debug("Plugin installed \(type(of: $0))")
 
             /// If plugin add a new plugins, we should check it.
             if !self.plugins[index...].isEmpty {
-                setupPlugins(self.plugins[index...])
+                await setupPlugins(self.plugins[index...])
                 index = self.plugins.endIndex
             }
 
@@ -296,7 +296,7 @@ public extension AppWorlds {
 public protocol Plugin: Sendable {
     /// Setup the plugin in the app.
     @MainActor
-    func setup(in app: borrowing AppWorlds)
+    func setup(in app: borrowing AppWorlds) async
 
     /// Notify the plugin that the app is ready.
     @MainActor

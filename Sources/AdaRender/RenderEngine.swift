@@ -26,27 +26,11 @@ public final class RenderEngine: RenderBackend, Sendable {
     nonisolated(unsafe) public static var configurations: Configuration = Configuration()
     
     /// Return instance of render engine for specific backend.
-    public static let shared: RenderEngine = {
-        let renderBackend: RenderBackend
-
-        let appName = "AdaEngine"
-
-        #if METAL
-        renderBackend = MetalRenderBackend(appName: appName)
-        #elseif VULKAN
-        renderBackend = VulkanRenderBackend(appName: appName)
-        #elseif OPENGL
-        renderBackend = OpenGLBackend(appName: appName)
-        #else
-        fatalError()
-        #endif
-
-        return RenderEngine(renderBackend: renderBackend)
-    }()
+    public fileprivate(set) nonisolated(unsafe) static var shared: RenderEngine!
     
     private let renderBackend: RenderBackend
     
-    private init(renderBackend: RenderBackend) {
+    init(renderBackend: RenderBackend) {
         self.renderBackend = renderBackend
     }
     
@@ -93,5 +77,57 @@ public final class RenderEngine: RenderBackend, Sendable {
 public extension RenderDevice {
     func createUniformBuffer<T>(_ uniformType: T.Type, count: Int = 1, binding: Int) -> UniformBuffer {
         self.createUniformBuffer(length: MemoryLayout<T>.stride * count, binding: binding)
+    }
+}
+
+import AdaECS
+import Foundation
+
+@System
+func SetupRenderEngine(
+    _ commands: Commands
+) async {
+    let renderBackend: RenderBackend
+
+    let appName = "AdaEngine"
+
+        //    #if METAL
+        //    renderBackend = MetalRenderBackend(appName: appName)
+        //    #elseif VULKAN
+        //    renderBackend = VulkanRenderBackend(appName: appName)
+        //    #elseif OPENGL
+        //    renderBackend = OpenGLBackend(appName: appName)
+        //    #else
+        //    renderBackend = WebGPURenderBackend()
+        //    #endif
+
+    do {
+        renderBackend = try await WebGPURenderBackend.createBackend()
+    } catch {
+        fatalError(error.localizedDescription)
+    }
+    let engine = RenderEngine(renderBackend: renderBackend)
+    unsafe RenderEngine.shared = engine
+}
+
+extension RenderEngine {
+    package static func setupRenderEngine() async throws {
+        let renderBackend: RenderBackend
+
+        let appName = "AdaEngine"
+        //                #if METAL
+        //    renderBackend = MetalRenderBackend(appName: appName)
+        //    #elseif VULKAN
+        //    renderBackend = VulkanRenderBackend(appName: appName)
+        //    #elseif OPENGL
+        //    renderBackend = OpenGLBackend(appName: appName)
+        //    #else
+        //    renderBackend = WebGPURenderBackend()
+        //    #endif
+
+            renderBackend = try await WebGPURenderBackend.createBackend()
+
+        let engine = RenderEngine(renderBackend: renderBackend)
+        unsafe RenderEngine.shared = engine
     }
 }

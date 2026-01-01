@@ -253,9 +253,9 @@ public extension MeshDescriptor {
     }
     
     /// Get the index buffer for the mesh.
-    func getIndexBuffer() -> IndexBuffer {
+    func getIndexBuffer(renderDevice: RenderDevice) -> IndexBuffer {
         var indicies = self.indicies
-        let indexBuffer = unsafe RenderEngine.shared.renderDevice.createIndexBuffer(
+        let indexBuffer = unsafe renderDevice.createIndexBuffer(
             format: .uInt32,
             bytes: &indicies,
             length: indicies.count * MemoryLayout<UInt32>.stride
@@ -265,12 +265,12 @@ public extension MeshDescriptor {
     }
     
     /// Get the vertex buffer for the mesh.
-    func getVertexBuffer() -> VertexBuffer {
+    func getVertexBuffer(renderDevice: RenderDevice) -> VertexBuffer {
         let vertexSize = buffers.elements.values.reduce(0) { partialResult, buffer in
             partialResult + buffer.buffer.elementSize
         }
         
-        let vertexBuffer = RenderEngine.shared.renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
+        let vertexBuffer = renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
         let vertexBufferContents = unsafe vertexBuffer.contents()
         
         var attributeOffset: Int = 0

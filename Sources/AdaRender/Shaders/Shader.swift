@@ -137,6 +137,8 @@ extension RenderBackendType {
         switch self {
         case .opengl, .vulkan:
             return .glsl
+        case .webgpu:
+            return .wgsl
         case .metal:
             return .msl
         }

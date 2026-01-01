@@ -83,7 +83,7 @@ extension Mesh {
 public extension Mesh {
     
     /// Create a mesh resource from a list of mesh descriptors.
-    static func generate(from meshDescriptors: [MeshDescriptor]) -> Mesh {
+    static func generate(from meshDescriptors: [MeshDescriptor], renderDevice: RenderDevice) -> Mesh {
         var parts = [Part]()
         
         for (index, meshDescriptor) in meshDescriptors.enumerated() {
@@ -94,9 +94,9 @@ public extension Mesh {
                 isUInt32: true,
                 meshDescriptor: meshDescriptor,
                 vertexDescriptor: meshDescriptor.getMeshVertexBufferDescriptor(),
-                indexBuffer: meshDescriptor.getIndexBuffer(),
+                indexBuffer: meshDescriptor.getIndexBuffer(renderDevice: renderDevice),
                 indexCount: meshDescriptor.indicies.count,
-                vertexBuffer: meshDescriptor.getVertexBuffer()
+                vertexBuffer: meshDescriptor.getVertexBuffer(renderDevice: renderDevice)
             )
             
             parts.append(part)

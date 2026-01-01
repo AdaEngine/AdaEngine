@@ -18,6 +18,7 @@ public enum RenderBackendType: String, Sendable {
     case opengl
     case metal
     case vulkan
+    case webgpu
 }
 
 /// This protocol describe interface for GPU.
