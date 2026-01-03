@@ -18,5 +18,4 @@ final class WGPUUniformBuffer: WGPUBuffer, UniformBuffer, @unchecked Sendable {
         super.init(buffer: buffer)
     }
 }
-
 #endif

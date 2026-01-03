@@ -19,5 +19,4 @@ final class WGPUVertexBuffer: WGPUBuffer, VertexBuffer, @unchecked Sendable {
         super.init(buffer: buffer)
     }
 }
-
 #endif

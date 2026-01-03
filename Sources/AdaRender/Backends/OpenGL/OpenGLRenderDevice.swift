@@ -59,10 +59,6 @@ final class OpenGLRenderDevice: RenderDevice {
         return try OpenGLShader(shader: shader)
     }
 
-    func createFramebuffer(from descriptor: FramebufferDescriptor) -> any Framebuffer {
-        OpenGLFramebuffer(descriptor: descriptor)
-    }
-
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> any RenderPipeline {
         OpenGLRenderPipeline(descriptor: descriptor)
     }

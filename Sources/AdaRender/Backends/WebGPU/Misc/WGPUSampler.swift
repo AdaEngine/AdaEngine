@@ -6,16 +6,16 @@
 //
 
 #if canImport(WebGPU)
-@unsafe @preconcurrency import Metal
+import WebGPU
 
 final class WGPUSampler: Sampler, Sendable {
     
     let descriptor: SamplerDescriptor
-    let mtlSampler: MTLSamplerState
+    let wgpuSampler: WebGPU.Sampler
     
-    init(descriptor: SamplerDescriptor, mtlSampler: MTLSamplerState) {
+    init(descriptor: SamplerDescriptor, wgpuSampler: WebGPU.Sampler) {
         self.descriptor = descriptor
-        self.mtlSampler = mtlSampler
+        self.wgpuSampler = wgpuSampler
     }
 }
 
