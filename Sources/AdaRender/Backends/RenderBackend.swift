@@ -77,9 +77,6 @@ public protocol RenderDevice: AnyObject, Sendable {
     /// - Throws: Throw an error if something went wrong on compilation.
     func compileShader(from shader: Shader) throws -> CompiledShader
 
-    /// Create a framebuffer from descriptor.
-    func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer
-
     /// Create pipeline state from shader.
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline
 

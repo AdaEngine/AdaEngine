@@ -6,18 +6,18 @@
 //
 
 #if canImport(WebGPU)
-@unsafe @preconcurrency import Metal
+import WebGPU
 
 final class WGPURenderPipeline: RenderPipeline {
     
     let descriptor: RenderPipelineDescriptor
-    let renderPipeline: MTLRenderPipelineState
-    let depthStencilState: MTLDepthStencilState?
+    let renderPipeline: WebGPU.RenderPipeline
+    let depthStencilState: WebGPU.DepthStencilState?
     
     init(
         descriptor: RenderPipelineDescriptor,
-        renderPipeline: MTLRenderPipelineState,
-        depthState: MTLDepthStencilState?
+        renderPipeline: WebGPU.RenderPipeline,
+        depthState: WebGPU.DepthStencilState?
     ) {
         self.descriptor = descriptor
         self.renderPipeline = renderPipeline

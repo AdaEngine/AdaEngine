@@ -1,5 +1,5 @@
 //
-//  MetalGPUTexture.swift
+//  WGPUGPUTexture.swift
 //  AdaEngine
 //
 //  Created by vladislav.prusakov on 13.03.2025.
@@ -7,72 +7,87 @@
 
 #if canImport(WebGPU)
 import Math
-import Metal
+import WebGPU
+import Foundation
 
 final class WGPUGPUTexture: GPUTexture {
+
     var size: SizeInt {
-        SizeInt(width: self.texture.width, height: self.texture.height)
+        SizeInt(width: Int(self.texture.width), height: Int(self.texture.height))
     }
 
-    var texture: MTLTexture
+    var texture: WebGPU.Texture
+    var textureView: WebGPU.TextureView
 
-    init(texture: MTLTexture) {
+    init(texture: WebGPU.Texture, textureView: WebGPU.TextureView) {
         self.texture = texture
+        self.textureView = textureView
     }
 
-    init(descriptor: TextureDescriptor, device: MTLDevice) {
-        let textureDesc = MTLTextureDescriptor()
-
-        switch descriptor.textureType {
-        case .textureCube:
-            textureDesc.textureType = .typeCube
-        case .texture1D:
-            textureDesc.textureType = .type1D
-        case .texture1DArray:
-            textureDesc.textureType = .type1DArray
-        case .texture2D:
-            textureDesc.textureType = .type2D
-        case .texture2DArray:
-            textureDesc.textureType = .type2DArray
-        case .texture2DMultisample:
-            textureDesc.textureType = .type2DMultisample
-        case .texture2DMultisampleArray:
-            textureDesc.textureType = .type2DMultisampleArray
-        case .texture3D:
-            textureDesc.textureType = .type3D
-        case .textureBuffer:
-            textureDesc.textureType = .typeTextureBuffer
-        }
-
-        var mtlUsage: MTLTextureUsage = []
+    init(descriptor: TextureDescriptor, device: WebGPU.Device) {
+        var wgpuUsage: WebGPU.TextureUsage = []
 
         if descriptor.textureUsage.contains(.read) {
-            mtlUsage.insert(.shaderRead)
+            wgpuUsage.insert(.textureBinding)
+//             wgpuUsage.insert(.shaderRead)
         }
 
         if descriptor.textureUsage.contains(.write) {
-            mtlUsage.insert(.shaderWrite)
+            wgpuUsage.insert(.copySrc)
+            // wgpuUsage.insert(.shaderWrite)
         }
 
         if descriptor.textureUsage.contains(.renderTarget) {
-            mtlUsage.insert(.renderTarget)
+            wgpuUsage.insert(.renderAttachment)
+            // wgpuUsage.insert(.renderTarget)
         }
 
-        textureDesc.usage = mtlUsage
-        textureDesc.width = descriptor.width
-        textureDesc.height = descriptor.height
-        textureDesc.pixelFormat = descriptor.pixelFormat.toMetal
-
-        guard let texture = device.makeTexture(descriptor: textureDesc) else {
-            fatalError("Cannot create texture")
+        let dimension: WebGPU.TextureDimension = switch descriptor.textureType {
+        case .textureCube:
+                .typeUndefined
+        case .texture1D:
+                .type1d
+        case .texture1DArray:
+                .type1d
+        case .texture2D:
+                .type2d
+        case .texture2DArray:
+                .type2d
+        case .texture2DMultisample:
+                .type2d
+        case .texture2DMultisampleArray:
+                .type2d
+        case .texture3D:
+                .type3d
+        case .textureBuffer:
+                .typeUndefined
         }
 
-        texture.label = descriptor.debugLabel
+        let textureDesc = WebGPU.TextureDescriptor(
+            label: descriptor.debugLabel,
+            usage: wgpuUsage,
+            dimension: dimension,
+            size: Extent3d(
+                width: UInt32(descriptor.width),
+                height: UInt32(descriptor.height),
+                depthOrArrayLayers: 0
+            ),
+            format: descriptor.pixelFormat.webGPU,
+            mipLevelCount: 0,
+            sampleCount: 1,
+            viewFormats: [
+                descriptor.pixelFormat.webGPU
+            ],
+            nextInChain: nil
+        )
 
+        let texture = device.createTexture(descriptor: textureDesc)
         if let image = descriptor.image {
-            let region = MTLRegion(
-                origin: MTLOrigin(x: 0, y: 0, z: 0),
-                size: MTLSize(width: image.width, height: image.height, depth: 1)
+            let origin = WebGPU.Origin3d(x: 0, y: 0, z: 0)
+            let writeSize = WebGPU.Extent3d(
+                width: UInt32(image.width),
+                height: UInt32(image.height),
+                depthOrArrayLayers: 1
             )
 
             let bytesPerRow = descriptor.pixelFormat.bytesPerComponent * image.width
@@ -80,28 +95,34 @@ final class WGPUGPUTexture: GPUTexture {
             unsafe image.data.withUnsafeBytes { buffer in
                 unsafe precondition(buffer.baseAddress != nil, "Image should not contains empty address.")
 
-                unsafe texture.replace(
-                    region: region,
-                    mipmapLevel: 0,
-                    withBytes: buffer.baseAddress!,
-                    bytesPerRow: bytesPerRow
+                unsafe device.queue.writeTexture(
+                    destination: TexelCopyTextureInfo(
+                        texture: texture,
+                        mipLevel: 0,
+                        origin: origin,
+                        aspect: TextureAspect.all
+                    ),
+                    data: buffer,
+                    dataLayout: TexelCopyBufferLayout(
+                        offset: 0,
+                        bytesPerRow: UInt32(bytesPerRow),
+                        rowsPerImage: UInt32(image.width)
+                    ),
+                    writeSize: writeSize
                 )
             }
         }
 
         self.texture = texture
+        self.textureView = texture.createView()
     }
 
     // TODO: (Vlad) think about it later
     func getImage() -> Image? {
-        if self.texture.isFramebufferOnly {
-            return nil
-        }
-
         let imageFormat: Image.Format
-        let bytesInPixel: Int
+        let bytesInPixel: UInt32
 
-        switch self.texture.pixelFormat {
+        switch self.texture.format {
         case .bgra8Unorm:
             imageFormat = .bgra8
             bytesInPixel = 4
@@ -111,25 +132,51 @@ final class WGPUGPUTexture: GPUTexture {
         }
 
         let bytesPerRow = self.texture.width * bytesInPixel
-        let pixelCount = self.texture.width * self.texture.height
+        let pixelCount = UInt32(self.texture.width * self.texture.height)
+        let count = Int(pixelCount * bytesInPixel)
+        var imageBytes = [UInt8](repeating: 0, count: count)
+        let pointer = UnsafeMutableRawPointer.allocate(byteCount: count, alignment: 0)
+//        unsafe self.texture.getBytes(
+//            &imageBytes,
+//            bytesPerRow: bytesPerRow,
+//            from: MTLRegion(
+//                origin: MTLOrigin(x: 0, y: 0, z: 0),
+//                size: MTLSize(width: self.texture.width, height: self.texture.height, depth: 1)
+//            ),
+//            mipmapLevel: 0
+//        )
 
-        var imageBytes = [UInt8](repeating: 0, count: pixelCount * bytesInPixel)
-        unsafe self.texture.getBytes(
-            &imageBytes,
-            bytesPerRow: bytesPerRow,
-            from: MTLRegion(
-                origin: MTLOrigin(x: 0, y: 0, z: 0),
-                size: MTLSize(width: self.texture.width, height: self.texture.height, depth: 1)
-            ),
-            mipmapLevel: 0
-        )
-
-        return Image(
-            width: self.texture.width,
-            height: self.texture.height,
-            data: Data(imageBytes),
+        return unsafe Image(
+            width: Int(self.texture.width),
+            height: Int(self.texture.height),
+            data: Data(bytesNoCopy: pointer, count: count, deallocator: .free),
             format: imageFormat
         )
+    }
+}
+
+extension PixelFormat {
+    var webGPU: WebGPU.TextureFormat {
+        switch self {
+        case .none:
+                .undefined
+        case .bgra8:
+                .bgra8Unorm
+        case .bgra8_srgb:
+                .bgra8UnormSrgb
+        case .rgba8:
+                .rgba8Unorm
+        case .rgba_16f:
+                .rgba16Unorm
+        case .rgba_32f:
+                .rgba32Float
+        case .depth_32f_stencil8:
+                .depth32FloatStencil8
+        case .depth_32f:
+                .depth32Float
+        case .depth24_stencil8:
+                .depth24PlusStencil8
+        }
     }
 }
 

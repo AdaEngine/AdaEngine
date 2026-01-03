@@ -15,5 +15,4 @@ final class WGPUShader: CompiledShader {
         self.shader = shader
     }
 }
-
 #endif

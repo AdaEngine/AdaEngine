@@ -5,23 +5,25 @@
 //  Created by Vladislav Prusakov on 23.11.2025.
 //
 
-#if canImport(Metal)
+#if canImport(WebGPU)
 import Math
-import Metal
+import WebGPU
 
 final class WGPURenderCommandEncoder: RenderCommandEncoder {
 
-    let renderEncoder: MTLRenderCommandEncoder
-    private var currentIndexBuffer: MTLBuffer?
-    private var currentIndexType: MTLIndexType = .uint32
-    private var currentPrimitiveType: MTLPrimitiveType = .triangle
+    let renderEncoder: WebGPU.RenderPassEncoder
+    private var currentIndexBuffer: WebGPU.Buffer?
+    private var currentIndexType: WebGPU.IndexFormat = .uint32
+    private var currentPrimitiveType: WebGPU.PrimitiveTopology = .triangleList
 
-    init(renderEncoder: MTLRenderCommandEncoder) {
+    private var bindGroupLayouts: [WebGPU.BindGroupLayout] = []
+
+    init(renderEncoder: WebGPU.RenderPassEncoder) {
         self.renderEncoder = renderEncoder
     }
 
     func pushDebugName(_ string: String) {
-        renderEncoder.pushDebugGroup(string)
+        renderEncoder.pushDebugGroup(groupLabel: string)
     }
 
     func popDebugName() {
@@ -29,138 +31,152 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     }
 
     func setRenderPipelineState(_ pipeline: RenderPipeline) {
-        guard let metalPipeline = pipeline as? MetalRenderPipeline else {
+        guard let metalPipeline = pipeline as? WGPURenderPipeline else {
             fatalError("RenderPipeline is not a MetalRenderPipeline")
         }
-        renderEncoder.setRenderPipelineState(metalPipeline.renderPipeline)
-        currentPrimitiveType = metalPipeline.descriptor.primitive.toMetal
+        // renderEncoder.setRenderPipelineState(metalPipeline.renderPipeline)
+        // currentPrimitiveType = metalPipeline.descriptor.primitive.toMetal
     }
 
     func setVertexBuffer(_ buffer: UniformBuffer, offset: Int, index: Int) {
-        guard let metalBuffer = buffer as? MetalUniformBuffer else {
+        guard let metalBuffer = buffer as? WGPUUniformBuffer else {
             fatalError("UniformBuffer is not a MetalUniformBuffer")
         }
-        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: index)
+        // renderEncoder.setVertexBuffer(
+        //     slot: UInt32(index), 
+        //     buffer: buffer.buffer, 
+        //     offset: UInt64(offset), 
+        //     size: UInt64(buffer.size)
+        // )
     }
 
     func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, index: Int) {
-        guard let metalBuffer = buffer as? MetalVertexBuffer else {
+        guard let wgpuBuffer = buffer as? WGPUVertexBuffer else {
             fatalError("VertexBuffer is not a MetalVertexBuffer")
         }
-        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: index)
+        renderEncoder.setVertexBuffer(
+            slot: UInt32(index), 
+            buffer: wgpuBuffer.buffer, 
+            offset: UInt64(offset), 
+            size: UInt64(buffer.length)
+        )
     }
 
     func setFragmentBuffer(_ buffer: UniformBuffer, offset: Int, index: Int) {
-        guard let metalBuffer = buffer as? MetalUniformBuffer else {
+        guard let wgpuBuffer = buffer as? WGPUUniformBuffer else {
             fatalError("UniformBuffer is not a MetalUniformBuffer")
         }
-        renderEncoder.setFragmentBuffer(metalBuffer.buffer, offset: offset, index: index)
+        // renderEncoder.setFragmentBuffer(
+        //     slot: UInt32(index), 
+        //     buffer: buffer.buffer, 
+        //     offset: UInt64(offset), 
+        //     size: UInt64(buffer.buffer.size)
+        // )
     }
 
 
     func setVertexBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int) {
-        guard let metalBuffer = bufferData.buffer as? MetalBuffer else {
+        guard let wgpuBuffer = bufferData.buffer as? WGPUBuffer else {
             fatalError("BufferData is not a MetalBuffer")
         }
 
-        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: index)
+        renderEncoder.setVertexBuffer(
+            slot: UInt32(index), 
+            buffer: wgpuBuffer.buffer, 
+            offset: UInt64(offset), 
+            size: UInt64(buffer.length)
+        )
     }
 
     func setFragmentBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int) {
-        guard let metalBuffer = bufferData.buffer as? MetalBuffer else {
+        guard let wgpuBuffer = bufferData.buffer as? WGPUBuffer else {
             fatalError("UniformBuffer is not a MetalUniformBuffer")
         }
 
-        renderEncoder.setFragmentBuffer(metalBuffer.buffer, offset: offset, index: index)
+        renderEncoder.setFragmentBuffer(
+            slot: UInt32(index), 
+            buffer: wgpuBuffer.buffer, 
+            offset: UInt64(offset), 
+            size: UInt64(wgpuBuffer.length)
+        )
     }
 
     func setIndexBuffer<T>(_ bufferData: BufferData<T>, indexFormat: IndexBufferFormat) {
-        guard let metalBuffer = bufferData.buffer as? MetalBuffer else {
+        guard let wgpuBuffer = bufferData.buffer as? WGPUBuffer else {
             fatalError("UniformBuffer is not a MetalUniformBuffer")
         }
-        currentIndexBuffer = metalBuffer.buffer
+        currentIndexBuffer = wgpuBuffer.buffer
         currentIndexType = indexFormat == .uInt32 ? .uint32 : .uint16
     }
 
     func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, index: Int) {
-        unsafe renderEncoder.setVertexBytes(bytes, length: length, index: index)
+        unsafe renderEncoder.withUnsafeHandle { _handle in
+            wgpuRenderPassEncoderSetVertexBytes(_handle, UInt32(index), bytes, UInt64(length))
+        }
     }
 
     func setFragmentTexture(_ texture: Texture, index: Int) {
-        guard let metalTexture = texture.gpuTexture as? MetalGPUTexture else {
+        guard let wgpuBuffer = texture.gpuTexture as? WGPUGPUTexture else {
             fatalError("Texture's gpuTexture is not a MetalGPUTexture")
         }
-        renderEncoder.setFragmentTexture(metalTexture.texture, index: index)
+        // renderEncoder.setFragmentTexture(
+        //     texture: wgpuTexture.texture, 
+        //     index: UInt32(index)
+        // )
     }
 
     func setFragmentSamplerState(_ sampler: Sampler, index: Int) {
-        guard let metalSampler = sampler as? MetalSampler else {
+        guard let metalSampler = sampler as? WGPUSampler else {
             fatalError("Sampler is not a MetalSampler")
         }
-        renderEncoder.setFragmentSamplerState(metalSampler.mtlSampler, index: index)
+        // renderEncoder.setFragmentSamplerState(metalSampler.wgpuSampler, index: index)
     }
 
     func setViewport(_ viewport: Rect) {
         renderEncoder.setViewport(
-            MTLViewport(
-                originX: Double(viewport.origin.x),
-                originY: Double(viewport.origin.y),
-                width: Double(viewport.size.width),
-                height: Double(viewport.size.height),
-                znear: 0,
-                zfar: 1
-            )
+            x: Float(viewport.origin.x), 
+            y: Float(viewport.origin.y), 
+            width: Float(viewport.size.width), 
+            height: Float(viewport.size.height), 
+            minDepth: 0, 
+            maxDepth: 1
         )
     }
 
     func setScissorRect(_ rect: Rect) {
         renderEncoder.setScissorRect(
-            MTLScissorRect(
-                x: Int(rect.origin.x),
-                y: Int(rect.origin.y),
-                width: Int(rect.size.width),
-                height: Int(rect.size.height)
-            )
+            x: UInt32(rect.origin.x), 
+            y: UInt32(rect.origin.y), 
+            width: UInt32(rect.size.width), 
+            height: UInt32(rect.size.height)
         )
     }
 
     func setTriangleFillMode(_ fillMode: TriangleFillMode) {
-        renderEncoder.setTriangleFillMode(fillMode == .fill ? .fill : .lines)
+        // renderEncoder.setTriangleFillMode(fillMode == .fill ? .fill : .lines)
     }
 
     func setIndexBuffer(_ buffer: IndexBuffer, offset: Int) {
-        guard let metalIndexBuffer = buffer as? MetalIndexBuffer else {
-            fatalError("IndexBuffer is not a MetalIndexBuffer")
+        guard let wgpuIndexBuffer = buffer as? WGPUIndexBuffer else {
+            fatalError("IndexBuffer is not a WGPUIndexBuffer")
         }
-        self.currentIndexBuffer = metalIndexBuffer.buffer
-        self.currentIndexType = (metalIndexBuffer.indexFormat == .uInt32) ? .uint32 : .uint16
+        self.currentIndexBuffer = wgpuIndexBuffer.buffer
+        self.currentIndexType = (wgpuIndexBuffer.indexFormat == .uInt32) ? .uint32 : .uint16
     }
 
     func drawIndexed(indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
         guard let indexBuffer = self.currentIndexBuffer else {
             fatalError("Index buffer is not set. Call setIndexBuffer(_:offset:) before drawIndexed().")
         }
-        renderEncoder.drawIndexedPrimitives(
-            type: currentPrimitiveType,
-            indexCount: indexCount,
-            indexType: self.currentIndexType,
-            indexBuffer: indexBuffer,
-            indexBufferOffset: indexBufferOffset,
-            instanceCount: instanceCount
-        )
+        renderEncoder.drawIndexedIndirect(indirectBuffer: indexBuffer.buffer, indirectOffset: UInt64(indexBufferOffset))
     }
 
     func draw(type: IndexPrimitive, vertexStart: Int, vertexCount: Int, instanceCount: Int) {
-        renderEncoder.drawPrimitives(
-            type: type.toMetal,
-            vertexStart: vertexStart,
-            vertexCount: vertexCount,
-            instanceCount: instanceCount
-        )
+        renderEncoder.draw(vertexCount: UInt32(vertexCount), instanceCount: UInt32(instanceCount), firstVertex: UInt32(vertexStart), firstInstance: UInt32(0))
     }
 
     func endRenderPass() {
-        renderEncoder.endEncoding()
+        renderEncoder.end()
     }
 }
 #endif

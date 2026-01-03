@@ -38,10 +38,6 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
         return MetalShader(name: spirvShader.entryPoints[0].name, library: library, function: function)
     }
 
-    func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
-        return MetalFramebuffer(descriptor: descriptor)
-    }
-
     func createCommandQueue() -> CommandQueue {
         return MetalCommandQueue(commandQueue: self.commandQueue)
     }
