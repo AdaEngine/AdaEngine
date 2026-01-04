@@ -12,7 +12,7 @@ import AppleProductTypes
 #if canImport(Darwin)
 import Darwin.C
 
-let isWGPUEnabled = false
+let isWGPUEnabled = true
 #else
 
 #if os(Linux)
@@ -105,18 +105,13 @@ var swiftSettings: [SwiftSetting] = [
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
+    .define("METAL", .when(platforms: applePlatforms)),
     .define("WASM", .when(platforms: [.wasi])),
     .define("ENABLE_DEBUG_DYLIB", .when(configuration: .debug)),
     .enableUpcomingFeature("MemberImportVisibility"),
     .strictMemorySafety(),
     .unsafeFlags(["-Xfrontend", "-validate-tbd-against-ir=none"]),
 ]
-
-if isWGPUEnabled {
-    swiftSettings.append(.define("WGPU_ENABLED"))
-} else {
-    swiftSettings.append(.define("METAL", .when(platforms: applePlatforms)))
-}
 
 let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
@@ -314,7 +309,13 @@ var targets: [Target] = [
             "SPIRV-Cross",
             "SPIRVCompiler",
             "libpng",
-            .product(name: "WebGPU", package: "swift-webgpu", condition: .when(traits: [.wgpuTrait])),
+            .product(
+                name: "WebGPU",
+                package: "swift-webgpu",
+                condition: .when(traits: [
+                    .wgpuTrait
+                ])
+            ),
         ],
         resources: [
             .copy("Assets/Shaders")
@@ -830,19 +831,12 @@ let package = Package(
         .macOS(.v15),
     ],
     products: products,
-    traits: {
-        var traits: Set<Trait> = []
-        if isWGPUEnabled {
-            traits.insert(
-                .trait(
-                    name: .wgpuTrait,
-                    description: "Enable WebGPU support",
-                    enabledTraits: []
-                )
-            )
-        }
-        return traits
-    }(),
+    traits: [
+        .trait(
+            name: .wgpuTrait,
+            description: "Enable WebGPU support"
+        )
+    ],
     dependencies: [],
     targets: targets,
     cLanguageStandard: .c17,
@@ -859,10 +853,7 @@ package.dependencies += [
     .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     .package(
         url: "https://github.com/SpectralDragon/swift-webgpu",
-        branch: "update_bindings",
-        traits: [
-            .trait(name: .wgpuTrait)
-        ]
+        branch: "update_bindings"
     ),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
@@ -987,3 +978,15 @@ let examplesTargets: [Target] = [
 package.targets.append(contentsOf: examplesTargets)
 
 // MARK:  Examples -
+
+// MARK: - Traits
+
+var defaultTraits: Set<String> = []
+
+if isWGPUEnabled {
+    defaultTraits.insert(.wgpuTrait)
+}
+
+package.traits.insert(
+    .default(enabledTraits: defaultTraits)
+)
