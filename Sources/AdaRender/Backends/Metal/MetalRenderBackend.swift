@@ -25,7 +25,7 @@ final class MetalRenderBackend: RenderBackend, @unchecked Sendable {
 
     private(set) var renderDevice: RenderDevice
 
-    init(appName: String) {
+    init() {
         self.context = Context()
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
 
