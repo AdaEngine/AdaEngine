@@ -8,6 +8,7 @@
 #if canImport(WebGPU)
 import AdaUtils
 import WebGPU
+import Foundation
 
 final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
 
@@ -76,7 +77,21 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     func compileShader(from shader: Shader) throws -> any CompiledShader {
-        let module = context.device.createShaderModule(descriptor: ShaderModuleDescriptor(label: shader.entryPoint))
+        let shaderData: any WebGPU.Chained = switch shader.source {
+        case .code(let code):
+            ShaderSourceWgsl(code: code)
+        case .spirv(let data):
+            unsafe data.withUnsafeBytes { pointer in
+                let code = unsafe pointer.bindMemory(to: UInt8.self)
+                return unsafe ShaderSourceSpirv(code: [UInt8].init(code).map { UInt32($0) })
+            }
+        }
+        let module = context.device.createShaderModule(
+            descriptor: ShaderModuleDescriptor(
+                label: shader.entryPoint,
+                nextInChain: shaderData
+            )
+        )
         return WGPUShader(shader: module)
     }
 

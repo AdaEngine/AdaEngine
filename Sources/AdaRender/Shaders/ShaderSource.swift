@@ -25,8 +25,6 @@ public enum ShaderLanguage: String {
     case wgsl
 }
 
-// TODO: Add support for wgsl
-
 public enum ShaderStage: String, Hashable, Codable, Sendable {
     case vertex
     case fragment
