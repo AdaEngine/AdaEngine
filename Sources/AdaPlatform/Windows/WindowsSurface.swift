@@ -13,9 +13,11 @@ import WinSDK
 /// This wraps a Win32 window handle for use with the rendering system.
 public final class WindowsSurface: RenderSurface {
     public let windowId: WindowID
-    
-    public init(windowId: WindowID) {
+    public let windowHwnd: UnsafeMutableRawPointer
+
+    public init(windowId: WindowID, windowHwnd: UnsafeMutableRawPointer) {
         self.windowId = windowId
+        self.windowHwnd = windowHwnd
     }
 }
 

@@ -7,12 +7,24 @@
 
 /// A protocol that defines a render surface.
 /// Wrap platform specific view to render surface.
-public protocol RenderSurface { }
+@MainActor
+public protocol RenderSurface {
+    var scaleFactor: Float { get }
+    var prefferedPixelFormat: PixelFormat { get }
+}
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 
 import MetalKit
 
-extension MTKView: RenderSurface { }
+extension MTKView: RenderSurface {
+    public var scaleFactor: Float {
+        Float(self.layer!.contentsScale)
+    }
+
+    public var prefferedPixelFormat: PixelFormat {
+        self.colorPixelFormat.toPixelFormat()
+    }
+}
 
 #endif
