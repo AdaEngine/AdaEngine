@@ -103,7 +103,6 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     func createSampler(from descriptor: SamplerDescriptor) -> any Sampler {
-        // TODO: Fix WGPUSampler to use WebGPU instead of Metal
         let wgpuSampler = context.device.createSampler(
             descriptor: WebGPU.SamplerDescriptor(
                 label: nil,
@@ -135,9 +134,52 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
 
     @MainActor
     func createSwapchain(from window: WindowID) -> any Swapchain {
-        // TODO: Implement WebGPU swapchain creation
-        fatalError("createSwapchain not yet implemented for WebGPU")
+        WGPUSwapchain(renderWindow: context.getWGPURenderWindow(for: window)!)
     }
+}
+
+final class WGPUSwapchain: Swapchain, @unchecked Sendable {
+
+    let renderWindow: WGPUContext.WGPURenderWindow
+
+    init(renderWindow: WGPUContext.WGPURenderWindow) {
+        self.renderWindow = renderWindow
+    }
+
+    var drawablePixelFormat: PixelFormat {
+        renderWindow.pixelFormat
+    }
+
+    func getNextDrawable(_ renderDevice: RenderDevice) -> (any Drawable)? {
+        return WGPUSwapchainDrawable(surface: renderWindow.surface)
+    }
+}
+
+final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
+
+    var texture: any GPUTexture { 
+        WGPUGPUTexture(
+            texture: surface.currentTexture.texture, 
+            textureView: surface.currentTexture.texture.createView()
+        )
+    }
+
+    let surface: WebGPU.Surface
+
+    init(surface: WebGPU.Surface) {
+        self.surface = surface
+    }
+
+    func present() throws {
+        let value = surface.present()
+        if value != .success {
+            throw DrawableError.failedToPresentDrawable
+        }
+    }
+}
+
+enum DrawableError: Error {
+    case failedToPresentDrawable
 }
 
 extension ResourceOptions {

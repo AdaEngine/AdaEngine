@@ -835,12 +835,13 @@ let package = Package(
 
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", from: "1.3.0"),
-    .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),
     .package(url: "https://github.com/apple/swift-numerics", from: "1.1.1"),
     .package(url: "https://github.com/apple/swift-atomics", from: "1.3.0"),
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
-    .package(path: "../swift-webgpu"),
+    // TODO: SpectralDragon packages should move to AdaEngine
+    .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
+    .package(url: "https://github.com/SpectralDragon/swift-webgpu", branch: "update_bindings"),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),

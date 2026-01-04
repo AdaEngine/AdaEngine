@@ -3,6 +3,7 @@
 import WebGPU
 import Math
 import Synchronization
+import AdaUtils
 
 final class WebGPURenderBackend: RenderBackend, @unchecked Sendable {
     func createLocalRenderDevice() -> any RenderDevice {
@@ -22,11 +23,11 @@ final class WebGPURenderBackend: RenderBackend, @unchecked Sendable {
     }
 
     func getRenderWindow(for windowId: WindowID) -> RenderWindow? {
-        fatalError()
+        context.getRenderWindow(for: windowId)
     }
 
     func getRenderWindows() throws -> RenderWindows {
-        fatalError()
+        try context.getRenderWindows()
     }
 
     let type: RenderBackendType = .webgpu
@@ -42,44 +43,15 @@ final class WebGPURenderBackend: RenderBackend, @unchecked Sendable {
 
 extension WebGPURenderBackend {
     static func createBackend() async throws -> WebGPURenderBackend {
-        let instance = createInstance(descriptor: InstanceDescriptor())
+        let instance = createInstance(
+            descriptor: InstanceDescriptor(
+                requiredFeatures: [.shaderSourceSpirv]
+            )
+        )
         let adapter = try await instance.requestAdapter()
         let device = try await adapter.requestDevice()
 
         return WebGPURenderBackend(device: device, adapter: adapter, instance: instance)
-    }
-}
-
-final class WGPUContext: Sendable {
-    let device: WebGPU.Device
-    let adapter: WebGPU.Adapter
-    let instance: WebGPU.Instance
-
-    private let windows = Mutex<[WindowRef: RenderWindow]>([:])
-
-    init(device: WebGPU.Device, adapter: WebGPU.Adapter, instance: WebGPU.Instance) {
-        self.device = device
-        self.adapter = adapter
-        self.instance = instance
-    }
-
-    func createWindow(_ windowId: WindowID, for surface: any RenderSurface, size: Math.SizeInt) throws {
-
-    }
-
-    func resizeWindow(_ windowId: WindowID, newSize: Math.SizeInt) throws {
-
-    }
-
-    func destroyWindow(_ windowId: WindowID) throws {
-        _ = self.windows.withLock {
-            $0.removeValue(forKey: .windowId(windowId))
-        }
-    }
-
-    @safe
-    struct RenderWindow {
-        var surface: OpaquePointer
     }
 }
 
