@@ -134,6 +134,8 @@ extension ResourceOptions {
             [WebGPU.BufferUsage.storage, .copySrc, .copyDst]
         case .storagePrivate:
             [WebGPU.BufferUsage.indirect]
+        default:
+            []
         }
     }
 }
