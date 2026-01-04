@@ -8,6 +8,7 @@
 #if canImport(WebGPU)
 import Math
 import WebGPU
+import CWebGPU
 
 final class WGPURenderCommandEncoder: RenderCommandEncoder {
 
@@ -17,9 +18,14 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     private var currentPrimitiveType: WebGPU.PrimitiveTopology = .triangleList
 
     private var bindGroupLayouts: [WebGPU.BindGroupLayout] = []
+    private var device: WebGPU.Device
 
-    init(renderEncoder: WebGPU.RenderPassEncoder) {
+    init(
+        renderEncoder: WebGPU.RenderPassEncoder,
+        device: WebGPU.Device
+    ) {
         self.renderEncoder = renderEncoder
+        self.device = device
     }
 
     func pushDebugName(_ string: String) {
@@ -84,7 +90,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
             slot: UInt32(index), 
             buffer: wgpuBuffer.buffer, 
             offset: UInt64(offset), 
-            size: UInt64(buffer.length)
+            size: UInt64(wgpuBuffer.length)
         )
     }
 
@@ -93,12 +99,12 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
             fatalError("UniformBuffer is not a MetalUniformBuffer")
         }
 
-        renderEncoder.setFragmentBuffer(
-            slot: UInt32(index), 
-            buffer: wgpuBuffer.buffer, 
-            offset: UInt64(offset), 
-            size: UInt64(wgpuBuffer.length)
-        )
+        // renderEncoder.setFragmentBuffer(
+        //     slot: UInt32(index), 
+        //     buffer: wgpuBuffer.buffer, 
+        //     offset: UInt64(offset), 
+        //     size: UInt64(wgpuBuffer.length)
+        // )
     }
 
     func setIndexBuffer<T>(_ bufferData: BufferData<T>, indexFormat: IndexBufferFormat) {
@@ -110,13 +116,20 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     }
 
     func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, index: Int) {
-        unsafe renderEncoder.withUnsafeHandle { _handle in
-            wgpuRenderPassEncoderSetVertexBytes(_handle, UInt32(index), bytes, UInt64(length))
+        guard let buffer = device.createBuffer(descriptor: BufferDescriptor.init(usage: BufferUsage.vertex, size: UInt64(length))) else {
+            return
         }
+        device.queue.writeBuffer(buffer, bufferOffset: 0, data: UnsafeRawBufferPointer(start: bytes, count: length))
+        unsafe buffer.withUnsafeHandle { _buffer in
+            unsafe renderEncoder.withUnsafeHandle { _handle in
+                wgpuRenderPassEncoderSetVertexBuffer(_handle, UInt32(index), _buffer, UInt64(length), UInt64(length))
+            }
+        }
+
     }
 
     func setFragmentTexture(_ texture: Texture, index: Int) {
-        guard let wgpuBuffer = texture.gpuTexture as? WGPUGPUTexture else {
+        guard let wgpuTexture = texture.gpuTexture as? WGPUGPUTexture else {
             fatalError("Texture's gpuTexture is not a MetalGPUTexture")
         }
         // renderEncoder.setFragmentTexture(
@@ -126,7 +139,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     }
 
     func setFragmentSamplerState(_ sampler: Sampler, index: Int) {
-        guard let metalSampler = sampler as? WGPUSampler else {
+        guard let wgpuSampler = sampler as? WGPUSampler else {
             fatalError("Sampler is not a MetalSampler")
         }
         // renderEncoder.setFragmentSamplerState(metalSampler.wgpuSampler, index: index)
@@ -168,7 +181,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         guard let indexBuffer = self.currentIndexBuffer else {
             fatalError("Index buffer is not set. Call setIndexBuffer(_:offset:) before drawIndexed().")
         }
-        renderEncoder.drawIndexedIndirect(indirectBuffer: indexBuffer.buffer, indirectOffset: UInt64(indexBufferOffset))
+        renderEncoder.drawIndexedIndirect(indirectBuffer: indexBuffer, indirectOffset: UInt64(indexBufferOffset))
     }
 
     func draw(type: IndexPrimitive, vertexStart: Int, vertexCount: Int, instanceCount: Int) {

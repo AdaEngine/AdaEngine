@@ -49,7 +49,7 @@ public struct RenderWorldPlugin: Plugin {
             .postUpdate
         ])
 
-        renderWorld
+        unsafe renderWorld
             .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
             .insertResource(WindowSurfaces(windows: [:]))
             .addSystem(CreateWindowSurfacesSystem.self, on: .prepare)

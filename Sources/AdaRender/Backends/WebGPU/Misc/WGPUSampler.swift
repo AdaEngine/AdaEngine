@@ -19,4 +19,23 @@ final class WGPUSampler: Sampler, Sendable {
     }
 }
 
+extension SamplerMinMagFilter {
+    var toWebGPU: WebGPU.FilterMode {
+        switch self {
+        case .nearest: return .nearest
+        case .linear: return .linear
+        }
+    }
+}
+
+extension SamplerMipFilter {
+    var toWebGPU: WebGPU.MipmapFilterMode {
+        switch self {
+        case .nearest: return .nearest
+        case .linear: return .linear
+        case .notMipmapped: return .undefined
+        }
+    }
+}
+
 #endif

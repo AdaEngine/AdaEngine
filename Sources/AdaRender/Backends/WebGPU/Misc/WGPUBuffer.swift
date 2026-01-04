@@ -7,18 +7,21 @@
 
 #if canImport(WebGPU)
 import WebGPU
+import CWebGPU
 
 class WGPUBuffer: Buffer, @unchecked Sendable {
     let buffer: WebGPU.Buffer
+
+    private var _label: String?
     
     var label: String? {
         get {
-            // self.buffer
-            fatalError()
+            _label
         }
         
         set {
             self.buffer.setLabel(newValue ?? "")
+            self._label = newValue
         }
     }
     

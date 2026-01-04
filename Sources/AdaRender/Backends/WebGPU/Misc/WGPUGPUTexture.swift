@@ -72,11 +72,11 @@ final class WGPUGPUTexture: GPUTexture {
                 height: UInt32(descriptor.height),
                 depthOrArrayLayers: 0
             ),
-            format: descriptor.pixelFormat.webGPU,
+            format: descriptor.pixelFormat.toWebGPU,
             mipLevelCount: 0,
             sampleCount: 1,
             viewFormats: [
-                descriptor.pixelFormat.webGPU
+                descriptor.pixelFormat.toWebGPU
             ],
             nextInChain: nil
         )
@@ -118,7 +118,7 @@ final class WGPUGPUTexture: GPUTexture {
     }
 
     // TODO: (Vlad) think about it later
-    func getImage() -> Image? {
+    func getImage(device: WebGPU.Device) -> Image? {
         let imageFormat: Image.Format
         let bytesInPixel: UInt32
 
@@ -156,7 +156,7 @@ final class WGPUGPUTexture: GPUTexture {
 }
 
 extension PixelFormat {
-    var webGPU: WebGPU.TextureFormat {
+    var toWebGPU: WebGPU.TextureFormat {
         switch self {
         case .none:
                 .undefined
