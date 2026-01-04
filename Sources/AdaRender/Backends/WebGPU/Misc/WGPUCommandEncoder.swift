@@ -12,51 +12,62 @@ import WebGPU
 
 final class WGPUCommandEncoder: CommandBuffer {
     let commandBuffer: WebGPU.CommandBuffer
+    let device: WebGPU.Device
+    let commandEncoder: WebGPU.CommandEncoder
 
-    init(commandBuffer: WebGPU.CommandBuffer) {
+    init(
+        commandBuffer: WebGPU.CommandBuffer,
+        device: WebGPU.Device
+    ) {
         self.commandBuffer = commandBuffer
+        self.device = device
+        self.commandEncoder = device.createCommandEncoder()
     }
 
     func commit() {
-
-        // self.commandBuffer.commit()
-        fatalError()
+        device.queue.submit(commands: [commandBuffer])
     }
 
     func beginRenderPass(_ desc: RenderPassDescriptor) -> RenderCommandEncoder {
-        
-        // let renderPassDescriptor = MTLRenderPassDescriptor()
-        // let attachments = desc.colorAttachments
+        var wgpuAttachment: WebGPU.RenderPassDepthStencilAttachment?
+        if let depthStencilAttachment = desc.depthStencilAttachment {
+            let view = (depthStencilAttachment.texture.gpuTexture as! WGPUGPUTexture).textureView
+            wgpuAttachment = WebGPU.RenderPassDepthStencilAttachment(
+                view: view, 
+                depthLoadOp: depthStencilAttachment.depthOperation?.loadAction.toWebGPU ?? .undefined, 
+                depthStoreOp: depthStencilAttachment.depthOperation?.storeAction.toWebGPU ?? .undefined, 
+                depthClearValue: 0, 
+                depthReadOnly: false, 
+                stencilLoadOp: depthStencilAttachment.stencilOperation?.loadAction.toWebGPU ?? .undefined, 
+                stencilStoreOp: depthStencilAttachment.stencilOperation?.storeAction.toWebGPU ?? .undefined, 
+                stencilClearValue: 0, 
+                stencilReadOnly: false,
+                nextInChain: nil
+            )
+        }
 
-        // for (index, attachment) in attachments.enumerated() {
-        //     let colorAttachment = renderPassDescriptor.colorAttachments[index]
-        //     colorAttachment?.texture = (attachment.texture.gpuTexture as! MetalGPUTexture).texture
-        //     colorAttachment?.loadAction = attachment.operation?.loadAction.toMetal ?? .dontCare
-        //     colorAttachment?.storeAction = attachment.operation?.storeAction.toMetal ?? .dontCare
-        //     colorAttachment?.clearColor = attachment.clearColor?.toMetalClearColor ?? Color.black.toMetalClearColor
-        // }
+        let colorAttachments = desc.colorAttachments.map { attachment in
+            WebGPU.RenderPassColorAttachment(
+                view: (attachment.texture.gpuTexture as! WGPUGPUTexture).textureView, 
+                depthSlice: 0,
+                resolveTarget: (attachment.resolveTexture?.gpuTexture as? WGPUGPUTexture)?.textureView,
+                loadOp: attachment.operation?.loadAction.toWebGPU ?? .undefined, 
+                storeOp: attachment.operation?.storeAction.toWebGPU ?? .undefined, 
+                clearValue: attachment.clearColor?.toWebGPU ?? AdaUtils.Color.black.toWebGPU
+            )
+        }
 
-        // if let depthStencilAttachment = desc.depthStencilAttachment {
-        //     renderPassDescriptor.depthAttachment.texture = (depthStencilAttachment.texture.gpuTexture as! MetalGPUTexture).texture
-        //     renderPassDescriptor.depthAttachment.loadAction = depthStencilAttachment.depthOperation?.loadAction.toMetal ?? .dontCare
-        //     renderPassDescriptor.depthAttachment.storeAction = depthStencilAttachment.depthOperation?.storeAction.toMetal ?? .dontCare
-        //     // renderPassDescriptor.depthAttachment.clearDepth = Double(depthStencilAttachment.depthOperation?.clearDepth ?? 0)
-        //     // renderPassDescriptor.depthAttachment.clearStencil = UInt32(depthStencilAttachment.stencilOperation?.clearStencil ?? 0)
-        //     renderPassDescriptor.stencilAttachment.texture = (depthStencilAttachment.texture.gpuTexture as! MetalGPUTexture).texture
-        //     renderPassDescriptor.stencilAttachment.loadAction = depthStencilAttachment.stencilOperation?.loadAction.toMetal ?? .dontCare
-        //     renderPassDescriptor.stencilAttachment.storeAction = depthStencilAttachment.stencilOperation?.storeAction.toMetal ?? .dontCare
-        //     // renderPassDescriptor.stencilAttachment.clearStencil = UInt32(depthStencilAttachment.stencilOperation?.clearStencil ?? 0)
-        // }
+        let renderPassDescriptor = WebGPU.RenderPassDescriptor(
+            label: desc.label, 
+            colorAttachments: colorAttachments,
+            depthStencilAttachment: wgpuAttachment, 
+            occlusionQuerySet: nil, //QuerySet?
+            timestampWrites: nil, //PassTimestampWrites?
+            nextInChain: nil
+        )
 
-        // guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
-        //     fatalError("Failed to create MTLRenderCommandEncoder")
-        // }
-        // encoder.label = desc.label
-
-        // return MetalRenderCommandEncoder(
-        //     renderEncoder: encoder
-        // )
-        fatalError()
+        let renderPassEncoder = commandEncoder.beginRenderPass(descriptor: renderPassDescriptor)
+        return WGPURenderCommandEncoder(renderEncoder: renderPassEncoder, device: device)
     }
 
     func beginBlitPass(_ desc: BlitPassDescriptor) -> BlitCommandEncoder {
@@ -68,4 +79,30 @@ final class WGPUCommandEncoder: CommandBuffer {
         // return MetalBlitCommandEncoder(blitEncoder: encoder)
     }
 }
+
+extension AttachmentLoadAction {
+    var toWebGPU: WebGPU.LoadOp {
+        switch self {
+        case .load: return .load
+        case .clear: return .clear
+        case .dontCare: return .undefined
+        }
+    }
+}
+
+extension AttachmentStoreAction {
+    var toWebGPU: WebGPU.StoreOp {
+        switch self {
+        case .store: return .store
+        case .dontCare: return .discard
+        }
+    }
+}
+
+extension AdaUtils.Color {
+    var toWebGPU: WebGPU.Color {
+        return WebGPU.Color(r: Double(red), g: Double(green), b: Double(blue), a: Double(alpha))
+    }
+}
+
 #endif

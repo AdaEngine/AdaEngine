@@ -210,11 +210,11 @@ public struct OperationDescriptor: Sendable {
 public struct RenderPipelineDescriptor: Sendable {
 
     /// The vertex shader the pipeline run to process vertices.
-    public var vertex: Shader!
+    public var vertex: Shader
     
     /// The fragment shader the pipeline run to process fragments.
-    public var fragment: Shader!
-    
+    public var fragment: Shader?
+
     /// A string that identifies the render pipeline descriptor.
     public var debugName: String = ""
     
@@ -243,7 +243,7 @@ public struct RenderPipelineDescriptor: Sendable {
     /// - Parameter debugName: A string that identifies the render pipeline descriptor.
     /// - Parameter backfaceCulling: A Boolean value that indicates whether backface culling is enabled.
     public init(
-        vertex: Shader? = nil,
+        vertex: Shader,
         fragment: Shader? = nil,
         debugName: String = "",
         backfaceCulling: Bool = true,

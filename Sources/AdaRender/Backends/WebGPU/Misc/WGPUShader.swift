@@ -7,6 +7,7 @@
 
 #if canImport(WebGPU)
 import WebGPU
+import CWebGPU
 
 final class WGPUShader: CompiledShader {
     let shader: WebGPU.ShaderModule
