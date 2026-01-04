@@ -58,7 +58,7 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
         for (index, layout) in descriptor.vertexDescriptor.layouts.enumerated() {
             vertexDescriptor.layouts[index].stride = layout.stride
         }
-        if let shader = descriptor.vertex?.compiledShader as? MetalShader {
+        if let shader = descriptor.vertex.compiledShader as? MetalShader {
             pipelineDescriptor.vertexFunction = shader.function
         }
 
