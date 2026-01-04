@@ -83,8 +83,8 @@ final class WindowsWindowManager: UIWindowManager {
             fatalError("Failed to create window")
         }
 
-        let windowsSurface = WindowsSurface(windowId: window.id, windowHwnd: hwnd)
-        try? RenderEngine.shared.createWindow(window.id, for: windowsSurface, size: sizeInt)
+        let windowsSurface = unsafe WindowsSurface(windowId: window.id, windowHwnd: hwnd)
+        unsafe try? RenderEngine.shared.createWindow(window.id, for: windowsSurface, size: sizeInt)
         
         // Store window handle
         let windowPtr = unsafe Unmanaged.passUnretained(window).toOpaque()
@@ -262,7 +262,7 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
             if window.frame.size != newSize {
                 window.frame = Rect(origin: .zero, size: newSize)
             }
-            try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
+            unsafe try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
         }
         return 0
         
@@ -411,7 +411,7 @@ final class WindowsScreenManager: ScreenManager {
     }
     
     func makeScreen(from hMonitor: HMONITOR) -> Screen? {
-        let systemScreen = unsafe WindowsSystemScreen(hMonitor: hMonitor)
+        let systemScreen = WindowsSystemScreen(hMonitor: hMonitor)
         return makeScreen(from: systemScreen)
     }
     
