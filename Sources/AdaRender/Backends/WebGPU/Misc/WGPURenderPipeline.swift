@@ -6,26 +6,32 @@
 //
 
 #if canImport(WebGPU)
+import AdaUtils
 import WebGPU
 
 final class WGPURenderPipeline: RenderPipeline {
     
     let descriptor: RenderPipelineDescriptor
     let renderPipeline: WebGPU.RenderPipeline
-    let depthStencilState: WebGPU.DepthStencilState?
     
     init(
         descriptor: RenderPipelineDescriptor,
         device: WebGPU.Device
-    ) throws {
-        guard let vertex = descriptor.vertex.compiledShader as? WGPUShader else {
-            throw InitError.noVertexShader
-        }
+    ) {
+        let vertex = (descriptor.vertex.compiledShader as? WGPUShader).unwrap(message: "Vertex shader is not a WGPUShader")
 
-        let fragmentState = descriptor.fragment.map { shader in
-
-            shader.compiledShader as! WGPUShader
-        }
+        // let fragmentState: WebGPU.FragmentState? = descriptor.fragment.map { shader in
+        //     let wgpuShader = shader.compiledShader as! WGPUShader
+        //     return WebGPU.FragmentState(
+        //         module: wgpuShader.shader,
+        //         entryPoint: shader.entryPoint,
+        //         constants: [],
+        //         targets: [
+        //             FragmentStateTarget(
+        //                 format: descriptor.colorAttachments[0].format.toWebGPU,
+        //             )
+        //         ]
+        // }
 
         self.descriptor = descriptor
         renderPipeline = device.createRenderPipeline(
@@ -41,8 +47,8 @@ final class WGPURenderPipeline: RenderPipeline {
                     buffers: [
                         VertexBufferLayout(
                             stepMode: VertexStepMode.vertex,
-                            arrayStride: <#T##UInt64#>,
-                            attributes: [.init(format: <#T##VertexFormat#>, offset: <#T##UInt64#>, shaderLocation: <#T##UInt32#>)],
+                            arrayStride: 0,
+                            attributes: [],
                             nextInChain: nil
                         )
                     ]
@@ -54,9 +60,9 @@ final class WGPURenderPipeline: RenderPipeline {
                     cullMode: descriptor.backfaceCulling ? .back : .front,
                     unclippedDepth: false
                 ),
-                depthStencil: <#T##DepthStencilState?#>,
+                depthStencil: nil,
                 multisample: MultisampleState(),
-                fragment: <#T##FragmentState?#>,
+                fragment: nil,
                 nextInChain: nil
             )
         )

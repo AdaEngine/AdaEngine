@@ -61,9 +61,8 @@ public extension CanvasMaterial {
         fragment: Shader,
         vertexDescriptor: VertexDescriptor
     ) throws -> RenderPipelineDescriptor {
-        var descriptor = RenderPipelineDescriptor()
+        var descriptor = RenderPipelineDescriptor(vertex: vertex)
         descriptor.debugName = "Canvas Mesh Material \(String(describing: self))"
-        descriptor.vertex = vertex
         descriptor.fragment = fragment
         descriptor.vertexDescriptor = vertexDescriptor
         descriptor.backfaceCulling = true
