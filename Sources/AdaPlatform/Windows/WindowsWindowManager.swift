@@ -43,9 +43,7 @@ final class WindowsWindowManager: UIWindowManager {
         let height = Int32(size.height)
         
         // Create Windows surface for rendering
-        let windowsSurface = WindowsSurface(windowId: window.id)
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-        try? RenderEngine.shared.createWindow(window.id, for: windowsSurface, size: sizeInt)
         
         // Create Win32 window
         let className = "AdaEngineWindow"
@@ -84,6 +82,9 @@ final class WindowsWindowManager: UIWindowManager {
         guard let hwnd = unsafe hwnd else {
             fatalError("Failed to create window")
         }
+
+        let windowsSurface = WindowsSurface(windowId: window.id, windowHwnd: hwnd)
+        try? RenderEngine.shared.createWindow(window.id, for: windowsSurface, size: sizeInt)
         
         // Store window handle
         let windowPtr = unsafe Unmanaged.passUnretained(window).toOpaque()
