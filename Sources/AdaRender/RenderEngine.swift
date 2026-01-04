@@ -80,53 +80,14 @@ public extension RenderDevice {
     }
 }
 
-import AdaECS
-import Foundation
-
-@System
-func SetupRenderEngine(
-    _ commands: Commands
-) async {
-    let renderBackend: RenderBackend
-
-    let appName = "AdaEngine"
-
-        //    #if METAL
-        //    renderBackend = MetalRenderBackend(appName: appName)
-        //    #elseif VULKAN
-        //    renderBackend = VulkanRenderBackend(appName: appName)
-        //    #elseif OPENGL
-        //    renderBackend = OpenGLBackend(appName: appName)
-        //    #else
-        //    renderBackend = WebGPURenderBackend()
-        //    #endif
-
-    do {
-        renderBackend = try await WebGPURenderBackend.createBackend()
-    } catch {
-        fatalError(error.localizedDescription)
-    }
-    let engine = RenderEngine(renderBackend: renderBackend)
-    unsafe RenderEngine.shared = engine
-}
-
 extension RenderEngine {
     package static func setupRenderEngine() async throws {
         let renderBackend: RenderBackend
-
-        let appName = "AdaEngine"
-        //                #if METAL
-        //    renderBackend = MetalRenderBackend(appName: appName)
-        //    #elseif VULKAN
-        //    renderBackend = VulkanRenderBackend(appName: appName)
-        //    #elseif OPENGL
-        //    renderBackend = OpenGLBackend(appName: appName)
-        //    #else
-        //    renderBackend = WebGPURenderBackend()
-        //    #endif
-
-            renderBackend = try await WebGPURenderBackend.createBackend()
-
+        #if METAL
+        renderBackend = MetalRenderBackend()
+        #else
+        renderBackend = try await WebGPURenderBackend.createBackend()
+        #endif
         let engine = RenderEngine(renderBackend: renderBackend)
         unsafe RenderEngine.shared = engine
     }

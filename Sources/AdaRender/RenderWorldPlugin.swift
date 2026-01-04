@@ -51,6 +51,7 @@ public struct RenderWorldPlugin: Plugin {
 
         unsafe renderWorld
             .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
+            .insertResource(RenderEngineHandler(renderEngine: RenderEngine.shared))
             .insertResource(WindowSurfaces(windows: [:]))
             .addSystem(CreateWindowSurfacesSystem.self, on: .prepare)
             .addSystem(DefaultSchedulerRunner.self, on: .renderRunner)
@@ -150,13 +151,14 @@ public struct WindowSurfaces: Resource {
 func CreateWindowSurfaces(
     _ surfaces: ResMut<WindowSurfaces>,
     _ renderDevice: Res<RenderDeviceHandler>,
+    _ renderInstance: Res<RenderEngineHandler>,
     _ primaryWindow: Extract<Res<PrimaryWindowId>>
 ) async {
     surfaces.windows.removeAll()
     let device = renderDevice.renderDevice
 
     do {
-        let renderWindows = try await RenderEngine.shared.getRenderWindows()
+        let renderWindows = try await renderInstance.renderEngine.getRenderWindows()
         for (windowId, _) in renderWindows.windows.values {
             let swapchain = await device.createSwapchain(from: windowId)
 

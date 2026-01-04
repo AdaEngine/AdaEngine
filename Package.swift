@@ -12,7 +12,7 @@ import AppleProductTypes
 #if canImport(Darwin)
 import Darwin.C
 
-let isVulkanEnabled = false
+let isWGPUEnabled = false
 #else
 
 #if os(Linux)
@@ -23,8 +23,12 @@ import Glibc
 import WinSDK
 #endif
 
-let isVulkanEnabled = false
+let isWGPUEnabled = true
 #endif
+
+extension String {
+    static let wgpuTrait = "WGPU_ENABLED"
+}
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
@@ -108,8 +112,8 @@ var swiftSettings: [SwiftSetting] = [
     .unsafeFlags(["-Xfrontend", "-validate-tbd-against-ir=none"]),
 ]
 
-if isVulkanEnabled {
-    swiftSettings.append(.define("VULKAN"))
+if isWGPUEnabled {
+    swiftSettings.append(.define("WGPU_ENABLED"))
 } else {
     swiftSettings.append(.define("METAL", .when(platforms: applePlatforms)))
 }
@@ -310,7 +314,7 @@ var targets: [Target] = [
             "SPIRV-Cross",
             "SPIRVCompiler",
             "libpng",
-            .product(name: "WebGPU", package: "swift-webgpu"),
+            .product(name: "WebGPU", package: "swift-webgpu", condition: .when(traits: [.wgpuTrait])),
         ],
         resources: [
             .copy("Assets/Shaders")
@@ -826,7 +830,19 @@ let package = Package(
         .macOS(.v15),
     ],
     products: products,
-    traits: [],
+    traits: {
+        var traits: Set<Trait> = []
+        if isWGPUEnabled {
+            traits.insert(
+                .trait(
+                    name: .wgpuTrait,
+                    description: "Enable WebGPU support",
+                    enabledTraits: []
+                )
+            )
+        }
+        return traits
+    }(),
     dependencies: [],
     targets: targets,
     cLanguageStandard: .c17,
@@ -841,44 +857,18 @@ package.dependencies += [
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
     // TODO: SpectralDragon packages should move to AdaEngine
     .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
-    .package(url: "https://github.com/SpectralDragon/swift-webgpu", branch: "update_bindings"),
+    .package(
+        url: "https://github.com/SpectralDragon/swift-webgpu",
+        branch: "update_bindings",
+        traits: [
+            .trait(name: .wgpuTrait)
+        ]
+    ),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),
     .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.62.1"),
 ]
-
-// MARK: - Vulkan -
-
-// We turn on vulkan via build
-if isVulkanEnabled {
-    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
-    package.targets += [
-        .adaTarget(
-            name: "Vulkan",
-            dependencies: ["CVulkan"],
-            cSettings: [
-                // Apple
-                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
-                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
-                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
-
-                // Android
-                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
-
-                // Windows
-                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
-            ]
-        ),
-        .systemLibrary(
-            name: "CVulkan",
-            pkgConfig: "vulkan",
-            providers: [
-                .apt(["vulkan"])
-            ]
-        )
-    ]
-}
 
 private extension Target {
     /// Creates a regular target.
