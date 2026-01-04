@@ -11,11 +11,14 @@ import CWebGPU
 import Math
 import AdaUtils
 import Synchronization
+import Foundation
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
 import MetalKit
 import QuartzCore
 #endif
-
+#if os(Windows)
+import WinSDK
+#endif
 
 final class WGPUContext: Sendable {
     let device: WebGPU.Device

@@ -28,3 +28,22 @@ extension MTKView: RenderSurface {
 }
 
 #endif
+
+#if os(Windows)
+import WinSDK
+
+/// Windows-specific render surface implementation.
+/// This wraps a Win32 window handle for use with the rendering system.
+public final class WindowsSurface: RenderSurface {
+    public let windowId: WindowID
+    public let windowHwnd: UnsafeMutableRawPointer
+
+    public var scaleFactor: Float { 1 }
+    public var prefferedPixelFormat: PixelFormat { .bgra8 }
+
+    public init(windowId: WindowID, windowHwnd: UnsafeMutableRawPointer) {
+        self.windowId = windowId
+        unsafe self.windowHwnd = unsafe windowHwnd
+    }
+}
+#endif
