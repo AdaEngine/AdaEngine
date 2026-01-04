@@ -25,7 +25,13 @@ public struct RenderWorldPlugin: Plugin {
         BoundingComponent.registerComponent()
         Texture.registerTypes()
 
-        try! await RenderEngine.setupRenderEngine()
+        do {
+            try await RenderEngine.setupRenderEngine()
+        } catch {
+            Logger(label: "org.adaengine.render").critical("\(error.localizedDescription)")
+            return
+        }
+        
 
         let renderWorld = AppWorlds(main: World(name: "RenderWorld"))
         renderWorld.updateScheduler = .renderRunner

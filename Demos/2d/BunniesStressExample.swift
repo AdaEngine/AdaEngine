@@ -325,7 +325,7 @@ struct PerformanceCounterSystem {
             var container = TextAttributeContainer()
             container.foregroundColor = .white
 
-            let text = unsafe "Bunnies: \(bunnyCount)\nFPS: \(String(format: "%.1f", counter.fps))"
+            let text = "Bunnies: \(bunnyCount)\nFPS: \(String(format: "%.1f", counter.fps))"
             print(text)
             textComponent.text = AttributedText(text, attributes: container)
         }
