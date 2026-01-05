@@ -24,6 +24,9 @@ public protocol WorldExctractor {
 /// A class that represents a collection of worlds.
 @MainActor
 public final class AppWorlds {
+
+    public typealias ApplicationRunnerBlock = () -> Void
+
     /// The main world.
     public var main: World
 
@@ -44,7 +47,7 @@ public final class AppWorlds {
     private var pluginDepth = 0
 
     /// The runner.
-    var runner: ((AppWorlds) async -> Void)?
+    var runner: ApplicationRunnerBlock?
 
     /// The flag that indicates if the app is configured.
     var isConfigured: Bool = false
@@ -78,13 +81,13 @@ public extension AppWorlds {
 
     /// Set the runner.
     /// - Parameter block: The runner.
-    func setRunner(_ block: @escaping (AppWorlds) async -> Void) {
+    func setRunner(_ block: @escaping ApplicationRunnerBlock) {
         self.runner = block
     }
 
     /// Update the app.
     /// - Parameter deltaTime: The delta time.
-    func update() async {
+    func update() async throws {
         guard isConfigured else {
             return
         }
@@ -92,12 +95,12 @@ public extension AppWorlds {
             assertionFailure("Update scheduler is empty")
             return
         }
-        
+
         await main.runScheduler(updateScheduler)
 
         for world in self.subWorlds.values {
             unsafe await world.worldExctractor?.exctract(from: main, to: world.main)
-            await world.update()
+            try await world.update()
         }
         
         main.clearTrackers()

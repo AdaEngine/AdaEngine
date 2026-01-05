@@ -38,14 +38,13 @@ final class MacApplication: Application {
 
     private var task: Task<Void, Never>?
 
-    override func run(_ appWorlds: AppWorlds) async throws {
+    override func run(_ appWorlds: AppWorlds) throws {
         setupInput(for: appWorlds)
         task = Task(priority: .userInitiated) {
             do {
                 while true {
-                    try Task.checkCancellation()
                     self.processEvents()
-                    await appWorlds.update()
+                    try await appWorlds.update()
                     await Task.yield()
                 }
             } catch {
@@ -59,7 +58,6 @@ final class MacApplication: Application {
                 Application.shared.showAlert(alert)
             }
         }
-
         NSApplication.shared.run()
     }
 

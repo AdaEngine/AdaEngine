@@ -49,6 +49,6 @@ public struct AppContext<T: App>: ~Copyable {
         let _ = T.Content._makeView(node, inputs: inputs)
         
         try await appWorlds.build()
-        await appWorlds.runner?(appWorlds)
+        appWorlds.runner?()
     }
 }
