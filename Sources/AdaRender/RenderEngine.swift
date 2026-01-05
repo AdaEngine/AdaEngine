@@ -79,10 +79,14 @@ public extension RenderDevice {
 extension RenderEngine {
     package static func setupRenderEngine() throws {
         let renderBackend: RenderBackend
-        #if METAL
+        #if WEBGPU_ENABLED
+        renderBackend = try UnsafeTask {
+            return try await WebGPURenderBackend.createBackend()
+        }.get()
+        #elseif METAL
         renderBackend = MetalRenderBackend()
         #else
-        renderBackend = try await WebGPURenderBackend.createBackend()
+        #error("Not supported backend")
         #endif
         let engine = RenderEngine(renderBackend: renderBackend)
         unsafe RenderEngine.shared = engine
