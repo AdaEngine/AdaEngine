@@ -26,9 +26,6 @@ protocol RenderBackend: AnyObject, Sendable {
     
     var type: RenderBackendType { get }
 
-    /// Returns current frame index. Min value 0, Max value is equal ``RenderEngine/Configuration/maxFramesInFlight`` value.
-    var currentFrameIndex: Int { get }
-
     /// Returns global ``RenderDevice``.
     var renderDevice: RenderDevice { get }
 

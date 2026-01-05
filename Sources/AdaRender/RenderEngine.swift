@@ -39,10 +39,6 @@ public final class RenderEngine: RenderBackend, Sendable {
     public var type: RenderBackendType {
         self.renderBackend.type
     }
-    
-    public var currentFrameIndex: Int {
-        return self.renderBackend.currentFrameIndex
-    }
 
     /// Returns global ``RenderDevice``.
     public var renderDevice: RenderDevice {

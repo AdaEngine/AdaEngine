@@ -19,7 +19,6 @@ final class MetalRenderBackend: RenderBackend, @unchecked Sendable {
 
     private let context: Context
     let type: RenderBackendType = .metal
-    private(set) var currentFrameIndex: Int = 0
     
     private var commandQueue: MTLCommandQueue
 
