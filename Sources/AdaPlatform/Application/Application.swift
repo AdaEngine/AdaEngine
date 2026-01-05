@@ -67,8 +67,7 @@ open class Application: Resource {
     ) throws { }
 
     /// Call this method to start main loop.
-    @MainActor
-    func run(_ appWorlds: AppWorlds) async throws {
+    func run(_ appWorlds: AppWorlds) throws {
         assertionFailure("Not implemented")
     }
     

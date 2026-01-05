@@ -52,9 +52,9 @@ public struct AppPlatformPlugin: Plugin {
 
             app.addSystem(ApplicationUpdateSystem.self, on: .preUpdate)
 
-            app.setRunner { worlds in
+            app.setRunner {
                 do {
-                    try await application.run(worlds)
+                    try application.run(app)
                 } catch {
                     Logger(label: "org.adaengine.AppPlatform").error("\(error)")
                 }
