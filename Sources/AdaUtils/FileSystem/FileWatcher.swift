@@ -250,7 +250,7 @@ public final class RDCWatcher {
                         return
                     }
 
-                    var handles: (HANDLE?, HANDLE?) = (watch.terminate, watch.overlapped.hEvent)
+                    var handles: (HANDLE?, HANDLE?) = unsafe (watch.terminate, watch.overlapped.hEvent)
                     switch unsafe WaitForMultipleObjects(2, &handles.0, false, INFINITE) {
                         case WAIT_OBJECT_0 + 1:
                             break

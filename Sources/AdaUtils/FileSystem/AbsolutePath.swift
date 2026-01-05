@@ -74,7 +74,7 @@ public struct AbsolutePath: Hashable, Sendable {
             }
 
             let base: UnsafePointer<Int8> =
-                basePath.pathString.fileSystemRepresentation
+                unsafe basePath.pathString.fileSystemRepresentation
             defer { unsafe base.deallocate() }
 
             let path: UnsafePointer<Int8> = unsafe str.fileSystemRepresentation
@@ -454,7 +454,7 @@ private struct WindowsPath: Path, Sendable {
     }
 
     static func isAbsolutePath(_ path: String) -> Bool {
-        return !path.withCString(encodedAs: UTF16.self, PathIsRelativeW)
+        return unsafe !path.withCString(encodedAs: UTF16.self, PathIsRelativeW)
     }
 
     var dirname: String {
@@ -528,7 +528,7 @@ private struct WindowsPath: Path, Sendable {
         guard !path.isEmpty else { return "" }
         let representation: UnsafePointer<Int8> = unsafe path.fileSystemRepresentation
         defer { unsafe representation.deallocate() }
-        return String(cString: representation)
+        return unsafe String(cString: representation)
     }
 
     init(validatingAbsolutePath path: String) throws {

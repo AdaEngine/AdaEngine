@@ -184,8 +184,11 @@ public final class ShaderCompiler {
             throw CompileError.glslError(message)
         }
         
-        let data = unsafe Data(bytes: binary.bytes, count: Int(binary.length))
-        unsafe binary.bytes.deallocate()
+        let data = unsafe Data(
+            bytesNoCopy: UnsafeMutableRawPointer(mutating: binary.bytes!), 
+            count: Int(binary.length), 
+            deallocator: .free
+        )
 
         return SpirvBinary(
             stage: stage,
