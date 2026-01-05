@@ -34,6 +34,7 @@ import WinSDK
 
 /// Windows-specific render surface implementation.
 /// This wraps a Win32 window handle for use with the rendering system.
+@safe
 public final class WindowsSurface: RenderSurface {
     public let windowId: WindowID
     public let windowHwnd: UnsafeMutableRawPointer
