@@ -32,7 +32,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 label: label,
-                usage: [WebGPU.BufferUsage.indirect, WebGPU.BufferUsage.copyDst, WebGPU.BufferUsage.copySrc],
+                usage: [WebGPU.BufferUsage.indirect, WebGPU.BufferUsage.copyDst, WebGPU.BufferUsage.copySrc, .uniform],
                 size: UInt64(length)
             )
         ).unwrap(message: "Failed to create buffer")
@@ -192,7 +192,7 @@ extension ResourceOptions {
         case .storagePrivate:
             [WebGPU.BufferUsage.indirect, .uniform]
         default:
-            []
+            [.uniform]
         }
     }
 }
