@@ -15,8 +15,6 @@ import Math
 /// The plugin that sets up the render world.
 public struct RenderWorldPlugin: Plugin {
 
-    @LocalIsolated private var installed = false
-
     public init() {}
 
     /// Setup the render world.
@@ -50,21 +48,15 @@ public struct RenderWorldPlugin: Plugin {
             .postUpdate
         ])
 
-//        Task {
-            do {
-                try RenderEngine.setupRenderEngine()
+        do {
+            try RenderEngine.setupRenderEngine()
+        } catch {
+            fatalError("Critical Error RenderWorldPlugin: \(error.localizedDescription)")
+        }
 
-                unsafe renderWorld
-                    .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
-                    .insertResource(RenderEngineHandler(renderEngine: RenderEngine.shared))
-
-                self.installed = true
-            } catch {
-                fatalError("Critical Error RenderWorldPlugin: \(error.localizedDescription)")
-            }
-//        }
-
-        renderWorld
+        unsafe renderWorld
+            .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
+            .insertResource(RenderEngineHandler(renderEngine: RenderEngine.shared))
             .insertResource(WindowSurfaces(windows: [:]))
             .addSystem(CreateWindowSurfacesSystem.self, on: .prepare)
             .addSystem(DefaultSchedulerRunner.self, on: .renderRunner)
@@ -72,10 +64,6 @@ public struct RenderWorldPlugin: Plugin {
 
         app.addSubworld(renderWorld, by: .renderWorld)
     }
-//
-//    public func isLoaded(in app: borrowing AppWorlds) -> Bool {
-//        return self.installed
-//    }
 }
 
 public struct RenderDeviceHandler: Resource {
