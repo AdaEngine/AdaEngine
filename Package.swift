@@ -12,6 +12,7 @@ import AppleProductTypes
 #if canImport(Darwin)
 import Darwin.C
 
+/// Only xcode can import AppleProductTypes and we can use it as checker
 #if canImport(AppleProductTypes)
 let isWGPUEnabled = false // We can't build wgpu from xcode
 #else
