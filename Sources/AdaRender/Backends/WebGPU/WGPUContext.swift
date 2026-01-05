@@ -48,7 +48,7 @@ final class WGPUContext: Sendable {
                 usage: .renderAttachment,
                 width: UInt32(size.width),
                 height: UInt32(size.height),
-                viewFormats: [],
+                viewFormats: [surface.prefferedPixelFormat.toWebGPU],
                 alphaMode: .auto,
                 presentMode: PresentMode.fifo
             )

@@ -53,5 +53,4 @@ extension WebGPURenderBackend {
         return WebGPURenderBackend(device: device, adapter: adapter, instance: instance)
     }
 }
-
 #endif
