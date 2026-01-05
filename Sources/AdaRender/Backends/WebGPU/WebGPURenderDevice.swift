@@ -186,11 +186,11 @@ extension ResourceOptions {
     var toWebGPU: WebGPU.BufferUsage {
         switch self {
         case .storageManaged:
-            [WebGPU.BufferUsage.storage, .copySrc, .copyDst]
+            [WebGPU.BufferUsage.storage, .copySrc, .copyDst, .uniform]
         case .storageShared:
-            [WebGPU.BufferUsage.storage, .copySrc, .copyDst]
+            [WebGPU.BufferUsage.storage, .copySrc, .copyDst, .uniform]
         case .storagePrivate:
-            [WebGPU.BufferUsage.indirect]
+            [WebGPU.BufferUsage.indirect, .uniform]
         default:
             []
         }
