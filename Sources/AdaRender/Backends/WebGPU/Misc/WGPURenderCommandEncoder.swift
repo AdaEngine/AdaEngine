@@ -117,17 +117,15 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, index: Int) {
         guard let buffer = device.createBuffer(
             descriptor: BufferDescriptor(
-                usage: [.vertex, .copyDst],
+                usage: [.vertex, .copyDst, .uniform],
                 size: UInt64(length)
             )
         ) else {
             return
         }
-        unsafe device.queue.writeBuffer(
-            buffer,
-            bufferOffset: 0,
-            data: UnsafeRawBufferPointer(start: bytes, count: length)
-        )
+        let ptr = unsafe buffer.getMappedRange(offset: 0, size: 0)
+        unsafe ptr?.copyMemory(from: bytes, byteCount: length)
+        buffer.unmap()
         renderEncoder.setVertexBuffer(
             slot: UInt32(index),
             buffer: buffer,

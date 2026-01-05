@@ -303,33 +303,33 @@ private func translateWindowsKeyCode(vkCode: UInt16) -> KeyCode {
 private func getWindowsKeyModifiers() -> KeyModifier {
     var modifiers: KeyModifier = []
     
-    let shiftState = Int32(bitPattern: UInt32(unsafe GetKeyState(0x10))) // VK_SHIFT
-    if (shiftState & 0x8000) != 0 {
-        modifiers.insert(.shift)
-    }
-    let controlState = Int32(bitPattern: UInt32(unsafe GetKeyState(0x11))) // VK_CONTROL
-    if (controlState & 0x8000) != 0 {
-        modifiers.insert(.control)
-    }
-    let menuState = Int32(bitPattern: UInt32(unsafe GetKeyState(0x12))) // VK_MENU
-    if (menuState & 0x8000) != 0 {
-        modifiers.insert(.alt)
-    }
-    let lwinState = Int32(bitPattern: UInt32(unsafe GetKeyState(0x5B))) // VK_LWIN
-    let rwinState = Int32(bitPattern: UInt32(unsafe GetKeyState(0x5C))) // VK_RWIN
-    if (lwinState & 0x8000) != 0 || (rwinState & 0x8000) != 0 {
-        modifiers.insert(.main)
-    }
-    let capitalState = Int32(bitPattern: UInt32(unsafe GetKeyState(0x14))) // VK_CAPITAL
-    if (capitalState & 0x0001) != 0 {
-        modifiers.insert(.capsLock)
-    }
+    // let shiftState = Int32(bitPattern: UInt32(GetKeyState(0x10))) // VK_SHIFT
+    // if (shiftState & 0x8000) != 0 {
+    //     modifiers.insert(.shift)
+    // }
+    // let controlState = Int32(bitPattern: UInt32(GetKeyState(0x11))) // VK_CONTROL
+    // if (controlState & 0x8000) != 0 {
+    //     modifiers.insert(.control)
+    // }
+    // let menuState = Int32(bitPattern: UInt32(GetKeyState(0x12))) // VK_MENU
+    // if (menuState & 0x8000) != 0 {
+    //     modifiers.insert(.alt)
+    // }
+    // let lwinState = Int32(bitPattern: UInt32(GetKeyState(0x5B))) // VK_LWIN
+    // let rwinState = Int32(bitPattern: UInt32(GetKeyState(0x5C))) // VK_RWIN
+    // if (lwinState & 0x8000) != 0 || (rwinState & 0x8000) != 0 {
+    //     modifiers.insert(.main)
+    // }
+    // let capitalState = Int32(bitPattern: UInt32(GetKeyState(0x14))) // VK_CAPITAL
+    // if (capitalState & 0x0001) != 0 {
+    //     modifiers.insert(.capsLock)
+    // }
     
     return modifiers
 }
 
 private func getCurrentTime() -> TimeInterval {
-    return TimeInterval(unsafe GetTickCount64()) / 1000.0
+    return TimeInterval(GetTickCount64()) / 1000.0
 }
 
 @MainActor
@@ -425,6 +425,9 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
             window.windowShouldClose()
         }
         if shouldClose {
+            MainActor.assumeIsolated {
+                window.close()
+            }
             return 0
         }
         return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
