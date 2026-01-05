@@ -9,19 +9,14 @@
 import WebGPU
 
 final class WGPUCommandQueue: CommandQueue {
-    let commandQueue: WebGPU.Queue
+    let device: WebGPU.Device
 
-    init(commandQueue: WebGPU.Queue) {
-        self.commandQueue = commandQueue
+    init(device: WebGPU.Device) {
+        self.device = device
     }
 
     func makeCommandBuffer() -> CommandBuffer {
-        
-        fatalError()
-        // guard let commandBuffer = commandQueue.makeCommandBuffer() else {
-        //     fatalError("MetalCommandQueue failed. Can't create MTLCommandBuffer.")
-        // }
-        // return MetalCommandEncoder(commandBuffer: commandBuffer)
+        WGPUCommandEncoder(device: device)
     }
 }
 #endif

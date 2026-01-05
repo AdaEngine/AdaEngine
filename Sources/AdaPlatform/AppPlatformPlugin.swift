@@ -54,14 +54,11 @@ public struct AppPlatformPlugin: Plugin {
 
             app.setRunner { worlds in
                 do {
-                    try MainActor.assumeIsolated {
-                        try application.run(worlds)
-                    }
+                    try await application.run(worlds)
                 } catch {
                     Logger(label: "org.adaengine.AppPlatform").error("\(error)")
                 }
             }
-
         } catch {
             fatalError("Can't initialise application: \(error)")
         }

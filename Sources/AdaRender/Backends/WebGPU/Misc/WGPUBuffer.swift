@@ -36,8 +36,9 @@ class WGPUBuffer: Buffer, @unchecked Sendable {
     }
     
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
-        let result = unsafe self.buffer.writeMappedRange(offset: offset, data: UnsafeRawBufferPointer(start: bytes, count: byteCount))
-        assert(result == .success)
+        let ptr = unsafe self.buffer.getMappedRange(offset: offset, size: byteCount)
+        ptr?.copyMemory(from: bytes, byteCount: byteCount)
+        self.buffer.unmap()
     }
 }
 

@@ -11,20 +11,18 @@ import Math
 import WebGPU
 
 final class WGPUCommandEncoder: CommandBuffer {
-    let commandBuffer: WebGPU.CommandBuffer
     let device: WebGPU.Device
     let commandEncoder: WebGPU.CommandEncoder
 
     init(
-        commandBuffer: WebGPU.CommandBuffer,
         device: WebGPU.Device
     ) {
-        self.commandBuffer = commandBuffer
         self.device = device
         self.commandEncoder = device.createCommandEncoder()
     }
 
     func commit() {
+        let commandBuffer = commandEncoder.finish()
         device.queue.submit(commands: [commandBuffer])
     }
 
