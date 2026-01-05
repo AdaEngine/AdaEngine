@@ -8,6 +8,7 @@
 #if os(Windows)
 import AdaApp
 import AdaECS
+import AdaUtils
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaUI
 import WinSDK
@@ -27,6 +28,7 @@ final class WindowsApplication: Application {
         UIWindowManager.setShared(self.windowManager)
     }
 
+    @MainActor
     override func run(_ appWorlds: AppWorlds) async throws {
         setupInput(for: appWorlds)
         do {
@@ -43,7 +45,7 @@ final class WindowsApplication: Application {
                     hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
                 }
                     
-                await appWorlds.update()
+                try await appWorlds.update()
                 await Task.yield()
             }
         } catch {

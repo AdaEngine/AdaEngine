@@ -25,7 +25,11 @@ public protocol WorldExctractor {
 @MainActor
 public final class AppWorlds {
 
+    #if ENABLE_RUN_IN_CONCURRENCY
+    public typealias ApplicationRunnerBlock = () async -> Void
+    #else
     public typealias ApplicationRunnerBlock = () -> Void
+    #endif
 
     /// The main world.
     public var main: World
