@@ -14,22 +14,19 @@ import Math
 
 /// The plugin that sets up the render world.
 public struct RenderWorldPlugin: Plugin {
+
+    @LocalIsolated private var installed = false
+
     public init() {}
 
     /// Setup the render world.
     /// - Parameter app: The app to setup the render world for.
-    public func setup(in app: AppWorlds) async {
+    public func setup(in app: AppWorlds) {
         VisibleEntities.registerComponent()
         Visibility.registerComponent()
         NoFrustumCulling.registerComponent()
         BoundingComponent.registerComponent()
         Texture.registerTypes()
-
-        do {
-            try await RenderEngine.setupRenderEngine()
-        } catch {
-            fatalError("Critical Error RenderWorldPlugin: \(error.localizedDescription)")
-        }
 
         let renderWorld = AppWorlds(main: World(name: "RenderWorld"))
         renderWorld.updateScheduler = .renderRunner
@@ -53,9 +50,21 @@ public struct RenderWorldPlugin: Plugin {
             .postUpdate
         ])
 
-        unsafe renderWorld
-            .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
-            .insertResource(RenderEngineHandler(renderEngine: RenderEngine.shared))
+//        Task {
+            do {
+                try RenderEngine.setupRenderEngine()
+
+                unsafe renderWorld
+                    .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
+                    .insertResource(RenderEngineHandler(renderEngine: RenderEngine.shared))
+
+                self.installed = true
+            } catch {
+                fatalError("Critical Error RenderWorldPlugin: \(error.localizedDescription)")
+            }
+//        }
+
+        renderWorld
             .insertResource(WindowSurfaces(windows: [:]))
             .addSystem(CreateWindowSurfacesSystem.self, on: .prepare)
             .addSystem(DefaultSchedulerRunner.self, on: .renderRunner)
@@ -63,6 +72,10 @@ public struct RenderWorldPlugin: Plugin {
 
         app.addSubworld(renderWorld, by: .renderWorld)
     }
+//
+//    public func isLoaded(in app: borrowing AppWorlds) -> Bool {
+//        return self.installed
+//    }
 }
 
 public struct RenderDeviceHandler: Resource {

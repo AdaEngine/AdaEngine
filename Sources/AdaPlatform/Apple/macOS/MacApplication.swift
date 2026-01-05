@@ -43,7 +43,6 @@ final class MacApplication: Application {
         task = Task(priority: .userInitiated) {
             do {
                 while true {
-                    self.processEvents()
                     try await appWorlds.update()
                     await Task.yield()
                 }
@@ -55,9 +54,10 @@ final class MacApplication: Application {
                         .cancel("OK", action: { exit(EXIT_FAILURE) })
                     ]
                 )
-                Application.shared.showAlert(alert)
+                await Application.shared.showAlert(alert)
             }
         }
+
         NSApplication.shared.run()
     }
 
