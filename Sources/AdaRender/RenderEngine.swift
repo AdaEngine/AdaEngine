@@ -77,7 +77,7 @@ public extension RenderDevice {
 }
 
 extension RenderEngine {
-    package static func setupRenderEngine() async throws {
+    package static func setupRenderEngine() throws {
         let renderBackend: RenderBackend
         #if METAL
         renderBackend = MetalRenderBackend()

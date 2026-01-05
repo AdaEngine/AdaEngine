@@ -45,6 +45,7 @@ public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
                 }
             }
 
+            print("execute node", currentNode.name)
             await executeSystem(
                 system: currentNode,
                 world: world,
