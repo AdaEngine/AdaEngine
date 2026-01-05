@@ -114,6 +114,7 @@ var swiftSettings: [SwiftSetting] = [
     .define("WEBGPU_ENABLED", .when(traits: [.wgpuTrait])),
     .define("WASM", .when(platforms: [.wasi])),
     .define("ENABLE_DEBUG_DYLIB", .when(configuration: .debug)),
+    .define("ENABLE_RUN_IN_CONCURRENCY", .when(platforms: [.windows, .wasi, .android, .linux])),
     .enableUpcomingFeature("MemberImportVisibility"),
     .strictMemorySafety(),
     .unsafeFlags(["-Xfrontend", "-validate-tbd-against-ir=none"]),

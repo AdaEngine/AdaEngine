@@ -54,7 +54,11 @@ public struct AppPlatformPlugin: Plugin {
 
             app.setRunner {
                 do {
+                    #if ENABLE_RUN_IN_CONCURRENCY
+                    try await application.run(app)
+                    #else
                     try application.run(app)
+                    #endif
                 } catch {
                     Logger(label: "org.adaengine.AppPlatform").error("\(error)")
                 }
