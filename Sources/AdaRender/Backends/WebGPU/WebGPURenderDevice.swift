@@ -129,7 +129,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     func createCommandQueue() -> any CommandQueue {
-        return WGPUCommandQueue(commandQueue: context.device.queue)
+        return WGPUCommandQueue(device: context.device)
     }
 
     @MainActor

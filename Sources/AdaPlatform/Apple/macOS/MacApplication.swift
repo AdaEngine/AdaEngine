@@ -38,7 +38,7 @@ final class MacApplication: Application {
 
     private var task: Task<Void, Never>?
 
-    override func run(_ appWorlds: AppWorlds) throws {
+    override func run(_ appWorlds: AppWorlds) async throws {
         setupInput(for: appWorlds)
         task = Task(priority: .userInitiated) {
             do {

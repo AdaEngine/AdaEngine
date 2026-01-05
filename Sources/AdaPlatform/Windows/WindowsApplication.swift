@@ -27,9 +27,8 @@ final class WindowsApplication: Application {
         UIWindowManager.setShared(self.windowManager)
     }
 
-    override func run(_ appWorlds: AppWorlds) throws {
+    override func run(_ appWorlds: AppWorlds) async throws {
         setupInput(for: appWorlds)
-        task = Task(priority: .userInitiated) {
             do {
                 var msg = unsafe MSG()
                 while true {
@@ -57,7 +56,6 @@ final class WindowsApplication: Application {
                 )
                 Application.shared.showAlert(alert)
             }
-        }
     }
 
     override func terminate() {

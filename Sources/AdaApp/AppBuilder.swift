@@ -44,7 +44,7 @@ public final class AppWorlds {
     private var pluginDepth = 0
 
     /// The runner.
-    var runner: ((AppWorlds) -> Void)?
+    var runner: ((AppWorlds) async -> Void)?
 
     /// The flag that indicates if the app is configured.
     var isConfigured: Bool = false
@@ -78,7 +78,7 @@ public extension AppWorlds {
 
     /// Set the runner.
     /// - Parameter block: The runner.
-    func setRunner(_ block: @escaping (AppWorlds) -> Void) {
+    func setRunner(_ block: @escaping (AppWorlds) async -> Void) {
         self.runner = block
     }
 
