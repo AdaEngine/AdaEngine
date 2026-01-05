@@ -28,10 +28,8 @@ public struct RenderWorldPlugin: Plugin {
         do {
             try await RenderEngine.setupRenderEngine()
         } catch {
-            Logger(label: "org.adaengine.render").critical("\(error.localizedDescription)")
-            return
+            fatalError("Critical Error RenderWorldPlugin: \(error.localizedDescription)")
         }
-        
 
         let renderWorld = AppWorlds(main: World(name: "RenderWorld"))
         renderWorld.updateScheduler = .renderRunner

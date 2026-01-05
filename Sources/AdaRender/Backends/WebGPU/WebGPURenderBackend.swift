@@ -31,7 +31,6 @@ final class WebGPURenderBackend: RenderBackend, @unchecked Sendable {
     }
 
     let type: RenderBackendType = .webgpu
-    let currentFrameIndex: Int = 0
     let renderDevice: RenderDevice
     private let context: WGPUContext
 
