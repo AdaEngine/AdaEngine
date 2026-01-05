@@ -29,33 +29,33 @@ final class WindowsApplication: Application {
 
     override func run(_ appWorlds: AppWorlds) async throws {
         setupInput(for: appWorlds)
-            do {
-                var msg = unsafe MSG()
-                while true {
-                    try Task.checkCancellation()
+        do {
+            var msg = unsafe MSG()
+            while true {
+                try Task.checkCancellation()
                     
-                    // Process Windows messages
-                    var hasMessage: Bool = false
+                // Process Windows messages
+                var hasMessage: Bool = false
+                hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
+                while hasMessage {
+                    unsafe TranslateMessage(&msg)
+                    unsafe DispatchMessageW(&msg)
                     hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
-                    while hasMessage {
-                        unsafe TranslateMessage(&msg)
-                        unsafe DispatchMessageW(&msg)
-                        hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
-                    }
-                    
-                    await appWorlds.update()
-                    await Task.yield()
                 }
-            } catch {
-                let alert = Alert(
-                    title: "AdaEngine finished with Error",
-                    message: error.localizedDescription,
-                    buttons: [
-                        .cancel("OK", action: { exit(0) })
-                    ]
-                )
-                Application.shared.showAlert(alert)
+                    
+                await appWorlds.update()
+                await Task.yield()
             }
+        } catch {
+            let alert = Alert(
+                title: "AdaEngine finished with Error",
+                message: error.localizedDescription,
+                buttons: [
+                    .cancel("OK", action: { exit(0) })
+                ]
+            )
+            Application.shared.showAlert(alert)
+        }
     }
 
     override func terminate() {

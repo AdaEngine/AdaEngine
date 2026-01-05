@@ -128,7 +128,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
             bufferOffset: 0,
             data: UnsafeRawBufferPointer(start: bytes, count: length)
         )
-        unsafe renderEncoder.setVertexBuffer(
+        renderEncoder.setVertexBuffer(
             slot: UInt32(index),
             buffer: buffer,
             offset: 0,
