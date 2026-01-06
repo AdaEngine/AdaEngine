@@ -8,8 +8,6 @@
 import AdaUtils
 import Math
 
-// TODO: (Vlad) Add documentations
-
 /// An object that contains graphics functions and configuration state to use in a render command.
 public protocol RenderPipeline: AnyObject, Sendable {
 
@@ -169,14 +167,23 @@ public struct RenderPipelineColorAttachmentDescriptor: Sendable {
     }
 }
 
+/// An object that describes the depth and stencil attachment configuration for a render pass.
 public struct DepthStencilAttachmentDescriptor: Sendable {
 
+    /// The texture to use as the depth and stencil attachment target.
     public var texture: Texture
 
+    /// The depth operation descriptor.
     public var depthOperation: OperationDescriptor?
 
+    /// The stencil operation descriptor.
     public var stencilOperation: OperationDescriptor?
 
+    /// Initialize a new depth stencil attachment descriptor.
+    ///
+    /// - Parameter texture: The texture to use as the depth and stencil attachment target.
+    /// - Parameter depthOperation: The depth operation descriptor.
+    /// - Parameter stencilOperation: The stencil operation descriptor.
     public init(
         texture: Texture,
         depthOperation: OperationDescriptor? = nil,
@@ -188,12 +195,19 @@ public struct DepthStencilAttachmentDescriptor: Sendable {
     }
 }
 
+/// An object that describes the load and store operations for an attachment.
 public struct OperationDescriptor: Sendable {
 
+    /// The load action for the operation.
     public var loadAction: AttachmentLoadAction
 
+    /// The store action for the operation.
     public var storeAction: AttachmentStoreAction
 
+    /// Initialize a new operation descriptor.
+    ///
+    /// - Parameter loadAction: The load action for the operation.
+    /// - Parameter storeAction: The store action for the operation.
     public init(
         loadAction: AttachmentLoadAction,
         storeAction: AttachmentStoreAction

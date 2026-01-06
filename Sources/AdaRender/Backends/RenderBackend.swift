@@ -86,7 +86,7 @@ public protocol RenderDevice: AnyObject, Sendable {
     func createUniformBuffer(length: Int, binding: Int) -> UniformBuffer
 
     /// Create a new empty uniform buffer set.
-    func createUniformBufferSet() -> UniformBufferSet
+    func createUniformBufferSet() -> any UniformBufferSet
 
     // MARK: - Texture
 

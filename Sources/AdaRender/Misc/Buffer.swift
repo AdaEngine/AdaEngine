@@ -69,6 +69,5 @@ public struct ResourceOptions: OptionSet, Sendable {
     public static let storageShared = ResourceOptions(rawValue: 1 << 1)
     
     /// The CPU and GPU may maintain separate copies of the resource, which you need to explicitly synchronize.
-    @available(macOS 11, *)
     public static let storageManaged = ResourceOptions(rawValue: 1 << 2)
 }

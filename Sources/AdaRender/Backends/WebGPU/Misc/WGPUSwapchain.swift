@@ -20,18 +20,21 @@ final class WGPUSwapchain: Swapchain, @unchecked Sendable {
 }
 
 final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
-
-    var texture: any GPUTexture { 
-        WGPUGPUTexture(
-            texture: surface.currentTexture.texture, 
-            textureView: surface.currentTexture.texture.createView()
-        )
-    }
-
+    let texture: any GPUTexture
     let surface: WebGPU.Surface
 
     init(surface: WebGPU.Surface) {
         self.surface = surface
+        self.texture = WGPUGPUTexture(
+            texture: surface.currentTexture.texture, 
+            textureView: surface.currentTexture.texture.createView(
+                descriptor: WebGPU.TextureViewDescriptor(
+                    format: surface.currentTexture.texture.format,
+                    dimension: surface.currentTexture.texture.dimension.toTextureViewDimension,
+                    usage: [.renderAttachment, .textureBinding]
+                )
+            )
+        )
     }
 
     func present() throws {
@@ -44,5 +47,17 @@ final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
 
 enum DrawableError: Error {
     case failedToPresentDrawable
+}
+
+extension WebGPU.TextureDimension {
+    var toTextureViewDimension: TextureViewDimension {
+        switch self {
+        case .type1d: return .type1d
+        case .type2d: return .type2d
+        case .type3d: return .type3d
+        case .typeUndefined: return .typeUndefined
+
+}
+    }
 }
 #endif

@@ -28,49 +28,25 @@ final class WGPUGPUTexture: GPUTexture {
         var wgpuUsage: WebGPU.TextureUsage = []
 
         if descriptor.textureUsage.contains(.read) {
-            wgpuUsage.insert(.textureBinding)
-//             wgpuUsage.insert(.shaderRead)
+            wgpuUsage.insert(.copyDst)
         }
 
         if descriptor.textureUsage.contains(.write) {
             wgpuUsage.insert(.copySrc)
-            // wgpuUsage.insert(.shaderWrite)
         }
 
         if descriptor.textureUsage.contains(.renderTarget) {
             wgpuUsage.insert(.renderAttachment)
-            // wgpuUsage.insert(.renderTarget)
-        }
-
-        let dimension: WebGPU.TextureDimension = switch descriptor.textureType {
-        case .textureCube:
-                .typeUndefined
-        case .texture1D:
-                .type1d
-        case .texture1DArray:
-                .type1d
-        case .texture2D:
-                .type2d
-        case .texture2DArray:
-                .type2d
-        case .texture2DMultisample:
-                .type2d
-        case .texture2DMultisampleArray:
-                .type2d
-        case .texture3D:
-                .type3d
-        case .textureBuffer:
-                .typeUndefined
         }
 
         let textureDesc = WebGPU.TextureDescriptor(
             label: descriptor.debugLabel,
             usage: wgpuUsage,
-            dimension: dimension,
+            dimension: descriptor.textureType.toWebGPUTextureDimension,
             size: Extent3d(
                 width: UInt32(descriptor.width),
                 height: UInt32(descriptor.height),
-                depthOrArrayLayers: 0
+                depthOrArrayLayers: 1
             ),
             format: descriptor.pixelFormat.toWebGPU,
             mipLevelCount: 0,
@@ -87,7 +63,7 @@ final class WGPUGPUTexture: GPUTexture {
             let writeSize = WebGPU.Extent3d(
                 width: UInt32(image.width),
                 height: UInt32(image.height),
-                depthOrArrayLayers: 1
+                depthOrArrayLayers: 0
             )
 
             let bytesPerRow = descriptor.pixelFormat.bytesPerComponent * image.width
@@ -114,7 +90,19 @@ final class WGPUGPUTexture: GPUTexture {
         }
 
         self.texture = texture
-        self.textureView = texture.createView()
+        self.textureView = texture.createView(
+        //     descriptor: WebGPU.TextureViewDescriptor(
+        //             label: descriptor.debugLabel, 
+        //             format: descriptor.pixelFormat.toWebGPU, 
+        //             dimension: descriptor.textureType.toWebGPUTextureViewDimension, 
+        //             baseMipLevel: 0, 
+        //             mipLevelCount: 0, 
+        //             baseArrayLayer: 0, 
+        //             arrayLayerCount: 0, 
+        //             aspect: .all, 
+        //             usage: wgpuUsage
+        //         )
+        )
     }
 
     // TODO: (Vlad) think about it later
@@ -176,6 +164,54 @@ extension PixelFormat {
                 .depth32Float
         case .depth24_stencil8:
                 .depth24PlusStencil8
+        }
+    }
+}
+
+extension Texture.TextureType {
+    var toWebGPUTextureDimension: WebGPU.TextureDimension {
+        switch self {
+        case .textureCube:
+                .typeUndefined
+        case .texture1D:
+                .type1d
+        case .texture1DArray:
+                .type1d
+        case .texture2D:
+                .type2d
+        case .texture2DArray:
+                .type2d
+        case .texture2DMultisample:
+                .type2d
+        case .texture2DMultisampleArray:
+                .type2d
+        case .texture3D:
+                .type3d
+        case .textureBuffer:
+                .typeUndefined
+        }
+    }
+
+    var toWebGPUTextureViewDimension: WebGPU.TextureViewDimension {
+        switch self {
+        case .textureCube:
+                .typeUndefined
+        case .texture1D:
+                .type1d
+        case .texture1DArray:
+                .type1d
+        case .texture2D:
+                .type2d
+        case .texture2DArray:
+                .type2d
+        case .texture2DMultisample:
+                .type2d
+        case .texture2DMultisampleArray:
+                .type2d
+        case .texture3D:
+                .type3d
+        case .textureBuffer:
+                .typeUndefined
         }
     }
 }

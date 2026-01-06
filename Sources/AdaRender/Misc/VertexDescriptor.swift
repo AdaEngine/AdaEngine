@@ -20,15 +20,22 @@ public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable, Send
     public typealias Element = VertexDescriptor.Attribute
     public typealias Iterator = Array<VertexDescriptor.Attribute>.Iterator
     
+    /// Initialize a new vertex descriptor attributes array.
+    /// - Parameter buffer: The array of attributes to initialize the vertex descriptor attributes array with.
     public init(buffer: [VertexDescriptor.Attribute] = []) {
         self.buffer = buffer
     }
     
+    /// The count of attributes in the vertex descriptor.
     public var count: Int { self.buffer.count }
 
+    /// The array of attributes in the vertex descriptor.
     internal var buffer: [VertexDescriptor.Attribute] = []
     
-    subscript(index: Int) -> VertexDescriptor.Attribute {
+    /// Get or set the attribute at the given index.
+    /// - Parameter index: The index of the attribute.
+    /// - Returns: The attribute at the given index.
+    public subscript(index: Int) -> VertexDescriptor.Attribute {
         mutating get {
             if self.buffer.indices.contains(index) {
                 return self.buffer[index]
@@ -44,16 +51,23 @@ public struct VertexDescriptorAttributesArray: Sequence, Codable, Hashable, Send
         }
     }
     
+    /// Whether the vertex descriptor contains an attribute with the given name.
+    /// - Parameter name: The name of the attribute.
+    /// - Returns: Whether the vertex descriptor contains an attribute with the given name.
     public func containsAttribute(by name: String) -> Bool {
         self.buffer.contains {
             $0.name == name
         }
     }
     
+    /// Make an iterator over the attributes in the vertex descriptor.
+    /// - Returns: An iterator over the attributes in the vertex descriptor.
     public func makeIterator() -> Iterator {
         return buffer.makeIterator()
     }
     
+    /// Append an array of attributes to the vertex descriptor.
+    /// - Parameter attributes: The array of attributes to append.
     public mutating func append(_ attributes: [VertexDescriptor.Attribute]) {
         var lastOffset: Int = 0
         
@@ -78,12 +92,18 @@ public struct VertexDescriptorLayoutsArray: Sequence, Codable, Hashable, Sendabl
     
     internal private(set) var buffer: [VertexDescriptor.Layout] = []
 
+    /// The count of layouts in the vertex descriptor.
     public var count: Int { self.buffer.count }
 
+    /// Initialize a new vertex descriptor layouts array.
+    /// - Parameter buffer: The array of layouts to initialize the vertex descriptor layouts array with.
     public init(buffer: [VertexDescriptor.Layout] = []) {
         self.buffer = buffer
     }
     
+    /// Get or set the layout at the given index.
+    /// - Parameter index: The index of the layout.
+    /// - Returns: The layout at the given index.
     public subscript(index: Int) -> VertexDescriptor.Layout {
         mutating get {
             if self.buffer.indices.contains(index) {
@@ -100,6 +120,8 @@ public struct VertexDescriptorLayoutsArray: Sequence, Codable, Hashable, Sendabl
         }
     }
     
+    /// Make an iterator over the layouts in the vertex descriptor.
+    /// - Returns: An iterator over the layouts in the vertex descriptor.
     public func makeIterator() -> Iterator {
         return buffer.makeIterator()
     }
@@ -148,6 +170,7 @@ public struct VertexDescriptor: Codable, Hashable, Sendable {
     /// An array of state data that describes how data are fetched by a vertex shader when rendering primitives.
     public var layouts: VertexDescriptorLayoutsArray
     
+    /// The autocalculation offset for the vertex descriptor.
     public static let autocalculationOffset: Int = -2018
     
     /// An object that determines how to store attribute data in memory and map it to the arguments of a vertex shader.
@@ -192,17 +215,21 @@ public struct VertexDescriptor: Codable, Hashable, Sendable {
         }
     }
     
+    /// Initialize a new vertex descriptor.
     public init() {
         self.attributes = VertexDescriptorAttributesArray()
         self.layouts = VertexDescriptorLayoutsArray()
     }
     
+    /// Initialize a new vertex descriptor.
+    /// - Parameter attributes: The attributes of the vertex descriptor.
+    /// - Parameter layouts: The layouts of the vertex descriptor.
     init(attributes: VertexDescriptorAttributesArray, layouts: VertexDescriptorLayoutsArray) {
         self.attributes = attributes
         self.layouts = layouts
     }
     
-    /// Resets the default state for the vertex descriptor.
+    /// Reset the default state for the vertex descriptor.
     public mutating func reset() {
         self.attributes = VertexDescriptorAttributesArray()
         self.layouts = VertexDescriptorLayoutsArray()
