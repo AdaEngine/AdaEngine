@@ -11,6 +11,7 @@ import CWebGPU
 
 class WGPUBuffer: Buffer, @unchecked Sendable {
     let buffer: WebGPU.Buffer
+    let device: WebGPU.Device
 
     private var _label: String?
     
@@ -25,8 +26,9 @@ class WGPUBuffer: Buffer, @unchecked Sendable {
         }
     }
     
-    init(buffer: WebGPU.Buffer) {
+    init(buffer: WebGPU.Buffer, device: WebGPU.Device) {
         self.buffer = buffer
+        self.device = device
     }
     
     var length: Int { return Int(buffer.size) }
@@ -36,9 +38,11 @@ class WGPUBuffer: Buffer, @unchecked Sendable {
     }
     
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
-        let ptr = unsafe self.buffer.getMappedRange(offset: offset, size: 0)
-        unsafe ptr?.copyMemory(from: bytes, byteCount: byteCount)
-        self.buffer.unmap()
+        device.queue.writeBuffer(
+            self.buffer, 
+            bufferOffset: UInt64(offset), 
+            data: UnsafeRawBufferPointer(start: bytes, count: byteCount)
+        )
     }
 }
 
