@@ -38,7 +38,7 @@ class WGPUBuffer: Buffer, @unchecked Sendable {
     }
     
     func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
-        device.queue.writeBuffer(
+        unsafe device.queue.writeBuffer(
             self.buffer, 
             bufferOffset: UInt64(offset), 
             data: UnsafeRawBufferPointer(start: bytes, count: byteCount)

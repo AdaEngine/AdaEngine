@@ -34,11 +34,11 @@ final class WGPUCommandEncoder: CommandBuffer {
                 view: view, 
                 depthLoadOp: depthStencilAttachment.depthOperation?.loadAction.toWebGPU ?? .undefined, 
                 depthStoreOp: depthStencilAttachment.depthOperation?.storeAction.toWebGPU ?? .undefined, 
-                depthClearValue: 0, 
+                depthClearValue: 1, 
                 depthReadOnly: false, 
                 stencilLoadOp: depthStencilAttachment.stencilOperation?.loadAction.toWebGPU ?? .undefined, 
                 stencilStoreOp: depthStencilAttachment.stencilOperation?.storeAction.toWebGPU ?? .undefined, 
-                stencilClearValue: 0, 
+                stencilClearValue: 1, 
                 stencilReadOnly: false,
                 nextInChain: nil
             )
@@ -58,10 +58,7 @@ final class WGPUCommandEncoder: CommandBuffer {
         let renderPassDescriptor = WebGPU.RenderPassDescriptor(
             label: desc.label, 
             colorAttachments: colorAttachments,
-            depthStencilAttachment: wgpuAttachment, 
-            occlusionQuerySet: nil, //QuerySet?
-            timestampWrites: nil, //PassTimestampWrites?
-            nextInChain: nil
+            depthStencilAttachment: wgpuAttachment
         )
 
         let renderPassEncoder = commandEncoder.beginRenderPass(descriptor: renderPassDescriptor)

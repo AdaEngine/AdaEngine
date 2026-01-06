@@ -162,6 +162,10 @@ extension RenderSurface {
 
 #if os(macOS)
         let view = (self as! MTKView)
+        view.colorPixelFormat = .bgra8Unorm
+        view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
+        view.framebufferOnly = false
+        view.sampleCount = 1
         surfaceDescriptor.nextInChain = unsafe SurfaceSourceMetalLayer(
             layer: Unmanaged.passUnretained(view.layer!).toOpaque()
         )
