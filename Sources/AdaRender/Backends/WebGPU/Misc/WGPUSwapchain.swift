@@ -31,7 +31,6 @@ final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
     let surface: WebGPU.Surface
 
     init(surface: WebGPU.Surface) {
-        surface.configure(config: SurfaceConfiguration.init(device: Device, format: TextureFormat, usage: TextureUsage, width: UInt32, height: UInt32, viewFormats: [TextureFormat], alphaMode: CompositeAlphaMode, presentMode: PresentMode, nextInChain: (any Chained)?))
         self.surface = surface
     }
 

@@ -13,10 +13,10 @@ final class WGPUVertexBuffer: WGPUBuffer, VertexBuffer, @unchecked Sendable {
     var binding: Int
     let offset: Int
     
-    init(buffer: WebGPU.Buffer, binding: Int, offset: Int) {
+    init(buffer: WebGPU.Buffer, device: WebGPU.Device, binding: Int, offset: Int) {
         self.binding = binding
         self.offset = offset
-        super.init(buffer: buffer)
+        super.init(buffer: buffer, device: device)
     }
 }
 #endif

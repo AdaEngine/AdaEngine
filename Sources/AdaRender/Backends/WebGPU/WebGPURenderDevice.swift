@@ -21,11 +21,11 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     func createUniformBuffer(length: Int, binding: Int) -> any UniformBuffer {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
-                usage: [WebGPU.BufferUsage.indirect, WebGPU.BufferUsage.copyDst, WebGPU.BufferUsage.copySrc],
+                usage: [WebGPU.BufferUsage.indirect, WebGPU.BufferUsage.copyDst, WebGPU.BufferUsage.copySrc, .uniform],
                 size: UInt64(length)
             )
         ).unwrap(message: "Failed to create buffer")
-        return WGPUUniformBuffer(buffer: _buffer, binding: binding)
+        return WGPUUniformBuffer(buffer: _buffer, device: context.device, binding: binding)
     }
 
     func createVertexBuffer(label: String?, length: Int, binding: Int) -> any VertexBuffer {
@@ -36,7 +36,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
                 size: UInt64(length)
             )
         ).unwrap(message: "Failed to create buffer")
-        return WGPUVertexBuffer(buffer: _buffer, binding: binding, offset: 0)
+        return WGPUVertexBuffer(buffer: _buffer, device: context.device, binding: binding, offset: 0)
     }
 
     func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> any IndexBuffer {
@@ -47,7 +47,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
                 size: UInt64(length)
             )
         ).unwrap(message: "Failed to create buffer")
-        let buffer = WGPUIndexBuffer(buffer: _buffer, indexFormat: format)
+        let buffer = WGPUIndexBuffer(buffer: _buffer, device: context.device, indexFormat: format)
         unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length, offset: 0)
         return buffer
     }
@@ -60,7 +60,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
                 size: UInt64(length)
             )
         ).unwrap(message: "Failed to create buffer")
-        let buffer = WGPUBuffer(buffer: _buffer)
+        let buffer = WGPUBuffer(buffer: _buffer, device: context.device)
         unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length, offset: 0)
         return buffer
     }
@@ -73,7 +73,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
                 size: UInt64(length)
             )
         ).unwrap(message: "Failed to create buffer")
-        return WGPUBuffer(buffer: buffer)
+        return WGPUBuffer(buffer: buffer, device: context.device)
     }
 
     func compileShader(from shader: Shader) throws -> any CompiledShader {

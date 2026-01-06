@@ -100,7 +100,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
             fatalError("BufferData is not a WGPUBuffer")
         }
 
-        let uniform = WGPUUniformBuffer(buffer: wgpuBuffer.buffer, binding: index)
+        let uniform = WGPUUniformBuffer(buffer: wgpuBuffer.buffer, device: device, binding: index)
         uniform.label = bufferData.label
         fragmentUniformBuffers[index] = (buffer: uniform, offset: offset)
         updateBindGroup(groupIndex: 0)
