@@ -49,8 +49,8 @@ final class WGPUCommandEncoder: CommandBuffer {
                 view: (attachment.texture.gpuTexture as! WGPUGPUTexture).textureView, 
                 depthSlice: 0,
                 resolveTarget: (attachment.resolveTexture?.gpuTexture as? WGPUGPUTexture)?.textureView,
-                loadOp: attachment.operation?.loadAction.toWebGPU ?? .undefined, 
-                storeOp: attachment.operation?.storeAction.toWebGPU ?? .undefined, 
+                loadOp: attachment.operation?.loadAction.toWebGPU ?? .clear, 
+                storeOp: attachment.operation?.storeAction.toWebGPU ?? .store, 
                 clearValue: attachment.clearColor?.toWebGPU ?? AdaUtils.Color.black.toWebGPU
             )
         }

@@ -66,15 +66,31 @@ final class WGPUContext: Sendable {
         }
     }
 
+    @MainActor
     func resizeWindow(_ windowId: WindowID, newSize: Math.SizeInt) throws {
         guard newSize.width > 0 && newSize.height > 0 else {
             return
         }
-
+        
         try self.windows.withLock { windows in
             guard var window = windows[windowId] else {
                 throw ContextError.windowNotFound
             }
+            
+            // Reconfigure the surface with the new size
+            window.surface.configure(
+                config: SurfaceConfiguration(
+                    device: device,
+                    format: window.pixelFormat.toWebGPU,
+                    usage: .renderAttachment,
+                    width: UInt32(newSize.width),
+                    height: UInt32(newSize.height),
+                    viewFormats: [window.pixelFormat.toWebGPU],
+                    alphaMode: .auto,
+                    presentMode: PresentMode.fifo
+                )
+            )
+            
             window.size = newSize
             windows[windowId] = window
         }

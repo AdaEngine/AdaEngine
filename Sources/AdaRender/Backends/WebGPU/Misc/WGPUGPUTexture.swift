@@ -29,6 +29,7 @@ final class WGPUGPUTexture: GPUTexture {
 
         if descriptor.textureUsage.contains(.read) {
             wgpuUsage.insert(.copyDst)
+            wgpuUsage.insert(.textureBinding)
         }
 
         if descriptor.textureUsage.contains(.write) {
@@ -37,6 +38,11 @@ final class WGPUGPUTexture: GPUTexture {
 
         if descriptor.textureUsage.contains(.renderTarget) {
             wgpuUsage.insert(.renderAttachment)
+        }
+        
+        // Always add textureBinding for textures that will be sampled in shaders
+        if !descriptor.textureUsage.contains(.renderTarget) {
+            wgpuUsage.insert(.textureBinding)
         }
 
         let textureDesc = WebGPU.TextureDescriptor(
@@ -49,7 +55,7 @@ final class WGPUGPUTexture: GPUTexture {
                 depthOrArrayLayers: 1
             ),
             format: descriptor.pixelFormat.toWebGPU,
-            mipLevelCount: 0,
+            mipLevelCount: 1,
             sampleCount: 1,
             viewFormats: [
                 descriptor.pixelFormat.toWebGPU
@@ -63,7 +69,7 @@ final class WGPUGPUTexture: GPUTexture {
             let writeSize = WebGPU.Extent3d(
                 width: UInt32(image.width),
                 height: UInt32(image.height),
-                depthOrArrayLayers: 0
+                depthOrArrayLayers: 1
             )
 
             let bytesPerRow = descriptor.pixelFormat.bytesPerComponent * image.width
@@ -82,7 +88,7 @@ final class WGPUGPUTexture: GPUTexture {
                     dataLayout: TexelCopyBufferLayout(
                         offset: 0,
                         bytesPerRow: UInt32(bytesPerRow),
-                        rowsPerImage: UInt32(image.width)
+                        rowsPerImage: UInt32(image.height)
                     ),
                     writeSize: writeSize
                 )
