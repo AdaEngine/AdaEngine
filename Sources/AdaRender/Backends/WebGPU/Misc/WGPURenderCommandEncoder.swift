@@ -1,5 +1,5 @@
 //
-//  MetalRenderCommandEncoder.swift
+//  WGPURenderCommandEncoder.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 23.11.2025.
@@ -19,13 +19,11 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     
     private var device: WebGPU.Device
     
-    // Cache for bind groups - maps group index to bind group
-    private var bindGroups: [Int: WebGPU.BindGroup] = [:]
-    private var bindGroupLayouts: [Int: WebGPU.BindGroupLayout] = [:]
+    // Track if bind group needs update
+    private var bindGroupDirty: Bool = false
     
-    // Resource caches for building bind groups
-    private var vertexUniformBuffers: [Int: (buffer: WGPUUniformBuffer, offset: Int)] = [:]
-    private var fragmentUniformBuffers: [Int: (buffer: WGPUUniformBuffer, offset: Int)] = [:]
+    // Resource caches for building bind groups - key is the shader binding index
+    private var uniformBuffers: [Int: (buffer: WGPUUniformBuffer, offset: Int, visibility: WebGPU.ShaderStage)] = [:]
     private var textures: [Int: WGPUGPUTexture] = [:]
     private var samplers: [Int: WGPUSampler] = [:]
 
@@ -51,14 +49,21 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         }
         renderEncoder.setPipeline(wgpuPipeline.renderPipeline)
         self.currentPipeline = wgpuPipeline
+        
+        // Update bind groups now that we have the pipeline
+        if bindGroupDirty {
+            commitBindGroup()
+        }
     }
 
     func setVertexBuffer(_ buffer: UniformBuffer, offset: Int, index: Int) {
         guard let wgpuBuffer = buffer as? WGPUUniformBuffer else {
             fatalError("UniformBuffer is not a WGPUUniformBuffer")
         }
-        vertexUniformBuffers[index] = (buffer: wgpuBuffer, offset: offset)
-        updateBindGroup(groupIndex: 0)
+        // View uniform is typically at binding 1 in the shader (after texture at 0)
+        let bindingIndex = 1  // AE_GlobalView is at binding 1
+        uniformBuffers[bindingIndex] = (buffer: wgpuBuffer, offset: offset, visibility: [.vertex, .fragment])
+        bindGroupDirty = true
     }
 
     func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, index: Int) {
@@ -77,8 +82,10 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         guard let wgpuBuffer = buffer as? WGPUUniformBuffer else {
             fatalError("UniformBuffer is not a WGPUUniformBuffer")
         }
-        fragmentUniformBuffers[index] = (buffer: wgpuBuffer, offset: offset)
-        updateBindGroup(groupIndex: 0)
+        // Fragment uniforms go after vertex uniforms
+        let bindingIndex = index + 2  // Offset by texture(0), uniform(1)
+        uniformBuffers[bindingIndex] = (buffer: wgpuBuffer, offset: offset, visibility: .fragment)
+        bindGroupDirty = true
     }
 
     func setVertexBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int) {
@@ -95,15 +102,15 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     }
 
     func setFragmentBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int) {
-        // For generic buffers, we treat them as uniform buffers in bind group
         guard let wgpuBuffer = bufferData.buffer as? WGPUBuffer else {
             fatalError("BufferData is not a WGPUBuffer")
         }
 
         let uniform = WGPUUniformBuffer(buffer: wgpuBuffer.buffer, device: device, binding: index)
         uniform.label = bufferData.label
-        fragmentUniformBuffers[index] = (buffer: uniform, offset: offset)
-        updateBindGroup(groupIndex: 0)
+        let bindingIndex = index + 2
+        uniformBuffers[bindingIndex] = (buffer: uniform, offset: offset, visibility: .fragment)
+        bindGroupDirty = true
     }
 
     func setIndexBuffer<T>(_ bufferData: BufferData<T>, indexFormat: IndexBufferFormat) {
@@ -112,20 +119,28 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         }
         currentIndexBuffer = wgpuBuffer.buffer
         currentIndexType = indexFormat == .uInt32 ? .uint32 : .uint16
+        renderEncoder.setIndexBuffer(
+            wgpuBuffer.buffer,
+            format: currentIndexType,
+            offset: 0,
+            size: UInt64(wgpuBuffer.length)
+        )
     }
 
     func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, index: Int) {
         guard let buffer = device.createBuffer(
             descriptor: BufferDescriptor(
-                usage: [.vertex, .copyDst, .uniform],
+                usage: [.vertex, .copyDst],
                 size: UInt64(length)
             )
         ) else {
             return
         }
-        let ptr = unsafe buffer.getMappedRange(offset: 0, size: 0)
-        unsafe ptr?.copyMemory(from: bytes, byteCount: length)
-        buffer.unmap()
+        unsafe device.queue.writeBuffer(
+            buffer,
+            bufferOffset: 0,
+            data: UnsafeRawBufferPointer(start: bytes, count: length)
+        )
         renderEncoder.setVertexBuffer(
             slot: UInt32(index),
             buffer: buffer,
@@ -138,8 +153,9 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         guard let wgpuTexture = texture.gpuTexture as? WGPUGPUTexture else {
             fatalError("Texture's gpuTexture is not a WGPUGPUTexture")
         }
+        // Texture at binding 0 (as per shader: layout (binding = 0) uniform sampler2D u_Texture)
         textures[index] = wgpuTexture
-        updateBindGroup(groupIndex: 0)
+        bindGroupDirty = true
     }
 
     func setFragmentSamplerState(_ sampler: Sampler, index: Int) {
@@ -147,7 +163,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
             fatalError("Sampler is not a WGPUSampler")
         }
         samplers[index] = wgpuSampler
-        updateBindGroup(groupIndex: 0)
+        bindGroupDirty = true
     }
 
     func setViewport(_ viewport: Rect) {
@@ -192,6 +208,12 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         guard currentIndexBuffer != nil else {
             fatalError("Index buffer is not set. Call setIndexBuffer(_:offset:) before drawIndexed().")
         }
+        
+        // Ensure bind groups are committed before drawing
+        if bindGroupDirty {
+            commitBindGroup()
+        }
+        
         renderEncoder.drawIndexed(
             indexCount: UInt32(indexCount),
             instanceCount: UInt32(instanceCount),
@@ -202,6 +224,11 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     }
 
     func draw(type: IndexPrimitive, vertexStart: Int, vertexCount: Int, instanceCount: Int) {
+        // Ensure bind groups are committed before drawing
+        if bindGroupDirty {
+            commitBindGroup()
+        }
+        
         renderEncoder.draw(
             vertexCount: UInt32(vertexCount),
             instanceCount: UInt32(instanceCount),
@@ -216,114 +243,70 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
 }
 
 extension WGPURenderCommandEncoder {
-    private func updateBindGroup(groupIndex: Int) {
-        // Collect all entries for this bind group
+    private func commitBindGroup() {
+        guard let pipeline = currentPipeline else {
+            // Pipeline not set yet, will commit when it's set
+            return
+        }
+        
+        bindGroupDirty = false
+        
+        // Get bind group layout from the pipeline (using auto-layout)
+        let layout = pipeline.renderPipeline.getBindGroupLayout(groupIndex: 0)
+        
+        // Build entries matching the shader's expected bindings
         var entries: [BindGroupEntry] = []
-        var layoutEntries: [BindGroupLayoutEntry] = []
-        var bindingIndex: UInt32 = 0
-
-        // Add vertex uniform buffers
-        for (_, (buffer, _)) in vertexUniformBuffers.sorted(by: { $0.key < $1.key }) {
+        
+        // Binding 0: texture (sampler2D in GLSL becomes separate texture binding in WebGPU)
+        if let texture = textures[0] {
             entries.append(BindGroupEntry(
-                binding: bindingIndex,
-                buffer: buffer.buffer,
-                offset: 0
+                binding: 0,
+                textureView: texture.textureView
             ))
-            layoutEntries.append(BindGroupLayoutEntry(
-                binding: bindingIndex,
-                visibility: [.vertex],
-                buffer: BufferBindingLayout(
-                    type: .uniform,
-                    hasDynamicOffset: false
-                )
-            ))
-            bindingIndex += 1
         }
-
-        // Add fragment uniform buffers
-        for (_, (buffer, _)) in fragmentUniformBuffers.sorted(by: { $0.key < $1.key }) {
+        
+        // Binding 1: uniform buffer (AE_GlobalView)
+        if let uniform = uniformBuffers[1] {
             entries.append(BindGroupEntry(
-                binding: bindingIndex,
-                buffer: buffer.buffer,
-                offset: 0
+                binding: 1,
+                buffer: uniform.buffer.buffer,
+                offset: UInt64(uniform.offset),
+                size: UInt64(uniform.buffer.length)
             ))
-            layoutEntries.append(BindGroupLayoutEntry(
-                binding: bindingIndex,
-                visibility: [.fragment],
-                buffer: BufferBindingLayout(
-                    type: .uniform,
-                    hasDynamicOffset: false
-                )
+        }
+        
+        // Binding 2: sampler (sampler2D in GLSL becomes separate sampler binding in WebGPU)
+        if let sampler = samplers[0] {
+            entries.append(BindGroupEntry(
+                binding: 2,
+                sampler: sampler.wgpuSampler
             ))
-            bindingIndex += 1
         }
-
-        // Add textures and samplers (they should be paired)
-        let maxTextureIndex = max(
-            textures.keys.max() ?? -1,
-            samplers.keys.max() ?? -1
-        )
-        for index in 0...maxTextureIndex {
-            if let texture = textures[index] {
-                entries.append(BindGroupEntry(
-                    binding: bindingIndex,
-                    textureView: texture.textureView
-                ))
-                layoutEntries.append(BindGroupLayoutEntry(
-                    binding: bindingIndex,
-                    visibility: [.fragment],
-                    texture: TextureBindingLayout(
-                        sampleType: .float,
-                        viewDimension: .type2d,
-                        multisampled: false
-                    )
-                ))
-                bindingIndex += 1
-            }
-
-            if let sampler = samplers[index] {
-                entries.append(BindGroupEntry(
-                    binding: bindingIndex,
-                    sampler: sampler.wgpuSampler
-                ))
-                layoutEntries.append(BindGroupLayoutEntry(
-                    binding: bindingIndex,
-                    visibility: [.fragment],
-                    sampler: SamplerBindingLayout(type: .filtering)
-                ))
-                bindingIndex += 1
-            }
+        
+        // Add any additional uniform buffers
+        for (bindingIndex, uniform) in uniformBuffers where bindingIndex > 1 {
+            entries.append(BindGroupEntry(
+                binding: UInt32(bindingIndex),
+                buffer: uniform.buffer.buffer,
+                offset: UInt64(uniform.offset),
+                size: UInt64(uniform.buffer.length)
+            ))
         }
-
+        
         guard !entries.isEmpty else { return }
-
-        // Create or reuse bind group layout
-        let layout: WebGPU.BindGroupLayout
-        if let existingLayout = bindGroupLayouts[groupIndex] {
-            layout = existingLayout
-        } else {
-            layout = device.createBindGroupLayout(
-                descriptor: BindGroupLayoutDescriptor(
-                    label: "BindGroupLayout_\(groupIndex)",
-                    entries: layoutEntries
-                )
-            )
-            bindGroupLayouts[groupIndex] = layout
-        }
-
-        // Create bind group
+        
+        // Create bind group using the pipeline's layout
         let bindGroup = device.createBindGroup(
             descriptor: BindGroupDescriptor(
-                label: "BindGroup_\(groupIndex)",
+                label: "SpriteBindGroup",
                 layout: layout,
                 entries: entries
             )
         )
-        bindGroups[groupIndex] = bindGroup
-
+        
         // Set bind group
         renderEncoder.setBindGroup(
-            groupIndex: UInt32(groupIndex),
+            groupIndex: 0,
             group: bindGroup,
             dynamicOffsets: []
         )

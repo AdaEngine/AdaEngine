@@ -32,7 +32,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 label: label,
-                usage: [WebGPU.BufferUsage.indirect, WebGPU.BufferUsage.copyDst, WebGPU.BufferUsage.copySrc, .uniform],
+                usage: [WebGPU.BufferUsage.vertex, WebGPU.BufferUsage.copyDst, WebGPU.BufferUsage.copySrc],
                 size: UInt64(length)
             )
         ).unwrap(message: "Failed to create buffer")
@@ -43,7 +43,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 label: label,
-                usage: WebGPU.BufferUsage.index,
+                usage: [WebGPU.BufferUsage.index, WebGPU.BufferUsage.copyDst],
                 size: UInt64(length)
             )
         ).unwrap(message: "Failed to create buffer")
@@ -77,22 +77,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     func compileShader(from shader: Shader) throws -> any CompiledShader {
-        let shaderData: any WebGPU.Chained = switch shader.source {
-        case .code(let code):
-            ShaderSourceWgsl(code: code)
-        case .spirv(let data):
-            unsafe data.withUnsafeBytes { pointer in
-                let code = unsafe pointer.bindMemory(to: UInt8.self)
-                return unsafe ShaderSourceSpirv(code: [UInt8].init(code).map { UInt32($0) })
-            }
-        }
-        let module = context.device.createShaderModule(
-            descriptor: ShaderModuleDescriptor(
-                label: shader.entryPoint,
-                nextInChain: shaderData
-            )
-        )
-        return WGPUShader(shader: module)
+        return WGPUShader(shader: shader, device: context.device)
     }
 
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> any RenderPipeline {
@@ -142,13 +127,13 @@ extension ResourceOptions {
     var toWebGPU: WebGPU.BufferUsage {
         switch self {
         case .storageManaged:
-            [WebGPU.BufferUsage.storage, .copySrc, .copyDst, .uniform]
+            [WebGPU.BufferUsage.storage, .copySrc, .copyDst, .uniform, .vertex, .index]
         case .storageShared:
-            [WebGPU.BufferUsage.storage, .copySrc, .copyDst, .uniform]
+            [WebGPU.BufferUsage.storage, .copySrc, .copyDst, .uniform, .vertex, .index]
         case .storagePrivate:
-            [WebGPU.BufferUsage.indirect, .uniform]
+            [WebGPU.BufferUsage.indirect, .uniform, .vertex, .index]
         default:
-            [.uniform]
+            [.uniform, .vertex, .index, .copyDst]
         }
     }
 }
