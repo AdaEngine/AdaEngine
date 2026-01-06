@@ -27,7 +27,7 @@ private var windowClassNamePtr: LPCWSTR {
 final class WindowsWindowManager: UIWindowManager {
 
     private unowned let screenManager: WindowsScreenManager
-    private var windowHandles: [UIWindow.ID: HWND] = unsafe [:]
+    fileprivate var windowHandles: [UIWindow.ID: HWND] = unsafe [:]
 
     init(_ screenManager: WindowsScreenManager) {
         self.screenManager = screenManager
@@ -228,76 +228,7 @@ final class WindowsWindowManager: UIWindowManager {
 // MARK: - Input Handling Helpers
 
 private func translateWindowsKeyCode(vkCode: UInt16) -> KeyCode {
-    switch vkCode {
-    case 0x20: return .space // VK_SPACE
-    case 0x0D: return .enter // VK_RETURN
-    case 0x1B: return .escape // VK_ESCAPE
-    case 0x08: return .backspace // VK_BACK
-    case 0x09: return .tab // VK_TAB
-    case 0x2E: return .delete // VK_DELETE
-    case 0x24: return .home // VK_HOME
-    case 0x21: return .pageUp // VK_PRIOR
-    case 0x22: return .pageDown // VK_NEXT
-    case 0x25: return .arrowLeft // VK_LEFT
-    case 0x27: return .arrowRight // VK_RIGHT
-    case 0x26: return .arrowUp // VK_UP
-    case 0x28: return .arrowDown // VK_DOWN
-    case 0x10: return .shift // VK_SHIFT
-    case 0x11: return .ctrl // VK_CONTROL
-    case 0x12: return .alt // VK_MENU
-    case 0x5B, 0x5C: return .meta // VK_LWIN, VK_RWIN
-    case 0x14: return .capslock // VK_CAPITAL
-    case 0x70: return .f1 // VK_F1
-    case 0x71: return .f2 // VK_F2
-    case 0x72: return .f3 // VK_F3
-    case 0x73: return .f4 // VK_F4
-    case 0x74: return .f5 // VK_F5
-    case 0x75: return .f6 // VK_F6
-    case 0x76: return .f7 // VK_F7
-    case 0x77: return .f8 // VK_F8
-    case 0x78: return .f9 // VK_F9
-    case 0x79: return .f10 // VK_F10
-    case 0x7A: return .f11 // VK_F11
-    case 0x7B: return .f12 // VK_F12
-    case 0x30: return .num0 // VK_0
-    case 0x31: return .num1 // VK_1
-    case 0x32: return .num2 // VK_2
-    case 0x33: return .num3 // VK_3
-    case 0x34: return .num4 // VK_4
-    case 0x35: return .num5 // VK_5
-    case 0x36: return .num6 // VK_6
-    case 0x37: return .num7 // VK_7
-    case 0x38: return .num8 // VK_8
-    case 0x39: return .num9 // VK_9
-    case 0x41: return .a // VK_A
-    case 0x42: return .b // VK_B
-    case 0x43: return .c // VK_C
-    case 0x44: return .d // VK_D
-    case 0x45: return .e // VK_E
-    case 0x46: return .f // VK_F
-    case 0x47: return .g // VK_G
-    case 0x48: return .h // VK_H
-    case 0x49: return .i // VK_I
-    case 0x4A: return .j // VK_J
-    case 0x4B: return .k // VK_K
-    case 0x4C: return .l // VK_L
-    case 0x4D: return .m // VK_M
-    case 0x4E: return .n // VK_N
-    case 0x4F: return .o // VK_O
-    case 0x50: return .p // VK_P
-    case 0x51: return .q // VK_Q
-    case 0x52: return .r // VK_R
-    case 0x53: return .s // VK_S
-    case 0x54: return .t // VK_T
-    case 0x55: return .u // VK_U
-    case 0x56: return .v // VK_V
-    case 0x57: return .w // VK_W
-    case 0x58: return .x // VK_X
-    case 0x59: return .y // VK_Y
-    case 0x5A: return .z // VK_Z
-    default:
-        return KeyCode(rawValue: "\(vkCode)") ?? .none
-    }
+    WindowsKeyboard.shared.translateKey(from: vkCode)
 }
 
 private func getWindowsKeyModifiers() -> KeyModifier {
@@ -429,6 +360,58 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
                 window.close()
             }
             return 0
+        }
+        return 0  // Prevent default window destruction
+        
+    case UInt32(WM_DESTROY):
+        // Window is being destroyed - clean up resources
+        // This can happen if window is destroyed by system or by closeWindow
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            // Only remove if not already removed (to avoid double cleanup)
+            // This handles the case when window is destroyed by system, not through closeWindow
+            if windowManager?.windows[window.id] != nil {
+                // Window was destroyed externally, need to clean up
+                // But don't call DestroyWindow again - it's already destroyed
+                guard let systemWindow = window.systemWindow as? WindowsSystemWindow else {
+                    return
+                }
+                
+                // Remove from render engine
+                do {
+                    unsafe try RenderEngine.shared!.destroyWindow(window.id)
+                } catch {
+                    // Ignore errors if window already destroyed
+                }
+                
+                // Clear window handle mapping
+                // windowManager?.windowHandles.removeValue(forKey: window.id)
+                
+                // Set another window as active if needed
+                if let windowManager = windowManager, !windowManager.windows.isEmpty {
+                    if let newWindow = windowManager.windows.values.last?.value {
+                        windowManager.setActiveWindow(newWindow)
+                    }
+                }
+            }
+        }
+        // Post quit message only if this is the last window
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            if windowManager?.windows.isEmpty == true {
+                PostQuitMessage(0)
+            }
+        }
+        return 0
+        
+    case UInt32(WM_NCDESTROY):
+        // Non-client area destroyed - final cleanup
+        // Clear window handle from mapping
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            if let systemWindow = window.systemWindow as? WindowsSystemWindow {
+                // windowManager?.windowHandles.removeValue(forKey: window.id)
+            }
         }
         return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
         
