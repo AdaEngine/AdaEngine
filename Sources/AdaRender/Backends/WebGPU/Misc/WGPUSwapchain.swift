@@ -28,14 +28,7 @@ final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
         let surfaceTexture = surface.currentTexture.texture
         self.texture = WGPUGPUTexture(
             texture: surfaceTexture, 
-            textureView: surfaceTexture.createView(
-                descriptor: WebGPU.TextureViewDescriptor(
-                    format: surfaceTexture.format,
-                    dimension: surfaceTexture.dimension.toTextureViewDimension,
-                    // Only use renderAttachment - must match surface configuration
-                    usage: .renderAttachment
-                )
-            )
+            textureView: surfaceTexture.createView()
         )
     }
 
