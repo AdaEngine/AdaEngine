@@ -224,6 +224,21 @@ public extension AppWorlds {
         return self
     }
 
+    /// Remove a system from the main world.
+    /// - Parameters:
+    ///   - system: The system to remove.
+    ///   - scheduler: The scheduler to remove the system from.
+    /// - Returns: The app builder.
+    @inlinable
+    @discardableResult
+    func removeSystem<T: System>(
+        _ system: T.Type,
+        on scheduler: AdaECS.SchedulerName = .update
+    ) -> Self {
+        self.main.removeSystem(system, on: scheduler)
+        return self
+    }
+
     @inlinable
     @discardableResult
     func spawn(

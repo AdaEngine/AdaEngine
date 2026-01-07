@@ -40,7 +40,9 @@ final class WGPUContext: Sendable {
             throw ContextError.creationWindowAlreadyExists
         }
 
-        let wgpuSurface = instance.createSurface(descriptor: surface.createWebGPUSurface())
+        let surfaceDescriptor = surface.createWebGPUSurface()
+        let wgpuSurface = instance.createSurface(descriptor: surfaceDescriptor)
+        
         wgpuSurface.configure(
             config: SurfaceConfiguration(
                 device: device,
@@ -128,7 +130,6 @@ final class WGPUContext: Sendable {
     func getRenderWindows() throws -> AdaRender.RenderWindows {
         let windows = self.windows.withLock { $0 }
         var renderWindows = SparseSet<WindowID, AdaRender.RenderWindow>()
-
         for (windowId, window) in windows {
             renderWindows[windowId] = AdaRender.RenderWindow(
                 windowId: window.windowId,

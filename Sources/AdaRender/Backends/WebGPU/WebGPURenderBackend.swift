@@ -1,6 +1,7 @@
 
 #if canImport(WebGPU)
 import WebGPU
+import CWebGPU
 import Math
 import Synchronization
 import AdaUtils
@@ -49,7 +50,20 @@ extension WebGPURenderBackend {
         )
         let adapter = try await instance.requestAdapter()
         let device = try await adapter.requestDevice()
-
+        
+        unsafe device.withUnsafeHandle {
+            unsafe wgpuDeviceSetLoggingCallback($0, WGPULoggingCallbackInfo.init(
+                nextInChain: nil, 
+                callback: { logType, message, _, _ in
+                    unsafe print("[WebGPU LOG] Type: \(logType), Message: \(message)")
+                    // (WGPULoggingType, WGPUStringView, UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Void,
+                },
+                userdata1: nil, 
+                userdata2: nil
+                )
+            )
+        }
+        
         return WebGPURenderBackend(device: device, adapter: adapter, instance: instance)
     }
 }

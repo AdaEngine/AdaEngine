@@ -68,6 +68,14 @@ public struct SystemsGraph: Sendable {
         self.nodes[node.name] = node
         self.isChanged = true
     }
+
+    /// Remove a system from the graph.
+    /// 
+    /// - Parameter system: The system to remove.
+    mutating func removeSystem<T: System>(_ system: T.Type) {
+        self.nodes.remove(for: T.swiftName)
+        self.isChanged = true
+    }
     
     /// Create an execution order for all systems.
     /// - Complexity: O(n^2)

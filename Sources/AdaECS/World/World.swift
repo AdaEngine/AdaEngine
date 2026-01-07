@@ -184,7 +184,7 @@ public extension World {
     /// - Parameter systemType: System type.
     /// Add a system to a specific scheduler.
     @discardableResult
-    func addSystem<T: System>(_ systemType: T.Type, on scheduler: SchedulerName) -> Self {
+    func addSystem<T: System>(_ systemType: T.Type, on scheduler: SchedulerName = .update) -> Self {
         let system = systemType.init(world: self)
         self.schedulers.addSystem(
             system,
@@ -193,12 +193,13 @@ public extension World {
         return self
     }
 
-    /// Add new system to the world for `update` scheduler.
+    /// Remove a system from the world.
     /// - Parameter systemType: System type.
-    /// - Returns: A world instance.
+    /// - Parameter scheduler: The scheduler to remove the system from.
     @discardableResult
-    func addSystem<T: System>(_ systemType: T.Type) -> Self {
-        return addSystem(systemType, on: .update)
+    func removeSystem<T: System>(_ systemType: T.Type, on scheduler: SchedulerName = .update) -> Self {
+        self.schedulers.removeSystem(systemType, for: scheduler)
+        return self
     }
 }
 

@@ -17,12 +17,6 @@ public protocol CompiledShader: AnyObject {}
 
 /// Contains shader data.
 public final class Shader: Asset, @unchecked Sendable {
-    
-    /// Return compiled shader which used for specific render backend.
-    public fileprivate(set) var compiledShader: CompiledShader!
-    
-    /// Contains information about shader stage.
-    public let stage: ShaderStage
 
     public enum Source: Hashable {
         /// Contains SPIRV data
@@ -30,11 +24,17 @@ public final class Shader: Asset, @unchecked Sendable {
         /// Contains source code
         case code(String)
     }
+    
+    /// Return compiled shader which used for specific render backend.
+    public fileprivate(set) var compiledShader: CompiledShader!
+    
+    /// Contains information about shader stage.
+    public let stage: ShaderStage
 
     public private(set) var source: Source
     public private(set) var entryPoint: String
 
-    internal private(set) var spirvCompiler: SpirvCompiler
+    internal private(set) var spirvCompiler: SpirvCompiler!
     
     private var shaderCompiler: ShaderCompiler
     
@@ -55,10 +55,23 @@ public final class Shader: Asset, @unchecked Sendable {
         self.shaderCompiler = compiler
         self.compiledShader = nil
     }
+
+    public init(source: String, entryPoint: String, stage: ShaderStage) {
+        self.source = .code(source)
+        self.entryPoint = entryPoint
+        self.stage = stage
+        self.shaderCompiler = try! ShaderCompiler(shaderSource: ShaderSource(source: source, lang: .wgsl))
+        self.spirvCompiler = nil
+        self.compiledShader = nil
+    }
     
     /// Add new macro to the shader. When all macros has been set, use ``recompile()`` method to apply new changes.
     public func setMacro(_ name: String, value: String) {
         self.shaderCompiler.setMacro(name, value: value, for: self.stage)
+    }
+
+    public func compile() throws {
+        self.compiledShader = unsafe try RenderEngine.shared.renderDevice.compileShader(from: self)
     }
     
     /// Recompile shader. If you change macros values, than you should recompile shader and apply new changes.

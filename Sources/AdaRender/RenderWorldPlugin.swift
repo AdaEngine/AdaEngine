@@ -83,7 +83,8 @@ public struct RenderEngineHandler: Resource {
 }
 
 @PlainSystem
-struct RenderSystem {
+@_spi(Internal)
+public struct RenderSystem {
 
     @Res<RenderGraph?>
     private var renderGraph
@@ -94,9 +95,9 @@ struct RenderSystem {
     @Res<RenderDeviceHandler?>
     private var renderDevice
 
-    init(world: World) { }
+    public init(world: World) { }
 
-    func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) async {
         renderGraph?.update(from: context.world)
 
         // We should capture drawables before we start async task.
@@ -153,7 +154,8 @@ public struct WindowSurfaces: Resource {
 }
 
 @System
-func CreateWindowSurfaces(
+@_spi(Internal)
+public func CreateWindowSurfaces(
     _ surfaces: ResMut<WindowSurfaces>,
     _ renderDevice: Res<RenderDeviceHandler>,
     _ renderInstance: Res<RenderEngineHandler>,

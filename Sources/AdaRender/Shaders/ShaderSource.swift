@@ -100,8 +100,12 @@ public final class ShaderSource: Asset, @unchecked Sendable {
         lang: ShaderLanguage = .glsl,
         includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
     ) throws {
-        self.sources = try ShaderUtils.processGLSLShader(source: source)
-        self.entryPoints = Self.getEntryPoints(from: self.sources)
+        if lang == .glsl {
+            self.sources = try ShaderUtils.processGLSLShader(source: source)
+            self.entryPoints = Self.getEntryPoints(from: self.sources)
+        } else {
+            self.sources = [.max: source]
+        }
         self.includeSearchPaths = includeSearchPaths
         self.language = lang
     }
