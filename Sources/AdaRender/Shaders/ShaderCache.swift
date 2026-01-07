@@ -112,6 +112,10 @@ enum ShaderCache {
     // MARK: - Save/Load Reflection
     
     static func saveReflection(_ reflectionData: ShaderReflectionData, for source: ShaderSource, stage: ShaderStage) throws {
+        guard reflectionData.isEmpty == false else {
+            return
+        }
+        
         guard let fileURL = source.fileURL else {
             return
         }

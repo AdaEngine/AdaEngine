@@ -221,6 +221,11 @@ public struct ShaderReflectionData: Codable {
     
     /// Collection information about shader resources, like: textures, samplers.
     public var resources: [String: ShaderResource.ImageSampler] = [:]
+    
+    /// Check if reflection data is empty.
+    public var isEmpty: Bool {
+        return self.shaderBuffers.isEmpty && self.resources.isEmpty && self.descriptorSets.isEmpty
+    }
 }
 
 public extension ShaderReflectionData {

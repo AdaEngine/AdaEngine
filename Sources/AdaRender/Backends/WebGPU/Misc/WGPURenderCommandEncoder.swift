@@ -60,10 +60,12 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         guard let wgpuBuffer = buffer as? WGPUUniformBuffer else {
             fatalError("UniformBuffer is not a WGPUUniformBuffer")
         }
-        // View uniform is typically at binding 1 in the shader (after texture at 0)
-        let bindingIndex = 1  // AE_GlobalView is at binding 1
-        uniformBuffers[bindingIndex] = (buffer: wgpuBuffer, offset: offset, visibility: [.vertex, .fragment])
-        bindGroupDirty = true
+         renderEncoder.setVertexBuffer(
+            slot: UInt32(index), 
+            buffer: wgpuBuffer.buffer, 
+            offset: UInt64(offset), 
+            size: UInt64(buffer.length)
+        )
     }
 
     func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, index: Int) {
@@ -83,7 +85,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
             fatalError("UniformBuffer is not a WGPUUniformBuffer")
         }
         // Fragment uniforms go after vertex uniforms
-        let bindingIndex = index + 2  // Offset by texture(0), uniform(1)
+        let bindingIndex = index  // Offset by texture(0), uniform(1)
         uniformBuffers[bindingIndex] = (buffer: wgpuBuffer, offset: offset, visibility: .fragment)
         bindGroupDirty = true
     }
@@ -108,7 +110,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
 
         let uniform = WGPUUniformBuffer(buffer: wgpuBuffer.buffer, device: device, binding: index)
         uniform.label = bufferData.label
-        let bindingIndex = index + 2
+        let bindingIndex = index
         uniformBuffers[bindingIndex] = (buffer: uniform, offset: offset, visibility: .fragment)
         bindGroupDirty = true
     }
@@ -153,7 +155,6 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         guard let wgpuTexture = texture.gpuTexture as? WGPUGPUTexture else {
             fatalError("Texture's gpuTexture is not a WGPUGPUTexture")
         }
-        // Texture at binding 0 (as per shader: layout (binding = 0) uniform sampler2D u_Texture)
         textures[index] = wgpuTexture
         bindGroupDirty = true
     }
@@ -257,32 +258,20 @@ extension WGPURenderCommandEncoder {
         // Build entries matching the shader's expected bindings
         var entries: [BindGroupEntry] = []
         
-        // Binding 0: texture (sampler2D in GLSL becomes separate texture binding in WebGPU)
-        if let texture = textures[0] {
+        for (bindingIndex, texture) in textures {
             entries.append(BindGroupEntry(
-                binding: 0,
+                binding: UInt32(bindingIndex),
                 textureView: texture.textureView
             ))
         }
-        
-        // Binding 1: uniform buffer (AE_GlobalView)
-        if let uniform = uniformBuffers[1] {
+
+        for (bindingIndex, sampler) in samplers where bindingIndex > 0 {
             entries.append(BindGroupEntry(
-                binding: 1,
-                buffer: uniform.buffer.buffer,
-                offset: UInt64(uniform.offset),
-                size: UInt64(uniform.buffer.length)
-            ))
-        }
-        
-        // Binding 2: sampler (sampler2D in GLSL becomes separate sampler binding in WebGPU)
-        if let sampler = samplers[0] {
-            entries.append(BindGroupEntry(
-                binding: 2,
+                binding: UInt32(bindingIndex),
                 sampler: sampler.wgpuSampler
             ))
         }
-        
+
         // Add any additional uniform buffers
         for (bindingIndex, uniform) in uniformBuffers where bindingIndex > 1 {
             entries.append(BindGroupEntry(
