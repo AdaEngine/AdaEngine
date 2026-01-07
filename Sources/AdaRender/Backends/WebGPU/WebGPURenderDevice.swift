@@ -10,15 +10,16 @@ import AdaUtils
 import WebGPU
 import Foundation
 
-final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
+@_spi(Internal)
+public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
 
-    private let context: WGPUContext
+    public let context: WGPUContext
 
     init(context: WGPUContext) {
         self.context = context
     }
 
-    func createUniformBuffer(length: Int, binding: Int) -> any UniformBuffer {
+    public func createUniformBuffer(length: Int, binding: Int) -> any UniformBuffer {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 usage: [WebGPU.BufferUsage.indirect, WebGPU.BufferUsage.copyDst, WebGPU.BufferUsage.copySrc, .uniform],
@@ -28,7 +29,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         return WGPUUniformBuffer(buffer: _buffer, device: context.device, binding: binding)
     }
 
-    func createVertexBuffer(label: String?, length: Int, binding: Int) -> any VertexBuffer {
+    public func createVertexBuffer(label: String?, length: Int, binding: Int) -> any VertexBuffer {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 label: label,
@@ -39,7 +40,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         return WGPUVertexBuffer(buffer: _buffer, device: context.device, binding: binding, offset: 0)
     }
 
-    func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> any IndexBuffer {
+    public func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> any IndexBuffer {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 label: label,
@@ -52,7 +53,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         return buffer
     }
 
-    func createBuffer(label: String?, bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> any Buffer {
+    public func createBuffer(label: String?, bytes: UnsafeRawPointer, length: Int, options: ResourceOptions) -> any Buffer {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 label: label,
@@ -65,7 +66,7 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         return buffer
     }
 
-    func createBuffer(label: String?, length: Int, options: ResourceOptions) -> any Buffer {
+    public func createBuffer(label: String?, length: Int, options: ResourceOptions) -> any Buffer {
         let buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 label: label,
@@ -76,18 +77,18 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         return WGPUBuffer(buffer: buffer, device: context.device)
     }
 
-    func compileShader(from shader: Shader) throws -> any CompiledShader {
+    public func compileShader(from shader: Shader) throws -> any CompiledShader {
         return WGPUShader(shader: shader, device: context.device)
     }
 
-    func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> any RenderPipeline {
+    public func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> any RenderPipeline {
         WGPURenderPipeline(
             descriptor: descriptor,
             device: context.device
         )
     }
 
-    func createSampler(from descriptor: SamplerDescriptor) -> any Sampler {
+    public func createSampler(from descriptor: SamplerDescriptor) -> any Sampler {
         let wgpuSampler = context.device.createSampler(
             descriptor: WebGPU.SamplerDescriptor(
                 label: nil,
@@ -101,24 +102,24 @@ final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         return WGPUSampler(descriptor: descriptor, wgpuSampler: wgpuSampler)
     }
 
-    func createUniformBufferSet() -> any UniformBufferSet {
+    public func createUniformBufferSet() -> any UniformBufferSet {
         return unsafe GenericUniformBufferSet(frames: RenderEngine.configurations.maxFramesInFlight, device: self)
     }
 
-    func createTexture(from descriptor: TextureDescriptor) -> any GPUTexture {
+    public func createTexture(from descriptor: TextureDescriptor) -> any GPUTexture {
         return WGPUGPUTexture(descriptor: descriptor, device: context.device)
     }
 
-    func getImage(from texture: Texture) -> Image? {
+    public func getImage(from texture: Texture) -> Image? {
         return (texture.gpuTexture as? WGPUGPUTexture)?.getImage(device: context.device)
     }
 
-    func createCommandQueue() -> any CommandQueue {
+    public func createCommandQueue() -> any CommandQueue {
         return WGPUCommandQueue(device: context.device)
     }
 
     @MainActor
-    func createSwapchain(from window: WindowID) -> any Swapchain {
+    public func createSwapchain(from window: WindowID) -> any Swapchain {
         WGPUSwapchain(renderWindow: context.getWGPURenderWindow(for: window)!)
     }
 }

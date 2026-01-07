@@ -20,9 +20,9 @@ import QuartzCore
 import WinSDK
 #endif
 
-final class WGPUContext: Sendable {
-    let device: WebGPU.Device
-    let adapter: WebGPU.Adapter
+public final class WGPUContext: Sendable {
+    public let device: WebGPU.Device
+    public let adapter: WebGPU.Adapter
     let instance: WebGPU.Instance
 
     private let windows = Mutex<[WindowID: WGPURenderWindow]>([:])
@@ -34,7 +34,7 @@ final class WGPUContext: Sendable {
     }
 
     @MainActor
-    func createWindow(_ windowId: WindowID, for surface: any RenderSurface, size: Math.SizeInt) throws {
+    public func createWindow(_ windowId: WindowID, for surface: any RenderSurface, size: Math.SizeInt) throws {
         let existingWindow = self.windows.withLock { $0[windowId] }
         guard existingWindow == nil else {
             throw ContextError.creationWindowAlreadyExists
@@ -69,7 +69,7 @@ final class WGPUContext: Sendable {
     }
 
     @MainActor
-    func resizeWindow(_ windowId: WindowID, newSize: Math.SizeInt) throws {
+    public func resizeWindow(_ windowId: WindowID, newSize: Math.SizeInt) throws {
         guard newSize.width > 0 && newSize.height > 0 else {
             return
         }
@@ -98,7 +98,7 @@ final class WGPUContext: Sendable {
         }
     }
 
-    func destroyWindow(_ windowId: WindowID) throws {
+    public func destroyWindow(_ windowId: WindowID) throws {
         try self.windows.withLock {
             guard $0[windowId] != nil else {
                 throw ContextError.windowNotFound
@@ -107,7 +107,7 @@ final class WGPUContext: Sendable {
         }
     }
 
-    func getRenderWindow(for windowId: WindowID) -> AdaRender.RenderWindow? {
+    public func getRenderWindow(for windowId: WindowID) -> AdaRender.RenderWindow? {
         self.windows.withLock { windows in
             guard let window = windows[windowId] else {
                 return nil
@@ -121,13 +121,13 @@ final class WGPUContext: Sendable {
         }
     }
 
-    func getWGPURenderWindow(for windowId: WindowID) -> WGPURenderWindow? {
+    public func getWGPURenderWindow(for windowId: WindowID) -> WGPURenderWindow? {
         self.windows.withLock { windows in
             return windows[windowId]
         }
     }
 
-    func getRenderWindows() throws -> AdaRender.RenderWindows {
+    public func getRenderWindows() throws -> AdaRender.RenderWindows {
         let windows = self.windows.withLock { $0 }
         var renderWindows = SparseSet<WindowID, AdaRender.RenderWindow>()
         for (windowId, window) in windows {
@@ -143,12 +143,12 @@ final class WGPUContext: Sendable {
     }
 
     @safe
-    struct WGPURenderWindow {
-        let windowId: WindowID
-        let surface: WebGPU.Surface
-        let pixelFormat: PixelFormat
-        var size: Math.SizeInt
-        let scaleFactor: Float
+    public struct WGPURenderWindow {
+        public let windowId: WindowID
+        public let surface: WebGPU.Surface
+        public let pixelFormat: PixelFormat
+        public var size: Math.SizeInt
+        public let scaleFactor: Float
     }
 
     enum ContextError: LocalizedError {
@@ -179,10 +179,6 @@ extension RenderSurface {
 
 #if os(macOS)
         let view = (self as! MTKView)
-        view.colorPixelFormat = .bgra8Unorm
-        view.clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
-        view.framebufferOnly = false
-        view.sampleCount = 1
         surfaceDescriptor.nextInChain = unsafe SurfaceSourceMetalLayer(
             layer: Unmanaged.passUnretained(view.layer!).toOpaque()
         )

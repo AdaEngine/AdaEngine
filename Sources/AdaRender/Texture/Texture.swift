@@ -11,7 +11,8 @@ import AdaAssets
 /// Base class describing a texture.
 open class Texture: Asset, @unchecked Sendable {
     
-    private(set) var gpuTexture: GPUTexture
+    @_spi(Internal)
+    public private(set) var gpuTexture: GPUTexture
     
     /// The sampler instance that describe how to render texture.
     public private(set) var sampler: Sampler

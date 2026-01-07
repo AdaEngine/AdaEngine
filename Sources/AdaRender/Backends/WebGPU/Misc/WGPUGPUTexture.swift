@@ -10,14 +10,14 @@ import Math
 import WebGPU
 import Foundation
 
-final class WGPUGPUTexture: GPUTexture {
+public final class WGPUGPUTexture: GPUTexture {
 
-    var size: SizeInt {
+    public var size: SizeInt {
         SizeInt(width: Int(self.texture.width), height: Int(self.texture.height))
     }
 
-    var texture: WebGPU.Texture
-    var textureView: WebGPU.TextureView
+    public let texture: WebGPU.Texture
+    public let textureView: WebGPU.TextureView
 
     init(texture: WebGPU.Texture, textureView: WebGPU.TextureView) {
         self.texture = texture
