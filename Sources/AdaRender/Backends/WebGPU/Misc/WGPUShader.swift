@@ -10,8 +10,9 @@ import WebGPU
 import CWebGPU
 import Foundation
 
-final class WGPUShader: CompiledShader {
-    let shader: WebGPU.ShaderModule
+@_spi(Internal)
+public final class WGPUShader: CompiledShader {
+    public let shader: WebGPU.ShaderModule
 
     init(shader: Shader, device: WebGPU.Device) {
         let shaderData: any WebGPU.Chained

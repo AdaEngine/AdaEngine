@@ -1,5 +1,5 @@
 //
-//  WGSLExample.swift
+//  GLSLExample.swift
 //  AdaEngine
 //
 //  Created by Vladislav Prusakov on 21.12.2025.
@@ -9,26 +9,35 @@
 import WebGPU
 
 @main
-struct WGSLExampleApp: App {
+struct GLSLExampleApp: App {
     var body: some AppScene {
         DefaultAppWindow()
             .addPlugins(
-                WGSLExamplePlugin()
+                GLSLExamplePlugin()
             )
             .windowMode(.windowed)
-            .windowTitle("WGSL Example")
+            .windowTitle("GLSL Example")
     }
 }
 
-struct WGSLExamplePlugin: Plugin {
+struct GLSLExamplePlugin: Plugin {
     func setup(in app: borrowing AppWorlds) {
         // Spawn camera in main world
         app.main.spawn(bundle: Camera2D())
 
-        let vert = Shader(source: triangleVertexShader, entryPoint: "vs_main", stage: .vertex)
-        let frag = Shader(source: triangleFragmentShader, entryPoint: "fs_main", stage: .fragment)
-        try! vert.compile()
-        try! frag.compile()
+        // Create GLSL shader sources
+        let vertexSource = try! ShaderSource(source: triangleVertexShaderGLSL, lang: .glsl)
+        vertexSource.setSource(triangleVertexShaderGLSL, for: .vertex)
+        
+        let fragmentSource = try! ShaderSource(source: triangleFragmentShaderGLSL, lang: .glsl)
+        fragmentSource.setSource(triangleFragmentShaderGLSL, for: .fragment)
+        
+        // Compile shaders using ShaderCompiler
+        let vertexCompiler = ShaderCompiler(shaderSource: vertexSource)
+        let fragmentCompiler = ShaderCompiler(shaderSource: fragmentSource)
+        
+        let vert = try! vertexCompiler.compileShader(for: .vertex)
+        let frag = try! fragmentCompiler.compileShader(for: .fragment)
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -42,7 +51,7 @@ struct WGSLExamplePlugin: Plugin {
         // Remove default render system and add our custom WGPU render system
         renderWorld
             .removeSystem(RenderSystem.self, on: .render)
-            .addSystem(WGPURenderSystemSystem.self, on: .render)
+            .addSystem(GLSLRenderSystemSystem.self, on: .render)
     }
 }
 
@@ -58,7 +67,7 @@ struct CachedPipeline: Resource {
 }
 
 @System
-func WGPURenderSystem(
+func GLSLRenderSystem(
     _ targets: Query<Entity, Ref<RenderViewTarget>>,
     _ windows: ResMut<WindowSurfaces>,
     _ shaders: Res<Shaders>,
@@ -67,6 +76,14 @@ func WGPURenderSystem(
 ) {
     guard let device = (renderDevice.renderDevice as? WebGPURenderDevice)?.context.device else {
         return
+    }
+
+    // Update drawables for each window
+    for (windowRef, windowSurface) in windows.windows.values {
+        guard let swapchain = windowSurface.swapchain else {
+            continue
+        }
+        windows.windows[windowRef]?.currentDrawable = swapchain.getNextDrawable(renderDevice.renderDevice)
     }
 
     targets.forEach { entity, renderTarget in
@@ -85,13 +102,7 @@ func WGPURenderSystem(
         if let cached = cachedPipeline.pipeline, cachedPipeline.format == textureFormat {
             pipeline = cached
         } else {
-            // Create shader modules (can be cached too, but keeping simple for now)
-            // let vertexShaderModule = device.createShaderModule(
-            //     descriptor: ShaderModuleDescriptor(
-            //         label: "triangle_vertex",
-            //         nextInChain: ShaderSourceWgsl(code: triangleVertexShader)
-            //     )
-            // )
+            // Get compiled shader modules from GLSL-compiled shaders
             let vertexShaderModule = (shaders.vertex.compiledShader as! WGPUShader).shader
             let fragmentShaderModule = (shaders.fragment.compiledShader as! WGPUShader).shader
 
@@ -103,11 +114,11 @@ func WGPURenderSystem(
             // Create render pipeline
             pipeline = device.createRenderPipeline(
                 descriptor: WebGPU.RenderPipelineDescriptor(
-                    label: "triangle_pipeline",
+                    label: "triangle_pipeline_glsl",
                     layout: pipelineLayout,
                     vertex: VertexState(
                         module: vertexShaderModule,
-                        entryPoint: "vs_main",
+                        entryPoint: "main",
                         constants: [],
                         buffers: []
                     ),
@@ -125,7 +136,7 @@ func WGPURenderSystem(
                     ),
                     fragment: FragmentState(
                         module: fragmentShaderModule,
-                        entryPoint: "fs_main",
+                        entryPoint: "main",
                         constants: [],
                         targets: [
                             ColorTargetState(
@@ -185,23 +196,31 @@ func WGPURenderSystem(
     }
 }
 
-// WGSL vertex shader - outputs triangle positions directly
-let triangleVertexShader = """
-@vertex
-fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> @builtin(position) vec4<f32> {
-    var positions = array<vec2<f32>, 3>(
-        vec2<f32>( 0.0,  0.5),   // top
-        vec2<f32>(-0.5, -0.5),   // bottom left
-        vec2<f32>( 0.5, -0.5)    // bottom right
+// GLSL vertex shader - outputs triangle positions directly
+// Note: GLSL uses different syntax than WGSL
+let triangleVertexShaderGLSL = """
+#version 450
+#pragma stage : vert
+
+void main() {
+    vec2 positions[3] = vec2[](
+        vec2( 0.0,  0.5),   // top
+        vec2(-0.5, -0.5),   // bottom left
+        vec2( 0.5, -0.5)    // bottom right
     );
-    return vec4<f32>(positions[vertexIndex], 0.0, 1.0);
+    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
 }
 """
 
-// WGSL fragment shader - outputs solid red color
-let triangleFragmentShader = """
-@fragment
-fn fs_main() -> @location(0) vec4<f32> {
-    return vec4<f32>(1.0, 0.0, 0.0, 1.0);
+// GLSL fragment shader - outputs solid red color
+let triangleFragmentShaderGLSL = """
+#version 450
+#pragma stage : frag
+
+layout(location = 0) out vec4 fragColor;
+
+void main() {
+    fragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
 """
+
