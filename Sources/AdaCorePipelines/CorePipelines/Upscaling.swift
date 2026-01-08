@@ -41,10 +41,9 @@ public struct UpscalePipeline: Resource {
             from: .module
         )
 
-        var descriptor = RenderPipelineDescriptor()
+        var descriptor = RenderPipelineDescriptor(vertex: spriteShader.asset.getShader(for: .vertex)!)
         descriptor.debugName = "Upscale Pipeline"
 
-        descriptor.vertex = spriteShader.asset.getShader(for: .vertex)
         descriptor.fragment = spriteShader.asset.getShader(for: .fragment)
         descriptor.colorAttachments = [
             RenderPipelineColorAttachmentDescriptor(format: .bgra8)

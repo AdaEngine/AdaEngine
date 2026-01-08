@@ -64,7 +64,7 @@ public final class MaterialStorage {
         let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
             binding: member.binding,
             set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
+            frameIndex: 0
         )
         
         unsafe withUnsafePointer(to: value) { pointer in
@@ -87,7 +87,7 @@ public final class MaterialStorage {
         let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
             binding: member.binding,
             set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
+            frameIndex: 0
         )
         
         return unsafe buffer?.contents().load(fromByteOffset: member.offset, as: T.self)

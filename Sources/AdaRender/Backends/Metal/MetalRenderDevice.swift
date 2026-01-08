@@ -38,10 +38,6 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
         return MetalShader(name: spirvShader.entryPoints[0].name, library: library, function: function)
     }
 
-    func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
-        return MetalFramebuffer(descriptor: descriptor)
-    }
-
     func createCommandQueue() -> CommandQueue {
         return MetalCommandQueue(commandQueue: self.commandQueue)
     }
@@ -62,7 +58,7 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
         for (index, layout) in descriptor.vertexDescriptor.layouts.enumerated() {
             vertexDescriptor.layouts[index].stride = layout.stride
         }
-        if let shader = descriptor.vertex?.compiledShader as? MetalShader {
+        if let shader = descriptor.vertex.compiledShader as? MetalShader {
             pipelineDescriptor.vertexFunction = shader.function
         }
 
@@ -279,113 +275,6 @@ extension MetalRenderDevice {
 
         let uniformBuffer = MetalUniformBuffer(buffer: buffer, binding: binding)
         return uniformBuffer
-    }
-
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
-    func draw(_ list: DrawList, indexCount: Int, indexBufferOffset: Int, instanceCount: Int) {
-        guard let renderPipeline = (list.renderPipeline as? MetalRenderPipeline) else {
-            fatalError("Draw doesn't have a pipeline state")
-        }
-
-        guard let encoder = (list.commandBuffer as? MetalRenderCommandBuffer)?.encoder else {
-            fatalError("Command buffer")
-        }
-
-        if let name = list.debugName {
-            encoder.label = name
-        }
-
-        if let depthStencilState = renderPipeline.depthStencilState {
-            encoder.setDepthStencilState(depthStencilState)
-        }
-
-        // Should be in draw settings
-        encoder.setCullMode(renderPipeline.descriptor.backfaceCulling ? .back : .front)
-
-        encoder.setFrontFacing(.counterClockwise)
-
-        encoder.setRenderPipelineState(renderPipeline.renderPipeline)
-
-        if list.isScissorEnabled {
-            let rect = list.scissorRect
-
-            encoder.setScissorRect(
-                MTLScissorRect(
-                    x: Int(rect.origin.x),
-                    y: Int(rect.origin.y),
-                    width: Int(rect.size.width),
-                    height: Int(rect.size.height)
-                )
-            )
-        }
-
-        if list.isViewportEnabled {
-            let viewport = list.viewport
-            let rect = viewport.rect
-
-            encoder.setViewport(
-                MTLViewport(
-                    originX: Double(rect.origin.x),
-                    originY: Double(rect.origin.y),
-                    width: Double(rect.size.width),
-                    height: Double(rect.size.height),
-                    znear: Double(viewport.depth.lowerBound),
-                    zfar: Double(viewport.depth.upperBound)
-                )
-            )
-        }
-
-        guard let indexBuffer = list.indexBuffer else {
-            fatalError("can't draw without index buffer")
-        }
-
-        for buffer in list.vertexBuffers {
-            let vertexBuffer = buffer as! MetalVertexBuffer
-            encoder.setVertexBuffer(vertexBuffer.buffer, offset: 0, index: vertexBuffer.binding)
-        }
-
-        let textures = list.textures.compactMap { $0 }
-        for (index, texture) in textures.enumerated() {
-            let mtlTexture = (texture.gpuTexture as! MetalGPUTexture).texture
-            let mtlSampler = (texture.sampler as! MetalSampler).mtlSampler
-
-            encoder.setFragmentTexture(mtlTexture, index: index)
-            encoder.setFragmentSamplerState(mtlSampler, index: index)
-        }
-
-        for index in 0 ..< list.uniformBufferCount {
-            let data = list.uniformBuffers[index]!
-            let buffer = data.buffer as! MetalUniformBuffer
-
-            switch data.shaderStage {
-            case .vertex:
-                encoder.setVertexBuffer(buffer.buffer, offset: 0, index: buffer.binding)
-            case .fragment:
-                encoder.setFragmentBuffer(buffer.buffer, offset: 0, index: buffer.binding)
-            default:
-                continue
-            }
-        }
-
-        encoder.setTriangleFillMode(list.triangleFillMode == .fill ? .fill : .lines)
-
-        encoder.drawIndexedPrimitives(
-            type: list.indexPrimitive.toMetal,
-            indexCount: indexCount,
-            indexType: indexBuffer.indexFormat == .uInt32 ? .uint32 : .uint16,
-            indexBuffer: (indexBuffer as! MetalIndexBuffer).buffer,
-            indexBufferOffset: indexBufferOffset,
-            instanceCount: instanceCount
-        )
-    }
-
-    func endDrawList(_ drawList: DrawList) {
-        guard let commandBuffer = drawList.commandBuffer as? MetalRenderCommandBuffer else {
-            return
-        }
-
-        commandBuffer.encoder.endEncoding()
-        commandBuffer.commandBuffer.commit()
     }
 }
 

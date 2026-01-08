@@ -17,27 +17,33 @@ public protocol CompiledShader: AnyObject {}
 
 /// Contains shader data.
 public final class Shader: Asset, @unchecked Sendable {
+
+    public enum Source: Hashable {
+        /// Contains SPIRV data
+        case spirv(Data)
+        /// Contains source code
+        case code(String)
+    }
     
     /// Return compiled shader which used for specific render backend.
     public fileprivate(set) var compiledShader: CompiledShader!
     
     /// Contains information about shader stage.
     public let stage: ShaderStage
-    
-    /// Return SPIRV binary.
-    public private(set) var spirvData: Data
+
+    public private(set) var source: Source
     public private(set) var entryPoint: String
 
-    internal private(set) var spirvCompiler: SpirvCompiler
+    internal private(set) var spirvCompiler: SpirvCompiler!
     
     private var shaderCompiler: ShaderCompiler
     
     var reflectionData: ShaderReflectionData = ShaderReflectionData()
     
     fileprivate init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
-        self.spirvData = spirv.data
-        
-        self.spirvCompiler = try SpirvCompiler(
+        self.source = .spirv(spirv.data)
+
+        self.spirvCompiler = unsafe try SpirvCompiler(
             spriv: spirv.data,
             stage: spirv.stage,
             deviceLang: RenderEngine.shared.type.deviceLang
@@ -49,24 +55,37 @@ public final class Shader: Asset, @unchecked Sendable {
         self.shaderCompiler = compiler
         self.compiledShader = nil
     }
+
+    public init(source: String, entryPoint: String, stage: ShaderStage) {
+        self.source = .code(source)
+        self.entryPoint = entryPoint
+        self.stage = stage
+        self.shaderCompiler = try! ShaderCompiler(shaderSource: ShaderSource(source: source, lang: .wgsl))
+        self.spirvCompiler = nil
+        self.compiledShader = nil
+    }
     
     /// Add new macro to the shader. When all macros has been set, use ``recompile()`` method to apply new changes.
     public func setMacro(_ name: String, value: String) {
         self.shaderCompiler.setMacro(name, value: value, for: self.stage)
     }
+
+    public func compile() throws {
+        self.compiledShader = unsafe try RenderEngine.shared.renderDevice.compileShader(from: self)
+    }
     
     /// Recompile shader. If you change macros values, than you should recompile shader and apply new changes.
     public func recompile() throws {
         let spirv = try shaderCompiler.compileSpirvBin(for: self.stage)
-        self.spirvData = spirv.data
-        self.spirvCompiler = try SpirvCompiler(
+        self.source = .spirv(spirv.data)
+        self.spirvCompiler = unsafe try SpirvCompiler(
             spriv: spirv.data,
             stage: self.stage,
             deviceLang: RenderEngine.shared.type.deviceLang
         )
         self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
         
-        self.compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: self)
+        self.compiledShader = unsafe try RenderEngine.shared.renderDevice.compileShader(from: self)
     }
     
     // MARK: Shader
@@ -86,7 +105,7 @@ public final class Shader: Asset, @unchecked Sendable {
         self.shaderCompiler = ShaderCompiler(shaderSource: shaderSource)
         let spirv = try self.shaderCompiler.compileSpirvBin(for: stage)
         let shader = try Self.make(from: spirv, compiler: self.shaderCompiler)
-        self.spirvData = shader.spirvData
+        self.source = shader.source
         self.reflectionData = shader.reflectionData
         self.spirvCompiler = shader.spirvCompiler
         self.stage = stage
@@ -104,7 +123,7 @@ public final class Shader: Asset, @unchecked Sendable {
     
     static func make(from spirv: SpirvBinary, compiler: ShaderCompiler) throws -> Shader {
         let shader = try Shader(spirv: spirv, compiler: compiler)
-        let compiledShader = try RenderEngine.shared.renderDevice.compileShader(from: shader)
+        let compiledShader = unsafe try RenderEngine.shared.renderDevice.compileShader(from: shader)
         shader.compiledShader = compiledShader
         
         return shader
@@ -121,7 +140,7 @@ public final class Shader: Asset, @unchecked Sendable {
 
 extension Shader: UniqueHashable {
     public static func == (lhs: Shader, rhs: Shader) -> Bool {
-        lhs.spirvData == rhs.spirvData &&
+        lhs.source == rhs.source &&
         lhs.stage == rhs.stage &&
         lhs.assetPath == rhs.assetPath
     }
@@ -137,6 +156,8 @@ extension RenderBackendType {
         switch self {
         case .opengl, .vulkan:
             return .glsl
+        case .webgpu:
+            return .wgsl
         case .metal:
             return .msl
         }

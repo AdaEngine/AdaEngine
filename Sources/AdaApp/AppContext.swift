@@ -49,6 +49,11 @@ public struct AppContext<T: App>: ~Copyable {
         let _ = T.Content._makeView(node, inputs: inputs)
         
         try await appWorlds.build()
-        appWorlds.runner?(appWorlds)
+
+        #if ENABLE_RUN_IN_CONCURRENCY
+        await appWorlds.runner?()
+        #else
+        appWorlds.runner?()
+        #endif
     }
 }

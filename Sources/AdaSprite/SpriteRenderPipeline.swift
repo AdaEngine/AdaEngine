@@ -29,8 +29,7 @@ extension SpriteRenderPipeline: WorldInitable {
 
 extension SpriteRenderPipeline {
     public func configurate(with configuration: RenderPipelineEmptyConfiguration) -> RenderPipelineDescriptor {
-        var piplineDesc = RenderPipelineDescriptor()
-        piplineDesc.vertex = spriteShader.asset.getShader(for: .vertex)
+        var piplineDesc = RenderPipelineDescriptor(vertex: spriteShader.asset.getShader(for: .vertex)!)
         piplineDesc.fragment = spriteShader.asset.getShader(for: .fragment)
         piplineDesc.debugName = "Sprite Pipeline"
         piplineDesc.vertexDescriptor.attributes.append([

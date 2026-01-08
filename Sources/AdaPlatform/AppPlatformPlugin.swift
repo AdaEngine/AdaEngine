@@ -52,16 +52,17 @@ public struct AppPlatformPlugin: Plugin {
 
             app.addSystem(ApplicationUpdateSystem.self, on: .preUpdate)
 
-            app.setRunner { worlds in
+            app.setRunner {
                 do {
-                    try MainActor.assumeIsolated {
-                        try application.run(worlds)
-                    }
+                    #if ENABLE_RUN_IN_CONCURRENCY
+                    try await application.run(app)
+                    #else
+                    try application.run(app)
+                    #endif
                 } catch {
                     Logger(label: "org.adaengine.AppPlatform").error("\(error)")
                 }
             }
-
         } catch {
             fatalError("Can't initialise application: \(error)")
         }

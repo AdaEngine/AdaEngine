@@ -29,8 +29,7 @@ public struct QuadPipeline: RenderPipelineConfigurator {
     public func configurate(
         with configuration: RenderPipelineEmptyConfiguration
     ) -> RenderPipelineDescriptor {
-        var pipelineDesc = RenderPipelineDescriptor()
-        pipelineDesc.vertex = shader.asset.getShader(for: .vertex)
+        var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
         pipelineDesc.debugName = "UI Quad Pipeline"
 
@@ -69,8 +68,7 @@ public struct CirclePipeline: RenderPipelineConfigurator {
     public func configurate(
         with configuration: RenderPipelineEmptyConfiguration
     ) -> RenderPipelineDescriptor {
-        var pipelineDesc = RenderPipelineDescriptor()
-        pipelineDesc.vertex = shader.asset.getShader(for: .vertex)
+        var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
         pipelineDesc.debugName = "UI Circle Pipeline"
 
@@ -110,8 +108,7 @@ public struct LinePipeline: RenderPipelineConfigurator {
     public func configurate(
         with configuration: RenderPipelineEmptyConfiguration
     ) -> RenderPipelineDescriptor {
-        var pipelineDesc = RenderPipelineDescriptor()
-        pipelineDesc.vertex = shader.asset.getShader(for: .vertex)
+        var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
         pipelineDesc.debugName = "UI Line Pipeline"
         pipelineDesc.primitive = .line

@@ -68,7 +68,6 @@ public struct UpscaleNode: RenderNode {
             renderPass.setFragmentTexture(mainTexture, index: 0)
             renderPass.setFragmentSamplerState(upsalePipeline.sampler, index: 0)
             renderPass.setRenderPipelineState(upsalePipeline.renderPipeline)
-
             renderPass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             renderPass.endRenderPass()
             commandBuffer.commit()

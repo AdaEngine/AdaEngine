@@ -87,10 +87,6 @@ final class VulkanRenderDevice: RenderDevice {
         return try VulkanShader.make(from: shader, device: self.context.logicalDevice)
     }
     
-    func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer {
-        return VulkanFramebuffer(device: self.context.logicalDevice, descriptor: descriptor)
-    }
-    
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
         do {
             return try VulkanRenderPipeline(device: self.context.logicalDevice, descriptor: descriptor)

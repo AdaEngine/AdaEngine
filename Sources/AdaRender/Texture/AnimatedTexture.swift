@@ -54,7 +54,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     public var options: Options = [.repeat]
     
     /// Return RID of current frame
-    override var gpuTexture: GPUTexture {
+    @_spi(Internal) public override var gpuTexture: GPUTexture {
         self.frames[currentFrame].texture!.gpuTexture
     }
     

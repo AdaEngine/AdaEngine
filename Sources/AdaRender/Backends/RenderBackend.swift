@@ -18,15 +18,13 @@ public enum RenderBackendType: String, Sendable {
     case opengl
     case metal
     case vulkan
+    case webgpu
 }
 
 /// This protocol describe interface for GPU.
 protocol RenderBackend: AnyObject, Sendable {
     
     var type: RenderBackendType { get }
-
-    /// Returns current frame index. Min value 0, Max value is equal ``RenderEngine/Configuration/maxFramesInFlight`` value.
-    var currentFrameIndex: Int { get }
 
     /// Returns global ``RenderDevice``.
     var renderDevice: RenderDevice { get }
@@ -76,9 +74,6 @@ public protocol RenderDevice: AnyObject, Sendable {
     /// - Throws: Throw an error if something went wrong on compilation.
     func compileShader(from shader: Shader) throws -> CompiledShader
 
-    /// Create a framebuffer from descriptor.
-    func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer
-
     /// Create pipeline state from shader.
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline
 
@@ -91,7 +86,7 @@ public protocol RenderDevice: AnyObject, Sendable {
     func createUniformBuffer(length: Int, binding: Int) -> UniformBuffer
 
     /// Create a new empty uniform buffer set.
-    func createUniformBufferSet() -> UniformBufferSet
+    func createUniformBufferSet() -> any UniformBufferSet
 
     // MARK: - Texture
 

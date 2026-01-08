@@ -26,27 +26,11 @@ public final class RenderEngine: RenderBackend, Sendable {
     nonisolated(unsafe) public static var configurations: Configuration = Configuration()
     
     /// Return instance of render engine for specific backend.
-    public static let shared: RenderEngine = {
-        let renderBackend: RenderBackend
-
-        let appName = "AdaEngine"
-
-        #if METAL
-        renderBackend = MetalRenderBackend(appName: appName)
-        #elseif VULKAN
-        renderBackend = VulkanRenderBackend(appName: appName)
-        #elseif OPENGL
-        renderBackend = OpenGLBackend(appName: appName)
-        #else
-        fatalError()
-        #endif
-
-        return RenderEngine(renderBackend: renderBackend)
-    }()
+    public fileprivate(set) nonisolated(unsafe) static var shared: RenderEngine!
     
     private let renderBackend: RenderBackend
     
-    private init(renderBackend: RenderBackend) {
+    init(renderBackend: RenderBackend) {
         self.renderBackend = renderBackend
     }
     
@@ -54,10 +38,6 @@ public final class RenderEngine: RenderBackend, Sendable {
     
     public var type: RenderBackendType {
         self.renderBackend.type
-    }
-    
-    public var currentFrameIndex: Int {
-        return self.renderBackend.currentFrameIndex
     }
 
     /// Returns global ``RenderDevice``.
@@ -93,5 +73,22 @@ public final class RenderEngine: RenderBackend, Sendable {
 public extension RenderDevice {
     func createUniformBuffer<T>(_ uniformType: T.Type, count: Int = 1, binding: Int) -> UniformBuffer {
         self.createUniformBuffer(length: MemoryLayout<T>.stride * count, binding: binding)
+    }
+}
+
+extension RenderEngine {
+    package static func setupRenderEngine() throws {
+        let renderBackend: RenderBackend
+        #if WEBGPU_ENABLED
+        renderBackend = try UnsafeTask {
+            return try await WebGPURenderBackend.createBackend()
+        }.get()
+        #elseif METAL
+        renderBackend = MetalRenderBackend()
+        #else
+        #error("Not supported backend")
+        #endif
+        let engine = RenderEngine(renderBackend: renderBackend)
+        unsafe RenderEngine.shared = engine
     }
 }
