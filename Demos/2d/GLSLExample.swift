@@ -118,7 +118,7 @@ func GLSLRenderSystem(
                     layout: pipelineLayout,
                     vertex: VertexState(
                         module: vertexShaderModule,
-                        entryPoint: "main",
+                        entryPoint: shaders.vertex.entryPoint,
                         constants: [],
                         buffers: []
                     ),
@@ -136,7 +136,7 @@ func GLSLRenderSystem(
                     ),
                     fragment: FragmentState(
                         module: fragmentShaderModule,
-                        entryPoint: "main",
+                        entryPoint: shaders.fragment.entryPoint,
                         constants: [],
                         targets: [
                             ColorTargetState(
