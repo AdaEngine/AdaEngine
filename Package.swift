@@ -440,6 +440,21 @@ targets.append(
 )
 #endif
 
+if isWGPUEnabled {
+    targets.append(
+        .plugin(
+            name: "WebGPUTintPlugin",
+            capability: .command(
+                intent: .custom(verb: "build-tint", description: "Build Tint compiler from Dawn repository"),
+                permissions: [
+                    .allowNetworkConnections(scope: .all(), reason: "Download dawn from github")
+                ]
+            ),
+            dependencies: []
+        )
+    )
+}
+
 // MARK: Extra
 
 #if os(Android) || os(Linux)

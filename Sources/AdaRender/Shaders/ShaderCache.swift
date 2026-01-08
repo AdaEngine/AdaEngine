@@ -70,11 +70,10 @@ enum ShaderCache {
             return nil
         }
         
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        let path = fileURL.pathComponents.suffix(3).joined(separator: Constants.separator)
         
         guard let cacheFile = try? self.getCacheDirectory()
-            .appendingPathComponent(path)
-            .deletingPathExtension()
+            .appending(path: path, directoryHint: .isDirectory)
             .appendingPathExtension("cache-\(stage.rawValue)-\(version).spv") else {
             return nil
         }
@@ -97,16 +96,20 @@ enum ShaderCache {
             return
         }
         
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        let path = fileURL.pathComponents.suffix(3).joined(separator: Constants.separator)
         
         let cacheDir = try self.getCacheDirectory()
         
         let cacheURL = cacheDir
-            .appendingPathComponent(path)
-            .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue)-\(version).spv")
-        
-        _ = fileSystem.createFile(at: cacheURL, contents: spirvBin.data)
+            .appending(path: path, directoryHint: .isDirectory)
+
+        if !fileSystem.itemExists(at: cacheURL) {
+            try fileSystem.createDirectory(at: cacheURL, withIntermediateDirectories: true)
+        }
+            
+        let cacheFile = cacheURL
+            .appending(path: "cache-\(stage.rawValue)-\(version).spv", directoryHint: .notDirectory)
+        _ = fileSystem.createFile(at: cacheFile, contents: spirvBin.data)
     }
     
     // MARK: - Save/Load Reflection
@@ -120,17 +123,22 @@ enum ShaderCache {
             return
         }
         
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        let path = fileURL.pathComponents.suffix(3).joined(separator: Constants.separator)
         
         let cacheDir = try self.getCacheDirectory()
         
         let cacheURL = cacheDir
-            .appendingPathComponent(path)
-            .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue).ref")
+            .appending(path: path, directoryHint: .isDirectory)
+
+        if !fileSystem.itemExists(at: cacheURL) {
+            try fileSystem.createDirectory(at: cacheURL, withIntermediateDirectories: true)
+        }
+
+        let cacheFile = cacheURL
+            .appending(path: "cache-\(stage.rawValue).\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
         
         let stringData = try YAMLEncoder().encode(reflectionData)
-        _ = fileSystem.createFile(at: cacheURL, contents: stringData.data(using: .utf8)!)
+        _ = fileSystem.createFile(at: cacheFile, contents: stringData.data(using: .utf8)!)
     }
     
     static func getReflection(for source: ShaderSource, stage: ShaderStage) -> ShaderReflectionData? {
@@ -138,12 +146,11 @@ enum ShaderCache {
             return nil
         }
         
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        let path = fileURL.pathComponents.suffix(3).joined(separator: Constants.separator)
         
         guard let cacheFile = try? self.getCacheDirectory()
-            .appendingPathComponent(path)
-            .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue).ref") else {
+            .appending(path: path, directoryHint: .isDirectory)
+            .appending(path: "cache-\(stage.rawValue).\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory) else {
             return nil
         }
         
@@ -155,12 +162,11 @@ enum ShaderCache {
     }
     
     static func removeReflection(for fileURL: URL, stage: ShaderStage) {
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        let path = fileURL.pathComponents.suffix(3).joined(separator: Constants.separator)
         
         guard let cacheFile = try? self.getCacheDirectory()
-            .appendingPathComponent(path)
-            .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue).ref") else {
+            .appending(path: path, directoryHint: .isDirectory)
+            .appending(path: "cache-\(stage.rawValue).\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory) else {
             return
         }
         
@@ -199,12 +205,12 @@ enum ShaderCache {
     private static func getCacheDirectory() throws -> URL {
         return try self.fileSystem
             .url(for: .cachesDirectory)
-            .appendingPathComponent("AdaEngine")
-            .appendingPathComponent("Shaders")
+            .appendingPathComponent(Constants.cacheDirectoryName)
+            .appending(path: Constants.shadersDirectoryName, directoryHint: .isDirectory)
     }
     
     private static func getCacheFile() throws -> URL {
-        try self.getCacheDirectory().appendingPathComponent("ShaderCache.cache")
+        try self.getCacheDirectory().appending(path: Constants.shaderCacheFileName, directoryHint: .notDirectory)
     }
     
     private static func createCacheDirectoryIfNeeded() {
@@ -219,5 +225,13 @@ enum ShaderCache {
         } catch {
             fatalError("[ShaderCache] \(error)")
         }
+    }
+
+    enum Constants {
+        static let cacheDirectoryName = "AdaEngine"
+        static let shadersDirectoryName = "Shaders"
+        static let shaderCacheFileName = "ShaderCache.cache"
+        static let shaderCacheFileExtension = "yaml"
+        static let separator = "/"
     }
 }

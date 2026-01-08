@@ -8,7 +8,7 @@
 @_spi(Internal) import AdaEngine
 import WebGPU
 
-let isWGSLShader = true
+let isWGSLShader = false
 
 @main
 struct WGSLExampleApp: App {
