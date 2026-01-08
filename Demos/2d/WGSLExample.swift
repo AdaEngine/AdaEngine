@@ -8,6 +8,8 @@
 @_spi(Internal) import AdaEngine
 import WebGPU
 
+let isWGSLShader = true
+
 @main
 struct WGSLExampleApp: App {
     var body: some AppScene {
@@ -25,10 +27,26 @@ struct WGSLExamplePlugin: Plugin {
         // Spawn camera in main world
         app.main.spawn(bundle: Camera2D())
 
-        let vert = Shader(source: triangleVertexShader, entryPoint: "vs_main", stage: .vertex)
-        let frag = Shader(source: triangleFragmentShader, entryPoint: "fs_main", stage: .fragment)
-        try! vert.compile()
-        try! frag.compile()
+        let vert: Shader
+        let frag: Shader
+        if isWGSLShader {
+            vert = Shader(source: triangleVertexShader, entryPoint: "vs_main", stage: .vertex)
+            frag = Shader(source: triangleFragmentShader, entryPoint: "fs_main", stage: .fragment)
+
+            try! vert.compile()
+            try! frag.compile()
+        } else {
+            let vertexSource = try! ShaderSource(source: triangleVertexShaderGLSL, lang: .glsl)
+        
+            let fragmentSource = try! ShaderSource(source: triangleFragmentShaderGLSL, lang: .glsl)
+        
+            // Compile shaders using ShaderCompiler
+            let vertexCompiler = ShaderCompiler(shaderSource: vertexSource)
+            let fragmentCompiler = ShaderCompiler(shaderSource: fragmentSource)
+        
+            vert = try! vertexCompiler.compileShader(for: .vertex)
+            frag = try! fragmentCompiler.compileShader(for: .fragment)
+        }
 
         guard let renderWorld = app.getSubworldBuilder(by: .renderWorld) else {
             return
@@ -85,13 +103,6 @@ func WGPURenderSystem(
         if let cached = cachedPipeline.pipeline, cachedPipeline.format == textureFormat {
             pipeline = cached
         } else {
-            // Create shader modules (can be cached too, but keeping simple for now)
-            // let vertexShaderModule = device.createShaderModule(
-            //     descriptor: ShaderModuleDescriptor(
-            //         label: "triangle_vertex",
-            //         nextInChain: ShaderSourceWgsl(code: triangleVertexShader)
-            //     )
-            // )
             let vertexShaderModule = (shaders.vertex.compiledShader as! WGPUShader).shader
             let fragmentShaderModule = (shaders.fragment.compiledShader as! WGPUShader).shader
 
@@ -205,3 +216,35 @@ fn fs_main() -> @location(0) vec4<f32> {
     return vec4<f32>(1.0, 0.0, 0.0, 1.0);
 }
 """
+
+
+// GLSL vertex shader - outputs triangle positions directly
+// Note: GLSL uses different syntax than WGSL
+let triangleVertexShaderGLSL = """
+#version 450
+#pragma stage : vert
+
+[[main]]
+void vs_main() {
+    vec2 positions[3] = vec2[](
+        vec2( 0.0,  0.5),   // top
+        vec2(-0.5, -0.5),   // bottom left
+        vec2( 0.5, -0.5)    // bottom right
+    );
+    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
+}
+"""
+
+// GLSL fragment shader - outputs solid red color
+let triangleFragmentShaderGLSL = """
+#version 450
+#pragma stage : frag
+
+layout(location = 0) out vec4 fragColor;
+
+[[main]]
+void fs_main() {
+    fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+}
+"""
+

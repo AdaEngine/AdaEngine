@@ -5,6 +5,7 @@ import CWebGPU
 import Math
 import Synchronization
 import AdaUtils
+import Logging
 
 final class WebGPURenderBackend: RenderBackend, @unchecked Sendable {
     func createLocalRenderDevice() -> any RenderDevice {
@@ -48,15 +49,31 @@ extension WebGPURenderBackend {
                 requiredFeatures: [.shaderSourceSpirv]
             )
         )
+        let logger = Logger(label: "org.adaengine.webgpu")
         let adapter = try await instance.requestAdapter()
-        let device = try await adapter.requestDevice()
+        let device = unsafe try await adapter.requestDevice(
+                descriptor: DeviceDescriptor(
+                    label: "AdaEngine WebGPU Device", 
+                    requiredFeatures: [], 
+                    requiredLimits: nil, 
+                    defaultQueue: QueueDescriptor(), 
+                    deviceLostCallbackInfo: DeviceLostCallbackInfo(mode: .allowSpontaneous, callback: { _, deviceLostReason, message in
+                        logger.info("Device lost: \(deviceLostReason.rawValue): \(message)")
+                    }), 
+                    uncapturedErrorCallbackInfo: UncapturedErrorCallbackInfo.init(callback: 
+                        { _, logType, message in
+                            logger.error("\(logType.rawValue): \(message)")
+                        }
+                    ), 
+                    nextInChain: nil
+                )
+            )
         
         unsafe device.withUnsafeHandle {
             unsafe wgpuDeviceSetLoggingCallback($0, WGPULoggingCallbackInfo.init(
                 nextInChain: nil, 
                 callback: { logType, message, _, _ in
-                    unsafe print("[WebGPU LOG] Type: \(logType), Message: \(message)")
-                    // (WGPULoggingType, WGPUStringView, UnsafeMutableRawPointer?, UnsafeMutableRawPointer?) -> Void,
+                    unsafe Logger(label: "org.adaengine.webgpu").info("\(logType.rawValue): \(message.toString)")
                 },
                 userdata1: nil, 
                 userdata2: nil
@@ -65,6 +82,12 @@ extension WebGPURenderBackend {
         }
         
         return WebGPURenderBackend(device: device, adapter: adapter, instance: instance)
+    }
+}
+
+extension WGPUStringView {
+    var toString: String {
+        return unsafe String(cString: data)
     }
 }
 #endif

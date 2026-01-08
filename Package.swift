@@ -428,6 +428,18 @@ var targets: [Target] = [
     ),
 ]
 
+// MARK: Build Plugins
+
+#if os(Windows)
+targets.append(
+    .plugin(
+        name: "WebGPUBuildPlugin",
+        capability: .buildTool(),
+        dependencies: []
+    )
+)
+#endif
+
 // MARK: Extra
 
 #if os(Android) || os(Linux)
