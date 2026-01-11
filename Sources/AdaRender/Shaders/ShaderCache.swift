@@ -91,9 +91,10 @@ enum ShaderCache {
         )
     }
     
+    @discardableResult
     static func save(_ spirvBin: SpirvBinary, source: ShaderSource, stage: ShaderStage, version: Int) throws {
         guard let fileURL = source.fileURL else {
-            return
+            throw CompileError.failed("Source file URL not found")
         }
         
         let path = fileURL.pathComponents.suffix(3).joined(separator: Constants.separator)
@@ -233,5 +234,16 @@ enum ShaderCache {
         static let shaderCacheFileName = "ShaderCache.cache"
         static let shaderCacheFileExtension = "yaml"
         static let separator = "/"
+    }
+
+    enum CompileError: LocalizedError {
+        case failed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .failed(let msg):
+                return "[ShaderCache] Failed: \(msg)."
+            }
+        }
     }
 }

@@ -10,7 +10,7 @@ import AdaUtils
 import Foundation
 import SPIRVCompiler
 
-public enum ShaderLanguage: String {
+public enum ShaderLanguage: String, Sendable {
     
     /// Vulkan, OpenGL, WebGL
     case glsl

@@ -37,12 +37,13 @@ struct VertexOut
 };
 
 layout (location = 0) in VertexOut Input;
-layout (binding = 0) uniform sampler2D u_Texture;
+layout (binding = 0) uniform texture2D u_Texture;
+layout (binding = 1) uniform sampler   u_Sampler;
 
 [[main]]
 void sprite_fragment()
 {
-    color = texture(u_Texture, Input.TexCoordinate) * Input.Color;
+    color = texture(sampler2D(u_Texture, u_Sampler), Input.TexCoordinate) * Input.Color;
 
     // to avoid depth write
     if (color.a == 0.0) {

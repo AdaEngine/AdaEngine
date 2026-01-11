@@ -9,6 +9,17 @@ import AdaUtils
 import Foundation
 import SPIRVCompiler
 import SPIRV_Cross
+import Logging
+
+/// Compile shader for device specific language.
+protocol ShaderDeviceCompilerEngine: Sendable {
+    func compile(
+        spirvData: Data, 
+        entryPoint: String, 
+        stage: ShaderStage,
+        defines: [ShaderDefine]
+    ) async throws -> DeviceCompiledShader
+}
 
 // TODO: Should we invert y-axis for vertex shader?
 // TODO: We should remove cached shaders if their included content will change.
@@ -21,7 +32,7 @@ struct SpirvBinary {
     let version: Int
 }
 
-public struct ShaderDefine: Hashable {
+public struct ShaderDefine: Hashable, Sendable {
     public let name: String
     public let value: String
     
@@ -66,6 +77,7 @@ public final class ShaderCompiler {
     private var macros: [ShaderStage: [String : ShaderDefine]] = [:]
     
     private(set) var shaderSource: ShaderSource
+    private let logger = Logger(label: "ShaderCompiler")
     
     /// Create a new shader compiler from file source.
     public init(from fileUrl: URL) throws {
@@ -112,12 +124,20 @@ public final class ShaderCompiler {
     /// - Throws: Error if something went wrong on compilation to SPIR-V.
     public func compileShader(for stage: ShaderStage) throws -> Shader {
         let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
-        let shader = try Shader.make(from: binary, compiler: self)
-        
+        let deviceShaderCompiler = self.makeDeviceShaderCompiler()
+        let compiledShaderData = try UnsafeTask { [deviceShaderCompiler, macros] in
+            try await deviceShaderCompiler.compile(
+                spirvData: binary.data, 
+                entryPoint: binary.entryPoint, 
+                stage: stage, 
+                defines: Array(macros[stage, default: [:]].values)
+            )
+        }.get()
+        let shader = try Shader.make(from: compiledShaderData.source, entryPoint: binary.entryPoint, stage: stage)
         if let reflection = ShaderCache.getReflection(for: self.shaderSource, stage: stage) {
             shader.reflectionData = reflection
         } else {
-            let data = shader.reflect()
+            let data = shader.reflectionData
             shader.reflectionData = data
             try ShaderCache.saveReflection(data, for: self.shaderSource, stage: stage)
         }
@@ -150,7 +170,11 @@ public final class ShaderCompiler {
         let processedCode = try ShaderIncluder.processIncludes(in: code, includeSearchPath: self.includeSearchPaths)
         let (entryPoint, ppCode) = try ShaderUtils.dropEntryPoint(from: processedCode)
         let spirv = try self.compileCode(ppCode, entryPoint: entryPoint, stage: stage)
-        try? ShaderCache.save(spirv, source: self.shaderSource, stage: stage, version: version)
+        do {
+            try ShaderCache.save(spirv, source: self.shaderSource, stage: stage, version: version)
+        } catch {
+            self.logger.warning("Failed to save spirv to cache: \(error)")
+        }
         
         return spirv
     }
@@ -215,6 +239,17 @@ public final class ShaderCompiler {
         }
         
         return defines
+    }
+}
+
+extension ShaderCompiler { 
+    func makeDeviceShaderCompiler() -> ShaderDeviceCompilerEngine {
+        switch unsafe RenderEngine.shared.type.deviceLang {
+        case .wgsl:
+            return WGSLShaderCompiler()
+        default:
+            return GLSLangShaderCompiler()
+        }
     }
 }
 
