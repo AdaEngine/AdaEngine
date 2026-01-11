@@ -21,8 +21,6 @@ struct WGSLShaderCompiler: ShaderDeviceCompilerEngine {
             .path(System.FilePath(toolExecutable.path())), 
             arguments: [
                 tempFileURL.path(),
-                "--entry-point",
-                entryPoint,
                 "--format", 
                 "wgsl"
             ],
@@ -31,7 +29,7 @@ struct WGSLShaderCompiler: ShaderDeviceCompilerEngine {
         )
         try FileManager.default.removeItem(at: tempFileURL)
 
-        if let error = process.standardError {
+        if let error = process.standardError, !error.isEmpty {
             throw ShaderCompilerError.failed(error)
         }
 
@@ -43,8 +41,9 @@ struct WGSLShaderCompiler: ShaderDeviceCompilerEngine {
             throw ShaderCompilerError.failed("No output")
         }
 
+        let processedSource = renameEntryPoint(in: source, entryPoint: entryPoint)
         return DeviceCompiledShader(
-            source: source, 
+            source: processedSource, 
             language: .wgsl, 
             entryPoints: [
                 .init(name: entryPoint, stage: stage)
@@ -52,12 +51,16 @@ struct WGSLShaderCompiler: ShaderDeviceCompilerEngine {
         )
     }
 
-    func getTempFileURL(from sprivData: Data) throws -> URL {
+    private func getTempFileURL(from sprivData: Data) throws -> URL {
         let tempDirectory = FileManager.default.temporaryDirectory
         let fileName = UUID().uuidString + ".spv"
         let fileURL = tempDirectory.appendingPathComponent(fileName)
         try sprivData.write(to: fileURL)
         return fileURL
+    }
+
+    private func renameEntryPoint(in source: String, entryPoint: String) -> String {
+        return source.replacingOccurrences(of: "fn main(", with: "fn \(entryPoint)(")
     }
 
     enum ShaderCompilerError: LocalizedError {
