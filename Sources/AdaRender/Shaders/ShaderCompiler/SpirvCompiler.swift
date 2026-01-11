@@ -9,16 +9,16 @@ import Foundation
 import SPIRV_Cross
 import Logging
 
-struct SpirvShader {
+public struct DeviceCompiledShader {
 
-    struct EntryPoint {
-        let name: String
-        let stage: ShaderStage
+    public struct EntryPoint {
+        public let name: String
+        public let stage: ShaderStage
     }
 
-    let source: String
-    let language: ShaderLanguage
-    let entryPoints: [EntryPoint]
+    public let source: String
+    public let language: ShaderLanguage
+    public let entryPoints: [EntryPoint]
 }
 
 /// Create High Level Shading Language from SPIR-V for specific shader language.
@@ -92,7 +92,7 @@ final class SpirvCompiler {
     }
 
     /// Compile shader to device specific language
-    func compile() throws -> SpirvShader {
+    func compile() throws -> DeviceCompiledShader {
         var spvcCompilerOptions: spvc_compiler_options?
         if unsafe spvc_compiler_create_compiler_options(spvcCompiler, &spvcCompilerOptions) != SPVC_SUCCESS {
             let errorMessage = unsafe String(cString: spvc_context_get_last_error_string(context))
@@ -138,7 +138,7 @@ final class SpirvCompiler {
         var spvcEntryPoints: UnsafePointer<spvc_entry_point>?
         unsafe spvc_compiler_get_entry_points(spvcCompiler, &spvcEntryPoints, &numberOfEntryPoints)
 
-        var entryPoints: [SpirvShader.EntryPoint] = []
+        var entryPoints: [DeviceCompiledShader.EntryPoint] = []
 
         for index in 0..<numberOfEntryPoints {
             let entryPoint = unsafe spvcEntryPoints![index]
@@ -150,14 +150,14 @@ final class SpirvCompiler {
             )!
 
             unsafe entryPoints.append(
-                SpirvShader.EntryPoint(
+                DeviceCompiledShader.EntryPoint(
                     name: String(cString: name),
                     stage: ShaderStage(from: entryPoint.execution_model)
                 )
             )
         }
 
-        return SpirvShader(
+        return DeviceCompiledShader(
             source: source,
             language: self.deviceLang,
             entryPoints: entryPoints

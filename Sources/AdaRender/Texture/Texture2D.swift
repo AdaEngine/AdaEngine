@@ -40,7 +40,7 @@ open class Texture2D: Texture, @unchecked Sendable {
             samplerDescription: samplerDescription ?? image.samplerDescription
         )
 
-        let device = RenderEngine.shared.createLocalRenderDevice()
+        let device = unsafe RenderEngine.shared.createLocalRenderDevice()
         let gpuTexture = device.createTexture(from: descriptor)
         let sampler = device.createSampler(from: descriptor.samplerDescription)
 
@@ -55,7 +55,7 @@ open class Texture2D: Texture, @unchecked Sendable {
     ///
     /// - Parameter descriptor: The descriptor to initialize the texture from.
     public init(descriptor: TextureDescriptor) {
-        let device = RenderEngine.shared.createLocalRenderDevice()
+        let device = unsafe RenderEngine.shared.createLocalRenderDevice()
         let gpuTexture = device.createTexture(from: descriptor)
         let sampler = device.createSampler(from: descriptor.samplerDescription)
 

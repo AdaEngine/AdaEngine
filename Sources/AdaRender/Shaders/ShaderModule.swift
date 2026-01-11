@@ -92,7 +92,7 @@ public extension ShaderModule {
     ///
     /// - Parameter fileUrl: The file url to create the shader module from.
     /// - Returns: The shader module.
-    static func create(from fileUrl: URL) throws -> ShaderModule {
-        try ShaderCompiler(from: fileUrl).compileShaderModule()
+    static func create(from fileUrl: URL) async throws -> ShaderModule {
+        try await ShaderCompiler(from: fileUrl).compileShaderModule()
     }
 }

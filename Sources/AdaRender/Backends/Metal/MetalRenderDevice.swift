@@ -13,6 +13,17 @@ import Math
 
 final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 
+    enum RenderDeviceError: LocalizedError {
+        case shaderSourceIsNotCode
+
+        var errorDescription: String? {
+        switch self {
+        case .shaderSourceIsNotCode:
+            return "Shader source is not a code"
+        }
+    }
+    }
+
     let device: MTLDevice
     let commandQueue: MTLCommandQueue
     private weak var context: MetalRenderBackend.Context?
@@ -28,14 +39,14 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     func compileShader(from shader: Shader) throws -> CompiledShader {
-        let spirvShader = try shader.spirvCompiler.compile()
-        let library = try self.device.makeLibrary(source: spirvShader.source, options: nil)
-
+        guard case let .code(source) = shader.source else {
+            throw RenderDeviceError.shaderSourceIsNotCode
+        }
+        let library = try self.device.makeLibrary(source: source, options: nil)
         let descriptor = MTLFunctionDescriptor()
-        descriptor.name = spirvShader.entryPoints[0].name
+        descriptor.name = shader.entryPoint
         let function = try library.makeFunction(descriptor: descriptor)
-
-        return MetalShader(name: spirvShader.entryPoints[0].name, library: library, function: function)
+        return MetalShader(name: shader.entryPoint, library: library, function: function)
     }
 
     func createCommandQueue() -> CommandQueue {

@@ -11,7 +11,6 @@ import Foundation
 /// Contains native compiled GPU device shader.
 public protocol CompiledShader: AnyObject {}
 
-// TODO: (Vlad) Add hash
 // TODO: (Vlad) Add reflection data
 // TODO: (Vlad) I'm not sure that we should save compiled shader inside `Shader` object.
 
@@ -26,30 +25,20 @@ public final class Shader: Asset, @unchecked Sendable {
     }
     
     /// Return compiled shader which used for specific render backend.
-    public fileprivate(set) var compiledShader: CompiledShader!
+    public internal(set) var compiledShader: CompiledShader!
     
     /// Contains information about shader stage.
     public let stage: ShaderStage
 
     public private(set) var source: Source
     public private(set) var entryPoint: String
-
-    internal private(set) var spirvCompiler: SpirvCompiler!
     
     private var shaderCompiler: ShaderCompiler
     
-    var reflectionData: ShaderReflectionData = ShaderReflectionData()
+    public internal(set) var reflectionData: ShaderReflectionData = ShaderReflectionData()
     
     fileprivate init(spirv: SpirvBinary, compiler: ShaderCompiler) throws {
         self.source = .spirv(spirv.data)
-
-        self.spirvCompiler = unsafe try SpirvCompiler(
-            spriv: spirv.data,
-            stage: spirv.stage,
-            deviceLang: RenderEngine.shared.type.deviceLang
-        )
-        self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
-        
         self.entryPoint = spirv.entryPoint
         self.stage = spirv.stage
         self.shaderCompiler = compiler
@@ -61,7 +50,6 @@ public final class Shader: Asset, @unchecked Sendable {
         self.entryPoint = entryPoint
         self.stage = stage
         self.shaderCompiler = try! ShaderCompiler(shaderSource: ShaderSource(source: source, lang: .wgsl))
-        self.spirvCompiler = nil
         self.compiledShader = nil
     }
     
@@ -78,13 +66,6 @@ public final class Shader: Asset, @unchecked Sendable {
     public func recompile() throws {
         let spirv = try shaderCompiler.compileSpirvBin(for: self.stage)
         self.source = .spirv(spirv.data)
-        self.spirvCompiler = unsafe try SpirvCompiler(
-            spriv: spirv.data,
-            stage: self.stage,
-            deviceLang: RenderEngine.shared.type.deviceLang
-        )
-        self.spirvCompiler.renameEntryPoint(spirv.entryPoint)
-        
         self.compiledShader = unsafe try RenderEngine.shared.renderDevice.compileShader(from: self)
     }
     
@@ -103,11 +84,9 @@ public final class Shader: Asset, @unchecked Sendable {
         }
         
         self.shaderCompiler = ShaderCompiler(shaderSource: shaderSource)
-        let spirv = try self.shaderCompiler.compileSpirvBin(for: stage)
-        let shader = try Self.make(from: spirv, compiler: self.shaderCompiler)
+        let shader = try self.shaderCompiler.compileShader(for: stage)
         self.source = shader.source
         self.reflectionData = shader.reflectionData
-        self.spirvCompiler = shader.spirvCompiler
         self.stage = stage
         self.compiledShader = shader.compiledShader
         self.entryPoint = shader.entryPoint
@@ -121,18 +100,10 @@ public final class Shader: Asset, @unchecked Sendable {
         ["mat"]
     }
     
-    static func make(from spirv: SpirvBinary, compiler: ShaderCompiler) throws -> Shader {
-        let shader = try Shader(spirv: spirv, compiler: compiler)
-        let compiledShader = unsafe try RenderEngine.shared.renderDevice.compileShader(from: shader)
-        shader.compiledShader = compiledShader
-        
+    static func make(from source: String, entryPoint: String, stage: ShaderStage) throws -> Shader {
+        let shader = Shader(source: source, entryPoint: entryPoint, stage: stage)
+        try shader.compile()
         return shader
-    }
-    
-    // MARK: - Private
-    
-    func reflect() -> ShaderReflectionData {
-        return self.spirvCompiler.reflection()
     }
 }
 

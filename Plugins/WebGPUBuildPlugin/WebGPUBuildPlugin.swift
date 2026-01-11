@@ -10,12 +10,18 @@ import PackagePlugin
 
 @main
 struct WebGPUBuildPlugin: BuildToolPlugin {
+
+    let fileManager = FileManager.default
+
     func createBuildCommands(context: PluginContext, target: Target) async throws -> [Command] {
+        var commands: [Command] = []
+        
         #if os(Windows)
-        return try createWindowsCommands(context: context, target: target)
-        #else
-        return []
+        commands.append(contentsOf: try createWindowsCommands(context: context, target: target))
         #endif
+
+        try commands.append(contentsOf: copyTintToAdaEngine(context: context, target: target))
+        return commands
     }
     
     #if os(Windows)
@@ -87,5 +93,103 @@ struct WebGPUBuildPlugin: BuildToolPlugin {
         return commands
     }
     #endif
+
+    private func copyTintToAdaEngine(
+        context: PluginContext,
+        target: Target
+    ) throws -> [Command] {
+        let packageDirectory = context.package.directoryURL
+        let binDirecotry = packageDirectory.appending(
+            components: ".build", "plugins", "WebGPUTintPlugin", "outputs", "bin", .tintBinaryPlatform, .tintBinaryName,
+            directoryHint: .notDirectory
+        )
+
+        guard fileManager.fileExists(atPath: binDirecotry.path()) else {
+            throw PluginError.error("""
+            Tint binary not found at working directory. 
+            Please run `swift package plugin build-tint` to download tint
+            """)
+        }
+
+        let tintOutputDirectory = context.pluginWorkDirectoryURL.appending(
+            component: "tools",
+            directoryHint: .isDirectory
+        )
+
+        if !fileManager.fileExists(atPath: tintOutputDirectory.path()) {
+            try fileManager.createDirectory(
+                at: tintOutputDirectory,
+                withIntermediateDirectories: true
+            )
+        }
+
+        let outputPath = tintOutputDirectory.appending(component: String.tintBinaryName, directoryHint: .notDirectory)
+
+        return [
+            .buildCommand(
+                displayName: "Copy Tint binary",
+                executable: URL(fileURLWithPath: "/bin/cp"),
+                arguments: [
+                    binDirecotry.path(),
+                    outputPath.path()
+                ],
+                environment: [:],
+                inputFiles: [
+                    binDirecotry
+                ],
+                outputFiles: [
+                    outputPath
+                ]
+            )
+        ]
+    }
 }
 
+private extension String {
+    static var tintBinaryPlatform: String {
+#if arch(arm64)
+
+#if os(macOS)
+        return "arm64-macos"
+#elseif os(Linux)
+        return "arm64-linux"
+#else
+        Diagnostics.error("Not supported platform")
+        return ""
+#endif
+#else
+
+#if os(macOS)
+        return "x86_64-macos"
+#elseif os(Linux)
+        return "x86_64-linux"
+#elseif os(Windows)
+        return "x86_64-win32"
+#else
+        Diagnostics.error("Not supported platform")
+        return ""
+#endif
+
+#endif
+    }
+
+    static var tintBinaryName: String {
+        #if os(Windows)
+        "tint.exe"
+        #else
+        "tint"
+        #endif
+    }
+}
+
+enum PluginError: LocalizedError {
+
+    case error(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .error(let string):
+            return string
+        }
+    }
+}

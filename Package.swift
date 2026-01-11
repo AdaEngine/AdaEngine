@@ -58,7 +58,10 @@ var products: [Product] = [
     .library(
         name: "AdaEngineEmbeddable",
         targets: ["AdaEngineEmbeddable"]
-    )
+    ),
+    .plugin(name: "WebGPUBuildPlugin", targets: [
+        "WebGPUBuildPlugin"
+    ])
 ]
 
 // Check that we target on vulkan dependency
@@ -317,6 +320,7 @@ var targets: [Target] = [
             "SPIRV-Cross",
             "SPIRVCompiler",
             "libpng",
+            .product(name: "Subprocess", package: "swift-subprocess"),
             .product(
                 name: "WebGPU",
                 package: "swift-webgpu",
@@ -328,7 +332,13 @@ var targets: [Target] = [
         resources: [
             .copy("Assets/Shaders")
         ],
-        swiftSettings: swiftSettings
+        swiftSettings: swiftSettings,
+        plugins: {
+           if isWGPUEnabled {
+                return ["WebGPUBuildPlugin"]
+           }
+           return []
+        }()
     ),
     .adaTarget(
         name: "AdaText",
@@ -428,9 +438,6 @@ var targets: [Target] = [
     ),
 ]
 
-// MARK: Build Plugins
-
-#if os(Windows)
 targets.append(
     .plugin(
         name: "WebGPUBuildPlugin",
@@ -438,9 +445,10 @@ targets.append(
         dependencies: []
     )
 )
-#endif
 
+// MARK: Build Plugins
 if isWGPUEnabled {
+
     targets.append(
         .plugin(
             name: "WebGPUTintPlugin",
@@ -884,6 +892,7 @@ package.dependencies += [
     .package(url: "https://github.com/apple/swift-numerics", from: "1.1.1"),
     .package(url: "https://github.com/apple/swift-atomics", from: "1.3.0"),
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
+    .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "0.2.1"),
     // TODO: SpectralDragon packages should move to AdaEngine
     .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     .package(

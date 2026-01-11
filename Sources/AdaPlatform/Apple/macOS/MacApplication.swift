@@ -54,7 +54,7 @@ final class MacApplication: Application {
                         .cancel("OK", action: { exit(EXIT_FAILURE) })
                     ]
                 )
-                await Application.shared.showAlert(alert)
+                Application.shared.showAlert(alert)
             }
         }
 
