@@ -37,7 +37,6 @@ public struct QuadPipeline: RenderPipelineConfigurator {
             .attribute(.vector4, name: "a_Position"),
             .attribute(.vector4, name: "a_Color"),
             .attribute(.vector2, name: "a_TexCoordinate"),
-            .attribute(.int, name: "a_TexIndex")
         ])
 
         pipelineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride

@@ -16,8 +16,9 @@ void main() {
 layout (location = 0) in vec2 v_UV;
 layout (location = 0) out vec4 o_Color;
 
-layout (binding = 0) uniform sampler2D u_MainTexture;
+layout (binding = 0) uniform texture2D u_MainTexture;
+layout (binding = 1) uniform sampler u_MainSampler;
 
 void main() {
-    o_Color = texture(u_MainTexture, v_UV);
+    o_Color = texture(sampler2D(u_MainTexture, u_MainSampler), v_UV);
 }

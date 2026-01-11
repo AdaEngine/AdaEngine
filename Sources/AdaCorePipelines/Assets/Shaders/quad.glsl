@@ -6,7 +6,6 @@
 layout (location = 0) in vec4 a_Position;
 layout (location = 1) in vec4 a_Color;
 layout (location = 2) in vec2 a_TexCoordinate;
-layout (location = 3) in int a_TexIndex;
 
 struct VertexOut
 {
@@ -14,7 +13,6 @@ struct VertexOut
     vec2 TexCoordinate;
 };
 
-layout (location = 3) out int TexIndex;
 layout (location = 0) out VertexOut Output;
 
 [[main]]
@@ -22,7 +20,6 @@ void quad_vertex()
 {
     Output.Color = a_Color;
     Output.TexCoordinate = a_TexCoordinate;
-    TexIndex = a_TexIndex;
     
     gl_Position = u_ViewProjection * a_Position;
 }
@@ -40,12 +37,13 @@ struct VertexOut
 
 layout (location = 0) in VertexOut Input;
 layout (location = 3) in flat int TexIndex;
-layout (binding = 0) uniform sampler2D u_Textures[16];
+layout (binding = 0) uniform texture2D u_Texture;
+layout (binding = 1) uniform sampler u_TextureSampler;
 
 [[main]]
 void quad_fragment()
 {
-    color = texture(u_Textures[TexIndex], Input.TexCoordinate) * Input.Color;
+    color = texture(sampler2D(u_Texture, u_TextureSampler), Input.TexCoordinate) * Input.Color;
     
     // to avoid depth write
     if (color.a == 0.0) {
