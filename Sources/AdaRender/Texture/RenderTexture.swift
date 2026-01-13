@@ -69,10 +69,6 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
         super.init(gpuTexture: gpuTexture, sampler: sampler, size: gpuTexture.size)
     }
 
-    deinit {
-        print("RenderTexture deinit", self.gpuTexture.label ?? "Unknown label")
-    }
-
     func setActive(_ isActive: Bool) {
         self.isActive = isActive
     }

@@ -43,6 +43,8 @@ final class MacApplication: Application {
         task = Task(priority: .userInitiated) {
             do {
                 while true {
+                    try Task.checkCancellation()
+                    self.processEvents()
                     try await appWorlds.update()
                     await Task.yield()
                 }
