@@ -111,6 +111,9 @@ final class WGPURenderPipeline: RenderPipeline {
         }
 
         self.descriptor = descriptor
+        let topology = descriptor.primitive.toWebGPU
+        let stripIndexFormat: IndexFormat = (topology == .triangleStrip || topology == .lineStrip) ? .uint32 : .undefined
+        
         self.renderPipeline = device.createRenderPipeline(
             descriptor: WebGPU.RenderPipelineDescriptor(
                 label: descriptor.debugName,
@@ -122,14 +125,18 @@ final class WGPURenderPipeline: RenderPipeline {
                     buffers: vertexBuffers
                 ),
                 primitive: PrimitiveState(
-                    topology: descriptor.primitive.toWebGPU,
-                    stripIndexFormat: IndexFormat.uint32,
+                    topology: topology,
+                    stripIndexFormat: stripIndexFormat,
                     frontFace: FrontFace.ccw,
                     cullMode: descriptor.backfaceCulling ? .back : .none,
                     unclippedDepth: false
                 ),
                 depthStencil: depthStencilState,
-                multisample: MultisampleState(),
+                multisample: MultisampleState(
+                    count: 1,
+                    mask: ~0,
+                    alphaToCoverageEnabled: false
+                ),
                 fragment: fragmentState,
                 nextInChain: nil
             )

@@ -11,6 +11,18 @@ import SPIRVCompiler
 import SPIRV_Cross
 import Logging
 
+public struct DeviceCompiledShader {
+
+    public struct EntryPoint {
+        public let name: String
+        public let stage: ShaderStage
+    }
+
+    public let source: String
+    public let language: ShaderLanguage
+    public let entryPoints: [EntryPoint]
+}
+
 /// Compile shader for device specific language.
 protocol ShaderDeviceCompilerEngine: Sendable {
     func compile(
@@ -245,8 +257,10 @@ public final class ShaderCompiler {
 extension ShaderCompiler { 
     func makeDeviceShaderCompiler() -> ShaderDeviceCompilerEngine {
         switch unsafe RenderEngine.shared.type.deviceLang {
+        #if canImport(WebGPU)
         case .wgsl:
             return WGSLShaderCompiler()
+        #endif
         default:
             return GLSLangShaderCompiler()
         }

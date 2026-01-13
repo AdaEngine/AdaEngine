@@ -91,7 +91,6 @@ enum ShaderCache {
         )
     }
     
-    @discardableResult
     static func save(_ spirvBin: SpirvBinary, source: ShaderSource, stage: ShaderStage, version: Int) throws {
         guard let fileURL = source.fileURL else {
             throw CompileError.failed("Source file URL not found")

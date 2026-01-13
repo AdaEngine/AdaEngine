@@ -43,7 +43,7 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
         self.pixelFormat = format
         self.scaleFactor = scaleFactor
         
-        let device = RenderEngine.shared.renderDevice
+        let device = unsafe RenderEngine.shared.renderDevice
         let gpuTexture = device.createTexture(from: descriptor)
         let sampler = device.createSampler(from: descriptor.samplerDescription)
         
@@ -63,10 +63,14 @@ public final class RenderTexture: Texture2D, @unchecked Sendable {
         self.pixelFormat = format
         self.scaleFactor = scaleFactor
         
-        let device = RenderEngine.shared.renderDevice
+        let device = unsafe RenderEngine.shared.renderDevice
         let sampler = device.createSampler(from: SamplerDescriptor())
         
         super.init(gpuTexture: gpuTexture, sampler: sampler, size: gpuTexture.size)
+    }
+
+    deinit {
+        print("RenderTexture deinit", self.gpuTexture.label ?? "Unknown label")
     }
 
     func setActive(_ isActive: Bool) {

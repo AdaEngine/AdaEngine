@@ -36,42 +36,42 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
         currentPrimitiveType = metalPipeline.descriptor.primitive.toMetal
     }
 
-    func setVertexBuffer(_ buffer: UniformBuffer, offset: Int, index: Int) {
+    func setVertexBuffer(_ buffer: UniformBuffer, offset: Int, slot: Int) {
         guard let metalBuffer = buffer as? MetalUniformBuffer else {
             fatalError("UniformBuffer is not a MetalUniformBuffer")
         }
-        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: index)
+        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: slot)
     }
 
-    func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, index: Int) {
+    func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, slot: Int) {
         guard let metalBuffer = buffer as? MetalVertexBuffer else {
             fatalError("VertexBuffer is not a MetalVertexBuffer")
         }
-        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: index)
+        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: slot)
     }
 
-    func setFragmentBuffer(_ buffer: UniformBuffer, offset: Int, index: Int) {
+    func setFragmentBuffer(_ buffer: UniformBuffer, offset: Int, slot: Int) {
         guard let metalBuffer = buffer as? MetalUniformBuffer else {
             fatalError("UniformBuffer is not a MetalUniformBuffer")
         }
-        renderEncoder.setFragmentBuffer(metalBuffer.buffer, offset: offset, index: index)
+        renderEncoder.setFragmentBuffer(metalBuffer.buffer, offset: offset, index: slot)
     }
 
 
-    func setVertexBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int) {
+    func setVertexBuffer<T>(_ bufferData: BufferData<T>, offset: Int, slot: Int) {
         guard let metalBuffer = bufferData.buffer as? MetalBuffer else {
             fatalError("BufferData is not a MetalBuffer")
         }
 
-        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: index)
+        renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: slot)
     }
 
-    func setFragmentBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int) {
+    func setFragmentBuffer<T>(_ bufferData: BufferData<T>, offset: Int, slot: Int) {
         guard let metalBuffer = bufferData.buffer as? MetalBuffer else {
             fatalError("UniformBuffer is not a MetalUniformBuffer")
         }
 
-        renderEncoder.setFragmentBuffer(metalBuffer.buffer, offset: offset, index: index)
+        renderEncoder.setFragmentBuffer(metalBuffer.buffer, offset: offset, index: slot)
     }
 
     func setIndexBuffer<T>(_ bufferData: BufferData<T>, indexFormat: IndexBufferFormat) {
@@ -82,22 +82,22 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
         currentIndexType = indexFormat == .uInt32 ? .uint32 : .uint16
     }
 
-    func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, index: Int) {
-        unsafe renderEncoder.setVertexBytes(bytes, length: length, index: index)
+    func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, slot: Int) {
+        unsafe renderEncoder.setVertexBytes(bytes, length: length, index: slot)
     }
 
-    func setFragmentTexture(_ texture: Texture, index: Int) {
+    func setFragmentTexture(_ texture: Texture, slot: Int) {
         guard let metalTexture = texture.gpuTexture as? MetalGPUTexture else {
             fatalError("Texture's gpuTexture is not a MetalGPUTexture")
         }
-        renderEncoder.setFragmentTexture(metalTexture.texture, index: index)
+        renderEncoder.setFragmentTexture(metalTexture.texture, index: slot)
     }
 
-    func setFragmentSamplerState(_ sampler: Sampler, index: Int) {
+    func setFragmentSamplerState(_ sampler: Sampler, slot: Int) {
         guard let metalSampler = sampler as? MetalSampler else {
             fatalError("Sampler is not a MetalSampler")
         }
-        renderEncoder.setFragmentSamplerState(metalSampler.mtlSampler, index: index)
+        renderEncoder.setFragmentSamplerState(metalSampler.mtlSampler, index: slot)
     }
 
     func setViewport(_ viewport: Rect) {

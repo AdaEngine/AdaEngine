@@ -108,7 +108,7 @@ public struct UIRenderNode: RenderNode {
             )
 
             // Set the UI view uniform (not the camera's uniform)
-            renderPass.setVertexBuffer(uiViewUniform, index: GlobalBufferIndex.viewUniform)
+            renderPass.setVertexBuffer(uiViewUniform, slot: GlobalBufferIndex.viewUniform)
             renderPass.setViewport(camera.viewport.rect)
 
             try renderItems.render(with: renderPass, world: context.world, view: view)

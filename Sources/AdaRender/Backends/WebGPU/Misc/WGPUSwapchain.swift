@@ -22,18 +22,24 @@ final class WGPUSwapchain: Swapchain, @unchecked Sendable {
 final class WGPUSwapchainDrawable: Drawable, @unchecked Sendable {
     let texture: any GPUTexture
     let surface: WebGPU.Surface
+    let surfaceTextureRef: WebGPU.SurfaceTexture
+    var isPresented: Bool = false
 
     init(surface: WebGPU.Surface) {
         self.surface = surface
-        let surfaceTexture = surface.currentTexture.texture
+        // Keep strong reference to SurfaceTexture to prevent premature destruction
+        self.surfaceTextureRef = surface.currentTexture
+        let surfaceTexture = surfaceTextureRef.texture
         self.texture = WGPUGPUTexture(
             texture: surfaceTexture, 
             textureView: surfaceTexture.createView()
         )
+        self.texture.label = "WGPUSwapchainDrawable texture"
     }
 
     func present() throws {
         let value = surface.present()
+        self.isPresented = true
         if value != .success {
             throw DrawableError.failedToPresentDrawable
         }

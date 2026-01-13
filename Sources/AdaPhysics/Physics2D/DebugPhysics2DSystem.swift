@@ -423,7 +423,7 @@ public struct PhysicsDebugLineDrawPass: DrawPass, Resource {
             renderEncoder.popDebugName()
         }
 
-        renderEncoder.setVertexBuffer(drawData.lineVertexBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(drawData.lineVertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(drawData.lineIndexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
 
@@ -465,7 +465,7 @@ public struct PhysicsDebugCircleDrawPass: DrawPass, Resource {
             renderEncoder.popDebugName()
         }
 
-        renderEncoder.setVertexBuffer(drawData.circleVertexBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(drawData.circleVertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(drawData.circleIndexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
 

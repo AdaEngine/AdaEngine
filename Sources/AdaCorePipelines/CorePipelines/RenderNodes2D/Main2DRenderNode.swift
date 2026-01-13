@@ -75,7 +75,7 @@ public struct Main2DRenderNode: RenderNode {
                 )
             )
 
-            renderPass.setVertexBuffer(uniform, index: GlobalBufferIndex.viewUniform)
+            renderPass.setVertexBuffer(uniform, slot: GlobalBufferIndex.viewUniform)
             renderPass.setViewport(camera.viewport.rect)
 
             if !renderItems.items.items.isEmpty {

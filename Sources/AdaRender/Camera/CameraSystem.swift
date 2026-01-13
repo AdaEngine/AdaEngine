@@ -54,7 +54,7 @@ public struct CameraSystem: Sendable {
             guard let primaryWindow else { return }
             camera.renderTarget = .window(windowRef)
 
-            guard let renderWindow = RenderEngine.shared
+            guard let renderWindow = unsafe RenderEngine.shared
                 .getRenderWindow(for: windowRef.getWindowId(from: primaryWindow))
             else {
                 return

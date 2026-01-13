@@ -52,9 +52,9 @@ public struct SpriteDrawPass: DrawPass {
             renderEncoder.popDebugName()
         }
 
-        renderEncoder.setFragmentTexture(batch.texture, index: 0)
-        renderEncoder.setFragmentSamplerState(batch.texture.sampler, index: 0)
-        renderEncoder.setVertexBuffer(spritesData.vertexBuffer, offset: 0, index: 0)
+        renderEncoder.setFragmentTexture(batch.texture, slot: 0)
+        renderEncoder.setFragmentSamplerState(batch.texture.sampler, slot: 1)
+        renderEncoder.setVertexBuffer(spritesData.vertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(spritesData.indexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
         

@@ -11,7 +11,7 @@ import Math
 
 /// Global information about buffer index.
 public enum GlobalBufferIndex {
-    public static let viewUniform: Int = 1
+    public static let viewUniform: Int = 2
 }
 
 /// Render Engine is object that manage a GPU.

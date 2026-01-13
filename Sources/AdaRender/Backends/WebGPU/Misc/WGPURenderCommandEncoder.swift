@@ -21,6 +21,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     
     // Track if bind group needs update
     private var bindGroupDirty: Bool = false
+    private var triangleFillMode: TriangleFillMode = .fill
     
     // Resource caches for building bind groups - key is the shader binding index
     private var uniformBuffers: [Int: (buffer: WGPUUniformBuffer, offset: Int, visibility: WebGPU.ShaderStage)] = [:]
@@ -287,7 +288,7 @@ extension WGPURenderCommandEncoder {
         // Create bind group using the pipeline's layout
         let bindGroup = device.createBindGroup(
             descriptor: BindGroupDescriptor(
-                label: "SpriteBindGroup",
+                label: pipeline.descriptor.debugName,
                 layout: layout,
                 entries: entries
             )
