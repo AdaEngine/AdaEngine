@@ -64,7 +64,7 @@ public struct TextDrawData: Resource, WorldInitable {
     public var vertexBuffer: BufferData<GlyphVertexData>
     public var indexBuffer: BufferData<UInt32>
     /// Font atlas textures used during rendering (max 16).
-    public var fontAtlases: [Texture2D]
+    public var fontAtlas: Texture2D
     
     /// Background quad vertices (using QuadVertexData).
     public var bgVertexBuffer: BufferData<QuadVertexData>
@@ -74,7 +74,7 @@ public struct TextDrawData: Resource, WorldInitable {
     public init(from world: World) {
         self.vertexBuffer = BufferData(label: "Text2D_VertexBuffer", elements: [])
         self.indexBuffer = BufferData(label: "Text2D_IndexBuffer", elements: [])
-        self.fontAtlases = Array(repeating: .whiteTexture, count: maxFontAtlasTextures)
+        self.fontAtlas = Texture2D.whiteTexture
         self.bgVertexBuffer = BufferData(label: "Text2D_BgVertexBuffer", elements: [])
         self.bgIndexBuffer = BufferData(label: "Text2D_BgIndexBuffer", elements: [])
     }
@@ -84,10 +84,7 @@ public struct TextDrawData: Resource, WorldInitable {
         indexBuffer.elements.removeAll(keepingCapacity: true)
         bgVertexBuffer.elements.removeAll(keepingCapacity: true)
         bgIndexBuffer.elements.removeAll(keepingCapacity: true)
-        // Reset font atlases to white texture
-        for i in 0..<fontAtlases.count {
-            fontAtlases[i] = .whiteTexture
-        }
+        fontAtlas = Texture2D.whiteTexture
     }
 }
 
@@ -194,11 +191,9 @@ public struct Text2DRenderSystem {
         // Clear previous frame data
         textDrawData.clear()
         
+        var currentFontAtlas: Texture2D?
         var instanceCount: Int32 = 0
         var bgQuadCount: Int32 = 0
-
-        // Shared texture slot index for all texts in this frame
-        var textureSlotIndex: Int = -1
 
         for index in renderItems.items.items.indices {
             let itemEntity = renderItems.items.items[index].entity
@@ -210,16 +205,24 @@ public struct Text2DRenderSystem {
             let batchStart = instanceCount
 
             // Get glyph vertex data from text layout
-            // This populates textDrawData.fontAtlases with actual font textures
             let glyphData = text.textLayout.getGlyphVertexData(
                 transform: worldTransform,
-                textures: &textDrawData.fontAtlases,
-                textureSlotIndex: &textureSlotIndex,
                 ignoreCache: true
             )
 
             if glyphData.verticies.isEmpty {
                 continue
+            }
+            
+            // Get font atlas from glyph data (use first non-nil texture)
+            let fontAtlas = glyphData.textures.compactMap({ $0 }).first(where: { $0 !== Texture2D.whiteTexture }) ?? .whiteTexture
+            
+            // Update font atlas if it changed (for proper texture binding)
+            let needsAtlasUpdate = currentFontAtlas == nil || !isSameFontAtlas(currentFontAtlas!, fontAtlas)
+            
+            if needsAtlasUpdate {
+                currentFontAtlas = fontAtlas
+                textDrawData.fontAtlas = fontAtlas
             }
             
             // Check if we need to render a background quad
@@ -314,6 +317,13 @@ public struct Text2DRenderSystem {
             textDrawData.bgIndexBuffer.write(to: device)
         }
     }
+    
+    // MARK: - Private
+    
+    @inlinable
+    func isSameFontAtlas(_ lhs: Texture2D, _ rhs: Texture2D) -> Bool {
+        return lhs.assetMetaInfo?.assetId != .empty && lhs.assetMetaInfo?.assetId == rhs.assetMetaInfo?.assetId
+    }
 }
 
 // MARK: - Text Draw Pass
@@ -358,7 +368,6 @@ public struct TextDrawPass: DrawPass {
             renderEncoder.pushDebugName("Text Background")
             
             // Bind white texture for solid color rendering
-            // Bind all 16 font atlas textures (shader expects array of 16 samplers)
             renderEncoder.setFragmentTexture(Texture2D.whiteTexture, slot: 0)
             renderEncoder.setFragmentSamplerState(Texture2D.whiteTexture.sampler, slot: 1)
             
@@ -384,17 +393,13 @@ public struct TextDrawPass: DrawPass {
         let instanceCount = Int(batch.range.upperBound - batch.range.lowerBound)
         let indexBufferOffset = Int(batch.range.lowerBound) * MemoryLayout<UInt32>.stride
 
-        // Bind all 16 font atlas textures (shader expects array of 16 samplers)
-        for texture in textDrawData.fontAtlases {
-            renderEncoder.setFragmentTexture(texture, slot: 0)
-            renderEncoder.setFragmentSamplerState(texture.sampler, slot: 1)
+        renderEncoder.setFragmentTexture(textDrawData.fontAtlas, slot: 0)
+        renderEncoder.setFragmentSamplerState(textDrawData.fontAtlas.sampler, slot: 1)
 
-            // TODO: Need to use batch
-            renderEncoder.drawIndexed(
-                indexCount: 6 * instanceCount,
-                indexBufferOffset: 6 * indexBufferOffset,
-                instanceCount: 1
-            )
-        }
+        renderEncoder.drawIndexed(
+            indexCount: 6 * instanceCount,
+            indexBufferOffset: 6 * indexBufferOffset,
+            instanceCount: 1
+        )
     }
 }
