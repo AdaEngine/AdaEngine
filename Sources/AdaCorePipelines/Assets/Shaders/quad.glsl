@@ -36,7 +36,6 @@ struct VertexOut
 };
 
 layout (location = 0) in VertexOut Input;
-layout (location = 3) in flat int TexIndex;
 layout (binding = 0) uniform texture2D u_Texture;
 layout (binding = 1) uniform sampler u_TextureSampler;
 

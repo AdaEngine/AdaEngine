@@ -59,6 +59,7 @@ struct WGSLShaderCompiler: ShaderDeviceCompilerEngine {
         return fileURL
     }
 
+    // TODO: (Vlad) This is a temporary solution to rename the entry point. We need to find a better way to do this.
     private func renameEntryPoint(in source: String, entryPoint: String) -> String {
         return source.replacingOccurrences(of: "fn main(", with: "fn \(entryPoint)(")
     }

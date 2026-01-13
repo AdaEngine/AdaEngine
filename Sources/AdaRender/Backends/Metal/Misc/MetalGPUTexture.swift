@@ -14,6 +14,8 @@ final class MetalGPUTexture: GPUTexture {
         SizeInt(width: self.texture.width, height: self.texture.height)
     }
 
+    public var label: String?
+
     var texture: MTLTexture
 
     init(texture: MTLTexture) {

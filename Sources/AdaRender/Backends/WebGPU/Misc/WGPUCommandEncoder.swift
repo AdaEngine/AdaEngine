@@ -47,7 +47,6 @@ final class WGPUCommandEncoder: CommandBuffer {
         let colorAttachments = desc.colorAttachments.map { attachment in
             WebGPU.RenderPassColorAttachment(
                 view: (attachment.texture.gpuTexture as! WGPUGPUTexture).textureView, 
-                depthSlice: 0,
                 resolveTarget: (attachment.resolveTexture?.gpuTexture as? WGPUGPUTexture)?.textureView,
                 loadOp: attachment.operation?.loadAction.toWebGPU ?? .clear, 
                 storeOp: attachment.operation?.storeAction.toWebGPU ?? .store, 
@@ -61,7 +60,9 @@ final class WGPUCommandEncoder: CommandBuffer {
             depthStencilAttachment: wgpuAttachment
         )
 
-        let renderPassEncoder = commandEncoder.beginRenderPass(descriptor: renderPassDescriptor)
+        let renderPassEncoder = commandEncoder.beginRenderPass(
+            descriptor: renderPassDescriptor
+        )
         return WGPURenderCommandEncoder(renderEncoder: renderPassEncoder, device: device)
     }
 

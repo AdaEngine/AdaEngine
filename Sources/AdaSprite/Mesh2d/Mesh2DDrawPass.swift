@@ -57,34 +57,35 @@ public struct Mesh2DDrawPass: DrawPass {
             }
             
             if buffer.shaderStage.contains(.vertex) {
-                renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, index: buffer.binding)
+                renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, slot: buffer.binding)
             }
             
             if buffer.shaderStage.contains(.fragment) {
-                renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, index: buffer.binding)
+                renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, slot: buffer.binding)
             }
         }
-        
+
+        unsafe withUnsafeBytes(of: meshComponent.modelUniform) { buffer in
+            unsafe renderEncoder.setVertexBytes(buffer.baseAddress!, length: buffer.count, slot: Self.meshUniformBinding)
+        }
+
+        part.vertexBuffer.label = "Part Vertex Buffer"
+        renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
+        renderEncoder.setIndexBuffer(part.indexBuffer, offset: 0)
+        renderEncoder.setRenderPipelineState(item.renderPipeline)
+
         for (resourceName, resource) in materialData.reflectionData.resources {
             guard let textures = materialData.textures[resourceName] else {
                 continue
             }
-            
-            for texture in textures {
-                renderEncoder.setFragmentTexture(texture, index: resource.binding)
-                renderEncoder.setFragmentSamplerState(texture.sampler, index: resource.binding)
-            }
-        }
-        unsafe withUnsafeBytes(of: meshComponent.modelUniform) { buffer in
-            unsafe renderEncoder.setVertexBytes(buffer.baseAddress!, length: buffer.count, index: Self.meshUniformBinding)
-        }
 
-        part.vertexBuffer.label = "Part Vertex Buffer"
-        renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, index: 0)
-        renderEncoder.setIndexBuffer(part.indexBuffer, offset: 0)
-        renderEncoder.setRenderPipelineState(item.renderPipeline)
-        
-        renderEncoder.drawIndexed(indexCount: part.indexCount, indexBufferOffset: 0, instanceCount: 1)
+            for texture in textures {
+                renderEncoder.setFragmentTexture(texture, slot: resource.binding)
+                renderEncoder.setFragmentSamplerState(texture.sampler, slot: resource.binding + 1)
+            }
+
+            renderEncoder.drawIndexed(indexCount: part.indexCount, indexBufferOffset: 0, instanceCount: 1)
+        }
     }
 }
 

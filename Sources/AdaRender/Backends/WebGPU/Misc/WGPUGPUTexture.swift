@@ -16,8 +16,14 @@ public final class WGPUGPUTexture: GPUTexture {
         SizeInt(width: Int(self.texture.width), height: Int(self.texture.height))
     }
 
+    public var label: String?
+
     public let texture: WebGPU.Texture
     public let textureView: WebGPU.TextureView
+
+    deinit {
+        print("WGPUGPUTexture deinit", self.label)
+    }
 
     init(texture: WebGPU.Texture, textureView: WebGPU.TextureView) {
         self.texture = texture

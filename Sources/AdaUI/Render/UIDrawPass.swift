@@ -144,20 +144,21 @@ public struct UIDrawPass: DrawPass {
         renderEncoder.pushDebugName("UI Quad Render")
         defer { renderEncoder.popDebugName() }
 
-        // Bind textures
-        for (index, texture) in uiDrawData.textures.enumerated() {
-            renderEncoder.setFragmentTexture(texture, index: index)
-            renderEncoder.setFragmentSamplerState(texture.sampler, index: index)
-        }
-
-        renderEncoder.setVertexBuffer(uiDrawData.quadVertexBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(uiDrawData.quadVertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(uiDrawData.quadIndexBuffer, indexFormat: .uInt32)
 
-        renderEncoder.drawIndexed(
-            indexCount: uiDrawData.quadIndexBuffer.count,
-            indexBufferOffset: 0,
-            instanceCount: 1
-        )
+        // Bind textures
+        for texture in uiDrawData.textures {
+            renderEncoder.setFragmentTexture(texture, slot: 0)
+            renderEncoder.setFragmentSamplerState(texture.sampler, slot: 1)
+
+            /// TODO: Need to use batch
+            renderEncoder.drawIndexed(
+                indexCount: uiDrawData.quadIndexBuffer.count,
+                indexBufferOffset: 0,
+                instanceCount: 1
+            )
+        }
     }
 
     private func renderCircles(
@@ -167,7 +168,7 @@ public struct UIDrawPass: DrawPass {
         renderEncoder.pushDebugName("UI Circle Render")
         defer { renderEncoder.popDebugName() }
 
-        renderEncoder.setVertexBuffer(uiDrawData.circleVertexBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(uiDrawData.circleVertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(uiDrawData.circleIndexBuffer, indexFormat: .uInt32)
 
         renderEncoder.drawIndexed(
@@ -184,7 +185,7 @@ public struct UIDrawPass: DrawPass {
         renderEncoder.pushDebugName("UI Line Render")
         defer { renderEncoder.popDebugName() }
 
-        renderEncoder.setVertexBuffer(uiDrawData.lineVertexBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(uiDrawData.lineVertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(uiDrawData.lineIndexBuffer, indexFormat: .uInt32)
 
         // Lines are rendered using line primitive type configured in the pipeline
@@ -202,19 +203,20 @@ public struct UIDrawPass: DrawPass {
         renderEncoder.pushDebugName("UI Glyph Render")
         defer { renderEncoder.popDebugName() }
 
-        // Bind font atlas textures
-        for (index, texture) in uiDrawData.fontAtlases.enumerated() {
-            renderEncoder.setFragmentTexture(texture, index: index)
-            renderEncoder.setFragmentSamplerState(texture.sampler, index: index)
-        }
-
-        renderEncoder.setVertexBuffer(uiDrawData.glyphVertexBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(uiDrawData.glyphVertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(uiDrawData.glyphIndexBuffer, indexFormat: .uInt32)
 
-        renderEncoder.drawIndexed(
-            indexCount: uiDrawData.glyphIndexBuffer.count,
-            indexBufferOffset: 0,
-            instanceCount: 1
-        )
+        // Bind font atlas textures
+        for texture in uiDrawData.fontAtlases {
+            renderEncoder.setFragmentTexture(texture, slot: 0)
+            renderEncoder.setFragmentSamplerState(texture.sampler, slot: 1)
+
+            /// TODO: Need to use batch
+            renderEncoder.drawIndexed(
+                indexCount: uiDrawData.glyphIndexBuffer.count,
+                indexBufferOffset: 0,
+                instanceCount: 1
+            )
+        }
     }
 }

@@ -9,18 +9,6 @@ import Foundation
 import SPIRV_Cross
 import Logging
 
-public struct DeviceCompiledShader {
-
-    public struct EntryPoint {
-        public let name: String
-        public let stage: ShaderStage
-    }
-
-    public let source: String
-    public let language: ShaderLanguage
-    public let entryPoints: [EntryPoint]
-}
-
 /// Create High Level Shading Language from SPIR-V for specific shader language.
 @safe
 final class SpirvCompiler {

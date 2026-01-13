@@ -359,12 +359,10 @@ public struct TextDrawPass: DrawPass {
             
             // Bind white texture for solid color rendering
             // Bind all 16 font atlas textures (shader expects array of 16 samplers)
-            for index in 0..<16 {
-                renderEncoder.setFragmentTexture(Texture2D.whiteTexture, index: index)
-                renderEncoder.setFragmentSamplerState(Texture2D.whiteTexture.sampler, index: index)
-            }
+            renderEncoder.setFragmentTexture(Texture2D.whiteTexture, slot: 0)
+            renderEncoder.setFragmentSamplerState(Texture2D.whiteTexture.sampler, slot: 1)
             
-            renderEncoder.setVertexBuffer(textDrawData.bgVertexBuffer, offset: 0, index: 0)
+            renderEncoder.setVertexBuffer(textDrawData.bgVertexBuffer, offset: 0, slot: 0)
             renderEncoder.setIndexBuffer(textDrawData.bgIndexBuffer, indexFormat: .uInt32)
             renderEncoder.setRenderPipelineState(quadPipeline)
             
@@ -379,23 +377,24 @@ public struct TextDrawPass: DrawPass {
             renderEncoder.popDebugName()
         }
 
-        // Bind all 16 font atlas textures (shader expects array of 16 samplers)
-        for (index, texture) in textDrawData.fontAtlases.enumerated() {
-            renderEncoder.setFragmentTexture(texture, index: index)
-            renderEncoder.setFragmentSamplerState(texture.sampler, index: index)
-        }
-
-        renderEncoder.setVertexBuffer(textDrawData.vertexBuffer, offset: 0, index: 0)
+        renderEncoder.setVertexBuffer(textDrawData.vertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(textDrawData.indexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
 
         let instanceCount = Int(batch.range.upperBound - batch.range.lowerBound)
         let indexBufferOffset = Int(batch.range.lowerBound) * MemoryLayout<UInt32>.stride
 
-        renderEncoder.drawIndexed(
-            indexCount: 6 * instanceCount,
-            indexBufferOffset: 6 * indexBufferOffset,
-            instanceCount: 1
-        )
+        // Bind all 16 font atlas textures (shader expects array of 16 samplers)
+        for texture in textDrawData.fontAtlases {
+            renderEncoder.setFragmentTexture(texture, slot: 0)
+            renderEncoder.setFragmentSamplerState(texture.sampler, slot: 1)
+
+            // TODO: Need to use batch
+            renderEncoder.drawIndexed(
+                indexCount: 6 * instanceCount,
+                indexBufferOffset: 6 * indexBufferOffset,
+                instanceCount: 1
+            )
+        }
     }
 }

@@ -72,6 +72,7 @@ public struct TextureDescriptor {
 }
 
 /// Interface represent platform specific gpu texture.
-public protocol GPUTexture {
+public protocol GPUTexture: AnyObject {
     var size: SizeInt { get }
+    var label: String? { get set }
 }
