@@ -90,9 +90,9 @@ public struct SystemsGraph: Sendable {
             for dependency in node.dependencies {
                 switch dependency {
                 case .after(let system):
-                    self.tryAddEdge(from: system.swiftName, to: systemName)
+                    self.tryAddEdge(from: system, to: systemName)
                 case .before(let system):
-                    self.tryAddEdge(from: systemName, to: system.swiftName)
+                    self.tryAddEdge(from: systemName, to: system)
                 }
             }
         }

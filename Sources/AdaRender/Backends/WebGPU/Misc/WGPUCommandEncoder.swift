@@ -11,12 +11,15 @@ import Math
 import WebGPU
 
 final class WGPUCommandEncoder: CommandBuffer {
+    var label: String? {
+        didSet {
+            commandEncoder.setLabel(label ?? "")
+        }
+    }
     let device: WebGPU.Device
     let commandEncoder: WebGPU.CommandEncoder
 
-    init(
-        device: WebGPU.Device
-    ) {
+    init(device: WebGPU.Device) {
         self.device = device
         self.commandEncoder = device.createCommandEncoder()
     }

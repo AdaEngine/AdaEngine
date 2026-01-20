@@ -30,6 +30,13 @@ public struct SpriteVertexData: Sendable {
 /// vertices in the vertex buffer, allowing efficient rendering without
 /// per-instance data.
 public struct SpriteDrawPass: DrawPass {
+
+    enum ShaderSlots {
+        static let texture = 0
+        static let sampler = 1
+        static let vertexBuffer = 0
+    }
+
     public func render(
         with renderEncoder: RenderCommandEncoder,
         world: World,
@@ -52,9 +59,9 @@ public struct SpriteDrawPass: DrawPass {
             renderEncoder.popDebugName()
         }
 
-        renderEncoder.setFragmentTexture(batch.texture, slot: 0)
-        renderEncoder.setFragmentSamplerState(batch.texture.sampler, slot: 1)
-        renderEncoder.setVertexBuffer(spritesData.vertexBuffer, offset: 0, slot: 0)
+        renderEncoder.setFragmentTexture(batch.texture, slot: ShaderSlots.texture)
+        renderEncoder.setFragmentSamplerState(batch.texture.sampler, slot: ShaderSlots.sampler)
+        renderEncoder.setVertexBuffer(spritesData.vertexBuffer, offset: 0, slot: ShaderSlots.vertexBuffer)
         renderEncoder.setIndexBuffer(spritesData.indexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
         

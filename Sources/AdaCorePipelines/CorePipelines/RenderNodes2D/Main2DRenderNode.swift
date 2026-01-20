@@ -51,7 +51,7 @@ public struct Main2DRenderNode: RenderNode {
 
             let clearColor = camera.clearFlags.contains(.solid) ? camera.backgroundColor : .surfaceClearColor
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
-
+            commandBuffer.label = "Main 2d Render Pass"
             guard
                 let texture = target.mainTexture
             else {

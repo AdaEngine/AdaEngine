@@ -11,8 +11,9 @@ import Math
 import Metal
 
 final class MetalCommandEncoder: CommandBuffer {
+    var label: String?
     let commandBuffer: MTLCommandBuffer
-
+    
     init(commandBuffer: MTLCommandBuffer) {
         self.commandBuffer = commandBuffer
     }
