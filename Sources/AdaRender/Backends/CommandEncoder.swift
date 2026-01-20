@@ -100,6 +100,9 @@ public struct Size3D: Sendable {
 /// commandBuffer.commit()
 /// ```
 public protocol CommandBuffer: AnyObject {
+    /// The debug label for the command buffer.
+    var label: String? { get set }
+
     /// Begins a render pass and returns an encoder for recording rendering commands.
     ///
     /// - Parameter desc: The descriptor that configures the render pass attachments and load/store actions.

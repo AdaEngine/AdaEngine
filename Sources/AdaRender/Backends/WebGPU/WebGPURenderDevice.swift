@@ -114,14 +114,23 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         return (texture.gpuTexture as? WGPUGPUTexture)?.getImage(device: context.device)
     }
 
+    var index: Int = 0
+
     public func createCommandQueue() -> any CommandQueue {
         return WGPUCommandQueue(device: context.device)
     }
 
     @MainActor
     public func createSwapchain(from window: WindowID) -> any Swapchain {
-        WGPUSwapchain(renderWindow: context.getWGPURenderWindow(for: window)!)
+        if let swapchain = swapchains[window] {
+            return swapchain
+        }
+        let swapchain = WGPUSwapchain(renderWindow: context.getWGPURenderWindow(for: window)!)
+        swapchains[window] = swapchain
+        return swapchain
     }
+
+    private var swapchains: SparseSet<WindowID, WGPUSwapchain> = [:]
 }
 
 extension ResourceOptions {

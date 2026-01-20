@@ -42,6 +42,7 @@ public struct UpscaleNode: RenderNode {
            let outputTexture = target.outputTexture,
            mainTexture !== outputTexture {
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
+            commandBuffer.label = "Upscale Pass"
             let renderPass = commandBuffer.beginRenderPass(
                 RenderPassDescriptor(
                     label: "Upscale Pass",

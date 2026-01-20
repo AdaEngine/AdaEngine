@@ -39,7 +39,12 @@ extension SpriteRenderPipeline {
         ])
 
         piplineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<SpriteVertexData>.stride
-        piplineDesc.colorAttachments = [RenderPipelineColorAttachmentDescriptor(format: .bgra8, isBlendingEnabled: true)]
+        piplineDesc.colorAttachments = [
+            RenderPipelineColorAttachmentDescriptor(
+                format: .bgra8, 
+                isBlendingEnabled: true
+            )
+        ]
         return piplineDesc
     }
 }

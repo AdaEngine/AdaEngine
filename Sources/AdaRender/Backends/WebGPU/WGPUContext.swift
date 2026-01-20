@@ -48,9 +48,9 @@ public final class WGPUContext: Sendable {
                 device: device,
                 format: surface.prefferedPixelFormat.toWebGPU,
                 usage: .renderAttachment,
-                width: UInt32(size.width),
-                height: UInt32(size.height),
-                viewFormats: [surface.prefferedPixelFormat.toWebGPU],
+                width: UInt32(Float(size.width) / surface.scaleFactor),
+                height: UInt32(Float(size.height) / surface.scaleFactor),
+                viewFormats: [],
                 alphaMode: .auto,
                 presentMode: PresentMode.fifo
             )
@@ -87,7 +87,7 @@ public final class WGPUContext: Sendable {
                     usage: .renderAttachment,
                     width: UInt32(newSize.width),
                     height: UInt32(newSize.height),
-                    viewFormats: [window.pixelFormat.toWebGPU],
+                    viewFormats: [],
                     alphaMode: .auto,
                     presentMode: PresentMode.fifo
                 )
@@ -177,7 +177,7 @@ extension RenderSurface {
     func createWebGPUSurface() -> WebGPU.SurfaceDescriptor {
         var surfaceDescriptor = SurfaceDescriptor()
 
-#if os(macOS)
+#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
         let view = (self as! MTKView)
         surfaceDescriptor.nextInChain = unsafe SurfaceSourceMetalLayer(
             layer: Unmanaged.passUnretained(view.layer!).toOpaque()

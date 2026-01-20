@@ -16,14 +16,15 @@ public final class WGPUGPUTexture: GPUTexture {
         SizeInt(width: Int(self.texture.width), height: Int(self.texture.height))
     }
 
-    public var label: String?
+    public var label: String? {
+        didSet {
+            self.texture.setLabel(label ?? "")
+            self.textureView.setLabel(label ?? "")
+        }
+    }
 
     public let texture: WebGPU.Texture
     public let textureView: WebGPU.TextureView
-
-    deinit {
-        print("WGPUGPUTexture deinit", self.label)
-    }
 
     init(texture: WebGPU.Texture, textureView: WebGPU.TextureView) {
         self.texture = texture
@@ -102,19 +103,7 @@ public final class WGPUGPUTexture: GPUTexture {
         }
 
         self.texture = texture
-        self.textureView = texture.createView(
-        //     descriptor: WebGPU.TextureViewDescriptor(
-        //             label: descriptor.debugLabel, 
-        //             format: descriptor.pixelFormat.toWebGPU, 
-        //             dimension: descriptor.textureType.toWebGPUTextureViewDimension, 
-        //             baseMipLevel: 0, 
-        //             mipLevelCount: 0, 
-        //             baseArrayLayer: 0, 
-        //             arrayLayerCount: 0, 
-        //             aspect: .all, 
-        //             usage: wgpuUsage
-        //         )
-        )
+        self.textureView = texture.createView()
     }
 
     // TODO: (Vlad) think about it later
@@ -134,22 +123,40 @@ public final class WGPUGPUTexture: GPUTexture {
         let bytesPerRow = self.texture.width * bytesInPixel
         let pixelCount = UInt32(self.texture.width * self.texture.height)
         let count = Int(pixelCount * bytesInPixel)
-        var imageBytes = [UInt8](repeating: 0, count: count)
-        let pointer = UnsafeMutableRawPointer.allocate(byteCount: count, alignment: 0)
-//        unsafe self.texture.getBytes(
-//            &imageBytes,
-//            bytesPerRow: bytesPerRow,
-//            from: MTLRegion(
-//                origin: MTLOrigin(x: 0, y: 0, z: 0),
-//                size: MTLSize(width: self.texture.width, height: self.texture.height, depth: 1)
-//            ),
-//            mipmapLevel: 0
-//        )
+        guard let buffer = device.createBuffer(descriptor: BufferDescriptor(usage: .copyDst, size: UInt64(count))) else {
+            return nil
+        }
+        let encoder = device.createCommandEncoder()
+        encoder.copyTextureToBuffer(
+            source: TexelCopyTextureInfo(
+                texture: texture, 
+                mipLevel: 0, 
+                origin: Origin3d(x: 0, y: 0, z: 0), 
+                aspect: TextureAspect.all
+            ), 
+            destination: TexelCopyBufferInfo(
+                layout: TexelCopyBufferLayout(offset: UInt64(0), bytesPerRow: UInt32(bytesPerRow), rowsPerImage: texture.height), 
+                buffer: buffer
+            ), 
+            copySize: Extent3d(
+                width: texture.width, 
+                height: texture.height, 
+                depthOrArrayLayers: 1
+            )
+        )
+        let commandBuffer = encoder.finish()
+        device.queue.submit(commands: [commandBuffer])
 
         return unsafe Image(
             width: Int(self.texture.width),
             height: Int(self.texture.height),
-            data: Data(bytesNoCopy: pointer, count: count, deallocator: .free),
+            data: Data(
+                bytesNoCopy: buffer.getMappedRange(), 
+                count: count, 
+                deallocator: .custom { [buffer] _, _ in
+                    buffer.unmap()
+                }
+            ),
             format: imageFormat
         )
     }

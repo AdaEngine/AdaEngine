@@ -42,7 +42,9 @@ public struct RenderViewTarget: @unchecked Sendable {
     public init() {}
 }
 
-@System
+@System(
+    dependencies: [.after("AdaRender.CreateWindowSurfacesSystem")]
+)
 func ConfigurateRenderViewTarget(
     _ query: Query<Entity, Camera, Ref<RenderViewTarget>>,
     _ surfaces: Res<WindowSurfaces>,

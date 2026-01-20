@@ -63,6 +63,6 @@ public struct ScriptComponentUpdateSystem {
         }
 
         renderContext.commitDraw()
-        contexts.contexts.append(renderContext)
+        // contexts.contexts.append(renderContext)
     }
 }

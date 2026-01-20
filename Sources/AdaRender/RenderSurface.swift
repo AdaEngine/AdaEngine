@@ -19,7 +19,13 @@ import MetalKit
 
 extension MTKView: RenderSurface {
     public var scaleFactor: Float {
-        Float(self.layer!.contentsScale)
+        #if canImport(AppKit)
+        return Float(self.window?.backingScaleFactor ?? 1)
+        #elseif canImport(UIKit)
+        return Float(self.window?.screen?.scaleFactor ?? 1)
+        #else
+        return 1
+        #endif
     }
 
     public var prefferedPixelFormat: PixelFormat {
