@@ -42,29 +42,15 @@ public final class WGPUContext: Sendable {
 
         let surfaceDescriptor = surface.createWebGPUSurface()
         let wgpuSurface = instance.createSurface(descriptor: surfaceDescriptor)
-        
-        wgpuSurface.configure(
-            config: SurfaceConfiguration(
-                device: device,
-                format: surface.prefferedPixelFormat.toWebGPU,
-                usage: .renderAttachment,
-                width: UInt32(Float(size.width) / surface.scaleFactor),
-                height: UInt32(Float(size.height) / surface.scaleFactor),
-                viewFormats: [],
-                alphaMode: .auto,
-                presentMode: PresentMode.fifo
-            )
-        )
-        let renderWindow = WGPURenderWindow(
-            windowId: windowId,
-            surface: wgpuSurface,
-            pixelFormat: surface.prefferedPixelFormat,
-            size: size,
-            scaleFactor: surface.scaleFactor
-        )
-
+        configureSurface(surface: wgpuSurface, size: size, pixelFormat: surface.prefferedPixelFormat)
         self.windows.withLock { @MainActor windows in
-            windows[windowId] = renderWindow
+            windows[windowId] = WGPURenderWindow(
+                windowId: windowId,
+                surface: wgpuSurface,
+                pixelFormat: surface.prefferedPixelFormat,
+                size: size,
+                scaleFactor: surface.scaleFactor
+            )
         }
     }
 
@@ -78,21 +64,11 @@ public final class WGPUContext: Sendable {
             guard var window = windows[windowId] else {
                 throw ContextError.windowNotFound
             }
-            
-            // Reconfigure the surface with the new size
-            window.surface.configure(
-                config: SurfaceConfiguration(
-                    device: device,
-                    format: window.pixelFormat.toWebGPU,
-                    usage: .renderAttachment,
-                    width: UInt32(newSize.width),
-                    height: UInt32(newSize.height),
-                    viewFormats: [],
-                    alphaMode: .auto,
-                    presentMode: PresentMode.fifo
-                )
+            configureSurface(
+                surface: window.surface, 
+                size: newSize, 
+                pixelFormat: window.pixelFormat
             )
-            
             window.size = newSize
             windows[windowId] = window
         }
@@ -140,6 +116,25 @@ public final class WGPUContext: Sendable {
         }
 
         return AdaRender.RenderWindows(windows: renderWindows)
+    }
+
+    private func configureSurface(
+        surface: WebGPU.Surface, 
+        size: Math.SizeInt, 
+        pixelFormat: PixelFormat
+    ) {
+        surface.configure(
+            config: SurfaceConfiguration(
+                device: device,
+                format: pixelFormat.toWebGPU,
+                usage: .renderAttachment,
+                width: UInt32(size.width),
+                height: UInt32(size.height),
+                viewFormats: [],
+                alphaMode: .auto,
+                presentMode: PresentMode.fifo
+            )
+        )
     }
 
     @safe

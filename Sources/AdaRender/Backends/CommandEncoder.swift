@@ -220,22 +220,6 @@ public protocol BlitCommandEncoder: CommonCommandEncoder {
         destinationBytesPerImage: Int
     )
 
-    /// Generates mipmaps for a texture.
-    ///
-    /// The GPU generates all mip levels for the specified texture based on the
-    /// contents of the base mip level (level 0).
-    ///
-    /// - Parameter texture: The texture to generate mipmaps for.
-    func generateMipmaps(for texture: Texture)
-
-    /// Fills a buffer region with a constant byte value.
-    ///
-    /// - Parameters:
-    ///   - buffer: The buffer to fill.
-    ///   - range: The byte range within the buffer to fill.
-    ///   - value: The byte value to fill with.
-    func fillBuffer(_ buffer: Buffer, range: Range<Int>, value: UInt8)
-
     /// Ends the blit pass encoding.
     ///
     /// Call this method when you have finished encoding blit commands.

@@ -8,14 +8,15 @@
 #if canImport(WebGPU)
 import WebGPU
 
-final class WGPUCommandQueue: CommandQueue {
+@_spi(Internal)
+public final class WGPUCommandQueue: CommandQueue {
     let device: WebGPU.Device
 
-    init(device: WebGPU.Device) {
+    public init(device: WebGPU.Device) {
         self.device = device
     }
 
-    func makeCommandBuffer() -> CommandBuffer {
+    public func makeCommandBuffer() -> CommandBuffer {
         WGPUCommandEncoder(device: device)
     }
 }

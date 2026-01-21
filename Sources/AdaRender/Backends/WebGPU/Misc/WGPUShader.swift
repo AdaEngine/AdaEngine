@@ -20,10 +20,9 @@ public final class WGPUShader: CompiledShader {
 
         switch shader.source {
         case .code(let code):
-            print("[WebGPU] Creating shader from WGSL code, entryPoint: \(shader.entryPoint)")
             shaderData = ShaderSourceWgsl(code: code)
-        case .spirv(let data):
-           fatalErrorMethodNotImplemented()
+        case .spirv:
+           fatalError("SPIR-V shaders are not supported for WebGPU")
         }
         
         let module = device.createShaderModule(

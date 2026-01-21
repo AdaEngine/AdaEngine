@@ -9,9 +9,10 @@
 import WebGPU
 
 // TODO: (Vlad) think about inheretence and how it affect type casting and vtables
-final class WGPUUniformBuffer: WGPUBuffer, UniformBuffer, @unchecked Sendable {
+@_spi(Internal)
+public final class WGPUUniformBuffer: WGPUBuffer, UniformBuffer, @unchecked Sendable {
 
-    let binding: Int
+    public let binding: Int
     
     init(buffer: WebGPU.Buffer, device: WebGPU.Device, binding: Int) {
         self.binding = binding

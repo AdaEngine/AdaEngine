@@ -9,20 +9,14 @@
 import WebGPU
 import CWebGPU
 
-class WGPUBuffer: Buffer, @unchecked Sendable {
+@_spi(Internal)
+public class WGPUBuffer: Buffer, @unchecked Sendable {
     let buffer: WebGPU.Buffer
     let device: WebGPU.Device
-
-    private var _label: String?
     
-    var label: String? {
-        get {
-            _label
-        }
-        
-        set {
-            self.buffer.setLabel(newValue ?? "")
-            self._label = newValue
+    public var label: String? {
+        didSet {
+            self.buffer.setLabel(label ?? "")
         }
     }
     
@@ -31,13 +25,13 @@ class WGPUBuffer: Buffer, @unchecked Sendable {
         self.device = device
     }
     
-    var length: Int { return Int(buffer.size) }
+    public var length: Int { return Int(buffer.size) }
     
-    func contents() -> UnsafeMutableRawPointer { 
+    public func contents() -> UnsafeMutableRawPointer { 
         unsafe self.buffer.getMappedRange()
     }
     
-    func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
+    public func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
         unsafe device.queue.writeBuffer(
             self.buffer, 
             bufferOffset: UInt64(offset), 
