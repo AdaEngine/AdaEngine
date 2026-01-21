@@ -54,8 +54,11 @@ public struct RenderWorldPlugin: Plugin {
             fatalError("Critical Error RenderWorldPlugin: \(error.localizedDescription)")
         }
 
+        let renderDevice = unsafe RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice)
+        app.insertResource(renderDevice)
+
         unsafe renderWorld
-            .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
+            .insertResource(renderDevice)
             .insertResource(RenderEngineHandler(renderEngine: RenderEngine.shared))
             .insertResource(WindowSurfaces(windows: [:]))
             .addSystem(CreateWindowSurfacesSystem.self, on: .prepare)
