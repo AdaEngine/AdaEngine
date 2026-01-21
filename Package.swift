@@ -1017,7 +1017,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "ButtonExample", path: "UI"),
 
     // MARK: Example
-    .exampleTarget(name: "SimpleCollideEventExample", path: "Events")
+    .exampleTarget(name: "SimpleCollideEventExample", path: "Events"),
 ]
 
 package.targets.append(contentsOf: examplesTargets)

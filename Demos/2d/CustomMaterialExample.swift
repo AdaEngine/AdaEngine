@@ -12,23 +12,31 @@ struct CustomMaterialApp: App {
     var body: some AppScene {
         DefaultAppWindow()
             .addPlugins(
-                CustomMaterialPlugin(),
+                CustomMaterialPlugin()
             )
             .windowMode(.windowed)
+            .preferredRenderBackend(.metal)
     }
 }
 
 struct CustomMaterialPlugin: Plugin {
     func setup(in app: borrowing AdaApp.AppWorlds) {
-        let texture = try! AssetsManager.loadSync(Texture2D.self, at: "Resources/dog.png", from: .module)
-        app.spawn("Custom Material") {
-            Mesh2D(mesh: .generate(from: Quad(size: .one)), materials: [
-                CustomMaterial(MyMaterial(color: .blue, customTexture: texture.asset))
-            ])
-            Transform()
-        }
         app.spawn(bundle: Camera2D())
         app.addSystem(UpdateMaterialSystem.self)
+        app.addSystem(SetupSystem.self, on: .startup)
+    }
+}
+
+@System
+func Setup(
+    _ device: Res<RenderDeviceHandler>,
+    _ commands: Commands
+) async {
+    let texture = try! await AssetsManager.load(Texture2D.self, at: "Resources/dog.png", from: .module)
+    commands.spawn {
+        Mesh2D(mesh: .generate(from: Quad(size: .one), renderDevice: device.renderDevice), materials: [
+            CustomMaterial(MyMaterial(color: .blue, customTexture: texture.asset))
+        ])
     }
 }
 
