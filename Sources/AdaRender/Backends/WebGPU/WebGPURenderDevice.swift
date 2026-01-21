@@ -22,10 +22,10 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     public func createUniformBuffer(length: Int, binding: Int) -> any UniformBuffer {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
-                usage: [WebGPU.BufferUsage.indirect, WebGPU.BufferUsage.copyDst, WebGPU.BufferUsage.copySrc, .uniform],
+                usage: [.indirect, .copyDst, .copySrc, .uniform],
                 size: UInt64(length)
             )
-        ).unwrap(message: "Failed to create buffer")
+        ).unwrap(message: "Failed to create uniform buffer")
         return WGPUUniformBuffer(buffer: _buffer, device: context.device, binding: binding)
     }
 
@@ -33,10 +33,10 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 label: label,
-                usage: [WebGPU.BufferUsage.vertex, WebGPU.BufferUsage.copyDst, WebGPU.BufferUsage.copySrc],
+                usage: [.vertex, .copyDst, .copySrc],
                 size: UInt64(length)
             )
-        ).unwrap(message: "Failed to create buffer")
+        ).unwrap(message: "Failed to create vertex buffer")
         return WGPUVertexBuffer(buffer: _buffer, device: context.device, binding: binding)
     }
 
@@ -44,10 +44,10 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 label: label,
-                usage: [WebGPU.BufferUsage.index, WebGPU.BufferUsage.copyDst],
+                usage: [.index, .copyDst],
                 size: UInt64(length)
             )
-        ).unwrap(message: "Failed to create buffer")
+        ).unwrap(message: "Failed to create index buffer")
         let buffer = WGPUIndexBuffer(buffer: _buffer, device: context.device, indexFormat: format)
         unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
         return buffer
@@ -114,23 +114,14 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
         return (texture.gpuTexture as? WGPUGPUTexture)?.getImage(device: context.device)
     }
 
-    var index: Int = 0
-
     public func createCommandQueue() -> any CommandQueue {
         return WGPUCommandQueue(device: context.device)
     }
 
     @MainActor
     public func createSwapchain(from window: WindowID) -> any Swapchain {
-        if let swapchain = swapchains[window] {
-            return swapchain
-        }
-        let swapchain = WGPUSwapchain(renderWindow: context.getWGPURenderWindow(for: window)!)
-        swapchains[window] = swapchain
-        return swapchain
+        WGPUSwapchain(renderWindow: context.getWGPURenderWindow(for: window)!)
     }
-
-    private var swapchains: SparseSet<WindowID, WGPUSwapchain> = [:]
 }
 
 extension ResourceOptions {

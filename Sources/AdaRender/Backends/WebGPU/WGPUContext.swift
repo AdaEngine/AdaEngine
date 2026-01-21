@@ -12,7 +12,7 @@ import Math
 import AdaUtils
 import Synchronization
 import Foundation
-#if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
+#if canImport(MetalKit)
 import MetalKit
 import QuartzCore
 #endif
@@ -97,6 +97,7 @@ public final class WGPUContext: Sendable {
         }
     }
 
+    @inline(__always)
     public func getWGPURenderWindow(for windowId: WindowID) -> WGPURenderWindow? {
         self.windows.withLock { windows in
             return windows[windowId]
