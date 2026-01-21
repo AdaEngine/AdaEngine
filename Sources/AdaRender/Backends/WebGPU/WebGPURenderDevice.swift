@@ -37,7 +37,7 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
                 size: UInt64(length)
             )
         ).unwrap(message: "Failed to create buffer")
-        return WGPUVertexBuffer(buffer: _buffer, device: context.device, binding: binding, offset: 0)
+        return WGPUVertexBuffer(buffer: _buffer, device: context.device, binding: binding)
     }
 
     public func createIndexBuffer(label: String?, format: IndexBufferFormat, bytes: UnsafeRawPointer, length: Int) -> any IndexBuffer {
@@ -49,7 +49,7 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
             )
         ).unwrap(message: "Failed to create buffer")
         let buffer = WGPUIndexBuffer(buffer: _buffer, device: context.device, indexFormat: format)
-        unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length, offset: 0)
+        unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
         return buffer
     }
 
@@ -62,7 +62,7 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
             )
         ).unwrap(message: "Failed to create buffer")
         let buffer = WGPUBuffer(buffer: _buffer, device: context.device)
-        unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length, offset: 0)
+        unsafe buffer.setData(UnsafeMutableRawPointer(mutating: bytes), byteCount: length)
         return buffer
     }
 

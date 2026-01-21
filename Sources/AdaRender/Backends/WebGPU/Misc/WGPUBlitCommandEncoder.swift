@@ -12,9 +12,14 @@ import CWebGPU
 
 final class WGPUBlitCommandEncoder: BlitCommandEncoder {
     let blitEncoder: WebGPU.CommandEncoder
+    let device: WebGPU.Device
 
-    init(blitEncoder: WebGPU.CommandEncoder) {
+    init(
+        blitEncoder: WebGPU.CommandEncoder,
+        device: WebGPU.Device
+    ) {
         self.blitEncoder = blitEncoder
+        self.device = device
     }
 
     func pushDebugName(_ string: String) {
@@ -41,17 +46,25 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
             let dst = destination.gpuTexture as? WGPUGPUTexture
         else { fatalError("Textures must be WGPU textures") }
 
-        // blitEncoder.copy(
-        //     from: src.texture,
-        //     sourceSlice: sourceSlice,
-        //     sourceLevel: sourceMipLevel,
-        //     sourceOrigin: MTLOrigin(x: sourceOrigin.x, y: sourceOrigin.y, z: sourceOrigin.z),
-        //     sourceSize: MTLSize(width: sourceSize.width, height: sourceSize.height, depth: sourceSize.depth),
-        //     to: dst.texture,
-        //     destinationSlice: destinationSlice,
-        //     destinationLevel: destinationMipLevel,
-        //     destinationOrigin: MTLOrigin(x: destinationOrigin.x, y: destinationOrigin.y, z: destinationOrigin.z)
-        // )
+        blitEncoder.copyTextureToTexture(
+            source: TexelCopyTextureInfo(
+                texture: src.texture, 
+                mipLevel: UInt32(sourceMipLevel), 
+                origin: Origin3d(x: UInt32(sourceOrigin.x), y: UInt32(sourceOrigin.y), z: UInt32(sourceOrigin.z)), 
+                aspect: TextureAspect.all
+            ), 
+            destination: TexelCopyTextureInfo(
+                texture: dst.texture,
+                mipLevel: UInt32(destinationMipLevel), 
+                origin: Origin3d(x: UInt32(destinationOrigin.x), y: UInt32(destinationOrigin.y), z: UInt32(destinationOrigin.z)), 
+                aspect: TextureAspect.all
+            ), 
+            copySize: Extent3d(
+                width: UInt32(sourceSize.width), 
+                height: UInt32(sourceSize.height), 
+                depthOrArrayLayers: 1
+            )
+        )
     }
 
     func copyBufferToBuffer(
@@ -65,14 +78,13 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
             let src = source as? WGPUBuffer,
             let dst = destination as? WGPUBuffer
         else { fatalError("Buffers must be WGPU buffers") }
-
-        // blitEncoder.copy(
-        //     from: src.buffer,
-        //     sourceOffset: sourceOffset,
-        //     to: dst.buffer,
-        //     destinationOffset: destinationOffset,
-        //     size: size
-        // )
+        blitEncoder.copyBufferToBuffer(
+            source: src.buffer, 
+            sourceOffset: UInt64(sourceOffset), 
+            destination: dst.buffer, 
+            destinationOffset: UInt64(destinationOffset), 
+            size: UInt64(size)
+        )
     }
 
     func copyBufferToTexture(
@@ -88,20 +100,29 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
     ) {
         guard
             let src = source as? WGPUBuffer,
-            let dst = destination.gpuTexture as? WGPUTexture
+            let dst = destination.gpuTexture as? WGPUGPUTexture
         else { fatalError("Invalid WGPU resources") }
 
-        // blitEncoder.copy(
-        //     from: src.buffer,
-        //     sourceOffset: sourceOffset,
-        //     sourceBytesPerRow: sourceBytesPerRow,
-        //     sourceBytesPerImage: sourceBytesPerImage,
-        //     sourceSize: MTLSize(width: sourceSize.width, height: sourceSize.height, depth: sourceSize.depth),
-        //     to: dst.texture,
-        //     destinationSlice: destinationSlice,
-        //     destinationLevel: destinationMipLevel,
-        //     destinationOrigin: MTLOrigin(x: destinationOrigin.x, y: destinationOrigin.y, z: destinationOrigin.z)
-        // )
+        blitEncoder.copyBufferToTexture(
+            source: TexelCopyBufferInfo(
+                layout: TexelCopyBufferLayout(
+                    offset: UInt64(sourceOffset), 
+                    bytesPerRow: UInt32(sourceBytesPerRow), 
+                    rowsPerImage: UInt32(sourceBytesPerImage)), 
+                    buffer: src.buffer
+                ), 
+            destination: TexelCopyTextureInfo(
+                texture: dst.texture, 
+                mipLevel: UInt32(destinationMipLevel), 
+                origin: Origin3d(x: UInt32(destinationOrigin.x), y: UInt32(destinationOrigin.y), z: UInt32(destinationOrigin.z)), 
+                aspect: TextureAspect.all
+            ), 
+            copySize: Extent3d(
+                width: UInt32(sourceSize.width), 
+                height: UInt32(sourceSize.height), 
+                depthOrArrayLayers: 1
+            )
+        )
     }
 
     func copyTextureToBuffer(
@@ -120,39 +141,28 @@ final class WGPUBlitCommandEncoder: BlitCommandEncoder {
             let dst = destination as? WGPUBuffer
         else { fatalError("Invalid WGPU resources") }
 
-        // blitEncoder.copy(
-        //     from: src.texture,
-        //     sourceSlice: sourceSlice,
-        //     sourceLevel: sourceMipLevel,
-        //     sourceOrigin: MTLOrigin(x: sourceOrigin.x, y: sourceOrigin.y, z: sourceOrigin.z),
-        //     sourceSize: MTLSize(width: sourceSize.width, height: sourceSize.height, depth: sourceSize.depth),
-        //     to: dst.buffer,
-        //     destinationOffset: destinationOffset,
-        //     destinationBytesPerRow: destinationBytesPerRow,
-        //     destinationBytesPerImage: destinationBytesPerImage
-        // )
+        blitEncoder.copyTextureToBuffer(
+            source: TexelCopyTextureInfo(
+                texture: src.texture, 
+                mipLevel: UInt32(sourceMipLevel), 
+                origin: Origin3d(x: UInt32(sourceOrigin.x), y: UInt32(sourceOrigin.y), z: UInt32(sourceOrigin.z)), 
+                aspect: TextureAspect.all
+            ), 
+            destination: TexelCopyBufferInfo(
+                layout: TexelCopyBufferLayout(
+                    offset: UInt64(destinationOffset), 
+                    bytesPerRow: UInt32(destinationBytesPerRow), 
+                    rowsPerImage: UInt32(destinationBytesPerImage)), 
+                    buffer: dst.buffer
+                ), 
+            copySize: Extent3d(
+                width: UInt32(sourceSize.width), 
+                height: UInt32(sourceSize.height), 
+                depthOrArrayLayers: 1
+            )
+        )
     }
 
-    func generateMipmaps(for texture: Texture) {
-        guard let tex = texture.gpuTexture as? WGPUGPUTexture else {
-            fatalError("Texture must be a WGPU texture")
-        }
-        // blitEncoder.generateMipmaps(for: tex.texture)
-    }
-
-    func fillBuffer(_ buffer: Buffer, range: Range<Int>, value: UInt8) {
-        guard let metalBuffer = buffer as? WGPUBuffer else {
-            fatalError("Buffer must be a WGPU buffer")
-        }
-        // blitEncoder.__fill(
-        //     metalBuffer.buffer,
-        //     range: NSRange(location: range.lowerBound, length: range.count),
-        //     value: value
-        // )
-    }
-
-    func endBlitPass() {
-        // blitEncoder.endEncoding()
-    }
+    func endBlitPass() { }
 }
 #endif

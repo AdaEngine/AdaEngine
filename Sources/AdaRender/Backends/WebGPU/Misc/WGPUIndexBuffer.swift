@@ -8,9 +8,10 @@
 #if canImport(WebGPU)
 import WebGPU
 
-final class WGPUIndexBuffer: WGPUBuffer, IndexBuffer, @unchecked Sendable {
+@_spi(Internal)
+public final class WGPUIndexBuffer: WGPUBuffer, IndexBuffer, @unchecked Sendable {
 
-    let indexFormat: IndexBufferFormat
+    public let indexFormat: IndexBufferFormat
     
     init(buffer: WebGPU.Buffer, device: WebGPU.Device, indexFormat: IndexBufferFormat) {
         self.indexFormat = indexFormat
