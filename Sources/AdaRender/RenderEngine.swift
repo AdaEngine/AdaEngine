@@ -17,8 +17,14 @@ public enum GlobalBufferIndex {
 /// Render Engine is object that manage a GPU.
 public final class RenderEngine: RenderBackend, Sendable {
 
+    
     public struct Configuration {
+        /// The maximum number of frames in flight.
         public var maxFramesInFlight: Int = 3
+
+        /// The preferred backend to use for rendering.
+        public var preferredBackend: RenderBackendType?
+
         public init() {}
     }
     
@@ -78,17 +84,37 @@ public extension RenderDevice {
 
 extension RenderEngine {
     package static func setupRenderEngine() throws {
+        let preferredBackend = unsafe RenderEngine.configurations.preferredBackend ?? Self.defaultBackendType()
         let renderBackend: RenderBackend
+        switch preferredBackend {
+        case .webgpu:
         #if WEBGPU_ENABLED
-        renderBackend = try UnsafeTask {
-            return try await WebGPURenderBackend.createBackend()
-        }.get()
-        #elseif METAL
-        renderBackend = MetalRenderBackend()
+            renderBackend = try UnsafeTask {
+                return try await WebGPURenderBackend.createBackend()
+            }.get()
         #else
-        #error("Not supported backend")
+            fallthrough
         #endif
+        case .metal:
+        #if METAL
+            renderBackend = MetalRenderBackend()
+        #else
+            fallthrough
+        #endif
+        case .headless:
+            fatalErrorMethodNotImplemented()
+        }
         let engine = RenderEngine(renderBackend: renderBackend)
         unsafe RenderEngine.shared = engine
+    }
+
+    private static func defaultBackendType() -> RenderBackendType {
+        #if WEBGPU_ENABLED
+        return .webgpu
+        #elseif METAL
+        return .metal
+        #else
+        return .headless
+        #endif
     }
 }

@@ -15,10 +15,9 @@ public enum TriangleFillMode {
 }
 
 public enum RenderBackendType: String, Sendable {
-    case opengl
     case metal
-    case vulkan
     case webgpu
+    case headless
 }
 
 /// This protocol describe interface for GPU.

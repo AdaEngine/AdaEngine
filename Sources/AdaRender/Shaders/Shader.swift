@@ -125,7 +125,7 @@ extension Shader: UniqueHashable {
 extension RenderBackendType {
     var deviceLang: ShaderLanguage {
         switch self {
-        case .opengl, .vulkan:
+        case .headless:
             return .glsl
         case .webgpu:
             return .wgsl
