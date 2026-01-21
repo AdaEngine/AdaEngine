@@ -50,7 +50,6 @@ final class MetalCommandEncoder: CommandBuffer {
             fatalError("Failed to create MTLRenderCommandEncoder")
         }
         encoder.label = desc.label
-
         return MetalRenderCommandEncoder(
             renderEncoder: encoder
         )

@@ -5,6 +5,8 @@
 //  Created by v.prusakov on 9/10/21.
 //
 
+import AdaUtils
+
 /// A protocol that defines a render surface.
 /// Wrap platform specific view to render surface.
 @MainActor
@@ -14,15 +16,23 @@ public protocol RenderSurface {
 }
 
 #if os(macOS) || os(iOS) || os(tvOS) || os(watchOS)
-
 import MetalKit
 
 extension MTKView: RenderSurface {
     public var scaleFactor: Float {
         #if canImport(AppKit)
-        return Float(self.window?.backingScaleFactor ?? 1)
+        return unsafe Float(
+            self.window
+            .unwrap(message: "MTKView must contains window.")
+            .backingScaleFactor
+        )
         #elseif canImport(UIKit)
-        return Float(self.window?.screen?.scaleFactor ?? 1)
+        return unsafe Float(
+            self.window
+            .unwrap(message: "MTKView must contains window.")
+            .screen
+            .scaleFactor
+        )
         #else
         return 1
         #endif

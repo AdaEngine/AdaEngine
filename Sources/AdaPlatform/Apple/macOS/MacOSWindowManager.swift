@@ -43,7 +43,6 @@ final class MacOSWindowManager: UIWindowManager {
         let metalView = MetalView(windowId: window.id, frame: contentRect)
         metalView.windowManager = self
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-        unsafe try? RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
 
         let systemWindow = NSWindow(
             contentRect: contentRect,
@@ -59,9 +58,10 @@ final class MacOSWindowManager: UIWindowManager {
         systemWindow.acceptsMouseMovedEvents = true
         systemWindow.delegate = nsWindowDelegate
         systemWindow.backgroundColor = NSColor.black
-        
         window.systemWindow = systemWindow
         window.minSize = minSize
+
+        unsafe try? RenderEngine.shared.createWindow(window.id, for: metalView, size: sizeInt)
         
         super.createWindow(for: window)
     }
