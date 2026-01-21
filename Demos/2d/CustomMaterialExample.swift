@@ -34,9 +34,10 @@ func Setup(
 ) async {
     let texture = try! await AssetsManager.load(Texture2D.self, at: "Resources/dog.png", from: .module)
     commands.spawn {
-        Mesh2D(mesh: .generate(from: Quad(size: .one), renderDevice: device.renderDevice), materials: [
+        Mesh2D(mesh: .generate(from: Quad(size: .init(x: 200, y: 200)), renderDevice: device.renderDevice), materials: [
             CustomMaterial(MyMaterial(color: .blue, customTexture: texture.asset))
         ])
+        Transform()
     }
 }
 
