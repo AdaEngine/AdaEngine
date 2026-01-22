@@ -146,9 +146,9 @@ final class SpirvCompiler {
         }
 
         return DeviceCompiledShader(
-            source: source,
             language: self.deviceLang,
-            entryPoints: entryPoints
+            entryPoints: entryPoints,
+            source: source
         )
     }
 

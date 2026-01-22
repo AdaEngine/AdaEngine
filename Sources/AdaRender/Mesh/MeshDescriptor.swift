@@ -265,13 +265,19 @@ public extension MeshDescriptor {
     }
     
     /// Get the vertex buffer for the mesh.
-    func getVertexBuffer(renderDevice: RenderDevice) -> VertexBuffer {
+    func getVertexBuffer(renderDevice: RenderDevice, binding: Int = 0) -> VertexBuffer {
         let vertexSize = buffers.elements.values.reduce(0) { partialResult, buffer in
             partialResult + buffer.buffer.elementSize
         }
         
-        let vertexBuffer = renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
+        let vertexBuffer = renderDevice.createVertexBuffer(
+            length: vertexSize * self.getVertexBufferSize(), 
+            binding: binding
+        )
         let vertexBufferContents = unsafe vertexBuffer.contents()
+        defer {
+            vertexBuffer.unmap()
+        }
         
         var attributeOffset: Int = 0
         for buffer in buffers.elements.values {
