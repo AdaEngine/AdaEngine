@@ -75,13 +75,12 @@ public struct Mesh2DDrawPass: DrawPass {
         renderEncoder.setRenderPipelineState(item.renderPipeline)
 
         for (resourceName, resource) in materialData.reflectionData.resources {
-            guard let textures = materialData.textures[resourceName] else {
-                continue
+            if let textures = materialData.textures[resourceName] {
+                renderEncoder.setFragmentTexture(textures, slot: resource.binding)
             }
 
-            for texture in textures {
-                renderEncoder.setFragmentTexture(texture, slot: resource.binding)
-                renderEncoder.setFragmentSamplerState(texture.sampler, slot: resource.binding + 1)
+            if let sampler = materialData.samplers[resourceName] {
+                renderEncoder.setFragmentSamplerState(sampler, slot: resource.binding)
             }
 
             renderEncoder.drawIndexed(indexCount: part.indexCount, indexBufferOffset: 0, instanceCount: 1)

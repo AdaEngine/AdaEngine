@@ -53,13 +53,23 @@ public class Material: Asset, Hashable, @unchecked Sendable {
     }
     
     /// Set one or more textures for material.
-    public func setResources(_ textures: [Texture], for name: String) {
-        unsafe MaterialStorage.shared.setResources(textures, for: name, in: self)
+    public func setTexture(_ texture: Texture, for name: String) {
+        unsafe MaterialStorage.shared.setTexture(texture, for: name, in: self)
+    }
+
+    /// Set one or more samplers for material.
+    public func setSampler(_ sampler: any Sampler, for name: String) {
+        unsafe MaterialStorage.shared.setSampler(sampler, for: name, in: self)
     }
     
     /// Get textures from material.
-    public func getResources(for name: String) -> [Texture] {
-        return unsafe MaterialStorage.shared.getResources(for: name, in: self)
+    public func getTexture(for name: String) -> Texture? {
+        return unsafe MaterialStorage.shared.getTexture(for: name, in: self)
+    }
+
+    /// Get sampler from material.
+    public func getSampler(for name: String) -> (any Sampler)? {
+        return unsafe MaterialStorage.shared.getSampler(for: name, in: self)
     }
     
     /// Updates material values.

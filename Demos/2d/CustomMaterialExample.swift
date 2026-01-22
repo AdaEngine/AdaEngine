@@ -48,13 +48,17 @@ struct MyMaterial: CanvasMaterial {
     @Uniform(binding: 2, propertyName: "u_Color")
     var color: Color
 
-    @FragmentTexture(binding: 0)
+    @FragmentTexture
     var customTexture: Texture2D
+    
+    @FragmentSampler(propertyName: "u_Sampler")
+    var sampler: Sampler
 
     init(color: Color, customTexture: Texture2D) {
         self.time = 0
         self.color = color
         self.customTexture = customTexture
+        self.sampler = customTexture.sampler
     }
 
     static func fragmentShader() throws -> AssetHandle<ShaderSource> {
