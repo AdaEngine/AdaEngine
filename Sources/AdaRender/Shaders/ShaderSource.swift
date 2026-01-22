@@ -68,8 +68,8 @@ public final class ShaderSource: Asset, @unchecked Sendable {
     public var includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
     
     /// Contains url to shader sources if ShaderSource was created from file.
-    private(set) var fileURL: URL?
-    
+    var fileURL: URL?
+
     /// Create a shader source from a file. Automatic detect language and split to stages (for GLSL only).
     public init(from fileURL: URL) throws {
         guard let data = FileSystem.current.readFile(at: fileURL) else {

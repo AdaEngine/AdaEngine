@@ -13,17 +13,6 @@ import Math
 
 final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 
-    enum RenderDeviceError: LocalizedError {
-        case shaderSourceIsNotCode
-
-        var errorDescription: String? {
-        switch self {
-        case .shaderSourceIsNotCode:
-            return "Shader source is not a code"
-        }
-    }
-    }
-
     let device: MTLDevice
     let commandQueue: MTLCommandQueue
     private weak var context: MetalRenderBackend.Context?
@@ -39,14 +28,7 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     func compileShader(from shader: Shader) throws -> CompiledShader {
-        guard case let .code(source) = shader.source else {
-            throw RenderDeviceError.shaderSourceIsNotCode
-        }
-        let library = try self.device.makeLibrary(source: source, options: nil)
-        let descriptor = MTLFunctionDescriptor()
-        descriptor.name = shader.entryPoint
-        let function = try library.makeFunction(descriptor: descriptor)
-        return MetalShader(name: shader.entryPoint, library: library, function: function)
+        return try MetalShader(shader: shader, device: self.device)
     }
 
     func createCommandQueue() -> CommandQueue {
@@ -55,101 +37,15 @@ final class MetalRenderDevice: RenderDevice, @unchecked Sendable {
 
     // swiftlint:disable:next function_body_length
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline {
-        let pipelineDescriptor = MTLRenderPipelineDescriptor()
-        pipelineDescriptor.label = descriptor.debugName
-
-        let vertexDescriptor = MTLVertexDescriptor()
-
-        for (index, attribute) in descriptor.vertexDescriptor.attributes.enumerated() {
-            vertexDescriptor.attributes[index].offset = attribute.offset
-            vertexDescriptor.attributes[index].bufferIndex = attribute.bufferIndex
-            vertexDescriptor.attributes[index].format = attribute.format.metalFormat
-        }
-
-        for (index, layout) in descriptor.vertexDescriptor.layouts.enumerated() {
-            vertexDescriptor.layouts[index].stride = layout.stride
-        }
-        if let shader = descriptor.vertex.compiledShader as? MetalShader {
-            pipelineDescriptor.vertexFunction = shader.function
-        }
-
-        if let shader = descriptor.fragment?.compiledShader as? MetalShader {
-            pipelineDescriptor.fragmentFunction = shader.function
-        }
-
-        pipelineDescriptor.vertexDescriptor = vertexDescriptor
-
-        for (index, attachment) in descriptor.colorAttachments.enumerated() {
-            let colorAttachment = pipelineDescriptor.colorAttachments[index]!
-
-            colorAttachment.pixelFormat = attachment.format.toMetal
-            colorAttachment.isBlendingEnabled = attachment.isBlendingEnabled
-            colorAttachment.rgbBlendOperation = attachment.rgbBlendOperation.toMetal
-            colorAttachment.alphaBlendOperation = attachment.alphaBlendOperation.toMetal
-            colorAttachment.sourceRGBBlendFactor = attachment.sourceRGBBlendFactor.toMetal
-            colorAttachment.sourceAlphaBlendFactor = attachment.sourceAlphaBlendFactor.toMetal
-            colorAttachment.destinationRGBBlendFactor = attachment.destinationRGBBlendFactor.toMetal
-            colorAttachment.destinationAlphaBlendFactor = attachment.destinationAlphaBlendFactor.toMetal
-        }
-
-        var depthStencilState: MTLDepthStencilState?
-
-        if let depthStencilDesc = descriptor.depthStencilDescriptor {
-            pipelineDescriptor.depthAttachmentPixelFormat = descriptor.depthPixelFormat.toMetal
-            pipelineDescriptor.stencilAttachmentPixelFormat = descriptor.depthPixelFormat.toMetal
-
-            let depthStencilDescriptor = MTLDepthStencilDescriptor()
-            depthStencilDescriptor.depthCompareFunction = depthStencilDesc.depthCompareOperator.toMetal
-            depthStencilDescriptor.isDepthWriteEnabled = depthStencilDesc.isDepthWriteEnabled
-
-            if depthStencilDesc.isEnableStencil {
-                guard let stencilDesc = depthStencilDesc.stencilOperationDescriptor else {
-                    fatalError("StencilOperationDescriptor instance not passed to DepthStencilDescriptor object.")
-                }
-
-                let stencilDescriptor = MTLStencilDescriptor()
-                stencilDescriptor.depthFailureOperation = stencilDesc.depthFail.toMetal
-                stencilDescriptor.depthStencilPassOperation = stencilDesc.pass.toMetal
-                stencilDescriptor.stencilFailureOperation = stencilDesc.fail.toMetal
-                stencilDescriptor.stencilCompareFunction = stencilDesc.compare.toMetal
-
-                depthStencilDescriptor.backFaceStencil = stencilDescriptor
-                depthStencilDescriptor.frontFaceStencil = stencilDescriptor
-            }
-
-            depthStencilState = self.device.makeDepthStencilState(descriptor: depthStencilDescriptor)
-        }
-
         do {
-            let state = try self.device.makeRenderPipelineState(descriptor: pipelineDescriptor)
-            return MetalRenderPipeline(
-                descriptor: descriptor,
-                renderPipeline: state,
-                depthState: depthStencilState
-            )
+            return try MetalRenderPipeline(descriptor: descriptor, device: device)
         } catch {
             fatalError("[Metal Render Backend] \(error)")
         }
     }
 
     func createSampler(from descriptor: SamplerDescriptor) -> Sampler {
-        let mtlDescriptor = MTLSamplerDescriptor()
-        mtlDescriptor.minFilter = descriptor.minFilter.toMetal
-        mtlDescriptor.magFilter = descriptor.magFilter.toMetal
-        mtlDescriptor.lodMinClamp = descriptor.lodMinClamp
-        mtlDescriptor.lodMaxClamp = descriptor.lodMaxClamp
-
-        switch descriptor.mipFilter {
-        case .nearest:
-            mtlDescriptor.mipFilter = .nearest
-        case .linear:
-            mtlDescriptor.mipFilter = .linear
-        case .notMipmapped:
-            mtlDescriptor.mipFilter = .notMipmapped
-        }
-
-        let sampler = self.device.makeSamplerState(descriptor: mtlDescriptor)!
-        return MetalSampler(descriptor: descriptor, mtlSampler: sampler)
+        return MetalSampler(descriptor: descriptor, device: device)
     }
 
     // MARK: - Buffers

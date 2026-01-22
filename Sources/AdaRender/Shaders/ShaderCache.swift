@@ -252,7 +252,7 @@ enum ShaderCache {
         }
     }
     
-    private static func getCacheDirectory() throws -> URL {
+    static func getCacheDirectory() throws -> URL {
         return try self.fileSystem
             .url(for: .cachesDirectory)
             .appendingPathComponent(Constants.cacheDirectoryName)

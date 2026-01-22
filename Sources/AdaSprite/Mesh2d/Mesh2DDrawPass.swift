@@ -19,7 +19,7 @@ struct Mesh2DUniform {
 public struct Mesh2DDrawPass: DrawPass {
     public typealias Item = Transparent2DRenderItem
 
-    public static let meshUniformBinding: Int = 2
+    public static let meshUniformBinding: Int = 3
     
     public init() { }
     
@@ -39,52 +39,54 @@ public struct Mesh2DDrawPass: DrawPass {
         guard let materialData = unsafe MaterialStorage.shared.getMaterialData(for: meshComponent.material) else {
             return
         }
-
+        
         renderEncoder.pushDebugName("Mesh 2D Render")
         defer {
             renderEncoder.popDebugName()
         }
 
-        for (uniformName, buffer) in materialData.reflectionData.shaderBuffers {
-            // TODO: remove hardcoded frame index
-            guard let uniformBuffer = materialData.uniformBufferSet[uniformName]?
-                .getBuffer(
-                    binding: buffer.binding,
-                    set: 0,
-                    frameIndex: 0
-                ) else {
-                continue
+        for (groupIndex, descriptorSet) in materialData.reflectionData.descriptorSets.enumerated() {
+            for (_, buffer) in descriptorSet.uniformsBuffers {
+                guard let uniformBuffer = materialData.uniformBufferSet[buffer.name] else {
+                    continue
+                }
+                
+                if buffer.shaderStage.contains(.vertex) {
+                    renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, slot: buffer.binding)
+                }
+                
+                if buffer.shaderStage.contains(.fragment) {
+                    renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, slot: buffer.binding)
+                }
             }
             
-            if buffer.shaderStage.contains(.vertex) {
-                renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, slot: buffer.binding)
-            }
-            
-            if buffer.shaderStage.contains(.fragment) {
-                renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, slot: buffer.binding)
+            for (_, sampler) in descriptorSet.sampledImages {
+                guard let materialTexture = materialData.textures[sampler.name] else {
+                    continue
+                }
+                
+                renderEncoder.setFragmentTexture(
+                    materialTexture.texture,
+                    slot: sampler.binding
+                )
+
+                if let resource = materialData.reflectionData.resources[materialTexture.samplerName] {
+                    renderEncoder.setFragmentSamplerState(
+                        materialTexture.texture.sampler,
+                        slot: resource.binding
+                    )
+                }
             }
         }
 
-        unsafe withUnsafeBytes(of: meshComponent.modelUniform) { buffer in
-            unsafe renderEncoder.setVertexBytes(buffer.baseAddress!, length: buffer.count, slot: Self.meshUniformBinding)
-        }
-
+        renderEncoder.setVertexBuffer(meshComponent.modelUniform, slot: Self.meshUniformBinding)
+                
         part.vertexBuffer.label = "Part Vertex Buffer"
         renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(part.indexBuffer, offset: 0)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
 
-        for (resourceName, resource) in materialData.reflectionData.resources {
-            if let textures = materialData.textures[resourceName] {
-                renderEncoder.setFragmentTexture(textures, slot: resource.binding)
-            }
-
-            if let sampler = materialData.samplers[resourceName] {
-                renderEncoder.setFragmentSamplerState(sampler, slot: resource.binding)
-            }
-
-            renderEncoder.drawIndexed(indexCount: part.indexCount, indexBufferOffset: 0, instanceCount: 1)
-        }
+        renderEncoder.drawIndexed(indexCount: part.indexCount, indexBufferOffset: 0, instanceCount: 1)
     }
 }
 

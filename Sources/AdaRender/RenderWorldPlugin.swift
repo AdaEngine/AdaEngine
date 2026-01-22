@@ -33,6 +33,7 @@ public struct RenderWorldPlugin: Plugin {
             .insertResource(DefaultSchedulerOrder(order: [
                 .preUpdate,
                 .prepare,
+                .batching,
                 .update,
                 .render,
                 .postUpdate
@@ -233,6 +234,7 @@ public extension SchedulerName {
     static let renderRunner = SchedulerName(rawValue: "RenderWorld_RenderRunner")
 
     static let prepare = SchedulerName(rawValue: "RenderWorld_Prepare")
+    static let batching = SchedulerName(rawValue: "RenderWorld_Batching")
     static let render = SchedulerName(rawValue: "RenderWorld_Render")
     static let extract = SchedulerName(rawValue: "RenderWorld_Extract")
 }

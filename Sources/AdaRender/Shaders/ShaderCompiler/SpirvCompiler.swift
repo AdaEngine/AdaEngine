@@ -145,9 +145,11 @@ final class SpirvCompiler {
             )
         }
 
+        let reflection = self.reflection()
         return DeviceCompiledShader(
             language: self.deviceLang,
             entryPoints: entryPoints,
+            reflection: reflection,
             source: source
         )
     }

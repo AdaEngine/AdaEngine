@@ -42,23 +42,20 @@ func Setup(
 
 struct MyMaterial: CanvasMaterial {
 
-    @Uniform(binding: 2, propertyName: "u_Time")
-    var time: Float
+    struct CustomMaterialUniform {
+        var color: Color
+        var time: Float
+    }
 
-    @Uniform(binding: 2, propertyName: "u_Color")
-    var color: Color
+    @Uniform
+    var customMaterial: CustomMaterialUniform
 
-    @FragmentTexture
+    @FragmentTexture(samplerName: "u_Sampler")
     var customTexture: Texture2D
-    
-    @FragmentSampler(propertyName: "u_Sampler")
-    var sampler: Sampler
 
     init(color: Color, customTexture: Texture2D) {
-        self.time = 0
-        self.color = color
+        self.customMaterial = CustomMaterialUniform(color: color, time: 0)
         self.customTexture = customTexture
-        self.sampler = customTexture.sampler
     }
 
     static func fragmentShader() throws -> AssetHandle<ShaderSource> {
@@ -78,11 +75,11 @@ func UpdateMaterial(
 ) {
     meshes.forEach { ent, mesh in
         if input.wrappedValue.isMouseButtonPressed(.left) {
-            (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.color = .mint
+            (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.customMaterial.color = .mint
         } else {
-            (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.color = .pink
+            (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.customMaterial.color = .pink
         }
 
-        (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.time += delta.deltaTime
+        (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.customMaterial.time += delta.deltaTime
     }
 }

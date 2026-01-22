@@ -8,6 +8,9 @@
 import AdaAssets
 import AdaUtils
 import Foundation
+
+// TODO: Need store binaries using MTLBinaryArchive for metal
+
 /// Contains native compiled GPU device shader.
 public protocol CompiledShader: AnyObject {}
 
@@ -45,12 +48,18 @@ public final class Shader: Asset, @unchecked Sendable {
         self.compiledShader = nil
     }
 
-    public init(source: String, entryPoint: String, stage: ShaderStage) {
+    public init(
+        source: String,
+        entryPoint: String,
+        stage: ShaderStage,
+        reflectionData: ShaderReflectionData,
+    ) {
         self.source = .code(source)
         self.entryPoint = entryPoint
         self.stage = stage
         self.shaderCompiler = try! ShaderCompiler(shaderSource: ShaderSource(source: source, lang: .wgsl))
         self.compiledShader = nil
+        self.reflectionData = reflectionData
     }
     
     /// Add new macro to the shader. When all macros has been set, use ``recompile()`` method to apply new changes.
@@ -100,8 +109,17 @@ public final class Shader: Asset, @unchecked Sendable {
         ["mat"]
     }
     
-    static func make(from source: String, entryPoint: String, stage: ShaderStage) throws -> Shader {
-        let shader = Shader(source: source, entryPoint: entryPoint, stage: stage)
+    static func make(
+        from compiledShader: DeviceCompiledShader,
+        entryPoint: String,
+        stage: ShaderStage
+    ) throws -> Shader {
+        let shader = Shader(
+            source: compiledShader.source,
+            entryPoint: entryPoint,
+            stage: stage,
+            reflectionData: compiledShader.reflection
+        )
         try shader.compile()
         return shader
     }
