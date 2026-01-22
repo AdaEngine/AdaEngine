@@ -43,11 +43,11 @@ struct WGSLShaderCompiler: ShaderDeviceCompilerEngine {
 
         let processedSource = renameEntryPoint(in: source, entryPoint: entryPoint)
         return DeviceCompiledShader(
-            source: processedSource, 
             language: .wgsl, 
             entryPoints: [
                 .init(name: entryPoint, stage: stage)
-            ]
+            ],
+            source: processedSource
         )
     }
 

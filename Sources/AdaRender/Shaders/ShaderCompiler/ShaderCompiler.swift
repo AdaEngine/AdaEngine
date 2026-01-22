@@ -11,16 +11,16 @@ import SPIRVCompiler
 import SPIRV_Cross
 import Logging
 
-public struct DeviceCompiledShader {
+public struct DeviceCompiledShader: Codable {
 
-    public struct EntryPoint {
+    public struct EntryPoint: Codable {
         public let name: String
         public let stage: ShaderStage
     }
 
-    public let source: String
     public let language: ShaderLanguage
     public let entryPoints: [EntryPoint]
+    public let source: String
 }
 
 /// Compile shader for device specific language.
@@ -89,7 +89,7 @@ public final class ShaderCompiler {
     private var macros: [ShaderStage: [String : ShaderDefine]] = [:]
     
     private(set) var shaderSource: ShaderSource
-    private let logger = Logger(label: "ShaderCompiler")
+    private let logger = Logger(label: "org.adaengine.shader-compiler")
     
     /// Create a new shader compiler from file source.
     public init(from fileUrl: URL) throws {
@@ -135,6 +135,13 @@ public final class ShaderCompiler {
     /// - Returns: Compiled Shader object.
     /// - Throws: Error if something went wrong on compilation to SPIR-V.
     public func compileShader(for stage: ShaderStage) throws -> Shader {
+        let version = self.getShaderVersion(for: stage)
+        if !ShaderCache.hasChanges(for: self.shaderSource, version: version).contains(stage) {
+            if let deviceCompiledShader = ShaderCache.getCachedDeviceCompiledShader(for: self.shaderSource, stage: stage) {
+                return try Shader.make(from: deviceCompiledShader.source, entryPoint: deviceCompiledShader.entryPoints.first?.name ?? "", stage: stage)
+            }
+        }
+
         let binary = try self.compileSpirvBin(for: stage, ignoreCache: false)
         let deviceShaderCompiler = self.makeDeviceShaderCompiler()
         let compiledShaderData = try UnsafeTask { [deviceShaderCompiler, macros] in
@@ -145,6 +152,11 @@ public final class ShaderCompiler {
                 defines: Array(macros[stage, default: [:]].values)
             )
         }.get()
+        do {
+            try ShaderCache.saveDeviceCompiledShader(compiledShaderData, for: self.shaderSource, stage: stage)
+        } catch {
+            self.logger.warning("Failed to save device compiled shader to cache: \(error)")
+        }
         let shader = try Shader.make(from: compiledShaderData.source, entryPoint: binary.entryPoint, stage: stage)
         if let reflection = ShaderCache.getReflection(for: self.shaderSource, stage: stage) {
             shader.reflectionData = reflection

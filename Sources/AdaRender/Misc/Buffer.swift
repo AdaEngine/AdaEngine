@@ -12,6 +12,9 @@ public protocol Buffer: Sendable {
     ///
     /// - Returns: A pointer to the shared copy of the buffer data, or NULL for buffers allocated with a private resource storage mode
     func contents() -> UnsafeMutableRawPointer
+
+    /// Unmap the buffer's storage.
+    func unmap()
     
     /// A string that identifies the resource.
     var label: String? { get set }

@@ -30,6 +30,10 @@ public class WGPUBuffer: Buffer, @unchecked Sendable {
     public func contents() -> UnsafeMutableRawPointer { 
         unsafe self.buffer.getMappedRange()
     }
+
+    public func unmap() {
+        self.buffer.unmap()
+    }
     
     public func setData(_ bytes: UnsafeMutableRawPointer, byteCount: Int, offset: Int) {
         unsafe device.queue.writeBuffer(
