@@ -11,7 +11,8 @@ import Foundation
 
 protocol MaterialValueDelegate: AnyObject {
     func updateValue(_ value: ShaderUniformValue, for name: String)
-    func updateTextures(_ textures: [Texture], for name: String, binding: Int)
+    func updateTexture(_ texture: Texture, for name: String)
+    func updateSampler(_ sampler: any Sampler, for name: String)
 }
 
 /// This material supports user declared materials.
@@ -220,7 +221,11 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
         self.setValue(value, for: name)
     }
     
-    func updateTextures(_ textures: [Texture], for name: String, binding: Int) {
-        self.setResources(textures, for: name)
+    func updateTexture(_ texture: Texture, for name: String) {
+        self.setTexture(texture, for: name)
+    }
+
+    func updateSampler(_ sampler: any Sampler, for name: String) {
+        self.setSampler(sampler, for: name)
     }
 }

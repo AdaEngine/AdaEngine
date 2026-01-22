@@ -244,12 +244,9 @@ public extension MeshDescriptor {
     
     /// Get the size of the vertex buffer.
     func getVertexBufferSize() -> Int {
-        var size: Int = 0
-        for buffer in buffers.elements.values {
-            size += buffer.count
+        buffers.elements.values.reduce(0) { partialResult, buffer in
+            partialResult + buffer.buffer.elementSize * buffer.count
         }
-        
-        return size
     }
     
     /// Get the index buffer for the mesh.
@@ -266,12 +263,9 @@ public extension MeshDescriptor {
     
     /// Get the vertex buffer for the mesh.
     func getVertexBuffer(renderDevice: RenderDevice, binding: Int = 0) -> VertexBuffer {
-        let vertexSize = buffers.elements.values.reduce(0) { partialResult, buffer in
-            partialResult + buffer.buffer.elementSize
-        }
-        
+        let vertexBufferSize = self.getVertexBufferSize()
         let vertexBuffer = renderDevice.createVertexBuffer(
-            length: vertexSize * self.getVertexBufferSize(), 
+            length: vertexBufferSize, 
             binding: binding
         )
         let vertexBufferContents = unsafe vertexBuffer.contents()
@@ -284,7 +278,7 @@ public extension MeshDescriptor {
             let elementSize = buffer.buffer.elementSize
             
             unsafe buffer.buffer.iterateByElements { index, pointer in
-                let offset = index * vertexSize + attributeOffset
+                let offset = index * vertexBufferSize + attributeOffset
                 unsafe vertexBufferContents
                     .advanced(by: offset)
                     .copyMemory(from: pointer, byteCount: elementSize)

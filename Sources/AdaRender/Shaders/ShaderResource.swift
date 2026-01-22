@@ -89,7 +89,7 @@ public enum ShaderResource {
         public let members: [String : ShaderBufferMember]
     }
     
-    public struct ShaderBufferMember: Codable {
+    public struct ShaderBufferMember: Codable, Sendable {
         let name: String
         let size: Int
         let binding: Int

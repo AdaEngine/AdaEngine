@@ -14,8 +14,8 @@ import AdaUtils
 open class MaterialStorageData {
     public var reflectionData: ShaderReflectionData = ShaderReflectionData()
     public var uniformBufferSet: [String : UniformBufferSet] = [:]
-    public var textures: [String : [Texture]] = [:]
-
+    public var textures: [String : Texture] = [:]
+    public var samplers: [String : any Sampler] = [:]
     public init() {}
 
     public func updateUniformBuffers(from module: ShaderModule) {
@@ -33,10 +33,7 @@ open class MaterialStorageData {
         
         module.reflectionData.resources.forEach { (resourceName, resourceDesc) in
             if self.textures[resourceName] == nil {
-                self.textures[resourceName] = [Texture].init(
-                    repeating: Texture2D.whiteTexture,
-                    count: resourceDesc.arraySize > 0 ? resourceDesc.arraySize : 1
-                )
+                self.textures[resourceName] = Texture2D.whiteTexture
             }
         }
     }
@@ -105,30 +102,51 @@ public final class MaterialStorage {
         return nil
     }
     
-    public func setResources(_ textures: [Texture], for name: String, in material: Material) {
+    public func setTexture(_ texture: Texture, for name: String, in material: Material) {
         guard let data = self.materialData[material.rid] else {
             return
         }
         
-        guard let sampler = self.getResourceDescription(for: name, in: data) else {
+        guard let samplerDescription = self.getResourceDescription(for: name, in: data) else {
+            return
+        }
+        data.textures[samplerDescription.name] = texture
+    }
+
+    public func setSampler(_ sampler: any Sampler, for name: String, in material: Material) {
+        guard let data = self.materialData[material.rid] else {
             return
         }
         
-        for (index, texture) in textures.enumerated() {
-            data.textures[sampler.name]?[index] = texture
+        guard let samplerDescription = self.getResourceDescription(for: name, in: data) else {
+            return
         }
+
+        data.samplers[samplerDescription.name] = sampler
+    }
+
+    public func getSampler(for name: String, in material: Material) -> (any Sampler)? {
+        guard let data = self.materialData[material.rid] else {
+            return nil
+        }
+        
+        guard let samplerDescription = self.getResourceDescription(for: name, in: data) else {
+            return nil
+        }
+
+        return data.samplers[samplerDescription.name]
     }
     
-    public func getResources(for name: String, in material: Material) -> [Texture] {
+    public func getTexture(for name: String, in material: Material) -> Texture? {
         guard let data = self.materialData[material.rid] else {
-            return []
+            return nil
         }
         
-        guard let sampler = self.getResourceDescription(for: name, in: data) else {
-            return []
+        guard let samplerDescription = self.getResourceDescription(for: name, in: data) else {
+            return nil
         }
         
-        return data.textures[sampler.name] ?? []
+        return data.textures[samplerDescription.name]
     }
     
     public func getResourceDescription(for name: String, in material: MaterialStorageData) -> ShaderResource.ImageSampler? {

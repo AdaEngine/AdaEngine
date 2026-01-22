@@ -37,7 +37,6 @@ public final class Uniform<T: ShaderBindable & ShaderUniformValue>: _ShaderBindP
     weak var delegate: MaterialValueDelegate?
     
     var valueLayout: Int { T.layout() }
-    public let binding: Int
     internal var propertyName: String = ""
     
     /// Create a new Uniform property wrapper.
@@ -46,7 +45,6 @@ public final class Uniform<T: ShaderBindable & ShaderUniformValue>: _ShaderBindP
     public init(wrappedValue: T, binding: Int, propertyName: String = "") {
         self._value = wrappedValue
         self.propertyName = propertyName
-        self.binding = binding
     }
     
     /// Create a new Uniform property wrapper.
@@ -55,7 +53,6 @@ public final class Uniform<T: ShaderBindable & ShaderUniformValue>: _ShaderBindP
     public init(binding: Int, propertyName: String = "") {
         self._value = nil
         self.propertyName = propertyName
-        self.binding = binding
     }
     
     func update() {
@@ -80,12 +77,10 @@ public final class FragmentTexture<T: Texture>: _ShaderBindProperty {
         }
         set {
             self._value = newValue
-            
-            self.delegate?.updateTextures([newValue], for: self.propertyName, binding: self.binding)
+            self.delegate?.updateTexture(newValue, for: self.propertyName)
         }
     }
     
-    public let binding: Int
     internal var propertyName: String = ""
     
     weak var delegate: MaterialValueDelegate?
@@ -93,23 +88,59 @@ public final class FragmentTexture<T: Texture>: _ShaderBindProperty {
     /// Create a new texture property wrapper.
     /// - Parameter binding: The index of texture bind group.
     /// - Parameter propertyName: Custom shader texture property name, by default it's empty and will capture real property name.
-    public init(wrappedValue: T, binding: Int, propertyName: String = "") {
+    public init(wrappedValue: T, propertyName: String = "") {
         self._value = wrappedValue
-        self.binding = binding
         self.propertyName = propertyName
     }
     
     /// Create a new texture property wrapper.
     /// - Parameter binding: The index of texture bind group.
     /// - Parameter propertyName: Custom shader texture property name, by default it's empty and will capture real property name.
-    public init(binding: Int, propertyName: String = "") {
+    public init(propertyName: String = "") {
         self._value = nil
-        self.binding = binding
         self.propertyName = propertyName
     }
     
     func update() {
-        self.delegate?.updateTextures([self.wrappedValue], for: self.propertyName, binding: self.binding)
+        self.delegate?.updateTexture(self.wrappedValue, for: self.propertyName)
+    }
+}
+
+/// Property wrapper that pass fragment sampler to the ``ReflectedMaterial``.
+///
+/// You can specify sampler for your custom material.
+@propertyWrapper
+public final class FragmentSampler: _ShaderBindProperty {
+    private var _value: (any Sampler)?
+
+    public var wrappedValue: any Sampler {
+        get {
+            guard let value = _value else {
+                fatalError("Property being accessed without initialization")
+            }
+            return value
+        }
+        set {
+            self._value = newValue
+            self.delegate?.updateSampler(newValue, for: self.propertyName)
+        }
+    }
+
+    internal var propertyName: String = ""
+    weak var delegate: MaterialValueDelegate?
+
+    public init(wrappedValue: any Sampler, propertyName: String = "") {
+        self._value = wrappedValue
+        self.propertyName = propertyName
+    }
+    
+    public init(propertyName: String = "") {
+        self._value = nil
+        self.propertyName = propertyName
+    }
+
+    func update() {
+        self.delegate?.updateSampler(self.wrappedValue, for: self.propertyName)
     }
 }
 
@@ -118,10 +149,6 @@ protocol _ShaderBindProperty: AnyObject {
     
     /// Contains shader property name.
     var propertyName: String { get set }
-    
-    /// Contains bind group for current property wrapper.
-    /// Used for matching property wrapper and shader bind.
-    var binding: Int { get }
     
     /// Contains delegate which will recieve updates of current property wrapper.
     var delegate: MaterialValueDelegate? { get set }
