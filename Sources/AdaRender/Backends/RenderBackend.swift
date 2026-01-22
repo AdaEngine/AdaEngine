@@ -84,9 +84,6 @@ public protocol RenderDevice: AnyObject, Sendable {
     /// Create a new uniform buffer with specific length and binding.
     func createUniformBuffer(length: Int, binding: Int) -> UniformBuffer
 
-    /// Create a new empty uniform buffer set.
-    func createUniformBufferSet() -> any UniformBufferSet
-
     // MARK: - Texture
 
     /// Create a new GPU Texture from descriptor.

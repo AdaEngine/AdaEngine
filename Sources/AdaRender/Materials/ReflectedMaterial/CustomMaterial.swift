@@ -10,9 +10,8 @@ import AdaUtils
 import Foundation
 
 protocol MaterialValueDelegate: AnyObject {
-    func updateValue(_ value: ShaderUniformValue, for name: String)
-    func updateTexture(_ texture: Texture, for name: String)
-    func updateSampler(_ sampler: any Sampler, for name: String)
+    func updateValue(_ value: Any, for name: String)
+    func updateTexture(_ texture: MaterialTexture, for name: String)
 }
 
 /// This material supports user declared materials.
@@ -139,7 +138,10 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
         } catch {
             assertionFailure("[CustomMaterial] \(error)")
         }
-        
+
+        shaderSource.fileURL = try? ShaderCache
+            .getCacheDirectory()
+            .appending(path: String(reflecting: type(of: material)), directoryHint: .isDirectory)
         super.init(shaderSource: shaderSource)
         self.reflectMaterial(from: material)
     }
@@ -217,15 +219,11 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
     
     // MARK: Delegate
     
-    func updateValue(_ value: ShaderUniformValue, for name: String) {
+    func updateValue(_ value: Any, for name: String) {
         self.setValue(value, for: name)
     }
     
-    func updateTexture(_ texture: Texture, for name: String) {
+    func updateTexture(_ texture: MaterialTexture, for name: String) {
         self.setTexture(texture, for: name)
-    }
-
-    func updateSampler(_ sampler: any Sampler, for name: String) {
-        self.setSampler(sampler, for: name)
     }
 }

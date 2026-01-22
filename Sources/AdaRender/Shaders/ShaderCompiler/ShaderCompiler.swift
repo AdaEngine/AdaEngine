@@ -20,6 +20,7 @@ public struct DeviceCompiledShader: Codable {
 
     public let language: ShaderLanguage
     public let entryPoints: [EntryPoint]
+    public let reflection: ShaderReflectionData
     public let source: String
 }
 
@@ -87,7 +88,6 @@ public final class ShaderCompiler {
     ]
     
     private var macros: [ShaderStage: [String : ShaderDefine]] = [:]
-    
     private(set) var shaderSource: ShaderSource
     private let logger = Logger(label: "org.adaengine.shader-compiler")
     
@@ -138,7 +138,7 @@ public final class ShaderCompiler {
         let version = self.getShaderVersion(for: stage)
         if !ShaderCache.hasChanges(for: self.shaderSource, version: version).contains(stage) {
             if let deviceCompiledShader = ShaderCache.getCachedDeviceCompiledShader(for: self.shaderSource, stage: stage) {
-                return try Shader.make(from: deviceCompiledShader.source, entryPoint: deviceCompiledShader.entryPoints.first?.name ?? "", stage: stage)
+                return try Shader.make(from: deviceCompiledShader, entryPoint: deviceCompiledShader.entryPoints.first?.name ?? "", stage: stage)
             }
         }
 
@@ -157,13 +157,15 @@ public final class ShaderCompiler {
         } catch {
             self.logger.warning("Failed to save device compiled shader to cache: \(error)")
         }
-        let shader = try Shader.make(from: compiledShaderData.source, entryPoint: binary.entryPoint, stage: stage)
+        let shader = try Shader.make(
+            from: compiledShaderData,
+            entryPoint: binary.entryPoint,
+            stage: stage
+        )
         if let reflection = ShaderCache.getReflection(for: self.shaderSource, stage: stage) {
             shader.reflectionData = reflection
         } else {
-            let data = shader.reflectionData
-            shader.reflectionData = data
-            try ShaderCache.saveReflection(data, for: self.shaderSource, stage: stage)
+            try ShaderCache.saveReflection(shader.reflectionData, for: self.shaderSource, stage: stage)
         }
         
         return shader

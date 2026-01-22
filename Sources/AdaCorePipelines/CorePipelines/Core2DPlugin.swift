@@ -31,7 +31,7 @@ public struct Core2DPlugin: Plugin {
         app
             .insertResource(RenderItems<Transparent2DRenderItem>())
             .insertResource(SortedRenderItems<Transparent2DRenderItem>())
-            .addSystem(BatchAndSortTransparent2DRenderItemsSystem.self, on: .prepare)
+            .addSystem(BatchAndSortTransparent2DRenderItemsSystem.self, on: .batching)
             .addSystem(ClearTransparent2dRenderItemsSystem.self, on: .preUpdate)
 
         var graph = RenderGraph(label: .main2D)

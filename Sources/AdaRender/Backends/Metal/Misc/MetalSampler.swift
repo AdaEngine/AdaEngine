@@ -13,9 +13,24 @@ final class MetalSampler: Sampler, Sendable {
     let descriptor: SamplerDescriptor
     let mtlSampler: MTLSamplerState
     
-    init(descriptor: SamplerDescriptor, mtlSampler: MTLSamplerState) {
+    init(descriptor: SamplerDescriptor, device: MTLDevice) {
+        let mtlDescriptor = MTLSamplerDescriptor()
+        mtlDescriptor.minFilter = descriptor.minFilter.toMetal
+        mtlDescriptor.magFilter = descriptor.magFilter.toMetal
+        mtlDescriptor.lodMinClamp = descriptor.lodMinClamp
+        mtlDescriptor.lodMaxClamp = descriptor.lodMaxClamp
+
+        switch descriptor.mipFilter {
+        case .nearest:
+            mtlDescriptor.mipFilter = .nearest
+        case .linear:
+            mtlDescriptor.mipFilter = .linear
+        case .notMipmapped:
+            mtlDescriptor.mipFilter = .notMipmapped
+        }
+
         self.descriptor = descriptor
-        self.mtlSampler = mtlSampler
+        self.mtlSampler = device.makeSamplerState(descriptor: mtlDescriptor)!
     }
 }
 

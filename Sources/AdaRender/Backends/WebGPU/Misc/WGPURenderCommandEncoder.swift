@@ -22,9 +22,14 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
     // Track if bind group needs update
     private var bindGroupDirty: Bool = false
     private var triangleFillMode: TriangleFillMode = .fill
+
+    struct BindGroupSlot: Hashable {
+        let bindingSlot: Int
+        let visibility: WebGPU.ShaderStage.RawValue
+    }
     
     // Resource caches for building bind groups - key is the shader binding index
-    private var uniformBuffers: [Int: (buffer: WebGPU.Buffer, offset: Int, visibility: WebGPU.ShaderStage)] = [:]
+    private var uniformBuffers: [BindGroupSlot: (buffer: WebGPU.Buffer, offset: Int)] = [:]
     private var textures: [Int: WGPUGPUTexture] = [:]
     private var samplers: [Int: WGPUSampler] = [:]
 
@@ -86,7 +91,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
             fatalError("UniformBuffer is not a WGPUUniformBuffer")
         }
         // Fragment uniforms go after vertex uniforms
-        uniformBuffers[slot] = (buffer: wgpuBuffer.buffer, offset: offset, visibility: .fragment)
+        uniformBuffers[BindGroupSlot(bindingSlot: slot, visibility: WebGPU.ShaderStage.fragment.rawValue)] = (buffer: wgpuBuffer.buffer, offset: offset)
         bindGroupDirty = true
     }
 
@@ -110,8 +115,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
 
         let uniform = WGPUUniformBuffer(buffer: wgpuBuffer.buffer, device: device, binding: slot)
         uniform.label = bufferData.label
-        let bindingIndex = slot
-        uniformBuffers[bindingIndex] = (buffer: uniform.buffer, offset: offset, visibility: .fragment)
+        uniformBuffers[BindGroupSlot(bindingSlot: slot, visibility: WebGPU.ShaderStage.fragment.rawValue)] = (buffer: uniform.buffer, offset: offset)
         bindGroupDirty = true
     }
 
@@ -143,9 +147,7 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
             bufferOffset: 0,
             data: UnsafeRawBufferPointer(start: bytes, count: length)
         )
-        // Vertex bytes are uniform constants (e.g., view/projection matrices),
-        // so they go into bind groups, not vertex buffer slots
-        uniformBuffers[slot] = (buffer: buffer, offset: 0, visibility: .vertex)
+        uniformBuffers[BindGroupSlot(bindingSlot: slot, visibility: WebGPU.ShaderStage.vertex.rawValue)] = (buffer: buffer, offset: 0)
         bindGroupDirty = true
     }
 
@@ -271,9 +273,9 @@ extension WGPURenderCommandEncoder {
         }
 
         // Add any additional uniform buffers
-        for (bindingSlot, uniform) in uniformBuffers {
+        for (bindGroupEntry, uniform) in uniformBuffers {
             entries.append(BindGroupEntry(
-                binding: UInt32(bindingSlot),
+                binding: UInt32(bindGroupEntry.bindingSlot),
                 buffer: uniform.buffer,
                 offset: UInt64(uniform.offset),
                 size: UInt64(uniform.buffer.size)

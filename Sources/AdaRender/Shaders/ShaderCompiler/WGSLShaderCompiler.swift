@@ -40,13 +40,14 @@ struct WGSLShaderCompiler: ShaderDeviceCompilerEngine {
         guard let source = process.standardOutput else {
             throw ShaderCompilerError.failed("No output")
         }
-
+        let spirvCompiler = try SpirvCompiler(spriv: spirvData, stage: stage, deviceLang: .glsl)
         let processedSource = renameEntryPoint(in: source, entryPoint: entryPoint)
         return DeviceCompiledShader(
             language: .wgsl, 
             entryPoints: [
                 .init(name: entryPoint, stage: stage)
             ],
+            reflection: spirvCompiler.reflection(),
             source: processedSource
         )
     }
