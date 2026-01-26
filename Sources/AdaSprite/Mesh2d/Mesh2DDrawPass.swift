@@ -46,47 +46,65 @@ public struct Mesh2DDrawPass: DrawPass {
         }
 
         for (groupIndex, descriptorSet) in materialData.reflectionData.descriptorSets.enumerated() {
+            var bindings: [RenderResourceSet.Binding] = []
+
             for (_, buffer) in descriptorSet.uniformsBuffers {
                 guard let uniformBuffer = materialData.uniformBufferSet[buffer.name] else {
                     continue
                 }
-                
-                if buffer.shaderStage.contains(.vertex) {
-                    renderEncoder.setVertexBuffer(uniformBuffer, offset: 0, slot: buffer.binding)
-                }
-                
-                if buffer.shaderStage.contains(.fragment) {
-                    renderEncoder.setFragmentBuffer(uniformBuffer, offset: 0, slot: buffer.binding)
-                }
+
+                bindings.append(
+                    RenderResourceSet.Binding(
+                        binding: buffer.binding,
+                        shaderStages: buffer.shaderStage,
+                        resource: .uniformBuffer(uniformBuffer, offset: 0)
+                    )
+                )
             }
+
             
             for (_, sampler) in descriptorSet.sampledImages {
                 guard let materialTexture = materialData.textures[sampler.name] else {
                     continue
                 }
-                
-                renderEncoder.setFragmentTexture(
-                    materialTexture.texture,
-                    slot: sampler.binding
+
+                bindings.append(
+                    RenderResourceSet.Binding(
+                        binding: sampler.binding,
+                        shaderStages: sampler.shaderStage,
+                        arrayLength: sampler.arraySize,
+                        resource: .texture(materialTexture.texture)
+                    )
                 )
 
-                if let resource = materialData.reflectionData.resources[materialTexture.samplerName] {
-                    renderEncoder.setFragmentSamplerState(
-                        materialTexture.texture.sampler,
-                        slot: resource.binding
+                if let samplerResource = materialData.reflectionData.samplers[materialTexture.samplerName] {
+                    bindings.append(
+                        RenderResourceSet.Binding(
+                            binding: samplerResource.binding,
+                            shaderStages: samplerResource.shaderStage,
+                            resource: .sampler(materialTexture.texture.sampler)
+                        )
                     )
                 }
+            }
+
+            if !bindings.isEmpty {
+                renderEncoder.setResourceSet(RenderResourceSet(bindings: bindings), index: groupIndex)
             }
         }
 
         renderEncoder.setVertexBuffer(meshComponent.modelUniform, slot: Self.meshUniformBinding)
-                
+
         part.vertexBuffer.label = "Part Vertex Buffer"
         renderEncoder.setVertexBuffer(part.vertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(part.indexBuffer, offset: 0)
         renderEncoder.setRenderPipelineState(item.renderPipeline)
 
-        renderEncoder.drawIndexed(indexCount: part.indexCount, indexBufferOffset: 0, instanceCount: 1)
+        renderEncoder.drawIndexed(
+            indexCount: part.indexCount,
+            indexBufferOffset: 0,
+            instanceCount: 1
+        )
     }
 }
 

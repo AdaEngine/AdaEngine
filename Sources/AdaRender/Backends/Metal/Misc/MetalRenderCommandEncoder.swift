@@ -12,12 +12,14 @@ import Metal
 final class MetalRenderCommandEncoder: RenderCommandEncoder {
 
     let renderEncoder: MTLRenderCommandEncoder
+    private let device: MTLDevice
     private var currentIndexBuffer: MTLBuffer?
     private var currentIndexType: MTLIndexType = .uint32
     private var currentPrimitiveType: MTLPrimitiveType = .triangle
 
-    init(renderEncoder: MTLRenderCommandEncoder) {
+    init(renderEncoder: MTLRenderCommandEncoder, device: MTLDevice) {
         self.renderEncoder = renderEncoder
+        self.device = device
     }
 
     func pushDebugName(_ string: String) {
@@ -98,6 +100,43 @@ final class MetalRenderCommandEncoder: RenderCommandEncoder {
             fatalError("Sampler is not a MetalSampler")
         }
         renderEncoder.setFragmentSamplerState(metalSampler.mtlSampler, index: slot)
+    }
+
+    func setResourceSet(_ resourceSet: RenderResourceSet, index: Int) {
+        for binding in resourceSet.bindings {
+            switch binding.resource {
+            case let .uniformBuffer(uniformBuffer, offset):
+                guard let metalBuffer = uniformBuffer as? MetalUniformBuffer else {
+                    fatalError("UniformBuffer is not a MetalUniformBuffer")
+                }
+                if binding.shaderStages.contains(.vertex) {
+                    renderEncoder.setVertexBuffer(metalBuffer.buffer, offset: offset, index: binding.binding)
+                }
+                if binding.shaderStages.contains(.fragment) {
+                    renderEncoder.setFragmentBuffer(metalBuffer.buffer, offset: offset, index: binding.binding)
+                }
+            case let .texture(texture):
+                guard let metalTexture = texture.gpuTexture as? MetalGPUTexture else {
+                    fatalError("Texture is not a MetalGPUTexture")
+                }
+                if binding.shaderStages.contains(.vertex) {
+                    renderEncoder.setVertexTexture(metalTexture.texture, index: binding.binding)
+                }
+                if binding.shaderStages.contains(.fragment) {
+                    renderEncoder.setFragmentTexture(metalTexture.texture, index: binding.binding)
+                }
+            case let .sampler(sampler):
+                guard let metalSampler = sampler as? MetalSampler else {
+                    fatalError("Sampler is not a MetalSampler")
+                }
+                if binding.shaderStages.contains(.vertex) {
+                    renderEncoder.setVertexSamplerState(metalSampler.mtlSampler, index: binding.binding)
+                }
+                if binding.shaderStages.contains(.fragment) {
+                    renderEncoder.setFragmentSamplerState(metalSampler.mtlSampler, index: binding.binding)
+                }
+            }
+        }
     }
 
     func setViewport(_ viewport: Rect) {

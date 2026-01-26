@@ -22,7 +22,10 @@ open class MaterialStorageData {
         
         module.reflectionData.shaderBuffers.forEach { (bufferName, bufferDesc) in
             if self.uniformBufferSet[bufferName] == nil {
-                var uniformBuffer = unsafe RenderEngine.shared.renderDevice.createUniformBuffer(length: bufferDesc.size, binding: bufferDesc.binding)
+                var uniformBuffer = unsafe RenderEngine.shared.renderDevice.createUniformBuffer(
+                    length: bufferDesc.size,
+                    binding: bufferDesc.binding
+                )
                 uniformBuffer.label = "\(module.assetName) \(bufferDesc.name) \(bufferDesc.shaderStage)"
                 self.uniformBufferSet[bufferName] = uniformBuffer
             }
@@ -124,6 +127,11 @@ public final class MaterialStorage {
     public func getResourceDescription(for name: String, in material: MaterialStorageData) -> ShaderResource.ImageSampler? {
         let reflectionData = material.reflectionData
         return reflectionData.resources[name]
+    }
+
+    public func getSamplerDescription(for name: String, in material: MaterialStorageData) -> ShaderResource.Sampler? {
+        let reflectionData = material.reflectionData
+        return reflectionData.samplers[name]
     }
     
     public func setMaterialData(_ materialData: MaterialStorageData, for material: Material) {

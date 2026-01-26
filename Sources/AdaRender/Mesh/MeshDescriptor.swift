@@ -244,8 +244,8 @@ public extension MeshDescriptor {
     
     /// Get the size of the vertex buffer.
     func getVertexBufferSize() -> Int {
-        buffers.elements.values.reduce(0) { partialResult, buffer in
-            partialResult + buffer.buffer.elementSize * buffer.count
+        buffers.elements.values.reduce(into: 0) { partialResult, buffer in
+            partialResult += buffer.buffer.elementSize * buffer.count
         }
     }
     
@@ -273,12 +273,15 @@ public extension MeshDescriptor {
             vertexBuffer.unmap()
         }
         
+        // Calculate stride (per-vertex size) as the sum of all attribute element sizes
+        let stride = buffers.elements.values.reduce(0) { $0 + $1.buffer.elementSize }
+        
         var attributeOffset: Int = 0
         for buffer in buffers.elements.values {
             let elementSize = buffer.buffer.elementSize
             
             unsafe buffer.buffer.iterateByElements { index, pointer in
-                let offset = index * vertexBufferSize + attributeOffset
+                let offset = index * stride + attributeOffset
                 unsafe vertexBufferContents
                     .advanced(by: offset)
                     .copyMemory(from: pointer, byteCount: elementSize)

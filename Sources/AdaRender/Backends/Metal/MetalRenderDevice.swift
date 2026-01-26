@@ -175,8 +175,10 @@ extension MetalRenderDevice {
     }
 
     func createUniformBuffer(length: Int, binding: Int) -> UniformBuffer {
+        // Metal requires uniform buffers to be aligned to 16 bytes for proper struct alignment
+        let alignedLength = (length + 15) & ~15
         let buffer = self.device.makeBuffer(
-            length: length,
+            length: alignedLength,
             options: .storageModeShared
         )!
 

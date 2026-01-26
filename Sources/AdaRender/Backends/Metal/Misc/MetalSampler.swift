@@ -19,6 +19,7 @@ final class MetalSampler: Sampler, Sendable {
         mtlDescriptor.magFilter = descriptor.magFilter.toMetal
         mtlDescriptor.lodMinClamp = descriptor.lodMinClamp
         mtlDescriptor.lodMaxClamp = descriptor.lodMaxClamp
+        mtlDescriptor.supportArgumentBuffers = true
 
         switch descriptor.mipFilter {
         case .nearest:

@@ -149,8 +149,21 @@ public struct UIDrawPass: DrawPass {
 
         // Bind textures
         for texture in uiDrawData.textures {
-            renderEncoder.setFragmentTexture(texture, slot: 0)
-            renderEncoder.setFragmentSamplerState(texture.sampler, slot: 1)
+            let resourceSet = RenderResourceSet(
+                bindings: [
+                    RenderResourceSet.Binding(
+                        binding: 0,
+                        shaderStages: .fragment,
+                        resource: .texture(texture)
+                    ),
+                    RenderResourceSet.Binding(
+                        binding: 1,
+                        shaderStages: .fragment,
+                        resource: .sampler(texture.sampler)
+                    )
+                ]
+            )
+            renderEncoder.setResourceSet(resourceSet, index: 0)
 
             /// TODO: Need to use batch
             renderEncoder.drawIndexed(
@@ -208,8 +221,21 @@ public struct UIDrawPass: DrawPass {
 
         // Bind font atlas textures
         for texture in uiDrawData.fontAtlases {
-            renderEncoder.setFragmentTexture(texture, slot: 0)
-            renderEncoder.setFragmentSamplerState(texture.sampler, slot: 1)
+            let resourceSet = RenderResourceSet(
+                bindings: [
+                    RenderResourceSet.Binding(
+                        binding: 0,
+                        shaderStages: .fragment,
+                        resource: .texture(texture)
+                    ),
+                    RenderResourceSet.Binding(
+                        binding: 1,
+                        shaderStages: .fragment,
+                        resource: .sampler(texture.sampler)
+                    )
+                ]
+            )
+            renderEncoder.setResourceSet(resourceSet, index: 0)
 
             /// TODO: Need to use batch
             renderEncoder.drawIndexed(

@@ -266,6 +266,35 @@ public protocol CommonCommandEncoder: AnyObject {
 
 // MARK: - Render Command Encoder
 
+/// Represents a collection of resources bound as a descriptor set or bind group.
+public struct RenderResourceSet {
+    public struct Binding {
+        public enum Resource {
+            case uniformBuffer(UniformBuffer, offset: Int)
+            case texture(Texture)
+            case sampler(Sampler)
+        }
+
+        public let binding: Int
+        public let shaderStages: ShaderStageFlags
+        public let arrayLength: Int
+        public let resource: Resource
+
+        public init(binding: Int, shaderStages: ShaderStageFlags, arrayLength: Int = 1, resource: Resource) {
+            self.binding = binding
+            self.shaderStages = shaderStages
+            self.arrayLength = arrayLength
+            self.resource = resource
+        }
+    }
+
+    public var bindings: [Binding]
+
+    public init(bindings: [Binding]) {
+        self.bindings = bindings
+    }
+}
+
 /// An encoder for recording rendering commands within a render pass.
 ///
 /// Use a render command encoder to set pipeline state, bind resources (buffers, textures),
@@ -369,6 +398,13 @@ public protocol RenderCommandEncoder: CommonCommandEncoder {
     ///   - sampler: The sampler state to bind.
     ///   - slot: The binding index in the fragment shader.
     func setFragmentSamplerState(_ sampler: Sampler, slot: Int)
+
+    /// Binds a resource set (descriptor set / bind group) for the specified set index.
+    ///
+    /// - Parameters:
+    ///   - resourceSet: The set of resources to bind.
+    ///   - index: The descriptor set / bind group index.
+    func setResourceSet(_ resourceSet: RenderResourceSet, index: Int)
 
     /// Sets the viewport for rendering.
     ///

@@ -209,6 +209,31 @@ extension BlendFactor {
     }
 }
 
+extension Texture.TextureType {
+    var toMetal: MTLTextureType {
+        switch self {
+        case .texture1D:
+            return .type1D
+        case .texture1DArray:
+            return .type1DArray
+        case .texture2D:
+            return .type2D
+        case .texture2DArray:
+            return .type2DArray
+        case .texture2DMultisample:
+            return .type2DMultisample
+        case .texture2DMultisampleArray:
+            return .type2DMultisampleArray
+        case .textureCube:
+            return .typeCube
+        case .texture3D:
+            return .type3D
+        case .textureBuffer:
+            fatalError("Unsupported texture buffer type for Metal")
+        }
+    }
+}
+
 extension CompareOperation {
     var toMetal: MTLCompareFunction {
         switch self {

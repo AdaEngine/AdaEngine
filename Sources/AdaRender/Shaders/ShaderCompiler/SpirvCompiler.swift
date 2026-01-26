@@ -12,7 +12,6 @@ import Logging
 /// Create High Level Shading Language from SPIR-V for specific shader language.
 @safe
 final class SpirvCompiler {
-
     let deviceLang: ShaderLanguage
     private let stage: ShaderStage
 
@@ -248,7 +247,16 @@ final class SpirvCompiler {
 
                     descriptorSet.uniformsBuffers[Int(binding)] = buffer
                     reflectionData.shaderBuffers[resourceName] = buffer
-                case .image, .sampler, .inputAttachment, .storageImage, .sampledImage:
+                case .sampler:
+                    let sampler = ShaderResource.Sampler(
+                        name: resourceName,
+                        binding: Int(binding),
+                        shaderStage: ShaderStageFlags(shaderStage: self.stage)
+                    )
+
+                    reflectionData.samplers[resourceName] = sampler
+                    descriptorSet.samplers[Int(binding)] = sampler
+                case .image, .inputAttachment, .storageImage, .sampledImage:
                     let access = unsafe spvc_type_get_image_access_qualifier(type)
                     let isArray = unsafe spvc_type_get_image_arrayed(type) == 1
                     let isMultisampled = unsafe spvc_type_get_image_multisampled(type) == 1
