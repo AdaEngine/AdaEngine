@@ -368,8 +368,21 @@ public struct TextDrawPass: DrawPass {
             renderEncoder.pushDebugName("Text Background")
             
             // Bind white texture for solid color rendering
-            renderEncoder.setFragmentTexture(Texture2D.whiteTexture, slot: 0)
-            renderEncoder.setFragmentSamplerState(Texture2D.whiteTexture.sampler, slot: 1)
+            let backgroundResourceSet = RenderResourceSet(
+                bindings: [
+                    RenderResourceSet.Binding(
+                        binding: 0,
+                        shaderStages: .fragment,
+                        resource: .texture(Texture2D.whiteTexture)
+                    ),
+                    RenderResourceSet.Binding(
+                        binding: 1,
+                        shaderStages: .fragment,
+                        resource: .sampler(Texture2D.whiteTexture.sampler)
+                    )
+                ]
+            )
+            renderEncoder.setResourceSet(backgroundResourceSet, index: 0)
             
             renderEncoder.setVertexBuffer(textDrawData.bgVertexBuffer, offset: 0, slot: 0)
             renderEncoder.setIndexBuffer(textDrawData.bgIndexBuffer, indexFormat: .uInt32)
@@ -393,8 +406,21 @@ public struct TextDrawPass: DrawPass {
         let instanceCount = Int(batch.range.upperBound - batch.range.lowerBound)
         let indexBufferOffset = Int(batch.range.lowerBound) * MemoryLayout<UInt32>.stride
 
-        renderEncoder.setFragmentTexture(textDrawData.fontAtlas, slot: 0)
-        renderEncoder.setFragmentSamplerState(textDrawData.fontAtlas.sampler, slot: 1)
+        let textResourceSet = RenderResourceSet(
+            bindings: [
+                RenderResourceSet.Binding(
+                    binding: 0,
+                    shaderStages: .fragment,
+                    resource: .texture(textDrawData.fontAtlas)
+                ),
+                RenderResourceSet.Binding(
+                    binding: 1,
+                    shaderStages: .fragment,
+                    resource: .sampler(textDrawData.fontAtlas.sampler)
+                )
+            ]
+        )
+        renderEncoder.setResourceSet(textResourceSet, index: 0)
 
         renderEncoder.drawIndexed(
             indexCount: 6 * instanceCount,

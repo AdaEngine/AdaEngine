@@ -59,8 +59,21 @@ public struct SpriteDrawPass: DrawPass {
             renderEncoder.popDebugName()
         }
 
-        renderEncoder.setFragmentTexture(batch.texture, slot: ShaderSlots.texture)
-        renderEncoder.setFragmentSamplerState(batch.texture.sampler, slot: ShaderSlots.sampler)
+        let resourceSet = RenderResourceSet(
+            bindings: [
+                RenderResourceSet.Binding(
+                    binding: ShaderSlots.texture,
+                    shaderStages: .fragment,
+                    resource: .texture(batch.texture)
+                ),
+                RenderResourceSet.Binding(
+                    binding: ShaderSlots.sampler,
+                    shaderStages: .fragment,
+                    resource: .sampler(batch.texture.sampler)
+                )
+            ]
+        )
+        renderEncoder.setResourceSet(resourceSet, index: 0)
         renderEncoder.setVertexBuffer(spritesData.vertexBuffer, offset: 0, slot: ShaderSlots.vertexBuffer)
         renderEncoder.setIndexBuffer(spritesData.indexBuffer, indexFormat: .uInt32)
         renderEncoder.setRenderPipelineState(item.renderPipeline)

@@ -36,7 +36,10 @@ public final class Uniform<T>: _ShaderBindProperty, _ShaderUniformProperty {
     
     weak var delegate: MaterialValueDelegate?
     
-    var valueLayout: Int { MemoryLayout<T>.stride }
+    var valueLayout: Int {
+        MemoryLayout<T>.stride
+    }
+    
     internal var propertyName: String = ""
     
     /// Create a new Uniform property wrapper.

@@ -62,7 +62,10 @@ enum ShaderCache {
     
     // MARK: Save/Load SPIRV
 
-    static func getCachedDeviceCompiledShader(for source: ShaderSource, stage: ShaderStage) -> DeviceCompiledShader? {
+    static func getCachedDeviceCompiledShader(
+        for source: ShaderSource,
+        stage: ShaderStage
+    ) -> DeviceCompiledShader? {
         guard let fileURL = source.fileURL else {
             return nil
         }
@@ -116,7 +119,12 @@ enum ShaderCache {
         }
     }
     
-    static func save(_ spirvBin: SpirvBinary, source: ShaderSource, stage: ShaderStage, version: Int) throws {
+    static func save(
+        _ spirvBin: SpirvBinary,
+        source: ShaderSource,
+        stage: ShaderStage,
+        version: Int
+    ) throws {
         guard let fileURL = source.fileURL else {
             throw CompileError.failed("Source file URL not found")
         }
@@ -139,7 +147,11 @@ enum ShaderCache {
     
     // MARK: - Save/Load Reflection
     
-    static func saveReflection(_ reflectionData: ShaderReflectionData, for source: ShaderSource, stage: ShaderStage) throws {
+    static func saveReflection(
+        _ reflectionData: ShaderReflectionData,
+        for source: ShaderSource,
+        stage: ShaderStage
+    ) throws {
         guard reflectionData.isEmpty == false else {
             return
         }
@@ -166,7 +178,11 @@ enum ShaderCache {
         _ = fileSystem.createFile(at: cacheFile, contents: stringData.data(using: .utf8)!)
     }
 
-    static func saveDeviceCompiledShader(_ compiledShader: DeviceCompiledShader, for source: ShaderSource, stage: ShaderStage) throws {
+    static func saveDeviceCompiledShader(
+        _ compiledShader: DeviceCompiledShader,
+        for source: ShaderSource,
+        stage: ShaderStage
+    ) throws {
         guard let fileURL = source.fileURL else {
             throw CompileError.failed("Source file URL not found")
         }
@@ -187,6 +203,10 @@ enum ShaderCache {
         
         let stringData = try YAMLEncoder().encode(compiledShader)
         _ = fileSystem.createFile(at: cacheFile, contents: stringData.data(using: .utf8)!)
+
+        let shaderFileForTest = cacheURL
+            .appending(path: "cache-\(stage.rawValue).shader-source.\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
+        _ = fileSystem.createFile(at: shaderFileForTest, contents: compiledShader.source.data(using: .utf8)!)
     }
     
     static func getReflection(for source: ShaderSource, stage: ShaderStage) -> ShaderReflectionData? {

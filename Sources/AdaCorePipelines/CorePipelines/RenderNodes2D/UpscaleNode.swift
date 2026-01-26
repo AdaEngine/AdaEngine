@@ -66,8 +66,21 @@ public struct UpscaleNode: RenderNode {
                 renderPass.setScissorRect(viewport.rect)
             }
 
-            renderPass.setFragmentTexture(mainTexture, slot: 0)
-            renderPass.setFragmentSamplerState(upsalePipeline.sampler, slot: 1)
+            let resourceSet = RenderResourceSet(
+                bindings: [
+                    RenderResourceSet.Binding(
+                        binding: 0,
+                        shaderStages: .fragment,
+                        resource: .texture(mainTexture)
+                    ),
+                    RenderResourceSet.Binding(
+                        binding: 1,
+                        shaderStages: .fragment,
+                        resource: .sampler(upsalePipeline.sampler)
+                    )
+                ]
+            )
+            renderPass.setResourceSet(resourceSet, index: 0)
             renderPass.setRenderPipelineState(upsalePipeline.renderPipeline)
             renderPass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             renderPass.endRenderPass()
