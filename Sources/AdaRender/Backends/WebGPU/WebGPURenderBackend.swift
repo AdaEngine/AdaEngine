@@ -54,7 +54,7 @@ extension WebGPURenderBackend {
         let device = unsafe try await adapter.requestDevice(
                 descriptor: DeviceDescriptor(
                     label: "AdaEngine WebGPU Device", 
-                    requiredFeatures: [], 
+                    requiredFeatures: [.float32Filterable], 
                     requiredLimits: nil, 
                     defaultQueue: QueueDescriptor(), 
                     deviceLostCallbackInfo: DeviceLostCallbackInfo(mode: .allowSpontaneous, callback: { _, deviceLostReason, message in
