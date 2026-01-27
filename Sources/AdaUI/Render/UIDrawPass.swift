@@ -236,13 +236,12 @@ public struct UIDrawPass: DrawPass {
                 ]
             )
             renderEncoder.setResourceSet(resourceSet, index: 0)
-
-            /// TODO: Need to use batch
-            renderEncoder.drawIndexed(
-                indexCount: uiDrawData.glyphIndexBuffer.count,
-                indexBufferOffset: 0,
-                instanceCount: 1
-            )
         }
+
+        renderEncoder.drawIndexed(
+            indexCount: uiDrawData.glyphIndexBuffer.count,
+            indexBufferOffset: 0,
+            instanceCount: 1
+        )
     }
 }

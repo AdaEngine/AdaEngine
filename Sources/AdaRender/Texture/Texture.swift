@@ -9,7 +9,7 @@ import AdaAssets
 @_spi(Runtime) import AdaUtils
 
 /// Base class describing a texture.
-open class Texture: Asset, @unchecked Sendable {
+open class Texture: Asset, @unchecked Sendable, CustomStringConvertible {
     
     @_spi(Internal)
     public private(set) var gpuTexture: GPUTexture
@@ -25,6 +25,35 @@ open class Texture: Asset, @unchecked Sendable {
         self.gpuTexture = gpuTexture
         self.textureType = textureType
         self.sampler = sampler
+    }
+
+    internal var assetDescription: String {
+        if let assetMetaInfo {
+            if !assetMetaInfo.assetName.isEmpty {
+                return "asset=\(assetMetaInfo.assetName)"
+            }
+
+            if !assetMetaInfo.assetPath.isEmpty {
+                return "asset=\(assetMetaInfo.assetPath)"
+            }
+        }
+
+        return "asset=none"
+    }
+
+    internal var samplerDescription: String {
+        let desc = self.sampler.descriptor
+        return "sampler=min=\(desc.minFilter) mag=\(desc.magFilter) mip=\(desc.mipFilter) lod=[\(desc.lodMinClamp), \(desc.lodMaxClamp)]"
+    }
+
+    internal var memoryAddressDescription: String {
+        let address = Unmanaged.passUnretained(self).toOpaque()
+        return "address=\(address)"
+    }
+
+    open var description: String {
+        let typeName = String(reflecting: Swift.type(of: self))
+        return "\(typeName)(type=\(self.textureType), \(self.assetDescription), \(self.samplerDescription), \(self.memoryAddressDescription))"
     }
     
     /// Returns an ``Image`` instance.

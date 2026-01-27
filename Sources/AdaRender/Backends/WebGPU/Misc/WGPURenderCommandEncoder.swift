@@ -51,13 +51,37 @@ final class WGPURenderCommandEncoder: RenderCommandEncoder {
         guard let wgpuPipeline = pipeline as? WGPURenderPipeline else {
             fatalError("RenderPipeline is not a WGPURenderPipeline")
         }
+        
+        // Save old pipeline before updating
+        let oldPipeline = currentPipeline
+        let pipelineChanged = oldPipeline !== wgpuPipeline
+        
         renderEncoder.setPipeline(wgpuPipeline.renderPipeline)
         self.currentPipeline = wgpuPipeline
         
-        // Update bind groups now that we have the pipeline
-        if bindGroupDirty {
-            commitBindGroup()
+        // When switching between pipelines (not first pipeline in render pass),
+        // clear textures and samplers but keep uniform buffers.
+        // Different pipelines have different bind group layouts - some may not use
+        // textures/samplers at all (e.g. Line Pipeline only uses uniform buffer).
+        // Uniform buffers (like view uniform) are shared across pipelines.
+        // 
+        // We only clear if there WAS a previous pipeline - if oldPipeline was nil,
+        // resources might have been set FOR this new pipeline before setRenderPipelineState.
+        if pipelineChanged && oldPipeline != nil {
+            for setIndex in bindGroupResources.keys {
+                bindGroupResources[setIndex]?.textures.removeAll()
+                bindGroupResources[setIndex]?.samplers.removeAll()
+            }
         }
+        
+        // Always mark dirty when pipeline changes so bind group uses correct layout
+        if pipelineChanged {
+            bindGroupDirty = true
+        }
+        
+        // NOTE: Do NOT call commitBindGroup() here!
+        // Resources (textures, samplers) may be set AFTER the pipeline is set.
+        // Bind groups should only be committed right before draw calls.
     }
 
     func setVertexBuffer(_ buffer: UniformBuffer, offset: Int, slot: Int) {
