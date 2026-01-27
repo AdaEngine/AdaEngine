@@ -320,7 +320,6 @@ public struct UIRenderTesselationSystem {
             offset: offset
         )
         renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
-
         let indices = tessellator.generateGlyphIndices(vertexOffset: vertexOffset)
         renderData.glyphIndexBuffer.elements.append(contentsOf: indices)
     }
