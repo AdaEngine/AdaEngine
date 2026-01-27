@@ -30,12 +30,6 @@ open class MaterialStorageData {
                 self.uniformBufferSet[bufferName] = uniformBuffer
             }
         }
-        
-//        module.reflectionData.resources.forEach { (resourceName, resourceDesc) in
-//            if self.textures[resourceName] == nil {
-//                self.textures[resourceName] = Texture2D.whiteTexture
-//            }
-//        }
     }
 }
 
@@ -62,16 +56,16 @@ public final class MaterialStorage {
             return
         }
         
-        guard let bufferDesc = self.getUniformDescription(for: name, in: data), let member = bufferDesc.members[name] else {
+        guard let bufferDesc = self.getUniformDescription(for: name, in: data) else {
             return
         }
         
-        assert(MemoryLayout<T>.stride == member.size, "Failed to set value with type \(type(of: value)) to property with type \(member.type)")
-        
+        assert(MemoryLayout<T>.stride == bufferDesc.size, "Failed to set value with type \(type(of: value)) to property with type \(bufferDesc)")
+
         let buffer = data.uniformBufferSet[bufferDesc.name]
         unsafe withUnsafePointer(to: value) { pointer in
             let dataPtr = unsafe UnsafeMutableRawPointer(mutating: UnsafeRawPointer(pointer))
-            unsafe buffer?.setData(dataPtr, byteCount: member.size, offset: member.offset)
+            unsafe buffer?.setData(dataPtr, byteCount: bufferDesc.size)
         }
     }
     
@@ -80,25 +74,18 @@ public final class MaterialStorage {
             return nil
         }
         
-        guard let bufferDesc = self.getUniformDescription(for: name, in: data), let member = bufferDesc.members[name] else {
+        guard let bufferDesc = self.getUniformDescription(for: name, in: data) else {
             return nil
         }
         
-        assert(MemoryLayout<T>.stride == member.size, "Failed to get value with type \(T.self) from property with type \(member.type)")
+        assert(MemoryLayout<T>.stride == bufferDesc.size, "Failed to get value with type \(T.self) from property with type \(bufferDesc)")
         let buffer = data.uniformBufferSet[bufferDesc.name]
-        return unsafe buffer?.contents().load(fromByteOffset: member.offset, as: T.self)
+        return unsafe buffer?.contents().load(fromByteOffset: 0, as: T.self)
     }
 
     public func getUniformDescription(for name: String, in material: MaterialStorageData) -> ShaderResource.ShaderBuffer? {
         let reflectionData = material.reflectionData
-        
-        for buffer in reflectionData.shaderBuffers.values {
-            if buffer.members[name] != nil {
-                return buffer
-            }
-        }
-        
-        return nil
+        return reflectionData.shaderBuffers[name]
     }
     
     public func setTexture(_ texture: MaterialTexture, for name: String, in material: Material) {

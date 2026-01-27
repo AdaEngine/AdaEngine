@@ -20,10 +20,12 @@ public final class WebGPURenderDevice: RenderDevice, @unchecked Sendable {
     }
 
     public func createUniformBuffer(length: Int, binding: Int) -> any UniformBuffer {
+        // WebGPU requires uniform buffers to be aligned to 16 bytes for proper struct alignment
+        let alignedLength = (length + 15) & ~15
         let _buffer = context.device.createBuffer(
             descriptor: BufferDescriptor(
                 usage: [.indirect, .copyDst, .copySrc, .uniform],
-                size: UInt64(length)
+                size: UInt64(alignedLength)
             )
         ).unwrap(message: "Failed to create uniform buffer")
         return WGPUUniformBuffer(buffer: _buffer, device: context.device, binding: binding)

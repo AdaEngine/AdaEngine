@@ -15,7 +15,7 @@ struct CustomMaterialApp: App {
                 CustomMaterialPlugin()
             )
             .windowMode(.windowed)
-            .preferredRenderBackend(.metal)
+            // .preferredRenderBackend(.metal)
     }
 }
 
@@ -34,10 +34,10 @@ func Setup(
 ) async {
     let texture = try! await AssetsManager.load(Texture2D.self, at: "Resources/dog.png", from: .module)
     commands.spawn {
-        Mesh2D(mesh: .generate(from: Quad(), renderDevice: device.renderDevice), materials: [
+        Mesh2D(mesh: .generate(from: Quad(size: Vector2.init(200, 200)), renderDevice: device.renderDevice), materials: [
             CustomMaterial(MyMaterial(color: .blue, customTexture: texture.asset))
         ])
-        Transform(scale: Vector3(100))
+        Transform()
     }
 }
 
