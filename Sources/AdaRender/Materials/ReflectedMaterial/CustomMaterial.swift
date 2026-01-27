@@ -104,11 +104,7 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
     }
 
     /// User material that can be updated.
-    public var material: T {
-        didSet {
-            self.reflectMaterial(from: self.material)
-        }
-    }
+    public var material: T
 
     /// Contains all bindable properties founded in passed ``ReflectedMaterial``.
     private var bindableValues: [_ShaderBindProperty] = []
@@ -200,7 +196,13 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
             if bindProperty.propertyName.isEmpty {
                 // Get the propertyName of the property. By syntax, the property name is
                 // in the form: "_name". Dropping the "_" -> "name"
-                let propertyName = String((child.label ?? "").dropFirst())
+                var propertyName = String((child.label ?? "").dropFirst())
+
+                // For shader reflection data in uniforms we can't use lowercased name
+                if child.value is _ShaderUniformProperty {
+                    propertyName = propertyName.capitalizingFirstLetter()
+                }
+
                 bindProperty.propertyName = propertyName
             }
             
@@ -225,5 +227,11 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
     
     func updateTexture(_ texture: MaterialTexture, for name: String) {
         self.setTexture(texture, for: name)
+    }
+}
+
+private extension String {
+    func capitalizingFirstLetter() -> String {
+        return prefix(1).uppercased() + dropFirst()
     }
 }

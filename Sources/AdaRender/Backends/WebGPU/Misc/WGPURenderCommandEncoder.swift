@@ -332,6 +332,8 @@ extension WGPURenderCommandEncoder {
 
             guard !entries.isEmpty else { continue }
 
+            // Get bind group layout - this will fail if the pipeline is invalid
+            // The layout will be null/invalid if the pipeline creation failed
             let layout = pipeline.renderPipeline.getBindGroupLayout(groupIndex: UInt32(setIndex))
             let bindGroup = device.createBindGroup(
                 descriptor: BindGroupDescriptor(
