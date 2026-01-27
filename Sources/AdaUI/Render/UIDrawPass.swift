@@ -14,6 +14,18 @@ import AdaCorePipelines
 
 /// Resource that holds GPU buffers for UI rendering.
 public struct UIDrawData: Sendable {
+    public struct IndexBatch: Sendable {
+        public var textureIndex: Int
+        public var indexOffset: Int
+        public var indexCount: Int
+
+        public init(textureIndex: Int, indexOffset: Int, indexCount: Int) {
+            self.textureIndex = textureIndex
+            self.indexOffset = indexOffset
+            self.indexCount = indexCount
+        }
+    }
+
     /// Vertex buffer for quads.
     public var quadVertexBuffer: BufferData<QuadVertexData>
     /// Index buffer for quads.
@@ -37,8 +49,14 @@ public struct UIDrawData: Sendable {
     /// Textures used for quad rendering (max 16 per batch).
     public var textures: [Texture2D] = []
 
+    /// Batches for quad rendering.
+    public var quadBatches: [IndexBatch] = []
+
     /// Font atlas textures used for text rendering (max 16 per batch).
     public var fontAtlases: [Texture2D] = []
+
+    /// Batches for glyph rendering.
+    public var glyphBatches: [IndexBatch] = []
 
     public init() {
         self.quadVertexBuffer = BufferData(label: "UI_QuadVertexBuffer", elements: [])
@@ -75,6 +93,8 @@ public struct UIDrawData: Sendable {
 
         textures.removeAll(keepingCapacity: true)
         fontAtlases.removeAll(keepingCapacity: true)
+        quadBatches.removeAll(keepingCapacity: true)
+        glyphBatches.removeAll(keepingCapacity: true)
     }
 }
 
@@ -147,8 +167,12 @@ public struct UIDrawPass: DrawPass {
         renderEncoder.setVertexBuffer(uiDrawData.quadVertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(uiDrawData.quadIndexBuffer, indexFormat: .uInt32)
 
-        // Bind textures
-        for texture in uiDrawData.textures {
+        for batch in uiDrawData.quadBatches {
+            guard uiDrawData.textures.indices.contains(batch.textureIndex) else {
+                continue
+            }
+
+            let texture = uiDrawData.textures[batch.textureIndex]
             let resourceSet = RenderResourceSet(
                 bindings: [
                     RenderResourceSet.Binding(
@@ -165,10 +189,10 @@ public struct UIDrawPass: DrawPass {
             )
             renderEncoder.setResourceSet(resourceSet, index: 0)
 
-            /// TODO: Need to use batch
+            let indexBufferOffset = batch.indexOffset * MemoryLayout<UInt32>.stride
             renderEncoder.drawIndexed(
-                indexCount: uiDrawData.quadIndexBuffer.count,
-                indexBufferOffset: 0,
+                indexCount: batch.indexCount,
+                indexBufferOffset: indexBufferOffset,
                 instanceCount: 1
             )
         }
@@ -219,8 +243,12 @@ public struct UIDrawPass: DrawPass {
         renderEncoder.setVertexBuffer(uiDrawData.glyphVertexBuffer, offset: 0, slot: 0)
         renderEncoder.setIndexBuffer(uiDrawData.glyphIndexBuffer, indexFormat: .uInt32)
 
-        // Bind font atlas textures
-        for texture in uiDrawData.fontAtlases {
+        for batch in uiDrawData.glyphBatches {
+            guard uiDrawData.fontAtlases.indices.contains(batch.textureIndex) else {
+                continue
+            }
+
+            let texture = uiDrawData.fontAtlases[batch.textureIndex]
             let resourceSet = RenderResourceSet(
                 bindings: [
                     RenderResourceSet.Binding(
@@ -236,12 +264,13 @@ public struct UIDrawPass: DrawPass {
                 ]
             )
             renderEncoder.setResourceSet(resourceSet, index: 0)
-        }
 
-        renderEncoder.drawIndexed(
-            indexCount: uiDrawData.glyphIndexBuffer.count,
-            indexBufferOffset: 0,
-            instanceCount: 1
-        )
+            let indexBufferOffset = batch.indexOffset * MemoryLayout<UInt32>.stride
+            renderEncoder.drawIndexed(
+                indexCount: batch.indexCount,
+                indexBufferOffset: indexBufferOffset,
+                instanceCount: 1
+            )
+        }
     }
 }
