@@ -32,7 +32,7 @@ public struct TextPlugin: Plugin {
         }
 
         renderWorld
-            .insertResource(RenderPipelines<TextPipeline>(configurator: TextPipeline()))
+            .insertResource(RenderPipelines(configurator: TextPipeline()))
     }
 }
 

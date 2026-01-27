@@ -31,7 +31,7 @@ public struct QuadPipeline: RenderPipelineConfigurator {
     ) -> RenderPipelineDescriptor {
         var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
-        pipelineDesc.debugName = "UI Quad Pipeline"
+        pipelineDesc.debugName = "Quad Pipeline"
 
         pipelineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "a_Position"),
@@ -69,7 +69,7 @@ public struct CirclePipeline: RenderPipelineConfigurator {
     ) -> RenderPipelineDescriptor {
         var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
-        pipelineDesc.debugName = "UI Circle Pipeline"
+        pipelineDesc.debugName = "Circle Pipeline"
 
         pipelineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector3, name: "a_WorldPosition"),
@@ -109,7 +109,7 @@ public struct LinePipeline: RenderPipelineConfigurator {
     ) -> RenderPipelineDescriptor {
         var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
-        pipelineDesc.debugName = "UI Line Pipeline"
+        pipelineDesc.debugName = "Line Pipeline"
         pipelineDesc.primitive = .line
 
         pipelineDesc.vertexDescriptor.attributes.append([

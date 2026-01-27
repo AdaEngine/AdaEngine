@@ -33,6 +33,9 @@ public struct Core2DPlugin: Plugin {
             .insertResource(SortedRenderItems<Transparent2DRenderItem>())
             .addSystem(BatchAndSortTransparent2DRenderItemsSystem.self, on: .batching)
             .addSystem(ClearTransparent2dRenderItemsSystem.self, on: .preUpdate)
+            .insertResource(RenderPipelines(configurator: QuadPipeline()))
+            .insertResource(RenderPipelines(configurator: CirclePipeline()))
+            .insertResource(RenderPipelines(configurator: LinePipeline()))
 
         var graph = RenderGraph(label: .main2D)
         let entryNode = graph.addEntryNode(inputs: [

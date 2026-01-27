@@ -174,7 +174,7 @@ extension PixelFormat {
         case .rgba8:
                 .rgba8Unorm
         case .rgba_16f:
-                .rgba16Unorm
+                .rgba16Float
         case .rgba_32f:
                 .rgba32Float
         case .depth_32f_stencil8:

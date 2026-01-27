@@ -15,7 +15,6 @@ struct CustomMaterialApp: App {
                 CustomMaterialPlugin()
             )
             .windowMode(.windowed)
-            // .preferredRenderBackend(.metal)
     }
 }
 
