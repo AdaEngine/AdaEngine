@@ -11,10 +11,13 @@ import Math
 import Metal
 
 final class MetalCommandEncoder: CommandBuffer {
+    var label: String?
     let commandBuffer: MTLCommandBuffer
-
-    init(commandBuffer: MTLCommandBuffer) {
+    private let device: MTLDevice
+    
+    init(commandBuffer: MTLCommandBuffer, device: MTLDevice) {
         self.commandBuffer = commandBuffer
+        self.device = device
     }
 
     func commit() {
@@ -49,9 +52,9 @@ final class MetalCommandEncoder: CommandBuffer {
             fatalError("Failed to create MTLRenderCommandEncoder")
         }
         encoder.label = desc.label
-
         return MetalRenderCommandEncoder(
-            renderEncoder: encoder
+            renderEncoder: encoder,
+            device: device
         )
     }
 

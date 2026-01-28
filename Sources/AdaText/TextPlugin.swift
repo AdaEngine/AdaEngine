@@ -32,7 +32,7 @@ public struct TextPlugin: Plugin {
         }
 
         renderWorld
-            .insertResource(RenderPipelines<TextPipeline>(configurator: TextPipeline()))
+            .insertResource(RenderPipelines(configurator: TextPipeline()))
     }
 }
 
@@ -50,8 +50,7 @@ public struct TextPipeline: RenderPipelineConfigurator {
     public func configurate(
         with configuration: RenderPipelineEmptyConfiguration
     ) -> RenderPipelineDescriptor {
-        var piplineDesc = RenderPipelineDescriptor()
-        piplineDesc.vertex = shader.asset.getShader(for: .vertex)
+        var piplineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         piplineDesc.fragment = shader.asset.getShader(for: .fragment)
         piplineDesc.debugName = "Text Pipeline"
 

@@ -132,24 +132,6 @@ final class MetalBlitCommandEncoder: BlitCommandEncoder {
         )
     }
 
-    func generateMipmaps(for texture: Texture) {
-        guard let tex = texture.gpuTexture as? MetalGPUTexture else {
-            fatalError("Texture must be a Metal texture")
-        }
-        blitEncoder.generateMipmaps(for: tex.texture)
-    }
-
-    func fillBuffer(_ buffer: Buffer, range: Range<Int>, value: UInt8) {
-        guard let metalBuffer = buffer as? MetalBuffer else {
-            fatalError("Buffer must be a Metal buffer")
-        }
-        blitEncoder.__fill(
-            metalBuffer.buffer,
-            range: NSRange(location: range.lowerBound, length: range.count),
-            value: value
-        )
-    }
-
     func endBlitPass() {
         blitEncoder.endEncoding()
     }

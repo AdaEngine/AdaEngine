@@ -10,8 +10,8 @@ import AdaUtils
 import Foundation
 
 protocol MaterialValueDelegate: AnyObject {
-    func updateValue(_ value: ShaderUniformValue, for name: String)
-    func updateTextures(_ textures: [Texture], for name: String, binding: Int)
+    func updateValue(_ value: Any, for name: String)
+    func updateTexture(_ texture: MaterialTexture, for name: String)
 }
 
 /// This material supports user declared materials.
@@ -104,11 +104,7 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
     }
 
     /// User material that can be updated.
-    public var material: T {
-        didSet {
-            self.reflectMaterial(from: self.material)
-        }
-    }
+    public var material: T
 
     /// Contains all bindable properties founded in passed ``ReflectedMaterial``.
     private var bindableValues: [_ShaderBindProperty] = []
@@ -138,7 +134,10 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
         } catch {
             assertionFailure("[CustomMaterial] \(error)")
         }
-        
+
+        shaderSource.fileURL = try? ShaderCache
+            .getCacheDirectory()
+            .appending(path: String(reflecting: type(of: material)), directoryHint: .isDirectory)
         super.init(shaderSource: shaderSource)
         self.reflectMaterial(from: material)
     }
@@ -197,7 +196,13 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
             if bindProperty.propertyName.isEmpty {
                 // Get the propertyName of the property. By syntax, the property name is
                 // in the form: "_name". Dropping the "_" -> "name"
-                let propertyName = String((child.label ?? "").dropFirst())
+                var propertyName = String((child.label ?? "").dropFirst())
+
+                // For shader reflection data in uniforms we can't use lowercased name
+                if child.value is _ShaderUniformProperty {
+                    propertyName = propertyName.capitalizingFirstLetter()
+                }
+
                 bindProperty.propertyName = propertyName
             }
             
@@ -216,11 +221,17 @@ public final class CustomMaterial<T: ReflectedMaterial>: Material, MaterialValue
     
     // MARK: Delegate
     
-    func updateValue(_ value: ShaderUniformValue, for name: String) {
+    func updateValue(_ value: Any, for name: String) {
         self.setValue(value, for: name)
     }
     
-    func updateTextures(_ textures: [Texture], for name: String, binding: Int) {
-        self.setResources(textures, for: name)
+    func updateTexture(_ texture: MaterialTexture, for name: String) {
+        self.setTexture(texture, for: name)
+    }
+}
+
+private extension String {
+    func capitalizingFirstLetter() -> String {
+        return prefix(1).uppercased() + dropFirst()
     }
 }

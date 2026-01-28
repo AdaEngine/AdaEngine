@@ -244,18 +244,15 @@ public extension MeshDescriptor {
     
     /// Get the size of the vertex buffer.
     func getVertexBufferSize() -> Int {
-        var size: Int = 0
-        for buffer in buffers.elements.values {
-            size += buffer.count
+        buffers.elements.values.reduce(into: 0) { partialResult, buffer in
+            partialResult += buffer.buffer.elementSize * buffer.count
         }
-        
-        return size
     }
     
     /// Get the index buffer for the mesh.
-    func getIndexBuffer() -> IndexBuffer {
+    func getIndexBuffer(renderDevice: RenderDevice) -> IndexBuffer {
         var indicies = self.indicies
-        let indexBuffer = unsafe RenderEngine.shared.renderDevice.createIndexBuffer(
+        let indexBuffer = unsafe renderDevice.createIndexBuffer(
             format: .uInt32,
             bytes: &indicies,
             length: indicies.count * MemoryLayout<UInt32>.stride
@@ -265,20 +262,26 @@ public extension MeshDescriptor {
     }
     
     /// Get the vertex buffer for the mesh.
-    func getVertexBuffer() -> VertexBuffer {
-        let vertexSize = buffers.elements.values.reduce(0) { partialResult, buffer in
-            partialResult + buffer.buffer.elementSize
+    func getVertexBuffer(renderDevice: RenderDevice, binding: Int = 0) -> VertexBuffer {
+        let vertexBufferSize = self.getVertexBufferSize()
+        let vertexBuffer = renderDevice.createVertexBuffer(
+            length: vertexBufferSize, 
+            binding: binding
+        )
+        let vertexBufferContents = unsafe vertexBuffer.contents()
+        defer {
+            vertexBuffer.unmap()
         }
         
-        let vertexBuffer = RenderEngine.shared.renderDevice.createVertexBuffer(length: vertexSize * self.getVertexBufferSize(), binding: 0)
-        let vertexBufferContents = unsafe vertexBuffer.contents()
+        // Calculate stride (per-vertex size) as the sum of all attribute element sizes
+        let stride = buffers.elements.values.reduce(0) { $0 + $1.buffer.elementSize }
         
         var attributeOffset: Int = 0
         for buffer in buffers.elements.values {
             let elementSize = buffer.buffer.elementSize
             
             unsafe buffer.buffer.iterateByElements { index, pointer in
-                let offset = index * vertexSize + attributeOffset
+                let offset = index * stride + attributeOffset
                 unsafe vertexBufferContents
                     .advanced(by: offset)
                     .copyMemory(from: pointer, byteCount: elementSize)

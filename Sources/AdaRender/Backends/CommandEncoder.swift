@@ -100,6 +100,9 @@ public struct Size3D: Sendable {
 /// commandBuffer.commit()
 /// ```
 public protocol CommandBuffer: AnyObject {
+    /// The debug label for the command buffer.
+    var label: String? { get set }
+
     /// Begins a render pass and returns an encoder for recording rendering commands.
     ///
     /// - Parameter desc: The descriptor that configures the render pass attachments and load/store actions.
@@ -217,22 +220,6 @@ public protocol BlitCommandEncoder: CommonCommandEncoder {
         destinationBytesPerImage: Int
     )
 
-    /// Generates mipmaps for a texture.
-    ///
-    /// The GPU generates all mip levels for the specified texture based on the
-    /// contents of the base mip level (level 0).
-    ///
-    /// - Parameter texture: The texture to generate mipmaps for.
-    func generateMipmaps(for texture: Texture)
-
-    /// Fills a buffer region with a constant byte value.
-    ///
-    /// - Parameters:
-    ///   - buffer: The buffer to fill.
-    ///   - range: The byte range within the buffer to fill.
-    ///   - value: The byte value to fill with.
-    func fillBuffer(_ buffer: Buffer, range: Range<Int>, value: UInt8)
-
     /// Ends the blit pass encoding.
     ///
     /// Call this method when you have finished encoding blit commands.
@@ -279,6 +266,35 @@ public protocol CommonCommandEncoder: AnyObject {
 
 // MARK: - Render Command Encoder
 
+/// Represents a collection of resources bound as a descriptor set or bind group.
+public struct RenderResourceSet {
+    public struct Binding {
+        public enum Resource {
+            case uniformBuffer(UniformBuffer, offset: Int)
+            case texture(Texture)
+            case sampler(Sampler)
+        }
+
+        public let binding: Int
+        public let shaderStages: ShaderStageFlags
+        public let arrayLength: Int
+        public let resource: Resource
+
+        public init(binding: Int, shaderStages: ShaderStageFlags, arrayLength: Int = 1, resource: Resource) {
+            self.binding = binding
+            self.shaderStages = shaderStages
+            self.arrayLength = arrayLength
+            self.resource = resource
+        }
+    }
+
+    public var bindings: [Binding]
+
+    public init(bindings: [Binding]) {
+        self.bindings = bindings
+    }
+}
+
 /// An encoder for recording rendering commands within a render pass.
 ///
 /// Use a render command encoder to set pipeline state, bind resources (buffers, textures),
@@ -291,7 +307,7 @@ public protocol CommonCommandEncoder: AnyObject {
 /// ```swift
 /// let encoder = commandBuffer.beginRenderPass(descriptor)
 /// encoder.setRenderPipelineState(pipeline)
-/// encoder.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
+/// encoder.setVertexBuffer(vertexBuffer, offset: 0, slot: 0)
 /// encoder.setIndexBuffer(indexBuffer, indexFormat: .uInt32)
 /// encoder.drawIndexed(indexCount: 6, indexBufferOffset: 0, instanceCount: 1)
 /// encoder.endRenderPass()
@@ -311,24 +327,24 @@ public protocol RenderCommandEncoder: CommonCommandEncoder {
     /// - Parameters:
     ///   - buffer: The uniform buffer to bind.
     ///   - offset: The byte offset within the buffer.
-    ///   - index: The binding index in the vertex shader.
-    func setVertexBuffer(_ buffer: UniformBuffer, offset: Int, index: Int)
+    ///   - slot: The binding slot in the vertex shader.
+    func setVertexBuffer(_ buffer: UniformBuffer, offset: Int, slot: Int)
 
     /// Binds a vertex buffer to a vertex shader binding point.
     ///
     /// - Parameters:
     ///   - buffer: The vertex buffer to bind.
     ///   - offset: The byte offset within the buffer.
-    ///   - index: The binding index in the vertex shader.
-    func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, index: Int)
+    ///   - slot: The binding index in the vertex shader.
+    func setVertexBuffer(_ buffer: VertexBuffer, offset: Int, slot: Int)
 
     /// Binds a uniform buffer to a fragment shader binding point.
     ///
     /// - Parameters:
     ///   - buffer: The uniform buffer to bind.
     ///   - offset: The byte offset within the buffer.
-    ///   - index: The binding index in the fragment shader.
-    func setFragmentBuffer(_ buffer: UniformBuffer, offset: Int, index: Int)
+    ///   - slot: The binding slot in the fragment shader.
+    func setFragmentBuffer(_ buffer: UniformBuffer, offset: Int, slot: Int)
 
     /// Binds buffer data to a vertex shader binding point.
     ///
@@ -338,16 +354,16 @@ public protocol RenderCommandEncoder: CommonCommandEncoder {
     /// - Parameters:
     ///   - bufferData: The buffer data container to bind.
     ///   - offset: The byte offset within the buffer.
-    ///   - index: The binding index in the vertex shader.
-    func setVertexBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int)
+    ///   - slot: The binding slot in the vertex shader.
+    func setVertexBuffer<T>(_ bufferData: BufferData<T>, offset: Int, slot: Int)
 
     /// Binds buffer data to a fragment shader binding point.
     ///
     /// - Parameters:
     ///   - bufferData: The buffer data container to bind.
     ///   - offset: The byte offset within the buffer.
-    ///   - index: The binding index in the fragment shader.
-    func setFragmentBuffer<T>(_ bufferData: BufferData<T>, offset: Int, index: Int)
+    ///   - slot: The binding slot in the fragment shader.
+    func setFragmentBuffer<T>(_ bufferData: BufferData<T>, offset: Int, slot: Int)
 
     /// Sets the index buffer for indexed draw calls.
     ///
@@ -364,15 +380,15 @@ public protocol RenderCommandEncoder: CommonCommandEncoder {
     /// - Parameters:
     ///   - bytes: A pointer to the data.
     ///   - length: The length of the data in bytes.
-    ///   - index: The binding index in the vertex shader.
-    func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, index: Int)
+    ///   - slot: The binding slot in the vertex shader.
+    func setVertexBytes(_ bytes: UnsafeRawPointer, length: Int, slot: Int)
 
     /// Binds a texture to a fragment shader binding point.
     ///
     /// - Parameters:
     ///   - texture: The texture to bind.
-    ///   - index: The binding index in the fragment shader.
-    func setFragmentTexture(_ texture: Texture, index: Int)
+    ///   - slot: The binding slot in the fragment shader.
+    func setFragmentTexture(_ texture: Texture, slot: Int)
 
     /// Binds a sampler state to a fragment shader binding point.
     ///
@@ -380,8 +396,15 @@ public protocol RenderCommandEncoder: CommonCommandEncoder {
     ///
     /// - Parameters:
     ///   - sampler: The sampler state to bind.
-    ///   - index: The binding index in the fragment shader.
-    func setFragmentSamplerState(_ sampler: Sampler, index: Int)
+    ///   - slot: The binding index in the fragment shader.
+    func setFragmentSamplerState(_ sampler: Sampler, slot: Int)
+
+    /// Binds a resource set (descriptor set / bind group) for the specified set index.
+    ///
+    /// - Parameters:
+    ///   - resourceSet: The set of resources to bind.
+    ///   - index: The descriptor set / bind group index.
+    func setResourceSet(_ resourceSet: RenderResourceSet, index: Int)
 
     /// Sets the viewport for rendering.
     ///
@@ -455,9 +478,9 @@ public extension RenderCommandEncoder {
     ///   - value: The value to send to the vertex shader.
     ///   - index: The binding index in the vertex shader.
     @inlinable
-    func setVertexBuffer<T>(_ value: T, index: Int) {
+    func setVertexBuffer<T>(_ value: T, slot: Int) {
         unsafe withUnsafeBytes(of: value) { ptr in
-            unsafe self.setVertexBytes(ptr.baseAddress!, length: MemoryLayout<T>.stride, index: index)
+            unsafe self.setVertexBytes(ptr.baseAddress!, length: MemoryLayout<T>.stride, slot: slot)
         }
     }
 }

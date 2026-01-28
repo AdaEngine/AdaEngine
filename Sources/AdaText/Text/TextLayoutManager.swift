@@ -270,21 +270,13 @@ public final class TextLayoutManager: @unchecked Sendable {
             y -= maxLineHeight
         }
     }
-    
-    /// Get or create glyphs vertex data relative to transform.
-    public func getGlyphVertexData(transform: Transform3D) -> GlyphRenderData {
-        var textures: [Texture2D] = .init(repeating: .whiteTexture, count: Constants.maxTexturesPerBatch)
-        var textureIndex: Int = -1
-        return getGlyphVertexData(transform: transform, textures: &textures, textureSlotIndex: &textureIndex)
-    }
 
     /// Get or create glyphs vertex data relative to transform.
     public func getGlyphVertexData(
         transform: Transform3D,
-        textures: inout [Texture2D],
-        textureSlotIndex: inout Int,
         ignoreCache: Bool = false
     ) -> GlyphRenderData {
+        var textures: [Texture2D] = .init(repeating: .whiteTexture, count: 16)
         if let glyphsToRender = glyphsToRender, glyphsToRender.transform == transform, !ignoreCache {
             return glyphsToRender
         }

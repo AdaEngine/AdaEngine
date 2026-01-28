@@ -8,8 +8,9 @@
 #if os(Windows)
 import AdaRender
 @_spi(Internal) import AdaUI
+@_spi(Internal) import AdaInput
+import AdaECS
 import WinSDK
-import AdaInput
 import Math
 import AdaUtils
 
@@ -26,7 +27,7 @@ private var windowClassNamePtr: LPCWSTR {
 final class WindowsWindowManager: UIWindowManager {
 
     private unowned let screenManager: WindowsScreenManager
-    private var windowHandles: [UIWindow.ID: HWND] = unsafe [:]
+    fileprivate var windowHandles: [UIWindow.ID: HWND] = unsafe [:]
 
     init(_ screenManager: WindowsScreenManager) {
         self.screenManager = screenManager
@@ -43,9 +44,7 @@ final class WindowsWindowManager: UIWindowManager {
         let height = Int32(size.height)
         
         // Create Windows surface for rendering
-        let windowsSurface = WindowsSurface(windowId: window.id)
         let sizeInt = SizeInt(width: Int(size.width), height: Int(size.height))
-        try? RenderEngine.shared.createWindow(window.id, for: windowsSurface, size: sizeInt)
         
         // Create Win32 window
         let className = "AdaEngineWindow"
@@ -84,6 +83,9 @@ final class WindowsWindowManager: UIWindowManager {
         guard let hwnd = unsafe hwnd else {
             fatalError("Failed to create window")
         }
+
+        let windowsSurface = unsafe WindowsSurface(windowId: window.id, windowHwnd: hwnd)
+        unsafe try? RenderEngine.shared.createWindow(window.id, for: windowsSurface, size: sizeInt)
         
         // Store window handle
         let windowPtr = unsafe Unmanaged.passUnretained(window).toOpaque()
@@ -223,6 +225,113 @@ final class WindowsWindowManager: UIWindowManager {
     }
 }
 
+// MARK: - Input Handling Helpers
+
+private func translateWindowsKeyCode(vkCode: UInt16) -> KeyCode {
+    WindowsKeyboard.shared.translateKey(from: vkCode)
+}
+
+private func getWindowsKeyModifiers() -> KeyModifier {
+    var modifiers: KeyModifier = []
+    
+    // let shiftState = Int32(bitPattern: UInt32(GetKeyState(0x10))) // VK_SHIFT
+    // if (shiftState & 0x8000) != 0 {
+    //     modifiers.insert(.shift)
+    // }
+    // let controlState = Int32(bitPattern: UInt32(GetKeyState(0x11))) // VK_CONTROL
+    // if (controlState & 0x8000) != 0 {
+    //     modifiers.insert(.control)
+    // }
+    // let menuState = Int32(bitPattern: UInt32(GetKeyState(0x12))) // VK_MENU
+    // if (menuState & 0x8000) != 0 {
+    //     modifiers.insert(.alt)
+    // }
+    // let lwinState = Int32(bitPattern: UInt32(GetKeyState(0x5B))) // VK_LWIN
+    // let rwinState = Int32(bitPattern: UInt32(GetKeyState(0x5C))) // VK_RWIN
+    // if (lwinState & 0x8000) != 0 || (rwinState & 0x8000) != 0 {
+    //     modifiers.insert(.main)
+    // }
+    // let capitalState = Int32(bitPattern: UInt32(GetKeyState(0x14))) // VK_CAPITAL
+    // if (capitalState & 0x0001) != 0 {
+    //     modifiers.insert(.capsLock)
+    // }
+    
+    return modifiers
+}
+
+private func getCurrentTime() -> TimeInterval {
+    return TimeInterval(GetTickCount64()) / 1000.0
+}
+
+@MainActor
+private func handleMouseButtonDown(
+    window: UIWindow,
+    button: MouseButton,
+    lParam: LPARAM
+) {
+    let windowManager = window.windowManager as? WindowsWindowManager
+    guard let inputRef = windowManager?.inputRef,
+          let systemWindow = window.systemWindow as? WindowsSystemWindow else {
+        return
+    }
+    
+    let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF))
+    let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF))
+    var rect = RECT()
+    unsafe GetClientRect(systemWindow.hwnd, &rect)
+    let clientHeight = Float(rect.bottom - rect.top)
+    let position = Point(x, clientHeight - y)
+    
+    inputRef.wrappedValue.mousePosition = position
+    let modifiers = getWindowsKeyModifiers()
+    let isContinious = inputRef.wrappedValue.mouseEvents[button]?.phase == .began
+    
+    let mouseEvent = MouseEvent(
+        window: window.id,
+        button: button,
+        mousePosition: position,
+        phase: isContinious ? .changed : .began,
+        modifierKeys: modifiers,
+        time: getCurrentTime()
+    )
+    
+    inputRef.wrappedValue.receiveEvent(mouseEvent)
+}
+
+@MainActor
+private func handleMouseButtonUp(
+    window: UIWindow,
+    button: MouseButton,
+    lParam: LPARAM
+) {
+    let windowManager = window.windowManager as? WindowsWindowManager
+    guard let inputRef = windowManager?.inputRef,
+          let systemWindow = window.systemWindow as? WindowsSystemWindow else {
+        return
+    }
+    
+    let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF))
+    let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF))
+    var rect = RECT()
+    unsafe GetClientRect(systemWindow.hwnd, &rect)
+    let clientHeight = Float(rect.bottom - rect.top)
+    let position = Point(x, clientHeight - y)
+    
+    inputRef.wrappedValue.mousePosition = position
+    let modifiers = getWindowsKeyModifiers()
+    
+    let mouseEvent = MouseEvent(
+        window: window.id,
+        button: button,
+        mousePosition: position,
+        phase: .ended,
+        modifierKeys: modifiers,
+        time: getCurrentTime()
+    )
+    
+    inputRef.wrappedValue.receiveEvent(mouseEvent)
+}
+
 // MARK: - Windows Window Procedure
 
 private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: LPARAM) -> LRESULT {
@@ -247,7 +356,62 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
             window.windowShouldClose()
         }
         if shouldClose {
+            MainActor.assumeIsolated {
+                window.close()
+            }
             return 0
+        }
+        return 0  // Prevent default window destruction
+        
+    case UInt32(WM_DESTROY):
+        // Window is being destroyed - clean up resources
+        // This can happen if window is destroyed by system or by closeWindow
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            // Only remove if not already removed (to avoid double cleanup)
+            // This handles the case when window is destroyed by system, not through closeWindow
+            if windowManager?.windows[window.id] != nil {
+                // Window was destroyed externally, need to clean up
+                // But don't call DestroyWindow again - it's already destroyed
+                guard let systemWindow = window.systemWindow as? WindowsSystemWindow else {
+                    return
+                }
+                
+                // Remove from render engine
+                do {
+                    unsafe try RenderEngine.shared!.destroyWindow(window.id)
+                } catch {
+                    // Ignore errors if window already destroyed
+                }
+                
+                // Clear window handle mapping
+                // windowManager?.windowHandles.removeValue(forKey: window.id)
+                
+                // Set another window as active if needed
+                if let windowManager = windowManager, !windowManager.windows.isEmpty {
+                    if let newWindow = windowManager.windows.values.last?.value {
+                        windowManager.setActiveWindow(newWindow)
+                    }
+                }
+            }
+        }
+        // Post quit message only if this is the last window
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            if windowManager?.windows.isEmpty == true {
+                PostQuitMessage(0)
+            }
+        }
+        return 0
+        
+    case UInt32(WM_NCDESTROY):
+        // Non-client area destroyed - final cleanup
+        // Clear window handle from mapping
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            if let systemWindow = window.systemWindow as? WindowsSystemWindow {
+                // windowManager?.windowHandles.removeValue(forKey: window.id)
+            }
         }
         return unsafe DefWindowProcW(hwnd, uMsg, wParam, lParam)
         
@@ -261,7 +425,7 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
             if window.frame.size != newSize {
                 window.frame = Rect(origin: .zero, size: newSize)
             }
-            try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
+            unsafe try? RenderEngine.shared.resizeWindow(window.id, newSize: sizeInt)
         }
         return 0
         
@@ -275,6 +439,180 @@ private func WindowsWindowProc(hwnd: HWND?, uMsg: UINT, wParam: WPARAM, lParam: 
     case UInt32(WM_KILLFOCUS):
         Task { @MainActor in
             window.windowDidResignActive()
+        }
+        return 0
+    
+    case UInt32(WM_KEYDOWN), UInt32(WM_SYSKEYDOWN):
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            guard let inputRef = windowManager?.inputRef else {
+                return
+            }
+            
+            let vkCode = UInt16(wParam & 0xFF)
+            let keyCode = translateWindowsKeyCode(vkCode: vkCode)
+            let modifiers = getWindowsKeyModifiers()
+            let isRepeated = (lParam & 0x40000000) != 0
+            
+            let keyEvent = KeyEvent(
+                window: window.id,
+                keyCode: keyCode,
+                modifiers: modifiers,
+                status: .down,
+                time: getCurrentTime(),
+                isRepeated: isRepeated
+            )
+            
+            inputRef.wrappedValue.receiveEvent(keyEvent)
+        }
+        return 0
+        
+    case UInt32(WM_KEYUP), UInt32(WM_SYSKEYUP):
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            guard let inputRef = windowManager?.inputRef else {
+                return
+            }
+            
+            let vkCode = UInt16(wParam & 0xFF)
+            let keyCode = translateWindowsKeyCode(vkCode: vkCode)
+            let modifiers = getWindowsKeyModifiers()
+            
+            let keyEvent = KeyEvent(
+                window: window.id,
+                keyCode: keyCode,
+                modifiers: modifiers,
+                status: .up,
+                time: getCurrentTime(),
+                isRepeated: false
+            )
+            
+            inputRef.wrappedValue.receiveEvent(keyEvent)
+        }
+        return 0
+        
+    case UInt32(WM_MOUSEMOVE):
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            guard let inputRef = windowManager?.inputRef,
+                  let systemWindow = window.systemWindow as? WindowsSystemWindow else {
+                return
+            }
+            
+            let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF))
+            let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF))
+            var rect = RECT()
+            unsafe GetClientRect(systemWindow.hwnd, &rect)
+            let clientHeight = Float(rect.bottom - rect.top)
+            let position = Point(x, clientHeight - y)
+            
+            inputRef.wrappedValue.mousePosition = position
+            let modifiers = getWindowsKeyModifiers()
+            
+            let mouseEvent = MouseEvent(
+                window: window.id,
+                button: .none,
+                mousePosition: position,
+                phase: .changed,
+                modifierKeys: modifiers,
+                time: getCurrentTime()
+            )
+            
+            inputRef.wrappedValue.receiveEvent(mouseEvent)
+        }
+        return 0
+        
+    case UInt32(WM_LBUTTONDOWN):
+        Task { @MainActor in
+            handleMouseButtonDown(
+                window: window,
+                button: .left,
+                lParam: lParam
+            )
+        }
+        return 0
+        
+    case UInt32(WM_LBUTTONUP):
+        Task { @MainActor in
+            handleMouseButtonUp(
+                window: window,
+                button: .left,
+                lParam: lParam
+            )
+        }
+        return 0
+        
+    case UInt32(WM_RBUTTONDOWN):
+        Task { @MainActor in
+            handleMouseButtonDown(
+                window: window,
+                button: .right,
+                lParam: lParam
+            )
+        }
+        return 0
+        
+    case UInt32(WM_RBUTTONUP):
+        Task { @MainActor in
+            handleMouseButtonUp(
+                window: window,
+                button: .right,
+                lParam: lParam
+            )
+        }
+        return 0
+        
+    case UInt32(WM_MBUTTONDOWN):
+        Task { @MainActor in
+            handleMouseButtonDown(
+                window: window,
+                button: .middle,
+                lParam: lParam
+            )
+        }
+        return 0
+        
+    case UInt32(WM_MBUTTONUP):
+        Task { @MainActor in
+            handleMouseButtonUp(
+                window: window,
+                button: .middle,
+                lParam: lParam
+            )
+        }
+        return 0
+        
+    case UInt32(WM_MOUSEWHEEL):
+        Task { @MainActor in
+            let windowManager = window.windowManager as? WindowsWindowManager
+            guard let inputRef = windowManager?.inputRef,
+                  let systemWindow = window.systemWindow as? WindowsSystemWindow else {
+                return
+            }
+            
+            let delta = Int16(truncatingIfNeeded: (wParam >> 16) & 0xFFFF)
+            let scrollDelta = Point(x: 0, y: Float(delta) / 120.0)
+            
+            let x = Float(Int16(truncatingIfNeeded: lParam & 0xFFFF))
+            let y = Float(Int16(truncatingIfNeeded: (lParam >> 16) & 0xFFFF))
+            var rect = RECT()
+            unsafe GetClientRect(systemWindow.hwnd, &rect)
+            let clientHeight = Float(rect.bottom - rect.top)
+            let position = Point(x, clientHeight - y)
+            
+            let modifiers = getWindowsKeyModifiers()
+            
+            let mouseEvent = MouseEvent(
+                window: window.id,
+                button: .scrollWheel,
+                scrollDelta: scrollDelta,
+                mousePosition: position,
+                phase: .changed,
+                modifierKeys: modifiers,
+                time: getCurrentTime()
+            )
+            
+            inputRef.wrappedValue.receiveEvent(mouseEvent)
         }
         return 0
         
@@ -410,7 +748,7 @@ final class WindowsScreenManager: ScreenManager {
     }
     
     func makeScreen(from hMonitor: HMONITOR) -> Screen? {
-        let systemScreen = unsafe WindowsSystemScreen(hMonitor: hMonitor)
+        let systemScreen = WindowsSystemScreen(hMonitor: hMonitor)
         return makeScreen(from: systemScreen)
     }
     

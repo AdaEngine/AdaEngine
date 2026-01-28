@@ -42,6 +42,7 @@ public struct UpscaleNode: RenderNode {
            let outputTexture = target.outputTexture,
            mainTexture !== outputTexture {
             let commandBuffer = renderContext.commandQueue.makeCommandBuffer()
+            commandBuffer.label = "Upscale Pass"
             let renderPass = commandBuffer.beginRenderPass(
                 RenderPassDescriptor(
                     label: "Upscale Pass",
@@ -65,10 +66,22 @@ public struct UpscaleNode: RenderNode {
                 renderPass.setScissorRect(viewport.rect)
             }
 
-            renderPass.setFragmentTexture(mainTexture, index: 0)
-            renderPass.setFragmentSamplerState(upsalePipeline.sampler, index: 0)
+            let resourceSet = RenderResourceSet(
+                bindings: [
+                    RenderResourceSet.Binding(
+                        binding: 0,
+                        shaderStages: .fragment,
+                        resource: .texture(mainTexture)
+                    ),
+                    RenderResourceSet.Binding(
+                        binding: 1,
+                        shaderStages: .fragment,
+                        resource: .sampler(upsalePipeline.sampler)
+                    )
+                ]
+            )
+            renderPass.setResourceSet(resourceSet, index: 0)
             renderPass.setRenderPipelineState(upsalePipeline.renderPipeline)
-
             renderPass.draw(type: .triangle, vertexStart: 0, vertexCount: 3, instanceCount: 1)
             renderPass.endRenderPass()
             commandBuffer.commit()

@@ -46,6 +46,13 @@ public struct SamplerDescriptor: Codable, Sendable {
     /// The maximum level of detail (LOD) to use when sampling from a texture.
     public var lodMaxClamp: Float
     
+    /// Initialize a new sampler descriptor.
+    /// 
+    /// - Parameter minFilter: The filtering option for combining pixels within one mipmap level when the sample footprint is larger than a pixel (minification).
+    /// - Parameter magFilter: The filtering operation for combining pixels within one mipmap level when the sample footprint is smaller than a pixel (magnification).
+    /// - Parameter mipFilter: The filtering option for combining pixels between two mipmap levels.
+    /// - Parameter lodMinClamp: The minimum level of detail (LOD) to use when sampling from a texture.
+    /// - Parameter lodMaxClamp: The maximum level of detail (LOD) to use when sampling from a texture.
     public init(
         minFilter: SamplerMinMagFilter = .nearest,
         magFilter: SamplerMinMagFilter = .nearest,

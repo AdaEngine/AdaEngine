@@ -19,11 +19,23 @@
 /// }
 /// ```
 public enum SystemDependency: Sendable {
-    /// Run the system before the specified system.
-    case before(System.Type)
+    /// Run the system before the specified system by name.
+    case before(String)
+
+    /// Run the system after the specified system by name.
+    case after(String)
+}
+
+public extension SystemDependency { 
+        /// Run the system before the specified system.
+    static func before<T: System>(_ system: T.Type) -> SystemDependency {
+        return .before(system.swiftName)
+    }
 
     /// Run the system after the specified system.
-    case after(System.Type)
+    static func after<T: System>(_ system: T.Type) -> SystemDependency {
+        return .after(system.swiftName)
+    }
 }
 
 extension SystemDependency: Equatable {

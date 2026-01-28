@@ -14,6 +14,7 @@ import Math
 
 /// The plugin that sets up the render world.
 public struct RenderWorldPlugin: Plugin {
+
     public init() {}
 
     /// Setup the render world.
@@ -32,6 +33,7 @@ public struct RenderWorldPlugin: Plugin {
             .insertResource(DefaultSchedulerOrder(order: [
                 .preUpdate,
                 .prepare,
+                .batching,
                 .update,
                 .render,
                 .postUpdate
@@ -47,8 +49,18 @@ public struct RenderWorldPlugin: Plugin {
             .postUpdate
         ])
 
-        renderWorld
-            .insertResource(RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice))
+        do {
+            try RenderEngine.setupRenderEngine()
+        } catch {
+            fatalError("Critical Error RenderWorldPlugin: \(error.localizedDescription)")
+        }
+
+        let renderDevice = unsafe RenderDeviceHandler(renderDevice: RenderEngine.shared.renderDevice)
+        app.insertResource(renderDevice)
+
+        unsafe renderWorld
+            .insertResource(renderDevice)
+            .insertResource(RenderEngineHandler(renderEngine: RenderEngine.shared))
             .insertResource(WindowSurfaces(windows: [:]))
             .addSystem(CreateWindowSurfacesSystem.self, on: .prepare)
             .addSystem(DefaultSchedulerRunner.self, on: .renderRunner)
@@ -75,7 +87,8 @@ public struct RenderEngineHandler: Resource {
 }
 
 @PlainSystem
-struct RenderSystem {
+@_spi(Internal)
+public struct RenderSystem {
 
     @Res<RenderGraph?>
     private var renderGraph
@@ -86,9 +99,9 @@ struct RenderSystem {
     @Res<RenderDeviceHandler?>
     private var renderDevice
 
-    init(world: World) { }
+    public init(world: World) { }
 
-    func update(context: UpdateContext) async {
+    public func update(context: UpdateContext) async {
         renderGraph?.update(from: context.world)
 
         // We should capture drawables before we start async task.
@@ -145,16 +158,18 @@ public struct WindowSurfaces: Resource {
 }
 
 @System
-func CreateWindowSurfaces(
+@_spi(Internal)
+public func CreateWindowSurfaces(
     _ surfaces: ResMut<WindowSurfaces>,
     _ renderDevice: Res<RenderDeviceHandler>,
+    _ renderInstance: Res<RenderEngineHandler>,
     _ primaryWindow: Extract<Res<PrimaryWindowId>>
 ) async {
     surfaces.windows.removeAll()
     let device = renderDevice.renderDevice
 
     do {
-        let renderWindows = try await RenderEngine.shared.getRenderWindows()
+        let renderWindows = try await renderInstance.renderEngine.getRenderWindows()
         for (windowId, _) in renderWindows.windows.values {
             let swapchain = await device.createSwapchain(from: windowId)
 
@@ -219,6 +234,7 @@ public extension SchedulerName {
     static let renderRunner = SchedulerName(rawValue: "RenderWorld_RenderRunner")
 
     static let prepare = SchedulerName(rawValue: "RenderWorld_Prepare")
+    static let batching = SchedulerName(rawValue: "RenderWorld_Batching")
     static let render = SchedulerName(rawValue: "RenderWorld_Render")
     static let extract = SchedulerName(rawValue: "RenderWorld_Extract")
 }

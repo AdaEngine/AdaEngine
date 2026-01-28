@@ -13,9 +13,8 @@ import AdaUtils
 // - Should be a class or be open for inheritance?
 open class MaterialStorageData {
     public var reflectionData: ShaderReflectionData = ShaderReflectionData()
-    public var uniformBufferSet: [String : UniformBufferSet] = [:]
-    public var textures: [String : [Texture]] = [:]
-
+    public var uniformBufferSet: [String : UniformBuffer] = [:]
+    public var textures: [String : MaterialTexture] = [:]
     public init() {}
 
     public func updateUniformBuffers(from module: ShaderModule) {
@@ -23,22 +22,24 @@ open class MaterialStorageData {
         
         module.reflectionData.shaderBuffers.forEach { (bufferName, bufferDesc) in
             if self.uniformBufferSet[bufferName] == nil {
-                let bufferSet = RenderEngine.shared.renderDevice.createUniformBufferSet()
-                bufferSet.label = "\(module.assetName) \(bufferDesc.name) \(bufferDesc.shaderStage)"
-                bufferSet.initBuffers(length: bufferDesc.size, binding: bufferDesc.binding, set: 0)
-                
-                self.uniformBufferSet[bufferName] = bufferSet
-            }
-        }
-        
-        module.reflectionData.resources.forEach { (resourceName, resourceDesc) in
-            if self.textures[resourceName] == nil {
-                self.textures[resourceName] = [Texture].init(
-                    repeating: Texture2D.whiteTexture,
-                    count: resourceDesc.arraySize > 0 ? resourceDesc.arraySize : 1
+                var uniformBuffer = unsafe RenderEngine.shared.renderDevice.createUniformBuffer(
+                    length: bufferDesc.size,
+                    binding: bufferDesc.binding
                 )
+                uniformBuffer.label = "\(module.assetName) \(bufferDesc.name) \(bufferDesc.shaderStage)"
+                self.uniformBufferSet[bufferName] = uniformBuffer
             }
         }
+    }
+}
+
+public struct MaterialTexture {
+    public let texture: Texture
+    public let samplerName: String
+
+    public init(texture: Texture, samplerName: String) {
+        self.texture = texture
+        self.samplerName = samplerName
     }
 }
 
@@ -50,90 +51,74 @@ public final class MaterialStorage {
     
     // MARK: - Material
     
-    public func setValue<T: ShaderUniformValue>(_ value: T, for name: String, in material: Material) {
+    public func setValue<T>(_ value: T, for name: String, in material: Material) {
         guard let data = self.materialData[material.rid] else {
             return
         }
         
-        guard let bufferDesc = self.getUniformDescription(for: name, in: data), let member = bufferDesc.members[name] else {
+        guard let bufferDesc = self.getUniformDescription(for: name, in: data) else {
             return
         }
         
-        assert(T.shaderValueType == member.type, "Failed to set value with type \(T.shaderValueType) to property with type \(member.type)")
-        
-        let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
-            binding: member.binding,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-        
+        assert(MemoryLayout<T>.stride == bufferDesc.size, "Failed to set value with type \(type(of: value)) to property with type \(bufferDesc)")
+
+        let buffer = data.uniformBufferSet[bufferDesc.name]
         unsafe withUnsafePointer(to: value) { pointer in
             let dataPtr = unsafe UnsafeMutableRawPointer(mutating: UnsafeRawPointer(pointer))
-            unsafe buffer?.setData(dataPtr, byteCount: member.size, offset: member.offset)
+            unsafe buffer?.setData(dataPtr, byteCount: bufferDesc.size)
         }
     }
     
-    public func getValue<T: ShaderUniformValue>(for name: String, in material: Material) -> T? {
+    public func getValue<T>(for name: String, in material: Material) -> T? {
         guard let data = self.materialData[material.rid] else {
             return nil
         }
         
-        guard let bufferDesc = self.getUniformDescription(for: name, in: data), let member = bufferDesc.members[name] else {
+        guard let bufferDesc = self.getUniformDescription(for: name, in: data) else {
             return nil
         }
         
-        assert(T.shaderValueType == member.type, "Failed to get value with type \(T.shaderValueType) from property with type \(member.type)")
-        
-        let buffer = data.uniformBufferSet[bufferDesc.name]?.getBuffer(
-            binding: member.binding,
-            set: 0,
-            frameIndex: RenderEngine.shared.currentFrameIndex
-        )
-        
-        return unsafe buffer?.contents().load(fromByteOffset: member.offset, as: T.self)
+        assert(MemoryLayout<T>.stride == bufferDesc.size, "Failed to get value with type \(T.self) from property with type \(bufferDesc)")
+        let buffer = data.uniformBufferSet[bufferDesc.name]
+        return unsafe buffer?.contents().load(fromByteOffset: 0, as: T.self)
     }
 
     public func getUniformDescription(for name: String, in material: MaterialStorageData) -> ShaderResource.ShaderBuffer? {
         let reflectionData = material.reflectionData
-        
-        for buffer in reflectionData.shaderBuffers.values {
-            if buffer.members[name] != nil {
-                return buffer
-            }
-        }
-        
-        return nil
+        return reflectionData.shaderBuffers[name]
     }
     
-    public func setResources(_ textures: [Texture], for name: String, in material: Material) {
+    public func setTexture(_ texture: MaterialTexture, for name: String, in material: Material) {
         guard let data = self.materialData[material.rid] else {
             return
         }
         
-        guard let sampler = self.getResourceDescription(for: name, in: data) else {
+        guard let samplerDescription = self.getResourceDescription(for: name, in: data) else {
             return
         }
-        
-        for (index, texture) in textures.enumerated() {
-            data.textures[sampler.name]?[index] = texture
-        }
+        data.textures[samplerDescription.name] = texture
     }
     
-    public func getResources(for name: String, in material: Material) -> [Texture] {
+    public func getTexture(for name: String, in material: Material) -> MaterialTexture? {
         guard let data = self.materialData[material.rid] else {
-            return []
+            return nil
         }
         
-        guard let sampler = self.getResourceDescription(for: name, in: data) else {
-            return []
+        guard let samplerDescription = self.getResourceDescription(for: name, in: data) else {
+            return nil
         }
         
-        return data.textures[sampler.name] ?? []
+        return data.textures[samplerDescription.name]
     }
     
     public func getResourceDescription(for name: String, in material: MaterialStorageData) -> ShaderResource.ImageSampler? {
         let reflectionData = material.reflectionData
         return reflectionData.resources[name]
+    }
+
+    public func getSamplerDescription(for name: String, in material: MaterialStorageData) -> ShaderResource.Sampler? {
+        let reflectionData = material.reflectionData
+        return reflectionData.samplers[name]
     }
     
     public func setMaterialData(_ materialData: MaterialStorageData, for material: Material) {

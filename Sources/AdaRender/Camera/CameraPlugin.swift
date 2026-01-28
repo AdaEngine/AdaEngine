@@ -42,7 +42,9 @@ public struct RenderViewTarget: @unchecked Sendable {
     public init() {}
 }
 
-@System
+@System(
+    dependencies: [.after("AdaRender.CreateWindowSurfacesSystem")]
+)
 func ConfigurateRenderViewTarget(
     _ query: Query<Entity, Camera, Ref<RenderViewTarget>>,
     _ surfaces: Res<WindowSurfaces>,
@@ -69,12 +71,16 @@ func ConfigurateRenderViewTarget(
         case .texture(let asset):
             renderViewTarget.outputTexture = asset.asset
         case .window(let ref):
-            guard
-                let surface = surfaces.windows[ref],
-                let swapchain = surface.swapchain,
-                let drawable = surface.currentDrawable
-            else {
-                logger.error("Failed to configurate render view target for window \(ref)")
+            guard let surface = surfaces.windows[ref] else {
+                logger.error("Failed to configurate render view target for window \(ref). No surface.")
+                return
+            }
+            guard let swapchain = surface.swapchain else {
+                logger.error("Failed to configurate render view target for window \(ref). No swapchain.")
+                return
+            }
+            guard let drawable = surface.currentDrawable else {
+                logger.error("Failed to configurate render view target for window \(ref). Drawable not exists.")
                 return
             }
             renderViewTarget.outputTexture = RenderTexture(

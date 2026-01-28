@@ -74,21 +74,21 @@ public struct AbsolutePath: Hashable, Sendable {
             }
 
             let base: UnsafePointer<Int8> =
-                basePath.pathString.fileSystemRepresentation
-            defer { base.deallocate() }
+                unsafe basePath.pathString.fileSystemRepresentation
+            defer { unsafe base.deallocate() }
 
-            let path: UnsafePointer<Int8> = str.fileSystemRepresentation
-            defer { path.deallocate() }
+            let path: UnsafePointer<Int8> = unsafe str.fileSystemRepresentation
+            defer { unsafe path.deallocate() }
 
             var pwszResult: PWSTR!
-            _ = String(cString: base).withCString(encodedAs: UTF16.self) { pwszBase in
-                String(cString: path).withCString(encodedAs: UTF16.self) { pwszPath in
-                    PathAllocCombine(pwszBase, pwszPath, ULONG(PATHCCH_ALLOW_LONG_PATHS.rawValue), &pwszResult)
+            _ = unsafe String(cString: base).withCString(encodedAs: UTF16.self) { pwszBase in
+                unsafe String(cString: path).withCString(encodedAs: UTF16.self) { pwszPath in
+                    unsafe PathAllocCombine(pwszBase, pwszPath, ULONG(PATHCCH_ALLOW_LONG_PATHS.rawValue), &pwszResult)
                 }
             }
-            defer { LocalFree(pwszResult) }
+            defer { unsafe LocalFree(pwszResult) }
 
-            self.init(String(decodingCString: pwszResult, as: UTF16.self))
+            unsafe self.init(String(decodingCString: pwszResult, as: UTF16.self))
 #else
             try self.init(basePath, RelativePath(validating: str))
 #endif
@@ -454,14 +454,14 @@ private struct WindowsPath: Path, Sendable {
     }
 
     static func isAbsolutePath(_ path: String) -> Bool {
-        return !path.withCString(encodedAs: UTF16.self, PathIsRelativeW)
+        return unsafe !path.withCString(encodedAs: UTF16.self, PathIsRelativeW)
     }
 
     var dirname: String {
-        let fsr: UnsafePointer<Int8> = self.string.fileSystemRepresentation
-        defer { fsr.deallocate() }
+        let fsr: UnsafePointer<Int8> = unsafe self.string.fileSystemRepresentation
+        defer { unsafe fsr.deallocate() }
 
-        var path: String = String(cString: fsr)
+        var path: String = unsafe String(cString: fsr)
         // PathCchRemoveFileSpec removes trailing '\' for a
         // path like 'c:\root\path\', which doesn't give us the parent
         // directory name. Thus, drop the trailing '\' before calling
@@ -476,10 +476,10 @@ private struct WindowsPath: Path, Sendable {
             path = String(substring)
         }
 
-        return path.withCString(encodedAs: UTF16.self) {
-            let data = UnsafeMutablePointer(mutating: $0)
-            PathCchRemoveFileSpec(data, path.count)
-            return String(decodingCString: data, as: UTF16.self)
+        return unsafe path.withCString(encodedAs: UTF16.self) {
+            let data = unsafe UnsafeMutablePointer(mutating: $0)
+            unsafe PathCchRemoveFileSpec(data, path.count)
+            return unsafe String(decodingCString: data, as: UTF16.self)
         }
     }
 
@@ -488,14 +488,14 @@ private struct WindowsPath: Path, Sendable {
     }
 
     public var isRoot: Bool {
-        return self.string.withCString(encodedAs: UTF16.self, PathCchIsRoot)
+        return unsafe self.string.withCString(encodedAs: UTF16.self, PathCchIsRoot)
     }
 
     var basename: String {
         let path: String = self.string
-        return path.withCString(encodedAs: UTF16.self) {
-            PathStripPathW(UnsafeMutablePointer(mutating: $0))
-            return String(decodingCString: $0, as: UTF16.self)
+        return unsafe path.withCString(encodedAs: UTF16.self) {
+            unsafe PathStripPathW(UnsafeMutablePointer(mutating: $0))
+            return unsafe String(decodingCString: $0, as: UTF16.self)
         }
     }
 
@@ -504,10 +504,10 @@ private struct WindowsPath: Path, Sendable {
     // from one path separator to the next on-demand.
     //
     var components: [String] {
-        let normalized: UnsafePointer<Int8> = string.fileSystemRepresentation
-        defer { normalized.deallocate() }
+        let normalized: UnsafePointer<Int8> = unsafe string.fileSystemRepresentation
+        defer { unsafe normalized.deallocate() }
 
-        return String(cString: normalized).components(separatedBy: "\\").filter { !$0.isEmpty }
+        return unsafe String(cString: normalized).components(separatedBy: "\\").filter { !$0.isEmpty }
     }
 
     var parentDirectory: Self {
@@ -526,9 +526,9 @@ private struct WindowsPath: Path, Sendable {
 
     private static func repr(_ path: String) -> String {
         guard !path.isEmpty else { return "" }
-        let representation: UnsafePointer<Int8> = path.fileSystemRepresentation
-        defer { representation.deallocate() }
-        return String(cString: representation)
+        let representation: UnsafePointer<Int8> = unsafe path.fileSystemRepresentation
+        defer { unsafe representation.deallocate() }
+        return unsafe String(cString: representation)
     }
 
     init(validatingAbsolutePath path: String) throws {
@@ -553,9 +553,9 @@ private struct WindowsPath: Path, Sendable {
     }
 
     func suffix(withDot: Bool) -> String? {
-        return self.string.withCString(encodedAs: UTF16.self) {
-          if let pointer = PathFindExtensionW($0) {
-            let substring = String(decodingCString: pointer, as: UTF16.self)
+        return unsafe self.string.withCString(encodedAs: UTF16.self) {
+          if let pointer = unsafe PathFindExtensionW($0) {
+            let substring = unsafe String(decodingCString: pointer, as: UTF16.self)
             guard substring.length > 0 else { return nil }
             return withDot ? substring : String(substring.dropFirst(1))
           }
@@ -565,24 +565,24 @@ private struct WindowsPath: Path, Sendable {
 
     func appending(component name: String) -> Self {
         var result: PWSTR?
-        _ = string.withCString(encodedAs: UTF16.self) { root in
-            name.withCString(encodedAs: UTF16.self) { path in
-                PathAllocCombine(root, path, ULONG(PATHCCH_ALLOW_LONG_PATHS.rawValue), &result)
+        _ = unsafe string.withCString(encodedAs: UTF16.self) { root in
+            unsafe name.withCString(encodedAs: UTF16.self) { path in
+                unsafe PathAllocCombine(root, path, ULONG(PATHCCH_ALLOW_LONG_PATHS.rawValue), &result)
             }
         }
-        defer { LocalFree(result) }
-        return Self(string: String(decodingCString: result!, as: UTF16.self))
+        defer { unsafe LocalFree(result) }
+        return unsafe Self(string: String(decodingCString: result!, as: UTF16.self))
     }
 
     func appending(relativePath: Self) -> Self {
         var result: PWSTR?
-        _ = string.withCString(encodedAs: UTF16.self) { root in
-            relativePath.string.withCString(encodedAs: UTF16.self) { path in
-                PathAllocCombine(root, path, ULONG(PATHCCH_ALLOW_LONG_PATHS.rawValue), &result)
+        _ = unsafe string.withCString(encodedAs: UTF16.self) { root in
+            unsafe relativePath.string.withCString(encodedAs: UTF16.self) { path in
+                unsafe PathAllocCombine(root, path, ULONG(PATHCCH_ALLOW_LONG_PATHS.rawValue), &result)
             }
         }
-        defer { LocalFree(result) }
-        return Self(string: String(decodingCString: result!, as: UTF16.self))
+        defer { unsafe LocalFree(result) }
+        return unsafe Self(string: String(decodingCString: result!, as: UTF16.self))
     }
 }
 #else

@@ -37,6 +37,17 @@ public struct TextureDescriptor {
     /// The sampler that describe how to render a texture.
     public var samplerDescription: SamplerDescriptor
     
+    /// Initialize a new texture descriptor.
+    ///
+    /// - Parameter width: The width of the texture image for the base level mipmap, in pixels.
+    /// - Parameter height: The height of the texture image for the base level mipmap, in pixels.
+    /// - Parameter pixelFormat: The size and bit layout of all pixels in the texture.
+    /// - Parameter textureUsage: Options that determine how you can use the texture.
+    /// - Parameter textureType: The dimension and arrangement of texture image data.
+    /// - Parameter mipmapLevel: The number of mipmap levels for this texture.
+    /// - Parameter image: The data from we can create a texture.
+    /// - Parameter debugLabel: The label marked texture for debug reason.
+    /// - Parameter samplerDescription: The sampler that describe how to render a texture.
     public init(
         width: Int = 1,
         height: Int = 1,
@@ -61,6 +72,7 @@ public struct TextureDescriptor {
 }
 
 /// Interface represent platform specific gpu texture.
-public protocol GPUTexture {
+public protocol GPUTexture: AnyObject {
     var size: SizeInt { get }
+    var label: String? { get set }
 }

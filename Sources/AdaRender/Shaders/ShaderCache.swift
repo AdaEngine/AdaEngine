@@ -7,6 +7,7 @@
 
 import AdaUtils
 import Foundation
+import Logging
 @unsafe @preconcurrency import Yams
 
 /// Contains information about shader changes and store/load spirv binary in cache folder.
@@ -21,6 +22,7 @@ enum ShaderCache {
     }
 
     private static let fileSystem = FileSystem.current
+    private static let logger = Logger(label: "org.adaengine.shader-cache")
 
     static func hasChanges(for source: ShaderSource, version: Int) -> Set<ShaderStage> {
         guard let cacheKey = source.fileURL?.relativeString else {
@@ -59,6 +61,31 @@ enum ShaderCache {
     }
     
     // MARK: Save/Load SPIRV
+
+    static func getCachedDeviceCompiledShader(
+        for source: ShaderSource,
+        stage: ShaderStage
+    ) -> DeviceCompiledShader? {
+        guard let fileURL = source.fileURL else {
+            return nil
+        }
+        
+        let path = fileURL.prepareCachePath
+        
+        do {
+            let cacheDir = try self.getCacheDirectory()
+            let cacheFile = cacheDir
+                .appending(path: path, directoryHint: .isDirectory)
+                .appending(path: "cache-\(stage.rawValue).device-compiled-shader.\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
+            guard let data = fileSystem.readFile(at: cacheFile) else {
+                return nil
+            }
+            return try YAMLDecoder().decode(DeviceCompiledShader.self, from: data)
+        } catch {
+            logger.error("Failed to get cached device compiled shader: \(error)")
+            return nil
+        } 
+    }
     
     static func getCachedShader(
         for source: ShaderSource,
@@ -70,63 +97,116 @@ enum ShaderCache {
             return nil
         }
         
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        let path = fileURL.prepareCachePath
         
-        guard let cacheFile = try? self.getCacheDirectory()
-            .appendingPathComponent(path)
-            .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue)-\(version).spv") else {
+        do {
+            let cacheFile = try self.getCacheDirectory()
+                .appending(path: path, directoryHint: .isDirectory)
+                .appendingPathExtension("cache-\(stage.rawValue)-\(version).spv")
+            guard let data = fileSystem.readFile(at: cacheFile) else {
+                return nil
+            }
+            return SpirvBinary(
+                stage: stage,
+                data: data,
+                language: source.language,
+                entryPoint: entryPoint,
+                version: version
+            )
+        } catch {
+            logger.error("Failed to get cached device compiled shader: \(error)")
             return nil
         }
-        
-        guard let data = fileSystem.readFile(at: cacheFile) else {
-            return nil
-        }
-        
-        return SpirvBinary(
-            stage: stage,
-            data: data,
-            language: source.language,
-            entryPoint: entryPoint,
-            version: version
-        )
     }
     
-    static func save(_ spirvBin: SpirvBinary, source: ShaderSource, stage: ShaderStage, version: Int) throws {
+    static func save(
+        _ spirvBin: SpirvBinary,
+        source: ShaderSource,
+        stage: ShaderStage,
+        version: Int
+    ) throws {
         guard let fileURL = source.fileURL else {
-            return
+            throw CompileError.failed("Source file URL not found")
         }
         
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        let path = fileURL.prepareCachePath
         
         let cacheDir = try self.getCacheDirectory()
         
         let cacheURL = cacheDir
-            .appendingPathComponent(path)
-            .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue)-\(version).spv")
-        
-        _ = fileSystem.createFile(at: cacheURL, contents: spirvBin.data)
+            .appending(path: path, directoryHint: .isDirectory)
+
+        if !fileSystem.itemExists(at: cacheURL) {
+            try fileSystem.createDirectory(at: cacheURL, withIntermediateDirectories: true)
+        }
+            
+        let cacheFile = cacheURL
+            .appending(path: "cache-\(stage.rawValue)-\(version).spv", directoryHint: .notDirectory)
+        _ = fileSystem.createFile(at: cacheFile, contents: spirvBin.data)
     }
     
     // MARK: - Save/Load Reflection
     
-    static func saveReflection(_ reflectionData: ShaderReflectionData, for source: ShaderSource, stage: ShaderStage) throws {
+    static func saveReflection(
+        _ reflectionData: ShaderReflectionData,
+        for source: ShaderSource,
+        stage: ShaderStage
+    ) throws {
+        guard reflectionData.isEmpty == false else {
+            return
+        }
+        
         guard let fileURL = source.fileURL else {
             return
         }
         
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        let path = fileURL.prepareCachePath
         
         let cacheDir = try self.getCacheDirectory()
         
         let cacheURL = cacheDir
-            .appendingPathComponent(path)
-            .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue).ref")
+            .appending(path: path, directoryHint: .isDirectory)
+
+        if !fileSystem.itemExists(at: cacheURL) {
+            try fileSystem.createDirectory(at: cacheURL, withIntermediateDirectories: true)
+        }
+
+        let cacheFile = cacheURL
+            .appending(path: "cache-\(stage.rawValue).\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
         
         let stringData = try YAMLEncoder().encode(reflectionData)
-        _ = fileSystem.createFile(at: cacheURL, contents: stringData.data(using: .utf8)!)
+        _ = fileSystem.createFile(at: cacheFile, contents: stringData.data(using: .utf8)!)
+    }
+
+    static func saveDeviceCompiledShader(
+        _ compiledShader: DeviceCompiledShader,
+        for source: ShaderSource,
+        stage: ShaderStage
+    ) throws {
+        guard let fileURL = source.fileURL else {
+            throw CompileError.failed("Source file URL not found")
+        }
+        
+        let path = fileURL.prepareCachePath
+        
+        let cacheDir = try self.getCacheDirectory()
+
+        let cacheURL = cacheDir
+            .appending(path: path, directoryHint: .isDirectory)
+
+        if !fileSystem.itemExists(at: cacheURL) {
+            try fileSystem.createDirectory(at: cacheURL, withIntermediateDirectories: true)
+        }
+        
+        let cacheFile = cacheURL
+            .appending(path: "cache-\(stage.rawValue).device-compiled-shader.\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
+        
+        let stringData = try YAMLEncoder().encode(compiledShader)
+        _ = fileSystem.createFile(at: cacheFile, contents: stringData.data(using: .utf8)!)
+
+        let shaderFileForTest = cacheURL
+            .appending(path: "cache-\(stage.rawValue).shader-source.\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
+        _ = fileSystem.createFile(at: shaderFileForTest, contents: compiledShader.source.data(using: .utf8)!)
     }
     
     static func getReflection(for source: ShaderSource, stage: ShaderStage) -> ShaderReflectionData? {
@@ -134,33 +214,33 @@ enum ShaderCache {
             return nil
         }
         
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
-        
-        guard let cacheFile = try? self.getCacheDirectory()
-            .appendingPathComponent(path)
-            .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue).ref") else {
+        let path = fileURL.prepareCachePath
+
+        do {
+            let cacheFile = try self.getCacheDirectory()
+                .appending(path: path, directoryHint: .isDirectory)
+                .appending(path: "cache-\(stage.rawValue).\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
+            guard let data = fileSystem.readFile(at: cacheFile) else {
+                return nil
+            }
+            return try YAMLDecoder().decode(ShaderReflectionData.self, from: data)
+        } catch {
+            logger.error("Failed to get cached reflection: \(error)")
             return nil
         }
-        
-        guard let data = fileSystem.readFile(at: cacheFile) else {
-            return nil
-        }
-        
-        return try? YAMLDecoder().decode(ShaderReflectionData.self, from: data)
     }
     
     static func removeReflection(for fileURL: URL, stage: ShaderStage) {
-        let path = fileURL.pathComponents.suffix(3).joined(separator: "_")
+        let path = fileURL.prepareCachePath
         
-        guard let cacheFile = try? self.getCacheDirectory()
-            .appendingPathComponent(path)
-            .deletingPathExtension()
-            .appendingPathExtension("cache-\(stage.rawValue).ref") else {
-            return
+        do {
+            let cacheFile = try self.getCacheDirectory()
+                .appending(path: path, directoryHint: .isDirectory)
+                .appending(path: "cache-\(stage.rawValue).\(Constants.shaderCacheFileExtension)", directoryHint: .notDirectory)
+            try fileSystem.removeItem(at: cacheFile)
+        } catch {
+            logger.error("Failed to remove cached reflection: \(error)")
         }
-        
-        try? fileSystem.removeItem(at: cacheFile)
     }
     
     // MARK: - Private
@@ -192,15 +272,15 @@ enum ShaderCache {
         }
     }
     
-    private static func getCacheDirectory() throws -> URL {
+    static func getCacheDirectory() throws -> URL {
         return try self.fileSystem
             .url(for: .cachesDirectory)
-            .appendingPathComponent("AdaEngine")
-            .appendingPathComponent("Shaders")
+            .appendingPathComponent(Constants.cacheDirectoryName)
+            .appending(path: Constants.shadersDirectoryName, directoryHint: .isDirectory)
     }
     
     private static func getCacheFile() throws -> URL {
-        try self.getCacheDirectory().appendingPathComponent("ShaderCache.cache")
+        try self.getCacheDirectory().appending(path: Constants.shaderCacheFileName, directoryHint: .notDirectory)
     }
     
     private static func createCacheDirectoryIfNeeded() {
@@ -215,5 +295,30 @@ enum ShaderCache {
         } catch {
             fatalError("[ShaderCache] \(error)")
         }
+    }
+
+    enum Constants {
+        static let cacheDirectoryName = "AdaEngine"
+        static let shadersDirectoryName = "Shaders"
+        static let shaderCacheFileName = "ShaderCache.cache"
+        static let shaderCacheFileExtension = "yaml"
+        static let separator = "/"
+    }
+
+    enum CompileError: LocalizedError {
+        case failed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .failed(let msg):
+                return "[ShaderCache] Failed: \(msg)."
+            }
+        }
+    }
+}
+
+private extension URL {
+    var prepareCachePath: String {
+        return self.pathComponents.suffix(3).joined(separator: ShaderCache.Constants.separator).replacingOccurrences(of: ".bundle", with: "")
     }
 }

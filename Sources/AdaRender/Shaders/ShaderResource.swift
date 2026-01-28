@@ -29,13 +29,14 @@ extension ShaderStage {
 /// Name space for shader resources.
 public enum ShaderResource {
     
-    public struct DescriptorSet: Codable {
+    public struct DescriptorSet: Codable, Sendable {
         public var uniformsBuffers: [Int: ShaderBuffer] = [:]
         public var constantBuffers: [Int: ShaderBuffer] = [:]
         public var sampledImages: [Int: ImageSampler] = [:]
+        public var samplers: [Int: Sampler] = [:]
     }
     
-    public enum ResourceAccess: Codable {
+    public enum ResourceAccess: Codable, Sendable {
         case read
         case write
         case readWrite
@@ -62,13 +63,14 @@ public enum ShaderResource {
     }
     
     /// Describe reflected sampler information.
-    public struct Sampler: Codable {
+    public struct Sampler: Codable, Sendable {
         public let name: String
         public let binding: Int
+        public let shaderStage: ShaderStageFlags
     }
     
     /// Describe reflected texture information.
-    public struct ImageSampler: Codable {
+    public struct ImageSampler: Codable, Sendable {
         public let name: String
         public let binding: Int
         public let textureType: Texture.TextureType
@@ -79,7 +81,7 @@ public enum ShaderResource {
     }
     
     /// Describe reflected shader buffer information. That shader buffer contains members (properties)
-    public struct ShaderBuffer: Codable {
+    public struct ShaderBuffer: Codable, Sendable {
         public let name: String
         public let size: Int
         public let shaderStage: ShaderStageFlags
@@ -89,7 +91,7 @@ public enum ShaderResource {
         public let members: [String : ShaderBufferMember]
     }
     
-    public struct ShaderBufferMember: Codable {
+    public struct ShaderBufferMember: Codable, Sendable {
         let name: String
         let size: Int
         let binding: Int
@@ -213,7 +215,7 @@ public extension ShaderStageFlags {
 
 /// Contains relfection data of shader like uniforms buffers, textures and etc.
 /// You can use this data to understand how to manipulate shader and how to build buffers for it.
-public struct ShaderReflectionData: Codable {
+public struct ShaderReflectionData: Codable, Sendable {
     public var descriptorSets: [ShaderResource.DescriptorSet] = []
     
     /// Collection information about shader buffers, like: Uniform, push values and etc.
@@ -221,6 +223,14 @@ public struct ShaderReflectionData: Codable {
     
     /// Collection information about shader resources, like: textures, samplers.
     public var resources: [String: ShaderResource.ImageSampler] = [:]
+    public var samplers: [String: ShaderResource.Sampler] = [:]
+    
+    /// Check if reflection data is empty.
+    public var isEmpty: Bool {
+        return self.shaderBuffers.isEmpty && self.resources.isEmpty && self.samplers.isEmpty && self.descriptorSets.isEmpty
+    }
+
+    public init() {}
 }
 
 public extension ShaderReflectionData {
@@ -228,7 +238,51 @@ public extension ShaderReflectionData {
     
     /// Merge one ``ShaderReflectionData`` into another.
     mutating func merge(_ data: ShaderReflectionData) {
-        self.shaderBuffers.merge(data.shaderBuffers) { _, new in return new }
-        self.resources.merge(data.resources) { _, new in return new }
+        self.shaderBuffers.merge(data.shaderBuffers) { existing, new in
+            ShaderResource.ShaderBuffer(
+                name: new.name,
+                size: new.size,
+                shaderStage: existing.shaderStage.union(new.shaderStage),
+                binding: new.binding,
+                resourceAccess: new.resourceAccess,
+                members: new.members
+            )
+        }
+        self.resources.merge(data.resources) { existing, new in
+            ShaderResource.ImageSampler(
+                name: new.name,
+                binding: new.binding,
+                textureType: new.textureType,
+                descriptorSet: new.descriptorSet,
+                arraySize: new.arraySize,
+                shaderStage: existing.shaderStage.union(new.shaderStage),
+                resourceAccess: new.resourceAccess
+            )
+        }
+        self.samplers.merge(data.samplers) { existing, new in
+            ShaderResource.Sampler(
+                name: new.name,
+                binding: new.binding,
+                shaderStage: existing.shaderStage.union(new.shaderStage)
+            )
+        }
+
+        if !data.descriptorSets.isEmpty {
+            if self.descriptorSets.count < data.descriptorSets.count {
+                let missingCount = data.descriptorSets.count - self.descriptorSets.count
+                self.descriptorSets.append(contentsOf: Array(repeating: ShaderResource.DescriptorSet(), count: missingCount))
+            }
+
+            for (index, descriptorSet) in data.descriptorSets.enumerated() {
+                var mergedSet = self.descriptorSets[index]
+
+                mergedSet.uniformsBuffers.merge(descriptorSet.uniformsBuffers) { _, new in return new }
+                mergedSet.constantBuffers.merge(descriptorSet.constantBuffers) { _, new in return new }
+                mergedSet.sampledImages.merge(descriptorSet.sampledImages) { _, new in return new }
+                mergedSet.samplers.merge(descriptorSet.samplers) { _, new in return new }
+
+                self.descriptorSets[index] = mergedSet
+            }
+        }
     }
 }

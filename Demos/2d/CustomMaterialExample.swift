@@ -12,7 +12,7 @@ struct CustomMaterialApp: App {
     var body: some AppScene {
         DefaultAppWindow()
             .addPlugins(
-                CustomMaterialPlugin(),
+                CustomMaterialPlugin()
             )
             .windowMode(.windowed)
     }
@@ -20,32 +20,41 @@ struct CustomMaterialApp: App {
 
 struct CustomMaterialPlugin: Plugin {
     func setup(in app: borrowing AdaApp.AppWorlds) {
-        let texture = try! AssetsManager.loadSync(Texture2D.self, at: "Resources/dog.png", from: .module)
-        app.spawn("Custom Material") {
-            Mesh2D(mesh: .generate(from: Quad(size: .one)), materials: [
-                CustomMaterial(MyMaterial(color: .blue, customTexture: texture.asset))
-            ])
-            Transform()
-        }
         app.spawn(bundle: Camera2D())
         app.addSystem(UpdateMaterialSystem.self)
+        app.addSystem(SetupSystem.self, on: .startup)
+    }
+}
+
+@System
+func Setup(
+    _ device: Res<RenderDeviceHandler>,
+    _ commands: Commands
+) async {
+    let texture = try! await AssetsManager.load(Texture2D.self, at: "Resources/dog.png", from: .module)
+    commands.spawn {
+        Mesh2D(mesh: .generate(from: Quad(size: Vector2.init(200, 200)), renderDevice: device.renderDevice), materials: [
+            CustomMaterial(MyMaterial(color: .blue, customTexture: texture.asset))
+        ])
+        Transform()
     }
 }
 
 struct MyMaterial: CanvasMaterial {
 
-    @Uniform(binding: 2, propertyName: "u_Time")
-    var time: Float
+    struct CustomMaterialUniform {
+        var color: Color
+        var time: Float
+    }
 
-    @Uniform(binding: 2, propertyName: "u_Color")
-    var color: Color
+    @Uniform
+    var customMaterial: CustomMaterialUniform
 
-    @FragmentTexture(binding: 0)
+    @FragmentTexture(samplerName: "u_Sampler")
     var customTexture: Texture2D
 
     init(color: Color, customTexture: Texture2D) {
-        self.time = 0
-        self.color = color
+        self.customMaterial = CustomMaterialUniform(color: color, time: 0)
         self.customTexture = customTexture
     }
 
@@ -66,11 +75,11 @@ func UpdateMaterial(
 ) {
     meshes.forEach { ent, mesh in
         if input.wrappedValue.isMouseButtonPressed(.left) {
-            (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.color = .mint
+            (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.customMaterial.color = .mint
         } else {
-            (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.color = .pink
+            (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.customMaterial.color = .pink
         }
 
-        (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.time += delta.deltaTime
+        (mesh.materials[0] as? CustomMaterial<MyMaterial>)?.customMaterial.time += delta.deltaTime
     }
 }

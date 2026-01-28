@@ -10,7 +10,7 @@ import AdaUtils
 import Foundation
 import SPIRVCompiler
 
-public enum ShaderLanguage: String {
+public enum ShaderLanguage: String, Sendable, Codable {
     
     /// Vulkan, OpenGL, WebGL
     case glsl
@@ -24,8 +24,6 @@ public enum ShaderLanguage: String {
     /// WebGPU Shading Language
     case wgsl
 }
-
-// TODO: Add support for wgsl
 
 public enum ShaderStage: String, Hashable, Codable, Sendable {
     case vertex
@@ -70,8 +68,8 @@ public final class ShaderSource: Asset, @unchecked Sendable {
     public var includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
     
     /// Contains url to shader sources if ShaderSource was created from file.
-    private(set) var fileURL: URL?
-    
+    var fileURL: URL?
+
     /// Create a shader source from a file. Automatic detect language and split to stages (for GLSL only).
     public init(from fileURL: URL) throws {
         guard let data = FileSystem.current.readFile(at: fileURL) else {
@@ -102,8 +100,12 @@ public final class ShaderSource: Asset, @unchecked Sendable {
         lang: ShaderLanguage = .glsl,
         includeSearchPaths: [ShaderSource.IncludeSearchPath] = []
     ) throws {
-        self.sources = try ShaderUtils.processGLSLShader(source: source)
-        self.entryPoints = Self.getEntryPoints(from: self.sources)
+        if lang == .glsl {
+            self.sources = try ShaderUtils.processGLSLShader(source: source)
+            self.entryPoints = Self.getEntryPoints(from: self.sources)
+        } else {
+            self.sources = [.max: source]
+        }
         self.includeSearchPaths = includeSearchPaths
         self.language = lang
     }

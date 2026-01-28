@@ -45,7 +45,7 @@ final class MacApplication: Application {
                 while true {
                     try Task.checkCancellation()
                     self.processEvents()
-                    await appWorlds.update()
+                    try await appWorlds.update()
                     await Task.yield()
                 }
             } catch {

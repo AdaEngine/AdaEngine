@@ -207,7 +207,7 @@ extension SystemMacro: PeerMacro {
             return AdaECS.SystemQueries(queries: [\(raw: queryVars.joined(separator: ", "))])
         }
         
-        \(raw: dependencies.isEmpty ? "" : "\(availability)var dependencies: [AdaECS.SystemDependency] { [\(dependencies.joined(separator: ", "))] }")
+        \(raw: dependencies.isEmpty ? "" : "\(availability)static var dependencies: [AdaECS.SystemDependency] { [\(dependencies.joined(separator: ", "))] }")
         }
         """
         return [structDecl]
