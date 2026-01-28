@@ -174,7 +174,7 @@ class WebGPUTintPlugin: CommandPlugin {
             
             // Strip binary if strip is available
             if fileManager.fileExists(atPath: "/usr/bin/strip") {
-                try? Process.run(URL(fileURLWithPath: "/usr/bin/strip"), arguments: [destPath.path])
+                Process.run(URL(fileURLWithPath: "/usr/bin/strip"), arguments: [destPath.path])
             }
             
             Diagnostics.remark("Tint binary built successfully at \(destPath.path)")

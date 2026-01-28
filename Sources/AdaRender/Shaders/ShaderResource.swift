@@ -29,14 +29,14 @@ extension ShaderStage {
 /// Name space for shader resources.
 public enum ShaderResource {
     
-    public struct DescriptorSet: Codable {
+    public struct DescriptorSet: Codable, Sendable {
         public var uniformsBuffers: [Int: ShaderBuffer] = [:]
         public var constantBuffers: [Int: ShaderBuffer] = [:]
         public var sampledImages: [Int: ImageSampler] = [:]
         public var samplers: [Int: Sampler] = [:]
     }
     
-    public enum ResourceAccess: Codable {
+    public enum ResourceAccess: Codable, Sendable {
         case read
         case write
         case readWrite
@@ -63,14 +63,14 @@ public enum ShaderResource {
     }
     
     /// Describe reflected sampler information.
-    public struct Sampler: Codable {
+    public struct Sampler: Codable, Sendable {
         public let name: String
         public let binding: Int
         public let shaderStage: ShaderStageFlags
     }
     
     /// Describe reflected texture information.
-    public struct ImageSampler: Codable {
+    public struct ImageSampler: Codable, Sendable {
         public let name: String
         public let binding: Int
         public let textureType: Texture.TextureType
@@ -81,7 +81,7 @@ public enum ShaderResource {
     }
     
     /// Describe reflected shader buffer information. That shader buffer contains members (properties)
-    public struct ShaderBuffer: Codable {
+    public struct ShaderBuffer: Codable, Sendable {
         public let name: String
         public let size: Int
         public let shaderStage: ShaderStageFlags
@@ -215,7 +215,7 @@ public extension ShaderStageFlags {
 
 /// Contains relfection data of shader like uniforms buffers, textures and etc.
 /// You can use this data to understand how to manipulate shader and how to build buffers for it.
-public struct ShaderReflectionData: Codable {
+public struct ShaderReflectionData: Codable, Sendable {
     public var descriptorSets: [ShaderResource.DescriptorSet] = []
     
     /// Collection information about shader buffers, like: Uniform, push values and etc.
@@ -229,6 +229,8 @@ public struct ShaderReflectionData: Codable {
     public var isEmpty: Bool {
         return self.shaderBuffers.isEmpty && self.resources.isEmpty && self.samplers.isEmpty && self.descriptorSets.isEmpty
     }
+
+    public init() {}
 }
 
 public extension ShaderReflectionData {

@@ -52,7 +52,7 @@ public final class Shader: Asset, @unchecked Sendable {
         source: String,
         entryPoint: String,
         stage: ShaderStage,
-        reflectionData: ShaderReflectionData,
+        reflectionData: ShaderReflectionData = ShaderReflectionData()
     ) {
         self.source = .code(source)
         self.entryPoint = entryPoint
