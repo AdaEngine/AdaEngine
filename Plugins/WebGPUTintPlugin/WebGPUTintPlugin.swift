@@ -16,6 +16,11 @@ class WebGPUTintPlugin: CommandPlugin {
     let fileManager = FileManager.default
     
     func performCommand(context: PluginContext, arguments: [String]) async throws {
+        if ProcessInfo.processInfo.environment["ADAENGINE_SKIP_WEBGPU_PLUGINS"]?.isEmpty == false {
+            Diagnostics.remark("Skipping WebGPU tint plugin (ADAENGINE_SKIP_WEBGPU_PLUGINS is set)")
+            return
+        }
+
         Diagnostics.remark("Building Tint Compiler...")
         
         #if os(Windows)
@@ -174,7 +179,7 @@ class WebGPUTintPlugin: CommandPlugin {
             
             // Strip binary if strip is available
             if fileManager.fileExists(atPath: "/usr/bin/strip") {
-                Process.run(URL(fileURLWithPath: "/usr/bin/strip"), arguments: [destPath.path])
+                try Process.run(URL(fileURLWithPath: "/usr/bin/strip"), arguments: [destPath.path])
             }
             
             Diagnostics.remark("Tint binary built successfully at \(destPath.path)")

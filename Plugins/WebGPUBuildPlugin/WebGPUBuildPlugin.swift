@@ -14,6 +14,11 @@ struct WebGPUBuildPlugin: BuildToolPlugin {
     let fileManager = FileManager.default
 
     func createBuildCommands(context: PluginContext, target: Target) async throws -> [Command] {
+        if ProcessInfo.processInfo.environment["ADAENGINE_SKIP_WEBGPU_PLUGINS"]?.isEmpty == false {
+            Diagnostics.remark("Skipping WebGPU build plugin (ADAENGINE_SKIP_WEBGPU_PLUGINS is set)")
+            return []
+        }
+
         var commands: [Command] = []
         
         #if os(Windows)
