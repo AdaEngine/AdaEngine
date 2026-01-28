@@ -19,13 +19,12 @@ final class MetalRenderBackend: RenderBackend, @unchecked Sendable {
 
     private let context: Context
     let type: RenderBackendType = .metal
-    private(set) var currentFrameIndex: Int = 0
     
     private var commandQueue: MTLCommandQueue
 
     private(set) var renderDevice: RenderDevice
 
-    init(appName: String) {
+    init() {
         self.context = Context()
         self.commandQueue = self.context.physicalDevice.makeCommandQueue()!
 
@@ -206,6 +205,31 @@ extension BlendFactor {
             return .blendAlpha
         case .oneMinusBlendAlpha:
             return .oneMinusBlendAlpha
+        }
+    }
+}
+
+extension Texture.TextureType {
+    var toMetal: MTLTextureType {
+        switch self {
+        case .texture1D:
+            return .type1D
+        case .texture1DArray:
+            return .type1DArray
+        case .texture2D:
+            return .type2D
+        case .texture2DArray:
+            return .type2DArray
+        case .texture2DMultisample:
+            return .type2DMultisample
+        case .texture2DMultisampleArray:
+            return .type2DMultisampleArray
+        case .textureCube:
+            return .typeCube
+        case .texture3D:
+            return .type3D
+        case .textureBuffer:
+            fatalError("Unsupported texture buffer type for Metal")
         }
     }
 }

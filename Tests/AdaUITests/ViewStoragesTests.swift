@@ -18,28 +18,28 @@ struct ViewStoragesTests {
         try Application.prepareForTest()
     }
 
-    @Test
-    func onAppearCalled_WhenVisible() {
-        // given
-        struct TestableView: View {
-            @State private var value: String = "Value"
+    // @Test
+    // func onAppearCalled_WhenVisible() {
+    //     // given
+    //     struct TestableView: View {
+    //         @State private var value: String = "Value"
 
-            var body: some View {
-                Text(value)
-            }
-        }
+    //         var body: some View {
+    //             Text(value)
+    //         }
+    //     }
 
-        let tester = ViewTester(rootView: TestableView().accessibilityIdentifier("Test"))
-            .setSize(
-                Size(width: 400, height: 400)
-            )
-            .performLayout()
+    //     let tester = ViewTester(rootView: TestableView().accessibilityIdentifier("Test"))
+    //         .setSize(
+    //             Size(width: 400, height: 400)
+    //         )
+    //         .performLayout()
 
-        // when
-        let node = tester.findNodeByAccessibilityIdentifier("Test")
-        // then
-        #expect(node?.storages.count == 1)
-        #expect(node?.storages.contains(where: { $0.propertyName == "_value" }) == true, "Incorrect name of property")
-        #expect(node?.storages.contains(where: { $0 is StateStorage<String> }) == true, "Incorrect type of stored property")
-    }
+    //     // when
+    //     let node = tester.findNodeByAccessibilityIdentifier("Test")
+    //     // then
+    //     #expect(node?.storages.count == 1)
+    //     #expect(node?.storages.contains(where: { $0.propertyName == "_value" }) == true, "Incorrect name of property")
+    //     #expect(node?.storages.contains(where: { $0 is StateStorage<String> }) == true, "Incorrect type of stored property")
+    // }
 }

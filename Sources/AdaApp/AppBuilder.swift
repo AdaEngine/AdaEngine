@@ -24,6 +24,13 @@ public protocol WorldExctractor {
 /// A class that represents a collection of worlds.
 @MainActor
 public final class AppWorlds {
+
+    #if ENABLE_RUN_IN_CONCURRENCY
+    public typealias ApplicationRunnerBlock = () async -> Void
+    #else
+    public typealias ApplicationRunnerBlock = () -> Void
+    #endif
+
     /// The main world.
     public var main: World
 
@@ -44,7 +51,7 @@ public final class AppWorlds {
     private var pluginDepth = 0
 
     /// The runner.
-    var runner: ((AppWorlds) -> Void)?
+    var runner: ApplicationRunnerBlock?
 
     /// The flag that indicates if the app is configured.
     var isConfigured: Bool = false
@@ -78,13 +85,13 @@ public extension AppWorlds {
 
     /// Set the runner.
     /// - Parameter block: The runner.
-    func setRunner(_ block: @escaping (AppWorlds) -> Void) {
+    func setRunner(_ block: @escaping ApplicationRunnerBlock) {
         self.runner = block
     }
 
     /// Update the app.
     /// - Parameter deltaTime: The delta time.
-    func update() async {
+    func update() async throws {
         guard isConfigured else {
             return
         }
@@ -92,12 +99,12 @@ public extension AppWorlds {
             assertionFailure("Update scheduler is empty")
             return
         }
-        
+
         await main.runScheduler(updateScheduler)
 
         for world in self.subWorlds.values {
             unsafe await world.worldExctractor?.exctract(from: main, to: world.main)
-            await world.update()
+            try await world.update()
         }
         
         main.clearTrackers()
@@ -151,7 +158,7 @@ public extension AppWorlds {
 
     /// Setup plugins.
     func build() async throws {
-        self.setupPlugins(self.plugins[...])
+        await self.setupPlugins(self.plugins[...])
         assert(self.pluginDepth == 0, "Plugins installed recursevly")
 
         for subWorld in self.subWorlds.values {
@@ -169,27 +176,32 @@ public extension AppWorlds {
 }
 
 private extension AppWorlds {
-    private func setupPlugins(_ plugins: ContiguousArray<any Plugin>.SubSequence) {
+    private func setupPlugins(_ plugins: ContiguousArray<any Plugin>.SubSequence) async {
         var index = plugins.endIndex
-        plugins.forEach {
+        for plugin in plugins {
             self.pluginDepth += 1
 
-            if let pluginName = self.installedPlugins[ObjectIdentifier(type(of: $0))] {
+            if let pluginName = self.installedPlugins[ObjectIdentifier(type(of: plugin))] {
                 assertionFailure("Plugin \(pluginName) already setuped")
             }
-            $0.setup(in: self)
 
-            self.logger.debug("Plugin installed \(type(of: $0))")
+            plugin.setup(in: self)
+
+            while !plugin.isLoaded(in: self) {
+                await Task.yield()
+            }
+
+            self.logger.debug("Plugin installed \(type(of: plugin))")
 
             /// If plugin add a new plugins, we should check it.
             if !self.plugins[index...].isEmpty {
-                setupPlugins(self.plugins[index...])
+                await setupPlugins(self.plugins[index...])
                 index = self.plugins.endIndex
             }
 
             self.pluginDepth -= 1
 
-            self.installedPlugins[ObjectIdentifier(type(of: $0))] = String(reflecting: type(of: $0))
+            self.installedPlugins[ObjectIdentifier(type(of: plugin))] = String(reflecting: type(of: plugin))
         }
     }
 }
@@ -209,6 +221,21 @@ public extension AppWorlds {
         on scheduler: AdaECS.SchedulerName = .update
     ) -> Self {
         self.main.addSystem(system, on: scheduler)
+        return self
+    }
+
+    /// Remove a system from the main world.
+    /// - Parameters:
+    ///   - system: The system to remove.
+    ///   - scheduler: The scheduler to remove the system from.
+    /// - Returns: The app builder.
+    @inlinable
+    @discardableResult
+    func removeSystem<T: System>(
+        _ system: T.Type,
+        on scheduler: AdaECS.SchedulerName = .update
+    ) -> Self {
+        self.main.removeSystem(system, on: scheduler)
         return self
     }
 

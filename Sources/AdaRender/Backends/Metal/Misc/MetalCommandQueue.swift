@@ -19,7 +19,7 @@ final class MetalCommandQueue: CommandQueue {
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
             fatalError("MetalCommandQueue failed. Can't create MTLCommandBuffer.")
         }
-        return MetalCommandEncoder(commandBuffer: commandBuffer)
+        return MetalCommandEncoder(commandBuffer: commandBuffer, device: commandQueue.device)
     }
 }
 #endif

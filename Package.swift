@@ -12,7 +12,13 @@ import AppleProductTypes
 #if canImport(Darwin)
 import Darwin.C
 
-let isVulkanEnabled = false
+/// Only xcode can import AppleProductTypes and we can use it as checker
+#if canImport(AppleProductTypes)
+let isWGPUEnabled = false // We can't build wgpu from xcode
+#else
+let isWGPUEnabled = true
+#endif
+
 #else
 
 #if os(Linux)
@@ -23,8 +29,12 @@ import Glibc
 import WinSDK
 #endif
 
-let isVulkanEnabled = false
+let isWGPUEnabled = true
 #endif
+
+extension String {
+    static let wgpuTrait = "WGPU_ENABLED"
+}
 
 let applePlatforms: [Platform] = [.iOS, .macOS, .tvOS, .watchOS, .visionOS]
 
@@ -48,7 +58,10 @@ var products: [Product] = [
     .library(
         name: "AdaEngineEmbeddable",
         targets: ["AdaEngineEmbeddable"]
-    )
+    ),
+    .plugin(name: "WebGPUBuildPlugin", targets: [
+        "WebGPUBuildPlugin"
+    ])
 ]
 
 // Check that we target on vulkan dependency
@@ -101,18 +114,15 @@ var swiftSettings: [SwiftSetting] = [
     .define("ANDROID", .when(platforms: [.android])),
     .define("LINUX", .when(platforms: [.linux])),
     .define("DARWIN", .when(platforms: applePlatforms)),
+    .define("METAL", .when(platforms: applePlatforms)),
+    .define("WEBGPU_ENABLED", .when(traits: [.wgpuTrait])),
     .define("WASM", .when(platforms: [.wasi])),
     .define("ENABLE_DEBUG_DYLIB", .when(configuration: .debug)),
+    .define("ENABLE_RUN_IN_CONCURRENCY", .when(platforms: [.windows, .wasi, .android, .linux])),
     .enableUpcomingFeature("MemberImportVisibility"),
     .strictMemorySafety(),
     .unsafeFlags(["-Xfrontend", "-validate-tbd-against-ir=none"]),
 ]
-
-if isVulkanEnabled {
-    swiftSettings.append(.define("VULKAN"))
-} else {
-    swiftSettings.append(.define("METAL", .when(platforms: applePlatforms)))
-}
 
 let editorTarget: Target = .executableTarget(
     name: "AdaEditor",
@@ -310,11 +320,25 @@ var targets: [Target] = [
             "SPIRV-Cross",
             "SPIRVCompiler",
             "libpng",
+            .product(name: "Subprocess", package: "swift-subprocess"),
+            .product(
+                name: "WebGPU",
+                package: "swift-webgpu",
+                condition: .when(traits: [
+                    .wgpuTrait
+                ])
+            ),
         ],
         resources: [
             .copy("Assets/Shaders")
         ],
-        swiftSettings: swiftSettings
+        swiftSettings: swiftSettings,
+        plugins: {
+           if isWGPUEnabled {
+                return ["WebGPUBuildPlugin"]
+           }
+           return []
+        }()
     ),
     .adaTarget(
         name: "AdaText",
@@ -413,6 +437,31 @@ var targets: [Target] = [
         swiftSettings: swiftSettings
     ),
 ]
+
+targets.append(
+    .plugin(
+        name: "WebGPUBuildPlugin",
+        capability: .buildTool(),
+        dependencies: []
+    )
+)
+
+// MARK: Build Plugins
+if isWGPUEnabled {
+
+    targets.append(
+        .plugin(
+            name: "WebGPUTintPlugin",
+            capability: .command(
+                intent: .custom(verb: "build-tint", description: "Build Tint compiler from Dawn repository"),
+                permissions: [
+                    .allowNetworkConnections(scope: .all(), reason: "Download dawn from github")
+                ]
+            ),
+            dependencies: []
+        )
+    )
+}
 
 // MARK: Extra
 
@@ -825,7 +874,12 @@ let package = Package(
         .macOS(.v15),
     ],
     products: products,
-    traits: [],
+    traits: [
+        .trait(
+            name: .wgpuTrait,
+            description: "Enable WebGPU support"
+        )
+    ],
     dependencies: [],
     targets: targets,
     cLanguageStandard: .c17,
@@ -834,48 +888,22 @@ let package = Package(
 
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", from: "1.3.0"),
-    .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),
     .package(url: "https://github.com/apple/swift-numerics", from: "1.1.1"),
     .package(url: "https://github.com/apple/swift-atomics", from: "1.3.0"),
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
+    .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "0.2.1"),
+    // TODO: SpectralDragon packages should move to AdaEngine
+    .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
+    .package(
+        url: "https://github.com/SpectralDragon/swift-webgpu",
+        branch: "update_bindings"
+    ),
     // Plugins
     .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.4.5"),
     .package(url: "https://github.com/swiftlang/swift-syntax", from: "602.0.0"),
     .package(url: "https://github.com/SimplyDanny/SwiftLintPlugins", from: "0.62.1"),
 ]
-
-// MARK: - Vulkan -
-
-// We turn on vulkan via build
-if isVulkanEnabled {
-    adaEngineTarget.dependencies.append(.target(name: "Vulkan"))
-    package.targets += [
-        .adaTarget(
-            name: "Vulkan",
-            dependencies: ["CVulkan"],
-            cSettings: [
-                // Apple
-                .define("VK_USE_PLATFORM_IOS_MVK", .when(platforms: [.iOS])),
-                .define("VK_USE_PLATFORM_MACOS_MVK", .when(platforms: [.macOS])),
-                .define("VK_USE_PLATFORM_METAL_EXT", .when(platforms: applePlatforms)),
-
-                // Android
-                .define("VK_USE_PLATFORM_ANDROID_KHR", .when(platforms: [.android])),
-
-                // Windows
-                .define("VK_USE_PLATFORM_WIN32_KHR", .when(platforms: [.windows])),
-            ]
-        ),
-        .systemLibrary(
-            name: "CVulkan",
-            pkgConfig: "vulkan",
-            providers: [
-                .apt(["vulkan"])
-            ]
-        )
-    ]
-}
 
 private extension Target {
     /// Creates a regular target.
@@ -969,6 +997,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "ManySpritesExample", path: "2d"),
     .exampleTarget(name: "Text2dExample", path: "2d"),
     .exampleTarget(name: "SpriteExample", path: "2d"),
+    .exampleTarget(name: "WGSLExample", path: "2d"),
 
     // MARK: Input
     .exampleTarget(name: "GamepadExample", path: "Input"),
@@ -988,9 +1017,21 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "ButtonExample", path: "UI"),
 
     // MARK: Example
-    .exampleTarget(name: "SimpleCollideEventExample", path: "Events")
+    .exampleTarget(name: "SimpleCollideEventExample", path: "Events"),
 ]
 
 package.targets.append(contentsOf: examplesTargets)
 
 // MARK:  Examples -
+
+// MARK: - Traits
+
+var defaultTraits: Set<String> = []
+
+if isWGPUEnabled {
+    defaultTraits.insert(.wgpuTrait)
+}
+
+package.traits.insert(
+    .default(enabledTraits: defaultTraits)
+)

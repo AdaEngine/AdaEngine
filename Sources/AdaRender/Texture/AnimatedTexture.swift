@@ -54,7 +54,7 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     public var options: Options = [.repeat]
     
     /// Return RID of current frame
-    override var gpuTexture: GPUTexture {
+    @_spi(Internal) public override var gpuTexture: GPUTexture {
         self.frames[currentFrame].texture!.gpuTexture
     }
     
@@ -86,8 +86,8 @@ public final class AnimatedTexture: Texture2D, @unchecked Sendable {
     /// Create animated texture with 256 frames.
     public init() {
         self.frames = [Frame].init(repeating: Frame(texture: nil, delay: 0), count: 256)
-        let sampler = RenderEngine.shared.renderDevice.createSampler(from: SamplerDescriptor())
-        let texture = RenderEngine.shared.renderDevice.createTexture(
+        let sampler = unsafe RenderEngine.shared.renderDevice.createSampler(from: SamplerDescriptor())
+        let texture = unsafe RenderEngine.shared.renderDevice.createTexture(
             from: TextureDescriptor(
                 textureUsage: .read,
                 textureType: .texture2D

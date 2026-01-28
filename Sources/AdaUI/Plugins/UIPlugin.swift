@@ -37,10 +37,6 @@ public struct UIPlugin: Plugin {
             .insertResource(ExtractedUIContexts())
             .insertResource(PendingUIGraphicsContext())
             .insertResource(RenderItems<UITransparentRenderItem>())
-            .insertResource(RenderPipelines(configurator: QuadPipeline()))
-            .insertResource(RenderPipelines(configurator: CirclePipeline()))
-            .insertResource(RenderPipelines(configurator: LinePipeline()))
-            .insertResource(RenderPipelines(configurator: TextPipeline()))
             .insertResource(UIDrawPass())
             .insertResource(UIViewUniform())
 

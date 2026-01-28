@@ -43,23 +43,23 @@ public class Material: Asset, Hashable, @unchecked Sendable {
     }
     
     /// Set the new value for material.
-    public func setValue<T: ShaderUniformValue>(_ value: T, for name: String) {
+    public func setValue<T>(_ value: T, for name: String) {
         unsafe MaterialStorage.shared.setValue(value, for: name, in: self)
     }
     
     /// Get value from material.
-    public func getValue<T: ShaderUniformValue>(for name: String) -> T? {
+    public func getValue<T>(for name: String, type: T.Type) -> T? {
         return unsafe MaterialStorage.shared.getValue(for: name, in: self)
     }
     
     /// Set one or more textures for material.
-    public func setResources(_ textures: [Texture], for name: String) {
-        unsafe MaterialStorage.shared.setResources(textures, for: name, in: self)
+    public func setTexture(_ texture: MaterialTexture, for name: String) {
+        unsafe MaterialStorage.shared.setTexture(texture, for: name, in: self)
     }
     
     /// Get textures from material.
-    public func getResources(for name: String) -> [Texture] {
-        return unsafe MaterialStorage.shared.getResources(for: name, in: self)
+    public func getTexture(for name: String) -> MaterialTexture? {
+        return unsafe MaterialStorage.shared.getTexture(for: name, in: self)
     }
     
     /// Updates material values.

@@ -8,6 +8,7 @@
 #if os(Windows)
 import AdaApp
 import AdaECS
+import AdaUtils
 @_spi(Internal) import AdaInput
 @_spi(Internal) import AdaUI
 import WinSDK
@@ -27,36 +28,35 @@ final class WindowsApplication: Application {
         UIWindowManager.setShared(self.windowManager)
     }
 
-    override func run(_ appWorlds: AppWorlds) throws {
+    @MainActor
+    override func run(_ appWorlds: AppWorlds) async throws {
         setupInput(for: appWorlds)
-        task = Task(priority: .userInitiated) {
-            do {
-                var msg = unsafe MSG()
-                while true {
-                    try Task.checkCancellation()
+        do {
+            var msg = unsafe MSG()
+            while true {
+                try Task.checkCancellation()
                     
-                    // Process Windows messages
-                    var hasMessage: Bool = false
+                // Process Windows messages
+                var hasMessage: Bool = false
+                hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
+                while hasMessage {
+                    unsafe TranslateMessage(&msg)
+                    unsafe DispatchMessageW(&msg)
                     hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
-                    while hasMessage {
-                        unsafe TranslateMessage(&msg)
-                        unsafe DispatchMessageW(&msg)
-                        hasMessage = unsafe PeekMessageW(&msg, nil, 0, 0, UInt32(1))
-                    }
-                    
-                    await appWorlds.update()
-                    await Task.yield()
                 }
-            } catch {
-                let alert = Alert(
-                    title: "AdaEngine finished with Error",
-                    message: error.localizedDescription,
-                    buttons: [
-                        .cancel("OK", action: { exit(0) })
-                    ]
-                )
-                Application.shared.showAlert(alert)
+                    
+                try await appWorlds.update()
+                await Task.yield()
             }
+        } catch {
+            let alert = Alert(
+                title: "AdaEngine finished with Error",
+                message: error.localizedDescription,
+                buttons: [
+                    .cancel("OK", action: { exit(0) })
+                ]
+            )
+            Application.shared.showAlert(alert)
         }
     }
 

@@ -155,8 +155,8 @@ spirv_bin compile_shader_glsl(
     
     int ClientInputSemanticsVersion = 100;
     int DefaultVersion = 410;
-    glslang::EShTargetClientVersion ClientVersion = glslang::EShTargetVulkan_1_2;
-    glslang::EShTargetLanguageVersion TargetVersion = glslang::EShTargetSpv_1_5;
+    glslang::EShTargetClientVersion ClientVersion = glslang::EShTargetVulkan_1_1;
+    glslang::EShTargetLanguageVersion TargetVersion = glslang::EShTargetSpv_1_3;
     
     glslang::TShader::ForbidIncluder includer;
     glslang::TShader shader(stages[stage]);

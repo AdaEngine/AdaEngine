@@ -11,7 +11,7 @@ import Math
 /// This protocol describe value type for shader.
 /// If you want pass your custom type to shader, you should implement this interface for your type.
 /// - Warning: You custom type should have the same size in memory as a ShaderValueType.
-public protocol ShaderUniformValue {
+public protocol ShaderUniformValue: Sendable {
     static var shaderValueType: ShaderValueType { get }
 }
 

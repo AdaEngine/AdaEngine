@@ -15,6 +15,7 @@ struct SpriteExampleApp: App {
                 SpriteExamplePlugin()
             )
             .windowMode(.windowed)
+            .windowTitle("Sprite Example")
     }
 }
 

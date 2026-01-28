@@ -250,7 +250,7 @@ public final class RDCWatcher {
                         return
                     }
 
-                    var handles: (HANDLE?, HANDLE?) = (watch.terminate, watch.overlapped.hEvent)
+                    var handles: (HANDLE?, HANDLE?) = unsafe (watch.terminate, watch.overlapped.hEvent)
                     switch unsafe WaitForMultipleObjects(2, &handles.0, false, INFINITE) {
                         case WAIT_OBJECT_0 + 1:
                             break
@@ -849,12 +849,12 @@ public final class FSEventStream: @unchecked Sendable {
     // Start the runloop.
     public func start() throws {
         // Check if stream was created successfully
-        guard self.stream != nil else {
+        guard unsafe self.stream != nil else {
             throw Error.unknownError
         }
         
         let thread = TSCBasic.Thread { [weak self] in
-            guard let `self` = self, let stream = self.stream else { return }
+            guard let `self` = self, let stream = unsafe self.stream else { return }
             self.runLoop = CFRunLoopGetCurrent()
             // Schedule the run loop.
             unsafe FSEventStreamScheduleWithRunLoop(

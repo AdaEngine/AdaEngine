@@ -15,18 +15,15 @@ public enum TriangleFillMode {
 }
 
 public enum RenderBackendType: String, Sendable {
-    case opengl
     case metal
-    case vulkan
+    case webgpu
+    case headless
 }
 
 /// This protocol describe interface for GPU.
 protocol RenderBackend: AnyObject, Sendable {
     
     var type: RenderBackendType { get }
-
-    /// Returns current frame index. Min value 0, Max value is equal ``RenderEngine/Configuration/maxFramesInFlight`` value.
-    var currentFrameIndex: Int { get }
 
     /// Returns global ``RenderDevice``.
     var renderDevice: RenderDevice { get }
@@ -74,10 +71,7 @@ public protocol RenderDevice: AnyObject, Sendable {
 
     /// Compile device specific shader from shader data.
     /// - Throws: Throw an error if something went wrong on compilation.
-    func compileShader(from shader: Shader) throws -> CompiledShader
-
-    /// Create a framebuffer from descriptor.
-    func createFramebuffer(from descriptor: FramebufferDescriptor) -> Framebuffer
+    func compileShader(from shader: Shader) throws -> any CompiledShader
 
     /// Create pipeline state from shader.
     func createRenderPipeline(from descriptor: RenderPipelineDescriptor) -> RenderPipeline
@@ -89,9 +83,6 @@ public protocol RenderDevice: AnyObject, Sendable {
 
     /// Create a new uniform buffer with specific length and binding.
     func createUniformBuffer(length: Int, binding: Int) -> UniformBuffer
-
-    /// Create a new empty uniform buffer set.
-    func createUniformBufferSet() -> UniformBufferSet
 
     // MARK: - Texture
 

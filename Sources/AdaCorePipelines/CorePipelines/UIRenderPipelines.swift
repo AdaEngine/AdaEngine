@@ -29,16 +29,14 @@ public struct QuadPipeline: RenderPipelineConfigurator {
     public func configurate(
         with configuration: RenderPipelineEmptyConfiguration
     ) -> RenderPipelineDescriptor {
-        var pipelineDesc = RenderPipelineDescriptor()
-        pipelineDesc.vertex = shader.asset.getShader(for: .vertex)
+        var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
-        pipelineDesc.debugName = "UI Quad Pipeline"
+        pipelineDesc.debugName = "Quad Pipeline"
 
         pipelineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector4, name: "a_Position"),
             .attribute(.vector4, name: "a_Color"),
             .attribute(.vector2, name: "a_TexCoordinate"),
-            .attribute(.int, name: "a_TexIndex")
         ])
 
         pipelineDesc.vertexDescriptor.layouts[0].stride = MemoryLayout<QuadVertexData>.stride
@@ -69,10 +67,9 @@ public struct CirclePipeline: RenderPipelineConfigurator {
     public func configurate(
         with configuration: RenderPipelineEmptyConfiguration
     ) -> RenderPipelineDescriptor {
-        var pipelineDesc = RenderPipelineDescriptor()
-        pipelineDesc.vertex = shader.asset.getShader(for: .vertex)
+        var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
-        pipelineDesc.debugName = "UI Circle Pipeline"
+        pipelineDesc.debugName = "Circle Pipeline"
 
         pipelineDesc.vertexDescriptor.attributes.append([
             .attribute(.vector3, name: "a_WorldPosition"),
@@ -110,10 +107,9 @@ public struct LinePipeline: RenderPipelineConfigurator {
     public func configurate(
         with configuration: RenderPipelineEmptyConfiguration
     ) -> RenderPipelineDescriptor {
-        var pipelineDesc = RenderPipelineDescriptor()
-        pipelineDesc.vertex = shader.asset.getShader(for: .vertex)
+        var pipelineDesc = RenderPipelineDescriptor(vertex: shader.asset.getShader(for: .vertex)!)
         pipelineDesc.fragment = shader.asset.getShader(for: .fragment)
-        pipelineDesc.debugName = "UI Line Pipeline"
+        pipelineDesc.debugName = "Line Pipeline"
         pipelineDesc.primitive = .line
 
         pipelineDesc.vertexDescriptor.attributes.append([

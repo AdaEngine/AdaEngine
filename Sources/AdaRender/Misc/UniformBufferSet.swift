@@ -22,6 +22,12 @@ public protocol UniformBufferSet: AnyObject, Sendable {
 }
 
 public extension UniformBufferSet {
+
+    /// Create set of buffers with specific length. Count of buffer depends on ``RenderEngine/Configuration/maxFramesInFlight`` value.
+    /// - Parameter for: The type of the buffer.
+    /// - Parameter count: The count of the buffer.
+    /// - Parameter binding: The binding of the buffer.
+    /// - Parameter set: The set of the buffer.
     func initBuffers<T>(for: T.Type, count: Int = 1, binding: Int, set: Int) {
         assert(count >= 1, "Count can't be less then 1")
         self.initBuffers(length: MemoryLayout<T>.stride * count, binding: binding, set: set)

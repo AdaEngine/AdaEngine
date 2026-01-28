@@ -8,6 +8,6 @@
 /// This protocol describe uniform buffer created for GPU usage.
 public protocol UniformBuffer: Buffer {
     
-    /// Contains group binding for shader.
+    /// Contains binding slot for shader.
     var binding: Int { get }
 }

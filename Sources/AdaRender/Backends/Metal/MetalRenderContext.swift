@@ -35,18 +35,10 @@ extension MetalRenderBackend {
                 throw ContextError.creationWindowAlreadyExists
             }
 
-            #if canImport(AppKit)
-            var scaleFactor: Float = unsafe Float(view.window?.screen?.backingScaleFactor ?? 2)
-            #elseif canImport(UIKit)
-            var scaleFactor: Float = unsafe Float(view.window?.screen?.scaleFactor ?? 2)
-            #else
-            var scaleFactor: Float = 2
-            #endif
-
             let window = MetalRenderWindow(
                 view: view,
                 size: size,
-                scaleFactor: scaleFactor
+                scaleFactor: view.scaleFactor
             )
             view.colorPixelFormat = .bgra8Unorm
             view.device = self.physicalDevice

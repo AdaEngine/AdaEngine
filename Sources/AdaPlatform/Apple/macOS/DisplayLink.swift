@@ -10,88 +10,57 @@ import AppKit
 import Logging
 
 /// This class linked with display and call update method each time when display is updated.
-public final class DisplayLink: @unchecked Sendable {
-    private let timer: CVDisplayLink
-    private let source: DisplayLinkEventHandler
+public final class DisplayLink: NSObject {
+    private var displayLink: CADisplayLink!
+    private var source: DisplayLinkEventHandler
 
-    public var isRunning: Bool {
-        return CVDisplayLinkIsRunning(timer)
-    }
-    
-    public init?(on queue: DispatchQueue = DispatchQueue.main) {
-        self.source = DisplayLinkEventHandler(queue: queue)
+    public init(screen: NSScreen) {
+        self.source = DisplayLinkEventHandler()
+        super.init()
 
-        var timerRef: CVDisplayLink?
-        
-        var successLink = unsafe CVDisplayLinkCreateWithActiveCGDisplays(&timerRef)
-        
-        if let timer = timerRef {
-            successLink = unsafe CVDisplayLinkSetOutputCallback(timer, { _, _, _, _, _, source -> CVReturn in
-                if let source = unsafe source {
-                    let sourceUnmanaged = unsafe Unmanaged<DisplayLinkEventHandler>.fromOpaque(source)
-                    unsafe sourceUnmanaged.takeUnretainedValue().onEvent()
-                }
-                
-                return kCVReturnSuccess
-            }, unsafe Unmanaged.passUnretained(self.source).toOpaque())
-            
-            guard successLink == kCVReturnSuccess else {
-                Logger(label: "org.adaengine.AdaPlatform").error("Failed to create timer with active display")
-                return nil
-            }
-            
-            successLink = CVDisplayLinkSetCurrentCGDisplay(timer, CGMainDisplayID())
-            
-            guard successLink == kCVReturnSuccess else {
-                return nil
-            }
-            
-            self.timer = timer
-        } else {
-            return nil
-        }
+        self.displayLink = screen.displayLink(
+            target: self,
+            selector: #selector(onDisplayLinkUpdate)
+        )
+        // Explicitly add to run loop to ensure it works
+        self.displayLink.add(to: .current, forMode: .default)
     }
     
     public func start() {
-        guard !self.isRunning else { return }
-        
-        CVDisplayLinkStart(self.timer)
+        displayLink.isPaused = false
     }
     
     public func pause() {
-        guard self.isRunning else { return }
-        
-        CVDisplayLinkStop(timer)
+        displayLink.isPaused = true
     }
     
-    public func setHandler(_ handler: @escaping () -> Void) {
+    public func setHandler(_ handler: @escaping DisplayLinkHandlerBlock) {
         self.source.setEventHandler(handler: handler)
     }
     
     deinit {
-        if self.isRunning {
+        if !self.displayLink.isPaused {
             self.pause()
         }
     }
+
+    @objc nonisolated private func onDisplayLinkUpdate() {
+        source.onEvent()
+    }
 }
 
-final class DisplayLinkEventHandler: @unchecked Sendable {
+public typealias DisplayLinkHandlerBlock = () -> Void
 
-    private var handler: (() -> Void)?
-    private let queue: DispatchQueue
+struct DisplayLinkEventHandler {
 
-    init(queue: DispatchQueue) {
-        self.queue = queue
-    }
+    private var handler: DisplayLinkHandlerBlock?
 
-    func setEventHandler(handler: @escaping () -> Void) {
+    mutating func setEventHandler(handler: @escaping DisplayLinkHandlerBlock) {
         self.handler = handler
     }
 
     func onEvent() {
-        queue.async {
-            self.handler?()
-        }
+        self.handler?()
     }
 }
 

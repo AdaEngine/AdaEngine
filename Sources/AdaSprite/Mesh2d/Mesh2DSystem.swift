@@ -33,7 +33,7 @@ public struct Mesh2DPlugin: Plugin {
             .insertResource(ExctractedMeshes2D())
             .insertResource(Mesh2DDrawPass())
             .addSystem(ExctractMesh2DSystem.self, on: .extract)
-            .addSystem(Mesh2DRenderSystem.self, on: .update)
+            .addSystem(Mesh2DRenderSystem.self, on: .prepare)
     }
 }
 

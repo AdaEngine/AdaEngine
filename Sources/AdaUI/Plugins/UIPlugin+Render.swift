@@ -131,8 +131,15 @@ public struct UIRenderTesselationSystem {
                     )
                     renderData.quadVertexBuffer.elements.append(contentsOf: vertices)
 
+                    let indexStart = renderData.quadIndexBuffer.count
                     let indices = tessellator.generateQuadIndices(vertexOffset: vertexOffset)
                     renderData.quadIndexBuffer.elements.append(contentsOf: indices)
+                    appendBatch(
+                        textureIndex: texIndex,
+                        indexStart: indexStart,
+                        indexCount: indices.count,
+                        batches: &renderData.quadBatches
+                    )
 
                 case let .drawCircle(transform, thickness, fade, color):
                     let vertexOffset = UInt32(renderData.circleVertexBuffer.count)
@@ -320,9 +327,39 @@ public struct UIRenderTesselationSystem {
             offset: offset
         )
         renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
-
+        let indexStart = renderData.glyphIndexBuffer.count
         let indices = tessellator.generateGlyphIndices(vertexOffset: vertexOffset)
         renderData.glyphIndexBuffer.elements.append(contentsOf: indices)
+        appendBatch(
+            textureIndex: texIndex,
+            indexStart: indexStart,
+            indexCount: indices.count,
+            batches: &renderData.glyphBatches
+        )
+    }
+
+    private func appendBatch(
+        textureIndex: Int,
+        indexStart: Int,
+        indexCount: Int,
+        batches: inout [UIDrawData.IndexBatch]
+    ) {
+        if var lastBatch = batches.last, lastBatch.textureIndex == textureIndex {
+            let expectedStart = lastBatch.indexOffset + lastBatch.indexCount
+            if expectedStart == indexStart {
+                lastBatch.indexCount += indexCount
+                batches[batches.count - 1] = lastBatch
+                return
+            }
+        }
+
+        batches.append(
+            UIDrawData.IndexBatch(
+                textureIndex: textureIndex,
+                indexOffset: indexStart,
+                indexCount: indexCount
+            )
+        )
     }
 }
 

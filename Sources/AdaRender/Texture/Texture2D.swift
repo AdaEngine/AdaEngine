@@ -23,6 +23,11 @@ open class Texture2D: Texture, @unchecked Sendable {
     public var size: SizeInt {
         return SizeInt(width: self.width, height: self.height)
     }
+
+    public override var description: String {
+        let typeName = String(reflecting: Swift.type(of: self))
+        return "\(typeName)(size=\(self.width)x\(self.height), \(self.assetDescription), \(self.samplerDescription), \(self.memoryAddressDescription))"
+    }
     
     /// Initialize a new texture from an image.
     ///
@@ -40,7 +45,7 @@ open class Texture2D: Texture, @unchecked Sendable {
             samplerDescription: samplerDescription ?? image.samplerDescription
         )
 
-        let device = RenderEngine.shared.createLocalRenderDevice()
+        let device = unsafe RenderEngine.shared.createLocalRenderDevice()
         let gpuTexture = device.createTexture(from: descriptor)
         let sampler = device.createSampler(from: descriptor.samplerDescription)
 
@@ -55,7 +60,7 @@ open class Texture2D: Texture, @unchecked Sendable {
     ///
     /// - Parameter descriptor: The descriptor to initialize the texture from.
     public init(descriptor: TextureDescriptor) {
-        let device = RenderEngine.shared.createLocalRenderDevice()
+        let device = unsafe RenderEngine.shared.createLocalRenderDevice()
         let gpuTexture = device.createTexture(from: descriptor)
         let sampler = device.createSampler(from: descriptor.samplerDescription)
 

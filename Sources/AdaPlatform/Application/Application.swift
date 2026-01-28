@@ -66,10 +66,17 @@ open class Application: Resource {
         argv: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
     ) throws { }
 
+    #if ENABLE_RUN_IN_CONCURRENCY
+    /// Call this method to start main loop.
+    func run(_ appWorlds: AppWorlds) async throws {
+        assertionFailure("Not implemented")
+    }
+    #else
     /// Call this method to start main loop.
     func run(_ appWorlds: AppWorlds) throws {
         assertionFailure("Not implemented")
     }
+    #endif
     
     // MARK: - Public methods
     

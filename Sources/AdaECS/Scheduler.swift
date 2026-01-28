@@ -144,6 +144,14 @@ public final class Schedulers: @unchecked Sendable {
             .systemGraph
             .addSystem(system)
     }
+
+    public func removeSystem<T: System>(_ system: T.Type, for schedulerName: SchedulerName) {
+        guard var scheduler = schedulers[schedulerName] else {
+            return
+        }
+        scheduler.systemGraph.removeSystem(system)
+        self.schedulers[schedulerName] = scheduler
+    }
 }
 
 /// A resource that contains the delta time.
