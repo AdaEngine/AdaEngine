@@ -8,8 +8,10 @@
 // Inspired by Bevy https://github.com/bevyengine/bevy/tree/main/crates/bevy_render/src/render_graph
 
 import AdaECS
+import AdaUtils
 import Logging
 import Collections
+import Tracing
 
 /// Execute ``RenderGraph`` objects.
 public struct RenderGraphExecutor: Sendable {
@@ -40,6 +42,10 @@ public struct RenderGraphExecutor: Sendable {
         inputResources: [RenderSlotValue],
         viewEntity: Entity?
     ) async throws {
+        let span = AdaTrace.startSpan("RenderGraph.frame.\(graph.label?.rawValue ?? "Unknown")")
+        defer {
+            span.end()
+        }
         let tracer = Logger(label: "RenderGraph")
         tracer.trace("Begin Render Graph Frame", metadata: [
             "graph": .string(graph.label?.rawValue ?? "Unknown")

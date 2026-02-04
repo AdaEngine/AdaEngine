@@ -64,16 +64,17 @@ public struct SingleThreadedSystemsGraphExecutor: SystemsGraphExecutor {
         world: World,
         scheduler: SchedulerName
     ) async {
-        system.queries.update(from: world)
-        await system.system.update(
-            context: WorldUpdateContext(
-                world: world,
-                scheduler: scheduler
+        await AdaTrace.span("System.execute.\(system.name)") {
+            system.queries.update(from: world)
+            await system.system.update(
+                context: WorldUpdateContext(
+                    world: world,
+                    scheduler: scheduler
+                )
             )
-        )
-        // TODO: I don't like that sync point
-        await system.queries.finish(world)
-        world.flush()
+            // TODO: I don't like that sync point
+            await system.queries.finish(world)
+            world.flush()
+        }
     }
 }
-

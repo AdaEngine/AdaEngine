@@ -10,6 +10,7 @@ import Foundation
 import SPIRVCompiler
 import SPIRV_Cross
 import Logging
+import Tracing
 
 public struct DeviceCompiledShader: Codable {
 
@@ -135,6 +136,10 @@ public final class ShaderCompiler {
     /// - Returns: Compiled Shader object.
     /// - Throws: Error if something went wrong on compilation to SPIR-V.
     public func compileShader(for stage: ShaderStage) throws -> Shader {
+        let span = AdaTrace.startSpan("ShaderCompiler.compileShader.\(stage.rawValue)")
+        defer {
+            span.end()
+        }
         let version = self.getShaderVersion(for: stage)
         if !ShaderCache.hasChanges(for: self.shaderSource, version: version).contains(stage) {
             if let deviceCompiledShader = ShaderCache.getCachedDeviceCompiledShader(for: self.shaderSource, stage: stage) {
@@ -206,6 +211,10 @@ public final class ShaderCompiler {
     }
     
     internal func compileCode(_ code: String, entryPoint: String, stage: ShaderStage) throws -> SpirvBinary {
+        let span = AdaTrace.startSpan("ShaderCompiler.compileCode.\(stage.rawValue)")
+        defer {
+            span.end()
+        }
         guard glslang_initialize() != 0 else {
             throw CompileError.glslError("Can't create glslang process.")
         }
