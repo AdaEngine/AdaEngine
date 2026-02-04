@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ada Docs Tutorials"
+  short_description: "DocC tutorials and AdaEngine guides help"
+  default_prompt: "Write or update AdaEngine DocC tutorials and guides with accurate, runnable examples."

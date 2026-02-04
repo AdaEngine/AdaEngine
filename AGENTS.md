@@ -128,11 +128,6 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
 - Favor `internal` for cross-target use and `public` only when required by
   API surface.
 
-### Concurrency Annotations
-- Use `@MainActor` on app lifecycle, UI, and platform glue.
-- Use `@globalActor` for domain-specific synchronization (e.g. `WorldActor`).
-- For cross-actor access, prefer explicit `await` and isolate mutation.
-
 ## SwiftLint Rules to Respect
 - Enabled opt-in rules include: `sorted_imports`, `force_unwrapping`,
   `untyped_error_in_catch`, `type_contents_order`, `modifier_order`.
@@ -147,14 +142,13 @@ Swift 6.2, Swift Concurrency, and AdaEngine-specific workflows.
 - Keep changes local to relevant targets; avoid sweeping refactors.
 - Add tests for new behavior in the nearest test target when practical.
 
-## Skills for Agents (Swift 6.2 + Concurrency)
-- SwiftPM and SwiftLint usage in Swift 6.2 projects.
-- Swift Concurrency correctness: actor isolation, Sendable, structured
-  concurrency patterns, async-safe APIs.
-- ECS patterns used in AdaEngine (systems, schedulers, world queries).
-- Cross-platform Swift: conditional compilation for Apple, Linux, Windows.
-- Documentation authoring with DocC and SwiftPM.
-- Performance-aware Swift (value semantics, avoiding copies, atomics).
+## Skills for Agents
+Skills live in `skills/`:
+- `skills/ada-render-shaders`
+- `skills/ada-ecs`
+- `skills/ada-editor`
+- `skills/ada-docs-tutorials`
+- `skills/swift-concurrency`
 
 ## Notes on Missing Rules
 - No `.cursor/rules`, `.cursorrules`, or `.github/copilot-instructions.md`

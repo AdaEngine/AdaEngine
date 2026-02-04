@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ada Editor"
+  short_description: "Editor app, AdaUI views, input, and tooling help"
+  default_prompt: "Handle AdaEditor UI/app tasks: windows, menus, views, layout inspection, and input handling."

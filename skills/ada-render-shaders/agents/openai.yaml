@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ada Render Shaders"
+  short_description: "Render backends, materials, and shader pipeline help"
+  default_prompt: "Handle AdaEngine rendering, shader compilation, materials, and backend issues using AdaRender and shader toolchain."

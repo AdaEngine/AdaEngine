@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ada ECS"
+  short_description: "ECS World, systems, queries, and scheduling help"
+  default_prompt: "Handle AdaEngine ECS tasks: World, Entities, Components, Queries, Systems, Scheduler, resources, events, and commands."
