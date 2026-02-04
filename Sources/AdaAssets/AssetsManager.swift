@@ -7,14 +7,15 @@
 
 import AdaECS
 import AdaUtils
+import Dispatch
 import Foundation
 import Logging
-import Dispatch
+import Tracing
 
 public enum AssetError: LocalizedError {
     case notExistAtPath(String)
     case message(String)
-    
+
     public var errorDescription: String? {
         switch self {
         case .notExistAtPath(let path):
@@ -39,13 +40,13 @@ public struct AssetsManager: Resource {
 
     private static let resKeyWord = "@res://"
     nonisolated(unsafe) private static var registredAssetTypes: [String: any Asset.Type] = [:]
-    
+
     @AssetActor
     private static var storage: AssetsStorage = AssetsStorage()
-    
+
     @AssetActor
     private static var fileWatcher: FileWatcher?
-    
+
     /// If hot reloading is enabled, the file watcher will be started.
     /// Default value is true.
     @AssetActor
@@ -54,11 +55,11 @@ public struct AssetsManager: Resource {
             self.updateHotReloadingAssets()
         }
     }
-    
+
     nonisolated(unsafe) static var projectDirectories: ProjectDirectories!
-    
+
     // MARK: - LOADING -
-    
+
     /// Load a resource. We use `@res://` prefix to link to assets folder.
     ///
     /// ```swift
@@ -76,6 +77,10 @@ public struct AssetsManager: Resource {
         at path: String,
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
+        let span = AdaTrace.startSpan("Assets.load.\(String(reflecting: A.self))")
+        defer {
+            span.end()
+        }
         if let cachedAsset = self.getHandlingResource(path: path, resourceType: A.self)?.value as? AssetHandle<A> {
             return cachedAsset
         }
@@ -130,10 +135,10 @@ public struct AssetsManager: Resource {
         let task = UnsafeTask<AssetHandle<R>> {
             return try await load(type, at: path)
         }
-        
+
         return try task.get()
     }
-    
+
     /// Load a resource and saving it to memory cache
     ///
     /// ```swift
@@ -153,15 +158,24 @@ public struct AssetsManager: Resource {
         from bundle: Bundle,
         handleChanges: Bool = false
     ) async throws -> AssetHandle<A> {
-        if let cachedAsset = self.getHandlingResource(path: path, resourceType: A.self)?.value as? AssetHandle<A> {
+        let span = AdaTrace.startSpan("Assets.load.\(String(reflecting: A.self))")
+        defer {
+            span.end()
+        }
+        if let cachedAsset = self.getHandlingResource(path: path, resourceType: A.self)?.value
+            as? AssetHandle<A>
+        {
             return cachedAsset
         }
-        
+
         let processedPath = self.processPath(path)
-        guard let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil), FileSystem.current.itemExists(at: uri) else {
+        guard
+            let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil),
+            FileSystem.current.itemExists(at: uri)
+        else {
             throw AssetError.notExistAtPath(processedPath.url.relativeString)
         }
-        
+
         let resource: A = try await self.load(
             from: Path(url: uri, query: processedPath.query),
             originalPath: path,
@@ -172,7 +186,7 @@ public struct AssetsManager: Resource {
 
         return handle
     }
-    
+
     /// Load a resource with block current thread and saving it to memory cache.
     /// It may be useful to load resource without concurrent context.
     ///
@@ -194,10 +208,10 @@ public struct AssetsManager: Resource {
         let task = UnsafeTask<AssetHandle<R>> {
             return try await load(type, at: path, from: bundle)
         }
-        
+
         return try task.get()
     }
-    
+
     /// Load resource in background and save it to the memory.
     public static func loadAsync<R: Asset>(
         _ resourceType: R.Type,
@@ -213,11 +227,11 @@ public struct AssetsManager: Resource {
             }
         }
     }
-    
+
     // MARK: - SAVING -
-    
+
     // FIXME: Use binary format for specific resource types
-    
+
     /// Save resource at path.
     @AssetActor
     public static func save<R: Asset>(
@@ -225,76 +239,82 @@ public struct AssetsManager: Resource {
         at path: String,
         name: String
     ) async throws {
-        let fileSystem = FileSystem.current
-        var processedPath = self.processPath(path)
-        
-        processedPath.url.append(path: name)
-        
-        if processedPath.url.pathExtension.isEmpty {
-            processedPath.url.appendPathExtension(R.extensions().first ?? "")
-        }
-        
-        let meta = AssetMeta(filePath: processedPath.url, queryParams: processedPath.query)
-        let defaultEncoder = TextAssetEncoder(meta: meta)
-        try await asset.encodeContents(with: defaultEncoder)
+        try await AdaTrace.span("Assets.save.\(String(reflecting: R.self))") {
+            let fileSystem = FileSystem.current
+            var processedPath = self.processPath(path)
 
-        let intermediateDirs = processedPath.url.deletingLastPathComponent()
-        
-        if !fileSystem.itemExists(at: intermediateDirs) {
-            try fileSystem.createDirectory(at: intermediateDirs, withIntermediateDirectories: true)
-        }
-        
-        if fileSystem.itemExists(at: processedPath.url) {
-            try fileSystem.removeItem(at: processedPath.url)
-        }
-        
-        guard let encodedData = defaultEncoder.encodedData else {
-            throw AssetError.message("Can't get encoded data from resource.")
-        }
-        
-        if !FileSystem.current.createFile(at: processedPath.url, contents: encodedData) {
-            throw AssetError.message("Can't create file at path \(processedPath.url.absoluteString)")
+            processedPath.url.append(path: name)
+
+            if processedPath.url.pathExtension.isEmpty {
+                processedPath.url.appendPathExtension(R.extensions().first ?? "")
+            }
+
+            let meta = AssetMeta(filePath: processedPath.url, queryParams: processedPath.query)
+            let defaultEncoder = TextAssetEncoder(meta: meta)
+            try await asset.encodeContents(with: defaultEncoder)
+
+            let intermediateDirs = processedPath.url.deletingLastPathComponent()
+
+            if !fileSystem.itemExists(at: intermediateDirs) {
+                try fileSystem.createDirectory(
+                    at: intermediateDirs, withIntermediateDirectories: true)
+            }
+
+            if fileSystem.itemExists(at: processedPath.url) {
+                try fileSystem.removeItem(at: processedPath.url)
+            }
+
+            guard let encodedData = defaultEncoder.encodedData else {
+                throw AssetError.message("Can't get encoded data from resource.")
+            }
+
+            if !FileSystem.current.createFile(at: processedPath.url, contents: encodedData) {
+                throw AssetError.message(
+                    "Can't create file at path \(processedPath.url.absoluteString)")
+            }
         }
     }
-    
+
     // MARK: - UNLOADING -
-    
+
     /// Unload specific resource type from memory.
     @AssetActor
     public static func unload<R: Asset>(_ res: R.Type, at path: String) {
-        let loadedAssetIndex = self.storage.loadedAssets[path, default: []].firstIndex(where: { $0.value is AssetHandle<R> })
+        let loadedAssetIndex = self.storage.loadedAssets[path, default: []].firstIndex(where: {
+            $0.value is AssetHandle<R>
+        })
         if let loadedAssetIndex {
             self.storage.loadedAssets[path]?.remove(at: loadedAssetIndex)
         }
         self.storage.hotReloadingAssets[path] = nil
         self.updateFileWatcher()
     }
-    
+
     // MARK: - Public methods
-    
+
     public static func getAssetType(for typeName: String) -> (any Asset.Type)? {
         return unsafe registredAssetTypes[typeName]
     }
-    
+
     public static func registerAssetType<T: Asset>(_ type: T.Type) {
         Task { @AssetActor in
             unsafe registredAssetTypes[String(reflecting: type)] = T.self
         }
     }
-    
+
     /// Set the root folder of all resources and remove all cached items.
     @AssetActor
     public static func setAssetDirectory(_ url: URL) throws {
         if !FileSystem.current.itemExists(at: url) {
             try FileSystem.current.createDirectory(at: url, withIntermediateDirectories: true)
         }
-        
+
         unsafe self.resourceDirectory = url
         self.storage.loadedAssets.removeAll()
     }
-    
+
     // MARK: - Internal
-    
+
     // TODO: (Vlad) where we should call this method in embeddable view?
     // TODO: (Vlad) We must set current dev path to the asset manager
     @_spi(AdaEngine)
@@ -314,18 +334,18 @@ public struct AssetsManager: Resource {
 
         unsafe self.projectDirectories = projectDirectories
 
-#if DEBUG
-        unsafe self.resourceDirectory = projectDirectories.assetsDirectory
-#else
-        let fileSystem = FileSystem.current
-        let resources = projectDirectories.assetsDirectory
-        
-        if !fileSystem.itemExists(at: resources) {
-            try fileSystem.createDirectory(at: resources, withIntermediateDirectories: true)
-        }
-        
-        unsafe self.resourceDirectory = resources
-#endif
+        #if DEBUG
+            unsafe self.resourceDirectory = projectDirectories.assetsDirectory
+        #else
+            let fileSystem = FileSystem.current
+            let resources = projectDirectories.assetsDirectory
+
+            if !fileSystem.itemExists(at: resources) {
+                try fileSystem.createDirectory(at: resources, withIntermediateDirectories: true)
+            }
+
+            unsafe self.resourceDirectory = resources
+        #endif
     }
 
     @_spi(AdaEngine)
@@ -369,13 +389,15 @@ public struct AssetsManager: Resource {
                     originalPath: asset.path.url.path
                 )
             } catch {
-                logger.error("Error updating hot reloading asset \(asset.resource) at path \(asset.path.url.path): \(error)")
+                logger.error(
+                    "Error updating hot reloading asset \(asset.resource) at path \(asset.path.url.path): \(error)"
+                )
             }
         }
     }
 
     // MARK: - Private
-    
+
     @AssetActor
     private static func updateHotReloadingAssets() {
         do {
@@ -388,7 +410,7 @@ public struct AssetsManager: Resource {
             logger.error("Error updating hot reloading assets: \(error)")
         }
     }
-    
+
     @AssetActor
     private static func loadAndUpdateInternal(
         assetType: any Asset.Type,
@@ -403,13 +425,15 @@ public struct AssetsManager: Resource {
         let decoder = TextAssetDecoder(meta: meta, data: data)
         try await assetType.loadAndUpdateInternal(from: decoder, oldResource: oldResource)
     }
-    
+
     @AssetActor
-    private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Bundle?) async throws -> A {
+    private static func load<A: Asset>(from path: Path, originalPath: String, bundle: Bundle?)
+        async throws -> A
+    {
         guard let data = FileSystem.current.readFile(at: path.url) else {
             throw AssetError.notExistAtPath(path.url.path)
         }
-        
+
         let meta = AssetMeta(filePath: path.url, queryParams: path.query)
         let decoder = TextAssetDecoder(meta: meta, data: data)
         var resource = try await A.init(from: decoder)
@@ -420,7 +444,7 @@ public struct AssetsManager: Resource {
             assetName: path.url.lastPathComponent,
             bundlePath: bundle?.bundleIdentifier
         )
-        
+
         return resource
     }
 }
@@ -430,25 +454,27 @@ extension AssetsManager {
         var url: URL
         let query: [AssetQuery]
     }
-    
+
     static func getFilePath(from meta: AssetMetaInfo) -> Path {
         let processedPath = self.processPath(meta.assetPath)
         if let bundlePath = meta.bundlePath, let bundle = Bundle(path: bundlePath) {
-            if let uri = bundle.url(forResource: processedPath.url.relativeString, withExtension: nil) {
+            if let uri = bundle.url(
+                forResource: processedPath.url.relativeString, withExtension: nil)
+            {
                 return Path(url: uri, query: processedPath.query)
             }
         }
-        
+
         return processedPath
     }
-    
+
     @AssetActor
     static func isAssetExistsInCache<A: Asset>(_ type: A.Type, at path: String) -> Bool {
         self.getHandlingResource(path: path, resourceType: type)?.value != nil
     }
 }
 
-private extension AssetsManager {
+extension AssetsManager {
 
     @AssetActor
     private static func getHandlingResource<A: Asset>(
@@ -469,26 +495,26 @@ private extension AssetsManager {
         } else {
             url = path.hasPrefix("file://") ? URL(string: path)! : URL(fileURLWithPath: path)
         }
-        
+
         let splitComponents = url.lastPathComponent.split(separator: "#")
-        
+
         var query = [AssetQuery]()
-        
+
         if !splitComponents.isEmpty {
             query = Self.fetchQuery(from: String(splitComponents.last!))
             url.deleteLastPathComponent()
             url.appendPathComponent(String(splitComponents.first!))
         }
-        
+
         return Path(url: url, query: query)
     }
-    
+
     @AssetActor
     private static func updateFileWatcher() {
         if self.storage.hotReloadingAssets.values.isEmpty {
             return
         }
-        
+
         // Collect unique directory paths - on Windows, FileWatcher needs directories, not files
         var watchedDirectories = Set<String>()
         for (_, asset) in self.storage.hotReloadingAssets {
@@ -496,9 +522,10 @@ private extension AssetsManager {
                 continue
             }
             // Get directory path - on Windows, FileWatcher needs directories, not files
-            let directoryURL = firstAsset.path.url.deletingLastPathComponent().resolvingSymlinksInPath()
+            let directoryURL = firstAsset.path.url.deletingLastPathComponent()
+                .resolvingSymlinksInPath()
             let directoryPath = directoryURL.path
-            
+
             // Ensure directory exists before watching
             if FileSystem.current.itemExists(at: directoryURL) {
                 watchedDirectories.insert(directoryPath)
@@ -512,16 +539,18 @@ private extension AssetsManager {
             return
         }
 
-        let watchedPaths = Array(watchedDirectories).compactMap { try? AbsolutePath(validating: $0) }
+        let watchedPaths = Array(watchedDirectories).compactMap {
+            try? AbsolutePath(validating: $0)
+        }
         guard !watchedPaths.isEmpty else {
             logger.warning("No valid absolute paths to watch")
             return
         }
-        
+
         if self.fileWatcher?.paths == watchedPaths {
             return
         }
-        
+
         self.fileWatcher = FileWatcher(
             paths: watchedPaths,
             latency: 0.1,
@@ -530,15 +559,17 @@ private extension AssetsManager {
                 Task { @AssetActor in
                     for path in fsPaths {
                         // Resolve symlinks in incoming paths as well for consistent matching
-                        let resolvedDirectoryPath = URL(fileURLWithPath: path.pathString).resolvingSymlinksInPath().path
-                        
+                        let resolvedDirectoryPath = URL(fileURLWithPath: path.pathString)
+                            .resolvingSymlinksInPath().path
+
                         // Find all assets in this directory and mark them for update
                         for (assetPath, assets) in self.storage.hotReloadingAssets {
                             guard let firstAsset = assets.first else {
                                 continue
                             }
-                            let assetDirectoryPath = firstAsset.path.url.deletingLastPathComponent().resolvingSymlinksInPath().path
-                            
+                            let assetDirectoryPath = firstAsset.path.url.deletingLastPathComponent()
+                                .resolvingSymlinksInPath().path
+
                             // Check if this asset is in the changed directory
                             if assetDirectoryPath == resolvedDirectoryPath {
                                 for var asset in assets {
@@ -552,7 +583,7 @@ private extension AssetsManager {
                 }
             }
         )
-        
+
         do {
             if self.isHotReloadingEnabled {
                 try self.fileWatcher?.start()
@@ -562,12 +593,12 @@ private extension AssetsManager {
             logger.error("Error updating file watcher: \(error)")
         }
     }
-    
+
     private static func fetchQuery(from string: String) -> [AssetQuery] {
         let quieries = string.split(separator: "&")
         return quieries.map { query in
             let pairs = query.split(separator: "=")
-            if (pairs.count == 2) {
+            if pairs.count == 2 {
                 return AssetQuery(name: String(pairs[0]), value: String(pairs[1]))
             } else {
                 return AssetQuery(name: String(pairs[0]), value: nil)
@@ -581,16 +612,18 @@ extension AssetsManager {
         var loadedAssets: [String: Set<WeakBox<AnyObject>>] = [:]
         var hotReloadingAssets: [String: Set<HotReloadingAsset>] = [:]
     }
-    
+
     struct HotReloadingAsset: Sendable, Hashable {
         var path: Path
         var resource: any Asset.Type
         var needsUpdate: Bool = false
 
-        static func == (lhs: AssetsManager.HotReloadingAsset, rhs: AssetsManager.HotReloadingAsset) -> Bool {
+        static func == (lhs: AssetsManager.HotReloadingAsset, rhs: AssetsManager.HotReloadingAsset)
+            -> Bool
+        {
             lhs.path == rhs.path
-            && ObjectIdentifier(lhs.resource) == ObjectIdentifier(rhs.resource)
-            && lhs.needsUpdate == rhs.needsUpdate
+                && ObjectIdentifier(lhs.resource) == ObjectIdentifier(rhs.resource)
+                && lhs.needsUpdate == rhs.needsUpdate
         }
 
         func hash(into hasher: inout Hasher) {
@@ -607,9 +640,9 @@ public actor AssetActor {
     public static let shared = AssetActor()
 }
 
-private extension Asset {
+extension Asset {
     @AssetActor
-    static func loadAndUpdateInternal(
+    fileprivate static func loadAndUpdateInternal(
         from asset: any AssetDecoder,
         oldResource: any AnyAssetHandle
     ) async throws {
@@ -618,31 +651,31 @@ private extension Asset {
     }
 }
 
-private extension URL {
-    static func findProjectDirectories(
+extension URL {
+    fileprivate static func findProjectDirectories(
         from file: StaticString,
         for name: String
     ) -> ProjectDirectories? {
         var currentURL = URL(filePath: file.description)
         var assetDirectory: URL?
-        
+
         while currentURL.path != "/" {
             currentURL = currentURL.deletingLastPathComponent()
             let packageURL = currentURL.appending(path: "Package.swift")
-            
+
             if FileManager.default.fileExists(atPath: packageURL.path) {
                 return ProjectDirectories(
                     source: packageURL.deletingLastPathComponent(),
                     assetsDirectory: assetDirectory ?? currentURL.appending(path: name)
                 )
             }
-            
+
             let assetsDirectory = currentURL.appending(path: name)
             if FileManager.default.fileExists(atPath: assetsDirectory.path) {
                 assetDirectory = assetsDirectory
             }
         }
-        
+
         return nil
     }
 }
@@ -650,7 +683,7 @@ private extension URL {
 struct ProjectDirectories {
     /// Source directory is a directory where we store all source code for the project.
     let source: URL
-    
+
     /// Assets directory is a directory where we store all assets for the project.
     let assetsDirectory: URL
 }
