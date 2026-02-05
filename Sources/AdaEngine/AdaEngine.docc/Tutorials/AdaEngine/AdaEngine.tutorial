@@ -15,6 +15,15 @@
         
         @TutorialReference(tutorial: "doc:EventListeners")
     }
+
+    @Chapter(name: "UI and Input") {
+        
+        @TutorialReference(tutorial: "doc:UIBasics")
+        
+        @TutorialReference(tutorial: "doc:AnimatedText")
+        
+        @TutorialReference(tutorial: "doc:GamepadInput")
+    }
     
     @Resources {
         @Stack {

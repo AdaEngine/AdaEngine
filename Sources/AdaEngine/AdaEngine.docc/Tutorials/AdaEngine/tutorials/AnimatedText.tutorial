@@ -1,0 +1,87 @@
+@Tutorial(time: 20) {
+    @Intro(title: "Animated Text Renderer") {
+        Create a custom `TextRenderer` that draws text along a sine wave and animate it by updating renderer state.
+    }
+
+    @XcodeRequirement(title: "Xcode 26.3 or later", destination: "https://developer.apple.com/download/")
+
+    @Section(title: "Create the view") {
+        @ContentAndMedia {
+            Start with a small app that renders a single line of text.
+        }
+
+        @Steps {
+            @Step {
+                Create the app entry point.
+
+                @Code(name: "AnimatedTextApp.swift", file: AT-1-1-app.swift)
+            }
+
+            @Step {
+                Add a simple `ContentView` with a text node.
+
+                @Code(name: "ContentView.swift", file: AT-1-2-view.swift)
+            }
+        }
+    }
+
+    @Section(title: "Prepare layout helpers") {
+        @ContentAndMedia {
+            `Text.Layout` contains lines, runs, and glyphs. Add helper accessors to flatten it into a single collection of glyphs.
+        }
+
+        @Steps {
+            @Step {
+                Add a `Text.Layout` extension that exposes flattened glyphs.
+
+                @Code(name: "TextLayout+Helpers.swift", file: AT-2-1-layout.swift)
+            }
+        }
+    }
+
+    @Section(title: "Create a custom TextRenderer") {
+        @ContentAndMedia {
+            Implement a renderer that offsets each glyph along a sine wave based on a time offset.
+        }
+
+        @Steps {
+            @Step {
+                Define the renderer type and its animatable `timeOffset` value.
+
+                @Code(name: "AnimatedSineWaveRenderer.swift", file: AT-2-2-renderer.swift)
+            }
+
+            @Step {
+                Implement `draw(layout:in:)` to translate each glyph along the wave.
+
+                @Code(name: "AnimatedSineWaveRenderer.swift", file: AT-2-3-renderer.swift)
+            }
+        }
+    }
+
+    @Section(title: "Apply and animate") {
+        @ContentAndMedia {
+            Connect the renderer to your view and update the time offset each frame.
+        }
+
+        @Steps {
+            @Step {
+                Pass `timeOffset` into the renderer using `textRendered(_:)`.
+
+                @Code(name: "ContentView.swift", file: AT-3-1-view.swift)
+            }
+
+            @Step {
+                Start a task on appear to update the offset over time.
+
+                @Code(name: "ContentView.swift", file: AT-3-2-view.swift)
+            }
+
+            @Step {
+                Stop the animation task when the view disappears.
+
+                @Code(name: "ContentView.swift", file: AT-3-3-view.swift)
+            }
+        }
+    }
+}

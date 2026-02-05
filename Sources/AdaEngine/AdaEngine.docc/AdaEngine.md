@@ -31,3 +31,8 @@ For more details and guides, check out the tutorials below.
 ### Tutorials
 
 - <doc:AdaEngine>
+
+### Guides
+
+- <doc:Building>
+- <doc:Contributing>
