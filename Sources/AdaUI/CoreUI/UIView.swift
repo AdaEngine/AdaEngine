@@ -46,17 +46,28 @@ open class UIView {
     open var isInteractionEnabled: Bool = true
 
     /// A Boolean value indicating whether the view is hidden.
-    open var isHidden: Bool = false
+    open var isHidden: Bool = false {
+        didSet {
+            if oldValue != isHidden {
+                setNeedsDisplay()
+            }
+        }
+    }
 
     /// The z-index of the view.
     open var zIndex: Int = 0 {
         didSet {
             self.parentView?.needsResortZPositionForChildren = true
+            setNeedsDisplay()
         }
     }
 
     /// The background color of the view.
-    public var backgroundColor: Color = .white
+    public var backgroundColor: Color = .white {
+        didSet {
+            setNeedsDisplay()
+        }
+    }
 
     /// The debug view color of the view.
     private let debugViewColor = Color.random()
@@ -88,6 +99,7 @@ open class UIView {
 
     /// A Boolean value indicating whether the view needs to be laid out.
     private var needsLayout = true
+    internal var needsDisplay = true
 
     /// A Boolean value indicating whether the view needs to be resorted by z-index.
     var needsResortZPositionForChildren = false
@@ -182,6 +194,18 @@ open class UIView {
     /// Set the needs layout flag.
     public func setNeedsLayout() {
         self.needsLayout = true
+        setNeedsDisplay()
+    }
+
+    /// Set the needs display flag.
+    public func setNeedsDisplay() {
+        self.needsDisplay = true
+        window?.needsDisplay = true
+    }
+
+    internal func consumeNeedsDisplay() -> Bool {
+        defer { needsDisplay = false }
+        return needsDisplay
     }
 
     /// Layout the view if needed.

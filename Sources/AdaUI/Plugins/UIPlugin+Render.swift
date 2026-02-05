@@ -22,6 +22,10 @@ public struct ExtractedUIContexts: Resource {
     public var contexts: ContiguousArray<UIGraphicsContext> = []
 }
 
+public struct UIRenderBuildState: Resource {
+    public var needsRebuild: Bool = true
+}
+
 @System
 public func ExtractUIComponents(
     _ uiComponents: Extract<
@@ -33,8 +37,12 @@ public func ExtractUIComponents(
     _ contexts: Extract<
         Res<UIContextPendingDraw>
     >,
+    _ redrawRequest: Extract<
+        Res<UIRedrawRequest>
+    >,
     _ extractedUIComponents: ResMut<ExtractedUIComponents>,
-    _ extractedUIContexts: ResMut<ExtractedUIContexts>
+    _ extractedUIContexts: ResMut<ExtractedUIContexts>,
+    _ buildState: ResMut<UIRenderBuildState>
 ) {
     extractedUIComponents.components.removeAll(keepingCapacity: true)
     extractedUIContexts.contexts.removeAll(keepingCapacity: true)
@@ -46,6 +54,10 @@ public func ExtractUIComponents(
         extractedUIComponents.components.append($0)
     }
     extractedUIContexts.contexts.append(contentsOf: contexts().contexts)
+
+    buildState.needsRebuild = redrawRequest().needsRedraw
+        || !pendingViews().windows.isEmpty
+        || !contexts().contexts.isEmpty
 }
 
 public struct PendingUIGraphicsContext: Resource {
@@ -58,8 +70,12 @@ public func UIRenderPreparing(
     _ cameras: Query<Camera>,
     _ uiComponents: Res<ExtractedUIComponents>,
     _ contexts: ResMut<PendingUIGraphicsContext>,
-    _ extractedUIContexts: ResMut<ExtractedUIContexts>
+    _ extractedUIContexts: ResMut<ExtractedUIContexts>,
+    _ buildState: Res<UIRenderBuildState>
 ) {
+    guard buildState.needsRebuild else {
+        return
+    }
     contexts.graphicContexts.removeAll(keepingCapacity: true)
     uiComponents.components.forEach { component in
         let context = UIGraphicsContext()
@@ -85,6 +101,9 @@ public struct UIRenderTesselationSystem {
     @ResMut<PendingUIGraphicsContext>
     private var contexts
 
+    @ResMut<UIRenderBuildState>
+    private var buildState
+
     @Res<UIDrawPass>
     private var uiDrawPass
 
@@ -97,6 +116,9 @@ public struct UIRenderTesselationSystem {
     public init(world: World) { }
 
     public func update(context: UpdateContext) {
+        guard buildState.needsRebuild else {
+            return
+        }
         renderItems.items.removeAll()
 
         let tessellator = UITessellator()
@@ -275,6 +297,8 @@ public struct UIRenderTesselationSystem {
                 }
             }
         }
+
+        buildState.needsRebuild = false
     }
 
     // MARK: - Private Helpers
