@@ -1,4 +1,5 @@
 import AdaUtils
+import Tracing
 import Logging
 
 /// Represents a scheduler stage in the ECS update loop.
@@ -263,9 +264,18 @@ public struct Scheduler: Sendable {
         }
 
         let name = self.name
-        world.insertResource(DeltaTime(deltaTime: deltaTime))
-        world.insertResource(ElapsedTime(elapsedTime: TimeInterval(lastUpdate)))
+        let elapsedTime = TimeInterval(lastUpdate)
+        var executor = self.graphExecutor
+        let graph = self.systemGraph
 
-        await graphExecutor.execute(systemGraph, world: world, scheduler: name)
+        let span = AdaTrace.startSpan("Scheduler.run.\(name.rawValue)")
+        defer {
+            span.end()
+        }
+        world.insertResource(DeltaTime(deltaTime: deltaTime))
+        world.insertResource(ElapsedTime(elapsedTime: elapsedTime))
+
+        await executor.execute(graph, world: world, scheduler: name)
+        self.graphExecutor = executor
     }
 }
