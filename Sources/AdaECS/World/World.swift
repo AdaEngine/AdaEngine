@@ -171,8 +171,10 @@ public extension World {
     /// - Parameter scheduler: Scheduler name.
     /// - Parameter deltaTime: Time interval since last update.
     func runScheduler(_ schedulerName: SchedulerName) async {
-        await self.schedulers.getScope(for: schedulerName) {
-            await $0.run(world: self)
+        await AdaTrace.span("World.runScheduler.\(schedulerName.rawValue)") {
+            await self.schedulers.getScope(for: schedulerName) {
+                await $0.run(world: self)
+            }
         }
     }
 }

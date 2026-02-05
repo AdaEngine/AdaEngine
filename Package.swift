@@ -16,7 +16,7 @@ import Darwin.C
 #if canImport(AppleProductTypes)
 let isWGPUEnabled = false // We can't build wgpu from xcode
 #else
-let isWGPUEnabled = true
+let isWGPUEnabled = false
 #endif
 
 #else
@@ -889,6 +889,7 @@ let package = Package(
 package.dependencies += [
     .package(url: "https://github.com/apple/swift-collections", from: "1.3.0"),
     .package(url: "https://github.com/apple/swift-log", from: "1.8.0"),
+    .package(url: "https://github.com/apple/swift-distributed-tracing", from: "1.0.0"),
     .package(url: "https://github.com/apple/swift-numerics", from: "1.1.1"),
     .package(url: "https://github.com/apple/swift-atomics", from: "1.3.0"),
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
@@ -950,6 +951,7 @@ private extension Target {
             name: name,
             dependencies: [
                 .product(name: "Logging", package: "swift-log"),
+                .product(name: "Tracing", package: "swift-distributed-tracing"),
             ] + dependencies,
             path: path,
             exclude: ["BUILD.bazel"] + exclude,

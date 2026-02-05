@@ -8,6 +8,7 @@
 import AdaECS
 import AdaUtils
 import Logging
+import Tracing
 
 // TODO: Do we need be a Main Actor???
 
@@ -92,6 +93,10 @@ public extension AppWorlds {
     /// Update the app.
     /// - Parameter deltaTime: The delta time.
     func update() async throws {
+        let span = AdaTrace.startSpan("AppWorlds.update")
+        defer {
+            span.end()
+        }
         guard isConfigured else {
             return
         }
@@ -106,7 +111,7 @@ public extension AppWorlds {
             unsafe await world.worldExctractor?.exctract(from: main, to: world.main)
             try await world.update()
         }
-        
+            
         main.clearTrackers()
     }
 
