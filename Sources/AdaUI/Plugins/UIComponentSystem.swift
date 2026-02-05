@@ -33,6 +33,9 @@ public struct UIComponentSystem: Sendable {
     @ResMut<UIWindowPendingDrawViews>
     private var pendingViews
 
+    @ResMut<UIRedrawRequest>
+    private var redrawRequest
+
     @Res<PrimaryWindowId>
     private var primaryWindowId
 
@@ -82,7 +85,10 @@ private extension UIComponentSystem {
                 }
             }
         case .default:
-            view.transform3D = globalTransform.matrix
+            if view.transform3D != globalTransform.matrix {
+                view.transform3D = globalTransform.matrix
+                view.setNeedsDisplay()
+            }
         }
 
         if let input = self.input {
@@ -97,6 +103,10 @@ private extension UIComponentSystem {
         }
 
         view.update(deltaTime)
+
+        if view.consumeNeedsDisplay() {
+            redrawRequest.needsRedraw = true
+        }
     }
 }
 

@@ -26,6 +26,7 @@ public class UIImageView: UIView {
     public var texture: Texture2D? {
         didSet {
             parentView?.setNeedsLayout()
+            setNeedsDisplay()
         }
     }
 
