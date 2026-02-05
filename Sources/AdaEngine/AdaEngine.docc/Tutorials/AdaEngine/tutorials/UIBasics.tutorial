@@ -1,0 +1,81 @@
+@Tutorial(time: 15) {
+    @Intro(title: "UI Basics") {
+        Build a simple UI screen using AdaEngine views. You will create a window, layout a few elements, and add a button with state.
+    }
+
+    @XcodeRequirement(title: "Xcode 26.3 or later", destination: "https://developer.apple.com/download/")
+
+    @Section(title: "Create the app shell") {
+        @ContentAndMedia {
+            Start with a minimal app that creates a window and displays a root view.
+        }
+
+        @Steps {
+            @Step {
+                Create the app entry point and a window scene.
+
+                @Code(name: "UIBasicsApp.swift", file: UIB-1-1-app.swift)
+            }
+
+            @Step {
+                Add a minimal `ContentView` so the app has something to render.
+
+                @Code(name: "ContentView.swift", file: UIB-1-2-view.swift)
+            }
+        }
+    }
+
+    @Section(title: "Layout with stacks") {
+        @ContentAndMedia {
+            Use stacks and simple views to build a basic layout.
+        }
+
+        @Steps {
+            @Step {
+                Replace the text with a vertical stack and add a title between two colored blocks.
+
+                @Code(name: "ContentView.swift", file: UIB-2-1-view.swift)
+            }
+
+            @Step {
+                Add spacing, padding, and basic styling to make the layout readable.
+
+                @Code(name: "ContentView.swift", file: UIB-2-2-view.swift)
+            }
+        }
+    }
+
+    @Section(title: "Add a button and state") {
+        @ContentAndMedia {
+            Buttons react to user input and can update local state.
+        }
+
+        @Steps {
+            @Step {
+                Add `@State` and a button that changes its label text on click.
+
+                @Code(name: "ContentView.swift", file: UIB-3-1-view.swift)
+            }
+
+            @Step {
+                Style the button with padding, background, and text color.
+
+                @Code(name: "ContentView.swift", file: UIB-3-2-view.swift)
+            }
+        }
+    }
+
+    @Section(title: "Debug overlays") {
+        @ContentAndMedia {
+            Debug overlays can help you inspect layout bounds while working on UI.
+        }
+
+        @Steps {
+            @Step {
+                Enable the debug overlay for the root view.
+
+                @Code(name: "UIBasicsApp.swift", file: UIB-4-1-app.swift)
+            }
+        }
+    }
+}

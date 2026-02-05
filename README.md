@@ -32,6 +32,7 @@ AdaEngine is a game engine fully written on Swift. The main idea is to encourage
 
 * **[API Docs](https://adaengine.org/adaengine-docs/documentation/adaengine/):** AdaEngine's API docs, which are automatically generated from the doc comments in this repo.
 * **[Tutorials](https://adaengine.github.io/adaengine-docs/tutorials/adaengine/)**: AdaEngine's offical tutorials with how to start your first project.
+* **Building & Contributing Guides:** [Building](Sources/AdaEngine/AdaEngine.docc/Building.md), [Contributing](Sources/AdaEngine/AdaEngine.docc/Contributing.md)
 
 ## ⭐️ Examples
 
@@ -70,23 +71,10 @@ problem, there are a number of places you can discuss with fellow
 ## 👨‍💻 Contributing to AdaEngine
 
 You are welcome to contribute to AdaEngine. Currently, it is under development, and we are working towards our roadmap goals. If you find a bug or have some improvements, we would be glad to see your pull request!
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## 🛠️ How to build
 
-Currently we use Bazel and Swift Package Manager as build tools. 
+See the [Building guide](Sources/AdaEngine/AdaEngine.docc/Building.md) for development and integration steps.
 
-#### Swift Package Manager
-
-Use Xcode 26.2 or Visual Studio Code with the [Swift VSCode Extension](https://www.swift.org/blog/vscode-extension/) and then open `Package.swift` file from the root directory. 
-
-#### Bazel (DOESN'T WORK. In Early Development)
-
-Bazel optional build system for project. To build project for development download [Bazelisk](https://github.com/bazelbuild/bazelisk). To generate xcproject, use `bazel run generate_xcproj` command in terminal. 
-
-> [!IMPORTANT]
->
-> **For Xcode**
-> To build project with vulkan, add `VULKAN_SDK` environment path to `Xcode -> Settings -> Locations -> Custom Paths`, where path must be locate to Vulkan SDK.
->
-> **For Other**
-> By default Bazel and SwiftPM will search Vulkan SDK in your environment variables, set `export VULKAN_SDK = /User/username/VULKAN_SDK` in your env variables or in your terminal file `.zshrc`, `.bashprofile`, etc.
+Quick start: open `Package.swift` in Xcode 26.3 or build from the command line with `swift build`.
