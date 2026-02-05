@@ -112,7 +112,10 @@ class ViewContainerNode: ViewNode {
             for (index, (oldNode, newNode)) in zip(self.nodes, allNewNodes).enumerated() {
                 if newNode.canUpdate(oldNode) {
                     oldNode.update(from: newNode)
+                    oldNode.parent = self
+                    needsLayout = true
                 } else {
+                    newNode.parent = self
                     self.nodes[index] = newNode
                     needsLayout = true
                 }

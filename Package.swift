@@ -1026,6 +1026,7 @@ let examplesTargets: [Target] = [
     .exampleTarget(name: "UITestSceneExample", path: "UI"),
     .exampleTarget(name: "AnimatedTextRendererExample", path: "UI"),
     .exampleTarget(name: "ButtonExample", path: "UI"),
+    .exampleTarget(name: "KanbanBoardExample", path: "UI"),
 
     // MARK: Example
     .exampleTarget(name: "SimpleCollideEventExample", path: "Events"),

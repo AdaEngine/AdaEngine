@@ -42,6 +42,7 @@ class ViewNode: Identifiable {
     private(set) weak var owner: ViewOwner?
     /// hold storages that can invalidate that view node.
     var storages: WeakSet<UpdatablePropertyStorage> = []
+    var stateContainer: ViewStateContainer = ViewStateContainer()
 
     private var isAttached: Bool {
         return owner != nil
@@ -75,7 +76,7 @@ class ViewNode: Identifiable {
     /// - Note: This method don't call ``invalidateContent()`` method
     func setContent<Content: View>(_ content: Content) {
         self.content = content
-        self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(Content.self)
+        self.shouldNotifyAboutChanges = ViewGraph.shouldNotifyAboutChanges(type(of: content))
     }
 
     // MARK: Layout
@@ -156,6 +157,15 @@ class ViewNode: Identifiable {
     /// and if view exists in tree, we should update exsiting view using ``ViewNode/update(_:)`` method.
     func update(from newNode: ViewNode) {
         self.environment = newNode.environment
+        self.setContent(newNode.content)
+        self.rebindStorages()
+    }
+
+    private func rebindStorages() {
+        var inputs = _ViewInputs(parentNode: self.parent, environment: self.environment)
+        inputs = inputs.resolveStorages(in: self.content, stateContainer: self.stateContainer)
+        self.storages = []
+        inputs.registerNodeForStorages(self)
     }
 
     /// This method invalidate all stored views and create a new one.
@@ -194,7 +204,29 @@ class ViewNode: Identifiable {
 
     func update(_ deltaTime: TimeInterval) { }
 
-    let debugNodeColor = Color.random()
+    lazy var debugNodeColor: Color = Self.debugColor(for: debugColorKey())
+
+    func debugColorKey() -> String {
+        if let accessibilityIdentifier {
+            return "accessibility:\(accessibilityIdentifier)"
+        }
+
+        return "type:\(String(reflecting: type(of: content)))"
+    }
+
+    private static func debugColor(for key: String) -> Color {
+        let hash = fnv1a64(key)
+        return Color.fromHex(Int(hash & 0x00FFFFFF))
+    }
+
+    private static func fnv1a64(_ string: String) -> UInt64 {
+        var hash: UInt64 = 0xcbf29ce484222325
+        for byte in string.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 0x100000001b3
+        }
+        return hash
+    }
 
     /// Perform draw view on the screen.
     func draw(with context: UIGraphicsContext) {

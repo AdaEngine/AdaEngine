@@ -55,10 +55,11 @@ final class TextViewNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = environment
+        super.draw(with: context)
+
         context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
-        
-        // Calculate vertical offset to center text within the frame
-        // Text positions are calculated relative to y=0, but we need to center them vertically
+
+        // Calculate vertical offset to center text within the frame (render coordinates: +Y is up)
         var verticalOffset: Float = 0
         if !self.layoutManager.textLines.isEmpty {
             // Find the maximum pt (top) and minimum pb (bottom) values among all glyphs
@@ -75,25 +76,15 @@ final class TextViewNode: ViewNode {
                 }
             }
             
-            // Calculate text height
-            let textHeight = maxTopY - minBottomY
-            
-            // Center text vertically within the frame
-            // Frame center is at frame.height / 2 from the top
-            // Text center should be at textHeight / 2 from maxTopY
-            // So we need to offset: frame.height / 2 - (maxTopY - textHeight / 2)
-            // Which simplifies to: frame.height / 2 - maxTopY + textHeight / 2
-            let frameCenterY = self.frame.size.height
-            let textCenterY = maxTopY - textHeight / 2
+            let textCenterY = (maxTopY + minBottomY) / 2
+            let frameCenterY = -self.frame.size.height / 2
             verticalOffset = frameCenterY - textCenterY
         }
         
-        context.translateBy(x: 0, y: -verticalOffset)
+        context.translateBy(x: 0, y: verticalOffset)
 
         let layout = Text.Layout(lines: self.layoutManager.textLines)
         self.textRenderer.draw(layout: layout, in: &context)
-
-        super.draw(with: context)
     }
 
     override func update(from newNode: ViewNode) {

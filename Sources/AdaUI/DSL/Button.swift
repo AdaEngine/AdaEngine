@@ -130,6 +130,10 @@ final class ButtonViewNode: ViewModifierNode {
         let body = self.body(self.state, self.environment)
         self.contentNode = body
         self.contentNode.parent = self
+        self.contentNode.updateEnvironment(self.environment)
+        if let owner = self.owner {
+            self.contentNode.updateViewOwner(owner)
+        }
         self.performLayout()
     }
 
@@ -149,7 +153,9 @@ final class ButtonViewNode: ViewModifierNode {
         }
 
         self.action = otherNode.action
+        self.body = otherNode.body
         super.update(from: otherNode)
+        self.invalidateContent()
     }
 
     // MARK: - Interaction
@@ -158,12 +164,7 @@ final class ButtonViewNode: ViewModifierNode {
         guard self.point(inside: point, with: event) else {
             return nil
         }
-
-        if contentNode.hitTest(point, with: event) != nil {
-            return self
-        }
-
-        return nil
+        return self
     }
 
     override func onMouseEvent(_ event: MouseEvent) {
