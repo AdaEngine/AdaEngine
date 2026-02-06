@@ -197,7 +197,43 @@ public extension KeyModifier {
     }
 }
 
+#elseif os(iOS) || os(tvOS)
+
+import UIKit
+
+public extension KeyModifier {
+    /// Initialize a new modifier key from iOS modifier flags.
+    ///
+    /// - Parameter modifiers: The UIKeyModifierFlags from UIKey.
+    init(modifiers: UIKeyModifierFlags) {
+        var flags: KeyModifier = []
+
+        if modifiers.contains(.alphaShift) {
+            flags.insert(.capsLock)
+        }
+
+        if modifiers.contains(.command) {
+            flags.insert(.main)
+        }
+
+        if modifiers.contains(.control) {
+            flags.insert(.control)
+        }
+
+        if modifiers.contains(.alternate) {
+            flags.insert(.alt)
+        }
+
+        if modifiers.contains(.shift) {
+            flags.insert(.shift)
+        }
+
+        self.init(rawValue: flags.rawValue)
+    }
+}
+
 #endif
+
 ///*
 //   Skip uppercase letters
 // */
