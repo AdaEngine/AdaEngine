@@ -1,40 +1,51 @@
 //
-//  UIKitScreenManager.swift
+//  AppleEmbeddedScreenManager.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 1/27/23.
 //
 
-#if IOS || TVOS
+#if canImport(UIKit)
 import UIKit
+@_spi(Internal) import AdaUI
+import Math
 
-class UIKitScreenManager: ScreenManager {
-    
-    override func getMainScreen() -> Screen? {
-        return makeScreen(from: UIScreen.main)
+final class AppleEmbeddedScreenManager: ScreenManager, @unchecked Sendable {
+    func getMainScreen() -> Screen? {
+        MainActor.assumeIsolated {
+            return makeScreen(from: UIScreen.main)
+        }
     }
     
-    override func getScreens() -> [Screen] {
-        UIScreen.screens.map(makeScreen(from:))
+    func getScreens() -> [Screen] {
+        MainActor.assumeIsolated {
+            UIScreen.screens.map(makeScreen(from:))
+        }
     }
     
-    override func getSize(for screen: Screen) -> Size {
-        return (screen.systemScreen as? UIScreen)?.bounds.toEngineRect.size ?? .zero
+    func getSize(for screen: Screen) -> Size {
+        MainActor.assumeIsolated {
+            return (screen.systemScreen as? UIScreen)?.bounds.toEngineRect.size ?? .zero
+        }
     }
     
-    override func getScreenScale(for screen: Screen) -> Float {
-        let scale = Float((screen.systemScreen as? UIScreen)?.nativeScale ?? 0)
-        return max(1.0, scale)
+    func getScreenScale(for screen: Screen) -> Float {
+        MainActor.assumeIsolated {
+            let scale = Float((screen.systemScreen as? UIScreen)?.nativeScale ?? 0)
+            return max(1.0, scale)
+        }
     }
     
-    override func makeScreen(from systemScreen: SystemScreen) -> Screen {
-        Screen(systemScreen: systemScreen as! UIScreen)
+    func makeScreen(from systemScreen: SystemScreen) -> Screen {
+        Screen(systemScreen: systemScreen as! UIKit.UIScreen, screenManager: self)
     }
     
-    override func getBrightness(for screen: Screen) -> Float {
-        Float((screen.systemScreen as? UIScreen)?.brightness ?? 0)
+    func getBrightness(for screen: Screen) -> Float {
+        MainActor.assumeIsolated {
+            Float((screen.systemScreen as? UIScreen)?.brightness ?? 0)
+        }
     }
 }
 
-extension UIScreen: SystemScreen {}
+extension UIKit.UIScreen: SystemScreen {}
 #endif
