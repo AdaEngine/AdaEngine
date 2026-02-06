@@ -320,7 +320,16 @@ var targets: [Target] = [
             "SPIRV-Cross",
             "SPIRVCompiler",
             "libpng",
-            .product(name: "Subprocess", package: "swift-subprocess"),
+            .product(
+                name: "Subprocess",
+                package: "swift-subprocess",
+                condition: .when(platforms: [
+                    .macOS,
+                    .linux,
+                    .windows,
+                    .wasi
+                ])
+            ),
             .product(
                 name: "WebGPU",
                 package: "swift-webgpu",
