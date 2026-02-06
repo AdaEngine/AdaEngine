@@ -1,0 +1,87 @@
+@Tutorial(time: 20) {
+    @Intro(title: "Gamepad Input") {
+        Build a small scene that spawns a player entity and moves it with a gamepad.
+    }
+
+    @XcodeRequirement(title: "Xcode 26.3 or later", destination: "https://developer.apple.com/download/")
+
+    @Section(title: "Set up the world") {
+        @ContentAndMedia {
+            Start with a default app window and a 2D camera.
+        }
+
+        @Steps {
+            @Step {
+                Create the app entry point, define a `PlayerComponent`, and spawn a camera.
+
+                @Code(name: "GamepadInputApp.swift", file: GP-1-1-app.swift)
+            }
+
+            @Step {
+                Spawn a simple player entity with a transform and sprite.
+
+                @Code(name: "GamepadInputApp.swift", file: GP-1-2-app.swift)
+            }
+
+            @Step {
+                Register a system that will process gamepad input.
+
+                @Code(name: "GamepadInputApp.swift", file: GP-1-3-app.swift)
+            }
+        }
+    }
+
+    @Section(title: "Create the input system") {
+        @ContentAndMedia {
+            The system needs a query for the player transform and access to input and delta time resources.
+        }
+
+        @Steps {
+            @Step {
+                Define the system skeleton and required resources.
+
+                @Code(name: "GamepadInputSystem.swift", file: GP-2-1-system.swift)
+            }
+        }
+    }
+
+    @Section(title: "Read buttons") {
+        @ContentAndMedia {
+            Check connected gamepads and read button presses each frame.
+        }
+
+        @Steps {
+            @Step {
+                Retrieve connected gamepads and iterate them safely.
+
+                @Code(name: "GamepadInputSystem.swift", file: GP-2-2-system.swift)
+            }
+
+            @Step {
+                Use `isGamepadButtonPressed(_:)` for common buttons.
+
+                @Code(name: "GamepadInputSystem.swift", file: GP-2-3-system.swift)
+            }
+        }
+    }
+
+    @Section(title: "Move and rumble") {
+        @ContentAndMedia {
+            Read analog axes to move the player and trigger rumble for feedback.
+        }
+
+        @Steps {
+            @Step {
+                Use the left stick to move the player with a deadzone.
+
+                @Code(name: "GamepadInputSystem.swift", file: GP-2-4-system.swift)
+            }
+
+            @Step {
+                Trigger rumble when a button is pressed.
+
+                @Code(name: "GamepadInputSystem.swift", file: GP-2-5-system.swift)
+            }
+        }
+    }
+}
