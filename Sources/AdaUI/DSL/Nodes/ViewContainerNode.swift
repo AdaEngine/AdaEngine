@@ -95,6 +95,7 @@ class ViewContainerNode: ViewNode {
     private func updateChildNodes(from newNodes: [ViewNode]) {
         var needsLayout = false
         var allNewNodes = [ViewNode]()
+        allNewNodes.reserveCapacity(newNodes.count)
 
         // Unfold new nodes if needed
         for node in newNodes {
@@ -107,7 +108,7 @@ class ViewContainerNode: ViewNode {
             allNewNodes.append(node)
         }
 
-        // We have same this, merge new nodes into old
+        // We have same count, merge new nodes into old by index.
         if self.nodes.count == allNewNodes.count {
             for (index, (oldNode, newNode)) in zip(self.nodes, allNewNodes).enumerated() {
                 if newNode.canUpdate(oldNode) {
@@ -121,26 +122,45 @@ class ViewContainerNode: ViewNode {
                 }
             }
         } else {
-            // has different sizes.
-            let difference = allNewNodes.difference(from: self.nodes)
-            for change in difference {
-                switch change {
-                case let .remove(index, _, _):
-                    self.nodes.remove(at: index)
-                case let .insert(index, newElement, _):
-                    newElement.parent = self
-                    self.nodes.insert(newElement, at: index)
+            // Different count: keep reconciliation linear and avoid expensive CollectionDifference.
+            let oldCount = self.nodes.count
+            let newCount = allNewNodes.count
+            let sharedCount = min(oldCount, newCount)
+
+            if sharedCount > 0 {
+                for index in 0..<sharedCount {
+                    let oldNode = self.nodes[index]
+                    let newNode = allNewNodes[index]
+
+                    if newNode.canUpdate(oldNode) {
+                        oldNode.update(from: newNode)
+                        oldNode.parent = self
+                    } else {
+                        newNode.parent = self
+                        self.nodes[index] = newNode
+                    }
+                }
+            }
+
+            if oldCount > newCount {
+                self.nodes.removeLast(oldCount - newCount)
+            } else if newCount > oldCount {
+                for index in oldCount..<newCount {
+                    let newNode = allNewNodes[index]
+                    newNode.parent = self
+                    self.nodes.append(newNode)
                 }
             }
 
             needsLayout = true
         }
 
+        let currentOwner = self.owner
         for node in nodes {
             node.updateEnvironment(environment)
 
-            if let owner = node.owner {
-                node.updateViewOwner(owner)
+            if let currentOwner, node.owner !== currentOwner {
+                node.updateViewOwner(currentOwner)
             }
         }
 

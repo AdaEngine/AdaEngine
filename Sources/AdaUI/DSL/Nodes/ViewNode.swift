@@ -132,6 +132,7 @@ class ViewNode: Identifiable {
 //        }
 
         self.performLayout()
+        self.owner?.containerView?.setNeedsDisplay()
     }
 
     /// Updates view layout. Called when needs update UI layout.
