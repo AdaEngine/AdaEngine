@@ -74,6 +74,7 @@ class UpdatablePropertyStorage {
             }
 
             $0.invalidateContent()
+            $0.owner?.containerView?.setNeedsDisplay()
         }
     }
 
