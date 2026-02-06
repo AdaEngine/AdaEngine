@@ -53,6 +53,11 @@ public struct Input: Resource, Sendable {
         return self.eventsPool
     }
 
+    /// Returns text input events from software keyboard (iOS) or IME.
+    public func getTextInputEvents() -> [TextInputEvent] {
+        return self.eventsPool.compactMap { $0 as? TextInputEvent }
+    }
+
     /// Returns `true` if you are pressing the Latin key in the current keyboard layout.
     public func isKeyPressed(_ keyCode: KeyCode) -> Bool {
         return self.keyEvents.contains(keyCode)

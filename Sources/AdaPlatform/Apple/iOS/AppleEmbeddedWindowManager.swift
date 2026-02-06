@@ -1,5 +1,5 @@
 //
-//  iOSWindowManager.swift
+//  AppleEmbeddedWindowManager.swift
 //  AdaEngine
 //
 //  Created by v.prusakov on 7/11/22.
@@ -7,25 +7,34 @@
 
 #if IOS || TVOS
 import UIKit
+import AdaInput
+@_spi(Internal) import AdaUI
+import AdaRender
+import AdaUtils
+import Math
 
 // swiftlint:disable:next type_name
-final class iOSWindowManager: WindowManager {
-    
-    override func createWindow(for window: Window) {
-        
+final class AppleEmbeddedWindowManager: UIWindowManager {
+    private let screenManager: any ScreenManager
+
+    init(screenManager: any ScreenManager) {
+        self.screenManager = screenManager
+    }
+
+    override func createWindow(for window: AdaUI.UIWindow) {
         let screen = UIScreen.main
         let frame = screen.bounds.toEngineRect
         
         // Register view in engine
         
         let gameViewController = _GameViewController(window: window.id, frame: screen.bounds)
-        try? RenderEngine.shared.createWindow(
-            window.id,
-            for: gameViewController.renderView,
-            size: frame.size
-        )
+
+
+        // Setup windowManager reference for input handling
+        gameViewController.renderView.windowManager = self
+        gameViewController.renderView.setupMouseTracking()
         
-        let systemWindow = _AdaUIWindow(frame: screen.bounds)
+        let systemWindow = _AdaUIWindow(frame: screen.bounds, windowManager: self)
         systemWindow.rootViewController = gameViewController
         systemWindow.backgroundColor = .black
         
@@ -35,13 +44,19 @@ final class iOSWindowManager: WindowManager {
         
         window.systemWindow = systemWindow
         window.minSize = frame.size
-        
+
+        unsafe try? RenderEngine.shared.createWindow(
+            window.id,
+            for: gameViewController.renderView,
+            size: frame.size.toSizeInt()
+        )
+
         super.createWindow(for: window)
     }
     
     // - TODO: (Vlad) I'm not really sure, that we should make window unfocused
-    override func showWindow(_ window: Window, isFocused: Bool) {
-        guard let uiWindow = window.systemWindow as? UIWindow else {
+    override func showWindow(_ window: AdaUI.UIWindow, isFocused: Bool) {
+        guard let uiWindow = window.systemWindow as? UIKit.UIWindow else {
             fatalError("System window not exist.")
         }
         
@@ -52,16 +67,16 @@ final class iOSWindowManager: WindowManager {
         self.setActiveWindow(window)
     }
     
-    override func setWindowMode(_ window: Window, mode: Window.Mode) {
-        guard let uiWindow = window.systemWindow as? UIWindow else {
+    override func setWindowMode(_ window: AdaUI.UIWindow, mode: AdaUI.UIWindow.Mode) {
+        guard let uiWindow = window.systemWindow as? UIKit.UIWindow else {
             fatalError("System window not exist.")
         }
         
         print("Method doesn't implemented", #function)
     }
     
-    override func closeWindow(_ window: Window) {
-        guard let nsWindow = window.systemWindow as? UIWindow else {
+    override func closeWindow(_ window: AdaUI.UIWindow) {
+        guard let nsWindow = window.systemWindow as? UIKit.UIWindow else {
             fatalError("System window not exist.")
         }
 
@@ -71,19 +86,19 @@ final class iOSWindowManager: WindowManager {
         nsWindow.windowScene = nil
     }
 
-    override func getScreen(for window: Window) -> Screen? {
-        guard let screen = (window.systemWindow as? UIWindow)?.screen else {
+    override func getScreen(for window: AdaUI.UIWindow) -> Screen? {
+        guard let screen = (window.systemWindow as? UIKit.UIWindow)?.screen else {
             return nil
         }
         
-        return Screen(systemScreen: screen)
+        return Screen.init(systemScreen: screen, screenManager: screenManager)
     }
 
-    override func resizeWindow(_ window: Window, size: Size) {
+    override func resizeWindow(_ window: AdaUI.UIWindow, size: Math.Size) {
         print("Method doesn't implemented", #function)
     }
     
-    override func setMinimumSize(_ size: Size, for window: Window) {
+    override func setMinimumSize(_ size: Size, for window: AdaUI.UIWindow) {
         print("Method doesn't implemented", #function)
     }
     
@@ -99,8 +114,12 @@ final class iOSWindowManager: WindowManager {
         window.pointerInteraction?.invalidate()
     }
     
-    override func setCursorImage(for shape: Input.CursorShape, texture: Texture2D?, hotspot: Vector2) {
-        
+    override func setCursorImage(
+        for shape: Input.CursorShape,
+        texture: Texture2D?,
+        hotspot: Vector2
+    ) {
+
     }
     
     override func setCursorShape(_ shape: Input.CursorShape) {
@@ -123,14 +142,14 @@ final class iOSWindowManager: WindowManager {
         return self.currentShape
     }
     
-    func findWindow(for nsWindow: UIWindow) -> Window? {
+    func findWindow(for nsWindow: UIKit.UIWindow) -> AdaUI.UIWindow? {
         return self.windows.first {
-            ($0.systemWindow as? UIWindow) === nsWindow
+            ($0.systemWindow as? UIKit.UIWindow) === nsWindow
         }
     }
 }
 
-final class _AdaUIWindow: UIWindow, SystemWindow, UIPointerInteractionDelegate {
+final class _AdaUIWindow: UIKit.UIWindow, SystemWindow, UIPointerInteractionDelegate {
     
     public var title: String = ""
     
@@ -159,18 +178,28 @@ final class _AdaUIWindow: UIWindow, SystemWindow, UIPointerInteractionDelegate {
     }
     
     weak var pointerInteraction: UIPointerInteraction?
-    
+    private var windowManager: AppleEmbeddedWindowManager?
+
+    init(frame: CGRect, windowManager: AppleEmbeddedWindowManager) {
+        self.windowManager = windowManager
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
     // MARK: - UIPointerInteractionDelegate
     
     func pointerInteraction(_ interaction: UIPointerInteraction, styleFor region: UIPointerRegion) -> UIPointerStyle? {
         
-        if Input.getMouseMode() == .hidden {
+        if windowManager?.getMouseMode() == .hidden {
             return UIPointerStyle.hidden()
         }
         
         var style: UIPointerStyle
         
-        let cursorShape = Input.getCurrentCursorShape()
+        let cursorShape = windowManager?.getCursorShape() ?? .arrow
         
         switch cursorShape {
         case .iBeam:
@@ -189,10 +218,9 @@ final class _AdaUIWindow: UIWindow, SystemWindow, UIPointerInteractionDelegate {
 }
 
 final class _GameViewController: UIViewController {
-    
     var renderView: MetalView
-    
-    init(window: Window.ID, frame: CGRect) {
+
+    init(window: AdaUI.UIWindow.ID, frame: CGRect) {
         self.renderView = MetalView(windowId: window, frame: frame)
         super.init(nibName: nil, bundle: nil)
     }
@@ -204,7 +232,5 @@ final class _GameViewController: UIViewController {
     override func loadView() {
         self.view = self.renderView
     }
-    
 }
-
 #endif

@@ -8,7 +8,7 @@
 import Math
 
 /// An object represents user physical display.
-public final class Screen {
+public final class Screen: @unchecked Sendable {
 
     private unowned let screenManager: any ScreenManager
 
