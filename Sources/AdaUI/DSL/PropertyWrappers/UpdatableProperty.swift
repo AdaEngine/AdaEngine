@@ -74,7 +74,6 @@ class UpdatablePropertyStorage {
             }
 
             $0.invalidateContent()
-            $0.invalidateNearestLayer()
             if let containerView = $0.owner?.containerView {
                 containerView.setNeedsDisplay(in: $0.absoluteFrame())
             }
