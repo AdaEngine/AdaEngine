@@ -106,4 +106,12 @@ public extension Rect {
               && self.minY <= other.maxY
               && other.minY <= self.maxY
     }
+
+    func union(_ other: Rect) -> Rect {
+        let minX = min(self.minX, other.minX)
+        let minY = min(self.minY, other.minY)
+        let maxX = max(self.maxX, other.maxX)
+        let maxY = max(self.maxY, other.maxY)
+        return Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
+    }
 }

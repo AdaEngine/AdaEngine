@@ -96,6 +96,13 @@ public struct UIDrawData: Sendable {
         quadBatches.removeAll(keepingCapacity: true)
         glyphBatches.removeAll(keepingCapacity: true)
     }
+
+    public var isEmpty: Bool {
+        quadIndexBuffer.isEmpty
+        && circleIndexBuffer.isEmpty
+        && lineIndexBuffer.isEmpty
+        && glyphIndexBuffer.isEmpty
+    }
 }
 
 // MARK: - UI Draw Pass

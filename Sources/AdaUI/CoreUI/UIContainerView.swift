@@ -120,6 +120,8 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
     ///   - rect: The rect to draw the container view in.
     ///   - context: The context to draw the container view in.
     override public func draw(in rect: Rect, with context: UIGraphicsContext) {
+        var context = context
+        context.dirtyRect = window?.consumeDirtyRect()
         viewTree.renderGraph(renderContext: context)
     }
 

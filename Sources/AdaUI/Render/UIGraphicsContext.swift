@@ -51,6 +51,9 @@ public struct UIGraphicsContext: Sendable {
     /// The environment associated with the graphics context.
     public var environment: EnvironmentValues = EnvironmentValues()
 
+    /// Optional dirty rectangle in window coordinates.
+    public var dirtyRect: Rect?
+
     private(set) var commandQueue = CommandQueue()
 
     /// Create graphics context.
@@ -87,6 +90,10 @@ public struct UIGraphicsContext: Sendable {
     /// Clear any applied transform
     public mutating func clearTransform() {
         self.transform = .identity
+    }
+
+    mutating func setTransform(_ transform: Transform3D) {
+        self.transform = transform
     }
 
     // MARK: - Drawing
@@ -231,6 +238,8 @@ extension UIGraphicsContext {
 
     /// The commands that Graphic Context recorded.
     public enum DrawCommand: Sendable {
+        case beginLayer(id: UInt64, version: UInt64, cacheable: Bool)
+        case endLayer(id: UInt64)
         case setLineWidth(Float)
         case drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color)
 

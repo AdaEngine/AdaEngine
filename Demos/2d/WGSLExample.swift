@@ -5,6 +5,7 @@
 //  Created by Vladislav Prusakov on 21.12.2025.
 //
 
+#if canImport(WebGPU)
 @_spi(Internal) import AdaEngine
 import WebGPU
 
@@ -247,3 +248,16 @@ void fs_main() {
     fragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
 """
+
+#else
+@_spi(Internal) import AdaEngine
+
+@main
+struct WGSLExampleApp: App {
+    var body: some AppScene {
+        DefaultAppWindow()
+            .windowMode(.windowed)
+            .windowTitle("WGSL Example")
+    }
+}
+#endif
