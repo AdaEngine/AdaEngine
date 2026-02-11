@@ -7,8 +7,6 @@
 
 import Math
 
-// FIXME: Incorrect calculation of size
-
 public struct ZStackLayoutCache {
     var minSizes: [Size] = []
     var minSize: Size = .zero
@@ -35,7 +33,7 @@ public struct ZStackLayout: Layout {
         cache = ZStackLayoutCache()
 
         for subview in subviews {
-            let minSize = subview.sizeThatFits(.unspecified)
+            let minSize = subview.sizeThatFits(.zero)
 
             cache.minSizes.append(minSize)
             cache.minSize = max(minSize, cache.minSize)
@@ -75,8 +73,8 @@ public struct ZStackLayout: Layout {
             let idealSize = subview.sizeThatFits(proposal)
             let minSize = cache.minSizes[index]
 
-            let width = min(bounds.width, max(idealSize.width, minSize.width))
-            let height = min(bounds.height, max(idealSize.height, minSize.height))
+            let width = max(idealSize.width, minSize.width)
+            let height = max(idealSize.height, minSize.height)
 
             let proposal = ProposedViewSize(width: width, height: height)
             subview.place(at: origin, anchor: anchor, proposal: proposal)
