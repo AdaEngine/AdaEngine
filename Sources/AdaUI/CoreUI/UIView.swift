@@ -199,8 +199,18 @@ open class UIView {
 
     /// Set the needs display flag.
     public func setNeedsDisplay() {
+        setNeedsDisplay(in: bounds)
+    }
+
+    /// Set the needs display flag for specific rect.
+    public func setNeedsDisplay(in rect: Rect) {
         self.needsDisplay = true
-        window?.needsDisplay = true
+        guard let window else {
+            return
+        }
+
+        window.markDirty(rectInWindow(rect))
+        window.needsDisplay = true
     }
 
     internal func consumeNeedsDisplay() -> Bool {
@@ -397,6 +407,20 @@ open class UIView {
     /// - Returns: The converted point.
     public func convert(_ point: Point, from view: UIView?) -> Point {
         return view?.convert(point, to: self) ?? point
+    }
+
+    private func rectInWindow(_ rect: Rect) -> Rect {
+        guard let window else {
+            return rect
+        }
+
+        let origin = convert(rect.origin, to: window)
+        let maxPoint = convert(Point(x: rect.maxX, y: rect.maxY), to: window)
+        let minX = min(origin.x, maxPoint.x)
+        let minY = min(origin.y, maxPoint.y)
+        let maxX = max(origin.x, maxPoint.x)
+        let maxY = max(origin.y, maxPoint.y)
+        return Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
     /// Called when the view can respond to an action.

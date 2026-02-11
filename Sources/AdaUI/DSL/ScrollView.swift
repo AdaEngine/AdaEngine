@@ -47,14 +47,23 @@ final class ScrollViewNode: LayoutViewContainerNode {
     private var contentSize: Size = .zero
 
     override func performLayout() {
-        let proposal = ProposedViewSize(frame.size)
+        let proposedWidth: Float? = axis.contains(.horizontal) ? nil : self.frame.width
+        let proposedHeight: Float? = axis.contains(.vertical) ? nil : self.frame.height
+        let proposal = ProposedViewSize(width: proposedWidth, height: proposedHeight)
         self.contentSize = super.sizeThatFits(proposal)
 
-        let width = contentSize.width - frame.width
-        let height = contentSize.height - frame.height
+        let width = max(0, contentSize.width - frame.width)
+        let height = max(0, contentSize.height - frame.height)
         self.contentOffsetBounds = Rect(x: 0, y: 0, width: width, height: height)
+        self.contentOffset = clampOffset(self.contentOffset)
 
-        super.performLayout()
+        let contentWidth = axis.contains(.horizontal) ? contentSize.width : frame.width
+        let contentHeight = axis.contains(.vertical) ? contentSize.height : frame.height
+        let contentBounds = Size(width: contentWidth, height: contentHeight)
+        super.performLayout(
+            in: Rect(origin: .zero, size: contentBounds),
+            proposal: ProposedViewSize(contentBounds)
+        )
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
@@ -110,7 +119,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
         self.accumulativePoint.x += event.scrollDelta.x * 100
         self.accumulativePoint.y += event.scrollDelta.y * 100
         if case .dragging(let initialOffset) = state {
-            contentOffset = clampOffset(initialOffset - accumulativePoint)
+            setContentOffset(clampOffset(initialOffset - accumulativePoint))
         }
     }
 
@@ -121,13 +130,34 @@ final class ScrollViewNode: LayoutViewContainerNode {
     private var contentOffsetBounds: Rect = .zero
 
     private func clampOffset(_ offset: Point) -> Point {
-        return offset.clamped(to: contentOffsetBounds)
+        var clamped = self.contentOffset
+        if axis.contains(.vertical) {
+            clamped.y = clamp(offset.y, contentOffsetBounds.minY, contentOffsetBounds.maxY)
+        }
+
+        if axis.contains(.horizontal) {
+            clamped.x = clamp(offset.x, contentOffsetBounds.minX, contentOffsetBounds.maxX)
+        }
+
+        return clamped
+    }
+
+    private func setContentOffset(_ newValue: Point) {
+        guard contentOffset != newValue else {
+            return
+        }
+
+        contentOffset = newValue
+        self.invalidateNearestLayer()
+        if let containerView = self.owner?.containerView {
+            containerView.setNeedsDisplay(in: self.absoluteFrame())
+        }
     }
 
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = environment
-        context.translateBy(x: contentOffset.x, y: contentOffset.y)
+        context.translateBy(x: -contentOffset.x, y: -contentOffset.y)
         super.draw(with: context)
     }
 
@@ -144,10 +174,7 @@ final class ScrollViewNode: LayoutViewContainerNode {
             y: position.y - contentSize.height * anchor.y
         )
 
-        if axis == .vertical {
-            self.contentOffset.y = clampOffset(offset).y
-        } else {
-            self.contentOffset.x = clampOffset(offset).x
-        }
+        let clampedOffset = clampOffset(offset)
+        setContentOffset(clampedOffset)
     }
 }

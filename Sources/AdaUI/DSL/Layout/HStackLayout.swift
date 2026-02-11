@@ -73,7 +73,7 @@ public struct HStackLayout: Layout {
             var newSize = partialResult
             let idealSize = subview.sizeThatFits(ProposedViewSize(height: size.height))
             newSize.width += idealSize.width
-            newSize.height = max(partialResult.height, size.height)
+            newSize.height = max(partialResult.height, proposal.height ?? idealSize.height)
             return newSize
         }
 

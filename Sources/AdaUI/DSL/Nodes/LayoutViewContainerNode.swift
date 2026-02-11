@@ -12,6 +12,7 @@ class LayoutViewContainerNode: ViewContainerNode {
     
     let layout: AnyLayout
     private var cache: AnyLayout.Cache?
+    private var subviews: LayoutSubviews?
 
     init<L: Layout, Content: View>(layout: L, content: Content, nodes: [ViewNode]) {
         self.layout = AnyLayout(layout)
@@ -32,7 +33,20 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func performLayout() {
-        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
+        performLayout(
+            in: Rect(origin: .zero, size: self.frame.size),
+            proposal: ProposedViewSize(width: self.frame.width, height: self.frame.height)
+        )
+    }
+
+    /// Perform layout with custom bounds and proposal.
+    /// Subclasses like ``ScrollViewNode`` use this to place children within
+    /// the content area instead of the visible frame.
+    func performLayout(in bounds: Rect, proposal: ProposedViewSize) {
+        self.subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
+        guard let subviews else {
+            return
+        }
 
         if var cache = self.cache {
             layout.updateCache(&cache, subviews: subviews)
@@ -46,8 +60,8 @@ class LayoutViewContainerNode: ViewContainerNode {
         }
 
         layout.placeSubviews(
-            in: Rect(origin: .zero, size: self.frame.size),
-            proposal: ProposedViewSize(width: self.frame.width, height: self.frame.height),
+            in: bounds,
+            proposal: proposal,
             subviews: subviews,
             cache: &cache
         )
@@ -64,7 +78,10 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
+        guard let subviews else {
+            return .zero
+        }
+
         if var cache = self.cache {
             layout.updateCache(&cache, subviews: subviews)
             self.cache = cache

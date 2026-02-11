@@ -41,6 +41,7 @@ public struct UIPlugin: Plugin {
             .insertResource(UIDrawPass())
             .insertResource(UIViewUniform())
             .insertResource(UIRenderBuildState())
+            .insertResource(UILayerDrawCache())
 
         renderWorld.initResource(UIRenderPipelines.self)
 

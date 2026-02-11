@@ -61,13 +61,13 @@ public struct VStackLayout: Layout {
         let idealSize = subviews.reduce(Size.zero) { partialResult, subview in
             var newSize = partialResult
             let idealSize = subview.sizeThatFits(ProposedViewSize(width: size.width))
-            newSize.width = max(partialResult.width, size.width)
+            newSize.width = max(partialResult.width, proposal.width ?? idealSize.width)
             newSize.height += idealSize.height
             return newSize
         }
 
         if proposal.height == nil {
-            return Size(width: idealSize.width, height: idealSize.height)
+            return Size(width: idealSize.width, height: idealSize.height + cache.totalSubviewSpacing)
         }
 
         let height = min(max(idealSize.height, size.height - cache.totalSubviewSpacing), cache.maxSize.height)

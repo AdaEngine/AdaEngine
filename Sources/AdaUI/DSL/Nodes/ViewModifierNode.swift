@@ -54,6 +54,7 @@ class ViewModifierNode: ViewNode {
 
     override func invalidateContent() {
         contentNode.invalidateContent()
+        self.invalidateNearestLayer()
     }
 
     override func buildMenu(with builder: any UIMenuBuilder) {

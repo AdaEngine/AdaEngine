@@ -116,23 +116,17 @@ class ViewNode: Identifiable {
         )
 
         let newFrame = Rect(origin: offset, size: size)
-
-//        if let animationController = environment.animationController, newFrame != self.frame {
-//            animationController.addTweenAnimation(
-//                from: self.frame,
-//                to: newFrame,
-//                label: "Position Animation \(self.id.hashValue)",
-//                environment: self.environment
-//            ) { newValue in
-//                    self.frame = newValue
-//                    print("set new frame", newValue, "Expected" , newFrame)
-//                }
-//        } else {
-            self.frame = newFrame
-//        }
+        let oldFrame = self.frame
+        self.frame = newFrame
 
         self.performLayout()
-        self.owner?.containerView?.setNeedsDisplay()
+        if oldFrame != newFrame, let containerView = self.owner?.containerView {
+            let oldAbsolute = absoluteFrame(using: oldFrame)
+            let newAbsolute = absoluteFrame(using: newFrame)
+            containerView.setNeedsDisplay(in: oldAbsolute.union(newAbsolute))
+        } else {
+            self.owner?.containerView?.setNeedsDisplay()
+        }
     }
 
     /// Updates view layout. Called when needs update UI layout.
@@ -172,6 +166,17 @@ class ViewNode: Identifiable {
     /// This method invalidate all stored views and create a new one.
     func invalidateContent() {}
 
+    func invalidateNearestLayer() {
+        var current: ViewNode? = self
+        while let node = current {
+            if let layer = node.layer {
+                layer.invalidate()
+                return
+            }
+            current = node.parent
+        }
+    }
+
     func invalidateLayerIfNeeded() {
         if let layer = self.layer {
             if layer.frame.size != self.frame.size {
@@ -186,6 +191,20 @@ class ViewNode: Identifiable {
     }
 
     func createLayer() -> UILayer? { return nil }
+
+    func absoluteFrame() -> Rect {
+        return absoluteFrame(using: self.frame)
+    }
+
+    func absoluteFrame(using localFrame: Rect) -> Rect {
+        var origin = localFrame.origin
+        var currentParent = self.parent
+        while let parent = currentParent {
+            origin += parent.frame.origin
+            currentParent = parent.parent
+        }
+        return Rect(origin: origin, size: localFrame.size)
+    }
 
     /// Notify view, that view will move to parent view.
     func willMove(to parent: ViewNode?) { }
