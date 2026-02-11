@@ -775,6 +775,22 @@ targets += [
     )
 ]
 
+// MARK: - Benchmarks
+
+targets += [
+    .executableTarget(
+        name: "AdaECSBenchmarks",
+        dependencies: [
+            .product(name: "Benchmark", package: "package-benchmark"),
+            "AdaECS"
+        ],
+        path: "Benchmarks/AdaECSBenchmarks",
+        plugins: [
+            .plugin(name: "BenchmarkPlugin", package: "package-benchmark")
+        ]
+    )
+]
+
 // MARK: - Tests
 
 targets += [
@@ -903,6 +919,7 @@ package.dependencies += [
     .package(url: "https://github.com/apple/swift-atomics", from: "1.3.0"),
     .package(url: "https://github.com/the-swift-collective/zlib.git", from: "1.3.2"),
     .package(url: "https://github.com/swiftlang/swift-subprocess.git", branch: "0.2.1"),
+    .package(url: "https://github.com/ordo-one/package-benchmark", from: "1.29.0"),
     // TODO: SpectralDragon packages should move to AdaEngine
     .package(url: "https://github.com/SpectralDragon/Yams.git", revision: "fb676da"),
     .package(
