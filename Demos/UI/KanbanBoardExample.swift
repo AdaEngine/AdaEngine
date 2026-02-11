@@ -145,7 +145,6 @@ struct KanbanColumnView: View {
                         onMoveLeft: { onMoveLeft(task) },
                         onMoveRight: { onMoveRight(task) }
                     )
-//                    .drawingGroup()
                     .accessibilityIdentifier("task list \(task.tag ?? task.title)")
                 }
             }
