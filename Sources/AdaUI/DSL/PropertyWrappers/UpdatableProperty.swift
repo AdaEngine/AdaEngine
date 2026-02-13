@@ -21,18 +21,18 @@ public protocol UpdatableProperty {
 /// A container that keeps state storages for a specific view node.
 @MainActor
 final class ViewStateContainer {
-    private var storages: [String: UpdatablePropertyStorage] = [:]
+    private var storages: [String: WeakBox<UpdatablePropertyStorage>] = [:]
 
     func storage<Value>(
         for key: String,
         initialValue: @autoclosure () -> StateStorage<Value>
     ) -> StateStorage<Value> {
-        if let storage = storages[key] as? StateStorage<Value> {
+        if let storage = storages[key]?.value as? StateStorage<Value> {
             return storage
         }
 
         let storage = initialValue()
-        storages[key] = storage
+        storages[key] = WeakBox(storage)
         return storage
     }
 }
@@ -59,9 +59,7 @@ class UpdatablePropertyStorage {
     /// The name of the property.
     var propertyName: String = ""
 
-    nonisolated init() {
-
-    }
+    nonisolated init() { }
 
     /// Update the property.
     ///
@@ -69,8 +67,8 @@ class UpdatablePropertyStorage {
     func update() {
         nodes.forEach {
             if $0.shouldNotifyAboutChanges {
-                // Logger(label: "org.adaengine.AdaUI")
-                    // .info("\(type(of: $0.content)): \(propertyName) changed. \(UnsafeRawPointer(bitPattern: &self.value))")
+                 Logger(label: "org.adaengine.AdaUI")
+                     .info("\(type(of: $0.content)): \(propertyName) changed.")
             }
 
             $0.invalidateContent()

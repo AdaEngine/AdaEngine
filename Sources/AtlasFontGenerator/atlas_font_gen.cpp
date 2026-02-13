@@ -31,6 +31,15 @@ font_generator_s* font_atlas_generator_create(const char* fontPath,
     return generator;
 }
 
+void font_atlas_generator_destroy(font_generator_s* generator) {
+    if (!generator) {
+        return;
+    }
+
+    delete generator->generator;
+    delete generator;
+}
+
 font_handle_s* font_atlas_generator_get_font_data(font_generator_s* generator) {
     auto data = generator->generator->getFontData();
     font_handle_s* result = new font_handle_s();
@@ -45,6 +54,15 @@ void font_handle_destroy(font_handle_s *fontHandle) {
 
 AtlasBitmap* font_atlas_generator_generate_bitmap(font_generator_s* generator) {
     return generator->generator->generateAtlasBitmap();
+}
+
+void font_atlas_bitmap_destroy(AtlasBitmap* bitmap) {
+    if (!bitmap) {
+        return;
+    }
+
+    free(bitmap->pixels);
+    delete bitmap;
 }
 
 const char* font_geometry_get_name(font_handle_s* fontData) {
@@ -87,6 +105,10 @@ font_glyph_s* font_handle_get_glyph_unicode(font_handle_s* fontData, uint32_t un
     font_glyph_s* result = new font_glyph_s();
     result->glyph = glyph;
     return result;
+}
+
+void font_glyph_destroy(font_glyph_s* glyph) {
+    delete glyph;
 }
 
 double font_glyph_get_advance(font_glyph_s *glyph) {

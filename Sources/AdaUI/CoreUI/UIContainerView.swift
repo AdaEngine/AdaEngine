@@ -10,7 +10,7 @@ import AdaUtils
 import Math
 
 /// A container view that contains a view tree.
-public class UIContainerView<Content: View>: UIView, ViewOwner {
+public final class UIContainerView<Content: View>: UIView, ViewOwner {
 
     /// The container view of the container view.
     var containerView: UIView? {
@@ -35,7 +35,11 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
     public override func layoutSubviews() {
         super.layoutSubviews()
 
-        viewTree.rootNode.place(in: .zero, anchor: .zero, proposal: ProposedViewSize(self.frame.size))
+        viewTree.rootNode.place(
+            in: .zero,
+            anchor: .zero,
+            proposal: ProposedViewSize(self.frame.size)
+        )
     }
 
     /// Build the menu.
@@ -67,7 +71,7 @@ public class UIContainerView<Content: View>: UIView, ViewOwner {
     }
 
     /// The last on mouse event node.
-    private var lastOnMouseEventNode: ViewNode?
+    private weak var lastOnMouseEventNode: ViewNode?
 
     /// Handle the mouse event.
     ///

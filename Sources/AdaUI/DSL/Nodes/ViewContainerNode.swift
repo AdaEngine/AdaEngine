@@ -30,7 +30,9 @@ class ViewContainerNode: ViewNode {
 
     init<Content: View>(content: Content, nodes: [ViewNode]) {
         self.nodes = nodes
-        self.body = { inputs in return Content._makeListView(_ViewGraphNode(value: content), inputs: inputs) }
+        self.body = { [content] inputs in
+            return Content._makeListView(_ViewGraphNode(value: content), inputs: inputs)
+        }
         super.init(content: content)
 
         for node in nodes {
@@ -46,8 +48,11 @@ class ViewContainerNode: ViewNode {
             guard let self else {
                 return _ViewListOutputs(outputs: [])
             }
-            let content = withObservationTracking(content) {
-                Task { @MainActor in
+            let content = withObservationTracking(content) { [weak self] in
+                guard let self else {
+                    return
+                }
+                MainActor.assumeIsolated {
                     self.invalidateContent()
                 }
             }
@@ -111,6 +116,9 @@ class ViewContainerNode: ViewNode {
 
         // We have same count, merge new nodes into old by index.
         if let reconciled = self.reconcileNodesById(allNewNodes) {
+            for oldNode in self.nodes where !reconciled.contains(where: { $0 === oldNode }) {
+                oldNode.parent = nil
+            }
             self.nodes = reconciled
             needsLayout = true
         } else if self.nodes.count == allNewNodes.count {
@@ -120,6 +128,7 @@ class ViewContainerNode: ViewNode {
                     oldNode.parent = self
                     needsLayout = true
                 } else {
+                    oldNode.parent = nil
                     newNode.parent = self
                     self.nodes[index] = newNode
                     needsLayout = true
@@ -140,6 +149,7 @@ class ViewContainerNode: ViewNode {
                         oldNode.update(from: newNode)
                         oldNode.parent = self
                     } else {
+                        oldNode.parent = nil
                         newNode.parent = self
                         self.nodes[index] = newNode
                     }
@@ -147,7 +157,10 @@ class ViewContainerNode: ViewNode {
             }
 
             if oldCount > newCount {
-                self.nodes.removeLast(oldCount - newCount)
+                for _ in 0..<(oldCount - newCount) {
+                    let removedNode = self.nodes.removeLast()
+                    removedNode.parent = nil
+                }
             } else if newCount > oldCount {
                 for index in oldCount..<newCount {
                     let newNode = allNewNodes[index]
@@ -169,7 +182,7 @@ class ViewContainerNode: ViewNode {
         }
 
         if shouldNotifyAboutChanges {
-            self._printDebugNode()
+//            self._printDebugNode()
         }
 
         if needsLayout {

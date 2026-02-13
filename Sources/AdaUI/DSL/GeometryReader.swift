@@ -115,15 +115,16 @@ public struct GeometryProxy {
     /// - Parameter coordinateSpace: The coordinate space.
     /// - Returns: The frame of the geometry proxy in the given coordinate space.
     public func frame(in coordinateSpace: ViewCoordinateSpaceProtocol) -> Rect {
+        namedCoordinateSpaceContainer.compact()
         switch coordinateSpace.coordinateSpace {
         case .local:
             return self.localFrame
         case .global:
-            return namedCoordinateSpaceContainer.containers[ViewRootNode.rootCoordinateSpace.name]?.frame ?? .zero
+            return namedCoordinateSpaceContainer.containers[ViewRootNode.rootCoordinateSpace.name]?.value?.frame ?? .zero
         case .scrollView:
-            return namedCoordinateSpaceContainer.containers[ViewCoordinateSpace.scrollViewId]?.frame ?? .zero
+            return namedCoordinateSpaceContainer.containers[ViewCoordinateSpace.scrollViewId]?.value?.frame ?? .zero
         case .named(let value):
-            return namedCoordinateSpaceContainer.containers[value]?.frame ?? .zero
+            return namedCoordinateSpaceContainer.containers[value]?.value?.frame ?? .zero
         }
     }
 }
@@ -206,7 +207,11 @@ final class GeometryReaderViewNode<Content: View>: ViewContainerNode {
 /// A named view coordinate space container.
 final class NamedViewCoordinateSpaceContainer: @unchecked Sendable {
     /// The containers of the named view coordinate space.
-    var containers: [AnyHashable: ViewNode] = [:]
+    var containers: [AnyHashable: WeakBox<ViewNode>] = [:]
+
+    func compact() {
+        containers = containers.filter { !$0.value.isEmpty }
+    }
 }
 
 /// A protocol that defines a coordinate space.
@@ -238,12 +243,13 @@ struct CoordinateSpaceViewModifier<Content: View>: ViewModifier, ViewNodeBuilder
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
         let node = context.makeNode(from: content)
+        context.environment.coordinateSpaces.compact()
 
         if node is ScrollViewNode {
-            context.environment.coordinateSpaces.containers[ViewCoordinateSpace.scrollViewId] = node
+            context.environment.coordinateSpaces.containers[ViewCoordinateSpace.scrollViewId] = WeakBox(node)
         }
 
-        context.environment.coordinateSpaces.containers[named.name] = node
+        context.environment.coordinateSpaces.containers[named.name] = WeakBox(node)
         return ViewModifierNode(contentNode: node, content: content)
     }
 }
