@@ -37,22 +37,22 @@ struct KanbanBoardView: View {
 
                 Divider()
 
-                Spacer()
+//                Spacer()
 
-//                ScrollView([.vertical, .horizontal]) {
-//                    HStack(alignment: .top, spacing: 16) {
-//                        ForEach(TaskStatus.allCases, id: \.self) { status in
-//                            KanbanColumnView(
-//                                status: status,
-//                                tasks: tasks.filter { $0.status == status },
-//                                onMoveLeft: { move($0, direction: -1) },
-//                                onMoveRight: { move($0, direction: 1) }
-//                            )
-//                            .frame(width: 260)
-//                        }
-//                    }
-//                    .padding(16)
-//                }
+                ScrollView([.vertical, .horizontal]) {
+                    HStack(alignment: .top, spacing: 16) {
+                        ForEach(TaskStatus.allCases, id: \.self) { status in
+                            KanbanColumnView(
+                                status: status,
+                                tasks: tasks.filter { $0.status == status },
+                                onMoveLeft: { move($0, direction: -1) },
+                                onMoveRight: { move($0, direction: 1) }
+                            )
+                            .frame(width: 260)
+                        }
+                    }
+                    .padding(16)
+                }
             }
             .padding(16)
         }
