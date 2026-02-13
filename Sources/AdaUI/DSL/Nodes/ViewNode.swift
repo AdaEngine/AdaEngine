@@ -88,10 +88,18 @@ class ViewNode: Identifiable {
     /// Updates stored environment.
     /// Called each time, when environment values did change.
     func updateEnvironment(_ environment: EnvironmentValues) {
-        self.environment.merge(environment)
+        self.environment = environment
         storages.forEach { storage in
             (storage as? ViewContextStorage)?.values = self.environment
         }
+    }
+
+    /// Merges partial environment values into the current environment.
+    /// Use this for external updates that don't carry the full environment snapshot.
+    func mergeEnvironment(_ environment: EnvironmentValues) {
+        var mergedEnvironment = self.environment
+        mergedEnvironment.merge(environment)
+        self.updateEnvironment(mergedEnvironment)
     }
 
     /// Update layout properties for view. 
@@ -346,11 +354,14 @@ extension ViewNode: @preconcurrency Hashable {
     }
 }
 
+@MainActor
 protocol ViewOwner: AnyObject {
-    @MainActor var window: UIWindow? { get }
-    @MainActor var containerView: UIView? { get }
 
-    @MainActor func updateEnvironment(_ env: EnvironmentValues)
+    var window: UIWindow? { get }
+
+    var containerView: UIView? { get }
+
+    func updateEnvironment(_ env: EnvironmentValues)
 }
 
 extension UIGraphicsContext {

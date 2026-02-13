@@ -35,7 +35,13 @@ final class DividerNode: ViewNode {
     ///
     /// - Parameter context: The graphics context.
     override func draw(with context: UIGraphicsContext) {
-        context.drawRect(Rect(origin: .zero, size: Size(width: frame.width, height: 1)), color: .gray)
+        context.drawRect(
+            Rect(
+                origin: .zero,
+                size: Size(width: frame.width, height: 1)
+            ),
+            color: .gray
+        )
     }
 
     /// Calculate the size that fits the proposal.
@@ -43,6 +49,18 @@ final class DividerNode: ViewNode {
     /// - Parameter proposal: The proposed view size.
     /// - Returns: The size that fits the proposal.
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        return proposal.replacingUnspecifiedDimensions()
+        if proposal == .zero {
+            return proposal.replacingUnspecifiedDimensions()
+        }
+
+        var size = proposal.replacingUnspecifiedDimensions()
+        if layoutProperties.stackOrientation == .horizontal {
+            size.height = 0
+        } else if layoutProperties.stackOrientation == .vertical {
+            size.width = 0
+        }
+
+        return size
+
     }
 }

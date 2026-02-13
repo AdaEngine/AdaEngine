@@ -69,11 +69,13 @@ typedef struct font_glyph_s font_glyph_t;
 
 struct font_generator_s* font_atlas_generator_create(const char* fontPath, const char* fontName,
                                                      struct font_atlas_descriptor fontDescriptor);
+void font_atlas_generator_destroy(struct font_generator_s* generator);
 
 struct font_handle_s* font_atlas_generator_get_font_data(struct font_generator_s* generator);
 void font_handle_destroy(struct font_handle_s *fontHandle);
 
 AtlasBitmap* font_atlas_generator_generate_bitmap(struct font_generator_s* generator);
+void font_atlas_bitmap_destroy(AtlasBitmap* bitmap);
 
 const char* font_geometry_get_name(struct font_handle_s* fontData);
 double font_geometry_get_scale(struct font_handle_s* fontData);
@@ -87,6 +89,7 @@ FontMetrics font_geometry_get_metrics(struct font_handle_s* fontData);
 // MARK: GLYPH
 
 struct font_glyph_s* font_handle_get_glyph_unicode(struct font_handle_s* fontData, uint32_t unicode);
+void font_glyph_destroy(struct font_glyph_s* glyph);
 double font_glyph_get_advance(struct font_glyph_s *glyph);
 void font_glyph_get_quad_atlas_bounds(struct font_glyph_s *glyph, double* l, double* b, double* r, double* t);
 void font_glyph_get_quad_plane_bounds(struct font_glyph_s *glyph, double* pl, double* pb, double* pr, double* pt);

@@ -12,7 +12,6 @@ class LayoutViewContainerNode: ViewContainerNode {
     
     let layout: AnyLayout
     private var cache: AnyLayout.Cache?
-    private var subviews: LayoutSubviews?
 
     init<L: Layout, Content: View>(layout: L, content: Content, nodes: [ViewNode]) {
         self.layout = AnyLayout(layout)
@@ -43,10 +42,7 @@ class LayoutViewContainerNode: ViewContainerNode {
     /// Subclasses like ``ScrollViewNode`` use this to place children within
     /// the content area instead of the visible frame.
     func performLayout(in bounds: Rect, proposal: ProposedViewSize) {
-        self.subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
-        guard let subviews else {
-            return
-        }
+        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
 
         if var cache = self.cache {
             layout.updateCache(&cache, subviews: subviews)
@@ -78,10 +74,7 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        guard let subviews else {
-            return .zero
-        }
-
+        let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
         if var cache = self.cache {
             layout.updateCache(&cache, subviews: subviews)
             self.cache = cache

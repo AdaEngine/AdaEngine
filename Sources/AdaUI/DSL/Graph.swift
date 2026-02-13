@@ -33,7 +33,7 @@ final class ViewGraph {
 
 @MainActor
 public struct _ViewInputs {
-    var parentNode: ViewNode?
+    weak var parentNode: ViewNode?
     var layout: any Layout = VStackLayout()
     var environment: EnvironmentValues
     var propertyStorages: [PropertyStoragable] = []

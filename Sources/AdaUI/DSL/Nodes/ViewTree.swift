@@ -49,11 +49,15 @@ final class ViewRootNode: ViewNode {
         super.init(content: content)
         
         self.contentNode.parent = self
-        self.environment.coordinateSpaces.containers[Self.rootCoordinateSpace.name] = self
+        self.environment.coordinateSpaces.compact()
+        self.environment.coordinateSpaces.containers[Self.rootCoordinateSpace.name] = WeakBox(self)
     }
 
     override func performLayout() {
-        let proposal = ProposedViewSize(width: self.frame.width, height: self.frame.height)
+        let proposal = ProposedViewSize(
+            width: self.frame.width,
+            height: self.frame.height
+        )
 
         self.contentNode.place(
             in: Point(self.frame.midX, self.frame.midY),
@@ -63,7 +67,7 @@ final class ViewRootNode: ViewNode {
     }
 
     override func updateEnvironment(_ environment: EnvironmentValues) {
-        contentNode.updateEnvironment(environment)
+        contentNode.mergeEnvironment(environment)
     }
 
     override func update(_ deltaTime: AdaUtils.TimeInterval) {

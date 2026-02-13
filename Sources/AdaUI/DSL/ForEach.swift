@@ -22,7 +22,7 @@ public struct ForEach<Data: RandomAccessCollection, ID: Hashable, Content: View>
         let contentBlock = view[\.content].value
         let idProvider = view[\.idProvider].value
 
-        let node = LayoutViewContainerNode(layout: inputs.layout, content: view.value) { listInputs in
+        let node = LayoutViewContainerNode(layout: inputs.layout, content: view.value) { [contentBlock] listInputs in
             let outputs = data.map { item in
                 let content = contentBlock(item)
                 if let idProvider {

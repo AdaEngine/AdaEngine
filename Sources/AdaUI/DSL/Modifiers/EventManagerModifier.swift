@@ -50,6 +50,10 @@ private final class EventManagerNode<E: Event>: ViewModifierNode {
         self.cancellable = manager.subscribe(to: E.self, completion: completion)
         super.init(contentNode: contentNode, content: content)
     }
+
+    deinit {
+        cancellable.cancel()
+    }
 }
 
 struct EventManagerEnvironmentKey: EnvironmentKey {

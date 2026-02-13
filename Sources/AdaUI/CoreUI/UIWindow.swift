@@ -122,7 +122,9 @@ open class UIWindow: UIView {
     }
 
     func consumeDirtyRect() -> Rect? {
-        defer { dirtyRect = nil }
+        defer {
+            dirtyRect = nil
+        }
         return dirtyRect
     }
 

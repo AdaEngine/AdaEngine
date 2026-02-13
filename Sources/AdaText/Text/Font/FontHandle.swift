@@ -87,7 +87,7 @@ extension FontHandle {
         }
         
         deinit {
-            unsafe self.ref.deallocate()
+            unsafe font_glyph_destroy(self.ref)
         }
         
         var advance: Double {
@@ -101,13 +101,5 @@ extension FontHandle {
         func getQuadPlaneBounds(_ pl: inout Double, _ pb: inout Double, _ pr: inout Double, _ pt: inout Double) {
             unsafe font_glyph_get_quad_plane_bounds(self.ref, &pl, &pb, &pr, &pt)
         }
-    }
-}
-
-extension OpaquePointer {
-
-    // TODO: Should we deallocate it in this place?
-    func deallocate() {
-        unsafe UnsafeRawPointer(self).deallocate()
     }
 }

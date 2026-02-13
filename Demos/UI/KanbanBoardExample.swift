@@ -22,7 +22,13 @@ struct KanbanBoardView: View {
 
     @State private var tasks: [TaskItem] = TaskItem.sample
 
+    init() {
+        print("init")
+    }
+
     var body: some View {
+        let _ = Self._printChanges()
+
         ZStack {
             BoardPalette.background
 
@@ -31,20 +37,22 @@ struct KanbanBoardView: View {
 
                 Divider()
 
-                ScrollView([.vertical, .horizontal]) {
-                    HStack(alignment: .top, spacing: 16) {
-                        ForEach(TaskStatus.allCases, id: \.self) { status in
-                            KanbanColumnView(
-                                status: status,
-                                tasks: tasks.filter { $0.status == status },
-                                onMoveLeft: { move($0, direction: -1) },
-                                onMoveRight: { move($0, direction: 1) }
-                            )
-                            .frame(width: 260)
-                        }
-                    }
-                    .padding(16)
-                }
+                Spacer()
+
+//                ScrollView([.vertical, .horizontal]) {
+//                    HStack(alignment: .top, spacing: 16) {
+//                        ForEach(TaskStatus.allCases, id: \.self) { status in
+//                            KanbanColumnView(
+//                                status: status,
+//                                tasks: tasks.filter { $0.status == status },
+//                                onMoveLeft: { move($0, direction: -1) },
+//                                onMoveRight: { move($0, direction: 1) }
+//                            )
+//                            .frame(width: 260)
+//                        }
+//                    }
+//                    .padding(16)
+//                }
             }
             .padding(16)
         }

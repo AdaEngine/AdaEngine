@@ -43,7 +43,7 @@ public struct Binding<T>: UpdatableProperty {
         }
         self.setValue = { newValue in
             unsafe storage.value = newValue
-            Task { @MainActor in
+            MainActor.assumeIsolated {
                 storage.update()
             }
         }
