@@ -174,6 +174,7 @@ class ViewContainerNode: ViewNode {
 
         let currentOwner = self.owner
         for node in nodes {
+            node.updateLayoutProperties(layoutProperties)
             node.updateEnvironment(environment)
 
             if let currentOwner, node.owner !== currentOwner {

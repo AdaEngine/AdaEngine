@@ -35,23 +35,30 @@ final class SpacerViewNode: ViewNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        if proposal == .zero {
-            return .zero
-        }
+        let minLength = self.minLength ?? 0
 
-        var size = proposal.replacingUnspecifiedDimensions()
-        if let minLength {
-            size = proposal.replacingUnspecifiedDimensions(by: Size(width: minLength, height: minLength))
+        switch layoutProperties.stackOrientation {
+        case .horizontal:
+            if proposal == .zero {
+                return Size(width: minLength, height: 0)
+            }
+            let width = max(proposal.width ?? minLength, minLength)
+            return Size(width: width, height: 0)
+        case .vertical:
+            if proposal == .zero {
+                return Size(width: 0, height: minLength)
+            }
+            let height = max(proposal.height ?? minLength, minLength)
+            return Size(width: 0, height: height)
+        default:
+            if proposal == .zero {
+                return Size(width: minLength, height: minLength)
+            }
+
+            var size = proposal.replacingUnspecifiedDimensions(by: Size(width: minLength, height: minLength))
             size.width = max(size.width, minLength)
             size.height = max(size.height, minLength)
+            return size
         }
-
-        if layoutProperties.stackOrientation == .horizontal {
-            size.height = 0
-        } else if layoutProperties.stackOrientation == .vertical {
-            size.width = 0
-        }
-
-        return size
     }
 }

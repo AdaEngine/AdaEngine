@@ -52,7 +52,7 @@ public struct HStackLayout: Layout {
             cache.maxSizes.append(maxSize)
             cache.maxSize += maxSize
 
-            if index != subviews.startIndex && index != subviews.endIndex {
+            if index != subviews.startIndex {
                 let space = self.spacing ?? 8
                 cache.totalSubviewSpacing += space
                 cache.subviewSpacings.append(space)
@@ -63,25 +63,31 @@ public struct HStackLayout: Layout {
     }
 
     public func sizeThatFits(_ proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> Size {
-        let size = proposal.replacingUnspecifiedDimensions()
-
         if proposal == .zero {
-            return Size(width: cache.minSize.width + cache.totalSubviewSpacing, height: size.height)
+            let minHeight = cache.minSizes.reduce(Float.zero) { max($0, $1.height) }
+            return Size(width: cache.minSize.width + cache.totalSubviewSpacing, height: minHeight)
         }
 
-        let idealSize = subviews.reduce(Size.zero) { partialResult, subview in
-            var newSize = partialResult
-            let idealSize = subview.sizeThatFits(ProposedViewSize(height: size.height))
-            newSize.width += idealSize.width
-            newSize.height = max(partialResult.height, proposal.height ?? idealSize.height)
-            return newSize
+        let proposedHeight = finiteDimension(proposal.height)
+        let idealSizes = subviews.enumerated().map { index, subview in
+            let measured = subview.sizeThatFits(ProposedViewSize(height: proposedHeight))
+            return sanitized(size: measured, fallback: cache.minSizes[index])
+        }
+        let idealSize = idealSizes.reduce(Size.zero) { partialResult, subviewSize in
+            Size(
+                width: partialResult.width + subviewSize.width,
+                height: max(partialResult.height, subviewSize.height)
+            )
+        }
+        let hasFlexibleSubviews = zip(cache.maxSizes, idealSizes).contains { maxSize, idealSize in
+            maxSize.width > idealSize.width
         }
 
-        if proposal.width == nil {
+        guard let proposedWidth = finiteDimension(proposal.width), hasFlexibleSubviews else {
             return Size(width: idealSize.width + cache.totalSubviewSpacing, height: idealSize.height)
         }
 
-        let width = min(max(idealSize.width, size.width - cache.totalSubviewSpacing), cache.maxSize.width)
+        let width = min(max(idealSize.width, proposedWidth - cache.totalSubviewSpacing), cache.maxSize.width)
 
         return Size(
             width: width + cache.totalSubviewSpacing,
@@ -90,8 +96,6 @@ public struct HStackLayout: Layout {
     }
 
     public func placeSubviews(in bounds: Rect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
-        let size = proposal.replacingUnspecifiedDimensions()
-
         var origin: Point = bounds.origin
         var anchor: AnchorPoint = .leading
         
@@ -107,17 +111,30 @@ public struct HStackLayout: Layout {
             origin.y = bounds.midY
         }
         var idealWidth: Float = 0
-        let idealSizes: [Size] = subviews.map { subview in
-            let size = subview.sizeThatFits(ProposedViewSize(height: size.height))
-            idealWidth += size.width
-            return size
+        let proposedHeight = finiteDimension(proposal.height)
+        let idealSizes: [Size] = subviews.enumerated().map { index, subview in
+            let size = subview.sizeThatFits(ProposedViewSize(height: proposedHeight))
+            let sanitizedSize = sanitized(size: size, fallback: cache.minSizes[index])
+            idealWidth += sanitizedSize.width
+            return sanitizedSize
+        }
+        let hasFlexibleSubviews = zip(cache.maxSizes, idealSizes).contains { maxSize, idealSize in
+            maxSize.width > idealSize.width
         }
 
-        let layoutWidth = min(cache.maxSize.width + cache.totalSubviewSpacing, bounds.width)
+        let layoutWidth: Float
+        if hasFlexibleSubviews {
+            layoutWidth = min(cache.maxSize.width + cache.totalSubviewSpacing, bounds.width)
+        } else {
+            layoutWidth = min(idealWidth + cache.totalSubviewSpacing, bounds.width)
+        }
         origin.x += (bounds.width - layoutWidth) * 0.5
 
-        var restOfFlexibleViews = zip(cache.maxSizes, idealSizes).reduce(Int.zero) { count, sizes in
-            return count + (sizes.0.width > sizes.1.width ? 1 : 0)
+        var restOfFlexibleViews = (0..<subviews.count).reduce(Int.zero) { count, index in
+            let maxWidth = cache.maxSizes[index].width
+            let idealWidth = idealSizes[index].width
+            let isFlexible = maxWidth > idealWidth
+            return count + (isFlexible ? 1 : 0)
         }
 
         var availableSpace = max(layoutWidth - idealWidth - cache.totalSubviewSpacing, 0)
@@ -126,7 +143,7 @@ public struct HStackLayout: Layout {
             var idealWidth = idealSizes[index].width
             let maxWidth = cache.maxSizes[index].width
 
-            let isFlexible = idealWidth < maxWidth
+            let isFlexible = maxWidth > idealWidth
 
             if isFlexible && restOfFlexibleViews > 0 {
                 let slot = max(availableSpace, 0) / Float(restOfFlexibleViews)
@@ -137,7 +154,7 @@ public struct HStackLayout: Layout {
 
             origin.x += cache.subviewSpacings[index]
 
-            let proposal = ProposedViewSize(width: idealWidth, height: bounds.height)
+            let proposal = ProposedViewSize(width: idealWidth, height: idealSizes[index].height)
             subview.place(at: origin, anchor: anchor, proposal: proposal)
 
             let newWidth = subview.dimensions(in: proposal).width
@@ -148,6 +165,23 @@ public struct HStackLayout: Layout {
 
             origin.x += newWidth
         }
+    }
+
+    @inline(__always)
+    private func finiteDimension(_ value: Float?) -> Float? {
+        guard let value, value.isFinite else {
+            return nil
+        }
+
+        return value
+    }
+
+    @inline(__always)
+    private func sanitized(size: Size, fallback: Size) -> Size {
+        Size(
+            width: size.width.isFinite ? size.width : fallback.width,
+            height: size.height.isFinite ? size.height : fallback.height
+        )
     }
 
 }
