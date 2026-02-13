@@ -11,24 +11,37 @@ import Math
 class LayoutViewContainerNode: ViewContainerNode {
     
     let layout: AnyLayout
+    private let inherentLayoutProperties: LayoutProperties
     private var cache: AnyLayout.Cache?
+
+    private var shouldBypassLayout: Bool {
+        nodes.count == 1 && inherentLayoutProperties.stackOrientation == nil
+    }
 
     init<L: Layout, Content: View>(layout: L, content: Content, nodes: [ViewNode]) {
         self.layout = AnyLayout(layout)
+        self.inherentLayoutProperties = L.layoutProperties
         super.init(content: content, nodes: nodes)
-        self.updateLayoutProperties(L.layoutProperties)
+        super.updateLayoutProperties(inherentLayoutProperties)
     }
 
     init<L: Layout, Content: View>(layout: L, content: @escaping () -> Content) {
         self.layout = AnyLayout(layout)
+        self.inherentLayoutProperties = L.layoutProperties
         super.init(content: content)
-        self.updateLayoutProperties(L.layoutProperties)
+        super.updateLayoutProperties(inherentLayoutProperties)
     }
 
     init<L: Layout, Content: View>(layout: L, content: Content, body: @escaping (_ViewListInputs) -> _ViewListOutputs) {
         self.layout = AnyLayout(layout)
+        self.inherentLayoutProperties = L.layoutProperties
         super.init(content: content, body: body)
-        self.updateLayoutProperties(L.layoutProperties)
+        super.updateLayoutProperties(inherentLayoutProperties)
+    }
+
+    override func updateLayoutProperties(_ props: LayoutProperties) {
+        let resolvedProps = inherentLayoutProperties.stackOrientation == nil ? props : inherentLayoutProperties
+        super.updateLayoutProperties(resolvedProps)
     }
 
     override func performLayout() {
@@ -42,6 +55,12 @@ class LayoutViewContainerNode: ViewContainerNode {
     /// Subclasses like ``ScrollViewNode`` use this to place children within
     /// the content area instead of the visible frame.
     func performLayout(in bounds: Rect, proposal: ProposedViewSize) {
+        if shouldBypassLayout, let node = self.nodes.first {
+            node.place(in: bounds.origin, anchor: .topLeading, proposal: proposal)
+            self.invalidateLayerIfNeeded()
+            return
+        }
+
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
 
         if var cache = self.cache {
@@ -74,6 +93,10 @@ class LayoutViewContainerNode: ViewContainerNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
+        if shouldBypassLayout, let node = self.nodes.first {
+            return node.sizeThatFits(proposal)
+        }
+
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
         if var cache = self.cache {
             layout.updateCache(&cache, subviews: subviews)

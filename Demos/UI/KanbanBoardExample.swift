@@ -37,9 +37,7 @@ struct KanbanBoardView: View {
 
                 Divider()
 
-//                Spacer()
-
-                ScrollView([.vertical, .horizontal]) {
+                ScrollView(.horizontal) {
                     HStack(alignment: .top, spacing: 16) {
                         ForEach(TaskStatus.allCases, id: \.self) { status in
                             KanbanColumnView(

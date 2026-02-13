@@ -28,7 +28,7 @@ public struct ScrollView<Content: View>: View, ViewNodeBuilder {
     }
 
     func buildViewNode(in context: BuildContext) -> ViewNode {
-        let node = ScrollViewNode(layout: context.layout, content: content)
+        let node = ScrollViewNode(layout: ZStackLayout(anchor: .topLeading), content: content)
         node.axis = self.axis
         node.updateEnvironment(context.environment)
         context.environment.scrollViewProxy?.subsribe(node)
@@ -47,22 +47,26 @@ final class ScrollViewNode: LayoutViewContainerNode {
     private var contentSize: Size = .zero
 
     override func performLayout() {
-        let proposedWidth: Float? = axis.contains(.horizontal) ? nil : self.frame.width
-        let proposedHeight: Float? = axis.contains(.vertical) ? nil : self.frame.height
+        let viewportSize = self.frame.size
+        let proposedWidth: Float? = axis.contains(.horizontal) ? nil : viewportSize.width
+        let proposedHeight: Float? = axis.contains(.vertical) ? nil : viewportSize.height
         let proposal = ProposedViewSize(width: proposedWidth, height: proposedHeight)
-        self.contentSize = super.sizeThatFits(proposal)
+        let measuredContentSize = super.sizeThatFits(proposal)
 
-        let width = max(0, contentSize.width - frame.width)
-        let height = max(0, contentSize.height - frame.height)
+        let measuredWidth = measuredContentSize.width.isFinite ? measuredContentSize.width : viewportSize.width
+        let measuredHeight = measuredContentSize.height.isFinite ? measuredContentSize.height : viewportSize.height
+
+        let contentWidth = axis.contains(.horizontal) ? max(measuredWidth, viewportSize.width) : viewportSize.width
+        let contentHeight = axis.contains(.vertical) ? max(measuredHeight, viewportSize.height) : viewportSize.height
+        self.contentSize = Size(width: contentWidth, height: contentHeight)
+
+        let width = max(0, contentSize.width - viewportSize.width)
+        let height = max(0, contentSize.height - viewportSize.height)
         self.contentOffsetBounds = Rect(x: 0, y: 0, width: width, height: height)
         self.contentOffset = clampOffset(self.contentOffset)
-
-        let contentWidth = axis.contains(.horizontal) ? contentSize.width : frame.width
-        let contentHeight = axis.contains(.vertical) ? contentSize.height : frame.height
-        let contentBounds = Size(width: contentWidth, height: contentHeight)
         super.performLayout(
-            in: Rect(origin: .zero, size: contentBounds),
-            proposal: ProposedViewSize(contentBounds)
+            in: Rect(origin: .zero, size: contentSize),
+            proposal: ProposedViewSize(contentSize)
         )
     }
 
@@ -79,7 +83,28 @@ final class ScrollViewNode: LayoutViewContainerNode {
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {
-        return proposal.replacingUnspecifiedDimensions()
+        if proposal == .zero {
+            return .zero
+        }
+
+        let proposedWidth = finiteDimension(proposal.width)
+        let proposedHeight = finiteDimension(proposal.height)
+        let contentProposal = ProposedViewSize(
+            width: axis.contains(.horizontal) ? nil : proposedWidth,
+            height: axis.contains(.vertical) ? nil : proposedHeight
+        )
+        let measuredContentSize = super.sizeThatFits(contentProposal)
+
+        let width = resolvedDimension(
+            proposed: proposal.width,
+            measured: measuredContentSize.width
+        )
+        let height = resolvedDimension(
+            proposed: proposal.height,
+            measured: measuredContentSize.height
+        )
+
+        return Size(width: max(0, width), height: max(0, height))
     }
 
     enum State {
@@ -176,5 +201,27 @@ final class ScrollViewNode: LayoutViewContainerNode {
 
         let clampedOffset = clampOffset(offset)
         setContentOffset(clampedOffset)
+    }
+
+    @inline(__always)
+    private func finiteDimension(_ value: Float?) -> Float? {
+        guard let value, value.isFinite else {
+            return nil
+        }
+
+        return value
+    }
+
+    @inline(__always)
+    private func resolvedDimension(proposed: Float?, measured: Float) -> Float {
+        if proposed == .infinity {
+            return .infinity
+        }
+
+        if let proposed, proposed.isFinite {
+            return proposed
+        }
+
+        return measured.isFinite ? measured : 0
     }
 }
