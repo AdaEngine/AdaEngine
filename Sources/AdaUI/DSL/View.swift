@@ -23,7 +23,7 @@ public protocol View {
 extension View {
     @MainActor @preconcurrency
     public static func _makeView(_ view: _ViewGraphNode<Self>, inputs: _ViewInputs) -> _ViewOutputs {
-        let stateContainer = ViewStateContainer()
+        let stateContainer = inputs.requiresStateContainer(for: view.value) ? ViewStateContainer() : nil
         let resolvedInputs = inputs.resolveStorages(in: view.value, stateContainer: stateContainer)
 
         if let builder = view.value as? ViewNodeBuilder {
@@ -54,7 +54,7 @@ extension View {
 
     @MainActor @preconcurrency
     public static func _makeListView(_ view: _ViewGraphNode<Self>, inputs: _ViewListInputs) -> _ViewListOutputs {
-        let stateContainer = ViewStateContainer()
+        let stateContainer = inputs.input.requiresStateContainer(for: view.value) ? ViewStateContainer() : nil
         let resolvedInputs = inputs.input.resolveStorages(in: view.value, stateContainer: stateContainer)
 
         if let builder = view.value as? ViewNodeBuilder {

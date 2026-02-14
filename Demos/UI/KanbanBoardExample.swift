@@ -37,7 +37,7 @@ struct KanbanBoardView: View {
 
                 Divider()
 
-                ScrollView(.horizontal) {
+                ScrollView([.vertical, .horizontal]) {
                     HStack(alignment: .top, spacing: 16) {
                         ForEach(TaskStatus.allCases, id: \.self) { status in
                             KanbanColumnView(
@@ -143,7 +143,6 @@ struct KanbanColumnView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(tasks) { task in
-                    //                    Text(task.title)
                     TaskCardView(
                         task: task,
                         canMoveLeft: status.canMoveLeft,
@@ -160,7 +159,6 @@ struct KanbanColumnView: View {
         .padding(12)
         .background(BoardPalette.columnBackground)
         .border(BoardPalette.columnBorder)
-//        .drawingGroup()
     }
 }
 

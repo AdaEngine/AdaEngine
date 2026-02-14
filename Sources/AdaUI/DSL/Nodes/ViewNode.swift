@@ -42,7 +42,7 @@ class ViewNode: Identifiable {
     private(set) weak var owner: ViewOwner?
     /// hold storages that can invalidate that view node.
     var storages: WeakSet<UpdatablePropertyStorage> = []
-    var stateContainer: ViewStateContainer = ViewStateContainer()
+    var stateContainer: ViewStateContainer?
 
     private var isAttached: Bool {
         return owner != nil

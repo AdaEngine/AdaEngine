@@ -73,6 +73,13 @@ public struct _ViewInputs {
         return newSelf
     }
 
+    func requiresStateContainer<T>(for content: T) -> Bool {
+        let mirror = Mirror(reflecting: content)
+        return mirror.children.contains { _, property in
+            property is ViewStateBindable
+        }
+    }
+
     /// Inflate all found storages to view node.
     @MainActor
     func registerNodeForStorages(_ node: ViewNode) {
