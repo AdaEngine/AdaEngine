@@ -234,16 +234,14 @@ public struct UIRenderTesselationSystem {
         var renderData: UIDrawData = UIDrawData()
         var drawDataItems: [UIDrawData] = []
         var currentLineWidth: Float = 1.0
-        var textureSlotIndex: Int = 0
-        var fontAtlasSlotIndex: Int = 0
         var currentClipRect: Rect?
         var clipStack: [Rect?] = []
 
         init(currentClipRect: Rect? = nil, clipStack: [Rect?] = []) {
             self.currentClipRect = currentClipRect
             self.clipStack = clipStack
-            renderData.textures = [Texture2D](repeating: .whiteTexture, count: UIRenderTesselationSystem.maxTexturesPerBatch)
-            renderData.fontAtlases = [Texture2D](repeating: .whiteTexture, count: UIRenderTesselationSystem.maxTexturesPerBatch)
+            renderData.textures = [.whiteTexture]
+            renderData.fontAtlases = []
             renderData.clipRect = currentClipRect
         }
     }
@@ -332,11 +330,21 @@ public struct UIRenderTesselationSystem {
             state.currentLineWidth = lineWidth
 
         case let .drawQuad(transform, texture, color):
-            let texIndex = findOrAddTexture(
-                texture,
-                in: &state.renderData.textures,
-                slotIndex: &state.textureSlotIndex
+            let textureToUse = texture ?? .whiteTexture
+            var texIndex = findOrAddTexture(
+                textureToUse,
+                in: &state.renderData.textures
             )
+            if texIndex == nil {
+                flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+                texIndex = findOrAddTexture(
+                    textureToUse,
+                    in: &state.renderData.textures
+                )
+            }
+            guard let texIndex else {
+                return
+            }
 
             let vertexOffset = UInt32(state.renderData.quadVertexBuffer.count)
             let vertices = tessellator.tessellateQuad(
@@ -452,8 +460,8 @@ public struct UIRenderTesselationSystem {
                             transform: transform,
                             offset: glyphOffset,
                             tessellator: tessellator,
-                            fontAtlasSlotIndex: &state.fontAtlasSlotIndex,
-                            renderData: &state.renderData
+                            state: &state,
+                            renderDevice: renderDevice
                         )
                     }
                 }
@@ -464,8 +472,8 @@ public struct UIRenderTesselationSystem {
                 glyph,
                 transform: transform,
                 tessellator: tessellator,
-                fontAtlasSlotIndex: &state.fontAtlasSlotIndex,
-                renderData: &state.renderData
+                state: &state,
+                renderDevice: renderDevice
             )
 
         case .commit:
@@ -476,29 +484,22 @@ public struct UIRenderTesselationSystem {
     // MARK: - Private Helpers
 
     private func findOrAddTexture(
-        _ texture: Texture2D?,
-        in textures: inout [Texture2D],
-        slotIndex: inout Int
-    ) -> Int {
-        guard let texture = texture else {
-            // Use white texture at index 0
-            return 0
-        }
-
+        _ texture: Texture2D,
+        in textures: inout [Texture2D]
+    ) -> Int? {
         // Check if texture already exists
         if let existingIndex = textures.firstIndex(where: { $0 === texture }) {
             return existingIndex
         }
 
-        // Add new texture if we have room
-        if slotIndex < Self.maxTexturesPerBatch - 1 {
-            slotIndex += 1
-            textures[slotIndex] = texture
-            return slotIndex
+        // Add new texture if we have room.
+        if textures.count < Self.maxTexturesPerBatch {
+            textures.append(texture)
+            return textures.count - 1
         }
 
-        // Fallback to white texture if batch is full
-        return 0
+        // Batch is full: caller should flush and retry.
+        return nil
     }
 
     private func tessellateGlyph(
@@ -506,31 +507,40 @@ public struct UIRenderTesselationSystem {
         transform: Transform3D,
         offset: Vector2 = .zero,
         tessellator: UITessellator,
-        fontAtlasSlotIndex: inout Int,
-        renderData: inout UIDrawData
+        state: inout DrawBuildState,
+        renderDevice: any RenderDevice
     ) {
-        let texIndex = findOrAddTexture(
+        var texIndex = findOrAddTexture(
             glyph.textureAtlas,
-            in: &renderData.fontAtlases,
-            slotIndex: &fontAtlasSlotIndex
+            in: &state.renderData.fontAtlases
         )
+        if texIndex == nil {
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+            texIndex = findOrAddTexture(
+                glyph.textureAtlas,
+                in: &state.renderData.fontAtlases
+            )
+        }
+        guard let texIndex else {
+            return
+        }
 
-        let vertexOffset = UInt32(renderData.glyphVertexBuffer.count)
+        let vertexOffset = UInt32(state.renderData.glyphVertexBuffer.count)
         let vertices = tessellator.tessellateGlyph(
             glyph,
             transform: transform,
             textureIndex: texIndex,
             offset: offset
         )
-        renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
-        let indexStart = renderData.glyphIndexBuffer.count
+        state.renderData.glyphVertexBuffer.elements.append(contentsOf: vertices)
+        let indexStart = state.renderData.glyphIndexBuffer.count
         let indices = tessellator.generateGlyphIndices(vertexOffset: vertexOffset)
-        renderData.glyphIndexBuffer.elements.append(contentsOf: indices)
+        state.renderData.glyphIndexBuffer.elements.append(contentsOf: indices)
         appendBatch(
             textureIndex: texIndex,
             indexStart: indexStart,
             indexCount: indices.count,
-            batches: &renderData.glyphBatches
+            batches: &state.renderData.glyphBatches
         )
     }
 

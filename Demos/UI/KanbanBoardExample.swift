@@ -173,32 +173,32 @@ struct TaskCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-//            HStack(alignment: .center, spacing: 6) {
-//                Text(task.title)
-//                    .fontSize(14)
-//
-//                Spacer()
-//
-//                if let tag = task.tag {
-//                    TagView(text: tag, color: task.status.color)
-//                }
-//            }
+            HStack(alignment: .center, spacing: 6) {
+                Text(task.title)
+                    .fontSize(14)
+
+                Spacer()
+
+                if let tag = task.tag {
+                    TagView(text: tag, color: task.status.color)
+                }
+            }
 
             Text(task.detail)
                 .fontSize(11)
                 .foregroundColor(BoardPalette.textSecondary)
 
-//            HStack(alignment: .center, spacing: 6) {
-//                if canMoveLeft {
-//                    MiniButton(title: "←", action: onMoveLeft)
-//                }
-//
-//                Spacer()
-//
-//                if canMoveRight {
-//                    MiniButton(title: "→", action: onMoveRight)
-//                }
-//            }
+            HStack(alignment: .center, spacing: 6) {
+                if canMoveLeft {
+                    MiniButton(title: "<", action: onMoveLeft)
+                }
+
+                Spacer()
+
+                if canMoveRight {
+                    MiniButton(title: ">", action: onMoveRight)
+                }
+            }
         }
         .padding(10)
         .background(BoardPalette.cardBackground)
