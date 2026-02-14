@@ -132,8 +132,6 @@ class ViewNode: Identifiable {
             let oldAbsolute = absoluteFrame(using: oldFrame)
             let newAbsolute = absoluteFrame(using: newFrame)
             containerView.setNeedsDisplay(in: oldAbsolute.union(newAbsolute))
-        } else {
-            self.owner?.containerView?.setNeedsDisplay()
         }
     }
 

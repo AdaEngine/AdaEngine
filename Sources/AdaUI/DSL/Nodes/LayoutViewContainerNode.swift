@@ -6,6 +6,7 @@
 //
 
 import Math
+import AdaUtils
 
 /// The container that can layout it childs with specific ``Layout``.
 class LayoutViewContainerNode: ViewContainerNode {
@@ -13,6 +14,7 @@ class LayoutViewContainerNode: ViewContainerNode {
     let layout: AnyLayout
     private let inherentLayoutProperties: LayoutProperties
     private var cache: AnyLayout.Cache?
+    private var cacheNeedsUpdate = true
 
     private var shouldBypassLayout: Bool {
         nodes.count == 1 && inherentLayoutProperties.stackOrientation == nil
@@ -42,6 +44,7 @@ class LayoutViewContainerNode: ViewContainerNode {
     override func updateLayoutProperties(_ props: LayoutProperties) {
         let resolvedProps = inherentLayoutProperties.stackOrientation == nil ? props : inherentLayoutProperties
         super.updateLayoutProperties(resolvedProps)
+        cacheNeedsUpdate = true
     }
 
     override func performLayout() {
@@ -62,13 +65,7 @@ class LayoutViewContainerNode: ViewContainerNode {
         }
 
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
-
-        if var cache = self.cache {
-            layout.updateCache(&cache, subviews: subviews)
-            self.cache = cache
-        } else {
-            self.cache = layout.makeCache(subviews: subviews)
-        }
+        ensureCache(for: subviews)
 
         guard var cache else {
             return
@@ -89,6 +86,7 @@ class LayoutViewContainerNode: ViewContainerNode {
         var inputs = _ViewInputs(parentNode: self, environment: self.environment)
         inputs.layout = self.layout
         let listInputs = _ViewListInputs(input: inputs)
+        cacheNeedsUpdate = true
         self.invalidateContent(with: listInputs)
     }
 
@@ -98,17 +96,38 @@ class LayoutViewContainerNode: ViewContainerNode {
         }
 
         let subviews = LayoutSubviews(self.nodes.map { LayoutSubview(node: $0) })
-        if var cache = self.cache {
-            layout.updateCache(&cache, subviews: subviews)
-            self.cache = cache
-        } else {
-            self.cache = layout.makeCache(subviews: subviews)
-        }
+        ensureCache(for: subviews)
 
         guard var cache else {
             return proposal.replacingUnspecifiedDimensions()
         }
 
         return layout.sizeThatFits(proposal, subviews: subviews, cache: &cache)
+    }
+
+    override func updateEnvironment(_ environment: EnvironmentValues) {
+        super.updateEnvironment(environment)
+        cacheNeedsUpdate = true
+    }
+
+    override func update(from newNode: ViewNode) {
+        cacheNeedsUpdate = true
+        super.update(from: newNode)
+    }
+
+    private func ensureCache(for subviews: LayoutSubviews) {
+        if cache == nil {
+            cache = layout.makeCache(subviews: subviews)
+            cacheNeedsUpdate = false
+            return
+        }
+
+        guard cacheNeedsUpdate, var cache else {
+            return
+        }
+
+        layout.updateCache(&cache, subviews: subviews)
+        self.cache = cache
+        cacheNeedsUpdate = false
     }
 }
