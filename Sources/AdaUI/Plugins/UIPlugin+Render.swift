@@ -236,10 +236,15 @@ public struct UIRenderTesselationSystem {
         var currentLineWidth: Float = 1.0
         var textureSlotIndex: Int = 0
         var fontAtlasSlotIndex: Int = 0
+        var currentClipRect: Rect?
+        var clipStack: [Rect?] = []
 
-        init() {
+        init(currentClipRect: Rect? = nil, clipStack: [Rect?] = []) {
+            self.currentClipRect = currentClipRect
+            self.clipStack = clipStack
             renderData.textures = [Texture2D](repeating: .whiteTexture, count: UIRenderTesselationSystem.maxTexturesPerBatch)
             renderData.fontAtlases = [Texture2D](repeating: .whiteTexture, count: UIRenderTesselationSystem.maxTexturesPerBatch)
+            renderData.clipRect = currentClipRect
         }
     }
 
@@ -290,9 +295,14 @@ public struct UIRenderTesselationSystem {
             return nil
         }
 
+        let accumulatedDrawDataItems = state.drawDataItems
         state.renderData.write(to: renderDevice)
         let flushed = state.renderData
-        state = DrawBuildState()
+        state = DrawBuildState(
+            currentClipRect: state.currentClipRect,
+            clipStack: state.clipStack
+        )
+        state.drawDataItems = accumulatedDrawDataItems
         return flushed
     }
 
@@ -305,6 +315,19 @@ public struct UIRenderTesselationSystem {
         switch command {
         case .beginLayer, .endLayer:
             break
+        case let .pushClipRect(rect):
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+            state.clipStack.append(state.currentClipRect)
+            if let currentClipRect = state.currentClipRect {
+                state.currentClipRect = intersectRects(currentClipRect, rect) ?? .zero
+            } else {
+                state.currentClipRect = rect
+            }
+            state.renderData.clipRect = state.currentClipRect
+        case .popClipRect:
+            flushStateIfNeeded(&state, renderDevice: renderDevice).map { state.drawDataItems.append($0) }
+            state.currentClipRect = state.clipStack.popLast() ?? nil
+            state.renderData.clipRect = state.currentClipRect
         case let .setLineWidth(lineWidth):
             state.currentLineWidth = lineWidth
 
@@ -533,6 +556,19 @@ public struct UIRenderTesselationSystem {
                 indexCount: indexCount
             )
         )
+    }
+
+    private func intersectRects(_ lhs: Rect, _ rhs: Rect) -> Rect? {
+        let minX = max(lhs.minX, rhs.minX)
+        let minY = max(lhs.minY, rhs.minY)
+        let maxX = min(lhs.maxX, rhs.maxX)
+        let maxY = min(lhs.maxY, rhs.maxY)
+
+        guard maxX > minX, maxY > minY else {
+            return nil
+        }
+
+        return Rect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 }
 

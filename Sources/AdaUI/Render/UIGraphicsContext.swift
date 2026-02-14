@@ -195,6 +195,30 @@ public struct UIGraphicsContext: Sendable {
         self.commandQueue.push(.commit)
     }
 
+    /// Pushes a clipping rectangle in the current coordinate space.
+    public mutating func pushClipRect(_ rect: Rect) {
+        let scale = max(environment.scaleFactor, 1)
+        let clipped = Rect(
+            x: max(rect.minX * scale, 0),
+            y: max(rect.minY * scale, 0),
+            width: max(rect.width * scale, 0),
+            height: max(rect.height * scale, 0)
+        )
+        commandQueue.push(.pushClipRect(clipped))
+    }
+
+    /// Pops the current clipping rectangle.
+    public func popClipRect() {
+        commandQueue.push(.popClipRect)
+    }
+
+    /// Executes drawing with a clipping rectangle.
+    public mutating func clip(to rect: Rect, draw: (inout UIGraphicsContext) -> Void) {
+        pushClipRect(rect)
+        draw(&self)
+        popClipRect()
+    }
+
     @inlinable
     func applyOpacityIfNeeded(_ color: Color) -> Color {
         if color == .clear {
@@ -203,6 +227,7 @@ public struct UIGraphicsContext: Sendable {
 
         return color.opacity(self.opacity)
     }
+
 }
 
 extension Rect {
@@ -240,6 +265,8 @@ extension UIGraphicsContext {
     public enum DrawCommand: Sendable {
         case beginLayer(id: UInt64, version: UInt64, cacheable: Bool)
         case endLayer(id: UInt64)
+        case pushClipRect(Rect)
+        case popClipRect
         case setLineWidth(Float)
         case drawLine(start: Vector3, end: Vector3, lineWidth: Float, color: Color)
 

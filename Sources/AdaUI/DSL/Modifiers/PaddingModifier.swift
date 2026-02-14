@@ -178,10 +178,11 @@ final class PaddingModifierViewNode: ViewModifierNode {
     }
 
     override func performLayout() {
-        var minX = self.frame.minX
-        var maxX = self.frame.maxX
-        var minY = self.frame.minY
-        var maxY = self.frame.maxY
+        // Child layout must be in local coordinates of this modifier node.
+        var minX: Float = 0
+        var maxX: Float = self.frame.width
+        var minY: Float = 0
+        var maxY: Float = self.frame.height
 
         if self.edges.contains(.leading) {
             minX += insets.leading
