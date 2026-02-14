@@ -110,8 +110,24 @@ public struct UIRenderNode: RenderNode {
             // Set the UI view uniform (not the camera's uniform)
             renderPass.setVertexBuffer(uiViewUniform, slot: GlobalBufferIndex.viewUniform)
             renderPass.setViewport(camera.viewport.rect)
+            let renderTargetScissor = Rect(
+                x: 0,
+                y: 0,
+                width: Float(texture.width),
+                height: Float(texture.height)
+            )
 
-            try renderItems.render(with: renderPass, world: context.world, view: view)
+            for item in renderItems.items {
+                // Reset scissor for each item so clip state from previous draws
+                // never leaks into non-clipped UI primitives.
+                renderPass.setScissorRect(renderTargetScissor)
+                try AnyDrawPass(item.drawPass).render(
+                    with: renderPass,
+                    world: context.world,
+                    view: view,
+                    item: item
+                )
+            }
 
             renderPass.endRenderPass()
             commandBuffer.commit()

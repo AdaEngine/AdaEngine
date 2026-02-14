@@ -182,8 +182,10 @@ final class ScrollViewNode: LayoutViewContainerNode {
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = environment
+        context.pushClipRect(self.absoluteFrame())
         context.translateBy(x: -contentOffset.x, y: -contentOffset.y)
         super.draw(with: context)
+        context.popClipRect()
     }
 
     func scrollToViewNodeIfFoundIt(_ id: AnyHashable, anchor: AnchorPoint? = nil) {
