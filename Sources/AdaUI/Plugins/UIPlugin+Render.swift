@@ -143,6 +143,7 @@ public struct UIRenderTesselationSystem {
 
         let tessellator = UITessellator()
         var sortKey: Float = 0
+        var activeLayerIDs = Set<UInt64>()
 
         contexts.graphicContexts.forEach { graphicsContext in
             var rootState = DrawBuildState()
@@ -151,6 +152,7 @@ public struct UIRenderTesselationSystem {
             for command in graphicsContext.commandQueue.commands {
                 switch command {
                 case let .beginLayer(id, version, cacheable):
+                    activeLayerIDs.insert(id)
                     // Flush current state to preserve draw order.
                     if layerStack.isEmpty {
                         flushStateIfNeeded(&rootState, renderDevice: renderDevice.renderDevice).map { rootState.drawDataItems.append($0) }
@@ -225,6 +227,10 @@ public struct UIRenderTesselationSystem {
                 renderDevice: renderDevice.renderDevice
             ).map { rootState.drawDataItems.append($0) }
             appendRenderItems(rootState.drawDataItems, sortKey: &sortKey)
+        }
+
+        if !layerDrawCache.entries.isEmpty {
+            layerDrawCache.entries = layerDrawCache.entries.filter { activeLayerIDs.contains($0.key) }
         }
 
         buildState.needsRebuild = false

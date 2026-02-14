@@ -93,16 +93,53 @@ public extension FontResource {
         static let defaultEmFontScale: Double = 52
     }
 
+    private struct CacheKey: Hashable {
+        let path: String
+        let emFontScale: Double
+    }
+
+    private final class CacheStore: @unchecked Sendable {
+        private let lock = NSLock()
+        private var values: [CacheKey: FontResource] = [:]
+
+        func get(_ key: CacheKey) -> FontResource? {
+            lock.lock()
+            defer {
+                lock.unlock()
+            }
+            return values[key]
+        }
+
+        func set(_ value: FontResource, for key: CacheKey) {
+            lock.lock()
+            defer {
+                lock.unlock()
+            }
+            values[key] = value
+        }
+    }
+
+    private static let cacheStore = CacheStore()
+
     /// Create custom font from file path.
     /// - Returns: Returns font if font available or null if something went wrong.
     static func custom(fontPath: URL, emFontScale: Double? = nil) -> FontResource? {
+        let resolvedScale = emFontScale ?? Constants.defaultEmFontScale
+        let key = CacheKey(path: fontPath.path, emFontScale: resolvedScale)
+
+        if let cached = cacheStore.get(key) {
+            return cached
+        }
+
         let descriptor = FontDescriptor(
-            emFontScale: emFontScale ?? Constants.defaultEmFontScale
+            emFontScale: resolvedScale
         )
         guard let fontHandle = FontAtlasGenerator.shared.generateAtlas(fontPath: fontPath, fontDescriptor: descriptor) else {
             return nil
         }
-        return FontResource(handle: fontHandle)
+        let resource = FontResource(handle: fontHandle)
+        cacheStore.set(resource, for: key)
+        return resource
     }
     
 }
@@ -114,17 +151,26 @@ public extension FontResource {
     /// Returns default font from AdaEngine bundle.
     static func system(weight: FontWeight = .regular, emFontScale: Double? = nil) -> FontResource {
         do {
+            let resolvedScale = emFontScale ?? Constants.defaultEmFontScale
             var path = "Assets/Fonts/opensans/OpenSans-\(weight.rawValue.capitalized).ttf"
 
-            if let scale = emFontScale {
-                path.append("#emSize=\(scale)")
+            path.append("#emSize=\(resolvedScale)")
+
+            let key = CacheKey(path: path, emFontScale: resolvedScale)
+            if let cached = cacheStore.get(key) {
+                return cached
             }
 
-            return try AssetsManager.loadSync(
+            guard let resource = try AssetsManager.loadSync(
                 FontResource.self, 
                 at: path, 
                 from: .module
-            ).asset
+            ).asset else {
+                fatalError("[Font]: Failed to load system font resource at path \(path)")
+            }
+
+            cacheStore.set(resource, for: key)
+            return resource
         } catch {
             fatalError("[Font]: Something went wrong \(error)")
         }
