@@ -85,17 +85,12 @@ class ViewModifierNode: ViewNode {
     }
 
     override func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
-        guard super.point(inside: point, with: event) else {
+        guard self.point(inside: point, with: event) else {
             return nil
         }
 
         let newPoint = contentNode.convert(point, from: self)
-        if let node = contentNode.hitTest(newPoint, with: event) {
-            return node
-        }
-
-        // Expand hit testing to include modifier area (e.g. padding/background).
-        return contentNode
+        return contentNode.hitTest(newPoint, with: event)
     }
 
     override func updateViewOwner(_ owner: ViewOwner) {
@@ -105,11 +100,11 @@ class ViewModifierNode: ViewNode {
 
     override func point(inside point: Point, with event: any InputEvent) -> Bool {
         if super.point(inside: point, with: event) {
-            let newPoint = contentNode.convert(point, from: self)
-            return contentNode.point(inside: newPoint, with: event)
+            return true
         }
-        
-        return false
+
+        let newPoint = contentNode.convert(point, from: self)
+        return contentNode.point(inside: newPoint, with: event)
     }
 
     override func onMouseEvent(_ event: MouseEvent) {

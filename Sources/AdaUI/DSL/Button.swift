@@ -183,12 +183,19 @@ final class ButtonViewNode: ViewModifierNode {
             default:
                 break
             }
-        case .ended, .cancelled:
+        case .ended:
+            let shouldInvokeAction = event.button == .left && state.contains(.selected)
             state.remove(.selected)
             state.remove(.focused)
             state.remove(.highlighted)
 
-            self.action()
+            if shouldInvokeAction {
+                self.action()
+            }
+        case .cancelled:
+            state.remove(.selected)
+            state.remove(.focused)
+            state.remove(.highlighted)
         }
 
         self.invalidateContent()
