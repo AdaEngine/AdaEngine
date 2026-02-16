@@ -31,7 +31,10 @@ class ViewModifierNode: ViewNode {
 
     override func performLayout() {
         let proposal = ProposedViewSize(self.frame.size)
-        let origin = Point(x: self.frame.midX, y: self.frame.midY)
+        // Child layout must use local coordinates of the modifier node.
+        // Using frame.midX/midY leaks parent origin into child placement and
+        // accumulates offsets through modifier chains.
+        let origin = Point(x: self.frame.width * 0.5, y: self.frame.height * 0.5)
 
         self.contentNode.place(
             in: origin,
@@ -77,6 +80,7 @@ class ViewModifierNode: ViewNode {
     override func draw(with context: UIGraphicsContext) {
         var context = context
         context.environment = environment
+        context.translateBy(x: self.frame.origin.x, y: -self.frame.origin.y)
         contentNode.draw(with: context)
     }
 
