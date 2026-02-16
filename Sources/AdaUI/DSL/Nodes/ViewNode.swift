@@ -157,7 +157,7 @@ class ViewNode: Identifiable {
     /// Update current node with a new. This method called after ``invalidationContent()`` method
     /// and if view exists in tree, we should update exsiting view using ``ViewNode/update(_:)`` method.
     func update(from newNode: ViewNode) {
-        self.environment = newNode.environment
+        self.updateEnvironment(newNode.environment)
         self.setContent(newNode.content)
         self.rebindStorages()
     }
@@ -273,10 +273,8 @@ class ViewNode: Identifiable {
     func onReceiveEvent(_ event: any InputEvent) { }
 
     func hitTest(_ point: Point, with event: any InputEvent) -> ViewNode? {
-        if self.point(inside: point, with: event) {
-            return self
-        }
-
+        // Non-interactive by default.
+        // Interactive nodes must override this method explicitly.
         return nil
     }
 

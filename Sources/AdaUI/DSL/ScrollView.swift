@@ -79,7 +79,11 @@ final class ScrollViewNode: LayoutViewContainerNode {
             return self
         }
 
-        return super.hitTest(point, with: event)
+        let contentPoint = Point(
+            x: point.x + contentOffset.x,
+            y: point.y + contentOffset.y
+        )
+        return super.hitTest(contentPoint, with: event)
     }
 
     override func sizeThatFits(_ proposal: ProposedViewSize) -> Size {

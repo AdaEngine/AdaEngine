@@ -70,6 +70,29 @@ class ViewTester<Content: View> {
         return self.hitTest(point, event: event)
     }
 
+    @discardableResult
+    func sendMouseEvent(
+        at point: Point,
+        button: MouseButton = .left,
+        phase: MouseEvent.Phase,
+        scrollDelta: Point = .zero,
+        time: Float = 0
+    ) -> ViewNode? {
+        let event = MouseEvent(
+            window: .empty,
+            button: button,
+            scrollDelta: scrollDelta,
+            mousePosition: point,
+            phase: phase,
+            modifierKeys: [],
+            time: time
+        )
+
+        let node = self.hitTest(point, event: event)
+        self.containerView.onMouseEvent(event)
+        return node
+    }
+
     func hitTest(_ point: Point, event: any InputEvent) -> ViewNode? {
         self.containerView.viewTree.rootNode.hitTest(point, with: event)
     }

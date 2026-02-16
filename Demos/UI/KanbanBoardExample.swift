@@ -12,7 +12,7 @@ struct KanbanBoardExample: App {
     var body: some AppScene {
         WindowGroup {
             KanbanBoardView()
-                ._debugDrawing(.drawViewOverlays)
+//                ._debugDrawing(.drawViewOverlays)
         }
         .windowMode(.windowed)
     }
@@ -189,12 +189,14 @@ struct TaskCardView: View {
             HStack(alignment: .center, spacing: 6) {
                 if canMoveLeft {
                     MiniButton(title: "<", action: onMoveLeft)
+                        .accessibilityIdentifier(task.title + "<")
                 }
 
                 Spacer()
 
                 if canMoveRight {
                     MiniButton(title: ">", action: onMoveRight)
+                        .accessibilityIdentifier(task.title + ">")
                 }
             }
         }

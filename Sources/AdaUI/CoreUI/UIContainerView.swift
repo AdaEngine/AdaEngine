@@ -72,18 +72,52 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
 
     /// The last on mouse event node.
     private weak var lastOnMouseEventNode: ViewNode?
+    /// Mouse-down capture target. Subsequent changed/ended events are routed here.
+    private weak var activeMouseEventNode: ViewNode?
 
     /// Handle the mouse event.
     ///
     /// - Parameter event: The mouse event to handle.
     public override func onMouseEvent(_ event: MouseEvent) {
-        if let viewNode = self.viewTree.rootNode.hitTest(event.mousePosition, with: event) {
-            viewNode.onMouseEvent(event)
-
+        let localPoint = self.convert(event.mousePosition, from: self.window)
+        switch event.phase {
+        case .began:
+            let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event)
+            self.activeMouseEventNode = viewNode
+            viewNode?.onMouseEvent(event)
             if lastOnMouseEventNode !== viewNode {
                 lastOnMouseEventNode?.onMouseLeave()
                 lastOnMouseEventNode = viewNode
             }
+        case .changed:
+            if event.button == .left, let activeMouseEventNode {
+                activeMouseEventNode.onMouseEvent(event)
+                if lastOnMouseEventNode !== activeMouseEventNode {
+                    lastOnMouseEventNode?.onMouseLeave()
+                    lastOnMouseEventNode = activeMouseEventNode
+                }
+            } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
+                viewNode.onMouseEvent(event)
+                if lastOnMouseEventNode !== viewNode {
+                    lastOnMouseEventNode?.onMouseLeave()
+                    lastOnMouseEventNode = viewNode
+                }
+            }
+        case .ended, .cancelled:
+            if let activeMouseEventNode {
+                activeMouseEventNode.onMouseEvent(event)
+                if lastOnMouseEventNode !== activeMouseEventNode {
+                    lastOnMouseEventNode?.onMouseLeave()
+                    lastOnMouseEventNode = activeMouseEventNode
+                }
+            } else if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: event) {
+                viewNode.onMouseEvent(event)
+                if lastOnMouseEventNode !== viewNode {
+                    lastOnMouseEventNode?.onMouseLeave()
+                    lastOnMouseEventNode = viewNode
+                }
+            }
+            self.activeMouseEventNode = nil
         }
     }
 
@@ -103,7 +137,8 @@ public final class UIContainerView<Content: View>: UIView, ViewOwner {
         }
 
         let firstTouch = touches.first!
-        if let viewNode = self.viewTree.rootNode.hitTest(firstTouch.location, with: firstTouch) {
+        let localPoint = self.convert(firstTouch.location, from: self.window)
+        if let viewNode = self.viewTree.rootNode.hitTest(localPoint, with: firstTouch) {
             viewNode.onTouchesEvent(touches)
         }
     }
