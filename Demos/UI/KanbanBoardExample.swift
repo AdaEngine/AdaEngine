@@ -12,7 +12,7 @@ struct KanbanBoardExample: App {
     var body: some AppScene {
         WindowGroup {
             KanbanBoardView()
-//                ._debugDrawing(.drawViewOverlays)
+                ._debugDrawing(.drawViewOverlays)
         }
         .windowMode(.windowed)
     }
@@ -21,10 +21,6 @@ struct KanbanBoardExample: App {
 struct KanbanBoardView: View {
 
     @State private var tasks: [TaskItem] = TaskItem.sample
-
-    init() {
-        print("init")
-    }
 
     var body: some View {
         let _ = Self._printChanges()
